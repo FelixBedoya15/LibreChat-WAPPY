@@ -114,17 +114,41 @@ export function useWorkerSession(companyIdParam?: string) {
     fetchWorkerInfo(ced, effectiveCompanyId);
   }, [location.search, params.cedula, effectiveCompanyId]);
 
-  const saveSession = useCallback((data: Partial<WorkerSessionData>) => {
-    if (!data.cedula) return;
-    const updated: WorkerSessionData = {
-      companyId: data.companyId || effectiveCompanyId || session?.companyId,
-      companyName: data.companyName || session?.companyName || 'Somos SST',
-      nombre: data.nombre || session?.nombre || '',
-      cedula: data.cedula,
-      cargo: data.cargo || session?.cargo || 'Trabajador',
-      fitScore: data.fitScore ?? session?.fitScore,
-      nivel: data.nivel || session?.nivel,
-    };
+  const saveSession = useCallback((
+    dataOrCedula: Partial<WorkerSessionData> | string,
+    nombreParam?: string,
+    cargoParam?: string
+  ) => {
+    let updated: WorkerSessionData;
+
+    if (typeof dataOrCedula === 'string') {
+      const cleanCed = dataOrCedula.trim();
+      if (!cleanCed) return;
+      updated = {
+        companyId: effectiveCompanyId || session?.companyId,
+        companyName: session?.companyName || 'Somos SST',
+        cedula: cleanCed,
+        nombre: (nombreParam || session?.nombre || '').trim(),
+        cargo: (cargoParam || session?.cargo || 'Trabajador').trim(),
+        fitScore: session?.fitScore,
+        nivel: session?.nivel,
+      };
+    } else if (dataOrCedula && typeof dataOrCedula === 'object') {
+      const rawCed = dataOrCedula.cedula || (dataOrCedula as any).identificacion || (dataOrCedula as any).documento;
+      if (!rawCed) return;
+      const cleanCed = String(rawCed).trim();
+      updated = {
+        companyId: dataOrCedula.companyId || effectiveCompanyId || session?.companyId,
+        companyName: dataOrCedula.companyName || session?.companyName || 'Somos SST',
+        nombre: (dataOrCedula.nombre || session?.nombre || '').trim(),
+        cedula: cleanCed,
+        cargo: (dataOrCedula.cargo || session?.cargo || 'Trabajador').trim(),
+        fitScore: dataOrCedula.fitScore ?? session?.fitScore,
+        nivel: dataOrCedula.nivel || session?.nivel,
+      };
+    } else {
+      return;
+    }
 
     setSession(updated);
     try {

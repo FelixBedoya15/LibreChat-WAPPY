@@ -1,23 +1,38 @@
 import React from 'react';
-import { UserCheck, Shield, ArrowRight } from 'lucide-react';
+import { UserCheck, ArrowRight } from 'lucide-react';
+import useWorkerSession from '~/hooks/useWorkerSession';
 
 interface WorkerSessionBadgeProps {
-  nombre: string;
-  cedula: string;
+  nombre?: string;
+  cedula?: string;
   cargo?: string;
   companyName?: string;
+  companyId?: string;
   onClear?: () => void;
   className?: string;
 }
 
 export const WorkerSessionBadge: React.FC<WorkerSessionBadgeProps> = ({
-  nombre,
-  cedula,
-  cargo,
-  companyName,
-  onClear,
+  nombre: propNombre,
+  cedula: propCedula,
+  cargo: propCargo,
+  companyName: propCompanyName,
+  companyId,
+  onClear: propOnClear,
   className = '',
 }) => {
+  const { session, clearSession } = useWorkerSession(companyId);
+
+  const nombre = propNombre || session?.nombre || '';
+  const cedula = propCedula || session?.cedula || '';
+  const cargo = propCargo || session?.cargo || '';
+  const companyName = propCompanyName || session?.companyName || '';
+  const onClear = propOnClear || clearSession;
+
+  if (!nombre && !cedula) {
+    return null;
+  }
+
   const getInitials = (name: string) => {
     return (name || 'Trabajador')
       .split(' ')

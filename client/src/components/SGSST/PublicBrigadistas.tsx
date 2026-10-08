@@ -292,7 +292,12 @@ export default function PublicBrigadistas() {
       if (res.data.success) {
         setSavedSuccess(true);
         setIsDraft(false);
-        saveSession({ identificacion: cedula.trim(), nombre: nombre.trim(), cargo: cargo.trim() });
+        saveSession({
+          companyId,
+          cedula: cedula.trim(),
+          nombre: nombre.trim(),
+          cargo: cargo.trim(),
+        });
         showToast({
           message: '¡Hoja de Vida de Brigadista guardada exitosamente! (+40 pts)',
           status: 'success',

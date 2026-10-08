@@ -212,7 +212,12 @@ export default function PublicSolicitudEpp() {
 
     try {
       setSubmitting(true);
-      saveSession(documento.trim(), nombreTrabajador.trim(), cargo.trim());
+      saveSession({
+        companyId,
+        cedula: documento.trim(),
+        nombre: nombreTrabajador.trim(),
+        cargo: cargo.trim(),
+      });
 
       const payload = {
         workerId: documento.trim(),

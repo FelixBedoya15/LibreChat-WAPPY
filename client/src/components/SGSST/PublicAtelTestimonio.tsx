@@ -147,7 +147,12 @@ export default function PublicAtelTestimonio() {
       alert('Por favor seleccione su cargo antes de continuar.');
       return;
     }
-    saveSession(cedula.trim(), nombre.trim(), cargo.trim());
+    saveSession({
+      companyId,
+      cedula: cedula.trim(),
+      nombre: nombre.trim(),
+      cargo: cargo.trim(),
+    });
     setStep(2);
   };
 

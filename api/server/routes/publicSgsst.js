@@ -1344,11 +1344,12 @@ router.post('/mood/finish/:telemetryId', async (req, res) => {
 router.post('/mood/claim-points/:companyId', async (req, res) => {
   try {
     const { companyId } = req.params;
-    const { cedula } = req.body;
+    const { cedula, telemetryId } = req.body;
 
     if (!cedula || !String(cedula).trim()) {
       return res.status(400).json({ error: 'La cédula es requerida para acreditar puntos.' });
     }
+    const cleanCedula = String(cedula).trim();
 
     const CompanyInfo = mongoose.models.CompanyInfo || require('~/models/CompanyInfo');
     const company = await CompanyInfo.findById(companyId).lean();
@@ -1356,15 +1357,51 @@ router.post('/mood/claim-points/:companyId', async (req, res) => {
       return res.status(404).json({ error: 'Empresa no encontrada.' });
     }
 
+    const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
+    const worker = await SgsstWorker.findOne({
+      $or: [
+        { companyId: company._id, documento: cleanCedula },
+        { user: company.user, documento: cleanCedula },
+      ]
+    }).lean();
+
+    // Validar si ya reclamó puntos recientemente (ventana de control de 24 horas para evitar spam en bucle)
+    if (worker) {
+      const unDiaMs = 24 * 60 * 60 * 1000;
+      const ultimoCheckin = (worker.percepcionRiesgoHistorial || [])
+        .filter(h => h.modulo === 'termometro_animo')
+        .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())[0];
+
+      if (ultimoCheckin && (Date.now() - new Date(ultimoCheckin.fecha).getTime() < unDiaMs)) {
+        return res.json({
+          success: true,
+          message: 'Tu check-in de bienestar ya se encuentra registrado y tus puntos están activos para este ciclo.',
+          puntos: 0,
+          alreadyClaimed: true
+        });
+      }
+    }
+
+    // Si viene telemetryId, marcar la telemetría como reclamada si existe
+    if (telemetryId && mongoose.Types.ObjectId.isValid(telemetryId)) {
+      try {
+        const MoodTelemetry = require('~/models/MoodTelemetry');
+        await MoodTelemetry.findByIdAndUpdate(telemetryId, { $set: { pointsClaimed: true } });
+      } catch (tErr) {
+        // non-blocking
+      }
+    }
+
     try {
       const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
       await feedWorkerEvent(
         company.user,
-        String(cedula).trim(),
+        cleanCedula,
         'termometro_animo',
         'Check-in voluntario en Termómetro Psicosocial y Bienestar Emocional (Pulso 7 días)',
         10,
-        `MOOD-${Date.now()}`
+        telemetryId ? `MOOD-${telemetryId}` : `MOOD-${Date.now()}`,
+        { companyId: company._id }
       );
     } catch (feedErr) {
       logger.error('[Public SGSST] Error claiming mood points:', feedErr);
@@ -2381,28 +2418,33 @@ router.get('/colaborador-info/:companyId/:cedula', async (req, res) => {
         ).catch(e => logger.warn('[Public SGSST] Error actualizando SgsstWorker en colaborador-info:', e.message));
       }
     } else if (perfilWorker) {
-      // Si no existía en SgsstWorker, inicializarlo
-      SgsstWorker.create({
-        user: company.user,
-        companyId: company._id,
-        perfilId: cleanCedula,
-        nombre: effectiveNombre,
-        documento: cleanCedula,
-        cargo: effectiveCargo,
-        fitScore: effectiveFitScore,
-        fitAlerts: effectiveAlerts,
-        percepcionRiesgoScore: 0,
-        percepcionRiesgoHistorial: [],
-        riesgosBioIndividual: [],
-      }).catch(e => logger.warn('[Public SGSST] Error autocreando SgsstWorker:', e.message));
+      // Si no existía en SgsstWorker, inicializarlo de inmediato con await
+      try {
+        worker = await SgsstWorker.create({
+          user: company.user,
+          companyId: company._id,
+          perfilId: cleanCedula,
+          nombre: effectiveNombre,
+          documento: cleanCedula,
+          cargo: effectiveCargo,
+          fitScore: effectiveFitScore,
+          fitAlerts: effectiveAlerts,
+          percepcionRiesgoScore: 0,
+          percepcionRiesgoHistorial: [],
+          riesgosBioIndividual: [],
+        });
+      } catch (e) {
+        logger.warn('[Public SGSST] Error autocreando SgsstWorker:', e.message);
+        worker = await SgsstWorker.findOne({ documento: cleanCedula, companyId: company._id }).lean();
+      }
     }
 
-    const score = Number(worker?.percepcionRiesgoScore) || 0;
+    const score = Math.max(0, Number(worker?.percepcionRiesgoScore) || 0);
     const factorReduccion = Math.min(score / 500, 0.40);
     const nivel = score >= 500 ? 'Líder Biocéntrico 360°'
       : score >= 300 ? 'Guardián de la Vida'
       : score >= 100 ? 'Colaborador Comprometido'
-      : 'Alerta Conductual';
+      : 'Nivel Inicial / Sin Eventos';
 
     const termometroList = (worker?.termometro_animo && worker.termometro_animo.length > 0)
       ? worker.termometro_animo
@@ -2509,7 +2551,7 @@ router.post('/comites/:companyId', async (req, res) => {
 
     await newRegistro.save();
 
-    // Notificar al coordinador en segundo plano
+    // Notificar al coordinador en segundo plano y otorgar gamificación al colaborador
     setImmediate(async () => {
       try {
         await Notification.create({
@@ -2519,8 +2561,21 @@ router.post('/comites/:companyId', async (req, res) => {
           body: `${trabajadorNombre} (CC: ${trabajadorCedula}) ha registrado asistencia al ${tipoComite.toUpperCase()}.`,
           metadata: { module: 'comites', recordId: newRegistro._id },
         });
+
+        // Gamificación: Otorgar puntos según tipo de comité (+50 COPASST/CCL, +40 PESV, +35 Brigada)
+        const ptsPorComite = tipoComite === 'pesv' ? 40 : (tipoComite === 'brigada' ? 35 : 50);
+        const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
+        await feedWorkerEvent(
+          company.user,
+          String(trabajadorCedula).trim(),
+          'comites',
+          `Asistencia y participación registrada en Comité ${tipoComite.toUpperCase()}`,
+          ptsPorComite,
+          String(newRegistro._id),
+          { companyId: company._id, nombre: trabajadorNombre, cargo: trabajadorCargo }
+        );
       } catch (err) {
-        logger.warn('[Public Comites] Notification error:', err.message);
+        logger.warn('[Public Comites] Notification / Gamification error:', err.message);
       }
     });
 
@@ -2923,11 +2978,16 @@ router.post('/votar/:companyId', async (req, res) => {
     // 5. Otorgar puntos de gamificación al colaborador (+20 pts)
     setImmediate(async () => {
       try {
-        const worker = await SgsstWorker.findOne({ companyId: company._id, cedula: cleanCedula });
-        if (worker) {
-          worker.puntosGamificacion = (worker.puntosGamificacion || 0) + 20;
-          await worker.save();
-        }
+        const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
+        await feedWorkerEvent(
+          company.user,
+          cleanCedula,
+          'votaciones',
+          `Voto secreto en Elección Paritaria (${eleccion.titulo || (tipoComite || eleccion.tipoComite || 'COPASST').toUpperCase()})`,
+          20,
+          String(eleccion._id),
+          { companyId: company._id, nombre: trabajadorNombre }
+        );
       } catch (err) {
         logger.warn('[Public Votacion] Gamification points error:', err.message);
       }
@@ -3190,19 +3250,16 @@ const handleFirmarActa = async (req, res) => {
         });
 
         // Gamificación: +50 puntos por cumplimiento de firma legal de acta
-        const SgsstWorker = require('~/models/SgsstWorker');
-        const digitsOnly = cleanCedula.replace(/\D/g, '');
-        const worker = await SgsstWorker.findOne({
-          companyId: company._id,
-          $or: [
-            { cedula: cleanCedula },
-            ...(digitsOnly ? [{ cedula: digitsOnly }] : []),
-          ],
-        });
-        if (worker) {
-          worker.puntosGamificacion = (worker.puntosGamificacion || 0) + 50;
-          await worker.save();
-        }
+        const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
+        await feedWorkerEvent(
+          company.user,
+          cleanCedula,
+          'comites',
+          `Firma digital de Acta Oficial (${normalizedTipo.toUpperCase()} - Consecutivo ${acta.consecutivo || 'Periódica'})`,
+          50,
+          String(acta._id),
+          { companyId: company._id, nombre: asistenteNombre }
+        );
       } catch (notifErr) {
         logger.warn('[Public SGSST] Notification on acta sign error:', notifErr.message);
       }
@@ -3449,24 +3506,18 @@ router.post('/brigadista/:companyId', async (req, res) => {
       logger.warn('[Public SGSST] Error syncing esBrigadista to PerfilSociodemografico:', e.message);
     }
 
-    // 2. Otorgar puntos de gamificación (+40 pts) en SgsstWorker
+    // 2. Otorgar puntos de gamificación (+40 pts) mediante feedWorkerEvent con control de idempotencia
     try {
-      const SgsstWorker = require('~/models/SgsstWorker');
-      const worker = await SgsstWorker.findOne({
-        companyId: company._id,
-        $or: [{ documento: cleanCedula }, { perfilId: cleanCedula }],
-      });
-      if (worker) {
-        worker.percepcionRiesgoScore = (Number(worker.percepcionRiesgoScore) || 0) + 40;
-        worker.percepcionRiesgoHistorial.push({
-          fecha: new Date(),
-          accion: 'Hoja de Vida de Brigadista Certificada & Credencial SCI',
-          puntos: 40,
-          modulo: 'brigada',
-          referencia: String(brigadista._id),
-        });
-        await worker.save();
-      }
+      const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
+      await feedWorkerEvent(
+        company.user,
+        cleanCedula,
+        'brigada',
+        'Hoja de Vida de Brigadista Certificada & Credencial SCI',
+        40,
+        `BRIGADA-${cleanCedula}`,
+        { companyId: company._id, nombre, cargo }
+      );
     } catch (wErr) {
       logger.warn('[Public SGSST] Error awarding gamification points for Brigadista:', wErr.message);
     }

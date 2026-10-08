@@ -274,7 +274,12 @@ export default function PublicInspeccionVehicular() {
 
     try {
       setSubmitting(true);
-      saveSession(conductorCedula.trim(), conductorNombre.trim());
+      saveSession({
+        companyId,
+        cedula: conductorCedula.trim(),
+        nombre: conductorNombre.trim(),
+        cargo: 'Conductor / Operador',
+      });
 
       const payload = {
         placa: currentVehicle.placa,

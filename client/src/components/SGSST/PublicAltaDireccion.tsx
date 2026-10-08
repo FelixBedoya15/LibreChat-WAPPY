@@ -104,7 +104,12 @@ export default function PublicAltaDireccion() {
             }
             if (res.data?.trabajador) {
                 setCargo(res.data.trabajador.cargo || '');
-                saveSession(res.data.trabajador.cedula, res.data.trabajador.nombre, res.data.trabajador.cargo);
+                saveSession({
+                    companyId,
+                    cedula: res.data.trabajador.cedula,
+                    nombre: res.data.trabajador.nombre,
+                    cargo: res.data.trabajador.cargo,
+                });
             }
             setStep(2);
         } catch (err: any) {

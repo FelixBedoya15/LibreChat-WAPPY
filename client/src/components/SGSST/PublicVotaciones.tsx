@@ -167,7 +167,18 @@ export default function PublicVotaciones() {
       />
 
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 md:p-8 space-y-6">
-        <WorkerSessionBadge companyId={companyId || ''} />
+        {(nombre || cedula) && (
+          <WorkerSessionBadge
+            companyId={companyId || ''}
+            nombre={nombre}
+            cedula={cedula}
+            onClear={() => {
+              setCedula('');
+              setNombre('');
+              setYaVoto(false);
+            }}
+          />
+        )}
 
         {/* ═══ Encabezado de Democracia Paritaria ═══ */}
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-teal-600 via-teal-700 to-emerald-800 p-6 sm:p-8 text-white shadow-xl">

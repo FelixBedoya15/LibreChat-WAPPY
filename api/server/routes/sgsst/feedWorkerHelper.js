@@ -1,7 +1,11 @@
+const mongoose = require('mongoose');
 const SgsstWorker = require('../../../models/SgsstWorker');
 const CompanyInfo = require('../../../models/CompanyInfo');
 
-async function getActiveCompanyId(userId) {
+async function resolveEffectiveCompanyId(userId, explicitCompanyId = null) {
+    if (explicitCompanyId) {
+        return explicitCompanyId;
+    }
     let active = await CompanyInfo.findOne({ user: userId, isActive: true });
     if (!active) active = await CompanyInfo.findOne({ user: userId });
     return active ? active._id : null;
@@ -12,23 +16,92 @@ async function getActiveCompanyId(userId) {
  * de Integralidad Avanzada (SST 360) para mantener la Huella Biocéntrica, Matriz 360,
  * Capacitaciones y Gamificación vivas e interconectadas.
  * 
- * @param {string} userId - ID del usuario.
+ * @param {string} userId - ID del usuario administrador o empresa.
  * @param {string} documento - Documento de identidad del trabajador.
- * @param {string} tipo_modulo - Módulo de origen ('atel', 'actos', 'participacion_ipevar', 'capacitacion', 'ats').
+ * @param {string} tipo_modulo - Módulo de origen ('atel', 'actos', 'participacion_ipevar', 'capacitacion', 'ats', 'comites', 'votaciones', 'solicitud_epp', 'inspeccion_vehicular_pesv', 'estudio_puesto', 'termometro_animo').
  * @param {string} descripcion - Descripción cualitativa del evento.
  * @param {number} puntos - Puntos de gamificación a sumar (o restar si es negativo).
- * @param {string} [referencia=null] - ID o enlace del registro origen.
- * @param {object} [metadata={}] - Datos enriquecidos para la sincronización avanzada.
+ * @param {string} [referencia=null] - ID o enlace del registro origen (para idempotencia).
+ * @param {object} [metadata={}] - Datos enriquecidos para la sincronización avanzada (puede incluir companyId, nombre, cargo).
  */
 async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, puntos, referencia = null, metadata = {}) {
     try {
         if (!documento || !tipo_modulo) return;
-        const companyId = await getActiveCompanyId(userId);
-        let worker = await SgsstWorker.findOne({ user: userId, companyId, documento: String(documento).trim() });
+        const cleanDoc = String(documento).trim();
+        if (!cleanDoc) return;
+
+        const explicitCompanyId = metadata.companyId || (metadata.company && metadata.company._id) || null;
+        const companyId = await resolveEffectiveCompanyId(userId, explicitCompanyId);
+
+        // 1. Buscar trabajador en SgsstWorker
+        let worker = await SgsstWorker.findOne({
+            $or: [
+                ...(companyId ? [{ companyId, documento: cleanDoc }] : []),
+                { user: userId, documento: cleanDoc },
+            ]
+        });
+
+        // 2. Si no existe en SgsstWorker, buscar en PerfilSociodemograficoData para autocrearlo
         if (!worker) {
-            worker = await SgsstWorker.findOne({ user: userId, documento: String(documento).trim() });
+            let perfilWorker = null;
+            try {
+                const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+                if (PerfilSociodemograficoData) {
+                    const perfilDoc = await PerfilSociodemograficoData.findOne({
+                        $or: [
+                            ...(companyId ? [{ companyId }] : []),
+                            { user: userId }
+                        ]
+                    }).lean();
+                    if (perfilDoc && Array.isArray(perfilDoc.trabajadores)) {
+                        perfilWorker = perfilDoc.trabajadores.find(t => String(t.identificacion || t.cedula || '').trim() === cleanDoc);
+                    }
+                }
+            } catch (errPerfil) {
+                console.warn('[feedWorkerEvent] Error checking PerfilSociodemografico:', errPerfil.message);
+            }
+
+            // Autocreado resiliente para garantizar que los puntos de gamificación NUNCA se pierdan
+            try {
+                worker = await SgsstWorker.create({
+                    user: userId,
+                    companyId: companyId || undefined,
+                    perfilId: cleanDoc,
+                    nombre: perfilWorker?.nombre || metadata.nombre || 'Colaborador',
+                    documento: cleanDoc,
+                    cargo: perfilWorker?.cargo || metadata.cargo || 'Trabajador',
+                    fitScore: Number(perfilWorker?.biocentricScore || 95),
+                    fitAlerts: perfilWorker?.biocentricAlerts || [],
+                    percepcionRiesgoScore: 0,
+                    percepcionRiesgoHistorial: [],
+                    riesgosBioIndividual: [],
+                    capacitaciones: [],
+                    atel: [],
+                    actos_inseguros: [],
+                    participaciones_ipevar: [],
+                    ats: [],
+                    termometro_animo: []
+                });
+            } catch (errCreate) {
+                console.warn('[feedWorkerEvent] Worker creation fallback, trying retrieval:', errCreate.message);
+                worker = await SgsstWorker.findOne({ documento: cleanDoc });
+            }
         }
+
         if (!worker) return;
+
+        // 3. Control de Idempotencia: si viene referencia y ya existe en el historial de ese módulo, evitar duplicar
+        if (referencia) {
+            const yaEnHistorial = (worker.percepcionRiesgoHistorial || []).some(
+                h => String(h.referencia || '') === String(referencia) && h.modulo === tipo_modulo
+            );
+            const yaEnAtel = tipo_modulo === 'atel' && (worker.atel || []).some(
+                a => String(a.referenciaId || '') === String(referencia)
+            );
+            if (yaEnHistorial || yaEnAtel) {
+                return; // Evento ya acreditado previamente
+            }
+        }
 
         const pts = Number(puntos) || 0;
         let fitScoreAdjustment = 0;
@@ -36,7 +109,7 @@ async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, punt
         let updatedRiesgos = [...(worker.riesgosBioIndividual || [])];
         let updatedCapacitaciones = [...(worker.capacitaciones || [])];
 
-        // ─── 1. Procesamiento Ocupacional Enriquecido ─────────────────────────────
+        // ─── 4. Procesamiento Ocupacional Enriquecido ─────────────────────────────
         
         if (tipo_modulo === 'atel') {
             const diasIncap = Number(metadata.diasIncapacidad) || 0;
@@ -46,7 +119,6 @@ async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, punt
             const consecuencia = metadata.consecuencia || '';
 
             // A. Recálculo dinámico de fitScore (Huella Biocéntrica)
-            // Se descuenta por la severidad del accidente (días de incapacidad y factor base)
             const penalizacion = (diasIncap * 0.75) + (diasCarg * 0.15) + 5.0;
             fitScoreAdjustment = -penalizacion;
 
@@ -58,7 +130,7 @@ async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, punt
                     newAlerts.push(restriccionTag);
                 }
             }
-            if (consecuencia && consecuencia.toLowerCase().includes('lumbago') || consecuencia.toLowerCase().includes('columna')) {
+            if (consecuencia && (consecuencia.toLowerCase().includes('lumbago') || consecuencia.toLowerCase().includes('columna'))) {
                 if (!worker.fitAlerts.includes('Lumbago_Activo_Restriccion')) {
                     newAlerts.push('Lumbago_Activo_Restriccion');
                 }
@@ -72,7 +144,6 @@ async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, punt
                     const matchPeligro = risk.peligro_cargo && risk.peligro_cargo.toLowerCase().includes(cleanPeligro);
                     
                     if (matchDimension || matchPeligro) {
-                        // Elevar probabilidad y consecuencias al nivel máximo (Materializado)
                         risk.nivel_susceptibilidad = 5; // Crítico
                         risk.nivel_exposicion = 4;       // Continuo
                         risk.indice_bio_riesgo_bruto = 20; // 5 * 4
@@ -81,7 +152,7 @@ async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, punt
                         risk.indice_bio_riesgo_efectivo = 20 * (1 - reduction);
                         risk.clasificacion_bio = 'Crítico';
                         risk.intervencion_prioritaria = true;
-                        risk.plan_accion_bio = `REVISIÓN URGENTE: Accidente materializado registrado el ${new Date().toLocaleDateString()}.`;
+                        risk.plan_accion_bio = `REVISIÓN URGENTE: Accidente materializado registrado el ${new Date().toLocaleDateString('es-CO')}.`;
                     }
                     return risk;
                 });
@@ -104,14 +175,10 @@ async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, punt
             const esCritico = metadata.esCritico || false;
 
             if (esObservado) {
-                // Conducta subestándar observada: Penalización de Percepción y aptitud
                 fitScoreAdjustment = -3.0; // Descuento directo en bienestar
-
                 if (esCritico && !worker.fitAlerts.includes('Acto_Inseguro_Critico')) {
                     newAlerts.push('Acto_Inseguro_Critico');
                 }
-
-                // Prescribir capacitación correctiva obligatoria
                 const yaExiste = updatedCapacitaciones.some(c => c.nombre && c.nombre.includes('CAP-12'));
                 if (!yaExiste) {
                     updatedCapacitaciones.push({
@@ -122,7 +189,7 @@ async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, punt
             }
         }
 
-        // ─── 2. Estructuración del Update en la Base de Datos ─────────────────────
+        // ─── 5. Estructuración del Update en la Base de Datos ─────────────────────
         
         const update = { $set: { updatedAt: Date.now() } };
 
@@ -161,9 +228,9 @@ async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, punt
 
         // Aplicar ajuste al fitScore (garantizando rango 0 - 100)
         if (fitScoreAdjustment !== 0) {
-            const currentScore = Number(worker.fitScore) || 100;
-            const calculatedScore = Math.max(0, Math.min(100, currentScore + fitScoreAdjustment));
-            update.$set.fitScore = calculatedScore;
+            const currentFit = Number(worker.fitScore) || 100;
+            const calculatedFit = Math.max(0, Math.min(100, currentFit + fitScoreAdjustment));
+            update.$set.fitScore = calculatedFit;
         }
 
         // Persistir cambios en matrices complejas
@@ -174,9 +241,12 @@ async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, punt
             update.$set.capacitaciones = updatedCapacitaciones;
         }
 
-        // Gamificación: Sumar/restar puntos de Percepción del Riesgo
+        // Gamificación: Sumar/restar puntos garantizando piso mínimo >= 0
         if (pts !== 0) {
-            update.$inc = { percepcionRiesgoScore: pts };
+            const currentScore = Math.max(0, Number(worker.percepcionRiesgoScore) || 0);
+            const nuevoScore = Math.max(0, currentScore + pts);
+            update.$set.percepcionRiesgoScore = nuevoScore;
+
             if (!update.$push) update.$push = {};
             update.$push.percepcionRiesgoHistorial = {
                 fecha: new Date(),

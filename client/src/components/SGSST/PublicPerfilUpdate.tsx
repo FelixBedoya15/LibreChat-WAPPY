@@ -168,7 +168,12 @@ export default function PublicPerfilUpdate() {
                 return;
             }
             
-            saveSession(w.identificacion, w.nombre, w.cargo);
+            saveSession({
+                companyId,
+                cedula: w.identificacion,
+                nombre: w.nombre,
+                cargo: w.cargo,
+            });
             setCedula(w.identificacion);
 
             const initialImc = w.imc || calculateIMC(w.peso, w.talla);

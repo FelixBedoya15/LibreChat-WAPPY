@@ -33,6 +33,7 @@ import {
   Flame,
   HeartPulse,
   Package,
+  LogOut,
 } from 'lucide-react';
 import PublicWorkerHeader from './PublicWorkerHeader';
 
@@ -109,11 +110,12 @@ const FitGauge = ({ score, alerts }: { score: number; alerts: string[] }) => {
 };
 
 const PercepcionScore = ({ score }: { score: number }) => {
-  const factorReduccion = Math.min(score / 500, 0.40);
-  const level = score >= 500 ? { label: 'Líder Biocéntrico 360°', color: 'text-emerald-600 dark:text-emerald-400', barColor: '#10b981' }
-    : score >= 300 ? { label: 'Guardián de la Vida', color: 'text-teal-600 dark:text-teal-400', barColor: '#0d9488' }
-    : score >= 100 ? { label: 'Colaborador Comprometido', color: 'text-amber-600 dark:text-amber-400', barColor: '#f59e0b' }
-    : { label: 'Nivel Inicial / Sin Eventos', color: 'text-rose-600 dark:text-rose-400', barColor: '#f43f5e' };
+  const safeScore = Math.max(0, score || 0);
+  const factorReduccion = Math.min(safeScore / 500, 0.40);
+  const level = safeScore >= 500 ? { label: 'Líder Biocéntrico 360°', color: 'text-emerald-600 dark:text-emerald-400', barColor: '#10b981' }
+    : safeScore >= 300 ? { label: 'Guardián de la Vida', color: 'text-teal-600 dark:text-teal-400', barColor: '#0d9488' }
+    : safeScore >= 100 ? { label: 'Colaborador Comprometido', color: 'text-amber-600 dark:text-amber-400', barColor: '#f59e0b' }
+    : { label: 'Nivel Inicial / Sin Eventos', color: 'text-teal-600 dark:text-teal-400', barColor: '#0d9488' };
 
   return (
     <div className="bg-surface-primary dark:bg-slate-900 border border-border-medium rounded-2xl p-4 shadow-sm flex flex-col justify-between">
@@ -121,17 +123,17 @@ const PercepcionScore = ({ score }: { score: number }) => {
         <span className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
           <Award className="h-4 w-4 text-teal-600" /> Percepción del Riesgo
         </span>
-        <span className={`text-xl font-black ${level.color}`}>{score} pts</span>
+        <span className={`text-xl font-black ${level.color}`}>{safeScore} pts</span>
       </div>
       <div className="w-full bg-surface-secondary dark:bg-slate-800 rounded-full h-2 mb-2 overflow-hidden border border-border-light/60">
         <div
           className="h-2 rounded-full transition-all duration-700"
-          style={{ width: `${Math.min((score / 500) * 100, 100)}%`, backgroundColor: level.barColor }}
+          style={{ width: `${Math.min((safeScore / 500) * 100, 100)}%`, backgroundColor: level.barColor }}
         />
       </div>
       <div className="flex items-center justify-between text-[11px] text-text-tertiary">
         <span>Estado: <strong className="text-text-primary">{level.label}</strong></span>
-        {score > 0 ? (
+        {safeScore > 0 ? (
           <span className="font-bold text-teal-600 dark:text-teal-400">
             Reducción IPEVR: -{(factorReduccion * 100).toFixed(0)}%
           </span>
@@ -336,6 +338,15 @@ export default function PublicColaboradorHub() {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('wappy_worker_cedula');
+    localStorage.removeItem('wappy_worker_session');
+    setData(null);
+    setActiveCedula(null);
+    setInputCedula('');
+    navigate(`/sgsst-public/colaborador/${companyId}`);
+  };
+
   const getInitials = (name: string) => {
     return (name || 'Trabajador')
       .split(' ')
@@ -369,10 +380,10 @@ export default function PublicColaboradorHub() {
         };
       default:
         return {
-          bg: 'bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-md',
-          badgeBg: 'bg-red-100 dark:bg-red-950/60 text-red-800 dark:text-red-300 border-red-300',
-          barColor: 'bg-gradient-to-r from-rose-400 to-red-500',
-          textColor: 'text-rose-600 dark:text-rose-400',
+          bg: 'bg-gradient-to-r from-teal-500 to-emerald-600 text-white shadow-md',
+          badgeBg: 'bg-teal-100 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border-teal-300',
+          barColor: 'bg-gradient-to-r from-teal-400 to-emerald-500',
+          textColor: 'text-teal-600 dark:text-teal-400',
         };
     }
   };
@@ -755,6 +766,14 @@ export default function PublicColaboradorHub() {
                   >
                     <RefreshCw className="h-3.5 w-3.5" />
                     <span>Actualizar</span>
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    title="Consultar otra cédula o salir de este dispositivo"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-surface-secondary dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-600 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200 dark:border-zinc-700 shadow-2xs transition-all active:scale-95"
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                    <span>Salir</span>
                   </button>
                 </div>
               </div>

@@ -906,11 +906,34 @@ router.post('/public/progress', async (req, res) => {
         progress.lastAccessed = new Date();
 
         const totalLessons = course.lessons.length;
+        const eraCompletadoAntes = progress.isCourseCompleted;
         if (progress.completedLessons.length >= totalLessons) {
             progress.isCourseCompleted = true;
         }
 
         await progress.save();
+
+        // Si el curso se acaba de completar, acreditar gamificación (+50 pts) y registrar en capacitaciones
+        if (!eraCompletadoAntes && progress.isCourseCompleted) {
+            setImmediate(async () => {
+                try {
+                    const CompanyInfo = require('../../models/CompanyInfo');
+                    const comp = await CompanyInfo.findById(companyId).lean();
+                    const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
+                    await feedWorkerEvent(
+                        comp?.user || course.user,
+                        String(workerCedula).trim(),
+                        'capacitacion',
+                        `Curso completado satisfactoriamente: ${course.title || 'Capacitación SST'}`,
+                        50,
+                        `LMS-${course._id}`,
+                        { companyId, nombre: workerName }
+                    );
+                } catch (cErr) {
+                    logger.warn('[Ruta Aprendizaje] Error feeding worker course completion:', cErr.message);
+                }
+            });
+        }
 
         res.status(200).json({
             message: 'Lesson marked as complete',
