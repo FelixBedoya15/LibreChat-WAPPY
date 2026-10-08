@@ -1894,8 +1894,7 @@ const PerfilesCargo = () => {
             </div>
 
             {/* ── Core Form ── */}
-            <div className="rounded-3xl border border-border-medium/40 bg-gradient-to-br from-surface-secondary/90 to-surface-primary/70 backdrop-blur-lg shadow-2xl p-6 md:p-8 space-y-10 border-l-4 border-l-cyan-500/80 transition-all duration-500 hover:shadow-cyan-500/5 hover:border-cyan-500/20 animate-in fade-in duration-300">
-                <div className="space-y-8">
+            <div className="space-y-8">
                     {FIELD_SECTIONS.map(section => (
                         <div key={section.title} className="space-y-5 bg-surface-primary/30 backdrop-blur-md p-6 rounded-3xl border border-border-medium/20 shadow-xl relative transition-all duration-300 hover:shadow-2xl hover:border-teal-500/20">
                             <div className="flex items-center gap-3 pb-3 border-b border-border-medium/30">
@@ -2187,10 +2186,9 @@ const PerfilesCargo = () => {
                             )}
                         </div>
                     </div>
-                </div>
 
                 {/* Normative Badge Re-styled */}
-                <div className="px-6 py-4 bg-teal-500/5 dark:bg-teal-900/10 border-t border-border-medium/60 flex items-center gap-3 rounded-b-3xl">
+                <div className="px-6 py-4 bg-teal-500/5 dark:bg-teal-900/10 border border-teal-500/20 flex items-center gap-3 rounded-2xl">
                     <CheckCircle2 className="h-5 w-5 text-teal-500" />
                     <span className="text-[11px] font-black text-teal-800 dark:text-teal-300 uppercase tracking-widest">
                         Cumple Art. 16 de la Resolución 1843 de 2025 & GTC 45 (2012)

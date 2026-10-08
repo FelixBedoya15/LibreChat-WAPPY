@@ -25,15 +25,19 @@ const initializeClient = async ({ req, res, endpointOption, overrideModel, optio
   let serviceKey = {};
 
   // Check fallbacks for Google key:
+  const geminiPoolManager = require('~/server/services/GeminiPoolManager');
   // 1. Agent or endpointOption apiKey
-  const agentApiKey = endpointOption?.model_parameters?.apiKey || req.body?.agent?.model_parameters?.apiKey;
+  const agentApiKey = geminiPoolManager.extractCleanApiKey(endpointOption?.model_parameters?.apiKey || req.body?.agent?.model_parameters?.apiKey);
 
   // 2. Environment keys (GEMINI_API_KEY, GOOGLE_API_KEY, or GOOGLE_KEY if not 'user_provided')
-  const envKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || (GOOGLE_KEY !== 'user_provided' ? GOOGLE_KEY : null) || '')
-    .split(',')[0]
-    ?.trim();
+  const envKeys = geminiPoolManager.extractCleanApiKeys([
+    process.env.GEMINI_API_KEY,
+    process.env.GOOGLE_API_KEY,
+    GOOGLE_KEY !== 'user_provided' ? GOOGLE_KEY : null,
+  ]);
+  const envKey = envKeys[0] || null;
 
-  let resolvedApiKey = agentApiKey || (envKey && envKey !== 'user_provided' ? envKey : null);
+  let resolvedApiKey = agentApiKey || envKey || null;
 
   // 3. Fallback: Search platform Super Admin's key if user has no key and no env key
   if (!userKey && !resolvedApiKey) {

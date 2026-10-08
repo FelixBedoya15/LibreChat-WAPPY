@@ -34,9 +34,14 @@ const THEMES = {
 };
 
 const getSystemGoogleKey = async () => {
-  const envKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-  if (envKey && envKey !== 'user_provided') {
-    return envKey.split(',')[0].trim();
+  const geminiPoolManager = require('~/server/services/GeminiPoolManager');
+  const envKeys = geminiPoolManager.extractCleanApiKeys([
+    process.env.GOOGLE_KEY,
+    process.env.GEMINI_API_KEY,
+    process.env.GOOGLE_API_KEY,
+  ]);
+  if (envKeys.length > 0) {
+    return envKeys[0];
   }
 
   // Fallback: look up the ADMIN's google API key in the database
@@ -46,15 +51,9 @@ const getSystemGoogleKey = async () => {
     if (adminUser) {
       const stored = await getUserKey({ userId: adminUser._id, name: 'google' });
       if (stored && stored !== 'user_provided') {
-        let keyStr = stored;
-        try {
-          const parsed = JSON.parse(stored);
-          keyStr = parsed.GOOGLE_API_KEY || parsed.GOOGLE_KEY || Object.values(parsed)[0];
-        } catch {
-          // not JSON
-        }
-        if (keyStr) {
-          return keyStr.split(',')[0].trim();
+        const adminKeys = geminiPoolManager.extractCleanApiKeys(stored);
+        if (adminKeys.length > 0) {
+          return adminKeys[0];
         }
       }
     }

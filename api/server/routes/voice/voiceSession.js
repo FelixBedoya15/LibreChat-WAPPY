@@ -4,6 +4,7 @@ const WebSocket = require('ws');
 const logger = require('~/config/winston');
 const GeminiLiveClient = require('./geminiLive');
 const { getUserKey } = require('~/server/services/UserService');
+const geminiPoolManager = require('~/server/services/GeminiPoolManager');
 const { EModelEndpoint } = require('librechat-data-provider');
 const { saveMessage, saveConvo, getMessages, updateMessage, getAllUserMemories, setMemory, deleteMemory } = require('~/models');
 const { v4: uuidv4 } = require('uuid');
@@ -4489,6 +4490,9 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                     apiKey = await getUserKey({ userId: this.userId, name: EModelEndpoint.google });
                 } catch (e2) {}
             }
+            if (apiKey) {
+                apiKey = geminiPoolManager.extractCleanApiKey(apiKey);
+            }
             logger.debug(`[VoiceSession] Retrieved API Key for refinement (${keyName}): ${apiKey ? 'Success' : 'Failed'}`);
 
             if (!apiKey) {
@@ -7022,21 +7026,12 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
             throw new Error('Google API Key not configured');
         }
 
-        // Parse API key if stored as JSON
-        let parsedKey = apiKey;
-        try {
-            const parsed = JSON.parse(apiKey);
-            parsedKey = parsed.GOOGLE_API_KEY || parsed;
-        } catch (e) {
-            // Key is not JSON, use as-is
-        }
+        // Extract clean API keys (supports JSON objects, stringified JSON, comma-separated lists)
+        const apiKeys = geminiPoolManager.extractCleanApiKeys(apiKey);
 
-        if (!parsedKey) {
+        if (!apiKeys || apiKeys.length === 0) {
             throw new Error('Google API Key not configured');
         }
-
-        // Split by comma for rotation support
-        const apiKeys = typeof parsedKey === 'string' ? parsedKey.split(',').map(k => k.trim()).filter(Boolean) : [parsedKey];
 
         if (apiKeys.length === 0) {
             throw new Error('No valid Google API Keys found after parsing');

@@ -1538,11 +1538,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       });
 
       // Dual-axis rotation: outer = model fallbacks (503), inner = API keys (429/403)
-      let initialKeys = [this.options.agent?.model_parameters?.apiKey];
-      if (typeof initialKeys[0] === 'string' && initialKeys[0].includes(',')) {
-        initialKeys = initialKeys[0].split(',').map((k) => k.trim()).filter(Boolean);
-      }
-      initialKeys = initialKeys.filter(Boolean);
+      let initialKeys = geminiPoolManager.extractCleanApiKeys(this.options.agent?.model_parameters?.apiKey);
 
       // Prioritize active user's key (and parentUser if sub-user)
       const userKeys = [...initialKeys];
@@ -1551,7 +1547,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         try {
           const userKey = await getUserKey({ userId: activeUserId, name: EModelEndpoint.google });
           if (userKey && userKey !== 'user_provided') {
-            const parsedKeys = userKey.includes(',') ? userKey.split(',').map((k) => k.trim()).filter(Boolean) : [userKey.trim()];
+            const parsedKeys = geminiPoolManager.extractCleanApiKeys(userKey);
             for (const uk of parsedKeys) {
               if (uk && !userKeys.includes(uk)) userKeys.push(uk);
             }
@@ -1560,7 +1556,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
           if (this.options.req?.user?.isSubUser && this.options.req?.user?.parentUser && userKeys.length === 0) {
             const parentKey = await getUserKey({ userId: String(this.options.req.user.parentUser), name: EModelEndpoint.google });
             if (parentKey && parentKey !== 'user_provided') {
-              const parsedKeys = parentKey.includes(',') ? parentKey.split(',').map((k) => k.trim()).filter(Boolean) : [parentKey.trim()];
+              const parsedKeys = geminiPoolManager.extractCleanApiKeys(parentKey);
               for (const pk of parsedKeys) {
                 if (pk && !userKeys.includes(pk)) userKeys.push(pk);
               }
@@ -1569,17 +1565,15 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         } catch (_e) {}
       }
 
-      let keys = [...userKeys]
-        .map((k) => geminiPoolManager.extractCleanApiKey(k))
-        .filter((k) => k && k !== 'user_provided');
+      let keys = geminiPoolManager.extractCleanApiKeys(userKeys);
 
       // If and ONLY IF user has no personal/company key, fall back to system environment keys or platform Super Admin key
       if (keys.length === 0) {
-        const envKeys = [process.env.GOOGLE_KEY, process.env.GEMINI_API_KEY, process.env.GOOGLE_API_KEY]
-          .filter(Boolean)
-          .flatMap((k) => k.split(','))
-          .map((k) => geminiPoolManager.extractCleanApiKey(k))
-          .filter((k) => k.length > 0 && k !== 'user_provided');
+        const envKeys = geminiPoolManager.extractCleanApiKeys([
+          process.env.GOOGLE_KEY,
+          process.env.GEMINI_API_KEY,
+          process.env.GOOGLE_API_KEY,
+        ]);
 
         for (const ek of envKeys) {
           if (!keys.includes(ek)) {
@@ -1591,9 +1585,11 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
           try {
             const { getSystemGoogleKey } = require('~/server/controllers/AdminMarketingController');
             const sysKey = await getSystemGoogleKey();
-            const cleanSysKey = geminiPoolManager.extractCleanApiKey(sysKey);
-            if (cleanSysKey && !keys.includes(cleanSysKey)) {
-              keys.push(cleanSysKey);
+            const cleanSysKeys = geminiPoolManager.extractCleanApiKeys(sysKey);
+            for (const csk of cleanSysKeys) {
+              if (csk && !keys.includes(csk)) {
+                keys.push(csk);
+              }
             }
           } catch (_err) {
             logger.debug('[AgentClient] Fallback system key error:', _err?.message);

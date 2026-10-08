@@ -60,35 +60,107 @@ class GeminiPoolManager {
   }
 
   /**
-   * Extrae la clave limpia en caso de venir embebida en JSON o con comillas
-   * @param {string} rawKey
+   * Extrae un arreglo limpio de claves API a partir de cualquier formato:
+   * String único, lista separada por comas, objeto JSON, string JSON serializado o fragmentos.
+   * Elimina envolturas de comillas, llaves y caracteres espurios.
+   * @param {any} input
+   * @returns {string[]}
+   */
+  extractCleanApiKeys(input) {
+    if (!input) return [];
+    const results = [];
+
+    const processItem = (item) => {
+      if (!item) return;
+
+      if (Array.isArray(item)) {
+        for (const sub of item) {
+          processItem(sub);
+        }
+        return;
+      }
+
+      if (typeof item === 'object' && item !== null) {
+        const val =
+          item.apiKey ||
+          item.GOOGLE_API_KEY ||
+          item.GOOGLE_KEY ||
+          item.GEMINI_API_KEY ||
+          item.googleKey ||
+          item.key;
+
+        if (val) {
+          processItem(val);
+        } else {
+          for (const v of Object.values(item)) {
+            processItem(v);
+          }
+        }
+        return;
+      }
+
+      if (typeof item !== 'string') return;
+      let str = item.trim();
+      if (!str || str === 'user_provided') return;
+
+      // Desempaquetar comillas exteriores
+      if ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
+        str = str.slice(1, -1).trim();
+      }
+
+      // Si parece JSON, parsear primero ANTES de dividir por comas
+      if (str.startsWith('{') || str.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(str);
+          processItem(parsed);
+          return;
+        } catch (_) {
+          // Si el JSON estaba truncado o corrupto por split previo, continuar a limpieza por regex
+        }
+      }
+
+      // Si contiene comas (lista de llaves), procesar cada una
+      if (str.includes(',')) {
+        for (const part of str.split(',')) {
+          processItem(part);
+        }
+        return;
+      }
+
+      // Detectar clave Google directa AIza...
+      const aizaMatch = str.match(/AIza[0-9A-Za-z_-]{30,}/);
+      if (aizaMatch) {
+        const k = aizaMatch[0].trim();
+        if (k && !results.includes(k)) {
+          results.push(k);
+        }
+        return;
+      }
+
+      // Limpieza profunda de prefijos y sufijos JSON residuales
+      str = str
+        .replace(/^[{\[\s]*"(?:apiKey|GOOGLE_API_KEY|GOOGLE_KEY|GEMINI_API_KEY|googleKey|key)"\s*:\s*["']?/i, '')
+        .replace(/["'}\]\s]+$/g, '')
+        .replace(/^["'{\[\s]+/, '')
+        .trim();
+
+      if (str && str !== 'user_provided' && !results.includes(str)) {
+        results.push(str);
+      }
+    };
+
+    processItem(input);
+    return results;
+  }
+
+  /**
+   * Extrae la primera clave limpia en caso de venir embebida en JSON o con comillas
+   * @param {any} rawKey
    * @returns {string}
    */
   extractCleanApiKey(rawKey) {
-    if (!rawKey || typeof rawKey !== 'string') return '';
-    let str = rawKey.trim();
-    if ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
-      str = str.slice(1, -1).trim();
-    }
-    if (str.startsWith('{') || str.startsWith('[')) {
-      try {
-        const obj = JSON.parse(str);
-        if (typeof obj === 'object' && obj !== null) {
-          str = (
-            obj.apiKey ||
-            obj.GOOGLE_API_KEY ||
-            obj.GOOGLE_KEY ||
-            obj.GEMINI_API_KEY ||
-            obj.googleKey ||
-            obj.key ||
-            Object.values(obj).find((v) => typeof v === 'string' && (v.startsWith('AIza') || v.length > 20)) ||
-            Object.values(obj)[0] ||
-            ''
-          );
-        }
-      } catch (_) {}
-    }
-    return typeof str === 'string' ? str.trim() : '';
+    const keys = this.extractCleanApiKeys(rawKey);
+    return keys[0] || '';
   }
 
   /**
@@ -99,7 +171,7 @@ class GeminiPoolManager {
   maskKey(key) {
     if (!key || typeof key !== 'string') return 'null';
     const clean = this.extractCleanApiKey(key);
-    if (clean.length <= 8) return '****';
+    if (!clean || clean.length <= 8) return '****';
     return `${clean.slice(0, 4)}...${clean.slice(-4)}`;
   }
 
@@ -143,9 +215,7 @@ class GeminiPoolManager {
       }
     }
 
-    const cleanKeys = keys
-      .map((k) => this.extractCleanApiKey(k))
-      .filter((k) => typeof k === 'string' && k.length > 0 && k !== 'user_provided');
+    const cleanKeys = this.extractCleanApiKeys(keys);
 
     // Filtrar llaves que hayan arrojado 400 Bad Request recientemente, salvo que todas lo sean
     const validKeys = cleanKeys.filter((k) => !this.invalidKeys.has(k) || this.invalidKeys.get(k) <= now);
