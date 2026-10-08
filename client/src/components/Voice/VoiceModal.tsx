@@ -352,12 +352,14 @@ const VoiceModal: FC<VoiceModalProps> = ({
                 const titulo = entregable.titulo || action.args?.titulo || 'Informe Técnico Antigravity';
                 const contenido = entregable.contenido || res.resultado || '';
                 const formato = entregable.formato || action.args?.tipo_entregable || 'text';
+                const isHtml = formato === 'html' || contenido.trim().startsWith('<!DOCTYPE') || contenido.trim().startsWith('<html');
+                const canvasFileType = isHtml ? 'html' : (formato === 'word' || formato === 'documento' ? 'text' : formato);
 
                 if (contenido && contenido.length > 20) {
                     setStreamingCanvas({
                         id: `antigravity-${Date.now()}`,
                         title: titulo,
-                        fileType: formato === 'word' || formato === 'documento' ? 'text' : formato,
+                        fileType: canvasFileType,
                         content: contenido,
                         messageId: '',
                         isStreaming: false,

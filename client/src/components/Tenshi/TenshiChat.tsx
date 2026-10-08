@@ -1817,17 +1817,21 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             const entregable = res.entregable || {};
             const titulo = entregable.titulo || action.args?.titulo || 'Informe Antigravity';
             const contenido = entregable.contenido || res.resultado || '';
-            const formato = entregable.formato || action.args?.tipo_entregable || 'text';
+            const isHtml = formato === 'html' || contenido.trim().startsWith('<!DOCTYPE') || contenido.trim().startsWith('<html');
+            const chatBody = isHtml
+              ? (entregable.resumen || res.resultado || 'Se ha generado el dashboard interactivo en HTML con las gráficas de salud ocupacional. Puedes visualizarlo o descargarlo desde el panel Canvas.')
+              : contenido;
+            const canvasFileType = isHtml ? 'html' : (formato === 'word' || formato === 'documento' ? 'text' : formato);
 
             if (contenido) {
               setMessages((prev) => [
                 ...prev,
                 {
                   role: 'assistant',
-                  content: `⚡ **${titulo}**\n\n${contenido}`,
+                  content: `⚡ **${titulo}**\n\n${chatBody}`,
                   file: {
                     title: titulo,
-                    fileType: formato === 'word' || formato === 'documento' ? 'text' : formato,
+                    fileType: canvasFileType,
                     content: contenido,
                     canvasId: `antigravity-report-${Date.now()}`,
                   },
@@ -1839,7 +1843,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 setStreamingCanvas({
                   id: `antigravity-${Date.now()}`,
                   title: titulo,
-                  fileType: formato === 'word' || formato === 'documento' ? 'text' : formato,
+                  fileType: canvasFileType,
                   content: contenido,
                   messageId: '',
                   isStreaming: false,
