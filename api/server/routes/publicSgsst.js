@@ -1358,12 +1358,10 @@ router.post('/mood/claim-points/:companyId', async (req, res) => {
     }
 
     const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
-    const worker = await SgsstWorker.findOne({
-      $or: [
-        { companyId: company._id, documento: cleanCedula },
-        { user: company.user, documento: cleanCedula },
-      ]
-    }).lean();
+    let worker = await SgsstWorker.findOne({ companyId: company._id, documento: cleanCedula }).lean();
+    if (!worker && company.user) {
+      worker = await SgsstWorker.findOne({ user: company.user, documento: cleanCedula }).lean();
+    }
 
     // Validar si ya reclamó puntos recientemente (ventana de control de 24 horas para evitar spam en bucle)
     if (worker) {

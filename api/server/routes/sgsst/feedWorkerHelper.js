@@ -33,13 +33,14 @@ async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, punt
         const explicitCompanyId = metadata.companyId || (metadata.company && metadata.company._id) || null;
         const companyId = await resolveEffectiveCompanyId(userId, explicitCompanyId);
 
-        // 1. Buscar trabajador en SgsstWorker
-        let worker = await SgsstWorker.findOne({
-            $or: [
-                ...(companyId ? [{ companyId, documento: cleanDoc }] : []),
-                { user: userId, documento: cleanDoc },
-            ]
-        });
+        // 1. Buscar trabajador en SgsstWorker (prioridad estricta a companyId para aislamiento multitenant)
+        let worker = null;
+        if (companyId) {
+            worker = await SgsstWorker.findOne({ companyId, documento: cleanDoc });
+        }
+        if (!worker && userId) {
+            worker = await SgsstWorker.findOne({ user: userId, documento: cleanDoc });
+        }
 
         // 2. Si no existe en SgsstWorker, buscar en PerfilSociodemograficoData para autocrearlo
         if (!worker) {
@@ -84,7 +85,12 @@ async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, punt
                 });
             } catch (errCreate) {
                 console.warn('[feedWorkerEvent] Worker creation fallback, trying retrieval:', errCreate.message);
-                worker = await SgsstWorker.findOne({ documento: cleanDoc });
+                if (companyId) {
+                    worker = await SgsstWorker.findOne({ companyId, documento: cleanDoc });
+                }
+                if (!worker && userId) {
+                    worker = await SgsstWorker.findOne({ user: userId, documento: cleanDoc });
+                }
             }
         }
 

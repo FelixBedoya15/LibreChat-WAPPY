@@ -3380,10 +3380,26 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     return null;
   };
 
+  const cleanRenderContent = (content: string) => {
+    if (!content) return '';
+    if (content.includes('<!DOCTYPE html>') || content.includes('<html')) {
+      const cleaned = content
+        .replace(/<!DOCTYPE html[\s\S]*?<\/html>/gi, '')
+        .replace(/<html[\s\S]*?<\/html>/gi, '')
+        .replace(/<!DOCTYPE html[\s\S]*/gi, '')
+        .trim();
+      return cleaned || '✨ El informe técnico ha sido estructurado y generado con éxito. Puedes abrirlo directamente con el botón oficial abajo.';
+    }
+    return content;
+  };
+
   const handleDownloadFile = useCallback((file: TenshiFileAttachment) => {
     try {
       const safeTitle = (file.title || 'documento-sgsst').replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_-]/g, '_');
-      if (file.fileType === 'excel') {
+      const isHtmlContent = typeof file.content === 'string' && (file.content.includes('<!DOCTYPE html') || file.content.includes('<html'));
+      const isImageContent = typeof file.content === 'string' && (file.content.startsWith('data:image/') || file.content.startsWith('http'));
+
+      if (file.fileType === 'excel' || file.fileType === 'xlsx') {
         let data: any = file.content;
         if (typeof data === 'string') {
           try {
@@ -3405,8 +3421,39 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         });
         saveAs(blob, `${safeTitle}.xlsx`);
-      } else if (file.fileType === 'text') {
-        const simpleHtml = markdownToSimpleHtml(file.content);
+      } else if (file.fileType === 'html' || isHtmlContent) {
+        const blob = new Blob([file.content], { type: 'text/html;charset=utf-8' });
+        saveAs(blob, `${safeTitle}.html`);
+      } else if (file.fileType === 'image' || file.fileType === 'imagen' || isImageContent) {
+        if (file.content.startsWith('data:image/')) {
+          const byteString = atob(file.content.split(',')[1]);
+          const mimeString = file.content.split(',')[0].split(':')[1].split(';')[0];
+          const ab = new ArrayBuffer(byteString.length);
+          const ia = new Uint8Array(ab);
+          for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+          }
+          const blob = new Blob([ab], { type: mimeString });
+          const ext = mimeString.includes('png') ? 'png' : 'jpg';
+          saveAs(blob, `${safeTitle}.${ext}`);
+        } else if (file.content.startsWith('http')) {
+          const a = document.createElement('a');
+          a.href = file.content;
+          a.download = `${safeTitle}.png`;
+          a.target = '_blank';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        } else {
+          const blob = new Blob([file.content], { type: 'text/plain;charset=utf-8' });
+          saveAs(blob, `${safeTitle}.txt`);
+        }
+      } else if (file.fileType === 'presentation') {
+        const blob = new Blob([file.content], { type: 'application/json;charset=utf-8' });
+        saveAs(blob, `${safeTitle}.json`);
+      } else {
+        // Documento Word / Texto / Fallback general para 'documento'
+        const simpleHtml = markdownToSimpleHtml(file.content || '');
         const wordHtml = `
           <!DOCTYPE html>
           <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
@@ -3432,12 +3479,6 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         `;
         const blob = new Blob(['\ufeff' + wordHtml], { type: 'application/msword;charset=utf-8' });
         saveAs(blob, `${safeTitle}.doc`);
-      } else if (file.fileType === 'html') {
-        const blob = new Blob([file.content], { type: 'text/html;charset=utf-8' });
-        saveAs(blob, `${safeTitle}.html`);
-      } else if (file.fileType === 'presentation') {
-        const blob = new Blob([file.content], { type: 'application/json;charset=utf-8' });
-        saveAs(blob, `${safeTitle}.json`);
       }
     } catch (err) {
       console.error('[TenshiChat] Error al descargar archivo:', err);
@@ -3446,14 +3487,15 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
   const handleOpenFileInCanvas = useCallback(
     (file: TenshiFileAttachment) => {
-      if (file.fileType === 'html') {
+      const isHtmlContent = typeof file.content === 'string' && (file.content.includes('<!DOCTYPE html') || file.content.includes('<html'));
+      if (file.fileType === 'html' || isHtmlContent) {
         openHtmlReport(file.content, file.title);
         return;
       }
       setStreamingCanvas({
         id: file.canvasId || `canvas-${Date.now()}`,
         title: file.title,
-        fileType: file.fileType as any,
+        fileType: (file.fileType === 'word' || file.fileType === 'doc' || file.fileType === 'documento') ? 'text' : (file.fileType as any),
         content: file.content,
         messageId: '',
         isStreaming: false,
@@ -3726,22 +3768,31 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                             : 'rounded-tl-none border border-slate-200/80 bg-white dark:border-zinc-800 dark:bg-zinc-800/90 text-slate-800 dark:text-zinc-100'
                         )}
                       >
-                        {msg.content && <Markdown content={msg.content} />}
+                        {msg.content && <Markdown content={cleanRenderContent(msg.content)} />}
                         {msg.file && (
                           <div className="mt-2 p-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900/80 flex items-center justify-between gap-2">
-                            <span className="truncate text-[11px] font-bold text-slate-800 dark:text-zinc-100">
+                            <span className="truncate text-[11px] font-bold text-slate-800 dark:text-zinc-100 flex-1">
                               {msg.file.title}
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => handleDownloadFile(msg.file!)}
-                              className="px-2 py-1 rounded-lg bg-teal-600 text-white text-[10px] font-bold flex items-center gap-1 active:scale-95"
-                            >
-                              <Download className="w-3 h-3" /> Descargar
-                            </button>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadFile(msg.file!)}
+                                className="px-2 py-1 rounded-lg bg-teal-600 text-white text-[10px] font-bold flex items-center gap-1 active:scale-95"
+                              >
+                                <Download className="w-3 h-3" /> Descargar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenFileInCanvas(msg.file!)}
+                                className="px-2 py-1 rounded-lg border border-slate-200 bg-white dark:border-zinc-700 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-[10px] font-bold flex items-center gap-1 active:scale-95"
+                              >
+                                <Eye className="w-3 h-3" /> {msg.file.fileType === 'html' ? 'Ver' : 'Canvas'}
+                              </button>
+                            </div>
                           </div>
                         )}
-                        {msg.htmlReport && (
+                        {msg.htmlReport && !msg.file && (
                           <button
                             type="button"
                             onClick={() => openHtmlReport(msg.htmlReport!)}
@@ -3961,7 +4012,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                           </div>
                         ) : (
                           <>
-                            {msg.content && <Markdown content={msg.content} />}
+                            {msg.content && <Markdown content={cleanRenderContent(msg.content)} />}
                             {msg.delegatedOrderId && msg.delegatedStatus === 'todo' && (
                               <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-teal-500/30 bg-teal-50/60 px-3 py-1.5 dark:border-teal-500/20 dark:bg-teal-950/40">
                                 <span className="relative flex h-2 w-2">
@@ -3999,11 +4050,13 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                                     <p className="text-[10px] font-medium text-slate-500 dark:text-zinc-400">
                                       {msg.file.fileType === 'excel'
                                         ? 'Hoja de Cálculo Excel (.xlsx)'
-                                        : msg.file.fileType === 'text'
-                                        ? 'Documento Word (.doc)'
-                                        : msg.file.fileType === 'html'
+                                        : (msg.file.fileType === 'html' || msg.file.content?.includes('<html') || msg.file.content?.includes('<!DOCTYPE'))
                                         ? 'Aplicativo / Reporte HTML'
-                                        : 'Presentación de Diapositivas'}
+                                        : msg.file.fileType === 'image' || msg.file.fileType === 'imagen'
+                                        ? 'Imagen Digital (.png)'
+                                        : msg.file.fileType === 'presentation'
+                                        ? 'Presentación de Diapositivas'
+                                        : 'Documento Word (.doc)'}
                                     </p>
                                   </div>
                                 </div>
@@ -4022,12 +4075,12 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                                     className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition-all active:scale-95 hover:bg-slate-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
                                   >
                                     <Eye className="h-3.5 w-3.5" />
-                                    <span>Ver en Pantalla</span>
+                                    <span>{msg.file.fileType === 'html' ? 'Ver Informe Oficial' : 'Ver en Pantalla'}</span>
                                   </button>
                                 </div>
                               </div>
                             )}
-                            {msg.htmlReport && (
+                            {msg.htmlReport && !msg.file && (
                               <button
                                 type="button"
                                 onClick={() => openHtmlReport(msg.htmlReport!)}

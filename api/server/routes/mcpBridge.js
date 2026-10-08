@@ -6828,7 +6828,19 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
     const finalFormat = formato || fileType || 'documento';
     const finalContent = contenido || content || resultado || result || '';
     const finalUrl = urlDescarga || fileUrl || null;
-    const finalSummary = resumen || (typeof finalContent === 'string' ? finalContent.slice(0, 500) : 'Orden completada con éxito.');
+    const isHtml = finalFormat === 'html' || 
+      completionNotesStr.includes('<html') || 
+      completionNotesStr.includes('<!DOCTYPE') || 
+      (typeof finalContent === 'string' && (finalContent.includes('<html') || finalContent.includes('<!DOCTYPE')));
+
+    let finalSummary = resumen;
+    if (!finalSummary || finalSummary.includes('<!DOCTYPE') || finalSummary.includes('<html')) {
+      if (isHtml) {
+        finalSummary = 'El informe técnico interactivo ha sido estructurado y generado con éxito. Puedes explorarlo en pantalla completa con la barra de herramientas de impresión/PDF o descargarlo directamente.';
+      } else {
+        finalSummary = typeof finalContent === 'string' ? finalContent.replace(/<[^>]*>?/gm, '').trim().slice(0, 500) : 'Orden completada con éxito.';
+      }
+    }
 
     task.status = 'done';
     task.completedAt = new Date();
@@ -6847,9 +6859,16 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
     // ── INYECCIÓN AUTOMÁTICA EN EL CHAT DE TENSHI (TenshiMessage) ───────────────
     let createdTenshiMsg = null;
     try {
-      const TenshiMessage = mongoose.models.TenshiMessage || require('../../models/TenshiMessage');
-      const isHtml = finalFormat === 'html' || completionNotesStr.includes('<html') || completionNotesStr.includes('<!DOCTYPE');
-      const normalizedFileType = (finalFormat === 'word' || finalFormat === 'doc' || finalFormat === 'docx') ? 'text' : finalFormat;
+      let normalizedFileType = finalFormat;
+      if (finalFormat === 'word' || finalFormat === 'doc' || finalFormat === 'docx' || finalFormat === 'documento') {
+        normalizedFileType = 'text';
+      }
+      if (isHtml) {
+        normalizedFileType = 'html';
+      }
+      if (finalFormat === 'image' || finalFormat === 'imagen') {
+        normalizedFileType = 'image';
+      }
 
       const filePayload = finalContent ? {
         title: task.title,
@@ -6858,7 +6877,7 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
         canvasId: `antigravity-${task._id}`,
       } : undefined;
 
-      const tenshiBubbleContent = `✨ **¡Entregable de Google Antigravity Recibido!**\n\nHe procesado el resultado de la tarea técnica delegada:\n**${task.title}**\n\n${finalSummary || completionNotesStr.slice(0, 800)}\n\n📄 **Formato generado:** \`${finalFormat.toUpperCase()}\`${finalUrl ? `\n🔗 **Enlace de descarga:** [Descargar Archivo](${finalUrl})` : ''}`;
+      const tenshiBubbleContent = `✨ **¡Entregable de Google Antigravity Recibido!**\n\nHe procesado el resultado de la tarea técnica delegada:\n**${task.title}**\n\n${finalSummary}\n\n📄 **Formato generado:** \`${finalFormat.toUpperCase()}\`${finalUrl ? `\n🔗 **Enlace de descarga:** [Descargar Archivo](${finalUrl})` : ''}`;
 
       createdTenshiMsg = await TenshiMessage.create({
         user: targetUserId,
