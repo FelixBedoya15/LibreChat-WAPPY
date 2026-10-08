@@ -6725,385 +6725,40 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
     const rawPriority = String(prioridad || 'alta').toLowerCase();
     const finalPriority = (rawPriority === 'high' || rawPriority === 'alta') ? 'alta' : (rawPriority === 'low' || rawPriority === 'baja') ? 'baja' : 'media';
 
+    const companyName = company?.companyName || 'Empresa Activa';
+
     let kanbanTask = null;
     try {
       kanbanTask = await KanbanTask.create({
         user: targetUserId,
         companyId: companyId,
         title: finalTitle,
-        description: `[DELEGADO POR TENSHI A ANTIGRAVITY]\nInstrucción: ${finalDesc}\nRecurso/Carpeta: ${finalResource}\nFormato esperado: ${finalOutputType}`,
-        status: 'done',
+        description: `[DELEGADO POR TENSHI A ANTIGRAVITY]\nEmpresa: ${companyName}\nInstrucción: ${finalDesc}\nRecurso Objetivo: ${finalResource}\nFormato Esperado: ${finalOutputType}`,
+        status: 'todo',
         dueDate: new Date(Date.now() + 2 * 3600 * 1000),
         type: 'antigravity_delegation',
         priority: finalPriority,
         sourceModule: 'tenshi_voice',
       });
-      logger.info(`[MCP Bridge] Orden para Antigravity creada (ID: ${kanbanTask._id}) para usuario ${targetUserId}. Procesando inmediatamente...`);
+      logger.info(`[MCP Bridge] Orden para Antigravity creada con instrucción limpia (ID: ${kanbanTask._id}, Estado: todo) para usuario ${targetUserId}.`);
     } catch (kErr) {
-      logger.warn('[MCP Bridge] Error creando registro KanbanTask (continuando generación sin bloqueo):', kErr.message);
-    }
-
-    // ─── MOTOR AUTÓNOMO DE ANTIGRAVITY (EJECUCIÓN INMEDIATA) ───────────────
-    let autoResult = {
-      resumen: '',
-      contenido: '',
-    };
-
-    const normalizedText = `${finalTitle} ${finalDesc}`.toLowerCase();
-    const companyName = company?.companyName || 'Empresa Activa';
-
-    if (
-      normalizedText.includes('salud') ||
-      normalizedText.includes('condicion') ||
-      normalizedText.includes('trabajador') ||
-      normalizedText.includes('medico') ||
-      normalizedText.includes('examen')
-    ) {
-      let deduplicated = [];
-      try {
-        const PerfilSociodemograficoData =
-          mongoose.models.PerfilSociodemograficoData ||
-          require('~/models/PerfilSociodemograficoData');
-        const socioDocs = await PerfilSociodemograficoData.find({
-          $or: [{ user: targetUserId, companyId }, { user: targetUserId }],
-        }).lean();
-
-        let allTrabajadores = [];
-        for (const doc of socioDocs) {
-          if (Array.isArray(doc.trabajadores)) {
-            allTrabajadores = allTrabajadores.concat(doc.trabajadores);
-          }
-        }
-
-        const seenMap = new Map();
-        for (const t of allTrabajadores) {
-          const key = String(t.identificacion || t.documento || t.id || '').trim();
-          if (key && !seenMap.has(key)) {
-            seenMap.set(key, true);
-            deduplicated.push(t);
-          } else if (!key) {
-            deduplicated.push(t);
-          }
-        }
-      } catch (e) {
-        logger.warn('[Antigravity Engine] Error recuperando colaboradores:', e);
-      }
-
-      const activos = deduplicated.filter((t) => (t.estadoLaboral || 'Activo') !== 'Retirado');
-      const totalActivos = activos.length;
-
-      let masculinos = 0;
-      let femeninos = 0;
-      let sumaEdades = 0;
-      let conEdad = 0;
-      let sumaImc = 0;
-      let conImc = 0;
-      let sobrepesoCount = 0;
-      let restricciones = [];
-
-      for (const t of activos) {
-        const gen = String(t.genero || '').toLowerCase();
-        if (gen.includes('masc')) masculinos++;
-        else if (gen.includes('fem')) femeninos++;
-
-        const ed = Number(t.edad);
-        if (ed > 0) {
-          sumaEdades += ed;
-          conEdad++;
-        }
-
-        const imcVal = parseFloat(t.imc || 0);
-        if (imcVal > 0) {
-          sumaImc += imcVal;
-          conImc++;
-          if (imcVal >= 25) sobrepesoCount++;
-        }
-
-        if (Array.isArray(t.biocentricAlerts)) {
-          for (const a of t.biocentricAlerts) {
-            const lowA = a.toLowerCase();
-            if (
-              lowA.includes('restric') ||
-              lowA.includes('lumbal') ||
-              lowA.includes('túnel') ||
-              lowA.includes('hombro') ||
-              lowA.includes('manguito') ||
-              lowA.includes('cervical') ||
-              lowA.includes('rodilla')
-            ) {
-              restricciones.push(`${t.nombre_completo || t.nombre || 'Colaborador'}: ${a}`);
-            }
-          }
-        }
-      }
-
-      const promedioEdad = conEdad > 0 ? (sumaEdades / conEdad).toFixed(1) : '34.8';
-      const promedioImc = conImc > 0 ? (sumaImc / conImc).toFixed(1) : '25.0';
-      const pctSobrepeso = totalActivos > 0 ? ((sobrepesoCount / totalActivos) * 100).toFixed(1) : '32.3';
-
-      autoResult.resumen = `Antigravity ha completado el Informe de Condiciones de Salud Ocupacional para ${companyName}. Censo evaluado: ${totalActivos} colaboradores (${masculinos} hombres, ${femeninos} mujeres). Edad promedio: ${promedioEdad} años, IMC promedio: ${promedioImc} kg/m². Hallazgos: ${sobrepesoCount} colaboradores con sobrepeso leve (${pctSobrepeso}%) y ${restricciones.length} casos con recomendaciones o restricciones osteomusculares para levantamiento de cargas. Plan de acción activo en pausas activas dirigidas, ergonomía y vigilancia biomecánica.`;
-
-      // ── Rama HTML con gráficas Chart.js ──────────────────────────────────────
-      const wantsHtml =
-        finalOutputType === 'html' ||
-        finalDesc.toLowerCase().includes('html') ||
-        finalDesc.toLowerCase().includes('grafic') ||
-        finalDesc.toLowerCase().includes('gráfic') ||
-        finalDesc.toLowerCase().includes('dashboard') ||
-        finalDesc.toLowerCase().includes('chart') ||
-        finalDesc.toLowerCase().includes('visual') ||
-        finalDesc.toLowerCase().includes('interactiv');
-
-      if (wantsHtml) {
-        const saludables = totalActivos - sobrepesoCount;
-        const sinRestriccion = totalActivos - restricciones.length;
-        const pctMasc = totalActivos > 0 ? ((masculinos / totalActivos) * 100).toFixed(1) : 0;
-        const pctFem = totalActivos > 0 ? ((femeninos / totalActivos) * 100).toFixed(1) : 0;
-        const fechaEmision = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
-
-        autoResult.contenido = `<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard de Salud Ocupacional — ${companyName}</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f4f8; color: #1e293b; }
-  .header { background: linear-gradient(135deg, #0d9488, #0f766e); color: white; padding: 28px 32px; }
-  .header h1 { font-size: 1.5rem; font-weight: 700; }
-  .header p { font-size: 0.85rem; opacity: 0.85; margin-top: 4px; }
-  .badge { display: inline-block; background: rgba(255,255,255,0.2); border-radius: 20px; padding: 2px 12px; font-size: 0.75rem; margin-top: 8px; }
-  .stats-row { display: flex; gap: 16px; padding: 24px 32px; flex-wrap: wrap; }
-  .stat-card { flex: 1; min-width: 150px; background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-left: 4px solid #0d9488; }
-  .stat-card.alert { border-left-color: #f59e0b; }
-  .stat-card.danger { border-left-color: #ef4444; }
-  .stat-num { font-size: 2rem; font-weight: 800; color: #0d9488; }
-  .stat-card.alert .stat-num { color: #f59e0b; }
-  .stat-card.danger .stat-num { color: #ef4444; }
-  .stat-label { font-size: 0.78rem; color: #64748b; margin-top: 4px; }
-  .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; padding: 0 32px 32px; }
-  .chart-card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-  .chart-card h3 { font-size: 0.9rem; font-weight: 600; color: #374151; margin-bottom: 16px; }
-  .plan-section { margin: 0 32px 32px; background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-  .plan-section h3 { font-size: 0.95rem; font-weight: 700; color: #0d9488; margin-bottom: 16px; }
-  .plan-item { display: flex; gap: 12px; margin-bottom: 12px; align-items: flex-start; }
-  .plan-num { background: #0d9488; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; }
-  .plan-text { font-size: 0.85rem; color: #374151; line-height: 1.5; }
-  .footer { text-align: center; padding: 16px; font-size: 0.75rem; color: #94a3b8; }
-  canvas { max-height: 220px; }
-</style>
-</head>
-<body>
-<div class="header">
-  <h1>🏥 Dashboard de Salud Ocupacional</h1>
-  <p>${companyName} | Normativa: Res. 2346/2007 — Dec. 1072/2015</p>
-  <span class="badge">Elaborado por Motor Autónomo Antigravity · ${fechaEmision}</span>
-</div>
-
-<div class="stats-row">
-  <div class="stat-card">
-    <div class="stat-num">${totalActivos}</div>
-    <div class="stat-label">Total colaboradores evaluados</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-num">${promedioEdad}</div>
-    <div class="stat-label">Edad promedio (años)</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-num">${promedioImc}</div>
-    <div class="stat-label">IMC promedio (kg/m²)</div>
-  </div>
-  <div class="stat-card alert">
-    <div class="stat-num">${sobrepesoCount}</div>
-    <div class="stat-label">Colaboradores con sobrepeso (${pctSobrepeso}%)</div>
-  </div>
-  <div class="stat-card danger">
-    <div class="stat-num">${restricciones.length}</div>
-    <div class="stat-label">Restricciones osteomusculares</div>
-  </div>
-</div>
-
-<div class="charts-grid">
-  <div class="chart-card">
-    <h3>📊 Distribución por Género</h3>
-    <canvas id="generoChart"></canvas>
-  </div>
-  <div class="chart-card">
-    <h3>⚖️ Estado Nutricional (IMC)</h3>
-    <canvas id="imcChart"></canvas>
-  </div>
-  <div class="chart-card">
-    <h3>🦴 Estado Osteomuscular</h3>
-    <canvas id="oseoChart"></canvas>
-  </div>
-  <div class="chart-card">
-    <h3>📈 Indicadores Clave de Salud</h3>
-    <canvas id="indicadoresChart"></canvas>
-  </div>
-</div>
-
-<div class="plan-section">
-  <h3>🎯 Plan de Acción SG-SST — Intervenciones Prioritarias</h3>
-  <div class="plan-item"><div class="plan-num">1</div><div class="plan-text"><strong>SVE Biomecánico:</strong> Pausas activas dirigidas obligatorias dos veces por jornada. Inspección y adecuación ergonómica de puestos con colaboradores que presenten restricciones.</div></div>
-  <div class="plan-item"><div class="plan-num">2</div><div class="plan-text"><strong>Control de Restricciones:</strong> Verificar que los ${restricciones.length} colaboradores con restricciones osteomusculares activas no superen los límites de carga manual (>12.5 kg según GTC 45).</div></div>
-  <div class="plan-item"><div class="plan-num">3</div><div class="plan-text"><strong>Programa de Estilos de Vida Saludable:</strong> Jornadas de asesoría nutricional para los ${sobrepesoCount} colaboradores con IMC ≥ 25.0. Seguimiento bimestral de peso y perímetro abdominal.</div></div>
-  <div class="plan-item"><div class="plan-num">4</div><div class="plan-text"><strong>Vigilancia Epidemiológica:</strong> Actualización semestral de exámenes periódicos según Resolución 2346/2007. Correlación con ausentismo y accidentalidad (Dec. 1072/2015, Art. 2.2.4.6.28).</div></div>
-</div>
-
-<div class="footer">Motor Autónomo Antigravity · WAPPY SG-SST · Datos reales de la plataforma al ${fechaEmision}</div>
-
-<script>
-const tealPalette = ['#0d9488','#14b8a6','#5eead4','#ccfbf1'];
-const warnPalette = ['#f59e0b','#fcd34d'];
-const dangerPalette = ['#ef4444','#fca5a5'];
-
-// Gráfica 1: Género
-new Chart(document.getElementById('generoChart'), {
-  type: 'doughnut',
-  data: {
-    labels: ['Masculino', 'Femenino'],
-    datasets: [{ data: [${masculinos}, ${femeninos}], backgroundColor: ['#0d9488','#5eead4'], borderWidth: 2 }]
-  },
-  options: { plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } }, cutout: '65%' }
-});
-
-// Gráfica 2: IMC
-new Chart(document.getElementById('imcChart'), {
-  type: 'pie',
-  data: {
-    labels: ['IMC Normal (<25)', 'Sobrepeso (≥25)'],
-    datasets: [{ data: [${saludables}, ${sobrepesoCount}], backgroundColor: ['#0d9488','#f59e0b'], borderWidth: 2 }]
-  },
-  options: { plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }
-});
-
-// Gráfica 3: Osteomuscular
-new Chart(document.getElementById('oseoChart'), {
-  type: 'doughnut',
-  data: {
-    labels: ['Sin Restricción', 'Con Restricción'],
-    datasets: [{ data: [${sinRestriccion}, ${restricciones.length}], backgroundColor: ['#14b8a6','#ef4444'], borderWidth: 2 }]
-  },
-  options: { plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } }, cutout: '60%' }
-});
-
-// Gráfica 4: Indicadores barra
-new Chart(document.getElementById('indicadoresChart'), {
-  type: 'bar',
-  data: {
-    labels: ['Total', 'Masculinos', 'Femeninas', 'Sobrepeso', 'Restricción'],
-    datasets: [{
-      label: 'Colaboradores',
-      data: [${totalActivos}, ${masculinos}, ${femeninos}, ${sobrepesoCount}, ${restricciones.length}],
-      backgroundColor: ['#0d9488','#14b8a6','#5eead4','#f59e0b','#ef4444'],
-      borderRadius: 8, borderSkipped: false
-    }]
-  },
-  options: {
-    plugins: { legend: { display: false } },
-    scales: { y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } } }, x: { ticks: { font: { size: 10 } } } }
-  }
-});
-</script>
-</body>
-</html>`;
-
-        autoResult.titulo = `Dashboard Interactivo — Condiciones de Salud Ocupacional`;
-        autoResult.formato = 'html';
-      } else {
-        // ── Rama Markdown (por defecto) ─────────────────────────────────────────
-        autoResult.contenido = `# INFORME DE DIAGNÓSTICO DE CONDICIONES DE SALUD OCUPACIONAL
-**Empresa:** ${companyName} | **Normativa:** Resolución 2346 de 2007 - Decreto 1072 de 2015
-**Fecha de Emisión:** ${new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}
-**Elaborado por:** Motor Autónomo Antigravity para Tenshi (WAPPY IA)
-
----
-
-### 1. RESUMEN EJECUTIVO Y CENSO POBLACIONAL
-- **Total Colaboradores Activos Evaluados:** ${totalActivos}
-- **Distribución de Género:** Masculino: ${masculinos} (${totalActivos > 0 ? ((masculinos / totalActivos) * 100).toFixed(1) : 0}%) | Femenino: ${femeninos} (${totalActivos > 0 ? ((femeninos / totalActivos) * 100).toFixed(1) : 0}%)
-- **Edad Promedio:** ${promedioEdad} años
-- **IMC Promedio General:** ${promedioImc} kg/m²
-
----
-
-### 2. PRINCIPALES HALLAZGOS Y ALERTAS BIOCÉNTRICAS
-1. **Riesgo Nutricional y Cardiovascular:**
-   - **${sobrepesoCount} colaboradores (${pctSobrepeso}%)** presentan alerta de Sobrepeso Leve o Moderado (IMC ≥ 25.0).
-2. **Sistema Osteomuscular y Biomecánico:**
-   - **${restricciones.length} casos identificados** con restricción o recomendación osteomuscular (carga manual >12.5 kg, lumbalgia mecánica, túnel carpiano, manguito rotador o rodilla).
-3. **Factores Preventivos:**
-   - Recomendaciones de acondicionamiento físico, higiene postural y pausas activas.
-
----
-
-### 3. PLAN DE ACCIÓN Y RECOMENDACIONES SG-SST
-1. **Sistema de Vigilancia Epidemiológica (SVE) Biomecánico:**
-   - Pausas activas dirigidas obligatorias dos veces por jornada.
-   - Inspección y adecuación ergonómica de puestos de trabajo.
-2. **Control de Restricciones Médicas:**
-   - Verificar no sobrepasar límites de carga en colaboradores con restricciones activas.
-3. **Estilos de Vida Saludable:**
-   - Jornadas de asesoría nutricional y seguimiento bimestral de peso y perímetro abdominal.`;
-      }
-    } else {
-      autoResult.resumen = `Antigravity procesó y completó la investigación técnica sobre "${finalTitle}" para ${companyName}. Se aplicaron los lineamientos del Decreto 1072 de 2015 y la Resolución 0312 de 2019, generando las directrices y plan de acción correspondientes.`;
-      autoResult.contenido = `# INFORME TÉCNICO DE GESTIÓN SG-SST
-**Empresa:** ${companyName} | **Tema:** ${finalTitle}
-**Fecha:** ${new Date().toLocaleDateString('es-CO')}
-**Elaborado por:** Motor Autónomo de Antigravity para Tenshi
-
----
-
-### OBJETIVO Y ALCANCE
-${finalDesc}
-
-### MARCO NORMATIVO APLICABLE
-- Decreto Único Reglamentario del Sector Trabajo 1072 de 2015.
-- Resolución 0312 de 2019 (Estándares Mínimos del SG-SST).
-
-### CONCLUSIONES Y PLAN DE ACCIÓN
-1. Cumplimiento de directrices técnicas ocupacionales.
-2. Verificación periódica de evidencias documentales en la empresa.
-3. Socialización con los comités pertinentes (COPASST / Convivencia).`;
-    }
-
-    // Actualizar la orden como completada inmediatamente si existe
-    if (kanbanTask) {
-      try {
-        kanbanTask.status = 'done';
-        kanbanTask.description += `\n\n[RESULTADO DE ANTIGRAVITY - ${new Date().toISOString()}]\n${autoResult.contenido}`;
-        kanbanTask.completedAt = new Date();
-        await kanbanTask.save();
-        logger.info(`[MCP Bridge] Orden para Antigravity completada INMEDIATAMENTE (ID: ${kanbanTask._id})`);
-      } catch (saveErr) {
-        logger.warn('[MCP Bridge] Error actualizando KanbanTask:', saveErr.message);
-      }
+      logger.warn('[MCP Bridge] Error creando registro KanbanTask:', kErr.message);
     }
 
     return res.status(200).json({
       exito: true,
-      mensaje: `Antigravity ha completado la investigación y generado el entregable exitosamente en tiempo real.`,
+      mensaje: `Orden delegada a Antigravity exitosamente con la instrucción pura.`,
       ordenId: kanbanTask?._id ? kanbanTask._id.toString() : `antigravity-${Date.now()}`,
-      estado: 'completada',
-      resultado: autoResult.resumen,
+      estado: 'todo',
       detalles: {
         titulo: finalTitle,
         instruccion: finalDesc,
         recursoObjetivo: finalResource,
         formatoEntregable: finalOutputType,
-        estado: 'completada',
+        estado: 'todo',
         empresa: companyName,
       },
-      entregable: {
-        titulo: finalTitle,
-        formato: finalOutputType,
-        resumen: autoResult.resumen,
-        contenido: autoResult.contenido,
-      },
-      instruccionAntigravity: `Antigravity ha completado el informe solicitado con éxito. Presenta el resumen y los hallazgos principales verbalmente al usuario en este turno sin demora.`,
+      instruccionAntigravity: `La orden "${finalTitle}" ha sido registrada para Antigravity con su instrucción pura. Antigravity utilizará sus herramientas MCP para consultar los datos necesarios de la empresa y elaborar el entregable. Confírmale al usuario con seguridad que la orden fue delegada a Antigravity.`,
     });
   } catch (error) {
     logger.error('[MCP Bridge] Error delegando orden a Antigravity:', error);

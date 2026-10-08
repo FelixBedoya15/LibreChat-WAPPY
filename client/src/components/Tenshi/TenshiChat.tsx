@@ -1817,13 +1817,17 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             const entregable = res.entregable || {};
             const titulo = entregable.titulo || action.args?.titulo || 'Informe Antigravity';
             const contenido = entregable.contenido || res.resultado || '';
-            const isHtml = formato === 'html' || contenido.trim().startsWith('<!DOCTYPE') || contenido.trim().startsWith('<html');
-            const chatBody = isHtml
-              ? (entregable.resumen || res.resultado || 'Se ha generado el dashboard interactivo en HTML con las gráficas de salud ocupacional. Puedes visualizarlo o descargarlo desde el panel Canvas.')
-              : contenido;
-            const canvasFileType = isHtml ? 'html' : (formato === 'word' || formato === 'documento' ? 'text' : formato);
+            const formato = entregable.formato || res.detalles?.formatoEntregable || action.args?.tipo_entregable || 'text';
+            const instruccion = res.detalles?.instruccion || action.args?.descripcion || action.args?.instruccion || action.args?.tarea || '';
+            const empresa = res.detalles?.empresa || 'WAPPY LTDA';
 
             if (contenido) {
+              const isHtml = formato === 'html' || contenido.trim().startsWith('<!DOCTYPE') || contenido.trim().startsWith('<html');
+              const chatBody = isHtml
+                ? (entregable.resumen || res.resultado || 'Se ha generado el dashboard interactivo en HTML con las gráficas de salud ocupacional. Puedes visualizarlo o descargarlo desde el panel Canvas.')
+                : contenido;
+              const canvasFileType = isHtml ? 'html' : (formato === 'word' || formato === 'documento' ? 'text' : formato);
+
               setMessages((prev) => [
                 ...prev,
                 {
@@ -1850,8 +1854,23 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 });
                 setIsCanvasActive(true);
               }
+              resultMsg = `Entregable de Antigravity "${titulo}" completado y presentado en el chat de Tenshi.`;
+            } else {
+              setMessages((prev) => [
+                ...prev,
+                {
+                  role: 'assistant',
+                  content: `🚀 **Orden Delegada a Antigravity**\n\n` +
+                    `📌 **Tarea:** ${titulo}\n` +
+                    `📝 **Instrucción:** ${instruccion}\n` +
+                    `🏢 **Empresa:** ${empresa}\n` +
+                    `🎯 **Formato Solicitado:** ${formato}\n\n` +
+                    `*Antigravity ha recibido la instrucción pura y utilizará sus herramientas MCP para consultar la información requerida de la empresa y elaborar el entregable.*`,
+                },
+              ]);
+              setIsOpen(true);
+              resultMsg = `Orden "${titulo}" delegada exitosamente a Antigravity con su instrucción.`;
             }
-            resultMsg = `Entregable de Antigravity "${titulo}" completado y presentado en el chat de Tenshi.`;
           }
         } catch (e: any) {
           resultMsg = `Error ejecutando acción: ${e.message}`;
