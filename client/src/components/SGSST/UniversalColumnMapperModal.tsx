@@ -494,8 +494,13 @@ export default function UniversalColumnMapperModal({
           onConfirm(result.mappedRows);
         }
         onClose();
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error durante la transformación de datos:', err);
+        showToast({
+          message: `Error al procesar la importación: ${err?.message || 'Error inesperado'}`,
+          status: 'error',
+          severity: 'error',
+        });
       } finally {
         setIsProcessing(false);
       }

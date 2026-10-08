@@ -572,6 +572,9 @@ const CondicionesSalud = () => {
             }
         }
 
+        let actualizados = 0;
+        let nuevos = 0;
+
         const updatedList = (() => {
             const list = [...trabajadores];
             rowsToImport.forEach((t: any) => {

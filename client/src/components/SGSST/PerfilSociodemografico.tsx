@@ -683,6 +683,9 @@ const PerfilSociodemografico = () => {
         const validRows = mappedRows.filter(r => (r.nombre && String(r.nombre).trim()) || (r.identificacion && String(r.identificacion).trim()));
         const rowsToImport = validRows.length > 0 ? validRows : mappedRows;
 
+        let actualizados = 0;
+        let nuevos = 0;
+
         const updatedList = (() => {
             const list = [...trabajadores];
             rowsToImport.forEach((t: any) => {
@@ -728,7 +731,12 @@ const PerfilSociodemografico = () => {
 
         if (token) {
             const trabajadoresConBio = updatedList.map(w => {
-                const bio = calculateBiocentricFit(w);
+                let bio = { score: 100, alerts: [] as string[], isLethal: false };
+                try {
+                    bio = calculateBiocentricFit(w);
+                } catch (e) {
+                    console.warn('Biocentric fit error for worker:', w, e);
+                }
                 return {
                     ...w,
                     biocentricScore: (w.biocentricScore !== undefined && w.biocentricScore !== null) ? w.biocentricScore : bio.score,
