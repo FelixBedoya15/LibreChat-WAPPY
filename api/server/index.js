@@ -1078,6 +1078,26 @@ const startServer = async () => {
         );
         logger.info('[Startup] Automatically updated tools for Especialista en Riesgo Químico');
 
+        // Add NotebookLM MCP tools to ALL agents (format: <toolName>_mcp_<serverName>)
+        const notebooklmTools = [
+          'notebook_list_mcp_notebooklm',
+          'notebook_create_mcp_notebooklm',
+          'source_list_mcp_notebooklm',
+          'source_add_mcp_notebooklm',
+          'chat_ask_mcp_notebooklm',
+          'studio_generate_mcp_notebooklm',
+          'studio_status_mcp_notebooklm',
+          'studio_download_mcp_notebooklm',
+          'studio_list_mcp_notebooklm',
+          'research_start_mcp_notebooklm',
+          'research_import_mcp_notebooklm',
+        ];
+        const notebooklmResult = await Agent.updateMany(
+          {},
+          { $addToSet: { tools: { $each: notebooklmTools } } }
+        );
+        logger.info(`[Startup] Added NotebookLM MCP tools to ${notebooklmResult.modifiedCount} agents`);
+
         // Pull deactivated tools from all agents
         await Agent.updateMany({}, {
           $pull: {
