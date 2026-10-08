@@ -68,6 +68,7 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedConfig, setCopiedConfig] = useState(false);
   const [copiedPrompt, setCopiedPrompt] = useState(false);
+  const [copiedCron, setCopiedCron] = useState(false);
   const [copiedLocal, setCopiedLocal] = useState(false);
   const [showAdvancedLocal, setShowAdvancedLocal] = useState(false);
   const [activeTab, setActiveTab] = useState<'config' | 'tools' | 'keys'>('config');
@@ -164,13 +165,16 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
   const effectiveKey = newKeyGenerated || (keys.length > 0 ? `${keys[0].keyPrefix}` : 'PEGA_TU_CLAVE_AQUI');
   const sseServerUrl = `${originUrl}/api/mcp-bridge/sse?apiKey=${effectiveKey}`;
 
+  // Instrucción independiente para activar únicamente el Cron / Vigía Automático
+  const cronOnlyPrompt = `Activa de inmediato tu planificador en segundo plano (usando tu herramienta schedule en modo cron: CronExpression="*/2 * * * *", IsDaemon=true) para revisar cada 2 minutos las órdenes delegadas por Tenshi usando 'wappy_consultar_ordenes_delegadas_tenshi' y completarlas de forma autónoma con 'wappy_completar_orden_delegada_tenshi'.`;
+
   // Instrucción para pegar en el chat de Antigravity
   const buildAntigravityPrompt = (url: string) => `Configura mi conexión con WAPPY en tu archivo de servidores MCP (mcp_config.json) usando esta URL remota:
 URL: ${url}
 
 Es una conexión MCP directa en la nube por SSE con acceso a toda mi empresa en WAPPY.
 Una vez agregues el servidor MCP 'wappy', realiza estas dos acciones:
-1. Activa de inmediato tu planificador en segundo plano (usando tu herramienta schedule en modo cron: CronExpression="*/2 * * * *", IsDaemon=true) para revisar cada 2 minutos las órdenes delegadas por Tenshi usando 'wappy_consultar_ordenes_delegadas_tenshi' y completarlas de forma autónoma con 'wappy_completar_orden_delegada_tenshi'.
+1. ${cronOnlyPrompt}
 2. Hazme un diagnóstico 360° inicial de mi empresa en WAPPY para confirmar que la conexión y las herramientas quedaron 100% operativas.`;
 
   const antigravityPrompt = buildAntigravityPrompt(sseServerUrl);
@@ -188,7 +192,15 @@ Una vez agregues el servidor MCP 'wappy', realiza estas dos acciones:
     2
   );
 
-  const copyToClipboard = async (text: string, type: 'key' | 'config' | 'prompt' | 'local') => {
+  const copyToClipboard = async (text: string, type: 'key' | 'config' | 'prompt' | 'cron' | 'local') => {
+    if (type === 'cron') {
+      navigator.clipboard.writeText(cronOnlyPrompt);
+      setCopiedCron(true);
+      setTimeout(() => setCopiedCron(false), 2000);
+      showToast({ message: 'Instrucción del Vigía Automático (Cron) copiada al portapapeles', status: 'success' });
+      return;
+    }
+
     let keyToUse = newKeyGenerated;
     if (!keyToUse && (type === 'config' || type === 'prompt' || type === 'local')) {
       keyToUse = await handleCreateKey();
@@ -674,6 +686,45 @@ Una vez agregues el servidor MCP 'wappy', realiza estas dos acciones:
             <div className="p-3.5 rounded-xl bg-orange-50/50 dark:bg-zinc-950 text-slate-800 dark:text-zinc-200 font-mono text-xs border border-orange-200/60 dark:border-zinc-800 leading-relaxed whitespace-pre-wrap select-all">
               {antigravityPrompt}
             </div>
+          </div>
+
+          {/* Explicación e Instrucción del Vigía Automático (Cron) entre Método 1 y Método 2 */}
+          <div className="p-4 rounded-2xl bg-teal-50/40 dark:bg-teal-950/20 border border-teal-500/30 dark:border-teal-500/30 flex flex-col gap-3 shadow-2xs">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-600 dark:text-teal-400 font-bold text-xs shrink-0">
+                  <Zap className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-slate-900 dark:text-zinc-100">
+                      ¿Qué hace la instrucción del Vigía Automático (Cron) con Tenshi?
+                    </span>
+                    <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-teal-600 text-white shadow-2xs">
+                      Escucha cada 2 min
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-zinc-400 mt-0.5 leading-relaxed">
+                    Esta instrucción activa el planificador interno de Antigravity (<code className="font-mono text-teal-700 dark:text-teal-300">schedule</code> con <code className="font-mono text-teal-700 dark:text-teal-300">CronExpression="*/2 * * * *"</code>). Así, cuando le pidas un informe, dashboard o documento a <strong>Tenshi por voz o chat</strong>, Antigravity revisará automáticamente la bandeja cada 2 minutos (<code className="font-mono text-teal-700 dark:text-teal-300">wappy_consultar_ordenes_delegadas_tenshi</code>), consultará los datos reales de tu empresa y devolverá el entregable (<code className="font-mono text-teal-700 dark:text-teal-300">wappy_completar_orden_delegada_tenshi</code>) para que se abra solo en el <strong>Canvas de Tenshi</strong>.
+                  </p>
+                </div>
+              </div>
+
+              <ExpandingButton
+                onClick={() => copyToClipboard(cronOnlyPrompt, 'cron')}
+                icon={copiedCron ? Check : Copy}
+                label={copiedCron ? '¡Cron Copiado!' : 'Copiar Solo Instrucción Cron'}
+                variant="teal"
+                title="Copiar únicamente la instrucción para activar el Vigía Automático en Antigravity (ideal si usaste el Método 2 manual o abriste una nueva ventana)"
+              />
+            </div>
+
+            <div className="p-3 rounded-xl bg-white/90 dark:bg-zinc-950 text-slate-800 dark:text-zinc-200 font-mono text-xs border border-teal-200/70 dark:border-zinc-800 leading-relaxed whitespace-pre-wrap select-all">
+              {cronOnlyPrompt}
+            </div>
+            <p className="text-[10px] text-slate-500 dark:text-zinc-400">
+              💡 <strong>Nota:</strong> Si configuraste el archivo JSON manualmente con el <strong>Método 2</strong> o abriste una nueva conversación en Antigravity, pega únicamente este bloque en el chat de Antigravity para dejar encendida la escucha automática con Tenshi.
+            </p>
           </div>
 
           {/* Método 2: Configuración JSON en mcp_config.json */}

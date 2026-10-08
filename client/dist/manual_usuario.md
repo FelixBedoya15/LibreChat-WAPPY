@@ -104,6 +104,10 @@ Todos los aplicativos de Somos SST cuentan con la barra de herramientas unificad
     2. **`consultar_agente_especializado`**: Orquestación Multi-Agente para delegar consultas técnicas a especialistas. Todo queda guardado en el chat.
     3. **`canvas_tool`**: Creación de lienzos Canvas interactivos.
     4. **`consultar_planes_y_sistema`**: Consulta directa en MongoDB del plan activo de la empresa, tarifas oficiales y cupones Wompi.
+    5. **`wappy_delegar_antigravity` (Puente Autónomo Tenshi ↔ Antigravity MCP)**: Permite delegar investigaciones profundas, dashboards interactivos y documentos a Antigravity.
+       * **Método 1 (Instrucción Completa en el Chat de Antigravity)**: Configura la URL remota SSE, activa el planificador en segundo plano y ejecuta un diagnóstico 360° inicial.
+       * **Explicación de la Instrucción del Vigía Automático (Cron cada 2 min)**: La instrucción `Activa de inmediato tu planificador en segundo plano (usando tu herramienta schedule en modo cron: CronExpression="*/2 * * * *", IsDaemon=true) para revisar cada 2 minutos las órdenes delegadas por Tenshi usando 'wappy_consultar_ordenes_delegadas_tenshi' y completarlas de forma autónoma con 'wappy_completar_orden_delegada_tenshi'` hace que Antigravity revise automáticamente la bandeja de órdenes delegadas cada 2 minutos, procese la solicitud con los datos reales de la empresa y entregue el resultado directamente en el chat de Tenshi y en el panel Canvas.
+       * **Método 2 (Configuración Manual en `mcp_config.json`)**: Si conectas el servidor manualmente mediante el bloque JSON, puedes pegar únicamente la instrucción del Vigía Automático (Cron) en cualquier ventana de Antigravity para dejar activa la escucha automática.
 
 ---
 
