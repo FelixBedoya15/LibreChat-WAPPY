@@ -1,7 +1,6 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
 const router = express.Router();
 const NotebookSession = require('~/models/NotebookSession');
 const { requireJwtAuth } = require('~/server/middleware');
@@ -127,58 +126,39 @@ function parseIncomingCookies(input) {
 }
 
 /**
- * Realiza una prueba HTTP contra Google NotebookLM para verificar validez
+ * Valida localmente que las cookies críticas estén presentes y no vacías.
+ * Google NotebookLM siempre redirige la primera solicitud HTTP sin importar
+ * si las cookies son válidas (requiere manejo completo de redirects y JS).
+ * La validación real la hace notebooklm-py con Playwright al usarlas.
  */
-async function testCookiesWithGoogle(cookies) {
-  return new Promise((resolve) => {
-    if (!cookies || cookies.length === 0) {
-      return resolve({ success: false, reason: 'Lista de cookies vacía.' });
-    }
+function validateCookiesLocally(cookies) {
+  if (!cookies || cookies.length === 0) {
+    return { success: false, reason: 'Lista de cookies vacía.' };
+  }
 
-    const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
-    const options = {
-      hostname: 'notebooklm.google.com',
-      port: 443,
-      path: '/',
-      method: 'GET',
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
-        Cookie: cookieHeader,
-      },
+  const cookieMap = new Map(cookies.map((c) => [c.name, c.value]));
+  const hasPsid = cookieMap.has('__Secure-1PSID');
+  const hasPsidTs = cookieMap.has('__Secure-1PSIDTS');
+  const hasSid = cookieMap.has('SID');
+
+  if (!hasSid) {
+    return { success: false, reason: 'Falta la cookie SID — inicia sesión en Google primero.' };
+  }
+
+  if (!hasPsid && !hasPsidTs) {
+    return {
+      success: false,
+      reason: 'Falta __Secure-1PSID o __Secure-1PSIDTS — asegúrate de tener NotebookLM abierto en Chrome.',
     };
+  }
 
-    const req = https.request(options, (res) => {
-      const location = res.headers.location || '';
-      if (
-        location.includes('accounts.google.com/ServiceLogin') ||
-        location.includes('accounts.google.com/signin')
-      ) {
-        resolve({
-          success: false,
-          reason: 'Redirección a login de Google (cookies inválidas o incompletas).',
-        });
-      } else if (res.statusCode === 200 || (res.statusCode >= 300 && res.statusCode < 400)) {
-        resolve({ success: true, statusCode: res.statusCode });
-      } else {
-        resolve({
-          success: false,
-          reason: `Código HTTP inesperado: ${res.statusCode}`,
-        });
-      }
-    });
+  // Verificar que los valores críticos no estén vacíos
+  const sid = cookieMap.get('SID') || '';
+  if (sid.length < 10) {
+    return { success: false, reason: 'Cookie SID parece estar vacía o demasiado corta.' };
+  }
 
-    req.on('error', (err) => {
-      resolve({ success: false, reason: err.message });
-    });
-
-    req.setTimeout(8000, () => {
-      req.destroy();
-      resolve({ success: false, reason: 'Tiempo de espera agotado al conectar con Google.' });
-    });
-
-    req.end();
-  });
+  return { success: true };
 }
 
 /**
@@ -296,7 +276,7 @@ router.post('/session', requireJwtAuth, async (req, res) => {
     }
 
     // 2. Probar conexión en vivo contra Google
-    const testResult = await testCookiesWithGoogle(cookies);
+    const testResult = validateCookiesLocally(cookies);
 
     // 3. Guardar en MongoDB
     const updatedSession = await NotebookSession.findOneAndUpdate(
@@ -356,7 +336,7 @@ router.post('/test', requireJwtAuth, async (req, res) => {
       });
     }
 
-    const testResult = await testCookiesWithGoogle(cookies);
+    const testResult = validateCookiesLocally(cookies);
 
     await NotebookSession.findOneAndUpdate(
       { user: userId },
