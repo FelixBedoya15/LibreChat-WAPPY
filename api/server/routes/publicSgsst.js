@@ -2257,7 +2257,8 @@ REGLAS DE FORMATO Y SALIDA:
           'estudio_puesto',
           `Auto-evaluación ergonómica de puesto de trabajo realizada (${finalActionLevel})`,
           40,
-          String(newStudy._id)
+          String(newStudy._id),
+          { companyId: company._id }
         );
       } catch (feedErr) {
         logger.error('[Public SGSST] Error feeding worker event for estudio-puesto:', feedErr);
