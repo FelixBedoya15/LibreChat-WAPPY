@@ -221,6 +221,23 @@ async def get_client_for_request() -> NotebookLMClient:
 
     # Si el archivo del usuario no existe en disco, intentar sincronizarlo dinámicamente desde LibreChat API
     if user_id and (not user_storage_file.exists() or user_storage_file.stat().st_size == 0):
+        # Primero buscar si existe en ubicaciones alternativas del contenedor
+        for alt_path in [
+            Path("/app/profiles") / safe_profile / "storage_state.json",
+            Path.home() / ".notebooklm" / "profiles" / safe_profile / "storage_state.json",
+            Path("/root/LibreChat-WAPPY/config/notebooklm/profiles") / safe_profile / "storage_state.json",
+        ]:
+            if alt_path.exists() and alt_path.stat().st_size > 0:
+                try:
+                    target_profile_dir.mkdir(parents=True, exist_ok=True)
+                    user_storage_file.write_bytes(alt_path.read_bytes())
+                    logger.info(f"Perfil '{safe_profile}' copiado desde alternativa: {alt_path}")
+                    break
+                except Exception:
+                    pass
+
+    # Si aún no existe, intentar obtenerlo de la API interna
+    if user_id and (not user_storage_file.exists() or user_storage_file.stat().st_size == 0):
         for base_host in ["http://LibreChat:3080", "http://api:3080", "http://localhost:3080"]:
             try:
                 import urllib.request
@@ -242,6 +259,7 @@ async def get_client_for_request() -> NotebookLMClient:
                                     },
                                 },
                             }
+                            target_profile_dir.mkdir(parents=True, exist_ok=True)
                             user_storage_file.write_text(json.dumps(sync_data, indent=2))
                             try:
                                 os.chmod(user_storage_file, 0o600)
@@ -331,6 +349,11 @@ def _handle_tool_error(tool_name: str, e: Exception) -> None:
     """Registra y enriquece errores de autenticación con Google NotebookLM."""
     logger.error(f"[{tool_name}] Error: {e}", exc_info=True)
     msg = str(e)
+    if isinstance(e, FileNotFoundError) or "no such file or directory" in msg.lower():
+        raise RuntimeError(
+            "El perfil o archivo de sesión para este usuario no se encuentra disponible. "
+            "Por favor vincula tu cuenta desde la extensión WAPPY Connect en Chrome o desde Configuración -> Mi Cuenta."
+        ) from e
     if any(term in msg.lower() for term in ("csrf", "snlm0e", "auth", "401", "403", "cookie", "login", "signin", "redirect")):
         raise RuntimeError(
             "Error de autenticación con Google NotebookLM (token CSRF no encontrado o sesión expirada). "
