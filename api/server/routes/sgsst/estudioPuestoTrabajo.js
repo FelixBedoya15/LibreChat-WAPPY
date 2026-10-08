@@ -169,6 +169,49 @@ function checkEptPermission(req, res) {
   return false;
 }
 
+/**
+ * Consulta en vivo a la API gratuita de MedlinePlus Connect (NIH / Biblioteca Nacional de Medicina de EE. UU.)
+ * para obtener la guía clínica y folleto de prevención en español correspondiente al código CIE-10.
+ */
+async function fetchMedlinePlusConnect(cie10Code) {
+  if (!cie10Code) return null;
+  const cleanCode = String(cie10Code).replace(/[^A-Za-z0-9.]/g, '').toUpperCase();
+  let formattedCode = cleanCode;
+  if (formattedCode.length > 3 && !formattedCode.includes('.')) {
+    formattedCode = `${formattedCode.slice(0, 3)}.${formattedCode.slice(3)}`;
+  }
+
+  try {
+    const url = `https://connect.medlineplus.gov/service?mainSearchCriteria.v.cs=2.16.840.1.113883.6.90&mainSearchCriteria.v.c=${encodeURIComponent(formattedCode)}&informationRecipient.languageCode.c=es&knowledgeResponseType=application/json`;
+    const res = await fetch(url, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(4500),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const entry = data?.feed?.entry?.[0];
+      if (entry) {
+        const title = entry.title?._value || entry.title || 'Guía de Salud Ocupacional';
+        const rawSummary = entry.summary?._value || entry.summary || '';
+        const cleanSummary = String(rawSummary).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        const link = entry.link?.[0]?.href || 'https://medlineplus.gov/spanish/';
+        return {
+          cie10: formattedCode,
+          titulo: title,
+          resumen: cleanSummary,
+          enlaceOficial: link,
+          fuente: 'MedlinePlus Connect / U.S. National Library of Medicine (NIH)',
+          idioma: 'Español',
+        };
+      }
+    }
+  } catch (err) {
+    logger.warn(`[MedlinePlus Connect] Timeout o error consultando ${formattedCode}: ${err.message}`);
+  }
+  return null;
+}
+
 // ─── GET /api/sgsst/estudio-puesto/company/:companyId ─────────────────────────
 router.get('/company/:companyId', requireJwtAuth, async (req, res) => {
   try {
@@ -524,7 +567,58 @@ router.post('/generate-report', requireJwtAuth, async (req, res) => {
       </div>`;
     }
 
-    // 4. Prompt para generar el análisis ergonómico con el modelo IA seleccionado
+    // 4. Integración MedlinePlus Connect (NIH) según telemetría biomecánica del puesto
+    let targetCie10 = 'M54.2';
+    let targetSegment = 'Columna Cervical y Cuello';
+
+    const neck = Number(telemetry?.neckAngle) || 0;
+    const trunk = Number(telemetry?.trunkAngle) || 0;
+    const arm = Number(telemetry?.armAngle) || 0;
+    const cargoLower = String(cargo || '').toLowerCase();
+    const actLower = String(actividad || '').toLowerCase();
+
+    if (cargoLower.includes('conduc') || cargoLower.includes('operar') || trunk > 20) {
+      targetCie10 = 'M54.5';
+      targetSegment = 'Región Lumbar y Espalda';
+    } else if (cargoLower.includes('digitad') || actLower.includes('mouse') || actLower.includes('teclado')) {
+      targetCie10 = 'G56.0';
+      targetSegment = 'Muñeca y Túnel del Carpo';
+    } else if (arm > 45 || actLower.includes('carga') || actLower.includes('estib')) {
+      targetCie10 = 'M75.1';
+      targetSegment = 'Hombro y Manguito Rotador';
+    } else if (neck > 20) {
+      targetCie10 = 'M54.2';
+      targetSegment = 'Columna Cervical y Cuello';
+    }
+
+    const medlineGuide = await fetchMedlinePlusConnect(targetCie10);
+
+    let medlineCardHtml = '';
+    if (medlineGuide) {
+      medlineCardHtml = `
+      <div style="background:#f0fdfa; border:1px solid #99f6e4; border-radius:12px; padding:16px 20px; margin:24px 0; page-break-inside:avoid; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; border-bottom:1px solid #ccfbf1; padding-bottom:10px; margin-bottom:12px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:22px;">🏛️</span>
+            <div>
+              <div style="color:#0f766e; font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">Folleto Clínico de Prevención y Autocuidado Oficial</div>
+              <div style="color:#64748b; font-size:11px;">Avalado por MedlinePlus Connect / U.S. National Library of Medicine (NIH)</div>
+            </div>
+          </div>
+          <span style="background:#0f766e; color:#ffffff; font-size:11px; font-weight:700; padding:4px 10px; border-radius:20px;">CIE-10: ${medlineGuide.cie10}</span>
+        </div>
+        <h4 style="color:#115e59; font-size:15px; font-weight:700; margin:0 0 8px 0;">${medlineGuide.titulo}</h4>
+        <p style="color:#334155; font-size:12.5px; line-height:1.6; margin:0 0 12px 0;">${medlineGuide.resumen}</p>
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding-top:10px; border-top:1px dashed #99f6e4;">
+          <span style="color:#0f766e; font-size:11px; font-weight:600;">Segmento Intervenido: ${targetSegment}</span>
+          <a href="${medlineGuide.enlaceOficial}" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; gap:6px; background:#0f766e; color:#ffffff; font-size:11px; font-weight:700; padding:6px 14px; border-radius:8px; text-decoration:none;">
+            📖 Abrir Guía Oficial de Autocuidado para el Trabajador &rarr;
+          </a>
+        </div>
+      </div>`;
+    }
+
+    // 5. Prompt para generar el análisis ergonómico con el modelo IA seleccionado
     const companyContext = buildCompanyContextString(companyInfo);
     const telemetryJson = JSON.stringify(telemetry, null, 2);
 
@@ -545,6 +639,17 @@ DATOS DEL ESTUDIO:
 - Nivel de Riesgo Global: ${riskLevel}
 - Telemetría MediaPipe capturada:
 ${telemetryJson}
+${
+  medlineGuide
+    ? `
+INFORMACIÓN CLÍNICA OFICIAL MEDLINEPLUS CONNECT (NIH):
+- Diagnóstico preventivo asociado: ${medlineGuide.titulo} (CIE-10: ${medlineGuide.cie10})
+- Segmento intervenido: ${targetSegment}
+- Resumen clínico oficial del NIH: ${medlineGuide.resumen.slice(0, 350)}
+- En la Sección 5 (Plan de Intervención), DEBES incorporar de forma explícita las recomendaciones y ejercicios de autocuidado respaldados por esta guía de salud oficial.
+`
+    : ''
+}
 
 REGLAS DE FORMATO Y SALIDA:
 - NO incluyas encabezados de empresa ni títulos globales (ya están creados en el sub-encabezado).
@@ -570,14 +675,14 @@ REGLAS DE FORMATO Y SALIDA:
     // Clean code fences if returned
     aiHtml = aiHtml.replace(/```html/gi, '').replace(/```/g, '').trim();
 
-    // 5. Firmas unificadas
+    // 6. Firmas unificadas
     const signatureHtml = buildSignatureSection({
       companyInfo: companyInfo || {},
       responsibleName: req.user?.name || companyInfo?.responsibleSST,
       worker: { nombre: workerName, identificacion: workerId, cargo },
     });
 
-    // 6. Ensamblado final del reporte
+    // 7. Ensamblado final del reporte
     const finalReportHtml = `
 <div class="report-container" style="font-family:'Segoe UI',Arial,sans-serif; max-width:900px; margin:0 auto; color:#111827; line-height:1.6;">
   <style>
@@ -596,6 +701,7 @@ REGLAS DE FORMATO Y SALIDA:
 
   <div class="ai-report-content" style="background:#ffffff; padding:10px 0;">
     ${aiHtml}
+    ${medlineCardHtml}
   </div>
 
   ${signatureHtml}

@@ -1604,10 +1604,23 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 }
             };
 
+            const wappyConsultarRehabilitacionMedlinePlusDeclaration = {
+                name: 'wappy_consultar_rehabilitacion_medlineplus',
+                description: 'Consulta guías oficiales de salud ocupacional en español de MedlinePlus Connect (NIH de EE. UU.) y prescribe pausas activas osteomusculares y ejercicios de Fisioterapia laboral según el segmento anatómico o código CIE-10 (ej: M54.2 cuello, G56.0 túnel carpiano, M54.5 espalda lumbar, M75.1 hombro).',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        codigo: { type: 'STRING', description: 'Código CIE-10 de la patología (ej: M54.2, G56.0, M54.5, M75.1).' },
+                        segmento: { type: 'STRING', description: 'Segmento anatómico: cervical, lumbar, muñeca, hombro, codo o ocular.' }
+                    }
+                }
+            };
+
             // Assemble base tools and dynamically triggered tools (strictly excluding Group 7)
             const baseFunctionDeclarations = [
                 wappyNavegarDeclaration,
                 wappyIniciarEstudioErgonomicoVivoDeclaration,
+                wappyConsultarRehabilitacionMedlinePlusDeclaration,
                 somosSSTDeclaration,
                 wappyCrearInformeDeclaration,
                 wappyGenerarQrDeclaration,

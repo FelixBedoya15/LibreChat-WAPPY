@@ -260,6 +260,16 @@ const TOOL_ROUTES = {
   research_start_mcp_notebooklm: { isNotebookLM: true, tool: 'research_start' },
   research_import: { isNotebookLM: true, tool: 'research_import' },
   research_import_mcp_notebooklm: { isNotebookLM: true, tool: 'research_import' },
+
+  // MedlinePlus Connect (NIH) & Fisioterapia Laboral
+  wappy_consultar_rehabilitacion_medlineplus: {
+    method: 'GET',
+    path: (args) => `/medicina/rehabilitacion-medlineplus?codigo=${encodeURIComponent(args.codigo || args.cie10 || args.q || '')}&segmento=${encodeURIComponent(args.segmento || args.zona || '')}`,
+  },
+  consultar_rehabilitacion_medlineplus: {
+    method: 'GET',
+    path: (args) => `/medicina/rehabilitacion-medlineplus?codigo=${encodeURIComponent(args.codigo || args.cie10 || args.q || '')}&segmento=${encodeURIComponent(args.segmento || args.zona || '')}`,
+  },
 };
 
 async function executeTenshiMcpTool(toolName, args = {}, userId) {

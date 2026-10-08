@@ -6864,6 +6864,156 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
+// ============================================================================
+// 42. MEDLINEPLUS CONNECT (NIH) Y GUÍAS DE REHABILITACIÓN / FISIOTERAPIA LABORAL
+// ============================================================================
+
+const CATALOGO_PAUSAS_FISIOTERAPIA = [
+  {
+    id: 'pausa-cervical-01',
+    nombre: 'Inclinación y Estiramiento Cervical Lateral',
+    segmento: 'Cervical / Cuello',
+    cie10: 'M54.2',
+    indicacion: 'Cervicalgia (M54.2), contractura de trapecio por trabajo con pantallas.',
+    ejecucion: 'Sentado erguido, incline suavemente la cabeza hacia el hombro derecho con ayuda de la mano derecha sin elevar el hombro contrario. Mantenga 15 segundos y alterne.',
+    frecuencia: '2 veces al día en pausas activas, 3 repeticiones por lado.',
+    musculos: ['Trapecio superior', 'Elevador de la escápula'],
+  },
+  {
+    id: 'pausa-tunel-carpo-02',
+    nombre: 'Deslizamiento Tendinoso y Estiramiento de Flexores de Muñeca',
+    segmento: 'Muñeca / Mano',
+    cie10: 'G56.0',
+    indicacion: 'Síndrome de túnel carpiano (G56.0), tenosinovitis por digitación y uso de ratón.',
+    ejecucion: 'Extienda el brazo al frente con el codo extendido y la palma hacia arriba. Con la otra mano, lleve los dedos suavemente hacia abajo y atrás.',
+    frecuencia: 'Cada 2 horas de digitación continua, mantener 20 segundos por muñeca.',
+    musculos: ['Flexor común de los dedos', 'Palmar mayor', 'Nervio mediano'],
+  },
+  {
+    id: 'pausa-lumbar-03',
+    nombre: 'Extensión Lumbar de Pie (Método McKenzie)',
+    segmento: 'Lumbar / Espalda',
+    cie10: 'M54.5',
+    indicacion: 'Lumbago ocupacional (M54.5), postura sedente prolongada >4 horas continuas.',
+    ejecucion: 'De pie, coloque ambas manos en la región lumbar/glútea. Arquee la espalda suavemente hacia atrás manteniendo las rodillas rectas y exhalando el aire.',
+    frecuencia: 'Al finalizar cada bloque de 2 horas sentado, 10 repeticiones lentas.',
+    musculos: ['Paravertebrales lumbares', 'Flexores de cadera'],
+  },
+  {
+    id: 'pausa-hombro-04',
+    nombre: 'Retracción Escapular y Rotación Externa',
+    segmento: 'Hombro / Manguito rotador',
+    cie10: 'M75.1',
+    indicacion: 'Manguito rotador (M75.1), postura cifótica y hombros adelantados.',
+    ejecucion: 'Sentado o de pie, junte los omóplatos hacia atrás y abajo como intentando sostener un lápiz entre ellos, con codos a 90°. Sostenga 5 segundos.',
+    frecuencia: '3 series de 10 repeticiones.',
+    musculos: ['Romboides', 'Trapecio medio e inferior', 'Infraespinoso'],
+  },
+  {
+    id: 'pausa-codo-05',
+    nombre: 'Estiramiento de Extensores de Muñeca y Pronadores',
+    segmento: 'Codo / Antebrazo',
+    cie10: 'M77.1',
+    indicacion: 'Epicondilitis lateral (M77.1, codo de tenista) por movimientos repetitivos de antebrazo.',
+    ejecucion: 'Extienda el codo al frente, puño cerrado, flexione la muñeca hacia el suelo y aplique ligera presión hacia adentro con la mano contraria.',
+    frecuencia: '3 repeticiones de 15 segundos.',
+    musculos: ['Extensor radial del carpo', 'Extensor común de los dedos'],
+  },
+  {
+    id: 'pausa-visual-06',
+    nombre: 'Regla 20-20-20 de Higiene Visual Ocupacional',
+    segmento: 'Ocular / Cefálico',
+    cie10: 'H53.1',
+    indicacion: 'Fatiga visual digital, astenopia y cefalea por brillo de monitores.',
+    ejecucion: 'Cada 20 minutos de pantalla, mire un objeto ubicado a 6 metros durante 20 segundos y parpadee deliberadamente 10 veces.',
+    frecuencia: 'Cada 20 minutos durante la jornada laboral.',
+    musculos: ['Músculo ciliar', 'Músculos oculomotores'],
+  },
+];
+
+router.get('/medicina/rehabilitacion-medlineplus', async (req, res) => {
+  try {
+    const rawCodigo = (req.query.codigo || req.query.cie10 || req.query.q || '').toString().trim().toUpperCase();
+    const segmento = (req.query.segmento || req.query.zona || '').toString().trim().toLowerCase();
+
+    // Mapeo automático de código CIE-10 si se pasa segmento
+    let mappedCie10 = rawCodigo;
+    if (!mappedCie10) {
+      if (segmento.includes('cervic') || segmento.includes('cuell')) mappedCie10 = 'M54.2';
+      else if (segmento.includes('lumb') || segmento.includes('espalda')) mappedCie10 = 'M54.5';
+      else if (segmento.includes('carp') || segmento.includes('muñec') || segmento.includes('mano')) mappedCie10 = 'G56.0';
+      else if (segmento.includes('hombr') || segmento.includes('manguit')) mappedCie10 = 'M75.1';
+      else if (segmento.includes('codo') || segmento.includes('epicond')) mappedCie10 = 'M77.1';
+      else mappedCie10 = 'M54.2';
+    }
+
+    let formattedCie10 = mappedCie10.replace(/[^A-Z0-9]/g, '');
+    if (formattedCie10.length > 3 && !formattedCie10.includes('.')) {
+      formattedCie10 = `${formattedCie10.slice(0, 3)}.${formattedCie10.slice(3)}`;
+    }
+
+    // Consulta en vivo a MedlinePlus Connect API (NIH) en Español
+    let medlinePlusInfo = null;
+    try {
+      const medlineUrl = `https://connect.medlineplus.gov/service?mainSearchCriteria.v.cs=2.16.840.1.113883.6.90&mainSearchCriteria.v.c=${encodeURIComponent(formattedCie10)}&informationRecipient.languageCode.c=es&knowledgeResponseType=application/json`;
+      const resp = await fetch(medlineUrl, {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(4500),
+      });
+
+      if (resp.ok) {
+        const data = await resp.json();
+        const feed = data?.feed;
+        if (feed && Array.isArray(feed.entry) && feed.entry.length > 0) {
+          const entry = feed.entry[0];
+          medlinePlusInfo = {
+            titulo: entry.title?._value || entry.title || 'Guía de Salud MedlinePlus',
+            resumen: (entry.summary?._value || entry.summary || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
+            enlaceOficial: entry.link?.[0]?.href || 'https://medlineplus.gov/spanish/',
+            autor: 'U.S. National Library of Medicine (NIH)',
+            idioma: 'Español',
+          };
+        }
+      }
+    } catch (e) {
+      logger.warn(`[MCP Bridge - MedlinePlus] Error consultando ${formattedCie10}: ${e.message}`);
+    }
+
+    // Filtrar pausas activas
+    let pausas = CATALOGO_PAUSAS_FISIOTERAPIA.filter((p) => {
+      const matchSeg = segmento ? p.segmento.toLowerCase().includes(segmento) : true;
+      const matchCod = formattedCie10 ? p.cie10.replace('.', '') === formattedCie10.replace('.', '') : true;
+      return matchSeg && (matchCod || !formattedCie10);
+    });
+
+    if (pausas.length === 0) {
+      pausas = CATALOGO_PAUSAS_FISIOTERAPIA.slice(0, 3);
+    }
+
+    return res.json({
+      exito: true,
+      codigoCie10: formattedCie10,
+      segmentoConsultado: segmento || 'General',
+      guiaEducativaMedlinePlus: medlinePlusInfo || {
+        titulo: 'Guía Ocupacional y Cuidados de Fisioterapia WAPPY',
+        resumen: 'Se recomienda alternancia postural, pausas activas cada 2 horas de labor continuada y ajuste de alturas de pantalla y silla ergonómica.',
+        enlaceOficial: 'https://medlineplus.gov/spanish/',
+        autor: 'WAPPY SG-SST Salud Laboral',
+      },
+      planPausasActivas: pausas,
+      criteriosErgonomicosGTC45: {
+        tiempoMaximoPosturaMantenida: '2 horas continuas sin cambio de postura',
+        limiteLevantamientoHombre: '25 kg (carga ocasional), 12.5 kg (frecuente)',
+        limiteLevantamientoMujer: '12.5 kg (carga ocasional), 6 kg (frecuente)',
+        distanciaVisualPantalla: '50 cm a 70 cm con borde superior al nivel de los ojos',
+      },
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error en rehabilitacion MedlinePlus:', error);
+    return res.status(500).json({ error: `Error en consulta MedlinePlus: ${error.message}` });
+  }
+});
+
 module.exports = router;
 
 

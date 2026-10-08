@@ -1650,6 +1650,23 @@ class VoiceSession {
                           "task_id"
                     ]
           }
+},
+{
+          "name": "wappy_consultar_rehabilitacion_medlineplus",
+          "description": "Consulta en vivo la API oficial en español de MedlinePlus Connect (NIH / Biblioteca Nacional de Medicina de EE. UU.) para obtener guías de salud ocupacional, folletos de prevención y recomendaciones de ejercicios y pausas activas de Fisioterapia laboral (ExerciseDB) según el código CIE-10 (ej: M54.2 para cervicalgia, G56.0 para túnel del carpo, M54.5 para dolor de espalda, M75.1 para manguito rotador) o el segmento anatómico (cervical, lumbar, muñeca, hombro, codo).",
+          "parameters": {
+                    "type": "object",
+                    "properties": {
+                          "codigo": {
+                                    "type": "string",
+                                    "description": "Código CIE-10 de la patología osteomuscular (ej: M54.2, G56.0, M54.5, M75.1, M77.1)."
+                          },
+                          "segmento": {
+                                    "type": "string",
+                                    "description": "Segmento anatómico o zona muscular a intervenir: 'cervical', 'lumbar', 'muñeca', 'hombro', 'codo' u 'ocular'."
+                          }
+                    }
+          }
 }
                     ]
                 }
@@ -1879,6 +1896,11 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
      -> Explica la respuesta con solidez verbal y cita las fuentes y autores específicos devueltos por el cuaderno.
    - Si pide generar contenido pedagógico:
      -> INVOCA DE INMEDIATO 'notebooklm_generar_studio' ('audio' para podcast explicativo, 'quiz' para cuestionario, 'report' para informe o 'mind_map' para mapa conceptual).
+20. **MEDLINEPLUS CONNECT (NIH) Y GUÍAS DE FISIOTERAPIA LABORAL ('wappy_consultar_rehabilitacion_medlineplus')**:
+   - Tenshi y la Fisioterapeuta Laboral cuentan con conexión en vivo a la Biblioteca Nacional de Medicina de los Estados Unidos (NLM / NIH).
+   - Si el usuario o trabajador consulta por dolores musculares, molestias posturales, síndrome del túnel carpiano, dolor de cuello/cervicalgia, dolor de espalda/lumbago, o pide pausas activas o folletos de prevención:
+     -> INVOCA DE INMEDIATO 'wappy_consultar_rehabilitacion_medlineplus' pasando el código CIE-10 (ej: 'M54.2' para cuello, 'G56.0' para túnel carpiano, 'M54.5' para dolor lumbar, 'M75.1' para hombro) o el segmento (cervical, lumbar, muñeca, hombro, codo).
+     -> Explícale al usuario verbalmente el resumen de autocuidado oficial del NIH y la rutina de ejercicios de la Fisioterapeuta.
 
 [DOMINIO INTEGRAL DE METODOLOGÍAS Y SKILLS DE WAPPY IA]:
 1. **Investigación de Accidentes e Incidentes (Resolución 1401 de 2007)**:

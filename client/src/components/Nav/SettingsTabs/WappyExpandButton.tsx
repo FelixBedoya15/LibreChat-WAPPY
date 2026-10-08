@@ -4,7 +4,7 @@ import { cn } from '~/utils';
 
 export interface WappyExpandButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  icon: React.ReactNode;
+  icon?: React.ComponentType<{ className?: string }> | React.ReactNode;
   label: string;
   variant?: 'teal' | 'red' | 'orange' | 'emerald' | 'blue' | 'neutral';
   isLoading?: boolean;
@@ -33,6 +33,23 @@ export const WappyExpandButton = forwardRef<HTMLButtonElement, WappyExpandButton
       neutral: 'bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 border-slate-200 dark:border-zinc-700 shadow-slate-200/30 hover:border-slate-400',
     };
 
+    const renderIcon = () => {
+      if (isLoading) {
+        return <Loader2 className="w-4 h-4 animate-spin shrink-0" />;
+      }
+      if (!icon) {
+        return null;
+      }
+      if (React.isValidElement(icon)) {
+        return icon;
+      }
+      if (typeof icon === 'function' || (typeof icon === 'object' && icon !== null && '$$typeof' in icon)) {
+        const IconComponent = icon as React.ComponentType<{ className?: string }>;
+        return <IconComponent className="w-4 h-4 shrink-0" />;
+      }
+      return null;
+    };
+
     return (
       <button
         ref={ref}
@@ -47,7 +64,7 @@ export const WappyExpandButton = forwardRef<HTMLButtonElement, WappyExpandButton
         {...props}
       >
         <div className="relative flex shrink-0 items-center justify-center">
-          {isLoading ? <Loader2 className="w-4 h-4 animate-spin shrink-0" /> : icon}
+          {renderIcon()}
         </div>
         <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
           <span className="text-xs font-bold tracking-wide">{label}</span>
