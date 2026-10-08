@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0e1726"/>
+      <stop offset="100%" stop-color="#16253b"/>
+    </linearGradient>
+    <filter id="glowGold" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <style>
+      @keyframes handTension {
+        0%, 100% { transform: rotate(0deg); }
+        50% { transform: rotate(-22deg); }
+      }
+      @keyframes medianNervePulse {
+        0%, 100% { opacity: 0.3; stroke-width: 2; }
+        50% { opacity: 1; stroke-width: 3.5; }
+      }
+      .fingers-pivot {
+        animation: handTension 3.8s ease-in-out infinite;
+        transform-origin: 185px 125px;
+      }
+      .nerve-glow {
+        animation: medianNervePulse 3.8s ease-in-out infinite;
+      }
+    </style>
+  </defs>
+
+  <rect width="320" height="240" rx="12" fill="url(#bgGrad4)"/>
+
+  <line x1="20" y1="60" x2="300" y2="60" stroke="#1c2d44" stroke-width="0.8" stroke-dasharray="4,4"/>
+  <line x1="20" y1="120" x2="300" y2="120" stroke="#1c2d44" stroke-width="0.8" stroke-dasharray="4,4"/>
+  <line x1="20" y1="180" x2="300" y2="180" stroke="#1c2d44" stroke-width="0.8" stroke-dasharray="4,4"/>
+
+  <!-- Forearm Extended horizontally -->
+  <path d="M 50 115 L 180 118 L 180 132 L 50 135 Z" fill="#0284c7" opacity="0.85"/>
+
+  <!-- Median Nerve Track (Nervio Mediano en antebrazo y túnel del carpo) -->
+  <line x1="55" y1="125" x2="185" y2="125" stroke="#f59e0b" stroke-width="2.5" class="nerve-glow" filter="url(#glowGold)"/>
+
+  <!-- Carpal Tunnel Ring -->
+  <rect x="175" y="112" width="14" height="26" rx="4" fill="none" stroke="#e11d48" stroke-width="2"/>
+
+  <!-- Fingers group swinging up (Dorsiflexion / Extensor stretch) -->
+  <g class="fingers-pivot">
+    <!-- Palm -->
+    <path d="M 185 118 L 220 110 L 222 135 L 185 132 Z" fill="#38bdf8"/>
+    <!-- Extended Fingers pointing up -->
+    <path d="M 220 110 L 245 80 L 255 85 L 222 120 Z" fill="#7dd3fc"/>
+    <circle cx="250" cy="82" r="3" fill="#ffffff"/>
+
+    <!-- Opposing hand pulling gently -->
+    <path d="M 235 60 C 255 70 265 95 240 105" stroke="#10b981" stroke-width="4" stroke-linecap="round" fill="none"/>
+  </g>
+
+  <!-- Clinical Badges Overlay -->
+  <rect x="14" y="14" width="175" height="22" rx="6" fill="#3b0764" stroke="#9333ea" stroke-width="1"/>
+  <text x="22" y="29" fill="#d8b4fe" font-family="monospace" font-size="9" font-weight="bold">CIE-11: 8C10.0 • TÚNEL CARPIANO</text>
+
+  <rect x="14" y="202" width="170" height="24" rx="6" fill="#1e293b" opacity="0.95"/>
+  <text x="22" y="218" fill="#e2e8f0" font-family="'Segoe UI', sans-serif" font-size="10" font-weight="bold">Estiramiento Flexor / Extensor</text>
+
+  <rect x="192" y="202" width="114" height="24" rx="6" fill="#042f2e" stroke="#059669" stroke-width="0.8"/>
+  <text x="200" y="218" fill="#6ee7b7" font-family="monospace" font-size="9" font-weight="bold">2x15s c/mano</text>
+</svg>

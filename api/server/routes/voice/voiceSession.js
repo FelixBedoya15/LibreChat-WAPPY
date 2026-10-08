@@ -4886,6 +4886,160 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
     }
 
     /**
+     * Construye la sección visual enriquecida de correlación clínica CIE-11 / Decreto 1477
+     * y las tarjetas de pausas activas con animaciones vectoriales SVG (ExerciseDB)
+     */
+    buildBiomechanicsPrescriptionBlock() {
+        return `
+    <div class="clinical-biomechanics-prescription" style="margin-top:28px; margin-bottom:24px;">
+      <h3 style="color:#0f766e; font-size:1.25em; font-weight:700; border-bottom:1.5px solid #ccfbf1; padding-bottom:6px; margin-top:24px;">
+        4.1 Correlación Diagnóstica Ocupacional (CIE-11 OMS & Decreto 1477 de 2014)
+      </h3>
+      <p style="color:#475569; font-size:0.9em; margin-bottom:12px;">
+        Con base en los ángulos articulares y sobrecargas posturales registradas mediante visión computarizada e IA durante la sesión, se establecen las correlaciones oficiales con la Clasificación Internacional de Enfermedades (CIE-11) y la Tabla de Enfermedades Laborales de Colombia (Decreto 1477 de 2014):
+      </p>
+      <div class="table-responsive" style="overflow-x:auto; width:100%; margin:14px 0; -webkit-overflow-scrolling:touch;">
+        <table style="width:100%; min-width:800px; border-collapse:separate; border-spacing:0; border-radius:10px; overflow:hidden; border:1px solid #e2e8f0; font-size:0.85em;">
+          <thead style="background:#0f766e; color:#ffffff;">
+            <tr>
+              <th style="padding:9px 10px; font-weight:700;">Segmento / Desviación Biomecánica</th>
+              <th style="padding:9px 10px; font-weight:700;">Código CIE-11 (OMS)</th>
+              <th style="padding:9px 10px; font-weight:700;">Código CIE-10 (Dec. 1477/2014)</th>
+              <th style="padding:9px 10px; font-weight:700;">Diagnóstico Clínico Ocupacional</th>
+              <th style="padding:9px 10px; font-weight:700;">Criterio de Vigilancia Epidemiológica</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="background:#f0fdfa;">
+              <td style="padding:8px 10px; font-weight:600; color:#0f766e;">Flexión Cervical (> 20°-35°)</td>
+              <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0284c7;">FA80</td>
+              <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0369a1;">M54.2 / M50</td>
+              <td style="padding:8px 10px;">Cervicalgia postural / Síndrome miofascial cervical ("Tech Neck")</td>
+              <td style="padding:8px 10px;">Ajuste de altura de pantalla (borde superior al nivel ocular) y pausas de retracción cervical.</td>
+            </tr>
+            <tr>
+              <td style="padding:8px 10px; font-weight:600; color:#0f766e;">Inclinación de Tronco / Sedestación Prolongada</td>
+              <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0284c7;">FA81</td>
+              <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0369a1;">M54.5 / M51</td>
+              <td style="padding:8px 10px;">Lumbalgia mecánica postural / Sobrecarga discal L4-L5/S1</td>
+              <td style="padding:8px 10px;">Regulación de apoyo lumbar en silla ergonómica y descompresión axial activa cada 90 min.</td>
+            </tr>
+            <tr style="background:#f0fdfa;">
+              <td style="padding:8px 10px; font-weight:600; color:#0f766e;">Abducción de Brazos / Hombros (> 45°)</td>
+              <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0284c7;">FB40.1</td>
+              <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0369a1;">M75.1 / M75.8</td>
+              <td style="padding:8px 10px;">Tendinopatía de manguito rotador / Pinzamiento subacromial</td>
+              <td style="padding:8px 10px;">Acercamiento de periféricos al cuerpo y soporte de antebrazos sobre apoyabrazos ajustables.</td>
+            </tr>
+            <tr>
+              <td style="padding:8px 10px; font-weight:600; color:#0f766e;">Muñeca / Flexo-extensión y Tipeo Continuo</td>
+              <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0284c7;">8C10.0</td>
+              <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0369a1;">G56.0 / M77.1</td>
+              <td style="padding:8px 10px;">Síndrome del túnel carpiano / Epicondilitis lateral ocupacional</td>
+              <td style="padding:8px 10px;">Pad o reposamuñecas ergonómico, alineación neutra de antebrazo-muñeca y estiramientos neurodinámicos.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style="color:#0f766e; font-size:1.25em; font-weight:700; border-bottom:1.5px solid #ccfbf1; padding-bottom:6px; margin-top:28px;">
+        5.1 Prescripción Biomecánica de Pausas Activas y Rehabilitación Postural (ExerciseDB)
+      </h3>
+      <p style="color:#475569; font-size:0.9em; margin-bottom:16px;">
+        Protocolo visual de reeducación neuromuscular y descompresión articular basado en criterios clínicos de <strong>ExerciseDB</strong> y biomecánica ocupacional. Diseñado específicamente para compensar los segmentos sometidos a mayor fatiga durante la jornada laboral:
+      </p>
+      
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:18px; margin:16px 0;">
+        <!-- TARJETA 1: RETRACCIÓN CERVICAL (CHIN TUCK) -->
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:12px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.05); display:flex; flex-direction:column;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-weight:700; color:#0f766e; font-size:0.95em;">Retracción Cervical (Chin Tuck)</span>
+            <span style="background:#ccfbf1; color:#0f766e; padding:2px 8px; border-radius:6px; font-size:0.75em; font-weight:700;">CIE-11: FA80</span>
+          </div>
+          <div style="text-align:center; margin:6px 0; border-radius:8px; overflow:hidden; background:#091824;">
+            <img src="/images/exercises/cervical-chin-tuck.svg" alt="Retracción Cervical Activa" style="width:100%; max-width:280px; height:auto; display:block; margin:0 auto;" />
+          </div>
+          <div style="font-size:0.83em; color:#334155; line-height:1.5; margin-top:8px;">
+            <p style="margin:2px 0;"><strong>🎯 Músculos Diana:</strong> Flexores profundos del cuello, trapecio superior, esplenio.</p>
+            <p style="margin:2px 0;"><strong>📐 Corrección Angular:</strong> Alivia flexión cervical forzada (> 20°-35°) y síndrome de cabeza adelantada.</p>
+            <p style="margin:2px 0;"><strong>⏱️ Dosificación:</strong> 2 series de 10 reps (sostener 5s c/u) cada 90 minutos.</p>
+            <p style="margin:2px 0; color:#0f766e;"><strong>💡 Técnica:</strong> Deslizar la cabeza horizontalmente hacia atrás alineando orejas con hombros.</p>
+          </div>
+        </div>
+
+        <!-- TARJETA 2: ESTIRAMIENTO LATERAL DE TRAPECIO -->
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:12px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.05); display:flex; flex-direction:column;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-weight:700; color:#0f766e; font-size:0.95em;">Estiramiento de Trapecio y Escalenos</span>
+            <span style="background:#fef3c7; color:#b45309; padding:2px 8px; border-radius:6px; font-size:0.75em; font-weight:700;">CIE-10: M54.2</span>
+          </div>
+          <div style="text-align:center; margin:6px 0; border-radius:8px; overflow:hidden; background:#0c1724;">
+            <img src="/images/exercises/trapezius-stretch.svg" alt="Estiramiento Lateral de Trapecio" style="width:100%; max-width:280px; height:auto; display:block; margin:0 auto;" />
+          </div>
+          <div style="font-size:0.83em; color:#334155; line-height:1.5; margin-top:8px;">
+            <p style="margin:2px 0;"><strong>🎯 Músculos Diana:</strong> Fibras superiores del trapecio, angular de la escápula, escalenos.</p>
+            <p style="margin:2px 0;"><strong>📐 Corrección Angular:</strong> Reduce contracturas y tensión isométrica cervical sostenida.</p>
+            <p style="margin:2px 0;"><strong>⏱️ Dosificación:</strong> 2 repeticiones por lado manteniendo 15 a 20s de elongación suave.</p>
+            <p style="margin:2px 0; color:#0f766e;"><strong>💡 Técnica:</strong> Inclinar la cabeza hacia el hombro opuesto; descender el hombro contrario.</p>
+          </div>
+        </div>
+
+        <!-- TARJETA 3: APERTURA Y RETRACCIÓN ESCAPULAR -->
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:12px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.05); display:flex; flex-direction:column;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-weight:700; color:#0f766e; font-size:0.95em;">Apertura y Retracción Escapular</span>
+            <span style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:6px; font-size:0.75em; font-weight:700;">CIE-11: FB40.1</span>
+          </div>
+          <div style="text-align:center; margin:6px 0; border-radius:8px; overflow:hidden; background:#0b1720;">
+            <img src="/images/exercises/scapular-retraction.svg" alt="Apertura y Retracción Escapular" style="width:100%; max-width:280px; height:auto; display:block; margin:0 auto;" />
+          </div>
+          <div style="font-size:0.83em; color:#334155; line-height:1.5; margin-top:8px;">
+            <p style="margin:2px 0;"><strong>🎯 Músculos Diana:</strong> Romboides mayor y menor, trapecio medio/inferior, apertura de pectoral menor.</p>
+            <p style="margin:2px 0;"><strong>📐 Corrección Angular:</strong> Corrige la antepulsión de hombros y la abducción (> 45°) fuera de la zona neutra.</p>
+            <p style="margin:2px 0;"><strong>⏱️ Dosificación:</strong> 3 series de 8 reps con contracción isométrica de 5s.</p>
+            <p style="margin:2px 0; color:#0f766e;"><strong>💡 Técnica:</strong> Juntar los omóplatos hacia la columna con codos a 90° e inhalación diafragmática.</p>
+          </div>
+        </div>
+
+        <!-- TARJETA 4: ESTIRAMIENTO DE MUÑECA Y TÚNEL CARPIANO -->
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:12px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.05); display:flex; flex-direction:column;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-weight:700; color:#0f766e; font-size:0.95em;">Estiramiento Flexor/Extensor de Muñeca</span>
+            <span style="background:#f3e8ff; color:#7e22ce; padding:2px 8px; border-radius:6px; font-size:0.75em; font-weight:700;">CIE-11: 8C10.0</span>
+          </div>
+          <div style="text-align:center; margin:6px 0; border-radius:8px; overflow:hidden; background:#0e1726;">
+            <img src="/images/exercises/wrist-carpal-stretch.svg" alt="Estiramiento Flexor y Extensor de Muñeca" style="width:100%; max-width:280px; height:auto; display:block; margin:0 auto;" />
+          </div>
+          <div style="font-size:0.83em; color:#334155; line-height:1.5; margin-top:8px;">
+            <p style="margin:2px 0;"><strong>🎯 Músculos Diana:</strong> Flexores y extensores comunes de dedos y muñeca, descompresión del nervio mediano.</p>
+            <p style="margin:2px 0;"><strong>📐 Corrección Angular:</strong> Previene microtraumas por digitación continua y apoyo rígido del carpo.</p>
+            <p style="margin:2px 0;"><strong>⏱️ Dosificación:</strong> 2 series de 15s por mano alternando flexión y extensión.</p>
+            <p style="margin:2px 0; color:#0f766e;"><strong>💡 Técnica:</strong> Brazo extendido al frente, aplicar tracción suave sobre la palma y los dedos.</p>
+          </div>
+        </div>
+
+        <!-- TARJETA 5: EXTENSIÓN Y DESCOMPRESIÓN LUMBAR EN SILLA -->
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:12px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.05); display:flex; flex-direction:column;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-weight:700; color:#0f766e; font-size:0.95em;">Extensión Lumbar en Silla (McKenzie)</span>
+            <span style="background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:6px; font-size:0.75em; font-weight:700;">CIE-11: FA81</span>
+          </div>
+          <div style="text-align:center; margin:6px 0; border-radius:8px; overflow:hidden; background:#0d1b2a;">
+            <img src="/images/exercises/lumbar-decompression.svg" alt="Extensión y Descompresión Lumbar en Silla" style="width:100%; max-width:280px; height:auto; display:block; margin:0 auto;" />
+          </div>
+          <div style="font-size:0.83em; color:#334155; line-height:1.5; margin-top:8px;">
+            <p style="margin:2px 0;"><strong>🎯 Músculos Diana:</strong> Cuadrado lumbar, erectores espinales, descompresión intradiscal L4-L5/S1.</p>
+            <p style="margin:2px 0;"><strong>📐 Corrección Angular:</strong> Restaura la lordosis fisiológica lumbar tras sedestación estática prolongada.</p>
+            <p style="margin:2px 0;"><strong>⏱️ Dosificación:</strong> 5 repeticiones de 5s cada 90 minutos de labor.</p>
+            <p style="margin:2px 0; color:#0f766e;"><strong>💡 Técnica:</strong> Manos en la región lumbar baja, arqueo dorsal controlado hacia el respaldo con exhalación.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+        `;
+    }
+
+    /**
      * Generate Formal Report using Gemini Flash
      */
     async generateReport(conversationContext) {
@@ -4943,9 +5097,14 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
 
             // Determine active inspection protocol and comparative matrix instructions
             const activeProtocol = this.agentProtocol || resolveInspectionProtocol(this.agentObj?.name || this.config?.template);
+            const isErgonomicContext = activeProtocol.id === 'biomecanico' ||
+                this.isBiomechanics ||
+                (this.phaseEvidences && Object.keys(this.phaseEvidences).length > 0) ||
+                activeProtocol.id === 'auditoria';
+
             let templateInstructions = "";
 
-            if (activeProtocol.id === 'biomecanico') {
+            if (activeProtocol.id === 'biomecanico' || this.isBiomechanics) {
                 templateInstructions = `ENFOQUE DE AUDITORÍA: Análisis Biomecánico Cuantitativo y Ergonómico Multifase en tiempo real aplicando la selección técnica de métodos ergonómicos (Criterios Prevencionar: RULA, REBA u OWAS).
 Durante la sesión se ha registrado telemetría de ángulos articulares (Flexión Cervical, Inclinación de Tronco, Abducción de Brazos, Codos y Rodillas) y se estructuró la evaluación a través de un PROTOCOLO MULTIFASE en el ciclo de trabajo:
 - Perspectiva de Captura: Documenta si el análisis se ejecutó como "Auto-evaluación (Portátil/Webcam)" o como "Inspección Asistida por Tercero (Smartphone)".
@@ -4980,7 +5139,11 @@ La inspección en vivo se estructuró y documentó a través de un PROTOCOLO MUL
 REQUERIMIENTO ADICIONAL OBLIGATORIO:
 1. Debes incluir OBLIGATORIAMENTE la sección comparativa multifase inmediatamente después de la tabla de Matriz de Riesgos (antes de la sección 5):
 ${activeProtocol.reportMatrixHeader}
-2. Analiza las imágenes de evidencia fotográfica capturadas citando explícitamente a qué fase corresponden y contrastando los hallazgos técnicos entre cada etapa de la inspección.`;
+2. Analiza las imágenes de evidencia fotográfica capturadas citando explícitamente a qué fase corresponden y contrastando los hallazgos técnicos entre cada etapa de la inspección.
+3. CODIFICACIÓN CLÍNICA OFICIAL (CIE-11 OMS Y DECRETO 1477 DE 2014):
+En la fila obligatoria de Riesgo Biomecánico de la Matriz de Peligros, correlaciona las lesiones musculoesqueléticas con sus códigos oficiales CIE-11 (FA80 Cervicalgia, FA81 Lumbalgia, FB40.1 Manguito rotador, 8C10.0 Túnel carpiano) y CIE-10 (M54.2, M54.5, M75.1, G56.0).
+4. PLAN DE PAUSAS ACTIVAS BIOMECÁNICAS (EXERCISEDB):
+En la Sección 5 incorpora medidas específicas de pausas activas terapéuticas según criterios ExerciseDB para cuello, espalda y extremidades superiores.`;
             }
 
             const prompt = `
@@ -5402,6 +5565,23 @@ En la sección "4.1 Matriz Ergonómica Comparativa Multifase", en la columna "Te
                 evaluatorName: extractedModalidad === 'auto' ? 'Auto-reporte asistido por WAPPY Fisio IA' : (this.user?.name || 'Inspector SG-SST'),
             });
 
+            // INYECCIÓN VISUAL GARANTIZADA: Tarjetas ExerciseDB con animaciones y Matriz CIE-11 / Dec. 1477
+            // Si el LLM no generó las tarjetas visuales con las imágenes de ejercicios o la matriz CIE-11, las inyectamos garantizadamente
+            if (!reportHtml.includes('/images/exercises/') && !reportHtml.includes('clinical-biomechanics-prescription')) {
+                const prescriptionBlock = this.buildBiomechanicsPrescriptionBlock();
+                if (reportHtml.includes('<h3>6.')) {
+                    reportHtml = reportHtml.replace('<h3>6.', `${prescriptionBlock}\n<h3>6.`);
+                } else if (reportHtml.includes('<h3>7.')) {
+                    reportHtml = reportHtml.replace('<h3>7.', `${prescriptionBlock}\n<h3>7.`);
+                } else if (reportHtml.includes('<h3>8.')) {
+                    reportHtml = reportHtml.replace('<h3>8.', `${prescriptionBlock}\n<h3>8.`);
+                } else if (reportHtml.includes('<h3>5.')) {
+                    reportHtml = reportHtml.replace('<h3>5.', `<h3>5.\n${prescriptionBlock}`);
+                } else {
+                    reportHtml += `\n${prescriptionBlock}`;
+                }
+            }
+
             const finalWrappedHtml = `<div class="report-container" style="font-family:'Segoe UI',Arial,sans-serif; max-width:900px; margin:0 auto; color:#111827;">
 ${kpiDiv}
 <style>
@@ -5546,13 +5726,12 @@ ${workerSubHeaderHtml}
                         md = md.replace(/<div[^>]*>/gi, '\n');
                         md = md.replace(/<\/div>/gi, '\n');
 
-                        // Handle images - base64 images replaced with placeholder, URL images to markdown
-                        // Base64 images cause display issues in chat (too long)
+                        // Handle images - base64 images replaced with placeholder, URL images or relative /images/ to markdown
                         md = md.replace(/<img[^>]*src="data:[^"]*"[^>]*alt="([^"]*)"[^>]*>/gi, '\n\n📷 **[$1]** *(imagen disponible en el informe original)*\n\n');
                         md = md.replace(/<img[^>]*src="data:[^"]*"[^>]*>/gi, '\n\n📷 **[Imagen captada]** *(ver en informe original)*\n\n');
-                        // Normal URL images convert to markdown
-                        md = md.replace(/<img[^>]*src="(https?:\/\/[^"]*)"[^>]*alt="([^"]*)"[^>]*>/gi, '![$2]($1)');
-                        md = md.replace(/<img[^>]*src="(https?:\/\/[^"]*)"[^>]*>/gi, '![image]($1)');
+                        // Normal URL images or local /images/ paths convert to markdown
+                        md = md.replace(/<img[^>]*src="((?:https?:\/\/|\/)[^"]*)"[^>]*alt="([^"]*)"[^>]*>/gi, '![$2]($1)');
+                        md = md.replace(/<img[^>]*src="((?:https?:\/\/|\/)[^"]*)"[^>]*>/gi, '![image]($1)');
 
                         // Remove remaining HTML tags
                         md = md.replace(/<[^>]*>/g, '');

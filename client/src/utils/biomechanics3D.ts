@@ -183,50 +183,90 @@ function drawFuturisticFaceHUD(
         headSpan = width * 0.16;
     }
 
-    const halfW = Math.max(38, Math.min(width * 0.22, headSpan * 0.65));
-    const halfH = halfW * 1.25;
-    const bracketLen = Math.min(18, halfW * 0.4);
+    const radiusX = Math.max(38, Math.min(width * 0.22, headSpan * 0.65));
+    const radiusY = radiusX * 1.32; // Proporción áurea craneal humana
+
+    // Ángulo de inclinación lateral de la cabeza (Roll)
+    const headAngle = (leftEye && rightEye && (leftEye.visibility ?? 0) > 0.35 && (rightEye.visibility ?? 0) > 0.35)
+        ? Math.atan2((leftEye.y - rightEye.y) * height, (leftEye.x - rightEye.x) * width)
+        : 0;
 
     ctx.save();
 
-    // 1. Brackets de encuadre Sci-Fi [   ] alrededor del rostro
-    ctx.lineWidth = 2;
+    // 1. VISOR HUD CRANEAL OVALADO ANATÓMICO (Simulando el contorno facial)
+    ctx.save();
+    ctx.translate(centerX, centerY);
+    ctx.rotate(headAngle);
+
+    // Anillo exterior orbital punteado
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([5, 6]);
+    ctx.strokeStyle = 'rgba(16, 185, 129, 0.45)'; // Esmeralda sutil
+    ctx.beginPath();
+    ctx.ellipse(0, 0, radiusX * 1.08, radiusY * 1.08, 0, 0, 2 * Math.PI);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Elipse facial base con resplandor neón
+    ctx.lineWidth = 1.8;
     ctx.strokeStyle = 'rgba(6, 182, 212, 0.75)'; // Cyan brillante
     ctx.shadowColor = '#06b6d4';
     ctx.shadowBlur = 8;
-
-    const left = centerX - halfW;
-    const right = centerX + halfW;
-    const top = centerY - halfH;
-    const bottom = centerY + halfH;
-
-    // Esquina Superior Izquierda
     ctx.beginPath();
-    ctx.moveTo(left, top + bracketLen);
-    ctx.lineTo(left, top);
-    ctx.lineTo(left + bracketLen, top);
+    ctx.ellipse(0, 0, radiusX, radiusY, 0, 0, 2 * Math.PI);
     ctx.stroke();
 
-    // Esquina Superior Derecha
+    // Arcos de acento biométrico (Frente, Mentón, Pómulos)
+    ctx.lineWidth = 2.8;
+    ctx.strokeStyle = '#06b6d4';
+    // Bóveda craneal superior (Frente)
     ctx.beginPath();
-    ctx.moveTo(right - bracketLen, top);
-    ctx.lineTo(right, top);
-    ctx.lineTo(right, top + bracketLen);
+    ctx.ellipse(0, 0, radiusX, radiusY, 0, -Math.PI * 0.65, -Math.PI * 0.35);
+    ctx.stroke();
+    // Mentón / Mandíbula inferior
+    ctx.beginPath();
+    ctx.ellipse(0, 0, radiusX, radiusY, 0, Math.PI * 0.35, Math.PI * 0.65);
+    ctx.stroke();
+    // Sienes / Pómulos laterales
+    ctx.beginPath();
+    ctx.ellipse(0, 0, radiusX, radiusY, 0, -Math.PI * 0.12, Math.PI * 0.12);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(0, 0, radiusX, radiusY, 0, Math.PI * 0.88, Math.PI * 1.12);
     ctx.stroke();
 
-    // Esquina Inferior Izquierda
+    // Ticks tácticos en los 4 polos cardinales del óvalo
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(16, 185, 129, 0.85)';
+    // Polo norte
     ctx.beginPath();
-    ctx.moveTo(left, bottom - bracketLen);
-    ctx.lineTo(left, bottom);
-    ctx.lineTo(left + bracketLen, bottom);
+    ctx.moveTo(0, -radiusY - 4);
+    ctx.lineTo(0, -radiusY + 4);
+    ctx.stroke();
+    // Polo sur (mentón)
+    ctx.beginPath();
+    ctx.moveTo(0, radiusY - 4);
+    ctx.lineTo(0, radiusY + 4);
+    ctx.stroke();
+    // Polo oeste
+    ctx.beginPath();
+    ctx.moveTo(-radiusX - 4, 0);
+    ctx.lineTo(-radiusX + 4, 0);
+    ctx.stroke();
+    // Polo este
+    ctx.beginPath();
+    ctx.moveTo(radiusX - 4, 0);
+    ctx.lineTo(radiusX + 4, 0);
     ctx.stroke();
 
-    // Esquina Inferior Derecha
-    ctx.beginPath();
-    ctx.moveTo(right - bracketLen, bottom);
-    ctx.lineTo(right, bottom);
-    ctx.lineTo(right, bottom - bracketLen);
-    ctx.stroke();
+    // Micro-etiqueta HUD de tracking craneal sobre el polo superior
+    ctx.font = 'bold 8px monospace';
+    ctx.fillStyle = 'rgba(6, 182, 212, 0.95)';
+    ctx.shadowBlur = 4;
+    ctx.textAlign = 'center';
+    ctx.fillText('CRANIAL TRACKING • OVAL HUD', 0, -radiusY - 9);
+
+    ctx.restore();
 
     // 2. Línea de horizonte ocular / inclinación craneal sutil
     if (leftEye && rightEye && (leftEye.visibility ?? 0) > 0.4 && (rightEye.visibility ?? 0) > 0.4) {
@@ -267,12 +307,6 @@ function drawFuturisticFaceHUD(
         ctx.arc(rightEar.x * width, rightEar.y * height, 3, 0, 2 * Math.PI);
         ctx.fill();
     }
-
-    // Micro-etiqueta HUD de tracking
-    ctx.font = 'bold 8px monospace';
-    ctx.fillStyle = 'rgba(6, 182, 212, 0.9)';
-    ctx.shadowBlur = 4;
-    ctx.fillText('CRANIAL TRACKING', left, top - 4);
 
     ctx.restore();
 }

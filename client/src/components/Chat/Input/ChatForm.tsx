@@ -580,7 +580,13 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
       {/* Voice Modal */}
       <VoiceModal
         isOpen={showVoiceModal}
-        onClose={() => setShowVoiceModal(false)}
+        onClose={() => {
+          setShowVoiceModal(false);
+          const currentId = conversation?.conversationId;
+          if (currentId && currentId !== Constants.NEW_CONVO && window.location.pathname.includes('/c/new')) {
+            navigate(`/c/${currentId}`, { replace: true });
+          }
+        }}
         conversationId={conversationId} // Use current conversation
         model={modelToUse ?? undefined}
         endpoint={endpoint ?? undefined}
@@ -604,8 +610,14 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
               });
             }
 
-            // Navigate to the new conversation
-            navigate(`/c/${newId}`, { replace: true, state: { focusChat: true } });
+            // BLINDAJE ANTI-REMONTAJE: Si el modal de voz está en vivo con cámara encendida,
+            // navigate() desmonta ChatRoute y VoiceModal, destruyendo el canvas y apagando el exoesqueleto.
+            // Con replaceState actualizamos la URL silenciosamente sin desmontar componentes.
+            if (showVoiceModal) {
+              window.history.replaceState({ focusChat: true }, '', `/c/${newId}`);
+            } else {
+              navigate(`/c/${newId}`, { replace: true, state: { focusChat: true } });
+            }
           }
 
           // Always invalidate queries to refresh UI
