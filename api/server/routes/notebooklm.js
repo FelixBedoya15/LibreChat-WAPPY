@@ -14,6 +14,36 @@ const SYSTEM_PROFILES_DIR = process.env.NOTEBOOKLM_HOME
   : '/root/.notebooklm/profiles';
 
 /**
+ * GET /api/notebooklm/internal/session/:userId
+ * Endpoint interno para que el contenedor notebooklm-mcp pueda obtener la sesión
+ * del usuario directamente desde MongoDB sin depender de montajes de disco.
+ */
+router.get('/internal/session/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!userId || userId.startsWith('{{')) {
+      return res.status(400).json({ error: 'ID de usuario inválido' });
+    }
+
+    const session = await NotebookSession.findOne({ user: userId }).lean();
+    if (!session || !session.cookies || session.cookies.length === 0) {
+      return res.status(404).json({ error: 'No hay sesión guardada para este usuario' });
+    }
+
+    return res.json({
+      success: true,
+      userId,
+      email: session.email || '',
+      cookies: session.cookies,
+      cookieCount: session.cookieCount || session.cookies.length,
+    });
+  } catch (err) {
+    logger.error('[NotebookLM Internal] Error fetching session:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * Obtiene el nombre seguro del perfil según el ID del usuario
  */
 function getSafeProfileName(userId) {

@@ -748,6 +748,60 @@ Formato (texto plano, 3 viñetas):
     console.error('⚠️ Error ejecutando la restauración de trabajadores SG-SST:', err.message);
   }
 
+  // Sincronizar perfiles y sesiones de Google NotebookLM desde MongoDB a disco
+  try {
+    const NotebookSessionSchema = new mongoose.Schema({
+      user: mongoose.Schema.Types.ObjectId,
+      email: String,
+      cookies: [mongoose.Schema.Types.Mixed],
+      cookieCount: Number,
+    }, { strict: false, collection: 'notebooksessions' });
+    const NotebookSessionModel = mongoose.models.NotebookSession || mongoose.model('NotebookSession', NotebookSessionSchema);
+
+    const sessions = await NotebookSessionModel.find({}).lean();
+    if (sessions && sessions.length > 0) {
+      console.log(`📚 Sincronizando ${sessions.length} sesiones de NotebookLM a disco...`);
+      const targetDirs = [
+        path.resolve(__dirname, '../../config/notebooklm/profiles'),
+        '/root/.notebooklm/profiles',
+      ];
+
+      for (const s of sessions) {
+        if (!s.user || !s.cookies || s.cookies.length === 0) continue;
+        const cleanId = String(s.user).replace(/[^a-zA-Z0-9_-]/g, '');
+        const profileFolder = `user_${cleanId}`;
+
+        const storageData = {
+          cookies: s.cookies,
+          origins: [],
+          notebooklm: {
+            version: 1,
+            account: {
+              authuser: 0,
+              email: s.email || `${cleanId}@wappy.internal`,
+            },
+          },
+        };
+
+        for (const baseDir of targetDirs) {
+          try {
+            const userDir = path.join(baseDir, profileFolder);
+            if (!fs.existsSync(userDir)) {
+              fs.mkdirSync(userDir, { recursive: true });
+            }
+            const targetFile = path.join(userDir, 'storage_state.json');
+            fs.writeFileSync(targetFile, JSON.stringify(storageData, null, 2), { mode: 0o600 });
+            console.log(`   ✓ Perfil ${profileFolder} sincronizado en ${targetFile} (${s.cookies.length} cookies)`);
+          } catch (writeErr) {
+            // Ignorar si no existe la ruta de sistema
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('⚠️ Error sincronizando perfiles de NotebookLM:', err.message);
+  }
+
   console.log('🎉 PROCESO COMPLETADO CON ÉXITO.');
 }
 

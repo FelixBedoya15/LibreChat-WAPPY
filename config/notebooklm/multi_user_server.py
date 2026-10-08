@@ -219,6 +219,39 @@ async def get_client_for_request() -> NotebookLMClient:
                     except Exception:
                         pass
 
+    # Si el archivo del usuario no existe en disco, intentar sincronizarlo dinámicamente desde LibreChat API
+    if user_id and (not user_storage_file.exists() or user_storage_file.stat().st_size == 0):
+        for base_host in ["http://LibreChat:3080", "http://api:3080", "http://localhost:3080"]:
+            try:
+                import urllib.request
+                fetch_url = f"{base_host}/api/notebooklm/internal/session/{user_id}"
+                req = urllib.request.Request(fetch_url, headers={"User-Agent": "NotebookLM-MCP/1.0"})
+                with urllib.request.urlopen(req, timeout=3) as resp:
+                    if resp.status == 200:
+                        session_json = json.loads(resp.read().decode("utf-8"))
+                        fetched_cookies = session_json.get("cookies", [])
+                        if fetched_cookies:
+                            sync_data = {
+                                "cookies": fetched_cookies,
+                                "origins": [],
+                                "notebooklm": {
+                                    "version": 1,
+                                    "account": {
+                                        "authuser": 0,
+                                        "email": session_json.get("email") or user_email or f"{user_id}@wappy.internal",
+                                    },
+                                },
+                            }
+                            user_storage_file.write_text(json.dumps(sync_data, indent=2))
+                            try:
+                                os.chmod(user_storage_file, 0o600)
+                            except Exception:
+                                pass
+                            logger.info(f"Sesión restaurada dinámicamente para '{safe_profile}' desde {base_host} ({len(fetched_cookies)} cookies).")
+                            break
+            except Exception as ex:
+                logger.debug(f"No se pudo consultar {base_host} para sesión de usuario: {ex}")
+
     # Decidir qué perfil y archivo usar
     selected_profile = safe_profile
     active_storage_file = user_storage_file
