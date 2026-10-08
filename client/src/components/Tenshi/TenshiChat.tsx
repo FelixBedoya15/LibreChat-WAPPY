@@ -70,6 +70,8 @@ export interface TenshiChatMessage {
   isLiveVoice?: boolean;
   file?: TenshiFileAttachment;
   qrCode?: TenshiQrAttachment;
+  delegatedOrderId?: string;
+  delegatedStatus?: 'todo' | 'done' | 'failed';
 }
 
 function markdownToSimpleHtml(md: string): string {
@@ -1072,6 +1074,14 @@ export default function TenshiChat() {
   const refetchHistoryRef = useRef<(() => void) | null>(null);
   const playbackEndTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const sendTextMessageRef = useRef<((text: string) => void) | null>(null);
+  const activeOrderWatchdogsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  useEffect(() => {
+    return () => {
+      activeOrderWatchdogsRef.current.forEach((timer) => clearInterval(timer));
+      activeOrderWatchdogsRef.current.clear();
+    };
+  }, []);
 
   const clearAudioQueue = useCallback(() => {
     if (playbackEndTimeoutRef.current) {
@@ -1376,6 +1386,108 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         .catch((err) => console.error('[Tenshi] Error saving consultation summary:', err));
     }
   }, [isVoiceActive, clearAudioQueue, token]);
+
+  const iniciarMonitoreoOrden = useCallback(
+    (ordenId: string, titulo: string, formato: string, messageId: string) => {
+      if (!ordenId) return;
+
+      if (activeOrderWatchdogsRef.current.has(ordenId)) {
+        return;
+      }
+
+      console.log(`[Tenshi Watchdog] Iniciando sondeo silencioso cada 3s para orden delegada ID: ${ordenId}`);
+      let attempts = 0;
+      const MAX_ATTEMPTS = 300; // 15 minutos (300 * 3s)
+
+      const timer = setInterval(async () => {
+        attempts++;
+        if (attempts > MAX_ATTEMPTS) {
+          console.warn(`[Tenshi Watchdog] Tiempo límite alcanzado para orden ${ordenId}. Deteniendo sondeo.`);
+          clearInterval(timer);
+          activeOrderWatchdogsRef.current.delete(ordenId);
+          return;
+        }
+
+        try {
+          const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (token) {
+            authHeaders['Authorization'] = `Bearer ${token}`;
+          }
+
+          const res = await fetch(`/api/mcp-bridge/antigravity/ordenes?id=${encodeURIComponent(ordenId)}`, {
+            headers: authHeaders,
+            credentials: 'include',
+          });
+
+          if (!res.ok) return;
+
+          const data = await res.json();
+          const orden = (data.ordenes && data.ordenes[0]) || null;
+
+          if (orden && orden.estado === 'done') {
+            console.log(`[Tenshi Watchdog] ¡Orden ${ordenId} COMPLETADA por Antigravity! Proyectando entregable...`);
+            clearInterval(timer);
+            activeOrderWatchdogsRef.current.delete(ordenId);
+
+            const entregable = orden.entregable || {};
+            const contenido = entregable.contenido || orden.descripcion || '';
+            const finalFormat = entregable.formato || formato || 'html';
+            const isHtml = finalFormat === 'html' || (typeof contenido === 'string' && (contenido.trim().startsWith('<!DOCTYPE') || contenido.trim().startsWith('<html')));
+            const canvasFileType = isHtml ? 'html' : (finalFormat === 'word' || finalFormat === 'documento' ? 'text' : finalFormat);
+            const chatSummary = entregable.resumen || (isHtml
+              ? 'Se ha generado el dashboard interactivo en HTML con las gráficas de salud ocupacional. Puedes visualizarlo e interactuar con él desde el panel Canvas.'
+              : contenido);
+
+            // 1. Actualizar el mensaje de la orden en el chat de Tenshi
+            setMessages((prev) =>
+              prev.map((m) => {
+                if (m._id === messageId || m.delegatedOrderId === ordenId) {
+                  return {
+                    ...m,
+                    content: `⚡ **${titulo} — Entregable Listo por Antigravity**\n\n${chatSummary}`,
+                    file: {
+                      title: titulo,
+                      fileType: canvasFileType,
+                      content: contenido,
+                      canvasId: `antigravity-report-${Date.now()}`,
+                    },
+                    delegatedStatus: 'done',
+                  };
+                }
+                return m;
+              })
+            );
+            setIsOpen(true);
+
+            // 2. Abrir Canvas automáticamente si hay contenido
+            if (contenido && window.location.pathname.startsWith('/c/')) {
+              setStreamingCanvas({
+                id: `antigravity-${Date.now()}`,
+                title: titulo,
+                fileType: canvasFileType,
+                content: contenido,
+                messageId: '',
+                isStreaming: false,
+              });
+              setIsCanvasActive(true);
+            }
+
+            // 3. Confirmación auditiva si Tenshi Voice está activo
+            if (isVoiceActive) {
+              sendTextMessageRef.current?.(
+                `Antigravity completó la orden sobre "${titulo}". Confírmale al usuario en una frase alegre y breve que el entregable y las gráficas ya están listos en Canvas.`
+              );
+            }
+          }
+        } catch (_) {
+          // Ignorar errores transitorios de red
+        }
+      }, 3000);
+
+      activeOrderWatchdogsRef.current.set(ordenId, timer);
+    },
+    [token, isVoiceActive, setIsCanvasActive, setStreamingCanvas]
+  );
 
   const sessionOptions = useMemo(
     () => ({
@@ -1856,20 +1968,30 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               }
               resultMsg = `Entregable de Antigravity "${titulo}" completado y presentado en el chat de Tenshi.`;
             } else {
+              const ordenId = res.ordenId || res.detalles?.ordenId || action.args?.ordenId || '';
+              const messageId = `antigravity-delegated-${Date.now()}`;
+
               setMessages((prev) => [
                 ...prev,
                 {
+                  _id: messageId,
                   role: 'assistant',
                   content: `🚀 **Orden Delegada a Antigravity**\n\n` +
                     `📌 **Tarea:** ${titulo}\n` +
                     `📝 **Instrucción:** ${instruccion}\n` +
                     `🏢 **Empresa:** ${empresa}\n` +
                     `🎯 **Formato Solicitado:** ${formato}\n\n` +
-                    `*Antigravity ha recibido la instrucción pura y utilizará sus herramientas MCP para consultar la información requerida de la empresa y elaborar el entregable.*`,
+                    `*Antigravity ha recibido la instrucción pura y elaborará el entregable en segundo plano.*`,
+                  delegatedOrderId: ordenId,
+                  delegatedStatus: 'todo',
                 },
               ]);
               setIsOpen(true);
               resultMsg = `Orden "${titulo}" delegada exitosamente a Antigravity con su instrucción.`;
+
+              if (ordenId) {
+                iniciarMonitoreoOrden(ordenId, titulo, formato, messageId);
+              }
             }
           }
         } catch (e: any) {
@@ -3737,6 +3859,17 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                         ) : (
                           <>
                             {msg.content && <Markdown content={msg.content} />}
+                            {msg.delegatedOrderId && msg.delegatedStatus === 'todo' && (
+                              <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-teal-500/30 bg-teal-50/60 px-3 py-1.5 dark:border-teal-500/20 dark:bg-teal-950/40">
+                                <span className="relative flex h-2 w-2">
+                                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-teal-400 opacity-75"></span>
+                                  <span className="relative inline-flex h-2 w-2 rounded-full bg-teal-500"></span>
+                                </span>
+                                <span className="text-[11px] font-semibold text-teal-700 dark:text-teal-300">
+                                  Antigravity procesando en segundo plano... (Monitoreo en vivo cada 3s)
+                                </span>
+                              </div>
+                            )}
                             {msg.file && (
                               <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-md backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/90">
                                 <div className="flex items-start gap-3">

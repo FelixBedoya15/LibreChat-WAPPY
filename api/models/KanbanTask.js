@@ -90,6 +90,10 @@ const kanbanTaskSchema = new mongoose.Schema(
     completedAt: {
       type: Date,
     },
+    deliverable: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
   },
   {
     timestamps: true,

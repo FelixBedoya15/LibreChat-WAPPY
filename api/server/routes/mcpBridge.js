@@ -6769,12 +6769,17 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
 router.get('/antigravity/ordenes', requireApiKeyOrJwt, async (req, res) => {
   try {
     const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
-    const { estado, status, limit } = req.query;
+    const { estado, status, limit, id, ordenId } = req.query;
 
     const query = {
       user: targetUserId,
       type: 'antigravity_delegation',
     };
+
+    const targetQueryId = id || ordenId;
+    if (targetQueryId) {
+      query._id = targetQueryId;
+    }
 
     if (estado || status) {
       query.status = estado || status;
@@ -6795,6 +6800,8 @@ router.get('/antigravity/ordenes', requireApiKeyOrJwt, async (req, res) => {
         estado: t.status,
         prioridad: t.priority,
         fechaCreacion: t.createdAt,
+        completedAt: t.completedAt || null,
+        entregable: t.deliverable || null,
       })),
     });
   } catch (error) {
@@ -6806,7 +6813,7 @@ router.get('/antigravity/ordenes', requireApiKeyOrJwt, async (req, res) => {
 router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
   try {
     const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
-    const { ordenId, id, resultado, result, contenido, content, formato, fileType, urlDescarga, fileUrl } = req.body;
+    const { ordenId, id, resultado, result, contenido, content, formato, fileType, urlDescarga, fileUrl, resumen } = req.body;
 
     const targetId = ordenId || id;
     if (!targetId) {
@@ -6818,9 +6825,22 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
       return res.status(404).json({ error: 'Orden no encontrada.' });
     }
 
+    const finalFormat = formato || fileType || 'documento';
+    const finalContent = contenido || content || resultado || result || '';
+    const finalUrl = urlDescarga || fileUrl || null;
+    const finalSummary = resumen || (typeof finalContent === 'string' ? finalContent.slice(0, 500) : 'Orden completada con éxito.');
+
     task.status = 'done';
+    task.completedAt = new Date();
+    task.deliverable = {
+      formato: finalFormat,
+      contenido: finalContent,
+      urlDescarga: finalUrl,
+      resumen: finalSummary,
+      titulo: task.title,
+    };
     const completionNotes = resultado || result || contenido || content || 'Tarea completada por Antigravity.';
-    task.description += `\n\n[RESULTADO DE ANTIGRAVITY - ${new Date().toISOString()}]\n${completionNotes}`;
+    task.description += `\n\n[RESULTADO DE ANTIGRAVITY - ${new Date().toISOString()}]\n${typeof completionNotes === 'string' ? completionNotes.slice(0, 3000) : JSON.stringify(completionNotes)}`;
     await task.save();
 
     return res.json({
@@ -6832,9 +6852,10 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
         status: task.status,
       },
       entregable: {
-        formato: formato || fileType || 'documento',
-        contenido: contenido || content || resultado || result,
-        urlDescarga: urlDescarga || fileUrl || null,
+        formato: finalFormat,
+        contenido: finalContent,
+        urlDescarga: finalUrl,
+        resumen: finalSummary,
       },
     });
   } catch (error) {

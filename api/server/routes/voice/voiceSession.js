@@ -1466,7 +1466,174 @@ class VoiceSession {
                                 },
                                 required: ["cuaderno", "tipo_artefacto"]
                             }
-                        }
+                        },
+{
+          "name": "notebooklm_crear_cuaderno",
+          "description": "Crea un nuevo cuaderno en Google NotebookLM / Gemini Notebook con el título especificado. Úsala cuando el usuario te pida crear o abrir un nuevo cuaderno de investigación o SST.",
+          "parameters": {
+                    "type": "object",
+                    "properties": {
+                          "titulo": {
+                                    "type": "string",
+                                    "description": "Título o nombre del nuevo cuaderno a crear en NotebookLM."
+                          }
+                    },
+                    "required": [
+                          "titulo"
+                    ]
+          }
+},
+{
+          "name": "notebooklm_listar_fuentes",
+          "description": "Lista todas las fuentes, documentos PDF, textos y enlaces cargados dentro de un cuaderno específico de Google NotebookLM.",
+          "parameters": {
+                    "type": "object",
+                    "properties": {
+                          "cuaderno": {
+                                    "type": "string",
+                                    "description": "Nombre o ID del cuaderno en NotebookLM."
+                          }
+                    },
+                    "required": [
+                          "cuaderno"
+                    ]
+          }
+},
+{
+          "name": "notebooklm_agregar_fuente",
+          "description": "Agrega una nueva fuente documental (enlace web/YouTube o texto/nota) a un cuaderno existente de Google NotebookLM.",
+          "parameters": {
+                    "type": "object",
+                    "properties": {
+                          "cuaderno": {
+                                    "type": "string",
+                                    "description": "Nombre o ID del cuaderno en NotebookLM."
+                          },
+                          "tipo_fuente": {
+                                    "type": "string",
+                                    "description": "Tipo de fuente: 'url' (enlace web o YouTube) o 'text' (texto plano o nota)."
+                          },
+                          "url": {
+                                    "type": "string",
+                                    "description": "URL del enlace web o video de YouTube (si tipo_fuente es 'url')."
+                          },
+                          "texto": {
+                                    "type": "string",
+                                    "description": "Texto completo de la nota o documento a incorporar (si tipo_fuente es 'text')."
+                          },
+                          "titulo": {
+                                    "type": "string",
+                                    "description": "Título descriptivo de la fuente o nota."
+                          }
+                    },
+                    "required": [
+                          "cuaderno",
+                          "tipo_fuente"
+                    ]
+          }
+},
+{
+          "name": "notebooklm_estado_studio",
+          "description": "Consulta el avance o estado de una generación en el Studio de Google NotebookLM (podcast de audio, cuestionario, informe, etc.) por su task_id.",
+          "parameters": {
+                    "type": "object",
+                    "properties": {
+                          "task_id": {
+                                    "type": "string",
+                                    "description": "ID de la tarea retornado al solicitar la generación en el Studio."
+                          },
+                          "cuaderno": {
+                                    "type": "string",
+                                    "description": "Nombre o ID del cuaderno (opcional)."
+                          }
+                    },
+                    "required": [
+                          "task_id"
+                    ]
+          }
+},
+{
+          "name": "notebooklm_listar_artefactos",
+          "description": "Lista todos los artefactos generados en el Studio de un cuaderno (audios generados, podcasts, cuestionarios, informes, guías de estudio, etc.).",
+          "parameters": {
+                    "type": "object",
+                    "properties": {
+                          "cuaderno": {
+                                    "type": "string",
+                                    "description": "Nombre o ID del cuaderno en NotebookLM."
+                          }
+                    },
+                    "required": [
+                          "cuaderno"
+                    ]
+          }
+},
+{
+          "name": "notebooklm_descargar_artefacto",
+          "description": "Obtiene el enlace o descarga un artefacto generado en el Studio de Google NotebookLM (audio MP3, podcast, cuestionario, etc.) por su ID.",
+          "parameters": {
+                    "type": "object",
+                    "properties": {
+                          "artifact_id": {
+                                    "type": "string",
+                                    "description": "ID del artefacto generado en el Studio."
+                          },
+                          "cuaderno": {
+                                    "type": "string",
+                                    "description": "Nombre o ID del cuaderno en NotebookLM."
+                          }
+                    },
+                    "required": [
+                          "artifact_id"
+                    ]
+          }
+},
+{
+          "name": "notebooklm_investigar_web",
+          "description": "Inicia una investigación profunda en la web (Deep Research) mediante Google NotebookLM para descubrir e incorporar fuentes sobre un tema de SST.",
+          "parameters": {
+                    "type": "object",
+                    "properties": {
+                          "cuaderno": {
+                                    "type": "string",
+                                    "description": "Nombre o ID del cuaderno en NotebookLM."
+                          },
+                          "consulta": {
+                                    "type": "string",
+                                    "description": "Tema o pregunta de investigación web para recopilar fuentes."
+                          },
+                          "modo": {
+                                    "type": "string",
+                                    "description": "Modo de investigación: 'fast' o 'deep'."
+                          }
+                    },
+                    "required": [
+                          "cuaderno",
+                          "consulta"
+                    ]
+          }
+},
+{
+          "name": "notebooklm_importar_investigacion",
+          "description": "Importa los resultados de una investigación web profunda como fuentes definitivas dentro del cuaderno de NotebookLM.",
+          "parameters": {
+                    "type": "object",
+                    "properties": {
+                          "cuaderno": {
+                                    "type": "string",
+                                    "description": "Nombre o ID del cuaderno en NotebookLM."
+                          },
+                          "task_id": {
+                                    "type": "string",
+                                    "description": "ID de la tarea de investigación obtenido con notebooklm_investigar_web."
+                          }
+                    },
+                    "required": [
+                          "cuaderno",
+                          "task_id"
+                    ]
+          }
+}
                     ]
                 }
             ];
@@ -4773,7 +4940,20 @@ Durante la sesión se ha registrado telemetría de ángulos articulares (Flexió
 REQUERIMIENTO ADICIONAL OBLIGATORIO:
 1. Debes incluir OBLIGATORIAMENTE la sección especial comparativa multifase inmediatamente después de la tabla de Matriz de Riesgos (antes de la sección 5):
 ${activeProtocol.reportMatrixHeader}
-2. Analiza las imágenes de evidencia capturadas citando explícitamente a qué fase corresponden y contrastando la evolución de la postura desde la fase habitual hasta la postura crítica y la fatiga.`;
+2. Analiza las imágenes de evidencia capturadas citando explícitamente a qué fase corresponden y contrastando la evolución de la postura desde la fase habitual hasta la postura crítica y la fatiga.
+3. CODIFICACIÓN CLÍNICA OFICIAL (CIE-11 OMS Y DECRETO 1477 DE 2014):
+Para cada desviación o sobreesfuerzo angular detectado en la telemetría multifase (ej. Flexión Cervical > 20° o > 35°, Inclinación de Tronco > 20°, Abducción de Hombros > 45°, Codos fuera de 90°-100°), debes correlacionar explícitamente en la Matriz de Peligros (columna Efectos Posibles):
+- Código CIE-11 (OMS): e.g., FA80 (Cervicalgia / Síndrome miofascial cervical), FA81 (Lumbalgia / Trastornos discales lumbares), FB40.1 (Tendinopatía de manguito rotador / Pinzamiento subacromial), 8C10.0 (Síndrome del túnel carpiano), FB52.2 (Epicondilitis lateral).
+- Código CIE-10 (Tabla de Enfermedades Laborales Colombia Dec. 1477/2014): e.g., M50, M54.2, M54.5, M75.1, G56.0, M77.1.
+4. PROGRAMA DE REHABILITACIÓN Y PAUSAS ACTIVAS BIOMECÁNICAS (CRITERIOS EXERCISEDB):
+En la Sección 5 y 6 del informe (Medidas de Intervención y Plan de Acción), debes incorporar OBLIGATORIAMENTE una subsección técnica formal titulada:
+"<h4>Prescripción Biomecánica de Pausas Activas y Rehabilitación Postural (Criterios Clínicos ExerciseDB)</h4>"
+con una tabla HTML limpia y estilizada que incluya:
+- Región Anatómica en Riesgo (Cervical, Lumbar, Cintura Escapular, Muñeca/Antebrazo).
+- Ejercicio Terapéutico Específico (e.g. "Retracción Cervical y Extensión Dorsal", "Estiramiento Activo de Trapecio Superior y Escalenos", "Apertura Escapular con Rotación Externa", "Deslizamiento Neural del Nervio Mediano").
+- Músculos Diana / Biomecánica Aliviada (e.g. Trapecio Superior, ECOM, Pectoral Menor, Extensores de Muñeca).
+- Dosificación Clínica Prescrita (Series, Repeticiones/Tiempo sostenido, Frecuencia: e.g., "2 series de 15 segundos cada 90 minutos de labor continua").
+- Técnica de Ejecución Ergonómica y Recomendaciones de Autocuidado.`;
             } else {
                 templateInstructions = `ENFOQUE DE AUDITORÍA: ${activeProtocol.title} aplicando ${activeProtocol.methodLabel} (${activeProtocol.normRef}).
 La inspección en vivo se estructuró y documentó a través de un PROTOCOLO MULTIFASE sistemático:
