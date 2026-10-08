@@ -84,7 +84,6 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
           type: 'success',
           message: data.message || '¡Sesión de NotebookLM vinculada con éxito!',
         });
-        setManualJson('');
         await fetchStatus();
         if (onStatusChange) onStatusChange();
       } else {
@@ -230,27 +229,33 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
               </div>
 
               {status?.connected && !status?.usingDefault && (
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {/* Micro-botón Probar (WAPPY Design System expandible al hover) */}
                   <button
                     type="button"
                     onClick={handleTestConnection}
                     disabled={isTesting}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 active:scale-95 transition-all shadow-xs"
+                    className="group flex h-8 min-w-[32px] items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 border border-teal-200/60 dark:border-teal-800/60 px-2 shadow-xs transition-all duration-300 active:scale-95 disabled:opacity-50"
                     title="Probar sesión con Google"
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isTesting ? 'animate-spin' : ''}`} />
-                    <span>{isTesting ? 'Probando...' : 'Probar'}</span>
+                    <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${isTesting ? 'animate-spin' : ''}`} />
+                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                      <span className="text-[11px] font-bold">{isTesting ? 'Probando...' : 'Probar'}</span>
+                    </div>
                   </button>
 
+                  {/* Micro-botón Desvincular (WAPPY Design System expandible al hover) */}
                   <button
                     type="button"
                     onClick={handleDeleteSession}
                     disabled={isDeleting}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 hover:bg-red-100 active:scale-95 transition-all"
+                    className="group flex h-8 min-w-[32px] items-center justify-center rounded-xl bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-100 border border-red-200/60 dark:border-red-900/40 px-2 shadow-xs transition-all duration-300 active:scale-95 disabled:opacity-50"
                     title="Desvincular sesión"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Desvincular</span>
+                    <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                      <span className="text-[11px] font-bold">Desvincular</span>
+                    </div>
                   </button>
                 </div>
               )}
@@ -352,9 +357,10 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
                     type="button"
                     onClick={handleSaveManual}
                     disabled={isSaving}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs bg-slate-900 hover:bg-slate-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shadow-md transition-all active:scale-95 disabled:opacity-50"
                   >
-                    <span>{isSaving ? 'Guardando...' : 'Guardar y Vincular'}</span>
+                    {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                    <span>{isSaving ? 'Guardando y Verificando...' : 'Guardar y Vincular'}</span>
                   </button>
                 </div>
               </div>

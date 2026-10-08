@@ -58,9 +58,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger("notebooklm_multi_user")
 
-# Base de almacenamiento
-NOTEBOOKLM_HOME = Path(os.environ.get("NOTEBOOKLM_HOME", Path.home() / ".notebooklm")).resolve()
-PROFILES_DIR = NOTEBOOKLM_HOME / "profiles"
+# Base de almacenamiento: usar /app/profiles para máxima fiabilidad en contenedor
+NOTEBOOKLM_HOME = Path(os.environ.get("NOTEBOOKLM_HOME", "/app")).resolve()
+PROFILES_DIR = Path("/app/profiles")
 
 # Asegurar inmediatamente la existencia de los directorios raíz y default para evitar FileNotFoundError
 PROFILES_DIR.mkdir(parents=True, exist_ok=True)

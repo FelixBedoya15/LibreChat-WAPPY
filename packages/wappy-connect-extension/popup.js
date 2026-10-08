@@ -379,9 +379,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   await initServerUrl();
   await fetchGoogleCookies();
 
-  btnSync.addEventListener('click', handleSyncWithWappy);
-  btnCopy.addEventListener('click', handleCopyJson);
-  btnTest.addEventListener('click', handleTestSession);
+  if (btnSync) btnSync.addEventListener('click', handleSyncWithWappy);
+  if (btnCopy) btnCopy.addEventListener('click', handleCopyJson);
+  if (btnTest) btnTest.addEventListener('click', handleTestSession);
 
   // Botón Copiar JSON directo del visor
   const btnCopyDirect = document.getElementById('btn-copy-direct');
@@ -416,19 +416,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  btnOpenNotebook.addEventListener('click', () => {
-    chrome.tabs.create({ url: 'https://notebooklm.google.com' });
-  });
+  if (btnOpenNotebook) {
+    btnOpenNotebook.addEventListener('click', () => {
+      chrome.tabs.create({ url: 'https://notebooklm.google.com' });
+    });
+  }
 
-  urlProdBtn.addEventListener('click', () => {
-    saveServerUrl('https://wappy.club');
-  });
+  if (urlProdBtn) {
+    urlProdBtn.addEventListener('click', () => {
+      saveServerUrl('https://wappy.club');
+    });
+  }
 
-  urlLocalBtn.addEventListener('click', () => {
-    saveServerUrl('http://localhost:3080');
-  });
+  if (urlLocalBtn) {
+    urlLocalBtn.addEventListener('click', () => {
+      saveServerUrl('http://localhost:3080');
+    });
+  }
 
-  wappyUrlInput.addEventListener('change', () => {
-    saveServerUrl(wappyUrlInput.value);
-  });
+  if (wappyUrlInput) {
+    wappyUrlInput.addEventListener('change', () => {
+      saveServerUrl(wappyUrlInput.value);
+    });
+  }
 });

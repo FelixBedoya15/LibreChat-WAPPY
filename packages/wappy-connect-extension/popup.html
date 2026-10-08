@@ -361,27 +361,6 @@
     </div>
   </div>
 
-  <!-- Configuración de Destino -->
-  <div class="card">
-    <div class="card-title">
-      <span>Servidor WAPPY</span>
-    </div>
-    <div class="server-config">
-      <label class="input-label" for="wappy-url">URL de tu instancia WAPPY:</label>
-      <input type="text" id="wappy-url" class="server-input" value="https://wappy.club" placeholder="https://wappy.club">
-      <div class="quick-urls">
-        <button id="url-prod" type="button" class="quick-url-btn">wappy.club</button>
-        <button id="url-local" type="button" class="quick-url-btn">localhost:3080</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Mensajes de Estado / Alertas -->
-  <div id="alert-box" class="alert">
-    <span id="alert-icon">ℹ️</span>
-    <span id="alert-text">Mensaje</span>
-  </div>
-
   <!-- Visualizador JSON estilo Cookie-Editor -->
   <div class="card" id="json-viewer-card">
     <div class="card-title">
@@ -392,7 +371,7 @@
       <textarea id="cookies-json-textarea" readonly placeholder="Abriendo y leyendo cookies de Google NotebookLM..." style="width: 100%; height: 110px; background: rgba(15, 23, 42, 0.95); border: 1px solid var(--card-border); border-radius: 8px; padding: 8px; font-family: monospace; font-size: 10px; color: #38bdf8; resize: none; outline: none;"></textarea>
     </div>
     <div style="margin-top: 6px; display: flex; gap: 6px;">
-      <button id="btn-select-all" type="button" class="quick-url-btn" style="flex: 1; padding: 4px;">Seleccionar Todo</button>
+      <button id="btn-select-all" type="button" class="quick-url-btn" style="flex: 1; padding: 5px;">Seleccionar Todo</button>
       <button id="btn-copy-direct" type="button" class="btn btn-primary" style="flex: 2; padding: 6px 10px; font-size: 11px;">
         <span>📋</span>
         <span id="btn-copy-direct-text">Copiar JSON</span>
@@ -400,24 +379,16 @@
     </div>
   </div>
 
-  <!-- Botones de Acción -->
+  <!-- Botón Principal: Vincular con WAPPY en 1 Clic -->
   <div class="btn-group">
-    <button id="btn-sync" class="btn btn-primary" disabled>
+    <button id="btn-sync" class="btn btn-primary" disabled style="background: linear-gradient(135deg, #0d9488, #0f766e); box-shadow: 0 4px 14px rgba(13, 148, 136, 0.4);">
       <span id="btn-sync-icon">🚀</span>
       <span id="btn-sync-text">Vincular con WAPPY en 1 Clic</span>
     </button>
-
-    <div class="row-buttons">
-      <button id="btn-copy" class="btn btn-secondary" disabled>
-        <span>📋</span>
-        <span>Copiar Clave JSON</span>
-      </button>
-      <button id="btn-test" class="btn btn-secondary" disabled>
-        <span>🔍</span>
-        <span>Probar Sesión</span>
-      </button>
-    </div>
   </div>
+
+  <!-- Configuración Opcional Ocultable para Servidor WAPPY -->
+  <input type="hidden" id="wappy-url" value="https://wappy.club">
 
   <div class="footer">
     <span>WAPPY IA &bull; v1.0.0</span>
