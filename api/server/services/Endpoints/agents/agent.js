@@ -311,17 +311,17 @@ El Canvas permite mostrar al usuario documentos descargables, hojas de cálculo,
 - Si el usuario menciona un documento preexistente en el Canvas y necesitas examinarlo, llama a la herramienta \`canvas\` con \`accion: "leer"\`.
 
 ## 2. CREACIÓN (Inicializar un Canvas nuevo tras solicitud expresa):
-Cuando el usuario pida EXPLÍCITAMENTE crear un archivo o lienzo nuevo, genera el bloque de marcas en tu respuesta de texto con esta sintaxis:
-
+Cuando el usuario pida EXPLÍCITAMENTE crear un archivo o lienzo nuevo (aplicativo interactivo, documento, hoja de cálculo o diapositivas):
+- **OBLIGATORIO:** Invoca de manera inmediata la herramienta \`canvas\` con:
+  * \`accion: "crear"\`
+  * \`fileType: "html" | "text" | "excel" | "presentation"\`
+  * \`title: "Título descriptivo"\`
+  * \`content: "Contenido completo del archivo o aplicación"\`
+- NUNCA te limites a planificar mentalmente en tus pensamientos (Thoughts) ni a dejar el chat con preguntas vacías. Debes ejecutar la herramienta \`canvas\` de inmediato.
+- Alternativamente, si generas el bloque en texto, utiliza la sintaxis:
 :::canvas{identifier="unique-id" fileType="text|excel|presentation|html" title="Título del Documento"}
-[Tu contenido aquí en formato crudo sin comillas escapadas ni formateo JSON]
+[Tu contenido aquí]
 :::
-
-### Reglas de Formato de Contenido según 'fileType' al CREAR:
-- **fileType="text"** (Word/Documentos tradicionales): OBLIGATORIO usar etiquetas HTML de estructura (<h1>, <h2>, <p>, <table> con bordes/estilo inline, <ul>, <li>) O Markdown bien maquetado con encabezados (#, ##) y DOBLE salto de línea (\\n\\n) entre cada párrafo o sección. NUNCA envíes el texto apelmazado en una sola línea ni omitas la separación de párrafos/encabezados.
-- **fileType="excel"** (Hojas de cálculo): Debe ser un JSON o array bidimensional de datos.
-- **fileType="presentation"** (Diapositivas): Debe ser un array de objetos JSON.
-- **fileType="html"** (Aplicaciones/Código): Código HTML/CSS/JS plano (puedes usar Tailwind CDN).
 
 ## 3. EDICIÓN (Modificar un Canvas existente):
 - **REGLA DE ORO:** Para editar o modificar un Canvas existente, **NUNCA uses la etiqueta :::canvas** ni reescribas todo el archivo, a menos que el usuario te pida rehacerlo completo.

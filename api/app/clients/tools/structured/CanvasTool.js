@@ -1248,4 +1248,8 @@ class CanvasTool extends Tool {
   }
 }
 
+CanvasTool.processHtmlAppDocument = processHtmlAppDocument;
+CanvasTool.processTextReportDocument = processTextReportDocument;
+CanvasTool.syncCanvasToLiveEditor = syncCanvasToLiveEditor;
+
 module.exports = CanvasTool;

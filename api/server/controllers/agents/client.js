@@ -1683,11 +1683,12 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         rawFallbacks = [primaryAgentModel, ...envAgentModels.filter((m) => m !== primaryAgentModel)].filter(Boolean);
         logger.info(`[WAPPY Brain Router] Modelo explícito del usuario: "${primaryAgentModel}"`);
       } else if (isCanvasTask) {
-        // Arquitectura de Dos Modelos: Agente orquestador rápido + CanvasTool potente
-        const operationalModels = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite'];
-        primaryAgentModel = primaryAgentModel || 'gemini-3.6-flash';
-        rawFallbacks = [primaryAgentModel, ...operationalModels.filter((m) => m !== primaryAgentModel)];
-        logger.info(`[WAPPY Brain Router] [DOS MODELOS] Tarea de Aplicativo/Canvas detectada. Orquestador: "${primaryAgentModel}". CanvasTool delegará la síntesis de código.`);
+        // Arquitectura de Dos Modelos (Copia 3): Agente orquestador rápido (gemini-3.5-flash-lite) + CanvasTool potente
+        // gemini-3.5-flash-lite no entra en bucle de pensamientos: ejecuta de inmediato la tool call de Canvas
+        const operationalModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.6-flash'];
+        primaryAgentModel = 'gemini-3.5-flash-lite';
+        rawFallbacks = operationalModels;
+        logger.info(`[WAPPY Brain Router] [DOS MODELOS] Tarea de Aplicativo/Canvas detectada. Orquestador: "${primaryAgentModel}" (500 RPD, baja latencia). CanvasTool delegará la síntesis de código.`);
       } else if (isComplexTask) {
         // Matrices Especializadas (IPEVAR, PESV, Química) y Redacción Documental:
         const matrixModels = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite'];
@@ -2205,8 +2206,31 @@ Aquí tienes la explicación detallada de las características y fórmulas ofici
 
           if (hasSheets) {
             fallbackMsg = 'He analizado tu solicitud para la integración con Google Sheets. La estructura de datos y fórmulas están listas. ¿Deseas que proceda a crear la hoja o registrar un nuevo reporte?';
-          } else if (hasCanvas) {
-            fallbackMsg = 'He preparado la propuesta de diseño para el aplicativo. Si deseas que lo plasme en Canvas, indícamelo y lo generamos de inmediato.';
+          } else if (hasCanvas || isCanvasTask) {
+            try {
+              const CanvasTool = require('~/app/clients/tools/structured/CanvasTool');
+              const targetReq = this.options.req || {};
+              if (!targetReq.body) targetReq.body = {};
+              if (this.conversationId && (!targetReq.body.conversationId || targetReq.body.conversationId === 'new')) {
+                targetReq.body.conversationId = this.conversationId;
+              }
+              const canvasTool = new CanvasTool({ req: targetReq });
+              const appTitle = (userQuery ? `Aplicativo: ${userQuery.slice(0, 50)}` : 'Aplicativo SG-SST Interactivo').trim();
+              const synthesisPrompt = thoughtParts || userQuery || 'Aplicativo interactivo SG-SST';
+
+              logger.info(`[AgentClient Fallback] Autogenerando Canvas interactivo tras pensamientos del modelo para convoId: ${this.conversationId}`);
+              await canvasTool._call({
+                accion: 'crear',
+                fileType: 'html',
+                title: appTitle,
+                content: synthesisPrompt,
+              });
+
+              fallbackMsg = '¡Listo! He diseñado y desplegado el aplicativo interactivo en tu panel lateral de Canvas. Ya puedes interactuar con él, gestionar los datos y visualizar los indicadores en tiempo real.';
+            } catch (canvasErr) {
+              logger.error('[AgentClient Fallback] Error autogenerando Canvas:', canvasErr);
+              fallbackMsg = 'He estructurado el aplicativo interactivo para tus indicadores. Puedes visualizarlo y editarlo en tu panel lateral de Canvas.';
+            }
           } else if (!isEnglish) {
             const paragraphs = thoughtParts.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
             const lastParagraph = paragraphs[paragraphs.length - 1];
