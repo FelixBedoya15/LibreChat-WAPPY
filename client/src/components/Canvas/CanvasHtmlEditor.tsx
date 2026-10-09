@@ -228,11 +228,25 @@ function preparePreviewHtml(html: string): string {
     width: 100%;
     min-height: 100%;
     box-sizing: border-box;
+    overflow-x: hidden !important;
     overflow-y: auto !important;
+    max-width: 100vw;
+    -webkit-text-size-adjust: 100%;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
     color: #1e293b;
     background-color: #ffffff;
     line-height: 1.5;
+  }
+
+  /* Blindaje responsive para celular: evitar desbordamiento horizontal */
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+  img, canvas, svg, video {
+    max-width: 100%;
+  }
+  table {
+    max-width: 100%;
   }
 
   /* Reset base moderno para botones, inputs y controles que evita aspecto plano de 1995 si hay retraso de red */
@@ -345,12 +359,15 @@ function preparePreviewHtml(html: string): string {
 </script>
 `;
 
+  const hasViewport = /<meta[^>]+name=["']viewport["']/i.test(content);
+  const viewportMeta = hasViewport ? '' : '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">\n';
+
   if (!hasHtml) {
     content = `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
   ${localCoreScripts}
   ${safeShim}
   ${responsiveBaseStyle}
@@ -360,9 +377,9 @@ function preparePreviewHtml(html: string): string {
 </body>
 </html>`;
   } else if (hasHead) {
-    content = content.replace(/<head[^>]*>/i, (match) => `${match}\n${localCoreScripts}${safeShim}\n${responsiveBaseStyle}`);
+    content = content.replace(/<head[^>]*>/i, (match) => `${match}\n${viewportMeta}${localCoreScripts}${safeShim}\n${responsiveBaseStyle}`);
   } else {
-    content = content.replace(/<html[^>]*>/i, (match) => `${match}\n<head>\n${localCoreScripts}${safeShim}\n${responsiveBaseStyle}\n</head>`);
+    content = content.replace(/<html[^>]*>/i, (match) => `${match}\n<head>\n${viewportMeta}${localCoreScripts}${safeShim}\n${responsiveBaseStyle}\n</head>`);
   }
 
   return content;

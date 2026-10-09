@@ -1145,7 +1145,10 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
   // Render correct editor depending on active session state
   const renderEditor = () => {
-    switch (fileType) {
+    const isHtmlString = typeof content === 'string' && (content.includes('<!DOCTYPE html') || content.includes('<html') || content.includes('<body'));
+    const resolvedFileType = (fileType === 'html' || isHtmlString) ? 'html' : fileType;
+
+    switch (resolvedFileType) {
       case 'excel':
         return (
           <CanvasExcelEditor
@@ -1241,26 +1244,37 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     <div
       className={`flex h-full w-full flex-col overflow-hidden bg-surface-primary text-text-primary ${
         isMaximized
-          ? 'fixed inset-0 z-[999999] m-0 h-screen w-screen rounded-none shadow-2xl'
-          : 'relative'
+          ? 'fixed inset-0 z-[999999] m-0 h-screen w-screen rounded-none shadow-2xl pt-[max(env(safe-area-inset-top),2.5rem)] sm:pt-0'
+          : 'relative pt-[max(env(safe-area-inset-top),1.5rem)] sm:pt-0'
       }`}
     >
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div
-        className="relative z-[300] flex shrink-0 items-center justify-between overflow-visible border-b border-border-light bg-surface-secondary px-4"
-        style={{ minHeight: '4rem' }}
+        className="relative z-[300] flex shrink-0 items-center justify-between overflow-visible border-b border-border-light bg-surface-secondary px-3 sm:px-4 py-2 sm:py-0"
+        style={{ minHeight: '3.75rem' }}
       >
-        <div className="mr-2 flex min-w-0 flex-shrink items-center gap-3 overflow-hidden">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-teal-500/20 bg-teal-500/10 text-teal-600 shadow-sm">
+        {/* Botón Cerrar Móvil (Accesible inmediatamente debajo del notch) */}
+        <button
+          onClick={handleCloseCanvas}
+          className="flex sm:hidden items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 font-bold text-xs shrink-0 active:scale-95 mr-2"
+          aria-label="Cerrar lienzo"
+          title="Cerrar lienzo"
+        >
+          <X className="h-4 w-4" />
+          <span>Cerrar</span>
+        </button>
+
+        <div className="mr-2 flex min-w-0 flex-shrink items-center gap-2 sm:gap-3 overflow-hidden">
+          <div className="hidden sm:flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-teal-500/20 bg-teal-500/10 text-teal-600 shadow-sm">
             <FileEdit className="h-5 w-5" />
           </div>
           <div className="min-w-0 overflow-hidden">
-            <h2 className="truncate text-sm font-semibold text-text-primary">Canvas</h2>
+            <h2 className="truncate text-xs sm:text-sm font-semibold text-text-primary">Canvas</h2>
             <div className="flex items-center gap-1.5">
               <span
                 className={`h-1.5 w-1.5 shrink-0 rounded-full ${isSubmitting ? 'animate-pulse bg-teal-500' : 'bg-green-500'}`}
               />
-              <span className="truncate text-xs text-text-secondary">{title}</span>
+              <span className="truncate text-[11px] sm:text-xs text-text-secondary">{title}</span>
               {isSaving && (
                 <span className="text-[10px] italic text-text-tertiary">Guardando...</span>
               )}
@@ -1268,7 +1282,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           </div>
         </div>
 
-        <div className="flex shrink-0 flex-nowrap items-center gap-2 overflow-visible py-1">
+        <div className="flex shrink-0 flex-nowrap items-center gap-1.5 sm:gap-2 overflow-visible py-1">
           {hasActiveSession && fileType !== 'animo' && fileType !== 'actos_condiciones' && (
             <button
               onClick={async (e) => {
@@ -1277,7 +1291,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                 await saveSession(undefined, true);
               }}
               disabled={isSaving}
-              className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
+              className="group flex h-9 sm:h-10 min-w-[36px] sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2 sm:px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Guardar cambios"
             >
               <div className="relative flex flex-shrink-0 items-center justify-center text-text-primary">
@@ -1287,7 +1301,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                   <Save className="h-4 w-4 text-text-primary" />
                 )}
               </div>
-              <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+              <div className="hidden sm:flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
                 <span className="text-sm font-bold tracking-wide text-text-primary">
                   {isSaving ? 'Guardando...' : 'Guardar'}
                 </span>
@@ -1358,13 +1372,13 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
                   downloadRef.current();
                 }}
-                className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
+                className="group flex h-9 sm:h-10 min-w-[36px] sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2 sm:px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Descargar archivo"
               >
                 <div className="relative flex flex-shrink-0 items-center justify-center text-text-primary">
                   <Download className="h-4 w-4 text-text-primary" />
                 </div>
-                <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+                <div className="hidden sm:flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
                   <span className="text-sm font-bold tracking-wide text-text-primary">
                     Descargar
                   </span>
@@ -1375,7 +1389,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           {hasActiveSession && fileType !== 'animo' && fileType !== 'actos_condiciones' && (
             <button
               onClick={() => setIsReportHistoryOpen(!isReportHistoryOpen)}
-              className={`group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border px-3 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 ${
+              className={`hidden sm:flex group h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border px-3 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 ${
                 isReportHistoryOpen
                   ? 'border-teal-500/30 bg-teal-500/10 text-teal-600'
                   : 'border-border-medium bg-surface-primary text-text-primary hover:bg-surface-hover'
@@ -1394,7 +1408,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           {hasActiveSession && fileType !== 'animo' && fileType !== 'actos_condiciones' && (
             <button
               onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-              className={`group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border px-3 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 ${
+              className={`hidden sm:flex group h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border px-3 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 ${
                 isHistoryOpen
                   ? 'border-teal-500/30 bg-teal-500/10 text-teal-600'
                   : 'border-border-medium bg-surface-primary text-text-primary hover:bg-surface-hover'
@@ -1412,7 +1426,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
           <button
             onClick={() => setIsMaximized((m) => !m)}
-            className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-3 text-text-primary shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-surface-hover"
+            className="hidden sm:flex group h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-3 text-text-primary shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-surface-hover"
             aria-label={isMaximized ? 'Reducir panel' : 'Expandir panel'}
           >
             <div className="relative flex flex-shrink-0 items-center justify-center">
@@ -1427,7 +1441,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
           <button
             onClick={handleCloseCanvas}
-            className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-3 text-text-primary shadow-sm outline-none transition-all duration-300 hover:scale-105 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30"
+            className="hidden sm:flex group h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-3 text-text-primary shadow-sm outline-none transition-all duration-300 hover:scale-105 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30"
             aria-label="Cerrar lienzo"
             title="Cerrar lienzo"
           >
@@ -1865,6 +1879,16 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             </div>
           </div>
         )}
+
+        {/* Botón flotante de salida rápida para celulares (garantiza que el usuario nunca quede atrapado) */}
+        <button
+          onClick={handleCloseCanvas}
+          className="fixed bottom-6 right-6 z-[99999999] flex sm:hidden h-12 w-12 items-center justify-center rounded-full bg-red-600 text-white shadow-2xl active:scale-90 border-2 border-white/40 focus:outline-none"
+          aria-label="Cerrar lienzo"
+          title="Cerrar lienzo"
+        >
+          <X className="h-6 w-6 stroke-[2.5]" />
+        </button>
       </div>
     </div>
   );

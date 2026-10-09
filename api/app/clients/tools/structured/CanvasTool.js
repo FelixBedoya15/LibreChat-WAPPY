@@ -325,7 +325,14 @@ ${toolsContext ? `## HERRAMIENTAS Y BASES DE DATOS VINCULADAS:\n${toolsContext}\
 </div>
 \`\`\`
 
-8. **SCRIPTS:**
+8. **DISEÑO 100% RESPONSIVE Y MOBILE-FIRST (OBLIGATORIO PARA CELULARES):**
+   - Incluye siempre en el <head>: <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+   - Asegura que el body y contenedor principal usen w-full overflow-x-hidden max-w-full.
+   - Para toda tabla técnica de datos, envuélvela SIEMPRE en <div class="w-full overflow-x-auto shadow-md rounded-xl"> para que en smartphones el usuario pueda desplazarse suavemente sin ensanchar la pantalla.
+   - En pantallas pequeñas: grillas en grid-cols-1 sm:grid-cols-2 lg:grid-cols-4, padding compacto p-3 sm:p-6, títulos responsive text-xl sm:text-2xl.
+   - Todos los botones y controles interactivos deben tener área táctil accesible (mínimo 42px de alto).
+
+9. **SCRIPTS:**
    - Incluye \`lucide.createIcons();\` para renderizar todos los iconos.
 
 RESPUESTA ESTRICTA: Responde ÚNICAMENTE con el documento HTML5 completo (empezando con <!DOCTYPE html>), sin explicaciones, sin introducciones y sin bloques de markdown con comillas invertidas.`;

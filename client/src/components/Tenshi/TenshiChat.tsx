@@ -12,6 +12,7 @@ import {
   Trash2,
   RefreshCw,
   Mic,
+  MicOff,
   Volume2,
   VolumeX,
   MessageSquare,
@@ -1031,6 +1032,9 @@ export default function TenshiChat() {
     const next = tenshiAudio.toggleMuted();
     setIsSFXMuted(next);
   }, []);
+
+  // Estado de silenciado de micrófono del usuario (Mute de audio)
+  const [isMicMuted, setIsMicMuted] = useState(false);
 
 
   const queryClient = useQueryClient();
@@ -2149,15 +2153,25 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     }
   }, [isVoiceActive, conversation?.conversationId, conversation?.agent_id, conversation?.title, location]);
 
-  // Tenshi mantiene siempre el micrófono activo para escuchar al usuario sin bloqueos ni silenciamientos
+  // Tenshi sincroniza el estado de silenciado de micrófono del usuario (Mute)
   useEffect(() => {
     if (isVoiceActive) {
-      setVoiceMuted(false);
+      setVoiceMuted(isMicMuted);
     }
-  }, [isVoiceActive, setVoiceMuted]);
+  }, [isVoiceActive, isMicMuted, setVoiceMuted]);
+
+  const handleToggleMicMute = useCallback(() => {
+    tenshiAudio.playBlip();
+    setIsMicMuted((prev) => {
+      const next = !prev;
+      setVoiceMuted(next);
+      return next;
+    });
+  }, [setVoiceMuted]);
 
   const stopVoiceMode = useCallback(() => {
     setIsVoiceActive(false);
+    setIsMicMuted(false);
     setIsWaitingConsultation(false);
     setIsTyping(false);
     if (pendingAgentConsultationRef.current) {
@@ -2180,6 +2194,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
   const startVoiceMode = useCallback(() => {
     setIsVoiceActive(true);
+    setIsMicMuted(false);
     setIsWaitingConsultation(false);
     if (pendingAgentConsultationRef.current) {
       pendingAgentConsultationRef.current.active = false;
@@ -3755,12 +3770,14 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               </h2>
               <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 leading-snug font-medium">
                 {isVoiceActive
-                  ? 'Voz en vivo activa. Te estoy escuchando...'
+                  ? isMicMuted
+                    ? 'Micrófono silenciado (Mute activo). Tenshi no te escucha.'
+                    : 'Voz en vivo activa. Te estoy escuchando...'
                   : 'Soy tu copiloto en SG-SST. Tócame para hablar o pulsa el micrófono.'}
               </p>
             </div>
 
-            {/* 3. 🌟 Botonera Cápsula de Tenshi ACTIVA ([Chat] [Micrófono] [Audio]) */}
+            {/* 3. 🌟 Botonera Cápsula de Tenshi ACTIVA ([Chat] [Micrófono Live] [Silenciar Micrófono/Mute]) */}
             <div className="inline-flex items-center gap-3 p-1.5 rounded-full bg-zinc-900/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-emerald-500/30 shadow-2xl shadow-black/40">
               {/* Botón Chat */}
               <button
@@ -3800,14 +3817,23 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 <Mic className="h-5 w-5" />
               </button>
 
-              {/* Botón Efectos de Sonido */}
+              {/* Botón 3: Silenciar Micrófono (Mute de audio del usuario) */}
               <button
                 type="button"
-                onClick={handleToggleSFX}
-                title={isSFXMuted ? 'Activar efectos de sonido' : 'Silenciar efectos de sonido'}
-                className="p-2.5 rounded-full text-zinc-300 hover:text-white hover:bg-white/10 transition-all active:scale-90"
+                onClick={handleToggleMicMute}
+                title={isMicMuted ? 'Micrófono en silencio - Clic para reactivar' : 'Silenciar mi micrófono (Mute)'}
+                className={cn(
+                  'p-2.5 rounded-full transition-all active:scale-90',
+                  isMicMuted
+                    ? 'text-red-400 bg-red-500/25 border border-red-500/50 shadow-lg shadow-red-500/30'
+                    : 'text-zinc-300 hover:text-white hover:bg-white/10'
+                )}
               >
-                {isSFXMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                {isMicMuted ? (
+                  <MicOff className="h-5 w-5 text-red-400" />
+                ) : (
+                  <MicOff className="h-5 w-5 text-zinc-400 hover:text-white opacity-70" />
+                )}
               </button>
             </div>
           </div>
@@ -4373,14 +4399,27 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               <div className="shrink-0 border-t border-gray-100 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
                 {/* Live Voice HUD Pill when voice is active */}
                 {isVoiceActive && (
-                  <div className="mb-2.5 flex items-center justify-between rounded-xl border border-emerald-200/80 bg-emerald-50/90 px-3 py-2 text-xs text-emerald-800 shadow-sm transition-all dark:border-emerald-800/60 dark:bg-emerald-950/50 dark:text-emerald-300">
+                  <div className={cn(
+                    "mb-2.5 flex items-center justify-between rounded-xl border px-3 py-2 text-xs shadow-sm transition-all",
+                    isMicMuted
+                      ? "border-red-200/80 bg-red-50/90 text-red-800 dark:border-red-800/60 dark:bg-red-950/50 dark:text-red-300"
+                      : "border-emerald-200/80 bg-emerald-50/90 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/50 dark:text-emerald-300"
+                  )}>
                     <div className="flex items-center gap-2">
                       <span className="relative flex h-2.5 w-2.5">
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+                        <span className={cn(
+                          "absolute inline-flex h-full w-full rounded-full opacity-75",
+                          isMicMuted ? "bg-red-400" : "animate-ping bg-emerald-400"
+                        )}></span>
+                        <span className={cn(
+                          "relative inline-flex h-2.5 w-2.5 rounded-full",
+                          isMicMuted ? "bg-red-500" : "bg-emerald-500"
+                        )}></span>
                       </span>
                       <span className="font-medium tracking-tight">
-                        {voiceStatusText || 'Tenshi te escucha... Habla con naturalidad'}
+                        {isMicMuted
+                          ? 'Micrófono silenciado (Mute activo) 🔇'
+                          : voiceStatusText || 'Tenshi te escucha... Habla con naturalidad'}
                       </span>
                     </div>
 
@@ -4596,22 +4635,25 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             <Mic className="h-3.5 w-3.5" />
           </button>
 
-          {/* Botón 3: Silenciar SFX */}
+          {/* Botón 3: Silenciar Micrófono (Mute de audio del usuario) */}
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              handleToggleSFX();
+              handleToggleMicMute();
             }}
             onTouchEnd={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              handleToggleSFX();
+              handleToggleMicMute();
             }}
-            title={isSFXMuted ? 'Activar efectos de sonido' : 'Silenciar efectos de sonido'}
-            className="p-1.5 rounded-full text-zinc-300 hover:text-white hover:bg-white/10 transition-colors active:scale-90"
+            title={isMicMuted ? 'Micrófono en silencio - Clic para reactivar' : 'Silenciar mi micrófono (Mute)'}
+            className={cn(
+              "p-1.5 rounded-full transition-colors active:scale-90",
+              isMicMuted ? "text-red-400 bg-red-500/20 border border-red-500/40" : "text-zinc-300 hover:text-white hover:bg-white/10"
+            )}
           >
-            {isSFXMuted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+            {isMicMuted ? <MicOff className="h-3.5 w-3.5 text-red-400" /> : <MicOff className="h-3.5 w-3.5 opacity-60" />}
           </button>
 
           {/* Botón 4: Maximizar a Pantalla Completa (EXCLUSIVO PARA CELULAR) */}
