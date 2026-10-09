@@ -1041,6 +1041,7 @@ export default function TenshiChat() {
   const { newConversation } = useNewConvo(0);
   const setIsCanvasActive = useSetRecoilState(store.isCanvasActive);
   const setStreamingCanvas = useSetRecoilState(store.streamingCanvasState);
+  const setCanvasMaximized = useSetRecoilState(store.canvasMaximized);
   const currentConvoId = conversation?.conversationId;
   const activeConsultationConvoIdRef = useRef<string | null>(null);
   const activeConsultationAgentIdRef = useRef<string | null>(null);
@@ -1739,20 +1740,42 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             const content = (action as any).data?.content || action.args?.content || (action as any).content || '';
             const canvasId = (action as any).canvasId || (action as any).data?.canvasId || `canvas-${Date.now()}`;
 
-            // 1. Si estamos en /c/..., desplegar también en el panel Canvas de pantalla dividida
-            if (window.location.pathname.startsWith('/c/')) {
-              setStreamingCanvas({
-                id: canvasId,
-                title,
-                fileType,
-                content,
-                messageId: '',
-                isStreaming: false,
+            // 1. Cambiar automáticamente al agente Tenshi en pantalla si hay otro agente activo (trazabilidad y edición)
+            const tenshiAgent = findMatchingAgent('tenshi', agentsRef.current);
+            if (tenshiAgent && conversation?.agent_id !== tenshiAgent.id) {
+              console.log(`[TenshiChat] Cambiando agente en pantalla a Tenshi (${tenshiAgent.id}) para trazabilidad y edición.`);
+              newConversation({
+                template: {
+                  endpoint: EModelEndpoint.agents,
+                  agent_id: tenshiAgent.id,
+                },
               });
-              setIsCanvasActive(true);
+              const params = new URLSearchParams(window.location.search);
+              params.set('agent_id', tenshiAgent.id);
+              params.set('endpoint', EModelEndpoint.agents);
+              navigate(`/c/new?${params.toString()}`, { replace: true });
+            } else if (!window.location.pathname.startsWith('/c/')) {
+              const params = new URLSearchParams();
+              if (tenshiAgent?.id) {
+                params.set('agent_id', tenshiAgent.id);
+                params.set('endpoint', EModelEndpoint.agents);
+              }
+              navigate(`/c/new?${params.toString()}`);
             }
 
-            // 2. Entregar siempre en el chat de Tenshi con tarjeta interactiva y botones de descarga
+            // 2. Desplegar en Canvas y lanzar en pantalla completa en el editor
+            setStreamingCanvas({
+              id: canvasId,
+              title,
+              fileType,
+              content,
+              messageId: '',
+              isStreaming: false,
+            });
+            setIsCanvasActive(true);
+            setCanvasMaximized(true);
+
+            // 3. Entregar siempre en el chat de Tenshi con tarjeta interactiva y botones de descarga al final
             if (content) {
               const fileTypeLabels: Record<string, string> = {
                 text: 'Documento Word',
@@ -1762,24 +1785,30 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               };
               const label = fileTypeLabels[fileType] || 'Archivo SG-SST';
 
-              setMessages((prev) => [
-                ...prev,
-                {
-                  role: 'assistant',
-                  content: `📁 **${label} generado**: *${title}*`,
-                  file: {
-                    title,
-                    fileType,
-                    content,
-                    canvasId,
+              setMessages((prev) => {
+                const filtered = prev.filter((m) => m.file?.canvasId !== canvasId);
+                return [
+                  ...filtered,
+                  {
+                    role: 'assistant',
+                    content: `📁 **${label} generado**: *${title}*`,
+                    file: {
+                      title,
+                      fileType,
+                      content,
+                      canvasId,
+                    },
+                    htmlReport: fileType === 'html' ? content : undefined,
                   },
-                  htmlReport: fileType === 'html' ? content : undefined,
-                },
-              ]);
+                ];
+              });
               setIsOpen(true);
+              setTimeout(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+              }, 150);
             }
 
-            resultMsg = `Archivo "${title}" (${fileType}) entregado en el chat de Tenshi con botones de descarga y visualización.`;
+            resultMsg = `Archivo "${title}" (${fileType}) entregado en el editor a pantalla completa y en el chat de Tenshi con botones de descarga.`;
           } else if (action.name === 'wappy_seleccionar_empresa' || action.name === 'wappy_activar_empresa') {
             const companyName = action.args?.nombre_o_id || action.args?.empresa || action.args?.nombre || action.args?.id || action.result?.companyName;
             resultMsg = `Empresa "${companyName}" seleccionada y activa en el sistema`;
@@ -2793,11 +2822,21 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             }
           });
 
-          // 2. Enriquecer historyData si algún mensaje del historial carece de file pero existía localmente
-          const enrichedHistory = historyData.map((h: any) => {
-            if (!h.file && h.content) {
-              const matched = localFileMap.get(h.content.trim());
-              if (matched) return { ...h, file: matched };
+          // 2. Enriquecer historyData si algún mensaje del historial carece de file pero existía localmente o en el turno
+          const enrichedHistory = historyData.map((h: any, idx: number) => {
+            if (!h.file) {
+              if (h.content) {
+                const matched = localFileMap.get(h.content.trim());
+                if (matched) return { ...h, file: matched };
+              }
+              // Si el mensaje habla de haber generado o entregado el archivo, enlazar el archivo del mensaje contiguo
+              const mentionsFileGeneration = /gener[ée]|cread[oa]|descargarlo|visualizarlo|en pantalla|aplicativo/i.test(h.content || '');
+              if (mentionsFileGeneration) {
+                const prevMsg = historyData[idx - 1];
+                if (prevMsg?.file) {
+                  return { ...h, file: prevMsg.file, htmlReport: prevMsg.htmlReport || (prevMsg.file.fileType === 'html' ? prevMsg.file.content : undefined) };
+                }
+              }
             }
             return h;
           });
@@ -3413,6 +3452,22 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     return content;
   };
 
+  const safeTriggerDownload = (blob: Blob, filename: string) => {
+    try {
+      saveAs(blob, filename);
+    } catch (saveErr) {
+      console.warn('[TenshiChat] saveAs failed, triggering native anchor download:', saveErr);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
+    }
+  };
+
   const handleDownloadFile = useCallback((file: TenshiFileAttachment) => {
     try {
       const safeTitle = (file.title || 'documento-sgsst').replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_-]/g, '_');
@@ -3440,10 +3495,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         const blob = new Blob([wbout], {
           type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         });
-        saveAs(blob, `${safeTitle}.xlsx`);
+        safeTriggerDownload(blob, `${safeTitle}.xlsx`);
       } else if (file.fileType === 'html' || isHtmlContent) {
         const blob = new Blob([file.content], { type: 'text/html;charset=utf-8' });
-        saveAs(blob, `${safeTitle}.html`);
+        safeTriggerDownload(blob, `${safeTitle}.html`);
       } else if (file.fileType === 'image' || file.fileType === 'imagen' || isImageContent) {
         if (file.content.startsWith('data:image/')) {
           const byteString = atob(file.content.split(',')[1]);
@@ -3455,7 +3510,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           }
           const blob = new Blob([ab], { type: mimeString });
           const ext = mimeString.includes('png') ? 'png' : 'jpg';
-          saveAs(blob, `${safeTitle}.${ext}`);
+          safeTriggerDownload(blob, `${safeTitle}.${ext}`);
         } else if (file.content.startsWith('http')) {
           const a = document.createElement('a');
           a.href = file.content;
@@ -3466,11 +3521,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           document.body.removeChild(a);
         } else {
           const blob = new Blob([file.content], { type: 'text/plain;charset=utf-8' });
-          saveAs(blob, `${safeTitle}.txt`);
+          safeTriggerDownload(blob, `${safeTitle}.txt`);
         }
       } else if (file.fileType === 'presentation') {
         const blob = new Blob([file.content], { type: 'application/json;charset=utf-8' });
-        saveAs(blob, `${safeTitle}.json`);
+        safeTriggerDownload(blob, `${safeTitle}.json`);
       } else {
         // Documento Word / Texto / Fallback general para 'documento'
         const simpleHtml = markdownToSimpleHtml(file.content || '');
@@ -3498,7 +3553,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           </html>
         `;
         const blob = new Blob(['\ufeff' + wordHtml], { type: 'application/msword;charset=utf-8' });
-        saveAs(blob, `${safeTitle}.doc`);
+        safeTriggerDownload(blob, `${safeTitle}.doc`);
       }
     } catch (err) {
       console.error('[TenshiChat] Error al descargar archivo:', err);
@@ -3506,7 +3561,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   }, []);
 
   const handleOpenFileInCanvas = useCallback(
-    (file: TenshiFileAttachment) => {
+    (file: TenshiFileAttachment, fullScreen = true) => {
       const isHtmlContent = typeof file.content === 'string' && (file.content.includes('<!DOCTYPE html') || file.content.includes('<html'));
       const normFileType = (file.fileType === 'word' || file.fileType === 'doc' || file.fileType === 'documento')
         ? 'text'
@@ -3514,6 +3569,30 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         ? 'html'
         : (file.fileType as any || 'text');
 
+      // 1. Cambiar automáticamente al agente Tenshi en pantalla si hay otro agente activo (trazabilidad y edición)
+      const tenshiAgent = findMatchingAgent('tenshi', agentsRef.current);
+      if (tenshiAgent && conversation?.agent_id !== tenshiAgent.id) {
+        console.log(`[TenshiChat] Cambiando agente en pantalla a Tenshi (${tenshiAgent.id})`);
+        newConversation({
+          template: {
+            endpoint: EModelEndpoint.agents,
+            agent_id: tenshiAgent.id,
+          },
+        });
+        const params = new URLSearchParams(window.location.search);
+        params.set('agent_id', tenshiAgent.id);
+        params.set('endpoint', EModelEndpoint.agents);
+        navigate(`/c/new?${params.toString()}`, { replace: true });
+      } else if (!window.location.pathname.startsWith('/c/')) {
+        const params = new URLSearchParams();
+        if (tenshiAgent?.id) {
+          params.set('agent_id', tenshiAgent.id);
+          params.set('endpoint', EModelEndpoint.agents);
+        }
+        navigate(`/c/new?${params.toString()}`);
+      }
+
+      // 2. Cargar en Canvas y maximizar a pantalla completa en el editor
       setStreamingCanvas({
         id: file.canvasId || `canvas-${Date.now()}`,
         title: file.title || 'Documento SG-SST',
@@ -3523,18 +3602,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         isStreaming: false,
       });
       setIsCanvasActive(true);
-
-      if (!window.location.pathname.startsWith('/c/')) {
-        const tenshiAgent = findMatchingAgent('tenshi', agentsRef.current);
-        const params = new URLSearchParams();
-        if (tenshiAgent?.id) {
-          params.set('agent_id', tenshiAgent.id);
-          params.set('endpoint', EModelEndpoint.agents);
-        }
-        navigate(`/c/new?${params.toString()}`);
+      if (fullScreen) {
+        setCanvasMaximized(true);
       }
     },
-    [navigate, setStreamingCanvas, setIsCanvasActive],
+    [navigate, setStreamingCanvas, setIsCanvasActive, setCanvasMaximized, conversation, newConversation],
   );
 
   const showVoiceModal = useRecoilValue(store.showVoiceModal);
@@ -3808,15 +3880,17 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                                 type="button"
                                 onClick={() => handleDownloadFile(msg.file!)}
                                 className="px-2 py-1 rounded-lg bg-teal-600 text-white text-[10px] font-bold flex items-center gap-1 active:scale-95"
+                                title="Descargar archivo a tu dispositivo"
                               >
                                 <Download className="w-3 h-3" /> Descargar
                               </button>
                               <button
                                 type="button"
-                                onClick={() => handleOpenFileInCanvas(msg.file!)}
+                                onClick={() => handleOpenFileInCanvas(msg.file!, true)}
                                 className="px-2 py-1 rounded-lg border border-slate-200 bg-white dark:border-zinc-700 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-[10px] font-bold flex items-center gap-1 active:scale-95"
+                                title="Lanzar en pantalla completa en el editor Canvas"
                               >
-                                <Eye className="w-3 h-3" /> Canvas
+                                <Eye className="w-3 h-3" /> Pantalla Completa
                               </button>
                             </div>
                           </div>
@@ -4101,12 +4175,12 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => handleOpenFileInCanvas(msg.file!)}
+                                    onClick={() => handleOpenFileInCanvas(msg.file!, true)}
                                     className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition-all active:scale-95 hover:bg-slate-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
-                                    title="Abrir en pantalla dividida Canvas para ver y editar"
+                                    title="Lanzar archivo a pantalla completa en el editor Canvas"
                                   >
                                     <Eye className="h-3.5 w-3.5" />
-                                    <span>Abrir en Canvas</span>
+                                    <span>Ver en pantalla completa</span>
                                   </button>
                                   {(msg.file.fileType === 'html' || msg.file.content?.includes('<html') || msg.file.content?.includes('<!DOCTYPE')) && (
                                     <button

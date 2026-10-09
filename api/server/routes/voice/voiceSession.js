@@ -353,6 +353,7 @@ class VoiceSession {
         this.respondedToolCallIds = new Set(); // Previene duplicar respuestas de herramientas a Gemini Live
         this.pendingAgentForConsultation = null; // Memoria de especialista solicitado en turnos previos
         this.pendingAgentTimestamp = 0;
+        this.lastGeneratedCanvasFile = null; // Entregable Canvas generado durante el turno para adjuntar al mensaje final
 
         logger.info(`[VoiceSession] Created for user: ${userId}, conversationId: ${conversationId || 'NULL'}`);
 
@@ -1411,7 +1412,7 @@ class VoiceSession {
                         },
                         {
                             name: "wappy_delegar_orden_antigravity",
-                            description: "Delega una orden de trabajo, investigación profunda o análisis de archivos locales a Google Antigravity en la computadora del usuario. Se utiliza cuando el usuario pide por voz a Tenshi que Antigravity investigue, revise carpetas locales de su computador o desarrolle entregables (Word, Excel, PDF, presentaciones, HTML) para luego reflejarlos en este chat de Tenshi.",
+                            description: "Delega una orden de trabajo a Google Antigravity. REGLA ESTRICTA: SOLO Y EXCLUSIVAMENTE se utiliza cuando el usuario mencione de forma explícita la palabra 'Antigravity' (ej: 'pídele a Antigravity...', 'delega en Antigravity'). Está PROHIBIDO usarla si el usuario no dice 'Antigravity' (para crear aplicativos, documentos o HTML sin mencionar Antigravity debes usar canvas_tool).",
                             parameters: {
                                 type: "object",
                                 properties: {
@@ -1731,11 +1732,11 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
 - ESTÁ TERMINANTEMENTE PROHIBIDO decir que no puedes crear o enviar el archivo del informe en este momento. ¡TIENES 'canvas_tool' precisamente para eso! Invócala de inmediato y confirma con alegría que se lo acabas de generar en su chat.
 
 [DELEGACIÓN A ANTIGRAVITY ('wappy_delegar_orden_antigravity')]:
-- Cuando el usuario te pida investigar, analizar o generar documentos con Antigravity (ej: "genera un informe con antigravity sobre...", "pídele a antigravity que investigue..."):
+- REGLA ESTRICTA Y OBLIGATORIA: SOLO Y EXCLUSIVAMENTE INVOCA 'wappy_delegar_orden_antigravity' SI EL USUARIO MENCIONA LITERALMENTE LA PALABRA "ANTIGRAVITY" (ej: "pídele a Antigravity que...", "delega en Antigravity...", "trabaja con Antigravity").
+- SI EL USUARIO PIDE CREAR UN APLICATIVO, HTML, DASHBOARD, GRÁFICAS, REPORTE O DOCUMENTO SIN DECIR "ANTIGRAVITY", ESTÁ TERMINANTEMENTE PROHIBIDO INVOCAR ESTA HERRAMIENTA. DEBES USAR 'canvas_tool' PARA CREARLO TÚ DIRECTAMENTE.
+- Cuando el usuario te pida explícitamente trabajar con Antigravity:
   1. INVOCA DE INMEDIATO 'wappy_delegar_orden_antigravity' pasando la instrucción clara, título, empresa y tipo_entregable.
-  2. La herramienta registra la orden en Antigravity con la instrucción pura, permitiendo que Antigravity utilice sus 115 herramientas MCP para consultar la base de datos y generar el entregable.
-  3. Confírmale de inmediato al usuario con total seguridad y entusiasmo: "¡Listo, Felix! He delegado la orden a Antigravity con la instrucción exacta. Antigravity utilizará sus herramientas MCP para analizar la información de tu empresa y preparar el entregable."
-  4. ESTÁ TERMINANTEMENTE PROHIBIDO decir que "hay un error de validación" o "no se pudo enviar". La orden ya quedó registrada para Antigravity.
+  2. Confírmale de inmediato al usuario: "¡Listo! He delegado la orden a Antigravity con la instrucción exacta."
 
 [INTERACCIÓN, GENERACIÓN IA Y CLICS EN BOTONES EN PANTALLA ('operar_interfaz_visual')]:
 - ACCIÓN REAL ANTE ÓRDENES DE CLIC / GENERAR ANÁLISIS:
@@ -1803,7 +1804,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
        4. INDICA SIEMPRE al usuario que active el reporte de presunto Accidente de Trabajo ante la ARL conforme al Decreto 1072 de 2015.
        5. NUNCA alucines direcciones ni nombres de clínicas inventadas — solo usa los datos del 'resumenVoz' devuelto por la herramienta.
      * 'wappy_consultar_clima_viento': Invocación de Open-Meteo para obtener en vivo la velocidad del viento, ráfagas, código de clima y temperatura. Evalúa restricciones críticas de trabajo en alturas según la Resolución 4272 de 2021 (vientos > 30 km/h o ráfagas > 40 km/h suspenden trabajos en alturas). Para consultar por nombre de ciudad usa el parámetro 'ciudad' (ej: ciudad: 'Medellín').
-     * 'wappy_delegar_orden_antigravity' con tipo_entregable: 'html' y descripcion que mencione 'graficas', 'dashboard' o 'html': El Motor Autónomo genera un HTML real con 4 gráficas Chart.js (género, IMC, estado osteomuscular, indicadores) con datos reales de la BD. El frontend abre automáticamente el Canvas. CONFIRMA verbalmente: "¡Listo! El dashboard interactivo con las gráficas ya está en tu panel Canvas."
+     * 'canvas_tool' con fileType: 'html' ante peticiones de aplicativos, dashboards o gráficos: Genera el aplicativo interactivo completo con gráficos Chart.js en tema oscuro corporativo bg-[#0b0f19] con datos del SG-SST. Se entrega directamente en pantalla y en el chat de Tenshi listo para usar, descargar o abrir a pantalla completa. CONFIRMA verbalmente: "¡Listo! Ya te generé el aplicativo interactivo con las gráficas en pantalla."
    - CÓDIGOS QR PARA COLABORADORES ('wappy_generar_qr'):
      * Si el usuario te pide: "deseo hacer un reporte de actos y condiciones inseguras", "mándame el QR de actos", "quiero hacer el termómetro psicosocial", "mándame el QR para el trabajador", "mándame el QR de inspección vehicular", "mándame el QR del colaborador":
      * INVOCA DE INMEDIATO 'wappy_generar_qr' con tipo: 'actos_condiciones' o 'termometro_psicosocial' (o el módulo correspondiente).
@@ -3582,6 +3583,33 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         const targetArgs = fc.name === 'wappy_mcp_sst' ? (fc.args?.parametros || fc.args?.args || fc.args || {}) : (fc.args || {});
 
                         logger.info(`[VoiceSession] Gemini Live invoked WAPPY MCP tool "${targetTool}" with args:`, JSON.stringify(targetArgs));
+
+                        // REGLA ESTRICTA DE PROTECCIÓN: Si se intenta delegar a Antigravity sin que el usuario haya dicho 'antigravity'
+                        if (targetTool === 'wappy_delegar_orden_antigravity' || targetTool === 'delegar_orden_antigravity') {
+                            const fullUserContext = `${this.userTranscriptionText || ''} ${this.lastUserTranscription || ''}`.toLowerCase();
+                            const explicitlyMentionsAntigravity = /\bantigravity\b/i.test(fullUserContext);
+                            if (!explicitlyMentionsAntigravity) {
+                                logger.warn(`[VoiceSession] Gemini Live intentó delegar a Antigravity sin mención del usuario ("${fullUserContext}"). Redirigiendo a canvas_tool.`);
+                                const requestedType = targetArgs.tipo_entregable === 'word' ? 'text' : (targetArgs.tipo_entregable || 'html');
+                                const docTitle = targetArgs.titulo || 'Aplicativo SG-SST';
+                                const userReq = targetArgs.instruccion || this.lastUserTranscription || 'Generar aplicativo interactivo';
+                                await this.handleTenshiCanvasAction(fc.id, {
+                                    fileType: requestedType,
+                                    title: docTitle,
+                                    prompt: userReq,
+                                    content: ''
+                                }, userReq);
+                                if (this.geminiClient) {
+                                    this.geminiClient.sendToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: { result: `El entregable '${docTitle}' fue generado directamente en pantalla con canvas_tool en lugar de delegar a Antigravity.` }
+                                    }]);
+                                }
+                                continue;
+                            }
+                        }
+
                         this.sendToClient({
                             type: 'status',
                             data: { status: 'loading', message: `Consultando ${targetTool.replace(/_/g, ' ')}...` }
@@ -4889,34 +4917,13 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
         }
 
         if (ok) {
-            // Guardar en el historial de mensajes de Tenshi antes de notificar al cliente
-            if (this.userId) {
-                try {
-                    const TenshiMessage = require('~/models/TenshiMessage');
-                    const fileTypeLabels = {
-                        text: 'Documento Word',
-                        excel: 'Hoja de Cálculo Excel',
-                        html: 'Aplicativo / Reporte HTML',
-                        presentation: 'Presentación de Diapositivas',
-                    };
-                    const label = fileTypeLabels[args.fileType] || 'Archivo SG-SST';
-                    await TenshiMessage.create({
-                        user: this.userId,
-                        role: 'assistant',
-                        content: `📁 **${label} generado**: *${finalTitle}*`,
-                        file: {
-                            title: finalTitle,
-                            fileType: args.fileType,
-                            content: generatedContent,
-                            canvasId: uniqueCanvasId,
-                        },
-                        htmlReport: args.fileType === 'html' ? generatedContent : undefined,
-                    });
-                    logger.info(`[VoiceSession] Persisted canvas file message "${finalTitle}" to TenshiMessage for user ${this.userId}`);
-                } catch (persistErr) {
-                    logger.error('[VoiceSession] Error persisting canvas file to TenshiMessage:', persistErr);
-                }
-            }
+            // Guardar para adjuntar al mensaje final del turno de Tenshi (para que quede de último y unificado con la voz)
+            this.lastGeneratedCanvasFile = {
+                title: finalTitle,
+                fileType: args.fileType,
+                content: generatedContent,
+                canvasId: uniqueCanvasId,
+            };
 
             this.sendToClient({
                 type: 'wappy_action',
@@ -6794,12 +6801,26 @@ ${workerSubHeaderHtml}
                             content: currentUserText.trim(),
                         }).catch(err => logger.error('[VoiceSession] Error saving Tenshi user message:', err));
                     }
+                    const canvasFileToAttach = this.lastGeneratedCanvasFile || null;
+                    this.lastGeneratedCanvasFile = null;
+
                     if (currentAiText && currentAiText.trim()) {
                         TenshiMessage.create({
                             user: this.userId,
                             role: 'assistant',
                             content: currentAiText.trim(),
+                            file: canvasFileToAttach || undefined,
+                            htmlReport: canvasFileToAttach?.fileType === 'html' ? canvasFileToAttach.content : undefined,
                         }).catch(err => logger.error('[VoiceSession] Error saving Tenshi assistant message:', err));
+                    } else if (canvasFileToAttach) {
+                        const fileLabel = canvasFileToAttach.fileType === 'html' ? 'Aplicativo / Reporte HTML' : 'Documento SG-SST';
+                        TenshiMessage.create({
+                            user: this.userId,
+                            role: 'assistant',
+                            content: `📁 **${fileLabel} generado**: *${canvasFileToAttach.title}*`,
+                            file: canvasFileToAttach,
+                            htmlReport: canvasFileToAttach.fileType === 'html' ? canvasFileToAttach.content : undefined,
+                        }).catch(err => logger.error('[VoiceSession] Error saving Tenshi canvas file message:', err));
                     }
                 }
             } catch (err) {
