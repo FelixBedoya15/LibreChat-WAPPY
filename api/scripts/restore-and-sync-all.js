@@ -86,10 +86,11 @@ const AGENT_MAPS = {
   'especialista_riesgo_climatico': { name: 'Especialista en Riesgo Climático', category: 'gestion_ambiental', avatar: 'coordinador_ipevar.png', desc: 'Soy tu Especialista en Riesgo Climático. Te asesoro en la identificación, evaluación y mitigación de riesgos laborales asociados al cambio climático, estrés térmico, radiación UV extrema, eventos hidrometeorológicos y adaptación de puestos de trabajo al aire libre.', firstLine: 'Eres el Especialista en Riesgo Climático de WAPPY IA...' },
   'redactor_creativo': { name: 'Redactor Creativo', category: 'gestion_consultoria_sg_sst', avatar: 'formacion.png', desc: 'Soy tu Redactor Creativo. Te asesoro en la redacción, curaduría y optimización de contenidos técnicos y pedagógicos de SST para el Blog corporativo.', firstLine: 'Eres el Redactor Creativo de WAPPY IA...' },
   'simulador_accidentes': { name: 'Simulador de Accidentes SST', category: 'investigacion_inspeccion', avatar: 'reporte_actos.png', desc: 'Soy tu Simulador de Accidentes SST. Te ayudo a recrear escenarios de siniestros laborales para identificar causas raíz y entrenar a tu equipo en prevención.', firstLine: 'Eres el Simulador de Accidentes SST de WAPPY IA...' },
-  'coordinador_capacitaciones': { name: 'Coordinador de Capacitaciones', category: 'gestion_consultoria_sg_sst', avatar: 'capacitaciones.png', desc: 'Soy tu Coordinador de Capacitaciones. Te asesoro en el diseño del Plan Anual de Capacitación (PAC), inducciones, charlas de 5 minutos y registro de asistencia.', firstLine: 'Eres el Coordinador de Capacitaciones de WAPPY IA...' }
+  'coordinador_capacitaciones': { name: 'Coordinador de Capacitaciones', category: 'gestion_consultoria_sg_sst', avatar: 'capacitaciones.png', desc: 'Soy tu Coordinador de Capacitaciones. Te asesoro en el diseño del Plan Anual de Capacitación (PAC), inducciones, charlas de 5 minutos y registro de asistencia.', firstLine: 'Eres el Coordinador de Capacitaciones de WAPPY IA...' },
+  'tenshi': { name: 'Tenshi', category: 'gestion_consultoria_sg_sst', avatar: 'tenshi.png', desc: 'Soy Tenshi, tu copiloto inteligente de WAPPY IA y especialista en creación, trazabilidad y edición interactiva de aplicativos y documentos en Canvas. Puedo generar, personalizar y editar en tiempo real cualquier entregable de tu SG-SST.', firstLine: 'Eres Tenshi, la inteligencia artificial estrella, orquestadora oficial de WAPPY IA y especialista maestra en creación, trazabilidad y edición interactiva en Canvas de SG-SST...' }
 };
 
-// Skills globales que aplican a TODOS los 22 agentes
+// Skills globales que aplican a TODOS los agentes
 const GLOBAL_SKILLS = [
   'wappy-cards',
   'skill-rag-documental-gemini',
@@ -103,6 +104,7 @@ const GLOBAL_SKILLS = [
 
 // Asignación de Skills específicas adicionales a los agentes maestros
 const AGENT_SKILLS_MAP = {
+  'Tenshi': ['skill-formatos-sst', 'skill-gtc45-ipevar', 'skill-analisis-causa-raiz', 'skill-investigacion-accidentes'],
   'Abogado Laboral': ['skill-acoso-sexual-violencia', 'skill-procesos-disciplinarios', 'skill-reglamento-interno-trabajo'],
   'Psicólogo SST': ['skill-acoso-sexual-violencia'],
   'Consultor SG-SST': ['skill-investigacion-accidentes', 'skill-investigacion-enfermedad', 'skill-analisis-causa-raiz', 'skill-gtc45-ipevar'],
@@ -344,38 +346,42 @@ ${cleanContent}
       'abogado_laboral', 'medico_laboral', 'agente_sst', 'profesional_sst', 'auditor_sg_sst',
       'psicologo_sst', 'fisioterapeuta_laboral', 'ingeniero_quimico_sst', 'ingeniero_electricista_sst',
       'coordinador_tareas_criticas', 'coordinador_seguridad_vial', 'ingeniero_minas_sst',
-      'especialista_bioseguridad', 'coordinador_emergencias', 'ingeniero_ambiental', 'especialista_riesgo_climatico'
+      'especialista_bioseguridad', 'coordinador_emergencias', 'ingeniero_ambiental', 'especialista_riesgo_climatico', 'tenshi'
     ];
     if (IPEVAR_AGENTS.includes(key)) {
       tools.push('matriz_ipevar');
     }
     
-    if (key === 'abogado_laboral') {
+    if (key === 'abogado_laboral' || key === 'tenshi') {
       tools.push('editor_rit');
     }
     
-    const PSICOSOCIAL_AGENTS = ['psicologo_sst', 'agente_sst', 'profesional_sst', 'auditor_sg_sst'];
+    const PSICOSOCIAL_AGENTS = ['psicologo_sst', 'agente_sst', 'profesional_sst', 'auditor_sg_sst', 'tenshi'];
     if (PSICOSOCIAL_AGENTS.includes(key)) {
       tools.push('consultar_analitica_psicosocial');
     }
     
-    if (key === 'redactor_creativo') {
+    if (key === 'redactor_creativo' || key === 'tenshi') {
       tools.push('blog_editor');
     }
     
-    const ACTOS_AGENTS = ['auditor_sg_sst', 'agente_sst', 'profesional_sst', 'ingeniero_ambiental', 'especialista_riesgo_climatico'];
+    const ACTOS_AGENTS = ['auditor_sg_sst', 'agente_sst', 'profesional_sst', 'ingeniero_ambiental', 'especialista_riesgo_climatico', 'tenshi'];
     if (ACTOS_AGENTS.includes(key)) {
       tools.push('consultar_analitica_actos_condiciones');
     }
 
-    const PESV_AGENTS = ['coordinador_seguridad_vial', 'agente_sst', 'profesional_sst', 'auditor_sg_sst'];
+    const PESV_AGENTS = ['coordinador_seguridad_vial', 'agente_sst', 'profesional_sst', 'auditor_sg_sst', 'tenshi'];
     if (PESV_AGENTS.includes(key)) {
       tools.push('matriz_pesv');
     }
 
-    const COMPATIBILIDAD_AGENTS = ['ingeniero_quimico_sst', 'agente_sst', 'profesional_sst', 'auditor_sg_sst', 'ingeniero_ambiental'];
+    const COMPATIBILIDAD_AGENTS = ['ingeniero_quimico_sst', 'agente_sst', 'profesional_sst', 'auditor_sg_sst', 'ingeniero_ambiental', 'tenshi'];
     if (COMPATIBILIDAD_AGENTS.includes(key)) {
       tools.push('matriz_compatibilidad');
+    }
+
+    if (key === 'tenshi') {
+      tools.push('generar_imagen_sst');
     }
 
     tools = [...new Set(tools)];

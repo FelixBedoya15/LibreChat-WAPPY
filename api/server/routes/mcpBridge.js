@@ -6828,6 +6828,9 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
     const finalFormat = formato || fileType || 'documento';
     const finalContent = contenido || content || resultado || result || '';
     const finalUrl = urlDescarga || fileUrl || null;
+    const completionNotes = resultado || result || contenido || content || 'Tarea completada exitosamente por Antigravity.';
+    const completionNotesStr = typeof completionNotes === 'string' ? completionNotes : JSON.stringify(completionNotes);
+
     const isHtml = finalFormat === 'html' || 
       completionNotesStr.includes('<html') || 
       completionNotesStr.includes('<!DOCTYPE') || 
@@ -6836,10 +6839,12 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
     let finalSummary = resumen;
     if (!finalSummary || finalSummary.includes('<!DOCTYPE') || finalSummary.includes('<html')) {
       if (isHtml) {
-        finalSummary = 'El informe técnico interactivo ha sido estructurado y generado con éxito. Puedes explorarlo en pantalla completa con la barra de herramientas de impresión/PDF o descargarlo directamente.';
+        finalSummary = 'El informe técnico interactivo ha sido estructurado y generado con éxito. Puedes explorarlo y editarlo en pantalla con Canvas o descargarlo directamente.';
       } else {
         finalSummary = typeof finalContent === 'string' ? finalContent.replace(/<[^>]*>?/gm, '').trim().slice(0, 500) : 'Orden completada con éxito.';
       }
+    } else {
+      finalSummary = finalSummary.replace(/<[^>]*>?/gm, '').trim();
     }
 
     task.status = 'done';
@@ -6851,8 +6856,6 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
       resumen: finalSummary,
       titulo: task.title,
     };
-    const completionNotes = resultado || result || contenido || content || 'Tarea completada exitosamente por Antigravity.';
-    const completionNotesStr = typeof completionNotes === 'string' ? completionNotes : JSON.stringify(completionNotes);
     task.description += `\n\n[RESULTADO DE ANTIGRAVITY - ${new Date().toISOString()}]\n${completionNotesStr.slice(0, 3000)}`;
     await task.save();
 

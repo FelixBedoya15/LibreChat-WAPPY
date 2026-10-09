@@ -55,7 +55,8 @@ const AGENT_FILE_MAP = {
   'especialista_riesgo_climatico': 'Especialista en Riesgo Climático',
   'redactor_creativo': 'Redactor Creativo',
   'simulador_accidentes': 'Simulador de Accidentes SST',
-  'coordinador_capacitaciones': 'Coordinador de Capacitaciones'
+  'coordinador_capacitaciones': 'Coordinador de Capacitaciones',
+  'tenshi': 'Tenshi'
 };
 
 const AGENT_CATEGORY_MAP = {
@@ -80,7 +81,8 @@ const AGENT_CATEGORY_MAP = {
   'especialista_riesgo_climatico': 'gestion_ambiental',
   'redactor_creativo': 'gestion_consultoria_sg_sst',
   'simulador_accidentes': 'investigacion_inspeccion',
-  'coordinador_capacitaciones': 'gestion_consultoria_sg_sst'
+  'coordinador_capacitaciones': 'gestion_consultoria_sg_sst',
+  'tenshi': 'gestion_consultoria_sg_sst'
 };
 
 async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
@@ -104,38 +106,42 @@ async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
     'abogado_laboral', 'medico_laboral', 'agente_sst', 'profesional_sst', 'auditor_sg_sst',
     'psicologo_sst', 'fisioterapeuta_laboral', 'ingeniero_quimico_sst', 'ingeniero_electricista_sst',
     'coordinador_tareas_criticas', 'coordinador_seguridad_vial', 'ingeniero_minas_sst',
-    'especialista_bioseguridad', 'coordinador_emergencias', 'ingeniero_ambiental', 'especialista_riesgo_climatico'
+    'especialista_bioseguridad', 'coordinador_emergencias', 'ingeniero_ambiental', 'especialista_riesgo_climatico', 'tenshi'
   ];
   if (IPEVAR_AGENTS.includes(fileBasename)) {
     tools.push('matriz_ipevar');
   }
 
-  if (fileBasename === 'abogado_laboral') {
+  if (fileBasename === 'abogado_laboral' || fileBasename === 'tenshi') {
     tools.push('editor_rit');
   }
 
-  const PSICOSOCIAL_AGENTS = ['psicologo_sst', 'agente_sst', 'profesional_sst', 'auditor_sg_sst'];
+  const PSICOSOCIAL_AGENTS = ['psicologo_sst', 'agente_sst', 'profesional_sst', 'auditor_sg_sst', 'tenshi'];
   if (PSICOSOCIAL_AGENTS.includes(fileBasename)) {
     tools.push('consultar_analitica_psicosocial');
   }
 
-  if (fileBasename === 'redactor_creativo') {
+  if (fileBasename === 'redactor_creativo' || fileBasename === 'tenshi') {
     tools.push('blog_editor');
   }
 
-  const ACTOS_AGENTS = ['auditor_sg_sst', 'agente_sst', 'profesional_sst', 'ingeniero_ambiental', 'especialista_riesgo_climatico'];
+  const ACTOS_AGENTS = ['auditor_sg_sst', 'agente_sst', 'profesional_sst', 'ingeniero_ambiental', 'especialista_riesgo_climatico', 'tenshi'];
   if (ACTOS_AGENTS.includes(fileBasename)) {
     tools.push('consultar_analitica_actos_condiciones');
   }
 
-  const PESV_AGENTS = ['coordinador_seguridad_vial', 'agente_sst', 'profesional_sst', 'auditor_sg_sst'];
+  const PESV_AGENTS = ['coordinador_seguridad_vial', 'agente_sst', 'profesional_sst', 'auditor_sg_sst', 'tenshi'];
   if (PESV_AGENTS.includes(fileBasename)) {
     tools.push('matriz_pesv');
   }
 
-  const COMPATIBILIDAD_AGENTS = ['ingeniero_quimico_sst', 'agente_sst', 'profesional_sst', 'auditor_sg_sst', 'ingeniero_ambiental'];
+  const COMPATIBILIDAD_AGENTS = ['ingeniero_quimico_sst', 'agente_sst', 'profesional_sst', 'auditor_sg_sst', 'ingeniero_ambiental', 'tenshi'];
   if (COMPATIBILIDAD_AGENTS.includes(fileBasename)) {
     tools.push('matriz_compatibilidad');
+  }
+
+  if (fileBasename === 'tenshi') {
+    tools.push('generar_imagen_sst');
   }
 
   tools = [...new Set(tools)];
