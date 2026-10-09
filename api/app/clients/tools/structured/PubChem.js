@@ -1,4 +1,4 @@
-const { StructuredTool } = require('langchain/tools');
+const { StructuredTool } = require('@langchain/core/tools');
 const { z } = require('zod');
 const axios = require('axios');
 const logger = require('~/config/winston');
