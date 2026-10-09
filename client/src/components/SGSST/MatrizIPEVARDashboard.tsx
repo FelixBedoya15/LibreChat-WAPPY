@@ -586,10 +586,10 @@ export default function MatrizIPEVARDashboard({
                         {row.map((cell) => {
                           const isSelected = selectedHeatmapCell === cell.cellKey;
                           let cellBg = 'bg-slate-100 dark:bg-zinc-800 text-slate-600';
-                          if (cell.level === 'I') cellBg = 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-400/40 hover:bg-rose-500/30';
-                          else if (cell.level === 'II') cellBg = 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-400/40 hover:bg-amber-500/30';
-                          else if (cell.level === 'III') cellBg = 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-400/40 hover:bg-yellow-500/30';
-                          else if (cell.level === 'IV') cellBg = 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-400/40 hover:bg-emerald-500/30';
+                          if (cell.level === 'I') cellBg = 'bg-red-500 text-white border-red-600 hover:bg-red-600 shadow-sm';
+                          else if (cell.level === 'II') cellBg = 'bg-orange-500 text-white border-orange-600 hover:bg-orange-600 shadow-sm';
+                          else if (cell.level === 'III') cellBg = 'bg-yellow-400 text-slate-900 border-yellow-500 hover:bg-yellow-500 shadow-sm';
+                          else if (cell.level === 'IV') cellBg = 'bg-emerald-500 text-white border-emerald-600 hover:bg-emerald-600 shadow-sm';
 
                           return (
                             <button

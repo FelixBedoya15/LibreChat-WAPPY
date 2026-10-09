@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { createPortal } from 'react-dom';
+import {
+    Notebook as NotebookIcon, createPortal } from 'react-dom';
 import * as Ariakit from '@ariakit/react';
 import {
     Settings2, Globe, FolderSearch, TerminalSquare, Wrench, Cpu, Check, ChevronDown,
@@ -215,7 +216,23 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
     // Filter tools into Google and General categories
     const googleToolIds = ['google_drive', 'google_calendar', 'google_gmail', 'google_sheets', 'google_docs', 'google_slides'];
     const googleTools = externalTools.filter(id => googleToolIds.includes(id));
-    const generalExternalTools = externalTools.filter(id => !googleToolIds.includes(id));
+        const allGeneralExternalTools = externalTools.filter(id => !googleToolIds.includes(id));
+    const notebookLmTools = allGeneralExternalTools.filter(id => id.includes('_mcp_notebooklm'));
+    const generalExternalTools = allGeneralExternalTools.filter(id => !id.includes('_mcp_notebooklm'));
+    
+    const isNotebookLmActive = notebookLmTools.length > 0 && notebookLmTools.some(id => (overrides as TEphemeralAgentExtended | null)?.tools?.includes(id));
+    
+    const toggleNotebookLm = () => {
+        notebookLmTools.forEach(toolId => {
+            const isActive = (overrides as TEphemeralAgentExtended | null)?.tools?.includes(toolId);
+            if (isNotebookLmActive && isActive) {
+                toggleExternalTool(toolId);
+            } else if (!isNotebookLmActive && !isActive) {
+                toggleExternalTool(toolId);
+            }
+        });
+    };
+
 
     const hasGoogleTools = googleTools.length > 0;
     const hasGeneralTools = hasWebSearch || hasFileSearch || hasCodeInterpreter || generalExternalTools.length > 0;
@@ -436,6 +453,20 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                                 label={localize('com_assistants_code_interpreter')}
                                                 checked={overrides?.execute_code ?? false}
                                                 onChange={() => toggleBuiltinTool('execute_code')}
+                                            />
+                                        }
+                                    />
+                                )}
+                                                                {notebookLmTools.length > 0 && (
+                                    <Ariakit.MenuItem
+                                        hideOnClick={false}
+                                        render={
+                                            <ToolRow
+                                                id="agent-session-notebooklm"
+                                                icon={<NotebookIcon className="h-4 w-4 text-emerald-600" />}
+                                                label="Google NotebookLM (MCP)"
+                                                checked={isNotebookLmActive}
+                                                onChange={toggleNotebookLm}
                                             />
                                         }
                                     />

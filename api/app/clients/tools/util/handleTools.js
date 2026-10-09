@@ -254,6 +254,9 @@ const loadTools = async ({
       // Passes `req` so the tool can read conversationId from req.body
       return new MatrizPESV({ req: options.req });
     },
+    pubchem_api: async () => {
+      return new PubChem();
+    },
     matriz_compatibilidad: async (_toolContextMap) => {
       return new MatrizCompatibilidad({ req: options.req });
     },

@@ -29,7 +29,7 @@ import {
   FileSpreadsheet,
   AlertCircle
 } from 'lucide-react';
-import { MatrixRow, getChemicalCompatibility } from './MatrizCompatibilidadConstants';
+import { MatrixRow, getChemicalCompatibility , CLASES_ONU } from './MatrizCompatibilidadConstants';
 import cn from '~/utils/cn';
 
 interface DashboardProps {
@@ -49,7 +49,7 @@ export default function MatrizCompatibilidadDashboard({
   onConclusionSaved,
   isMaximized
 }: DashboardProps) {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'cruces' | 'metodologia'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'cruces' | 'metodologia' | 'matriz_guia'>('dashboard');
   const [conclusions, setConclusions] = useState<Record<string, string>>(savedConclusions);
   const [loadingConclusion, setLoadingConclusion] = useState<string | null>(null);
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<'all' | 'incompatible' | 'caution' | 'compatible'>('all');
@@ -245,6 +245,20 @@ export default function MatrizCompatibilidadDashboard({
               <Target className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Cruces Incompatibles ({compatibilityStats.incompatible})</span>
               <span className="sm:hidden">Incompatibles ({compatibilityStats.incompatible})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('matriz_guia')}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all cursor-pointer",
+                activeTab === 'matriz_guia'
+                  ? "bg-teal-600 text-white shadow-xs font-black"
+                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
+              )}
+            >
+              <Grid3X3 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Matriz NTC 3966</span>
+              <span className="sm:hidden">Matriz</span>
             </button>
             <button
               type="button"
@@ -827,7 +841,87 @@ export default function MatrizCompatibilidadDashboard({
           </div>
         )}
 
+
+        {/* ════════════════════════════════════════════════════════════════════
+            TAB 4: MATRIZ GUÍA DE ALMACENAMIENTO QUÍMICO MIXTO
+        ════════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'matriz_guia' && (
+          <div className="space-y-6">
+            <div className="p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-xs space-y-4">
+              <div>
+                <h3 className="text-sm font-black text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+                  <Grid3X3 className="w-4.5 h-4.5 text-teal-600" />
+                  Matriz Guía de Almacenamiento Químico Mixto
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-zinc-400 mt-1 leading-relaxed">
+                  Basada en la metodología SURA / NTC 3966. Cruce de Clases ONU para determinar las reglas de segregación en bodegas y armarios.
+                </p>
+              </div>
+
+              <div className="w-full overflow-x-auto scrollbar-thin">
+                <div className="min-w-[800px] w-full text-[10px]">
+                  {/* Header Row */}
+                  <div className="flex font-black text-[9px] uppercase tracking-tighter text-slate-500 border-b-2 border-slate-300 dark:border-zinc-700">
+                    <div className="w-32 sm:w-40 p-2 shrink-0 border-r border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/50">
+                      Clase ONU
+                    </div>
+                    {CLASES_ONU.filter(c => c !== 'No Peligroso').map((cls) => {
+                      const classNum = cls.split(':')[0].replace('Clase ', '');
+                      return (
+                        <div key={cls} className="flex-1 p-2 text-center border-r border-slate-200 dark:border-zinc-800 break-words" title={cls}>
+                          {classNum}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Body Rows */}
+                  {CLASES_ONU.filter(c => c !== 'No Peligroso').map((clsY) => {
+                    const classNumY = clsY.split(':')[0].replace('Clase ', '');
+                    return (
+                      <div key={clsY} className="flex border-b border-slate-200 dark:border-zinc-800 hover:bg-slate-50/50 dark:hover:bg-zinc-800/20 transition-colors">
+                        <div className="w-32 sm:w-40 p-2 shrink-0 border-r border-slate-200 dark:border-zinc-800 text-[10px] sm:text-[11px] font-bold text-slate-700 dark:text-zinc-300 bg-slate-50/50 dark:bg-zinc-900/30 truncate" title={clsY}>
+                          {clsY}
+                        </div>
+                        {CLASES_ONU.filter(c => c !== 'No Peligroso').map((clsX) => {
+                          const compat = getChemicalCompatibility(clsY, clsX);
+                          let bg = 'bg-slate-100';
+                          let title = compat.reason;
+                          let text = '';
+                          
+                          if (compat.status === 'compatible') {
+                            bg = 'bg-emerald-500 hover:bg-emerald-400';
+                          } else if (compat.status === 'caution') {
+                            bg = 'bg-yellow-400 hover:bg-yellow-300';
+                          } else if (compat.status === 'incompatible') {
+                            bg = 'bg-red-500 hover:bg-red-400';
+                          }
+
+                          return (
+                            <div key={clsX} className={`flex-1 p-1 border-r border-slate-200 dark:border-zinc-800 flex items-center justify-center cursor-pointer transition-colors ${bg} border-b-0`} title={`${clsY} vs ${clsX}
+
+${compat.reason}`}>
+                              <span className="opacity-0">.</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between text-[10px] font-bold text-slate-600 dark:text-zinc-400 pt-2 border-t border-slate-100 dark:border-zinc-800 gap-3">
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-500 shrink-0" /> Pueden almacenarse juntos (Verificar FDS)</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-yellow-400 shrink-0" /> Precaución (Revisar incompatibilidades individuales)</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-500 shrink-0" /> Incompatibles (Separación física requerida)</span>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
+
   );
 }

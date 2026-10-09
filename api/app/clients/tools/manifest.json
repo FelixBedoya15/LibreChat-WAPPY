@@ -13,6 +13,12 @@
     ]
   },
   {
+    "name": "PubChem GHS API",
+    "pluginKey": "pubchem_api",
+    "description": "Busca información, clasificación SGA (GHS) y pictogramas de seguridad química en la base de datos oficial de PubChem (NIH).",
+    "icon": "https://cdn-icons-png.flaticon.com/512/3063/3063255.png",
+    "authConfig": []
+  {
     "name": "Google",
     "pluginKey": "google",
     "description": "Use Google Search to find information about the weather, news, sports, and more.",

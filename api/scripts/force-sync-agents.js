@@ -210,7 +210,7 @@ async function main() {
   // Asegurar herramientas específicas de post-sincronización
   await Agent.updateOne({ name: 'Psicólogo SST' }, { $addToSet: { tools: { $each: ['consultar_analitica_psicosocial', 'canvas'] } } });
   await Agent.updateOne({ name: 'Coordinador de Seguridad Vial' }, { $addToSet: { tools: { $each: ['matriz_pesv', 'canvas', 'context'] } } });
-  await Agent.updateOne({ name: 'Ingeniero Químico SST' }, { $addToSet: { tools: { $each: ['matriz_compatibilidad', 'canvas'] } } });
+  await Agent.updateOne({ name: 'Ingeniero Químico SST' }, { $addToSet: { tools: { $each: ['matriz_compatibilidad', 'pubchem_api', 'canvas'] } } });
 
   console.log('\n✅ Sincronización de agentes forzada correctamente.');
   await mongoose.disconnect();

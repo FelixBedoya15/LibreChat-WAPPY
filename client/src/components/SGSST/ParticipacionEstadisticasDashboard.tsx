@@ -994,8 +994,8 @@ export default function ParticipacionEstadisticasDashboard({
 
                                                                 // Color de celda según Nivel de Riesgo GTC-45
                                                                 let cellBg = 'bg-slate-100 dark:bg-zinc-800 text-slate-700';
-                                                                if (cell.cellLevel === 'I') cellBg = 'bg-rose-500 text-white';
-                                                                else if (cell.cellLevel === 'II') cellBg = 'bg-amber-500 text-white';
+                                                                if (cell.cellLevel === 'I') cellBg = 'bg-red-500 text-white';
+                                                                else if (cell.cellLevel === 'II') cellBg = 'bg-orange-500 text-white';
                                                                 else if (cell.cellLevel === 'III') cellBg = 'bg-yellow-400 text-yellow-950';
                                                                 else if (cell.cellLevel === 'IV') cellBg = 'bg-emerald-500 text-white';
 

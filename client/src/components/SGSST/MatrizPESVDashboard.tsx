@@ -566,7 +566,7 @@ export default function MatrizPESVDashboard({
                 <div className="w-full overflow-x-auto scrollbar-thin my-3">
                   <div className="min-w-[340px] sm:min-w-[420px] w-full text-[10px]">
                     <div className="grid grid-cols-4 gap-1 sm:gap-1.5 mb-1.5 font-bold text-slate-400 text-center">
-                      <div className="text-left text-[9px] uppercase truncate">Severidad \ Prob.</div>
+                      <div className="text-left text-[9px] uppercase truncate">Severidad \ Frec.</div>
                       <div className="truncate">Alta (3)</div>
                       <div className="truncate">Media (2)</div>
                       <div className="truncate">Baja (1)</div>
@@ -580,9 +580,9 @@ export default function MatrizPESVDashboard({
                         {row.map((cell) => {
                           const isSelected = selectedHeatmapCell === cell.cellKey;
                           let cellBg = 'bg-slate-100 dark:bg-zinc-800 text-slate-600';
-                          if (cell.level === 'Crítico') cellBg = 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-400/40 hover:bg-rose-500/30';
-                          else if (cell.level === 'Moderado') cellBg = 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-400/40 hover:bg-amber-500/30';
-                          else cellBg = 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-400/40 hover:bg-emerald-500/30';
+                          if (cell.level === 'Crítico') cellBg = 'bg-red-500 text-white border-red-600 hover:bg-red-600 shadow-sm';
+                          else if (cell.level === 'Moderado') cellBg = 'bg-orange-500 text-white border-orange-600 hover:bg-orange-600 shadow-sm';
+                          else cellBg = 'bg-emerald-500 text-white border-emerald-600 hover:bg-emerald-600 shadow-sm';
 
                           return (
                             <button

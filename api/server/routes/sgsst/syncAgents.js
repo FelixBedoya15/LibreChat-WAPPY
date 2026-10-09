@@ -563,7 +563,7 @@ router.post('/cleanup-and-sync', requireJwtAuth, async (req, res) => {
     try {
       await Agent.findOneAndUpdate(
         { name: { $in: ['Ingeniero Químico SST', 'Especialista en Riesgo Químico'] } },
-        { $addToSet: { tools: { $each: ['matriz_compatibilidad', 'canvas'] } } }
+        { $addToSet: { tools: { $each: ['matriz_compatibilidad', 'pubchem_api', 'canvas'] } } }
       );
       logger.info('[CleanupSync] Updated tools to include matriz_compatibilidad and canvas for Ingeniero Químico SST');
     } catch (err) {
