@@ -163,13 +163,17 @@ async function processHtmlAppDocument(content, fileType, title, userId, req, exi
 
   let stringContent = typeof content === 'string' ? content.trim() : (content ? String(content) : '');
 
-  // Si ya es un aplicativo HTML completo y robusto (más de 2500 caracteres, scripts y estilos Tailwind/Chart), preservarlo
-  const isAlreadyFullApp =
-    stringContent.length > 2500 &&
+  // Verificar si ya es un aplicativo completo que cumple con el estándar visual corporativo de WAPPY
+  const hasWappyBanner = stringContent.includes('gradient-banner') || stringContent.includes('PROCESO: VERIFICAR') || stringContent.includes('PROCESO: SG-SST');
+  const hasCompanyMeta = stringContent.includes('company-nit') || stringContent.includes('Código del Registro') || stringContent.includes('ARL:');
+  const isAlreadyFullWappyApp =
+    stringContent.length > 3500 &&
+    hasWappyBanner &&
+    hasCompanyMeta &&
     (stringContent.includes('<script') || stringContent.includes('tailwindcss')) &&
     (stringContent.includes('<!DOCTYPE') || stringContent.includes('<html') || stringContent.includes('<div'));
 
-  if (isAlreadyFullApp) {
+  if (isAlreadyFullWappyApp) {
     return stringContent;
   }
 
@@ -186,6 +190,7 @@ async function processHtmlAppDocument(content, fileType, title, userId, req, exi
   // Extraer contexto del usuario y del turno actual
   const userPrompt =
     req?.body?.text ||
+    req?.body?.userRequestText ||
     (Array.isArray(req?.body?.messages) && req.body.messages.length > 0
       ? req.body.messages[req.body.messages.length - 1]?.text ||
         req.body.messages[req.body.messages.length - 1]?.content ||
@@ -204,41 +209,130 @@ async function processHtmlAppDocument(content, fileType, title, userId, req, exi
     }
   }
 
-  const companyContext = companyInfo
-    ? `Empresa: ${companyInfo.companyName || 'Empresa Activa'}\nNIT: ${companyInfo.nit || 'Sin NIT'}\nSector: ${companyInfo.economicSector || 'General'}`
-    : 'No hay información de empresa registrada.';
+  const companyName = companyInfo?.companyName || 'WAPPY LTDA';
+  const companyNit = companyInfo?.nit || '9014373103';
+  const companyArl = companyInfo?.arl || 'Sura';
+  const companyWorkers = companyInfo?.workerCount || '17';
+  const companyRisk = companyInfo?.riskLevel || 'V (Construcción)';
+  const registerCode = 'IND-SST-01';
+  const currentDate = new Date().toISOString().split('T')[0];
 
-  const prompt = `Eres el Arquitecto de Frontend y Especialista Técnico en SG-SST de WAPPY.
-Tu tarea es construir un APLICATIVO WEB INTERACTIVO COMPLETO (Single-File HTML5) para proyectar en el Canvas lateral de WAPPY.
+  const prompt = `Eres el Desarrollador Frontend Senior y Diseñador de Interfaces Corporativas de WAPPY.
+Tu misión es construir un APLICATIVO WEB INTERACTIVO COMPLETO (Single-File HTML5) con el SISTEMA DE DISEÑO PREMIUM WAPPY (Idéntico a los dashboards y herramientas oficiales de los Agentes Especialistas de SG-SST).
 
 ## TÍTULO DEL APLICATIVO:
-${title || 'Aplicativo Interactivo SG-SST'}
+${title || 'INDICADORES DE GESTIÓN SG-SST'}
 
-## CONTEXTO DE LA EMPRESA:
-${companyContext}
+## INFORMACIÓN DE LA EMPRESA ACTIVA:
+- Razón Social: ${companyName}
+- NIT: ${companyNit}
+- ARL: ${companyArl}
+- Total Trabajadores: ${companyWorkers}
+- Nivel de Riesgo: ${companyRisk}
+- Código de Registro: ${registerCode}
+- Vigencia: ${currentDate}
 
-## REQUERIMIENTO DEL USUARIO:
-${userPrompt || title || 'Aplicativo interactivo para gestión de indicadores o procesos SG-SST'}
+## SOLICITUD DEL USUARIO / CONTENIDO BASE:
+${userPrompt || title || 'Dashboard de Indicadores y Gestión SG-SST'}
 
-${toolsContext ? `## RECURSOS Y BASES DE DATOS VINCULADAS EN ESTA SESIÓN (GOOGLE SHEETS / HERRAMIENTAS):\n${toolsContext}\n` : ''}
+${stringContent ? `## DATOS O LÓGICA BASE SUMINISTRADA (Conservar, enriquecer visualmente y nunca degradar):\n${stringContent.slice(0, 4000)}\n` : ''}
 
-${stringContent ? `## ESPECIFICACIONES O BASE SUMINISTRADA:\n${stringContent}\n` : ''}
+${toolsContext ? `## HERRAMIENTAS Y BASES DE DATOS VINCULADAS:\n${toolsContext}\n` : ''}
 
-## REQUISITOS TÉCNICOS Y DE DISEÑO OBLIGATORIOS:
-1. Formato Single-File HTML: Embebido en un solo archivo con <!DOCTYPE html>, <html>, <head> y <body>.
-2. Estilos: Incluye Tailwind CSS vía CDN (<script src="https://cdn.tailwindcss.com"></script>). Usa tipografía moderna, tarjetas con bordes suaves, sombras y diseño responsive.
-3. Visualización y Gráficos: Si el aplicativo involucra métricas o indicadores, incluye Chart.js (<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>) con gráficos interactivos que se actualicen en tiempo real.
-4. Interactividad JS Completa:
-   - Formularios para ingresar o editar datos.
-   - Cálculo automático de fórmulas (ej. Fórmulas de la Res. 0312 si es accidentalidad: IF, IS, PAM, TA, TAus).
-   - Filtros por período, año o sede.
-   - Tabla de datos reactiva con opción de agregar filas.
-5. Conexión de Datos: Si arriba se especificó una hoja de Google Sheets, incluye el enlace directo a la hoja, muestra los encabezados correspondientes y precarga datos iniciales coherentes.
-6. RESPUESTA: Responde ÚNICAMENTE con el código HTML5 completo, sin bloques de markdown con triple comilla invertida (sin \`\`\`html ni \`\`\`), sin comentarios explicativos antes ni después. Solo el código HTML directo.`;
+---
+
+## 🎨 SISTEMA DE DISEÑO VISUAL OBLIGATORIO DE WAPPY (ESTRICTO):
+
+1. **PALETA Y TEMA OSCURO CORPORATIVO (DARK THEME POR DEFECTO):**
+   - Fondo general: \`bg-[#0b0f19] text-slate-100 font-sans min-h-screen p-4 md:p-8\`
+   - Tipografía: Plus Jakarta Sans o Inter vía Google Fonts.
+   - Tailwind CSS vía CDN: \`<script src="https://cdn.tailwindcss.com"></script>\`
+   - Lucide Icons vía CDN: \`<script src="https://unpkg.com/lucide@latest"></script>\`
+   - Chart.js para gráficas: \`<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>\`
+
+2. **BLOQUE 1: BANNER SUPERIOR OFICIAL WAPPY (\`gradient-banner\`):**
+   Incluye exactamente este banner en la parte superior:
+\`\`\`html
+<header class="max-w-[1400px] mx-auto mb-6">
+    <div class="gradient-banner bg-gradient-to-r from-teal-500 via-teal-600 to-cyan-500 rounded-[2rem] p-6 md:p-8 text-white relative overflow-hidden shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6">
+        <div class="flex items-center gap-5 z-10 w-full md:w-auto">
+            <div class="h-16 w-16 md:h-20 md:w-20 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center p-2 shadow-inner shrink-0">
+                <img src="https://wappy.club/assets/logo.png" onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/FelixBedoya15/LibreChat-WAPPY/main/client/public/images/logo.png';" class="h-full w-full object-contain" alt="WAPPY Logo">
+            </div>
+            <div>
+                <h1 class="text-2xl md:text-3xl font-black tracking-tight leading-tight uppercase text-white">${(title || 'INDICADORES DE GESTIÓN SG-SST').toUpperCase()}</h1>
+                <h2 class="text-xs md:text-sm font-bold tracking-wider text-teal-100 uppercase mt-1">SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</h2>
+                <p class="text-[10px] md:text-xs text-teal-200 mt-0.5 opacity-90">Conforme a la Resolución 0312 de 2019 y Decreto 1072 de 2015</p>
+            </div>
+        </div>
+        <div class="flex flex-col md:items-end gap-3 z-10 text-left md:text-right w-full md:w-auto">
+            <span class="px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/25 text-xs font-black tracking-wider uppercase text-white whitespace-nowrap">PROCESO: VERIFICAR | V.02</span>
+        </div>
+    </div>
+</header>
+\`\`\`
+
+3. **BLOQUE 2: FICHA DE METADATOS DE LA EMPRESA ACTIVA:**
+   Incluye esta ficha corporativa conectada:
+\`\`\`html
+<div class="max-w-[1400px] mx-auto mb-6">
+    <div class="bg-slate-900/60 backdrop-blur-md p-5 rounded-[2rem] border border-slate-800 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4 border-l-4 border-l-teal-500">
+        <div>
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-xl font-bold text-white tracking-wide">${companyName}</span>
+                <span class="text-xs font-bold px-2.5 py-0.5 bg-teal-950/80 text-teal-400 rounded-md border border-teal-800/50">NIT</span>
+                <span class="text-xs font-semibold text-slate-300">${companyNit}</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1.5 flex flex-wrap gap-x-5 gap-y-1">
+                <span>ARL: <strong class="text-slate-200">${companyArl}</strong></span>
+                <span>Trabajadores: <strong class="text-slate-200">${companyWorkers}</strong></span>
+                <span>Nivel Riesgo: <strong class="text-slate-200">${companyRisk}</strong></span>
+            </p>
+        </div>
+        <div class="text-left md:text-right">
+            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Código del Registro</span>
+            <span class="text-lg font-black text-white">${registerCode}</span>
+            <span class="text-[10px] text-slate-400 mt-0.5 block">Vigencia: ${currentDate}</span>
+        </div>
+    </div>
+</div>
+\`\`\`
+
+4. **BLOQUE 3: TARJETAS KPI DE ALTO IMPACTO (Métricas con bordes neón y valores grandes):**
+   - Grilla responsive (\`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-[1400px] mx-auto mb-6\`).
+   - Tarjetas con fondo \`bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden\`.
+   - Borde inferior o lateral de color distintivo (Verde \`border-b-2 border-b-teal-500\`, Naranja \`border-b-2 border-b-amber-500\`, Cyan \`border-b-2 border-b-cyan-500\`, Morado \`border-b-2 border-b-indigo-500\`).
+   - Iconos Lucide estilizados en cada tarjeta.
+   - Cifra principal en \`text-3xl font-black text-white my-2\`.
+   - Subtexto técnico explicativo (ej: *Accidentes / 240.000 HHT*, *Días perdidos / 240.000 HHT*, *% Horas perdidas por incapacidad*, *Horas hombre trabajadas*).
+
+5. **BLOQUE 4: GRÁFICOS INTERACTIVOS (Chart.js en Dark Mode):**
+   - Contenedores de gráficos (\`grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-[1400px] mx-auto mb-6\`).
+   - Fondo de tarjeta \`bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-2xl p-6 shadow-xl\`.
+   - Paleta de datasets neón/SST: Teal (\`#14b8a6\`), Cyan (\`#06b6d4\`), Ámbar (\`#f59e0b\`), Esmeralda (\`#10b981\`).
+   - Gridlines tenues (\`rgba(255, 255, 255, 0.05)\`) y textos en \`#94a3b8\`.
+
+6. **BLOQUE 5: TABLAS INTERACTIVAS Y CONTROLES:**
+   - Tabla reactiva con buscador, filtros y celdas estilizadas.
+   - Botón funcional de Imprimir / Descargar PDF (\`window.print()\`).
+
+7. **BLOQUE 6: BOTÓN FLOTANTE "ASISTENTE IA":**
+\`\`\`html
+<div id="wappy-ai-floating-btn" class="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-gradient-to-r from-teal-500 to-emerald-600 text-white font-bold text-xs px-4 py-2.5 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all cursor-pointer border border-teal-300/30">
+    <i data-lucide="bot" class="w-4 h-4"></i>
+    <span>ASISTENTE IA</span>
+    <span class="w-2 h-2 rounded-full bg-emerald-300 animate-ping"></span>
+</div>
+\`\`\`
+
+8. **SCRIPTS:**
+   - Incluye \`lucide.createIcons();\` para renderizar todos los iconos.
+
+RESPUESTA ESTRICTA: Responde ÚNICAMENTE con el documento HTML5 completo (empezando con <!DOCTYPE html>), sin explicaciones, sin introducciones y sin bloques de markdown con comillas invertidas.`;
 
   try {
     const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
-    logger.info('[CanvasTool Camino B] Delegando generación técnica de aplicativo HTML a gemini-3.6-flash (Rotación completa)...');
+    logger.info('[CanvasTool Camino B] Delegando generación técnica de aplicativo HTML a gemini-3.6-flash (Diseño WAPPY Premium)...');
     const result = await generateWithKeyRotation('gemini-3.6-flash', userId, prompt);
     const response = await result?.response;
     let generatedHtml = response?.text ? response.text() : '';
