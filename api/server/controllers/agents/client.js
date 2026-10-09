@@ -2170,9 +2170,30 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
             fallbackMsg = 'He procesado tu solicitud y registrado exitosamente la información en el sistema. Puedes visualizar los datos actualizados en el panel lateral.';
           }
         } else if (hasToolActivity) {
-          fallbackMsg = isMatrixReq
-            ? 'He consultado la información y analizado los procesos de tu empresa. ¿Deseas que proceda a registrar los peligros evaluados en tu Matriz IPEVAR en vivo?'
-            : 'He consultado la información y el contexto en el sistema. ¿Deseas que proceda a registrar los datos en el panel en vivo?';
+          // Si el modelo leyó el Canvas y se quedó sin escribir, aplicar la modificación pedida directamente.
+          let canvasApplied = null;
+          const usedCanvas = this.contentParts.some((p) => (p?.name || p?.tool_call?.name || '') === 'canvas');
+          if (usedCanvas && this.conversationId) {
+            try {
+              const CanvasTool = require('~/app/clients/tools/structured/CanvasTool');
+              const originalQuery = this.options.req?.body?.text || userQuery;
+              logger.info(`[AgentClient Fallback] Aplicando modificación de Canvas directamente: "${originalQuery}"`);
+              canvasApplied = await CanvasTool.applyCanvasModification(
+                this.conversationId,
+                originalQuery,
+                this.options.req?.user?.id,
+              );
+            } catch (modErr) {
+              logger.error('[AgentClient Fallback] Error aplicando modificación de Canvas:', modErr);
+            }
+          }
+          if (canvasApplied) {
+            fallbackMsg = `✅ Listo. Apliqué tu solicitud en el Canvas (**${canvasApplied.title}**, versión ${canvasApplied.version}). Ya puedes verlo actualizado en el panel derecho.`;
+          } else if (isMatrixReq) {
+            fallbackMsg = 'He consultado la información y analizado los procesos de tu empresa. ¿Deseas que proceda a registrar los peligros evaluados en tu Matriz IPEVAR en vivo?';
+          } else {
+            fallbackMsg = 'No logré completar la acción en este intento. Por favor repite la solicitud y la ejecuto de inmediato.';
+          }
         } else if (isMatrixReq) {
           fallbackMsg = 'He analizado tu solicitud para la matriz de peligros. Por favor indícame qué proceso, actividad o puesto de trabajo deseas evaluar para registrar los riesgos en tu Matriz IPEVAR en vivo.';
         } else if (asksIndicatorsOrFormulas) {

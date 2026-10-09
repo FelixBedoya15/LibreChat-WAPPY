@@ -1248,8 +1248,58 @@ class CanvasTool extends Tool {
   }
 }
 
+/**
+ * Aplica directamente la modificación solicitada por el usuario sobre el Canvas existente.
+ * Se usa como red de seguridad cuando el modelo leyó el Canvas pero terminó el turno sin escribir.
+ */
+async function applyCanvasModification(conversationId, userRequest, userId) {
+  const session = await CanvasSession.findOne({ conversationId });
+  if (!session || !session.content || !['html', 'text'].includes(session.fileType)) {
+    return null;
+  }
+  const existing = String(session.content);
+  const prompt = `Eres un desarrollador experto. Aplica EXACTAMENTE la siguiente modificación solicitada por el usuario al documento ${session.fileType === 'html' ? 'HTML (aplicativo single-file con Tailwind; si piden gráficas usa Chart.js vía <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> y conéctalas a los datos y a la función de render existente para que se actualicen en vivo)' : 'de texto/HTML'}.
+Conserva TODO lo demás (estructura, datos, scripts, estilos, copilot).
+
+## MODIFICACIÓN SOLICITADA:
+${userRequest}
+
+## DOCUMENTO ACTUAL:
+${existing}
+
+Responde ÚNICAMENTE con el documento completo modificado, sin bloques de markdown ni explicaciones.`;
+
+  const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
+  const result = await generateWithKeyRotation(
+    { model: 'gemini-3.6-flash', generationConfig: { maxOutputTokens: 65000 } },
+    userId,
+    prompt,
+  );
+  const response = await result?.response;
+  let updated = response?.text ? response.text() : '';
+  updated = updated.replace(/^```(?:html)?\s*/i, '').replace(/\s*```$/i, '').trim();
+  if (!updated || updated.length < existing.length * 0.6) {
+    logger.warn('[CanvasTool applyCanvasModification] Resultado inválido o truncado, se conserva el original.');
+    return null;
+  }
+
+  const maxHistoryVersion = (session.history || []).reduce((m, i) => Math.max(m, i.version || 0), 0);
+  const nextVersion = Math.max(maxHistoryVersion, session.version || 0) + 1;
+  session.content = updated;
+  session.version = nextVersion;
+  session.history = [
+    ...(session.history || []),
+    { version: nextVersion, content: updated, title: session.title, fileType: session.fileType, updatedAt: new Date() },
+  ];
+  session.markModified('history');
+  await session.save();
+  await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
+  return { title: session.title, version: nextVersion };
+}
+
 CanvasTool.processHtmlAppDocument = processHtmlAppDocument;
 CanvasTool.processTextReportDocument = processTextReportDocument;
 CanvasTool.syncCanvasToLiveEditor = syncCanvasToLiveEditor;
+CanvasTool.applyCanvasModification = applyCanvasModification;
 
 module.exports = CanvasTool;
