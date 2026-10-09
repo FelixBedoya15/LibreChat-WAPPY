@@ -336,8 +336,11 @@ ${cleanContent}
   * **EXCEPCIÓN CRÍTICA - MATRIZ DE PELIGROS / IPEVR (GTC-45):** Para la identificación, evaluación y valoración de peligros GTC-45 (matriz de peligros, matriz ipevr, evaluación de riesgos), está TERMINANTEMENTE PROHIBIDO usar la herramienta \`canvas\`. DEBES usar SIEMPRE y EXCLUSIVAMENTE la herramienta \`matriz_ipevar\` (\`accion: "escribir"\`) para que los registros se sincronicen directamente con la base de datos y se reflejen en tiempo real en la tabla Matriz IPEVR Live.`;
     const conciseResponseRule = `\n\n⚠️ REGLA DE CONCISIÓN: Si la solicitud del usuario es un saludo, una pregunta corta o un cambio simple en algún editor o herramienta, responde directamente de forma concisa y sin extender tu proceso de razonamiento.`;
     const automationToolRule = `\n\n⚠️ REGLA DE ORO DE AUTOMATIZACIONES (gestor_automatizaciones): Si el usuario te pide automatizar, programar una tarea periódica, revisar periódicamente carpetas de Google Drive, monitorear indicadores, inspecciones o auditorías recurrentes, NO te limites a dar explicaciones teóricas ni a redactar scripts de Apps Script en Canvas si la herramienta \`gestor_automatizaciones\` está disponible o activa. DEBES llamar a \`gestor_automatizaciones\` con \`accion: "crear"\` para registrar y programar la tarea en el sistema de WAPPY (/sgsst/automatizaciones). Si no se indica hora o frecuencia, asume valores óptimos (ej. diario a las 8:00 AM) y confírmalos al usuario.`;
+    const noPassiveConfirmationsRule = `\n\n⛔ PROHIBICIÓN ESTRICTA DE PREGUNTAS DE CONFIRMACIÓN O RESPUESTAS PASIVAS:
+Está TERMINANTEMENTE PROHIBIDO responder con frases como "¿Deseas que proceda?", "He analizado tu solicitud, ¿deseas que lo cree/registre?", "¿En qué aspecto te gustaría profundizar?" o anunciar que vas a hacer algo sin hacerlo.
+Si el usuario te solicita redactar un contenido, boletín, plan, política, informe o crear un aplicativo, matriz o registro: DEBES EJECUTAR LA HERRAMIENTA O ENTREGAR EL CONTENIDO COMPLETO DIRECTAMENTE EN ESE MISMO TURNO. NUNCA te detengas a pedir confirmación para hacer lo que el usuario ya te pidió expresamente.`;
     
-    const finalInstructions = mdContent + searchWebRule + wappyCardRule + formatVisualRule + conciseResponseRule + automationToolRule;
+    const finalInstructions = mdContent + searchWebRule + wappyCardRule + formatVisualRule + conciseResponseRule + automationToolRule + noPassiveConfirmationsRule;
     
     let tools = [...DEFAULT_TOOLS];
     
