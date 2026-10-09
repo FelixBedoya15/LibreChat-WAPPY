@@ -259,6 +259,20 @@ export default function UsersActivityMetricsTab({
     }
   };
 
+  const renderPlanBadge = (subType?: string, interval?: string, daysToExpiry?: number | null) => {
+    const p = formatPlanBadge(subType, interval);
+    return (
+      <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold border inline-flex items-center gap-1 shrink-0", p.className)}>
+        {p.label}
+        {!p.isLifetime && typeof daysToExpiry === 'number' && (
+          <span className="opacity-75">
+            ({daysToExpiry < 0 ? `exp -${Math.abs(daysToExpiry)}d` : `${daysToExpiry}d`})
+          </span>
+        )}
+      </span>
+    );
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300">
       {/* 1. Header KPI Cards */}
@@ -530,7 +544,7 @@ export default function UsersActivityMetricsTab({
                               <span className="font-extrabold text-xs text-text-primary truncate">
                                 {u.name}
                               </span>
-                              {formatPlanBadge(u.subscriptionType, u.planInterval, u.daysToExpiry)}
+                              {renderPlanBadge(u.subscriptionType, u.planInterval, u.daysToExpiry)}
                             </div>
                             <div className="text-[11px] text-text-secondary truncate mt-0.5">
                               {u.email}
@@ -798,7 +812,7 @@ export default function UsersActivityMetricsTab({
                 <div>
                   <h3 className="text-base sm:text-lg font-black text-text-primary flex items-center gap-2">
                     <span>{selectedUserDetail.name}</span>
-                    {formatPlanBadge(selectedUserDetail.subscriptionType, selectedUserDetail.planInterval, selectedUserDetail.daysToExpiry)}
+                    {renderPlanBadge(selectedUserDetail.subscriptionType, selectedUserDetail.planInterval, selectedUserDetail.daysToExpiry)}
                   </h3>
                   <p className="text-xs text-text-secondary mt-0.5">
                     {selectedUserDetail.email} {selectedUserDetail.phone && `• 📱 ${selectedUserDetail.phone}`} {selectedUserDetail.city && `• 📍 ${selectedUserDetail.city}`}
