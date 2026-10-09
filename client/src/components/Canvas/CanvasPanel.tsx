@@ -43,6 +43,7 @@ import { v4 } from 'uuid';
 import { useChatContext } from '~/Providers';
 import { useQueryClient } from '@tanstack/react-query';
 import { QueryKeys } from 'librechat-data-provider';
+import { saveAs } from 'file-saver';
 
 const detectFileType = (content: any, defaultType = 'text') => {
   if (!content) return defaultType;
@@ -1370,7 +1371,17 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                     }
                   }
 
-                  downloadRef.current();
+                  if (downloadRef.current) {
+                    downloadRef.current();
+                  } else if (content) {
+                    const safeTitle = (title || 'archivo').replace(/[/\\?%*:|"<>]/g, '_').trim();
+                    const isHtml = fileType === 'html' || content.includes('<html') || content.includes('<!DOCTYPE');
+                    const ext = isHtml ? 'html' : fileType === 'excel' ? 'json' : 'txt';
+                    const blob = new Blob([content], { type: isHtml ? 'text/html;charset=utf-8' : 'text/plain;charset=utf-8' });
+                    saveAs(blob, `${safeTitle}.${ext}`);
+                  } else {
+                    console.warn('[CanvasPanel] No download function registered and no content available');
+                  }
                 }}
                 className="group flex h-9 sm:h-10 min-w-[36px] sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2 sm:px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Descargar archivo"

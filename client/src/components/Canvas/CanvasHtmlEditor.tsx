@@ -1,4 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useRecoilState } from 'recoil';
+import store from '~/store';
+import { saveAs } from 'file-saver';
 import { 
   Eye, 
   Code2, 
@@ -401,38 +404,53 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeContainerRef = useRef<HTMLDivElement>(null);
+  const [isCanvasMaximized, setIsCanvasMaximized] = useRecoilState<boolean>(store.canvasMaximized);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      if (!document.fullscreenElement) {
+        setIsFullscreen(false);
+      }
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
   }, []);
 
   const toggleFullscreen = async () => {
+    const nextState = !isFullscreen;
+    setIsFullscreen(nextState);
+
+    // Si entra a pantalla completa, maximiza también el canvas general
+    if (nextState) {
+      setIsCanvasMaximized(true);
+    }
+
     const el = iframeContainerRef.current || containerRef.current;
-    if (!document.fullscreenElement) {
+    if (nextState) {
       try {
         if (el?.requestFullscreen) {
           await el.requestFullscreen();
         } else if ((el as any).webkitRequestFullscreen) {
           await (el as any).webkitRequestFullscreen();
         }
-      } catch (err) {
-        console.error('Fullscreen request failed:', err);
+      } catch (_) {
+        // En iOS Safari / navegadores que no soportan Fullscreen API en divs, el modo CSS fixed cubre el 100% de la pantalla
       }
     } else {
       try {
-        if (document.exitFullscreen) {
-          await document.exitFullscreen();
-        } else if ((document as any).webkitExitFullscreen) {
-          await (document as any).webkitExitFullscreen();
+        if (document.fullscreenElement) {
+          if (document.exitFullscreen) {
+            await document.exitFullscreen();
+          } else if ((document as any).webkitExitFullscreen) {
+            await (document as any).webkitExitFullscreen();
+          }
         }
-      } catch (err) {
-        console.error('Exit fullscreen failed:', err);
-      }
+      } catch (_) {}
     }
   };
 
@@ -506,18 +524,64 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
     onUpdate(val);
   };
 
-  const handleDownloadHtml = () => {
-    const prepared = preparePreviewHtml(code);
-    const blob = new Blob([prepared], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${title || 'canvas-preview'}.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
+  const handleDownloadHtml = useCallback(async () => {
+    try {
+      const rawContent = code || initialContent || '';
+      if (!rawContent) return;
+      const prepared = preparePreviewHtml(rawContent);
+      const safeTitle = (title || 'aplicativo-sst')
+        .replace(/[/\\?%*:|"<>]/g, '_')
+        .trim();
+      const fileName = safeTitle.endsWith('.html') ? safeTitle : `${safeTitle}.html`;
+      const blob = new Blob([prepared], { type: 'text/html;charset=utf-8' });
+
+      // 1. En móviles (iOS Safari / Android), verificar si el navegador soporta compartir archivos directamente (Guardar en Archivos / AirDrop / WhatsApp)
+      if (typeof navigator !== 'undefined' && navigator.canShare && typeof File !== 'undefined') {
+        try {
+          const file = new File([blob], fileName, { type: 'text/html' });
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: title || 'Aplicativo SST',
+            });
+            return;
+          }
+        } catch (shareErr: any) {
+          if (shareErr?.name === 'AbortError') {
+            return; // Cancelado por el usuario en el share sheet
+          }
+          console.warn('Native share failed, falling back to saveAs:', shareErr);
+        }
+      }
+
+      // 2. Descarga multi-navegador con saveAs de file-saver
+      saveAs(blob, fileName);
+    } catch (err) {
+      console.error('Error al descargar HTML:', err);
+      try {
+        const rawContent = code || initialContent || '';
+        const prepared = preparePreviewHtml(rawContent);
+        const safeTitle = (title || 'aplicativo-sst').replace(/[/\\?%*:|"<>]/g, '_').trim();
+        const fileName = safeTitle.endsWith('.html') ? safeTitle : `${safeTitle}.html`;
+        const blob = new Blob([prepared], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          try {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          } catch (_) {}
+        }, 5000);
+      } catch (fallbackErr) {
+        console.error('Fallback download failed:', fallbackErr);
+      }
+    }
+  }, [code, initialContent, title]);
 
   const handleOpenInNewTab = () => {
     const prepared = preparePreviewHtml(code);
@@ -768,8 +832,24 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
           {(activeTab === 'split' || activeTab === 'preview') && (
             <div
               ref={iframeContainerRef}
-              className="flex-1 h-full min-h-0 min-w-0 bg-white relative flex flex-col overflow-hidden"
+              className={`flex-1 h-full min-h-0 min-w-0 bg-white relative flex flex-col overflow-hidden ${
+                isFullscreen
+                  ? 'fixed inset-0 z-[99999999] h-screen w-screen'
+                  : ''
+              }`}
             >
+              {isFullscreen && (
+                <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+                  <button
+                    onClick={toggleFullscreen}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900/90 text-white backdrop-blur-md border border-slate-700 shadow-2xl font-bold text-xs active:scale-95 transition-all hover:bg-slate-800"
+                    title="Salir de pantalla completa"
+                  >
+                    <Minimize className="h-4 w-4 text-teal-400" />
+                    <span>Salir Pantalla Completa</span>
+                  </button>
+                </div>
+              )}
               <iframe
                 key={iframeKey}
                 title="Canvas Live View"
