@@ -6,7 +6,7 @@ export interface WappyExpandButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   icon?: React.ComponentType<{ className?: string }> | React.ReactNode;
   label: string;
-  variant?: 'teal' | 'red' | 'orange' | 'emerald' | 'blue' | 'neutral';
+  variant?: 'teal' | 'red' | 'orange' | 'emerald' | 'blue' | 'neutral' | 'gradient-orange' | 'gradient-teal';
   isLoading?: boolean;
 }
 
@@ -31,6 +31,8 @@ export const WappyExpandButton = forwardRef<HTMLButtonElement, WappyExpandButton
       emerald: 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border-emerald-200/80 dark:border-emerald-800/80 shadow-emerald-500/10 hover:border-emerald-400',
       blue: 'bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 border-blue-200/80 dark:border-blue-800/80 shadow-blue-500/10 hover:border-blue-400',
       neutral: 'bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 border-slate-200 dark:border-zinc-700 shadow-slate-200/30 hover:border-slate-400',
+      'gradient-orange': 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white border-orange-400/30 shadow-md shadow-orange-500/20 hover:border-orange-500',
+      'gradient-teal': 'bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white border-teal-400/30 shadow-md shadow-teal-500/20 hover:border-teal-400',
     };
 
     const renderIcon = () => {

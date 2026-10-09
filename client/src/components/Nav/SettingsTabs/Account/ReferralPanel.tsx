@@ -674,13 +674,13 @@ export default function ReferralPanel() {
                                 <h4 className="text-sm font-bold text-text-primary">🚀 ¿Eres Creador, Promotor o Líder?</h4>
                                 <p className="text-xs text-text-secondary mt-0.5">Asciende gratis a Partner o Embajador comercial para empezar a cobrar jugosas comisiones del 20% o 30% en efectivo.</p>
                             </div>
-                            <button
+                            <WappyExpandButton
                                 onClick={() => setShowApplyForm(true)}
-                                className="bg-gradient-to-r from-amber-500 to-yellow-500 text-white font-bold text-xs px-5 py-3 rounded-2xl flex items-center gap-1.5 transition-all shadow-md hover:shadow-yellow-500/10 cursor-pointer active:scale-95 self-stretch sm:self-auto justify-center"
-                            >
-                                <span>Convertirse en Socio</span>
-                                <ArrowRight className="w-4 h-4" />
-                            </button>
+                                variant="gradient-orange"
+                                icon={ArrowRight}
+                                label="Convertirse en Socio"
+                                className="h-10 px-3.5 self-stretch sm:self-auto"
+                            />
                         </div>
                     ) : (
                         <form onSubmit={handleApplyNewPartner} className="flex flex-col gap-4 animate-fadeIn">

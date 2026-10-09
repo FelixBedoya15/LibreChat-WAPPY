@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { UpgradeWall } from './UpgradeWall';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import SGSSTLegalBadge from './SGSSTLegalBadge';
 import {
   Filter,
   CheckCircle2,
@@ -30,6 +31,7 @@ import {
   Trello,
   ExternalLink,
   Send,
+  Stethoscope,
 } from 'lucide-react';
 import { Button, useToastContext } from '@librechat/client';
 import { cn } from '~/utils';
@@ -927,6 +929,30 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Header Diagnóstico Inicial */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-teal-600 text-white shadow-inner">
+            <Stethoscope className="w-6 h-6" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <h2 className="text-base sm:text-lg font-black tracking-tight text-text-primary flex items-center gap-2">
+                Diagnóstico Inicial del SG-SST
+              </h2>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <SGSSTLegalBadge
+                standardCode="2.3.1"
+                label="Res. 0312 Est. 2.3.1: CUMPLE"
+                tooltip="Res. 0312/2019 Est. 2.3.1 — Evaluación Inicial e identificación de prioridades (Dec. 1072/15 Art. 2.2.4.6.16)"
+                moduleName="Diagnóstico Inicial"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Auto-Compliance Sync Banner */}
       {scanSummary && scanSummary.compliantCount > 0 && (
         <div className="flex flex-col justify-between gap-3 rounded-2xl border border-teal-500/30 bg-gradient-to-r from-teal-500/10 via-emerald-500/10 to-teal-500/5 p-4 text-sm shadow-sm sm:flex-row sm:items-center">
