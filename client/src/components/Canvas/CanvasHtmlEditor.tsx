@@ -63,7 +63,7 @@ function cleanHtmlContent(raw: string): string {
  * Inyecta shims seguros y estilos base para que presentaciones interactivas (Reveal.js, Swiper, custom sliders)
  * y páginas HTML se rendericen de forma impecable sin excepciones dentro del iframe en vista previa.
  */
-function preparePreviewHtml(html: string): string {
+function preparePreviewHtml(html: string, isForDownload: boolean = false): string {
   if (!html) return '';
   let content = cleanHtmlContent(html);
 
@@ -72,15 +72,13 @@ function preparePreviewHtml(html: string): string {
 
   const hasHtml = /<html[^>]*>/i.test(content);
   const hasHead = /<head[^>]*>/i.test(content);
+  const isDarkDocument = /bg-\[#0b0f19\]|dark|slate-900|slate-950|gradient-banner/i.test(content);
 
   const safeShim = `
 <script>
 (function() {
-  // 1. Shims resilientes para librerías comunes (Tailwind, Lucide, Chart.js)
-  // Evita 'ReferenceError: tailwind is not defined' si un bloqueador de anuncios o lentitud de red bloquea el CDN
-  if (typeof window.tailwind === 'undefined') {
-    window.tailwind = { config: {} };
-  }
+  // 1. Shims resilientes para librerías comunes (Lucide, Chart.js)
+  // No sobreescribimos window.tailwind antes de tiempo para no sabotear el motor JIT de Tailwind CDN
   if (typeof window.lucide === 'undefined') {
     window.lucide = {
       createIcons: function() {
@@ -103,7 +101,7 @@ function preparePreviewHtml(html: string): string {
     };
   }
 
-  // 2. Polyfill seguro y robusto para localStorage / sessionStorage en iframe sandboxed
+  // 2. Polyfill seguro y robusto para localStorage / sessionStorage en iframe sandboxed y visores locales
   var _createMockStorage = function() {
     var _memStore = {};
     return {
@@ -166,36 +164,7 @@ function preparePreviewHtml(html: string): string {
     };
   } catch (e) {}
 
-  // 4. Wrapper defensivo de fetch para URLs relativas y credenciales en iframe con origen opaco/null
-  try {
-    var _origFetch = window.fetch;
-    if (typeof _origFetch === 'function') {
-      window.fetch = function(url, init) {
-        try {
-          var targetUrl = url;
-          if (typeof targetUrl === 'string' && targetUrl.startsWith('/')) {
-            var base = (window.location.origin && window.location.origin !== 'null')
-              ? window.location.origin
-              : (window.parent && window.parent.location && window.parent.location.origin ? window.parent.location.origin : '');
-            if (base) {
-              targetUrl = base + targetUrl;
-            }
-          }
-          if (init && init.credentials === 'include' && (!window.location.origin || window.location.origin === 'null')) {
-            var newInit = Object.assign({}, init);
-            delete newInit.credentials;
-            return _origFetch.call(this, targetUrl, newInit);
-          }
-          return _origFetch.call(this, targetUrl, init);
-        } catch (fetchErr) {
-          console.warn('[Canvas Sandbox Fetch Safe Warning]:', fetchErr.message);
-          return _origFetch.apply(this, arguments);
-        }
-      };
-    }
-  } catch (e) {}
-
-  // 5. Manejador global de excepciones para evitar que un error no capturado congele la interfaz
+  // 4. Manejador global de excepciones para evitar que un error no capturado congele la interfaz
   window.addEventListener('error', function(e) {
     console.warn('[Canvas Sandbox Script Warning]:', e.message, 'en', e.filename, ':', e.lineno);
   });
@@ -203,7 +172,7 @@ function preparePreviewHtml(html: string): string {
     console.warn('[Canvas Sandbox Unhandled Rejection]:', e.reason);
   });
 
-  // 6. Disparador de eventos de resize, iconos y readiness para reactivar scripts interactivos
+  // 5. Disparador de eventos de resize, iconos y readiness para reactivar scripts interactivos
   function _kickstartApp() {
     try {
       if (typeof window.lucide !== 'undefined' && typeof window.lucide.createIcons === 'function') {
@@ -223,8 +192,14 @@ function preparePreviewHtml(html: string): string {
 </script>
 `;
 
+  // Estilos CSS Autónomos Blindados (Zero-Dependency) para garantizar visualización corporativa impecable
+  // incluso si WhatsApp, iOS QuickLook o el teléfono están offline y bloquean los CDNs externos
   const responsiveBaseStyle = `
-<style id="__canvas_preview_responsive_base__">
+<style id="__wappy_standalone_design_system__">
+  /* ── 1. Reset Móvil y Tipografía de Sistema ── */
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
   html, body {
     margin: 0;
     padding: 0;
@@ -232,96 +207,147 @@ function preparePreviewHtml(html: string): string {
     min-height: 100%;
     box-sizing: border-box;
     overflow-x: hidden !important;
-    overflow-y: auto !important;
     max-width: 100vw;
     -webkit-text-size-adjust: 100%;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
-    color: #1e293b;
-    background-color: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     line-height: 1.5;
+    background-color: ${isDarkDocument ? '#0b0f19' : '#ffffff'} !important;
+    color: ${isDarkDocument ? '#f8fafc' : '#1e293b'} !important;
   }
 
-  /* Blindaje responsive para celular: evitar desbordamiento horizontal */
-  *, *::before, *::after {
-    box-sizing: border-box;
-  }
   img, canvas, svg, video {
     max-width: 100%;
   }
-  table {
-    max-width: 100%;
-  }
 
-  /* Reset base moderno para botones, inputs y controles que evita aspecto plano de 1995 si hay retraso de red */
-  button, [type='button'], [type='reset'], [type='submit'] {
-    font-family: inherit;
-    border-radius: 0.5rem;
-    padding: 0.45rem 0.9rem;
-    font-weight: 600;
-    cursor: pointer;
-    border: 1px solid #cbd5e1;
-    background-color: #f1f5f9;
-    color: #0f172a;
-    transition: all 0.2s ease-in-out;
-  }
-  button:hover, [type='button']:hover {
-    background-color: #e2e8f0;
-  }
-  input[type='text'], input[type='number'], input[type='date'], input[type='email'], select, textarea {
-    font-family: inherit;
-    border: 1px solid #cbd5e1;
-    border-radius: 0.5rem;
-    padding: 0.45rem 0.75rem;
-    outline: none;
-    background-color: #ffffff;
-    color: #0f172a;
-    transition: border-color 0.2s ease-in-out;
-  }
-  input:focus, select:focus, textarea:focus {
-    border-color: #0d9488;
-    box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.2);
-  }
-
-  /* Utilidades base en caso de retraso o bloqueo de Tailwind CDN - SIN selectores de subcadena como [class*="hidden"] */
-  .hidden {
-    display: none !important;
-  }
-  .overflow-hidden {
-    overflow: hidden !important;
-  }
-  .overflow-x-auto {
-    overflow-x: auto !important;
-  }
-  .overflow-y-auto {
-    overflow-y: auto !important;
-  }
-  input[type="file"]#logo-upload-input {
-    display: none !important;
-  }
-  .absolute {
-    position: absolute !important;
-  }
-  .relative {
-    position: relative !important;
-  }
-  .inset-0 {
-    top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important;
-  }
-  .opacity-10 {
-    opacity: 0.1 !important;
-  }
-  .pointer-events-none {
-    pointer-events: none !important;
-  }
-
-  /* Blindaje contra 'bola negra': Garantiza que banners y SVGs decorativos de fondo NUNCA se muestren en negro sólido */
+  /* ── 2. Banner Superior WAPPY (Degradado Esmeralda/Cyan) ── */
   .gradient-banner {
     background: linear-gradient(135deg, #0d9488 0%, #06b6d4 100%) !important;
     color: #ffffff !important;
     position: relative !important;
     overflow: hidden !important;
     border-radius: 1.5rem !important;
+    padding: 1.5rem !important;
+    margin-bottom: 1.5rem !important;
+    box-shadow: 0 10px 25px -5px rgba(13, 148, 136, 0.35) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1rem !important;
   }
+  @media (min-width: 768px) {
+    .gradient-banner {
+      flex-direction: row !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      padding: 2rem !important;
+    }
+  }
+  .gradient-banner h1 {
+    font-size: clamp(1.2rem, 4vw, 1.85rem) !important;
+    font-weight: 900 !important;
+    margin: 0 !important;
+    line-height: 1.2 !important;
+    color: #ffffff !important;
+    letter-spacing: -0.02em !important;
+  }
+  .gradient-banner h2 {
+    font-size: clamp(0.75rem, 2.5vw, 0.875rem) !important;
+    font-weight: 700 !important;
+    margin: 0.25rem 0 0 0 !important;
+    color: #ccfbf1 !important;
+    letter-spacing: 0.05em !important;
+  }
+  .gradient-banner p {
+    font-size: 0.75rem !important;
+    margin: 0.25rem 0 0 0 !important;
+    color: #a5f3fc !important;
+  }
+
+  /* ── 3. Tarjetas, Paneles y Contenedores ── */
+  .bg-slate-900\\/60, .glass-card, [class*="bg-slate-900"], [class*="bg-slate-950"] {
+    background-color: ${isDarkDocument ? 'rgba(15, 23, 42, 0.75)' : '#ffffff'} !important;
+    border: 1px solid ${isDarkDocument ? 'rgba(51, 65, 85, 0.7)' : '#e2e8f0'} !important;
+    border-radius: 1rem !important;
+    padding: 1.25rem !important;
+    margin-bottom: 1.25rem !important;
+    color: ${isDarkDocument ? '#f8fafc' : '#1e293b'} !important;
+  }
+
+  /* ── 4. Tablas Técnicas Responsivas ── */
+  .overflow-x-auto {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 0.875rem !important;
+    text-align: left !important;
+  }
+  th {
+    background-color: ${isDarkDocument ? 'rgba(30, 41, 59, 0.85)' : '#f1f5f9'} !important;
+    color: ${isDarkDocument ? '#94a3b8' : '#475569'} !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    font-size: 0.75rem !important;
+    letter-spacing: 0.05em !important;
+    padding: 0.75rem 1rem !important;
+    border-bottom: 2px solid ${isDarkDocument ? 'rgba(51, 65, 85, 0.8)' : '#cbd5e1'} !important;
+  }
+  td {
+    padding: 0.75rem 1rem !important;
+    border-bottom: 1px solid ${isDarkDocument ? 'rgba(51, 65, 85, 0.4)' : '#e2e8f0'} !important;
+    color: ${isDarkDocument ? '#e2e8f0' : '#1e293b'} !important;
+  }
+
+  /* ── 5. Controles de Formulario Móviles (Evitar aspecto crudo de iOS/Safari) ── */
+  select, input[type="text"], input[type="number"], input[type="date"], input[type="email"], textarea {
+    font-family: inherit !important;
+    border: 1px solid ${isDarkDocument ? '#334155' : '#cbd5e1'} !important;
+    border-radius: 0.625rem !important;
+    padding: 0.55rem 0.85rem !important;
+    outline: none !important;
+    background-color: ${isDarkDocument ? '#1e293b' : '#ffffff'} !important;
+    color: ${isDarkDocument ? '#f8fafc' : '#0f172a'} !important;
+    font-size: 0.875rem !important;
+    max-width: 100% !important;
+    transition: border-color 0.2s ease-in-out !important;
+  }
+  select:focus, input:focus, textarea:focus {
+    border-color: #0d9488 !important;
+    box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.25) !important;
+  }
+
+  /* ── 6. Botones Principales ── */
+  button, [type="button"], [type="reset"], [type="submit"] {
+    font-family: inherit !important;
+    border-radius: 0.625rem !important;
+    padding: 0.5rem 1rem !important;
+    font-weight: 700 !important;
+    font-size: 0.8125rem !important;
+    cursor: pointer !important;
+    border: 1px solid ${isDarkDocument ? 'rgba(51, 65, 85, 0.8)' : '#cbd5e1'} !important;
+    background-color: ${isDarkDocument ? '#1e293b' : '#f1f5f9'} !important;
+    color: ${isDarkDocument ? '#f8fafc' : '#0f172a'} !important;
+    transition: all 0.2s ease-in-out !important;
+  }
+  button:active, [type="button"]:active {
+    transform: scale(0.97) !important;
+  }
+
+  /* ── 7. Utilidades Base ── */
+  .hidden { display: none !important; }
+  .overflow-hidden { overflow: hidden !important; }
+  .absolute { position: absolute !important; }
+  .relative { position: relative !important; }
+  .flex { display: flex !important; }
+  .items-center { align-items: center !important; }
+  .justify-between { justify-content: space-between !important; }
+  .gap-2 { gap: 0.5rem !important; }
+  .gap-4 { gap: 1rem !important; }
+
+  /* ── 8. SVGs de Fondo Protegidos ── */
   .gradient-banner svg,
   .opacity-10 svg,
   svg[viewBox="0 0 200 200"] {
@@ -329,35 +355,33 @@ function preparePreviewHtml(html: string): string {
     inset: 0 !important;
     width: 100% !important;
     height: 100% !important;
-    max-height: 100% !important;
     opacity: 0.15 !important;
     fill: rgba(255, 255, 255, 0.25) !important;
     color: rgba(255, 255, 255, 0.25) !important;
     pointer-events: none !important;
-    z-index: 0 !important;
-  }
-  .gradient-banner path,
-  .opacity-10 path,
-  svg[viewBox="0 0 200 200"] path {
-    fill: rgba(255, 255, 255, 0.25) !important;
   }
 </style>
 `;
 
-  // Scripts de primera parte (First-Party) alojados localmente en WAPPY con fallback automático al CDN público
-  const localCoreScripts = `
-<script src="/assets/tailwind-cdn.js"></script>
-<script src="/assets/lucide.min.js"></script>
-<script src="/assets/chart.min.js"></script>
+  // Scripts de Core: Si se descarga, usar URLs absolutas del CDN público para portabilidad offline/móvil completa
+  const coreScripts = isForDownload
+    ? `
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  if (!window.tailwind) {
-    document.write('<script src="https://cdn.tailwindcss.com"><\\/script>');
+  if (window.tailwind) {
+    tailwind.config = { darkMode: 'class' };
   }
-  if (!window.lucide) {
-    document.write('<script src="https://unpkg.com/lucide@latest"><\\/script>');
-  }
-  if (!window.Chart) {
-    document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js"><\\/script>');
+</script>
+`
+    : `
+<script src="/assets/tailwind-cdn.js" onerror="this.onerror=null; var s=document.createElement('script'); s.src='https://cdn.tailwindcss.com'; document.head.appendChild(s);"></script>
+<script src="/assets/lucide.min.js" onerror="this.onerror=null; var s=document.createElement('script'); s.src='https://unpkg.com/lucide@latest'; document.head.appendChild(s);"></script>
+<script src="/assets/chart.min.js" onerror="this.onerror=null; var s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/chart.js'; document.head.appendChild(s);"></script>
+<script>
+  if (window.tailwind) {
+    tailwind.config = { darkMode: 'class' };
   }
 </script>
 `;
@@ -367,22 +391,22 @@ function preparePreviewHtml(html: string): string {
 
   if (!hasHtml) {
     content = `<!DOCTYPE html>
-<html lang="es">
+<html lang="es" ${isDarkDocument ? 'class="dark"' : ''}>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-  ${localCoreScripts}
+  ${coreScripts}
   ${safeShim}
   ${responsiveBaseStyle}
 </head>
-<body>
+<body class="${isDarkDocument ? 'bg-[#0b0f19] text-slate-100' : 'bg-slate-50 text-slate-900'}">
   ${content}
 </body>
 </html>`;
   } else if (hasHead) {
-    content = content.replace(/<head[^>]*>/i, (match) => `${match}\n${viewportMeta}${localCoreScripts}${safeShim}\n${responsiveBaseStyle}`);
+    content = content.replace(/<head[^>]*>/i, (match) => `${match}\n${viewportMeta}${coreScripts}${safeShim}\n${responsiveBaseStyle}`);
   } else {
-    content = content.replace(/<html[^>]*>/i, (match) => `${match}\n<head>\n${viewportMeta}${localCoreScripts}${safeShim}\n${responsiveBaseStyle}\n</head>`);
+    content = content.replace(/<html[^>]*>/i, (match) => `${match}\n<head>\n${viewportMeta}${coreScripts}${safeShim}\n${responsiveBaseStyle}\n</head>`);
   }
 
   return content;
@@ -528,7 +552,7 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
     try {
       const rawContent = code || initialContent || '';
       if (!rawContent) return;
-      const prepared = preparePreviewHtml(rawContent);
+      const prepared = preparePreviewHtml(rawContent, true);
       const safeTitle = (title || 'aplicativo-sst')
         .replace(/[/\\?%*:|"<>]/g, '_')
         .trim();
@@ -560,7 +584,7 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
       console.error('Error al descargar HTML:', err);
       try {
         const rawContent = code || initialContent || '';
-        const prepared = preparePreviewHtml(rawContent);
+        const prepared = preparePreviewHtml(rawContent, true);
         const safeTitle = (title || 'aplicativo-sst').replace(/[/\\?%*:|"<>]/g, '_').trim();
         const fileName = safeTitle.endsWith('.html') ? safeTitle : `${safeTitle}.html`;
         const blob = new Blob([prepared], { type: 'text/html;charset=utf-8' });
@@ -584,7 +608,7 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
   }, [code, initialContent, title]);
 
   const handleOpenInNewTab = () => {
-    const prepared = preparePreviewHtml(code);
+    const prepared = preparePreviewHtml(code, true);
     const blob = new Blob([prepared], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank');

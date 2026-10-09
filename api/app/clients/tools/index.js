@@ -36,10 +36,12 @@ const PuterImageGen = require('./structured/PuterImageGen');
 const GestorAutomatizaciones = require('./structured/GestorAutomatizaciones');
 const WebSearch = require('./structured/WebSearch');
 const GenerarImagenSST = require('./structured/GenerarImagenSST');
+const PubChem = require('./structured/PubChem');
 
 module.exports = {
   ...manifest,
   // Structured Tools
+  PubChem,
   DALLE3,
   FluxAPI,
   OpenWeather,

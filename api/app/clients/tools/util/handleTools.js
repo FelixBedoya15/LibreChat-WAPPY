@@ -58,6 +58,7 @@ const {
   PuterImageGen,
   GestorAutomatizaciones,
   GenerarImagenSST,
+  PubChem,
 } = require('../');
 const { primeFiles: primeCodeFiles } = require('~/server/services/Files/Code/process');
 const { createFileSearchTool, primeFiles: primeSearchFiles } = require('./fileSearch');

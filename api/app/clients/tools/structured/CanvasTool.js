@@ -359,13 +359,69 @@ RESPUESTA ESTRICTA: Responde ÚNICAMENTE con el documento HTML5 completo (empeza
       logger.info(
         `[CanvasTool Camino B] Aplicativo HTML generado con éxito por gemini-3.6-flash (${generatedHtml.length} caracteres).`,
       );
-      return generatedHtml;
+      return injectStandaloneCssIfMissing(generatedHtml);
     }
   } catch (err) {
     logger.error('[CanvasTool Camino B] Error delegando generación a gemini-3.6-flash, preservando contenido original:', err);
   }
 
-  return stringContent;
+  return injectStandaloneCssIfMissing(stringContent);
+}
+
+function injectStandaloneCssIfMissing(html) {
+  if (!html || typeof html !== 'string') return html;
+  if (html.includes('__wappy_standalone_design_system__')) return html;
+
+  const standaloneCss = `
+<style id="__wappy_standalone_design_system__">
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; min-height: 100%; max-width: 100vw;
+    overflow-x: hidden; -webkit-text-size-adjust: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.5; background-color: #0b0f19 !important; color: #f8fafc !important;
+  }
+  img, canvas, svg, video { max-width: 100%; }
+  .gradient-banner {
+    background: linear-gradient(135deg, #0d9488 0%, #06b6d4 100%) !important;
+    color: #ffffff !important; position: relative !important; overflow: hidden !important;
+    border-radius: 1.5rem !important; padding: 1.5rem !important; margin-bottom: 1.5rem !important;
+    box-shadow: 0 10px 25px -5px rgba(13, 148, 136, 0.35) !important; display: flex !important;
+    flex-direction: column !important; gap: 1rem !important;
+  }
+  @media (min-width: 768px) {
+    .gradient-banner { flex-direction: row !important; align-items: center !important; justify-content: space-between !important; padding: 2rem !important; }
+  }
+  .gradient-banner h1 { font-size: clamp(1.2rem, 4vw, 1.85rem) !important; font-weight: 900 !important; margin: 0 !important; color: #ffffff !important; }
+  .gradient-banner h2 { font-size: clamp(0.75rem, 2.5vw, 0.875rem) !important; font-weight: 700 !important; margin: 0.25rem 0 0 0 !important; color: #ccfbf1 !important; }
+  .gradient-banner p { font-size: 0.75rem !important; margin: 0.25rem 0 0 0 !important; color: #a5f3fc !important; }
+  .bg-slate-900\\/60, .glass-card, [class*="bg-slate-900"], [class*="bg-slate-950"] {
+    background-color: rgba(15, 23, 42, 0.75) !important; border: 1px solid rgba(51, 65, 85, 0.7) !important;
+    border-radius: 1rem !important; padding: 1.25rem !important; margin-bottom: 1.25rem !important; color: #f8fafc !important;
+  }
+  .overflow-x-auto { overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; width: 100% !important; }
+  table { width: 100% !important; border-collapse: collapse !important; font-size: 0.875rem !important; text-align: left !important; }
+  th { background-color: rgba(30, 41, 59, 0.85) !important; color: #94a3b8 !important; font-weight: 700 !important; text-transform: uppercase !important; font-size: 0.75rem !important; padding: 0.75rem 1rem !important; border-bottom: 2px solid rgba(51, 65, 85, 0.8) !important; }
+  td { padding: 0.75rem 1rem !important; border-bottom: 1px solid rgba(51, 65, 85, 0.4) !important; color: #e2e8f0 !important; }
+  select, input[type="text"], input[type="number"], input[type="date"], input[type="email"], textarea {
+    font-family: inherit !important; border: 1px solid #334155 !important; border-radius: 0.625rem !important;
+    padding: 0.55rem 0.85rem !important; outline: none !important; background-color: #1e293b !important; color: #f8fafc !important;
+    font-size: 0.875rem !important; max-width: 100% !important;
+  }
+  select:focus, input:focus, textarea:focus { border-color: #0d9488 !important; box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.25) !important; }
+  button, [type="button"], [type="submit"] {
+    font-family: inherit !important; border-radius: 0.625rem !important; padding: 0.5rem 1rem !important;
+    font-weight: 700 !important; font-size: 0.8125rem !important; cursor: pointer !important;
+    border: 1px solid rgba(51, 65, 85, 0.8) !important; background-color: #1e293b !important; color: #f8fafc !important;
+  }
+  button:active, [type="button"]:active { transform: scale(0.97) !important; }
+</style>
+`;
+
+  if (/<head[^>]*>/i.test(html)) {
+    return html.replace(/<head[^>]*>/i, (m) => `${m}\n${standaloneCss}`);
+  }
+  return `${standaloneCss}\n${html}`;
 }
 
 /**
