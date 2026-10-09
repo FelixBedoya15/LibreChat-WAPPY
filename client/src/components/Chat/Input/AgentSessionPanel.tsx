@@ -1,9 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import {
-    Notebook as NotebookIcon, createPortal } from 'react-dom';
+import { createPortal } from 'react-dom';
 import * as Ariakit from '@ariakit/react';
 import {
-    Settings2, Globe, FolderSearch, TerminalSquare, Wrench, Cpu, Check, ChevronDown,
+    Settings2, Globe, FolderSearch, Notebook as NotebookIcon, TerminalSquare, Wrench, Cpu, Check, ChevronDown,
     FileText, Calculator, Brain, HardHat, ShieldCheck, Palette, BarChart3, Cloud, Calendar, Mail, FileSpreadsheet, Presentation,
     HeartPulse, ShieldAlert, Car, FlaskConical, FileEdit, Scale, BookOpen, UserCheck, Heart, Activity,
     Search, Youtube, Image, Binary, Compass, CloudSun, GitFork, MapPin
