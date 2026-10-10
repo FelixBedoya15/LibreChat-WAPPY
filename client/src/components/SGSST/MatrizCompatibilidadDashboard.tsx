@@ -27,7 +27,8 @@ import {
   Filter,
   Layers,
   FileSpreadsheet,
-  AlertCircle
+  AlertCircle,
+  Grid3X3
 } from 'lucide-react';
 import { MatrixRow, getChemicalCompatibility , CLASES_ONU } from './MatrizCompatibilidadConstants';
 import cn from '~/utils/cn';
