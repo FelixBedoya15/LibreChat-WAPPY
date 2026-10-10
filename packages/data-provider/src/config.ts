@@ -1064,7 +1064,6 @@ export const defaultModels = {
   [EModelEndpoint.agents]: sharedOpenAIModels, // TODO: Add agent models (agentsModels)
   [EModelEndpoint.google]: [
     'gemini-3.6-flash',
-    'gemini-3.5-flash',
     'gemini-3.5-flash-lite',
   ],
   [EModelEndpoint.anthropic]: sharedAnthropicModels,

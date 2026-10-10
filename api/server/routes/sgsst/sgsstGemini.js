@@ -28,9 +28,8 @@ const geminiPoolManager = require('~/server/services/GeminiPoolManager');
 
 // Non-live Gemini models for 503 fallback rotation
 const SGSST_FALLBACK_MODELS = [
-  'gemini-3.5-flash-lite',
-  'gemini-3.5-flash',
   'gemini-3.6-flash',
+  'gemini-3.5-flash-lite',
 ];
 
 // Live-only models for VoiceSession / LiveAnalysis rotation
@@ -260,7 +259,7 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
     typeof modelInstance === 'string'
       ? modelInstance
       : (modelInstance && modelInstance.model) || ''
-  ).replace('models/', '').trim() || 'gemini-3.5-flash';
+  ).replace('models/', '').trim() || 'gemini-3.6-flash';
 
   const genConfig = (modelInstance && typeof modelInstance === 'object' && modelInstance.generationConfig)
     ? modelInstance.generationConfig

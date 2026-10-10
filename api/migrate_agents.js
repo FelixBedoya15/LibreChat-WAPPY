@@ -98,9 +98,9 @@ async function run() {
         modified = true;
       }
       
-      // Fix model to gemini-3.5-flash
-      if (agent.model !== 'gemini-3.5-flash' && agent.provider === 'google') {
-        agent.model = 'gemini-3.5-flash';
+      // Fix model to gemini-3.6-flash
+      if (agent.model !== 'gemini-3.6-flash' && agent.provider === 'google') {
+        agent.model = 'gemini-3.6-flash';
         modified = true;
       }
       

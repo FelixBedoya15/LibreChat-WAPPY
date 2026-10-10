@@ -22,7 +22,7 @@ async function createPilotAgent() {
       description: "Agente de prueba piloto optimizado con las guías de instrucción de Gemini 3.",
       instructions: instructions,
       provider: "google",
-      model: "gemini-3.5-flash",
+      model: "gemini-3.6-flash",
       tools: ["canvas"],
       category: "especialistas_riesgos_especificos",
       is_promoted: true,
@@ -42,7 +42,7 @@ async function createPilotAgent() {
         description: agentData.description,
         instructions: instructions,
         provider: "google",
-        model: "gemini-3.5-flash",
+        model: "gemini-3.6-flash",
         tools: ["canvas"],
         createdAt: now,
         updatedAt: now

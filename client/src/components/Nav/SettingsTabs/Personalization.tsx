@@ -108,7 +108,6 @@ export default function Personalization({
     if (googleModels.length === 0) {
       googleModels = [
         'gemini-3.6-flash',
-        'gemini-3.5-flash',
         'gemini-3.5-flash-lite',
       ];
     }
@@ -122,7 +121,6 @@ export default function Personalization({
       let modelLabel = typeof model === 'string' ? model : (model as any).name || (model as any).label || modelId;
       if (modelId && !modelId.includes('live') && !modelId.includes('native-audio') && !modelId.includes('3.1') && !modelId.includes('3.7') && !modelId.includes('3.8')) {
         if (modelId === 'gemini-3.6-flash') modelLabel = 'Gemini 3.6 Flash';
-        else if (modelId === 'gemini-3.5-flash') modelLabel = 'Gemini 3.5 Flash';
         else if (modelId === 'gemini-3.5-flash-lite') modelLabel = 'Gemini 3.5 Flash Lite';
         options.push({ value: modelId, label: modelLabel });
       }

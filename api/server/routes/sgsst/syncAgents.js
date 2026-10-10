@@ -148,7 +148,7 @@ async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
 
   const timestamp = new Date();
   let defaultModel = (process.env.GOOGLE_MODELS || 'gemini-3.6-flash').split(',')[0].trim();
-  if (defaultModel === 'gemini-3.8-flash' || defaultModel === 'gemini-3.7-flash') {
+  if (defaultModel === 'gemini-3.8-flash' || defaultModel === 'gemini-3.7-flash' || defaultModel === 'gemini-3.5-flash') {
     defaultModel = 'gemini-3.6-flash';
   }
   const targetCategory = AGENT_CATEGORY_MAP[fileBasename] || 'general';
@@ -313,7 +313,7 @@ router.post('/sync', requireJwtAuth, async (req, res) => {
             description: agent.description || `Agente SST: ${dbName}`,
             instructions: finalInstructions,
             provider: agent.provider || 'google',
-            model: agent.model || 'gemini-3.5-flash',
+            model: agent.model || 'gemini-3.6-flash',
             tools: agent.tools || [],
             createdAt: agent.createdAt || timestamp,
             updatedAt: timestamp
@@ -499,7 +499,7 @@ router.post('/cleanup-and-sync', requireJwtAuth, async (req, res) => {
             description: agent.description || `Agente SST: ${dbName}`,
             instructions: finalInstructions,
             provider: agent.provider || 'google',
-            model: agent.model || 'gemini-3.5-flash',
+            model: agent.model || 'gemini-3.6-flash',
             tools: agent.tools || [],
             createdAt: agent.createdAt || timestamp,
             updatedAt: timestamp

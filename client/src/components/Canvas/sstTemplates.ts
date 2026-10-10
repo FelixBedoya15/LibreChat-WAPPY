@@ -901,7 +901,7 @@ export const PREMIUM_SST_COMPONENTS: SSTComponent[] = [
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
                     <option value="gemini-3.6-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
-                    <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
+                    <option value="gemini-3.6-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
         </div>
@@ -1776,7 +1776,7 @@ No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, c
             addChatMessage('assistant', "🤖 Pensando...");
 
             try {
-                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.5-flash';
+                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.6-flash';
                 const response = await fetch(\`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}\`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -3469,7 +3469,7 @@ Respuesta 5: \${w5}\`;
                 const keyEl = document.getElementById('gemini-key');
                 if (keyEl) keyEl.value = key;
 
-                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.5-flash';
+                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.6-flash';
                 const modelEl = document.getElementById('gemini-model');
                 if (modelEl) modelEl.value = model;
 
@@ -4709,7 +4709,7 @@ Respuesta 5: \${w5}\`;
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
                     <option value="gemini-3.6-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
-                    <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
+                    <option value="gemini-3.6-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
         </div>
@@ -5583,7 +5583,7 @@ No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, c
             addChatMessage('assistant', "🤖 Pensando...");
 
             try {
-                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.5-flash';
+                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.6-flash';
                 const response = await fetch(\`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}\`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -6420,7 +6420,7 @@ Mensaje del usuario: \${messageText}\` }] }
                 const keyEl = document.getElementById('gemini-key');
                 if (keyEl) keyEl.value = key;
 
-                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.5-flash';
+                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.6-flash';
                 const modelEl = document.getElementById('gemini-model');
                 if (modelEl) modelEl.value = model;
 
@@ -7330,7 +7330,7 @@ Mensaje del usuario: \${messageText}\` }] }
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
                     <option value="gemini-3.6-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
-                    <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
+                    <option value="gemini-3.6-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
         </div>
@@ -8248,7 +8248,7 @@ No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, c
             addChatMessage('assistant', "🤖 Pensando...");
 
             try {
-                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.5-flash';
+                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.6-flash';
                 const response = await fetch(\`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}\`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -9791,7 +9791,7 @@ Respuesta 5: \${w5}\`;
                 const keyEl = document.getElementById('gemini-key');
                 if (keyEl) keyEl.value = key;
 
-                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.5-flash';
+                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.6-flash';
                 const modelEl = document.getElementById('gemini-model');
                 if (modelEl) modelEl.value = model;
 
@@ -10956,7 +10956,7 @@ Respuesta 5: \${w5}\`;
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
                     <option value="gemini-3.6-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
-                    <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
+                    <option value="gemini-3.6-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
         </div>
@@ -11827,7 +11827,7 @@ No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, c
             addChatMessage('assistant', "🤖 Pensando...");
 
             try {
-                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.5-flash';
+                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.6-flash';
                 const response = await fetch(\`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}\`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -13340,7 +13340,7 @@ Respuesta 5: \${w5}\`;
                 const keyEl = document.getElementById('gemini-key');
                 if (keyEl) keyEl.value = key;
 
-                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.5-flash';
+                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.6-flash';
                 const modelEl = document.getElementById('gemini-model');
                 if (modelEl) modelEl.value = model;
 
@@ -14481,7 +14481,7 @@ Respuesta 5: \${w5}\`;
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
                     <option value="gemini-3.6-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
-                    <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
+                    <option value="gemini-3.6-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
         </div>
@@ -15337,7 +15337,7 @@ No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, c
             addChatMessage('assistant', "🤖 Pensando...");
 
             try {
-                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.5-flash';
+                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.6-flash';
                 const response = await fetch(\`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}\`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -16871,7 +16871,7 @@ Respuesta 5: \${w5}\`;
                 const keyEl = document.getElementById('gemini-key');
                 if (keyEl) keyEl.value = key;
 
-                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.5-flash';
+                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.6-flash';
                 const modelEl = document.getElementById('gemini-model');
                 if (modelEl) modelEl.value = model;
 
@@ -17955,7 +17955,7 @@ Respuesta 5: \${w5}\`;
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
                     <option value="gemini-3.6-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
-                    <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
+                    <option value="gemini-3.6-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
         </div>
@@ -18827,7 +18827,7 @@ No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, c
             addChatMessage('assistant', "🤖 Pensando...");
 
             try {
-                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.5-flash';
+                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.6-flash';
                 const response = await fetch(\`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}\`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -20278,7 +20278,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
                 const keyEl = document.getElementById('gemini-key');
                 if (keyEl) keyEl.value = key;
 
-                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.5-flash';
+                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.6-flash';
                 const modelEl = document.getElementById('gemini-model');
                 if (modelEl) modelEl.value = model;
 
@@ -21441,7 +21441,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
                     <option value="gemini-3.6-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
-                    <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
+                    <option value="gemini-3.6-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
         </div>
@@ -22312,7 +22312,7 @@ No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, c
             addChatMessage('assistant', "🤖 Pensando...");
 
             try {
-                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.5-flash';
+                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.6-flash';
                 const response = await fetch(\`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}\`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -23825,7 +23825,7 @@ Respuesta 5: \${w5}\`;
                 const keyEl = document.getElementById('gemini-key');
                 if (keyEl) keyEl.value = key;
 
-                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.5-flash';
+                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.6-flash';
                 const modelEl = document.getElementById('gemini-model');
                 if (modelEl) modelEl.value = model;
 
@@ -24990,7 +24990,7 @@ Respuesta 5: \${w5}\`;
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
                     <option value="gemini-3.6-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
-                    <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
+                    <option value="gemini-3.6-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
         </div>
@@ -25861,7 +25861,7 @@ No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, c
             addChatMessage('assistant', "🤖 Pensando...");
 
             try {
-                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.5-flash';
+                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.6-flash';
                 const response = await fetch(\`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}\`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -27374,7 +27374,7 @@ Respuesta 5: \${w5}\`;
                 const keyEl = document.getElementById('gemini-key');
                 if (keyEl) keyEl.value = key;
 
-                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.5-flash';
+                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.6-flash';
                 const modelEl = document.getElementById('gemini-model');
                 if (modelEl) modelEl.value = model;
 
@@ -28557,7 +28557,7 @@ Respuesta 5: \${w5}\`;
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
                     <option value="gemini-3.6-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
-                    <option value="gemini-3.5-flash" selected>Wappy IA Prime (Análisis de Agentes y Código)</option>
+                    <option value="gemini-3.6-flash" selected>Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
         </div>
@@ -29640,7 +29640,7 @@ No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, c
             addChatMessage('assistant', "🤖 Pensando...");
 
             try {
-                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.5-flash';
+                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.6-flash';
                 const response = await fetch(\`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}\`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -30373,7 +30373,7 @@ No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, c
                 const keyEl = document.getElementById('gemini-key');
                 if (keyEl) keyEl.value = key;
 
-                const model = localStorage.getItem('wappy_gemini_model') || 'gemini-3.5-flash';
+                const model = localStorage.getItem('wappy_gemini_model') || 'gemini-3.6-flash';
                 const modelEl = document.getElementById('gemini-model');
                 if (modelEl) modelEl.value = model;
 
@@ -31356,7 +31356,7 @@ No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, c
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
                     <option value="gemini-3.6-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
-                    <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
+                    <option value="gemini-3.6-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
         </div>
@@ -32254,7 +32254,7 @@ No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, c
             addChatMessage('assistant', "🤖 Pensando...");
 
             try {
-                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.5-flash';
+                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.6-flash';
                 const response = await fetch(\`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}\`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -33737,7 +33737,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
                 const keyEl = document.getElementById('gemini-key');
                 if (keyEl) keyEl.value = key;
 
-                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.5-flash';
+                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.6-flash';
                 const modelEl = document.getElementById('gemini-model');
                 if (modelEl) modelEl.value = model;
 
@@ -34816,7 +34816,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
                     <option value="gemini-3.6-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
-                    <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
+                    <option value="gemini-3.6-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
         </div>
@@ -35721,7 +35721,7 @@ No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, c
             addChatMessage('assistant', "🤖 Pensando...");
 
             try {
-                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.5-flash';
+                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.6-flash';
                 const response = await fetch(\`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}\`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -37172,7 +37172,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
                 const keyEl = document.getElementById('gemini-key');
                 if (keyEl) keyEl.value = key;
 
-                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.5-flash';
+                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.6-flash';
                 const modelEl = document.getElementById('gemini-model');
                 if (modelEl) modelEl.value = model;
 
@@ -38028,7 +38028,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
                     <option value="gemini-3.6-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
-                    <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
+                    <option value="gemini-3.6-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
         </div>
@@ -40357,7 +40357,7 @@ No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, c
             addChatMessage('assistant', "🤖 Pensando...");
 
             try {
-                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.5-flash';
+                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.6-flash';
                 const response = await fetch(\`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}\`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -41927,7 +41927,7 @@ Respuesta 5: \${w5}\`;
                 const keyEl = document.getElementById('gemini-key');
                 if (keyEl) keyEl.value = key;
 
-                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.5-flash';
+                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.6-flash';
                 const modelEl = document.getElementById('gemini-model');
                 if (modelEl) modelEl.value = model;
 
@@ -42826,7 +42826,7 @@ Respuesta 5: \${w5}\`;
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
                     <option value="gemini-3.6-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
-                    <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
+                    <option value="gemini-3.6-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
         </div>
@@ -43729,7 +43729,7 @@ No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, c
             addChatMessage('assistant', "🤖 Pensando...");
 
             try {
-                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.5-flash';
+                const model = document.getElementById('gemini-model') ? document.getElementById('gemini-model').value : 'gemini-3.6-flash';
                 const response = await fetch(\`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}\`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -45254,7 +45254,7 @@ Respuesta 5: \${w5}\`;
                 const keyEl = document.getElementById('gemini-key');
                 if (keyEl) keyEl.value = key;
 
-                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.5-flash';
+                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.6-flash';
                 const modelEl = document.getElementById('gemini-model');
                 if (modelEl) modelEl.value = model;
 

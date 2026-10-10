@@ -285,7 +285,7 @@ class VoiceSession {
         // Verify/Set defaults if missing (for DB saving)
         if (!this.dbModel) {
             // Fallback to voice model if no chat model provided
-            this.dbModel = process.env.GEMINI_LIVE_MODEL || 'gemini-3.5-flash';
+            this.dbModel = process.env.GEMINI_LIVE_MODEL || 'gemini-3.6-flash';
         }
 
         // Voice Configuration: Separate from DB Config

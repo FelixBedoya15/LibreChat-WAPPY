@@ -259,20 +259,20 @@ ${cleanContent}
     const convsCol = db.collection('conversations');
 
     const agentRes = await agentsCol.updateMany(
-      { model: { $in: ['gemini-3.8-flash', 'gemini-3.7-flash'] } },
+      { model: { $in: ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash'] } },
       { $set: { model: 'gemini-3.6-flash', 'model_parameters.model': 'gemini-3.6-flash' } }
     );
     await agentsCol.updateMany(
-      { 'versions.model': { $in: ['gemini-3.8-flash', 'gemini-3.7-flash'] } },
+      { 'versions.model': { $in: ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash'] } },
       { $set: { 'versions.$[v].model': 'gemini-3.6-flash' } },
-      { arrayFilters: [{ 'v.model': { $in: ['gemini-3.8-flash', 'gemini-3.7-flash'] } }] }
+      { arrayFilters: [{ 'v.model': { $in: ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash'] } }] }
     );
     const presetRes = await presetsCol.updateMany(
-      { model: { $in: ['gemini-3.8-flash', 'gemini-3.7-flash'] } },
+      { model: { $in: ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash'] } },
       { $set: { model: 'gemini-3.6-flash' } }
     );
     const convRes = await convsCol.updateMany(
-      { model: { $in: ['gemini-3.8-flash', 'gemini-3.7-flash'] } },
+      { model: { $in: ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash'] } },
       { $set: { model: 'gemini-3.6-flash' } }
     );
     await db.collection('users').updateMany(
@@ -280,7 +280,7 @@ ${cleanContent}
       { $set: { 'personalization.geminiModels.liveAnalysis': 'gemini-3.1-flash-live-preview' } }
     );
     if (agentRes.modifiedCount > 0 || presetRes.modifiedCount > 0 || convRes.modifiedCount > 0) {
-      console.log(`  🚀 Migrados modelos 3.8/3.7 a gemini-3.6-flash en MongoDB: Agentes (${agentRes.modifiedCount}), Presets (${presetRes.modifiedCount}), Conversaciones (${convRes.modifiedCount})`);
+      console.log(`  🚀 Migrados modelos 3.8/3.7/3.5 a gemini-3.6-flash en MongoDB: Agentes (${agentRes.modifiedCount}), Presets (${presetRes.modifiedCount}), Conversaciones (${convRes.modifiedCount})`);
     }
   } catch (err) {
     console.warn('  ⚠️ Aviso en migración defensiva MongoDB:', err.message);
