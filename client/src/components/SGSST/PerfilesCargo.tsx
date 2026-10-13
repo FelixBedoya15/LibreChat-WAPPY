@@ -53,6 +53,7 @@ import SingleSelect from './SingleSelect';
 import { exportPerfilesCargoToExcel } from './exportPerfilesCargo';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import WorkersProfileList from './WorkersProfileList';
+import ExpandingButton from './ExpandingButton';
 import BioIndividuoDashboard from './BioIndividuoDashboard';
 import * as XLSX from 'xlsx';
 import { toTitleCase } from './excelWorkerMapper';
@@ -1719,25 +1720,25 @@ const PerfilesCargo = () => {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <button
-                            type="button"
+                        <ExpandingButton
+                            label="Sincronizar Matriz"
+                            icon={RefreshCw}
+                            variant="secondary"
+                            size="sm"
                             onClick={handleSyncAllFromMatrix}
-                            className="flex items-center gap-1.5 px-3.5 py-2 bg-surface-primary text-text-primary rounded-2xl text-xs font-semibold border border-border-medium hover:bg-surface-secondary hover:border-teal-500/40 hover:text-teal-600 transition-all shadow-sm cursor-pointer hover:scale-105 active:scale-95 transform duration-200"
                             title="Sincronizar cargos faltantes creados en la Matriz IPEVR"
-                        >
-                            <RefreshCw className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
-                            <span>Sincronizar Matriz</span>
-                        </button>
-                        <button
-                            type="button"
+                        />
+                        <ExpandingButton
+                            label="Nuevo Cargo"
+                            icon={Plus}
+                            variant="teal"
+                            size="sm"
                             onClick={handleAddPerfil}
-                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-500/10 to-cyan-500/10 text-teal-700 dark:text-teal-300 rounded-2xl text-xs font-black border border-teal-500/20 dark:border-teal-400/20 hover:from-teal-500/20 hover:to-cyan-500/20 hover:border-teal-500/40 transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95 transform duration-300"
-                        >
-                            <Plus className="h-4 w-4" /> Nuevo Cargo
-                        </button>
+                            title="Crear un nuevo perfil de cargo"
+                        />
                     </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" data-tenshi-section="perfiles-cargo-lista">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5 sm:gap-4" data-tenshi-section="perfiles-cargo-lista">
                     {/* Resumen semántico accesible para Tenshi IA y lectores de pantalla */}
                     <div className="sr-only" aria-hidden="false" data-tenshi-data="resumen-perfiles-cargo">
                         <h6>Catálogo completo de Perfiles de Cargo de la Empresa (Total: {perfiles.length})</h6>
@@ -1827,7 +1828,7 @@ const PerfilesCargo = () => {
                                                 onMouseDown={(e) => e.stopPropagation()}
                                                 onClick={(e) => { e.stopPropagation(); setSummaryPerfil(p); }}
                                                 className={cn(
-                                                    "p-1.5 rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100",
+                                                    "p-1.5 rounded-xl transition-all duration-200 opacity-70 sm:opacity-0 sm:group-hover:opacity-100 hover:scale-110 active:scale-95",
                                                     isActive 
                                                         ? "hover:bg-white/20 text-white/80 hover:text-white" 
                                                         : "hover:bg-teal-50 hover:text-teal-600 text-text-tertiary dark:hover:bg-teal-900/30 dark:text-teal-400"
@@ -1842,7 +1843,7 @@ const PerfilesCargo = () => {
                                                 onMouseDown={(e) => e.stopPropagation()}
                                                 onClick={(e) => { e.stopPropagation(); handleDeletePerfil(p.id); }}
                                                 className={cn(
-                                                    "p-1.5 rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100",
+                                                    "p-1.5 rounded-xl transition-all duration-200 opacity-70 sm:opacity-0 sm:group-hover:opacity-100 hover:scale-110 active:scale-95",
                                                     isActive 
                                                         ? "hover:bg-red-500 hover:text-white text-white/70" 
                                                         : "hover:bg-red-50 hover:text-red-600 text-text-tertiary dark:hover:bg-red-900/30 dark:text-red-400"
@@ -1947,22 +1948,21 @@ const PerfilesCargo = () => {
 
                             {matchingIpevarRows.length > 0 && (
                                 <div className="flex items-center gap-2 shrink-0">
-                                    <button
-                                        type="button"
+                                    <ExpandingButton
+                                        label={isIpevarHazardsExpanded ? 'Ocultar Peligros' : `Ver ${matchingIpevarRows.length} Peligros`}
+                                        icon={ShieldAlert}
+                                        variant="secondary"
+                                        size="sm"
                                         onClick={() => setIsIpevarHazardsExpanded(prev => !prev)}
-                                        className="h-8 sm:h-9 px-3 rounded-xl border border-border-medium bg-surface-primary text-xs font-semibold text-text-secondary hover:bg-surface-secondary transition-all"
-                                    >
-                                        {isIpevarHazardsExpanded ? 'Ocultar Peligros' : `Ver ${matchingIpevarRows.length} Peligros`}
-                                    </button>
-                                    <button
-                                        type="button"
+                                    />
+                                    <ExpandingButton
+                                        label="Sincronizar desde IPEVR"
+                                        icon={Sparkles}
+                                        variant="teal"
+                                        size="sm"
                                         onClick={handleSyncFromIpevar}
-                                        title="Importar y poblar EPPs, controles en la fuente, medio y capacitaciones evaluados en la matriz sin editar nada"
-                                        className="flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border border-teal-500 bg-teal-600 px-3.5 text-xs font-bold text-white shadow-md transition-all hover:bg-teal-700 hover:shadow-lg active:scale-95"
-                                    >
-                                        <Sparkles className="h-3.5 w-3.5 shrink-0" />
-                                        <span>⚡ Sincronizar desde IPEVR</span>
-                                    </button>
+                                        title="Importar controles y EPPs evaluados en la matriz"
+                                    />
                                 </div>
                             )}
                         </div>
