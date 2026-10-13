@@ -15,12 +15,12 @@ export const componentMapping: Record<
   ComponentTypes,
   React.ComponentType<DynamicSettingProps> | undefined
 > = {
-  [ComponentTypes.Slider]: DynamicSlider,
-  [ComponentTypes.Dropdown]: DynamicDropdown,
-  [ComponentTypes.Switch]: DynamicSwitch,
-  [ComponentTypes.Textarea]: DynamicTextarea,
-  [ComponentTypes.Input]: DynamicInput,
-  [ComponentTypes.Checkbox]: DynamicCheckbox,
-  [ComponentTypes.Tags]: DynamicTags,
-  [ComponentTypes.Combobox]: DynamicCombobox,
+  [ComponentTypes?.Slider ?? 'slider']: DynamicSlider,
+  [ComponentTypes?.Dropdown ?? 'dropdown']: DynamicDropdown,
+  [ComponentTypes?.Switch ?? 'switch']: DynamicSwitch,
+  [ComponentTypes?.Textarea ?? 'textarea']: DynamicTextarea,
+  [ComponentTypes?.Input ?? 'input']: DynamicInput,
+  [ComponentTypes?.Checkbox ?? 'checkbox']: DynamicCheckbox,
+  [ComponentTypes?.Tags ?? 'tags']: DynamicTags,
+  [ComponentTypes?.Combobox ?? 'combobox']: DynamicCombobox,
 };

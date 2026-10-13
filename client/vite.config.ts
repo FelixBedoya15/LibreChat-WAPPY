@@ -131,7 +131,11 @@ export default defineConfig(({ command }) => ({
       output: {
         manualChunks(id: string) {
           const normalizedId = id.replace(/\\/g, '/');
-          if (normalizedId.includes('node_modules')) {
+          if (
+            normalizedId.includes('node_modules') ||
+            normalizedId.includes('packages/data-provider') ||
+            normalizedId.includes('librechat-data-provider')
+          ) {
             // High-impact chunking for large libraries
             if (normalizedId.includes('phaser')) {
               return 'phaser';
@@ -269,9 +273,6 @@ export default defineConfig(({ command }) => ({
           }
           if (normalizedId.includes('/src/components/SGSST/')) {
             return 'sgsst-modules';
-          }
-          if (normalizedId.includes('/src/components/Liva/')) {
-            return 'live-editor';
           }
           if (
             normalizedId.includes('/src/components/Training/') ||
