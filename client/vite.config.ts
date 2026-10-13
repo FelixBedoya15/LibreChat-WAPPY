@@ -131,11 +131,7 @@ export default defineConfig(({ command }) => ({
       output: {
         manualChunks(id: string) {
           const normalizedId = id.replace(/\\/g, '/');
-          if (
-            normalizedId.includes('node_modules') ||
-            normalizedId.includes('packages/data-provider') ||
-            normalizedId.includes('librechat-data-provider')
-          ) {
+          if (normalizedId.includes('node_modules')) {
             // High-impact chunking for large libraries
             if (normalizedId.includes('phaser')) {
               return 'phaser';
