@@ -731,7 +731,18 @@ router.get('/resumen-360', requireApiKeyOrJwt, async (req, res) => {
       capacitacionesDoc,
       automationsCount,
     ] = await Promise.all([
-      SgsstWorker.countDocuments({ user: userId }).catch(() => 0),
+      companyId
+        ? (async () => {
+            const PerfilSociodemograficoData =
+              mongoose.models.PerfilSociodemograficoData ||
+              require('~/models/PerfilSociodemograficoData');
+            const socioDoc = await PerfilSociodemograficoData.findOne({ user: userId, companyId }).lean();
+            if (socioDoc && Array.isArray(socioDoc.trabajadores)) {
+              return socioDoc.trabajadores.length;
+            }
+            return SgsstWorker.countDocuments({ user: userId, companyId }).catch(() => 0);
+          })()
+        : SgsstWorker.countDocuments({ user: userId }).catch(() => 0),
       GTC45WorkspaceSession.findOne({
         $or: [{ user: userId, isOfficial: true }, { companyId: companyId, isOfficial: true }],
       }).lean().catch(() => null),
@@ -1249,10 +1260,9 @@ router.get('/workers', requireApiKeyOrJwt, async (req, res) => {
       mongoose.models.PerfilSociodemograficoData ||
       require('~/models/PerfilSociodemograficoData');
     
-    // Buscar en todos los documentos de la empresa o usuario
-    const socioDocs = await PerfilSociodemograficoData.find({
-      $or: [{ user: userId, companyId }, { user: userId }],
-    }).lean();
+    // Buscar exclusivamente en los documentos de la empresa activa (o del usuario si no hay empresa activa)
+    const socioQuery = companyId ? { user: userId, companyId } : { user: userId };
+    const socioDocs = await PerfilSociodemograficoData.find(socioQuery).lean();
 
     let allTrabajadores = [];
     for (const doc of socioDocs) {
@@ -1418,9 +1428,6 @@ router.post('/workers', requireApiKeyOrJwt, async (req, res) => {
 
     const queryFilter = companyId ? { user: userId, companyId } : { user: userId };
     let socioDoc = await PerfilSociodemograficoData.findOne(queryFilter).lean();
-    if (!socioDoc) {
-      socioDoc = await PerfilSociodemograficoData.findOne({ user: userId }).lean();
-    }
 
     let trabajadoresList = socioDoc && Array.isArray(socioDoc.trabajadores) ? [...socioDoc.trabajadores] : [];
 
@@ -1453,19 +1460,19 @@ router.post('/workers', requireApiKeyOrJwt, async (req, res) => {
       direccion: workerData.direccion || '',
       municipioDomicilio: workerData.municipioDomicilio || workerData.municipio || '',
       barrio: workerData.barrio || '',
-      fechaNacimiento: workerData.fechaNacimiento || '',
+      fechaNacimiento: workerData.fechaNacimiento || workerData.fecha_nacimiento || '',
       edad: workerData.edad ? Number(workerData.edad) : undefined,
       genero: workerData.genero || 'No especificado',
-      estadoCivil: workerData.estadoCivil || '',
-      nivelEscolaridad: workerData.nivelEscolaridad || '',
-      emergenciaContacto: workerData.emergenciaContacto || '',
-      tipoSangre: workerData.tipoSangre || '',
+      estadoCivil: workerData.estadoCivil || workerData.estado_civil || '',
+      nivelEscolaridad: workerData.nivelEscolaridad || workerData.escolaridad || workerData.nivel_escolaridad || '',
+      emergenciaContacto: workerData.emergenciaContacto || workerData.emergencia_contacto || '',
+      tipoSangre: workerData.tipoSangre || workerData.rh || '',
       rh: workerData.rh || '',
       enfermedades: workerData.enfermedades || '',
       medicamentos: workerData.medicamentos || '',
-      diagnosticoMedico: workerData.diagnosticoMedico || '',
-      recomendacionesMedicas: workerData.recomendacionesMedicas || '',
-      fechaExamenMedico: workerData.fechaExamenMedico || '',
+      diagnosticoMedico: workerData.diagnosticoMedico || workerData.diagnostico_medico || '',
+      recomendacionesMedicas: workerData.recomendacionesMedicas || workerData.recomendaciones_medicas || '',
+      fechaExamenMedico: workerData.fechaExamenMedico || workerData.fecha_examen_medico || '',
       fechaSeguimiento: workerData.fechaSeguimiento || '',
       peso: workerData.peso || '',
       talla: workerData.talla || '',
