@@ -40,7 +40,8 @@ import SignaturePad from '~/components/SGSST/SignaturePad';
 
 interface LiveEditorProps {
   initialContent: string;
-  onUpdate: (content: string) => void;
+  onUpdate?: (content: string) => void;
+  onChange?: (content: string) => void;
   onSave?: () => void;
   reportType?: 'checklist' | 'general';
   /** Determines if the editor forces a classic "white paper" look regardless of dark mode */
@@ -52,6 +53,11 @@ interface LiveEditorProps {
   hideFullscreen?: boolean;
   /** When true, the toolbar is hidden unless the editor is in its own native fullscreen mode */
   hideToolbarWhenCollapsed?: boolean;
+  isGenerating?: boolean;
+  isEditable?: boolean;
+  readOnly?: boolean;
+  placeholder?: string;
+  editorId?: string;
 }
 
 export interface LiveEditorHandle {
@@ -125,6 +131,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
     {
       initialContent,
       onUpdate,
+      onChange,
       onSave,
       onHistory,
       reportType = 'general',
@@ -132,12 +139,35 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
       paperMode = true,
       hideFullscreen = false,
       hideToolbarWhenCollapsed = false,
+      isGenerating,
+      isEditable = true,
+      readOnly = false,
+      placeholder,
+      editorId,
     },
     ref,
   ) => {
     const localize = useLocalize();
     const { token } = useAuthContext();
     const editorRef = useRef<HTMLDivElement>(null);
+
+    // Defensive update handler: supports both onUpdate and onChange without throwing
+    const effectiveOnUpdate = onUpdate || onChange;
+    const onUpdateRef = useRef(effectiveOnUpdate);
+    useEffect(() => {
+      onUpdateRef.current = effectiveOnUpdate;
+    }, [effectiveOnUpdate]);
+
+    const safeUpdate = useCallback((newHtml?: string) => {
+      const contentToEmit = typeof newHtml === 'string' ? newHtml : (editorRef.current?.innerHTML || '');
+      if (typeof onUpdateRef.current === 'function') {
+        try {
+          onUpdateRef.current(contentToEmit);
+        } catch (err) {
+          console.warn('[LiveEditor] Error in onUpdate callback:', err);
+        }
+      }
+    }, []);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const signatureInputRef = useRef<HTMLInputElement>(null);
     const [content, setContent] = useState(initialContent);
@@ -380,7 +410,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
         setShowAiInput(false);
         setAiEditInstruction('');
         savedRangeRef.current = null;
-        onUpdate(editorRef.current?.innerHTML || '');
+        safeUpdate();
       } catch (err: any) {
         alert(`Error IA: ${err.message}`);
       } finally {
@@ -514,10 +544,10 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
         if (changed) {
           const newContent = editorRef.current.innerHTML;
           setContent(newContent);
-          onUpdate(newContent);
+          safeUpdate(newContent);
         }
       }
-    }, [namedSignatures, content]);
+    }, [namedSignatures, content, safeUpdate]);
 
     // Expose setHTML() and insertHTML() to parent via ref (imperative handle)
     useImperativeHandle(ref, () => ({
@@ -566,7 +596,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
             // Trigger onUpdate immediately
             const newContent = editorRef.current.innerHTML;
             setContent(newContent);
-            onUpdate(newContent);
+            safeUpdate(newContent);
             return;
           }
         }
@@ -574,7 +604,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
         editorRef.current.innerHTML += wrappedHtml;
         const newContent = editorRef.current.innerHTML;
         setContent(newContent);
-        onUpdate(newContent);
+        safeUpdate(newContent);
       },
       getHTML: () => {
         return editorRef.current ? editorRef.current.innerHTML : '';
@@ -584,12 +614,6 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
     // Track if we already did the initial load so we never overwrite user edits
     const initializedRef = useRef(false);
     const isSyncingRef = useRef(false);
-
-    // Maintain fresh reference to onUpdate to prevent stale closures in Observer
-    const onUpdateRef = useRef(onUpdate);
-    useEffect(() => {
-      onUpdateRef.current = onUpdate;
-    }, [onUpdate]);
 
     // Ensure any unwrapped table in editor DOM gets wrapped in .table-responsive.custom-table-scroll
     const ensureTablesWrappedInDOM = useCallback(() => {
@@ -713,7 +737,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
           ensureTablesWrappedInDOM();
           const newContent = editorRef.current?.innerHTML || '';
           setContent(newContent);
-          onUpdateRef.current(newContent);
+          safeUpdate(newContent);
         });
 
         observer.observe(editorRef.current, {
@@ -733,7 +757,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
       // Fallback for direct keyboard input, though MutationObserver catches most
       const newContent = e.currentTarget.innerHTML;
       setContent(newContent);
-      onUpdateRef.current(newContent);
+      safeUpdate(newContent);
     };
 
     const execCmd = (command: string, value: string | undefined = undefined) => {
@@ -804,7 +828,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
             const html = `<img src="${signatureUrl}" style="max-height:100px;display:block;margin:10px auto;" alt="Firma ${nameToUse}" />`;
             document.execCommand('insertHTML', false, html);
           }
-          onUpdate(editorRef.current?.innerHTML || '');
+          safeUpdate();
           setActiveSignaturePlaceholder(null);
           setIsSignatureModalOpen(false);
           setIsDrawingPadOpen(false);
@@ -828,7 +852,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
         const html = `<img src="${signatureUrl}" style="max-height:100px;display:block;margin:10px auto;" alt="Firma ${existingName}" />`;
         document.execCommand('insertHTML', false, html);
       }
-      onUpdate(editorRef.current?.innerHTML || '');
+      safeUpdate();
       setActiveSignaturePlaceholder(null);
       setIsSignatureModalOpen(false);
     };
@@ -860,7 +884,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
         const html = `<img src="${base64}" style="max-height:100px;display:block;margin:10px auto;" alt="Firma ${nameToUse}" />`;
         document.execCommand('insertHTML', false, html);
       }
-      onUpdate(editorRef.current?.innerHTML || '');
+      safeUpdate();
       setActiveSignaturePlaceholder(null);
       setIsSignatureModalOpen(false);
       setIsDrawingPadOpen(false);
@@ -1002,7 +1026,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
     const updateImageStyle = (styles: Partial<CSSStyleDeclaration>) => {
       if (!selectedImage) return;
       Object.assign(selectedImage.style, styles);
-      onUpdate(editorRef.current?.innerHTML || '');
+      safeUpdate();
     };
 
     const setImageAlign = (align: 'left' | 'center' | 'right' | 'none') => {
@@ -1060,7 +1084,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
       }
 
       setSelectedImage(null);
-      onUpdate(editorRef.current?.innerHTML || '');
+      safeUpdate();
     };
 
     // Table manipulation functions
@@ -1073,7 +1097,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
         const newCell = newRow.insertCell(i);
         newCell.innerHTML = '&nbsp;';
       }
-      onUpdate(editorRef.current?.innerHTML || '');
+      safeUpdate();
     };
 
     const addTableCol = (where: 'left' | 'right') => {
@@ -1087,7 +1111,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
         const newCell = row.insertCell(targetIndex);
         newCell.innerHTML = '&nbsp;';
       }
-      onUpdate(editorRef.current?.innerHTML || '');
+      safeUpdate();
     };
 
     const deleteTableRow = () => {
@@ -1097,7 +1121,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
       if (table.rows.length > 1) {
         table.deleteRow(row.rowIndex);
         setSelectedTableCell(null);
-        onUpdate(editorRef.current?.innerHTML || '');
+        safeUpdate();
       }
     };
 
@@ -1110,7 +1134,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
           table.rows[i].deleteCell(colIndex);
         }
         setSelectedTableCell(null);
-        onUpdate(editorRef.current?.innerHTML || '');
+        safeUpdate();
       }
     };
 
@@ -1119,7 +1143,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
       const table = selectedTableCell.closest('table');
       table?.remove();
       setSelectedTableCell(null);
-      onUpdate(editorRef.current?.innerHTML || '');
+      safeUpdate();
     };
 
     const resizeColumn = (direction: 'wider' | 'narrower') => {
@@ -1132,7 +1156,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
       const newWidth = direction === 'wider' ? currentWidth + 20 : Math.max(20, currentWidth - 20);
       headerCell.style.width = `${newWidth}px`;
       headerCell.style.minWidth = `${newWidth}px`;
-      onUpdate(editorRef.current?.innerHTML || '');
+      safeUpdate();
     };
 
     // Graphic manipulation functions
@@ -1144,7 +1168,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
       }
       innerBar.style.width = `${percent}%`;
       innerBar.innerText = `${percent}%`;
-      onUpdate(editorRef.current?.innerHTML || '');
+      safeUpdate();
     };
 
     const setDiagramNodeColor = (bgColor: string, textColor: string) => {
@@ -1156,14 +1180,14 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
       spans.forEach((span) => {
         span.style.color = textColor;
       });
-      onUpdate(editorRef.current?.innerHTML || '');
+      safeUpdate();
     };
 
     const deleteDiagramNode = () => {
       if (!selectedDiagramNode) return;
       selectedDiagramNode.remove();
       setSelectedDiagramNode(null);
-      onUpdate(editorRef.current?.innerHTML || '');
+      safeUpdate();
     };
 
     const changeFontSize = (direction: 'up' | 'down') => {
@@ -1172,7 +1196,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
       editorRef.current?.focus();
       // Apply to selection (if any) — browser will handle scope
       document.execCommand('fontSize', false, String(next));
-      onUpdate(editorRef.current?.innerHTML || '');
+      safeUpdate();
     };
 
     const increaseFontSize = () => changeFontSize('up');

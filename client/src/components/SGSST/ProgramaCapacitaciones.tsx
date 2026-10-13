@@ -1470,6 +1470,9 @@ export default function ProgramaCapacitaciones() {
               initialContent={compiledReport || ''}
               editorId="sgsst-programa-capacitaciones"
               readOnly={false}
+              onUpdate={(content) => {
+                editorContentRef.current = content;
+              }}
               onChange={(content) => {
                 editorContentRef.current = content;
               }}

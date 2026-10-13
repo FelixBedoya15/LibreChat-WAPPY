@@ -270,6 +270,9 @@ export default defineConfig(({ command }) => ({
           if (normalizedId.includes('/src/components/SGSST/')) {
             return 'sgsst-modules';
           }
+          if (normalizedId.includes('/src/components/Liva/')) {
+            return 'live-editor';
+          }
           if (
             normalizedId.includes('/src/components/Training/') ||
             normalizedId.includes('/src/components/RutaAprendizaje/') ||

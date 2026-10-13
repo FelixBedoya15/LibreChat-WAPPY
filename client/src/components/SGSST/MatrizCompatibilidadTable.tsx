@@ -1538,6 +1538,7 @@ export default function MatrizCompatibilidadTable({
           <LiveEditor
             ref={editorRef}
             initialContent={reportContent}
+            onUpdate={(html) => setReportContent(html)}
             isGenerating={isAnalyzing}
             placeholder="Haz clic en la varita mágica de la barra superior para generar el Informe de Auditoría Técnica y Matriz de Compatibilidad Química con IA..."
           />
@@ -1818,6 +1819,7 @@ export default function MatrizCompatibilidadTable({
                 <div className="rounded-2xl border border-border-medium bg-surface-primary p-6 shadow-sm">
                   <LiveEditor
                     initialContent={reportContent}
+                    onUpdate={(html) => setReportContent(html)}
                     ref={editorRef}
                     isEditable={true}
                   />
