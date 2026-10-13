@@ -931,7 +931,7 @@ router.post('/worker/:id/generate-bio-risks', requireJwtAuth, async (req, res) =
             }
         } catch (e) { /* ignore */ }
 
-        // Gather all actual verified controls from PerfilCargo and MatrizPeligros
+        // Gather all actual verified controls from PerfilCargo, SgsstEppData, and MatrizPeligros
         let realControlesFuente = new Set();
         let realControlesMedio = new Set();
         let realControlesIndividuo = new Set();
@@ -947,6 +947,84 @@ router.post('/worker/:id/generate-bio-risks', requireJwtAuth, async (req, res) =
                     if (c && c.trim()) realControlesIndividuo.add(`Capacitación: ${c.trim()}`);
                 });
             }
+        }
+
+        // ─── 360 DATA: Entregas reales de EPP registradas ─────────────────────────
+        let eppEntregados = [];
+        try {
+            const SgsstEppData = require('../../../models/SgsstEppData');
+            const eppDoc = await SgsstEppData.findOne({
+                $or: [
+                    { companyId: worker.companyId, documento: String(worker.documento || '').trim() },
+                    { user: req.user.id, documento: String(worker.documento || '').trim() }
+                ]
+            }).lean();
+            if (eppDoc && Array.isArray(eppDoc.entregas)) {
+                eppDoc.entregas.forEach(e => {
+                    if (e.nombre && e.nombre.trim()) {
+                        const str = `${e.nombre.trim()} (${e.estado || 'Entregado'})`;
+                        eppEntregados.push(str);
+                        realControlesIndividuo.add(e.nombre.trim());
+                    }
+                });
+            }
+        } catch (e) { /* ignore */ }
+
+        // ─── 360 DATA: Historial de Accidentes / Incidentes (ATEL) ───────────────
+        let atelHistorial = [];
+        try {
+            const InvestigacionAtelData = require('../../../models/InvestigacionAtelData');
+            const atelDocs = await InvestigacionAtelData.find({
+                $or: [
+                    { companyId: worker.companyId, 'formData.cedula': String(worker.documento || '').trim() },
+                    { user: req.user.id, 'formData.cedula': String(worker.documento || '').trim() }
+                ]
+            }).lean();
+            if (atelDocs && atelDocs.length > 0) {
+                atelDocs.forEach(a => {
+                    const fd = a.formData || {};
+                    atelHistorial.push(`- ${fd.tipoEvento || 'Accidente'}: ${fd.descripcionAccidente || 'Sin descripción'} | Afectación: ${fd.parteCuerpoAfectada || 'No indicada'} | Severidad: ${fd.severidad || 'Leve'} (${fd.fechaAccidente || 'Fecha no registrada'})`);
+                });
+            }
+            if (Array.isArray(worker.atel) && worker.atel.length > 0) {
+                worker.atel.forEach(a => {
+                    atelHistorial.push(`- ${a.tipo || 'Accidente'}: ${a.descripcion || ''} (${a.fecha ? new Date(a.fecha).toLocaleDateString('es-CO') : 'Reciente'})`);
+                });
+            }
+        } catch (e) { /* ignore */ }
+
+        // ─── 360 DATA: Reportes de Actos y Condiciones Inseguras ─────────────────
+        let actosReportados = [];
+        try {
+            const ReporteActosData = mongoose.models.ReporteActosData;
+            if (ReporteActosData) {
+                const actosDoc = await ReporteActosData.findOne({
+                    $or: [{ companyId: worker.companyId }, { user: req.user.id }]
+                }).lean();
+                if (actosDoc && Array.isArray(actosDoc.inboxPublico)) {
+                    const cleanDoc = String(worker.documento || '').trim();
+                    const list = actosDoc.inboxPublico.filter(item => 
+                        String(item.documento || '').trim() === cleanDoc ||
+                        (item.reportadoPor && item.reportadoPor.toLowerCase().includes((worker.nombre || '').toLowerCase()))
+                    );
+                    list.forEach(x => {
+                        actosReportados.push(`- Reporte: ${x.tipo || 'Condición/Acto'} - ${x.descripcion || x.hallazgo || 'Sin detalle'}`);
+                    });
+                }
+            }
+            if (Array.isArray(worker.actos_inseguros) && worker.actos_inseguros.length > 0) {
+                worker.actos_inseguros.forEach(act => {
+                    actosReportados.push(`- ${act.tipo || 'Acto inseguro'}: ${act.descripcion || ''}`);
+                });
+            }
+        } catch (e) { /* ignore */ }
+
+        // ─── 360 DATA: Gamificación, Percepción del Riesgo y Participación ───────
+        let gamificacionEventos = [];
+        if (Array.isArray(worker.percepcionRiesgoHistorial) && worker.percepcionRiesgoHistorial.length > 0) {
+            gamificacionEventos = worker.percepcionRiesgoHistorial.slice(-5).map(h => 
+                `- ${h.accion || h.modulo || 'Actividad Preventiva'}: +${h.puntos || 0} pts (${h.fecha ? new Date(h.fecha).toLocaleDateString('es-CO') : ''})`
+            );
         }
 
         try {
@@ -1004,6 +1082,22 @@ CONTROLES EN EL INDIVIDUO:
 ${individuoListStr}
 =========================================`;
 
+        const historial360Context = `
+=========================================
+HISTORIAL INTEGRAL Y PARTICIPACIÓN DEL TRABAJADOR (SST 360°):
+- HISTORIAL DE ACCIDENTES / ATEL:
+${atelHistorial.length > 0 ? atelHistorial.join('\n') : '- Sin antecedentes de accidentes laborales registrados en la empresa.'}
+
+- EPP REGISTRADOS / ENTREGADOS AL TRABAJADOR:
+${eppEntregados.length > 0 ? eppEntregados.map(e => `- ${e}`).join('\n') : '- Sin actas formales de entrega de EPP cargadas aún en el módulo EPP.'}
+
+- REPORTES DE CONDICIONES Y ACTOS INSEGUROS EMITIDOS:
+${actosReportados.length > 0 ? actosReportados.join('\n') : '- No registra reportes de actos inseguros emitidos hasta la fecha.'}
+
+- GAMIFICACIÓN Y PARTICIPACIÓN PREVENTIVA:
+${gamificacionEventos.length > 0 ? gamificacionEventos.join('\n') : '- Puntos iniciales acumulados en la plataforma.'}
+=========================================`;
+
         const percepcionPts = worker.percepcionRiesgoScore || 0;
         const factorReduccion = Math.min(percepcionPts / 500, 0.40);
         const cantidadAGenerar = Number(cantidad) || 5;
@@ -1029,12 +1123,20 @@ DATOS DEL TRABAJADOR:
 - Factor de Reducción por Buena Percepción: ${(factorReduccion * 100).toFixed(0)}%
 ${cargoContext}
 
+${historial360Context}
+
 ${verdaderosControlesContext}
 
 REGLAS DE OBLIGATORIO CUMPLIMIENTO PARA CONTROLES EXISTENTES:
-1. Queda ABSOLUTAMENTE PROHIBIDO inventar o alucinar controles existentes.
-2. Para los campos "controles_fuente", "controles_medio", y "controles_individuo", debes seleccionar y mapear ÚNICAMENTE los controles que aparezcan en la sección "VERDADEROS CONTROLES EXISTENTES DE LA EMPRESA" que correspondan al peligro analizado.
-3. Si para algún peligro o celda no existe un control registrado en dicha lista que aplique, debes colocar exactamente la frase: "No registrado en Perfil de Cargo" o "Ninguno". NUNCA te inventes controles como "Uso de tapabocas" o "Pausas activas" a menos que estén explícitamente en la lista provista.
+1. Queda ABSOLUTAMENTE PROHIBIDO inventar controles ficticios.
+2. REGLA ESTRICTA DE CONGRUENCIA ANATÓMICA Y FUNCIONAL DE CONTROLES:
+   - Los controles individuales DEBEN corresponder anatómicamente al órgano y sistema del dominio evaluado.
+   - Para RUIDO (Sensorial): El control en el individuo DEBE ser protección auditiva (protectores de inserción o de copa) o "Ninguno / Sin protección auditiva asignada". ESTÁ TERMINANTEMENTE PROHIBIDO asignar cascos, gafas o botas para el ruido.
+   - Para ILUMINACIÓN / VISUAL (Sensorial): Protección visual (gafas/monogafas) o "Ninguno".
+   - Para MATERIAL PARTICULADO / HUMOS / GASES (Respiratorio): Protección respiratoria (respirador N95, mascarilla) o "Ninguno".
+   - Para BIOMECÁNICO / POSTURAS / MENTAL (Osteomuscular / Psicoemocional): Higiene postural, pausas activas, descansos, rotación de tareas o capacitaciones preventivas. NUNCA cascos ni EPP no biomecánicos.
+   - Para IMPACTO O CAÍDA DE OBJETOS: Casco de seguridad con barbuquejo.
+3. Si para algún peligro o celda no existe un control registrado en la lista de la empresa que aplique anatómicamente, debes colocar exactamente la frase: "Ninguno" o "No asignado en Perfil de Cargo". NUNCA fuerces un control incompatible solo por llenar la celda.
 4. Para el control del individuo, prioriza mapear los EPP Requeridos y Capacitaciones de la lista de controles en el individuo que correspondan al cargo del trabajador.
 
 REGLAS OBLIGATORIAS PARA CONTROLES PROPUESTOS (JERARQUÍA DE CONTROLES):
