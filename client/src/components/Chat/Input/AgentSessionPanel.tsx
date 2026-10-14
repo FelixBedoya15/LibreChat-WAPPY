@@ -215,9 +215,8 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
     // Filter tools into Google and General categories
     const googleToolIds = ['google_drive', 'google_calendar', 'google_gmail', 'google_sheets', 'google_docs', 'google_slides'];
     const googleTools = externalTools.filter(id => googleToolIds.includes(id));
-        const allGeneralExternalTools = externalTools.filter(id => !googleToolIds.includes(id));
-    const notebookLmTools = allGeneralExternalTools.filter(id => id.includes('_mcp_notebooklm'));
-    const generalExternalTools = allGeneralExternalTools.filter(id => !id.includes('_mcp_notebooklm'));
+    const notebookLmTools = externalTools.filter(id => id.includes('_mcp_notebooklm'));
+    const generalExternalTools = externalTools.filter(id => !googleToolIds.includes(id) && !id.includes('_mcp_notebooklm'));
     
     const isNotebookLmActive = notebookLmTools.length > 0 && notebookLmTools.some(id => (overrides as TEphemeralAgentExtended | null)?.tools?.includes(id));
     
@@ -232,8 +231,7 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
         });
     };
 
-
-    const hasGoogleTools = googleTools.length > 0;
+    const hasGoogleTools = googleTools.length > 0 || notebookLmTools.length > 0;
     const hasGeneralTools = hasWebSearch || hasFileSearch || hasCodeInterpreter || generalExternalTools.length > 0;
 
     const toolTranslations: Record<string, string> = {
@@ -456,20 +454,7 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                         }
                                     />
                                 )}
-                                                                {notebookLmTools.length > 0 && (
-                                    <Ariakit.MenuItem
-                                        hideOnClick={false}
-                                        render={
-                                            <ToolRow
-                                                id="agent-session-notebooklm"
-                                                icon={<NotebookIcon className="h-4 w-4 text-emerald-600" />}
-                                                label="Google NotebookLM (MCP)"
-                                                checked={isNotebookLmActive}
-                                                onChange={toggleNotebookLm}
-                                            />
-                                        }
-                                    />
-                                )}
+                                
                                 {generalExternalTools.map((toolId) => {
                                     const isActive = (overrides as TEphemeralAgentExtended | null)?.tools?.includes(toolId) ?? false;
                                     let displayName = toolTranslations[toolId];
@@ -528,6 +513,20 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                             )}
                         >
                             <div className="py-1.5 max-h-[340px] overflow-y-auto pr-1">
+                                {notebookLmTools.length > 0 && (
+                                    <Ariakit.MenuItem
+                                        hideOnClick={false}
+                                        render={
+                                            <ToolRow
+                                                id="agent-session-notebooklm"
+                                                icon={<NotebookIcon className="h-4 w-4 text-emerald-600" />}
+                                                label="Google NotebookLM"
+                                                checked={isNotebookLmActive}
+                                                onChange={toggleNotebookLm}
+                                            />
+                                        }
+                                    />
+                                )}
                                 {googleTools.map((toolId) => {
                                     const isActive = (overrides as TEphemeralAgentExtended | null)?.tools?.includes(toolId) ?? false;
                                     const displayName = toolTranslations[toolId] ?? toolId
