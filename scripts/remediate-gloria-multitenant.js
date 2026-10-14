@@ -12,6 +12,7 @@ async function remediate() {
   const User = mongoose.models.User || mongoose.model('User', new mongoose.Schema({}, { strict: false }));
   const CompanyInfo = mongoose.models.CompanyInfo || mongoose.model('CompanyInfo', new mongoose.Schema({}, { strict: false }));
   const PESVSession = mongoose.models.PESVWorkspaceSession || mongoose.model('PESVWorkspaceSession', new mongoose.Schema({}, { strict: false }));
+  const PESVWorkspaceSession = PESVSession;
   const GTC45Session = mongoose.models.GTC45WorkspaceSession || mongoose.model('GTC45WorkspaceSession', new mongoose.Schema({}, { strict: false }));
   const KanbanTask = mongoose.models.KanbanTask || mongoose.model('KanbanTask', new mongoose.Schema({}, { strict: false }));
   const PerfilCargo = mongoose.models.PerfilCargoData || mongoose.model('PerfilCargoData', new mongoose.Schema({}, { strict: false }));
