@@ -795,6 +795,7 @@ Formato (texto plano, 3 viñetas):
   }
 
   console.log('🎉 PROCESO COMPLETADO CON ÉXITO.');
+  process.exit(0);
 }
 
 main().catch(err => {
