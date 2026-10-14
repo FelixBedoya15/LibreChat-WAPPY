@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Check, 
   ShieldCheck, 
@@ -8,46 +8,143 @@ import {
   ShoppingBag, 
   X, 
   Truck, 
-  Droplet
+  Droplet,
+  ArrowRight,
+  ArrowLeft,
+  ChevronRight,
+  Play,
+  ZoomIn,
+  Eye,
+  CheckCircle2
 } from 'lucide-react';
 import './marketing.css';
 import './quibi.css';
 
-// Authentic manufactured product images (100% respecting the real product)
-const QUIBI_GALLERY = [
+// 5 Authentic Manufactured Product Showcase Slides for the High-Design Hero Slider
+const SLIDES = [
   {
     id: '3-bottles',
-    url: '/marketing/quibi/quibi-3-bottles.jpg',
-    title: 'Presentación Oficial QUIBI (QB)',
-    caption: 'Frente, tabla nutricional y los 5 potentes activos formulados en el envase original.',
+    tone: 'plum',
+    word: 'QUIBI',
+    kicker: 'CÁPSULAS BLANDAS CON RELLENO LÍQUIDO',
+    title: (
+      <>
+        El poder del <em>Vinagre de Manzana</em> sin quemar tu garganta.
+      </>
+    ),
+    sub: 'La primera fórmula en Colombia con centro líquido activo de vinagre de cidra y té verde. Cero azúcar añadido, cero daño al esmalte dental y máxima absorción gástrica.',
+    tags: ['Invima RSA-4113-2025', '60 Cápsulas Blandas', '0g Azúcar Añadido'],
+    img: '/marketing/quibi/quibi-3-bottles.jpg',
+    imgTitle: 'Presentación Oficial QUIBI (QB)',
+    chips: [
+      { cls: 'c1', ico: '💧', title: 'Centro Líquido', sub: 'Absorción inmediata' },
+      { cls: 'c2', ico: '🛡️', title: 'Invima Certificado', sub: 'RSA-4113-2025' },
+      { cls: 'c3', ico: '🌿', title: '0g Azúcar', sub: 'Solo 5 kcal/porción' },
+    ],
   },
   {
     id: 'front',
-    url: '/marketing/quibi/quibi-front.jpg',
-    title: 'Envase Original y Cápsulas con Relleno Líquido',
-    caption: 'Frasco de 60 unidades con cápsulas blandas de gelatina color azul índigo.',
+    tone: 'indigo',
+    word: 'SOFTGEL',
+    kicker: 'TECNOLOGÍA DE ENCAPSULACIÓN PURA',
+    title: (
+      <>
+        Perlas de gelatina suave con <em>Relleno Líquido</em> concentrado.
+      </>
+    ),
+    sub: 'Olvida las gomitas dulces cargadas de almidón y glucosa. QUIBI resguarda los extractos botánicos dentro de una suave cubierta de gelatina que se disuelve directamente en el estómago.',
+    tags: ['Sin acidez en boca', 'Protege esmalte dental', 'Cubierta azul índigo'],
+    img: '/marketing/quibi/quibi-front.jpg',
+    imgTitle: 'Envase Original y Cápsulas con Relleno',
+    chips: [
+      { cls: 'c1', ico: '✨', title: '60 Cápsulas', sub: 'Suministro para 30 días' },
+      { cls: 'c2', ico: '🍎', title: 'Vinagre + Té Verde', sub: 'Sinergia biológica' },
+      { cls: 'c3', ico: '🚚', title: 'Pago Contra Entrega', sub: 'Cobertura nacional' },
+    ],
   },
   {
     id: 'top-view',
-    url: '/marketing/quibi/quibi-top-view.jpg',
-    title: 'Vista Superior y Detalle de Cápsulas',
-    caption: 'Perlas de gelatina blanda con centro líquido activo de vinagre de manzana y té verde.',
+    tone: 'rose',
+    word: 'SACIEDAD',
+    kicker: 'DOBLE ACCIÓN · DIGESTIÓN Y SACIEDAD',
+    title: (
+      <>
+        Control natural del apetito con <em>Glucomanano</em> & Té Verde.
+      </>
+    ),
+    sub: 'El glucomanano absorbe agua expandiendo una sensación de plenitud natural en el estómago, mientras los polifenoles del té verde optimizan el gasto energético y el metabolismo activo.',
+    tags: ['Glucomanano Konjac', 'Té Verde EGCG', 'Alcachofa & Berenjena'],
+    img: '/marketing/quibi/quibi-top-view.jpg',
+    imgTitle: 'Detalle de Cápsulas Blandas Índigo',
+    chips: [
+      { cls: 'c1', ico: '🌱', title: 'Glucomanano', sub: 'Fibra saciante' },
+      { cls: 'c2', ico: '⚡', title: 'Termogénesis', sub: 'Té Verde EGCG' },
+      { cls: 'c3', ico: '🥛', title: 'Doble Perla', sub: '2 al día con agua' },
+    ],
   },
   {
     id: 'nutrition',
-    url: '/marketing/quibi/quibi-nutrition.jpg',
-    title: 'Información Nutricional & Invima Oficial',
-    caption: 'Autorización Invima RSA-4113-2025, 0g de azúcares añadidos y solo 5 kcal por porción.',
+    tone: 'plum',
+    word: 'INVIMA',
+    kicker: 'SEGURIDAD Y TRANSPARENCIA TOTAL',
+    title: (
+      <>
+        Certificación Sanitaria <em>RSA-4113-2025</em> oficial.
+      </>
+    ),
+    sub: 'Fabricado bajo estrictas Buenas Prácticas de Manufactura por ALIMENTOS MYC en Tona, Santander, exclusivamente para THERMIX. Alimento a base de gelatina con respaldo legal total.',
+    tags: ['ALIMENTOS MYC', 'Tona, Santander', 'Código 7709026096235'],
+    img: '/marketing/quibi/quibi-nutrition.jpg',
+    imgTitle: 'Tabla Nutricional y Registro Invima',
+    chips: [
+      { cls: 'c1', ico: '📋', title: 'Invima Vigente', sub: 'RSA-4113-2025' },
+      { cls: 'c2', ico: '🏭', title: 'Alimentos MYC', sub: 'Santander, Col' },
+      { cls: 'c3', ico: '🔬', title: 'Control Calidad', sub: 'Lote verificado' },
+    ],
   },
   {
     id: 'close',
-    url: '/marketing/quibi/quibi-close.jpg',
-    title: 'Detalle de Marca Original QB',
-    caption: 'Alimento a base de gelatina con relleno líquido para un estilo de vida saludable.',
+    tone: 'ink',
+    word: 'ACTIVOS',
+    kicker: '12 COMPONENTES EN SINERGIA',
+    title: (
+      <>
+        Nutrición botánica de <em>Alta Pureza</em> para tu día a día.
+      </>
+    ),
+    sub: 'Alcachofa para la función hepática, Berenjena y Nasunina para drenaje lipídico, Spirulina rica en micronutrientes y Picolinato de Cromo para el equilibrio de la glucosa.',
+    tags: ['Alcachofa + Berenjena', 'Picolinato de Cromo', 'Spirulina Natural'],
+    img: '/marketing/quibi/quibi-close.jpg',
+    imgTitle: 'Detalle de Marca Original QB',
+    chips: [
+      { cls: 'c1', ico: '🥬', title: 'Alcachofa & Cromo', sub: 'Salud hepática' },
+      { cls: 'c2', ico: '🎯', title: 'Picolinato Cromo', sub: '40 mcg / porción' },
+      { cls: 'c3', ico: '💙', title: 'Cápsula Blanda', sub: 'Fácil deglución' },
+    ],
   },
 ];
 
-// 12 Functional Components styled exactly as WAPPY's Tools Grid (.intg .i) from Screenshot 4
+// Stats row under the slider
+const STATS = [
+  { n: '60', l: 'Cápsulas blandas con relleno líquido', ico: '💊', bg: 'var(--qb-pink-soft)', c: 'var(--qb-plum)' },
+  { n: '0g', l: 'Azúcares añadidos · Solo 5 kcal', ico: '🌿', bg: '#ecfdf5', c: '#059669' },
+  { n: 'RSA', l: 'Invima 4113-2025 Certificado', ico: '🛡️', bg: '#eff6ff', c: '#2b3a9e' },
+  { n: '12', l: 'Componentes y extractos puros', ico: '✨', bg: 'var(--qb-pink-soft)', c: 'var(--qb-plum)' },
+];
+
+// Marquee text
+const MARQUEE_ITEMS = [
+  'VINAGRE DE MANZANA CON RELLENO LÍQUIDO',
+  'INVIMA RSA-4113-2025',
+  'CERO AZÚCAR AÑADIDA',
+  '60 CÁPSULAS BLANDAS',
+  'GLUCOMANANO Y TÉ VERDE',
+  'PAGO CONTRA ENTREGA EN TODA COLOMBIA',
+  'ALIMENTOS MYC · THERMIX',
+  'SABOR CERO ÁCIDO · CUIDA TUS DIENTES',
+];
+
+// 12 Functional Components styled exactly as WAPPY's Tools Grid (.intg .i .g) from Screenshot 4
 const QUIBI_COMPONENTS = [
   {
     title: 'Vinagre de Cidra de Manzana',
@@ -73,7 +170,7 @@ const QUIBI_COMPONENTS = [
     svg: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
         <polygon points="12 2 2 7 12 12 22 7 12 2" />
-        <polyline points="2 17 12 22 22 17" />
+        <polyline points="12 17 12 22 22 17" />
         <polyline points="2 12 12 17 22 12" />
       </svg>
     ),
@@ -120,41 +217,45 @@ const QUIBI_COMPONENTS = [
     ),
   },
   {
-    title: 'Picolinato de Cromo',
-    badge: 'Mineral Clave · Cero Antojos',
-    badgeBg: '#DBEAFE',
-    badgeColor: '#2563EB',
-    iconBg: '#EFF6FF',
-    iconColor: '#2563EB',
+    title: 'Spirulina Natural',
+    badge: 'Componente 6 · Superalimento',
+    badgeBg: '#E0F2FE',
+    badgeColor: '#0284C7',
+    iconBg: '#F0F9FF',
+    iconColor: '#0284C7',
     svg: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+        <circle cx="12" cy="12" r="10" />
+        <path d="m4.93 4.93 4.24 4.24" />
+        <path d="m14.83 9.17 4.24-4.24" />
+        <path d="m14.83 14.83 4.24 4.24" />
+        <path d="m9.17 14.83-4.24 4.24" />
+        <circle cx="12" cy="12" r="4" />
       </svg>
     ),
   },
   {
-    title: 'Spirulina Orgánica',
-    badge: 'Ficocianina · Color Índigo',
+    title: 'Picolinato de Cromo',
+    badge: 'Componente 7 · Glucosa Estable',
     badgeBg: '#E0E7FF',
     badgeColor: '#4338CA',
     iconBg: '#EEF2FF',
     iconColor: '#4338CA',
     svg: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <path d="M8 12s1.5-2 4-2 4 2 4 2-1.5 2-4 2-4-2-4-2z" />
-        <line x1="12" y1="2" x2="12" y2="4" />
-        <line x1="12" y1="20" x2="12" y2="22" />
+        <circle cx="12" cy="12" r="7" />
+        <polyline points="12 9 12 12 13.5 13.5" />
+        <path d="M16.51 17.35l-.35 3.83a2 2 0 0 1-2 1.82H9.83a2 2 0 0 1-2-1.82l-.35-3.83m.01-10.7l.35-3.83A2 2 0 0 1 9.83 1h4.35a2 2 0 0 1 2 1.82l.35 3.83" />
       </svg>
     ),
   },
   {
-    title: 'Cápsula Relleno Líquido',
-    badge: 'Tecnología · Cero Acidez',
-    badgeBg: '#E0F2FE',
-    badgeColor: '#0284C7',
-    iconBg: '#F0F9FF',
-    iconColor: '#0284C7',
+    title: 'Aceite de Girasol Virgen',
+    badge: 'Componente 8 · Vehículo Lipídico',
+    badgeBg: '#FEF9C3',
+    badgeColor: '#CA8A04',
+    iconBg: '#FEFCE8',
+    iconColor: '#CA8A04',
     svg: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
@@ -162,39 +263,41 @@ const QUIBI_COMPONENTS = [
     ),
   },
   {
-    title: '0g Azúcares Añadidos',
-    badge: 'Keto Friendly · 5 kcal/porción',
-    badgeBg: '#ECFDF5',
+    title: 'Gelatina Blanda Pura',
+    badge: 'Componente 9 · Protección Gástrica',
+    badgeBg: '#FCE7F3',
+    badgeColor: '#DB2777',
+    iconBg: '#FDF2F8',
+    iconColor: '#DB2777',
+    svg: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+        <line x1="12" y1="22.08" x2="12" y2="12" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Cero Azúcar Añadido',
+    badge: '0g Azúcar · 5 Kcal/Porción',
+    badgeBg: '#D1FAE5',
     badgeColor: '#059669',
-    iconBg: '#F0FDF4',
+    iconBg: '#ECFDF5',
     iconColor: '#059669',
     svg: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-        <polyline points="22 4 12 14.01 9 11.01" />
+        <path d="M12 2v20" />
+        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
       </svg>
     ),
   },
   {
-    title: 'Proteína de Gelatina',
-    badge: 'Estructura · 0.7g Proteína',
-    badgeBg: '#FCE7F3',
-    badgeColor: '#BE185D',
-    iconBg: '#FDF2F8',
-    iconColor: '#BE185D',
-    svg: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-      </svg>
-    ),
-  },
-  {
-    title: 'Registro Invima Oficial',
-    badge: 'RSA-4113-2025 · Avalado',
-    badgeBg: '#FEF9C3',
-    badgeColor: '#854D0E',
-    iconBg: '#FEFCE8',
-    iconColor: '#854D0E',
+    title: 'Invima RSA-4113-2025',
+    badge: 'Certificación Sanitaria Colombia',
+    badgeBg: '#DBEAFE',
+    badgeColor: '#1D4ED8',
+    iconBg: '#EFF6FF',
+    iconColor: '#1D4ED8',
     svg: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -234,7 +337,7 @@ const PACKAGES = [
       '1 Frasco original QB (60 cápsulas blandas con relleno líquido)',
       '0g Azúcar Añadido · Solo 5 kcal por porción',
       'Autorización Invima RSA-4113-2025',
-      'Guía digital de toma y nutrición por WhatsApp',
+      'Guía digital de toma y hábitos por WhatsApp',
     ],
     badge: 'IDEAL PARA PROBAR',
   },
@@ -309,7 +412,8 @@ const FAQS = [
 export default function QuibiPage() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [selectedImgIndex, setSelectedImgIndex] = useState(0);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
   const [showVideo, setShowVideo] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
@@ -323,6 +427,15 @@ export default function QuibiPage() {
   const [clientPaymentMethod, setClientPaymentMethod] = useState('Contra Entrega (Efectivo al recibir)');
   const [isOrderSubmitted, setIsOrderSubmitted] = useState(false);
 
+  // Auto-rotate hero slider every 6.5 seconds
+  useEffect(() => {
+    if (isPaused) return;
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % SLIDES.length);
+    }, 6500);
+    return () => clearInterval(timer);
+  }, [isPaused]);
+
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 40);
@@ -330,6 +443,14 @@ export default function QuibiPage() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % SLIDES.length);
+  };
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + SLIDES.length) % SLIDES.length);
+  };
 
   const scrollToSection = (e: React.MouseEvent | null, id: string) => {
     if (e) e.preventDefault();
@@ -380,8 +501,10 @@ export default function QuibiPage() {
     }, 300);
   };
 
+  const activeSlideData = SLIDES[currentSlide];
+
   return (
-    <div className="mkt">
+    <div className="mkt qbx">
       {/* Mobile Menu Backdrop */}
       {isMobileMenuOpen && (
         <div
@@ -391,7 +514,7 @@ export default function QuibiPage() {
         />
       )}
 
-      {/* Floating Capsule Navbar (Exact WAPPY style) */}
+      {/* Floating Capsule Navbar (Exact WAPPY style, authentic QB colors) */}
       <nav className="mkt-nav" aria-label="Navegación principal">
         <div className={`mkt-nav-inner ${isScrolled ? 'scrolled' : ''}`}>
           {/* Brand Logo: Clean icon + QUIBI */}
@@ -401,26 +524,11 @@ export default function QuibiPage() {
             href="#inicio"
             onClick={(e) => scrollToSection(e, 'inicio')}
           >
-            <div
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: 12,
-                background: 'linear-gradient(135deg, #4a102f 0%, #2f071d 100%)',
-                color: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 900,
-                fontSize: 17,
-                boxShadow: '0 4px 12px rgba(74, 16, 47, 0.25)',
-                border: '1.5px solid rgba(255, 255, 255, 0.3)',
-              }}
-            >
+            <div className="qb-logo-badge">
               QB
             </div>
             <div className="mkt-logo-text">
-              <span className="mkt-logo-title">QUIBI<span style={{ color: '#16a34a' }}>.co</span></span>
+              <span className="mkt-logo-title">QUIBI<span style={{ color: 'var(--qb-pink)' }}>.co</span></span>
               <span className="mkt-logo-sub">NUTRICIÓN VITAL</span>
             </div>
           </a>
@@ -481,6 +589,14 @@ export default function QuibiPage() {
                 </div>
               </button>
 
+              <button type="button" className="mkt-mobile-link" onClick={() => scrollToSection(null, 'capsulas')}>
+                <span className="mkt-mobile-link-icon">💊</span>
+                <div className="mkt-mobile-link-info">
+                  <span className="mkt-mobile-link-title">Cápsula Blanda</span>
+                  <span className="mkt-mobile-link-desc">Tecnología vs vinagre líquido o gomas</span>
+                </div>
+              </button>
+
               <button type="button" className="mkt-mobile-link" onClick={() => scrollToSection(null, 'componentes')}>
                 <span className="mkt-mobile-link-icon">🌿</span>
                 <div className="mkt-mobile-link-info">
@@ -538,112 +654,235 @@ export default function QuibiPage() {
         )}
       </nav>
 
-      {/* Hero Section with Light Background and Decorative Clouds */}
-      <header id="inicio" className="hero">
-        <div className="cloud" style={{ top: 90, left: -60, width: 300, height: 120 }} />
-        <div className="cloud" style={{ top: 240, right: -40, width: 260, height: 110 }} />
-        <div className="cloud" style={{ bottom: 60, left: '18%', width: 240, height: 100, opacity: 0.5 }} />
+      {/* =====================================================================
+          HERO SLIDER SECTION (High Design, 5 Authentic Product Image Slides)
+          ===================================================================== */}
+      <header id="inicio" className="qb-hero">
+        <div className="wrap">
+          {/* Main Interactive Slider */}
+          <div 
+            className={`qb-slider ${isPaused ? 'paused' : ''}`}
+            data-tone={activeSlideData.tone}
+            onMouseEnter={() => setIsPaused(true)}
+            onMouseLeave={() => setIsPaused(false)}
+          >
+            {SLIDES.map((slide, index) => {
+              const isActive = index === currentSlide;
+              return (
+                <div
+                  key={slide.id}
+                  className={`qb-slide qb-tone-${slide.tone} ${isActive ? 'active' : ''}`}
+                  aria-hidden={!isActive}
+                >
+                  {/* Giant Outline Word Watermark */}
+                  <div className="qb-slide-word">{slide.word}</div>
 
-        <div className="wrap hero-inner" style={{ textAlign: 'center' }}>
-          <div className="eyebrow" style={{ margin: '0 auto 16px' }}>
-            <span className="dot" style={{ background: '#10b981' }} />
-            <span>CÁPSULAS BLANDAS CON RELLENO LÍQUIDO · INVIMA RSA-4113-2025</span>
-          </div>
+                  {/* Floating CSS Indigo Softgels */}
+                  <div className="qb-pill" style={{ top: '14%', right: '48%', transform: 'rotate(-18deg)' }} />
+                  <div className="qb-pill" style={{ bottom: '16%', left: '42%', transform: 'rotate(24deg)', animationDelay: '-3s' }} />
 
-          <h1 className="display" style={{ margin: '14px auto 16px', maxWidth: 960 }}>
-            El poder del <span style={{ color: '#2563eb' }}>Vinagre de Manzana</span> en cápsulas blandas con relleno líquido.
-          </h1>
+                  {/* Slide Left Copy */}
+                  <div className="qb-slide-copy">
+                    <div className="qb-kicker qb-in" style={{ '--d': '0.05s' } as React.CSSProperties}>
+                      <span className="dot" />
+                      <span>{slide.kicker}</span>
+                    </div>
 
-          <p style={{ maxWidth: 760, margin: '0 auto 26px', fontSize: 18, color: 'var(--muted)', lineHeight: 1.6 }}>
-            Dile adiós al vinagre líquido que quema tu garganta y erosiona tu esmalte dental. 
-            Disfruta la primera fórmula con <strong>centro líquido activo</strong>, 
-            cero azúcar añadida y la sinergia de <strong>Glucomanano, Té Verde, Alcachofa, Berenjena y Cromo</strong>.
-          </p>
+                    <h1 className="qb-in" style={{ '--d': '0.15s' } as React.CSSProperties}>
+                      {slide.title}
+                    </h1>
 
-          <div className="hero-cta" style={{ display: 'flex', justifyContent: 'center', gap: 12, marginBottom: 36 }}>
-            <button className="btn btn-primary" onClick={() => scrollToSection(null, 'precios')}>
-              Pedir con Descuento de Lanzamiento
-              <span className="pip">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                  <polyline points="12 5 19 12 12 19" />
-                </svg>
-              </span>
-            </button>
+                    <p className="qb-slide-sub qb-in" style={{ '--d': '0.25s' } as React.CSSProperties}>
+                      {slide.sub}
+                    </p>
 
-            <a
-              href="https://wa.me/573054656064?text=Hola%20Thermix,%20deseo%20ordenar%20las%20cápsulas%20QUIBI"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-glass"
-            >
-              Pedir por WhatsApp (305 4656064)
-            </a>
-          </div>
+                    <div className="qb-slide-cta qb-in" style={{ '--d': '0.35s' } as React.CSSProperties}>
+                      <button 
+                        type="button" 
+                        className="btn btn-lime"
+                        onClick={() => scrollToSection(null, 'precios')}
+                      >
+                        Pedir Oferta de Lanzamiento
+                        <span className="pip">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                            <polyline points="12 5 19 12 12 19" />
+                          </svg>
+                        </span>
+                      </button>
 
-          {/* Authentic Manufactured Product Showcase */}
-          <div id="capsulas" style={{ maxWidth: 940, margin: '0 auto', background: '#fff', borderRadius: 28, padding: 18, border: '1.5px solid var(--line)', boxShadow: '0 20px 45px -15px rgba(20, 40, 80, 0.12)' }}>
-            <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 20 }}>
-              <img
-                src={QUIBI_GALLERY[selectedImgIndex].url}
-                alt={QUIBI_GALLERY[selectedImgIndex].title}
-                style={{
-                  width: '100%',
-                  maxHeight: 520,
-                  objectFit: 'contain',
-                  background: '#f8fafc',
-                  display: 'block',
-                  cursor: 'pointer',
-                  transition: 'transform 0.3s ease',
-                }}
-                onClick={() => setLightboxImg(QUIBI_GALLERY[selectedImgIndex].url)}
-                title="Haz clic para ampliar la imagen del producto real"
-              />
-              <div style={{ position: 'absolute', bottom: 14, left: 14, right: 14, background: 'rgba(255, 255, 255, 0.94)', backdropFilter: 'blur(8px)', padding: '10px 16px', borderRadius: 14, textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid var(--line)' }}>
-                <div>
-                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#0F172A' }}>{QUIBI_GALLERY[selectedImgIndex].title}</h4>
-                  <p style={{ margin: '2px 0 0', fontSize: 12, color: '#64748B' }}>{QUIBI_GALLERY[selectedImgIndex].caption}</p>
+                      <a
+                        href="https://wa.me/573054656064?text=Hola%20Thermix,%20deseo%20ordenar%20las%20cápsulas%20QUIBI"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-glass"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        Pedir por WhatsApp (305 4656064)
+                      </a>
+                    </div>
+
+                    <div className="qb-slide-tags qb-in" style={{ '--d': '0.45s' } as React.CSSProperties}>
+                      {slide.tags.map((tag, tidx) => (
+                        <span key={tidx}>{tag}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Slide Right Media with Authentic Product Photo & Floating Chips */}
+                  <div className="qb-slide-media">
+                    <div className="qb-glow" />
+                    
+                    <div 
+                      className="qb-frame"
+                      onClick={() => setLightboxImg(slide.img)}
+                      title="Clic para ampliar imagen oficial"
+                    >
+                      <img src={slide.img} alt={slide.imgTitle} />
+                    </div>
+
+                    {/* Floating Product Badges */}
+                    {slide.chips.map((chip, cidx) => (
+                      <div key={cidx} className={`qb-chip ${chip.cls}`}>
+                        <span className="qb-chip-ico">{chip.ico}</span>
+                        <div>
+                          {chip.title}
+                          <small>{chip.sub}</small>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#2563EB', background: '#EFF6FF', padding: '4px 10px', borderRadius: 9999 }}>
-                  Ver Foto Real 🔍
-                </span>
+              );
+            })}
+
+            {/* Slider Navigation Bar: Counter, Progress Dots, Next/Prev Arrows */}
+            <div className="qb-slider-ui">
+              <div className="qb-count">
+                <b>0{currentSlide + 1}</b> / 0{SLIDES.length}
+              </div>
+
+              <div className="qb-dots">
+                {SLIDES.map((_, didx) => {
+                  const isDone = didx < currentSlide;
+                  const isCurrent = didx === currentSlide;
+                  return (
+                    <button
+                      key={didx}
+                      type="button"
+                      className={`qb-dot ${isCurrent ? 'active' : ''} ${isDone ? 'done' : ''}`}
+                      onClick={() => setCurrentSlide(didx)}
+                      aria-label={`Ir al slide ${didx + 1}`}
+                    >
+                      <span />
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="qb-arrows">
+                <button
+                  type="button"
+                  className="qb-arrow"
+                  onClick={prevSlide}
+                  aria-label="Slide anterior"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+                <button
+                  type="button"
+                  className="qb-arrow"
+                  onClick={nextSlide}
+                  aria-label="Slide siguiente"
+                >
+                  <ArrowRight className="w-5 h-5" />
+                </button>
               </div>
             </div>
+          </div>
 
-            {/* Gallery Thumbnails (Original 5 Product Photos) */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginTop: 14 }}>
-              {QUIBI_GALLERY.map((img, idx) => (
-                <button
-                  key={img.id}
-                  type="button"
-                  onClick={() => setSelectedImgIndex(idx)}
-                  style={{
-                    aspectRatio: '1',
-                    borderRadius: 12,
-                    border: selectedImgIndex === idx ? '2.5px solid #2563EB' : '1.5px solid var(--line)',
-                    padding: 2,
-                    background: '#f8fafc',
-                    cursor: 'pointer',
-                    overflow: 'hidden',
-                    transform: selectedImgIndex === idx ? 'scale(1.04)' : 'scale(1)',
-                    transition: 'all 0.2s',
-                  }}
-                  title={img.title}
-                >
-                  <img src={img.url} alt={img.title} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
-                </button>
-              ))}
-            </div>
+          {/* 4 Quick Value Stats Under Slider */}
+          <div className="qb-stats">
+            {STATS.map((stat, sidx) => (
+              <div key={sidx} className="qb-stat">
+                <div className="qb-stat-ico" style={{ background: stat.bg, color: stat.c }}>
+                  <span style={{ fontSize: 22 }}>{stat.ico}</span>
+                </div>
+                <div>
+                  <div className="qb-stat-n">{stat.n}</div>
+                  <div className="qb-stat-l">{stat.l}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Marquee Banner */}
+        <div className="qb-marquee">
+          <div className="qb-marquee-track">
+            {MARQUEE_ITEMS.concat(MARQUEE_ITEMS).map((item, midx) => (
+              <span key={midx} className="qb-marquee-item">
+                <i />
+                {item}
+              </span>
+            ))}
           </div>
         </div>
       </header>
 
-      {/* Componentes / Herramientas Grid (EXACT WAPPY Tools Grid style from Screenshot 4) */}
+      {/* =====================================================================
+          SECTION 2: POR QUÉ CÁPSULAS BLANDAS VS VINAGRE LÍQUIDO O GOMAS
+          ===================================================================== */}
+      <section id="capsulas" className="band">
+        <div className="wrap">
+          <div className="band-head">
+            <div className="eyebrow">
+              <span className="dot" />
+              <span>INNOVACIÓN GALÉNICA</span>
+            </div>
+            <h2 className="display">
+              ¿Por qué Cápsulas Blandas y NO Vinagre Líquido ni Gomitas?
+            </h2>
+            <p>
+              El vinagre tradicional en shot daña el esmalte dental y quema la garganta. 
+              Las gomitas dulces comerciales contienen hasta 4 gramos de azúcar o jarabe por porción. 
+              QUIBI inventó el punto perfecto: extracto botánico puro con <strong>centro líquido activo</strong> y cero azúcar.
+            </p>
+          </div>
+
+          {/* Comparison Cards */}
+          <div className="qb-vs" style={{ maxWidth: 960, margin: '0 auto' }}>
+            <div className="qb-vs-card qb-vs-bad">
+              <h4>❌ Vinagre Líquido Tradicional & Gomitas</h4>
+              <ul>
+                <li><span>•</span> Acidez corrosiva que desgasta irreversiblemente el esmalte dental.</li>
+                <li><span>•</span> Sabor avinagrado insoportable que produce reflujo y ardor esofágico.</li>
+                <li><span>•</span> Las gomitas contienen almidón, glucosa o azúcares añadidos que rompen el ayuno.</li>
+                <li><span>•</span> Menor absorción metabólica por degradación enzimática salival.</li>
+              </ul>
+            </div>
+
+            <div className="qb-vs-card qb-vs-good">
+              <h4>✅ Cápsulas Blandas QUIBI con Relleno Líquido</h4>
+              <ul>
+                <li><span>•</span> Cubierta de gelatina blanda suave color índigo: pasa directo sin tocar tus dientes.</li>
+                <li><span>•</span> Se disuelve en el estómago, liberando el vinagre y té verde en segundos.</li>
+                <li><span>•</span> 0% azúcar añadida y solo 5 calorías por porción: 100% keto y ayuno friendly.</li>
+                <li><span>•</span> Concentrado biológico potenciado con Glucomanano, Alcachofa, Berenjena y Cromo.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================================
+          SECTION 3: 12 COMPONENTES CIENTÍFICOS (EXACT WAPPY Tools Grid .intg .i .g)
+          ===================================================================== */}
       <section id="componentes" className="band">
         <div className="wrap">
           <div className="band-head">
             <div className="eyebrow">
-              <span className="dot" style={{ background: '#10b981' }} />
+              <span className="dot" />
               <span>FORMULACIÓN CIENTÍFICA</span>
             </div>
             <h2 className="display">
@@ -655,6 +894,7 @@ export default function QuibiPage() {
             </p>
           </div>
 
+          {/* EXACT WAPPY Tools Grid Layout from Screenshot 4 */}
           <div className="intg">
             {QUIBI_COMPONENTS.map((item, idx) => (
               <div key={idx} className="i" style={{ cursor: 'pointer' }}>
@@ -673,7 +913,62 @@ export default function QuibiPage() {
         </div>
       </section>
 
-      {/* Video Section (EXACT WAPPY Video Section style from Screenshot 5 using the Real Product) */}
+      {/* =====================================================================
+          SECTION 4: PASOS DE ACCIÓN METABÓLICA (.qb-steps)
+          ===================================================================== */}
+      <section className="band" style={{ paddingTop: 20 }}>
+        <div className="wrap">
+          <div className="band-head">
+            <div className="eyebrow">
+              <span className="dot" />
+              <span>MODO DE USO & RESULTADOS</span>
+            </div>
+            <h2 className="display">¿Cómo Funciona en tu Organismo?</h2>
+            <p>
+              Una rutina simple de 2 cápsulas al día que transforma tu relación con la comida y la digestión.
+            </p>
+          </div>
+
+          <div className="qb-steps">
+            <div className="qb-step">
+              <div className="qb-step-n">01</div>
+              <div className="qb-step-ico" style={{ background: 'var(--qb-pink-soft)', color: 'var(--qb-plum)' }}>
+                💧
+              </div>
+              <h3>1 Cápsula con 250ml de Agua</h3>
+              <p>
+                Toma 1 cápsula blanda 20 a 30 minutos antes del almuerzo y 1 antes de la cena con un vaso lleno de agua. El agua activa la hidratación del glucomanano.
+              </p>
+            </div>
+
+            <div className="qb-step">
+              <div className="qb-step-n">02</div>
+              <div className="qb-step-ico" style={{ background: '#ecfdf5', color: '#059669' }}>
+                ⚡
+              </div>
+              <h3>Liberación Gástrica Inmediata</h3>
+              <p>
+                Al llegar al estómago, la perla de gelatina libera el núcleo líquido concentrado de vinagre de manzana y té verde sin quemar garganta ni dañar el esmalte dental.
+              </p>
+            </div>
+
+            <div className="qb-step lime">
+              <div className="qb-step-n">03</div>
+              <div className="qb-step-ico" style={{ background: '#fff', color: 'var(--qb-plum)' }}>
+                ✨
+              </div>
+              <h3>Saciedad y Digestión Ligera</h3>
+              <p>
+                El glucomanano expande una sensación de plenitud que frena los picos de ansiedad, mientras la alcachofa y el cromo equilibran la glucosa postprandial.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================================
+          SECTION 5: VIDEO EN VIVO (EXACT WAPPY Video Section style from Screenshot 5)
+          ===================================================================== */}
       <section id="video" className="band" style={{ paddingTop: 20 }}>
         <div className="wrap">
           <div className="band-head">
@@ -736,56 +1031,30 @@ export default function QuibiPage() {
           <div className={`vid-shell ${showVideo ? 'vid-vertical-mode' : 'vid-poster-mode'}`}>
             {!showVideo ? (
               <div
-                style={{
-                  position: 'relative',
-                  width: '100%',
-                  height: '100%',
-                  cursor: 'pointer',
-                  overflow: 'hidden',
-                }}
+                className="qb-poster"
                 onClick={() => setShowVideo(true)}
                 title="Clic para reproducir demostración"
               >
                 <img
                   src="/marketing/quibi/quibi-3-bottles.jpg"
                   alt="Envase y Cápsulas Oficiales QUIBI"
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'contain',
-                    background: '#f8fafc',
-                    display: 'block',
-                    transition: 'transform 0.4s ease',
-                  }}
                   className="vid-poster-img"
                 />
 
-                <div className="vid-tag">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 800, color: '#0F172A' }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />
-                    Envase Oficial y Relleno Líquido
-                  </div>
+                <div className="qb-poster-shade" />
+
+                <div className="qb-poster-copy">
+                  <span className="vid-live-pill" style={{ background: 'rgba(246, 168, 205, 0.25)', color: '#fff', borderColor: 'rgba(255, 255, 255, 0.3)' }}>
+                    Acción Rápida
+                  </span>
+                  <h3>Disolución Gástrica del Núcleo Líquido</h3>
+                  <p>
+                    Observa la rapidez con la que se libera el vinagre puro y el té verde al entrar en contacto con el ambiente digestivo.
+                  </p>
                 </div>
 
-                <div className="vid-play">
-                  <div
-                    style={{
-                      width: 76,
-                      height: 76,
-                      borderRadius: '50%',
-                      background: 'var(--lime)',
-                      color: 'var(--ink)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: '0 12px 34px rgba(199, 243, 3, 0.45)',
-                      transition: 'transform 0.2s',
-                    }}
-                  >
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
-                      <polygon points="5 3 19 12 5 21 5 3" />
-                    </svg>
-                  </div>
+                <div className="qb-play">
+                  <Play className="w-9 h-9 fill-current ml-1" />
                 </div>
               </div>
             ) : (
@@ -804,7 +1073,94 @@ export default function QuibiPage() {
         </div>
       </section>
 
-      {/* Official Nutrition Facts & Invima */}
+      {/* =====================================================================
+          SECTION 6: BENTO GALLERY (5 Authentic Manufactured Photos)
+          ===================================================================== */}
+      <section className="band" style={{ paddingTop: 20 }}>
+        <div className="wrap">
+          <div className="band-head">
+            <div className="eyebrow">
+              <span className="dot" />
+              <span>FOTOGRAFÍA REAL DE PRODUCTO</span>
+            </div>
+            <h2 className="display">Conoce QUIBI desde Todos sus Ángulos</h2>
+            <p>
+              Envase de 60 unidades, cápsulas con relleno líquido y empaque original fabricado para THERMIX.
+            </p>
+          </div>
+
+          <div className="qb-bento">
+            <button
+              type="button"
+              className="qb-bento-item"
+              onClick={() => setLightboxImg('/marketing/quibi/quibi-3-bottles.jpg')}
+              title="Ampliar vista del envase"
+            >
+              <img src="/marketing/quibi/quibi-3-bottles.jpg" alt="Presentación oficial QUIBI" />
+              <div className="qb-bento-cap">
+                Presentación Oficial Frasco 60 Cápsulas
+                <small>Envase con sello de seguridad e información oficial</small>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              className="qb-bento-item"
+              onClick={() => setLightboxImg('/marketing/quibi/quibi-front.jpg')}
+              title="Ampliar cápsulas y frasco"
+            >
+              <img src="/marketing/quibi/quibi-front.jpg" alt="Cápsulas y envase frontal" />
+              <div className="qb-bento-cap">
+                Cápsulas Blandas Azul Índigo
+                <small>Suaves al tragar con relleno líquido interno</small>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              className="qb-bento-item"
+              onClick={() => setLightboxImg('/marketing/quibi/quibi-top-view.jpg')}
+              title="Ampliar vista superior"
+            >
+              <img src="/marketing/quibi/quibi-top-view.jpg" alt="Vista superior cápsulas" />
+              <div className="qb-bento-cap">
+                Perlas con Centro Líquido
+                <small>60 unidades por envase sellado</small>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              className="qb-bento-item"
+              onClick={() => setLightboxImg('/marketing/quibi/quibi-nutrition.jpg')}
+              title="Ampliar tabla nutricional"
+            >
+              <img src="/marketing/quibi/quibi-nutrition.jpg" alt="Tabla nutricional oficial" />
+              <div className="qb-bento-cap">
+                Etiqueta Invima RSA-4113-2025
+                <small>0g Azúcares añadidos · Solo 5 kcal por porción</small>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              className="qb-bento-item"
+              onClick={() => setLightboxImg('/marketing/quibi/quibi-close.jpg')}
+              title="Ampliar detalle de marca"
+            >
+              <img src="/marketing/quibi/quibi-close.jpg" alt="Detalle de marca QB" />
+              <div className="qb-bento-cap">
+                Sello Original QB
+                <small>Garantía de autenticidad THERMIX</small>
+              </div>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================================
+          SECTION 7: TABLA NUTRICIONAL OFICIAL & REGISTRO INVIMA
+          ===================================================================== */}
       <section id="nutricion" className="band" style={{ paddingTop: 20 }}>
         <div className="wrap">
           <div className="band-head">
@@ -820,124 +1176,139 @@ export default function QuibiPage() {
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, alignItems: 'start', maxWidth: 1040, margin: '0 auto' }}>
-            {/* Nutrition Table */}
-            <div style={{ background: '#fff', borderRadius: 24, border: '1.5px solid var(--line)', overflow: 'hidden', boxShadow: '0 8px 24px rgba(20, 40, 80, 0.06)' }}>
-              <div style={{ background: '#4a102f', color: '#fff', padding: '18px 22px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="qb-nutri">
+            {/* Nutrition Table Card */}
+            <div className="qb-table-card">
+              <div className="qb-table-head">
                 <div>
-                  <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Información Nutricional</h3>
-                  <span style={{ fontSize: 11, color: '#fbcfe8' }}>Porción: 1 Cápsula con relleno (2g)</span>
+                  <h3>Información Nutricional</h3>
+                  <span>Porción: 1 Cápsula con relleno (2g)</span>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: '#fbcfe8', display: 'block' }}>Porciones</span>
-                  <span style={{ fontSize: 18, fontWeight: 900, color: '#fff' }}>60</span>
+                  <span style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', opacity: 0.8 }}>Porciones</span>
+                  <b>60</b>
                 </div>
               </div>
 
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <table className="qb-table">
                 <thead>
-                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--line)', textAlign: 'left', color: '#475569', fontSize: 11, textTransform: 'uppercase' }}>
-                    <th style={{ padding: '10px 18px' }}>Nutriente</th>
-                    <th style={{ padding: '10px 14px' }}>Por 100g</th>
-                    <th style={{ padding: '10px 18px' }}>Por porción</th>
+                  <tr>
+                    <th>Nutriente</th>
+                    <th>Por 100g</th>
+                    <th>Por porción</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '10px 18px' }}><strong>Calorías (kcal)</strong></td>
-                    <td style={{ padding: '10px 14px' }}>240</td>
-                    <td style={{ padding: '10px 18px' }}><strong style={{ color: '#059669' }}>5 kcal</strong></td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #f1f5f9', background: '#fafafa' }}>
-                    <td style={{ padding: '10px 18px' }}>Grasa total</td>
-                    <td style={{ padding: '10px 14px' }}>0 g</td>
-                    <td style={{ padding: '10px 18px' }}>0 g</td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '10px 18px' }}>Carbohidratos totales</td>
-                    <td style={{ padding: '10px 14px' }}>25 g</td>
-                    <td style={{ padding: '10px 18px' }}>0.1 g</td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #f1f5f9', background: '#fafafa' }}>
-                    <td style={{ padding: '10px 18px' }}>Azúcares totales</td>
-                    <td style={{ padding: '10px 14px' }}>0 g</td>
-                    <td style={{ padding: '10px 18px' }}><strong style={{ color: '#16a34a' }}>0 g</strong></td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '10px 18px' }}>Azúcares Añadidos</td>
-                    <td style={{ padding: '10px 14px' }}>0 g</td>
-                    <td style={{ padding: '10px 18px' }}><strong style={{ color: '#16a34a' }}>0 g</strong></td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #f1f5f9', background: '#fafafa' }}>
-                    <td style={{ padding: '10px 18px' }}>Proteína pura</td>
-                    <td style={{ padding: '10px 14px' }}>35 g</td>
-                    <td style={{ padding: '10px 18px' }}><strong>0.7 g</strong></td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '10px 18px' }}>Sodio</td>
-                    <td style={{ padding: '10px 14px' }}>0 mg</td>
-                    <td style={{ padding: '10px 18px' }}>0 mg</td>
+                  <tr className="hl">
+                    <td><strong>Calorías (kcal)</strong></td>
+                    <td>240</td>
+                    <td><strong style={{ color: '#059669' }}>5 kcal</strong></td>
                   </tr>
                   <tr>
-                    <td style={{ padding: '10px 18px' }}><strong>Picolinato de Cromo</strong></td>
-                    <td style={{ padding: '10px 14px' }}>2.000 mcg</td>
-                    <td style={{ padding: '10px 18px' }}><strong style={{ color: '#2563eb' }}>40 mcg</strong></td>
+                    <td>Grasa total</td>
+                    <td>0 g</td>
+                    <td>0 g</td>
+                  </tr>
+                  <tr>
+                    <td>Carbohidratos totales</td>
+                    <td>25 g</td>
+                    <td>0.1 g</td>
+                  </tr>
+                  <tr className="hl">
+                    <td>Azúcares totales</td>
+                    <td>0 g</td>
+                    <td><strong style={{ color: '#059669' }}>0 g</strong></td>
+                  </tr>
+                  <tr className="hl">
+                    <td>Azúcares Añadidos</td>
+                    <td>0 g</td>
+                    <td><strong style={{ color: '#059669' }}>0 g</strong></td>
+                  </tr>
+                  <tr>
+                    <td>Proteína pura</td>
+                    <td>35 g</td>
+                    <td><strong>0.7 g</strong></td>
+                  </tr>
+                  <tr>
+                    <td>Sodio</td>
+                    <td>0 mg</td>
+                    <td>0 mg</td>
+                  </tr>
+                  <tr className="hl">
+                    <td><strong>Picolinato de Cromo</strong></td>
+                    <td>2.000 mcg</td>
+                    <td><strong style={{ color: 'var(--qb-indigo)' }}>40 mcg</strong></td>
                   </tr>
                 </tbody>
               </table>
 
-              <div style={{ padding: '12px 18px', background: '#f8fafc', borderTop: '1px solid var(--line)', fontSize: 11, color: '#64748b' }}>
+              <div className="qb-table-foot">
                 * Alimento a base de gelatina con relleno líquido con vinagre de manzana y té verde. No es fuente significativa de hierro y calcio.
               </div>
             </div>
 
-            {/* Legal Certificate Card */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ background: '#fff', borderRadius: 24, padding: 24, border: '1.5px solid #bbf7d0', boxShadow: '0 8px 24px rgba(22, 163, 74, 0.08)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 14, background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <ShieldCheck className="w-6 h-6" />
+            {/* Certificate Card and Ingredients */}
+            <div className="qb-cert">
+              <div className="qb-cert-card">
+                <span className="vid-live-pill" style={{ background: 'rgba(255, 255, 255, 0.15)', color: '#fff', borderColor: 'rgba(255, 255, 255, 0.25)' }}>
+                  Certificación Sanitaria
+                </span>
+                <div className="qb-cert-code">RSA-4113-2025</div>
+
+                <div className="qb-cert-rows">
+                  <div>
+                    <span>Tipo:</span>
+                    <b>Alimento a base de gelatina con relleno líquido</b>
                   </div>
                   <div>
-                    <span style={{ fontSize: 11, fontWeight: 800, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Certificación Sanitaria</span>
-                    <h4 style={{ margin: 0, fontSize: 16, fontWeight: 900, color: '#0F172A' }}>Autorización Invima Oficial</h4>
+                    <span>Fabricante:</span>
+                    <b>ALIMENTOS MYC</b>
+                  </div>
+                  <div>
+                    <span>Ubicación:</span>
+                    <b>Vereda Ucata Granja El Paraíso, Tona, Santander</b>
+                  </div>
+                  <div>
+                    <span>Distribución:</span>
+                    <b>Exclusivo para THERMIX</b>
+                  </div>
+                  <div>
+                    <span>Código de Barras:</span>
+                    <b>7709026096235</b>
                   </div>
                 </div>
-
-                <div style={{ background: '#f8fafc', borderRadius: 14, padding: '12px 16px', border: '1px solid var(--line)', fontSize: 13, lineHeight: 1.6, marginBottom: 14 }}>
-                  <div>Registro Sanitario: <strong style={{ color: '#059669' }}>RSA-4113-2025</strong></div>
-                  <div>Fabricado por: <strong>ALIMENTOS MYC</strong></div>
-                  <div>Ubicación: <strong>Vereda Ucata Granja el Paraíso, Tona, Santander</strong></div>
-                  <div>Distribución: <strong>Para THERMIX</strong></div>
-                  <div>Código de Barras: <strong>7709026096235</strong></div>
-                </div>
-
-                <p style={{ margin: 0, fontSize: 12, color: '#475569', lineHeight: 1.5 }}>
-                  Producto 100% legal y certificado para su comercialización en Colombia.
-                </p>
               </div>
 
-              {/* Complete Ingredients List */}
-              <div style={{ background: '#fff', borderRadius: 24, padding: 22, border: '1.5px solid var(--line)' }}>
-                <h4 style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 800, textTransform: 'uppercase', color: '#0F172A' }}>
-                  Ingredientes Declarados en Etiqueta:
-                </h4>
-                <p style={{ margin: 0, fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
-                  Gelatina polvo, Vinagre de cidra de Manzana, Alcachofa, Berenjena, Spirulina, Té verde, 
-                  Glucomanano, Aceite de Girasol, Agua, Sorbato de potasio, Picolinato de Cromo.
-                </p>
+              {/* Complete Declared Ingredients */}
+              <div className="qb-ingr">
+                <h4>Ingredientes Declarados en Etiqueta Oficial:</h4>
+                <div className="qb-ingr-tags">
+                  <span className="key">Gelatina polvo</span>
+                  <span className="key">Vinagre de cidra de Manzana</span>
+                  <span className="key">Té verde (EGCG)</span>
+                  <span className="key">Glucomanano</span>
+                  <span>Alcachofa</span>
+                  <span>Berenjena</span>
+                  <span>Spirulina</span>
+                  <span>Picolinato de Cromo</span>
+                  <span>Aceite de Girasol</span>
+                  <span>Agua</span>
+                  <span>Sorbato de potasio</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Pricing / Packages */}
+      {/* =====================================================================
+          SECTION 8: PRECIOS & PAQUETES COMERCIALES
+          ===================================================================== */}
       <section id="precios" className="band" style={{ paddingTop: 20 }}>
         <div className="wrap">
           <div className="band-head">
             <div className="eyebrow">
-              <span className="dot" style={{ background: '#10b981' }} />
+              <span className="dot" />
               <span>OFERTAS DE LANZAMIENTO</span>
             </div>
             <h2 className="display">
@@ -949,244 +1320,292 @@ export default function QuibiPage() {
           </div>
 
           <div className="price" style={{ maxWidth: 1060, margin: '0 auto' }}>
-            {PACKAGES.map((pkg) => (
-              <div 
-                key={pkg.id} 
-                className={`pcard ${pkg.featured ? 'feat' : ''} ${selectedPackage === pkg.id ? 'ring-2 ring-emerald-500' : ''}`}
-                onClick={() => setSelectedPackage(pkg.id)}
-                style={{ cursor: 'pointer' }}
-              >
-                {pkg.badge && (
-                  <span className="ptag" style={{ background: pkg.featured ? 'var(--lime)' : '#e2e8f0', color: 'var(--ink)' }}>
-                    {pkg.badge}
-                  </span>
-                )}
-
-                <h3 className="pname">{pkg.title}</h3>
-                <p className="pdesc">{pkg.quantity} · {pkg.duration}</p>
-
-                <div className="pnum" style={{ margin: '18px 0 14px' }}>
-                  <span style={{ fontSize: 34, fontWeight: 900 }}>{pkg.price}</span>
-                  <span style={{ fontSize: 13, color: '#94a3b8', textDecoration: 'line-through', marginLeft: 8 }}>{pkg.originalPrice}</span>
-                  <div style={{ marginTop: 4 }}>
-                    <span style={{ fontSize: 11, fontWeight: 800, color: '#16a34a', background: '#dcfce7', padding: '2px 8px', borderRadius: 6 }}>
-                      {pkg.discount}
-                    </span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginLeft: 8 }}>
-                      {pkg.shipping}
-                    </span>
-                  </div>
-                </div>
-
-                <ul className="pfeats" style={{ flexGrow: 1, marginBottom: 24 }}>
-                  {pkg.perks.map((perk, pidx) => (
-                    <li key={pidx} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: '#334155', marginBottom: 10 }}>
-                      <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                      <span>{perk}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <button
-                  type="button"
-                  className={pkg.featured ? 'btn btn-primary' : 'btn btn-glass'}
-                  style={{ width: '100%', justifyContent: 'center' }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedPackage(pkg.id);
-                    scrollToSection(null, 'formulario-pedido');
-                  }}
+            {PACKAGES.map((pkg) => {
+              const isSelected = selectedPackage === pkg.id;
+              return (
+                <div 
+                  key={pkg.id} 
+                  className={`pcard qb-pcard ${pkg.featured ? 'feat feat-plan' : ''} ${isSelected ? 'qb-selected' : ''}`}
+                  onClick={() => setSelectedPackage(pkg.id)}
                 >
-                  <ShoppingBag className="w-4 h-4" />
-                  <span>Seleccionar {pkg.title}</span>
-                </button>
-              </div>
-            ))}
+                  {pkg.badge && (
+                    <span className="ptag pbadge">
+                      {pkg.badge}
+                    </span>
+                  )}
+
+                  <h3 className="pname">{pkg.title}</h3>
+                  <div className="qb-pqty">{pkg.quantity} · {pkg.duration}</div>
+
+                  <div className="pnum" style={{ margin: '18px 0 14px' }}>
+                    <div className="qb-pold">
+                      <s>{pkg.originalPrice}</s>
+                      <em>{pkg.discount}</em>
+                    </div>
+                    <span style={{ fontSize: 36, fontWeight: 900 }}>{pkg.price}</span>
+                    <div className="ptrial" style={{ marginTop: 6, fontSize: 12.5, fontWeight: 700 }}>
+                      {pkg.shipping}
+                    </div>
+                  </div>
+
+                  <ul className="pfeats" style={{ flexGrow: 1, marginBottom: 24 }}>
+                    {pkg.perks.map((perk, pidx) => (
+                      <li key={pidx} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13, marginBottom: 10 }}>
+                        <span className="pck" style={{ width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+                          <Check className="w-3.5 h-3.5" />
+                        </span>
+                        <span>{perk}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <button
+                    type="button"
+                    className={pkg.featured ? 'btn btn-lime' : 'btn btn-glass'}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedPackage(pkg.id);
+                      scrollToSection(null, 'formulario-pedido');
+                    }}
+                  >
+                    <ShoppingBag className="w-4 h-4" />
+                    <span>Seleccionar {pkg.title}</span>
+                  </button>
+                </div>
+              );
+            })}
           </div>
 
           {/* Quick Order Form Box */}
-          <div id="formulario-pedido" style={{ maxWidth: 760, margin: '48px auto 0', background: '#fff', borderRadius: 28, padding: 32, border: '1.5px solid var(--line)', boxShadow: '0 12px 36px rgba(20, 40, 80, 0.08)' }}>
-            <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <span style={{ fontSize: 11, fontWeight: 800, color: '#16a34a', background: '#dcfce7', padding: '4px 12px', borderRadius: 9999, textTransform: 'uppercase' }}>
-                🚚 PAGO CONTRA ENTREGA EN TODA COLOMBIA
+          <div id="formulario-pedido" className="qb-order" style={{ maxWidth: 940, margin: '48px auto 0' }}>
+            {/* Form Left Side: Package summary */}
+            <div className="qb-order-side">
+              <span className="vid-live-pill" style={{ background: 'rgba(255, 255, 255, 0.15)', color: '#fff', borderColor: 'rgba(255, 255, 255, 0.25)', alignSelf: 'flex-start' }}>
+                🚚 PAGO CONTRA ENTREGA
               </span>
-              <h3 style={{ margin: '10px 0 4px', fontSize: 22, fontWeight: 900, color: '#0F172A' }}>
-                Formulario de Despacho Rápido
-              </h3>
-              <p style={{ margin: 0, fontSize: 13, color: '#64748B' }}>
-                Ingresa tus datos y coordinaremos el despacho inmediato a tu dirección vía WhatsApp.
-              </p>
+
+              <h3>Despacho Inmediato a tu Dirección</h3>
+
+              <div className="qb-order-sum">
+                <small>Paquete Seleccionado:</small>
+                <b>{PACKAGES.find((p) => p.id === selectedPackage)?.title}</b>
+                <span style={{ fontSize: 12, opacity: 0.85 }}>{PACKAGES.find((p) => p.id === selectedPackage)?.quantity}</span>
+                <span className="price">{PACKAGES.find((p) => p.id === selectedPackage)?.price}</span>
+              </div>
+
+              <ul className="qb-order-perks">
+                <li>
+                  <span>✓</span>
+                  <div>Pagas en efectivo al recibir el paquete</div>
+                </li>
+                <li>
+                  <span>✓</span>
+                  <div>Envío asegurado por transportadora aliada</div>
+                </li>
+                <li>
+                  <span>✓</span>
+                  <div>Confirmación de guía vía WhatsApp</div>
+                </li>
+              </ul>
             </div>
 
-            {isOrderSubmitted ? (
-              <div style={{ background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: 20, padding: 24, textAlign: 'center' }}>
-                <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#16a34a', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                  <Check className="w-6 h-6" />
+            {/* Form Right Side: Inputs */}
+            <div className="qb-order-form">
+              {isOrderSubmitted ? (
+                <div className="qb-ok">
+                  <div className="qb-ok-ico">
+                    <Check className="w-8 h-8 text-white" />
+                  </div>
+                  <h4>¡Pedido Generado Exitosamente!</h4>
+                  <p>
+                    Se ha enviado tu orden hacia la línea oficial de despacho de THERMIX en WhatsApp.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn btn-lime"
+                    onClick={() => handleWhatsAppContact()}
+                    style={{ width: '100%', justifyContent: 'center' }}
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    Abrir WhatsApp para Confirmar Despacho
+                  </button>
                 </div>
-                <h4 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 900, color: '#14532d' }}>¡Pedido Registrado con Éxito!</h4>
-                <p style={{ margin: '0 0 16px', fontSize: 13, color: '#166534' }}>
-                  Se ha generado tu orden hacia la línea oficial de despacho de THERMIX en WhatsApp.
-                </p>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => handleWhatsAppContact()}
-                  style={{ display: 'inline-flex' }}
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  Abrir WhatsApp para Validar Envío
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleOrderSubmit}>
-                <div style={{ padding: '12px 16px', borderRadius: 14, background: '#f8fafc', border: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-                  <div>
-                    <span style={{ fontSize: 10, fontWeight: 800, color: '#64748B', textTransform: 'uppercase' }}>Paquete:</span>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: '#0F172A' }}>
-                      {PACKAGES.find((p) => p.id === selectedPackage)?.title} ({PACKAGES.find((p) => p.id === selectedPackage)?.quantity})
+              ) : (
+                <form onSubmit={handleOrderSubmit}>
+                  {/* Package Quick Switch Buttons */}
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 8, color: 'var(--muted)' }}>
+                    CAMBIAR PAQUETE:
+                  </label>
+                  <div className="qb-pkg-switch">
+                    {PACKAGES.map((pkg) => (
+                      <button
+                        key={pkg.id}
+                        type="button"
+                        className={selectedPackage === pkg.id ? 'on' : ''}
+                        onClick={() => setSelectedPackage(pkg.id)}
+                      >
+                        {pkg.title}
+                        <small>{pkg.price}</small>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="qb-fields">
+                    <div className="qb-field">
+                      <label>Nombre y Apellido *</label>
+                      <input
+                        type="text"
+                        placeholder="Ej. Carolina Montoya"
+                        value={clientName}
+                        onChange={(e) => setClientName(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="qb-field">
+                      <label>Teléfono / WhatsApp *</label>
+                      <input
+                        type="tel"
+                        placeholder="Ej. 310 123 4567"
+                        value={clientPhone}
+                        onChange={(e) => setClientPhone(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="qb-field">
+                      <label>Ciudad y Departamento *</label>
+                      <input
+                        type="text"
+                        placeholder="Ej. Medellín, Antioquia"
+                        value={clientCity}
+                        onChange={(e) => setClientCity(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="qb-field">
+                      <label>Dirección de Entrega *</label>
+                      <input
+                        type="text"
+                        placeholder="Ej. Calle 10 # 45-20 Apto 301"
+                        value={clientAddress}
+                        onChange={(e) => setClientAddress(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="qb-field full">
+                      <label>Método de Pago</label>
+                      <select
+                        value={clientPaymentMethod}
+                        onChange={(e) => setClientPaymentMethod(e.target.value)}
+                      >
+                        <option value="Contra Entrega (Efectivo al recibir)">
+                          💵 Contra Entrega (Pagas en efectivo al recibir en tu puerta)
+                        </option>
+                        <option value="Transferencia Bancolombia / Nequi anticipada">
+                          📱 Transferencia Bancolombia / Nequi antes del envío
+                        </option>
+                      </select>
                     </div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <span style={{ fontSize: 18, fontWeight: 900, color: '#0F172A' }}>
-                      {PACKAGES.find((p) => p.id === selectedPackage)?.price}
-                    </span>
-                    <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#16a34a' }}>
-                      {PACKAGES.find((p) => p.id === selectedPackage)?.shipping}
-                    </span>
-                  </div>
-                </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 4 }}>Nombre y Apellido *</label>
-                    <input
-                      type="text"
-                      style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--line)', background: '#f8fafc', fontSize: 13 }}
-                      placeholder="Ej. Laura Gómez"
-                      value={clientName}
-                      onChange={(e) => setClientName(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 4 }}>Teléfono / WhatsApp *</label>
-                    <input
-                      type="tel"
-                      style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--line)', background: '#f8fafc', fontSize: 13 }}
-                      placeholder="Ej. 310 123 4567"
-                      value={clientPhone}
-                      onChange={(e) => setClientPhone(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 4 }}>Ciudad y Departamento *</label>
-                    <input
-                      type="text"
-                      style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--line)', background: '#f8fafc', fontSize: 13 }}
-                      placeholder="Ej. Medellín, Antioquia"
-                      value={clientCity}
-                      onChange={(e) => setClientCity(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 4 }}>Dirección Completa *</label>
-                    <input
-                      type="text"
-                      style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--line)', background: '#f8fafc', fontSize: 13 }}
-                      placeholder="Ej. Calle 10 # 45-20 Apto 301"
-                      value={clientAddress}
-                      onChange={(e) => setClientAddress(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div style={{ marginTop: 14 }}>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 4 }}>Método de Pago</label>
-                  <select
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--line)', background: '#f8fafc', fontSize: 13 }}
-                    value={clientPaymentMethod}
-                    onChange={(e) => setClientPaymentMethod(e.target.value)}
+                  <button
+                    type="submit"
+                    className="btn btn-lime"
+                    style={{ width: '100%', justifyContent: 'center', marginTop: 20, padding: 14, fontSize: 15 }}
                   >
-                    <option value="Contra Entrega (Efectivo al recibir)">
-                      💵 Contra Entrega (Pagas en efectivo al mensajero al recibir)
-                    </option>
-                    <option value="Transferencia Bancolombia / Nequi anticipada">
-                      📱 Transferencia Bancolombia / Nequi antes del envío
-                    </option>
-                  </select>
-                </div>
+                    <ShoppingBag className="w-5 h-5" />
+                    <span>Confirmar Pedido y Despachar por WhatsApp</span>
+                  </button>
 
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  style={{ width: '100%', justifyContent: 'center', marginTop: 18, padding: 14, fontSize: 15 }}
-                >
-                  <ShoppingBag className="w-5 h-5" />
-                  <span>Confirmar Pedido y Despachar por WhatsApp</span>
-                </button>
-              </form>
-            )}
+                  <p className="qb-form-note">
+                    🔒 Tus datos están protegidos. No solicitamos tarjetas de crédito en la página.
+                  </p>
+                </form>
+              )}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* FAQ Section */}
-      <section id="faq" className="faq" style={{ paddingTop: 30 }}>
+      {/* =====================================================================
+          SECTION 9: PREGUNTAS FRECUENTES (FAQ)
+          ===================================================================== */}
+      <section id="faq" className="band" style={{ paddingTop: 30 }}>
         <div className="wrap">
-          <div className="faq-head">
+          <div className="band-head">
             <div className="eyebrow">
-              <span className="dot" style={{ background: '#10b981' }} />
+              <span className="dot" />
               <span>RESOLVEMOS TUS DUDAS</span>
             </div>
-            <h2 className="display">Preguntas Frecuentes</h2>
+            <h2 className="display">Preguntas Frecuentes sobre QUIBI</h2>
+            <p>
+              Todo lo que necesitas saber sobre las cápsulas con relleno líquido, registro Invima, modo de uso y despacho contra entrega.
+            </p>
           </div>
 
-          <div className="faq-list">
+          <div className="faq">
             {FAQS.map((faq, idx) => (
-              <div key={idx} className={`item ${openFaq === idx ? 'open' : ''}`}>
+              <div key={idx} className={`qa ${openFaq === idx ? 'open' : ''}`}>
                 <button
                   type="button"
-                  className="q"
                   onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
+                  aria-expanded={openFaq === idx}
                 >
-                  <span>{faq.q}</span>
-                  <span className="q-ico">{openFaq === idx ? '−' : '+'}</span>
+                  {faq.q}
+                  <span className="q-ico">+</span>
                 </button>
-                {openFaq === idx && (
-                  <div className="a">
-                    <p>{faq.a}</p>
-                  </div>
-                )}
+                <div className="a">
+                  <p>{faq.a}</p>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Lightbox Modal for Real Photos */}
+      {/* =====================================================================
+          LIGHTBOX MODAL FOR REAL PRODUCT PHOTOS
+          ===================================================================== */}
       {lightboxImg && (
-        <div className="qb-lightbox-backdrop" onClick={() => setLightboxImg(null)}>
-          <div className="qb-lightbox-content" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className="qb-lightbox-close"
-              onClick={() => setLightboxImg(null)}
-              aria-label="Cerrar imagen"
-            >
-              ✕
-            </button>
-            <img src={lightboxImg} alt="Detalle del producto original Quibi" />
-          </div>
+        <div className="qb-lightbox" onClick={() => setLightboxImg(null)}>
+          <button
+            type="button"
+            onClick={() => setLightboxImg(null)}
+            aria-label="Cerrar imagen"
+          >
+            ✕
+          </button>
+          <img 
+            src={lightboxImg} 
+            alt="Detalle oficial del producto real Quibi" 
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
 
-      {/* Footer: EXACT WAPPY Footer Structure from Screenshot 1 */}
+      {/* =====================================================================
+          STICKY MOBILE BAR (Fixed conversion bar on phones)
+          ===================================================================== */}
+      <div className="qb-sticky">
+        <div>
+          <b>QUIBI (QB) · Pago Contra Entrega</b>
+          <small>Desde $79.900 · 60 Cápsulas</small>
+        </div>
+        <button
+          type="button"
+          className="btn btn-lime btn-sm"
+          onClick={() => scrollToSection(null, 'precios')}
+        >
+          Pedir Ahora
+        </button>
+      </div>
+
+      {/* =====================================================================
+          FOOTER: EXACT WAPPY FOOTER STRUCTURE FROM SCREENSHOT 1
+          ===================================================================== */}
       <footer>
         <div className="fcloud" style={{ top: 40, left: -50, width: 280, height: 110 }} />
         <div className="fcloud" style={{ top: 120, right: -40, width: 240, height: 100 }} />
@@ -1194,36 +1613,22 @@ export default function QuibiPage() {
         <div className="wrap">
           <div className="foot-cta">
             <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 12 }}>
-              <div
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 14,
-                  background: 'linear-gradient(135deg, #4a102f 0%, #2f071d 100%)',
-                  color: '#ffffff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 900,
-                  fontSize: 20,
-                  boxShadow: '0 4px 14px rgba(74, 16, 47, 0.3)',
-                }}
-              >
+              <div className="qb-logo-badge lg">
                 QB
               </div>
-              <span style={{ fontFamily: 'var(--display)', fontSize: 28, fontWeight: 800, color: 'var(--ink)' }}>
-                QUIBI<span style={{ color: '#16a34a' }}>.co</span>
+              <span style={{ fontFamily: 'var(--display)', fontSize: 30, fontWeight: 800, color: 'var(--ink)' }}>
+                QUIBI<span style={{ color: 'var(--qb-pink)' }}>.co</span>
               </span>
             </div>
             <h3 className="display">Tu bienestar metabólico y digestivo empieza hoy.</h3>
             <p>
               Ordena hoy tus cápsulas originales de vinagre de manzana con relleno líquido. Cobertura nacional con pago contra entrega en toda Colombia.
             </p>
-            <div className="hero-cta" style={{ marginTop: 22, display: 'flex', justifyContent: 'center', gap: 12 }}>
-              <button className="btn btn-primary" onClick={() => scrollToSection(null, 'precios')}>
+            <div className="hero-cta" style={{ marginTop: 22, display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <button className="btn btn-lime" onClick={() => scrollToSection(null, 'precios')}>
                 Pedir con Descuento
                 <span className="pip">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="5" y1="12" x2="19" y2="12" />
                     <polyline points="12 5 19 12 12 19" />
                   </svg>
@@ -1235,6 +1640,7 @@ export default function QuibiPage() {
                 rel="noopener noreferrer"
                 className="btn btn-glass"
               >
+                <MessageCircle className="w-4 h-4" />
                 Pedir por WhatsApp (305 4656064)
               </a>
             </div>
@@ -1243,28 +1649,15 @@ export default function QuibiPage() {
           <div className="foot-top">
             <div className="foot-brand">
               <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 12 }}>
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
-                    background: 'linear-gradient(135deg, #4a102f 0%, #2f071d 100%)',
-                    color: '#ffffff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 900,
-                    fontSize: 16,
-                  }}
-                >
+                <div className="qb-logo-badge">
                   QB
                 </div>
                 <span style={{ fontFamily: 'var(--display)', fontSize: 24, fontWeight: 800, color: 'var(--ink)' }}>
-                  QUIBI<span style={{ color: '#16a34a' }}>.co</span>
+                  QUIBI<span style={{ color: 'var(--qb-pink)' }}>.co</span>
                 </span>
               </div>
               <p className="foot-desc">
-                Alimento a base de gelatina con relleno líquido con vinagre de manzana y té verde. Formulado con Glucomanano, Alcachofa, Berenjena, Spirulina y Picolinato de Cromo. Registro Invima RSA-4113-2025. Fabricado por ALIMENTOS MYC para THERMIX.
+                Alimento a base de gelatina con relleno líquido con vinagre de manzana y té verde. Formulado con Glucomanano, Alcachofa, Berenjena, Spirulina y Picolinato de Cromo. Registro Invima RSA-4113-2025. Fabricado por ALIMENTOS MYC (Tona, Santander) para THERMIX.
               </p>
             </div>
           </div>
@@ -1277,7 +1670,7 @@ export default function QuibiPage() {
             <div className="foot-legal">
               <a href="#precios">Precios</a>
               <a href="#nutricion">Invima RSA-4113-2025</a>
-              <a href="#faq">Preguntas</a>
+              <a href="#faq">Preguntas Frecuentes</a>
             </div>
           </div>
         </div>
