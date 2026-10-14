@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthContext } from '~/hooks/AuthContext';
 
 interface VoiceMessage {
-    type: 'audio' | 'text' | 'status' | 'error' | 'interrupted' | 'conversationId' | 'conversationUpdated' | 'report' | 'wappy_action';
+    type: 'audio' | 'text' | 'status' | 'error' | 'interrupted' | 'conversationId' | 'conversationUpdated' | 'report' | 'wappy_action' | 'agent_switched';
     data: any;
 }
 
@@ -11,6 +11,7 @@ interface UseVoiceSessionOptions {
     onTextReceived?: (text: string, isUserTranscription?: boolean) => void;
     onReportReceived?: (html: string, messageId?: string, evaluatedFrames?: string[]) => void;
     onWappyAction?: (action: { id: string; name: string; args: any }) => void;
+    onAgentSwitched?: (data: { agentName: string; agentId: string; isBiomechanics: boolean; isFisioMode: boolean; conversationId?: string; badge?: string }) => void;
     onStatusChange?: (status: string) => void;
     onError?: (error: string) => void;
     conversationId?: string;
@@ -736,6 +737,9 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 } else {
                     console.warn('[VoiceSession] No onConversationUpdated callback defined');
                 }
+            case 'agent_switched':
+                console.log('[VoiceSession] Agent switched event received:', message.data);
+                optionsRef.current.onAgentSwitched?.(message.data);
                 break;
         }
     }, []);

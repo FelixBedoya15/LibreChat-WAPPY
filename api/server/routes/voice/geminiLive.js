@@ -345,6 +345,11 @@ ${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.c
      * @param {string} base64Image - Base64 encoded JPEG image
      */
     sendVideo(base64Image) {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.setupCompleted) {
+            return;
+        }
+        if (!base64Image) return;
+
         const message = {
             realtimeInput: {
                 video: {

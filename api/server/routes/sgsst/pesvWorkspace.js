@@ -52,7 +52,7 @@ router.get('/official', requireJwtAuth, async (req, res) => {
         'matrixRows.0': { $exists: true },
       }).sort({ updatedAt: -1 });
     }
-    if (!session) {
+    if (!session && !companyId) {
       session = await PESVWorkspaceSession.findOne({
         user: userId,
         'matrixRows.0': { $exists: true },
@@ -239,8 +239,13 @@ router.get('/list-user-matrices', requireJwtAuth, async (req, res) => {
     const tempId = `temp-${userId}`;
     const officialConvoId = `official-pesv-${companyId || userId}`;
 
+    const companyFilter = companyId
+      ? { companyId }
+      : { $or: [{ companyId: null }, { companyId: { $exists: false } }] };
+
     const sessions = await PESVWorkspaceSession.find({
       user: userId,
+      ...companyFilter,
       conversationId: { $ne: tempId },
       'matrixRows.0': { $exists: true },
     }).sort({ updatedAt: -1 }).lean();

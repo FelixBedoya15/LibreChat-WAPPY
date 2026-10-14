@@ -445,15 +445,17 @@ router.get('/hub-data', requireJwtAuth, async (req, res) => {
         const PerfilCargoModel = getPerfilCargoDataModel();
         const PerfilSocioModel = getPerfilSociodemograficoDataModel();
 
-        // 1. Fetch cargo profiles and sociodemographic data with defensive fallbacks
+        // 1. Fetch cargo profiles and sociodemographic data with strict company isolation
         const [cargoDoc, socioDoc] = await Promise.all([
             PerfilCargoModel
-                ? (await PerfilCargoModel.findOne(companyId ? { user: req.user.id, companyId } : { user: req.user.id }).lean()
-                    || await PerfilCargoModel.findOne({ user: req.user.id }).lean())
+                ? (companyId
+                    ? await PerfilCargoModel.findOne({ user: req.user.id, companyId }).lean()
+                    : await PerfilCargoModel.findOne({ user: req.user.id, $or: [{ companyId: null }, { companyId: { $exists: false } }] }).lean())
                 : null,
             PerfilSocioModel
-                ? (await PerfilSocioModel.findOne(companyId ? { user: req.user.id, companyId } : { user: req.user.id }).lean()
-                    || await PerfilSocioModel.findOne({ user: req.user.id }).lean())
+                ? (companyId
+                    ? await PerfilSocioModel.findOne({ user: req.user.id, companyId }).lean()
+                    : await PerfilSocioModel.findOne({ user: req.user.id, $or: [{ companyId: null }, { companyId: { $exists: false } }] }).lean())
                 : null,
         ]);
 
@@ -462,11 +464,11 @@ router.get('/hub-data', requireJwtAuth, async (req, res) => {
             ? socioDoc.trabajadores
             : (Array.isArray(socioDoc?.perfiles) ? socioDoc.perfiles : []);
 
-        // 2. Fetch existing workers (matching companyId or fallback to user)
+        // 2. Fetch existing workers strictly matching current company
         let workers = await SgsstWorker.find(
             companyId
-                ? { user: req.user.id, $or: [{ companyId }, { companyId: null }, { companyId: { $exists: false } }] }
-                : { user: req.user.id }
+                ? { user: req.user.id, companyId }
+                : { user: req.user.id, $or: [{ companyId: null }, { companyId: { $exists: false } }] }
         ).lean();
 
         // 3. Fast auto-provision: if workers in sociodemographic do not yet exist in SgsstWorker
@@ -563,35 +565,36 @@ router.get('/worker/:id', requireJwtAuth, async (req, res) => {
         const companyId = await getActiveCompanyId(req.user.id);
 
         let query = {};
-        if (mongoose.Types.ObjectId.isValid(idParam)) {
-            query = { _id: idParam, user: req.user.id };
+        if (companyId) {
+            query = mongoose.Types.ObjectId.isValid(idParam)
+                ? { _id: idParam, companyId }
+                : { documento: idParam, companyId };
         } else {
-            query = { documento: idParam, user: req.user.id };
+            query = mongoose.Types.ObjectId.isValid(idParam)
+                ? { _id: idParam, user: req.user.id, $or: [{ companyId: null }, { companyId: { $exists: false } }] }
+                : { documento: idParam, user: req.user.id, $or: [{ companyId: null }, { companyId: { $exists: false } }] };
         }
 
         let worker = await SgsstWorker.findOne(query);
 
-        // Fallback 1: Buscar por documento si no se encontró por _id
+        // Fallback 1: Buscar por documento si no se encontró por _id dentro de la misma empresa
         if (!worker) {
-            worker = await SgsstWorker.findOne({ documento: idParam, user: req.user.id });
+            worker = await SgsstWorker.findOne(
+                companyId
+                    ? { documento: idParam, companyId }
+                    : { documento: idParam, user: req.user.id, $or: [{ companyId: null }, { companyId: { $exists: false } }] }
+            );
         }
 
-        // Fallback 2: Buscar con companyId
-        if (!worker && companyId) {
-            if (mongoose.Types.ObjectId.isValid(idParam)) {
-                worker = await SgsstWorker.findOne({ _id: idParam, companyId });
-            }
-            if (!worker) {
-                worker = await SgsstWorker.findOne({ documento: idParam, companyId });
-            }
-        }
-
-        // Fallback 3: Auto-crear si existe en PerfilSociodemograficoData
+        // Fallback 2: Auto-crear si existe en PerfilSociodemograficoData de la empresa activa
         if (!worker) {
             const PerfilSocioModel = getPerfilSociodemograficoDataModel();
             if (PerfilSocioModel) {
-                const socioDoc = await PerfilSocioModel.findOne({ user: req.user.id, companyId })
-                    || await PerfilSocioModel.findOne({ user: req.user.id });
+                const socioDoc = await PerfilSocioModel.findOne(
+                    companyId
+                        ? { user: req.user.id, companyId }
+                        : { user: req.user.id, $or: [{ companyId: null }, { companyId: { $exists: false } }] }
+                );
                 const socioWorkers = socioDoc?.trabajadores || socioDoc?.perfiles || [];
                 const matchedSocio = socioWorkers.find(t => 
                     String(t._id || '') === idParam ||
@@ -1674,7 +1677,10 @@ router.post('/worker/:id/generate-risks', requireJwtAuth, async (req, res) => {
                 return mongoose.models.PerfilCargoData;
             };
             const PerfilCargoData = getPerfilCargoDataModel();
-            const cargoDoc = await PerfilCargoData.findOne({ user: req.user.id });
+            const cargoFilter = worker.companyId
+                ? { companyId: worker.companyId }
+                : { user: req.user.id, $or: [{ companyId: null }, { companyId: { $exists: false } }] };
+            const cargoDoc = await PerfilCargoData.findOne(cargoFilter);
             if (cargoDoc && cargoDoc.perfilesList) {
                 const perfil = cargoDoc.perfilesList.find(p => p.id === worker.perfilId);
                 if (perfil) {

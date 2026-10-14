@@ -158,7 +158,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({
   const [conversationId, setConversationId] = useState('new');
   const [reportMessageId, setReportMessageId] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const AUDIT_STORAGE_KEY = storageKey;
+  const AUDIT_STORAGE_KEY = `${storageKey}_${typeof window !== 'undefined' ? (localStorage.getItem('wappy_active_company_id') || 'default') : 'default'}`;
   const refreshData = useCallback(() => setRefreshTrigger((prev) => prev + 1), []);
 
   // Auto-compliance scan state

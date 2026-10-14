@@ -136,7 +136,7 @@ async function getFullSSTContext(userId, companyId) {
                     conversationId: `official-${companyId || userId}`
                 }).lean();
             }
-            if (!officialIpevarSession) {
+            if (!officialIpevarSession && !companyId) {
                 officialIpevarSession = await GTC45WorkspaceSession.findOne({
                     user: userId,
                     'matrixRows.0': { $exists: true }
@@ -595,7 +595,7 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                         conversationId: `official-${companyId || userId}`
                     }).lean();
                 }
-                if (!officialIpevarDoc) {
+                if (!officialIpevarDoc && !companyId) {
                     officialIpevarDoc = await GTC45WorkspaceSession.findOne({
                         user: userId,
                         'matrixRows.0': { $exists: true }

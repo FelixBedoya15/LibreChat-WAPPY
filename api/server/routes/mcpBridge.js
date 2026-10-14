@@ -150,6 +150,23 @@ async function getActiveCompany(userId) {
   return company;
 }
 
+// Helper para aislamiento multitenant estricto por empresa
+function companyScope(userId, companyId) {
+  if (companyId) {
+    const cIdStr = companyId.toString();
+    const cIdObj = mongoose.Types.ObjectId.isValid(cIdStr) ? new mongoose.Types.ObjectId(cIdStr) : cIdStr;
+    const filter = { companyId: { $in: [cIdObj, cIdStr] } };
+    if (userId) {
+      filter.user = userId;
+    }
+    return filter;
+  }
+  return {
+    user: userId,
+    $or: [{ companyId: null }, { companyId: { $exists: false } }],
+  };
+}
+
 // Helper para sincronizar memoria de IA
 async function syncCompanyAiMemory(userId, companyData) {
   try {
@@ -743,23 +760,27 @@ router.get('/resumen-360', requireApiKeyOrJwt, async (req, res) => {
             return SgsstWorker.countDocuments({ user: userId, companyId }).catch(() => 0);
           })()
         : SgsstWorker.countDocuments({ user: userId }).catch(() => 0),
-      GTC45WorkspaceSession.findOne({
-        $or: [{ user: userId, isOfficial: true }, { companyId: companyId, isOfficial: true }],
-      }).lean().catch(() => null),
-      PESVWorkspaceSession.findOne({
-        $or: [{ user: userId, isOfficial: true }, { companyId: companyId, isOfficial: true }],
-      }).lean().catch(() => null),
-      KanbanTask.countDocuments({ user: userId, status: { $ne: 'done' } }).catch(() => 0),
-      DiagnosticoData.findOne({ $or: [{ companyId }, { user: userId }] }).lean().catch(() => null),
-      MatrizLegalData.findOne({ $or: [{ companyId }, { user: userId }] }).lean().catch(() => null),
-      SgsstCopasstComite.findOne({ $or: [{ companyId }, { user: userId }] }).lean().catch(() => null),
-      SgsstConvivenciaComite.findOne({ $or: [{ companyId }, { user: userId }] }).lean().catch(() => null),
-      SgsstBrigadista.countDocuments({ $or: [{ companyId }, { user: userId }] }).catch(() => 0),
-      SgsstChemicalData.findOne({ $or: [{ companyId }, { user: userId }] }).lean().catch(() => null),
-      SgsstVehicleData.countDocuments({ $or: [{ companyId }, { user: userId }] }).catch(() => 0),
-      InvestigacionAtelData.countDocuments({ $or: [{ companyId }, { user: userId }] }).catch(() => 0),
-      ReporteActosData.findOne({ $or: [{ companyId }, { user: userId }] }).lean().catch(() => null),
-      ProgramaCapacitacionesData.findOne({ $or: [{ companyId }, { user: userId }] }).lean().catch(() => null),
+      GTC45WorkspaceSession.findOne(
+        companyId
+          ? { $or: [{ conversationId: `official-${companyId}` }, { companyId, isOfficial: true }] }
+          : { $or: [{ conversationId: `official-${userId}` }, { user: userId, isOfficial: true }] }
+      ).lean().catch(() => null),
+      PESVWorkspaceSession.findOne(
+        companyId
+          ? { $or: [{ conversationId: `official-${companyId}` }, { companyId, isOfficial: true }] }
+          : { $or: [{ conversationId: `official-${userId}` }, { user: userId, isOfficial: true }] }
+      ).lean().catch(() => null),
+      KanbanTask.countDocuments({ user: userId, ...(companyId ? { companyId } : {}), status: { $ne: 'done' } }).catch(() => 0),
+      DiagnosticoData.findOne(companyScope(userId, companyId)).lean().catch(() => null),
+      MatrizLegalData.findOne(companyScope(userId, companyId)).lean().catch(() => null),
+      SgsstCopasstComite.findOne(companyScope(userId, companyId)).lean().catch(() => null),
+      SgsstConvivenciaComite.findOne(companyScope(userId, companyId)).lean().catch(() => null),
+      SgsstBrigadista.countDocuments(companyScope(userId, companyId)).catch(() => 0),
+      SgsstChemicalData.findOne(companyScope(userId, companyId)).lean().catch(() => null),
+      SgsstVehicleData.countDocuments(companyScope(userId, companyId)).catch(() => 0),
+      InvestigacionAtelData.countDocuments(companyScope(userId, companyId)).catch(() => 0),
+      ReporteActosData.findOne(companyScope(userId, companyId)).lean().catch(() => null),
+      ProgramaCapacitacionesData.findOne(companyScope(userId, companyId)).lean().catch(() => null),
       Automation.countDocuments({ user: userId }).catch(() => 0),
     ]);
 
@@ -841,13 +862,11 @@ router.get('/gtc45', requireApiKeyOrJwt, async (req, res) => {
     const companyId = company?._id?.toString();
     const officialConvoId = `official-${companyId || userId}`;
 
-    let session = await GTC45WorkspaceSession.findOne({
-      $or: [
-        { conversationId: officialConvoId },
-        { user: userId, isOfficial: true },
-        { companyId: companyId, isOfficial: true },
-      ],
-    }).lean();
+    let session = await GTC45WorkspaceSession.findOne(
+      companyId
+        ? { $or: [{ conversationId: officialConvoId }, { companyId, isOfficial: true }] }
+        : { $or: [{ conversationId: officialConvoId }, { user: userId, isOfficial: true }] }
+    ).lean();
 
     if (!session || !session.matrixRows || session.matrixRows.length === 0) {
       return res.json({
@@ -896,9 +915,11 @@ router.post('/gtc45', requireApiKeyOrJwt, async (req, res) => {
     const companyId = company?._id;
     const officialConvoId = `official-${companyId || userId}`;
 
-    let session = await GTC45WorkspaceSession.findOne({
-      $or: [{ conversationId: officialConvoId }, { user: userId, isOfficial: true }],
-    });
+    let session = await GTC45WorkspaceSession.findOne(
+      companyId
+        ? { $or: [{ conversationId: officialConvoId }, { companyId, isOfficial: true }] }
+        : { $or: [{ conversationId: officialConvoId }, { user: userId, isOfficial: true }] }
+    );
 
     if (!session) {
       session = new GTC45WorkspaceSession({
@@ -1000,9 +1021,11 @@ router.put('/gtc45/:id', requireApiKeyOrJwt, async (req, res) => {
     const companyId = company?._id?.toString();
     const officialConvoId = `official-${companyId || userId}`;
 
-    let session = await GTC45WorkspaceSession.findOne({
-      $or: [{ conversationId: officialConvoId }, { user: userId, isOfficial: true }, { companyId, isOfficial: true }],
-    });
+    let session = await GTC45WorkspaceSession.findOne(
+      companyId
+        ? { $or: [{ conversationId: officialConvoId }, { companyId, isOfficial: true }] }
+        : { $or: [{ conversationId: officialConvoId }, { user: userId, isOfficial: true }] }
+    );
 
     if (!session || !Array.isArray(session.matrixRows)) {
       return res.status(404).json({ error: 'Matriz GTC-45 no encontrada.' });
@@ -1037,9 +1060,11 @@ router.delete('/gtc45/:id', requireApiKeyOrJwt, async (req, res) => {
     const companyId = company?._id?.toString();
     const officialConvoId = `official-${companyId || userId}`;
 
-    let session = await GTC45WorkspaceSession.findOne({
-      $or: [{ conversationId: officialConvoId }, { user: userId, isOfficial: true }, { companyId, isOfficial: true }],
-    });
+    let session = await GTC45WorkspaceSession.findOne(
+      companyId
+        ? { $or: [{ conversationId: officialConvoId }, { companyId, isOfficial: true }] }
+        : { $or: [{ conversationId: officialConvoId }, { user: userId, isOfficial: true }] }
+    );
 
     if (!session || !Array.isArray(session.matrixRows)) {
       return res.status(404).json({ error: 'Matriz GTC-45 no encontrada.' });
@@ -1075,13 +1100,11 @@ router.get('/pesv', requireApiKeyOrJwt, async (req, res) => {
     const companyId = company?._id?.toString();
     const officialConvoId = `official-${companyId || userId}`;
 
-    let session = await PESVWorkspaceSession.findOne({
-      $or: [
-        { conversationId: officialConvoId },
-        { user: userId, isOfficial: true },
-        { companyId: companyId, isOfficial: true },
-      ],
-    }).lean();
+    let session = await PESVWorkspaceSession.findOne(
+      companyId
+        ? { $or: [{ conversationId: officialConvoId }, { companyId, isOfficial: true }] }
+        : { $or: [{ conversationId: officialConvoId }, { user: userId, isOfficial: true }] }
+    ).lean();
 
     if (!session || !session.matrixRows || session.matrixRows.length === 0) {
       return res.json({
@@ -1114,9 +1137,11 @@ router.post('/pesv', requireApiKeyOrJwt, async (req, res) => {
     const companyId = company?._id;
     const officialConvoId = `official-${companyId || userId}`;
 
-    let session = await PESVWorkspaceSession.findOne({
-      $or: [{ conversationId: officialConvoId }, { user: userId, isOfficial: true }],
-    });
+    let session = await PESVWorkspaceSession.findOne(
+      companyId
+        ? { $or: [{ conversationId: officialConvoId }, { companyId, isOfficial: true }] }
+        : { $or: [{ conversationId: officialConvoId }, { user: userId, isOfficial: true }] }
+    );
 
     if (!session) {
       session = new PESVWorkspaceSession({
@@ -1181,9 +1206,11 @@ router.put('/pesv/:id', requireApiKeyOrJwt, async (req, res) => {
     const companyId = company?._id?.toString();
     const officialConvoId = `official-${companyId || userId}`;
 
-    let session = await PESVWorkspaceSession.findOne({
-      $or: [{ conversationId: officialConvoId }, { user: userId, isOfficial: true }, { companyId, isOfficial: true }],
-    });
+    let session = await PESVWorkspaceSession.findOne(
+      companyId
+        ? { $or: [{ conversationId: officialConvoId }, { companyId, isOfficial: true }] }
+        : { $or: [{ conversationId: officialConvoId }, { user: userId, isOfficial: true }] }
+    );
 
     if (!session || !Array.isArray(session.matrixRows)) {
       return res.status(404).json({ error: 'Matriz PESV no encontrada.' });
@@ -1218,9 +1245,11 @@ router.delete('/pesv/:id', requireApiKeyOrJwt, async (req, res) => {
     const companyId = company?._id?.toString();
     const officialConvoId = `official-${companyId || userId}`;
 
-    let session = await PESVWorkspaceSession.findOne({
-      $or: [{ conversationId: officialConvoId }, { user: userId, isOfficial: true }, { companyId, isOfficial: true }],
-    });
+    let session = await PESVWorkspaceSession.findOne(
+      companyId
+        ? { $or: [{ conversationId: officialConvoId }, { companyId, isOfficial: true }] }
+        : { $or: [{ conversationId: officialConvoId }, { user: userId, isOfficial: true }] }
+    );
 
     if (!session || !Array.isArray(session.matrixRows)) {
       return res.status(404).json({ error: 'Matriz PESV no encontrada.' });
@@ -1522,7 +1551,7 @@ router.post('/workers', requireApiKeyOrJwt, async (req, res) => {
 
     // 2. Sincronizar en SgsstWorker para consistencia integral
     await SgsstWorker.findOneAndUpdate(
-      { user: userId, documento },
+      { documento, ...companyScope(userId, companyId) },
       {
         $set: {
           user: userId,
@@ -1571,9 +1600,7 @@ router.put('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
 
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
-    const socioDocs = await PerfilSociodemograficoData.find({
-      $or: [{ user: userId, companyId }, { user: userId }],
-    });
+    const socioDocs = await PerfilSociodemograficoData.find(companyScope(userId, companyId));
     let updatedWorker = null;
     let foundInSocio = false;
 
@@ -1670,7 +1697,7 @@ router.put('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
     const cleanDoc = updatedWorker?.identificacion || target;
     await SgsstWorker.updateMany(
       {
-        user: userId,
+        ...companyScope(userId, companyId),
         $or: [
           { perfilId: target },
           { documento: cleanDoc },
@@ -1729,9 +1756,7 @@ router.delete('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
 
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
-    const socioDocs = await PerfilSociodemograficoData.find({
-      $or: [{ user: userId, companyId }, { user: userId }],
-    });
+    const socioDocs = await PerfilSociodemograficoData.find(companyScope(userId, companyId));
     let removed = false;
     let workerName = '';
     let remainingCount = 0;
@@ -1759,7 +1784,7 @@ router.delete('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
     // Sincronizar eliminación en SgsstWorker
     const syncName = workerName || target;
     await SgsstWorker.deleteMany({
-      user: userId,
+      ...companyScope(userId, companyId),
       $or: [
         { perfilId: target },
         { documento: target },
@@ -1832,7 +1857,7 @@ router.post('/workers/:idOrCedula/retirar', requireApiKeyOrJwt, async (req, res)
     // Sincronizar en SgsstWorker si existe
     await SgsstWorker.updateMany(
       {
-        user: userId,
+        ...companyScope(userId, companyId),
         $or: [
           { perfilId: target },
           { documento: target },
@@ -1915,7 +1940,7 @@ router.post('/workers/:idOrCedula/reactivar', requireApiKeyOrJwt, async (req, re
 
     await SgsstWorker.updateMany(
       {
-        user: userId,
+        ...companyScope(userId, companyId),
         $or: [
           { perfilId: target },
           { documento: target },
@@ -1956,8 +1981,10 @@ router.post('/workers/:idOrCedula/reactivar', requireApiKeyOrJwt, async (req, re
 router.get('/tasks', requireApiKeyOrJwt, async (req, res) => {
   try {
     const userId = req.user.id;
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
     const { status } = req.query;
-    const filter = { user: userId };
+    const filter = { ...companyScope(userId, companyId) };
     if (status) filter.status = status;
 
     const tasks = await KanbanTask.find(filter).sort({ dueDate: 1 }).lean();
@@ -1983,6 +2010,8 @@ router.get('/tasks', requireApiKeyOrJwt, async (req, res) => {
 router.post('/tasks', requireApiKeyOrJwt, async (req, res) => {
   try {
     const userId = req.user.id;
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
     const { title, description, dueDate, type, priority } = req.body;
 
     if (!title || !dueDate) {
@@ -1991,6 +2020,7 @@ router.post('/tasks', requireApiKeyOrJwt, async (req, res) => {
 
     const task = new KanbanTask({
       user: userId,
+      companyId: companyId || undefined,
       title: title.trim(),
       description: (description || '').trim(),
       dueDate: new Date(dueDate),
@@ -2014,10 +2044,12 @@ router.post('/tasks', requireApiKeyOrJwt, async (req, res) => {
 router.patch('/tasks/:id', requireApiKeyOrJwt, async (req, res) => {
   try {
     const userId = req.user.id;
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
     const taskId = req.params.id;
     const { status, description, priority, dueDate } = req.body;
 
-    const task = await KanbanTask.findOne({ _id: taskId, user: userId });
+    const task = await KanbanTask.findOne({ _id: taskId, ...companyScope(userId, companyId) });
     if (!task) {
       return res.status(404).json({ error: 'Tarea no encontrada.' });
     }
@@ -2047,9 +2079,11 @@ router.patch('/tasks/:id', requireApiKeyOrJwt, async (req, res) => {
 router.delete('/tasks/:id', requireApiKeyOrJwt, async (req, res) => {
   try {
     const userId = req.user.id;
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
     const taskId = req.params.id;
 
-    const result = await KanbanTask.findOneAndDelete({ _id: taskId, user: userId });
+    const result = await KanbanTask.findOneAndDelete({ _id: taskId, ...companyScope(userId, companyId) });
     if (!result) {
       return res.status(404).json({ error: 'Tarea no encontrada.' });
     }
@@ -2072,7 +2106,7 @@ router.get('/matriz-legal', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    let doc = await MatrizLegalData.findOne({ $or: [{ companyId }, { user: userId }] }).lean();
+    let doc = await MatrizLegalData.findOne(companyScope(userId, companyId)).lean();
     if (!doc || !Array.isArray(doc.statuses) || doc.statuses.length === 0) {
       return res.json({
         totalNormas: 0,
@@ -2109,7 +2143,7 @@ router.post('/matriz-legal', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    let doc = await MatrizLegalData.findOne({ $or: [{ companyId }, { user: userId }] });
+    let doc = await MatrizLegalData.findOne(companyScope(userId, companyId));
     if (!doc) {
       doc = new MatrizLegalData({
         user: userId,
@@ -2155,7 +2189,7 @@ router.put('/matriz-legal/:id', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    let doc = await MatrizLegalData.findOne({ $or: [{ companyId }, { user: userId }] });
+    let doc = await MatrizLegalData.findOne(companyScope(userId, companyId));
     if (!doc || !Array.isArray(doc.statuses)) {
       return res.status(404).json({ error: 'Matriz legal no encontrada.' });
     }
@@ -2188,7 +2222,7 @@ router.delete('/matriz-legal/:id', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    let doc = await MatrizLegalData.findOne({ $or: [{ companyId }, { user: userId }] });
+    let doc = await MatrizLegalData.findOne(companyScope(userId, companyId));
     if (!doc || !Array.isArray(doc.statuses)) {
       return res.status(404).json({ error: 'Matriz legal no encontrada.' });
     }
@@ -2222,7 +2256,7 @@ router.get('/diagnostico-0312', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    let doc = await DiagnosticoData.findOne({ $or: [{ companyId }, { user: userId }] }).lean();
+    let doc = await DiagnosticoData.findOne(companyScope(userId, companyId)).lean();
     if (!doc) {
       return res.json({
         evaluado: false,
@@ -2261,7 +2295,7 @@ router.post('/diagnostico-0312', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    let doc = await DiagnosticoData.findOne({ $or: [{ companyId }, { user: userId }] });
+    let doc = await DiagnosticoData.findOne(companyScope(userId, companyId));
     if (!doc) {
       doc = new DiagnosticoData({
         user: userId,
@@ -2320,9 +2354,9 @@ router.get('/comites', requireApiKeyOrJwt, async (req, res) => {
     const companyId = company?._id;
 
     const [copasst, convivencia, brigadistas] = await Promise.all([
-      SgsstCopasstComite.findOne({ $or: [{ companyId }, { user: userId }] }).lean().catch(() => null),
-      SgsstConvivenciaComite.findOne({ $or: [{ companyId }, { user: userId }] }).lean().catch(() => null),
-      SgsstBrigadista.find({ $or: [{ companyId }, { user: userId }] }).lean().catch(() => []),
+      SgsstCopasstComite.findOne(companyScope(userId, companyId)).lean().catch(() => null),
+      SgsstConvivenciaComite.findOne(companyScope(userId, companyId)).lean().catch(() => null),
+      SgsstBrigadista.find(companyScope(userId, companyId)).lean().catch(() => []),
     ]);
 
     return res.json({
@@ -2373,7 +2407,7 @@ router.post('/comites', requireApiKeyOrJwt, async (req, res) => {
     const companyId = company?._id;
 
     if (tipoComite === 'brigada') {
-      let brig = await SgsstBrigadista.findOne({ companyId, cedula });
+      let brig = await SgsstBrigadista.findOne({ cedula, ...companyScope(userId, companyId) });
       if (brig) {
         brig.nombre = nombre;
         if (cargo) brig.cargo = cargo;
@@ -2398,7 +2432,7 @@ router.post('/comites', requireApiKeyOrJwt, async (req, res) => {
     }
 
     if (tipoComite === 'copasst') {
-      let doc = await SgsstCopasstComite.findOne({ $or: [{ companyId }, { user: userId }] });
+      let doc = await SgsstCopasstComite.findOne(companyScope(userId, companyId));
       if (!doc) {
         doc = new SgsstCopasstComite({
           companyId,
@@ -2420,7 +2454,7 @@ router.post('/comites', requireApiKeyOrJwt, async (req, res) => {
     }
 
     if (tipoComite === 'convivencia') {
-      let doc = await SgsstConvivenciaComite.findOne({ $or: [{ companyId }, { user: userId }] });
+      let doc = await SgsstConvivenciaComite.findOne(companyScope(userId, companyId));
       if (!doc) {
         doc = new SgsstConvivenciaComite({
           companyId,
@@ -2458,14 +2492,14 @@ router.delete('/comites/:tipoComite/:cedula', requireApiKeyOrJwt, async (req, re
 
     if (tipoComite === 'brigada') {
       const resDel = await SgsstBrigadista.deleteMany({
-        $or: [{ companyId }, { user: userId }],
         cedula: cleanCedula,
+        ...companyScope(userId, companyId),
       });
       return res.json({ exito: true, mensaje: `Brigadista con cédula ${cleanCedula} retirado de la brigada.` });
     }
 
     if (tipoComite === 'copasst') {
-      let doc = await SgsstCopasstComite.findOne({ $or: [{ companyId }, { user: userId }] });
+      let doc = await SgsstCopasstComite.findOne(companyScope(userId, companyId));
       if (doc) {
         doc.integrantesEmpleador = (doc.integrantesEmpleador || []).filter((i) => String(i.cedula).trim() !== cleanCedula);
         doc.integrantesTrabajador = (doc.integrantesTrabajador || []).filter((i) => String(i.cedula).trim() !== cleanCedula);
@@ -2475,7 +2509,7 @@ router.delete('/comites/:tipoComite/:cedula', requireApiKeyOrJwt, async (req, re
     }
 
     if (tipoComite === 'convivencia') {
-      let doc = await SgsstConvivenciaComite.findOne({ $or: [{ companyId }, { user: userId }] });
+      let doc = await SgsstConvivenciaComite.findOne(companyScope(userId, companyId));
       if (doc) {
         doc.representantesEmpleador = (doc.representantesEmpleador || []).filter((i) => String(i.cedula).trim() !== cleanCedula);
         doc.representantesTrabajador = (doc.representantesTrabajador || []).filter((i) => String(i.cedula).trim() !== cleanCedula);
@@ -2499,7 +2533,7 @@ router.get('/quimicos', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    const doc = await SgsstChemicalData.findOne({ $or: [{ companyId }, { user: userId }] }).lean();
+    const doc = await SgsstChemicalData.findOne(companyScope(userId, companyId)).lean();
     return res.json({
       totalProductos: doc?.productos?.length || 0,
       productos: doc?.productos || [],
@@ -2522,7 +2556,7 @@ router.post('/quimicos', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    let doc = await SgsstChemicalData.findOne({ $or: [{ companyId }, { user: userId }] });
+    let doc = await SgsstChemicalData.findOne(companyScope(userId, companyId));
     if (!doc) {
       doc = new SgsstChemicalData({
         user: userId,
@@ -2571,7 +2605,7 @@ router.put('/quimicos/:id', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    let doc = await SgsstChemicalData.findOne({ $or: [{ companyId }, { user: userId }] });
+    let doc = await SgsstChemicalData.findOne(companyScope(userId, companyId));
     if (!doc || !Array.isArray(doc.productos)) {
       return res.status(404).json({ error: 'Inventario químico no encontrado.' });
     }
@@ -2604,7 +2638,7 @@ router.delete('/quimicos/:id', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    let doc = await SgsstChemicalData.findOne({ $or: [{ companyId }, { user: userId }] });
+    let doc = await SgsstChemicalData.findOne(companyScope(userId, companyId));
     if (!doc || !Array.isArray(doc.productos)) {
       return res.status(404).json({ error: 'Inventario químico no encontrado.' });
     }
@@ -2638,7 +2672,7 @@ router.get('/vehiculos', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    const vehiculos = await SgsstVehicleData.find({ $or: [{ companyId }, { user: userId }] }).lean();
+    const vehiculos = await SgsstVehicleData.find(companyScope(userId, companyId)).lean();
     return res.json({
       totalVehiculos: vehiculos.length,
       vehiculos: vehiculos.map((v) => ({
@@ -2673,7 +2707,7 @@ router.post('/vehiculos', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    let v = await SgsstVehicleData.findOne({ placa: placa.trim().toUpperCase() });
+    let v = await SgsstVehicleData.findOne({ placa: placa.trim().toUpperCase(), ...companyScope(userId, companyId) });
     if (v) {
       if (conductorNombre) v.conductorNombre = conductorNombre;
       if (soatVencimiento) v.soatVencimiento = soatVencimiento;
@@ -2720,7 +2754,7 @@ router.put('/vehiculos/:idOrPlaca', requireApiKeyOrJwt, async (req, res) => {
     const companyId = company?._id;
 
     let v = await SgsstVehicleData.findOne({
-      $or: [{ companyId }, { user: userId }],
+      ...companyScope(userId, companyId),
       $or: [{ placa: target }, { _id: mongoose.isValidObjectId(target) ? target : null }],
     });
 
@@ -2753,7 +2787,7 @@ router.delete('/vehiculos/:idOrPlaca', requireApiKeyOrJwt, async (req, res) => {
     const companyId = company?._id;
 
     const result = await SgsstVehicleData.findOneAndDelete({
-      $or: [{ companyId }, { user: userId }],
+      ...companyScope(userId, companyId),
       $or: [{ placa: target }, { _id: mongoose.isValidObjectId(target) ? target : null }],
     });
 
@@ -2779,7 +2813,7 @@ router.get('/epp', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    const registros = await SgsstEppData.find({ $or: [{ companyId }, { user: userId }] }).lean();
+    const registros = await SgsstEppData.find(companyScope(userId, companyId)).lean();
     return res.json({
       totalTrabajadoresConEpp: registros.length,
       registros: registros.map((r) => ({
@@ -2807,7 +2841,7 @@ router.post('/epp', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    let doc = await SgsstEppData.findOne({ documento, $or: [{ companyId }, { user: userId }] });
+    let doc = await SgsstEppData.findOne({ documento, ...companyScope(userId, companyId) });
     if (!doc) {
       doc = new SgsstEppData({
         user: userId,
@@ -2853,7 +2887,7 @@ router.delete('/epp/:documento/:entregaId?', requireApiKeyOrJwt, async (req, res
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    let doc = await SgsstEppData.findOne({ documento, $or: [{ companyId }, { user: userId }] });
+    let doc = await SgsstEppData.findOne({ documento, ...companyScope(userId, companyId) });
     if (!doc) {
       return res.status(404).json({ error: `Registro de EPP para cédula ${documento} no encontrado.` });
     }
@@ -2880,7 +2914,7 @@ router.get('/actos-condiciones', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    const doc = await ReporteActosData.findOne({ $or: [{ companyId }, { user: userId }] }).lean();
+    const doc = await ReporteActosData.findOne(companyScope(userId, companyId)).lean();
     return res.json({
       totalReportes: doc?.inboxPublico?.length || 0,
       reportes: doc?.inboxPublico || [],
@@ -2903,7 +2937,7 @@ router.post('/actos-condiciones', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    let doc = await ReporteActosData.findOne({ $or: [{ companyId }, { user: userId }] });
+    let doc = await ReporteActosData.findOne(companyScope(userId, companyId));
     if (!doc) {
       doc = new ReporteActosData({
         user: userId,
@@ -2956,7 +2990,7 @@ router.patch('/actos-condiciones/:id', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    let doc = await ReporteActosData.findOne({ $or: [{ companyId }, { user: userId }] });
+    let doc = await ReporteActosData.findOne(companyScope(userId, companyId));
     if (!doc || !Array.isArray(doc.inboxPublico)) {
       return res.status(404).json({ error: 'Reportes no encontrados.' });
     }
@@ -2991,7 +3025,7 @@ router.delete('/actos-condiciones/:id', requireApiKeyOrJwt, async (req, res) => 
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    let doc = await ReporteActosData.findOne({ $or: [{ companyId }, { user: userId }] });
+    let doc = await ReporteActosData.findOne(companyScope(userId, companyId));
     if (!doc || !Array.isArray(doc.inboxPublico)) {
       return res.status(404).json({ error: 'Reportes no encontrados.' });
     }
@@ -3025,7 +3059,7 @@ router.get('/perfiles-cargo', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    const doc = await PerfilCargoData.findOne({ $or: [{ companyId }, { user: userId }] }).lean();
+    const doc = await PerfilCargoData.findOne(companyScope(userId, companyId)).lean();
     return res.json({
       totalPerfiles: doc?.perfilesList?.length || 0,
       perfiles: doc?.perfilesList || [],
@@ -3048,7 +3082,7 @@ router.post('/perfiles-cargo', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    let doc = await PerfilCargoData.findOne({ $or: [{ companyId }, { user: userId }] });
+    let doc = await PerfilCargoData.findOne(companyScope(userId, companyId));
     if (!doc) {
       doc = new PerfilCargoData({
         user: userId,
@@ -3098,7 +3132,7 @@ router.delete('/perfiles-cargo/:idOrCargo', requireApiKeyOrJwt, async (req, res)
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    let doc = await PerfilCargoData.findOne({ $or: [{ companyId }, { user: userId }] });
+    let doc = await PerfilCargoData.findOne(companyScope(userId, companyId));
     if (!doc || !Array.isArray(doc.perfilesList)) {
       return res.status(404).json({ error: 'Perfiles de cargo no encontrados.' });
     }
@@ -3132,7 +3166,7 @@ router.get('/atel', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    const casos = await InvestigacionAtelData.find({ $or: [{ companyId }, { user: userId }] }).lean();
+    const casos = await InvestigacionAtelData.find(companyScope(userId, companyId)).lean();
     return res.json({
       totalCasos: casos.length,
       casos: casos.map((c) => ({
@@ -3199,7 +3233,7 @@ router.put('/atel/:id', requireApiKeyOrJwt, async (req, res) => {
 
     let caso = await InvestigacionAtelData.findOne({
       _id: targetId,
-      $or: [{ companyId }, { user: userId }],
+      ...companyScope(userId, companyId),
     });
 
     if (!caso) {
@@ -3231,7 +3265,7 @@ router.delete('/atel/:id', requireApiKeyOrJwt, async (req, res) => {
 
     const result = await InvestigacionAtelData.findOneAndDelete({
       _id: targetId,
-      $or: [{ companyId }, { user: userId }],
+      ...companyScope(userId, companyId),
     });
 
     if (!result) {
@@ -3257,7 +3291,7 @@ router.get('/capacitaciones', requireApiKeyOrJwt, async (req, res) => {
     const companyId = company?._id;
 
     const [prog, cursos] = await Promise.all([
-      ProgramaCapacitacionesData.findOne({ $or: [{ companyId }, { user: userId }] }).lean().catch(() => null),
+      ProgramaCapacitacionesData.findOne(companyScope(userId, companyId)).lean().catch(() => null),
       Course.find({ isPublished: true }).select('title description category duration lessons').lean().catch(() => []),
     ]);
 
@@ -3288,7 +3322,7 @@ router.post('/capacitaciones', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    let doc = await ProgramaCapacitacionesData.findOne({ $or: [{ companyId }, { user: userId }] });
+    let doc = await ProgramaCapacitacionesData.findOne(companyScope(userId, companyId));
     if (!doc) {
       doc = new ProgramaCapacitacionesData({
         user: userId,
@@ -3333,7 +3367,7 @@ router.put('/capacitaciones/:id', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    let doc = await ProgramaCapacitacionesData.findOne({ $or: [{ companyId }, { user: userId }] });
+    let doc = await ProgramaCapacitacionesData.findOne(companyScope(userId, companyId));
     if (!doc || !Array.isArray(doc.sesiones)) {
       return res.status(404).json({ error: 'Programa de capacitaciones no encontrado.' });
     }
@@ -3366,7 +3400,7 @@ router.delete('/capacitaciones/:id', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    let doc = await ProgramaCapacitacionesData.findOne({ $or: [{ companyId }, { user: userId }] });
+    let doc = await ProgramaCapacitacionesData.findOne(companyScope(userId, companyId));
     if (!doc || !Array.isArray(doc.sesiones)) {
       return res.status(404).json({ error: 'Programa de capacitaciones no encontrado.' });
     }
@@ -3400,7 +3434,7 @@ router.get('/auditorias', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    const doc = await AuditoriaData.findOne({ $or: [{ companyId }, { user: userId }] }).lean();
+    const doc = await AuditoriaData.findOne(companyScope(userId, companyId)).lean();
     if (!doc) {
       return res.json({
         evaluado: false,
@@ -3434,7 +3468,7 @@ router.post('/auditorias', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    let doc = await AuditoriaData.findOne({ $or: [{ companyId }, { user: userId }] });
+    let doc = await AuditoriaData.findOne(companyScope(userId, companyId));
     if (!doc) {
       doc = new AuditoriaData({
         user: userId,
@@ -3477,7 +3511,7 @@ router.patch('/auditorias/:id', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    let doc = await AuditoriaData.findOne({ $or: [{ companyId }, { user: userId }] });
+    let doc = await AuditoriaData.findOne(companyScope(userId, companyId));
     if (!doc || !Array.isArray(doc.statusData)) {
       return res.status(404).json({ error: 'Auditorías no encontradas.' });
     }
@@ -3510,7 +3544,7 @@ router.delete('/auditorias/:id', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    let doc = await AuditoriaData.findOne({ $or: [{ companyId }, { user: userId }] });
+    let doc = await AuditoriaData.findOne(companyScope(userId, companyId));
     if (!doc || !Array.isArray(doc.statusData)) {
       return res.status(404).json({ error: 'Auditorías no encontradas.' });
     }
@@ -3924,7 +3958,7 @@ router.get('/estudio-puesto', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    const query = companyId ? { $or: [{ companyId }, { user: userId }] } : { user: userId };
+    const query = companyScope(userId, companyId);
     const estudios = await EstudioPuestoTrabajo.find(query).sort({ createdAt: -1 }).lean();
 
     return res.json({
@@ -4000,9 +4034,7 @@ router.put('/estudio-puesto/:id', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    const query = companyId
-      ? { _id: targetId, $or: [{ companyId }, { user: userId }] }
-      : { _id: targetId, user: userId };
+    const query = { _id: targetId, ...companyScope(userId, companyId) };
 
     const ept = await EstudioPuestoTrabajo.findOne(query);
 
@@ -4032,9 +4064,7 @@ router.delete('/estudio-puesto/:id', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    const query = companyId
-      ? { _id: targetId, $or: [{ companyId }, { user: userId }] }
-      : { _id: targetId, user: userId };
+    const query = { _id: targetId, ...companyScope(userId, companyId) };
 
     const result = await EstudioPuestoTrabajo.findOneAndDelete(query);
 
@@ -4769,7 +4799,7 @@ router.get('/alturas', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    const query = companyId ? { $or: [{ companyId }, { user: userId }] } : { user: userId };
+    const query = companyScope(userId, companyId);
     const heightsList = await SgsstHeightsData.find(query).lean();
 
     return res.json({
@@ -4801,9 +4831,7 @@ router.post('/alturas', requireApiKeyOrJwt, async (req, res) => {
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    const query = companyId
-      ? { workerId, $or: [{ companyId }, { user: userId }] }
-      : { workerId, user: userId };
+    const query = { workerId, ...companyScope(userId, companyId) };
 
     let doc = await SgsstHeightsData.findOne(query);
     if (!doc) {
@@ -4851,9 +4879,7 @@ router.delete('/alturas/:workerId/:equipoId', requireApiKeyOrJwt, async (req, re
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
-    const query = companyId
-      ? { workerId, $or: [{ companyId }, { user: userId }] }
-      : { workerId, user: userId };
+    const query = { workerId, ...companyScope(userId, companyId) };
 
     const doc = await SgsstHeightsData.findOne(query);
     if (!doc) {
@@ -5097,9 +5123,7 @@ router.get('/compatibilidad-quimica', requireApiKeyOrJwt, async (req, res) => {
       mongoose.models.ChemicalCompatibilitySession ||
       require('~/models/ChemicalCompatibilitySession');
 
-    const query = companyId
-      ? { $or: [{ companyId }, { user: userId }] }
-      : { user: userId };
+    const query = companyScope(userId, companyId);
 
     const sessions = await ChemicalCompatibilitySession.find(query).sort({ createdAt: -1 }).limit(20).lean();
 
@@ -5292,7 +5316,7 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
 
     // 1. PERFILES DE CARGO
     if (targetApp.includes('perfil') && (targetApp.includes('cargo') || targetApp.includes('puesto')) && !targetApp.includes('socio')) {
-      const doc = await PerfilCargoData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean();
+      const doc = await PerfilCargoData.findOne(companyScope(targetUserId, companyId)).lean();
       const perfiles = doc?.perfilesList || [];
       if (perfiles.length === 0) {
         return res.json({
@@ -5345,7 +5369,7 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
         isOfficial: true,
       }).lean() || await GTC45WorkspaceSession.findOne({ conversationId: officialConvoId }).lean();
 
-      if (!session) {
+      if (!session && !companyId) {
         session = await GTC45WorkspaceSession.findOne({
           user: targetUserId,
           'matrixRows.0': { $exists: true },
@@ -5366,7 +5390,7 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
 
     // 3. DIAGNÓSTICO / EVALUACIÓN ESTÁNDARES MÍNIMOS (RES. 0312)
     if (targetApp.includes('0312') || targetApp.includes('diagnostico') || targetApp.includes('estandar')) {
-      const diag = await DiagnosticoData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean();
+      const diag = await DiagnosticoData.findOne(companyScope(targetUserId, companyId)).lean();
       const puntaje = diag?.puntajeTotal || diag?.puntaje || diag?.porcentajeCumplimiento || 'Pendiente de autoevaluación';
       return res.json({
         aplicativo: 'Diagnóstico Estándares Mínimos (Res. 0312 de 2019)',
@@ -5378,7 +5402,7 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
 
     // 4. INVESTIGACIÓN ATEL (ACCIDENTES E INCIDENTES)
     if (targetApp.includes('atel') || targetApp.includes('accidente') || targetApp.includes('investigacion')) {
-      const atelDoc = await InvestigacionAtelData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean();
+      const atelDoc = await InvestigacionAtelData.findOne(companyScope(targetUserId, companyId)).lean();
       const casos = atelDoc?.casos || [];
       const caso = id ? casos.find(c => c.id === id || c._id?.toString() === id) : casos[0];
       return res.json({
@@ -5391,10 +5415,19 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
 
     // 5. PESV (PLAN ESTRATÉGICO DE SEGURIDAD VIAL)
     if (targetApp.includes('pesv') || targetApp.includes('vial')) {
-      const pesvSession = await PESVWorkspaceSession.findOne({
+      const officialConvoId = `official-pesv-${companyId || targetUserId}`;
+      let pesvSession = await PESVWorkspaceSession.findOne({
         user: targetUserId,
         ...(companyId ? { companyId } : {}),
-      }).sort({ updatedAt: -1 }).lean();
+        isOfficial: true,
+      }).lean() || await PESVWorkspaceSession.findOne({ conversationId: officialConvoId }).lean();
+
+      if (!pesvSession && !companyId) {
+        pesvSession = await PESVWorkspaceSession.findOne({
+          user: targetUserId,
+          'matrixRows.0': { $exists: true },
+        }).sort({ updatedAt: -1 }).lean();
+      }
       const riesgosViales = pesvSession?.matrixRows || [];
       return res.json({
         aplicativo: 'Plan Estratégico de Seguridad Vial (PESV - Res. 20223040040595)',
@@ -5405,7 +5438,7 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
 
     // 6. MATRIZ DE COMPATIBILIDAD QUÍMICA (SGA)
     if (targetApp.includes('quimic') || targetApp.includes('compatib') || targetApp.includes('sga')) {
-      const chemDoc = await SgsstChemicalData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean();
+      const chemDoc = await SgsstChemicalData.findOne(companyScope(targetUserId, companyId)).lean();
       const prods = chemDoc?.productos || [];
       return res.json({
         aplicativo: 'Matriz de Compatibilidad Química y Almacenamiento SGA',
@@ -5416,7 +5449,7 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
 
     // 7. AUDITORÍA ANUAL DEL SG-SST
     if (targetApp.includes('auditoria')) {
-      const audDoc = await AuditoriaData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean();
+      const audDoc = await AuditoriaData.findOne(companyScope(targetUserId, companyId)).lean();
       return res.json({
         aplicativo: 'Auditoría Anual del SG-SST',
         informeCompleto: audDoc?.informeAuditoria || audDoc?.conclusiones || `Informe Oficial de Auditoría Interna del SG-SST: Programa anual de auditoría con alcance sobre los estándares del Decreto 1072 de 2015 y hallazgos con plan de acción correctivo.`,
@@ -5427,9 +5460,9 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
     if (targetApp.includes('socio') || targetApp.includes('demograf') || targetApp.includes('salud') || targetApp.includes('medico')) {
       let socioDoc = null;
       if (PerfilSociodemograficoData) {
-        socioDoc = await PerfilSociodemograficoData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean().catch(() => null);
+        socioDoc = await PerfilSociodemograficoData.findOne(companyScope(targetUserId, companyId)).lean().catch(() => null);
       }
-      const workers = await SgsstWorker.find({ user: targetUserId }).lean().catch(() => []);
+      const workers = await SgsstWorker.find(companyScope(targetUserId, companyId)).lean().catch(() => []);
       const totalColabs = workers.length;
       const activos = workers.filter(w => !w.estadoLaboral || w.estadoLaboral === 'Activo').length;
       const retirados = totalColabs - activos;
@@ -5456,9 +5489,9 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
     if (targetApp.includes('vulnerab') || targetApp.includes('emergenc') || targetApp.includes('brigad')) {
       let vulnDoc = null;
       if (AnalisisVulnerabilidadData) {
-        vulnDoc = await AnalisisVulnerabilidadData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean().catch(() => null);
+        vulnDoc = await AnalisisVulnerabilidadData.findOne(companyScope(targetUserId, companyId)).lean().catch(() => null);
       }
-      const brigadistasCount = await SgsstBrigadista.countDocuments({ $or: [{ companyId }, { user: targetUserId }] }).catch(() => 0);
+      const brigadistasCount = await SgsstBrigadista.countDocuments(companyScope(targetUserId, companyId)).catch(() => 0);
       const amenazas = vulnDoc?.formData?.amenazasList || [];
 
       const resumenVuln = `Análisis de Vulnerabilidad y Plan de Preparación ante Emergencias:\nAmenazas identificadas y valoradas: ${amenazas.length > 0 ? amenazas.length : 'En consolidación'}.\nBrigadistas de emergencia conformados y activos: ${brigadistasCount}.\nMetodología: Valoración en 3 diamantes (Personas, Recursos, Sistemas y Procesos) para contingencias naturales, tecnológicas y sociales.`;
@@ -5476,7 +5509,7 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
     if (targetApp.includes('owas') || targetApp.includes('ergonom') || targetApp.includes('postur')) {
       let owasDoc = null;
       if (MetodoOwasData) {
-        owasDoc = await MetodoOwasData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean().catch(() => null);
+        owasDoc = await MetodoOwasData.findOne(companyScope(targetUserId, companyId)).lean().catch(() => null);
       }
       const observaciones = owasDoc?.observaciones || [];
       const resumenOwas = `Evaluación Ergonómica Postural - Método OWAS:\nTotal de posturas y tareas observadas: ${observaciones.length}.\nAnálisis biomecánico en espalda, brazos, piernas y carga manipulada conforme a la norma ergonómica internacional.`;
@@ -5491,8 +5524,8 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
 
     // 11. ESTUDIO DE PUESTO DE TRABAJO (BIOMECÁNICO)
     if (targetApp.includes('puesto') || targetApp.includes('biomecan') || targetApp.includes('estudio')) {
-      let queryEpt = { $or: [{ companyId }, { user: targetUserId }] };
-      if (id && mongoose.isValidObjectId(id)) queryEpt = { _id: id };
+      let queryEpt = { ...companyScope(targetUserId, companyId) };
+      if (id && mongoose.isValidObjectId(id)) queryEpt._id = id;
       const eptList = await EstudioPuestoTrabajo.find(queryEpt).sort({ updatedAt: -1 }).limit(10).lean().catch(() => []);
       const primerEpt = eptList[0];
 
@@ -5512,7 +5545,7 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
     if (targetApp.includes('ats') || targetApp.includes('trabajo_seguro') || targetApp.includes('tarea_critica')) {
       let atsDoc = null;
       if (AnalisisTrabajoSeguroData) {
-        atsDoc = await AnalisisTrabajoSeguroData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean().catch(() => null);
+        atsDoc = await AnalisisTrabajoSeguroData.findOne(companyScope(targetUserId, companyId)).lean().catch(() => null);
       }
       const formData = atsDoc?.formData || {};
       const resumenAts = `Análisis de Trabajo Seguro (ATS):\nTarea evaluada: ${formData.tarea || 'Tareas críticas de alto riesgo'}.\nPasos de la tarea, peligros potenciales y medidas de control preventivo verificadas en campo con validación de trabajadores aptos.`;
@@ -5528,7 +5561,7 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
 
     // 13. TRABAJO Y EQUIPOS EN ALTURAS
     if (targetApp.includes('altura') || targetApp.includes('arnes') || targetApp.includes('caida')) {
-      const heightsDocs = await SgsstHeightsData.find({ $or: [{ companyId }, { user: targetUserId }] }).lean().catch(() => []);
+      const heightsDocs = await SgsstHeightsData.find(companyScope(targetUserId, companyId)).lean().catch(() => []);
       let totalEquipos = 0;
       heightsDocs.forEach(h => { totalEquipos += (h.equipos || []).length; });
 
@@ -5542,7 +5575,7 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
 
     // 14. MATRIZ LEGAL (REQUISITOS LEGALES)
     if (targetApp.includes('legal') || targetApp.includes('norma') || targetApp.includes('decreto')) {
-      const matrizLegal = await MatrizLegalData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean().catch(() => null);
+      const matrizLegal = await MatrizLegalData.findOne(companyScope(targetUserId, companyId)).lean().catch(() => null);
       let total = 0;
       let cumplen = 0;
       if (matrizLegal && Array.isArray(matrizLegal.statuses)) {
@@ -5562,10 +5595,10 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
 
     // 15. COMITÉS (COPASST Y CONVIVENCIA LABORAL)
     if (targetApp.includes('comite') || targetApp.includes('copasst') || targetApp.includes('convivencia')) {
-      const copasst = await SgsstCopasstComite.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean().catch(() => null);
-      const convivencia = await SgsstConvivenciaComite.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean().catch(() => null);
-      const actasCopasst = await SgsstCopasstActa.countDocuments({ $or: [{ companyId }, { user: targetUserId }] }).catch(() => 0);
-      const actasConvivencia = await SgsstConvivenciaActa.countDocuments({ $or: [{ companyId }, { user: targetUserId }] }).catch(() => 0);
+      const copasst = await SgsstCopasstComite.findOne(companyScope(targetUserId, companyId)).lean().catch(() => null);
+      const convivencia = await SgsstConvivenciaComite.findOne(companyScope(targetUserId, companyId)).lean().catch(() => null);
+      const actasCopasst = await SgsstCopasstActa.countDocuments(companyScope(targetUserId, companyId)).catch(() => 0);
+      const actasConvivencia = await SgsstConvivenciaActa.countDocuments(companyScope(targetUserId, companyId)).catch(() => 0);
 
       return res.json({
         aplicativo: 'Comités Paritarios del SG-SST (COPASST y Convivencia)',
@@ -5584,7 +5617,7 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
 
     // 16. CAPACITACIONES (PROGRAMA ANUAL)
     if (targetApp.includes('capacita') || targetApp.includes('entrena') || targetApp.includes('formacion')) {
-      const capDoc = await ProgramaCapacitacionesData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean().catch(() => null);
+      const capDoc = await ProgramaCapacitacionesData.findOne(companyScope(targetUserId, companyId)).lean().catch(() => null);
       const sesiones = capDoc?.sesiones || [];
 
       return res.json({
@@ -5596,7 +5629,7 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
 
     // 17. EPP (ELEMENTOS DE PROTECCIÓN PERSONAL)
     if (targetApp.includes('epp') || targetApp.includes('dotacion') || targetApp.includes('proteccion')) {
-      const eppDoc = await SgsstEppData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean().catch(() => null);
+      const eppDoc = await SgsstEppData.findOne(companyScope(targetUserId, companyId)).lean().catch(() => null);
       const items = eppDoc?.items || eppDoc?.matriz || [];
 
       return res.json({
@@ -5608,7 +5641,7 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
 
     // 18. REPORTE DE ACTOS Y CONDICIONES INSEGURAS
     if (targetApp.includes('acto') || targetApp.includes('condicion') || targetApp.includes('buzon')) {
-      const repDoc = await ReporteActosData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean().catch(() => null);
+      const repDoc = await ReporteActosData.findOne(companyScope(targetUserId, companyId)).lean().catch(() => null);
       const inbox = repDoc?.inboxPublico || [];
 
       return res.json({
@@ -5620,7 +5653,7 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
 
     // 19. VEHÍCULOS Y FLOTA
     if (targetApp.includes('vehiculo') || targetApp.includes('flota') || targetApp.includes('auto')) {
-      const vehiculosCount = await SgsstVehicleData.countDocuments({ $or: [{ companyId }, { user: targetUserId }] }).catch(() => 0);
+      const vehiculosCount = await SgsstVehicleData.countDocuments(companyScope(targetUserId, companyId)).catch(() => 0);
 
       return res.json({
         aplicativo: 'Gestión de Flota Vehicular y Conductores',
@@ -5631,8 +5664,9 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
 
     // 20. CRONOGRAMA Y TAREAS (KANBAN)
     if (targetApp.includes('cronograma') || targetApp.includes('tarea') || targetApp.includes('kanban')) {
-      const totalTasks = await KanbanTask.countDocuments({ user: targetUserId }).catch(() => 0);
-      const pendingTasks = await KanbanTask.countDocuments({ user: targetUserId, status: { $ne: 'done' } }).catch(() => 0);
+      const kanbanFilter = companyScope(targetUserId, companyId);
+      const totalTasks = await KanbanTask.countDocuments(kanbanFilter).catch(() => 0);
+      const pendingTasks = await KanbanTask.countDocuments({ ...kanbanFilter, status: { $ne: 'done' } }).catch(() => 0);
 
       return res.json({
         aplicativo: 'Cronograma Anual y Tareas de SST (Kanban)',
@@ -5719,7 +5753,7 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
       })();
       let checkins = 0;
       if (MoodTelemetry) {
-        checkins = await MoodTelemetry.countDocuments({ $or: [{ companyId: company?._id }, { user: targetUserId }] }).catch(() => 0);
+        checkins = await MoodTelemetry.countDocuments(companyScope(targetUserId, companyId)).catch(() => 0);
       }
       return res.json({
         aplicativo: 'Termómetro Psicosocial y Bienestar Emocional',
@@ -5736,7 +5770,7 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
       })();
       let totalVotos = 0;
       if (SgsstVotacion) {
-        totalVotos = await SgsstVotacion.countDocuments({ $or: [{ companyId: company?._id }, { user: targetUserId }] }).catch(() => 0);
+        totalVotos = await SgsstVotacion.countDocuments(companyScope(targetUserId, companyId)).catch(() => 0);
       }
       return res.json({
         aplicativo: 'Votaciones Electrónicas para Comités (COPASST / Convivencia)',
@@ -6236,7 +6270,7 @@ router.get('/analitica/actos-condiciones', requireApiKeyOrJwt, async (req, res) 
       return res.status(404).json({ error: 'Empresa no encontrada.' });
     }
 
-    const doc = await ReporteActosData.findOne({ $or: [{ companyId: company._id }, { user: targetUserId }] }).lean();
+    const doc = await ReporteActosData.findOne(companyScope(targetUserId, company._id)).lean();
     const reportes = doc?.inboxPublico || [];
     const total = reportes.length;
 
@@ -6722,7 +6756,14 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
       titulo,
       title,
       prioridad,
+      archivos,
+      files,
+      adjuntos,
+      media,
     } = req.body;
+
+    const rawFiles = archivos || files || adjuntos || media || [];
+    const finalFiles = Array.isArray(rawFiles) ? rawFiles : (typeof rawFiles === 'string' && rawFiles.trim() ? [rawFiles.trim()] : []);
 
     const finalTitle = titulo || title || `Orden Antigravity: ${(tarea || instruccion || 'Investigación / Procesamiento de Archivos').slice(0, 60)}`;
     const finalDesc = instruccion || instruction || tarea || task || 'Procesar requerimiento delegado desde Tenshi.';
@@ -6740,14 +6781,18 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
         user: targetUserId,
         companyId: companyId,
         title: finalTitle,
-        description: `[DELEGADO POR TENSHI A ANTIGRAVITY]\nEmpresa: ${companyName}\nInstrucción: ${finalDesc}\nRecurso Objetivo: ${finalResource}\nFormato Esperado: ${finalOutputType}`,
+        description: `[DELEGADO POR TENSHI A ANTIGRAVITY]\nEmpresa: ${companyName}\nInstrucción: ${finalDesc}\nRecurso Objetivo: ${finalResource}\nFormato Esperado: ${finalOutputType}${finalFiles.length > 0 ? `\nArchivos Adjuntos:\n${finalFiles.map(f => `- ${f}`).join('\n')}` : ''}`,
+        attachments: finalFiles.map(f => ({
+          name: typeof f === 'string' ? f.split('/').pop() : 'archivo',
+          url: typeof f === 'string' ? f : '',
+        })),
         status: 'todo',
         dueDate: new Date(Date.now() + 2 * 3600 * 1000),
         type: 'antigravity_delegation',
         priority: finalPriority,
         sourceModule: 'tenshi_voice',
       });
-      logger.info(`[MCP Bridge] Orden para Antigravity creada con instrucción limpia (ID: ${kanbanTask._id}, Estado: todo) para usuario ${targetUserId}.`);
+      logger.info(`[MCP Bridge] Orden para Antigravity creada con instrucción limpia y ${finalFiles.length} archivos (ID: ${kanbanTask._id}, Estado: todo) para usuario ${targetUserId}.`);
     } catch (kErr) {
       logger.warn('[MCP Bridge] Error creando registro KanbanTask:', kErr.message);
     }
@@ -6762,6 +6807,7 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
         instruccion: finalDesc,
         recursoObjetivo: finalResource,
         formatoEntregable: finalOutputType,
+        archivos: finalFiles,
         estado: 'todo',
         empresa: companyName,
       },

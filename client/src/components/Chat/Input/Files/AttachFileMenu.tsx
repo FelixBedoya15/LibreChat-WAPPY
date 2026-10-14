@@ -397,18 +397,24 @@ const AttachFileMenu = ({
     } else if (fileType === 'image_video') {
       inputRef.current.accept = 'image/*,video/*';
     } else if (fileType === 'document') {
-      inputRef.current.accept = '.pdf,application/pdf';
+      inputRef.current.accept =
+        '.pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,application/msword,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xls,application/vnd.ms-excel,.csv,text/csv,text/plain,.pptx,.ppt,image/*';
     } else if (fileType === 'multimodal') {
       inputRef.current.accept =
-        'image/*,.pdf,application/pdf,.csv,text/csv,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,application/msword,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xls,application/vnd.ms-excel,text/plain';
+        'image/*,video/*,audio/*,.pdf,application/pdf,.csv,text/csv,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,application/msword,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xls,application/vnd.ms-excel,text/plain,.pptx,.ppt';
     } else if (fileType === 'google_multimodal') {
       inputRef.current.accept =
-        'image/*,.pdf,application/pdf,video/*,audio/*,.csv,text/csv,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,application/msword,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xls,application/vnd.ms-excel,text/plain';
+        'image/*,video/*,audio/*,.pdf,application/pdf,.csv,text/csv,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,application/msword,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xls,application/vnd.ms-excel,text/plain,.pptx,.ppt';
     } else {
-      inputRef.current.accept = '';
+      inputRef.current.accept =
+        'image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.pptx,.ppt,application/*';
     }
     inputRef.current.click();
-    inputRef.current.accept = '';
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.accept = '';
+      }
+    }, 1500);
   };
 
   const dropdownItems = useMemo(() => {
@@ -430,11 +436,13 @@ const AttachFileMenu = ({
       const items: MenuItemProps[] = [];
 
       const currentProvider = provider || endpoint;
-      const isGoogle = (provider || endpoint) === EModelEndpoint.google;
+      const isGoogle = (provider || endpoint) === EModelEndpoint.google || endpoint === EModelEndpoint.agents || currentProvider === 'agents';
 
       if (
         isDocumentSupportedProvider(endpointType) ||
-        isDocumentSupportedProvider(currentProvider)
+        isDocumentSupportedProvider(currentProvider) ||
+        endpoint === EModelEndpoint.agents ||
+        endpointType === EModelEndpoint.agents
       ) {
         if (isGoogle) {
           // Google/Gemini: imágenes y videos en adjunto directo
@@ -449,23 +457,22 @@ const AttachFileMenu = ({
           // Documentos: extraer texto automáticamente para que el modelo pueda leer el contenido
           if (capabilities.contextEnabled) {
             items.push({
-              label: '📄 Documento',
+              label: '📄 Documento (PDF, Word, Excel, Texto)',
               onClick: wrapClick(() => {
                 setToolResource(EToolResources.context);
-                onAction();
+                onAction('document');
               }),
               icon: <FileScan className="icon-md" />,
             });
-          } else {
-            items.push({
-              label: '📎 Adjunto directo',
-              onClick: wrapClick(() => {
-                setToolResource(undefined);
-                onAction('google_multimodal');
-              }),
-              icon: <FileImageIcon className="icon-md" />,
-            });
           }
+          items.push({
+            label: '📎 Adjunto completo (Cualquier archivo)',
+            onClick: wrapClick(() => {
+              setToolResource(undefined);
+              onAction('google_multimodal');
+            }),
+            icon: <FileImageIcon className="icon-md" />,
+          });
         } else {
           items.push({
             label: '📎 Adjunto directo',
@@ -475,6 +482,16 @@ const AttachFileMenu = ({
             }),
             icon: <FileImageIcon className="icon-md" />,
           });
+          if (capabilities.contextEnabled) {
+            items.push({
+              label: '📄 Documento (PDF, Word, Excel, Texto)',
+              onClick: wrapClick(() => {
+                setToolResource(EToolResources.context);
+                onAction('document');
+              }),
+              icon: <FileScan className="icon-md" />,
+            });
+          }
         }
       } else {
         items.push({

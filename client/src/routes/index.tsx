@@ -48,6 +48,7 @@ const TermsOfServicePage = lazy(() => import('~/components/Auth/TermsOfServicePa
 const WappyAboutPage = lazy(() => import('~/components/Auth/WappyAboutPage'));
 const ComunidadPage = lazy(() => import('~/components/Marketing/ComunidadPage'));
 const MatrizPage = lazy(() => import('~/components/Marketing/MatrizPage'));
+const QuibiPage = lazy(() => import('~/components/Marketing/QuibiPage'));
 const LandingPage = lazy(() => import('~/components/Marketing/LandingPage'));
 const AgentMarketplace = lazy(() => import('~/components/Agents/Marketplace'));
 const CourseViewer = lazy(() => import('~/components/Training/CourseViewer'));
@@ -373,6 +374,21 @@ export const router = createBrowserRouter(
           <ApiErrorWatcher />
         </AuthContextProvider>
       ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'quibi',
+      element: withSuspense(
+        <AuthContextProvider>
+          <QuibiPage />
+          <ApiErrorWatcher />
+        </AuthContextProvider>
+      ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'qb',
+      element: <Navigate to="/quibi" replace={true} />,
       errorElement: <RouteErrorBoundary />,
     },
     {

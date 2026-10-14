@@ -38,7 +38,7 @@ async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, punt
         if (companyId) {
             worker = await SgsstWorker.findOne({ companyId, documento: cleanDoc });
         }
-        if (!worker && userId) {
+        if (!worker && userId && !companyId) {
             worker = await SgsstWorker.findOne({ user: userId, documento: cleanDoc });
         }
 
@@ -48,12 +48,10 @@ async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, punt
             try {
                 const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
                 if (PerfilSociodemograficoData) {
-                    const perfilDoc = await PerfilSociodemograficoData.findOne({
-                        $or: [
-                            ...(companyId ? [{ companyId }] : []),
-                            { user: userId }
-                        ]
-                    }).lean();
+                    const perfilQuery = companyId
+                        ? { companyId }
+                        : { user: userId, $or: [{ companyId: null }, { companyId: { $exists: false } }] };
+                    const perfilDoc = await PerfilSociodemograficoData.findOne(perfilQuery).lean();
                     if (perfilDoc && Array.isArray(perfilDoc.trabajadores)) {
                         perfilWorker = perfilDoc.trabajadores.find(t => String(t.identificacion || t.cedula || '').trim() === cleanDoc);
                     }

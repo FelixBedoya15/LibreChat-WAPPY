@@ -206,6 +206,15 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
             if (Array.isArray(dataArr) && dataArr.length > 0) {
                 setCompanies(dataArr);
                 const active = dataArr.find(c => c.isActive) || dataArr[0];
+                if (active) {
+                    if (active._id) localStorage.setItem('wappy_active_company_id', active._id);
+                    if (active.companyName) localStorage.setItem('wappy_active_company_name', active.companyName);
+                    if (active.nit) localStorage.setItem('wappy_active_company_nit', active.nit);
+                    if (active.arl) localStorage.setItem('wappy_active_company_arl', active.arl);
+                    if (active.workerCount !== undefined) localStorage.setItem('wappy_active_company_workers', String(active.workerCount));
+                    if (active.riskLevel) localStorage.setItem('wappy_active_company_risk', active.riskLevel);
+                    if (active.logoBase64) localStorage.setItem('wappy_sst_global_logo', active.logoBase64);
+                }
                 
                 const draftKey = `wappy_company_draft_${active._id || 'new'}`;
                 const draftStr = localStorage.getItem(draftKey);
@@ -348,17 +357,8 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
 
     const handleNewCompany = () => {
         const draftKey = `wappy_company_draft_new`;
-        const draftStr = localStorage.getItem(draftKey);
-        if (draftStr) {
-            try {
-                const parsed = JSON.parse(draftStr);
-                setData(parsed);
-            } catch (e) {
-                setData(INITIAL_DATA);
-            }
-        } else {
-            setData(INITIAL_DATA);
-        }
+        localStorage.removeItem(draftKey);
+        setData({ ...INITIAL_DATA, workerCount: 0 });
     };
 
     const handleNewCompanyClick = () => {
@@ -418,12 +418,41 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
             });
             if (res.ok) {
                 showToast({ message: 'Empresa activada correctamente. Recargando el sistema...', status: 'success' });
+                // Limpiar drafts en localStorage que puedan contaminar entre empresas
+                const keysToRemove = [
+                    'sgsst_diagnostico_form',
+                    'sgsst_auditoria_form',
+                    'sgsst_politica_form',
+                    'sgsst_objetivos_form',
+                    'sgsst_responsable_form',
+                    'wappy_brigada_emergencias_draft',
+                    'wappy_simulacros_emergencia_draft',
+                    'wappy_matriz_legal_custom_items',
+                    'wappy_company_draft_new',
+                ];
+                keysToRemove.forEach(k => {
+                    try { localStorage.removeItem(k); } catch (e) {}
+                });
+                const activated = companies.find(c => c._id === id);
+                if (activated) {
+                    localStorage.setItem('wappy_active_company_id', id);
+                    if (activated.companyName) localStorage.setItem('wappy_active_company_name', activated.companyName);
+                    if (activated.nit) localStorage.setItem('wappy_active_company_nit', activated.nit);
+                    if (activated.arl) localStorage.setItem('wappy_active_company_arl', activated.arl);
+                    if (activated.workerCount !== undefined) localStorage.setItem('wappy_active_company_workers', String(activated.workerCount));
+                    if (activated.riskLevel) localStorage.setItem('wappy_active_company_risk', activated.riskLevel);
+                    if (activated.logoBase64) {
+                        localStorage.setItem('wappy_sst_global_logo', activated.logoBase64);
+                    } else {
+                        localStorage.removeItem('wappy_sst_global_logo');
+                    }
+                }
                 try {
                     sessionStorage.clear();
                 } catch {}
                 setTimeout(() => {
                     window.location.reload();
-                }, 1000);
+                }, 800);
             }
         } catch (err) {
             showToast({ message: 'Error al activar empresa', status: 'error' });
@@ -452,6 +481,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                 localStorage.removeItem(draftKey);
 
                 if (data.isActive || companies.length === 0 || companies.find(c => c._id === data._id)?.isActive) {
+                    if (data._id) localStorage.setItem('wappy_active_company_id', data._id);
                     if (data.companyName) localStorage.setItem('wappy_active_company_name', data.companyName);
                     if (data.nit) localStorage.setItem('wappy_active_company_nit', data.nit);
                     if (data.arl) localStorage.setItem('wappy_active_company_arl', data.arl);

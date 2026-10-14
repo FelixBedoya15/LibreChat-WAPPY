@@ -103,19 +103,31 @@ router.get('/data', requireJwtAuth, async (req, res) => {
     const tasksToDelete = [];
 
     // Parallel fetch of all source documents and current Kanban tasks
-    const gtcDocPromise = GTC45WorkspaceSession ? GTC45WorkspaceSession.findOne({
-      $or: [
-        { user: userId, isOfficial: true },
-        ...(companyId ? [{ companyId, isOfficial: true }] : []),
-        { conversationId: `official-${companyId || userId}` },
-      ],
-    }).lean().then(async (doc) => {
-      if (doc) return doc;
-      return GTC45WorkspaceSession.findOne({
-        $or: [{ user: userId }, ...(companyId ? [{ companyId }] : [])],
-        'matrixRows.0': { $exists: true },
-      }).sort({ updatedAt: -1 }).lean();
-    }) : Promise.resolve(null);
+    const gtcDocPromise = GTC45WorkspaceSession ? (
+      companyId
+        ? GTC45WorkspaceSession.findOne({
+            companyId,
+            $or: [{ isOfficial: true }, { conversationId: `official-${companyId}` }],
+          }).lean().then(async (doc) => {
+            if (doc) return doc;
+            return GTC45WorkspaceSession.findOne({
+              companyId,
+              'matrixRows.0': { $exists: true },
+            }).sort({ updatedAt: -1 }).lean();
+          })
+        : GTC45WorkspaceSession.findOne({
+            user: userId,
+            $or: [{ companyId: null }, { companyId: { $exists: false } }],
+            isOfficial: true,
+          }).lean().then(async (doc) => {
+            if (doc) return doc;
+            return GTC45WorkspaceSession.findOne({
+              user: userId,
+              $or: [{ companyId: null }, { companyId: { $exists: false } }],
+              'matrixRows.0': { $exists: true },
+            }).sort({ updatedAt: -1 }).lean();
+          })
+    ) : Promise.resolve(null);
 
     const [
       profile,

@@ -1347,6 +1347,35 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
         ref={editorWrapperRef}
         className={`relative flex flex-col ${isFullScreen ? 'fixed inset-0 z-[99999] bg-surface-secondary' : 'h-full min-h-[500px] w-full rounded-xl bg-surface-secondary'} font-sans transition-all duration-300`}
       >
+        {/* Top bar in fullscreen mode */}
+        {isFullScreen && (
+          <div className="flex items-center justify-between px-3 py-2 border-b border-border-medium bg-surface-primary/95 backdrop-blur-md shrink-0 z-50">
+            <button
+              type="button"
+              onClick={toggleFullScreen}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-secondary hover:bg-surface-hover border border-border-medium text-xs font-bold text-text-primary transition-all active:scale-95"
+            >
+              <Minimize className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+              <span>Salir</span>
+            </button>
+            <span className="text-xs font-bold text-text-primary uppercase tracking-wider truncate max-w-[200px] sm:max-w-none">
+              Editor de Documentos
+            </span>
+            <div className="flex items-center gap-1.5">
+              {onSave && (
+                <button
+                  type="button"
+                  onClick={onSave}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-all shadow-sm active:scale-95"
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  <span>Guardar</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {localToast && (
           <div className="pointer-events-none absolute left-1/2 top-16 z-[99999999] -translate-x-1/2 transform">
             <div className="flex items-center gap-3 rounded-xl border border-teal-500/30 bg-[#0d0d0d] px-5 py-3 text-sm font-semibold text-teal-400 shadow-2xl duration-300 animate-in fade-in slide-in-from-top-6">
@@ -1370,11 +1399,11 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
 
         {/* Header Toolbar — hidden in collapsed mode when hideToolbarWhenCollapsed=true */}
         {(!hideToolbarWhenCollapsed || isFullScreen) && (
-          <div className="bg-surface-secondary/80 group/toolbar sticky top-0 z-50 flex flex-col items-center border-b border-border-medium p-1.5 sm:p-2 backdrop-blur-sm transition-all duration-300">
-            <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-1.5">
+          <div className="bg-surface-secondary/80 group/toolbar sticky top-0 z-50 flex flex-col items-center border-b border-border-medium p-1 sm:p-2 backdrop-blur-sm transition-all duration-300 w-full overflow-hidden">
+            <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar scroll-smooth w-full py-0.5 px-1 sm:flex-wrap sm:justify-center">
               {editorGroups.map((group, idx) => (
                 <React.Fragment key={group.id}>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
                     {group.buttons.map((btn, bIdx) => (
                       <ToolbarButton key={bIdx} {...btn} />
                     ))}
@@ -2213,6 +2242,18 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
             </div>,
             portalNode,
           )}
+
+        {/* Botón Flotante Rojo para Salir de Pantalla Completa en Móviles (estilo Canvas) */}
+        {isFullScreen && (
+          <button
+            type="button"
+            onClick={toggleFullScreen}
+            title="Salir de Pantalla Completa"
+            className="fixed bottom-6 right-6 z-[99999999] flex sm:hidden h-12 w-12 items-center justify-center rounded-full bg-red-600 hover:bg-red-700 text-white shadow-2xl active:scale-90 border-2 border-white/40 transition-transform duration-200"
+          >
+            <X className="h-6 w-6 stroke-[2.5]" />
+          </button>
+        )}
       </div>
     );
   },

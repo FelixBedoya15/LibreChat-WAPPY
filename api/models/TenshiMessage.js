@@ -20,6 +20,17 @@ const tenshiMessageSchema = mongoose.Schema(
         htmlReport: {
             type: String,
         },
+        image: {
+            type: String,
+        },
+        media: {
+            name: { type: String },
+            type: { type: String },
+            mimeType: { type: String },
+            size: { type: Number },
+            dataUrl: { type: String },
+            content: { type: String },
+        },
         file: {
             title: { type: String },
             fileType: { type: String },

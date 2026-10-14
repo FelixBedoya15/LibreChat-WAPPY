@@ -153,7 +153,19 @@ const ResponsableSGSST = () => {
         } finally {
             setIsGenerating(false);
         }
-    }, [responsableName, formationLevel, licenseNumber, licenseExpiry, courseStatus, additionalNorms, token, showToast, selectedModel]);
+    }, [responsableName, formationLevel, licenseNumber, licenseExpiry, courseStatus, additionalNorms, token, showToast, selectedModel, isPro, conversationId]);
+
+    // Listener para eventos de generación automática desde Tenshi
+    React.useEffect(() => {
+        const handleAiEvent = (e: any) => {
+            const app = (e.detail?.aplicativo || '').toLowerCase();
+            if (!app || app.includes('responsable') || app.includes('sgsst')) {
+                handleGenerate();
+            }
+        };
+        window.addEventListener('wappy-generar-analisis-ia', handleAiEvent);
+        return () => window.removeEventListener('wappy-generar-analisis-ia', handleAiEvent);
+    }, [handleGenerate]);
 
     const handleSave = useCallback(async () => {
         const contentToSave = editorContentRef.current || generatedDoc;
@@ -218,7 +230,7 @@ const ResponsableSGSST = () => {
         }
     }, [editorContentRef.current, generatedDoc, conversationId, reportMessageId, responsableName, formationLevel, token, showToast]);
 
-    const LOCAL_STORAGE_KEY = 'sgsst_responsable_form';
+    const LOCAL_STORAGE_KEY = `sgsst_responsable_form_${typeof window !== 'undefined' ? (localStorage.getItem('wappy_active_company_id') || 'default') : 'default'}`;
 
     React.useEffect(() => {
         try {
@@ -500,8 +512,11 @@ const ResponsableSGSST = () => {
 
                         <div className="flex justify-center pt-2 gap-4">
                             <button
+                                id="btn-generar-responsable-ia"
+                                data-action="generar-analisis-ia"
                                 onClick={() => handleGenerate()}
                                 disabled={isGenerating}
+                                title="Generar con IA"
                                 className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
                             >
                                 {isGenerating ? (
@@ -535,6 +550,7 @@ const ResponsableSGSST = () => {
                                 initialContent={generatedDoc}
                                 onUpdate={(html) => { editorContentRef.current = html; }}
                                 reportSourceData={{ responsableName, formationLevel, licenseNumber, licenseExpiry, courseStatus, additionalNorms }}
+                                paperMode={true}
                             />
                         </div>
                     </CollapsibleReportBox>

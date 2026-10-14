@@ -219,7 +219,7 @@ class MatrizIPEVAR extends Tool {
               'matrixRows.0': { $exists: true },
             }).sort({ updatedAt: -1 });
           }
-          if (!fallbackDoc && userFilter.length > 0) {
+          if (!fallbackDoc && userFilter.length > 0 && !companyId) {
             fallbackDoc = await GTC45Matrix.findOne({
               user: { $in: userFilter },
               'matrixRows.0': { $exists: true },

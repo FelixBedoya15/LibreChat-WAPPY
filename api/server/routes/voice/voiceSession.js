@@ -382,6 +382,21 @@ class VoiceSession {
                             }
                         },
                         {
+                            name: "wappy_controlar_videollamada",
+                            description: "Controla la cámara, la videollamada o cuelga la llamada de Tenshi. DEBES invocar esta herramienta cuando el usuario te diga: 'activa videollamada', 'activa video', 'enciende la cámara', 'activa la cámara', 'apaga la cámara', 'desactiva video', 'cuelga', 'colgar', 'terminar llamada' o 'finalizar llamada'.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    accion: {
+                                        type: "string",
+                                        enum: ["activar_camara", "apagar_camara", "colgar_llamada"],
+                                        description: "Acción a ejecutar: 'activar_camara' (enciende la cámara o videollamada en vivo), 'apagar_camara' (apaga la cámara y sigue la llamada solo por voz), 'colgar_llamada' (termina y cuelga la llamada por completo)."
+                                    }
+                                },
+                                required: ["accion"]
+                            }
+                        },
+                        {
                             name: "wappy_consultar_empresas",
                             description: "Consulta y lista todas las empresas que el usuario tiene registradas en WAPPY (hasta 3 empresas). Retorna el total de empresas registradas, el nombre de cada una, su NIT, número de trabajadores, cuál es la empresa activa actualmente y un resumen en texto. Invócala siempre que el usuario pregunte cuántas empresas tiene, cuáles son o pida ver sus empresas.",
                             parameters: {
@@ -1275,6 +1290,24 @@ class VoiceSession {
                             }
                         },
                         {
+                            name: "wappy_generar_analisis_aplicativo",
+                            description: "Genera automáticamente con Inteligencia Artificial el análisis, informe técnico, protocolo o documentación oficial DENTRO de un aplicativo o módulo del SG-SST (Responsable SG-SST, Objetivos, Política SST, Perfiles de Cargo, Matriz Legal, Diagnóstico Res. 0312, Plan de Emergencias, etc.) ejecutando el motor de 'Generar con IA / Análisis IA' en el editor nativo del aplicativo. NUNCA uses canvas_tool si el usuario pide generar, crear o redactar el informe o análisis de un aplicativo o módulo del SG-SST; usa SIEMPRE esta herramienta.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    aplicativo: {
+                                        type: "string",
+                                        description: "Nombre o clave del aplicativo/módulo: 'responsable' (Responsable SG-SST), 'politica' (Política SST), 'objetivos' (Objetivos SST), 'legal' (Matriz Legal), 'rit' (Reglamento Interno), 'perfil_cargo' (Perfiles de Cargo), 'diagnostico' (Res. 0312), 'vulnerabilidad' (Plan de Emergencias), 'comites' (COPASST/Convivencia), 'capacitaciones', 'epp', 'quimicos', 'vehiculos', 'auditoria'."
+                                    },
+                                    instruccion_adicional: {
+                                        type: "string",
+                                        description: "Instrucciones técnicas o requerimientos adicionales que el usuario haya indicado para el informe (opcional)."
+                                    }
+                                },
+                                required: ["aplicativo"]
+                            }
+                        },
+                        {
                             name: "wappy_enviar_correo",
                             description: "Redacta y envía un correo electrónico formal a cualquier destinatario (colaborador, gerencia, ARL o al usuario) utilizando Google Gmail (si está conectado) o el servidor oficial de WAPPY. Puedes enviar mensajes, recordatorios o adjuntar/enviar el informe técnico recién creado.",
                             parameters: {
@@ -1431,6 +1464,13 @@ class VoiceSession {
                                     titulo: {
                                         type: "string",
                                         description: "Título descriptivo de la orden de trabajo."
+                                    },
+                                    archivos: {
+                                        type: "array",
+                                        description: "Lista de archivos, imágenes, videos o documentos adjuntos para que Antigravity los analice o procese.",
+                                        items: {
+                                            type: "string"
+                                        }
                                     }
                                 },
                                 required: ["instruccion"]
@@ -1681,6 +1721,11 @@ class VoiceSession {
 - Si recibes un turno silencioso o tras completar una tarea, NO emitas comentarios de relleno en inglés. Si ya confirmaste en español, mantente en silencio esperando al usuario.
 - PROHIBICIÓN ABSOLUTA DE AVISOS O ADVERTENCIAS PATERNALISTAS: NUNCA digas "esto no es un consejo médico", "recuerda consultar a un profesional de la salud", "no reemplaza la asesoría jurídica", "la información anterior no constituye consejo" ni nada por el estilo. WAPPY es una plataforma profesional empresarial de SG-SST. Proporciona las respuestas técnicas y especializadas con rigor, sin sermones ni disclaimers.
 
+[CONTROL DE VIDEOLLAMADA Y COLGAR POR VOZ]:
+- Si el usuario te pide: "activa videollamada", "activa la cámara", "activa video", "inicia videollamada", "enciende la cámara", "pon la cámara", invoca DE INMEDIATO la herramienta 'wappy_controlar_videollamada' con accion: 'activar_camara' y confirma en una sola frase breve: "¡Listo! Iniciando videollamada en vivo."
+- Si el usuario te pide: "apaga la cámara", "desactiva el video", "apaga videollamada", invoca 'wappy_controlar_videollamada' con accion: 'apagar_camara' y confirma: "Cámara apagada, continuamos por voz."
+- Si el usuario te pide: "cuelga", "colgar", "terminar llamada", "finalizar llamada", "chao", "hasta luego", invoca DE INMEDIATO 'wappy_controlar_videollamada' con accion: 'colgar_llamada' y despídete amablemente: "¡Con gusto! Que tengas un excelente día."
+
 [REGLA DE ORO DE VERACIDAD Y GROUNDING - PROHIBICIÓN DE AFIRMAR ACCIONES NO EJECUTADAS]:
 - ESTÁ TERMINANTEMENTE PROHIBIDO afirmar verbalmente que has creado un archivo, landing page, prototipo, o que has buscado en Google Drive o que has abierto un chat SI NO ESTÁS INVOCANDO EL TOOL CALL EN ESTE MISMO TURNO O SI NO HAS RECIBIDO SU RESULTADO EXITOSO.
 - NUNCA digas "¡Listo! Ya creé...", "Ya te compartí el documento...", "Ya desplegué...", "Ya busqué..." si no estás enviando el Tool Call correspondiente.
@@ -1829,8 +1874,13 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
      2. Léele o explícale el contenido real extraído con fidelidad, sin inventar y sin omitir datos clave.
 7. **canvas_tool (Creación de Archivos Word, Excel, HTML y Presentaciones en Canvas)**:
    - Tienes la herramienta 'canvas_tool' para crear y entregar archivos descargables directamente en el chat de Tenshi (con tarjeta y botón de descarga directa) y en el lienzo Canvas.
-   - INVÓCALA SIEMPRE que el usuario te pida crear, generar, redactar o entregar un documento, archivo, protocolo, procedimiento, política, tabla, matriz de datos, hoja de cálculo, aplicativo interactivo, presentación, o cuando te pida un resumen en Canva o Canvas ("haz un resumen en canva", "créalo tú en canva").
-   - Tipos de archivo según la solicitud:
+   - INVÓCALA cuando el usuario te pida crear, generar, redactar o entregar un documento suelto, hoja de cálculo, prototipo o cuando te pida un resumen en Canva o Canvas ("haz un resumen en canva", "créalo tú en canva").
+   - ⚠️ **DIFERENCIACIÓN CRÍTICA — GENERAR EN APLICATIVOS O MÓDULOS DEL SG-SST**:
+     * Si el usuario te pide: "genera un informe sobre un aplicativo", "genera el informe de Responsable SG-SST", "redacta la política en el módulo", "genera el análisis de objetivos", "llena el informe del aplicativo", "genera con IA el informe de X aplicativo":
+     * **ESTÁ TERMINANTEMENTE PROHIBIDO USAR 'canvas_tool'**.
+     * **DEBES USAR 'wappy_generar_analisis_aplicativo'** indicando el aplicativo ('responsable', 'politica', 'objetivos', 'legal', 'rit', 'perfil_cargo', 'diagnostico', 'vulnerabilidad', etc.).
+     * Esta herramienta navega directamente al aplicativo correspondiente y ejecuta el botón oficial de "Generar con IA / Análisis IA" directamente en su editor.
+   - Tipos de archivo en canvas_tool según la solicitud:
      * 'text': Documento Word / Resumen estructurado (.doc/.docx). Redacta en el campo 'content' el texto completo y estructurado en Markdown con título, secciones y marco técnico aplicable.
      * 'excel': Hoja de cálculo Excel (.xlsx). En 'content' entrega un arreglo 2D en JSON con encabezados y datos reales (ej: [["ID","Peligro","Nivel"],["1","Ruido","Alto"]]).
      * 'html': Aplicativo, reporte o página web interactiva con Tailwind CSS y gráficos Chart.js. OBLIGATORIO: Diseño mobile-first 100% responsive para celulares (meta viewport, tablas envueltas en overflow-x-auto, grids adaptativas sm:grid-cols-2).
@@ -1859,8 +1909,9 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
 14. **ANALÍTICAS**:
    - 'consultar_analitica_psicosocial': Métricas agregadas de ánimo, estrés y clima laboral.
    - 'consultar_analitica_actos_condiciones': Estadísticas y buzón de reportes de seguridad.
-15. **wappy_leer_informe_aplicativo (Lectura Universal de los 20 Aplicativos SG-SST)**:
-   - Permite consultar y leer el informe oficial completo de cualquiera de los 20 aplicativos de WAPPY:
+15. **wappy_leer_informe_aplicativo y wappy_generar_analisis_aplicativo (Módulos y Aplicativos SG-SST)**:
+   - 'wappy_generar_analisis_aplicativo': Genera automáticamente con IA el análisis o informe oficial directamente en el editor del aplicativo nativo (Responsable SG-SST, Objetivos, Política, Matriz Legal, RIT, Perfiles de Cargo, Diagnóstico 0312, etc.). INVÓCALA SIEMPRE que te pidan generar o redactar el informe de un aplicativo, NUNCA uses canvas_tool para esto.
+   - 'wappy_leer_informe_aplicativo': Permite consultar y leer el informe oficial completo de cualquiera de los 20 aplicativos de WAPPY:
      * Perfiles de Cargo ('perfil_cargo')
      * Matriz IPEVAR / GTC-45 ('gtc45')
      * Diagnóstico Estándares Mínimos Res. 0312 ('diagnostico_0312')
@@ -2405,7 +2456,12 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                 data: { text: (this.userTranscriptionText || cleanText).trim(), isUserTranscription: true }
             });
 
-            // Fast-track real-time voice report trigger (only on explicit user command to generate report)
+            // Detección en caliente de activación de Modo Fisioterapeuta / Ergonomía / Estudio de Puesto
+            const fisioTriggers = /\b(fisioterapeuta|fisioterapia|ergonom[ií]a|ergon[oó]mic[ao]|estudio\s+(de\s+)?puesto|higiene\s+postural|biomec[aá]nic[ao]|evaluaci[oó]n\s+postural)\b/i;
+            if (!this.isBiomechanics && !this.isFisioMode && fisioTriggers.test(cleanText)) {
+                this.enableFisioterapeutaMode('voz');
+            }
+
             // Fast-track real-time voice report trigger (only on explicit user command to generate report)
             if (!this.isGeneratingReport && this.conversationTurns && this.conversationTurns.length >= 1) {
                 const userReportRegex = /\b(genera(r)?|haz|compil(a|ar)|dame|quiero|entreg(a|ar)|sacar?)\s+(el\s+|un\s+)?(informe|reporte)\b/i;
@@ -2694,6 +2750,33 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         continue;
                     }
 
+                    // Manejo directo de videollamada y colgar por voz
+                    if (fc.name === 'wappy_controlar_videollamada' || fc.name === 'controlar_videollamada') {
+                        const accion = fc.args?.accion || 'activar_camara';
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "${fc.name}" with accion: ${accion}`);
+                        this.sendToClient({
+                            type: 'wappy_action',
+                            data: {
+                                id: fc.id,
+                                name: 'wappy_controlar_videollamada',
+                                args: { accion }
+                            }
+                        });
+                        if (this.geminiClient) {
+                            const respText = accion === 'activar_camara'
+                                ? "Cámara y videollamada activadas con éxito en la pantalla del usuario."
+                                : accion === 'apagar_camara'
+                                ? "Cámara apagada con éxito. Continuando únicamente por audio."
+                                : "Llamada finalizada y colgada a petición del usuario.";
+                            this.sendGeminiToolResponse([{
+                                id: fc.id,
+                                name: fc.name,
+                                response: { result: respText }
+                            }]);
+                        }
+                        continue;
+                    }
+
                     // Manejo directo de Canvas / Archivos (Word, Excel, HTML, Presentación) en modo voz.
                     if (fc.name === 'canvas_tool' || fc.name === 'canvas') {
                         logger.info(`[VoiceSession] Gemini Live invoked tool "canvas_tool" with title: "${fc.args?.title}", fileType: "${fc.args?.fileType}"`);
@@ -2893,6 +2976,30 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                                     response: { error: `Error generando informe: ${repErr.message}` }
                                 }]);
                             }
+                        }
+                        continue;
+                    }
+
+                    // Generación automática de análisis/informe en el editor nativo del aplicativo SG-SST
+                    if (fc.name === 'wappy_generar_analisis_aplicativo') {
+                        const app = fc.args?.aplicativo || 'responsable';
+                        logger.info(`[VoiceSession] Gemini Live invoked "wappy_generar_analisis_aplicativo" for: ${app}`);
+                        this.sendToClient({
+                            type: 'wappy_action',
+                            data: {
+                                id: fc.id,
+                                name: 'wappy_generar_analisis_aplicativo',
+                                args: fc.args || {}
+                            }
+                        });
+                        if (this.geminiClient) {
+                            this.sendGeminiToolResponse([{
+                                id: fc.id,
+                                name: fc.name,
+                                response: {
+                                    result: `Generación de Análisis IA ejecutada exitosamente dentro del aplicativo "${app}". Confirma al usuario en una sola frase breve y entusiasta que ya estás generando el análisis directamente en el editor del aplicativo.`
+                                }
+                            }]);
                         }
                         continue;
                     }
@@ -3814,6 +3921,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                     // Iniciar Estudio de Puesto de Trabajo Ergonómico en Vivo con la Fisioterapeuta Laboral
                     if (fc.name === 'wappy_iniciar_estudio_ergonomico_vivo') {
                         logger.info(`[VoiceSession] Gemini Live invoked "wappy_iniciar_estudio_ergonomico_vivo" with args:`, JSON.stringify(fc.args));
+                        await this.enableFisioterapeutaMode('herramienta_estudio_ergonomico');
                         this.sendToClient({
                             type: 'wappy_action',
                             data: {
@@ -4210,6 +4318,11 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         }
                     }
 
+                    if (data.image && this.geminiClient) {
+                        this.geminiClient.sendVideo(data.image);
+                        logger.info('[VoiceSession] Forwarded evidence image directly to Gemini Multimodal Live API');
+                    }
+
                     // Save structured multi-phase evidence with MediaPipe telemetry
                     if (!this.phaseEvidences) {
                         this.phaseEvidences = {};
@@ -4277,11 +4390,15 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                     }
 
                     try {
-                        let conversationId = this.conversationId;
                         let isNewConvo = false;
+                        let conversationId = (this.isFisioMode && this.fisioConversationId) ? this.fisioConversationId : this.conversationId;
                         if (!conversationId || conversationId === 'new') {
                             conversationId = uuidv4();
-                            this.conversationId = conversationId;
+                            if (this.isFisioMode) {
+                                this.fisioConversationId = conversationId;
+                            } else {
+                                this.conversationId = conversationId;
+                            }
                             isNewConvo = true;
                         }
 
@@ -4289,30 +4406,52 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         const messageData = {
                             messageId,
                             conversationId,
-                            parentMessageId: this.lastMessageId,
+                            parentMessageId: this.isFisioMode ? this.fisioLastMessageId : this.lastMessageId,
                             text: messageText,
                             content: messageContent,
                             user: this.userId,
                             sender: 'User',
                             isCreatedByUser: true,
-                            endpoint: this.dbEndpoint,
+                            endpoint: this.isFisioMode ? 'agents' : this.dbEndpoint,
                             model: this.dbModel,
                         };
 
                         const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession - Evidence Save' });
                         if (savedMessage) {
-                            this.lastMessageId = messageId;
-                            logger.info(`[VoiceSession] Saved new evidence photo message: ${messageId} for phase: ${phaseName}`);
+                            if (this.isFisioMode) {
+                                this.fisioLastMessageId = messageId;
+                            } else {
+                                this.lastMessageId = messageId;
+                            }
+                            logger.info(`[VoiceSession] Saved new evidence photo message: ${messageId} for phase: ${phaseName} (conversationId: ${conversationId}, agent: ${this.isFisioMode ? 'Fisioterapeuta' : 'Tenshi'})`);
+                        }
+
+                        if (this.isFisioMode) {
+                            const workerName = (this.extractedWorkerMeta && this.extractedWorkerMeta.workerName) || this.user?.name || 'Colaborador';
+                            try {
+                                await saveConvo({ user: { id: this.userId } }, {
+                                    conversationId,
+                                    endpoint: 'agents',
+                                    agent_id: this.fisioAgent?.id || 'fisioterapeuta_laboral',
+                                    title: `Estudio Ergonómico — ${workerName}`,
+                                    model: this.dbModel,
+                                    tags: ['sgsst-live-analysis', 'fisioterapeuta-laboral']
+                                }, { context: 'VoiceSession - Fisio Evidence Convo' });
+                            } catch (convoErr) {
+                                logger.warn('[VoiceSession] Error updating fisio conversation:', convoErr.message);
+                            }
                         }
 
                         // Send to Gemini Live silently if it's a telemetry alert
                         const isTelemetry = !!data.text && !data.metadata?.phaseName;
-                        if (isTelemetry && this.geminiClient) {
-                            this.geminiClient.sendImageWithText(data.image || null, data.text, false);
+                        if (isTelemetry && this.geminiClient && this.geminiClient.setupCompleted) {
+                            if (data.image) {
+                                this.geminiClient.sendVideo(data.image);
+                            }
                         }
 
                         // If it's a phase evidence captured by the user, notify Gemini Live so the AI verbally acknowledges it!
-                        if (data.metadata?.phaseName && this.geminiClient && this.isActive && !this.reportGenerated && !this.isGeneratingReport) {
+                        if (data.metadata?.phaseName && this.geminiClient && this.geminiClient.setupCompleted && this.isActive && !this.reportGenerated && !this.isGeneratingReport) {
                             const summary = data.metadata?.telemetry?.summary || '';
                             const phaseNum = (data.metadata.phaseIndex ?? 0) + 1;
                             const isLastPhase = phaseNum >= 3;
@@ -4330,7 +4469,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         if (isNewConvo) {
                             this.sendToClient({
                                 type: 'conversationId',
-                                data: { conversationId: this.conversationId }
+                                data: { conversationId }
                             });
                         }
 
@@ -6025,13 +6164,14 @@ ${workerSubHeaderHtml}
 
                     const chatMessageText = `${cleanMarkdown}\n\n:::canvas{title="${reportTitle}" fileType="text" identifier="informe-ergonomico-${radicadoId}"}\n${reportHtml}\n:::\n`;
 
-                    const reportModelName = SGSST_FALLBACK_MODELS[0]; // Use same model name used for generation
-                    const reportSender = this.agentObj?.name || (this.isBiomechanics ? 'Fisioterapeuta Laboral' : 'Assistant');
-                    const reportIconURL = this.agentObj?.avatar?.filepath || this.agentObj?.avatar?.url || undefined;
+                    const targetConversationId = (this.isFisioMode && this.fisioConversationId) ? this.fisioConversationId : this.conversationId;
+                    const targetAgentId = this.isFisioMode ? (this.fisioAgent?.id || 'fisioterapeuta_laboral') : (this.agentObj?.id || 'tenshi');
+                    const reportSender = this.isFisioMode ? (this.fisioAgent?.name || 'Fisioterapeuta Laboral') : (this.agentObj?.name || (this.isBiomechanics ? 'Fisioterapeuta Laboral' : 'Tenshi'));
+                    const reportIconURL = this.isFisioMode ? (this.fisioAgent?.avatar?.filepath || this.fisioAgent?.avatar?.url) : (this.agentObj?.avatar?.filepath || this.agentObj?.avatar?.url || undefined);
                     const reportMessage = {
                         messageId,
-                        conversationId: this.conversationId,
-                        parentMessageId: this.lastMessageId,
+                        conversationId: targetConversationId,
+                        parentMessageId: this.isFisioMode ? this.fisioLastMessageId : this.lastMessageId,
                         sender: reportSender,
                         iconURL: reportIconURL,
                         user: this.userId,
@@ -6046,16 +6186,24 @@ ${workerSubHeaderHtml}
                     };
 
                     await saveMessage({ user: { id: this.userId } }, reportMessage, { context: 'VoiceSession - Report' });
-                    this.lastMessageId = messageId; // Update pointer
-                    logger.info(`[VoiceSession] Report saved to DB with sender "${reportSender}". MessageId: ${messageId}`);
+                    if (this.isFisioMode) {
+                        this.fisioLastMessageId = messageId;
+                    } else {
+                        this.lastMessageId = messageId;
+                    }
+                    logger.info(`[VoiceSession] Report saved to DB with sender "${reportSender}" in convo "${targetConversationId}". MessageId: ${messageId}`);
 
                     // Save conversation state so LibreChat updates the conversation list and timestamps
                     try {
+                        const workerName = (this.extractedWorkerMeta && this.extractedWorkerMeta.workerName) || this.user?.name || 'Colaborador';
+                        const convoTitle = this.isBiomechanics ? `Estudio Ergonómico — ${workerName}` : reportTitle;
                         await saveConvo({ user: { id: this.userId } }, {
-                            conversationId: this.conversationId,
-                            endpoint: this.dbEndpoint,
+                            conversationId: targetConversationId,
+                            endpoint: 'agents',
+                            agent_id: targetAgentId,
+                            title: convoTitle,
                             model: this.dbModel,
-                            ...(this.config.mode === 'live_analysis' ? { tags: ['sgsst-live-analysis'] } : {})
+                            tags: this.isBiomechanics ? ['sgsst-live-analysis', 'fisioterapeuta-laboral'] : ['sgsst-live-analysis']
                         }, { context: 'VoiceSession - Report' });
                     } catch (convoSaveError) {
                         logger.warn('[VoiceSession] Error updating conversation for report:', convoSaveError.message);
@@ -6350,6 +6498,50 @@ ${workerSubHeaderHtml}
             return;
         }
 
+        // 0.1. Failsafe prioritario para videollamada y colgar por voz
+        const isActivarVideo = /\b(activa|activar|enciende|encender|inicia|iniciar|pon|poner|prende|prender|abre|abrir)\s+(la\s+)?(videollamada|c[aá]mara|video|visi[oó]n)\b/i.test(userLower) ||
+            /\b(videollamada|activa\s+c[aá]mara|activa\s+video)\b/i.test(userLower);
+
+        const isApagarVideo = /\b(apaga|apagar|desactiva|desactivar|quita|quitar|cierra|cerrar)\s+(la\s+)?(c[aá]mara|video|videollamada)\b/i.test(userLower);
+
+        const isColgarLlamada = /\b(cuelga|colgar|termina|terminar|finaliza|finalizar|corta|cortar|desconecta|desconectar|pausa|pausar)\s+(la\s+)?(llamada|comunicaci[oó]n|sesi[oó]n|conversaci[oó]n)\b/i.test(userLower) ||
+            /^(cuelga|colgar|terminar\s+llamada|adi[oó]s|chao|hasta\s+luego|hasta\s+pronto)$/i.test(userLower.trim());
+
+        if (isActivarVideo) {
+            logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Activando videollamada por voz: "${userText}"`);
+            this.sendToClient({
+                type: 'wappy_action',
+                data: {
+                    id: `failsafe-video-${Date.now()}`,
+                    name: 'wappy_controlar_videollamada',
+                    args: { accion: 'activar_camara' }
+                }
+            });
+            return;
+        } else if (isApagarVideo) {
+            logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Apagando cámara por voz: "${userText}"`);
+            this.sendToClient({
+                type: 'wappy_action',
+                data: {
+                    id: `failsafe-video-${Date.now()}`,
+                    name: 'wappy_controlar_videollamada',
+                    args: { accion: 'apagar_camara' }
+                }
+            });
+            return;
+        } else if (isColgarLlamada) {
+            logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Colgando llamada por voz: "${userText}"`);
+            this.sendToClient({
+                type: 'wappy_action',
+                data: {
+                    id: `failsafe-hangup-${Date.now()}`,
+                    name: 'wappy_controlar_videollamada',
+                    args: { accion: 'colgar_llamada' }
+                }
+            });
+            return;
+        }
+
         // 0.5. Failsafe prioritario para iniciar Estudio de Puesto de Trabajo Ergonómico en Vivo con la Fisioterapeuta
         const liveEptMatch =
             /\b(estudio\s+de\s+puesto|evaluaci[oó]n\s+ergon[oó]mica|an[aá]lisis\s+ergon[oó]mico|an[aá]lisis\s+biomec[aá]nico|estudio\s+ergon[oó]mico|inspecci[oó]n\s+ergon[oó]mica|puesto\s+de\s+trabajo\s+ergon[oó]mico)/i.test(userLower) &&
@@ -6568,9 +6760,39 @@ ${workerSubHeaderHtml}
             return;
         }
 
-        // 2. Detección de creación EXPLÍCITA de Prototipos / Landing Pages / Canvas omitidos por Gemini
-        // NUNCA disparar por menciones accidentales de "resumen" o contexto interno
-        const isExplicitCanvasCreate = /\b(crea|crear|genera|generar|haz|hazme|diseña|diseñame|despliega|desplegar|abrir|abre)\s+(un\s+|una\s+)?(canvas|landing\s*page|prototipo|aplicativo|documento\s+en\s+canvas)\b/i.test(userLower);
+        // 2a. Detección de generación de informes o análisis dentro de un aplicativo SG-SST
+        const isAppAnalysisRequest = /\b(genera|generar|crea|crear|haz|hazme|redacta|redactar)\s+.*(informe|an[aá]lisis|documento).*(\baplicativo\b|\bm[oó]dulo\b|responsable|pol[ií]tica|objetivos|matriz\s+legal|rit|perfil\s+cargo|diagn[oó]stico|estudio|vulnerab)/i.test(userLower) ||
+            /\b(genera|generar|crea|crear|haz|hazme|redacta|redactar)\s+(el\s+|un\s+)?(informe|an[aá]lisis)\s+(de|del|en)\s+(responsable|pol[ií]tica|objetivos|legal|rit|perfil|diagn[oó]stico)/i.test(userLower);
+
+        if (isAppAnalysisRequest) {
+            let app = 'responsable';
+            if (/pol[ií]tica/i.test(userLower)) app = 'politica';
+            else if (/objetivo/i.test(userLower)) app = 'objetivos';
+            else if (/legal/i.test(userLower)) app = 'legal';
+            else if (/rit|reglamento/i.test(userLower)) app = 'rit';
+            else if (/cargo/i.test(userLower)) app = 'perfil_cargo';
+            else if (/diagn[oó]stico|0312/i.test(userLower)) app = 'diagnostico';
+            else if (/emergencia|vulnerab/i.test(userLower)) app = 'vulnerabilidad';
+            else if (/responsable/i.test(userLower)) app = 'responsable';
+
+            logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Detected application analysis request for "${app}". Dispatching wappy_generar_analisis_aplicativo...`);
+            this.sendToClient({
+                type: 'wappy_action',
+                data: {
+                    id: `failsafe-app-report-${Date.now()}`,
+                    name: 'wappy_generar_analisis_aplicativo',
+                    args: { aplicativo: app, instruccion_adicional: userText }
+                }
+            });
+            return;
+        }
+
+        // 2b. Detección de creación EXPLÍCITA de Prototipos / Landing Pages / Canvas omitidos por Gemini
+        // NUNCA disparar por menciones de módulos o informes de aplicativos SG-SST
+        const isExplicitCanvasCreate = (
+            /\b(crea|crear|genera|generar|haz|hazme|diseña|diseñame|despliega|desplegar|abrir|abre)\s+(un\s+|una\s+)?(canvas|landing\s*page|prototipo|documento\s+en\s+canvas)\b/i.test(userLower) ||
+            (/\b(crea|crear|genera|generar|haz|hazme|diseña)\s+(un\s+)?aplicativo\s+interactivo\b/i.test(userLower) && !/\b(sgsst|responsable|informe|matriz|m[oó]dulo)\b/i.test(userLower))
+        ) && !/\b(responsable|pol[ií]tica|objetivos|matriz\s+legal|rit|perfil|diagn[oó]stico)\b/i.test(userLower);
         const aiClaimedCreation = /(cre[eé]\s+y\s+desplegu[eé]|ya\s+gener[eé]\s+la\s+landing|aqu[ií]\s+tienes\s+la\s+landing|en\s+pantalla\s+la\s+landing|desplegado\s+como\s+landing)/i.test(currentAiText);
 
         if (isExplicitCanvasCreate || (aiClaimedCreation && isExplicitCanvasCreate)) {
@@ -6951,6 +7173,77 @@ ${workerSubHeaderHtml}
             } catch (error) {
                 logger.error('[VoiceSession] Error updating conversation:', error);
             }
+        }
+    }
+
+    /**
+     * Activa dinámicamente el Modo Fisioterapeuta Laboral / Estudio Ergonómico en vivo
+     */
+    async enableFisioterapeutaMode(reason = 'comando_usuario') {
+        if (this.isBiomechanics && this.isFisioMode) {
+            return;
+        }
+
+        logger.info(`[VoiceSession] Activando Modo Fisioterapeuta / Ergonomía en vivo (motivo: ${reason})`);
+        this.isBiomechanics = true;
+        this.isFisioMode = true;
+
+        try {
+            const { Agent } = require('~/db/models');
+            const fisioAgent = await Agent.findOne({
+                $or: [
+                    { name: /fisioterapeuta/i },
+                    { name: /biomec[aá]nic/i },
+                    { name: /ergon/i }
+                ]
+            }).lean();
+
+            if (fisioAgent) {
+                this.fisioAgent = fisioAgent;
+                this.agentObj = fisioAgent;
+                this.activeAgentId = fisioAgent.id;
+            } else {
+                this.fisioAgent = {
+                    id: 'fisioterapeuta_laboral',
+                    name: 'Fisioterapeuta Laboral',
+                };
+                this.agentObj = this.fisioAgent;
+                this.activeAgentId = 'fisioterapeuta_laboral';
+            }
+
+            if (!this.fisioConversationId) {
+                this.fisioConversationId = uuidv4();
+                this.fisioLastMessageId = null;
+            }
+
+            if (this.geminiClient && this.geminiClient.setupCompleted) {
+                const fisioDirective = `[INSTRUCCIÓN DE SISTEMA - CAMBIO A MODO FISIOTERAPEUTA]:
+El usuario ha activado el Modo Fisioterapeuta / Ergonomía / Estudio de Puesto de Trabajo.
+A partir de este instante, asumes al 100% el rol de Fisioterapeuta Laboral y Especialista en Biomecánica de WAPPY IA.
+DIRIGE LA EVALUACIÓN ERGONÓMICA EN CAMPO PASO A PASO:
+1. Saluda presentándote cordialmente como Fisioterapeuta Laboral en WAPPY IA.
+2. Solicita en 1 sola frase los datos de identificación: Nombre completo del trabajador, Cédula y Cargo/Labor evaluada.
+3. Al recibir la identificación, guía el análisis en 3 fases posturales (Paso 1: Silla y digitación; Paso 2: Alcance a herramientas; Paso 3: Región cervical y pantalla).
+4. Aplica los métodos RULA, REBA, ROSA e higiene postural según la normativa colombiana (Resolución 2400 de 1979 y NTC 5693).
+5. Pide al trabajador adoptar la postura y espera a que confirme diciendo "Listo", "Ya" o pulsando el botón de la cámara para registrarla.
+6. Al finalizar las 3 fases, genera el informe ergonómico oficial.`;
+                this.geminiClient.sendText(fisioDirective);
+            }
+
+            this.sendToClient({
+                type: 'agent_switched',
+                data: {
+                    agentName: this.fisioAgent?.name || 'Fisioterapeuta Laboral',
+                    agentId: this.activeAgentId,
+                    isBiomechanics: true,
+                    isFisioMode: true,
+                    conversationId: this.fisioConversationId,
+                    badge: '🩺 Fisioterapeuta Laboral IA'
+                }
+            });
+
+        } catch (err) {
+            logger.error('[VoiceSession] Error activando Modo Fisioterapeuta:', err);
         }
     }
 

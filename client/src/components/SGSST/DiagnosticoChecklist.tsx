@@ -413,7 +413,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
     [statuses],
   );
 
-  const LOCAL_STORAGE_KEY = 'sgsst_diagnostico_form';
+  const LOCAL_STORAGE_KEY = `sgsst_diagnostico_form_${typeof window !== 'undefined' ? (localStorage.getItem('wappy_active_company_id') || 'default') : 'default'}`;
 
   // Auto-compliance scan state
   const [isScanning, setIsScanning] = useState(false);

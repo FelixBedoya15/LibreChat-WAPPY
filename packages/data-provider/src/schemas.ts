@@ -56,6 +56,8 @@ export const documentSupportedProviders = new Set<string>([
   EModelEndpoint.custom,
   EModelEndpoint.azureOpenAI,
   EModelEndpoint.google,
+  EModelEndpoint.agents,
+  'agents',
   Providers.VERTEXAI,
   Providers.MISTRALAI,
   Providers.MISTRAL,

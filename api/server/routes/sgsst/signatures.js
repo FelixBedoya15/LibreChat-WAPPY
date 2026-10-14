@@ -24,7 +24,9 @@ router.get('/', requireJwtAuth, async (req, res) => {
         // 2. Fetch PerfilSociodemografico Workers
         const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
         if (PerfilSociodemograficoData) {
-            const perfil = await PerfilSociodemograficoData.findOne({ user: req.user.id }).lean();
+            const companyId = info?._id;
+            const perfilFilter = companyId ? { companyId } : { user: req.user.id };
+            const perfil = await PerfilSociodemograficoData.findOne(perfilFilter).lean();
             if (perfil && perfil.trabajadores) {
                 for (const worker of perfil.trabajadores) {
                     if (worker.consentimientoFirmaDigital === 'Sí' && worker.firmaDigital && worker.nombre) {

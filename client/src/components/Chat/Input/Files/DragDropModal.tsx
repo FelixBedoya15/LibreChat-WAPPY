@@ -57,17 +57,26 @@ const DragDropModal = ({ onOptionSelect, setShowModal, files, isVisible }: DragD
     const currentProvider = provider || endpoint;
 
     // Check if provider supports document upload
-    if (isDocumentSupportedProvider(endpointType) || isDocumentSupportedProvider(currentProvider)) {
-      const isGoogleProvider = currentProvider === EModelEndpoint.google;
-      const validFileTypes = isGoogleProvider
-        ? files.every(
-            (file) =>
-              file.type?.startsWith('image/') ||
-              file.type?.startsWith('video/') ||
-              file.type?.startsWith('audio/') ||
-              file.type === 'application/pdf',
-          )
-        : files.every((file) => file.type?.startsWith('image/') || file.type === 'application/pdf');
+    if (
+      isDocumentSupportedProvider(endpointType) ||
+      isDocumentSupportedProvider(currentProvider) ||
+      endpoint === EModelEndpoint.agents ||
+      endpointType === EModelEndpoint.agents
+    ) {
+      const isGoogleProvider = currentProvider === EModelEndpoint.google || endpoint === EModelEndpoint.agents || currentProvider === 'agents';
+      const validFileTypes = files.every(
+        (file) =>
+          file.type?.startsWith('image/') ||
+          file.type?.startsWith('video/') ||
+          file.type?.startsWith('audio/') ||
+          file.type === 'application/pdf' ||
+          file.type?.includes('document') ||
+          file.type?.includes('sheet') ||
+          file.type?.includes('msword') ||
+          file.type?.includes('excel') ||
+          file.type?.includes('text') ||
+          file.type?.includes('csv'),
+      );
 
       _options.push({
         label: localize('com_ui_upload_provider'),

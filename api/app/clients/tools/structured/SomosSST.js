@@ -1126,7 +1126,7 @@ class SomosSST extends Tool {
               const officialConvoId = `official-${companyId || userId}`;
               const gtcDoc = (await GTC45WorkspaceSession.findOne({ user: userId, ...(companyId ? { companyId } : {}), isOfficial: true }).lean())
                 || (await GTC45WorkspaceSession.findOne({ conversationId: officialConvoId }).lean())
-                || (await GTC45WorkspaceSession.findOne({ user: userId, 'matrixRows.0': { $exists: true } }).sort({ updatedAt: -1 }).lean());
+                || (!companyId ? await GTC45WorkspaceSession.findOne({ user: userId, 'matrixRows.0': { $exists: true } }).sort({ updatedAt: -1 }).lean() : null);
               if (gtcDoc && Array.isArray(gtcDoc.matrixRows)) {
                 resumen.hito_2_nucleo_bio_evaluativo_global.total_peligros_identificados = gtcDoc.matrixRows.length;
                 const distinctProc = new Set(gtcDoc.matrixRows.map(r => r.proceso).filter(Boolean));

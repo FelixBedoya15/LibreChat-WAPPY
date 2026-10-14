@@ -245,8 +245,8 @@ router.get('/list-user-matrices', requireJwtAuth, async (req, res) => {
     const companyId = await getActiveCompanyId(userId);
 
     const query = companyId
-      ? { $or: [{ companyId }, { user: userId }], 'matrixRows.0': { $exists: true } }
-      : { user: userId, 'matrixRows.0': { $exists: true } };
+      ? { companyId, 'matrixRows.0': { $exists: true } }
+      : { user: userId, $or: [{ companyId: null }, { companyId: { $exists: false } }], 'matrixRows.0': { $exists: true } };
 
     const sessions = await ChemicalCompatibilitySession.find(query)
       .select('conversationId isOfficial officialTitle sourceConversationId matrixRows updatedAt createdAt')

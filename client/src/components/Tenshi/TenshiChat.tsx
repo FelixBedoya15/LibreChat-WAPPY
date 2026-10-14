@@ -30,6 +30,12 @@ import {
   ExternalLink,
   Copy,
   Share2,
+  Camera,
+  CameraOff,
+  SwitchCamera,
+  Monitor,
+  Film,
+  PhoneOff,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
@@ -63,6 +69,16 @@ export interface TenshiQrAttachment {
   empresa?: string;
 }
 
+export interface TenshiAttachedMedia {
+  name: string;
+  type: 'image' | 'video' | 'audio' | 'document';
+  mimeType: string;
+  size: number;
+  dataUrl: string;
+  previewUrl?: string;
+  duration?: number;
+}
+
 export interface TenshiChatMessage {
   _id?: string;
   role: string;
@@ -71,8 +87,18 @@ export interface TenshiChatMessage {
   isLiveVoice?: boolean;
   file?: TenshiFileAttachment;
   qrCode?: TenshiQrAttachment;
+  image?: string;
+  media?: TenshiAttachedMedia;
   delegatedOrderId?: string;
   delegatedStatus?: 'todo' | 'done' | 'failed';
+}
+
+export function formatBytes(bytes: number) {
+  if (!bytes || bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
 function markdownToSimpleHtml(md: string): string {
@@ -988,6 +1014,7 @@ export default function TenshiChat() {
     },
   ]);
   const [input, setInput] = useState('');
+  const [attachedMedia, setAttachedMedia] = useState<TenshiAttachedMedia | null>(null);
   const [isTyping, setIsTyping] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
@@ -1007,6 +1034,139 @@ export default function TenshiChat() {
   const inactivityIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const disconnectVoiceRef = useRef<() => void>(() => {});
   const sendVoiceInterruptRef = useRef<() => void>(() => {});
+
+  // ─── Tenshi Vision Mode State & Video Infrastructure ──────────────────────────
+  const [isVisionActive, setIsVisionActive] = useState(false);
+  const [isVisionExpanded, setIsVisionExpanded] = useState(true);
+  const [visionSource, setVisionSource] = useState<'camera' | 'screen'>('camera');
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
+  const visionVideoRef = useRef<HTMLVideoElement | null>(null);
+  const visionCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const visionStreamRef = useRef<MediaStream | null>(null);
+  const visionIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const sendVideoFrameRef = useRef<((video: HTMLVideoElement, telemetry?: string) => void) | null>(null);
+  const sendEvidenceImageRef = useRef<((base64Image: string, description?: string) => void) | null>(null);
+
+  const handleFileAttachment = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset input value to allow selecting same file again
+    e.target.value = '';
+
+    const mime = file.type || '';
+    let mediaType: 'image' | 'video' | 'audio' | 'document' = 'document';
+    if (mime.startsWith('image/')) mediaType = 'image';
+    else if (mime.startsWith('video/')) mediaType = 'video';
+    else if (mime.startsWith('audio/')) mediaType = 'audio';
+
+    const MAX_VIDEO_BYTES = 500 * 1024 * 1024; // 500 MB para clips HD/4K de celulares
+    const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50 MB
+
+    // 1. Validación de tamaño de archivo
+    if (mediaType === 'video' && file.size > MAX_VIDEO_BYTES) {
+      alert(`El video pesa ${formatBytes(file.size)}, superando el límite máximo de 500 MB.\n\nPor favor graba o sube un clip de hasta 30 segundos.`);
+      return;
+    } else if (mediaType !== 'video' && file.size > MAX_FILE_BYTES) {
+      alert(`El archivo pesa ${formatBytes(file.size)}, superando el límite de 50 MB. Por favor sube un archivo más liviano.`);
+      return;
+    }
+
+    // 2. Procesamiento de videos con extracción de fotogramas clave y reproducción local sin desbordar memoria
+    if (mediaType === 'video') {
+      const blobUrl = URL.createObjectURL(file);
+      const tempVideo = document.createElement('video');
+      tempVideo.preload = 'auto';
+      tempVideo.muted = true;
+      tempVideo.playsInline = true;
+      tempVideo.src = blobUrl;
+
+      let frameExtracted = false;
+      const extractThumbnailAndAttach = (durationSec?: number) => {
+        if (frameExtracted) return;
+        const extractFrame = () => {
+          if (frameExtracted) return;
+          frameExtracted = true;
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.min(tempVideo.videoWidth || 640, 640);
+            const scale = canvas.width / (tempVideo.videoWidth || 640);
+            canvas.height = Math.round((tempVideo.videoHeight || 480) * scale);
+            const ctx = canvas.getContext('2d');
+            if (ctx && canvas.width > 0 && canvas.height > 0) {
+              ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
+              const thumbUrl = canvas.toDataURL('image/jpeg', 0.85);
+              setAttachedMedia({
+                name: file.name,
+                type: 'video',
+                mimeType: mime || 'video/mp4',
+                size: file.size,
+                dataUrl: thumbUrl,
+                previewUrl: blobUrl,
+                duration: durationSec ? Math.round(durationSec) : undefined,
+              });
+              return;
+            }
+          } catch (e) {
+            console.warn('[Tenshi Video] No se pudo capturar canvas snapshot:', e);
+          }
+          setAttachedMedia({
+            name: file.name,
+            type: 'video',
+            mimeType: mime || 'video/mp4',
+            size: file.size,
+            dataUrl: '',
+            previewUrl: blobUrl,
+            duration: durationSec ? Math.round(durationSec) : undefined,
+          });
+        };
+
+        if (durationSec && durationSec > 1) {
+          tempVideo.currentTime = Math.min(1.5, durationSec / 2);
+          tempVideo.onseeked = () => extractFrame();
+          setTimeout(extractFrame, 600);
+        } else {
+          extractFrame();
+        }
+      };
+
+      tempVideo.onloadedmetadata = () => {
+        const duration = tempVideo.duration;
+        if (duration && duration > 45) {
+          URL.revokeObjectURL(blobUrl);
+          alert(`El video dura ${Math.round(duration)} segundos.\n\nPara análisis de SST y ergonomía, el límite recomendado es de hasta 30 segundos. Por favor graba o recorta un clip más corto.`);
+          return;
+        }
+        extractThumbnailAndAttach(duration);
+      };
+
+      tempVideo.onerror = () => {
+        extractThumbnailAndAttach();
+      };
+      return;
+    }
+
+    // 3. Para imágenes, audios y documentos
+    const blobUrl = URL.createObjectURL(file);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      setAttachedMedia({
+        name: file.name,
+        type: mediaType,
+        mimeType: mime || 'application/octet-stream',
+        size: file.size,
+        dataUrl: result,
+        previewUrl: blobUrl,
+      });
+
+      // Si es imagen y la sesión de voz en vivo está activa, enviarla al modelo de voz
+      if (mediaType === 'image' && isVoiceActive && sendEvidenceImageRef.current) {
+        sendEvidenceImageRef.current(result, `El usuario adjuntó la imagen: ${file.name}`);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Monitoreo de chat y agentes para que Tenshi aprenda y responda al usuario
   const pendingAgentConsultationRef = useRef<{
@@ -1826,8 +1986,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
             // Si no estamos en el módulo correspondiente, navegar hacia él
             if (!window.location.pathname.includes('/sgsst') || !window.location.search.includes(rawModulo)) {
-              const targetRoute = HITO_MAP[rawModulo]?.route || `/sgsst?hito=hito7&module=${rawModulo}`;
-              navigate(targetRoute);
+              const { targetRoute } = resolveWappyDestination(rawModulo, '');
+              navigate(targetRoute || `/sgsst?hito=hito7&module=${rawModulo}`);
             }
 
             // Emitir evento para que el componente del formulario capture los datos
@@ -1928,6 +2088,34 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               new CustomEvent('wappy-herramienta-activada', { detail: { herramienta: tool, parametros: params } })
             );
             resultMsg = `Herramienta de agente "${tool}" activada con éxito en la plataforma.`;
+          } else if (action.name === 'wappy_generar_analisis_aplicativo') {
+            const rawApp = (action.args?.aplicativo || action.args?.modulo || '').toLowerCase().trim();
+            const { targetRoute, targetSgsstModule } = resolveWappyDestination(rawApp, '');
+
+            // Si no estamos en la página del aplicativo, navegar
+            if (targetRoute && (!window.location.pathname.includes('/sgsst') || (targetSgsstModule && !window.location.search.includes(targetSgsstModule)))) {
+              navigate(targetRoute);
+            }
+
+            if (targetSgsstModule) {
+              window.dispatchEvent(
+                new CustomEvent('navigate-sgsst', { detail: { module: targetSgsstModule } })
+              );
+            }
+
+            // Disparar el evento de análisis IA para el aplicativo y accionar el botón de generación
+            setTimeout(() => {
+              window.dispatchEvent(
+                new CustomEvent('wappy-generar-analisis-ia', { detail: { aplicativo: rawApp || targetSgsstModule } })
+              );
+
+              const btn = document.querySelector<HTMLElement>('[data-action="generar-analisis-ia"], [id="btn-generar-responsable-ia"], [data-action="ai-default"], button[title*="Generar con IA"]');
+              if (btn && !btn.hasAttribute('disabled')) {
+                btn.click();
+              }
+            }, 550);
+
+            resultMsg = `Generación de Análisis IA ejecutada directamente en el editor del aplicativo "${rawApp || 'SGSST'}".`;
           } else if (action.name === 'wappy_crear_informe') {
             const res = (action as any).result || {};
             const info = res.informe || action.args || {};
@@ -1968,6 +2156,22 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               setIsOpen(true);
             }
             resultMsg = `Dictamen de ${agente} entregado en el chat de Tenshi.`;
+          } else if (action.name === 'wappy_controlar_videollamada' || action.name === 'controlar_videollamada') {
+            const accion = action.args?.accion;
+            if (accion === 'activar_camara') {
+              tenshiAudio.playBlip();
+              startVision('camera');
+              resultMsg = 'Cámara y videollamada activadas con éxito.';
+            } else if (accion === 'apagar_camara') {
+              tenshiAudio.playBlip();
+              stopVision();
+              resultMsg = 'Cámara apagada con éxito.';
+            } else if (accion === 'colgar_llamada') {
+              tenshiAudio.playBlip();
+              stopVision();
+              stopVoiceMode();
+              resultMsg = 'Llamada finalizada y colgada.';
+            }
           } else if (action.name === 'wappy_enviar_correo') {
             const res = (action as any).result || {};
             const dest = action.args?.destinatario || res.destinatario || '';
@@ -2082,6 +2286,19 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         sendWappyActionResult(action.id, action.name, resultMsg);
         setTenshiStatus('');
       },
+      onAgentSwitched: (data: any) => {
+        if (data.isFisioMode) {
+          tenshiAudio.playBlip();
+          setVoiceStatusText('🩺 Modo Fisioterapeuta IA Activo');
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: 'assistant',
+              content: `🩺 **Modo Fisioterapeuta Laboral Activado**\n\nHola, soy tu **Especialista en Ergonomía y Fisioterapeuta Laboral**. La conversación y el informe oficial de tu evaluación se registrarán bajo el expediente del Fisioterapeuta.\n\nPor favor indícame tu **Nombre completo, Cédula y Cargo** para dar inicio al análisis ergonómico.`,
+            },
+          ]);
+        }
+      },
       onStatusChange: (newStatus: string) => {
         if (newStatus === 'connecting') {
           setVoiceStatusText('Conectando con Tenshi...');
@@ -2125,6 +2342,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     disconnect: disconnectVoice,
     getInputVolume,
     sendTextMessage,
+    sendVideoFrame,
+    sendEvidenceImage,
     sendWappyActionResult,
     sendScreenContext,
     setIsPlayingAudio: setVoiceIsPlayingAudio,
@@ -2136,6 +2355,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   setIsPlayingAudioRef.current = setVoiceIsPlayingAudio;
   sendVoiceInterruptRef.current = sendVoiceInterrupt;
   sendTextMessageRef.current = sendTextMessage;
+  sendVideoFrameRef.current = sendVideoFrame;
+  sendEvidenceImageRef.current = sendEvidenceImage;
   const sendScreenContextRef = useRef<((data: any) => void) | null>(null);
   sendScreenContextRef.current = sendScreenContext;
 
@@ -2169,11 +2390,88 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     });
   }, [setVoiceMuted]);
 
+  // ─── Tenshi Vision Control Functions ──────────────────────────────────────────
+  const stopVision = useCallback(() => {
+    if (visionIntervalRef.current) {
+      clearInterval(visionIntervalRef.current);
+      visionIntervalRef.current = null;
+    }
+    if (visionStreamRef.current) {
+      visionStreamRef.current.getTracks().forEach((track) => track.stop());
+      visionStreamRef.current = null;
+    }
+    if (visionVideoRef.current) {
+      visionVideoRef.current.srcObject = null;
+    }
+    setIsVisionActive(false);
+    playPowerDownChime();
+  }, [playPowerDownChime]);
+
+  const captureVisionSnapshot = useCallback((customLabel?: string) => {
+    const video = visionVideoRef.current;
+    if (!video || !video.videoWidth || !video.videoHeight) {
+      return null;
+    }
+    try {
+      if (!visionCanvasRef.current) {
+        visionCanvasRef.current = document.createElement('canvas');
+      }
+      const canvas = visionCanvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+      const label = customLabel || '📸 Evidencia visual capturada en tiempo real';
+      const userVisionMsg: TenshiChatMessage = {
+        role: 'user',
+        content: `👁️ **${label}**\n\n*Foto capturada durante la inspección visual con Tenshi*`,
+        image: dataUrl,
+      };
+
+      setMessages((prev) => [...prev, userVisionMsg]);
+
+      // Enviar imagen al canal WebSocket si está disponible
+      const rawBase64 = dataUrl.split(',')[1];
+      if (rawBase64 && sendEvidenceImageRef.current) {
+        sendEvidenceImageRef.current(rawBase64, label);
+      }
+
+      // Persistir si hay token
+      if (token) {
+        axios
+          .post(
+            '/api/tenshi/message',
+            { role: 'user', content: `[FOTO DE INSPECCIÓN]: ${label}`, image: dataUrl },
+            { headers: { Authorization: `Bearer ${token}` } },
+          )
+          .catch((err) => console.error('[Tenshi Vision] Error guardando mensaje visual:', err));
+      }
+
+      tenshiAudio.playBlip();
+      return dataUrl;
+    } catch (err) {
+      console.error('[Tenshi Vision] Error al capturar snapshot:', err);
+      return null;
+    }
+  }, [token]);
+
+  const setVisionVideoNode = useCallback((node: HTMLVideoElement | null) => {
+    visionVideoRef.current = node;
+    if (node && visionStreamRef.current) {
+      node.srcObject = visionStreamRef.current;
+      node.play().catch(console.error);
+    }
+  }, []);
+
   const stopVoiceMode = useCallback(() => {
     setIsVoiceActive(false);
     setIsMicMuted(false);
     setIsWaitingConsultation(false);
     setIsTyping(false);
+    stopVision();
     if (pendingAgentConsultationRef.current) {
       pendingAgentConsultationRef.current.active = false;
     }
@@ -2190,7 +2488,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     setIsTenshiSpeaking(false);
     setOutputAmplitude(0);
     setVoiceStatusText('');
-  }, [disconnectVoice, clearAudioQueue, playPowerDownChime]);
+  }, [disconnectVoice, clearAudioQueue, playPowerDownChime, stopVision]);
 
   const startVoiceMode = useCallback(() => {
     setIsVoiceActive(true);
@@ -2219,6 +2517,110 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       startVoiceMode();
     }
   }, [isVoiceActive, startVoiceMode, stopVoiceMode]);
+
+  const startVision = useCallback(
+    async (source: 'camera' | 'screen' = 'camera', mode: 'user' | 'environment' = facingMode) => {
+      try {
+        if (!isVoiceActive) {
+          startVoiceMode();
+        }
+        setIsOpen(true);
+        setIsHeroChatOpen(true);
+
+        if (visionStreamRef.current) {
+          visionStreamRef.current.getTracks().forEach((track) => track.stop());
+          visionStreamRef.current = null;
+        }
+        if (visionIntervalRef.current) {
+          clearInterval(visionIntervalRef.current);
+          visionIntervalRef.current = null;
+        }
+
+        let stream: MediaStream;
+        if (source === 'screen') {
+          if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+            alert('Tu navegador no soporta compartir pantalla.');
+            return;
+          }
+          stream = await navigator.mediaDevices.getDisplayMedia({
+            video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 10 } },
+            audio: false,
+          });
+          stream.getVideoTracks()[0].onended = () => {
+            stopVision();
+          };
+        } else {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: mode,
+              width: { ideal: 640 },
+              height: { ideal: 480 },
+              frameRate: { ideal: 15 },
+            },
+            audio: false,
+          });
+        }
+
+        visionStreamRef.current = stream;
+        setVisionSource(source);
+        setFacingMode(mode);
+        setIsVisionActive(true);
+        setIsVisionExpanded(true);
+        tenshiAudio.playBlip();
+
+        setTimeout(() => {
+          if (visionVideoRef.current) {
+            visionVideoRef.current.srcObject = stream;
+            visionVideoRef.current.play().catch(console.error);
+          }
+        }, 150);
+
+        setTimeout(() => {
+          captureVisionSnapshot(
+            source === 'screen'
+              ? '🖥️ Pantalla compartida con Tenshi en vivo'
+              : '👁️ Inspección visual iniciada con cámara'
+          );
+        }, 900);
+
+        visionIntervalRef.current = setInterval(() => {
+          if (visionVideoRef.current && sendVideoFrameRef.current) {
+            sendVideoFrameRef.current(
+              visionVideoRef.current,
+              `[Tenshi Visión en Vivo • ${source === 'screen' ? 'Pantalla' : 'Cámara ' + mode}]`
+            );
+          }
+        }, 1200);
+      } catch (err: any) {
+        console.error('[Tenshi Vision] Error al iniciar visión:', err);
+        setIsVisionActive(false);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: `⚠️ No se pudo acceder a la ${source === 'screen' ? 'pantalla' : 'cámara'} (${err.message || 'Permiso denegado'}). Por favor autoriza el acceso a la cámara en tu navegador.`,
+          },
+        ]);
+      }
+    },
+    [isVoiceActive, facingMode, startVoiceMode, stopVision, captureVisionSnapshot]
+  );
+
+  const switchCamera = useCallback(() => {
+    const nextMode = facingMode === 'user' ? 'environment' : 'user';
+    setFacingMode(nextMode);
+    if (isVisionActive && visionSource === 'camera') {
+      startVision('camera', nextMode);
+    }
+  }, [facingMode, isVisionActive, visionSource, startVision]);
+
+  // Apagar visión si el componente se desmonta
+  useEffect(() => {
+    return () => {
+      if (visionIntervalRef.current) clearInterval(visionIntervalRef.current);
+      if (visionStreamRef.current) visionStreamRef.current.getTracks().forEach((t) => t.stop());
+    };
+  }, []);
 
   // Visual amplitude polling for live waveform & Jarvis avatar reactivity (Throttled to avoid saturating React render queue)
   useEffect(() => {
@@ -2310,6 +2712,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           const isStillStreaming = Boolean(isChatSubmittingRef.current);
           const timeSinceTextChange = Date.now() - (lastContentChangeRef.current?.time || Date.now());
           const consultation = pendingAgentConsultationRef.current;
+          const timeSinceStart = Date.now() - (consultation?.startedAt || Date.now());
 
           // 1. WATCHDOG DE AUTO-ENVÍO: Si pasaron más de 3 segundos, el especialista no ha empezado a generar
           // y el prompt sigue escrito en el input/textarea sin enviarse, forzar el envío del formulario.
@@ -2641,10 +3044,25 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     if (isFullscreen) {
       return {};
     }
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const chatW = Math.min(420, typeof window !== 'undefined' ? window.innerWidth - 24 : 380);
+    const chatH = Math.min(540, typeof window !== 'undefined' ? window.innerHeight - 32 : 500);
+
+    if (isMobile) {
+      const left = Math.max(12, ((typeof window !== 'undefined' ? window.innerWidth : 400) - chatW) / 2);
+      const top = Math.max(16, ((typeof window !== 'undefined' ? window.innerHeight : 700) - chatH) / 2 - 15);
+      return {
+        position: 'fixed',
+        left: `${left}px`,
+        top: `${top}px`,
+        width: `${chatW}px`,
+        height: `${chatH}px`,
+        zIndex: 10000,
+      };
+    }
+
     const tenshiW = 70;
     const tenshiH = 92;
-    const chatW = Math.min(350, window.innerWidth - 24);
-    const chatH = Math.min(440, window.innerHeight - 32);
 
     const curX = position ? position.x : (typeof window !== 'undefined' ? window.innerWidth - 88 : 0);
     const curY = position ? position.y : (typeof window !== 'undefined' ? window.innerHeight - 110 : 0);
@@ -2825,38 +3243,58 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     if (historyData) {
       if (historyData.length > 0) {
         setMessages((prev) => {
-          // Extraer mensajes locales que contengan archivos (file o htmlReport)
-          const localFiles = prev.filter((m) => m.file || m.htmlReport);
+          // Extraer mensajes locales que contengan archivos (file o htmlReport) o medios (media o image)
+          const localExtras = prev.filter((m) => m.file || m.htmlReport || m.media || m.image);
 
           // 1. Mapa de archivos locales por contenido o por título
           const localFileMap = new Map<string, any>();
+          // Mapa de medios locales por contenido o por ID para evitar que se pierdan al sincronizar
+          const localMediaMap = new Map<string, { media?: any; image?: string }>();
+
           prev.forEach((m) => {
             if (m.file) {
               if (m.content) localFileMap.set(m.content.trim(), m.file);
               if (m.file.title) localFileMap.set(m.file.title.trim(), m.file);
             }
+            if (m.media || m.image) {
+              if (m.content) localMediaMap.set(m.content.trim(), { media: m.media, image: m.image });
+              if (m._id) localMediaMap.set(String(m._id), { media: m.media, image: m.image });
+            }
           });
 
-          // 2. Enriquecer historyData si algún mensaje del historial carece de file pero existía localmente o en el turno
+          // 2. Enriquecer historyData si algún mensaje del historial carece de file/media pero existía localmente
           const enrichedHistory = historyData.map((h: any, idx: number) => {
-            if (!h.file) {
-              if (h.content) {
-                const matched = localFileMap.get(h.content.trim());
-                if (matched) return { ...h, file: matched };
+            const item = { ...h };
+
+            // Restaurar media e image si no vienen en el backend pero existían en la sesión local
+            if (!item.media && !item.image) {
+              const textKey = (item.content || '').trim();
+              const cached = localMediaMap.get(textKey) || (item._id ? localMediaMap.get(String(item._id)) : null);
+              if (cached) {
+                if (cached.media) item.media = cached.media;
+                if (cached.image) item.image = cached.image;
+              }
+            }
+
+            if (!item.file) {
+              if (item.content) {
+                const matched = localFileMap.get(item.content.trim());
+                if (matched) item.file = matched;
               }
               // Si el mensaje habla de haber generado o entregado el archivo, enlazar el archivo del mensaje contiguo
-              const mentionsFileGeneration = /gener[ée]|cread[oa]|descargarlo|visualizarlo|en pantalla|aplicativo/i.test(h.content || '');
+              const mentionsFileGeneration = /gener[ée]|cread[oa]|descargarlo|visualizarlo|en pantalla|aplicativo/i.test(item.content || '');
               if (mentionsFileGeneration) {
                 const prevMsg = historyData[idx - 1];
                 if (prevMsg?.file) {
-                  return { ...h, file: prevMsg.file, htmlReport: prevMsg.htmlReport || (prevMsg.file.fileType === 'html' ? prevMsg.file.content : undefined) };
+                  item.file = prevMsg.file;
+                  item.htmlReport = prevMsg.htmlReport || (prevMsg.file.fileType === 'html' ? prevMsg.file.content : undefined);
                 }
               }
             }
-            return h;
+            return item;
           });
 
-          if (localFiles.length === 0) {
+          if (localExtras.length === 0) {
             return enrichedHistory;
           }
 
@@ -2866,29 +3304,31 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             if (h._id) historySignatures.add(String(h._id));
             if (h.content) historySignatures.add(h.content.trim());
             if (h.file?.canvasId) historySignatures.add(String(h.file.canvasId));
-            const sig = `${(h.content || '').trim()}-${(h.file?.title || '').trim()}`;
+            const sig = `${(h.content || '').trim()}-${(h.file?.title || h.media?.name || '').trim()}`;
             if (sig !== '-') historySignatures.add(sig);
           });
 
-          // 4. Filtrar archivos locales que aún no hayan sido devueltos por el backend
-          const unpersistedFiles = localFiles.filter((lf: any) => {
+          // 4. Filtrar archivos y medios locales que aún no hayan sido devueltos por el backend
+          const unpersistedExtras = localExtras.filter((lf: any) => {
             if (lf._id && historySignatures.has(String(lf._id))) return false;
             if (lf.file?.canvasId && historySignatures.has(String(lf.file.canvasId))) return false;
-            if (lf.content && historySignatures.has(lf.content.trim())) return false;
-            const sig = `${(lf.content || '').trim()}-${(lf.file?.title || '').trim()}`;
+            if (lf.content && historySignatures.has(lf.content.trim())) {
+              return false;
+            }
+            const sig = `${(lf.content || '').trim()}-${(lf.file?.title || lf.media?.name || '').trim()}`;
             return !historySignatures.has(sig);
           });
 
-          if (unpersistedFiles.length === 0) {
+          if (unpersistedExtras.length === 0) {
             return enrichedHistory;
           }
 
-          return [...enrichedHistory, ...unpersistedFiles];
+          return [...enrichedHistory, ...unpersistedExtras];
         });
       } else {
         setMessages((prev) => {
-          const localFiles = prev.filter((m) => m.file || m.htmlReport);
-          if (localFiles.length > 0) return localFiles;
+          const localExtras = prev.filter((m) => m.file || m.htmlReport || m.media || m.image);
+          if (localExtras.length > 0) return localExtras;
           return [
             {
               role: 'assistant',
@@ -2963,6 +3403,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       console.error('Error updating message:', err);
       setIsTyping(false);
     }
+  };
+
+  const handleSaveEdit = (msgId: string) => {
+    handleUpdateMessage(msgId, editingText);
   };
 
   const handleRegenerate = async (msgId: string) => {
@@ -3087,10 +3531,23 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         }
       }
 
+      // Sanitizar mensajes del historial: remover dataUrl gigantes de los turnos pasados
+      // para evitar que el payload acumulativo alcance 200MB o desborde la memoria.
+      // Solo el último mensaje (el actual) conserva su dataUrl para Gemini.
+      const sanitizedMessages = cappedMessages.map((m, index) => {
+        const isLast = index === cappedMessages.length - 1;
+        if (isLast) return m;
+        return {
+          ...m,
+          image: undefined,
+          media: m.media ? { ...m.media, dataUrl: undefined, previewUrl: undefined } : undefined,
+        };
+      });
+
       const response = await axios.post(
         '/api/tenshi/chat',
         {
-          messages: cappedMessages,
+          messages: sanitizedMessages,
           browserState: domState,
           tenshiKey: typeof window !== 'undefined' ? localStorage.getItem('librechat_user_key_tenshi_google') || undefined : undefined,
         },
@@ -3155,6 +3612,30 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             setTenshiStatus('');
             setIsTyping(false);
             return;
+          }
+
+          if (
+            action.name === 'wappy_controlar_videollamada' ||
+            action.accion === 'activar_camara' ||
+            action.accion === 'apagar_camara' ||
+            action.accion === 'colgar_llamada' ||
+            action.action === 'wappy_controlar_videollamada'
+          ) {
+            const acc = action.accion || action.args?.accion;
+            if (acc === 'activar_camara') {
+              tenshiAudio.playBlip();
+              startVision('camera');
+            } else if (acc === 'apagar_camara') {
+              tenshiAudio.playBlip();
+              stopVision();
+            } else if (acc === 'colgar_llamada') {
+              tenshiAudio.playBlip();
+              stopVision();
+              stopVoiceMode();
+            }
+            lastResult = { success: true, message: `Control de videollamada ejecutado: ${acc}` };
+            setTenshiStatus('');
+            continue;
           }
 
           if (action.name === 'wappy_navegar' || action.accion === 'navegar') {
@@ -3288,7 +3769,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
   const handleSend = async (customText?: string) => {
     const textToSend = (typeof customText === 'string' ? customText : input).trim();
-    if (!textToSend || isTyping) return;
+    if ((!textToSend && !attachedMedia) || isTyping) return;
 
     // Si había una consulta de especialista pendiente o audio en curso, abortarla de inmediato
     if (pendingAgentConsultationRef.current?.active) {
@@ -3303,9 +3784,25 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     sendVoiceInterruptRef.current();
 
     setGuiSteps([]); // Limpiar logs de automatización anteriores
-    const userMsg = { role: 'user', content: textToSend };
+
+    const finalContent = textToSend || (
+      attachedMedia?.type === 'image'
+        ? `Analiza esta imagen adjunta: ${attachedMedia.name}`
+        : attachedMedia?.type === 'video'
+        ? `Analiza este video adjunto: ${attachedMedia.name}`
+        : `Revisa este archivo adjunto: ${attachedMedia?.name || 'documento'}`
+    );
+
+    const userMsg: TenshiChatMessage = {
+      role: 'user',
+      content: finalContent,
+      ...(attachedMedia?.type === 'image' && attachedMedia.dataUrl ? { image: attachedMedia.dataUrl } : {}),
+      ...(attachedMedia ? { media: attachedMedia } : {}),
+    };
+
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
+    setAttachedMedia(null);
 
     await runChatTurn([...messages, userMsg]);
   };
@@ -3777,6 +4274,57 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               </p>
             </div>
 
+            {/* PiP en Pantalla Hero Móvil cuando el chat está cerrado */}
+            {isVisionActive && !isHeroChatOpen && (
+              <div className="relative overflow-hidden rounded-2xl border-2 border-emerald-500/60 bg-zinc-950 shadow-2xl w-full max-w-xs h-40 mb-3 shrink-0 animate-in fade-in zoom-in-95">
+                <video
+                  ref={setVisionVideoNode}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover rounded-xl bg-black"
+                />
+                <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/75 backdrop-blur-md text-[9px] text-white font-bold border border-white/20">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                  </span>
+                  <span>EN VIVO ({facingMode === 'user' ? 'Frontal' : 'Trasera'})</span>
+                </div>
+                <div className="absolute top-2 right-2 flex items-center gap-1">
+                  {visionSource === 'camera' && (
+                    <button
+                      type="button"
+                      onClick={switchCamera}
+                      title="Girar cámara"
+                      className="p-1 rounded-full bg-black/70 hover:bg-black/90 text-white backdrop-blur-md border border-white/20 active:scale-95 shadow-md"
+                    >
+                      <SwitchCamera className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={stopVision}
+                    title="Detener visión"
+                    className="p-1 rounded-full bg-red-600/80 hover:bg-red-700 text-white backdrop-blur-md active:scale-95 shadow-md"
+                  >
+                    <CameraOff className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <div className="absolute bottom-2 inset-x-2 flex items-center justify-between px-2.5 py-1 rounded-xl bg-black/70 backdrop-blur-md border border-white/10">
+                  <span className="text-[9px] text-zinc-300 font-medium truncate">Tenshi analiza en vivo</span>
+                  <button
+                    type="button"
+                    onClick={() => captureVisionSnapshot('📸 Evidencia visual')}
+                    className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-[10px] font-bold shadow-md active:scale-95"
+                  >
+                    <Camera className="h-3 w-3" />
+                    <span>Tomar Foto</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* 3. 🌟 Botonera Cápsula de Tenshi ACTIVA ([Chat] [Micrófono Live] [Silenciar Micrófono/Mute]) */}
             <div className="inline-flex items-center gap-3 p-1.5 rounded-full bg-zinc-900/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-emerald-500/30 shadow-2xl shadow-black/40">
               {/* Botón Chat */}
@@ -3835,6 +4383,28 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   <MicOff className="h-5 w-5 text-zinc-400 hover:text-white opacity-70" />
                 )}
               </button>
+
+              {/* Botón 4: Modo Visión (Cámara en Vivo) */}
+              <button
+                type="button"
+                onClick={() => {
+                  tenshiAudio.playBlip();
+                  if (isVisionActive) {
+                    stopVision();
+                  } else {
+                    startVision('camera');
+                  }
+                }}
+                title={isVisionActive ? 'Detener cámara de visión' : 'Activar cámara de visión en vivo'}
+                className={cn(
+                  'p-2.5 rounded-full transition-all active:scale-90',
+                  isVisionActive
+                    ? 'text-emerald-400 bg-white/20 shadow-lg shadow-emerald-500/30 animate-pulse'
+                    : 'text-zinc-300 hover:text-white hover:bg-white/10'
+                )}
+              >
+                {isVisionActive ? <CameraOff className="h-5 w-5" /> : <Camera className="h-5 w-5" />}
+              </button>
             </div>
           </div>
 
@@ -3878,8 +4448,73 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 </div>
               </div>
 
+              {/* Visor de Tenshi Visión en Chat Móvil */}
+              {isVisionActive && (
+                <div
+                  className={cn(
+                    'relative overflow-hidden rounded-2xl border-2 border-emerald-500/60 bg-zinc-950 shadow-xl mx-3 mt-2 mb-1 flex items-center justify-center animate-in fade-in zoom-in-95',
+                    isVisionExpanded ? 'flex-1 min-h-[360px] h-full' : 'h-44 shrink-0'
+                  )}
+                >
+                  <video
+                    ref={setVisionVideoNode}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover rounded-2xl bg-black"
+                  />
+                  {/* Badges y Controles PiP */}
+                  <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/75 backdrop-blur-md text-[9px] text-white font-bold border border-white/20 shadow-md z-20">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                    </span>
+                    <span>EN VIVO ({visionSource === 'screen' ? 'Pantalla' : (facingMode === 'user' ? 'Frontal' : 'Trasera')})</span>
+                  </div>
+                  <div className="absolute top-2.5 right-2.5 flex items-center gap-1 z-20">
+                    {visionSource === 'camera' && (
+                      <button
+                        type="button"
+                        onClick={switchCamera}
+                        title="Girar cámara (Frontal / Trasera)"
+                        className="p-1.5 rounded-full bg-black/70 hover:bg-black/90 text-white backdrop-blur-md border border-white/20 active:scale-95 shadow-md"
+                      >
+                        <SwitchCamera className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsVisionExpanded((prev) => !prev)}
+                      title={isVisionExpanded ? 'Reducir tamaño (Ver chat)' : 'Ampliar cámara al tamaño del chat'}
+                      className="p-1.5 rounded-full bg-black/70 hover:bg-black/90 text-white backdrop-blur-md border border-white/20 active:scale-95 shadow-md"
+                    >
+                      {isVisionExpanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={stopVision}
+                      title="Detener visión"
+                      className="p-1.5 rounded-full bg-red-600/80 hover:bg-red-700 text-white backdrop-blur-md active:scale-95 shadow-md"
+                    >
+                      <CameraOff className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Botón Flotante para Tomar Foto sin restar espacio a la cámara */}
+                  <button
+                    type="button"
+                    onClick={() => captureVisionSnapshot('📸 Evidencia visual en vivo')}
+                    className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/65 hover:bg-black/85 text-white text-[11px] font-bold shadow-xl backdrop-blur-md border border-white/20 active:scale-95 transition-all z-20"
+                    title="Tomar foto de evidencia"
+                  >
+                    <Camera className="h-3.5 w-3.5 text-emerald-400" />
+                    <span>Tomar Foto</span>
+                  </button>
+                </div>
+              )}
+
               {/* Mensajes del Chat */}
-              <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2.5">
+              <div className={cn('overflow-y-auto px-4 py-3 flex flex-col gap-2.5', isVisionActive && isVisionExpanded ? 'hidden' : 'flex-1')}>
                 {messages
                   .filter((m) => !m.content?.startsWith('[RESULTADO_GUI]') && !(m as any).isIntermediate)
                   .map((msg, i) => (
@@ -3896,6 +4531,67 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                         )}
                       >
                         {msg.content && <Markdown content={cleanRenderContent(msg.content)} />}
+                        {/* Miniatura / Render de Imagen adjunta */}
+                        {(msg.image || (msg.media?.type === 'image' && msg.media.dataUrl)) && (
+                          <div className="mt-2 overflow-hidden rounded-xl border border-slate-200/80 dark:border-zinc-700 bg-black/10">
+                            <img
+                              src={msg.image || msg.media?.dataUrl}
+                              alt={msg.media?.name || "Evidencia visual"}
+                              className="max-h-60 w-full object-cover rounded-xl cursor-pointer hover:opacity-95 transition-opacity"
+                              onClick={() => window.open(msg.image || msg.media?.dataUrl, '_blank')}
+                            />
+                            {msg.media?.name && (
+                              <div className="flex items-center justify-between px-2 py-0.5 text-[9px] text-slate-500 dark:text-zinc-400 bg-white/70 dark:bg-zinc-800/70 border-t border-slate-100 dark:border-zinc-700/60">
+                                <span className="truncate">{msg.media.name}</span>
+                                {msg.media.size > 0 && <span>{formatBytes(msg.media.size)}</span>}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Render de Video adjunto */}
+                        {msg.media?.type === 'video' && (msg.media.previewUrl || msg.media.dataUrl) && (
+                          <div className="mt-2 overflow-hidden rounded-xl border border-slate-200/80 dark:border-zinc-700 bg-black/10">
+                            <video
+                              controls
+                              playsInline
+                              preload="metadata"
+                              src={msg.media.previewUrl || msg.media.dataUrl}
+                              className="max-h-60 w-full rounded-xl bg-black"
+                            />
+                            <div className="flex items-center justify-between px-2 py-0.5 text-[9px] text-slate-500 dark:text-zinc-400 bg-white/70 dark:bg-zinc-800/70 border-t border-slate-100 dark:border-zinc-700/60">
+                              <span className="truncate">{msg.media.name}</span>
+                              {msg.media.size > 0 && <span>{formatBytes(msg.media.size)}</span>}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Render de Documento o Audio adjunto */}
+                        {msg.media && (msg.media.type === 'document' || msg.media.type === 'audio') && (
+                          <div className="mt-2 p-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900/80 flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <FileText className="h-4 w-4 shrink-0 text-teal-600 dark:text-teal-400" />
+                              <div className="min-w-0 flex-1">
+                                <span className="truncate text-[11px] font-bold text-slate-800 dark:text-zinc-100 block">
+                                  {msg.media.name}
+                                </span>
+                                <span className="text-[9px] text-slate-500 dark:text-zinc-400">
+                                  {formatBytes(msg.media.size)}
+                                </span>
+                              </div>
+                            </div>
+                            {msg.media.dataUrl && (
+                              <a
+                                href={msg.media.dataUrl}
+                                download={msg.media.name}
+                                className="p-1 rounded-lg text-slate-500 hover:text-teal-600 transition-colors"
+                                title="Descargar archivo"
+                              >
+                                <Download className="h-3.5 w-3.5" />
+                              </a>
+                            )}
+                          </div>
+                        )}
                         {msg.file && (
                           <div className="mt-2 p-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900/80 flex items-center justify-between gap-2">
                             <span className="truncate text-[11px] font-bold text-slate-800 dark:text-zinc-100 flex-1">
@@ -3938,25 +4634,83 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
               {/* Barra de Entrada Táctil & Voz */}
               <div className="px-3 pt-2 pb-2 border-t border-slate-200/60 dark:border-zinc-800/80 bg-white/85 dark:bg-zinc-900/85 backdrop-blur-xl shrink-0">
+                {/* Preview Chip cuando hay un medio adjunto en móvil */}
+                {attachedMedia && (
+                  <div className="mb-2 flex items-center justify-between gap-2 rounded-xl border border-teal-200/80 bg-teal-50/90 p-2 shadow-xs backdrop-blur-md dark:border-teal-900/60 dark:bg-teal-950/60">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {attachedMedia.type === 'image' ? (
+                        <img
+                          src={attachedMedia.dataUrl}
+                          alt={attachedMedia.name}
+                          className="h-9 w-9 shrink-0 rounded-lg object-cover border border-teal-300 dark:border-teal-700 shadow-2xs"
+                        />
+                      ) : attachedMedia.type === 'video' ? (
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-600 text-white shadow-2xs">
+                          <Film className="h-4 w-4" />
+                        </div>
+                      ) : (
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-600 text-white shadow-2xs">
+                          <FileText className="h-4 w-4" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-bold text-slate-800 dark:text-zinc-100">
+                          {attachedMedia.name}
+                        </p>
+                        <div className="flex items-center gap-1.5 text-[9px] text-teal-700 dark:text-teal-300">
+                          <span className="font-semibold uppercase">{attachedMedia.type}</span>
+                          <span>•</span>
+                          <span>{formatBytes(attachedMedia.size)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAttachedMedia(null)}
+                      title="Quitar archivo"
+                      className="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-white/80 dark:hover:bg-zinc-800 transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+
                 <div className="flex items-center gap-1.5 rounded-2xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800/90 px-2.5 py-1.5 shadow-sm">
                   <input
                     type="file"
                     id="tenshi-hero-file-input"
-                    accept=".xlsx,.xls,.csv,.pdf,.docx,.txt"
+                    accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.pptx,.ppt,application/*"
                     className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      setInput((prev) => `${prev ? prev + ' ' : ''}[Archivo: ${file.name}] `);
-                    }}
+                    onChange={handleFileAttachment}
                   />
                   <button
                     type="button"
                     onClick={() => document.getElementById('tenshi-hero-file-input')?.click()}
-                    title="Adjuntar archivo"
+                    title="Adjuntar archivo (Imágenes, Videos, PDF, Office, etc.)"
                     className="p-1 rounded-lg text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors"
                   >
                     <Paperclip className="h-4 w-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      tenshiAudio.playBlip();
+                      if (isVisionActive) {
+                        stopVision();
+                      } else {
+                        startVision('camera');
+                      }
+                    }}
+                    title={isVisionActive ? 'Detener cámara de visión' : 'Activar cámara de visión en vivo'}
+                    className={cn(
+                      'p-1 rounded-lg transition-colors',
+                      isVisionActive
+                        ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/50'
+                        : 'text-slate-400 hover:text-teal-600 dark:hover:text-teal-400'
+                    )}
+                  >
+                    {isVisionActive ? <CameraOff className="h-4 w-4" /> : <Camera className="h-4 w-4" />}
                   </button>
 
                   <input
@@ -3990,10 +4744,25 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                     <Mic className="h-4 w-4" />
                   </button>
 
+                  {(isVoiceActive || isVisionActive) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        tenshiAudio.playBlip();
+                        stopVision();
+                        stopVoiceMode();
+                      }}
+                      title="Colgar llamada"
+                      className="p-1.5 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-all active:scale-95 shadow-2xs"
+                    >
+                      <PhoneOff className="h-4 w-4" />
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => handleSend()}
-                    disabled={isTyping || !input.trim()}
+                    disabled={isTyping || (!input.trim() && !attachedMedia)}
                     title="Enviar"
                     className="rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 p-1.5 text-white shadow-sm transition-all hover:from-teal-500 hover:to-emerald-500 active:scale-95 disabled:opacity-40"
                   >
@@ -4008,15 +4777,32 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         <>
           {/* 1. BURBUJA FLOTANTE DE CHAT (Independiente y anclada al mejor espacio de pantalla) */}
           {isOpen && (
-            <div
-              style={getChatPositionStyle()}
-              className={cn(
-                'flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 shadow-2xl backdrop-blur-xl transition-all duration-300 animate-in fade-in zoom-in-95',
-                isFullscreen
-                  ? 'fixed inset-3 sm:inset-6 z-[10000] w-auto h-auto'
-                  : ''
-              )}
-            >
+            <>
+              {/* Backdrop para cerrar al hacer clic o tap por fuera */}
+              <div
+                className="fixed inset-0 z-[9999] bg-black/40 backdrop-blur-[2px] md:bg-transparent md:backdrop-blur-none transition-opacity"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleClose();
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleClose();
+                }}
+                aria-label="Cerrar chat de Tenshi"
+              />
+              <div
+                style={getChatPositionStyle()}
+                onClick={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+                className={cn(
+                  'flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 shadow-2xl backdrop-blur-xl transition-all duration-300 animate-in fade-in zoom-in-95 z-[10000]',
+                  isFullscreen
+                    ? 'fixed inset-3 sm:inset-6 z-[10000] w-auto h-auto'
+                    : ''
+                )}
+              >
           {/* Cabecera Glassmorphic Minimalista Compacta */}
           <div className="flex shrink-0 items-center justify-between border-b border-slate-200/60 bg-slate-50/80 px-3.5 py-2.5 dark:border-zinc-800/80 dark:bg-zinc-800/60 select-none">
             <div className="flex items-center gap-2">
@@ -4088,17 +4874,94 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               {/* Botón Cerrar Burbuja */}
               <button
                 type="button"
-                onClick={handleClose}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleClose();
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleClose();
+                }}
                 title="Cerrar chat (Dejar solo a Tenshi)"
-                className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/40"
+                className="flex items-center justify-center rounded-xl p-2 sm:p-1 min-w-[36px] min-h-[36px] sm:min-w-[28px] sm:min-h-[28px] text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 active:scale-95 dark:hover:bg-red-950/40"
               >
-                <X className="h-3.5 w-3.5" />
+                <X className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
               </button>
             </div>
           </div>
 
+          {/* Mini-Visor PiP de Tenshi Visión en Desktop */}
+          {isVisionActive && (
+            <div
+              className={cn(
+                'relative overflow-hidden rounded-2xl border-2 border-emerald-500/60 bg-zinc-950 shadow-2xl transition-all duration-300 animate-in fade-in zoom-in-95 mx-3.5 mt-2.5 mb-1.5 flex items-center justify-center',
+                isVisionExpanded ? 'flex-1 min-h-[420px] h-full' : 'h-52 shrink-0'
+              )}
+            >
+              <video
+                ref={setVisionVideoNode}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover rounded-2xl bg-black"
+              />
+              {/* Badges y Controles PiP */}
+              <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/75 backdrop-blur-md text-[10px] text-white font-bold border border-white/20 shadow-md z-20">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                </span>
+                <span>
+                  EN VIVO • {visionSource === 'screen' ? 'Pantalla Compartida' : (facingMode === 'user' ? 'Cámara Frontal' : 'Cámara Trasera')}
+                </span>
+              </div>
+
+              <div className="absolute top-3 right-3 flex items-center gap-1.5 z-20">
+                <button
+                  type="button"
+                  onClick={() => setIsVisionExpanded((prev) => !prev)}
+                  title={isVisionExpanded ? 'Modo dividido (Ver chat)' : 'Cámara expandida (Pantalla completa)'}
+                  className="p-1.5 rounded-full bg-black/70 hover:bg-black/90 text-white backdrop-blur-md border border-white/20 transition-all active:scale-95 shadow-md"
+                >
+                  {isVisionExpanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                </button>
+                {visionSource === 'camera' && (
+                  <button
+                    type="button"
+                    onClick={switchCamera}
+                    title="Girar cámara (Frontal / Trasera)"
+                    className="p-1.5 rounded-full bg-black/70 hover:bg-black/90 text-white backdrop-blur-md border border-white/20 transition-all active:scale-95 shadow-md"
+                  >
+                    <SwitchCamera className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={stopVision}
+                  title="Detener visión"
+                  className="p-1.5 rounded-full bg-red-600/80 hover:bg-red-700 text-white backdrop-blur-md border border-red-400/30 transition-all active:scale-95 shadow-md"
+                >
+                  <CameraOff className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              {/* Botón Flotante para Tomar Foto sin restar espacio a la cámara */}
+              <button
+                type="button"
+                onClick={() => captureVisionSnapshot('📸 Evidencia visual en vivo')}
+                className="absolute bottom-3.5 right-3.5 flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-black/65 hover:bg-black/85 text-white text-xs font-bold shadow-xl backdrop-blur-md border border-white/20 active:scale-95 transition-all z-20"
+                title="Tomar foto y registrarla en el chat como evidencia"
+              >
+                <Camera className="h-4 w-4 text-emerald-400" />
+                <span>Tomar Foto</span>
+              </button>
+            </div>
+          )}
+
           {/* Historial de conversación */}
-          <div className="flex flex-1 flex-col overflow-hidden">
+          <div className={cn("flex flex-1 flex-col overflow-hidden", isVisionActive && isVisionExpanded ? "hidden" : "")}>
             <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50/50 p-3 text-xs dark:bg-zinc-950/50">
                 {(() => {
                   const visibleMessages = messages.filter(
@@ -4142,6 +5005,69 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                         ) : (
                           <>
                             {msg.content && <Markdown content={cleanRenderContent(msg.content)} />}
+                            {/* Miniatura / Render de Imagen adjunta */}
+                            {(msg.image || (msg.media?.type === 'image' && msg.media.dataUrl)) && (
+                              <div className="mt-2.5 overflow-hidden rounded-xl border border-slate-200/80 dark:border-zinc-700 bg-black/5 shadow-sm max-w-sm">
+                                <img
+                                  src={msg.image || msg.media?.dataUrl}
+                                  alt={msg.media?.name || "Evidencia visual"}
+                                  className="max-h-60 w-full object-cover rounded-xl cursor-pointer hover:opacity-95 transition-all active:scale-[0.99]"
+                                  onClick={() => window.open(msg.image || msg.media?.dataUrl, '_blank')}
+                                />
+                                {msg.media?.name && (
+                                  <div className="flex items-center justify-between px-2.5 py-1 text-[10px] text-slate-500 dark:text-zinc-400 bg-white/70 dark:bg-zinc-800/70 border-t border-slate-100 dark:border-zinc-700/60">
+                                    <span className="truncate">{msg.media.name}</span>
+                                    {msg.media.size > 0 && <span>{formatBytes(msg.media.size)}</span>}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Render de Video adjunto */}
+                            {msg.media?.type === 'video' && (msg.media.previewUrl || msg.media.dataUrl) && (
+                              <div className="mt-2.5 overflow-hidden rounded-xl border border-slate-200/80 dark:border-zinc-700 bg-black/10 shadow-sm max-w-sm">
+                                <video
+                                  controls
+                                  playsInline
+                                  preload="metadata"
+                                  src={msg.media.previewUrl || msg.media.dataUrl}
+                                  className="max-h-60 w-full rounded-xl bg-black"
+                                />
+                                <div className="flex items-center justify-between px-2.5 py-1 text-[10px] text-slate-500 dark:text-zinc-400 bg-white/70 dark:bg-zinc-800/70 border-t border-slate-100 dark:border-zinc-700/60">
+                                  <span className="truncate">{msg.media.name}</span>
+                                  {msg.media.size > 0 && <span>{formatBytes(msg.media.size)}</span>}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Render de Documento o Audio adjunto */}
+                            {msg.media && (msg.media.type === 'document' || msg.media.type === 'audio') && (
+                              <div className="mt-2.5 flex items-center justify-between gap-2.5 rounded-xl border border-slate-200/80 bg-white/90 p-2.5 shadow-sm dark:border-zinc-700/80 dark:bg-zinc-800/90 max-w-sm">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-600 dark:bg-teal-950/60 dark:text-teal-300">
+                                    <FileText className="h-4 w-4" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-xs font-bold text-slate-800 dark:text-zinc-100">
+                                      {msg.media.name}
+                                    </p>
+                                    <p className="text-[10px] text-slate-500 dark:text-zinc-400">
+                                      {formatBytes(msg.media.size)}
+                                    </p>
+                                  </div>
+                                </div>
+                                {msg.media.dataUrl && (
+                                  <a
+                                    href={msg.media.dataUrl}
+                                    download={msg.media.name}
+                                    className="shrink-0 p-1.5 rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors"
+                                    title="Descargar archivo"
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </a>
+                                )}
+                              </div>
+                            )}
                             {msg.delegatedOrderId && msg.delegatedStatus === 'todo' && (
                               <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-teal-500/30 bg-teal-50/60 px-3 py-1.5 dark:border-teal-500/20 dark:bg-teal-950/40">
                                 <span className="relative flex h-2 w-2">
@@ -4442,23 +5368,60 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   </div>
                 )}
 
+                {/* Preview Chip cuando hay un archivo o medio adjunto en escritorio */}
+                {attachedMedia && (
+                  <div className="mb-2 flex items-center justify-between gap-2.5 rounded-xl border border-teal-200/80 bg-teal-50/90 p-2 shadow-xs backdrop-blur-md dark:border-teal-900/60 dark:bg-teal-950/60 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {attachedMedia.type === 'image' ? (
+                        <img
+                          src={attachedMedia.dataUrl}
+                          alt={attachedMedia.name}
+                          className="h-10 w-10 shrink-0 rounded-lg object-cover border border-teal-300 dark:border-teal-700 shadow-2xs"
+                        />
+                      ) : attachedMedia.type === 'video' ? (
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-600 text-white shadow-2xs">
+                          <Film className="h-5 w-5" />
+                        </div>
+                      ) : (
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-600 text-white shadow-2xs">
+                          <FileText className="h-5 w-5" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-bold text-slate-800 dark:text-zinc-100">
+                          {attachedMedia.name}
+                        </p>
+                        <div className="flex items-center gap-1.5 text-[10px] text-teal-700 dark:text-teal-300">
+                          <span className="font-semibold uppercase tracking-wider">{attachedMedia.type}</span>
+                          <span>•</span>
+                          <span>{formatBytes(attachedMedia.size)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAttachedMedia(null)}
+                      title="Eliminar archivo adjunto"
+                      className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-white/80 dark:hover:bg-zinc-800 transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+
                 {/* Input Box */}
-                <div className="group flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2 shadow-2xs transition-all focus-within:border-emerald-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-500/20 dark:border-zinc-700 dark:bg-zinc-800/80 dark:focus-within:bg-zinc-800">
+                <div className="group flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2 shadow-2xs transition-all focus-within:border-emerald-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-500/20 dark:border-zinc-700 dark:bg-zinc-800/80 dark:focus-within:bg-zinc-800">
                   <input
                     type="file"
                     id="tenshi-file-input"
-                    accept=".xlsx,.xls,.csv,.pdf,.docx,.txt"
+                    accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.pptx,.ppt,application/*"
                     className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      setInput((prev) => `${prev ? prev + ' ' : ''}[Archivo: ${file.name}] `);
-                    }}
+                    onChange={handleFileAttachment}
                   />
                   <button
                     type="button"
                     onClick={() => document.getElementById('tenshi-file-input')?.click()}
-                    title="Adjuntar archivo (Excel, CSV, PDF, Word)"
+                    title="Adjuntar archivo (Imágenes, Videos, PDF, Office)"
                     className="shrink-0 p-1.5 rounded-xl text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors"
                   >
                     <Paperclip className="h-4 w-4" />
@@ -4476,7 +5439,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
                   <button
                     onClick={() => handleSend()}
-                    disabled={isTyping || !input.trim()}
+                    disabled={isTyping || (!input.trim() && !attachedMedia)}
                     title="Enviar mensaje"
                     className="shrink-0 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 p-1.5 text-white shadow-sm transition-all hover:from-emerald-500 hover:to-teal-500 active:scale-95 disabled:opacity-40"
                   >
@@ -4484,67 +5447,123 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   </button>
                 </div>
 
-                {/* Modo Live Switch en el footer del Chat (Imagen 5) */}
-                <div className="mt-2.5 flex items-center justify-between px-1">
-                  <div className="flex items-center gap-2">
+                {/* Botonera de Control Cápsula WAPPY Design System */}
+                <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 px-1">
+                  {/* Pills de Acción (Modo Live, Cámara, Pantalla) */}
+                  <div className="inline-flex items-center gap-1.5 p-1 rounded-2xl bg-white/90 dark:bg-zinc-900/90 border border-slate-200/80 dark:border-zinc-800 shadow-xs">
+                    {/* Botón Modo Live */}
                     <button
                       type="button"
                       onClick={() => {
-                        if (isVoiceActive) {
-                          stopVoiceMode();
-                        } else {
-                          startVoiceMode();
-                        }
+                        tenshiAudio.playBlip();
+                        if (isVoiceActive) stopVoiceMode();
+                        else startVoiceMode();
                       }}
+                      title={isVoiceActive ? 'Pausar modo de voz en vivo' : 'Activar modo de voz en vivo'}
                       className={cn(
-                        'group relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500/50',
-                        isVoiceActive ? 'bg-emerald-500' : 'bg-gray-200 dark:bg-gray-700'
+                        'flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-[11px] transition-all active:scale-95 shadow-2xs',
+                        isVoiceActive
+                          ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-emerald-500/25 ring-2 ring-emerald-500/30 animate-pulse'
+                          : 'bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 border border-slate-200/70 dark:border-zinc-700'
                       )}
-                      title="Activar o pausar Modo Live (Voz en vivo)"
                     >
-                      <span
-                        className={cn(
-                          'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out',
-                          isVoiceActive ? 'transform translate-x-5' : 'transform translate-x-0'
-                        )}
-                      />
+                      <Mic className={cn('h-3.5 w-3.5', isVoiceActive ? 'text-white' : 'text-emerald-500')} />
+                      <span>{isVoiceActive ? 'En Vivo' : 'Modo Live'}</span>
                     </button>
-                    <div className="flex items-center gap-1.5 text-[11px] font-medium select-none">
-                      <Mic className={cn('h-3.5 w-3.5', isVoiceActive ? 'text-emerald-500 animate-pulse' : 'text-gray-400')} />
-                      <span className={cn('font-semibold', isVoiceActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400')}>
-                        {isVoiceActive ? 'Modo Live Activo' : 'Modo Live'}
-                      </span>
-                    </div>
+
+                    {/* Botón Cámara de Visión */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        tenshiAudio.playBlip();
+                        if (isVisionActive && visionSource === 'camera') stopVision();
+                        else startVision('camera');
+                      }}
+                      title={isVisionActive && visionSource === 'camera' ? 'Apagar cámara de visión' : 'Activar cámara de visión'}
+                      className={cn(
+                        'flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-[11px] transition-all active:scale-95 shadow-2xs',
+                        isVisionActive && visionSource === 'camera'
+                          ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-teal-500/25 ring-2 ring-teal-500/30'
+                          : 'bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 border border-slate-200/70 dark:border-zinc-700'
+                      )}
+                    >
+                      {isVisionActive && visionSource === 'camera' ? (
+                        <CameraOff className="h-3.5 w-3.5 text-white" />
+                      ) : (
+                        <Camera className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                      )}
+                      <span>{isVisionActive && visionSource === 'camera' ? 'Cámara' : 'Cámara'}</span>
+                    </button>
+
+                    {/* Botón Compartir Pantalla */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        tenshiAudio.playBlip();
+                        if (isVisionActive && visionSource === 'screen') stopVision();
+                        else startVision('screen');
+                      }}
+                      title={isVisionActive && visionSource === 'screen' ? 'Dejar de compartir pantalla' : 'Compartir pantalla con Tenshi'}
+                      className={cn(
+                        'flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-[11px] transition-all active:scale-95 shadow-2xs',
+                        isVisionActive && visionSource === 'screen'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-blue-500/25 ring-2 ring-blue-500/30'
+                          : 'bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 border border-slate-200/70 dark:border-zinc-700'
+                      )}
+                    >
+                      <Monitor className={cn('h-3.5 w-3.5', isVisionActive && visionSource === 'screen' ? 'text-white' : 'text-blue-500')} />
+                      <span>{isVisionActive && visionSource === 'screen' ? 'Pantalla' : 'Pantalla'}</span>
+                    </button>
+
+                    {/* Botón Colgar Llamada cuando la voz o videollamada está activa */}
+                    {(isVoiceActive || isVisionActive) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          tenshiAudio.playBlip();
+                          stopVision();
+                          stopVoiceMode();
+                        }}
+                        title="Colgar y finalizar llamada (o di 'cuelga')"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-[11px] bg-red-500 hover:bg-red-600 active:scale-95 text-white shadow-2xs transition-all"
+                      >
+                        <PhoneOff className="h-3.5 w-3.5" />
+                        <span>Colgar</span>
+                      </button>
+                    )}
                   </div>
 
-                  {/* Inactivity countdown indicator: auto-pausa a 1 minuto */}
-                  {isVoiceActive ? (
-                    isWaitingConsultation || isChatSubmitting ? (
-                      <div
-                        className="flex items-center gap-1.5 text-[10px] font-medium text-amber-600 dark:text-amber-400 animate-pulse"
-                        title="Tenshi está esperando la respuesta del especialista para continuar la conversación hablada"
-                      >
-                        <span className="flex h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
-                        <span>Esperando al especialista...</span>
-                      </div>
+                  {/* Auto-pausa countdown o Branding */}
+                  <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-500 dark:text-zinc-400">
+                    {isVoiceActive ? (
+                      isWaitingConsultation || isChatSubmitting ? (
+                        <div
+                          className="flex items-center gap-1.5 font-semibold text-amber-600 dark:text-amber-400 animate-pulse"
+                          title="Tenshi está esperando la respuesta del especialista"
+                        >
+                          <span className="flex h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
+                          <span>Consultando...</span>
+                        </div>
+                      ) : (
+                        <div
+                          className="flex items-center gap-1.5 font-semibold text-emerald-600 dark:text-emerald-400"
+                          title="Se desactiva automáticamente tras 5 minutos sin usar"
+                        >
+                          <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
+                          <span>Auto-pausa: {Math.floor(Math.max(0, 300 - inactivitySeconds) / 60)}m {String(Math.max(0, 300 - inactivitySeconds) % 60).padStart(2, '0')}s</span>
+                        </div>
+                      )
                     ) : (
-                      <div
-                        className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium"
-                        title="Se desactiva automáticamente tras 5 minutos sin usar"
-                      >
-                        <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
-                        <span>Auto-pausa: {Math.floor(Math.max(0, 300 - inactivitySeconds) / 60)}m {String(Math.max(0, 300 - inactivitySeconds) % 60).padStart(2, '0')}s</span>
-                      </div>
-                    )
-                  ) : (
-                    <span className="text-[10px] font-medium tracking-tight text-gray-400">
-                      Tenshi por WAPPY IA
-                    </span>
-                  )}
+                      <span className="text-[10px] font-semibold text-slate-400 dark:text-zinc-500">
+                        Tenshi por WAPPY IA
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-        </div>
+          </div>
+        </>
       )}
 
       {/* 2. 🌟 COMPAÑERO TENSHI FLOTANTE PURO (Posición fija en pantalla) */}
@@ -4633,6 +5652,39 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             )}
           >
             <Mic className="h-3.5 w-3.5" />
+          </button>
+
+          {/* Botón Cámara / Modo Visión */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              unlockAudio();
+              tenshiAudio.playBlip();
+              if (isVisionActive) {
+                stopVision();
+              } else {
+                startVision('camera');
+              }
+            }}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              unlockAudio();
+              tenshiAudio.playBlip();
+              if (isVisionActive) {
+                stopVision();
+              } else {
+                startVision('camera');
+              }
+            }}
+            title={isVisionActive ? 'Detener cámara de visión' : 'Activar cámara de visión en vivo'}
+            className={cn(
+              'p-1.5 rounded-full transition-colors active:scale-90',
+              isVisionActive ? 'text-emerald-400 bg-white/15 animate-pulse' : 'text-zinc-300 hover:text-white hover:bg-white/10'
+            )}
+          >
+            {isVisionActive ? <CameraOff className="h-3.5 w-3.5" /> : <Camera className="h-3.5 w-3.5" />}
           </button>
 
           {/* Botón 3: Silenciar Micrófono (Mute de audio del usuario) */}

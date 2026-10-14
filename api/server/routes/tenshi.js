@@ -126,6 +126,91 @@ router.post('/config', requireJwtAuth, async (req, res) => {
     }
 });
 
+async function extractTextFromMedia(mediaObj) {
+    if (!mediaObj || !mediaObj.dataUrl) return '';
+    try {
+        const rawMatch = mediaObj.dataUrl.match(/^data:([a-zA-Z0-9.+_-]+\/[a-zA-Z0-9.+_-]+);base64,(.+)$/);
+        if (!rawMatch) return '';
+        const mimeType = (rawMatch[1] || mediaObj.mimeType || '').toLowerCase();
+        const base64Data = rawMatch[2];
+        const buffer = Buffer.from(base64Data, 'base64');
+        const filename = (mediaObj.name || '').toLowerCase();
+
+        // 1. Text formats: plain, csv, markdown, json, xml, code, log, yaml
+        if (
+            mimeType.startsWith('text/') ||
+            mimeType.includes('csv') ||
+            mimeType === 'application/json' ||
+            mimeType === 'application/xml' ||
+            mimeType === 'application/javascript' ||
+            filename.endsWith('.txt') ||
+            filename.endsWith('.csv') ||
+            filename.endsWith('.md') ||
+            filename.endsWith('.json') ||
+            filename.endsWith('.xml') ||
+            filename.endsWith('.log') ||
+            filename.endsWith('.yaml') ||
+            filename.endsWith('.yml') ||
+            filename.endsWith('.sql')
+        ) {
+            return buffer.toString('utf-8');
+        }
+
+        // 2. Word documents (.docx)
+        if (filename.endsWith('.docx') || mimeType.includes('wordprocessingml.document')) {
+            try {
+                const mammoth = require('mammoth');
+                const result = await mammoth.extractRawText({ buffer });
+                if (result && result.value) {
+                    return result.value;
+                }
+            } catch (err) {
+                console.warn('[Tenshi Media] Mammoth extraction error:', err.message);
+            }
+        }
+
+        // 3. Excel spreadsheets (.xlsx, .xls)
+        if (filename.endsWith('.xlsx') || filename.endsWith('.xls') || mimeType.includes('spreadsheetml.sheet')) {
+            try {
+                const ExcelJS = require('exceljs');
+                const workbook = new ExcelJS.Workbook();
+                await workbook.xlsx.load(buffer);
+                let excelText = '';
+                workbook.eachSheet((worksheet) => {
+                    excelText += `\n--- Hoja: ${worksheet.name} ---\n`;
+                    worksheet.eachRow((row, rowNumber) => {
+                        const rowVals = Array.isArray(row.values) ? row.values.slice(1).join(' | ') : '';
+                        if (rowVals.trim()) {
+                            excelText += `Fila ${rowNumber}: ${rowVals}\n`;
+                        }
+                    });
+                });
+                if (excelText.trim()) {
+                    return excelText;
+                }
+            } catch (err) {
+                console.warn('[Tenshi Media] ExcelJS extraction error:', err.message);
+            }
+        }
+
+        // 4. PDF documents (.pdf) text fallback
+        if (filename.endsWith('.pdf') || mimeType === 'application/pdf') {
+            try {
+                const pdfParse = require('pdf-parse');
+                const pdfData = await pdfParse(buffer);
+                if (pdfData && pdfData.text) {
+                    return pdfData.text;
+                }
+            } catch (err) {
+                console.warn('[Tenshi Media] PDF parse text fallback error:', err.message);
+            }
+        }
+    } catch (e) {
+        console.error('[Tenshi Media] Error extracting text from media:', e);
+    }
+    return '';
+}
+
 router.get('/history', requireJwtAuth, async (req, res) => {
     try {
         const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
@@ -135,6 +220,8 @@ router.get('/history', requireJwtAuth, async (req, res) => {
             _id: m._id,
             role: m.role,
             content: m.content,
+            image: m.image,
+            media: m.media,
             htmlReport: m.htmlReport,
             file: m.file,
             qrCode: m.qrCode,
@@ -148,7 +235,7 @@ router.get('/history', requireJwtAuth, async (req, res) => {
 
 router.post('/message', requireJwtAuth, async (req, res) => {
     try {
-        const { role = 'assistant', content, htmlReport, file, qrCode } = req.body;
+        const { role = 'assistant', content, htmlReport, file, qrCode, image, media } = req.body;
         if (!content || !content.trim()) {
             return res.status(400).json({ error: 'Content is required' });
         }
@@ -156,6 +243,8 @@ router.post('/message', requireJwtAuth, async (req, res) => {
             user: req.user.id,
             role,
             content: content.trim(),
+            image,
+            media,
             htmlReport,
             file,
             qrCode,
@@ -241,9 +330,35 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         let requestedGuiAction = null;
         let requestedGuiActions = null;
 
-        const userQuery = messages[messages.length - 1]?.content || '';
+        const lastUserMsgPayload = messages[messages.length - 1];
+        const userQuery = lastUserMsgPayload?.content || '';
+        const userImage = lastUserMsgPayload?.image || (lastUserMsgPayload?.media?.type === 'image' ? lastUserMsgPayload.media.dataUrl : undefined);
+        const userMedia = lastUserMsgPayload?.media || (lastUserMsgPayload?.image ? {
+            name: 'imagen_adjunta.jpg',
+            type: 'image',
+            mimeType: 'image/jpeg',
+            dataUrl: lastUserMsgPayload.image,
+            size: 0,
+        } : undefined);
+
+        const userMediaForDb = userMedia ? { ...userMedia } : undefined;
+        // Si el dataUrl excede 4MB, no almacenarlo en base de datos para no saturar MongoDB BSON (límite 16MB)
+        if (userMediaForDb && userMediaForDb.dataUrl && userMediaForDb.dataUrl.length > 4 * 1024 * 1024) {
+            userMediaForDb.dataUrl = undefined;
+        }
+        let userImageForDb = userImage;
+        if (userImageForDb && userImageForDb.length > 4 * 1024 * 1024) {
+            userImageForDb = undefined;
+        }
+
         if (userQuery && !userQuery.startsWith('[RESULTADO_GUI]')) {
-            TenshiMessage.create({ user: req.user.id, role: 'user', content: userQuery }).catch(e => console.error('Error saving user TenshiMessage:', e));
+            TenshiMessage.create({
+                user: req.user.id,
+                role: 'user',
+                content: userQuery,
+                image: userImageForDb,
+                media: userMediaForDb,
+            }).catch(e => console.error('Error saving user TenshiMessage:', e));
         }
 
         const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
@@ -589,6 +704,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             const candidateModels = [
                 configuredModel,
                 ...envModels,
+                'gemini-3.8-flash',
                 'gemini-3.6-flash',
                 'gemini-3.5-flash',
                 'gemini-3.5-flash-lite'
@@ -1550,6 +1666,13 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         titulo: {
                             type: 'STRING',
                             description: 'Título descriptivo de la orden de trabajo.'
+                        },
+                        archivos: {
+                            type: 'ARRAY',
+                            description: 'Lista de rutas, enlaces o nombres de archivos, imágenes, videos o documentos que se deben enviar a Antigravity para su procesamiento.',
+                            items: {
+                                type: 'STRING'
+                            }
                         }
                     },
                     required: ['instruccion']
@@ -1624,9 +1747,25 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 }
             };
 
+            const wappyControlarVideollamadaDeclaration = {
+                name: 'wappy_controlar_videollamada',
+                description: 'Controla la cámara, la videollamada o cuelga la llamada de Tenshi. DEBES invocar esta herramienta cuando el usuario te diga: activa videollamada, activa video, enciende la cámara, activa la cámara, apaga la cámara, desactiva video, cuelga, colgar o terminar llamada.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        accion: {
+                            type: 'STRING',
+                            description: 'Acción a ejecutar: activar_camara, apagar_camara o colgar_llamada.'
+                        }
+                    },
+                    required: ['accion']
+                }
+            };
+
             // Assemble base tools and dynamically triggered tools (strictly excluding Group 7)
             const baseFunctionDeclarations = [
                 wappyNavegarDeclaration,
+                wappyControlarVideollamadaDeclaration,
                 wappyIniciarEstudioErgonomicoVivoDeclaration,
                 wappyConsultarRehabilitacionMedlinePlusDeclaration,
                 somosSSTDeclaration,
@@ -1704,6 +1843,20 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             // Rotation loop: outer = models, inner = api keys
             let lastError = null;
             let succeeded = false;
+
+            const lastMsgObj = messages[messages.length - 1];
+            const lastUserMsg = lastMsgObj?.content || 'Hola';
+            const mediaObj = lastMsgObj?.media;
+            const mediaDataUrl = lastMsgObj?.image || mediaObj?.dataUrl;
+            let extractedFileText = '';
+            if (mediaObj || mediaDataUrl) {
+                try {
+                    extractedFileText = await extractTextFromMedia(mediaObj || { dataUrl: mediaDataUrl });
+                } catch (errExt) {
+                    logger.warn('[Tenshi Backend] Error extracting text from media:', errExt.message);
+                }
+            }
+
             for (let mi = 0; mi < modelFallbacks.length && !succeeded; mi++) {
                 const currentModel = modelFallbacks[mi];
                 for (let i = 0; i < apiKeys.length; i++) {
@@ -1719,12 +1872,49 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             generationConfig: { temperature: 0.7 }
                         });
 
-                        const lastUserMsg = messages[messages.length - 1]?.content || 'Hola';
-                        logger.info(`[Tenshi Backend] Sending request to Gemini (${currentModel}) with message: "${lastUserMsg}"`);
+                        const userParts = [{ text: lastUserMsg }];
+
+                        if (mediaDataUrl && typeof mediaDataUrl === 'string') {
+                            const rawMatch = mediaDataUrl.match(/^data:([a-zA-Z0-9.+_-]+\/[a-zA-Z0-9.+_-]+);base64,(.+)$/);
+                            if (rawMatch) {
+                                const mimeType = rawMatch[1];
+                                const base64Data = rawMatch[2];
+                                if (mimeType.startsWith('image/') || mimeType.startsWith('video/') || mimeType.startsWith('audio/') || mimeType === 'application/pdf') {
+                                    userParts.push({
+                                        inlineData: {
+                                            mimeType,
+                                            data: base64Data
+                                        }
+                                    });
+                                    logger.info(`[Tenshi Backend] Injected inlineData (${mimeType}) from ${mediaObj?.name || 'media'} into Gemini user turn`);
+                                }
+                            } else if (mediaDataUrl.length > 50) {
+                                userParts.push({
+                                    inlineData: {
+                                        mimeType: 'image/jpeg',
+                                        data: mediaDataUrl.replace(/^data:[^;]+;base64,/, '')
+                                    }
+                                });
+                                logger.info(`[Tenshi Backend] Injected inlineData raw base64 media into Gemini user turn`);
+                            }
+                        }
+
+                        if (extractedFileText && extractedFileText.trim()) {
+                            const maxLen = 45000;
+                            const truncated = extractedFileText.length > maxLen
+                                ? extractedFileText.substring(0, maxLen) + '\n... [Contenido truncado por longitud]'
+                                : extractedFileText;
+                            userParts.push({
+                                text: `\n\n📄 [CONTENIDO DEL ARCHIVO ADJUNTO "${mediaObj?.name || 'documento'}"]:\n\`\`\`\n${truncated}\n\`\`\`\n`
+                            });
+                            logger.info(`[Tenshi Backend] Injected ${truncated.length} chars of extracted text from ${mediaObj?.name || 'media'} into Gemini prompt`);
+                        }
+
+                        logger.info(`[Tenshi Backend] Sending request to Gemini (${currentModel}) with message: "${lastUserMsg}", parts count: ${userParts.length}`);
 
                         let currentContents = [
                             ...history,
-                            { role: 'user', parts: [{ text: lastUserMsg }] }
+                            { role: 'user', parts: userParts }
                         ];
 
                         let responseResult = await geminiModel.generateContent({ contents: currentContents });
@@ -1901,6 +2091,21 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                         args: call.args || {}
                                     };
                                     break;
+                                } else if (call.name === 'wappy_controlar_videollamada' || call.name === 'controlar_videollamada') {
+                                    const rawAccion = call.args?.accion || 'activar_camara';
+                                    requestedGuiAction = {
+                                        action: 'wappy_controlar_videollamada',
+                                        accion: rawAccion,
+                                    };
+                                    toolOutput = JSON.stringify({
+                                        success: true,
+                                        accion: rawAccion,
+                                        message: rawAccion === 'activar_camara'
+                                            ? 'Cámara y videollamada activadas con éxito.'
+                                            : rawAccion === 'apagar_camara'
+                                            ? 'Cámara apagada con éxito.'
+                                            : 'Llamada finalizada y colgada a petición del usuario.'
+                                    });
                                 } else if (call.name === 'operar_interfaz_visual') {
                                     const guiCalls = calls.filter(c => c.name === 'operar_interfaz_visual');
                                     requestedGuiActions = guiCalls.map(c => ({

@@ -226,7 +226,7 @@ const ObjetivosSST = () => {
         setIsHistoryOpen(false);
     }, [token, showToast]);
 
-    const LOCAL_STORAGE_KEY = 'sgsst_objetivos_form';
+    const LOCAL_STORAGE_KEY = `sgsst_objetivos_form_${typeof window !== 'undefined' ? (localStorage.getItem('wappy_active_company_id') || 'default') : 'default'}`;
 
     React.useEffect(() => {
         try {

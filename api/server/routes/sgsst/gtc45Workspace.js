@@ -53,7 +53,7 @@ router.get('/official', requireJwtAuth, async (req, res) => {
         'matrixRows.0': { $exists: true },
       }).sort({ updatedAt: -1 });
     }
-    if (!session) {
+    if (!session && !companyId) {
       session = await GTC45WorkspaceSession.findOne({
         user: userId,
         'matrixRows.0': { $exists: true },
@@ -259,9 +259,14 @@ router.get('/list-user-matrices', requireJwtAuth, async (req, res) => {
     const tempId = `temp-${userId}`;
     const officialConvoId = `official-${companyId || userId}`;
 
-    // Buscar sesiones del usuario con al menos 1 fila
+    // Buscar sesiones de la empresa activa (o del usuario si no tiene empresa asignada) con al menos 1 fila
+    const companyFilter = companyId
+      ? { companyId }
+      : { $or: [{ companyId: null }, { companyId: { $exists: false } }] };
+
     const sessions = await GTC45WorkspaceSession.find({
       user: userId,
+      ...companyFilter,
       conversationId: { $ne: tempId },
       'matrixRows.0': { $exists: true },
     }).sort({ updatedAt: -1 }).lean();

@@ -307,7 +307,7 @@ router.get('/data', requireJwtAuth, async (req, res) => {
             'matrixRows.0': { $exists: true },
           }).sort({ updatedAt: -1 }).lean();
         }
-        if (!session) {
+        if (!session && !companyId) {
           session = await GTC45Session.findOne({
             user: req.user.id,
             'matrixRows.0': { $exists: true },

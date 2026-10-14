@@ -151,8 +151,6 @@ router.get('/', requireJwtAuth, async (req, res) => {
         if (info && !req.user.isSubUser) {
             // Auto-purge any legacy/duplicate company memories and ensure only active company memory exists
             syncCompanyMemory(targetUserId, info).catch(e => logger.error('[SGSST] Memory auto-purge error:', e));
-            // Background migration for backward compatibility
-            migrateLegacyData(targetUserId, info._id).catch(e => logger.error('[SGSST] Migration error:', e));
         }
         
         res.json(info || {});
