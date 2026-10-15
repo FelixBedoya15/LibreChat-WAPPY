@@ -10,6 +10,7 @@ import { handleDoubleClick } from '~/utils';
 import useLocalize from '~/hooks/useLocalize';
 import store from '~/store/user';
 import { WappyCard } from './WappyCard';
+import { WappyHtmlAppLauncher } from './WappyHtmlAppLauncher';
 
 type TCodeProps = {
   inline?: boolean;
@@ -34,9 +35,13 @@ export const code: React.ElementType = memo(({ className, children }: TCodeProps
       : children?.toString() || '';
 
   const isWappyCard = (lang === 'wappy-card' || lang === 'card') && codeString.trim().startsWith('{');
+  const lowerCode = codeString.toLowerCase();
+  const isHtmlDocument =
+    (lang === 'html' || lang === 'htm' || !lang) &&
+    (lowerCode.includes('<!doctype html') || (lowerCode.includes('<html') && lowerCode.includes('</html>')));
 
   const { getNextIndex, resetCounter } = useCodeBlockContext();
-  const blockIndex = useRef(getNextIndex(isMath || isSingleLine || isWappyCard)).current;
+  const blockIndex = useRef(getNextIndex(isMath || isSingleLine || isWappyCard || isHtmlDocument)).current;
 
   useEffect(() => {
     resetCounter();
@@ -46,6 +51,17 @@ export const code: React.ElementType = memo(({ className, children }: TCodeProps
     return <>{children}</>;
   } else if (isWappyCard) {
     return <WappyCard content={codeString} />;
+  } else if (isHtmlDocument) {
+    return (
+      <WappyHtmlAppLauncher
+        codeString={codeString}
+        lang={lang ?? 'html'}
+        codeChildren={children}
+        blockIndex={blockIndex}
+        canRunCode={canRunCode}
+        allowExecution={canRunCode}
+      />
+    );
   } else if (isSingleLine) {
     return (
       <code onDoubleClick={handleDoubleClick} className={className}>
@@ -75,11 +91,24 @@ export const codeNoExecution: React.ElementType = memo(({ className, children }:
       : children?.toString() || '';
 
   const isWappyCard = (lang === 'wappy-card' || lang === 'card') && codeString.trim().startsWith('{');
+  const lowerCode = codeString.toLowerCase();
+  const isHtmlDocument =
+    (lang === 'html' || lang === 'htm' || !lang) &&
+    (lowerCode.includes('<!doctype html') || (lowerCode.includes('<html') && lowerCode.includes('</html>')));
 
   if (lang === 'math') {
     return children;
   } else if (isWappyCard) {
     return <WappyCard content={codeString} />;
+  } else if (isHtmlDocument) {
+    return (
+      <WappyHtmlAppLauncher
+        codeString={codeString}
+        lang={lang ?? 'html'}
+        codeChildren={children}
+        allowExecution={false}
+      />
+    );
   } else if (typeof children === 'string' && children.split('\n').length === 1) {
     return (
       <code onDoubleClick={handleDoubleClick} className={className}>

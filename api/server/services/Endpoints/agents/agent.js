@@ -284,10 +284,16 @@ IMPORTANTE:
           canvasStatusPrompt = `
 # ESTADO ACTUAL DEL CANVAS (LIENZO):
 - El Canvas está actualmente vacío para esta conversación.
-[REGLA DE ACTIVACIÓN DE CANVAS]:
-- Si el usuario solicita un aplicativo (interactivo, dashboard, simulador, calculadora, métricas), documento descargable, informe extenso, hoja de cálculo o diapositivas: DEBES llamar de inmediato a la herramienta \`canvas\` con \`accion: "crear"\`.
-- Está terminantemente PROHIBIDO afirmar en texto que creaste o desplegaste un aplicativo en Canvas sin haber ejecutado efectivamente la llamada a la herramienta \`canvas\`.
-- Para preguntas normales, conceptos o dudas del chat, responde directamente en Markdown sin usar Canvas.
+[REGLA DE ENTREGABLES Y ACTIVACIÓN DE CANVAS]:
+- **RESPUESTA NORMAL SIN CÓDIGO POR DEFECTO:** Si el usuario te pide un aplicativo, formato, calculadora, guion, archivo en Word, archivo en Excel, informe o presentación, PERO NO activó Canvas ni pidió explícitamente abrir el lienzo:
+  * ESTÁ TERMINANTEMENTE PROHIBIDO responder con bloques de código (\`\`\`html, \`\`\`javascript, \`\`\`xml, \`\`\`python, etc.). Los usuarios de WAPPY son profesionales de SG-SST, Recursos Humanos y Gerencia sin conocimientos de programación. Ver código en el chat arruina por completo la experiencia de usuario.
+  * Debes entregar la solución estructurada directamente en el chat utilizando:
+    1. **Tarjetas interactivas (wappy-card)** para checklists, planes de acción, métricas y resúmenes.
+    2. **Tablas Markdown estándar** para datos, matrices, cronogramas y cálculos.
+    3. **Texto ejecutivo estructurado** con títulos, subtítulos, viñetas y fundamentación legal.
+- **ACTIVACIÓN DE CANVAS SÓLO POR PETICIÓN EXPLÍCITA:**
+  * ÚNICAMENTE debes llamar a la herramienta \`canvas\` con \`accion: "crear"\` si el usuario solicita EXPRESAMENTE trabajar en el lienzo o generar el archivo en Canvas (ej: "ábrelo en canvas", "hazlo en canvas", "crea un aplicativo interactivo en html").
+  * Si el usuario pide un aplicativo interactivo HTML en Canvas, DEBES invocar la herramienta \`canvas\` para que se despliegue en el panel lateral. NUNCA escribas el código HTML en el chat de texto.
 `;
         }
       } catch (err) {
@@ -303,9 +309,10 @@ IMPORTANTE:
 # INSTRUCCIONES DEL CANVAS (LIENZO DE TRABAJO DERECHO):
 El Canvas permite mostrar al usuario documentos descargables, hojas de cálculo, diapositivas o código interactivo en un panel lateral derecho.
 
-## 0. REGLA FUNDAMENTAL DE ACTIVACIÓN:
+## 0. REGLA FUNDAMENTAL DE ACTIVACIÓN (CERO CÓDIGO EN EL CHAT):
 - NUNCA uses Canvas para responder consultas normales, explicaciones técnicas o preguntas del chat. Responde siempre en el chat en Markdown.
-- ÚNICAMENTE utiliza Canvas si el usuario pide explícitamente crear un archivo o abrir un lienzo ("en canvas", "archivo en word", "haz un excel", "presentación en diapositivas", "crea un aplicativo interactivo").
+- ÚNICAMENTE utiliza Canvas si el usuario pide explícitamente crear un archivo o abrir un lienzo ("en canvas", "archivo en word en canvas", "haz un excel en canvas", "presentación en diapositivas", "crea un aplicativo interactivo en html").
+- Si el usuario pide un entregable (guion, aplicativo, tabla, informe) pero NO activa Canvas: ENTREGA TODO DIRECTAMENTE EN EL CHAT USANDO TABLAS MARKDOWN, TARJETAS WAPPY-CARD Y TEXTO EXECUTIVO. ESTÁ TERMINANTEMENTE PROHIBIDO VOLCAR CÓDIGO FUENTE EN EL CHAT.
 
 ## 1. LECTURA (Consultar documento existente):
 - Si el usuario menciona un documento preexistente en el Canvas y necesitas examinarlo, llama a la herramienta \`canvas\` con \`accion: "leer"\`.
@@ -317,11 +324,7 @@ Cuando el usuario pida EXPLÍCITAMENTE crear un archivo o lienzo nuevo (aplicati
   * \`fileType: "html" | "text" | "excel" | "presentation"\`
   * \`title: "Título descriptivo"\`
   * \`content: "Contenido completo del archivo o aplicación"\`
-- NUNCA te limites a planificar mentalmente en tus pensamientos (Thoughts) ni a dejar el chat con preguntas vacías. Debes ejecutar la herramienta \`canvas\` de inmediato.
-- Alternativamente, si generas el bloque en texto, utiliza la sintaxis:
-:::canvas{identifier="unique-id" fileType="text|excel|presentation|html" title="Título del Documento"}
-[Tu contenido aquí]
-:::
+- NUNCA escribas código HTML en el chat de texto. El contenido debe viajar exclusivamente dentro del parámetro \`content\` de la herramienta \`canvas\`. En el chat sólo debes dejar un saludo cordial de 2 líneas explicando que el documento/aplicativo está disponible en el panel derecho de Canvas.
 
 ## 3. EDICIÓN (Modificar un Canvas existente):
 - **REGLA DE ORO:** Para editar o modificar un Canvas existente, **NUNCA uses la etiqueta :::canvas** ni reescribas todo el archivo, a menos que el usuario te pida rehacerlo completo.
@@ -329,8 +332,7 @@ Cuando el usuario pida EXPLÍCITAMENTE crear un archivo o lienzo nuevo (aplicati
   * \`buscar_reemplazar\`: Para cambiar fragmentos específicos de texto o código.
   * \`editar_seccion\`: Para modificar una sección específica bajo un título.
   * \`insertar\`: Para añadir contenido en una posición específica (inicio, fin o después de un texto).
-- Esto protege el resto del documento y garantiza que no se alteren secciones que el usuario no solicitó modificar.
-`;
+- Esto protege el resto del documento y garantiza que no se alteren secciones que el usuario no solicitó modificar.`;
     agent.additional_instructions = (agent.additional_instructions ?? '') + '\n' + canvasStatusPrompt + '\n' + canvasPrompt;
   }
 

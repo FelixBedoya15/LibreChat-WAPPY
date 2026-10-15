@@ -1626,12 +1626,11 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       // Herramientas y tareas estructuradas (Matrices IPEVAR, PESV, Química, RIT, Blog):
       // gemini-3.5-flash-lite es el modelo primario por su altísima velocidad, confiabilidad en function calling y 500 RPD
       const CANVAS_APP_TRIGGERS = [
-        'aplicativo', 'dashboard', 'canvas', 'lienzo', 'interactivo', 'calculadora',
-        'componente html', 'interfaz web', 'aplicación interactiva', 'aplicacion interactiva',
+        'aplicativo interactivo', 'aplicacion interactiva', 'dashboard interactivo', 'en canvas', 'abrir canvas', 'abre canvas',
+        'lienzo lateral', 'componente html', 'interfaz web', 'calculadora interactiva', 'simulador interactivo',
         'archivo en word', 'archivo word', 'documento en word', 'documento word', 'haz un word', 'crea un word',
-        'archivo en excel', 'archivo excel', 'hoja de cálculo', 'hoja de calculo', 'haz un excel', 'crea un excel',
-        'presentación', 'presentacion', 'diapositivas', 'powerpoint', 'slides',
-        'diseñar', 'diseña'
+        'archivo en excel', 'archivo excel', 'hoja de cálculo en excel', 'hoja de calculo en excel', 'haz un excel', 'crea un excel',
+        'presentación en diapositivas', 'presentacion en diapositivas', 'diapositivas en powerpoint', 'powerpoint', 'slides'
       ];
 
       const COMPLEX_MATRIX_DOC_TRIGGERS = [
