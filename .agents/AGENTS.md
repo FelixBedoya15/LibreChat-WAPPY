@@ -98,4 +98,8 @@ docker exec -it LibreChat node scripts/restore-and-sync-all.js
 > 6. **ESTRUCTURACIÓN PROFESIONAL OBLIGATORIA DEL PROMPT PARA ESPECIALISTAS:**
 >    - Está terminantemente prohibido enviar frases telegráficas cortas o en crudo (ej: "Qué es medicina laboral" o "Resolución 0312").
 >    - Tenshi debe formular en el parámetro 'pregunta' y el frontend en 'cleanDelegatedPrompt' una consulta técnica estructurada con planteamiento ocupacional, solicitud de fundamentación normativa colombiana (Decretos, Resoluciones aplicables) y recomendaciones prácticas para el SG-SST de la empresa.
+> 7. **UNICIDAD ESTRICTA DE DECLARACIONES DE HERRAMIENTAS (PREVENCIÓN DE ERROR 1007):**
+>    - En `api/server/routes/voice/voiceSession.js`, cada función en `this.liveConfig.tools[0].functionDeclarations` DEBE tener un nombre único en todo el array.
+>    - Duplicar una herramienta provoca el cierre inmediato del WebSocket de voz por Google con código **1007 (Duplicate function declaration found)**.
+>    - Antes de commitear, ejecutar siempre el script de comprobación que garantice 0 duplicados.
 

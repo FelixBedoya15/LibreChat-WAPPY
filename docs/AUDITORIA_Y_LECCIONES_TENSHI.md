@@ -672,7 +672,19 @@
   5. **Respaldo Dual en Ambos Tenshis:**
      - En **Tenshi en su chat (Widget Flotante / `TenshiMessage`):** con tarjeta interactiva (`htmlReport`, `file` para previsualizar y descargar).
      - En el **Chat de Agente Tenshi (Sidebar / `Conversation` y `Message` con `agent_id: 3579240c-ac93-4f4f-b0e4-95d87fc1ee27`):** con resumen ejecutivo en Markdown y sesión de Canvas sincronizada.
-  6. **Aislamiento de Mensajes:** En `TenshiChat.tsx`, las capturas en modo no-biomecánico se rotulan como `📸 Evidencia de Inspección Visual SST - Tenshi` (sin referencias a Fisioterapeuta).
+   6. **Aislamiento de Mensajes:** En `TenshiChat.tsx`, las capturas en modo no-biomecánico se rotulan como `📸 Evidencia de Inspección Visual SST - Tenshi` (sin referencias a Fisioterapeuta).
+
+### 1.22 (15/10/2026) Error 1007 de Google Gemini Live API: Prohibición Estricta de Nombres de Herramientas Duplicados ('Duplicate function declaration found')
+- **Síntoma:** Al encender el interruptor de voz, Tenshi se pausaba inmediatamente mostrando el aviso:
+  `⚠️ Se pausó la sesión de voz (Conexión con Gemini finalizada (1007): Duplicate function declaration found: generar_informe_tecnico). Puedes volver a encender el interruptor cuando desees reanudar.`
+- **Causa Raíz:** En `api/server/routes/voice/voiceSession.js`, dentro de `this.liveConfig.tools[0].functionDeclarations` para `tenshi_voice`, la función `generar_informe_tecnico` quedó declarada dos veces (una al inicio junto a `generar_informe_inspeccion_camara` y otra remanente al final del array). El validador OpenAPI/Protobuf de Google Multimodal Live API rechaza la conexión de inmediato y envía un cierre WebSocket con código **1007 (Invalid argument)** si encuentra cualquier nombre duplicado.
+- **Regla y Solución Obligatoria:**
+  1. **Unicidad Estricta de Herramientas:** Cada función en `functionDeclarations` DEBE tener un nombre único en todo el array.
+  2. **Verificación Automatizada Obligatoria:** Siempre que se añadan o modifiquen herramientas en `voiceSession.js`, se DEBE correr un script de comprobación que valide que no existan duplicados:
+     ```bash
+     node -e 'const fs = require("fs"); const c = fs.readFileSync("api/server/routes/voice/voiceSession.js", "utf8"); ...'
+     ```
+  3. **Solución Implementada:** Se eliminó la declaración duplicada en `voiceSession.js`, quedando exactamente 61 herramientas únicas y verificadas con 0 duplicados.
 
 ---
 
@@ -680,10 +692,11 @@
 
 Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el chat:
 1. [ ] **Verificación de Sintaxis Node:** Ejecutar `node -c api/server/routes/**/*.js` en cualquier archivo tocado.
-2. [ ] **Compilación Local del Frontend:** Ejecutar obligatoriamente `npm run build:client` si se modificó `client/src`.
-3. [ ] **Inclusión de Bundles en Git:** Asegurar que `git add client/src client/dist` incluya tanto el código fuente como los compilados.
-4. [ ] **Verificación de Modelos de IA:** Nunca degradar ni inventar nombres de modelos; verificar siempre con `search_web` en la documentación oficial.
-5. [ ] **Despliegue en VPS:** Indicar al usuario la ejecución de `git pull` y `docker exec -it LibreChat node scripts/restore-and-sync-all.js`.
+2. [ ] **Auditoría de Herramientas sin Duplicados:** Ejecutar comprobación en `voiceSession.js` para asegurar 0 nombres de herramientas duplicados (previene error 1007 de Google Live).
+3. [ ] **Compilación Local del Frontend:** Ejecutar obligatoriamente `npm run build:client` si se modificó `client/src`.
+4. [ ] **Inclusión de Bundles en Git:** Asegurar que `git add client/src client/dist` incluya tanto el código fuente como los compilados.
+5. [ ] **Verificación de Modelos de IA:** Nunca degradar ni inventar nombres de modelos; verificar siempre con `search_web` en la documentación oficial.
+6. [ ] **Despliegue en VPS:** Indicar al usuario la ejecución de `git pull` y `docker exec -it LibreChat node scripts/restore-and-sync-all.js`.
 
 
 
