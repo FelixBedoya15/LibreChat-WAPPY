@@ -6440,6 +6440,56 @@ ${workerSubHeaderHtml}
                     }
                     logger.info(`[VoiceSession] Report saved to DB with sender "${reportSender}" in convo "${targetConversationId}". MessageId: ${messageId}`);
 
+                    // Get the frames evaluated immediately (available for all subsequent syncs)
+                    const evalFrames = (framesToUse && framesToUse.length > 0)
+                        ? [...framesToUse.slice(0, 3)]
+                        : (this.manualEvidences && this.manualEvidences.length > 0)
+                            ? [...this.manualEvidences]
+                            : (this.frameBuffer && this.frameBuffer.length > 0)
+                                ? [...this.frameBuffer]
+                                : this.latestFrame
+                                    ? [this.latestFrame]
+                                    : [];
+
+                    // Cache evaluated frames and phase evidences for fallback
+                    if (evalFrames && evalFrames.length > 0) {
+                        this.lastEvaluatedFrames = [...evalFrames];
+                    }
+                    if (this.phaseEvidences && Object.keys(this.phaseEvidences).length > 0) {
+                        this.lastPhaseEvidences = { ...this.phaseEvidences };
+                    }
+
+                    const savedPhaseEvidences = { ...this.lastPhaseEvidences };
+                    this.manualEvidences = [];
+                    this.phaseEvidences = {};
+                    this.reportGenerated = true;
+
+                    // 1. CRITICAL: NOTIFY CLIENT IMMEDIATELY so UI unfreezes without waiting for secondary syncs!
+                    this.sendToClient({
+                        type: 'report',
+                        data: {
+                            html: reportHtml,
+                            messageId: messageId,
+                            evaluatedFrames: evalFrames
+                        }
+                    });
+
+                    this.sendToClient({
+                        type: 'conversationUpdated',
+                        data: { conversationId: targetConversationId }
+                    });
+
+                    // 2. INSTRUCT GEMINI LIVE TO ANNOUNCE REPORT COMPLETION
+                    if (this.geminiClient && this.isActive) {
+                        logger.info('[VoiceSession] Instructing Gemini Live to announce report...');
+                        try {
+                            const reportTypeLabel = this.isBiomechanics ? 'ergonómico oficial' : 'técnico oficial de inspección';
+                            this.geminiClient.sendText(`INSTRUCCIÓN: El informe ${reportTypeLabel} acaba de ser generado y ya está cargado en el editor de la pantalla del usuario. Avisa al usuario verbalmente en 1 sola frase breve y entusiasta: "Listo, tu informe técnico ha sido generado con éxito y ya está disponible en tu pantalla y en el chat para consultarlo o descargarlo." PROHIBIDO LEER O INVENTAR EL CONTENIDO DEL INFORME.`);
+                        } catch (announceErr) {
+                            logger.warn('[VoiceSession] Could not send report announcement to Gemini:', announceErr.message);
+                        }
+                    }
+
                     // Save conversation state so LibreChat updates the conversation list and timestamps
                     try {
                         const workerName = (this.extractedWorkerMeta && this.extractedWorkerMeta.workerName) || this.user?.name || 'Colaborador';
@@ -6465,8 +6515,7 @@ ${workerSubHeaderHtml}
 
                         const companyId = this.config.companyId || (await getActiveCompanyId(this.userId));
 
-                        const reportTitle = `Informe de Inspección - ${this.isBiomechanics ? 'BIOMECÁNICA (RULA/REBA)' : 'SST'}`;
-
+                        const reportTitleSync = `Informe de Inspección - ${this.isBiomechanics ? 'BIOMECÁNICA (RULA/REBA)' : 'SST'}`;
                         const targetConvoId = this.conversationId || `tenshi-${this.userId}`;
 
                         if (companyId) {
@@ -6477,7 +6526,7 @@ ${workerSubHeaderHtml}
                                         content: reportHtml,
                                         contentUpdatedAt: new Date(),
                                         companyId,
-                                        fileName: reportTitle,
+                                        fileName: reportTitleSync,
                                     },
                                     $setOnInsert: { user: this.userId },
                                 },
@@ -6485,7 +6534,7 @@ ${workerSubHeaderHtml}
                             );
                         }
 
-                        await syncLiveEditorToCanvas(targetConvoId, reportHtml, reportTitle, this.userId);
+                        await syncLiveEditorToCanvas(targetConvoId, reportHtml, reportTitleSync, this.userId);
                         logger.info('[VoiceSession] Report synced to LiveEditorSession and Canvas successfully');
 
                         // If this is a Biomechanics / Ergonomics study, persist to EstudioPuestoTrabajo and sync worker
@@ -6531,6 +6580,10 @@ ${workerSubHeaderHtml}
                                     actionLevel = 'Nivel 2 - Es Necesaria la Actuación';
                                 }
 
+                                const telemArray = Array.isArray(savedPhaseEvidences)
+                                    ? savedPhaseEvidences.map(p => p?.telemetry).filter(Boolean)
+                                    : Object.values(savedPhaseEvidences || {}).map(p => p?.telemetry).filter(Boolean);
+
                                 const newStudyDoc = new EstudioPuestoTrabajo({
                                     companyId,
                                     user: this.userId,
@@ -6542,12 +6595,12 @@ ${workerSubHeaderHtml}
                                     evaluatorName: cleanModalidad === 'auto' ? 'Auto-reporte asistido por WAPPY IA' : (this.user?.name || 'Inspector SG-SST'),
                                     channel: 'chat_voice',
                                     modelUsed: reportModelName,
-                                    telemetry: this.phaseEvidences?.map(p => p?.telemetry).filter(Boolean) || {},
-                                    evidences: (framesToUse || []).slice(0, 3).map((f, idx) => ({
+                                    telemetry: telemArray.length > 0 ? telemArray : {},
+                                    evidences: (evalFrames || []).slice(0, 3).map((f, idx) => ({
                                         phase: idx + 1,
                                         label: `Fase ${idx + 1}`,
-                                        url: `data:image/jpeg;base64,${f}`,
-                                        telemetry: this.phaseEvidences?.[idx]?.telemetry || {},
+                                        url: typeof f === 'string' && f.startsWith('data:') ? f : `data:image/jpeg;base64,${f}`,
+                                        telemetry: (savedPhaseEvidences && (savedPhaseEvidences[idx]?.telemetry || Object.values(savedPhaseEvidences)[idx]?.telemetry)) || {},
                                     })),
                                     rulaScore,
                                     rebaScore,
@@ -6619,8 +6672,6 @@ ${workerSubHeaderHtml}
                         logger.warn('[VoiceSession] Error syncing report to LiveEditor/Canvas:', syncErr.message);
                     }
 
-                    this.reportGenerated = true;
-
                     // Respaldo simultáneo en los DOS TENSHIS (widget flotante y agente en barra lateral)
                     if (this.userId && reportHtml && reportHtml.length > 50) {
                         const workerNameForTenshi = (this.extractedWorkerMeta && this.extractedWorkerMeta.workerName) || this.user?.name || 'Colaborador';
@@ -6653,34 +6704,24 @@ ${workerSubHeaderHtml}
 
                         // 2. Respaldo en el Chat de Agente Tenshi (Sidebar de agentes / Conversation y Message)
                         try {
-                            const { Conversation, Message } = require('~/db/models');
                             const CanvasSession = require('~/models/CanvasSession');
+                            const { Conversation } = require('~/db/models');
                             const TENSHI_AGENT_ID = '3579240c-ac93-4f4f-b0e4-95d87fc1ee27';
 
                             let tenshiConvo = await Conversation.findOne({
                                 user: String(this.userId),
                                 agent_id: TENSHI_AGENT_ID,
-                            }).sort({ updatedAt: -1 });
+                            }).sort({ updatedAt: -1 }).lean();
 
                             const convoId = tenshiConvo ? tenshiConvo.conversationId : uuidv4();
 
-                            if (!tenshiConvo) {
-                                tenshiConvo = await Conversation.create({
-                                    conversationId: convoId,
-                                    user: String(this.userId),
-                                    title: tenshiReportTitle,
-                                    endpoint: 'agents',
-                                    agent_id: TENSHI_AGENT_ID,
-                                    tags: ['tenshi-report', 'inspeccion-sst'],
-                                    createdAt: new Date(),
-                                    updatedAt: new Date(),
-                                });
-                            } else {
-                                await Conversation.updateOne(
-                                    { conversationId: convoId },
-                                    { $set: { title: tenshiReportTitle, updatedAt: new Date() } }
-                                );
-                            }
+                            await saveConvo({ user: { id: this.userId } }, {
+                                conversationId: convoId,
+                                endpoint: 'agents',
+                                agent_id: TENSHI_AGENT_ID,
+                                title: tenshiReportTitle,
+                                tags: ['tenshi-report', 'inspeccion-sst'],
+                            }, { context: 'VoiceSession - TenshiReportConvo' });
 
                             const agentMsgId = uuidv4();
                             const markdownSummary = `### 📋 ${tenshiReportTitle}\n\n` +
@@ -6689,16 +6730,14 @@ ${workerSubHeaderHtml}
                                 `- **Evidencias**: ${(evalFrames && evalFrames.length) || 3} captura(s) visual(es) analizada(s).\n\n` +
                                 `Puedes visualizar y descargar el informe completo en el editor interactivo Canvas adjunto a este chat.`;
 
-                            await Message.create({
+                            await saveMessage({ user: { id: this.userId } }, {
                                 messageId: agentMsgId,
                                 conversationId: convoId,
                                 user: String(this.userId),
                                 sender: 'Tenshi',
                                 text: markdownSummary,
                                 isCreatedByUser: false,
-                                createdAt: new Date(),
-                                updatedAt: new Date(),
-                            });
+                            }, { context: 'VoiceSession - TenshiReportMsg' });
 
                             await CanvasSession.findOneAndUpdate(
                                 { conversationId: convoId },
@@ -6724,61 +6763,11 @@ ${workerSubHeaderHtml}
                         }
                     }
 
-                    // CRITICAL: Notify client to invalidate queries so the report appears immediately in the chat!
-                    this.sendToClient({
-                        type: 'conversationUpdated',
-                        data: { conversationId: this.conversationId }
-                    });
-
-                    // INTERACTIVITY: Instruct Gemini Live (First Brain) to announce the report
-                    if (this.geminiClient && this.isActive) {
-                        logger.info('[VoiceSession] Instructing Gemini Live to announce report...');
-                        try {
-                            const reportTypeLabel = this.isBiomechanics ? 'ergonómico oficial' : 'técnico oficial de inspección';
-                            this.geminiClient.sendText(`INSTRUCCIÓN: El informe ${reportTypeLabel} acaba de ser generado y ya está cargado en el editor de la pantalla del usuario y también guardado en el chat de Tenshi. Avisa al usuario verbalmente en 1 sola frase breve y entusiasta: "Listo, tu informe técnico ha sido generado con éxito y ya está disponible tanto en tu pantalla como en el chat de Tenshi para consultarlo o descargarlo." PROHIBIDO LEER O INVENTAR EL CONTENIDO DEL INFORME.`);
-                        } catch (announceErr) {
-                            logger.warn('[VoiceSession] Could not send report announcement to Gemini:', announceErr.message);
-                        }
-                    }
-
                 } catch (saveError) {
                     logger.error('[VoiceSession] Error saving report to DB:', saveError);
-                    // Continue anyway, client will receive report but save might fail if clicked immediately
+                    // Continue anyway, client already received report
                 }
             }
-
-            // Get the frames evaluated
-            const evalFrames = (framesToUse && framesToUse.length > 0)
-                ? [...framesToUse.slice(0, 3)]
-                : (this.manualEvidences && this.manualEvidences.length > 0)
-                    ? [...this.manualEvidences]
-                    : (this.frameBuffer && this.frameBuffer.length > 0)
-                        ? [...this.frameBuffer]
-                        : this.latestFrame
-                            ? [this.latestFrame]
-                            : [];
-
-            // Cache evaluated frames and phase evidences for fallback in case subsequent report needs them
-            if (evalFrames && evalFrames.length > 0) {
-                this.lastEvaluatedFrames = [...evalFrames];
-            }
-            if (this.phaseEvidences && Object.keys(this.phaseEvidences).length > 0) {
-                this.lastPhaseEvidences = { ...this.phaseEvidences };
-            }
-
-            // Clear manual evidence and phase buffers for next turns/reports
-            this.manualEvidences = [];
-            this.phaseEvidences = {};
-
-            // Notify client with HTML (for rich rendering in Live editor) AND messageId
-            this.sendToClient({
-                type: 'report',
-                data: {
-                    html: reportHtml,
-                    messageId: messageId,
-                    evaluatedFrames: evalFrames
-                }
-            });
 
             return reportHtml;
         } catch (error) {
