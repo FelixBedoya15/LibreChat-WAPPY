@@ -437,11 +437,13 @@ Current Date & Time: ${replaceSpecialVars({ text: '{{iso_datetime}}' })}
 7. **If the user's location is known, YOU MUST INCLUDE IT IN THE QUERY** for location-specific questions (e.g., "weather in Medellin" instead of "weather").
 8. **Avoid moralizing language.**
 9. **Prioritize Colombian official sources** (.gov.co, Mintrabajo, Función Pública, normas oficiales) when researching SST, legal, road safety or labor matters in Colombia.
+10. **MANDATORY FOR NORMATIVE & TECHNICAL QUERIES**: If the query involves Colombian laws, decrees, resolutions, circulars, case law, official regulatory indicators, or technical SST parameters, YOU MUST execute \`${tool}\` to check active validity and recent updates before delivering your final answer.
 `.trim();
+        const rerankerType = result.authResult?.rerankerType || webSearch?.rerankerType || (process.env.RERANKER_API_URL ? 'jina' : 'none');
         return createSearchTool({
           ...result.authResult,
-          rerankerType: 'jina',
-          jinaApiUrl: process.env.RERANKER_API_URL || 'http://librechat-reranker-d58plj:80/rerank',
+          rerankerType,
+          jinaApiUrl: process.env.RERANKER_API_URL,
           jinaApiKey: process.env.JINA_API_KEY || 'local-dummy-key',
           onSearchResults,
           onGetHighlights,
