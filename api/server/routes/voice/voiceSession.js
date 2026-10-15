@@ -2654,15 +2654,15 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
                                 id: fc.id,
                                 name: fc.name,
                                 response: {
-                                    output: "Compilación de informe técnico iniciada con éxito en segundo plano.",
-                                    result: "Compilación de informe técnico iniciada con éxito en segundo plano."
+                                    output: "Compilación de informe técnico oficial iniciada en segundo plano. IMPORTANTE: El informe se está procesando actualmente y tardará unos segundos. PROHIBIDO afirmar, inventar o insinuar que el informe ya está listo hasta recibir la señal del sistema.",
+                                    result: "Compilación de informe técnico oficial iniciada en segundo plano. PROHIBIDO afirmar que el informe ya está listo hasta recibir la confirmación explícita del sistema."
                                 }
                             }]);
 
                             // Activación verbal inmediata vía realtimeInput
                             const verbalText = this.config.mode === 'tenshi_voice'
-                                ? `INSTRUCCIÓN: Has iniciado la compilación del informe técnico de inspección (${this.currentInspectionSubject || 'inspección visual SST'}). Confírmale verbalmente al usuario en 1 sola frase breve y entusiasta: "Entendido, estoy procesando las evidencias fotográficas de la inspección para compilar tu informe técnico oficial. Por favor espera un momento conectado."`
-                                : 'INSTRUCCIÓN: Has iniciado la compilación del informe técnico ergonómico. Confírmale verbalmente al usuario en 1 sola frase breve y entusiasta: "Entendido, estoy procesando las evidencias para compilar tu informe técnico oficial. Por favor espera un momento conectado."';
+                                ? `INSTRUCCIÓN: Has iniciado la compilación del informe técnico de inspección (${this.currentInspectionSubject || 'inspección visual SST'}). Confírmale verbalmente al usuario en 1 sola frase breve y entusiasta: "Entendido, estoy procesando las evidencias fotográficas de la inspección para compilar tu informe técnico oficial. Por favor espera un momento conectado." PROHIBIDO DECIR QUE EL INFORME YA ESTÁ LISTO O TERMINADO.`
+                                : 'INSTRUCCIÓN: Has iniciado la compilación del informe técnico ergonómico. Confírmale verbalmente al usuario en 1 sola frase breve y entusiasta: "Entendido, estoy procesando las evidencias para compilar tu informe técnico oficial. Por favor espera un momento conectado." PROHIBIDO DECIR QUE EL INFORME YA ESTÁ LISTO O TERMINADO.';
                             this.geminiClient.sendText(verbalText);
                         }
 
@@ -2848,7 +2848,7 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
 
                         if (isAppReport) {
                             logger.info(`[VoiceSession] canvas_tool redirected to wappy_generar_analisis_aplicativo for app report ("${userRequestText}")`);
-                            let app = 'responsable';
+                            let app = 'actual';
                             if (/pol[ií]tica/i.test(reqLower)) app = 'politica';
                             else if (/objetivo/i.test(reqLower)) app = 'objetivos';
                             else if (/legal/i.test(reqLower)) app = 'legal';
@@ -2856,20 +2856,34 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
                             else if (/cargo/i.test(reqLower)) app = 'perfil_cargo';
                             else if (/diagn[oó]stico|0312/i.test(reqLower)) app = 'diagnostico';
                             else if (/emergencia|vulnerab/i.test(reqLower)) app = 'vulnerabilidad';
+                            else if (/responsable/i.test(reqLower)) app = 'responsable';
 
+                            // Disparar click real en "Generar IA" en la pantalla actual
                             this.sendToClient({
                                 type: 'wappy_action',
                                 data: {
                                     id: fc.id,
-                                    name: 'wappy_generar_analisis_aplicativo',
-                                    args: { aplicativo: app, instruccion_adicional: userRequestText }
+                                    name: 'operar_interfaz_visual',
+                                    args: { accion: 'click', detalle: 'Generar IA', texto: 'Generar IA' }
                                 }
                             });
+
+                            if (app !== 'actual') {
+                                this.sendToClient({
+                                    type: 'wappy_action',
+                                    data: {
+                                        id: `${fc.id}-app`,
+                                        name: 'wappy_generar_analisis_aplicativo',
+                                        args: { aplicativo: app, instruccion_adicional: userRequestText }
+                                    }
+                                });
+                            }
+
                             if (this.geminiClient) {
                                 this.sendGeminiToolResponse([{
                                     id: fc.id,
                                     name: fc.name,
-                                    response: { result: `Generación de Análisis IA ejecutada exitosamente dentro del aplicativo "${app}". Confirma al usuario en una sola frase breve y entusiasta: "¡Listo! Ya activé la generación del informe con Inteligencia Artificial directamente en el editor del aplicativo en tu pantalla."` }
+                                    response: { result: `Generación de Análisis IA ejecutada exitosamente dentro del aplicativo${app !== 'actual' ? ` "${app}"` : ' en pantalla'}. Confirma al usuario en una sola frase breve y entusiasta: "¡Listo! Ya activé la generación del informe con Inteligencia Artificial directamente en el editor del aplicativo en tu pantalla."` }
                                 }]);
                             }
                             continue;
@@ -6207,8 +6221,9 @@ En la sección "4.1 Matriz Ergonómica Comparativa Multifase", en la columna "Te
             });
 
             // INYECCIÓN VISUAL GARANTIZADA: Tarjetas ExerciseDB con GIFs reales de la API y Matriz CIE-11 / Dec. 1477
-            // Si el LLM no generó las tarjetas visuales con los GIFs de ExerciseDB o la matriz CIE-11, las inyectamos garantizadamente
-            if (!reportHtml.includes('static.exercisedb.dev') && !reportHtml.includes('clinical-biomechanics-prescription')) {
+            // Condicionado estrictamente a Biomecánica / Fisioterapeuta para no inflar informes generales de SST a 270KB innecesariamente
+            const isBiomechanicReport = Boolean(this.isBiomechanics || this.isFisioMode || activeProtocol?.id === 'biomecanico');
+            if (isBiomechanicReport && !reportHtml.includes('static.exercisedb.dev') && !reportHtml.includes('clinical-biomechanics-prescription')) {
                 const prescriptionBlock = await this.buildBiomechanicsPrescriptionBlock();
                 if (reportHtml.includes('<h3>6.')) {
                     reportHtml = reportHtml.replace('<h3>6.', `${prescriptionBlock}\n<h3>6.`);
@@ -6889,8 +6904,9 @@ ${workerSubHeaderHtml}
             }
         }
 
-        // 2. Failsafe para clics en 'Generar IA' / 'Generar Análisis' si Gemini omitió el tool call
-        const clickAnalyzeMatch = /(?:dale\s+clic|haz\s+clic|pulsa|presiona|genera|generar|regenera|regenerar)\s+(?:en\s+|el\s+)?(?:bot[oó]n\s+)?(?:de\s+)?(?:generar\s+)?(?:an[aá]lisis|informe|ia)/i.test(userLower) ||
+        // 2. Failsafe para clics en 'Generar IA' / 'Generar Análisis' / informe del aplicativo si Gemini omitió el tool call
+        const clickAnalyzeMatch = /(?:dale\s+clic|haz\s+clic|pulsa|presiona|genera|generar|regenera|regenerar|haz|hacer|realiza|realizar)\s+(?:en\s+|el\s+)?(?:bot[oó]n\s+)?(?:de\s+)?(?:generar\s+)?(?:an[aá]lisis|informe|ia|aplicativo|m[oó]dulo)/i.test(userLower) ||
+            /\b(informe|an[aá]lisis)\s+(del|de\s+este)\s+(aplicativo|m[oó]dulo|formulario)\b/i.test(userLower) ||
             /^(?:dale\s+clic\s+t[uú]|hazlo\s+t[uú]|dale\s+clic)$/i.test(userLower);
         if (clickAnalyzeMatch) {
             logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Gemini omitió toolCall! Disparando operar_interfaz_visual con click a "Generar IA"`);

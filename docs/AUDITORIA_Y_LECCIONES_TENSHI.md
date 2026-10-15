@@ -722,6 +722,36 @@
 
 ---
 
+### LECCIÓN 28 (2026-10-15): Alerta Persistente de Informes en Modo Live, Prevención de Alucinación Prematura y Lectura Oral de Especialistas Delegados
+
+- **Síntomas Reportados:**
+  1. *"Sigue sin generar informes desde el modo de live en vivo, le pedí la solicitud y dijo que estaba realizado pero no lo hizo"*
+  2. *"además no apareció nunca la alerta de que el informe se estaba haciendo, y que luego me diga el informe se realizó"*
+  3. *"otra cosa cuando le digo a Tenshi que le pase una pregunta a un agente antes leía la respuesta cuando el agente terminaba ahora no la lee"*
+  4. *"Tenshi sigo teniendo dificultades para identificar cuando le digo realiza el informe del aplicativo va genera un informe en Canva y no en el aplicativo"*
+- **Causas Raíces Técnicas Auditadas:**
+  1. **Alucinación Prematura de Gemini Live por `sendToolResponse` Inmediato:** Al invocarse `generar_informe_inspeccion_camara`, el backend enviaba de inmediato `{ output: "Compilación iniciada con éxito..." }`. Google Gemini Live daba por terminada la herramienta y, en el siguiente turno conversacional ordinario (ej: cuando el usuario decía "Sí"), alucinaba verbalmente *"¡Listo, el informe ya quedó compilado!"* mientras `generateReport` todavía corría en segundo plano (20-30s).
+  2. **Inyección Innecesaria de ExerciseDB en Informes No Biomecánicos:** `buildBiomechanicsPrescriptionBlock()` (12 GIFs animados pesados) se inyectaba incondicionalmente en cualquier reporte, inflando el tamaño del HTML a 273 KB (273,332 caracteres) y demorando la respuesta en 15-20 segundos adicionales.
+  3. **Sobreescritura Inmediata del HUD en `TenshiChat.tsx`:** `onStatusChange` recibía `'generating_report'`, pero en cuanto Tenshi emitía fonemas o escuchaba al usuario, los eventos ordinarios `'speaking'` o `'listening'` lo sobreescribían en milisegundos. Además, en modo de pantalla completa/cámara expandida (`isVisionExpanded`), el pie del chat donde residía el texto permanecía oculto (`hidden`).
+  4. **Falsa Cancelación y Descarte de Dictámenes de Especialistas Delegados:**
+     - `pendingAgentConsultationRef` no inicializaba `startedAt` (solo `timestamp`), provocando que `timeSinceStart` fuera siempre `0`.
+     - `activeConsultationConvoIdRef` usaba `'current'` al delegar, lo que disparaba la condición de cambio manual de conversación y cancelaba prematuramente la escucha activa.
+     - `extractSpecialistAnswer` descartaba cualquier dictamen técnico que contuviera la frase `"Dictamen de"` (la cabecera estándar de los especialistas de WAPPY), impidiendo que Tenshi lo capturara para su lectura oral.
+  5. **Falta de Reconocimiento de "Realiza el informe del aplicativo" en Failsafe:** `clickAnalyzeMatch` solo reconocía `(?:dale clic|haz clic|pulsa|presiona|genera)`, omitiendo órdenes directas como *"realiza el informe del aplicativo"* o *"haz el informe del aplicativo"*, y `canvas_tool` forzaba la navegación al módulo `responsable` en vez de presionar el botón *"Generar IA"* del módulo actualmente visible en pantalla.
+- **Regla y Solución Obligatoria Implementada:**
+  1. **Blindaje de Tool Response y Prohibición de Alucinación:** `sendToolResponse` y el prompt verbal prohíben explícitamente a Gemini Live afirmar que el informe está listo hasta que reciba la directiva final del sistema tras la persistencia efectiva en base de datos.
+  2. **Condición Estricta para ExerciseDB:** `buildBiomechanicsPrescriptionBlock` solo se ejecuta si `isBiomechanics || isFisioMode || activeProtocol.id === 'biomecanico'`, reduciendo los informes generales de SST a ~25-35 KB y acelerando su compilación en un 75%.
+  3. **Banners Persistentes Desacoplados del Flujo de Audio:**
+     - Estado booleano independiente `isGeneratingTechnicalReport` que mantiene fijo un badge flotante y un banner HUD en el visor de cámara durante todo el tiempo de compilación.
+     - Toast de éxito `reportSuccessToast` de 8 segundos con sonido chime al recibir el informe.
+  4. **Restauración de Lectura Oral de Especialistas:**
+     - Registro explícito de `startedAt` en `pendingAgentConsultationRef`.
+     - Corrección en la transición de ID de conversación.
+     - Eliminación del filtro restrictivo `"Dictamen de"` y búsqueda recursiva en caché de React Query y selectores DOM de LibreChat.
+  5. **Desambiguación de Informe del Aplicativo Actual:** Inclusión de *"realiza/haz el informe del aplicativo"* en el failsafe y click real en *"Generar IA"* sobre el módulo actual sin redirigir innecesariamente a otros módulos.
+
+---
+
 ## 2. Checklist Obligatorio Pre-Commit / Pre-Despliegue
 
 Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el chat:
@@ -731,6 +761,7 @@ Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el 
 4. [ ] **Inclusión de Bundles en Git:** Asegurar que `git add client/src client/dist` incluya tanto el código fuente como los compilados.
 5. [ ] **Verificación de Modelos de IA:** Nunca degradar ni inventar nombres de modelos; verificar siempre con `search_web` en la documentación oficial.
 6. [ ] **Despliegue en VPS:** Indicar al usuario la ejecución de `git pull` y `docker exec -it LibreChat node scripts/restore-and-sync-all.js`.
+
 
 
 

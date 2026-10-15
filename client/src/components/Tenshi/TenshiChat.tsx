@@ -1048,6 +1048,8 @@ export default function TenshiChat() {
   const [isTenshiSpeaking, setIsTenshiSpeaking] = useState(false);
   const [inactivitySeconds, setInactivitySeconds] = useState(0);
   const [voiceStatusText, setVoiceStatusText] = useState('');
+  const [isGeneratingTechnicalReport, setIsGeneratingTechnicalReport] = useState(false);
+  const [reportSuccessToast, setReportSuccessToast] = useState(false);
   const lastActivityRef = useRef<number>(Date.now());
   const lastUserTranscriptionRef = useRef<string>('');
   const inactivityIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -1319,6 +1321,7 @@ export default function TenshiChat() {
     active: boolean;
     hadStarted: boolean;
     timestamp: number;
+    startedAt?: number;
     initialMessageId: string | null;
   } | null>(null);
 
@@ -1363,6 +1366,7 @@ export default function TenshiChat() {
       currentConvoId &&
       activeConsultationConvoIdRef.current &&
       activeConsultationConvoIdRef.current !== 'new' &&
+      activeConsultationConvoIdRef.current !== 'current' &&
       currentConvoId !== 'new' &&
       currentConvoId !== activeConsultationConvoIdRef.current
     ) {
@@ -1375,7 +1379,7 @@ export default function TenshiChat() {
           consultationTimerRef.current = null;
         }
       }
-    } else if (currentConvoId && (!activeConsultationConvoIdRef.current || activeConsultationConvoIdRef.current === 'new')) {
+    } else if (currentConvoId && (!activeConsultationConvoIdRef.current || activeConsultationConvoIdRef.current === 'new' || activeConsultationConvoIdRef.current === 'current')) {
       activeConsultationConvoIdRef.current = currentConvoId;
     }
   }, [currentConvoId]);
@@ -1578,7 +1582,7 @@ export default function TenshiChat() {
       if (txt.includes('CAMPOS DILIGENCIADOS')) return true;
       if (txt.includes('Mensaje input:')) return true;
       if (txt.includes('Consulta con especialista registrada')) return true;
-      if (txt.includes('Dictamen de')) return true;
+      if (txt.includes('*(Consulta con especialista registrada)*')) return true;
       if (consultation?.question && txt.trim().toLowerCase() === consultation.question.trim().toLowerCase()) return true;
       return false;
     };
@@ -1586,7 +1590,19 @@ export default function TenshiChat() {
     // 1. Buscar en mensajes de React Query
     try {
       const convoId = currentConvoId || conversation?.conversationId || 'new';
-      const queryMsgs = queryClient.getQueryData<any[]>([QueryKeys.messages, convoId]);
+      let queryMsgs = queryClient.getQueryData<any[]>([QueryKeys.messages, convoId]);
+
+      // Si no hay mensajes bajo convoId, buscar en las queries de mensajes activas de React Query
+      if (!Array.isArray(queryMsgs) || queryMsgs.length === 0) {
+        const allMsgQueries = queryClient.getQueriesData<any[]>([QueryKeys.messages]);
+        for (const [_, msgs] of allMsgQueries) {
+          if (Array.isArray(msgs) && msgs.length > 0) {
+            queryMsgs = msgs;
+            break;
+          }
+        }
+      }
+
       if (Array.isArray(queryMsgs) && queryMsgs.length > 0) {
         for (let i = queryMsgs.length - 1; i >= 0; i--) {
           const m = queryMsgs[i];
@@ -1607,7 +1623,7 @@ export default function TenshiChat() {
     // 2. Buscar en elementos renderizados del DOM del chat (.agent-turn, .markdown)
     try {
       const messageEls = document.querySelectorAll<HTMLElement>(
-        '.agent-turn .markdown, .agent-turn [class*="message-content"], [data-message-id]:not([data-is-user="true"]) .markdown, [class*="text-message"]:not([data-is-user="true"]) .markdown, article:not([data-is-user="true"]) .markdown'
+        '.agent-turn .markdown, .agent-turn [class*="message-content"], [data-message-id]:not([data-is-user="true"]) .markdown, [class*="text-message"]:not([data-is-user="true"]) .markdown, article:not([data-is-user="true"]) .markdown, .agent-turn'
       );
       if (messageEls.length > 0) {
         for (let i = messageEls.length - 1; i >= 0; i--) {
@@ -1960,12 +1976,14 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 consultationTimerRef.current = null;
               }
               const initialMessageId = latestChatMessageRef.current?.messageId || null;
+              const now = Date.now();
               pendingAgentConsultationRef.current = {
                 agentName,
                 question: pregunta,
                 active: true,
                 hadStarted: false,
-                timestamp: Date.now(),
+                timestamp: now,
+                startedAt: now,
                 initialMessageId,
               };
               lastContentChangeRef.current = { text: '', time: Date.now() };
@@ -2461,6 +2479,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         if (newStatus === 'connecting') {
           setVoiceStatusText('Conectando con Tenshi...');
         } else if (newStatus === 'generating_report') {
+          setIsGeneratingTechnicalReport(true);
           setVoiceStatusText('⏳ Compilando y generando informe técnico oficial...');
         } else if (newStatus === 'ready' || newStatus === 'connected' || newStatus === 'listening' || newStatus === 'turn_complete') {
           if (newStatus === 'turn_complete') {
@@ -2476,10 +2495,19 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           setMessages((prev) => prev.map((m) => ({ ...m, isLiveVoice: false })));
         } else if (newStatus === 'idle') {
           setVoiceStatusText('');
+          setIsGeneratingTechnicalReport(false);
         }
       },
       onReportReceived: (html: string, messageId?: string, evaluatedFrames?: string[]) => {
         console.log('[Tenshi Voice] Report received successfully');
+        setIsGeneratingTechnicalReport(false);
+        setReportSuccessToast(true);
+        try {
+          tenshiAudio.playChime();
+        } catch (_) {}
+        setTimeout(() => {
+          setReportSuccessToast(false);
+        }, 8000);
         setVoiceStatusText('✅ Informe generado con éxito');
         setTimeout(() => {
           setVoiceStatusText('Tenshi te escucha...');
@@ -2517,6 +2545,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       },
       onError: (err: string) => {
         console.error('[Tenshi Voice] Error:', err);
+        setIsGeneratingTechnicalReport(false);
         setVoiceStatusText(`Error: ${err}`);
         setIsVoiceActive(false);
         clearAudioQueue();
@@ -2947,6 +2976,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     setIsTenshiSpeaking(false);
     setOutputAmplitude(0);
     setVoiceStatusText('');
+    setIsGeneratingTechnicalReport(false);
   }, [disconnectVoice, clearAudioQueue, playPowerDownChime, stopVision]);
 
   const startVoiceMode = useCallback(() => {
@@ -3335,8 +3365,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       return;
     }
 
-    // Si el especialista terminó de generar (transición de isChatSubmitting de true a false, o hadStarted y ya no genera)
-    if (consultation.hadStarted && !isChatSubmitting) {
+    // Si el especialista terminó de generar (transición de isChatSubmitting de true a false, o hadStarted y ya no genera, o pasaron >= 4s y no está generando)
+    const timeSinceStart = Date.now() - (consultation.startedAt || consultation.timestamp || Date.now());
+    const shouldCheckAnswer = (consultation.hadStarted && !isChatSubmitting) || (!isChatSubmitting && timeSinceStart >= 4000);
+
+    if (shouldCheckAnswer) {
       setVoiceStatusText(`${consultation.agentName} finalizó respuesta...`);
 
       if (!consultationTimerRef.current) {
@@ -4620,6 +4653,36 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         }
       `}</style>
 
+      {/* ⏳ ALERTA PERSISTENTE GLOBAL: GENERANDO INFORME TÉCNICO OFICIAL */}
+      {isGeneratingTechnicalReport && (
+        <div className="fixed top-5 sm:top-8 left-1/2 -translate-x-1/2 z-[99999] max-w-[92vw] sm:max-w-md w-fit flex items-center gap-3 px-4 py-2.5 sm:px-5 sm:py-3 rounded-2xl bg-slate-900/95 dark:bg-zinc-900/95 text-white backdrop-blur-xl border border-teal-500/50 shadow-2xl shadow-teal-950/70 animate-in slide-in-from-top-4 fade-in duration-300 pointer-events-auto">
+          <span className="relative flex h-3.5 w-3.5 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-teal-500"></span>
+          </span>
+          <div className="flex flex-col min-w-0">
+            <div className="font-bold text-xs sm:text-sm text-teal-300 flex items-center gap-1.5 truncate">
+              <span>⏳ Compilando Informe Técnico Oficial...</span>
+            </div>
+            <div className="text-[10px] sm:text-xs text-slate-300 dark:text-zinc-400 truncate">
+              Procesando evidencias fotográficas y normativa SST en vivo
+            </div>
+          </div>
+          <div className="h-4 w-4 shrink-0 border-2 border-teal-400 border-t-transparent rounded-full animate-spin ml-1" />
+        </div>
+      )}
+
+      {/* ✅ NOTIFICACIÓN TOAST GLOBAL: INFORME GENERADO CON ÉXITO */}
+      {reportSuccessToast && (
+        <div className="fixed top-5 sm:top-8 left-1/2 -translate-x-1/2 z-[99999] max-w-[92vw] sm:max-w-md w-fit flex items-center gap-3 px-4 py-2.5 sm:px-5 sm:py-3 rounded-2xl bg-emerald-600/95 text-white backdrop-blur-xl border border-emerald-400/50 shadow-2xl shadow-emerald-950/70 animate-in slide-in-from-top-4 fade-in duration-300 pointer-events-auto">
+          <span className="text-xl shrink-0">✅</span>
+          <div className="flex flex-col min-w-0">
+            <div className="font-bold text-xs sm:text-sm text-white truncate">¡Informe Técnico Generado con Éxito!</div>
+            <div className="text-[10px] sm:text-xs text-emerald-100 truncate">Disponible en pantalla y registrado en el chat de Tenshi.</div>
+          </div>
+        </div>
+      )}
+
       {/* 📱 1. MODO HEROICO / PANTALLA COMPLETA EN CELULAR */}
       {isMobileHeroMode ? (
         <div
@@ -4954,6 +5017,14 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   {/* Flash visual de captura de foto */}
                   {isFlashActive && (
                     <div className="absolute inset-0 bg-white/70 backdrop-blur-xs z-50 pointer-events-none animate-out fade-out duration-300" />
+                  )}
+
+                  {/* Banner persistente de generación de informe técnico en Visión Móvil */}
+                  {isGeneratingTechnicalReport && (
+                    <div className="absolute top-2 inset-x-2 z-40 flex items-center justify-center gap-2 bg-black/85 backdrop-blur-md border border-teal-400/60 rounded-xl px-3 py-2 shadow-2xl animate-pulse pointer-events-auto">
+                      <div className="h-3.5 w-3.5 border-2 border-teal-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                      <span className="text-[11px] font-bold text-teal-300 truncate">Compilando informe con evidencias... Por favor espera conectado</span>
+                    </div>
                   )}
 
                   {/* HUD Superior de Biomecánica / Fisioterapeuta en Móvil */}
@@ -5612,7 +5683,13 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 <div className="absolute inset-0 bg-white/70 backdrop-blur-xs z-50 pointer-events-none animate-out fade-out duration-300" />
               )}
 
-
+              {/* Banner persistente de generación de informe técnico en Visión Desktop */}
+              {isGeneratingTechnicalReport && (
+                <div className="absolute top-3 inset-x-4 sm:inset-x-8 z-40 flex items-center justify-center gap-2.5 bg-black/85 backdrop-blur-md border border-teal-400/60 rounded-xl px-4 py-2.5 shadow-2xl animate-pulse pointer-events-auto">
+                  <div className="h-4 w-4 border-2 border-teal-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                  <span className="text-xs sm:text-sm font-bold text-teal-300 truncate">Compilando informe técnico con evidencias... Por favor espera conectado</span>
+                </div>
+              )}
 
               {/* HUD Superior de Biomecánica / Fisioterapeuta */}
               {isBiomechanicsActive && (
