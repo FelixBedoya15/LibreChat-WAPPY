@@ -648,7 +648,31 @@
   4. **Protocolos de Inspección:** Consultor SG-SST / Profesional SST mapean exclusivamente a `auditoria_gtc45`.
   5. **UI Limpia para Especialistas:** El HUD biomecánico superior, el lienzo canvas y el badge de fases en el botón de cámara se ocultan completamente si no es Fisioterapeuta. El modal para Consultor SG-SST queda como una llamada limpia y pura de SST.
   6. **Interrupción Inmediata de Audio:** En `toggleMute` y `handleOrbClick`, al mutear o tocar el orbe mientras la IA habla, se corta y limpia inmediatamente la cola de reproducción (`clearAudioQueue()` y `sendInterrupt()`).
-- **Regla Obligatoria Permanente:** **ESTÁ TERMINANTEMENTE PROHIBIDO** inferir el modo ergonómico/biomecánico a partir de descripciones o instrucciones de agentes. El modo Fisioterapeuta Laboral es **100% exclusivo** para el agente Fisioterapeuta Laboral.
+### 1.21 (15/10/2026) Memoria Unificada de 10 Turnos en Tenshi, Informe con 3 Fotos y Respaldo Dual en Ambos Tenshis
+- **Síntomas Reportados:**
+  1. *"revisa los logs de mi vps no tiene memoria correlacion cuando paso de live, camara o chat, muchas veces pierde lo que hablamos. debe de llevar una memoria completa de todo sin olvidar cosas"*
+  2. *"cuando le digo desde camara genera un informe no lo hace deberia tomar 3 imagenes de lo que se le solicita y generar el informe en su chat"*
+  3. *"cuando la camara apagada fue que antes estaba la camara prendida y no hizo el informe entonces le dije ya con la camara apagada que no lo habia hecho se supone que tiene memoria"*
+  4. *"debe quedar tanto en el chat de agente tenshi como en tenshi en su chat con la tarjeta que ya se utiliza hoy diferencia los dos tenshis es importante"*
+  5. *"con el tema de donde generar los informes tenshi tambien aun se confunde en ocasiones"*
+- **Causas Raíces:**
+  1. **Destrucción de Contexto por 'Antecedentes Archivados':** `voiceSession.js` cargaba 10 mensajes de `TenshiMessage`, los truncaba agresivamente a 200 caracteres (`substring(0, 200)`), y si habían más de 3 mensajes, partía los anteriores bajo la etiqueta `[ANTECEDENTES PREVIOS ARCHIVADOS (TEMAS YA FINALIZADOS)]` con la orden: *"NUNCA los uses como tema de conversación activo"*. Tenshi ignoraba activamente lo conversado turnos atrás.
+  2. **Ausencia de Herramienta de Inspección en `tenshi_voice`:** Las herramientas de informe fotográfico (`generar_informe_tecnico`) estaban ubicadas bajo `else` (solo para agentes especializados y Fisioterapeuta) y bloqueadas si `phaseCount === 0`. Tenshi en `tenshi_voice` no tenía declarada ninguna herramienta para compilar informes de cámara.
+  3. **Pérdida de Evidencias al Apagar la Cámara:** Si el usuario apagaba la cámara antes de que el informe se compilara, los fotogramas del búfer se descartaban, impidiendo que Tenshi usara las fotos observadas.
+  4. **Falta de Respaldo en el Agente Tenshi de la Barra Lateral:** Al generarse informes técnicos o entregables Canvas, el sistema solo guardaba en `TenshiMessage` (widget flotante) o en sesiones Canvas efímeras, omitiendo la persistencia en `Conversation` y `Message` para el agente Tenshi (`3579240c-ac93-4f4f-b0e4-95d87fc1ee27`).
+- **Solución Definitiva Implementada:**
+  1. **Memoria Activa Unificada de 10 Turnos:** En `voiceSession.js`, los últimos 10 mensajes de `TenshiMessage` se inyectan completos (hasta 1,500 caracteres por mensaje) en orden cronológico bajo la etiqueta `[HISTORIAL CONVERSACIONAL RECIENTE DE TENSHI (ÚLTIMOS 10 TURNOS ACTIVOS - CHAT, LIVE Y CÁMARA)]`, ordenando expresamente a Gemini mantener continuidad fluida y memoria perfecta independientemente del canal (chat, live o cámara).
+  2. **Herramientas Nativas de Inspección en Tenshi:** Se agregaron `generar_informe_inspeccion_camara` y `generar_informe_tecnico` a `this.liveConfig.tools` de `tenshi_voice`, eliminando el bloqueo de fases posturales para Tenshi.
+  3. **Desambiguación Determinista de 4 Casos en System Prompt:**
+     - **Caso 1 (Módulo en Pantalla / Somos SST):** Clic real en botón "Generar IA" / "Generar Análisis" vía `operar_interfaz_visual` o `wappy_generar_analisis_aplicativo`.
+     - **Caso 2 (Inspección Física con Cámara):** Generar informe con 3 capturas vía `generar_informe_inspeccion_camara`.
+     - **Caso 3 (Especialista Técnico):** Consultar al especialista correspondiente.
+     - **Caso 4 (Chat Texto / Live sin Cámara):** Documento descargable vía `canvas_tool`.
+  4. **Búfer Persistente de Cámara (`cachedCameraEvidences`):** Se mantiene un búfer rotativo de hasta 6 fotogramas y se almacena en caché persistente al apagar la cámara. Al pedir el informe, se toman hasta 3 fotos representativas de evidencia visual.
+  5. **Respaldo Dual en Ambos Tenshis:**
+     - En **Tenshi en su chat (Widget Flotante / `TenshiMessage`):** con tarjeta interactiva (`htmlReport`, `file` para previsualizar y descargar).
+     - En el **Chat de Agente Tenshi (Sidebar / `Conversation` y `Message` con `agent_id: 3579240c-ac93-4f4f-b0e4-95d87fc1ee27`):** con resumen ejecutivo en Markdown y sesión de Canvas sincronizada.
+  6. **Aislamiento de Mensajes:** En `TenshiChat.tsx`, las capturas en modo no-biomecánico se rotulan como `📸 Evidencia de Inspección Visual SST - Tenshi` (sin referencias a Fisioterapeuta).
 
 ---
 

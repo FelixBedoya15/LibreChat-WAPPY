@@ -2362,6 +2362,74 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             }).catch(e => console.error('Error saving assistant TenshiMessage:', e));
         }
 
+        // Respaldo simultáneo en el Chat del Agente Tenshi si se generó un archivo o reporte
+        if ((capturedFile || capturedHtmlReport) && req.user?.id) {
+            try {
+                const { Conversation, Message } = require('~/db/models');
+                const CanvasSession = require('~/models/CanvasSession');
+                const { v4: uuidv4 } = require('uuid');
+                const TENSHI_AGENT_ID = '3579240c-ac93-4f4f-b0e4-95d87fc1ee27';
+                const fileTitle = capturedFile?.title || 'Informe Técnico SG-SST';
+
+                let tenshiConvo = await Conversation.findOne({
+                    user: String(req.user.id),
+                    agent_id: TENSHI_AGENT_ID,
+                }).sort({ updatedAt: -1 });
+
+                const convoId = tenshiConvo ? tenshiConvo.conversationId : uuidv4();
+
+                if (!tenshiConvo) {
+                    tenshiConvo = await Conversation.create({
+                        conversationId: convoId,
+                        user: String(req.user.id),
+                        title: fileTitle,
+                        endpoint: 'agents',
+                        agent_id: TENSHI_AGENT_ID,
+                        tags: ['tenshi-report', 'sgsst'],
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                    });
+                } else {
+                    await Conversation.updateOne(
+                        { conversationId: convoId },
+                        { $set: { title: fileTitle, updatedAt: new Date() } }
+                    );
+                }
+
+                const fileLabel = capturedFile?.fileType === 'html' ? 'Aplicativo / Reporte HTML' : 'Documento SG-SST';
+                await Message.create({
+                    messageId: uuidv4(),
+                    conversationId: convoId,
+                    user: String(req.user.id),
+                    sender: 'Tenshi',
+                    text: `📁 **${fileLabel} generado**: *${fileTitle}*\n\n${responseText || ''}\n\nPuedes visualizarlo o descargarlo desde Canvas.`,
+                    isCreatedByUser: false,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                });
+
+                await CanvasSession.findOneAndUpdate(
+                    { conversationId: convoId },
+                    {
+                        $set: {
+                            user: String(req.user.id),
+                            title: fileTitle,
+                            fileType: capturedFile?.fileType || 'html',
+                            content: capturedFile?.content || capturedHtmlReport || '',
+                            updatedAt: new Date(),
+                        },
+                        $setOnInsert: {
+                            createdAt: new Date(),
+                            version: 1,
+                        }
+                    },
+                    { upsert: true, new: true }
+                );
+            } catch (syncErr) {
+                console.warn('[Tenshi Route] Could not sync file to Agent Tenshi conversation:', syncErr.message);
+            }
+        }
+
         res.json({
             response: responseText,
             htmlReport: capturedHtmlReport,

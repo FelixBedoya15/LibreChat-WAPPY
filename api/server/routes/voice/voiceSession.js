@@ -397,6 +397,33 @@ class VoiceSession {
                             }
                         },
                         {
+                            name: "generar_informe_inspeccion_camara",
+                            description: "Genera el Informe Oficial de Inspección Visual de Campo con las 3 evidencias fotográficas capturadas por la cámara (o retenidas en memoria si la cámara acaba de apagarse). DEBES INVOCAR ESTA HERRAMIENTA OBLIGATORIAMENTE cuando el usuario tenga la cámara encendida o la haya tenido encendida recientemente y te pida hacer o generar un informe sobre un objeto físico, EPP (gafas, casco, botas, etc.), extintor, maquinaria, herramienta, condición o acto inseguro de campo ('haz el informe de mis gafas', 'genera el informe de la inspección', 'reporte de esta condición').",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    motivo: {
+                                        type: "string",
+                                        description: "Objeto, elemento o condición inspeccionada (ej: 'Inspección de Gafas de Seguridad', 'Inspección de Extintor PQS', 'Inspección de EPP en Obra')."
+                                    }
+                                },
+                                required: ["motivo"]
+                            }
+                        },
+                        {
+                            name: "generar_informe_tecnico",
+                            description: "Compila y genera el informe técnico oficial de inspección o evaluación con las evidencias capturadas en vivo. DEBES invocarla cuando el usuario te pida compilar, hacer o generar el informe de la inspección o de lo que se observó en cámara.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    motivo: {
+                                        type: "string",
+                                        description: "Resumen o título de la inspección realizada."
+                                    }
+                                }
+                            }
+                        },
+                        {
                             name: "wappy_consultar_empresas",
                             description: "Consulta y lista todas las empresas que el usuario tiene registradas en WAPPY (hasta 3 empresas). Retorna el total de empresas registradas, el nombre de cada una, su NIT, número de trabajadores, cuál es la empresa activa actualmente y un resumen en texto. Invócala siempre que el usuario pregunte cuántas empresas tiene, cuáles son o pida ver sus empresas.",
                             parameters: {
@@ -1803,7 +1830,36 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
   * 'wappy_retirar_trabajador': Cuando el usuario te pida retirar, desvincular, dar de baja o sacar a un trabajador (ej: "dejar como retirado a Jorge Ricky Pineda" o "retirar a Jorge Pineda"), INVOCA DE INMEDIATO 'wappy_retirar_trabajador'. El sistema conservará su historial y lo pasará a la pestaña 'Retirados'.
   * ESTÁ TERMINANTEMENTE PROHIBIDO decir que no tienes una función para cambiar el estado de un colaborador a 'retirado'. ¡TIENES la función 'wappy_retirar_trabajador'!
   * 'wappy_actualizar_trabajador': Para editar cargos, salarios o información del empleado.
-  * 'wappy_registrar_trabajador': Para registrar nuevos trabajadores.
+[DESAMBIGUACIÓN DETERMINISTA DE INFORMES - REGLAS ESTRICTAS DE DECISIÓN]:
+Cuando el usuario te diga "genera el informe", "haz el informe", "saca el reporte" o similar, DEBES clasificar la orden en uno de los siguientes 4 casos deterministas:
+
+1. CASO 1: MÓDULO DEL APLICATIVO EN PANTALLA (Somos SST / SGSST)
+- Cuándo aplica: El usuario tiene un módulo del aplicativo abierto en pantalla (/sgsst?...) o dice:
+  * "genera el informe de este módulo"
+  * "haz el informe de responsable"
+  * "genera la política con IA / genera los objetivos con IA"
+  * "dale clic en generar IA / generar análisis"
+  * "dale clic al botón de informe"
+- Acción OBLIGATORIA: INVOCA DE INMEDIATO 'operar_interfaz_visual' ({ accion: 'click', detalle: 'Generar IA', texto: 'Generar IA' }) o 'wappy_generar_analisis_aplicativo'.
+- PROHIBICIÓN: ESTÁ TERMINANTEMENTE PROHIBIDO usar 'canvas_tool' o 'generar_informe_inspeccion_camara' en este caso. El informe se genera pulsando el botón real dentro del aplicativo en pantalla.
+
+2. CASO 2: INSPECCIÓN FÍSICA CON CÁMARA (3 FOTOGRAFÍAS DE EVIDENCIA)
+- Cuándo aplica: El usuario tiene la cámara encendida O la tuvo encendida recientemente y pide informe sobre un objeto físico, EPP o condición de campo:
+  * "informe de mis gafas / gafas de seguridad"
+  * "inspección del extintor"
+  * "reporte de esta máquina / herramienta"
+  * "informe de esta condición insegura"
+  * O cuando el usuario reclama que antes tenía la cámara encendida y no hiciste el informe ("no lo hiciste", "estamos hablando del informe de mis gafas").
+- Acción OBLIGATORIA: INVOCA DE INMEDIATO 'generar_informe_inspeccion_camara' o 'generar_informe_tecnico' con el motivo de la inspección.
+- El sistema compilará el informe oficial con las 3 capturas de evidencia y lo respaldará simultáneamente en ambos Tenshis: en el chat flotante de Tenshi (TenshiMessage) y en el chat del Agente Tenshi de la barra lateral (Conversation/Message).
+
+3. CASO 3: CONSULTA A ESPECIALISTA TÉCNICO
+- Cuándo aplica: El usuario pide expresamente un dictamen o concepto de un especialista ("pásame al médico laboral", "consulta al abogado laboral", "dictamen de higiene química").
+- Acción OBLIGATORIA: Consulta al especialista con 'consultar_agente_especializado' o abre su chat si el usuario lo pide expresamente.
+
+4. CASO 4: INFORME DIRECTO A TENSHI POR CHAT DE TEXTO O MODO LIVE SIN CÁMARA
+- Cuándo aplica: El usuario le pide a Tenshi por chat de texto o por voz (sin haber mostrado objetos en cámara ni estar en un aplicativo) que le redacte un informe, documento Word, matriz Excel o aplicativo interactivo ("hazme un informe sobre la resolución 0312", "redáctame un protocolo en Word").
+- Acción OBLIGATORIA: INVOCA 'canvas_tool' con fileType='text' (Word), 'excel' o 'html'. Se respaldará en el chat flotante de Tenshi y en el chat del Agente Tenshi.
 
 [CREACIÓN DE INFORMES Y DOCUMENTOS ('canvas_tool')]:
 - TIENES LA HERRAMIENTA 'canvas_tool' para crear archivos descargables nuevos e independientes (Word/text, Excel, HTML interactivo).
@@ -2157,7 +2213,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                                 return await TenshiMessage.find({ user: { $in: userIds } })
                                     .sort({ createdAt: -1 })
                                     .limit(10)
-                                    .select('role content')
+                                    .select('role content image media file htmlReport')
                                     .lean();
                             } catch (e) {
                                 return [];
@@ -2264,42 +2320,31 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         }
                     }
 
-                    // Inyectar Historial reciente de Tenshi (TenshiMessage) - con distinción temporal de antecedentes vs hilo activo
+                    // Inyectar Historial reciente de Tenshi (TenshiMessage) - UNIFICADO Y VIVO (Últimos 10 turnos completos)
                     if (recentTenshiMessages && recentTenshiMessages.length > 0) {
                         const validMessages = [];
                         const reversedChronological = [...recentTenshiMessages].reverse();
                         for (const m of reversedChronological) {
                             const role = m.role === 'user' ? 'Usuario' : 'Tenshi';
                             const cleanContent = (m.content || '').replace(/\s+/g, ' ').trim();
-                            const snippet = cleanContent.length > 200 ? cleanContent.substring(0, 200) + '...' : cleanContent;
+                            // Preservar contenido completo (hasta 1500 caracteres por turno para no truncar ideas esenciales)
+                            const snippet = cleanContent.length > 1500 ? cleanContent.substring(0, 1500) + '...' : cleanContent;
                             if (snippet && !snippet.startsWith('[RESULTADO_GUI]')) {
-                                validMessages.push({ role, snippet });
+                                let extraLabel = '';
+                                if (m.image || m.media) extraLabel = ' [con evidencia/foto de cámara]';
+                                if (m.file || m.htmlReport) extraLabel = ` [con reporte/archivo: "${m.file?.title || 'Reporte'}"]`;
+                                validMessages.push({ role: `${role}${extraLabel}`, snippet });
                             }
                         }
 
-                        if (validMessages.length > 3) {
-                            const archived = validMessages.slice(0, validMessages.length - 3);
-                            const activeThread = validMessages.slice(validMessages.length - 3);
-
-                            companyAndMemoryPrompt += `\n\n[ANTECEDENTES PREVIOS ARCHIVADOS (TEMAS YA FINALIZADOS EN TURNOS ANTERIORES)]:
-(ATENCIÓN: Los siguientes intercambios ya finalizaron y pertenecen al pasado. NUNCA los uses como tema de conversación activo ni hables de ellos a menos que el usuario te pregunte explícitamente "¿qué hablamos antes?"):`;
-                            for (const m of archived) {
-                                companyAndMemoryPrompt += `\n- [Turno pasado archivado] ${m.role}: "${m.snippet}"`;
-                            }
-
-                            companyAndMemoryPrompt += `\n\n[HILO CONDUCTOR ACTIVO Y VIGENTE (CONVERSACIÓN ACTUAL EN CURSO)]:
-(DIRECTIVA CRÍTICA: ESTE ES EL TEMA VIVO Y PRESENTE. El último mensaje marca la continuidad exacta de lo que estás haciendo en este instante. Tu respuesta DEBE alinearse con este hilo conductor y con la pantalla activa):`;
-                            activeThread.forEach((m, idx) => {
-                                const isLast = idx === activeThread.length - 1;
-                                const tag = isLast ? 'ÚLTIMO TURNO - PRESENTE INMEDIATO' : 'Turno reciente';
-                                companyAndMemoryPrompt += `\n- [${tag}] ${m.role}: "${m.snippet}"`;
-                            });
-                        } else if (validMessages.length > 0) {
-                            companyAndMemoryPrompt += `\n\n[HILO CONDUCTOR ACTIVO Y VIGENTE (CONVERSACIÓN ACTUAL EN CURSO)]:
-(DIRECTIVA CRÍTICA: ESTE ES EL TEMA VIVO Y PRESENTE. El último mensaje marca la continuidad de lo que estás haciendo en este instante):`;
+                        if (validMessages.length > 0) {
+                            companyAndMemoryPrompt += `\n\n[HISTORIAL CONVERSACIONAL RECIENTE DE TENSHI (ÚLTIMOS ${validMessages.length} TURNOS ACTIVOS - CHAT, LIVE Y CÁMARA)]:
+(DIRECTIVA CRÍTICA DE MEMORIA Y CONTINUIDAD:
+Este es el contexto vivo e inmediato de lo que has venido conversando con el usuario en Tenshi (a través de texto, voz en directo o visión por cámara).
+Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evidencias observadas, peticiones o acuerdos previos, y dar continuidad fluida sin olvidar lo hablado ni pedir que se repita la información):`;
                             validMessages.forEach((m, idx) => {
                                 const isLast = idx === validMessages.length - 1;
-                                const tag = isLast ? 'ÚLTIMO TURNO - PRESENTE INMEDIATO' : 'Turno reciente';
+                                const tag = isLast ? 'ÚLTIMO TURNO - PRESENTE INMEDIATO' : `Turno previo ${idx + 1}`;
                                 companyAndMemoryPrompt += `\n- [${tag}] ${m.role}: "${m.snippet}"`;
                             });
                         }
@@ -2620,10 +2665,10 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                     }
 
                     // Manejo directo de herramienta nativa de informe
-                    if (fc.name === 'generar_informe_tecnico' || fc.name === 'generar_informe_ergonomico') {
+                    if (fc.name === 'generar_informe_tecnico' || fc.name === 'generar_informe_ergonomico' || fc.name === 'generar_informe_inspeccion_camara') {
                         const phaseCount = this.phaseEvidences ? Object.keys(this.phaseEvidences).length : 0;
                         const turnCount = this.conversationTurns ? this.conversationTurns.length : 0;
-                        if (turnCount < 2 && phaseCount === 0) {
+                        if (this.config.mode !== 'tenshi_voice' && turnCount < 2 && phaseCount === 0) {
                             logger.warn(`[VoiceSession] Gemini prematurely called "${fc.name}" on turn ${turnCount} with 0 phases. Rejecting premature call.`);
                             if (this.geminiClient) {
                                 this.geminiClient.sendToolResponse([{
@@ -2635,7 +2680,11 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                             continue;
                         }
 
-                        logger.info(`[VoiceSession] Gemini invoked native tool "${fc.name}"! Triggering report generation...`);
+                        if (fc.args?.motivo) {
+                            this.currentInspectionSubject = fc.args.motivo;
+                        }
+
+                        logger.info(`[VoiceSession] Gemini invoked native tool "${fc.name}" (motivo: ${this.currentInspectionSubject || 'N/A'})! Triggering report generation...`);
                         
                         this.sendToClient({
                             type: 'status',
@@ -2652,8 +2701,11 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                                 }
                             }]);
 
-                            // Activación verbal inmediata vía realtimeInput para que Gemini Live 3.8 lo anuncie por voz
-                            this.geminiClient.sendText('INSTRUCCIÓN: Has iniciado la compilación del informe técnico ergonómico. Confírmale verbalmente al usuario en 1 sola frase breve y entusiasta: "Entendido, estoy procesando las evidencias para compilar tu informe técnico oficial. Por favor espera un momento conectado."');
+                            // Activación verbal inmediata vía realtimeInput
+                            const verbalText = this.config.mode === 'tenshi_voice'
+                                ? `INSTRUCCIÓN: Has iniciado la compilación del informe técnico de inspección (${this.currentInspectionSubject || 'inspección visual SST'}). Confírmale verbalmente al usuario en 1 sola frase breve y entusiasta: "Entendido, estoy procesando las evidencias fotográficas de la inspección para compilar tu informe técnico oficial. Por favor espera un momento conectado."`
+                                : 'INSTRUCCIÓN: Has iniciado la compilación del informe técnico ergonómico. Confírmale verbalmente al usuario en 1 sola frase breve y entusiasta: "Entendido, estoy procesando las evidencias para compilar tu informe técnico oficial. Por favor espera un momento conectado."';
+                            this.geminiClient.sendText(verbalText);
                         }
 
                         if (!this.isGeneratingReport) {
@@ -5843,13 +5895,15 @@ En la Sección 5 incorpora medidas específicas de pausas activas terapéuticas 
                 ? phaseFrames 
                 : (this.manualEvidences && this.manualEvidences.length > 0) 
                     ? this.manualEvidences 
-                    : (this.frameBuffer && this.frameBuffer.length > 0) 
-                        ? this.frameBuffer 
-                        : (this.lastEvaluatedFrames && this.lastEvaluatedFrames.length > 0)
-                            ? this.lastEvaluatedFrames
-                            : this.latestFrame 
-                                ? [this.latestFrame] 
-                                : [];
+                    : (this.cachedCameraEvidences && this.cachedCameraEvidences.length > 0)
+                        ? this.cachedCameraEvidences
+                        : (this.frameBuffer && this.frameBuffer.length > 0) 
+                            ? this.frameBuffer 
+                            : (this.lastEvaluatedFrames && this.lastEvaluatedFrames.length > 0)
+                                ? this.lastEvaluatedFrames
+                                : this.latestFrame 
+                                    ? [this.latestFrame] 
+                                    : [];
 
             let realTelemetryBlock = '';
             if (phaseTelemetryNotes.length > 0) {
@@ -6480,29 +6534,106 @@ ${workerSubHeaderHtml}
 
                     this.reportGenerated = true;
 
-                    // ALSO persist the official report in Tenshi's own chat (TenshiMessage) so the user can view or download it directly from Tenshi's chat
+                    // Respaldo simultáneo en los DOS TENSHIS (widget flotante y agente en barra lateral)
                     if (this.userId && reportHtml && reportHtml.length > 50) {
+                        const workerNameForTenshi = (this.extractedWorkerMeta && this.extractedWorkerMeta.workerName) || this.user?.name || 'Colaborador';
+                        const tenshiReportTitle = this.isBiomechanics
+                            ? `Informe de Estudio de Puesto de Trabajo Ergonómico — ${workerNameForTenshi}`
+                            : (this.currentInspectionSubject ? `Informe Técnico de ${this.currentInspectionSubject} — ${workerNameForTenshi}` : `Informe Técnico Oficial de Inspección SST — ${workerNameForTenshi}`);
+                        const tenshiReportDesc = this.isBiomechanics
+                            ? `🩺 **${tenshiReportTitle}**\n\nHe registrado el informe oficial de tu **Estudio de Puesto de Trabajo Ergonómico en Vivo** realizado con la Fisioterapeuta Laboral (con las 3 fases posturales, telemetría MediaPipe 3D, matriz diagnóstica CIE-11 y 12 ejercicios de pausas activas ExerciseDB). Puedes **verlo en pantalla** o **descargarlo** directamente desde aquí:`
+                            : `📋 **${tenshiReportTitle}**\n\nHe registrado el informe técnico oficial de la **Inspección Visual de Campo** con las evidencias fotográficas capturadas y la matriz de evaluación técnica de riesgos. Puedes **verlo en pantalla** o **descargarlo** directamente desde aquí:`;
+
+                        // 1. Respaldo en Tenshi en su chat (Widget Flotante / TenshiMessage)
                         try {
                             const TenshiMessage = require('~/models/TenshiMessage');
-                            const workerNameForTenshi = (this.extractedWorkerMeta && this.extractedWorkerMeta.workerName) || this.user?.name || 'Colaborador';
-                            const tenshiReportTitle = this.isBiomechanics
-                                ? `Informe de Estudio de Puesto de Trabajo Ergonómico — ${workerNameForTenshi}`
-                                : `Informe Técnico Oficial SST — ${workerNameForTenshi}`;
                             await TenshiMessage.create({
                                 user: this.userId,
                                 role: 'assistant',
-                                content: `🩺 **${tenshiReportTitle}**\n\nHe registrado el informe oficial de tu **Estudio de Puesto de Trabajo Ergonómico en Vivo** realizado con la Fisioterapeuta Laboral (con las 3 fases posturales, telemetría MediaPipe 3D, matriz diagnóstica CIE-11 y 12 ejercicios de pausas activas ExerciseDB). Puedes **verlo en pantalla** o **descargarlo** directamente desde aquí:`,
+                                content: tenshiReportDesc,
                                 htmlReport: reportHtml,
                                 file: {
                                     title: tenshiReportTitle,
                                     fileType: 'html',
                                     content: reportHtml,
-                                    canvasId: `tenshi-ept-report-${Date.now()}`,
+                                    canvasId: `tenshi-report-${Date.now()}`,
                                 },
                             });
                             logger.info(`[VoiceSession] Report also persisted in TenshiMessage for user: ${this.userId}`);
                         } catch (tenshiSaveErr) {
                             logger.warn('[VoiceSession] Could not persist report in TenshiMessage:', tenshiSaveErr.message);
+                        }
+
+                        // 2. Respaldo en el Chat de Agente Tenshi (Sidebar de agentes / Conversation y Message)
+                        try {
+                            const { Conversation, Message } = require('~/db/models');
+                            const CanvasSession = require('~/models/CanvasSession');
+                            const TENSHI_AGENT_ID = '3579240c-ac93-4f4f-b0e4-95d87fc1ee27';
+
+                            let tenshiConvo = await Conversation.findOne({
+                                user: String(this.userId),
+                                agent_id: TENSHI_AGENT_ID,
+                            }).sort({ updatedAt: -1 });
+
+                            const convoId = tenshiConvo ? tenshiConvo.conversationId : uuidv4();
+
+                            if (!tenshiConvo) {
+                                tenshiConvo = await Conversation.create({
+                                    conversationId: convoId,
+                                    user: String(this.userId),
+                                    title: tenshiReportTitle,
+                                    endpoint: 'agents',
+                                    agent_id: TENSHI_AGENT_ID,
+                                    tags: ['tenshi-report', 'inspeccion-sst'],
+                                    createdAt: new Date(),
+                                    updatedAt: new Date(),
+                                });
+                            } else {
+                                await Conversation.updateOne(
+                                    { conversationId: convoId },
+                                    { $set: { title: tenshiReportTitle, updatedAt: new Date() } }
+                                );
+                            }
+
+                            const agentMsgId = uuidv4();
+                            const markdownSummary = `### 📋 ${tenshiReportTitle}\n\n` +
+                                `Se ha compilado el informe técnico oficial de inspección con evidencias fotográficas.\n\n` +
+                                `- **Estado**: Completado e indexado en Canvas.\n` +
+                                `- **Evidencias**: ${(evalFrames && evalFrames.length) || 3} captura(s) visual(es) analizada(s).\n\n` +
+                                `Puedes visualizar y descargar el informe completo en el editor interactivo Canvas adjunto a este chat.`;
+
+                            await Message.create({
+                                messageId: agentMsgId,
+                                conversationId: convoId,
+                                user: String(this.userId),
+                                sender: 'Tenshi',
+                                text: markdownSummary,
+                                isCreatedByUser: false,
+                                createdAt: new Date(),
+                                updatedAt: new Date(),
+                            });
+
+                            await CanvasSession.findOneAndUpdate(
+                                { conversationId: convoId },
+                                {
+                                    $set: {
+                                        user: String(this.userId),
+                                        title: tenshiReportTitle,
+                                        fileType: 'html',
+                                        content: reportHtml,
+                                        updatedAt: new Date(),
+                                    },
+                                    $setOnInsert: {
+                                        createdAt: new Date(),
+                                        version: 1,
+                                    }
+                                },
+                                { upsert: true, new: true }
+                            );
+
+                            logger.info(`[VoiceSession] Report successfully backed up in Agent Tenshi chat (conversationId: ${convoId})`);
+                        } catch (agentTenshiSyncErr) {
+                            logger.warn('[VoiceSession] Could not persist report in Agent Tenshi conversation:', agentTenshiSyncErr.message);
                         }
                     }
 
@@ -7156,6 +7287,73 @@ ${workerSubHeaderHtml}
                             file: canvasFileToAttach,
                             htmlReport: canvasFileToAttach.fileType === 'html' ? canvasFileToAttach.content : undefined,
                         }).catch(err => logger.error('[VoiceSession] Error saving Tenshi canvas file message:', err));
+                    }
+
+                    // Sincronizar en la conversación del Agente Tenshi (Sidebar de agentes) si se generó un archivo Canvas o reporte
+                    if (canvasFileToAttach) {
+                        try {
+                            const { Conversation, Message } = require('~/db/models');
+                            const CanvasSession = require('~/models/CanvasSession');
+                            const TENSHI_AGENT_ID = '3579240c-ac93-4f4f-b0e4-95d87fc1ee27';
+
+                            let tenshiConvo = await Conversation.findOne({
+                                user: String(this.userId),
+                                agent_id: TENSHI_AGENT_ID,
+                            }).sort({ updatedAt: -1 });
+
+                            const convoId = tenshiConvo ? tenshiConvo.conversationId : uuidv4();
+
+                            if (!tenshiConvo) {
+                                tenshiConvo = await Conversation.create({
+                                    conversationId: convoId,
+                                    user: String(this.userId),
+                                    title: canvasFileToAttach.title || 'Documento SG-SST',
+                                    endpoint: 'agents',
+                                    agent_id: TENSHI_AGENT_ID,
+                                    tags: ['tenshi-canvas', 'sgsst'],
+                                    createdAt: new Date(),
+                                    updatedAt: new Date(),
+                                });
+                            } else {
+                                await Conversation.updateOne(
+                                    { conversationId: convoId },
+                                    { $set: { title: canvasFileToAttach.title, updatedAt: new Date() } }
+                                );
+                            }
+
+                            const fileLabel = canvasFileToAttach.fileType === 'html' ? 'Aplicativo / Reporte HTML' : 'Documento SG-SST';
+                            await Message.create({
+                                messageId: uuidv4(),
+                                conversationId: convoId,
+                                user: String(this.userId),
+                                sender: 'Tenshi',
+                                text: `📁 **${fileLabel} generado**: *${canvasFileToAttach.title}*\n\nPuedes visualizarlo o descargarlo desde Canvas.`,
+                                isCreatedByUser: false,
+                                createdAt: new Date(),
+                                updatedAt: new Date(),
+                            });
+
+                            await CanvasSession.findOneAndUpdate(
+                                { conversationId: convoId },
+                                {
+                                    $set: {
+                                        user: String(this.userId),
+                                        title: canvasFileToAttach.title,
+                                        fileType: canvasFileToAttach.fileType || 'text',
+                                        content: canvasFileToAttach.content || '',
+                                        updatedAt: new Date(),
+                                    },
+                                    $setOnInsert: {
+                                        createdAt: new Date(),
+                                        version: 1,
+                                    }
+                                },
+                                { upsert: true, new: true }
+                            );
+                            logger.info(`[VoiceSession] Canvas file synced to Agent Tenshi sidebar (${convoId})`);
+                        } catch (agentTenshiSyncErr) {
+                            logger.warn('[VoiceSession] Error syncing canvas file to Agent Tenshi conversation:', agentTenshiSyncErr.message);
+                        }
                     }
 
                     // Sincronizar en la conversación del Agente Fisioterapeuta si el modo ergonómico está activo

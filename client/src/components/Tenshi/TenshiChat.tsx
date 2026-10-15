@@ -2854,11 +2854,16 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       ].filter(Boolean).join(' • ');
 
       const phase = ERGO_PHASES[currentErgoPhaseIndex] || ERGO_PHASES[0];
-      const label = customLabel || `📸 Evidencia Postural (${phase.shortName})${telemetryStr ? ` • ${telemetryStr}` : ''}`;
+      const isFisio = isBiomechanicsActive;
+      const label = customLabel || (isFisio
+        ? `📸 Evidencia Postural (${phase.shortName})${telemetryStr ? ` • ${telemetryStr}` : ''}`
+        : '📸 Evidencia de Inspección Visual SST');
 
       const userVisionMsg: TenshiChatMessage = {
         role: 'user',
-        content: `👁️ **${label}**\n\n*Foto capturada durante la evaluación postural con la Fisioterapeuta Laboral en Tenshi*`,
+        content: isFisio
+          ? `👁️ **${label}**\n\n*Foto capturada durante la evaluación postural con la Fisioterapeuta Laboral en Tenshi*`
+          : `👁️ **${label}**\n\n*Evidencia fotográfica capturada durante la inspección visual con Tenshi*`,
         image: dataUrl,
       };
 
@@ -2886,7 +2891,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         axios
           .post(
             '/api/tenshi/message',
-            { role: 'user', content: `[FOTO DE INSPECCIÓN ERGONÓMICA]: ${label}`, image: dataUrl },
+            {
+              role: 'user',
+              content: isFisio ? `[FOTO DE INSPECCIÓN ERGONÓMICA]: ${label}` : `[FOTO DE INSPECCIÓN VISUAL SST]: ${label}`,
+              image: dataUrl,
+            },
             { headers: { Authorization: `Bearer ${token}` } },
           )
           .catch((err) => console.error('[Tenshi Vision] Error guardando mensaje visual:', err));
@@ -5121,6 +5130,13 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                       type="button"
                       onClick={() => {
                         tenshiAudio.playChime();
+                        if (isVisionActive && visionSource === 'camera') {
+                          captureVisionSnapshot(
+                            isBiomechanicsActive
+                              ? undefined
+                              : '📸 Evidencia de Inspección Visual SST'
+                          );
+                        }
                         if (triggerVoiceReportRef.current) {
                           triggerVoiceReportRef.current();
                         } else {
@@ -5812,6 +5828,13 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   type="button"
                   onClick={() => {
                     tenshiAudio.playChime();
+                    if (isVisionActive && visionSource === 'camera') {
+                      captureVisionSnapshot(
+                        isBiomechanicsActive
+                          ? undefined
+                          : '📸 Evidencia de Inspección Visual SST'
+                      );
+                    }
                     if (triggerVoiceReportRef.current) {
                       triggerVoiceReportRef.current();
                     } else {
