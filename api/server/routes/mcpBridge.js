@@ -5314,6 +5314,77 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
       });
     }
 
+    // Helper universal para extraer informes originales guardados en los aplicativos de SGSST
+    const getAppOriginalReport = async (tagCandidates) => {
+      try {
+        const { Conversation, Message } = require('~/db/models');
+        const LiveEditorSession = require('~/models/LiveEditorSession');
+        
+        const tagsList = Array.isArray(tagCandidates) ? tagCandidates : [tagCandidates];
+        const companyTag = companyId ? `company-${companyId}` : null;
+
+        let convos = [];
+        if (companyTag) {
+          convos = await Conversation.find({
+            user: targetUserId,
+            tags: { $all: [tagsList[0], companyTag] },
+            $or: [{ isArchived: false }, { isArchived: { $exists: false } }],
+          }).sort({ updatedAt: -1 }).limit(10).lean();
+        }
+        if (!convos || convos.length === 0) {
+          convos = await Conversation.find({
+            user: targetUserId,
+            tags: { $in: tagsList },
+            $or: [{ isArchived: false }, { isArchived: { $exists: false } }],
+          }).sort({ updatedAt: -1 }).limit(10).lean();
+        }
+
+        if (!convos || convos.length === 0) {
+          return null;
+        }
+
+        const latestConvo = convos[0];
+        let htmlContent = '';
+
+        // 1. LiveEditorSession
+        try {
+          const liveSession = await LiveEditorSession.findOne({ conversationId: latestConvo.conversationId }).lean();
+          if (liveSession?.content && liveSession.content.length > 50) {
+            htmlContent = liveSession.content;
+          }
+        } catch (_) {}
+
+        // 2. Message model
+        if (!htmlContent) {
+          try {
+            const msgs = await Message.find({ conversationId: latestConvo.conversationId }).sort({ createdAt: -1 }).limit(5).lean();
+            for (const m of msgs) {
+              if (m.content && (m.content.includes('<html') || m.content.includes('<div') || m.content.includes('<table') || m.content.includes('<header') || m.content.includes('<article') || m.content.includes('<section'))) {
+                htmlContent = m.content;
+                break;
+              }
+            }
+          } catch (_) {}
+        }
+
+        return {
+          titulo: latestConvo.title || 'Informe Oficial',
+          conversationId: latestConvo.conversationId,
+          totalDisponibles: convos.length,
+          otrosDisponibles: convos.slice(1).map(c => ({
+            id: c.conversationId,
+            titulo: c.title,
+            fecha: c.updatedAt
+          })),
+          fechaActualizacion: latestConvo.updatedAt,
+          htmlContent: htmlContent || '',
+        };
+      } catch (e) {
+        logger.warn('[MCP Bridge] Error in getAppOriginalReport:', e);
+        return null;
+      }
+    };
+
     // 1. PERFILES DE CARGO
     if (targetApp.includes('perfil') && (targetApp.includes('cargo') || targetApp.includes('puesto')) && !targetApp.includes('socio')) {
       const doc = await PerfilCargoData.findOne(companyScope(targetUserId, companyId)).lean();
@@ -5679,6 +5750,19 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
 
     // 21. POLÍTICA DE SEGURIDAD Y SALUD EN EL TRABAJO
     if (targetApp.includes('politic')) {
+      const appReport = await getAppOriginalReport(['sgsst-politica']);
+      if (appReport && appReport.htmlContent) {
+        return res.json({
+          aplicativo: 'Política de Seguridad y Salud en el Trabajo',
+          empresa: company?.companyName || 'Empresa activa',
+          titulo: appReport.titulo,
+          totalDisponibles: appReport.totalDisponibles,
+          otrosDisponibles: appReport.otrosDisponibles,
+          fechaActualizacion: appReport.fechaActualizacion,
+          informeOriginalHtml: appReport.htmlContent,
+          informeCompleto: appReport.htmlContent,
+        });
+      }
       const polContent = company?.politicaSST || company?.generalActivities || '';
       return res.json({
         aplicativo: 'Política de Seguridad y Salud en el Trabajo',
@@ -5691,6 +5775,19 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
 
     // 22. OBJETIVOS E INDICADORES DEL SG-SST
     if (targetApp.includes('objetivo') || targetApp.includes('indicador') || targetApp.includes('meta')) {
+      const appReport = await getAppOriginalReport(['sgsst-objetivos']);
+      if (appReport && appReport.htmlContent) {
+        return res.json({
+          aplicativo: 'Objetivos e Indicadores del SG-SST',
+          empresa: company?.companyName || 'Empresa activa',
+          titulo: appReport.titulo,
+          totalDisponibles: appReport.totalDisponibles,
+          otrosDisponibles: appReport.otrosDisponibles,
+          fechaActualizacion: appReport.fechaActualizacion,
+          informeOriginalHtml: appReport.htmlContent,
+          informeCompleto: appReport.htmlContent,
+        });
+      }
       return res.json({
         aplicativo: 'Objetivos e Indicadores del SG-SST',
         empresa: company?.companyName || 'Empresa activa',
@@ -5701,8 +5798,21 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
       });
     }
 
-    // 23. RESPONSABLE DEL SG-SST
-    if (targetApp.includes('responsable') || targetApp.includes('lider_sst') || targetApp.includes('asignacion')) {
+    // 23. RESPONSABLE DEL SG-SST (ASIGNACIÓN Y RESPONSABILIDADES)
+    if (targetApp.includes('responsab') || targetApp.includes('lider_sst') || targetApp.includes('asignacion')) {
+      const appReport = await getAppOriginalReport(['sgsst-responsable']);
+      if (appReport && appReport.htmlContent) {
+        return res.json({
+          aplicativo: 'Asignación del Responsable del SG-SST',
+          empresa: company?.companyName || 'Empresa activa',
+          titulo: appReport.titulo,
+          totalDisponibles: appReport.totalDisponibles,
+          otrosDisponibles: appReport.otrosDisponibles,
+          fechaActualizacion: appReport.fechaActualizacion,
+          informeOriginalHtml: appReport.htmlContent,
+          informeCompleto: appReport.htmlContent,
+        });
+      }
       return res.json({
         aplicativo: 'Asignación del Responsable del SG-SST',
         empresa: company?.companyName || 'Empresa activa',

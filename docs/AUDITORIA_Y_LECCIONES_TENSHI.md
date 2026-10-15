@@ -477,6 +477,150 @@
 
 ---
 
+### LECCIÓN 14 (2026-10-14): Desacople de Cámara Genérica vs. Modo Fisioterapeuta, Prevención de Usurpación de Identidad de Especialistas y Tamaño Compacto en PC
+
+- **Síntomas Reportados:**
+  1. Al abrir la cámara normal de Tenshi o videollamada, se desplegaba de forma indebida el HUD de la Fisioterapeuta (esqueleto neón MediaPipe, fases RULA/REBA, telemetría de ángulos).
+  2. En computadores de escritorio (PC), Tenshi se expandía automáticamente a 760x700 px, invadiendo el centro del monitor y tapando la pantalla que el usuario necesitaba ver.
+  3. En el visor de cámara (móvil y desktop), los botones PiP superiores (`[Minimizar]`, `[Girar cámara]`, `[Cerrar]`) colisionaban y se superponían directamente sobre el texto de los badges ergonómicos (`Método: RULA`).
+  4. Al invocar especialistas como el Consultor SST (u otros) en el chat o live, se abría la interfaz biomecánica de la Fisioterapeuta en lugar del conocimiento propio del agente consultado.
+- **Causas Raíces:**
+  1. **Condición de HUD Permisiva en Frontend:** En `TenshiChat.tsx`, la condición de renderizado era `(isBiomechanicsActive || visionSource === 'camera')`. Al evaluar verdadera cualquier apertura de cámara, forzaba el HUD ergonómico y el loop de MediaPipe Pose.
+  2. **Expansión Forzada de Dimensiones:** En `getChatPositionStyle`, `isVisionTakingSpace = isVisionActive && isVisionExpanded` inflaba el contenedor a 760x700 px en PC.
+  3. **Solapamiento por Inset-x Completo:** El HUD abarcaba `inset-x-2.5` ocupando el 100% del ancho, mientras que los botones flotantes residían en `top-3 right-3`, montándose encima del badge de método.
+  4. **Fallback Agresivo de Especialistas:** En `VoiceModal.tsx`, un filtro invertido clasificaba como biomecánico a cualquier especialista fuera de una lista acotada. En `voiceSession.js`, la falta de prompt en Mongo disparaba el fallback inyectando `fisioterapeuta_laboral.md` a cualquier agente.
+- **Solución Implementada:**
+  1. **Aislamiento de la Cámara Normal:** Separación estricta entre `isVisionActive` y `isBiomechanicsActive`. Si `isBiomechanicsActive` es falso, la cámara es 100% limpia (badge verde `EN VIVO`, botón "Tomar Foto", sin telemetría ni esqueleto). El modo ergonómico solo se activa al solicitar explícitamente estudio de puesto / ergonomía (`isBiomechanicsActive = true`).
+  2. **Dimensiones Compactas Permanentes en PC:** `defaultW = 420` y `defaultH = 540` invariables en escritorio, preservando el espacio de trabajo del usuario.
+  3. **Reorganización Anti-Colisión:** Se añadió `right-28` al contenedor del HUD, garantizando un margen libre a la derecha para que los controles de cámara nunca tapen los textos informativos.
+  4. **Preservación de Identidades:** Se eliminaron los fallbacks universales en `VoiceModal.tsx` y `voiceSession.js`; cada agente mantiene su protocolo nativo (Auditoría, Legal, Medicina Laboral, etc.).
+
+### LECCIÓN 15 (2026-10-14): Unificación de Botonera Cápsula Flotante (WAPPY Design System), Adopción Dinámica de Roles en Tenshi Live y Erradicación de la Usurpación de Especialistas
+
+- **Síntomas Reportados:**
+  1. En los visores de cámara de Tenshi (móvil y escritorio), los controles de acción estaban dispersos (3 botones en esquina superior derecha y un botón solitario en la esquina inferior derecha), discrepando de la botonera inferior unificada de la plataforma.
+  2. Al abrir Live desde agentes diferentes al Fisioterapeuta (ej: Consultor SST, Médico Laboral, Abogado, Terapeuta en Salud Mental), el backend y el modal seguían abriendo como si fuera la Fisioterapeuta, hablando de ángulos articulares o cargando MediaPipe.
+  3. Tenshi en su Live general no cambiaba de rol según la intención solicitada por el usuario (ej: *"ayúdame a verificar los riesgos del botiquín de emergencias"* no adoptaba el rol de emergencias).
+- **Causas Raíces:**
+  1. **Discrepancia de Botonera:** El visor de Tenshi en escritorio no utilizaba el contenedor flotante cápsula (`rounded-full bg-black/80 backdrop-blur-xl border border-white/15 shadow-2xl`) de la Imagen 1 (`VoiceModal.tsx`), sino controles dispersos.
+  2. **Fallback a Biomecánico en `inspectionProtocols.js` (Backend):** En `api/server/routes/voice/inspectionProtocols.js:271`, `resolveInspectionProtocol` retornaba `INSPECTION_PROTOCOLS.biomecanico` si el agente no estaba definido. Además, no incluía los protocolos de `psicosocial`, `medicina_laboral` ni `juridico_legal`.
+  3. **Scoping Bug de `wantsBiomechanics` y Fallback a `fisioterapeuta_laboral.md` en `voiceSession.js`:** En la línea 7483, `wantsBiomechanics` estaba declarado dentro de un bloque `try` y si fallaba la búsqueda del agente en BD, siempre cargaba el markdown de la Fisioterapeuta. Adicionalmente, el bloque `config.systemInstruction` inyectaba directivas biomecánicas incluso para otros especialistas.
+  4. **Contaminación por Título de Conversación en `VoiceModal.tsx`:** `candidate` evaluaba `conversation?.title`. Si el usuario había tenido una conversación previa con título sobre "estudio de puesto" o "ergonomía", al cambiar de agente el modal seguía abriendo como Fisioterapeuta mientras el agente cargaba.
+- **Solución Implementada:**
+  1. **Botonera Cápsula Flotante Inferior Universal (Imagen 1):** Unificada tanto en visor móvil como en escritorio en `TenshiChat.tsx` y `VoiceModal.tsx`:
+     `[Cámara On/Off]` `[Capturar Evidencia]` `[Girar Cámara]` `|` `[Micrófono Hero con pulso]` `|` `[Pantalla]` `[Informe FileText]` `[Colgar rojo PhoneOff]`. Esquina superior derecha limpia únicamente con botón de Minimizar/Expandir.
+  2. **Catálogo Completo de 8 Protocolos Técnicos:** Actualizados tanto en cliente (`client/src/utils/inspectionProtocols.ts`) como en servidor (`api/server/routes/voice/inspectionProtocols.js`):
+     - `biomecanico` (Fisio / Ergonomía / RULA / REBA)
+     - `quimico` (SGA / ONU / FDS / Res. 1496)
+     - `pesv` (Seguridad Vial / Res. 20223040040595)
+     - `emergencias_electrico` (Botiquín / Extintores / RETIE / NFPA 10)
+     - `psicosocial` (Salud Mental / Batería MinTrabajo Res. 2764)
+     - `medicina_laboral` (Salud Ocupacional / Exámenes Médicos / Res. 2346)
+     - `juridico_legal` (Matriz Legal / Cumplimiento Dec. 1072 / Res. 0312)
+     - `auditoria_gtc45` (Consultor General SST / 5S / Fallback predeterminado)
+  3. **Adopción Dinámica de Roles en Tenshi Live:** Tenshi detecta la intención del usuario en `handleSend`, `onTextReceived` y `onAgentSwitched`, cambiando dinámicamente el protocolo, los badges, los métodos normativos y las fases de inspección.
+  4. **Blindaje de Identidad de Especialistas:** El backend solo inyecta directivas biomecánicas si el agente es explícitamente ergonómico. De lo contrario, inyecta directivas técnicas propias del rol con su propio marco legal colombiano.
+
+### 1.15 (14/10/2026) Eliminación Estricta de Fases/Autoevaluación en Especialistas no-Fisio y Fix a `toggleVoice`
+- **Síntomas Reportados:**
+  1. Al abrir la cámara en vivo con cualquier agente que no es el Fisioterapeuta (ej: Consultor SG-SST), seguía apareciendo una barra flotante superior con badges de fases (`Fase 1: Orden / 5S`, `Fase 2: Puntos Críticos`, etc.), autoevaluación y badges de enfoque.
+  2. En el botón de captura de foto aparecía un badge `1/3` incluso para agentes no ergonómicos.
+  3. Al pulsar el botón de micrófono en la botonera de `TenshiChat.tsx`, se disparaba el error: `ReferenceError: toggleVoice is not defined`.
+  4. Los agentes seguían abriendo el Live hablándole al usuario como si fuera la Fisioterapeuta en lugar del especialista correspondiente.
+- **Causas Raíces:**
+  1. **Ternario con Fallback en `VoiceModal.tsx`:** Las líneas 1410-1542 tenían `isBiomechanicsAgent ? (...) : (<div ...phases.map...>)`. Cuando `!isBiomechanicsAgent`, renderizaba una barra alternativa con fases de GTC 45 y autoevaluación, ensuciando la vista de la cámara.
+  2. **Bloques `!isBiomechanicsActive` en `TenshiChat.tsx`:** Tanto en móvil (4790-4836) como en desktop (5469-5515), se renderizaban fases cuando `!isBiomechanicsActive`.
+  3. **Error de Nomenclatura en `TenshiChat.tsx`:** En los botones de la botonera inferior se escribió `onClick={toggleVoice}`, pero la función declarada era `const toggleVoiceMode = useCallback(...)`.
+  4. **Causa Raíz de Backend (`voiceSession.js:7465`):**
+     `const wantsBiomechanics = Boolean(config.mode === 'live_analysis' || config.template === 'biomecanico_mediapipe');`
+     Como `liveAnalysisWebSocket.js` asigna por defecto `mode: 'live_analysis'` a cualquier conexión WebSocket de cámara, `wantsBiomechanics` evaluaba a `true` para TODOS los agentes, forzando la carga de `fisioterapeuta_laboral.md` y reemplazando las directivas del agente seleccionado.
+- **Solución Implementada:**
+  1. **HUD Superior Exclusivo del Fisioterapeuta:** En `VoiceModal.tsx`, se eliminó completamente la rama `else` con fases. Si `!isBiomechanicsAgent`, la pantalla superior queda completamente limpia (renderiza `null`).
+  2. **Eliminación de Fases en `TenshiChat.tsx`:** Se borraron los bloques `!isBiomechanicsActive` que inyectaban fases en móvil y escritorio.
+  3. **Fix `toggleVoice`:** Se declaró `const toggleVoice = toggleVoiceMode;` solucionando el `ReferenceError`.
+  4. **Corrección de `wantsBiomechanics`:** Se limitó estrictamente a `config.template === 'biomecanico_mediapipe'`. Si un especialista está activo, mantiene su identidad, conocimiento y directivas sin fases.
+  5. **Badge de Foto Condicional:** El badge de fases `${currentPhaseIndex + 1}/${activeProtocol.phases.length}` solo se renderiza si el modo es ergonómico/fisioterapeuta.
+
+### 1.16 (15/10/2026) Solución a Error 404 de Estudio de Puesto, Cancelación Real de Audio (Mute), Control de Cámara y HUD Ergonómico Móvil
+- **Síntomas Reportados:**
+  1. `Error: No route matches URL "/sgsst/estudio-puesto"`.
+  2. El botón central de micrófono no cancelaba/silenciaba el audio del usuario.
+  3. En `TenshiChat.tsx`, el botón central desconectaba la llamada completa en lugar de silenciar.
+  4. El botón de la cámara (Botón 1) cerraba todo el visor de Tenshi en vez de pausar/apagar la cámara.
+  5. Dudas sobre el botón flotante `1x` en la cámara en vivo.
+  6. En móviles, las indicaciones de arriba en el visor ergonómico tapaban la pantalla o desaparecían intermitentemente.
+- **Causas Raíces:**
+  1. La ruta `/sgsst/estudio-puesto` y `/sgsst/estudio_puesto` no estaban registradas como alias canónicos en `client/src/routes/index.tsx`.
+  2. En `useVoiceSession.ts`, `setMuted(muted)` solo modificaba una referencia booleana en memoria (`isHardwareMutedRef`), pero **no deshabilitaba físicamente los tracks de audio del navegador** (`streamRef.current.getAudioTracks().forEach(t => t.enabled = !muted)`).
+  3. En `VoiceModal.tsx`, si `status === 'speaking'`, la función `toggleMute` ejecutaba `setIsMuted(false); setMuted(false);`, forzando el desmuteo en lugar de silenciar el micrófono del usuario.
+  4. En `TenshiChat.tsx`, el botón central invocaba `onClick={toggleVoice}` (que llamaba a `stopVoiceMode()` y colgaba la sesión) en vez de llamar a `handleToggleMicMute`.
+  5. El botón 1 en `TenshiChat.tsx` llamaba a `stopVision()`, destruyendo el visor de video, en vez de alternar `isCameraOn` y deshabilitar los tracks de video.
+  6. El botón `1x` no contaba con tooltip ni descripción de accesibilidad sobre el zoom digital de la cámara de inspección (1x, 2x, 3x).
+- **Solución Implementada:**
+  1. **Redirección Canónica:** Se agregaron en `client/src/routes/index.tsx` las rutas `/sgsst/estudio-puesto` y `/sgsst/estudio_puesto` redirigiendo a `/sgsst?hito=hito4&module=estudio_puesto`.
+  2. **Silenciado Real de Hardware y Software (Mute):** En `useVoiceSession.ts`, `setMuted` ahora conmuta físicamente `track.enabled = !muted` y emite `speech_end` al WebSocket si el usuario estaba transmitiendo. En `VoiceModal.tsx`, `toggleMute` respeta el silenciado del usuario e interrumpe la voz de la IA si correspondía.
+  3. **Micrófono Central en Tenshi:** Ahora ejecuta `handleToggleMicMute`, mostrando icono `MicOff` en rojo al silenciar y `Mic` en blanco con pulso vivo al estar activo, sin colgar la llamada.
+  4. **Alternancia de Cámara (Cámara On/Off):** Se implementó `toggleCamera` en `TenshiChat.tsx` para conmutar `isCameraOn` y pausar los tracks de video con un overlay informativo ("Cámara pausada"), manteniendo abierta la sesión de voz. Los botones de foto y girar cámara se ocultan mientras la cámara esté apagada (idéntico a `VoiceModal.tsx`). Para cerrar el visor por completo se integró el botón `X` en la esquina superior derecha.
+  5. **HUD Ergonómico Móvil Compacto:** Se optimizó el visor ergonómico para dispositivos móviles: fases compactas (`F1`, `F2`, `F3`), badges adaptativos y telemetría articular horizontal compacta de una sola fila (`C: 50°`, `T: 20°`, `B: 26°`), evitando obstruir la vista.
+### 1.17 (15/10/2026) Solución a Titileo de Pantalla Negra, HUD Fisioterapeuta en Chat, Apagado Físico de Cámara, Silenciado Total y Generación Formal de Informe
+- **Síntomas Reportados:**
+  1. `ReferenceError: isVisionActive is not defined` al abrir el modal de voz en el chat de agentes.
+  2. Presencia del botón flotante `1x` en la cámara en vivo de los agentes sin función requerida por el usuario.
+  3. Desaparición del HUD ergonómico y las 3 fases en el agente Fisioterapeuta en el chat.
+  4. En Tenshi Visión, la pantalla titilaba y se ponía negra repetidamente cuando Tenshi hablaba.
+  5. Las indicaciones y fases de la parte superior en Tenshi desaparecían inesperadamente tras responder el usuario.
+  6. El botón de apagar cámara no apagaba físicamente la luz del hardware.
+  7. El botón central no silenciaba inmediatamente el habla ni el audio.
+  8. Tenshi "hablaba bobadas" o no sabía generar el informe técnico ergonómico al pulsar el botón de documento (`FileText`).
+- **Causas Raíces:**
+  1. `isVisionActive` no estaba desestructurado del hook en el ámbito de renderizado de `VoiceModal.tsx`.
+  2. El botón `1x` permanecía renderizado en el overlay de video de los agentes.
+  3. La resolución del agente fisioterapeuta dependía de llamadas asíncronas no cacheadas, degradando el agente a consultor general sin HUD.
+  4. **Titileo / Pantalla Negra:** `messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })` se ejecutaba en cada token de texto transmitido por voz (20-30 veces por segundo). Esto saturaba el hilo del compositor del navegador, provocando que el elemento `<video>` perdiera fotogramas y parpadeara su fondo negro.
+  5. **Desaparición de Indicaciones:** En `TenshiChat.tsx`, `updateTenshiProtocolByIntent(text)` se ejecutaba con cada transcripción del usuario. Al decir "listo" o "ya", `resolveInspectionProtocol("listo")` caía en el fallback por defecto (`auditoria_gtc45`), ejecutando `setIsBiomechanicsActive(false)` y ocultando inmediatamente el HUD ergonómico y las 3 fases.
+  6. `toggleCamera` en Tenshi solo alternaba `track.enabled = false` sin llamar a `track.stop()`. En la mayoría de navegadores y sistemas operativos (macOS/Windows), el hardware de la webcam mantiene encendido el LED indicador si los tracks no se detienen.
+  7. El botón de documento (`FileText`) en Tenshi enviaba un mensaje de texto plano vía REST a `/api/tenshi/message` en lugar de solicitar la generación formal del informe a la sesión activa de WebSocket (`triggerVoiceReportRef.current()`).
+  8. En `voiceSession.js:5515`, `generateReport()` buscaba historial exclusivamente en la colección LibreChat `Message` mediante `this.conversationId`. Como las sesiones de Tenshi Voice operan en memoria o sobre `TenshiMessage`, `dbContext` resultaba vacío y la función abortaba retornando `<p>No hay suficiente contexto para generar un informe...</p>`.
+- **Solución Implementada:**
+  1. **HUD Fisioterapeuta Estricto:** En `VoiceModal.tsx`, se resolvió de forma síncrona el agente mediante `useAgentsMapContext()`. El HUD ergonómico de 3 fases y telemetría MediaPipe se reservó exclusivamente para el agente Fisioterapeuta (`92a03bc9-25ce-4eb9-9af4-cafcd480785a`), mientras los demás agentes conservan su rol técnico puro sin fases. Se eliminó por completo el botón flotante `1x`.
+  2. **Eliminación del Titileo y Pantalla Negra:** En `TenshiChat.tsx`, se protegió el efecto de scroll: si la visión está activa y expandida (`isVisionActive && isVisionExpanded`), se omite el scroll continuo. Para el chat normal, se conmutó de `behavior: 'smooth'` a `behavior: 'auto'`, eliminando la sobrecarga del compositor gráfico y permitiendo un streaming de video a 30fps totalmente fluido.
+  3. **Blindaje de Fases y Protocolo:** En `updateTenshiProtocolByIntent`, se añadieron filtros para ignorar palabras cortas de confirmación ("listo", "ya", "ok") y se eliminó el fallback que desactivaba la biomecánica, asegurando que el HUD ergonómico permanezca visible durante toda la evaluación.
+  4. **Apagado Real de Hardware de la Cámara:** En `toggleCamera`, al apagar se ejecuta `track.stop()` sobre todos los tracks de video y se anula `srcObject`, apagando físicamente la luz de la webcam; al encender, se vuelve a invocar `startVision('camera', facingMode)`.
+  5. **Mute Total con Interrupción de Voz:** El botón central ejecuta `handleToggleMicMute()`, cortando inmediatamente el habla de Tenshi (`sendVoiceInterruptRef.current()`, `clearAudioQueue()`, `setIsTenshiSpeaking(false)`), silenciando el micrófono y enviando `speech_end` al servidor.
+  6. **Generación Integral del Informe Técnico:**
+     - En `TenshiChat.tsx`, el botón `FileText` (en vistas compacta y expandida) ahora invoca `triggerVoiceReportRef.current()`, transmitiendo la solicitud directa por WebSocket.
+     - En `voiceSession.js:5515`, `generateReport()` ahora consulta como respaldo la colección `TenshiMessage`, los turnos recientes en memoria (`this.conversationTurns`) y sintetiza el contexto a partir de las fotos y telemetría capturadas (`this.phaseEvidences`), garantizando que jamás falle por falta de contexto.
+     - Se sincroniza el informe resultante con Canvas y `LiveEditorSession` usando `targetConvoId = this.conversationId || 'tenshi-' + this.userId`.
+
+### 1.18 (15/10/2026) Soporte Universal de Interacción GUI (Click en "Generar IA", Escritura en Campos React 18/19 y Failsafe de Análisis)
+- **Síntomas Reportados:**
+  1. Tenshi no podía hacer clic en el botón "Generar IA" o "Generar informe con IA" en los módulos de Somos SST (ej. Política SST, Objetivos SST, etc.).
+  2. Al ordenar a Tenshi diligenciar o escribir en campos de texto, ocurría un parpadeo/flicker en el borde del input (800ms) pero el campo permanecía vacío o React borraba el texto de inmediato.
+  3. En los logs de Winston, los resultados devueltos por el cliente para `operar_interfaz_visual` no se mostraban con claridad.
+- **Causas Raíces:**
+  1. **Indexación DOM ausente en llamadas de voz:** `TenshiPageController.selectorMap` solo se llenaba cuando el usuario enviaba un mensaje de texto que invocaba `getDehydratedDOM()`. En llamadas de voz (`VoiceModal`), `selectorMap` permanecía en tamaño 0.
+  2. **Exclusión de campos de texto en candidatos de selector:** `executeGUIAction` solo buscaba `button, [role="button"], a, input[type="button"], input[type="submit"]`, excluyendo completamente `<input>` y `<textarea>`.
+  3. **Pérdida del parámetro `detalle` / `campo`:** En `TenshiChat.tsx`, el payload del WebSocket recibía `action.args.detalle` o `campo`, pero solo pasaba `action.args.texto` al controlador GUI. Si el usuario pedía "escribe en el campo de visión la política...", `texto` contenía 500 palabras y no el nombre del campo, por lo que ningún selector coincidía.
+  4. **Pérdida de sincronización en React 18/19:** El setter nativo `Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(target, val)` no reseteaba `_valueTracker`, causando que React descartara el evento o restaurara el valor anterior en el siguiente render. Además, los inputs controlados dependen de `props.onChange`, el cual no siempre se dispara con eventos sintéticos de DOM en React 18+.
+  5. **Framer Motion en botones:** Los botones con `<motion.button>` y `whileTap` interceptaban `element.click()`, requiriendo disparo de eventos de puntero (`pointerdown`, `mousedown`, `pointerup`, `mouseup`, `click`) e invocación directa de `__reactProps$...onClick`.
+  6. **Ausencia de listener global para generación de IA:** El botón "Generar IA" en `SGSSTToolbar` no contaba con un listener de eventos del sistema para invocación directa por eventos (`wappy-generar-analisis-ia`).
+- **Solución Implementada:**
+  1. **Indexación DOM Perezosa / Lazy:** Si `selectorMap.size === 0`, `TenshiPageController.ts` indexa dinámicamente el DOM en tiempo real durante la acción de voz.
+  2. **Búsqueda Multicriterio de Inputs y Textareas:** Búsqueda por `id`, `name`, `placeholder`, `aria-label`, `<label>` asociado (`htmlFor` o contenedor padre) y `labelDistance`.
+  3. **Sincronización Infalible en React 18/19:**
+     - Reset de `_valueTracker.setValue('')`.
+     - Invocación de setter de prototipo.
+     - Disparo secuencial de `focus`, `beforeinput`, `input` (InputEvent y Event), `change`, `blur`.
+     - Invocación directa de `__reactProps$*.onChange` si está presente en el nodo DOM.
+     - Emisión global de `wappy-campo-actualizado` y soporte para `wappy-diligenciar-formulario`.
+  4. **Emisión de Eventos Globales de Análisis IA:**
+     - Al hacer click en "Generar IA" o activarse la acción, se disparan los eventos `wappy-generar-analisis-ia` y `wappy-generar-analisis-actual`.
+     - `SGSSTToolbar.tsx` escucha estos eventos y ejecuta `onAnalyze()`, habilitando la generación por IA instantáneamente en todos los módulos de Somos SST.
+  5. **Módulos SST Reforzados:** `PoliticaSST.tsx` y `ObjetivosSST.tsx` sincronizan su estado React directamente ante `wappy-diligenciar-formulario` y `wappy-campo-actualizado`.
+  6. **Failsafe en `voiceSession.js`:** Si Gemini omite el tool call ante "dale clic en generar IA", el backend dispara automáticamente `operar_interfaz_visual` con `{ accion: 'click', texto: 'Generar IA', detalle: 'Generar IA' }`.
+
+---
+
 ## 2. Checklist Obligatorio Pre-Commit / Pre-Despliegue
 
 Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el chat:
@@ -485,5 +629,7 @@ Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el 
 3. [ ] **Inclusión de Bundles en Git:** Asegurar que `git add client/src client/dist` incluya tanto el código fuente como los compilados.
 4. [ ] **Verificación de Modelos de IA:** Nunca degradar ni inventar nombres de modelos; verificar siempre con `search_web` en la documentación oficial.
 5. [ ] **Despliegue en VPS:** Indicar al usuario la ejecución de `git pull` y `docker exec -it LibreChat node scripts/restore-and-sync-all.js`.
+
+
 
 

@@ -7,7 +7,7 @@ export interface InspectionPhase {
 }
 
 export interface InspectionProtocol {
-    id: 'biomecanico' | 'quimico' | 'pesv' | 'emergencias_electrico' | 'auditoria_gtc45';
+    id: 'biomecanico' | 'quimico' | 'pesv' | 'emergencias_electrico' | 'auditoria_gtc45' | 'psicosocial' | 'medicina_laboral' | 'juridico_legal';
     title: string;
     badgeText: string;
     methodLabel: string;
@@ -94,6 +94,60 @@ export const INSPECTION_PROTOCOLS: Record<string, InspectionProtocol> = {
             assisted: 'Acerca el smartphone al manómetro y pasador de seguridad para verificar sellos y aguja.'
         }
     },
+    psicosocial: {
+        id: 'psicosocial',
+        title: 'Evaluación de Factores Psicosociales y Salud Mental',
+        badgeText: 'Salud Mental & Psicosocial',
+        methodLabel: 'Batería MinTrabajo / Res. 2764/2022',
+        normRef: 'Res. 2646/2008 / Res. 2764/2022',
+        themeColor: 'purple',
+        accentColor: '#a855f7',
+        phases: [
+            { id: 1, name: 'Fase 1: Clima, Carga Mental y Entorno', shortName: 'Fase 1: Entorno / Clima', desc: 'Demandas del trabajo, jornadas y condiciones de entorno', focus: 'Factores intralaborales y nivel de estrés' },
+            { id: 2, name: 'Fase 2: Señales de Fatiga y Agotamiento', shortName: 'Fase 2: Síntomas / Burnout', desc: 'Manifestaciones de sobrecarga, concentración y descanso', focus: 'Impacto psicosomático y emocional' },
+            { id: 3, name: 'Fase 3: Pautas de Autocuidado y Primeros Auxilios', shortName: 'Fase 3: Autocuidado / PAP', desc: 'Respiración consciente, pausas activas y redes de apoyo', focus: 'Estrategias de afrontamiento y bienestar' },
+        ],
+        perspectiveGuidance: {
+            self: 'Ubícate en un espacio tranquilo y cómodo frente a la cámara con buena luz.',
+            assisted: 'Conversación guiada con encuadre facial neutro y sin distracciones del entorno.'
+        }
+    },
+    medicina_laboral: {
+        id: 'medicina_laboral',
+        title: 'Inspección de Salud Ocupacional y Medicina Laboral',
+        badgeText: 'Medicina Laboral & Salud',
+        methodLabel: 'Profesiogramas / Res. 2346/2007',
+        normRef: 'Res. 2346/2007 / Dec. 1072/2015',
+        themeColor: 'teal',
+        accentColor: '#0d9488',
+        phases: [
+            { id: 1, name: 'Fase 1: Antecedentes y Exámenes Ocupacionales', shortName: 'Fase 1: Exámenes Médicos', desc: 'EMO de ingreso, periódico o reintegro y conceptos de aptitud', focus: 'Seguimiento a recomendaciones y restricciones' },
+            { id: 2, name: 'Fase 2: Condiciones Fisiológicas y Hábitos', shortName: 'Fase 2: Hábitos / SVE', desc: 'Pausas activas, hidratación y sintomatología reportada', focus: 'Sistemas de Vigilancia Epidemiológica (SVE)' },
+            { id: 3, name: 'Fase 3: Casos Médicos y Reubicaciones', shortName: 'Fase 3: Casos ATEL / Reubicación', desc: 'Planes de rehabilitación y adecuación ergonómica al puesto', focus: 'Reincorporación laboral y bienestar del trabajador' },
+        ],
+        perspectiveGuidance: {
+            self: 'Ubícate frente a la cámara con buena iluminación para diálogo médico ocupacional.',
+            assisted: 'Enfoque general del colaborador para revisión de aptitud física y laboral.'
+        }
+    },
+    juridico_legal: {
+        id: 'juridico_legal',
+        title: 'Auditoría Jurídica y Cumplimiento Normativo SG-SST',
+        badgeText: 'Cumplimiento Legal SST',
+        methodLabel: 'Matriz Legal / Dec. 1072 / Res. 0312',
+        normRef: 'Decreto 1072 de 2015 / Res. 0312 de 2019',
+        themeColor: 'indigo',
+        accentColor: '#6366f1',
+        phases: [
+            { id: 1, name: 'Fase 1: Evidencias y Documentación Obligatoria', shortName: 'Fase 1: Documentación SST', desc: 'Políticas firmadas, comités (COPASST/Convivencia) y afiliaciones', focus: 'Estándares mínimos de ley' },
+            { id: 2, name: 'Fase 2: Responsabilidad y Gestión de Riesgos', shortName: 'Fase 2: Matriz Legal', desc: 'Identificación de normas vigentes y no conformidades', focus: 'Mitigación de sanciones y responsabilidad patronal' },
+            { id: 3, name: 'Fase 3: Plan de Acción y Medidas Correctivas', shortName: 'Fase 3: Medidas Correctivas', desc: 'Plazos de subsanación y cierre de brechas legales', focus: 'Blindaje jurídico empresarial' },
+        ],
+        perspectiveGuidance: {
+            self: 'Enfoca la documentación, actas o certificados legales frente a la cámara.',
+            assisted: 'Muestra los registros y carpetas del SG-SST para validación jurídica.'
+        }
+    },
     auditoria_gtc45: {
         id: 'auditoria_gtc45',
         title: 'Auditoría de Seguridad y Condiciones Locativas',
@@ -119,23 +173,71 @@ export const INSPECTION_PROTOCOLS: Record<string, InspectionProtocol> = {
  */
 export function resolveInspectionProtocol(agentNameOrSpecialty?: string | null): InspectionProtocol {
     if (!agentNameOrSpecialty) {
-        return INSPECTION_PROTOCOLS.biomecanico;
+        return INSPECTION_PROTOCOLS.auditoria_gtc45;
     }
 
     const name = agentNameOrSpecialty.toLowerCase();
 
-    // 1. Biomechanics family
+    // 1. Biomechanics / Ergonomics / Fisioterapia
     if (
         name.includes('fisioterapeuta') ||
         name.includes('biomec') ||
         name.includes('ergon') ||
         name.includes('rosa') ||
-        name.includes('puesto de trabajo (ipt)')
+        name.includes('puesto de trabajo') ||
+        name.includes('rula') ||
+        name.includes('reba') ||
+        name.includes('owas')
     ) {
         return INSPECTION_PROTOCOLS.biomecanico;
     }
 
-    // 2. Chemical family
+    // 2. Mental Health / Psychology / Psicosocial
+    if (
+        name.includes('salud mental') ||
+        name.includes('mental') ||
+        name.includes('terapeuta') ||
+        name.includes('psicólog') ||
+        name.includes('psicolog') ||
+        name.includes('psicosocial') ||
+        name.includes('estrés') ||
+        name.includes('estres') ||
+        name.includes('burnout') ||
+        name.includes('emocional')
+    ) {
+        return INSPECTION_PROTOCOLS.psicosocial;
+    }
+
+    // 3. Occupational Health / Medicine
+    if (
+        name.includes('médic') ||
+        name.includes('medic') ||
+        name.includes('medicina') ||
+        name.includes('salud ocupacional') ||
+        name.includes('profesiograma') ||
+        name.includes('reubicación') ||
+        name.includes('reubicacion') ||
+        name.includes('atel') ||
+        name.includes('enfermedad laboral')
+    ) {
+        return INSPECTION_PROTOCOLS.medicina_laboral;
+    }
+
+    // 4. Legal / Jurídico / Abogado
+    if (
+        name.includes('abogad') ||
+        name.includes('jurídic') ||
+        name.includes('juridic') ||
+        name.includes('legal') ||
+        name.includes('normat') ||
+        name.includes('abogado laboral') ||
+        name.includes('legislación') ||
+        name.includes('legislacion')
+    ) {
+        return INSPECTION_PROTOCOLS.juridico_legal;
+    }
+
+    // 5. Chemical family
     if (
         name.includes('químic') ||
         name.includes('quimic') ||
@@ -147,7 +249,7 @@ export function resolveInspectionProtocol(agentNameOrSpecialty?: string | null):
         return INSPECTION_PROTOCOLS.quimico;
     }
 
-    // 3. Road safety / PESV family
+    // 6. Road safety / PESV family
     if (
         name.includes('vial') ||
         name.includes('pesv') ||
@@ -159,24 +261,27 @@ export function resolveInspectionProtocol(agentNameOrSpecialty?: string | null):
         return INSPECTION_PROTOCOLS.pesv;
     }
 
-    // 4. Emergencies, Electrical, High Risk, Heights
+    // 7. Emergencies, Electrical, First Aid, Botiquín, Fire, High Risk, Heights
     if (
+        name.includes('botiquín') ||
+        name.includes('botiquin') ||
+        name.includes('primeros auxilios') ||
         name.includes('emergencia') ||
         name.includes('extintor') ||
+        name.includes('brigad') ||
         name.includes('eléctric') ||
         name.includes('electric') ||
         name.includes('retie') ||
         name.includes('alto riesgo') ||
         name.includes('altura') ||
         name.includes('tsa') ||
-        name.includes('primeros auxilios') ||
         name.includes('minería') ||
         name.includes('mineria')
     ) {
         return INSPECTION_PROTOCOLS.emergencias_electrico;
     }
 
-    // 5. Default: General Safety Audit GTC 45 / 5S
+    // 8. Default: General Safety Audit GTC 45 / 5S (Consultor SG-SST)
     return INSPECTION_PROTOCOLS.auditoria_gtc45;
 }
 

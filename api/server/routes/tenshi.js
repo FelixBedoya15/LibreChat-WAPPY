@@ -608,9 +608,14 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
    - Puedes hacer clic en CUALQUIER BOTÓN, pestaña, menú o tarjeta de todos los aplicativos (ej: pestañas 'Retirados', 'Activos', 'Todos', botones '+ Agregar Trabajador', 'Guardar Localmente', 'Descargar', etc.) usando 'operar_interfaz_visual' indicando el índice [índice] o el texto/nombre del botón.
 7. **SUITE COMPLETA DE 41 OPERACIONES MCP DEL SG-SST ('wappy_mcp_sst' y 'wappy_resumen_general_360')**:
    - Cuentas con acceso integral a las 41 operaciones MCP para consultar y alimentar: Diagnóstico 360°, Empresa, Matriz GTC-45, Matriz PESV, Matriz Legal, Estándares 0312, Comités (COPASST, Convivencia, Brigadas), Químicos SGA, Vehículos, EPP, Reportes de Actos y Condiciones, Perfiles de Cargo, Casos ATEL, Cronograma y Tareas, Capacitaciones, Auditorías y Automatizaciones.
-8. **LECTURA UNIVERSAL DE INFORMES DE LOS 20 APLICATIVOS ('wappy_leer_informe_aplicativo')**:
-   - Tienes acceso total para consultar y leer el informe oficial completo de cualquiera de los 20 aplicativos de WAPPY: Perfiles de Cargo ('perfil_cargo'), Matriz IPEVAR / GTC-45 ('gtc45'), Diagnóstico Res. 0312 ('diagnostico_0312'), Sociodemográfico y Salud ('perfil_socio'), Vulnerabilidad y Emergencias ('vulnerabilidad'), Ergonomía OWAS ('owas'), Estudio de Puesto ('estudio_puesto'), ATS ('ats'), Alturas ('alturas'), Matriz Legal ('legal'), Comités COPASST ('comites'), Capacitaciones ('capacitaciones'), EPP ('epp'), Actos y Condiciones ('actos_condiciones'), Investigación ATEL ('investigacion_atel'), PESV ('pesv'), Químicos SGA ('quimicos'), Vehículos ('vehiculos'), Cronograma ('cronograma'), Auditoría Anual ('auditoria').
-   - PERFILES DE CARGO COMPLETOS: En Perfiles de Cargo, reporta el catálogo completo de todos los cargos de la empresa y si te piden un cargo puntual consúltalo pasando cargo: '<nombre del cargo>'.
+8. **ENTREGA DE INFORMES ORIGINALES DE APLICATIVOS ('wappy_leer_informe_aplicativo')**:
+   - Cuando el usuario te pida: "pásame el informe de [aplicativo]", "tráeme el informe de responsabilidades", "muéstrame el informe de la política", etc.:
+     * DEBES invocar 'wappy_leer_informe_aplicativo' pasando el aplicativo correspondiente ('responsable', 'politica', 'objetivos', 'perfil_cargo', 'gtc45', 'diagnostico_0312', 'ats', 'vulnerabilidad', 'owas', 'estudio_puesto', 'legal', 'quimicos', 'comites', 'capacitaciones', 'epp', 'investigacion_atel', 'pesv', 'auditoria', etc.).
+     * Si la herramienta devuelve el informe original guardado en el aplicativo, entrégalo con fidelidad. El sistema adjuntará automáticamente el documento interactivo para verlo en pantalla o descargarlo.
+     * ESTÁ TERMINANTEMENTE PROHIBIDO limitarse a un resumen en texto plano o generar un nuevo documento en Canva, a menos que el usuario pida explícitamente "haz un diseño en Canva" o "crea uno nuevo".
+     * Si hay múltiples informes guardados para ese aplicativo, indícale la versión más reciente y menciónale que tiene además otros disponibles para consultar.
+     * Si no existe ningún informe guardado aún en ese aplicativo, explícaselo cordialmente y ofrécele generarlo de inmediato.
+   - PERFILES DE CARGO: En Perfiles de Cargo, reporta el catálogo completo de todos los cargos de la empresa y si te piden un cargo puntual consúltalo pasando cargo: '<nombre del cargo>'.
 9. **ACADEMIA WAPPY LMS ('wappy_consultar_cursos' y 'wappy_leer_curso')**:
    - 'wappy_consultar_cursos': Consulta y lista todos los cursos formativos de la academia, sus lecciones y descripción.
    - 'wappy_leer_curso': Lee un curso completo con todas sus lecciones, contenidos formativos y evaluaciones por su título o ID.
@@ -2180,10 +2185,42 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             try {
                                 if (typeof toolOutput === 'string' && toolOutput.trim().startsWith('{')) {
                                     const parsed = JSON.parse(toolOutput);
-                                    if (parsed.htmlCode) capturedHtmlReport = parsed.htmlCode;
-                                    else if (parsed.content && (parsed.content.includes('<html') || parsed.content.includes('<!DOCTYPE'))) capturedHtmlReport = parsed.content;
+                                    if (parsed.informeOriginalHtml) {
+                                        capturedHtmlReport = parsed.informeOriginalHtml;
+                                        capturedFile = {
+                                            title: parsed.titulo || `Informe Oficial de ${parsed.aplicativo || 'SGSST'}`,
+                                            fileType: 'html',
+                                            content: parsed.informeOriginalHtml,
+                                        };
+                                    } else if (parsed.htmlCode) {
+                                        capturedHtmlReport = parsed.htmlCode;
+                                        capturedFile = {
+                                            title: parsed.titulo || 'Informe Técnico Oficial',
+                                            fileType: 'html',
+                                            content: parsed.htmlCode,
+                                        };
+                                    } else if (parsed.informeCompleto && (parsed.informeCompleto.includes('<html') || parsed.informeCompleto.includes('<div') || parsed.informeCompleto.includes('<table') || parsed.informeCompleto.includes('<!DOCTYPE'))) {
+                                        capturedHtmlReport = parsed.informeCompleto;
+                                        capturedFile = {
+                                            title: parsed.titulo || `Informe Oficial de ${parsed.aplicativo || 'SGSST'}`,
+                                            fileType: 'html',
+                                            content: parsed.informeCompleto,
+                                        };
+                                    } else if (parsed.content && (parsed.content.includes('<html') || parsed.content.includes('<!DOCTYPE') || parsed.content.includes('<table'))) {
+                                        capturedHtmlReport = parsed.content;
+                                        capturedFile = {
+                                            title: parsed.title || 'Documento SG-SST',
+                                            fileType: 'html',
+                                            content: parsed.content,
+                                        };
+                                    }
                                 } else if (typeof toolOutput === 'string' && (toolOutput.includes('<html') || toolOutput.includes('<!DOCTYPE'))) {
                                     capturedHtmlReport = toolOutput;
+                                    capturedFile = {
+                                        title: 'Documento Oficial SG-SST',
+                                        fileType: 'html',
+                                        content: toolOutput,
+                                    };
                                 }
                             } catch (e) { }
 

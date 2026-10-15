@@ -552,6 +552,14 @@ export const router = createBrowserRouter(
               path: 'sgsst/agente-gtc45',
               element: <Navigate to="/c/new" replace={true} />,
             },
+            {
+              path: 'sgsst/estudio-puesto',
+              element: <Navigate to="/sgsst?hito=hito4&module=estudio_puesto" replace={true} />,
+            },
+            {
+              path: 'sgsst/estudio_puesto',
+              element: <Navigate to="/sgsst?hito=hito4&module=estudio_puesto" replace={true} />,
+            },
 
             {
               path: 'academia',

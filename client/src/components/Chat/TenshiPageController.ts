@@ -503,7 +503,8 @@ export async function executeGUIAction(
   action: 'click' | 'escribir' | 'scroll' | 'esperar' | 'leer_pantalla',
   index?: number,
   texto?: string,
-  direccion?: 'arriba' | 'abajo'
+  direccion?: 'arriba' | 'abajo',
+  detalle?: string
 ): Promise<{ success: boolean; message: string }> {
   
   if (action === 'leer_pantalla') {
@@ -514,6 +515,15 @@ export async function executeGUIAction(
   if (action === 'esperar') {
     await new Promise(resolve => setTimeout(resolve, 1500));
     return { success: true, message: 'Espera de 1.5s completada.' };
+  }
+
+  // Asegurar que selectorMap esté poblado si está vacío
+  if (selectorMap.size === 0) {
+    try {
+      getDehydratedDOM();
+    } catch (e) {
+      console.warn('[TenshiPageController] Error al hidratar selectorMap on-demand:', e);
+    }
   }
 
   if (action === 'scroll') {
@@ -553,183 +563,153 @@ export async function executeGUIAction(
   let el: HTMLElement | null = null;
   let targetIndex = index;
 
-/**
- * Comprueba con alta tolerancia a sinónimos y variaciones semánticas si un elemento interactivo
- * coincide con la orden o etiqueta buscada por Tenshi.
- */
-function matchesInteractiveTarget(el: HTMLElement, rawQuery: string): boolean {
-  if (!el || !rawQuery) return false;
-  const normalize = (s: string) =>
-    s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-  const q = normalize(rawQuery);
-  if (!q) return false;
+  /**
+   * Comprueba con alta tolerancia a sinónimos y variaciones semánticas si un elemento interactivo
+   * coincide con la orden o etiqueta buscada por Tenshi.
+   */
+  function matchesInteractiveTarget(targetElement: HTMLElement, rawQuery: string): boolean {
+    if (!targetElement || !rawQuery) return false;
+    const normalize = (s: string) =>
+      s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    const q = normalize(rawQuery);
+    if (!q) return false;
 
-  const innerText = normalize(el.innerText || '');
-  const title = normalize(el.getAttribute('title') || '');
-  const ariaLabel = normalize(el.getAttribute('aria-label') || '');
-  const id = normalize(el.id || '');
-  const elData = normalize(el.getAttribute('data-action') || el.getAttribute('data-clickable') || '');
-  const childSpans = Array.from(el.querySelectorAll('span, p, div, svg'))
-    .map((s) => normalize((s as HTMLElement).innerText || s.getAttribute('aria-label') || ''))
-    .join(' ');
+    const innerText = normalize(targetElement.innerText || '');
+    const title = normalize(targetElement.getAttribute('title') || '');
+    const ariaLabel = normalize(targetElement.getAttribute('aria-label') || '');
+    const id = normalize(targetElement.id || '');
+    const name = normalize(targetElement.getAttribute('name') || '');
+    const placeholder = normalize(targetElement.getAttribute('placeholder') || '');
+    const elData = normalize(targetElement.getAttribute('data-action') || targetElement.getAttribute('data-clickable') || '');
+    const labelText = normalize(getInputLabel(targetElement) || '');
+    const childSpans = Array.from(targetElement.querySelectorAll('span, p, div, svg, label'))
+      .map((s) => normalize((s as HTMLElement).innerText || s.getAttribute('aria-label') || ''))
+      .join(' ');
 
-  const allClues = [innerText, title, ariaLabel, id, elData, childSpans].filter(Boolean);
-  const combined = allClues.join(' ');
+    const allClues = [innerText, title, ariaLabel, id, name, placeholder, elData, labelText, childSpans].filter(Boolean);
+    const combined = allClues.join(' ');
 
-  // 1. Coincidencia exacta o inclusión de subcadena directa
-  for (const clue of allClues) {
-    if (clue === q || clue.includes(q) || q.includes(clue)) return true;
-  }
-
-  // 2. Tokenización eliminando stopwords
-  const stopWords = new Set([
-    'el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'al', 'en', 'con', 'por', 'para', 'y', 'o',
-    'boton', 'botón', 'clic', 'click', 'haz', 'dale', 'presiona', 'pulsa', 'por favor', 'tu', 'tú'
-  ]);
-  const qTokens = q.split(/[\s,._\-+/]+/).filter((t) => t.length > 1 && !stopWords.has(t));
-  if (qTokens.length > 0) {
-    const allFound = qTokens.every((tok) => combined.includes(tok));
-    if (allFound) return true;
-
-    // Tokens semánticos de alta prioridad en WAPPY
-    const strongTokens = [
-      'generar', 'analisis', 'analizar', 'informe', 'reintegrar', 'reactivar', 'retirar',
-      'guardar', 'exportar', 'importar', 'historial', 'descargar', 'plantilla'
-    ];
-    for (const st of strongTokens) {
-      if (q.includes(st) && combined.includes(st)) return true;
+    // 1. Coincidencia exacta o inclusión de subcadena directa
+    for (const clue of allClues) {
+      if (clue === q || clue.includes(q) || (q.length > 3 && q.includes(clue))) return true;
     }
-  }
 
-  // 3. Alias específico para botones de Generar IA / Análisis en SGSSTToolbar
-  const isAiGenQuery = /generar|analiz|informe|ia\b|reporte/i.test(q);
-  const isAiGenBtn = /generar\s+con\s+ia|generar\s+ia|ai-default|sparkles/i.test(combined) || id === 'ai-default';
-  if (isAiGenQuery && isAiGenBtn) return true;
+    // 2. Tokenización eliminando stopwords
+    const stopWords = new Set([
+      'el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'al', 'en', 'con', 'por', 'para', 'y', 'o',
+      'boton', 'botón', 'clic', 'click', 'haz', 'dale', 'presiona', 'pulsa', 'por favor', 'tu', 'tú',
+      'campo', 'casilla', 'cuadro', 'seccion', 'sección', 'escribe', 'escribir', 'pon', 'poner'
+    ]);
+    const qTokens = q.split(/[\s,._\-+/]+/).filter((t) => t.length > 1 && !stopWords.has(t));
+    if (qTokens.length > 0) {
+      const allFound = qTokens.every((tok) => combined.includes(tok));
+      if (allFound) return true;
 
-  // 4. Pestañas de trabajadores
-  if (/retirad/i.test(q) && /retirad/i.test(combined)) return true;
-  if (/activ/i.test(q) && /activ/i.test(combined)) return true;
-  if (/reintegrar|reactivar/i.test(q) && (/reactivar|reintegrar|activ/i.test(combined))) return true;
-
-  return false;
-}
-
-  if (index !== undefined && selectorMap.has(index)) {
-    el = selectorMap.get(index)!;
-  } else if (texto || direccion) {
-    // Si no se proporcionó índice o cambió el DOM, buscar interactivamente por texto/etiqueta
-    const query = String(texto || direccion || '').toLowerCase().trim();
-    if (query) {
-      // 1. Buscar en selectorMap con matchesInteractiveTarget
-      for (const [idx, itemEl] of selectorMap.entries()) {
-        if (matchesInteractiveTarget(itemEl, query)) {
-          el = itemEl;
-          targetIndex = idx;
-          break;
-        }
-      }
-
-      // 2. Si no se encontró en selectorMap, buscar en todos los elementos interactivos del DOM visible
-      if (!el) {
-        const candidates = Array.from(document.querySelectorAll<HTMLElement>(
-          'button, [role="button"], [role="tab"], a, input[type="button"], input[type="submit"], [tabindex="0"], summary, [data-action], [data-clickable]'
-        )).filter(isElementVisible);
-
-        for (const cand of candidates) {
-          if (cand.closest('.tenshi-widget-container')) continue;
-          if (matchesInteractiveTarget(cand, query)) {
-            el = cand;
-            break;
-          }
-        }
-      }
-
-      // 3. Fallback directo a botón de IA (#ai-default) si la consulta era sobre generar análisis o informe
-      if (!el && /generar|analiz|informe|ia\b|reporte/i.test(query)) {
-        const aiDefaultBtn = document.querySelector<HTMLElement>(
-          '#ai-default, [data-action="ai-default"], button[title*="Generar"], button[aria-label*="Generar"]'
-        );
-        if (aiDefaultBtn && isElementVisible(aiDefaultBtn)) {
-          el = aiDefaultBtn;
-        }
+      // Tokens semánticos de alta prioridad en WAPPY
+      const strongTokens = [
+        'generar', 'analisis', 'analizar', 'informe', 'reintegrar', 'reactivar', 'retirar',
+        'guardar', 'exportar', 'importar', 'historial', 'descargar', 'plantilla',
+        'peligro', 'peligros', 'riesgo', 'riesgos', 'alcance', 'compromiso', 'compromisos',
+        'objetivo', 'objetivos', 'norma', 'normas', 'normatividad', 'decreto', 'responsable'
+      ];
+      for (const st of strongTokens) {
+        if (q.includes(st) && combined.includes(st)) return true;
       }
     }
+
+    // 3. Alias específico para botones de Generar IA / Análisis en SGSSTToolbar
+    const isAiGenQuery = /generar|analiz|informe|ia\b|reporte/i.test(q);
+    const isAiGenBtn = /generar\s+con\s+ia|generar\s+ia|ai-default|sparkles/i.test(combined) || id === 'ai-default';
+    if (isAiGenQuery && isAiGenBtn) return true;
+
+    // 4. Mapeo específico de campos de formularios SG-SST
+    if (/peligro|riesgo|hazard/i.test(q) && (/peligro|riesgo|hazard/i.test(combined) || id === 'hazards')) return true;
+    if (/alcance|scope/i.test(q) && (/alcance|scope/i.test(combined) || id === 'scope')) return true;
+    if (/compromiso|commitment/i.test(q) && (/compromiso|commitment/i.test(combined) || id === 'commitments')) return true;
+    if (/objetivo|goal/i.test(q) && (/objetivo|goal/i.test(combined) || id === 'objectives')) return true;
+    if (/norma|marco|legal|decreto/i.test(q) && (/norma|marco|legal|decreto/i.test(combined) || id === 'additionalnorms')) return true;
+
+    // 5. Pestañas de trabajadores
+    if (/retirad/i.test(q) && /retirad/i.test(combined)) return true;
+    if (/activ/i.test(q) && /activ/i.test(combined)) return true;
+    if (/reintegrar|reactivar/i.test(q) && (/reactivar|reintegrar|activ/i.test(combined))) return true;
+
+    return false;
   }
 
-  if (!el) {
-    return { success: false, message: `No se encontró el elemento interactivo [${index !== undefined ? index : (texto || 'N/A')}] en la pantalla actual.` };
-  }
-
-  // Desplazar elemento a la vista
-  el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
-  await new Promise(resolve => setTimeout(resolve, 200));
-
-  if (action === 'click') {
-    try {
-      // Resaltar visualmente el elemento temporalmente
-      const originalOutline = el.style.outline;
-      el.style.outline = '4px solid #10b981';
-      setTimeout(() => {
-        el.style.outline = originalOutline;
-      }, 800);
-
-      // Secuencia de eventos para simular comportamiento humano completo
-      const coords = el.getBoundingClientRect();
-      const clientX = coords.left + coords.width / 2;
-      const clientY = coords.top + coords.height / 2;
-
-      const opts = { bubbles: true, cancelable: true, view: window, clientX, clientY };
-
-      el.dispatchEvent(new PointerEvent('pointerover', { ...opts, pointerType: 'mouse' }));
-      el.dispatchEvent(new PointerEvent('pointerenter', { ...opts, pointerType: 'mouse', bubbles: false }));
-      el.dispatchEvent(new MouseEvent('mouseover', opts));
-      el.dispatchEvent(new MouseEvent('mouseenter', { ...opts, bubbles: false }));
-      
-      el.dispatchEvent(new PointerEvent('pointerdown', { ...opts, pointerType: 'mouse' }));
-      el.dispatchEvent(new MouseEvent('mousedown', opts));
-      
-      el.focus();
-      
-      el.dispatchEvent(new PointerEvent('pointerup', { ...opts, pointerType: 'mouse' }));
-      el.dispatchEvent(new MouseEvent('mouseup', opts));
-      
-      el.click();
-      
-      // Esperar a que la SPA procese la navegación o transición y renderice la nueva UI
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const elTag = el.tagName.toLowerCase();
-      const elLabel = (el.innerText || el.getAttribute('title') || el.getAttribute('aria-label') || '').trim();
-      return { success: true, message: `Clic ejecutado exitosamente en "${elLabel || elTag}" [${targetIndex !== undefined ? targetIndex : 'directo'}].` };
-    } catch (err: any) {
-      return { success: false, message: `Error al hacer clic: ${err.message}` };
-    }
-  }
-
+  // ACCIÓN 1: ESCRIBIR EN CAMPOS / FORMULARIOS
   if (action === 'escribir') {
     try {
       if (texto === undefined) {
         return { success: false, message: 'Se requiere el parámetro "texto" para la acción escribir.' };
       }
 
-      // Resaltar
+      // Query representativa del campo a buscar (detalle o palabras clave)
+      const fieldQuery = String(detalle || '').trim() || (texto.length < 40 ? texto : '');
+
+      // 1. Si se dio índice explícito y existe en selectorMap
+      if (index !== undefined && selectorMap.has(index)) {
+        el = selectorMap.get(index)!;
+      }
+
+      // 2. Si no se encontró, buscar en todos los inputs/textareas visibles de la pantalla
+      if (!el) {
+        const formFields = Array.from(document.querySelectorAll<HTMLElement>(
+          'textarea, input:not([type="button"]):not([type="submit"]):not([type="hidden"]):not([type="checkbox"]):not([type="radio"])'
+        )).filter(isElementVisible);
+
+        if (fieldQuery) {
+          for (const field of formFields) {
+            if (field.closest('.tenshi-widget-container')) continue;
+            if (matchesInteractiveTarget(field, fieldQuery)) {
+              el = field;
+              break;
+            }
+          }
+        }
+
+        // Si aún no se encuentra y el usuario tiene un campo enfocado
+        if (!el && document.activeElement && formFields.includes(document.activeElement as HTMLElement)) {
+          el = document.activeElement as HTMLElement;
+        }
+
+        // Si aún no se encuentra, usar el primer textarea/input visible vacío
+        if (!el && formFields.length > 0) {
+          el = formFields.find(f => !(f as HTMLInputElement).value?.trim()) || formFields[0];
+        }
+      }
+
+      if (!el) {
+        return { success: false, message: `No se encontró un campo de texto para escribir "${fieldQuery || 'texto'}" en la pantalla actual.` };
+      }
+
+      // Desplazar campo a la vista de inmediato
+      el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'auto' });
+
+      // Resaltar visualmente en azul
       const originalOutline = el.style.outline;
       el.style.outline = '4px solid #3b82f6';
       setTimeout(() => {
-        el.style.outline = originalOutline;
-      }, 800);
+        if (el) el.style.outline = originalOutline;
+      }, 1000);
 
       el.focus();
 
-      // Simular escritura asegurando compatibilidad con el rastreador de estado de React 16+
+      // Simular escritura asegurando compatibilidad completa con el rastreador de estado de React 16-19
       const inputEl = el as HTMLInputElement | HTMLTextAreaElement;
       const isTextArea = inputEl.tagName.toLowerCase() === 'textarea';
       
-      const prototype = isTextArea 
+      const proto = isTextArea 
         ? window.HTMLTextAreaElement.prototype 
         : window.HTMLInputElement.prototype;
         
-      const descriptor = Object.getOwnPropertyDescriptor(prototype, 'value');
+      const descriptor = Object.getOwnPropertyDescriptor(proto, 'value');
+
+      // Forzar reseteo del tracker interno de React 18/19 para que detecte la mutación
+      const tracker = (inputEl as any)._valueTracker;
+      if (tracker) {
+        tracker.setValue((inputEl.value || '') + '_force_react_sync');
+      }
       
       if (descriptor && descriptor.set) {
         descriptor.set.call(inputEl, texto);
@@ -737,13 +717,160 @@ function matchesInteractiveTarget(el: HTMLElement, rawQuery: string): boolean {
         inputEl.value = texto;
       }
 
-      // Disparar eventos nativos para que React detecte la mutación
+      // Disparar secuencia completa de eventos de entrada
+      inputEl.dispatchEvent(new Event('focus', { bubbles: true }));
+      try {
+        inputEl.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, cancelable: true, data: texto, inputType: 'insertText' }));
+        inputEl.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, data: texto, inputType: 'insertText' }));
+      } catch (ieErr) {
+        // Fallback para navegadores antiguos
+      }
       inputEl.dispatchEvent(new Event('input', { bubbles: true }));
       inputEl.dispatchEvent(new Event('change', { bubbles: true }));
 
-      return { success: true, message: `Texto "${texto}" escrito en elemento [${index}].` };
+      // Invocar directamente el listener de React Props si está disponible
+      const reactPropsKey = Object.keys(inputEl).find(k => k.startsWith('__reactProps$'));
+      if (reactPropsKey && (inputEl as any)[reactPropsKey]?.onChange) {
+        try {
+          (inputEl as any)[reactPropsKey].onChange({
+            target: inputEl,
+            currentTarget: inputEl,
+            preventDefault: () => {},
+            stopPropagation: () => {},
+          });
+        } catch (e) {
+          console.warn('[TenshiPageController] Llamada directa a reactProps.onChange:', e);
+        }
+      }
+
+      // Notificar a módulos suscritos sobre la actualización del campo
+      window.dispatchEvent(new CustomEvent('wappy-campo-actualizado', {
+        detail: {
+          id: inputEl.id,
+          name: inputEl.getAttribute('name'),
+          valor: texto
+        }
+      }));
+
+      const fieldLabel = getInputLabel(inputEl) || inputEl.id || inputEl.getAttribute('placeholder') || 'campo';
+      return { success: true, message: `Texto escrito exitosamente en "${fieldLabel}".` };
     } catch (err: any) {
       return { success: false, message: `Error al escribir: ${err.message}` };
+    }
+  }
+
+  // ACCIÓN 2: HACER CLIC EN BOTONES O ELEMENTOS INTERACTIVOS
+  if (action === 'click') {
+    const rawQuery = String(detalle || texto || direccion || '').toLowerCase().trim();
+    const isAiGenRequest = /generar|analiz|informe|ia\b|reporte/i.test(rawQuery);
+
+    // Si es una petición de generación IA, disparar también el evento global de análisis
+    if (isAiGenRequest) {
+      window.dispatchEvent(new CustomEvent('wappy-generar-analisis-ia', { detail: { aplicativo: 'actual' } }));
+      window.dispatchEvent(new CustomEvent('wappy-generar-analisis-actual', { detail: { aplicativo: 'actual' } }));
+    }
+
+    if (index !== undefined && selectorMap.has(index)) {
+      el = selectorMap.get(index)!;
+    } else if (rawQuery) {
+      // 1. Si es petición de Generar IA, priorizar los botones oficiales de IA
+      if (isAiGenRequest) {
+        const aiButtons = Array.from(document.querySelectorAll<HTMLElement>(
+          '#ai-default, [data-action="ai-default"], [data-action="generar-analisis-ia"], [id="btn-generar-responsable-ia"], button[title*="Generar"], button[aria-label*="Generar"]'
+        )).filter(isElementVisible);
+
+        if (aiButtons.length > 0) {
+          el = aiButtons[0];
+        }
+      }
+
+      // 2. Buscar en selectorMap con matchesInteractiveTarget
+      if (!el) {
+        for (const [idx, itemEl] of selectorMap.entries()) {
+          if (matchesInteractiveTarget(itemEl, rawQuery)) {
+            el = itemEl;
+            targetIndex = idx;
+            break;
+          }
+        }
+      }
+
+      // 3. Buscar en todos los elementos interactivos del DOM visible
+      if (!el) {
+        const candidates = Array.from(document.querySelectorAll<HTMLElement>(
+          'button, [role="button"], [role="tab"], a, input[type="button"], input[type="submit"], [tabindex="0"], summary, [data-action], [data-clickable]'
+        )).filter(isElementVisible);
+
+        for (const cand of candidates) {
+          if (cand.closest('.tenshi-widget-container')) continue;
+          if (matchesInteractiveTarget(cand, rawQuery)) {
+            el = cand;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!el) {
+      return { success: false, message: `No se encontró el elemento interactivo [${index !== undefined ? index : (rawQuery || 'N/A')}] en la pantalla actual.` };
+    }
+
+    try {
+      // Desplazar elemento a la vista de inmediato
+      el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'auto' });
+
+      // Resaltar visualmente en verde
+      const originalOutline = el.style.outline;
+      el.style.outline = '4px solid #10b981';
+      setTimeout(() => {
+        if (el) el.style.outline = originalOutline;
+      }, 800);
+
+      const coords = el.getBoundingClientRect();
+      const clientX = coords.left + coords.width / 2;
+      const clientY = coords.top + coords.height / 2;
+
+      const pOpts = { bubbles: true, cancelable: true, view: window, clientX, clientY, pointerId: 1, isPrimary: true, pointerType: 'mouse' };
+      const mOpts = { bubbles: true, cancelable: true, view: window, clientX, clientY };
+
+      el.dispatchEvent(new PointerEvent('pointerover', pOpts));
+      el.dispatchEvent(new PointerEvent('pointerenter', { ...pOpts, bubbles: false }));
+      el.dispatchEvent(new MouseEvent('mouseover', mOpts));
+      el.dispatchEvent(new MouseEvent('mouseenter', { ...mOpts, bubbles: false }));
+      
+      el.dispatchEvent(new PointerEvent('pointerdown', pOpts));
+      el.dispatchEvent(new MouseEvent('mousedown', mOpts));
+      
+      el.focus();
+      
+      el.dispatchEvent(new PointerEvent('pointerup', pOpts));
+      el.dispatchEvent(new MouseEvent('mouseup', mOpts));
+      el.dispatchEvent(new MouseEvent('click', mOpts));
+      
+      el.click();
+
+      // Invocar directamente el listener React onClick para Framer Motion o Radix
+      const reactPropsKey = Object.keys(el).find(k => k.startsWith('__reactProps$'));
+      if (reactPropsKey && (el as any)[reactPropsKey]?.onClick) {
+        try {
+          (el as any)[reactPropsKey].onClick({
+            preventDefault: () => {},
+            stopPropagation: () => {},
+            target: el,
+            currentTarget: el
+          });
+        } catch (e) {
+          console.warn('[TenshiPageController] Llamada directa a reactProps.onClick:', e);
+        }
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 400));
+
+      const elTag = el.tagName.toLowerCase();
+      const elLabel = (el.innerText || el.getAttribute('title') || el.getAttribute('aria-label') || '').trim();
+      return { success: true, message: `Clic ejecutado exitosamente en "${elLabel || elTag}" [${targetIndex !== undefined ? targetIndex : 'directo'}].` };
+    } catch (err: any) {
+      return { success: false, message: `Error al hacer clic: ${err.message}` };
     }
   }
 

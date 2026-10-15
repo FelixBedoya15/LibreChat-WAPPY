@@ -260,6 +260,137 @@ Como Fisioterapeuta Laboral en vivo, TÚ DIRIGES LA SESIÓN PASO A PASO de forma
               </tbody>
             </table>
             </div>`
+    },
+    psicosocial: {
+        id: 'psicosocial',
+        title: 'Evaluación de Factores Psicosociales y Salud Mental',
+        badgeText: 'Salud Mental & Psicosocial',
+        methodLabel: 'Batería MinTrabajo / Res. 2764/2022',
+        normRef: 'Res. 2646/2008 / Res. 2764/2022',
+        phases: [
+            'Fase 1: Clima, Carga Mental y Entorno Laboral',
+            'Fase 2: Señales de Fatiga y Agotamiento Emocional',
+            'Fase 3: Pautas de Autocuidado y Primeros Auxilios Psicológicos',
+        ],
+        framingGuidance: `
+- AUTO-EVALUACIÓN (Trabajador dialogando frente a pantalla o webcam):
+  Instrucción hablada: "Ubícate en un espacio tranquilo, cómodo y con buena iluminación frente a la cámara para conversar sobre tu bienestar laboral."
+- EVALUACIÓN ASISTIDA / ENTREVISTA GUIADA:
+  Instrucción hablada: "Mantén un encuadre facial medio neutro, sin distracciones de fondo, para facilitar una escucha empática y confidencial."`,
+        phaseGuidance: `
+- PASO PREVIO OBLIGATORIO (IDENTIFICACIÓN Y CONTEXTO LABORAL):
+  En tu saludo inicial pregunta cordialmente: "¡Hola! Soy tu Terapeuta en Salud Mental y Riesgo Psicosocial en WAPPY IA. Para brindarte el mejor acompañamiento, cuéntame: ¿cuál es tu cargo y cómo te has sentido en tu jornada en los últimos días?"
+  NO inicies las fases sin antes escuchar el contexto y estado del usuario.
+- FASE 1 (Clima, Carga Mental y Entorno): "Comencemos con la Fase 1: conversemos sobre las demandas cognitivas de tu trabajo, los ritmos de entrega y el ambiente con tu equipo..." Invoca 'cambiar_fase_evaluacion' con fase: 1.
+- FASE 2 (Señales de Fatiga y Agotamiento): "Para la Fase 2: exploremos síntomas de fatiga, tensión física o dificultades para desconectarte del trabajo al terminar el día..." Invoca 'cambiar_fase_evaluacion' con fase: 2.
+- FASE 3 (Pautas de Autocuidado y Bienestar): "Excelente, para la Fase 3: apliquemos una pauta breve de respiración consciente, pausas activas cognitivas y estrategias de autocuidado..." Invoca 'cambiar_fase_evaluacion' con fase: 3.`,
+        reportMatrixHeader: `
+            <h3>4.1 Matriz de Evaluación Psicosocial y Salud Mental Ocupacional (Res. 2764)</h3>
+            <p>La siguiente tabla consolida las dimensiones psicosociales valoradas y las medidas preventivas recomendadas para el bienestar del colaborador:</p>
+            <div class="table-responsive" style="overflow-x: auto; width: 100%; margin: 16px 0; -webkit-overflow-scrolling: touch;">
+            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; min-width: 850px; table-layout: auto; text-align: left; font-size: 0.85em;">
+              <thead style="background-color: #7e22ce; color: white;">
+                <tr>
+                  <th style="padding: 8px 8px;">Fase</th>
+                  <th style="padding: 8px 8px;">Dimensión Evaluada</th>
+                  <th style="padding: 8px 8px;">Criterio Técnico (Res. 2764)</th>
+                  <th style="padding: 8px 8px;">Manifestación Reportada</th>
+                  <th style="padding: 8px 8px; text-align: center;">Nivel de Riesgo</th>
+                  <th style="padding: 8px 8px;">Recomendación / PAP</th>
+                </tr>
+              </thead>
+              <tbody>
+              </tbody>
+            </table>
+            </div>`
+    },
+
+    medicina_laboral: {
+        id: 'medicina_laboral',
+        title: 'Inspección de Salud Ocupacional y Medicina Laboral',
+        badgeText: 'Medicina Laboral & Salud',
+        methodLabel: 'Profesiogramas / Res. 2346/2007',
+        normRef: 'Res. 2346/2007 / Dec. 1072/2015',
+        phases: [
+            'Fase 1: Antecedentes y Exámenes Ocupacionales',
+            'Fase 2: Condiciones Fisiológicas y Hábitos',
+            'Fase 3: Casos Médicos, ATEL y Reubicaciones',
+        ],
+        framingGuidance: `
+- AUTO-CONSULTA (Colaborador frente a la cámara):
+  Instrucción hablada: "Ubícate frente a la cámara con buena luz para un diálogo fluido sobre tu condición de salud y recomendaciones médicas."
+- INSPECCIÓN ASISTIDA / REVISIÓN CLÍNICA OCUPACIONAL:
+  Instrucción hablada: "Mantén un plano medio del colaborador para verificar postura general y condiciones observables de salud."`,
+        phaseGuidance: `
+- PASO PREVIO OBLIGATORIO (IDENTIFICACIÓN Y CONTEXTO MÉDICO):
+  En tu saludo inicial pregunta cordialmente: "¡Hola! Soy tu Médico Laboral en WAPPY IA. Para registrar este seguimiento ocupacional, cuéntame: ¿cuál es tu cargo y qué sintomatología, examen o caso médico deseas consultar hoy?"
+  NO inicies las fases sin antes registrar los antecedentes básicos del usuario.
+- FASE 1 (Antecedentes y Exámenes Ocupacionales): "Iniciemos la Fase 1: revisemos tu concepto de aptitud de los exámenes periódicos o de ingreso y las restricciones vigentes..." Invoca 'cambiar_fase_evaluacion' con fase: 1.
+- FASE 2 (Condiciones Fisiológicas y Hábitos): "Para la Fase 2: conversemos sobre pausas activas, hidratación, fatiga visual y síntomas físicos durante la jornada..." Invoca 'cambiar_fase_evaluacion' con fase: 2.
+- FASE 3 (Casos Médicos y Reubicación): "Para la Fase 3: definamos las recomendaciones ergonómicas y médicas para la adecuación de tu puesto o plan de vigilancia..." Invoca 'cambiar_fase_evaluacion' con fase: 3.`,
+        reportMatrixHeader: `
+            <h3>4.1 Matriz de Seguimiento Médico Ocupacional y Vigilancia Epidemiológica</h3>
+            <p>La siguiente tabla resume los hallazgos de aptitud médica, factores de riesgo fisiológicos y plan de manejo:</p>
+            <div class="table-responsive" style="overflow-x: auto; width: 100%; margin: 16px 0; -webkit-overflow-scrolling: touch;">
+            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; min-width: 850px; table-layout: auto; text-align: left; font-size: 0.85em;">
+              <thead style="background-color: #0f766e; color: white;">
+                <tr>
+                  <th style="padding: 8px 8px;">Fase</th>
+                  <th style="padding: 8px 8px;">Aspecto Médico</th>
+                  <th style="padding: 8px 8px;">Hallazgo / Síntoma</th>
+                  <th style="padding: 8px 8px; text-align: center;">Aptitud</th>
+                  <th style="padding: 8px 8px;">Restricción / SVE</th>
+                  <th style="padding: 8px 8px;">Conducta Ocupacional</th>
+                </tr>
+              </thead>
+              <tbody>
+              </tbody>
+            </table>
+            </div>`
+    },
+
+    juridico_legal: {
+        id: 'juridico_legal',
+        title: 'Auditoría Jurídica y Cumplimiento Normativo SG-SST',
+        badgeText: 'Cumplimiento Legal SST',
+        methodLabel: 'Matriz Legal / Dec. 1072 / Res. 0312',
+        normRef: 'Decreto 1072 de 2015 / Res. 0312 de 2019',
+        phases: [
+            'Fase 1: Evidencias y Documentación Obligatoria',
+            'Fase 2: Responsabilidad y Gestión de Riesgos',
+            'Fase 3: Plan de Acción y Medidas Correctivas',
+        ],
+        framingGuidance: `
+- AUTO-REVISIÓN (Responsable SST frente a documentos o plataforma):
+  Instrucción hablada: "Enfoca con tu cámara los documentos, actas de comité o certificados de afiliación que requieran validación jurídica."
+- AUDITORÍA ASISTIDA:
+  Instrucción hablada: "Muestra las carpetas o registros físicos del SG-SST para contrastarlos con los estándares mínimos obligatorios."`,
+        phaseGuidance: `
+- PASO PREVIO OBLIGATORIO (TEMA Y NORMATIVA A CONSULTAR):
+  En tu saludo inicial pregunta cordialmente: "¡Hola! Soy tu Abogado Laboral y Consultor Jurídico SG-SST en WAPPY IA. ¿Qué proceso, acta, proceso disciplinario o norma específica deseas auditar hoy?"
+  NO inicies las fases sin antes establecer el alcance legal de la consulta.
+- FASE 1 (Documentación Obligatoria): "Iniciemos la Fase 1: verifiquemos las políticas firmadas, actas del COPASST / Convivencia y afiliaciones al Sistema de Seguridad Social..." Invoca 'cambiar_fase_evaluacion' con fase: 1.
+- FASE 2 (Responsabilidad y Matriz Legal): "Para la Fase 2: identifiquemos los artículos del Decreto 1072 o Resolución 0312 aplicables y las posibles no conformidades..." Invoca 'cambiar_fase_evaluacion' con fase: 2.
+- FASE 3 (Medidas Correctivas y Blindaje): "Excelente, para la Fase 3: tracemos el plan de acción con fechas perentorias para subsanar y blindar jurídicamente a la empresa..." Invoca 'cambiar_fase_evaluacion' con fase: 3.`,
+        reportMatrixHeader: `
+            <h3>4.1 Matriz de Auditoría Jurídica y Cumplimiento de Estándares Mínimos (Res. 0312)</h3>
+            <p>La siguiente tabla detalla la conformidad legal de los requisitos obligatorios auditados y las acciones de subsanación:</p>
+            <div class="table-responsive" style="overflow-x: auto; width: 100%; margin: 16px 0; -webkit-overflow-scrolling: touch;">
+            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; min-width: 850px; table-layout: auto; text-align: left; font-size: 0.85em;">
+              <thead style="background-color: #3730a3; color: white;">
+                <tr>
+                  <th style="padding: 8px 8px;">Fase</th>
+                  <th style="padding: 8px 8px;">Estándar / Requisito Legal</th>
+                  <th style="padding: 8px 8px;">Norma Aplicable</th>
+                  <th style="padding: 8px 8px; text-align: center;">Estado de Cumplimiento</th>
+                  <th style="padding: 8px 8px;">Riesgo Sancionatorio</th>
+                  <th style="padding: 8px 8px;">Acción Correctiva</th>
+                </tr>
+              </thead>
+              <tbody>
+              </tbody>
+            </table>
+            </div>`
     }
 };
 
@@ -268,23 +399,70 @@ Como Fisioterapeuta Laboral en vivo, TÚ DIRIGES LA SESIÓN PASO A PASO de forma
  */
 function resolveInspectionProtocol(agentNameOrSpecialty) {
     if (!agentNameOrSpecialty) {
-        return INSPECTION_PROTOCOLS.biomecanico;
+        return INSPECTION_PROTOCOLS.auditoria_gtc45;
     }
 
     const name = String(agentNameOrSpecialty).toLowerCase();
 
-    // 1. Biomechanics family
+    // 1. Biomechanics / Ergonomics / Fisioterapia
     if (
         name.includes('fisioterapeuta') ||
         name.includes('biomec') ||
         name.includes('ergon') ||
         name.includes('rosa') ||
-        name.includes('puesto de trabajo (ipt)')
+        name.includes('puesto de trabajo') ||
+        name.includes('rula') ||
+        name.includes('reba') ||
+        name.includes('owas')
     ) {
         return INSPECTION_PROTOCOLS.biomecanico;
     }
 
-    // 2. Chemical family
+    // 2. Mental Health / Psychology / Psicosocial
+    if (
+        name.includes('salud mental') ||
+        name.includes('mental') ||
+        name.includes('terapeuta') ||
+        name.includes('psicólog') ||
+        name.includes('psicolog') ||
+        name.includes('psicosocial') ||
+        name.includes('estrés') ||
+        name.includes('estres') ||
+        name.includes('burnout') ||
+        name.includes('emocional')
+    ) {
+        return INSPECTION_PROTOCOLS.psicosocial;
+    }
+
+    // 3. Occupational Health / Medicine
+    if (
+        name.includes('médic') ||
+        name.includes('medic') ||
+        name.includes('medicina') ||
+        name.includes('salud ocupacional') ||
+        name.includes('profesiograma') ||
+        name.includes('reubicación') ||
+        name.includes('reubicacion') ||
+        name.includes('atel') ||
+        name.includes('enfermedad laboral')
+    ) {
+        return INSPECTION_PROTOCOLS.medicina_laboral;
+    }
+
+    // 4. Legal / Jurídico / Abogado
+    if (
+        name.includes('abogad') ||
+        name.includes('jurídic') ||
+        name.includes('juridic') ||
+        name.includes('legal') ||
+        name.includes('normat') ||
+        name.includes('legislación') ||
+        name.includes('legislacion')
+    ) {
+        return INSPECTION_PROTOCOLS.juridico_legal;
+    }
+
+    // 5. Chemical family
     if (
         name.includes('químic') ||
         name.includes('quimic') ||
@@ -296,7 +474,7 @@ function resolveInspectionProtocol(agentNameOrSpecialty) {
         return INSPECTION_PROTOCOLS.quimico;
     }
 
-    // 3. Road safety / PESV family
+    // 6. Road safety / PESV family
     if (
         name.includes('vial') ||
         name.includes('pesv') ||
@@ -308,24 +486,27 @@ function resolveInspectionProtocol(agentNameOrSpecialty) {
         return INSPECTION_PROTOCOLS.pesv;
     }
 
-    // 4. Emergencies, Electrical, High Risk, Heights
+    // 7. Emergencies, Electrical, First Aid, Botiquín, Fire, High Risk, Heights
     if (
+        name.includes('botiquín') ||
+        name.includes('botiquin') ||
+        name.includes('primeros auxilios') ||
         name.includes('emergencia') ||
         name.includes('extintor') ||
+        name.includes('brigad') ||
         name.includes('eléctric') ||
         name.includes('electric') ||
         name.includes('retie') ||
         name.includes('alto riesgo') ||
         name.includes('altura') ||
         name.includes('tsa') ||
-        name.includes('primeros auxilios') ||
         name.includes('minería') ||
         name.includes('mineria')
     ) {
         return INSPECTION_PROTOCOLS.emergencias_electrico;
     }
 
-    // 5. Default: General Safety Audit GTC 45 / 5S
+    // 8. Default: General Safety Audit GTC 45 / 5S (Consultor SG-SST)
     return INSPECTION_PROTOCOLS.auditoria_gtc45;
 }
 

@@ -102,6 +102,11 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 video: false
             });
             streamRef.current = stream;
+            if (isHardwareMutedRef.current) {
+                stream.getAudioTracks().forEach((track) => {
+                    track.enabled = false;
+                });
+            }
             console.log('[VoiceSession] Micrófono obtenido con supresión de ruido, tracks:', stream.getAudioTracks().map(t => t.label));
 
             // 2. Inicializar o Reutilizar AudioContext a 16kHz
@@ -800,11 +805,27 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
      */
     const setMuted = useCallback((muted: boolean, releaseHardware = false) => {
         isHardwareMutedRef.current = muted;
+        if (streamRef.current) {
+            streamRef.current.getAudioTracks().forEach((track) => {
+                track.enabled = !muted;
+            });
+        }
+        if (muted) {
+            console.log('[VoiceSession] Mic Muted: audio tracks disabled.');
+            if (isTransmittingSpeechRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
+                isTransmittingSpeechRef.current = false;
+                try {
+                    wsRef.current.send(JSON.stringify({ type: 'speech_end' }));
+                } catch (_) {}
+            }
+        } else {
+            console.log('[VoiceSession] Mic Unmuted: audio tracks enabled.');
+        }
+
         if (releaseHardware && muted) {
             console.log('[VoiceSession] Hardware Mute: Releasing microphone to system.');
             stopAudioCapture();
         } else if (!muted) {
-            console.log('[VoiceSession] Hardware Unmute: Resuming audio streaming.');
             if (isConnected && !streamRef.current) {
                 startAudioCapture();
             }

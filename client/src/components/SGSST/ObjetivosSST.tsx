@@ -241,6 +241,63 @@ const ObjetivosSST = () => {
         } catch(e) {}
     }, []);
 
+    // Listeners para recibir datos diligenciados por Tenshi (Voz o Chat) y autollenado en vivo
+    React.useEffect(() => {
+        const handleDiligenciar = (e: any) => {
+            const { modulo, campos } = e.detail || {};
+            if (!modulo || modulo === 'objetivos' || modulo === 'objetivos_sst' || modulo.includes('objetivo')) {
+                if (campos && typeof campos === 'object') {
+                    if (campos.policySummary !== undefined) setPolicySummary(campos.policySummary);
+                    else if (campos.politica !== undefined) setPolicySummary(campos.politica);
+
+                    if (campos.diagnosticSummary !== undefined) setDiagnosticSummary(campos.diagnosticSummary);
+                    else if (campos.diagnostico !== undefined) setDiagnosticSummary(campos.diagnostico);
+
+                    if (campos.previousObjectives !== undefined) setPreviousObjectives(campos.previousObjectives);
+                    else if (campos.objetivosPrevios !== undefined) setPreviousObjectives(campos.objetivosPrevios);
+
+                    if (campos.yearPlan !== undefined) setYearPlan(campos.yearPlan);
+                    else if (campos.año !== undefined) setYearPlan(campos.año);
+
+                    if (campos.additionalNorms !== undefined) setAdditionalNorms(campos.additionalNorms);
+                    else if (campos.normatividad !== undefined) setAdditionalNorms(campos.normatividad);
+
+                    showToast({
+                        message: 'Tenshi ha diligenciado los campos de Objetivos de SST.',
+                        status: 'success'
+                    });
+                }
+            }
+        };
+
+        const handleCampoUpdate = (e: any) => {
+            const { id, valor } = e.detail || {};
+            if (id === 'policySummary') setPolicySummary(valor);
+            if (id === 'diagnosticSummary') setDiagnosticSummary(valor);
+            if (id === 'previousObjectives') setPreviousObjectives(valor);
+            if (id === 'yearPlan') setYearPlan(valor);
+            if (id === 'additionalNorms') setAdditionalNorms(valor);
+        };
+
+        const handleAiEvent = (e: any) => {
+            const app = (e.detail?.aplicativo || '').toLowerCase();
+            if (!app || app.includes('objetivo') || app.includes('sgsst') || app === 'actual') {
+                handleGenerate();
+            }
+        };
+
+        window.addEventListener('wappy-diligenciar-formulario', handleDiligenciar);
+        window.addEventListener('wappy-campo-actualizado', handleCampoUpdate);
+        window.addEventListener('wappy-generar-analisis-ia', handleAiEvent);
+        window.addEventListener('wappy-generar-analisis-actual', handleAiEvent);
+        return () => {
+            window.removeEventListener('wappy-diligenciar-formulario', handleDiligenciar);
+            window.removeEventListener('wappy-campo-actualizado', handleCampoUpdate);
+            window.removeEventListener('wappy-generar-analisis-ia', handleAiEvent);
+            window.removeEventListener('wappy-generar-analisis-actual', handleAiEvent);
+        };
+    }, [handleGenerate, showToast]);
+
     const handleSaveData = () => {
         try {
             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ policySummary, diagnosticSummary, previousObjectives, yearPlan }));

@@ -95,6 +95,22 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
   onlyExcel,
   customSections = [],
 }) => {
+  // Listener global para ejecutar la generación IA de este módulo cuando Tenshi la ordene
+  React.useEffect(() => {
+    if (!onAnalyze) return;
+    const handleTrigger = () => {
+      if (!isAnalyzing) {
+        onAnalyze();
+      }
+    };
+    window.addEventListener('wappy-generar-analisis-ia', handleTrigger);
+    window.addEventListener('wappy-generar-analisis-actual', handleTrigger);
+    return () => {
+      window.removeEventListener('wappy-generar-analisis-ia', handleTrigger);
+      window.removeEventListener('wappy-generar-analisis-actual', handleTrigger);
+    };
+  }, [onAnalyze, isAnalyzing]);
+
   // Build effective button lists merging simplified props
   const effectiveHistory = [...historyButtons];
   // onHistory injection removed to prevent duplicate History button

@@ -245,6 +245,64 @@ const PoliticaSST = () => {
         } catch(e) {}
     }, []);
 
+    // Listeners para recibir datos diligenciados por Tenshi (Voz o Chat) y autollenado en vivo
+    React.useEffect(() => {
+        const handleDiligenciar = (e: any) => {
+            const { modulo, campos } = e.detail || {};
+            if (!modulo || modulo === 'politica' || modulo === 'politica_sst' || modulo.includes('politica')) {
+                if (campos && typeof campos === 'object') {
+                    if (campos.hazards !== undefined) setHazards(campos.hazards);
+                    else if (campos.peligros !== undefined) setHazards(campos.peligros);
+                    else if (campos.riesgos !== undefined) setHazards(campos.riesgos);
+
+                    if (campos.scope !== undefined) setScope(campos.scope);
+                    else if (campos.alcance !== undefined) setScope(campos.alcance);
+
+                    if (campos.commitments !== undefined) setCommitments(campos.commitments);
+                    else if (campos.compromisos !== undefined) setCommitments(campos.compromisos);
+
+                    if (campos.objectives !== undefined) setObjectives(campos.objectives);
+                    else if (campos.objetivos !== undefined) setObjectives(campos.objetivos);
+
+                    if (campos.additionalNorms !== undefined) setAdditionalNorms(campos.additionalNorms);
+                    else if (campos.normatividad !== undefined) setAdditionalNorms(campos.normatividad);
+
+                    showToast({
+                        message: 'Tenshi ha diligenciado los campos de la Política de SST.',
+                        status: 'success'
+                    });
+                }
+            }
+        };
+
+        const handleCampoUpdate = (e: any) => {
+            const { id, valor } = e.detail || {};
+            if (id === 'hazards') setHazards(valor);
+            if (id === 'scope') setScope(valor);
+            if (id === 'commitments') setCommitments(valor);
+            if (id === 'objectives') setObjectives(valor);
+            if (id === 'additionalNorms') setAdditionalNorms(valor);
+        };
+
+        const handleAiEvent = (e: any) => {
+            const app = (e.detail?.aplicativo || '').toLowerCase();
+            if (!app || app.includes('politica') || app.includes('sgsst') || app === 'actual') {
+                handleGenerate();
+            }
+        };
+
+        window.addEventListener('wappy-diligenciar-formulario', handleDiligenciar);
+        window.addEventListener('wappy-campo-actualizado', handleCampoUpdate);
+        window.addEventListener('wappy-generar-analisis-ia', handleAiEvent);
+        window.addEventListener('wappy-generar-analisis-actual', handleAiEvent);
+        return () => {
+            window.removeEventListener('wappy-diligenciar-formulario', handleDiligenciar);
+            window.removeEventListener('wappy-campo-actualizado', handleCampoUpdate);
+            window.removeEventListener('wappy-generar-analisis-ia', handleAiEvent);
+            window.removeEventListener('wappy-generar-analisis-actual', handleAiEvent);
+        };
+    }, [handleGenerate, showToast]);
+
     const handleSaveData = () => {
         try {
             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ hazards, scope, commitments }));

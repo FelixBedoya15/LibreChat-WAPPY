@@ -645,7 +645,11 @@ class VoiceSession {
                                     },
                                     detalle: {
                                         type: "string",
-                                        description: "Descripción del botón o elemento (ej: 'configurar plan', 'abrir tarjeta')"
+                                        description: "Descripción del botón o campo de destino (ej: 'Generar IA', 'Generar informe', 'peligros', 'alcance', 'compromisos', 'abrir tarjeta')"
+                                    },
+                                    campo: {
+                                        type: "string",
+                                        description: "Nombre o etiqueta del campo a diligenciar si la acción es 'escribir' (ej: 'peligros', 'alcance', 'compromisos', 'objetivos', 'afectadoNombre')."
                                     }
                                 },
                                 required: ["accion"]
@@ -1709,6 +1713,33 @@ class VoiceSession {
                           }
                     }
           }
+},
+{
+    name: "generar_informe_tecnico",
+    description: "Genera el informe técnico ergonómico o de riesgos SST con las evidencias fotográficas y mediciones recopiladas en vivo. DEBES llamar a esta función cuando se hayan completado las 3 fases de la evaluación O cuando el usuario te pida expresamente hacer o generar el informe ('haz el informe', 'genera el reporte'). NUNCA la llames durante el saludo o en los pasos 1 y 2.",
+    parameters: {
+        type: "object",
+        properties: {
+            motivo: {
+                type: "string",
+                description: "Método aplicado o resumen breve para el informe (ej: 'Método RULA', 'Método REBA', 'Evaluación de puesto de trabajo')"
+            }
+        }
+    }
+},
+{
+    name: "cambiar_fase_evaluacion",
+    description: "Avanza o cambia la fase actual de la evaluación en la pantalla del usuario (Fase 1: Postura Habitual, Fase 2: Alcance Máximo/Cargas, Fase 3: Fatiga/Deslizamiento). Invócala cuando le indiques al usuario pasar a la siguiente fase de la evaluación.",
+    parameters: {
+        type: "object",
+        properties: {
+            fase: {
+                type: "number",
+                description: "Número de fase destino (1, 2 o 3)"
+            }
+        },
+        required: ["fase"]
+    }
 }
                     ]
                 }
@@ -1732,6 +1763,10 @@ class VoiceSession {
 - AL INVOCAR 'canvas_tool' O GENERAR DOCUMENTOS: Cuando invoques 'canvas_tool' para crear un documento, informe o archivo, di únicamente una frase breve de transición como: "Estoy redactando y compilando el documento en tu pantalla con las tablas correspondientes, dame un momento..." y ESPERA el resultado del tool call antes de confirmar que está listo. ESTÁ TERMINANTEMENTE PROHIBIDO decir "ya te lo generé", "ya está listo" o "lo tienes disponible" antes de recibir la confirmación exitosa de 'canvas_tool'.
 - DISTINCIÓN ESTRICTA ENTRE GOOGLE DRIVE Y CANVAS: Si el usuario te pide buscar en su Google Drive o te pregunta por qué no encontraste un archivo, o insiste en que sí tiene una política, matriz o documento guardado en su empresa o Drive ("¿Buscaste bien?"), NUNCA digas que creaste o compartiste un documento. En su lugar, INVOCA 'google_drive' con action: 'list_files_and_folders' y términos de búsqueda amplios o palabras clave raíz (ej: query: "politica", query: "sst", query: "matriz", o query: "" para listar los archivos recientes). ESTÁ ESTRICTAMENTE PROHIBIDO inventar que creaste un documento cuando el usuario está preguntando por sus archivos en Google Drive.
 - CONTINUIDAD CON EL ESPECIALISTA EN PANTALLA: Si ya estás con un especialista en pantalla (ej. Médico Laboral) y el usuario dice "dile que...", "pregúntale qué...", "continúa...", formula la nueva consulta al especialista con 'wappy_abrir_chat_agente'.
+- REGLA DE ORO DE CONEXIÓN CON ESPECIALISTAS: Si el usuario te pide conectarse o abrir un chat con un especialista (ej: "conéctame con el médico laboral", "pásame al abogado", "abre el chat de medicina laboral", "quiero hablar con el especialista") SIN haberte formulado su caso o duda específica:
+  * ESTÁ TERMINANTEMENTE PROHIBIDO invocar 'wappy_abrir_chat_agente' inventando una pregunta genérica o de relleno.
+  * DEBES PREGUNTARLE VERBALMENTE en 1 sola frase breve y cordial: "¿Qué duda o tema específico deseas plantearle al especialista antes de abrir el chat?" y esperar a que el usuario te formule su consulta real.
+  * Solo cuando el usuario te plantee su consulta concreta, ejecutas 'wappy_abrir_chat_agente' con la consulta estructurada profesionalmente.
 - SI EL USUARIO DICE QUE NO VE NADA O QUE LA PANTALLA TIENE OTRO CONTENIDO: ESTÁ PROHIBIDO insistir ("le aseguro que está en su pantalla"); en su lugar, invoca DE INMEDIATO 'leer_pantalla' para verificar la realidad antes de contestar.
 - PROHIBICIÓN TOTAL DE ASUMIR O INVENTAR DATOS NUMÉRICOS DE LA EMPRESA:
   * Si el usuario te pregunta cuántos trabajadores tiene registrados, cuántos activos o retirados hay, cuántos accidentes, incapacidades, riesgos o datos cuantitativos de su SG-SST: ESTÁ TERMINANTEMENTE PROHIBIDO adivinar, aproximar o usar cifras de memoria sin verificar.
@@ -1787,15 +1822,22 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
 - ACCIÓN REAL ANTE ÓRDENES DE CLIC / GENERAR ANÁLISIS:
   * Cuando el usuario te pida:
     - "Genera el informe con IA del perfil sociodemográfico"
-    - "Genera el análisis con IA"
-    - "Dale clic al botón de generar análisis"
+    - "Genera el análisis con IA / Genera la política con IA / Genera los objetivos"
+    - "Dale clic al botón de generar análisis / generar informe / generar IA"
     - "Dale clic tú"
     - "Regenera el informe"
     - O hacer clic en cualquier botón de la botonera o pantalla:
-    INVOCA DE INMEDIATO 'operar_interfaz_visual' con { accion: 'click', texto: 'Generar IA' } (o el nombre del botón correspondiente).
-  * DI ÚNICAMENTE una frase breve de transición como: "Haciendo clic en Generar IA en tu pantalla para procesar el informe..." y ESPERA a que el sistema lo ejecute.
+    INVOCA DE INMEDIATO 'operar_interfaz_visual' con { accion: 'click', detalle: 'Generar IA', texto: 'Generar IA' } (o el nombre del botón correspondiente).
+  * DI ÚNICAMENTE una frase breve de transición como: "Generando el informe con IA en tu pantalla..." y ESPERA a que el sistema lo ejecute.
   * PROHIBICIÓN ESTRICTA DE MENTIR O AFIRMAR ACCIONES NO EJECUTADAS: ESTÁ TERMINANTEMENTE PROHIBIDO afirmar verbalmente que el informe ya fue generado, que ya le diste clic o que ya está disponible en pantalla SIN HABER ENVIADO 'operar_interfaz_visual'. NUNCA mientas diciendo "¡Listo! Ya le di clic y ya se generó" si no enviaste el tool call en este mismo turno.
-  * SI EL USUARIO TE CONFRONTA ("no le has dado clic", "es mentiras", "no aparece nada"): NO discutas ni inventes datos viejos de la pantalla; pide disculpas brevemente: "Tienes razón, discúlpame. En este instante pulso el botón de Generar IA" e INVOCA 'operar_interfaz_visual' ({ accion: 'click', texto: 'Generar IA' }) de inmediato.
+  * SI EL USUARIO TE CONFRONTA ("no le has dado clic", "es mentiras", "no aparece nada"): NO discutas ni inventes datos viejos de la pantalla; pide disculpas brevemente: "Tienes razón, discúlpame. En este instante pulso el botón de Generar IA" e INVOCA 'operar_interfaz_visual' ({ accion: 'click', detalle: 'Generar IA', texto: 'Generar IA' }) de inmediato.
+
+- ACCIÓN REAL ANTE ÓRDENES DE ESCRIBIR / LLENAR CAMPOS:
+  * Cuando el usuario te pida escribir, colocar o redactar información en un campo o casilla de cualquier aplicativo (ej: "escribe los peligros", "llena el alcance", "coloca los compromisos", "escríbelos tú"):
+    INVOCA DE INMEDIATO 'operar_interfaz_visual' indicando el campo en 'detalle' y el contenido en 'texto':
+    { accion: 'escribir', detalle: 'peligros', texto: 'Riesgo biomecánico por posturas prolongadas...' }
+    O TAMBIÉN PUEDES USAR 'wappy_diligenciar_formulario' pasando el nombre del aplicativo en 'modulo' y los pares campo:valor en 'campos'.
+  * Tras invocar la herramienta, confirma oralmente: "He escrito la información solicitada en el campo correspondiente."
 
 [HERRAMIENTAS]:
 1. **google_drive**: Tienes acceso directo a Google Drive mediante tu herramienta 'google_drive'.
@@ -1835,10 +1877,16 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
    - AUTONOMÍA TOTAL CON ROL DE AGENTE EXPERTO VS LLAMADO DE AGENTES:
      * SI EL USUARIO SOLO HACE LA PREGUNTA O CONSULTA TÉCNICA (ej: dolor lumbar, cómo calificar un accidente, qué hacer con el benceno, qué vientos son seguros para alturas, etc.): TENSHI ACTIVA DE INMEDIATO SU SKILL CON EL ROL DE AGENTE EXPERTO CORRESPONDIENTE (Médico Laboral, Abogado Laboral, Ingeniero Químico SST, Especialista en Alturas y Clima, etc.) y responde él mismo de forma integral, técnica y fundamentada usando sus herramientas y base de datos, sin desviar al usuario ni abrir un chat innecesario.
      * SI EL USUARIO PIDE EXPLÍCITAMENTE CONECTARSE O LLAMAR A UN AGENTE (ej: "conéctame con el médico", "llama al abogado", "pásame al especialista", "quiero el dictamen del médico laboral"): Tenshi tiene restaurada al 100% su capacidad para invocar 'consultar_agente_especializado' (para obtener su dictamen técnico en segundo plano y explicarlo en el chat de Tenshi) o invocar 'wappy_abrir_chat_agente' si el usuario pide ver el chat dedicado o nuevo chat en pantalla ("abre un chat con X").
-     * ESTUDIO DE PUESTO DE TRABAJO ERGONÓMICO EN VIVO CON LA FISIOTERAPEUTA ('wappy_iniciar_estudio_ergonomico_vivo'):
-       - SIEMPRE que el usuario te diga: "necesito realizar un estudio de puesto de trabajo ergonómico", "quiero hacer un estudio de puesto de trabajo", "hagamos una evaluación ergonómica", "análisis ergonómico en vivo", "llévame al estudio ergonómico con la fisio":
-       - INVOCA DE INMEDIATO 'wappy_iniciar_estudio_ergonomico_vivo'.
-       - Esta herramienta abrirá automáticamente el Análisis en Vivo por Cámara y Voz con la Fisioterapeuta Laboral (con exoesqueleto 3D MediaPipe, protocolo de 3 fases, matriz CIE-11 y 12 ejercicios de pausas activas), y al finalizar dejará el informe oficial tanto en el chat principal como en tu propio chat de Tenshi listo para ver en pantalla o descargar.
+     * ESTUDIO DE PUESTO DE TRABAJO ERGONÓMICO EN VIVO ('wappy_iniciar_estudio_ergonomico_vivo', 'cambiar_fase_evaluacion' y 'generar_informe_tecnico'):
+       - Cuando el usuario te pida realizar un estudio de puesto ergonómico, evaluación postural, o la cámara esté en modo ergonómico:
+         1. Si la cámara no está activa, invoca 'wappy_iniciar_estudio_ergonomico_vivo'.
+         2. DIRECTIVA DE LIDERAZGO EN 3 FASES ERGONÓMICAS:
+            - Paso 1 (Postura Habitual / Línea Base): Pide al usuario colocarse en su postura habitual de trabajo y decir "Listo", "Ya" o presionar el botón de foto. Al confirmar, valida brevemente los grados observados e invoca 'cambiar_fase_evaluacion' con fase: 1.
+            - Paso 2 (Alcance Máximo / Cargas / Periféricos): Pide adoptar la postura de mayor alcance o exigencia y confirmar ("Listo"). Al confirmar, invoca 'cambiar_fase_evaluacion' con fase: 2.
+            - Paso 3 (Fatiga / Apoyo Lumbar / Cuello): Pide evaluar la postura de fatiga o soporte de espalda y confirmar ("Listo"). Al confirmar, invoca 'cambiar_fase_evaluacion' con fase: 3.
+         3. Al culminar las 3 fases O cuando el usuario te pida el informe ("haz el informe", "genera el reporte", "dame el informe"):
+            - INVOCA DE INMEDIATO 'generar_informe_tecnico'.
+            - Confirma verbalmente en una frase breve: "Listo, procesando las evidencias para compilar tu informe técnico ergonómico oficial."
    - NUEVAS APIS EXTERNAS ESPECIALIZADAS DE AGENTES:
      * 'wappy_consultar_quimico_pubchem': Invocación de la API de PubChem (NIH) para buscar compuestos químicos por nombre, obtener su CID y extraer la clasificación oficial GHS/SGA con pictogramas, señal (Peligro/Atención), frases de peligro H y consejos de prudencia P según el Decreto 1496 de 2018.
      * 'wappy_geocodificar_emergencias': Invocación de OpenStreetMap Nominatim para geolocalizar sedes y ubicar recursos asistenciales cercanos (hospitales, clínicas de trauma, estaciones de bomberos, defensa civil) para el Plan de Preparación y Respuesta ante Emergencias (Decreto 1072 de 2015).
@@ -3726,6 +3774,21 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                             const result = await executeTenshiMcpTool(targetTool, targetArgs, this.userId);
                             const resultStr = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
 
+                            if (result && typeof result === 'object') {
+                                if (result.informeOriginalHtml || (result.informeCompleto && (result.informeCompleto.includes('<html') || result.informeCompleto.includes('<div') || result.informeCompleto.includes('<table')))) {
+                                    const rawHtml = result.informeOriginalHtml || result.informeCompleto;
+                                    this.lastGeneratedCanvasFile = {
+                                        title: result.titulo || `Informe Oficial de ${result.aplicativo || 'SGSST'}`,
+                                        fileType: 'html',
+                                        content: rawHtml,
+                                    };
+                                    this.sendToClient({
+                                        type: 'canvas_file_generated',
+                                        data: this.lastGeneratedCanvasFile
+                                    });
+                                }
+                            }
+
                             this.sendToClient({
                                 type: 'wappy_action',
                                 data: { id: fc.id, name: targetTool, args: targetArgs, result }
@@ -3798,14 +3861,22 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                     // Operar interfaz visual interactiva (clic, scroll, escribir)
                     if (fc.name === 'operar_interfaz_visual') {
                         const accion = fc.args?.accion || 'click';
-                        const detalle = fc.args?.texto || fc.args?.detalle || 'elemento';
-                        logger.info(`[VoiceSession] Operación de interfaz visual: accion=${accion}, detalle=${detalle}`);
+                        const detalle = fc.args?.detalle || fc.args?.campo || fc.args?.texto || 'elemento';
+                        const texto = fc.args?.texto;
+                        logger.info(`[VoiceSession] Operación de interfaz visual: accion=${accion}, detalle=${detalle}${texto ? `, texto="${texto.substring(0, 40)}..."` : ''}`);
                         this.sendToClient({
                             type: 'wappy_action',
                             data: {
                                 id: fc.id,
                                 name: fc.name,
-                                args: fc.args
+                                args: {
+                                    ...fc.args,
+                                    accion,
+                                    detalle,
+                                    texto,
+                                    campo: fc.args?.campo || detalle,
+                                    indice: fc.args?.indice
+                                }
                             }
                         });
                         if (this.geminiClient) {
@@ -3947,14 +4018,21 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         const agente = fc.args?.agente || fc.args?.nombre_especialista;
                         const rawPregunta = (fc.args?.pregunta || fc.args?.consulta_completa || '').trim();
 
-                        if (!rawPregunta || rawPregunta.length < 4) {
-                            logger.warn(`[VoiceSession] Gemini invoked "${fc.name}" for agent "${agente}" without concrete question. Asking user for context.`);
+                        const isGenericPlaceholder = (text) => {
+                            if (!text || text.length < 5) return true;
+                            const norm = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+                            return /^(derecho laboral|medicina laboral|fisioterapia|ergonomia|salud ocupacional|asesoria|concepto profesional|hacer una consulta|una consulta|una pregunta|consulta general|seguridad vial|riesgo quimico|primeros auxilios|salud mental|riesgo psicosocial|tareas criticas|alturas|normatividad|normativa|decreto 1072|resolucion 0312)$/i.test(norm) ||
+                                /^(hola|buenos dias|buenas tardes|buenas noches|como estas|quiere hacer una consulta|desea consultar algo|para hacer una consulta|solicito asesoria|consulta tecnica)\.?$/i.test(norm);
+                        };
+
+                        if (!rawPregunta || isGenericPlaceholder(rawPregunta)) {
+                            logger.warn(`[VoiceSession] Gemini invoked "${fc.name}" for agent "${agente}" without concrete question ("${rawPregunta}"). Asking user for context.`);
                             if (this.geminiClient) {
                                 this.sendGeminiToolResponse([{
                                     id: fc.id,
                                     name: fc.name,
                                     response: {
-                                        result: `NO se abrió el chat: falta la consulta concreta del usuario. Pregúntale verbalmente al usuario qué tema específico desea plantearle a ${agente || 'el especialista'} antes de abrir el chat.`
+                                        result: `NO se abrió el chat: falta la consulta concreta del usuario. Pregúntale verbalmente al usuario: "¿Qué tema o duda específica deseas plantearle al especialista antes de conectarte?" y espera a que el usuario te formule su pregunta real antes de abrir el chat.`
                                     }
                                 }]);
                             }
@@ -4223,7 +4301,8 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
         switch (type) {
             case 'wappy_action_result':
                 if (data && data.id && this.geminiClient) {
-                    logger.info(`[VoiceSession] Received wappy_action_result from client for tool ${data.name} (id: ${data.id})`, data.result);
+                    const resultStr = typeof data.result === 'object' ? JSON.stringify(data.result) : String(data.result || '');
+                    logger.info(`[VoiceSession] Received wappy_action_result from client for tool ${data.name} (id: ${data.id}): ${resultStr.substring(0, 150)}`);
                     if (this.pendingToolCalls && this.pendingToolCalls.has(data.id)) {
                         const { timeoutId } = this.pendingToolCalls.get(data.id);
                         clearTimeout(timeoutId);
@@ -5475,8 +5554,35 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                 }
             }
 
-            // Fallback to passed context if DB fetch failed or empty
-            const finalContext = dbContext || conversationContext;
+            // Fallback para Tenshi Voice: consultar TenshiMessage si dbContext sigue vacío
+            if (!dbContext && (this.config?.mode === 'tenshi_voice' || !this.conversationId || this.conversationId === 'new')) {
+                try {
+                    const TenshiMessage = require('~/models/TenshiMessage');
+                    const tenshiMsgs = await TenshiMessage.find({ user: this.userId })
+                        .sort({ createdAt: -1 })
+                        .limit(20)
+                        .lean();
+                    if (tenshiMsgs && tenshiMsgs.length > 0) {
+                        dbContext = tenshiMsgs.reverse().map(m => {
+                            const role = m.role === 'user' ? 'User' : 'Tenshi (AI)';
+                            return `${role}: ${m.content}`;
+                        }).join('\n');
+                        logger.info(`[VoiceSession] Fetched ${tenshiMsgs.length} TenshiMessages for report context.`);
+                    }
+                } catch (tenshiDbErr) {
+                    logger.error('[VoiceSession] Error fetching TenshiMessage context for report:', tenshiDbErr);
+                }
+            }
+
+            // Fallback a conversationTurns o contexto sintético derivado de evidencias
+            let finalContext = dbContext || (this.conversationTurns && this.conversationTurns.length > 0 ? this.conversationTurns.join('\n') : '') || conversationContext;
+
+            // Si hay evidencias visuales capturadas (fases o fotos manuales) o modo biomecánico, asegurar contexto sólido para nunca abortar
+            const hasPhases = this.phaseEvidences && Object.keys(this.phaseEvidences).length > 0;
+            const hasManual = this.manualEvidences && this.manualEvidences.length > 0;
+            if ((!finalContext || finalContext.length < 10) && (hasPhases || hasManual || this.isBiomechanics)) {
+                finalContext = `Evaluación ergonómica y biomecánica en vivo realizada con la Fisioterapeuta Laboral en Tenshi. Se cuenta con registro fotográfico directo de ${hasPhases ? Object.keys(this.phaseEvidences).length : (hasManual ? this.manualEvidences.length : 1)} fase(s) posturales con telemetría articular MediaPipe para la emisión pericial del Informe Técnico de Estudio de Puesto de Trabajo (EPT).`;
+            }
 
             logger.info(`[VoiceSession] Final Context length: ${finalContext ? finalContext.length : 0}`);
 
@@ -6220,9 +6326,11 @@ ${workerSubHeaderHtml}
 
                         const reportTitle = `Informe de Inspección - ${this.isBiomechanics ? 'BIOMECÁNICA (RULA/REBA)' : 'SST'}`;
 
+                        const targetConvoId = this.conversationId || `tenshi-${this.userId}`;
+
                         if (companyId) {
                             await LiveEditorSession.findOneAndUpdate(
-                                { conversationId: this.conversationId, companyId },
+                                { conversationId: targetConvoId, companyId },
                                 {
                                     $set: {
                                         content: reportHtml,
@@ -6236,7 +6344,7 @@ ${workerSubHeaderHtml}
                             );
                         }
 
-                        await syncLiveEditorToCanvas(this.conversationId, reportHtml, reportTitle, this.userId);
+                        await syncLiveEditorToCanvas(targetConvoId, reportHtml, reportTitle, this.userId);
                         logger.info('[VoiceSession] Report synced to LiveEditorSession and Canvas successfully');
 
                         // If this is a Biomechanics / Ergonomics study, persist to EstudioPuestoTrabajo and sync worker
@@ -6587,7 +6695,7 @@ ${workerSubHeaderHtml}
                 data: {
                     id: `failsafe-click-${Date.now()}`,
                     name: 'operar_interfaz_visual',
-                    args: { accion: 'click', texto: 'Generar IA' }
+                    args: { accion: 'click', texto: 'Generar IA', detalle: 'Generar IA' }
                 }
             });
             return;
@@ -6725,6 +6833,11 @@ ${workerSubHeaderHtml}
                     .trim();
                 if (/^haga\b/i.test(pregunta)) {
                     pregunta = pregunta.replace(/^haga\b/i, 'Por favor elabora');
+                }
+                const normP = pregunta.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+                const isGeneric = /^(hacer\s+una\s+consulta|hacer\s+una\s+pregunta|una\s+consulta|una\s+pregunta|consultar|preguntar|hablar|ver|abrir|conectarme|asesoria|concepto|derecho\s+laboral|medicina\s+laboral)$/i.test(normP);
+                if (isGeneric || pregunta.length < 5) {
+                    pregunta = '';
                 }
             }
 
@@ -7044,6 +7157,57 @@ ${workerSubHeaderHtml}
                             htmlReport: canvasFileToAttach.fileType === 'html' ? canvasFileToAttach.content : undefined,
                         }).catch(err => logger.error('[VoiceSession] Error saving Tenshi canvas file message:', err));
                     }
+
+                    // Sincronizar en la conversación del Agente Fisioterapeuta si el modo ergonómico está activo
+                    if (this.isFisioMode && this.fisioConversationId) {
+                        try {
+                            const { Conversation, Message } = require('~/db/models');
+                            const targetAgentId = this.fisioAgent?.id || 'fisioterapeuta_laboral';
+
+                            await Conversation.findOneAndUpdate(
+                                { conversationId: this.fisioConversationId },
+                                {
+                                    conversationId: this.fisioConversationId,
+                                    user: this.userId,
+                                    title: 'Evaluación y Estudio Ergonómico en Vivo',
+                                    endpoint: 'agents',
+                                    agent_id: targetAgentId,
+                                    tags: ['fisioterapeuta-live-ept', 'sgsst-ept'],
+                                    updatedAt: new Date(),
+                                },
+                                { upsert: true, new: true }
+                            );
+
+                            if (currentUserText && currentUserText.trim() && !/^\[SISTEMA INTERNO WAPPY/i.test(currentUserText)) {
+                                const uMsgId = uuidv4();
+                                await Message.create({
+                                    messageId: uMsgId,
+                                    conversationId: this.fisioConversationId,
+                                    user: this.userId,
+                                    sender: 'User',
+                                    text: currentUserText.trim(),
+                                    isCreatedByUser: true,
+                                });
+                                this.fisioLastMessageId = uMsgId;
+                            }
+
+                            if (currentAiText && currentAiText.trim()) {
+                                const aMsgId = uuidv4();
+                                await Message.create({
+                                    messageId: aMsgId,
+                                    conversationId: this.fisioConversationId,
+                                    parentMessageId: this.fisioLastMessageId,
+                                    user: this.userId,
+                                    sender: this.fisioAgent?.name || 'Fisioterapeuta Laboral',
+                                    text: currentAiText.trim(),
+                                    isCreatedByUser: false,
+                                });
+                                this.fisioLastMessageId = aMsgId;
+                            }
+                        } catch (fisioSyncErr) {
+                            logger.warn('[VoiceSession] Error syncing turn to Fisioterapeuta conversation:', fisioSyncErr.message);
+                        }
+                    }
                 }
             } catch (err) {
                 logger.error('[VoiceSession] Failed to persist Tenshi voice turn to TenshiMessage:', err);
@@ -7217,16 +7381,7 @@ ${workerSubHeaderHtml}
             }
 
             if (this.geminiClient && this.geminiClient.setupCompleted) {
-                const fisioDirective = `[INSTRUCCIÓN DE SISTEMA - CAMBIO A MODO FISIOTERAPEUTA]:
-El usuario ha activado el Modo Fisioterapeuta / Ergonomía / Estudio de Puesto de Trabajo.
-A partir de este instante, asumes al 100% el rol de Fisioterapeuta Laboral y Especialista en Biomecánica de WAPPY IA.
-DIRIGE LA EVALUACIÓN ERGONÓMICA EN CAMPO PASO A PASO:
-1. Saluda presentándote cordialmente como Fisioterapeuta Laboral en WAPPY IA.
-2. Solicita en 1 sola frase los datos de identificación: Nombre completo del trabajador, Cédula y Cargo/Labor evaluada.
-3. Al recibir la identificación, guía el análisis en 3 fases posturales (Paso 1: Silla y digitación; Paso 2: Alcance a herramientas; Paso 3: Región cervical y pantalla).
-4. Aplica los métodos RULA, REBA, ROSA e higiene postural según la normativa colombiana (Resolución 2400 de 1979 y NTC 5693).
-5. Pide al trabajador adoptar la postura y espera a que confirme diciendo "Listo", "Ya" o pulsando el botón de la cámara para registrarla.
-6. Al finalizar las 3 fases, genera el informe ergonómico oficial.`;
+                const fisioDirective = `[INSTRUCCIÓN INTERNA]: El usuario ha solicitado una evaluación ergonómica / estudio de puesto de trabajo. Responde al usuario de inmediato: salúdalo cordialmente presentándote como la Fisioterapeuta Laboral de WAPPY IA, dile que tienes la cámara activa y pregúntale en 1 sola frase el nombre y cargo del trabajador a evaluar para iniciar la Fase 1.`;
                 this.geminiClient.sendText(fisioDirective);
             }
 
@@ -7389,6 +7544,10 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
             }
         }
 
+        const wantsBiomechanics = Boolean(
+            config.template === 'biomecanico_mediapipe'
+        );
+
         let agentObj = null;
         if (agentId) {
             try {
@@ -7401,51 +7560,98 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
             } catch (agentError) {
                 logger.error('[VoiceSession] Error loading agent details:', agentError);
             }
-        }
 
-        if (!agentObj) {
-            try {
-                const { Agent } = require('~/db/models');
-                // Check if user is in biomechanics / fisioterapeuta mode or template
-                const wantsBiomechanics = config.mode === 'live_analysis' || 
-                                          config.template === 'biomecanico_mediapipe';
-                if (wantsBiomechanics) {
-                    agentObj = await Agent.findOne({
-                        $or: [
-                            { name: /biomec[aá]nic/i },
-                            { name: /fisioterapeuta/i },
-                            { name: /ergon/i }
-                        ]
-                    }).lean();
+            // Fallback a archivo markdown si agentId coincide con algún especialista
+            if (!agentObj) {
+                try {
+                    const fs = require('fs');
+                    const path = require('path');
+                    const cleanId = String(agentId).toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+                    const candidateFiles = [
+                        `${cleanId}.md`,
+                        `${cleanId.replace(/-/g, '_')}.md`,
+                    ];
+                    for (const cf of candidateFiles) {
+                        const filePath = path.resolve(process.cwd(), 'Agentes/Agentes Wappy', cf);
+                        if (fs.existsSync(filePath)) {
+                            const content = fs.readFileSync(filePath, 'utf-8');
+                            const titleMatch = content.match(/^#\s+(.+)$/m);
+                            const agentTitle = titleMatch ? titleMatch[1].trim() : cf.replace('.md', '').replace(/_/g, ' ');
+                            agentObj = {
+                                id: agentId,
+                                name: agentTitle,
+                                instructions: content,
+                            };
+                            logger.info(`[VoiceSession] Loaded agent from local markdown: ${agentTitle} (${cf})`);
+                            break;
+                        }
+                    }
+                } catch (mdErr) {
+                    logger.warn('[VoiceSession] Could not find markdown agent for ID:', agentId, mdErr.message);
                 }
-            } catch (err) {
-                logger.warn('[VoiceSession] Could not fallback find agent in DB:', err.message);
             }
         }
 
-        // Bulletproof fallback: Load local markdown instructions if agentObj still lacks instructions
-        if (!agentObj || !agentObj.instructions) {
+        // Si no hay agente y el usuario pidió explícitamente modo biomecánico / EPT
+        if (!agentObj && wantsBiomechanics) {
+            try {
+                const { Agent } = require('~/db/models');
+                agentObj = await Agent.findOne({
+                    $or: [
+                        { name: /biomec[aá]nic/i },
+                        { name: /fisioterapeuta/i },
+                        { name: /ergon/i }
+                    ]
+                }).lean();
+            } catch (err) {
+                logger.warn('[VoiceSession] Could not fallback find biomechanics agent in DB:', err.message);
+            }
+
+            if (!agentObj || !agentObj.instructions) {
+                try {
+                    const fs = require('fs');
+                    const path = require('path');
+                    const fisioPath = path.resolve(process.cwd(), 'Agentes/Agentes Wappy/fisioterapeuta_laboral.md');
+                    if (fs.existsSync(fisioPath)) {
+                        const content = fs.readFileSync(fisioPath, 'utf-8');
+                        agentObj = {
+                            name: 'Especialista en Biomecánica Laboral',
+                            instructions: content,
+                        };
+                        logger.info('[VoiceSession] Successfully loaded Fisioterapeuta instructions from local markdown file for biomechanics mode');
+                    }
+                } catch (mdErr) {
+                    logger.warn('[VoiceSession] Could not load markdown fallback for fisio:', mdErr.message);
+                }
+            }
+        }
+
+        // Si no hay agente y NO es biomecánica, cargar Consultor General SST
+        if (!agentObj) {
             try {
                 const fs = require('fs');
                 const path = require('path');
-                const fisioPath = path.resolve(process.cwd(), 'Agentes/Agentes Wappy/fisioterapeuta_laboral.md');
-                if (fs.existsSync(fisioPath)) {
-                    const content = fs.readFileSync(fisioPath, 'utf-8');
+                const sstPath = path.resolve(process.cwd(), 'Agentes/Agentes Wappy/profesional_sst.md');
+                if (fs.existsSync(sstPath)) {
+                    const content = fs.readFileSync(sstPath, 'utf-8');
                     agentObj = {
-                        name: 'Especialista en Biomecánica Laboral',
+                        name: 'Consultor General SG-SST',
                         instructions: content,
                     };
-                    logger.info('[VoiceSession] Successfully loaded Fisioterapeuta instructions from local markdown file');
+                    logger.info('[VoiceSession] Defaulted to Consultor General SG-SST (profesional_sst.md)');
                 }
             } catch (mdErr) {
-                logger.warn('[VoiceSession] Could not load markdown fallback:', mdErr.message);
+                logger.warn('[VoiceSession] Could not load general sst markdown fallback:', mdErr.message);
             }
         }
 
         // Dynamic Inspection Protocol Resolution across all WAPPY Agent Families
-        const agentProtocol = resolveInspectionProtocol(agentObj?.name || config.template || 'biomecanico');
-        const isBiomechanics = agentProtocol.id === 'biomecanico' ||
-            (agentObj && /biomec|fisioterapeuta|ergon|rosa|ipt/i.test(agentObj.name)) ||
+        const agentProtocol = resolveInspectionProtocol(agentObj?.name || config.template || (wantsBiomechanics ? 'biomecanico' : 'auditoria_gtc45'));
+        const isBiomechanics = wantsBiomechanics ||
+            (agentProtocol.id === 'biomecanico' && (
+                /biomec|fisioterapeuta|ergon|rosa|ipt/i.test(agentObj?.name || '') ||
+                /fisioterapeuta|biomec[aá]nic/i.test(agentObj?.instructions || '')
+            )) ||
             config.template === 'biomecanico_mediapipe';
 
         logger.info(`[VoiceSession] Live session configured with Agent: ${agentObj?.name || agentId || 'General'} (Protocol: ${agentProtocol.title}, isBiomechanics: ${isBiomechanics})`);
@@ -7527,10 +7733,9 @@ ${cleanedInstructions ? `\nINSTRUCCIONES Y NORMATIVIDAD DEL AGENTE:\n${cleanedIn
         }
 
         // Live interaction directives
-        config.systemInstruction = `
-${domainKnowledge}
-
-[DIRECTIVAS DE INTERACCIÓN EN VIVO POR VOZ Y VIDEO]:
+        const liveDirectives = isBiomechanics
+            ? `
+[DIRECTIVAS DE INTERACCIÓN EN VIVO POR VOZ Y VIDEO - EVALUACIÓN ERGONÓMICA]:
 1. **IDIOMA EXCLUSIVO: ESPAÑOL.** El usuario y tú se comunican SIEMPRE en español de Colombia/Latinoamérica. NUNCA respondas, transcribas ni traduzcas en árabe, inglés ni ningún otro idioma. Todo lo que dice el usuario está en español.
 2. **SALUDO INICIAL Y PASO PREVIO OBLIGATORIO (IDENTIFICACIÓN COMPLETA DEL TRABAJADOR):** En tu primera intervención saluda cordialmente y PREGUNTA de inmediato: "¿Es una auto-evaluación de tu propio puesto o evalúas a un compañero? Confírmame tu nombre completo, número de cédula, cargo y qué actividad principal realizas." NUNCA invoques herramientas de informe en el saludo y NUNCA pidas posturas en tu primer turno. Si el usuario no te da su nombre o cédula, insiste amablemente en pedirlos antes de pasar al Paso 1 para poder vincular el expediente oficial de la empresa.
 3. **CONDUCE LA EVALUACIÓN TRAS EL CONTEXTO:** Una vez que el usuario te responda indicando su nombre, cédula, cargo y actividad, valida en una sola frase breve y entusiasta (ej: "¡Perfecto! Expediente preparado para [Nombre]") y da inicio al Paso 1 (Postura Habitual / Línea Base), invocando de inmediato la herramienta 'cambiar_fase_evaluacion' con fase: 1.
@@ -7539,6 +7744,21 @@ ${domainKnowledge}
 5. **CERO CUESTIONARIOS ADMINISTRATIVOS ADICIONALES:** Prohibido preguntar por ARL, tamaño de empresa o porcentajes de implementación. Limítate exclusivamente a preguntar cargo y actividad al inicio y luego concéntrate en la observación de campo.
 6. **RESPUESTAS HABLADAS CONCISAS:** Respuestas habladas claras y pedagógicas (2 a 4 oraciones por turno). Sin formato Markdown ni HTML en voz.
 7. **GENERACIÓN DE INFORME:** NUNCA generes el informe durante el saludo ni en los pasos 1 o 2. Solo debes invocar 'generar_informe_tecnico' al concluir las 3 fases O cuando el usuario te ordene explícitamente generar el informe ('haz el informe', 'genera el reporte', 'dame el informe').
+`
+            : `
+[DIRECTIVAS DE INTERACCIÓN EN VIVO POR VOZ Y VIDEO - ESPECIALISTA ${agentProtocol.title.toUpperCase()}]:
+1. **IDIOMA EXCLUSIVO: ESPAÑOL.** El usuario y tú se comunican SIEMPRE en español de Colombia/Latinoamérica. NUNCA respondas, transcribas ni traduzcas en árabe, inglés ni ningún otro idioma. Todo lo que dice el usuario está en español.
+2. **SALUDO INICIAL Y CONTEXTO DEL ROL:** Saluda cordialmente según tu rol de especialista (${agentObj?.name || agentProtocol.title}) y pregunta en qué puedes asesorar o qué duda, equipo o área desea revisar hoy el usuario.
+3. **ASESORÍA EN VIVO SEGÚN TU ROL (SIN FASES):** Atiende al usuario según tu especialidad técnica (${agentObj?.name || agentProtocol.title}). Observa por la cámara lo que el usuario te muestre, analiza riesgos, condiciones o normativas colombianas aplicables y responde de inmediato a sus preguntas. NO hables de fases, etapas ni autoevaluación (las fases son exclusivas de la evaluación biomecánica ergonómica).
+4. **CERO CONFUSIÓN DE ROLES:** No hables de ángulos corporales, ni RULA, ni REBA ni de posturas. Céntrate 100% en tu especialidad (${agentProtocol.title}).
+5. **RESPUESTAS HABLADAS CONCISAS:** Respuestas habladas directas, pedagógicas y técnicas (2 a 4 oraciones por turno). Sin Markdown ni HTML en la voz.
+6. **GENERACIÓN DE INFORME:** Si el usuario te solicita expresamente compilar un reporte o informe técnico con los hallazgos observados, invoca 'generar_informe_tecnico'.
+`;
+
+        config.systemInstruction = `
+${domainKnowledge}
+
+${liveDirectives}
 `.trim();
         
         // Pass the array of keys to VoiceSession

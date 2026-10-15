@@ -6,9 +6,8 @@ import store from '~/store';
 import VoiceOrb from './VoiceOrb';
 import VoiceSelector from './VoiceSelector';
 import { useVoiceSession } from '~/hooks/useVoiceSession';
-import { useLocalize } from '~/hooks';
 import { useGetAgentByIdQuery } from '~/data-provider';
-import { useChatContext } from '~/Providers';
+import { useChatContext, useAgentsMapContext } from '~/Providers';
 import {
     loadTasksVision,
     loadClassicPoseScripts,
@@ -124,61 +123,49 @@ const VoiceModal: FC<VoiceModalProps> = ({
     const conversation = chatContext?.conversation;
     const effectiveAgentId = agentId || conversation?.agent_id || (endpoint === 'agents' ? model : undefined);
 
-    // Get active agent details
-    const { data: agent, isLoading } = useGetAgentByIdQuery(effectiveAgentId, { enabled: !!effectiveAgentId });
-
-    // Dynamic Inspection Protocol Resolution across all WAPPY Agent Families
-    const activeProtocol = useMemo<InspectionProtocol>(() => {
-        const candidate = agent?.name || conversation?.title || '';
-        const resolved = resolveInspectionProtocol(candidate);
-        // Default to Biomechanics if candidate is generic or missing, ensuring vision AI is never disabled
-        if (resolved.id === 'auditoria' && (!agent || !agent.name)) {
-            return INSPECTION_PROTOCOLS.biomecanico;
-        }
-        return resolved;
-    }, [agent?.name, conversation?.title]);
+    // Get active agent details (both synchronously from in-memory agentsMap and asynchronously via query)
+    const agentsMap = useAgentsMapContext();
+    const cachedAgent = effectiveAgentId ? agentsMap?.[effectiveAgentId] : null;
+    const { data: agentQueryData, isLoading } = useGetAgentByIdQuery(effectiveAgentId, { enabled: !!effectiveAgentId });
+    const currentAgent = agentQueryData || cachedAgent;
 
     const isBiomechanicsAgent = useMemo(() => {
-        const agentName = (agent?.name || '').toLowerCase();
-        const agentInstructions = (agent?.instructions || '').toLowerCase();
-        const convoTitle = (conversation?.title || '').toLowerCase();
+        const explicitId = (agentId || effectiveAgentId || '').toLowerCase();
+        const agentName = (currentAgent?.name || '').toLowerCase();
+        const agentDesc = (currentAgent?.description || '').toLowerCase();
+        const agentInstructions = (currentAgent?.instructions || '').toLowerCase();
+        const convTitle = (conversation?.title || '').toLowerCase();
         const modelStr = (model || '').toLowerCase();
 
-        // 1. Direct name or instructions match
-        const explicitId = (agentId || '').toLowerCase();
-        if (
+        return (
+            explicitId === '92a03bc9-25ce-4eb9-9af4-cafcd480785a' ||
             explicitId.includes('fisioterapeuta') ||
             explicitId.includes('biomec') ||
-            agentName.includes('biomec') ||
+            explicitId.includes('ergon') ||
             agentName.includes('fisioterapeuta') ||
+            agentName.includes('biomec') ||
             agentName.includes('ergon') ||
-            agentName.includes('rosa') ||
-            agentName.includes('puesto de trabajo') ||
-            agentName.includes('ipt') ||
+            agentDesc.includes('fisioterapeuta') ||
+            agentDesc.includes('ergonom') ||
             agentInstructions.includes('fisioterapeuta') ||
             agentInstructions.includes('biomecánica') ||
             agentInstructions.includes('biomecanica') ||
-            convoTitle.includes('biomec') ||
-            convoTitle.includes('fisioterapeuta') ||
-            modelStr.includes('biomec') ||
+            convTitle.includes('fisioterapeuta') ||
+            convTitle.includes('biomecánica') ||
+            convTitle.includes('estudio de puesto') ||
             modelStr.includes('fisioterapeuta')
-        ) {
-            return true;
-        }
+        );
+    }, [currentAgent, agentId, effectiveAgentId, conversation?.title, model]);
 
-        // 2. Protocol match
-        if (activeProtocol.id === 'biomecanico') {
-            return true;
+    // Dynamic Inspection Protocol Resolution across all WAPPY Agent Families
+    const activeProtocol = useMemo<InspectionProtocol>(() => {
+        if (isBiomechanicsAgent) {
+            return INSPECTION_PROTOCOLS.biomecanico;
         }
-
-        // 3. Fallback: If not specifically another specialist, default to true so MediaPipe is always active in Vision
-        const otherSpecialistIds = ['quimico', 'pesv', 'emergencias_electrico', 'emergencias', 'electrico', 'alturas', 'investigacion_at', 'psicosocial'];
-        if (!otherSpecialistIds.includes(activeProtocol.id)) {
-            return true;
-        }
-
-        return false;
-    }, [agent, conversation, model, activeProtocol.id]);
+        // Prioritize explicit agent identity. NEVER let a conversation title usurp the agent's identity!
+        const candidate = currentAgent?.name || (effectiveAgentId && !/^[0-9a-f]{24}$/i.test(effectiveAgentId) && !/^[0-9a-f-]{36}$/i.test(effectiveAgentId) ? effectiveAgentId : '') || currentAgent?.description || (!effectiveAgentId ? conversation?.title : '') || '';
+        return resolveInspectionProtocol(candidate);
+    }, [isBiomechanicsAgent, currentAgent?.name, currentAgent?.description, effectiveAgentId, conversation?.title]);
 
     // Multi-Phase Inspection Protocol & Perspective States
     const [currentPhaseIndex, setCurrentPhaseIndex] = useState<number>(0);
@@ -1370,17 +1357,14 @@ const VoiceModal: FC<VoiceModalProps> = ({
     };
 
     const toggleMute = () => {
-        if (status === 'speaking') {
-            console.log('[VoiceModal] User tapped mic button during AI speech -> triggering immediate interrupt');
-            sendInterrupt();
-            clearAudioQueue();
-            setIsMuted(false);
-            setMuted(false);
-            return;
-        }
         const newMuted = !isMuted;
         setIsMuted(newMuted);
         setMuted(newMuted);
+        if (status === 'speaking' && newMuted) {
+            console.log('[VoiceModal] User muted microphone during AI speech -> interrupting AI output');
+            sendInterrupt();
+            clearAudioQueue();
+        }
     };
 
     const handleVoiceChange = (voiceId: string) => {
@@ -1435,140 +1419,107 @@ const VoiceModal: FC<VoiceModalProps> = ({
                     </div>
                 )}
 
-                {/* Specialized Inspection HUD for SST Agents & Biomechanics Vision AI */}
-                {(isBiomechanicsAgent || isCameraOn || isConnected || isReady) && (
-                    isBiomechanicsAgent ? (
-                        <div className="absolute top-4 left-4 right-4 z-40 bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl p-3 shadow-2xl flex flex-wrap gap-2 md:gap-4 justify-between items-center transition-all animate-in fade-in duration-300">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 animate-pulse"></span>
-                                <span className="text-[10px] md:text-xs font-mono font-bold uppercase tracking-wider text-cyan-400">{activeProtocol.badgeText}</span>
-                                <span className="text-[9px] px-2 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 font-mono font-semibold">
-                                    {kneeAngle !== null && kneeAngle > 25 ? 'Método: REBA (Cuerpo Entero)' : 'Método: RULA (Miembros Sup.)'}
+                {/* Specialized Inspection HUD - STRICTLY for Biomechanics / Fisioterapeuta */}
+                {isBiomechanicsAgent && (
+                    <div className="absolute top-2 left-2 right-2 sm:top-4 sm:left-4 sm:right-4 z-40 bg-black/75 backdrop-blur-xl border border-white/15 rounded-xl sm:rounded-2xl p-2 sm:p-3 shadow-2xl flex flex-col gap-1.5 sm:gap-2 pointer-events-auto transition-all animate-in fade-in duration-300 max-w-full overflow-hidden">
+                        {/* Fila 1: Badges, Método y Selector de Fases */}
+                        <div className="flex flex-wrap items-center justify-between gap-1 sm:gap-2">
+                            <div className="flex items-center gap-1.5 sm:gap-2">
+                                <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                                <span className="text-[9px] sm:text-xs font-mono font-bold uppercase tracking-wider text-cyan-300">
+                                    {activeProtocol.badgeText}
+                                </span>
+                                <span className="text-[8px] sm:text-[9px] px-1.5 sm:px-2 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 font-mono font-semibold">
+                                    {kneeAngle !== null && kneeAngle > 25 ? 'REBA' : 'RULA'}
                                 </span>
                                 {is3DTelemetry && (
-                                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-cyan-950/90 border border-cyan-400/60 text-cyan-300 font-mono font-bold tracking-wide shadow-sm flex items-center gap-1">
+                                    <span className="hidden sm:inline-flex text-[9px] px-2 py-0.5 rounded-full bg-cyan-950/90 border border-cyan-400/60 text-cyan-300 font-mono font-bold tracking-wide shadow-sm items-center gap-1">
                                         <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
-                                        3D World Space
+                                        3D World
                                     </span>
                                 )}
                                 {/* Perspective Badge */}
-                                <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 font-mono font-semibold flex items-center gap-1">
-                                    <UserCheck className="w-3 h-3 text-emerald-400" />
+                                <span className="text-[8px] sm:text-[9px] px-1.5 sm:px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 font-mono font-semibold flex items-center gap-1">
+                                    <UserCheck className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-400" />
                                     {capturePerspective}
                                 </span>
-                                {/* Ergonomic Multi-Phase Selector */}
-                                <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1">
-                                    {activeProtocol.phases.map((p, idx) => (
-                                        <button
-                                            key={p.id}
-                                            onClick={() => setCurrentPhaseIndex(idx)}
-                                            className={`px-2 py-0.5 rounded-lg text-[9px] font-mono transition-all duration-200 ${
-                                                currentPhaseIndex === idx 
-                                                    ? 'bg-cyan-500 text-black font-bold shadow-md shadow-cyan-500/30' 
-                                                    : 'text-white/60 hover:text-white hover:bg-white/10'
-                                            }`}
-                                            title={p.desc}
-                                        >
-                                            {p.shortName}
-                                        </button>
-                                    ))}
-                                </div>
                             </div>
-                            <div className="flex flex-wrap gap-2 md:gap-3 items-center">
-                                {/* Neck Angle */}
-                                <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all duration-300 ${neckInfo.colorClass}`}>
-                                    <span className="text-[9px] font-mono font-medium opacity-60">Cuello</span>
-                                    <span className={`text-xs font-bold font-mono ${neckInfo.valColorClass}`}>
-                                        {neckAngle !== null ? `${neckAngle}°` : '--'}
-                                    </span>
-                                    <span className={`text-[9px] uppercase tracking-wider font-mono ${neckInfo.textClass}`}>
-                                        {neckInfo.status}
-                                    </span>
-                                </div>
-                                {/* Trunk Angle */}
-                                <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all duration-300 ${trunkInfo.colorClass}`}>
-                                    <span className="text-[9px] font-mono font-medium opacity-60">Tronco</span>
-                                    <span className={`text-xs font-bold font-mono ${trunkInfo.valColorClass}`}>
-                                        {trunkAngle !== null ? `${trunkAngle}°` : '--'}
-                                    </span>
-                                    <span className={`text-[9px] uppercase tracking-wider font-mono ${trunkInfo.textClass}`}>
-                                        {trunkInfo.status}
-                                    </span>
-                                </div>
-                                {/* Arm Angle */}
-                                <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all duration-300 ${armInfo.colorClass}`}>
-                                    <span className="text-[9px] font-mono font-medium opacity-60">Brazo</span>
-                                    <span className={`text-xs font-bold font-mono ${armInfo.valColorClass}`}>
-                                        {armAngle !== null ? `${armAngle}°` : '--'}
-                                    </span>
-                                    <span className={`text-[9px] uppercase tracking-wider font-mono ${armInfo.textClass}`}>
-                                        {armInfo.status}
-                                    </span>
-                                </div>
-                                {/* Elbow Angle */}
-                                <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all duration-300 ${elbowInfo.colorClass}`}>
-                                    <span className="text-[9px] font-mono font-medium opacity-60">Codo</span>
-                                    <span className={`text-xs font-bold font-mono ${elbowInfo.valColorClass}`}>
-                                        {elbowAngle !== null ? `${elbowAngle}°` : '--'}
-                                    </span>
-                                    <span className={`text-[9px] uppercase tracking-wider font-mono ${elbowInfo.textClass}`}>
-                                        {elbowInfo.status}
-                                    </span>
-                                </div>
-                                {/* Knee Angle */}
-                                <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all duration-300 ${kneeInfo.colorClass}`}>
-                                    <span className="text-[9px] font-mono font-medium opacity-60">Rodilla</span>
-                                    <span className={`text-xs font-bold font-mono ${kneeInfo.valColorClass}`}>
-                                        {kneeAngle !== null ? `${kneeAngle}°` : '--'}
-                                    </span>
-                                    <span className={`text-[9px] uppercase tracking-wider font-mono ${kneeInfo.textClass}`}>
-                                        {kneeInfo.status}
-                                    </span>
-                                </div>
+
+                            {/* Ergonomic Multi-Phase Selector */}
+                            <div className="flex items-center gap-0.5 sm:gap-1 bg-white/5 border border-white/10 rounded-lg sm:rounded-xl p-0.5 sm:p-1">
+                                {activeProtocol.phases.map((p, idx) => (
+                                    <button
+                                        key={p.id}
+                                        type="button"
+                                        onClick={() => setCurrentPhaseIndex(idx)}
+                                        className={`px-1.5 sm:px-2.5 py-0.5 rounded text-[8px] sm:text-[9px] font-mono transition-all duration-200 ${
+                                            currentPhaseIndex === idx 
+                                                ? 'bg-cyan-500 text-black font-bold shadow-md shadow-cyan-500/30' 
+                                                : 'text-white/60 hover:text-white hover:bg-white/10'
+                                        }`}
+                                        title={p.desc}
+                                    >
+                                        <span className="sm:hidden">{`F${idx + 1}: ${p.shortName.replace(/Fase\s*\d+:\s*/i, '')}`}</span>
+                                        <span className="hidden sm:inline">{p.shortName}</span>
+                                    </button>
+                                ))}
                             </div>
                         </div>
-                    ) : (
-                        <div className="absolute top-4 left-4 right-4 z-40 bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl p-3 shadow-2xl flex flex-wrap gap-2 md:gap-4 justify-between items-center transition-all animate-in fade-in duration-300">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <span className="w-2.5 h-2.5 rounded-full animate-pulse" style={{ backgroundColor: activeProtocol.accentColor }}></span>
-                                <span className="text-[10px] md:text-xs font-mono font-bold uppercase tracking-wider text-white">
-                                    {activeProtocol.badgeText}
+
+                        {/* Fila 2: Ángulos Articulares Compactos (1 fila con scroll horizontal suave en móvil) */}
+                        <div className="flex items-center gap-1.5 sm:gap-2.5 overflow-x-auto no-scrollbar py-0.5">
+                            {/* Neck Angle */}
+                            <div className={`flex shrink-0 items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-lg sm:rounded-xl border transition-all duration-300 ${neckInfo.colorClass}`}>
+                                <span className="text-[8px] sm:text-[9px] font-mono font-medium opacity-60">Cuello</span>
+                                <span className={`text-[10px] sm:text-xs font-bold font-mono ${neckInfo.valColorClass}`}>
+                                    {neckAngle !== null ? `${neckAngle}°` : '--'}
                                 </span>
-                                <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/10 border border-white/20 text-white/90 font-mono font-semibold">
-                                    {activeProtocol.methodLabel} ({activeProtocol.normRef})
+                                <span className={`text-[8px] sm:text-[9px] uppercase tracking-wider font-mono ${neckInfo.textClass}`}>
+                                    {neckInfo.status}
                                 </span>
-                                {/* Perspective Badge */}
-                                <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 font-mono font-semibold flex items-center gap-1">
-                                    <UserCheck className="w-3 h-3 text-emerald-400" />
-                                    {capturePerspective}
-                                </span>
-                                {/* Specialized Multi-Phase Selector */}
-                                <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1">
-                                    {activeProtocol.phases.map((p, idx) => (
-                                        <button
-                                            key={p.id}
-                                            onClick={() => setCurrentPhaseIndex(idx)}
-                                            className={`px-2.5 py-1 rounded-lg text-[9px] font-mono transition-all duration-200 ${
-                                                currentPhaseIndex === idx 
-                                                    ? 'text-black font-bold shadow-md' 
-                                                    : 'text-white/60 hover:text-white hover:bg-white/10'
-                                            }`}
-                                            style={currentPhaseIndex === idx ? { backgroundColor: activeProtocol.accentColor, color: '#000' } : {}}
-                                            title={p.desc}
-                                        >
-                                            {p.shortName}
-                                        </button>
-                                    ))}
-                                </div>
                             </div>
-                            <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-xl bg-white/5 border border-white/10">
-                                <span className="text-[9px] font-mono text-white/50 uppercase tracking-wider">Enfoque:</span>
-                                <span className="text-[10px] font-mono text-white font-medium">
-                                    {currentPhase.focus}
+                            {/* Trunk Angle */}
+                            <div className={`flex shrink-0 items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-lg sm:rounded-xl border transition-all duration-300 ${trunkInfo.colorClass}`}>
+                                <span className="text-[8px] sm:text-[9px] font-mono font-medium opacity-60">Tronco</span>
+                                <span className={`text-[10px] sm:text-xs font-bold font-mono ${trunkInfo.valColorClass}`}>
+                                    {trunkAngle !== null ? `${trunkAngle}°` : '--'}
+                                </span>
+                                <span className={`text-[8px] sm:text-[9px] uppercase tracking-wider font-mono ${trunkInfo.textClass}`}>
+                                    {trunkInfo.status}
+                                </span>
+                            </div>
+                            {/* Arm Angle */}
+                            <div className={`flex shrink-0 items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-lg sm:rounded-xl border transition-all duration-300 ${armInfo.colorClass}`}>
+                                <span className="text-[8px] sm:text-[9px] font-mono font-medium opacity-60">Brazo</span>
+                                <span className={`text-[10px] sm:text-xs font-bold font-mono ${armInfo.valColorClass}`}>
+                                    {armAngle !== null ? `${armAngle}°` : '--'}
+                                </span>
+                                <span className={`text-[8px] sm:text-[9px] uppercase tracking-wider font-mono ${armInfo.textClass}`}>
+                                    {armInfo.status}
+                                </span>
+                            </div>
+                            {/* Elbow Angle */}
+                            <div className={`flex shrink-0 items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-lg sm:rounded-xl border transition-all duration-300 ${elbowInfo.colorClass}`}>
+                                <span className="text-[8px] sm:text-[9px] font-mono font-medium opacity-60">Codo</span>
+                                <span className={`text-[10px] sm:text-xs font-bold font-mono ${elbowInfo.valColorClass}`}>
+                                    {elbowAngle !== null ? `${elbowAngle}°` : '--'}
+                                </span>
+                                <span className={`text-[8px] sm:text-[9px] uppercase tracking-wider font-mono ${elbowInfo.textClass}`}>
+                                    {elbowInfo.status}
+                                </span>
+                            </div>
+                            {/* Knee Angle */}
+                            <div className={`flex shrink-0 items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-lg sm:rounded-xl border transition-all duration-300 ${kneeInfo.colorClass}`}>
+                                <span className="text-[8px] sm:text-[9px] font-mono font-medium opacity-60">Rodilla</span>
+                                <span className={`text-[10px] sm:text-xs font-bold font-mono ${kneeInfo.valColorClass}`}>
+                                    {kneeAngle !== null ? `${kneeAngle}°` : '--'}
+                                </span>
+                                <span className={`text-[8px] sm:text-[9px] uppercase tracking-wider font-mono ${kneeInfo.textClass}`}>
+                                    {kneeInfo.status}
                                 </span>
                             </div>
                         </div>
-                    )
+                    </div>
                 )}
 
                 {/* ── Video Background ── */}
@@ -1587,16 +1538,6 @@ const VoiceModal: FC<VoiceModalProps> = ({
                             className="absolute inset-0 w-full h-full object-cover z-10 pointer-events-none"
                             style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
                         />
-                    )}
-
-                    {/* Zoom Button */}
-                    {isCameraOn && (
-                        <button
-                            onClick={() => setZoom(z => z === 1 ? 2 : z === 2 ? 3 : 1)}
-                            className="absolute bottom-24 right-4 sm:bottom-28 sm:right-6 z-40 bg-black/45 hover:bg-black/65 backdrop-blur-md border border-white/10 rounded-full w-10 h-10 flex items-center justify-center shadow-lg text-white font-mono text-[10px] font-bold pointer-events-auto transition-all active:scale-95"
-                        >
-                            {zoom}x
-                        </button>
                     )}
 
                     {/* Camera Flash Overlay */}
@@ -1679,16 +1620,18 @@ const VoiceModal: FC<VoiceModalProps> = ({
                         {/* Camera Shutter Button */}
                         {(isCameraOn || isScreenSharing) && (
                             <TooltipAnchor
-                                description={`Capturar ${currentPhase.name} (${capturePerspective})`}
+                                description={isBiomechanicsAgent ? `Capturar ${currentPhase.name} (${capturePerspective})` : 'Capturar foto de evidencia'}
                                 render={
                                     <button
                                         onClick={handleManualCapture}
                                         className="relative p-2.5 sm:p-4 rounded-full bg-emerald-500 text-white hover:bg-emerald-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all duration-300 transform active:scale-90 border border-emerald-400/30"
                                     >
                                         <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
-                                        <span className="absolute -top-1 -right-1 bg-black/80 text-cyan-300 text-[8px] font-mono font-bold px-1 rounded-full border border-cyan-500/50">
-                                            {currentPhaseIndex + 1}/{activeProtocol.phases.length}
-                                        </span>
+                                        {isBiomechanicsAgent && (
+                                            <span className="absolute -top-1 -right-1 bg-black/80 text-cyan-300 text-[8px] font-mono font-bold px-1 rounded-full border border-cyan-500/50">
+                                                {currentPhaseIndex + 1}/{activeProtocol.phases.length}
+                                            </span>
+                                        )}
                                     </button>
                                 }
                             />
