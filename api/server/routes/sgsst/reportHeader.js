@@ -45,28 +45,280 @@ function buildStandardHeader({ title, companyInfo, date, norm, riskLevel, respon
   }
 
   return `
-<!-- Contenedor del Encabezado Premium Tipo Banner (Imagen 4) -->
-<div style="background: linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #0ea5e9 100%); padding: 18px 24px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(13, 148, 136, 0.15), 0 8px 10px -6px rgba(13, 148, 136, 0.15); font-family: sans-serif; display: flex; align-items: center; gap: 20px; box-sizing: border-box; width: 100%; border: none; outline: none; page-break-inside: avoid;">
+<style id="__wappy_report_responsive_styles__">
+  /* Sistema de Encabezados y Tablas Corporativas WAPPY SG-SST (100% Responsive) */
+  .wappy-standard-header-banner {
+    background: linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #0ea5e9 100%);
+    padding: 18px 24px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 10px 25px -5px rgba(13, 148, 136, 0.15), 0 8px 10px -6px rgba(13, 148, 136, 0.15);
+    font-family: sans-serif;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    box-sizing: border-box;
+    width: 100%;
+    border: none;
+    outline: none;
+    page-break-inside: avoid;
+  }
+  .wappy-header-logo-container {
+    background-color: #ffffff;
+    padding: 8px;
+    border-radius: 14px;
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+    border: 1px solid rgba(255,255,255,0.2);
+    box-sizing: border-box;
+    overflow: hidden;
+    flex-shrink: 0;
+    order: 1;
+  }
+  .wappy-header-title-box {
+    flex-grow: 1;
+    min-width: 0;
+    text-align: left;
+    order: 2;
+    box-sizing: border-box;
+  }
+  .wappy-header-title-box h1 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 850;
+    color: #ffffff;
+    text-transform: uppercase;
+    line-height: 1.25;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.15);
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+  .wappy-header-title-box p {
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+  .wappy-header-badge-container {
+    background-color: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 9999px;
+    padding: 6px 16px;
+    white-space: nowrap;
+    box-sizing: border-box;
+    align-self: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    order: 3;
+  }
+  
+  /* Media Query Móvil para Pantallas Celular (<= 640px) */
+  @media (max-width: 640px) {
+    .wappy-standard-header-banner {
+      display: grid !important;
+      grid-template-columns: auto 1fr auto !important;
+      grid-template-areas:
+        "logo . badge"
+        "title title title" !important;
+      gap: 12px 10px !important;
+      padding: 14px 16px !important;
+      border-radius: 16px !important;
+      align-items: center !important;
+    }
+    .wappy-header-logo-container {
+      grid-area: logo !important;
+      width: 46px !important;
+      height: 46px !important;
+      min-width: 46px !important;
+      padding: 6px !important;
+      border-radius: 12px !important;
+    }
+    .wappy-header-logo-container img {
+      max-height: 32px !important;
+      max-width: 70px !important;
+    }
+    .wappy-header-badge-container {
+      grid-area: badge !important;
+      justify-self: end !important;
+      padding: 4px 10px !important;
+      border-radius: 9999px !important;
+    }
+    .wappy-header-badge-container span {
+      font-size: 8px !important;
+      letter-spacing: 0.3px !important;
+    }
+    .wappy-header-title-box {
+      grid-area: title !important;
+      width: 100% !important;
+      min-width: 0 !important;
+      margin-top: 4px !important;
+    }
+    .wappy-header-title-box h1 {
+      font-size: 13.5px !important;
+      line-height: 1.3 !important;
+      word-break: break-word !important;
+      overflow-wrap: break-word !important;
+    }
+    
+    /* Tablas Corporativas Adaptativas en Celular */
+    .wappy-entity-table, .wappy-worker-table {
+      display: block !important;
+      width: 100% !important;
+      table-layout: auto !important;
+      border-radius: 12px !important;
+      overflow: hidden !important;
+    }
+    .wappy-entity-table thead, .wappy-entity-table tbody,
+    .wappy-worker-table thead, .wappy-worker-table tbody {
+      display: block !important;
+      width: 100% !important;
+    }
+    .wappy-entity-table thead tr, .wappy-worker-table thead tr {
+      display: block !important;
+      width: 100% !important;
+    }
+    .wappy-entity-table thead th, .wappy-worker-table thead th {
+      display: block !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+      padding: 8px 12px !important;
+      font-size: 10px !important;
+      text-align: center !important;
+      white-space: normal !important;
+      word-break: normal !important;
+      line-height: 1.35 !important;
+    }
+    .wappy-entity-table tbody tr {
+      display: grid !important;
+      grid-template-columns: 105px 1fr !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+      border-bottom: 1px solid #e2e8f0 !important;
+    }
+    .wappy-worker-table tbody tr {
+      display: grid !important;
+      grid-template-columns: 125px 1fr !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+      border-bottom: 1px solid #ccfbf1 !important;
+    }
+    .wappy-entity-table tbody tr:last-child,
+    .wappy-worker-table tbody tr:last-child {
+      border-bottom: none !important;
+    }
+    .wappy-entity-table tbody td,
+    .wappy-worker-table tbody td {
+      display: block !important;
+      box-sizing: border-box !important;
+      padding: 6px 10px !important;
+      font-size: 10.5px !important;
+      line-height: 1.3 !important;
+      width: auto !important;
+      word-break: break-word !important;
+      border: none !important;
+    }
+    .wappy-entity-table tbody td:nth-child(1) {
+      font-weight: 700 !important;
+      background-color: #f8fafc !important;
+      color: #334155 !important;
+      border-right: 1px solid #e2e8f0 !important;
+      border-bottom: 1px solid #e2e8f0 !important;
+    }
+    .wappy-worker-table tbody td:nth-child(1) {
+      font-weight: 700 !important;
+      background-color: #f0fdfa !important;
+      color: #0f766e !important;
+      border-right: 1px solid #ccfbf1 !important;
+      border-bottom: 1px solid #ccfbf1 !important;
+    }
+    .wappy-entity-table tbody td:nth-child(2) {
+      background-color: #ffffff !important;
+      border-bottom: 1px solid #e2e8f0 !important;
+    }
+    .wappy-worker-table tbody td:nth-child(2) {
+      background-color: #ffffff !important;
+      border-bottom: 1px solid #ccfbf1 !important;
+    }
+    .wappy-entity-table tbody td:nth-child(3) {
+      font-weight: 700 !important;
+      background-color: #f8fafc !important;
+      color: #334155 !important;
+      border-right: 1px solid #e2e8f0 !important;
+    }
+    .wappy-worker-table tbody td:nth-child(3) {
+      font-weight: 700 !important;
+      background-color: #f0fdfa !important;
+      color: #0f766e !important;
+      border-right: 1px solid #ccfbf1 !important;
+    }
+    .wappy-entity-table tbody td:nth-child(4),
+    .wappy-worker-table tbody td:nth-child(4) {
+      background-color: #ffffff !important;
+    }
+    .wappy-entity-table tbody td[colspan="3"],
+    .wappy-worker-table tbody td[colspan="3"] {
+      grid-column: 2 / -1 !important;
+      border-bottom: none !important;
+    }
+    .wappy-entity-table tbody tr:has(td[colspan="3"]) td:nth-child(1),
+    .wappy-worker-table tbody tr:has(td[colspan="3"]) td:nth-child(1) {
+      border-bottom: none !important;
+    }
+    
+    /* Bloques de Firmas Adaptativas */
+    .wappy-signature-table, .wappy-signature-table tbody, .wappy-signature-table tr {
+      display: block !important;
+      width: 100% !important;
+    }
+    .wappy-signature-table td {
+      display: block !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+      padding: 12px 6px !important;
+    }
+    .wappy-committee-table, .wappy-committee-table tbody, .wappy-committee-table tr {
+      display: block !important;
+      width: 100% !important;
+    }
+    .wappy-committee-table td {
+      display: block !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+      padding: 6px 0 !important;
+    }
+  }
+</style>
+
+<!-- Contenedor del Encabezado Premium Tipo Banner (Responsive) -->
+<div class="wappy-standard-header-banner" style="background: linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #0ea5e9 100%); padding: 18px 24px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(13, 148, 136, 0.15), 0 8px 10px -6px rgba(13, 148, 136, 0.15); font-family: sans-serif; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; box-sizing: border-box; width: 100%; border: none; outline: none; page-break-inside: avoid;">
   <!-- Logo -->
-  <div style="background-color: #ffffff; padding: 8px; border-radius: 14px; width: 56px; height: 56px; min-width: 56px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.2); box-sizing: border-box; overflow: hidden;">
+  <div class="wappy-header-logo-container" style="background-color: #ffffff; padding: 8px; border-radius: 14px; width: 56px; height: 56px; min-width: 56px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.2); box-sizing: border-box; overflow: hidden; flex-shrink: 0;">
     ${logoHtml}
   </div>
   
   <!-- Título y Subtítulos -->
-  <div style="flex-grow: 1; min-width: 0; text-align: left;">
-    <h1 style="margin: 0; font-size: 16px; font-weight: 850; color: #ffffff; text-transform: uppercase; line-height: 1.25; letter-spacing: 0.5px; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+  <div class="wappy-header-title-box" style="flex-grow: 1; min-width: 200px; text-align: left; box-sizing: border-box;">
+    <h1 style="margin: 0; font-size: 16px; font-weight: 850; color: #ffffff; text-transform: uppercase; line-height: 1.25; letter-spacing: 0.5px; text-shadow: 0 1px 2px rgba(0,0,0,0.15); word-break: break-word; overflow-wrap: break-word;">
       ${title}${ci.companyName && !title.toLowerCase().includes(ci.companyName.toLowerCase()) ? ` - ${ci.companyName}` : ''}
     </h1>
-    <p style="margin: 4px 0 0; font-size: 9px; color: rgba(255,255,255,0.9); font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px;">
+    <p style="margin: 4px 0 0; font-size: 9px; color: rgba(255,255,255,0.9); font-weight: 700; text-transform: uppercase; letter-spacing: 0.75px; word-break: break-word;">
       SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO
     </p>
-    <p style="margin: 2px 0 0; font-size: 8px; color: rgba(255,255,255,0.75); font-style: italic; font-weight: 500;">
+    <p style="margin: 2px 0 0; font-size: 8px; color: rgba(255,255,255,0.75); font-style: italic; font-weight: 500; word-break: break-word;">
       Documento Corporativo Oficial - Conforme a la Normatividad Vigente
     </p>
   </div>
   
   <!-- Badge Pill -->
-  <div style="background-color: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 9999px; padding: 6px 16px; white-space: nowrap; box-sizing: border-box; align-self: center; display: flex; align-items: center; justify-content: center;">
+  <div class="wappy-header-badge-container" style="background-color: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 9999px; padding: 6px 16px; white-space: nowrap; box-sizing: border-box; align-self: center; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
     <span style="font-size: 9px; font-weight: bold; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px;">
       PROCESO: SG-SST | V.02
     </span>
@@ -75,10 +327,10 @@ function buildStandardHeader({ title, companyInfo, date, norm, riskLevel, respon
 
 <!-- Tabla Resumen de la Entidad (Estilizada y Limpia) -->
 <div class="table-responsive custom-table-scroll" style="margin-bottom: 24px; font-family: sans-serif; overflow-x: auto; width: 100%; box-sizing: border-box; page-break-inside: avoid;">
-  <table style="width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; background-color: #ffffff;">
+  <table class="wappy-entity-table" style="width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; background-color: #ffffff;">
     <thead>
       <tr>
-        <th colspan="4" style="background: linear-gradient(90deg, #0f766e, #0d9488); color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: center; border: none;">
+        <th colspan="4" style="background: linear-gradient(90deg, #0f766e, #0d9488); color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: center; border: none; white-space: normal; line-height: 1.35;">
           INFORMACIÓN RESUMIDA DE LA ENTIDAD
         </th>
       </tr>
@@ -187,7 +439,7 @@ function buildSignatureSection(companyInfo, worker = null) {
 
   let html = `
 <div style="margin-top: 50px; page-break-inside: avoid;">
-    <table style="${tableStyle}">
+    <table class="wappy-signature-table" style="${tableStyle}">
         <tr>`;
 
   if (isSamePerson) {
@@ -274,10 +526,10 @@ function buildWorkerSubHeader({ workerName, workerId, cargo, actividad, evaluati
   return `
 <!-- Sub-Encabezado Oficial: Ficha Técnica y Caracterización del Puesto (EPT) -->
 <div class="table-responsive custom-table-scroll" style="margin-bottom: 22px; font-family: sans-serif; width: 100%; box-sizing: border-box; page-break-inside: avoid;">
-  <table style="width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1.5px solid #0f766e; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.04);">
+  <table class="wappy-worker-table" style="width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1.5px solid #0f766e; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.04);">
     <thead>
       <tr>
-        <th colspan="4" style="background: linear-gradient(90deg, #0f766e, #14b8a6); color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.75px; padding: 9px 14px; text-align: left; border: none;">
+        <th colspan="4" style="background: linear-gradient(90deg, #0f766e, #14b8a6); color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.75px; padding: 9px 14px; text-align: left; border: none; white-space: normal; line-height: 1.35;">
           📋 CARACTERIZACIÓN DEL PUESTO Y TRABAJADOR EVALUADO (EPT - RES. 2400 / ISO 11226)
         </th>
       </tr>
@@ -407,7 +659,7 @@ function buildCommitteeSignatureSection({ asistentes = [], companyInfo = {}, tip
     </div>
   </div>
 
-  <table style="width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed;">
+  <table class="wappy-committee-table" style="width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed;">
     <tbody>
       ${cardsHtml}
     </tbody>

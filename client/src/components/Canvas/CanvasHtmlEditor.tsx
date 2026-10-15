@@ -219,7 +219,7 @@ function preparePreviewHtml(html: string, isForDownload: boolean = false): strin
     max-width: 100%;
   }
 
-  /* ── 2. Banner Superior WAPPY (Degradado Esmeralda/Cyan) ── */
+  /* ── 2. Banner Superior WAPPY (Degradado Esmeralda/Cyan & Banner Institucional) ── */
   .gradient-banner {
     background: linear-gradient(135deg, #0d9488 0%, #06b6d4 100%) !important;
     color: #ffffff !important;
@@ -262,6 +262,205 @@ function preparePreviewHtml(html: string, isForDownload: boolean = false): strin
     color: #a5f3fc !important;
   }
 
+  /* Banner Oficial Institucional de Informes (wappy-standard-header-banner) */
+  .wappy-standard-header-banner {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 20px !important;
+  }
+  .wappy-header-logo-container {
+    flex-shrink: 0 !important;
+    order: 1 !important;
+  }
+  .wappy-header-title-box {
+    flex-grow: 1 !important;
+    min-width: 0 !important;
+    order: 2 !important;
+  }
+  .wappy-header-badge-container {
+    flex-shrink: 0 !important;
+    order: 3 !important;
+  }
+
+  @media (max-width: 640px) {
+    .wappy-standard-header-banner {
+      display: grid !important;
+      grid-template-columns: auto 1fr auto !important;
+      grid-template-areas:
+        "logo . badge"
+        "title title title" !important;
+      gap: 12px 10px !important;
+      padding: 14px 16px !important;
+      border-radius: 16px !important;
+      align-items: center !important;
+    }
+    .wappy-header-logo-container {
+      grid-area: logo !important;
+      width: 46px !important;
+      height: 46px !important;
+      min-width: 46px !important;
+      padding: 6px !important;
+      border-radius: 12px !important;
+    }
+    .wappy-header-logo-container img {
+      max-height: 32px !important;
+      max-width: 70px !important;
+    }
+    .wappy-header-badge-container {
+      grid-area: badge !important;
+      justify-self: end !important;
+      padding: 4px 10px !important;
+      border-radius: 9999px !important;
+    }
+    .wappy-header-badge-container span {
+      font-size: 8px !important;
+      letter-spacing: 0.3px !important;
+    }
+    .wappy-header-title-box {
+      grid-area: title !important;
+      width: 100% !important;
+      min-width: 0 !important;
+      margin-top: 4px !important;
+    }
+    .wappy-header-title-box h1 {
+      font-size: 13.5px !important;
+      line-height: 1.3 !important;
+      word-break: break-word !important;
+      overflow-wrap: break-word !important;
+    }
+
+    /* Tablas Corporativas Adaptativas en Celular */
+    .wappy-entity-table, .wappy-worker-table {
+      display: block !important;
+      width: 100% !important;
+      table-layout: auto !important;
+      border-radius: 12px !important;
+      overflow: hidden !important;
+    }
+    .wappy-entity-table thead, .wappy-entity-table tbody,
+    .wappy-worker-table thead, .wappy-worker-table tbody {
+      display: block !important;
+      width: 100% !important;
+    }
+    .wappy-entity-table thead tr, .wappy-worker-table thead tr {
+      display: block !important;
+      width: 100% !important;
+    }
+    .wappy-entity-table thead th, .wappy-worker-table thead th {
+      display: block !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+      padding: 8px 12px !important;
+      font-size: 10px !important;
+      text-align: center !important;
+      white-space: normal !important;
+      word-break: normal !important;
+      line-height: 1.35 !important;
+    }
+    .wappy-entity-table tbody tr {
+      display: grid !important;
+      grid-template-columns: 105px 1fr !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+      border-bottom: 1px solid #e2e8f0 !important;
+    }
+    .wappy-worker-table tbody tr {
+      display: grid !important;
+      grid-template-columns: 125px 1fr !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+      border-bottom: 1px solid #ccfbf1 !important;
+    }
+    .wappy-entity-table tbody tr:last-child,
+    .wappy-worker-table tbody tr:last-child {
+      border-bottom: none !important;
+    }
+    .wappy-entity-table tbody td,
+    .wappy-worker-table tbody td {
+      display: block !important;
+      box-sizing: border-box !important;
+      padding: 6px 10px !important;
+      font-size: 10.5px !important;
+      line-height: 1.3 !important;
+      width: auto !important;
+      word-break: break-word !important;
+      border: none !important;
+    }
+    .wappy-entity-table tbody td:nth-child(1) {
+      font-weight: 700 !important;
+      background-color: #f8fafc !important;
+      color: #334155 !important;
+      border-right: 1px solid #e2e8f0 !important;
+      border-bottom: 1px solid #e2e8f0 !important;
+    }
+    .wappy-worker-table tbody td:nth-child(1) {
+      font-weight: 700 !important;
+      background-color: #f0fdfa !important;
+      color: #0f766e !important;
+      border-right: 1px solid #ccfbf1 !important;
+      border-bottom: 1px solid #ccfbf1 !important;
+    }
+    .wappy-entity-table tbody td:nth-child(2) {
+      background-color: #ffffff !important;
+      border-bottom: 1px solid #e2e8f0 !important;
+    }
+    .wappy-worker-table tbody td:nth-child(2) {
+      background-color: #ffffff !important;
+      border-bottom: 1px solid #ccfbf1 !important;
+    }
+    .wappy-entity-table tbody td:nth-child(3) {
+      font-weight: 700 !important;
+      background-color: #f8fafc !important;
+      color: #334155 !important;
+      border-right: 1px solid #e2e8f0 !important;
+    }
+    .wappy-worker-table tbody td:nth-child(3) {
+      font-weight: 700 !important;
+      background-color: #f0fdfa !important;
+      color: #0f766e !important;
+      border-right: 1px solid #ccfbf1 !important;
+    }
+    .wappy-entity-table tbody td:nth-child(4),
+    .wappy-worker-table tbody td:nth-child(4) {
+      background-color: #ffffff !important;
+    }
+    .wappy-entity-table tbody td[colspan="3"],
+    .wappy-worker-table tbody td[colspan="3"] {
+      grid-column: 2 / -1 !important;
+      border-bottom: none !important;
+    }
+    .wappy-entity-table tbody tr:has(td[colspan="3"]) td:nth-child(1),
+    .wappy-worker-table tbody tr:has(td[colspan="3"]) td:nth-child(1) {
+      border-bottom: none !important;
+    }
+    
+    /* Bloques de Firmas Adaptativas */
+    .wappy-signature-table, .wappy-signature-table tbody, .wappy-signature-table tr {
+      display: block !important;
+      width: 100% !important;
+    }
+    .wappy-signature-table td {
+      display: block !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+      padding: 12px 6px !important;
+    }
+    .wappy-committee-table, .wappy-committee-table tbody, .wappy-committee-table tr {
+      display: block !important;
+      width: 100% !important;
+    }
+    .wappy-committee-table td {
+      display: block !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+      padding: 6px 0 !important;
+    }
+  }
+
   /* ── 3. Tarjetas, Paneles y Contenedores ── */
   .bg-slate-900\\/60, .glass-card, [class*="bg-slate-900"], [class*="bg-slate-950"] {
     background-color: ${isDarkDocument ? 'rgba(15, 23, 42, 0.75)' : '#ffffff'} !important;
@@ -279,13 +478,13 @@ function preparePreviewHtml(html: string, isForDownload: boolean = false): strin
     width: 100% !important;
     max-width: 100% !important;
   }
-  table {
+  table:not(.wappy-entity-table):not(.wappy-worker-table):not(.wappy-signature-table):not(.wappy-committee-table) {
     width: 100% !important;
     border-collapse: collapse !important;
     font-size: 0.875rem !important;
     text-align: left !important;
   }
-  th {
+  th:not(.wappy-entity-table th):not(.wappy-worker-table th) {
     background-color: ${isDarkDocument ? 'rgba(30, 41, 59, 0.85)' : '#f1f5f9'} !important;
     color: ${isDarkDocument ? '#94a3b8' : '#475569'} !important;
     font-weight: 700 !important;
@@ -295,10 +494,17 @@ function preparePreviewHtml(html: string, isForDownload: boolean = false): strin
     padding: 0.75rem 1rem !important;
     border-bottom: 2px solid ${isDarkDocument ? 'rgba(51, 65, 85, 0.8)' : '#cbd5e1'} !important;
   }
-  td {
+  td:not(.wappy-entity-table td):not(.wappy-worker-table td):not(.wappy-signature-table td):not(.wappy-committee-table td) {
     padding: 0.75rem 1rem !important;
     border-bottom: 1px solid ${isDarkDocument ? 'rgba(51, 65, 85, 0.4)' : '#e2e8f0'} !important;
     color: ${isDarkDocument ? '#e2e8f0' : '#1e293b'} !important;
+  }
+  @media (max-width: 640px) {
+    th:not(.wappy-entity-table th):not(.wappy-worker-table th),
+    td:not(.wappy-entity-table td):not(.wappy-worker-table td):not(.wappy-signature-table td):not(.wappy-committee-table td) {
+      padding: 0.5rem 0.6rem !important;
+      font-size: 0.75rem !important;
+    }
   }
 
   /* ── 5. Controles de Formulario Móviles (Evitar aspecto crudo de iOS/Safari) ── */

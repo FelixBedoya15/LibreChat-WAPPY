@@ -6257,9 +6257,10 @@ En la sección "4.1 Matriz Ergonómica Comparativa Multifase", en la columna "Te
                 }
             }
 
-            const finalWrappedHtml = `<div class="report-container" style="font-family:'Segoe UI',Arial,sans-serif; max-width:900px; margin:0 auto; color:#111827;">
+            const finalWrappedHtml = `<div class="report-container" style="font-family:'Segoe UI',Arial,sans-serif; max-width:900px; width:100%; box-sizing:border-box; overflow-x:hidden; margin:0 auto; color:#111827;">
 ${kpiDiv}
 <style>
+@media (max-width: 640px) { .report-container { padding: 0 4px !important; } }
 .ai-report-content h2, .ai-report-content h3 { color: #0f766e; margin-top: 24px; margin-bottom: 12px; font-weight: 700; border-bottom: 1px solid #ccfbf1; padding-bottom: 6px; }
 .ai-report-content p, .ai-report-content li { color: #334155; margin-bottom: 10px; font-size: 0.95em; }
 .ai-report-content .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 16px 0; border-radius: 10px; border: 1px solid #e2e8f0; }
