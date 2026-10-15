@@ -2314,8 +2314,8 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                         for (const m of reversedChronological) {
                             const role = m.role === 'user' ? 'Usuario' : 'Tenshi';
                             const cleanContent = (m.content || '').replace(/\s+/g, ' ').trim();
-                            // Preservar contenido completo (hasta 1500 caracteres por turno para no truncar ideas esenciales)
-                            const snippet = cleanContent.length > 1500 ? cleanContent.substring(0, 1500) + '...' : cleanContent;
+                            // Preservar los 10 turnos con tamaño ágil (hasta 250 caracteres por turno) para mantener memoria perfecta sin sobrecargar la inferencia de audio
+                            const snippet = cleanContent.length > 250 ? cleanContent.substring(0, 250) + '...' : cleanContent;
                             if (snippet && !snippet.startsWith('[RESULTADO_GUI]')) {
                                 let extraLabel = '';
                                 if (m.image || m.media) extraLabel = ' [con evidencia/foto de cámara]';
@@ -2509,14 +2509,14 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
             // Count audio chunks to know AI responded with voice
             this.aiAudioChunkCount++;
 
-            // Safety timeout: Reset isAiSpeaking to false if silence for 700ms (fast responsive turn transition)
+            // Safety timeout: Reset isAiSpeaking to false if silence for 1500ms (evita falsas interrupciones durante pausas naturales entre frases)
             if (this.aiSpeakingTimeout) clearTimeout(this.aiSpeakingTimeout);
             this.aiSpeakingTimeout = setTimeout(() => {
                 if (this.isAiSpeaking) {
                     logger.info('[VoiceSession] Safety reset isAiSpeaking to false after silence');
                     this.isAiSpeaking = false;
                 }
-            }, 700);
+            }, 1500);
         });
 
         // Listen for USER transcription (what the user says)

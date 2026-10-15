@@ -352,12 +352,6 @@ ${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.c
 
         const message = {
             realtimeInput: {
-                mediaChunks: [
-                    {
-                        mimeType: 'image/jpeg',
-                        data: base64Image,
-                    },
-                ],
                 video: {
                     mimeType: 'image/jpeg',
                     data: base64Image,

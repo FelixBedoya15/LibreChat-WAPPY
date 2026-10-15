@@ -686,6 +686,19 @@
      ```
   3. **Solución Implementada:** Se eliminó la declaración duplicada en `voiceSession.js`, quedando exactamente 61 herramientas únicas y verificadas con 0 duplicados.
 
+### 1.23 (15/10/2026) Latencia y Pausas en Modo Live por Sobrecarga de Tokens y Desconexión 1007 en Videollamada por mediaChunks
+- **Síntomas Reportados:**
+  1. *"Ahora Tenshi contesta muy pausado en modo live"* (pausas de 1 a 2 segundos entre palabras).
+  2. *"en video llamada ni contesta"* (desconexión inmediata del WebSocket al abrir la cámara).
+- **Causas Raíces:**
+  1. **Deprecación de `mediaChunks` en Google Multimodal Live API:** En `geminiLive.js`, en `sendVideo`, se estaba enviando `realtimeInput: { mediaChunks: [...], video: [...] }`. Google deprecó `realtime_input.media_chunks` y mataba el WebSocket de inmediato con código **1007: `realtime_input.media_chunks is deprecated. Use audio, video, or text instead.`**. Por eso al activar la cámara o videollamada Tenshi se desconectaba al instante.
+  2. **Sobrecarga de Tokens en el Handshake Inicial de Live:** En `voiceSession.js`, se inyectaron 10 mensajes del historial reciente con hasta 1,500 caracteres cada uno, inflando el prompt inicial de Gemini Live en más de 15,000 caracteres. Gemini Live (streaming de audio en tiempo real) requiere latencia ultrabaja; un prompt tan masivo satura el motor de inferencia de voz, provocando ráfagas lentas y pausas audibles entre palabras.
+  3. **Safety Reset Prematuro (700ms):** El temporizador de seguridad de 700ms en `voiceSession.js` reseteaba `isAiSpeaking` a `false` durante las pausas naturales de audio del modelo, lo que hacía que el cliente abriera el micrófono antes de tiempo y enviara interrupciones al backend.
+- **Regla y Solución Obligatoria:**
+  1. **Solo `video` en `sendVideo`:** Prohibido enviar `mediaChunks` en `realtimeInput`. Usar exclusivamente `video: { mimeType: 'image/jpeg', data: base64Image }`.
+  2. **Compactación Ágil de Historial en Live (250 caracteres por turno):** Mantener los 10 turnos de memoria que el usuario requiere, pero limitando cada turno a 250 caracteres para preservar la fluidez y baja latencia del motor de audio en tiempo real.
+  3. **Temporizador de Habla Balanceado (1500ms):** Ampliar el safety timeout a 1,500ms para evitar falsas interrupciones durante pausas naturales entre oraciones.
+
 ---
 
 ## 2. Checklist Obligatorio Pre-Commit / Pre-Despliegue
