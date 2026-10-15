@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -1051,6 +1052,17 @@ export default function TenshiChat() {
   const [voiceStatusText, setVoiceStatusText] = useState('');
   const [isGeneratingTechnicalReport, setIsGeneratingTechnicalReport] = useState(false);
   const [reportSuccessToast, setReportSuccessToast] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; title?: string } | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && lightboxImage) {
+        setLightboxImage(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightboxImage]);
   const lastActivityRef = useRef<number>(Date.now());
   const lastUserTranscriptionRef = useRef<string>('');
   const inactivityIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -4748,6 +4760,76 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         </div>
       )}
 
+      {/* 🖼️ LIGHTBOX MODAL: AMPLIAR IMAGEN IN-APP (SIN PANTALLA BLANCA) */}
+      {lightboxImage && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[99999999] flex flex-col items-center justify-between bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200 select-none"
+          onClick={() => setLightboxImage(null)}
+        >
+          {/* Barra Superior con Controles */}
+          <div
+            className="w-full max-w-4xl flex items-center justify-between gap-3 shrink-0 pt-[max(0.75rem,env(safe-area-inset-top))] z-10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 min-w-0 pr-2">
+              <span className="h-2 w-2 rounded-full bg-teal-400 shrink-0 animate-pulse" />
+              <span className="text-xs font-semibold text-slate-200 truncate max-w-[200px] sm:max-w-md">
+                {lightboxImage.title || 'Evidencia fotográfica SST'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    const safeTitle = (lightboxImage.title || 'evidencia_tenshi')
+                      .replace(/[^a-zA-Z0-9_-]/g, '_')
+                      .slice(0, 40);
+                    saveAs(lightboxImage.url, `${safeTitle}.jpg`);
+                  } catch (downloadErr) {
+                    console.error('[TenshiChat] Error al descargar imagen:', downloadErr);
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/20 shadow-md font-bold text-xs active:scale-95 transition-all"
+                title="Descargar fotografía"
+              >
+                <Download className="w-3.5 h-3.5 text-teal-400" />
+                <span className="hidden sm:inline">Descargar</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setLightboxImage(null)}
+                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/20 shadow-md active:scale-95 transition-all flex items-center justify-center"
+                title="Cerrar imagen ampliada"
+              >
+                <X className="w-5 h-5 text-slate-200 hover:text-white" />
+              </button>
+            </div>
+          </div>
+
+          {/* Contenedor Central de Imagen Ampliada */}
+          <div
+            className="flex-1 w-full max-w-4xl flex items-center justify-center p-2 min-h-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={lightboxImage.url}
+              alt={lightboxImage.title || 'Evidencia fotográfica ampliada'}
+              className="max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl border border-white/10 cursor-zoom-out"
+              onClick={() => setLightboxImage(null)}
+            />
+          </div>
+
+          {/* Pie de foto / Instrucción táctil */}
+          <div
+            className="shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))] text-center text-[11px] text-white/60 pointer-events-none"
+          >
+            Toca la imagen o el fondo para cerrar
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* 📱 1. MODO HEROICO / PANTALLA COMPLETA EN CELULAR */}
       {isMobileHeroMode ? (
         <div
@@ -5328,8 +5410,16 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                             <img
                               src={msg.image || msg.media?.dataUrl}
                               alt={msg.media?.name || "Evidencia visual"}
-                              className="max-h-60 w-full object-cover rounded-xl cursor-pointer hover:opacity-95 transition-opacity"
-                              onClick={() => window.open(msg.image || msg.media?.dataUrl, '_blank')}
+                              className="max-h-60 w-full object-cover rounded-xl cursor-zoom-in hover:opacity-95 transition-opacity active:scale-[0.99]"
+                              onClick={() => {
+                                const url = msg.image || msg.media?.dataUrl;
+                                if (url) {
+                                  const photoMatch = msg.content?.match(/\[FOTO[^\]]*\]:\s*([^\n]+)/i);
+                                  const evidenceMatch = msg.content?.match(/👁️\s*\*\*([^\*]+)\*\*/i);
+                                  const title = msg.media?.name || photoMatch?.[1] || evidenceMatch?.[1] || 'Evidencia fotográfica SST';
+                                  setLightboxImage({ url, title });
+                                }
+                              }}
                             />
                             {msg.media?.name && (
                               <div className="flex items-center justify-between px-2 py-0.5 text-[9px] text-slate-500 dark:text-zinc-400 bg-white/70 dark:bg-zinc-800/70 border-t border-slate-100 dark:border-zinc-700/60">
@@ -6051,8 +6141,16 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                                 <img
                                   src={msg.image || msg.media?.dataUrl}
                                   alt={msg.media?.name || "Evidencia visual"}
-                                  className="max-h-60 w-full object-cover rounded-xl cursor-pointer hover:opacity-95 transition-all active:scale-[0.99]"
-                                  onClick={() => window.open(msg.image || msg.media?.dataUrl, '_blank')}
+                                  className="max-h-60 w-full object-cover rounded-xl cursor-zoom-in hover:opacity-95 transition-all active:scale-[0.99]"
+                                  onClick={() => {
+                                    const url = msg.image || msg.media?.dataUrl;
+                                    if (url) {
+                                      const photoMatch = msg.content?.match(/\[FOTO[^\]]*\]:\s*([^\n]+)/i);
+                                      const evidenceMatch = msg.content?.match(/👁️\s*\*\*([^\*]+)\*\*/i);
+                                      const title = msg.media?.name || photoMatch?.[1] || evidenceMatch?.[1] || 'Evidencia fotográfica SST';
+                                      setLightboxImage({ url, title });
+                                    }
+                                  }}
                                 />
                                 {msg.media?.name && (
                                   <div className="flex items-center justify-between px-2.5 py-1 text-[10px] text-slate-500 dark:text-zinc-400 bg-white/70 dark:bg-zinc-800/70 border-t border-slate-100 dark:border-zinc-700/60">
