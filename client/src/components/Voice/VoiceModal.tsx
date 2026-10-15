@@ -6,6 +6,7 @@ import store from '~/store';
 import VoiceOrb from './VoiceOrb';
 import VoiceSelector from './VoiceSelector';
 import { useVoiceSession } from '~/hooks/useVoiceSession';
+import { useLocalize } from '~/hooks';
 import { useGetAgentByIdQuery } from '~/data-provider';
 import { useChatContext, useAgentsMapContext } from '~/Providers';
 import {
@@ -130,42 +131,51 @@ const VoiceModal: FC<VoiceModalProps> = ({
     const currentAgent = agentQueryData || cachedAgent;
 
     const isBiomechanicsAgent = useMemo(() => {
-        const explicitId = (agentId || effectiveAgentId || '').toLowerCase();
-        const agentName = (currentAgent?.name || '').toLowerCase();
-        const agentDesc = (currentAgent?.description || '').toLowerCase();
-        const agentInstructions = (currentAgent?.instructions || '').toLowerCase();
-        const convTitle = (conversation?.title || '').toLowerCase();
-        const modelStr = (model || '').toLowerCase();
+        const explicitId = (agentId || effectiveAgentId || '').toLowerCase().trim();
+        const agentName = (currentAgent?.name || '').toLowerCase().trim();
 
+        // 1. Candado negativo estricto: Consultor SG-SST y demás especialistas NUNCA son fisioterapeuta
+        if (
+            agentName.includes('consultor') ||
+            agentName.includes('auditor') ||
+            agentName.includes('profesional sst') ||
+            agentName.includes('químic') ||
+            agentName.includes('quimic') ||
+            agentName.includes('abogad') ||
+            agentName.includes('médic') ||
+            agentName.includes('medic') ||
+            agentName.includes('psicólog') ||
+            agentName.includes('psicolog') ||
+            agentName.includes('vial') ||
+            agentName.includes('pesv') ||
+            agentName.includes('emergencia') ||
+            agentName.includes('electric') ||
+            agentName.includes('ambiental') ||
+            agentName.includes('nutricion') ||
+            agentName.includes('bioseguridad') ||
+            agentName.includes('tareas críticas')
+        ) {
+            return false;
+        }
+
+        // 2. Candado positivo estricto: ÚNICAMENTE el agente Fisioterapeuta Laboral
         return (
+            explicitId === '61909a90-2a67-4dba-8e65-db0f388d46cc' ||
             explicitId === '92a03bc9-25ce-4eb9-9af4-cafcd480785a' ||
             explicitId.includes('fisioterapeuta') ||
-            explicitId.includes('biomec') ||
-            explicitId.includes('ergon') ||
-            agentName.includes('fisioterapeuta') ||
-            agentName.includes('biomec') ||
-            agentName.includes('ergon') ||
-            agentDesc.includes('fisioterapeuta') ||
-            agentDesc.includes('ergonom') ||
-            agentInstructions.includes('fisioterapeuta') ||
-            agentInstructions.includes('biomecánica') ||
-            agentInstructions.includes('biomecanica') ||
-            convTitle.includes('fisioterapeuta') ||
-            convTitle.includes('biomecánica') ||
-            convTitle.includes('estudio de puesto') ||
-            modelStr.includes('fisioterapeuta')
+            agentName.includes('fisioterapeuta')
         );
-    }, [currentAgent, agentId, effectiveAgentId, conversation?.title, model]);
+    }, [currentAgent?.name, agentId, effectiveAgentId]);
 
     // Dynamic Inspection Protocol Resolution across all WAPPY Agent Families
     const activeProtocol = useMemo<InspectionProtocol>(() => {
         if (isBiomechanicsAgent) {
             return INSPECTION_PROTOCOLS.biomecanico;
         }
-        // Prioritize explicit agent identity. NEVER let a conversation title usurp the agent's identity!
-        const candidate = currentAgent?.name || (effectiveAgentId && !/^[0-9a-f]{24}$/i.test(effectiveAgentId) && !/^[0-9a-f-]{36}$/i.test(effectiveAgentId) ? effectiveAgentId : '') || currentAgent?.description || (!effectiveAgentId ? conversation?.title : '') || '';
+        // Identidad canónica del especialista activo (NUNCA pasar descripciones ni instrucciones)
+        const candidate = currentAgent?.name || '';
         return resolveInspectionProtocol(candidate);
-    }, [isBiomechanicsAgent, currentAgent?.name, currentAgent?.description, effectiveAgentId, conversation?.title]);
+    }, [isBiomechanicsAgent, currentAgent?.name]);
 
     // Multi-Phase Inspection Protocol & Perspective States
     const [currentPhaseIndex, setCurrentPhaseIndex] = useState<number>(0);
@@ -1360,8 +1370,8 @@ const VoiceModal: FC<VoiceModalProps> = ({
         const newMuted = !isMuted;
         setIsMuted(newMuted);
         setMuted(newMuted);
-        if (status === 'speaking' && newMuted) {
-            console.log('[VoiceModal] User muted microphone during AI speech -> interrupting AI output');
+        if (newMuted && (status === 'speaking' || activeSourcesRef.current.length > 0 || isPlaying)) {
+            console.log('[VoiceModal] User muted microphone during AI speech -> interrupting AI output and clearing queue');
             sendInterrupt();
             clearAudioQueue();
         }
@@ -1376,6 +1386,12 @@ const VoiceModal: FC<VoiceModalProps> = ({
     };
 
     const handleOrbClick = () => {
+        if (status === 'speaking' || activeSourcesRef.current.length > 0 || isPlaying) {
+            console.log('[VoiceModal] User clicked orb during AI speech -> interrupting AI output');
+            sendInterrupt();
+            clearAudioQueue();
+            return;
+        }
         if (status === 'ready' || status === 'idle') {
             setShowVoiceSelector(!showVoiceSelector);
         }
@@ -1402,7 +1418,9 @@ const VoiceModal: FC<VoiceModalProps> = ({
                     <div className="absolute top-24 left-1/2 transform -translate-x-1/2 z-50 bg-black/85 backdrop-blur-xl border border-cyan-500/50 px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in zoom-in-95 duration-200">
                         <div className="w-4 h-4 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin flex-shrink-0"></div>
                         <div className="flex flex-col">
-                            <span className="text-xs font-semibold text-cyan-200">Compilando informe técnico ergonómico...</span>
+                            <span className="text-xs font-semibold text-cyan-200">
+                                {isBiomechanicsAgent ? 'Compilando informe técnico ergonómico...' : 'Compilando informe técnico SST...'}
+                            </span>
                             <span className="text-[10px] text-cyan-400/80">Estará disponible en tu chat en unos segundos</span>
                         </div>
                     </div>
@@ -1697,7 +1715,7 @@ const VoiceModal: FC<VoiceModalProps> = ({
 
                         {/* Generate Report Button */}
                         <TooltipAnchor
-                            description={isGeneratingReport ? 'Compilando informe...' : 'Generar Informe Técnico Ergonómico'}
+                            description={isGeneratingReport ? 'Compilando informe...' : (isBiomechanicsAgent ? 'Generar Informe Técnico Ergonómico' : 'Generar Informe Técnico SST')}
                             render={
                                 <button
                                     onClick={handleManualReportClick}

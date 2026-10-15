@@ -73,9 +73,9 @@ function getAgentSkillsContent(agentObj, isBiomechanics) {
         agentObj.skills.forEach(s => skillsToLoad.add(s));
     }
 
-    // Force biomechanics essential skills
+    // Force biomechanics essential skills only for Fisioterapeuta
     const name = (agentObj?.name || '').toLowerCase();
-    if (isBiomechanics || name.includes('fisio') || name.includes('biomec') || name.includes('ergon')) {
+    if (isBiomechanics || name.includes('fisio')) {
         skillsToLoad.add('skill-live-biomecanica');
         skillsToLoad.add('skill-metodologia-rosa');
         skillsToLoad.add('skill-ergonomia-owas');
@@ -7646,13 +7646,18 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
         }
 
         // Dynamic Inspection Protocol Resolution across all WAPPY Agent Families
-        const agentProtocol = resolveInspectionProtocol(agentObj?.name || config.template || (wantsBiomechanics ? 'biomecanico' : 'auditoria_gtc45'));
-        const isBiomechanics = wantsBiomechanics ||
-            (agentProtocol.id === 'biomecanico' && (
-                /biomec|fisioterapeuta|ergon|rosa|ipt/i.test(agentObj?.name || '') ||
-                /fisioterapeuta|biomec[aá]nic/i.test(agentObj?.instructions || '')
-            )) ||
-            config.template === 'biomecanico_mediapipe';
+        const rawAgentName = (agentObj?.name || '').toLowerCase();
+        const isExplicitOtherSpecialist = /consultor|auditor|qu[ií]mic|abogad|m[eé]dic|psic[oó]log|vial|pesv|emergencia|electric|ambiental|nutricion|bioseguridad|profesional\s+sst/i.test(rawAgentName);
+
+        const isBiomechanics = !isExplicitOtherSpecialist && (
+            wantsBiomechanics ||
+            config.template === 'biomecanico_mediapipe' ||
+            /fisioterapeuta/i.test(rawAgentName) ||
+            /fisioterapeuta/i.test(agentObj?.id || '')
+        );
+        const agentProtocol = isBiomechanics
+            ? INSPECTION_PROTOCOLS.biomecanico
+            : resolveInspectionProtocol(agentObj?.name || config.template || 'auditoria_gtc45');
 
         logger.info(`[VoiceSession] Live session configured with Agent: ${agentObj?.name || agentId || 'General'} (Protocol: ${agentProtocol.title}, isBiomechanics: ${isBiomechanics})`);
 

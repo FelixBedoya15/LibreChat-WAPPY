@@ -617,7 +617,38 @@
      - Al hacer click en "Generar IA" o activarse la acción, se disparan los eventos `wappy-generar-analisis-ia` y `wappy-generar-analisis-actual`.
      - `SGSSTToolbar.tsx` escucha estos eventos y ejecuta `onAnalyze()`, habilitando la generación por IA instantáneamente en todos los módulos de Somos SST.
   5. **Módulos SST Reforzados:** `PoliticaSST.tsx` y `ObjetivosSST.tsx` sincronizan su estado React directamente ante `wappy-diligenciar-formulario` y `wappy-campo-actualizado`.
-  6. **Failsafe en `voiceSession.js`:** Si Gemini omite el tool call ante "dale clic en generar IA", el backend dispara automáticamente `operar_interfaz_visual` con `{ accion: 'click', texto: 'Generar IA', detalle: 'Generar IA' }`.
+  ### 1.19 (15/10/2026) Solución a ReferenceError: useLocalize is not defined en VoiceModal
+- **Síntoma Reportado:** Al abrir el modal de voz en el chat de agentes o al montar componentes vinculados al bundle `sgsst-modules`:
+  ```json
+  "error": {
+    "message": "useLocalize is not defined",
+    "stack": [
+      { "number": 1, "content": "ReferenceError: useLocalize is not defined" },
+      { "number": 2, "content": "at nm (http://localhost:3080/assets/sgsst-modules.uau9-giT.js:1:34654)" }
+    ]
+  }
+  ```
+- **Causa Raíz:** En `client/src/components/Voice/VoiceModal.tsx:100`, se llamaba a `const localize = useLocalize();` para internacionalización de tooltips de la cámara y controles de audio, pero el hook `useLocalize` no estaba importado en la cabecera del archivo. Al empaquetar con Vite/Rollup, la referencia quedaba como variable global no definida, fallando en tiempo de ejecución.
+- **Solución Implementada:**
+  1. Se añadió `import { useLocalize } from '~/hooks';` en `client/src/components/Voice/VoiceModal.tsx`.
+  2. Se auditó todo el árbol `client/src` con un script de verificación automatizado para confirmar que ningún otro componente llame a `useLocalize` sin importación previa (100% verificado y validado).
+  3. Se ejecutó `npm run build:client` generando los bundles compilados limpios en `client/dist` y se sincronizó con el contenedor local `LibreChat`.
+
+### 1.20 (15/10/2026) Aislamiento Estricto del Fisioterapeuta Laboral y Prohibición de Inferencia Ergonómica en Especialistas (Consultor SG-SST)
+- **Síntoma Reportado:** Al abrir el modal de videollamada / Live en el chat de agentes con el **Consultor SG-SST** (`7ceade0e-ef47-4dd1-9178-cff5fe2b6e46`), la interfaz cargaba indebidamente el HUD biomecánico ("VISIÓN IA BIOMECÁNICA", "RULA", fases 1-3: Habitual, Alcance Máximo, Fatiga, telemetría articular Cuello/Tronco/Brazo/Codo/Rodilla y badge 1/3 en el botón de cámara), y la IA hablaba como Fisioterapeuta pidiendo posturas en vez de actuar como Consultor General SST.
+- **Causa Raíz:**
+  1. En MongoDB, el agente Consultor SG-SST tiene en su descripción: `"...gestión de emergencias, ergonomía, factores psicosociales..."`.
+  2. En `client/src/components/Voice/VoiceModal.tsx`, `isBiomechanicsAgent` evaluaba `agentDesc.includes('ergonom') || agentInstructions.includes('biomecánica')`. Como Consultor SG-SST menciona "ergonomía", evaluaba a `true`.
+  3. Al ser `true`, enviaba `template: 'biomecanico_mediapipe'` al backend `voiceSession.js`, donde a su vez `isBiomechanics` se activaba por la plantilla y por regex en instrucciones, forzando a la IA a asumir el rol de Fisioterapeuta.
+  4. En `inspectionProtocols.ts` y `inspectionProtocols.js`, `resolveInspectionProtocol` asociaba cualquier texto con `ergon` a `biomecanico`.
+- **Solución Definitiva Implementada:**
+  1. **Candado Negativo Estricto:** Si el nombre del agente contiene `consultor`, `auditor`, `profesional sst`, `químico`, `abogado`, `médico`, `psicólogo`, `vial`, `pesv`, `emergencia`, `electric`, `ambiental`, `nutricion`, `bioseguridad` o `tareas críticas`, `isBiomechanicsAgent` retorna `false` inmediatamente.
+  2. **Candado Positivo Exclusivo:** `isBiomechanicsAgent` SOLO es `true` si el ID o nombre coincide explícitamente con el Fisioterapeuta Laboral (`92a03bc9-25ce-4eb9-9af4-cafcd480785a`, `61909a90-2a67-4dba-8e65-db0f388d46cc` o nombre con `fisioterapeuta`). Se eliminó por completo la inspección de descripciones o instrucciones.
+  3. **Aislamiento en Backend (`voiceSession.js`):** Se añadió el candado `isExplicitOtherSpecialist`. Si es otro especialista, `isBiomechanics` NUNCA se activa. La IA recibe su rol técnico específico sin fases, sin posturas y sin RULA/REBA.
+  4. **Protocolos de Inspección:** Consultor SG-SST / Profesional SST mapean exclusivamente a `auditoria_gtc45`.
+  5. **UI Limpia para Especialistas:** El HUD biomecánico superior, el lienzo canvas y el badge de fases en el botón de cámara se ocultan completamente si no es Fisioterapeuta. El modal para Consultor SG-SST queda como una llamada limpia y pura de SST.
+  6. **Interrupción Inmediata de Audio:** En `toggleMute` y `handleOrbClick`, al mutear o tocar el orbe mientras la IA habla, se corta y limpia inmediatamente la cola de reproducción (`clearAudioQueue()` y `sendInterrupt()`).
+- **Regla Obligatoria Permanente:** **ESTÁ TERMINANTEMENTE PROHIBIDO** inferir el modo ergonómico/biomecánico a partir de descripciones o instrucciones de agentes. El modo Fisioterapeuta Laboral es **100% exclusivo** para el agente Fisioterapeuta Laboral.
 
 ---
 

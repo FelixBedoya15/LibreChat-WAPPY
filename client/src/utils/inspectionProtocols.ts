@@ -178,13 +178,15 @@ export function resolveInspectionProtocol(agentNameOrSpecialty?: string | null):
 
     const name = agentNameOrSpecialty.toLowerCase();
 
-    // 1. Biomechanics / Ergonomics / Fisioterapia
+    // Consultor SG-SST / Profesional SST / Auditor -> SIEMPRE auditoria_gtc45
+    if (name.includes('consultor') || name.includes('profesional sst') || name.includes('auditor')) {
+        return INSPECTION_PROTOCOLS.auditoria_gtc45;
+    }
+
+    // 1. Biomechanics / Ergonomics / Fisioterapia (ESTRICTAMENTE Fisioterapeuta)
     if (
         name.includes('fisioterapeuta') ||
         name.includes('biomec') ||
-        name.includes('ergon') ||
-        name.includes('rosa') ||
-        name.includes('puesto de trabajo') ||
         name.includes('rula') ||
         name.includes('reba') ||
         name.includes('owas')
