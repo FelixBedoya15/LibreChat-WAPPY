@@ -701,6 +701,27 @@
 
 ---
 
+### LECCIÓN 27 (2026-10-15): Solución al Error 'join' en Informe de Videollamada, HUD de Generación y Desambiguación Aplicativo vs Canvas
+
+- **Síntomas Reportados:**
+  1. *"Tenshi demora ahora mucho en comenzar la conversación, eso no pasaba antes"*
+  2. *"pedí generar un informe desde el video llamada y dijo que lo estaba haciendo y nunca lo envió, nunca aparece el aviso de generando informe y que luego me diga el informe se realizó"*
+  3. *"Tenshi sigo teniendo dificultades para identificar cuando le digo realiza el informe del aplicativo va genera un informe en Canva y no en el aplicativo"*
+- **Causas Raíces:**
+  1. **Error Crítico TypeError 'join' en `generateReport`:** En `voiceSession.js`, `session.agentProtocol` para Tenshi Voice se definió sin propiedad `phases` (`{ id: 'tenshi', title: 'Tenshi Orquestadora', methodLabel: 'Orquestación WAPPY' }`). Al compilar el reporte, la línea `${activeProtocol.phases.join(', ')}` lanzó `Cannot read properties of undefined (reading 'join')`, interrumpiendo abruptamente la generación antes de llamar a Gemini o guardar en base de datos.
+  2. **Falta de Manejo del Estado `generating_report` en el HUD de `TenshiChat.tsx`:** El backend emitía `status: 'generating_report'`, pero `onStatusChange` en el frontend no lo procesaba, dejando el texto en *"Tenshi te escucha..."*. Tampoco `onReportReceived` actualizaba el HUD a *"✅ Informe generado con éxito"*.
+  3. **Confusión en Tool Choice (Canvas vs Aplicativo):** La descripción de `canvas_tool` y `wappy_crear_informe` indicaba crear informes/aplicativos, provocando que Gemini Live invocara Canvas en lugar de accionar el botón *"Generar con IA"* del módulo SG-SST visible. Además, no existían interceptores deterministas en el backend para redirigir peticiones de módulos.
+  4. **Latencia de Inicialización (Startup Delay):** Durante `VoiceSession.start()`, se consultaba `PerfilSociodemograficoData` leyendo innecesariamente el censo completo de trabajadores de forma sincrónica, y se inyectaban 8.6 KB adicionales de skills ya incluidos en las instrucciones base.
+- **Regla y Solución Obligatoria:**
+  1. **Protocolo Completo y Programación Defensiva en `generateReport`:** Tenshi Voice hereda `INSPECTION_PROTOCOLS.auditoria_gtc45` con `phases` completas y `reportMatrixHeader`. Se blinda defensivamente el acceso a `activeProtocol.phases` con fallback predeterminado para garantizar que nunca vuelva a ocurrir un fallo por propiedad indefinida.
+  2. **HUD de Estado en Tiempo Real:** `TenshiChat.tsx` maneja explícitamente `'generating_report'` mostrando *"⏳ Compilando y generando informe técnico oficial..."* y al recibir el reporte muestra *"✅ Informe generado con éxito"*.
+  3. **Desambiguación Determinista Aplicativo vs Canvas:**
+     - Prohibición expresa en las descripciones de `canvas_tool` y `wappy_crear_informe` ante peticiones de módulos de pantalla (*"realiza el informe del aplicativo"*, *"haz el informe de responsable"*, etc.).
+     - Interceptores en backend en `canvas_tool`, `wappy_crear_informe` y en el fallback de delegación para redirigir automáticamente hacia `wappy_generar_analisis_aplicativo`.
+  4. **Optimización de Arranque de Sesión:** Lectura directa de `companyInfo.workerCount` sin escanear colecciones pesadas, y eliminación de inyecciones duplicadas de skills, restaurando la conexión instantánea de Tenshi Voice.
+
+---
+
 ## 2. Checklist Obligatorio Pre-Commit / Pre-Despliegue
 
 Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el chat:

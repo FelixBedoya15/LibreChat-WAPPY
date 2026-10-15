@@ -788,7 +788,7 @@ class VoiceSession {
                         },
                         {
                             name: "canvas_tool",
-                            description: "Crea archivos descargables que el usuario recibe en el chat de Tenshi (con botón de descarga) y en el lienzo Canvas: documentos Word ('text'), hojas de cálculo Excel ('excel'), aplicativos/páginas HTML interactivos ('html') o presentaciones ('presentation'). INVÓCALA siempre que el usuario pida crear, redactar, generar o entregar un documento, informe, protocolo, formato, matriz, tabla, hoja de cálculo, aplicativo, prototipo, landing page, dashboard o página. Cada invocación con accion='crear' genera un archivo NUEVO e independiente.",
+                            description: "Crea archivos descargables que el usuario recibe en el chat de Tenshi (con botón de descarga) y en el visor Canvas: documentos Word ('text'), hojas de cálculo Excel ('excel'), aplicativos/páginas HTML interactivos independientes ('html') o presentaciones ('presentation'). PROHIBICIÓN ESTRICTA: NUNCA USES canvas_tool SI EL USUARIO PIDE EL INFORME DE UN APLICATIVO, MÓDULO O PANTALLA DEL SG-SST (Responsable, Política, Objetivos, Perfiles de Cargo, Matriz Legal, Diagnóstico 0312, etc.), NI SI DICE 'realiza el informe del aplicativo', 'haz el informe de responsable' o 'generar con IA'; en esos casos DEBES usar 'wappy_generar_analisis_aplicativo' u 'operar_interfaz_visual' ({ accion: 'click', detalle: 'Generar IA' }). Usa canvas_tool únicamente cuando el usuario pida explícitamente redactar un documento externo, matriz en Excel o una landing page interactiva independiente. Cada invocación con accion='crear' genera un archivo NUEVO e independiente.",
                             parameters: {
                                 type: "object",
                                 properties: {
@@ -1295,7 +1295,7 @@ class VoiceSession {
                         },
                         {
                             name: "wappy_crear_informe",
-                            description: "Crea y genera un informe técnico oficial del SG-SST (para cualquiera de los 20 módulos o general) y lo entrega de inmediato en el chat de Tenshi con visualizador y botones de descarga (Word, Excel o HTML interactivo). INVÓCALA SIEMPRE que el usuario te pida crear, generar, redactar o entregar un informe, reporte o dictamen técnico para que lo reciba directamente en su chat sin abrir otros chats.",
+                            description: "Crea y genera un informe técnico oficial del SG-SST para entregar como documento descargable en el chat de Tenshi (Word, Excel o HTML interactivo). PROHIBICIÓN ESTRICTA: NUNCA USES esta herramienta si el usuario pide el informe de un aplicativo, módulo o pantalla del SG-SST en pantalla ('realiza el informe del aplicativo', 'haz el informe de responsable', 'generar con IA'); en esos casos DEBES usar 'wappy_generar_analisis_aplicativo' u 'operar_interfaz_visual' ({ accion: 'click', detalle: 'Generar IA' }). Úsala únicamente cuando el usuario pida redactar un documento o dictamen general para recibirlo en su chat.",
                             parameters: {
                                 type: "object",
                                 properties: {
@@ -1822,13 +1822,14 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
 
 1. CASO 1: MÓDULO DEL APLICATIVO EN PANTALLA (Somos SST / SGSST)
 - Cuándo aplica: El usuario tiene un módulo del aplicativo abierto en pantalla (/sgsst?...) o dice:
-  * "genera el informe de este módulo"
+  * "realiza el informe del aplicativo" / "haz el informe del aplicativo"
+  * "genera el informe de este módulo" / "informe de este aplicativo"
   * "haz el informe de responsable"
   * "genera la política con IA / genera los objetivos con IA"
   * "dale clic en generar IA / generar análisis"
   * "dale clic al botón de informe"
 - Acción OBLIGATORIA: INVOCA DE INMEDIATO 'operar_interfaz_visual' ({ accion: 'click', detalle: 'Generar IA', texto: 'Generar IA' }) o 'wappy_generar_analisis_aplicativo'.
-- PROHIBICIÓN: ESTÁ TERMINANTEMENTE PROHIBIDO usar 'canvas_tool' o 'generar_informe_inspeccion_camara' en este caso. El informe se genera pulsando el botón real dentro del aplicativo en pantalla.
+- PROHIBICIÓN: ESTÁ TERMINANTEMENTE PROHIBIDO usar 'canvas_tool', 'wappy_crear_informe' o 'generar_informe_inspeccion_camara' en este caso. El informe se genera pulsando el botón real dentro del aplicativo en pantalla.
 
 2. CASO 2: INSPECCIÓN FÍSICA CON CÁMARA (3 FOTOGRAFÍAS DE EVIDENCIA)
 - Cuándo aplica: El usuario tiene la cámara encendida O la tuvo encendida recientemente y pide informe sobre un objeto físico, EPP o condición de campo:
@@ -2240,22 +2241,12 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                     rawMemories = fetchedMemories;
 
                     if (companyInfo) {
-                        let liveWorkerCount = null;
-                        try {
-                            const PerfilSocioModel = mongoose.models.PerfilSociodemograficoData || require('../sgsst/perfilSociodemografico');
-                            const socioDoc = await PerfilSocioModel.findOne({
-                                user: targetUserId,
-                                ...(companyInfo._id ? { companyId: companyInfo._id } : {})
-                            }).lean() || await PerfilSocioModel.findOne({ user: targetUserId }).lean();
+                        let finalWorkerCount = (companyInfo.workerCount !== undefined && companyInfo.workerCount !== null)
+                            ? companyInfo.workerCount
+                            : 'N/A';
 
-                            if (socioDoc && Array.isArray(socioDoc.trabajadores)) {
-                                const activeWorkers = socioDoc.trabajadores.filter(w => {
-                                    const estado = (w.estadoLaboral || w.estado || '').toLowerCase().trim();
-                                    return estado !== 'retirado' && estado !== 'inactivo';
-                                });
-                                liveWorkerCount = activeWorkers.length;
-                            }
-                        } catch (e) {
+                        // Solo si no hay conteo previo registrado, consultar conteo ligero en SgsstWorker
+                        if (finalWorkerCount === 'N/A') {
                             try {
                                 const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
                                 const count = await SgsstWorker.countDocuments({
@@ -2263,16 +2254,12 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                                     ...(companyInfo._id ? { companyId: companyInfo._id } : {}),
                                     estadoLaboral: { $ne: 'Retirado' }
                                 });
-                                if (count > 0) liveWorkerCount = count;
+                                if (count > 0) {
+                                    finalWorkerCount = count;
+                                    CompanyInfo.updateOne({ _id: companyInfo._id }, { $set: { workerCount: count } }).catch(() => {});
+                                    companyInfo.workerCount = count;
+                                }
                             } catch (_) {}
-                        }
-
-                        const finalWorkerCount = liveWorkerCount !== null ? liveWorkerCount : (companyInfo.workerCount ?? 'N/A');
-
-                        // Mantener sincronizado el workerCount de la empresa con el censo real activo
-                        if (liveWorkerCount !== null && companyInfo.workerCount !== liveWorkerCount) {
-                            CompanyInfo.updateOne({ _id: companyInfo._id }, { $set: { workerCount: liveWorkerCount } }).catch(() => {});
-                            companyInfo.workerCount = liveWorkerCount;
                         }
 
                         const companyType = companyInfo.companyType || 'Persona Jurídica';
@@ -2365,23 +2352,7 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
                     this.liveConfig.systemInstruction = (this.liveConfig.systemInstruction || '') + companyAndMemoryPrompt;
                     logger.info(`[VoiceSession] Injected active company, ${rawMemories?.length || 0} memories, ${recentTenshiMessages?.length || 0} Tenshi turns & ${recentConvos?.length || 0} specialist convos into Tenshi Voice instructions`);
 
-                    // Inyectar Guía Maestra de la Plataforma WAPPY y Skills SST
-                    try {
-                        const { getActiveSkillsData } = require('~/server/services/skillRouter');
-                        const skillContext = [
-                            this.config?.conversationContext,
-                            companyInfo?.companyName,
-                            companyInfo?.economicActivity
-                        ].filter(Boolean).join(' ');
-
-                        const activeSkills = getActiveSkillsData(skillContext || 'guia completa plataforma', ['*']);
-                        if (activeSkills?.instructions) {
-                            this.liveConfig.systemInstruction += `\n\n${activeSkills.instructions}`;
-                            logger.info(`[VoiceSession] Injected platform skills (${activeSkills.activeSkillNames?.join(', ') || 'master'}) into Tenshi Voice instructions`);
-                        }
-                    } catch (skillErr) {
-                        logger.warn('[VoiceSession] Error injecting active skills into Tenshi Voice:', skillErr.message);
-                    }
+                    // Guía Maestra de la Plataforma y Metodologías SST ya están incorporadas en systemInstruction base (máxima fluidez y baja latencia)
                 } catch (memErr) {
                     logger.warn(`[VoiceSession] Could not inject company/memories into Tenshi Voice:`, memErr.message);
                 }
@@ -2866,8 +2837,45 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
 
                     // Manejo directo de Canvas / Archivos (Word, Excel, HTML, Presentación) en modo voz.
                     if (fc.name === 'canvas_tool' || fc.name === 'canvas') {
+                        const userRequestText = (this.userTranscriptionText || '').trim() || this.lastUserRequest || fc.args?.title || '';
+                        const reqLower = `${userRequestText} ${this.lastUserTranscription || ''} ${fc.args?.title || ''}`.toLowerCase();
+
+                        // DESAMBIGUACIÓN DETERMINISTA: Si el usuario pide generar el informe/análisis de un aplicativo o módulo del SG-SST,
+                        // NO crear un archivo Canvas independiente: despachar wappy_generar_analisis_aplicativo directamente.
+                        const isAppReport = /\b(informe|an[aá]lisis|reporte)\b/i.test(reqLower) && 
+                            /\b(aplicativo|m[oó]dulo|pantalla|responsable|pol[ií]tica|objetivos|legal|rit|perfil|diagn[oó]stico|estudio|vulnerab)\b/i.test(reqLower) &&
+                            !/\b(en canvas|en word|en excel|descargable|landing|html independiente)\b/i.test(reqLower);
+
+                        if (isAppReport) {
+                            logger.info(`[VoiceSession] canvas_tool redirected to wappy_generar_analisis_aplicativo for app report ("${userRequestText}")`);
+                            let app = 'responsable';
+                            if (/pol[ií]tica/i.test(reqLower)) app = 'politica';
+                            else if (/objetivo/i.test(reqLower)) app = 'objetivos';
+                            else if (/legal/i.test(reqLower)) app = 'legal';
+                            else if (/rit|reglamento/i.test(reqLower)) app = 'rit';
+                            else if (/cargo/i.test(reqLower)) app = 'perfil_cargo';
+                            else if (/diagn[oó]stico|0312/i.test(reqLower)) app = 'diagnostico';
+                            else if (/emergencia|vulnerab/i.test(reqLower)) app = 'vulnerabilidad';
+
+                            this.sendToClient({
+                                type: 'wappy_action',
+                                data: {
+                                    id: fc.id,
+                                    name: 'wappy_generar_analisis_aplicativo',
+                                    args: { aplicativo: app, instruccion_adicional: userRequestText }
+                                }
+                            });
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: `Generación de Análisis IA ejecutada exitosamente dentro del aplicativo "${app}". Confirma al usuario en una sola frase breve y entusiasta: "¡Listo! Ya activé la generación del informe con Inteligencia Artificial directamente en el editor del aplicativo en tu pantalla."` }
+                                }]);
+                            }
+                            continue;
+                        }
+
                         logger.info(`[VoiceSession] Gemini Live invoked tool "canvas_tool" with title: "${fc.args?.title}", fileType: "${fc.args?.fileType}"`);
-                        const userRequestText = (this.userTranscriptionText || '').trim() || this.lastUserRequest || fc.args?.title;
                         const res = await this.executeCanvasTool(fc.args, userRequestText, fc.id);
 
                         const resultText = res.ok
@@ -3015,6 +3023,43 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
 
                     // Manejo directo de Creación y Entrega de Informes en el chat de Tenshi
                     if (fc.name === 'wappy_crear_informe' || fc.name === 'wappy_generar_informe') {
+                        const userRequestText = (this.userTranscriptionText || '').trim() || this.lastUserRequest || fc.args?.titulo || '';
+                        const reqLower = `${userRequestText} ${this.lastUserTranscription || ''} ${fc.args?.titulo || ''} ${fc.args?.modulo || ''}`.toLowerCase();
+
+                        // DESAMBIGUACIÓN DETERMINISTA: Si el informe solicitado corresponde a un aplicativo del SG-SST en pantalla,
+                        // NO crear documento Canvas: activar la generación nativa con IA en el aplicativo
+                        const isAppReport = /\b(aplicativo|m[oó]dulo|pantalla|responsable|pol[ií]tica|objetivos|legal|rit|perfil|diagn[oó]stico|estudio|vulnerab)\b/i.test(reqLower) && 
+                            !/\b(en canvas|en word|en excel|descargable)\b/i.test(reqLower);
+
+                        if (isAppReport) {
+                            logger.info(`[VoiceSession] wappy_crear_informe redirected to wappy_generar_analisis_aplicativo for app report ("${userRequestText}")`);
+                            let app = fc.args?.modulo || fc.args?.aplicativo || 'responsable';
+                            if (/pol[ií]tica/i.test(reqLower)) app = 'politica';
+                            else if (/objetivo/i.test(reqLower)) app = 'objetivos';
+                            else if (/legal/i.test(reqLower)) app = 'legal';
+                            else if (/rit|reglamento/i.test(reqLower)) app = 'rit';
+                            else if (/cargo/i.test(reqLower)) app = 'perfil_cargo';
+                            else if (/diagn[oó]stico|0312/i.test(reqLower)) app = 'diagnostico';
+                            else if (/emergencia|vulnerab/i.test(reqLower)) app = 'vulnerabilidad';
+
+                            this.sendToClient({
+                                type: 'wappy_action',
+                                data: {
+                                    id: fc.id,
+                                    name: 'wappy_generar_analisis_aplicativo',
+                                    args: { aplicativo: app, instruccion_adicional: userRequestText }
+                                }
+                            });
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: `Generación de Análisis IA ejecutada exitosamente dentro del aplicativo "${app}". Confirma al usuario en una sola frase breve y entusiasta: "¡Listo! Ya activé la generación del informe con Inteligencia Artificial directamente en el editor del aplicativo en tu pantalla."` }
+                                }]);
+                            }
+                            continue;
+                        }
+
                         logger.info(`[VoiceSession] Gemini Live invoked tool "${fc.name}" with args:`, JSON.stringify(fc.args));
                         this.sendToClient({
                             type: 'status',
@@ -3783,6 +3828,37 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
                             const fullUserContext = `${this.userTranscriptionText || ''} ${this.lastUserTranscription || ''}`.toLowerCase();
                             const explicitlyMentionsAntigravity = /\bantigravity\b/i.test(fullUserContext);
                             if (!explicitlyMentionsAntigravity) {
+                                const isAppReport = /\b(informe|an[aá]lisis|reporte)\b/i.test(fullUserContext) && 
+                                    /\b(aplicativo|m[oó]dulo|pantalla|responsable|pol[ií]tica|objetivos|legal|rit|perfil|diagn[oó]stico|estudio|vulnerab)\b/i.test(fullUserContext);
+                                if (isAppReport) {
+                                    logger.warn(`[VoiceSession] Gemini Live intentó delegar orden de aplicativo a Antigravity ("${fullUserContext}"). Redirigiendo a wappy_generar_analisis_aplicativo.`);
+                                    let app = 'responsable';
+                                    if (/pol[ií]tica/i.test(fullUserContext)) app = 'politica';
+                                    else if (/objetivo/i.test(fullUserContext)) app = 'objetivos';
+                                    else if (/legal/i.test(fullUserContext)) app = 'legal';
+                                    else if (/rit|reglamento/i.test(fullUserContext)) app = 'rit';
+                                    else if (/cargo/i.test(fullUserContext)) app = 'perfil_cargo';
+                                    else if (/diagn[oó]stico|0312/i.test(fullUserContext)) app = 'diagnostico';
+                                    else if (/emergencia|vulnerab/i.test(fullUserContext)) app = 'vulnerabilidad';
+
+                                    this.sendToClient({
+                                        type: 'wappy_action',
+                                        data: {
+                                            id: fc.id,
+                                            name: 'wappy_generar_analisis_aplicativo',
+                                            args: { aplicativo: app, instruccion_adicional: targetArgs.instruccion || '' }
+                                        }
+                                    });
+                                    if (this.geminiClient) {
+                                        this.geminiClient.sendToolResponse([{
+                                            id: fc.id,
+                                            name: fc.name,
+                                            response: { result: `Generación de Análisis IA ejecutada exitosamente dentro del aplicativo "${app}". Confirma al usuario en una sola frase breve y entusiasta: "¡Listo! Ya activé la generación del informe con Inteligencia Artificial directamente en el editor del aplicativo en tu pantalla."` }
+                                        }]);
+                                    }
+                                    continue;
+                                }
+
                                 logger.warn(`[VoiceSession] Gemini Live intentó delegar a Antigravity sin mención del usuario ("${fullUserContext}"). Redirigiendo a canvas_tool.`);
                                 const requestedType = targetArgs.tipo_entregable === 'word' ? 'text' : (targetArgs.tipo_entregable || 'html');
                                 const docTitle = targetArgs.titulo || 'Aplicativo SG-SST';
@@ -5685,14 +5761,20 @@ con una tabla HTML limpia y estilizada que incluya:
 - Dosificación Clínica Prescrita (Series, Repeticiones/Tiempo sostenido, Frecuencia: e.g., "2 series de 15 segundos cada 90 minutos de labor continua").
 - Técnica de Ejecución Ergonómica y Recomendaciones de Autocuidado.`;
             } else {
-                templateInstructions = `ENFOQUE DE AUDITORÍA: ${activeProtocol.title} aplicando ${activeProtocol.methodLabel} (${activeProtocol.normRef}).
+                const defaultPhases = ['Fase 1: Panorama General y Metodología 5S', 'Fase 2: Fuentes de Peligro y Actos Inseguros', 'Fase 3: Protecciones Colectivas y Uso de EPP'];
+                const phasesText = (activeProtocol?.phases && Array.isArray(activeProtocol.phases) && activeProtocol.phases.length > 0)
+                    ? activeProtocol.phases.join(', ')
+                    : defaultPhases.join(', ');
+                const matrixHeader = activeProtocol?.reportMatrixHeader || INSPECTION_PROTOCOLS.auditoria_gtc45.reportMatrixHeader;
+
+                templateInstructions = `ENFOQUE DE AUDITORÍA: ${activeProtocol?.title || 'Inspección de Seguridad y Condiciones Locativas SST'} aplicando ${activeProtocol?.methodLabel || 'GTC 45 / ISO 45001 / 5S'} (${activeProtocol?.normRef || 'GTC 45 / Dec. 1072/2015 / Res. 0312'}).
 La inspección en vivo se estructuró y documentó a través de un PROTOCOLO MULTIFASE sistemático:
-- Fases evaluadas: ${activeProtocol.phases.join(', ')}.
+- Fases evaluadas: ${phasesText}.
 - Perspectiva de Captura: Documenta si la verificación se ejecutó como auto-inspección autónoma o como inspección asistida con dispositivo móvil.
 
 REQUERIMIENTO ADICIONAL OBLIGATORIO:
 1. Debes incluir OBLIGATORIAMENTE la sección comparativa multifase inmediatamente después de la tabla de Matriz de Riesgos (antes de la sección 5):
-${activeProtocol.reportMatrixHeader}
+${matrixHeader}
 2. Analiza las imágenes de evidencia fotográfica capturadas citando explícitamente a qué fase corresponden y contrastando los hallazgos técnicos entre cada etapa de la inspección.
 3. CODIFICACIÓN CLÍNICA OFICIAL (CIE-11 OMS Y DECRETO 1477 DE 2014):
 En la fila obligatoria de Riesgo Biomecánico de la Matriz de Peligros, correlaciona las lesiones musculoesqueléticas con sus códigos oficiales CIE-11 (FA80 Cervicalgia, FA81 Lumbalgia, FB40.1 Manguito rotador, 8C10.0 Túnel carpiano) y CIE-10 (M54.2, M54.5, M75.1, G56.0).
@@ -5987,8 +6069,11 @@ En la sección "4.1 Matriz Ergonómica Comparativa Multifase", en la columna "Te
             let evidenceHtml = '';
             if (framesToUse.length > 0) {
                 const activeProtocol = this.agentProtocol || resolveInspectionProtocol(this.agentObj?.name || this.config?.template);
-                const phaseLabels = (activeProtocol.phases || []).map(p => typeof p === 'string' ? p : (p.name || p.shortName));
-                const sectionTitle = `1. Evidencia Fotográfica y Documental Multifase (${activeProtocol.title})`;
+                const defaultPhases = ['Fase 1: Panorama General y 5S', 'Fase 2: Fuentes de Peligro', 'Fase 3: Protecciones y EPP'];
+                const phaseLabels = (activeProtocol?.phases && Array.isArray(activeProtocol.phases) && activeProtocol.phases.length > 0)
+                    ? activeProtocol.phases.map(p => typeof p === 'string' ? p : (p.name || p.shortName))
+                    : defaultPhases;
+                const sectionTitle = `1. Evidencia Fotográfica y Documental Multifase (${activeProtocol?.title || 'Inspección de Seguridad SST'})`;
 
                 const imgItems = framesToUse.slice(0, 3).map((b64, idx) => {
                     const phaseData = this.phaseEvidences?.[idx] || this.lastPhaseEvidences?.[idx];
@@ -6634,7 +6719,8 @@ ${workerSubHeaderHtml}
                     if (this.geminiClient && this.isActive) {
                         logger.info('[VoiceSession] Instructing Gemini Live to announce report...');
                         try {
-                            this.geminiClient.sendText('INSTRUCCIÓN: El informe técnico ergonómico oficial acaba de ser generado y ya está cargado en el editor de la pantalla del usuario y también guardado en el chat de Tenshi. Avisa al usuario verbalmente en 1 sola frase breve y entusiasta: "Listo, tu informe técnico ha sido generado con éxito y ya está disponible tanto en tu pantalla como en el chat de Tenshi para verlo o descargarlo." PROHIBIDO LEER O INVENTAR EL CONTENIDO DEL INFORME.');
+                            const reportTypeLabel = this.isBiomechanics ? 'ergonómico oficial' : 'técnico oficial de inspección';
+                            this.geminiClient.sendText(`INSTRUCCIÓN: El informe ${reportTypeLabel} acaba de ser generado y ya está cargado en el editor de la pantalla del usuario y también guardado en el chat de Tenshi. Avisa al usuario verbalmente en 1 sola frase breve y entusiasta: "Listo, tu informe técnico ha sido generado con éxito y ya está disponible tanto en tu pantalla como en el chat de Tenshi para consultarlo o descargarlo." PROHIBIDO LEER O INVENTAR EL CONTENIDO DEL INFORME.`);
                         } catch (announceErr) {
                             logger.warn('[VoiceSession] Could not send report announcement to Gemini:', announceErr.message);
                         }
@@ -7703,7 +7789,12 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
             const session = new VoiceSession(clientWs, userId, apiKeys, config, conversationId);
             session.agentObj = agentObj;
             session.isBiomechanics = false;
-            session.agentProtocol = { id: 'tenshi', title: 'Tenshi Orquestadora', methodLabel: 'Orquestación WAPPY' };
+            session.agentProtocol = {
+                ...INSPECTION_PROTOCOLS.auditoria_gtc45,
+                id: 'tenshi_inspeccion',
+                title: 'Inspección de Seguridad y Condiciones Locativas SST - Tenshi',
+                methodLabel: 'Inspección Visual de Campo / GTC 45 / ISO 45001'
+            };
 
             const result = await session.start();
 

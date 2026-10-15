@@ -2460,6 +2460,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       onStatusChange: (newStatus: string) => {
         if (newStatus === 'connecting') {
           setVoiceStatusText('Conectando con Tenshi...');
+        } else if (newStatus === 'generating_report') {
+          setVoiceStatusText('⏳ Compilando y generando informe técnico oficial...');
         } else if (newStatus === 'ready' || newStatus === 'connected' || newStatus === 'listening' || newStatus === 'turn_complete') {
           if (newStatus === 'turn_complete') {
             setMessages((prev) => prev.map((m) => ({ ...m, isLiveVoice: false })));
@@ -2478,6 +2480,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       },
       onReportReceived: (html: string, messageId?: string, evaluatedFrames?: string[]) => {
         console.log('[Tenshi Voice] Report received successfully');
+        setVoiceStatusText('✅ Informe generado con éxito');
+        setTimeout(() => {
+          setVoiceStatusText('Tenshi te escucha...');
+        }, 4000);
         if (html && html.length > 30 && !html.includes('⚠️ Error de Generación')) {
           const reportTitle = isBiomechanicsActive
             ? 'Informe Técnico de Estudio de Puesto de Trabajo (EPT)'
