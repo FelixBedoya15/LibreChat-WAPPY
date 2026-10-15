@@ -1924,13 +1924,22 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
      * ESTUDIO DE PUESTO DE TRABAJO ERGONÓMICO EN VIVO ('wappy_iniciar_estudio_ergonomico_vivo', 'cambiar_fase_evaluacion' y 'generar_informe_tecnico'):
        - Cuando el usuario te pida realizar un estudio de puesto ergonómico, evaluación postural, o la cámara esté en modo ergonómico:
          1. Si la cámara no está activa, invoca 'wappy_iniciar_estudio_ergonomico_vivo'.
-         2. DIRECTIVA DE LIDERAZGO EN 3 FASES ERGONÓMICAS:
-            - Paso 1 (Postura Habitual / Línea Base): Pide al usuario colocarse en su postura habitual de trabajo y decir "Listo", "Ya" o presionar el botón de foto. Al confirmar, valida brevemente los grados observados e invoca 'cambiar_fase_evaluacion' con fase: 1.
-            - Paso 2 (Alcance Máximo / Cargas / Periféricos): Pide adoptar la postura de mayor alcance o exigencia y confirmar ("Listo"). Al confirmar, invoca 'cambiar_fase_evaluacion' con fase: 2.
-            - Paso 3 (Fatiga / Apoyo Lumbar / Cuello): Pide evaluar la postura de fatiga o soporte de espalda y confirmar ("Listo"). Al confirmar, invoca 'cambiar_fase_evaluacion' con fase: 3.
-         3. Al culminar las 3 fases O cuando el usuario te pida el informe ("haz el informe", "genera el reporte", "dame el informe"):
+         2. PASO PREVIO OBLIGATORIO (IDENTIFICACIÓN COMPLETA DEL TRABAJADOR):
+            En tu primera intervención, saluda cordialmente y formula en un solo mensaje fluido las 3 preguntas clave:
+            "¡Hola! Soy tu Especialista en Ergonomía y Fisioterapeuta Laboral en WAPPY IA. Para vincular este estudio ergonómico al expediente oficial de la empresa, por favor confírmame:
+             1. ¿Es una auto-evaluación de tu propio puesto o estás evaluando a un compañero?
+             2. Nombre completo y número de cédula del trabajador evaluado.
+             3. Cargo y una breve descripción de la actividad cotidiana a evaluar."
+            REGLA ESTRICTA: NUNCA inicies el Paso 1 ni pidas adoptar posturas antes de recibir estos datos (nombre, cédula y cargo). Si el usuario omite alguno, insiste amablemente en pedirlo antes de iniciar.
+         3. DIRECTIVA DE LIDERAZGO EN 3 FASES ERGONÓMICAS (CON RETROALIMENTACIÓN BIOMECÁNICA OBLIGATORIA):
+            - Al recibir la identificación completa, valida cordialmente en 1 frase e inicia el Paso 1 invocando 'cambiar_fase_evaluacion' con fase: 1.
+            - Paso 1 (Postura Habitual / Línea Base): Pide al usuario colocarse en su postura habitual de trabajo y avisar diciendo "Listo", "Ya" o presionar el botón de la cámara.
+            - AL PASAR DE FASE (RETROALIMENTACIÓN BIOMECÁNICA ORAL OBLIGATORIA): EXPLICA Y ANALIZA ORALMENTE en 1-2 oraciones lo que observas en la postura utilizando la telemetría articular (grados de flexión de cuello, tronco, brazos). Comenta si la postura está forzada o neutral y dale una recomendación física inmediata ANTES de pedir la postura del siguiente paso.
+            - Paso 2 (Alcance Máximo / Periféricos): Pide adoptar la postura de mayor alcance o exigencia y confirmar ("Listo"). Al confirmar, analiza la postura y llama a 'cambiar_fase_evaluacion' con fase: 2.
+            - Paso 3 (Fatiga / Apoyo Lumbar / Cuello): Pide evaluar la postura de fatiga o soporte de espalda y confirmar ("Listo"). Al confirmar, analiza la postura de fatiga y llama a 'cambiar_fase_evaluacion' con fase: 3.
+         4. Culminadas las 3 fases (tras analizar la postura de fatiga de la Fase 3) O cuando el usuario te pida el informe ("haz el informe", "genera el reporte", "dame el informe"):
             - INVOCA DE INMEDIATO 'generar_informe_tecnico'.
-            - Confirma verbalmente en una frase breve: "Listo, procesando las evidencias para compilar tu informe técnico ergonómico oficial."
+            - Confirma verbalmente en una sola frase breve: "Listo, procesando las evidencias para compilar tu informe técnico ergonómico oficial."
    - NUEVAS APIS EXTERNAS ESPECIALIZADAS DE AGENTES:
      * 'wappy_consultar_quimico_pubchem': Invocación de la API de PubChem (NIH) para buscar compuestos químicos por nombre, obtener su CID y extraer la clasificación oficial GHS/SGA con pictogramas, señal (Peligro/Atención), frases de peligro H y consejos de prudencia P según el Decreto 1496 de 2018.
      * 'wappy_geocodificar_emergencias': Invocación de OpenStreetMap Nominatim para geolocalizar sedes y ubicar recursos asistenciales cercanos (hospitales, clínicas de trauma, estaciones de bomberos, defensa civil) para el Plan de Preparación y Respuesta ante Emergencias (Decreto 1072 de 2015).
@@ -2616,7 +2625,9 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
                             this.geminiClient.sendToolResponse([{
                                 id: fc.id,
                                 name: fc.name,
-                                response: { result: `Fase ${targetPhase} activada en la pantalla del usuario con éxito.` }
+                                response: { 
+                                    result: `Fase ${targetPhase} activada en la pantalla del usuario con éxito. INSTRUCCIÓN CRÍTICA DE RETROALIMENTACIÓN: Antes de pedir la siguiente postura, EXPLICA Y ANALIZA ORALMENTE en 1-2 oraciones lo que observaste en la postura de la fase anterior: menciona los ángulos articulares medidos (cuello, tronco o brazos), indica si la postura estuvo forzada o neutral y dale una recomendación física inmediata. Luego, pide al usuario adoptar la postura del Paso ${targetPhase}.`
+                                }
                             }]);
                         }
                         continue;
@@ -2626,7 +2637,11 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
                     if (fc.name === 'generar_informe_tecnico' || fc.name === 'generar_informe_ergonomico' || fc.name === 'generar_informe_inspeccion_camara') {
                         const phaseCount = this.phaseEvidences ? Object.keys(this.phaseEvidences).length : 0;
                         const turnCount = this.conversationTurns ? this.conversationTurns.length : 0;
-                        if (this.config.mode !== 'tenshi_voice' && turnCount < 2 && phaseCount === 0) {
+                        const hasFrames = (this.manualEvidences && this.manualEvidences.length > 0) || this.latestFrame;
+                        const isTenshiOrFisio = this.config.mode === 'tenshi_voice' || this.isBiomechanics || this.isFisioMode;
+
+                        // Solo rechazar si es un cliente estándar sin fotos NI frames NI turnos y NO es Tenshi ni Fisio
+                        if (!isTenshiOrFisio && turnCount < 1 && phaseCount === 0 && !hasFrames) {
                             logger.warn(`[VoiceSession] Gemini prematurely called "${fc.name}" on turn ${turnCount} with 0 phases. Rejecting premature call.`);
                             if (this.geminiClient) {
                                 this.geminiClient.sendToolResponse([{
@@ -4717,7 +4732,8 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
 
                 if (this.geminiClient && this.isActive) {
                     try {
-                        this.geminiClient.sendText('INSTRUCCIÓN DE SISTEMA: El usuario presionó el botón de generar informe técnico. Confírmale verbalmente en 1 sola frase breve: "Entendido, estoy compilando tu informe técnico ergonómico con las evidencias recopiladas."');
+                        const reportSubjectLabel = this.isBiomechanics ? 'ergonómico oficial' : (this.currentInspectionSubject ? `de ${this.currentInspectionSubject}` : 'técnico oficial');
+                        this.geminiClient.sendText(`INSTRUCCIÓN DE SISTEMA: El usuario ha solicitado compilar el informe técnico. Confírmale verbalmente en 1 sola frase breve y entusiasta: "Entendido, estoy procesando las evidencias para compilar tu informe técnico ${reportSubjectLabel}. Por favor espera un momento conectado." PROHIBIDO AFIRMAR QUE YA ESTÁ LISTO.`);
                     } catch (speakErr) {
                         logger.warn('[VoiceSession] Error sending spoken confirmation for manual report trigger:', speakErr.message);
                     }
@@ -4750,9 +4766,12 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
                     }
                     
                     if (this.geminiClient) {
-                        // Suprimir reenvío de audio del micrófono durante 3 segundos para que Gemini Live
+                        // Suprimir reenvío de audio del micrófono durante 4 segundos para que Gemini Live
                         // procese y sintetice el turno de texto sin ser interrumpido/descartado por el VAD ante ruido ambiental
-                        this.suppressClientAudioUntil = Date.now() + 3000;
+                        this.suppressClientAudioUntil = Date.now() + 4000;
+                        try {
+                            this.geminiClient.sendAudioStreamEnd();
+                        } catch (_) {}
                         this.geminiClient.sendText(data.text);
                     } else {
                         logger.warn('[VoiceSession] Received text message but Gemini client is not ready');
@@ -6308,9 +6327,8 @@ ${workerSubHeaderHtml}
             // SAVE REPORT TO DATABASE FIRST (Persistence)
             // This ensures we have a messageId BEFORE sending to client
             let messageId = uuidv4();
-            if (this.conversationId && this.conversationId !== 'new') {
-                try {
-                    // IMPROVED: Convert HTML to Markdown for chat display
+            try {
+                // IMPROVED: Convert HTML to Markdown for chat display
                     // The chat UI expects Markdown, not raw HTML
                     const convertHtmlToMarkdown = (html) => {
                         let md = html;
@@ -6432,13 +6450,19 @@ ${workerSubHeaderHtml}
                         updatedAt: new Date(),
                     };
 
-                    await saveMessage({ user: { id: this.userId } }, reportMessage, { context: 'VoiceSession - Report' });
-                    if (this.isFisioMode) {
-                        this.fisioLastMessageId = messageId;
-                    } else {
-                        this.lastMessageId = messageId;
+                    if (targetConversationId && targetConversationId !== 'new') {
+                        try {
+                            await saveMessage({ user: { id: this.userId } }, reportMessage, { context: 'VoiceSession - Report' });
+                            if (this.isFisioMode) {
+                                this.fisioLastMessageId = messageId;
+                            } else {
+                                this.lastMessageId = messageId;
+                            }
+                            logger.info(`[VoiceSession] Report saved to DB with sender "${reportSender}" in convo "${targetConversationId}". MessageId: ${messageId}`);
+                        } catch (saveMsgErr) {
+                            logger.warn('[VoiceSession] Could not save report message in convo:', saveMsgErr.message);
+                        }
                     }
-                    logger.info(`[VoiceSession] Report saved to DB with sender "${reportSender}" in convo "${targetConversationId}". MessageId: ${messageId}`);
 
                     // Get the frames evaluated immediately (available for all subsequent syncs)
                     const evalFrames = (framesToUse && framesToUse.length > 0)
@@ -6491,19 +6515,21 @@ ${workerSubHeaderHtml}
                     }
 
                     // Save conversation state so LibreChat updates the conversation list and timestamps
-                    try {
-                        const workerName = (this.extractedWorkerMeta && this.extractedWorkerMeta.workerName) || this.user?.name || 'Colaborador';
-                        const convoTitle = this.isBiomechanics ? `Estudio Ergonómico — ${workerName}` : reportTitle;
-                        await saveConvo({ user: { id: this.userId } }, {
-                            conversationId: targetConversationId,
-                            endpoint: 'agents',
-                            agent_id: targetAgentId,
-                            title: convoTitle,
-                            model: this.dbModel,
-                            tags: this.isBiomechanics ? ['sgsst-live-analysis', 'fisioterapeuta-laboral'] : ['sgsst-live-analysis']
-                        }, { context: 'VoiceSession - Report' });
-                    } catch (convoSaveError) {
-                        logger.warn('[VoiceSession] Error updating conversation for report:', convoSaveError.message);
+                    if (targetConversationId && targetConversationId !== 'new') {
+                        try {
+                            const workerName = (this.extractedWorkerMeta && this.extractedWorkerMeta.workerName) || this.user?.name || 'Colaborador';
+                            const convoTitle = this.isBiomechanics ? `Estudio Ergonómico — ${workerName}` : reportTitle;
+                            await saveConvo({ user: { id: this.userId } }, {
+                                conversationId: targetConversationId,
+                                endpoint: 'agents',
+                                agent_id: targetAgentId,
+                                title: convoTitle,
+                                model: this.dbModel,
+                                tags: this.isBiomechanics ? ['sgsst-live-analysis', 'fisioterapeuta-laboral'] : ['sgsst-live-analysis']
+                            }, { context: 'VoiceSession - Report' });
+                        } catch (convoSaveError) {
+                            logger.warn('[VoiceSession] Error updating conversation for report:', convoSaveError.message);
+                        }
                     }
 
                     // Sync to LiveEditorSession & Canvas
@@ -6767,7 +6793,6 @@ ${workerSubHeaderHtml}
                     logger.error('[VoiceSession] Error saving report to DB:', saveError);
                     // Continue anyway, client already received report
                 }
-            }
 
             return reportHtml;
         } catch (error) {
@@ -6864,6 +6889,7 @@ ${workerSubHeaderHtml}
             /\b(necesito|quiero|deseo|hacer|realizar|iniciar|empezar|hazme|hagamos|ll[eé]vame|abrir|abre|en\s+vivo|con\s+la\s+fisio)/i.test(userLower);
         if (liveEptMatch) {
             logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Disparando wappy_iniciar_estudio_ergonomico_vivo para: "${userText}"`);
+            this.enableFisioterapeutaMode('failsafe_live_ept').catch((err) => logger.warn('[VoiceSession] Error in failsafe enableFisioterapeutaMode:', err.message));
             this.sendToClient({
                 type: 'wappy_action',
                 data: {
@@ -7489,6 +7515,36 @@ ${workerSubHeaderHtml}
                 logger.error('[VoiceSession] Failed to persist Tenshi voice turn to TenshiMessage:', err);
             }
 
+            // Acumular el turno en la memoria de la sesión para que Tenshi mantenga contexto
+            const currentTurnContext = `Usuario: ${currentUserText}\nAsistente: ${currentAiText}`;
+            if (!this.conversationTurns) {
+                this.conversationTurns = [];
+            }
+            this.conversationTurns.push(currentTurnContext);
+            if (this.conversationTurns.length > 10) {
+                this.conversationTurns.shift();
+            }
+            this.config.conversationContext = this.conversationTurns.join('\n');
+
+            // Fast-track trigger de informe en Tenshi si el usuario lo solicitó verbalmente o la IA lo confirmó
+            if (!this.isGeneratingReport) {
+                const userReportRegex = /\b(genera(r)?|haz|compil(a|ar)|dame|quiero|entreg(a|ar)|sacar?)\s+(el\s+|un\s+)?(informe|reporte)\b/i;
+                const aiReportRegex = /\b(estoy\s+compilando|generando\s+el\s+informe\s+t[eé]cnico|informe técnico compilado y en pantalla)\b/i;
+                const userRequested = userReportRegex.test(currentUserText);
+                const aiConfirmed = (this.conversationTurns && this.conversationTurns.length >= 2) && (aiReportRegex.test(currentAiText) || aiReportRegex.test(this.aiTranscriptionBuffer));
+                if (userRequested || aiConfirmed) {
+                    logger.info(`[VoiceSession] Tenshi voice turn triggered report compilation. userRequested: ${userRequested}, aiConfirmed: ${aiConfirmed}`);
+                    this.isGeneratingReport = true;
+                    this.sendToClient({
+                        type: 'status',
+                        data: { status: 'generating_report', message: 'Compilando informe técnico...' }
+                    });
+                    this.generateReport(this.config.conversationContext).finally(() => {
+                        this.isGeneratingReport = false;
+                    });
+                }
+            }
+
             this.userTranscriptionText = '';
             this.aiResponseText = '';
             this.aiTranscriptionBuffer = '';
@@ -7657,7 +7713,21 @@ ${workerSubHeaderHtml}
             }
 
             if (this.geminiClient && this.geminiClient.setupCompleted) {
-                const fisioDirective = `[INSTRUCCIÓN INTERNA]: El usuario ha solicitado una evaluación ergonómica / estudio de puesto de trabajo. Responde al usuario de inmediato: salúdalo cordialmente presentándote como la Fisioterapeuta Laboral de WAPPY IA, dile que tienes la cámara activa y pregúntale en 1 sola frase el nombre y cargo del trabajador a evaluar para iniciar la Fase 1.`;
+                const fisioDirective = `[DIRECTIVA CRÍTICA - PROTOCOLO OFICIAL DE EVALUACIÓN ERGONÓMICA / FISIOTERAPEUTA LABORAL]:
+Has asumido el rol de la Especialista en Ergonomía y Fisioterapeuta Laboral en vivo con la cámara activa.
+1. SALUDO INICIAL Y 3 PREGUNTAS OBLIGATORIAS:
+   Saluda con calidez y solicita en un solo mensaje fluido:
+   "¡Hola! Soy tu Especialista en Ergonomía y Fisioterapeuta Laboral en WAPPY IA. Para vincular este estudio ergonómico al expediente oficial de la empresa, por favor confírmame:
+    1. ¿Es una auto-evaluación de tu propio puesto o estás evaluando a un compañero?
+    2. Nombre completo y número de cédula del trabajador evaluado.
+    3. Cargo y una breve descripción de la actividad cotidiana a evaluar."
+   REGLA ESTRICTA: NUNCA inicies el Paso 1 ni pidas adoptar posturas antes de recibir estos datos (nombre, cédula y cargo). Si el usuario omite alguno, pídelo amablemente antes de iniciar.
+2. TRANSICIÓN ENTRE FASES (CON RETROALIMENTACIÓN BIOMECÁNICA):
+   - Al recibir la identificación completa, confirma cordialmente e inicia el Paso 1 con 'cambiar_fase_evaluacion' (fase: 1).
+   - En cada paso, pide al usuario adoptar la postura y esperar a que diga 'Listo', 'Ya' o pulse el botón de la cámara.
+   - AL PASAR DE FASE: EXPLICA Y ANALIZA ORALMENTE lo que observas en la postura utilizando la telemetría articular (grados de flexión de cuello, tronco, brazos). Comenta si la postura está forzada o neutral y dale una recomendación física inmediata ANTES de avanzar al siguiente paso.
+3. INFORME TÉCNICO OFICIAL:
+   Al culminar las 3 fases (tras analizar la postura fatigada de la Fase 3), ofrece compilar el informe técnico oficial e invoca 'generar_informe_tecnico' en cuanto el usuario lo apruebe.`;
                 this.geminiClient.sendText(fisioDirective);
             }
 

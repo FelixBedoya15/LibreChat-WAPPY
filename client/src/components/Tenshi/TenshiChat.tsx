@@ -1081,6 +1081,10 @@ export default function TenshiChat() {
   const [kneeAngle, setKneeAngle] = useState<number | null>(null);
   const [is3DTelemetry, setIs3DTelemetry] = useState(false);
   const [currentErgoPhaseIndex, setCurrentErgoPhaseIndex] = useState(0);
+  const currentErgoPhaseIndexRef = useRef(currentErgoPhaseIndex);
+  currentErgoPhaseIndexRef.current = currentErgoPhaseIndex;
+  const manualCapturedPhasesRef = useRef<Set<number>>(new Set());
+  const captureVisionSnapshotRef = useRef<((customLabel?: string, targetPhaseIdx?: number) => string | null) | null>(null);
   const [isMediaPipeLoaded, setIsMediaPipeLoaded] = useState(false);
   const [isPoseActive, setIsPoseActive] = useState(false);
   const [isFlashActive, setIsFlashActive] = useState(false);
@@ -1669,7 +1673,7 @@ export default function TenshiChat() {
     );
 
     // 1. Si el Modo Voz está activo, instruir a Tenshi Live con el dictamen técnico
-    if (isVoiceActive) {
+    if (isVoiceActiveRef.current || isVoiceActive) {
       lastActivityRef.current = Date.now();
       clearAudioQueue();
       setVoiceStatusText(`Tenshi respondiendo sobre ${consultation.agentName}...`);
@@ -1838,9 +1842,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           updateTenshiProtocolByIntent(text);
 
           // Si estamos en modo Biomecánica / Fisioterapeuta y la cámara está encendida:
+          // Si la cámara está encendida:
           // Detectar confirmación verbal del usuario ("Listo", "Ya", "Adelante", "Toma la foto")
           // para capturar la postura de la fase actual y avanzar automáticamente
-          if (isBiomechanicsActive && isVisionActive && isCameraOn) {
+          if (isVisionActive && isCameraOn) {
             const cleanText = (text || '').trim().toLowerCase();
             const userVoiceCaptureRegex = /\b(listo|ya\s+estoy(\s+listo)?|adelante|ya\s+me\s+ubiqu[eé]|ya\s+tom[eé]\s+(la\s+)?postura|toma\s+(la\s+)?foto|captura(r)?|dale|de\s+una)\b/i;
             const exactYaRegex = /^(s[ií]\s*,?\s*)?ya\s*[.!]?$/i;
@@ -1849,7 +1854,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             if ((userVoiceCaptureRegex.test(cleanText) || exactYaRegex.test(cleanText)) && wCount <= 6 && (now - lastVoiceCaptureTimeRef.current > 1800)) {
               lastVoiceCaptureTimeRef.current = now;
               console.log('[Tenshi Voice] Confirmación verbal de postura del usuario:', cleanText);
-              captureVisionSnapshot();
+              captureVisionSnapshotRef.current?.();
             }
           }
 
@@ -1882,10 +1887,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           });
         } else {
           // Si Tenshi anuncia que completó las tres fases o pide compilar el informe:
-          if (isBiomechanicsActive && isVisionActive && isCameraOn && /\b(completado\s+las\s+tres\s+fases|tres\s+fases\s+completas|postura\s+fatigada|compil(e|ar)\s+tu\s+informe)\b/i.test(text)) {
-            if (currentErgoPhaseIndex >= 2) {
-              console.log('[Tenshi Voice] Tenshi anunció culminación de fases; asegurando captura de fase 3');
-              captureVisionSnapshot(undefined, true);
+          if (isVisionActive && isCameraOn && /\b(completado\s+las\s+tres\s+fases|tres\s+fases\s+completas|postura\s+fatigada|compil(e|ar)\s+tu\s+informe)\b/i.test(text)) {
+            const curIdx = currentErgoPhaseIndexRef.current;
+            if (!manualCapturedPhasesRef.current.has(curIdx)) {
+              console.log('[Tenshi Voice] Tenshi anunció culminación de fases; asegurando captura de fase', curIdx + 1);
+              captureVisionSnapshotRef.current?.(undefined, curIdx);
             }
           }
 
@@ -1943,9 +1949,23 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             const rawFase = action.args?.fase;
             const faseNum = typeof rawFase === 'number' ? rawFase : parseInt(rawFase, 10) || 1;
             const targetIdx = Math.max(0, Math.min(ERGO_PHASES.length - 1, faseNum - 1));
+            if (faseNum === 1) {
+              manualCapturedPhasesRef.current.clear();
+            } else {
+              // Antes de avanzar de fase, capturar la fase anterior si aún no se había registrado
+              const prevIdx = currentErgoPhaseIndexRef.current;
+              if (prevIdx < targetIdx && !manualCapturedPhasesRef.current.has(prevIdx)) {
+                captureVisionSnapshotRef.current?.(undefined, prevIdx);
+              }
+            }
             setCurrentErgoPhaseIndex(targetIdx);
             resultMsg = `Fase ergonómica actualizada en pantalla a Paso ${faseNum}: ${ERGO_PHASES[targetIdx]?.shortName || ''}`;
           } else if (action.name === 'generar_informe_tecnico') {
+            // Asegurar captura de la fase final activa si aún no se ha tomado
+            const curIdx = currentErgoPhaseIndexRef.current;
+            if (!manualCapturedPhasesRef.current.has(curIdx)) {
+              captureVisionSnapshotRef.current?.(undefined, curIdx);
+            }
             if (triggerVoiceReportRef.current) {
               triggerVoiceReportRef.current();
             }
@@ -2481,6 +2501,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         } else if (newStatus === 'generating_report') {
           setIsGeneratingTechnicalReport(true);
           setVoiceStatusText('⏳ Compilando y generando informe técnico oficial...');
+          // Asegurar captura de la fase activa actual (Fase 3 o la que esté) si no ha sido capturada aún
+          const curIdx = currentErgoPhaseIndexRef.current;
+          if (!manualCapturedPhasesRef.current.has(curIdx)) {
+            captureVisionSnapshotRef.current?.(undefined, curIdx);
+          }
         } else if (newStatus === 'ready' || newStatus === 'connected' || newStatus === 'listening' || newStatus === 'turn_complete') {
           if (newStatus === 'turn_complete') {
             setMessages((prev) => prev.map((m) => ({ ...m, isLiveVoice: false })));
@@ -2502,6 +2527,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         console.log('[Tenshi Voice] Report received successfully');
         setIsGeneratingTechnicalReport(false);
         setReportSuccessToast(true);
+        manualCapturedPhasesRef.current.clear();
         try {
           tenshiAudio.playChime();
         } catch (_) {}
@@ -2849,7 +2875,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     };
   }, [isPoseActive, onPoseResults]);
 
-  const captureVisionSnapshot = useCallback((customLabel?: string) => {
+  const captureVisionSnapshot = useCallback((customLabel?: string, targetPhaseIdx?: number) => {
     const video = visionVideoRef.current;
     if (!video || !video.videoWidth || !video.videoHeight) {
       return null;
@@ -2878,21 +2904,30 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       setIsFlashActive(true);
       setTimeout(() => setIsFlashActive(false), 250);
 
-      // Construir telemetría de ángulos
-      const currentAngles = anglesRef.current || {};
-      const telemetryStr = [
-        currentAngles.neck !== null ? `Cuello: ${currentAngles.neck}°` : null,
-        currentAngles.trunk !== null ? `Tronco: ${currentAngles.trunk}°` : null,
-        currentAngles.arm !== null ? `Brazo: ${currentAngles.arm}°` : null,
-        currentAngles.elbow !== null ? `Codo: ${currentAngles.elbow}°` : null,
-        currentAngles.knee !== null ? `Rodilla: ${currentAngles.knee}°` : null,
-      ].filter(Boolean).join(' • ');
+      // Determinar fase a capturar (forzada o actual)
+      const phaseIdx = targetPhaseIdx !== undefined ? targetPhaseIdx : currentErgoPhaseIndexRef.current;
+      manualCapturedPhasesRef.current.add(phaseIdx);
 
-      const phase = ERGO_PHASES[currentErgoPhaseIndex] || ERGO_PHASES[0];
+      // Construir telemetría de ángulos con MediaPipe
+      const currentAngles = anglesRef.current || {};
+      const nAngle = currentAngles.neck ?? null;
+      const tAngle = currentAngles.trunk ?? null;
+      const aAngle = currentAngles.arm ?? null;
+      const eAngle = currentAngles.elbow ?? null;
+      const kAngle = currentAngles.knee ?? null;
+
+      const telemetryParts: string[] = [];
+      if (nAngle !== null) telemetryParts.push(`Flexión Cervical: ${nAngle}° (${getNeckStatus(nAngle).status})`);
+      if (tAngle !== null) telemetryParts.push(`Flexión de Tronco: ${tAngle}° (${getTrunkStatus(tAngle).status})`);
+      if (aAngle !== null) telemetryParts.push(`Abducción de Brazo: ${aAngle}° (${getArmStatus(aAngle).status})`);
+      if (eAngle !== null) telemetryParts.push(`Flexión de Codo: ${eAngle}° (${getElbowStatus(eAngle).status})`);
+      if (kAngle !== null) telemetryParts.push(`Flexión de Rodilla: ${kAngle}° (${getKneeStatus(kAngle).status})`);
+
+      const phase = ERGO_PHASES[phaseIdx] || ERGO_PHASES[0];
       const isFisio = isBiomechanicsActive;
       const label = customLabel || (isFisio
-        ? `📸 Evidencia Postural (${phase.shortName})${telemetryStr ? ` • ${telemetryStr}` : ''}`
-        : '📸 Evidencia de Inspección Visual SST');
+        ? `📸 Evidencia Postural (${phase.shortName})${telemetryParts.length > 0 ? ` • ${telemetryParts.join(', ')}` : ''}`
+        : `📸 Evidencia de Inspección Visual SST (${phase.shortName})`);
 
       const userVisionMsg: TenshiChatMessage = {
         role: 'user',
@@ -2908,16 +2943,17 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       const rawBase64 = dataUrl.split(',')[1];
       if (rawBase64 && sendEvidenceImageRef.current) {
         sendEvidenceImageRef.current(rawBase64, label, {
-          phaseIndex: currentErgoPhaseIndex,
+          phaseIndex: phaseIdx,
           phaseName: phase.name,
           shortName: phase.shortName,
-          telemetry: anglesRef.current,
+          telemetry: currentAngles,
           is3D: is3DTelemetry,
         });
+        console.log(`[Tenshi Vision] Evidencia enviada al WebSocket para Fase ${phaseIdx + 1} (${phase.name})`);
       }
 
-      // Auto-avanzar al siguiente paso si estamos en modo biomecánico
-      if (isBiomechanicsActive) {
+      // Auto-avanzar al siguiente paso si targetPhaseIdx no fue forzado externamente
+      if (targetPhaseIdx === undefined && isBiomechanicsActive) {
         setCurrentErgoPhaseIndex((prev) => Math.min(prev + 1, ERGO_PHASES.length - 1));
       }
 
@@ -2942,7 +2978,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       console.error('[Tenshi Vision] Error al capturar snapshot:', err);
       return null;
     }
-  }, [token, currentErgoPhaseIndex, ERGO_PHASES, isBiomechanicsActive, is3DTelemetry]);
+  }, [token, ERGO_PHASES, isBiomechanicsActive, is3DTelemetry]);
+
+  useEffect(() => {
+    captureVisionSnapshotRef.current = captureVisionSnapshot;
+  }, [captureVisionSnapshot]);
 
   const setVisionVideoNode = useCallback((node: HTMLVideoElement | null) => {
     visionVideoRef.current = node;
@@ -4653,24 +4693,6 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         }
       `}</style>
 
-      {/* ⏳ ALERTA PERSISTENTE GLOBAL: GENERANDO INFORME TÉCNICO OFICIAL */}
-      {isGeneratingTechnicalReport && (
-        <div className="fixed top-5 sm:top-8 left-1/2 -translate-x-1/2 z-[99999] max-w-[92vw] sm:max-w-md w-fit flex items-center gap-3 px-4 py-2.5 sm:px-5 sm:py-3 rounded-2xl bg-slate-900/95 dark:bg-zinc-900/95 text-white backdrop-blur-xl border border-teal-500/50 shadow-2xl shadow-teal-950/70 animate-in slide-in-from-top-4 fade-in duration-300 pointer-events-auto">
-          <span className="relative flex h-3.5 w-3.5 shrink-0">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-teal-500"></span>
-          </span>
-          <div className="flex flex-col min-w-0">
-            <div className="font-bold text-xs sm:text-sm text-teal-300 flex items-center gap-1.5 truncate">
-              <span>⏳ Compilando Informe Técnico Oficial...</span>
-            </div>
-            <div className="text-[10px] sm:text-xs text-slate-300 dark:text-zinc-400 truncate">
-              Procesando evidencias fotográficas y normativa SST en vivo
-            </div>
-          </div>
-          <div className="h-4 w-4 shrink-0 border-2 border-teal-400 border-t-transparent rounded-full animate-spin ml-1" />
-        </div>
-      )}
 
       {/* ✅ NOTIFICACIÓN TOAST GLOBAL: INFORME GENERADO CON ÉXITO */}
       {reportSuccessToast && (
@@ -5019,11 +5041,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                     <div className="absolute inset-0 bg-white/70 backdrop-blur-xs z-50 pointer-events-none animate-out fade-out duration-300" />
                   )}
 
-                  {/* Banner persistente de generación de informe técnico en Visión Móvil */}
+                  {/* Pill discreto de generación de informe técnico en Visión Móvil */}
                   {isGeneratingTechnicalReport && (
-                    <div className="absolute top-2 inset-x-2 z-40 flex items-center justify-center gap-2 bg-black/85 backdrop-blur-md border border-teal-400/60 rounded-xl px-3 py-2 shadow-2xl animate-pulse pointer-events-auto">
-                      <div className="h-3.5 w-3.5 border-2 border-teal-400 border-t-transparent rounded-full animate-spin shrink-0" />
-                      <span className="text-[11px] font-bold text-teal-300 truncate">Compilando informe con evidencias... Por favor espera conectado</span>
+                    <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-slate-900/90 backdrop-blur-md border border-teal-500/50 rounded-full px-3.5 py-1.5 shadow-xl animate-pulse pointer-events-auto">
+                      <div className="h-3 w-3 border-2 border-teal-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                      <span className="text-[10px] font-medium text-teal-200 whitespace-nowrap">Compilando informe... por favor espera</span>
                     </div>
                   )}
 
@@ -5683,11 +5705,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 <div className="absolute inset-0 bg-white/70 backdrop-blur-xs z-50 pointer-events-none animate-out fade-out duration-300" />
               )}
 
-              {/* Banner persistente de generación de informe técnico en Visión Desktop */}
+              {/* Pill discreto de generación de informe técnico en Visión Desktop */}
               {isGeneratingTechnicalReport && (
-                <div className="absolute top-3 inset-x-4 sm:inset-x-8 z-40 flex items-center justify-center gap-2.5 bg-black/85 backdrop-blur-md border border-teal-400/60 rounded-xl px-4 py-2.5 shadow-2xl animate-pulse pointer-events-auto">
-                  <div className="h-4 w-4 border-2 border-teal-400 border-t-transparent rounded-full animate-spin shrink-0" />
-                  <span className="text-xs sm:text-sm font-bold text-teal-300 truncate">Compilando informe técnico con evidencias... Por favor espera conectado</span>
+                <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2.5 bg-slate-900/90 backdrop-blur-md border border-teal-500/50 rounded-full px-4 py-1.5 shadow-xl animate-pulse pointer-events-auto">
+                  <div className="h-3.5 w-3.5 border-2 border-teal-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                  <span className="text-[11px] font-medium text-teal-200 whitespace-nowrap">Compilando informe técnico... por favor espera un momento</span>
                 </div>
               )}
 
