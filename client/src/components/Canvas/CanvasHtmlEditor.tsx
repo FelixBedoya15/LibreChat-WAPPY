@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useRecoilState } from 'recoil';
 import store from '~/store';
 import { saveAs } from 'file-saver';
+import { cn } from '~/utils';
 import { 
   Eye, 
   Code2, 
@@ -651,6 +653,16 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
     };
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen]);
+
   const toggleFullscreen = async () => {
     const nextState = !isFullscreen;
     setIsFullscreen(nextState);
@@ -982,7 +994,7 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
                   <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
                     <RotateCw className="h-4 w-4 text-text-primary" />
                   </div>
-                  <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                  <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
                     <span className="text-sm font-bold tracking-wide text-text-primary">
                       Recargar
                     </span>
@@ -997,7 +1009,7 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
                   <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
                     <ExternalLink className="h-4 w-4 text-text-primary" />
                   </div>
-                  <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                  <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
                     <span className="text-sm font-bold tracking-wide text-text-primary">
                       Abrir en pestaña
                     </span>
@@ -1012,7 +1024,7 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
                   <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
                     {isFullscreen ? <Minimize className="h-4 w-4 text-text-primary" /> : <Maximize className="h-4 w-4 text-text-primary" />}
                   </div>
-                  <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                  <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
                     <span className="text-sm font-bold tracking-wide text-text-primary">
                       {isFullscreen ? 'Salir Pantalla Completa' : 'Pantalla Completa'}
                     </span>
@@ -1029,7 +1041,7 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
               <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
                 <Download className="h-4 w-4 text-text-primary" />
               </div>
-              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+              <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
                 <span className="text-sm font-bold tracking-wide text-text-primary">
                   Descargar HTML
                 </span>
@@ -1058,28 +1070,15 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
             </div>
           )}
 
-          {/* Right Side: Iframe Live Preview */}
+          {/* Right Side: Iframe Live Preview (in-panel) */}
           {(activeTab === 'split' || activeTab === 'preview') && (
             <div
               ref={iframeContainerRef}
-              className={`flex-1 h-full min-h-0 min-w-0 bg-white relative flex flex-col overflow-hidden ${
-                isFullscreen
-                  ? 'fixed inset-0 z-[99999999] h-screen w-screen'
-                  : ''
-              }`}
-            >
-              {isFullscreen && (
-                <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
-                  <button
-                    onClick={toggleFullscreen}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900/90 text-white backdrop-blur-md border border-slate-700 shadow-2xl font-bold text-xs active:scale-95 transition-all hover:bg-slate-800"
-                    title="Salir de pantalla completa"
-                  >
-                    <Minimize className="h-4 w-4 text-teal-400" />
-                    <span>Salir Pantalla Completa</span>
-                  </button>
-                </div>
+              className={cn(
+                "flex-1 h-full min-h-0 min-w-0 bg-white relative flex flex-col overflow-hidden",
+                isFullscreen && "invisible"
               )}
+            >
               <iframe
                 key={iframeKey}
                 title="Canvas Live View"
@@ -1091,6 +1090,66 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
             </div>
           )}
         </div>
+
+        {/* Portal Fullscreen: True 100dvh screen takeover on mobile/desktop without parent container/overflow/transform traps */}
+        {isFullscreen && typeof document !== 'undefined' && createPortal(
+          <div className="fixed inset-0 z-[99999999] w-full h-[100dvh] bg-white flex flex-col overflow-hidden animate-in fade-in duration-150">
+            {/* Sleek top control capsule bar */}
+            <div className="shrink-0 flex items-center justify-between px-3 py-2 bg-slate-900/95 text-white backdrop-blur-md border-b border-slate-800 shadow-md pt-[max(0.5rem,env(safe-area-inset-top))]">
+              <div className="flex items-center gap-2 min-w-0 pr-2">
+                <span className="h-2 w-2 rounded-full bg-teal-400 shrink-0 animate-pulse" />
+                <span className="text-xs font-bold truncate text-slate-200 max-w-[160px] sm:max-w-[400px]">
+                  {title || 'Informe Técnico SST'}
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 font-mono hidden sm:inline-block">
+                  Pantalla Completa
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleOpenInNewTab}
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all text-xs flex items-center gap-1.5 active:scale-95 border border-slate-700"
+                  title="Abrir en pestaña nueva"
+                >
+                  <ExternalLink className="h-3.5 w-3.5 text-teal-400" />
+                  <span className="hidden sm:inline text-[11px] font-semibold">Pestaña</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadHtml}
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all text-xs flex items-center gap-1.5 active:scale-95 border border-slate-700"
+                  title="Descargar documento HTML"
+                >
+                  <Download className="h-3.5 w-3.5 text-teal-400" />
+                  <span className="hidden sm:inline text-[11px] font-semibold">Descargar</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleFullscreen}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-md transition-all active:scale-95 border border-teal-500/30"
+                  title="Salir de pantalla completa"
+                >
+                  <Minimize className="h-3.5 w-3.5" />
+                  <span className="text-[11px]">Salir</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Fullscreen Iframe */}
+            <div className="flex-1 w-full h-full min-h-0 bg-white relative">
+              <iframe
+                key={`fullscreen-${iframeKey}`}
+                title="Canvas Live View Fullscreen"
+                className="w-full h-full border-none bg-white min-h-0 min-w-0"
+                sandbox="allow-scripts allow-modals allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-downloads allow-pointer-lock"
+                allow="fullscreen; presentation; clipboard-read; clipboard-write; autoplay"
+                srcDoc={previewDoc}
+              />
+            </div>
+          </div>,
+          document.body
+        )}
       </div>
     </div>
   );

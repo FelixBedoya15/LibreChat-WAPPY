@@ -895,12 +895,16 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     /**
      * Trigger Report Generation manually via WebSocket
      */
-    const triggerReport = useCallback(() => {
-        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+    const triggerReport = useCallback((): boolean => {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+            console.warn('[VoiceSession] Cannot trigger report via WS: socket is not open');
+            return false;
+        }
         console.log('[VoiceSession] Manually requesting report generation via WS');
         wsRef.current.send(JSON.stringify({
             type: 'trigger_report',
         }));
+        return true;
     }, []);
 
     return {

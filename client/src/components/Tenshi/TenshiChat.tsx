@@ -40,6 +40,7 @@ import {
   RefreshCcw,
   Film,
   PhoneOff,
+  Loader2,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
@@ -1823,7 +1824,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     [token, isVoiceActive, setIsCanvasActive, setStreamingCanvas]
   );
 
-  const triggerVoiceReportRef = useRef<(() => void) | null>(null);
+  const triggerVoiceReportRef = useRef<(() => boolean) | null>(null);
+  const requestTechnicalReportRef = useRef<(() => void) | null>(null);
 
   const sessionOptions = useMemo(
     () => ({
@@ -1961,15 +1963,16 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             setCurrentErgoPhaseIndex(targetIdx);
             resultMsg = `Fase ergonómica actualizada en pantalla a Paso ${faseNum}: ${ERGO_PHASES[targetIdx]?.shortName || ''}`;
           } else if (action.name === 'generar_informe_tecnico') {
-            // Asegurar captura de la fase final activa si aún no se ha tomado
-            const curIdx = currentErgoPhaseIndexRef.current;
-            if (!manualCapturedPhasesRef.current.has(curIdx)) {
-              captureVisionSnapshotRef.current?.(undefined, curIdx);
+            if (requestTechnicalReportRef.current) {
+              requestTechnicalReportRef.current();
+            } else {
+              const curIdx = currentErgoPhaseIndexRef.current;
+              if (!manualCapturedPhasesRef.current.has(curIdx)) {
+                captureVisionSnapshotRef.current?.(undefined, curIdx);
+              }
+              triggerVoiceReportRef.current?.();
             }
-            if (triggerVoiceReportRef.current) {
-              triggerVoiceReportRef.current();
-            }
-            resultMsg = 'Generación de informe técnico ergonómico iniciada con éxito.';
+            resultMsg = 'Generación de informe técnico iniciada con éxito.';
           } else if (action.name === 'wappy_abrir_chat_agente') {
             const rawAgente = (action.args?.agente || '').trim();
             const rawPregunta = (action.args?.pregunta || '').trim();
@@ -2567,6 +2570,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           });
           setIsCanvasActive(true);
           setIsOpen(true);
+          setIsVisionExpanded(false);
         }
       },
       onError: (err: string) => {
@@ -4664,6 +4668,45 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     [navigate, setStreamingCanvas, setIsCanvasActive, setCanvasMaximized, conversation, newConversation],
   );
 
+  const requestTechnicalReport = useCallback(() => {
+    tenshiAudio.playChime();
+    setIsGeneratingTechnicalReport(true);
+    setVoiceStatusText('⏳ Compilando y generando informe técnico oficial...');
+
+    // 1. Snapshot de la cámara activa si está en video
+    if (isVisionActive && visionSource === 'camera') {
+      captureVisionSnapshot(
+        isBiomechanicsActive
+          ? undefined
+          : '📸 Evidencia de Inspección Visual SST'
+      );
+    }
+
+    // 2. Disparar generación vía WebSocket de voz si está conectado
+    const sentViaWs = triggerVoiceReportRef.current ? triggerVoiceReportRef.current() : false;
+
+    // 3. Fallback de alta resiliencia: si el WebSocket no estaba abierto o falló, enviar instrucción vía chat
+    if (!sentViaWs) {
+      console.log('[TenshiChat] Sesión de voz no disponible para trigger_report; enviando solicitud vía chat');
+      handleSend(
+        isBiomechanicsActive
+          ? 'Por favor compila el informe técnico ergonómico de estudio de puesto de trabajo con las evidencias y recomendaciones observadas.'
+          : `Por favor compila el informe técnico de la inspección (${activeProtocol.title}) con las evidencias fotográficas y recomendaciones observadas.`
+      );
+    }
+  }, [
+    isVisionActive,
+    visionSource,
+    isBiomechanicsActive,
+    activeProtocol.title,
+    captureVisionSnapshot,
+    handleSend,
+  ]);
+
+  useEffect(() => {
+    requestTechnicalReportRef.current = requestTechnicalReport;
+  }, [requestTechnicalReport]);
+
   const showVoiceModal = useRecoilValue(store.showVoiceModal);
   const showLiveAnalysisModal = useRecoilValue(store.showLiveAnalysisModal);
 
@@ -5227,29 +5270,21 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                     {/* 6. Generar Informe / Reporte */}
                     <button
                       type="button"
-                      onClick={() => {
-                        tenshiAudio.playChime();
-                        if (isVisionActive && visionSource === 'camera') {
-                          captureVisionSnapshot(
-                            isBiomechanicsActive
-                              ? undefined
-                              : '📸 Evidencia de Inspección Visual SST'
-                          );
-                        }
-                        if (triggerVoiceReportRef.current) {
-                          triggerVoiceReportRef.current();
-                        } else {
-                          handleSend(
-                            isBiomechanicsActive
-                              ? 'Por favor compila el informe técnico ergonómico de estudio de puesto de trabajo con las evidencias y recomendaciones observadas.'
-                              : `Por favor compila el informe técnico de la inspección (${activeProtocol.title}) con las evidencias fotográficas y recomendaciones observadas.`
-                          );
-                        }
-                      }}
-                      title={`Generar informe técnico de ${activeProtocol.title}`}
-                      className="p-1.5 sm:p-2 rounded-full bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-white transition-all duration-200 active:scale-95 shadow-md border border-teal-300/30 flex items-center justify-center"
+                      disabled={isGeneratingTechnicalReport}
+                      onClick={requestTechnicalReport}
+                      title={isGeneratingTechnicalReport ? 'Compilando informe técnico...' : `Generar informe técnico de ${activeProtocol.title}`}
+                      className={cn(
+                        "p-1.5 sm:p-2 rounded-full text-white transition-all duration-200 active:scale-95 shadow-md border flex items-center justify-center",
+                        isGeneratingTechnicalReport
+                          ? "bg-amber-600/90 border-amber-400/60 cursor-not-allowed animate-pulse"
+                          : "bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 border-teal-300/30"
+                      )}
                     >
-                      <FileText className="w-3.5 h-3.5" />
+                      {isGeneratingTechnicalReport ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                      ) : (
+                        <FileText className="w-3.5 h-3.5" />
+                      )}
                     </button>
 
                     {/* 7. Colgar / Detener Live */}
@@ -5931,29 +5966,21 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 {/* 6. Generar Informe / Reporte */}
                 <button
                   type="button"
-                  onClick={() => {
-                    tenshiAudio.playChime();
-                    if (isVisionActive && visionSource === 'camera') {
-                      captureVisionSnapshot(
-                        isBiomechanicsActive
-                          ? undefined
-                          : '📸 Evidencia de Inspección Visual SST'
-                      );
-                    }
-                    if (triggerVoiceReportRef.current) {
-                      triggerVoiceReportRef.current();
-                    } else {
-                      handleSend(
-                        isBiomechanicsActive
-                          ? 'Por favor compila el informe técnico ergonómico de estudio de puesto de trabajo con las evidencias y recomendaciones observadas.'
-                          : `Por favor compila el informe técnico de la inspección (${activeProtocol.title}) con las evidencias fotográficas y recomendaciones observadas.`
-                      );
-                    }
-                  }}
-                  title={`Generar informe técnico de ${activeProtocol.title}`}
-                  className="p-2 sm:p-2.5 rounded-full bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-white transition-all duration-200 active:scale-95 shadow-md border border-teal-300/30 flex items-center justify-center"
+                  disabled={isGeneratingTechnicalReport}
+                  onClick={requestTechnicalReport}
+                  title={isGeneratingTechnicalReport ? 'Compilando informe técnico...' : `Generar informe técnico de ${activeProtocol.title}`}
+                  className={cn(
+                    "p-2 sm:p-2.5 rounded-full text-white transition-all duration-200 active:scale-95 shadow-md border flex items-center justify-center",
+                    isGeneratingTechnicalReport
+                      ? "bg-amber-600/90 border-amber-400/60 cursor-not-allowed animate-pulse"
+                      : "bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 border-teal-300/30"
+                  )}
                 >
-                  <FileText className="w-4 h-4" />
+                  {isGeneratingTechnicalReport ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  ) : (
+                    <FileText className="w-4 h-4" />
+                  )}
                 </button>
 
                 {/* 7. Colgar / Detener Live */}
