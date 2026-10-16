@@ -214,6 +214,204 @@ class TenshiAudioEngine {
     osc.start(t);
     osc.stop(t + 0.105);
   }
+
+  /**
+   * Saludo cálido ascendente al abrir o saludar con la mano
+   */
+  public playGreet() {
+    if (this.isMuted) return;
+    this.resume();
+    if (!this.ctx || !this.masterGain) return;
+
+    const t = this.ctx.currentTime;
+    const notes = [440, 554.37, 659.25, 880]; // A4, C#5, E5, A5
+    notes.forEach((freq, idx) => {
+      if (!this.ctx || !this.masterGain) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      const start = t + idx * 0.055;
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.001, start);
+      gain.gain.linearRampToValueAtTime(0.14, start + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.16);
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+      osc.start(start);
+      osc.stop(start + 0.165);
+    });
+  }
+
+  /**
+   * Ronroneo cibernético cálido al acariciar a Tenshi (Petting)
+   */
+  public playPurr() {
+    if (this.isMuted) return;
+    this.resume();
+    if (!this.ctx || !this.masterGain) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const lfo = this.ctx.createOscillator();
+    const lfoGain = this.ctx.createGain();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(195, t);
+    osc.frequency.exponentialRampToValueAtTime(280, t + 0.35);
+
+    lfo.type = 'sine';
+    lfo.frequency.setValueAtTime(24, t); // Vibrato de ronroneo gatuno
+    lfoGain.gain.setValueAtTime(18, t);
+
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc.frequency);
+
+    gain.gain.setValueAtTime(0.001, t);
+    gain.gain.linearRampToValueAtTime(0.14, t + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc.start(t);
+    lfo.start(t);
+    osc.stop(t + 0.39);
+    lfo.stop(t + 0.39);
+  }
+
+  /**
+   * Queja corta cuando el usuario lo pica 2 veces seguidas (Annoyed)
+   */
+  public playAnnoyed() {
+    if (this.isMuted) return;
+    this.resume();
+    if (!this.ctx || !this.masterGain) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(310, t);
+    osc.frequency.linearRampToValueAtTime(215, t + 0.12);
+
+    gain.gain.setValueAtTime(0.09, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc.start(t);
+    osc.stop(t + 0.135);
+  }
+
+  /**
+   * Inflexión curiosa ascendente ("¿hm?") para preguntas o curiosidad
+   */
+  public playQuestion() {
+    if (this.isMuted) return;
+    this.resume();
+    if (!this.ctx || !this.masterGain) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(420, t);
+    osc.frequency.exponentialRampToValueAtTime(760, t + 0.16);
+
+    gain.gain.setValueAtTime(0.001, t);
+    gain.gain.linearRampToValueAtTime(0.15, t + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.17);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc.start(t);
+    osc.stop(t + 0.175);
+  }
+
+  /**
+   * Escaneo digital sutil para búsqueda web o normativa
+   */
+  public playSearch() {
+    if (this.isMuted) return;
+    this.resume();
+    if (!this.ctx || !this.masterGain) return;
+
+    const t = this.ctx.currentTime;
+    const freqs = [740, 987.77, 880, 1174.66];
+    freqs.forEach((f, idx) => {
+      if (!this.ctx || !this.masterGain) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      const start = t + idx * 0.04;
+      osc.frequency.setValueAtTime(f, start);
+      gain.gain.setValueAtTime(0.08, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.045);
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+      osc.start(start);
+      osc.stop(start + 0.05);
+    });
+  }
+
+  /**
+   * Sonido de absorción elástica al soltar un archivo sobre Tenshi (Gulp)
+   */
+  public playGulp() {
+    if (this.isMuted) return;
+    this.resume();
+    if (!this.ctx || !this.masterGain) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(260, t);
+    osc.frequency.exponentialRampToValueAtTime(820, t + 0.14);
+    osc.frequency.exponentialRampToValueAtTime(480, t + 0.24);
+
+    gain.gain.setValueAtTime(0.18, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc.start(t);
+    osc.stop(t + 0.255);
+  }
+
+  /**
+   * Suspiro suave al entrar en reposo/sueño
+   */
+  public playYawn() {
+    if (this.isMuted) return;
+    this.resume();
+    if (!this.ctx || !this.masterGain) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(520, t);
+    osc.frequency.exponentialRampToValueAtTime(280, t + 0.45);
+
+    gain.gain.setValueAtTime(0.001, t);
+    gain.gain.linearRampToValueAtTime(0.09, t + 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.46);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc.start(t);
+    osc.stop(t + 0.47);
+  }
 }
 
 export const tenshiAudio = new TenshiAudioEngine();

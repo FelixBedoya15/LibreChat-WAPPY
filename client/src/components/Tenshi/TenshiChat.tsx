@@ -56,7 +56,7 @@ import { getDehydratedDOM, executeGUIAction, getVisibleScreenContent } from '../
 import { useVoiceSession } from '~/hooks/useVoiceSession';
 import { cn, clearMessagesCache } from '~/utils';
 import { Constants, QueryKeys, EModelEndpoint } from 'librechat-data-provider';
-import { TenshiAvatar } from './TenshiAvatar';
+import { TenshiAvatar, triggerTenshiReaction, type TenshiAvatarMood } from './TenshiAvatar';
 import { tenshiAudio } from './tenshiAudio';
 import {
   loadTasksVision,
@@ -1360,6 +1360,38 @@ export default function TenshiChat() {
   // Estado de silenciado de micrófono del usuario (Mute de audio)
   const [isMicMuted, setIsMicMuted] = useState(false);
 
+  // Estado emocional derivado para Tenshi Alive 2.0 (inspirado en BotStates de Coucou)
+  const derivedAvatarMood: TenshiAvatarMood = useMemo(() => {
+    if (reportSuccessToast) return 'success';
+    if (isTenshiSpeaking) return 'speaking';
+    if (tenshiStatus) {
+      const lower = tenshiStatus.toLowerCase();
+      if (lower.includes('busc') || lower.includes('consult') || lower.includes('norma') || lower.includes('web')) {
+        return 'searching';
+      }
+      return 'working';
+    }
+    if (guiSteps.some((s) => s.status === 'pending')) return 'working';
+    if (isTyping || isChatSubmitting || isWaitingConsultation) return 'thinking';
+    if (isVoiceActive) return 'listening';
+    if (messages.length > 1) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg?.role === 'assistant' && lastMsg.content?.trim().endsWith('?')) {
+        return 'question';
+      }
+    }
+    return 'idle';
+  }, [
+    reportSuccessToast,
+    isTenshiSpeaking,
+    tenshiStatus,
+    guiSteps,
+    isTyping,
+    isChatSubmitting,
+    isWaitingConsultation,
+    isVoiceActive,
+    messages,
+  ]);
 
   const queryClient = useQueryClient();
   const latestChatMessage = useRecoilValue(store.latestMessageFamily(0));
@@ -4847,11 +4879,16 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             }}
           >
             <div className="flex items-center gap-2">
-              <div className="relative flex h-7 w-7 items-center justify-center">
-                <img
-                  src="/assets/tenshi.png"
-                  alt="Tenshi"
-                  className="h-full w-full object-contain pointer-events-none"
+              <div className="relative flex h-8 w-8 items-center justify-center">
+                <TenshiAvatar
+                  size={32}
+                  mood={derivedAvatarMood}
+                  isSpeaking={isTenshiSpeaking}
+                  outputAmplitude={outputAmplitude}
+                  isVoiceActive={isVoiceActive}
+                  interactive={false}
+                  showHaloEffect={false}
+                  showHUD={true}
                 />
                 <span
                   className={cn(
@@ -4930,6 +4967,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             >
               <TenshiAvatar
                 size={315}
+                mood={derivedAvatarMood}
                 isSpeaking={isTenshiSpeaking}
                 outputAmplitude={outputAmplitude}
                 isVoiceActive={isVoiceActive}
@@ -5706,11 +5744,16 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           {/* Cabecera Glassmorphic Minimalista Compacta */}
           <div className="flex shrink-0 items-center justify-between border-b border-slate-200/60 bg-slate-50/80 px-3.5 py-2.5 dark:border-zinc-800/80 dark:bg-zinc-800/60 select-none">
             <div className="flex items-center gap-2">
-              <div className="relative flex h-7 w-7 items-center justify-center">
-                <img
-                  src="/assets/tenshi.png"
-                  alt="Tenshi"
-                  className="h-full w-full object-contain pointer-events-none"
+              <div className="relative flex h-8 w-8 items-center justify-center">
+                <TenshiAvatar
+                  size={32}
+                  mood={derivedAvatarMood}
+                  isSpeaking={isTenshiSpeaking}
+                  outputAmplitude={outputAmplitude}
+                  isVoiceActive={isVoiceActive}
+                  interactive={false}
+                  showHaloEffect={false}
+                  showHUD={true}
                 />
                 <span
                   className={cn(
@@ -6885,6 +6928,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         {/* Avatar interactivo de Tenshi Flotando */}
         <TenshiAvatar
           size={92}
+          mood={derivedAvatarMood}
           isSpeaking={isTenshiSpeaking}
           outputAmplitude={outputAmplitude}
           isVoiceActive={isVoiceActive}
