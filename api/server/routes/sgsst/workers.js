@@ -1232,7 +1232,7 @@ PRIORIZA los dominios y clasificaciones GTC-45 que correlacionen lógicamente co
 Devuelve SOLO el array JSON, sin formato markdown adicional ni bloques delimitadores.`;
 
         const apiKeys = await resolveApiKeys(req.user.id, getUserKey, AuthKeys);
-        const selectedModel = modelName || 'gemini-3.5-flash';
+        const selectedModel = modelName || 'gemini-3.5-flash-lite';
         const result = await generateWithKeyRotation(selectedModel, req.user.id || req.user, prompt);
         const response = await result.response;
         let rawJson = response.text();
@@ -1452,7 +1452,7 @@ Devuelve ÚNICAMENTE un objeto JSON con los campos actualizados. Ejemplo:
 No incluyas markdown.`;
 
         const apiKeys = await resolveApiKeys(req.user.id, getUserKey, AuthKeys);
-        const selectedModel = modelName || 'gemini-3.5-flash';
+        const selectedModel = modelName || 'gemini-3.5-flash-lite';
         const result = await generateWithKeyRotation(selectedModel, req.user.id || req.user, prompt);
         const response = await result.response;
         let rawJson = response.text();
@@ -1598,7 +1598,7 @@ REGLAS DE OBLIGATORIO CUMPLIMIENTO:
 - Devuelve SOLO el texto plano de la conclusión. No agregues comillas alrededor de la conclusión, no agregues formato Markdown ni introducciones como "Conclusión:".`;
 
         const apiKeys = await resolveApiKeys(req.user.id, getUserKey, AuthKeys);
-        const selectedModel = modelName || 'gemini-3.5-flash';
+        const selectedModel = modelName || 'gemini-3.5-flash-lite';
         const result = await generateWithKeyRotation(selectedModel, req.user.id || req.user, prompt);
         const response = await result.response;
         const conclusion = response.text().trim();
@@ -1768,7 +1768,7 @@ Genera EXACTAMENTE 5 riesgos IPEVR personalizados en formato JSON. Cada riesgo d
 PRIORIZA riesgos relacionados con las condiciones de salud del trabajador. Devuelve SOLO el array JSON, sin texto adicional.`;
 
         const result = await generateWithKeyRotation(
-            'gemini-3.5-flash',
+            'gemini-3.5-flash-lite',
             req.user.id || req.user,
             prompt,
             { responseMimeType: 'application/json' }

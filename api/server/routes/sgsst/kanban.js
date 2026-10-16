@@ -1330,7 +1330,7 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
 
     // 3. Configurar e invocar a Gemini
     const personalization = req.user?.personalization?.geminiModels;
-    const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
+    const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash-lite').split(',')[0].trim();
     const finalModelName = modelName || preferredModel;
 
     const modelInstance = {

@@ -443,7 +443,7 @@ class STTService {
 
     const modelsToTry = [
       process.env.TRANSCRIPTION_MODEL || 'gemini-3.5-transcribe',
-      'gemini-3.5-flash',
+      'gemini-3.5-flash-lite',
       'gemini-3.6-flash',
     ];
 

@@ -182,8 +182,11 @@ router.post('/:id/ai-suggest', requireJwtAuth, async (req, res) => {
         const apiKeys = rawKey.split(',').map(k => k.trim()).filter(Boolean);
 
         // Dual-axis rotation: keys first, model fallback on 503
-        const primaryModel = modelName || 'gemini-3-flash-preview';
-        const envModels = (process.env.GOOGLE_MODELS || primaryModel).split(',').map(m => m.trim()).filter(Boolean);
+        const primaryModel = modelName || 'gemini-3.5-flash-lite';
+        const envModels = (process.env.GOOGLE_MODELS || 'gemini-3.5-flash-lite,gemini-3.6-flash')
+            .split(',')
+            .map(m => m.trim().replace('models/', ''))
+            .filter(m => m && !m.includes('live') && !m.includes('native-audio'));
         const modelFallbacks = [primaryModel, ...envModels.filter(m => m !== primaryModel)];
 
         // ... (knowledge gathering stays unchanged)

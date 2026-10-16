@@ -121,7 +121,7 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             try {
                 // Initialize model
                 const personalization = req.user?.personalization?.geminiModels;
-                const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
+                const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash-lite').split(',')[0].trim();
                 const finalModelName = modelName || preferredModel;
                 const genAI = new GoogleGenerativeAI(resolvedApiKey);
                 const model = genAI.getGenerativeModel({

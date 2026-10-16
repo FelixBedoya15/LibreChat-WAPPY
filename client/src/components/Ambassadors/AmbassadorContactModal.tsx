@@ -487,9 +487,8 @@ export default function AmbassadorContactModal({
                         onChange={(e) => setModel(e.target.value)}
                         className="bg-surface-primary border border-border-medium/40 rounded-lg px-2.5 py-1 text-xs text-text-secondary outline-none focus:border-teal-500 font-semibold"
                       >
-                        <option value="gemini-3.6-flash">Gemini 3.8 Flash (Recomendado)</option>
-                        <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
-                        <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite</option>
+                        <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite (Ultra Rápido)</option>
+                        <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
                       </select>
                     </div>
 

@@ -784,11 +784,10 @@ router.post('/ai-chat', requireJwtAuth, handleAiGeneration);
 router.get('/models', requireJwtAuth, (req, res) => {
   res.json({
     models: [
-      { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash', badge: 'Recomendado' },
-      { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash', badge: 'Equilibrado' },
       { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite', badge: 'Ultra Rápido' },
+      { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash', badge: 'Recomendado' },
     ],
-    default: 'gemini-3.6-flash',
+    default: 'gemini-3.5-flash-lite',
   });
 });
 

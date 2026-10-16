@@ -503,7 +503,7 @@ router.post('/actas/generar-borrador-ia', requireJwtAuth, async (req, res) => {
     const personalization = req.user?.personalization?.geminiModels;
     const preferredModel =
       personalization?.sstManagement ||
-      (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
+      (process.env.GOOGLE_MODELS || 'gemini-3.5-flash-lite').split(',')[0].trim();
 
     const prompt = `Actúa como Tenshi, experta jurídica y psicosocial en Seguridad y Salud en el Trabajo, bajo la estricta Resolución 3461 del 1 de septiembre de 2025 (Convenio 190 OIT), Ley 1010 de 2006 y Ley 2365 de 2024 de Colombia.
 Redacta y complementa el contenido formal, técnico y reservado de los 7 puntos reglamentarios de un Acta Ordinaria Trimestral del Comité de Convivencia Laboral (CCL) para la empresa "${company.companyName}".
@@ -856,7 +856,7 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
     const personalization = req.user?.personalization?.geminiModels;
     const preferredModel =
       personalization?.sstManagement ||
-      (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
+      (process.env.GOOGLE_MODELS || 'gemini-3.5-flash-lite').split(',')[0].trim();
 
     let aiBodyHtml = '';
     let desarrolloEnriquecido = { ...(acta.desarrollo || {}) };

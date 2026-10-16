@@ -700,19 +700,21 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             }
 
             // Dual-axis rotation: Candidate models with fallback
+            // Modelos de texto configurados en GOOGLE_MODELS
             const envModels = (process.env.GOOGLE_MODELS || '')
                 .split(',')
                 .map(m => m.trim().replace('models/', ''))
-                .filter(m => m && !m.includes('live') && !m.includes('native-audio'));
+                .filter(m => m && !m.includes('live') && !m.includes('native-audio') && !m.includes('transcribe'));
 
-            const configuredModel = (config.model || '').replace('models/', '').trim();
+            // Modelos de texto permitidos y vigentes en WAPPY: gemini-3.5-flash-lite (ultra-rápido prioritario) y gemini-3.6-flash (fallback)
+            const allowedTextModels = ['gemini-3.5-flash-lite', 'gemini-3.6-flash'];
+            const validEnvModels = envModels.filter(m => allowedTextModels.includes(m));
+
+            // Tenshi siempre prioriza gemini-3.5-flash-lite para máxima velocidad de respuesta
             const candidateModels = [
-                configuredModel,
                 'gemini-3.5-flash-lite',
-                'gemini-3.5-flash',
-                'gemini-3.8-flash',
-                'gemini-3.6-flash',
-                ...envModels
+                ...validEnvModels.filter(m => m !== 'gemini-3.5-flash-lite'),
+                'gemini-3.6-flash'
             ].filter(Boolean);
             const modelFallbacks = [...new Set(candidateModels)];
 
@@ -2314,9 +2316,18 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         const is503 = status === 503 || msg.includes('503') || msg.includes('overloaded') || msg.includes('service unavailable');
                         const is404 = status === 404 || msg.includes('404') || msg.includes('not found') || msg.includes('is not found for api version');
 
-                        if (is503 || is404) {
-                            logger.warn(`[Tenshi] Modelo "${currentModel}" no disponible (${status || 'error'}). Cambiando modelo...`);
-                            break; // Try next model in outer loop
+                        if (is503) {
+                            if (i < apiKeys.length - 1) {
+                                logger.warn(`[Tenshi] Modelo "${currentModel}" recibió 503 con clave #${i + 1}. Reintentando con clave #${i + 2}...`);
+                                continue;
+                            }
+                            logger.warn(`[Tenshi] Modelo "${currentModel}" no disponible tras probar todas las claves (${status || '503'} - ${geminiError.message}). Cambiando a modelo fallback...`);
+                            break;
+                        }
+
+                        if (is404) {
+                            logger.warn(`[Tenshi] Modelo "${currentModel}" no encontrado (${status || '404'} - ${geminiError.message}). Cambiando a modelo fallback...`);
+                            break;
                         }
 
                         logger.warn(`[Tenshi] Error con modelo "${currentModel}" y clave #${i + 1}: ${geminiError.message}. Probando siguiente modelo...`);

@@ -84,8 +84,8 @@ router.get('/migrate-names-public', async (req, res) => {
         modified = true;
       }
       
-      if (agent.model !== 'gemini-3.5-flash' && agent.provider === 'google') {
-        agent.model = 'gemini-3.5-flash';
+      if (agent.model !== 'gemini-3.5-flash-lite' && agent.provider === 'google') {
+        agent.model = 'gemini-3.5-flash-lite';
         modified = true;
       }
       
