@@ -6020,6 +6020,185 @@ router.post('/email/send', requireApiKeyOrJwt, async (req, res) => {
 });
 
 // ─── 36. GESTIÓN INTEGRAL DE AGENDAS Y EVENTOS (GOOGLE CALENDAR + KANBAN WAPPY) ──
+const handleUpdateAgendaEvent = async (req, res) => {
+  try {
+    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const company = await getActiveCompany(targetUserId);
+    const companyId = company ? String(company._id) : null;
+
+    const rawId = decodeURIComponent(req.params.id || req.body.id || req.body.id_evento || req.body.eventId || '').trim();
+    const {
+      titulo, title, nuevo_titulo, newTitle,
+      fecha_inicio, startTime, nueva_fecha, newStartTime, fecha,
+      fecha_fin, endTime, nueva_fecha_fin, newEndTime,
+      descripcion, description, tipo, type, prioridad, priority
+    } = req.body;
+
+    const newEventTitle = nuevo_titulo || newTitle || titulo || title;
+    const rawStart = nueva_fecha || newStartTime || fecha_inicio || startTime || fecha;
+    const rawEnd = nueva_fecha_fin || newEndTime || fecha_fin || endTime;
+    const newDesc = descripcion !== undefined ? descripcion : description;
+
+    let targetTask = null;
+    const mongoose = require('mongoose');
+
+    // 1. Intentar buscar en KanbanTask por ObjectId
+    if (rawId && mongoose.Types.ObjectId.isValid(rawId)) {
+      targetTask = await KanbanTask.findOne({ _id: rawId, user: targetUserId });
+    }
+
+    // 2. Si no se encontró por ID, buscar por título o palabra clave
+    if (!targetTask) {
+      const searchTerm = rawId || titulo || title;
+      if (searchTerm) {
+        targetTask = await KanbanTask.findOne({
+          user: targetUserId,
+          title: { $regex: new RegExp(searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') },
+        }).sort({ dueDate: -1 });
+      }
+    }
+
+    let startDate = null;
+    if (rawStart) {
+      let s = String(rawStart).trim().replace(/[Zz]$/, '');
+      if (!s.includes('T') && s.includes(' ')) s = s.replace(' ', 'T');
+      if (s.length === 10) s = `${s}T09:00:00`;
+      s = s.replace(/[+-]\d{2}:\d{2}$/, '');
+      startDate = new Date(`${s}-05:00`);
+      if (isNaN(startDate.getTime())) startDate = null;
+    }
+
+    let finalTitle = newEventTitle;
+    let finalDueDate = startDate;
+    let googleSynced = false;
+    let googleEventLink = null;
+
+    if (targetTask) {
+      if (newEventTitle) targetTask.title = newEventTitle;
+      if (newDesc !== undefined) targetTask.description = newDesc;
+      if (startDate) targetTask.dueDate = startDate;
+      if (tipo || type) targetTask.type = tipo || type;
+      if (prioridad || priority) targetTask.priority = prioridad || priority;
+      await targetTask.save();
+
+      finalTitle = targetTask.title;
+      finalDueDate = targetTask.dueDate;
+
+      // Sincronizar en Google Calendar con upsertCalendarEvent
+      try {
+        const { upsertCalendarEvent } = require('../services/googleCalendar');
+        const gRes = await upsertCalendarEvent(targetUserId, {
+          syncId: targetTask._id.toString(),
+          title: targetTask.title,
+          description: targetTask.description,
+          startTime: rawStart || targetTask.dueDate.toISOString(),
+          endTime: rawEnd,
+        }, companyId);
+        if (gRes) {
+          googleSynced = true;
+          googleEventLink = gRes.htmlLink || null;
+        }
+      } catch (gErr) {
+        logger.warn(`[MCP Bridge] Error sincronizando reprogramación a Google Calendar: ${gErr.message}`);
+      }
+    } else {
+      // Si no existe en Kanban, intentar actualizar directamente en Google Calendar
+      try {
+        const { updateCalendarEventDirect } = require('../services/googleCalendar');
+        const gRes = await updateCalendarEventDirect(targetUserId, rawId, {
+          title: newEventTitle,
+          description: newDesc,
+          start: rawStart,
+          end: rawEnd,
+        }, companyId);
+        if (gRes) {
+          googleSynced = true;
+          googleEventLink = gRes.htmlLink || null;
+          finalTitle = gRes.summary || finalTitle;
+        }
+      } catch (gErr) {
+        logger.warn(`[MCP Bridge] Error actualizando evento directamente en Google Calendar: ${gErr.message}`);
+      }
+    }
+
+    const fechaFormatCol = finalDueDate
+      ? new Date(finalDueDate).toLocaleString('es-CO', {
+          timeZone: 'America/Bogota',
+          dateStyle: 'full',
+          timeStyle: 'short',
+        })
+      : (rawStart ? String(rawStart) : 'Fecha sin cambios');
+
+    return res.json({
+      exito: true,
+      mensaje: `Evento "${finalTitle || 'Actividad'}" reprogramado / actualizado exitosamente para el ${fechaFormatCol} (Hora Colombia).`,
+      evento: {
+        id: targetTask ? targetTask._id : rawId,
+        titulo: finalTitle,
+        fecha: finalDueDate,
+        fecha_colombia: fechaFormatCol,
+        googleSynced,
+        googleEventLink,
+      },
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error al actualizar/reprogramar evento:', error);
+    return res.status(500).json({ error: `Error al reprogramar evento: ${error.message}` });
+  }
+};
+
+const handleDeleteAgendaEvent = async (req, res) => {
+  try {
+    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const company = await getActiveCompany(targetUserId);
+    const companyId = company ? String(company._id) : null;
+    const rawId = decodeURIComponent(req.params.id || req.body.id || req.body.id_evento || req.body.eventId || req.query.id || req.query.eventId || '').trim();
+
+    let deletedFromKanban = false;
+    let deletedTaskTitle = '';
+
+    // 1. Intentar buscar y eliminar por ObjectId de Mongo
+    const mongoose = require('mongoose');
+    if (mongoose.Types.ObjectId.isValid(rawId)) {
+      const task = await KanbanTask.findOneAndDelete({ _id: rawId, user: targetUserId });
+      if (task) {
+        deletedFromKanban = true;
+        deletedTaskTitle = task.title;
+      }
+    }
+
+    // 2. Si no se eliminó por ObjectId, intentar buscar por coincidencia en el título
+    if (!deletedFromKanban && rawId) {
+      const task = await KanbanTask.findOneAndDelete({
+        user: targetUserId,
+        title: { $regex: new RegExp(rawId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') },
+      });
+      if (task) {
+        deletedFromKanban = true;
+        deletedTaskTitle = task.title;
+      }
+    }
+
+    // 3. Eliminar de Google Calendar
+    try {
+      const { deleteCalendarEvent } = require('../services/googleCalendar');
+      await deleteCalendarEvent(targetUserId, rawId, companyId);
+    } catch (e) {
+      logger.warn(`[MCP Bridge] Error al eliminar de Google Calendar: ${e.message}`);
+    }
+
+    return res.json({
+      exito: true,
+      mensaje: deletedTaskTitle
+        ? `Evento "${deletedTaskTitle}" eliminado exitosamente de la agenda y de Google Calendar.`
+        : `Evento "${rawId}" procesado y eliminado de tu agenda y calendario.`,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error al eliminar evento de agenda:', error);
+    return res.status(500).json({ error: `Error al eliminar evento: ${error.message}` });
+  }
+};
+
 router.post('/agenda/events', requireApiKeyOrJwt, async (req, res) => {
   try {
     const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
@@ -6028,7 +6207,7 @@ router.post('/agenda/events', requireApiKeyOrJwt, async (req, res) => {
     const { accion, action, titulo, title, fecha_inicio, startTime, fecha_fin, endTime, descripcion, description, tipo, type, prioridad, priority } = req.body;
     const act = (accion || action || '').toLowerCase();
 
-    // Defensa en profundidad: Si la acción solicitada es consultar/listar, devolver la agenda en vez de agendar
+    // 1. Desvío: Si la acción solicitada es consultar/listar
     if (act.includes('listar') || act.includes('list') || act.includes('consultar') || act.includes('ver') || act.includes('leer')) {
       const fromDate = new Date(Date.now() - 7 * 24 * 3600 * 1000);
       const toDate = new Date(Date.now() + 30 * 24 * 3600 * 1000);
@@ -6052,6 +6231,16 @@ router.post('/agenda/events', requireApiKeyOrJwt, async (req, res) => {
       });
     }
 
+    // 2. Desvío: Si la acción solicitada es reprogramar / actualizar
+    if (act.includes('reprogramar') || act.includes('actualizar') || act.includes('editar') || act.includes('update') || act.includes('reschedule')) {
+      return await handleUpdateAgendaEvent(req, res);
+    }
+
+    // 3. Desvío: Si la acción solicitada es eliminar / cancelar
+    if (act.includes('eliminar') || act.includes('cancelar') || act.includes('delete') || act.includes('remove')) {
+      return await handleDeleteAgendaEvent(req, res);
+    }
+
     const eventTitle = titulo || title || 'Actividad SG-SST';
     const eventDesc = descripcion || description || '';
     const rawStart = fecha_inicio || startTime;
@@ -6067,7 +6256,7 @@ router.post('/agenda/events', requireApiKeyOrJwt, async (req, res) => {
       startDate = new Date(Date.now() + 24 * 3600 * 1000);
     }
 
-    // 1. Guardar en Kanban / Cronograma de WAPPY
+    // Guardar en Kanban / Cronograma de WAPPY
     const task = await KanbanTask.create({
       user: targetUserId,
       title: eventTitle,
@@ -6078,7 +6267,7 @@ router.post('/agenda/events', requireApiKeyOrJwt, async (req, res) => {
       priority: priority || prioridad || 'medium',
     });
 
-    // 2. Si Google Calendar está conectado, sincronizar evento
+    // Si Google Calendar está conectado, sincronizar evento
     let googleSynced = false;
     let googleEventLink = null;
     try {
@@ -6123,6 +6312,9 @@ router.post('/agenda/events', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
+router.put('/agenda/events/:id', requireApiKeyOrJwt, handleUpdateAgendaEvent);
+router.put('/agenda/events', requireApiKeyOrJwt, handleUpdateAgendaEvent);
+
 router.get('/agenda/events', requireApiKeyOrJwt, async (req, res) => {
   try {
     const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
@@ -6165,23 +6357,8 @@ router.get('/agenda/events', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
-router.delete('/agenda/events/:id', requireApiKeyOrJwt, async (req, res) => {
-  try {
-    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
-    const { id } = req.params;
-    await KanbanTask.findOneAndDelete({ _id: id, user: targetUserId });
-
-    try {
-      const { deleteCalendarEvent } = require('../services/googleCalendar');
-      await deleteCalendarEvent(targetUserId, id);
-    } catch (e) {}
-
-    return res.json({ exito: true, mensaje: `Evento ${id} eliminado de la agenda.` });
-  } catch (error) {
-    logger.error('[MCP Bridge] Error al eliminar evento de agenda:', error);
-    return res.status(500).json({ error: 'Error al eliminar evento.' });
-  }
-});
+router.delete('/agenda/events/:id', requireApiKeyOrJwt, handleDeleteAgendaEvent);
+router.delete('/agenda/events', requireApiKeyOrJwt, handleDeleteAgendaEvent);
 
 // ─── 37. GENERACIÓN Y ENTREGA DE INFORMES EN EL CHAT DE TENSHI ─────────────
 router.post('/reports/generate', requireApiKeyOrJwt, async (req, res) => {

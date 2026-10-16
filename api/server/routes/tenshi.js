@@ -604,7 +604,10 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
 7. **ENVÍO DE CORREOS ELECTRÓNICOS ('wappy_enviar_correo')**:
    - Envía correos formales a cualquier destinatario o al correo del usuario ('mi correo') con mensajes, actas o el informe técnico generado, vía Gmail o servidor de WAPPY.
 8. **GESTIÓN INTEGRAL DE AGENDAS Y CALENDARIO ('wappy_gestionar_agenda' y 'google_calendar')**:
-   - Agenda eventos, capacitaciones, inspecciones, comités COPASST o citas médicas en Google Calendar y en el cronograma de WAPPY, y consulta la lista de eventos próximos.
+   - Tienes control total de agendas: agendar eventos, capacitaciones, inspecciones, comités COPASST o citas médicas en Google Calendar y en el cronograma de WAPPY.
+   - REPROGRAMACIÓN Y EDICIÓN: Puedes reprogramar o cambiar de fecha y hora cualquier evento existente (ej. "mueve la reunión de las 3pm a las 5pm", "pasa la capacitación para el viernes a las 9am").
+   - ELIMINACIÓN Y CANCELACIÓN: Puedes eliminar o cancelar cualquier cita tanto por ID exacto como por el nombre o motivo de la reunión (ej. "cancela la cita de bomberos", "elimina la reunión de extintores"), buscando automáticamente el evento en el calendario sin exigir IDs técnicos al usuario.
+   - CONSULTA: Puedes listar la agenda de eventos próximos para el día, la semana o el mes.
 9. **GOOGLE DRIVE Y COBERTURA TOTAL DE SOMOS SST ('google_drive')**:
    - Conéctate a Google Drive para explorar carpetas, leer documentos (RUT, planillas, matrices GTC45, FDS químicas) o guardar archivos con 'write_file'.
 10. **GESTIÓN DIRECTA DE COLABORADORES, CENSO Y EMPRESAS (HUELLA BIOCÉNTRICA)**:
@@ -1241,18 +1244,22 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
             const googleCalendarDeclaration = {
                 name: 'google_calendar',
-                description: 'Interactúa con Google Calendar: crea eventos/recordatorios, lista eventos por fecha y elimina eventos.',
+                description: 'Interactúa con Google Calendar: crea eventos/recordatorios, lista o busca eventos para verificar disponibilidad, reprograma/edita citas existentes y elimina eventos.',
                 parameters: {
                     type: 'OBJECT',
                     properties: {
-                        action: { type: 'STRING', description: 'create_event, list_events, delete_event' },
+                        action: { type: 'STRING', description: 'create_event, list_events, find_event, delete_event, update_event, reschedule_event' },
                         title: { type: 'STRING', description: 'Título o resumen del evento.' },
                         description: { type: 'STRING', description: 'Detalles del evento.' },
-                        startTime: { type: 'STRING', description: 'Fecha y hora de inicio (ISO).' },
-                        endTime: { type: 'STRING', description: 'Fecha y hora de finalización (ISO).' },
+                        startTime: { type: 'STRING', description: 'Fecha y hora de inicio (formato ISO local con offset -05:00 para Hora Colombia).' },
+                        endTime: { type: 'STRING', description: 'Fecha y hora de finalización (opcional).' },
                         timeMin: { type: 'STRING', description: 'Fecha de inicio para listar eventos.' },
                         timeMax: { type: 'STRING', description: 'Fecha de fin para listar eventos.' },
-                        eventId: { type: 'STRING', description: 'ID del evento a eliminar.' }
+                        eventId: { type: 'STRING', description: 'ID del evento de Google Calendar para eliminar o actualizar.' },
+                        query: { type: 'STRING', description: 'Palabra clave, nombre de la reunión o motivo para buscar, reprogramar o eliminar sin ID exacto.' },
+                        newStartTime: { type: 'STRING', description: 'Nueva fecha y hora de inicio para reprogramar el evento.' },
+                        newEndTime: { type: 'STRING', description: 'Nueva fecha y hora de finalización al reprogramar (opcional).' },
+                        newTitle: { type: 'STRING', description: 'Nuevo título del evento si se desea modificar.' }
                     },
                     required: ['action']
                 }
@@ -1582,17 +1589,19 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
             const wappyGestionarAgendaDeclaration = {
                 name: 'wappy_gestionar_agenda',
-                description: 'Gestiona la agenda, calendario y compromisos del SG-SST en Google Calendar y en el cronograma de WAPPY: agendar capacitaciones, inspecciones, auditorías, comités COPASST o citas médicas laborales, y listar compromisos próximos.',
+                description: 'Gestiona la agenda, calendario y compromisos del SG-SST en Google Calendar y en el cronograma de WAPPY: agendar eventos, listar compromisos próximos, reprogramar/editar fechas de eventos y cancelar/eliminar compromisos.',
                 parameters: {
                     type: 'OBJECT',
                     properties: {
-                        accion: { type: 'STRING', description: 'agendar_evento, listar_agenda o eliminar_evento.' },
-                        titulo: { type: 'STRING', description: 'Título del evento o compromiso.' },
-                        fecha_inicio: { type: 'STRING', description: 'Fecha y hora de inicio (ISO o YYYY-MM-DD HH:mm).' },
+                        accion: { type: 'STRING', description: 'agendar_evento, listar_agenda, reprogramar_evento, actualizar_evento o eliminar_evento.' },
+                        titulo: { type: 'STRING', description: 'Título del evento o compromiso (ej: "Inspección de Extintores").' },
+                        fecha_inicio: { type: 'STRING', description: 'Fecha y hora de inicio (ISO o YYYY-MM-DD HH:mm con Hora Colombia).' },
                         fecha_fin: { type: 'STRING', description: 'Fecha y hora de finalización (opcional).' },
+                        nueva_fecha: { type: 'STRING', description: 'Nueva fecha y hora para reprogramar el evento (ej: "2026-10-18T14:00:00").' },
+                        nuevo_titulo: { type: 'STRING', description: 'Nuevo título si se modifica el evento.' },
                         descripcion: { type: 'STRING', description: 'Detalles del evento.' },
                         tipo: { type: 'STRING', description: 'manual, training, medical_exam, audit_finding, copasst_finding, other.' },
-                        id_evento: { type: 'STRING', description: 'ID del evento si aplica.' }
+                        id_evento: { type: 'STRING', description: 'ID o palabra clave del evento para eliminar o reprogramar.' }
                     },
                     required: ['accion']
                 }

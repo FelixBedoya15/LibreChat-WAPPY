@@ -1113,18 +1113,22 @@ class VoiceSession {
                         },
                         {
                             name: "google_calendar",
-                            description: "Interactúa con Google Calendar: crea eventos/recordatorios, lista eventos por fecha y elimina eventos.",
+                            description: "Interactúa con Google Calendar: crea eventos/recordatorios, lista o busca eventos para verificar disponibilidad, reprograma/edita citas existentes y elimina eventos.",
                             parameters: {
                                 type: "object",
                                 properties: {
-                                    action: { type: "string", description: "'create_event', 'list_events', 'delete_event'" },
+                                    action: { type: "string", description: "'create_event', 'list_events', 'find_event', 'delete_event', 'update_event', 'reschedule_event'" },
                                     title: { type: "string", description: "Título o resumen del evento" },
                                     description: { type: "string", description: "Detalles del evento" },
-                                    startTime: { type: "string", description: "Fecha y hora de inicio (ISO)" },
+                                    startTime: { type: "string", description: "Fecha y hora de inicio (ISO con Hora Colombia)" },
                                     endTime: { type: "string", description: "Fecha y hora de finalización (ISO)" },
                                     timeMin: { type: "string", description: "Fecha de inicio para listar eventos" },
                                     timeMax: { type: "string", description: "Fecha de fin para listar eventos" },
-                                    eventId: { type: "string", description: "ID del evento a eliminar" }
+                                    eventId: { type: "string", description: "ID del evento a eliminar o reprogramar" },
+                                    query: { type: "string", description: "Palabra clave o nombre del evento para buscar, reprogramar o eliminar sin ID exacto" },
+                                    newStartTime: { type: "string", description: "Nueva fecha y hora de inicio para reprogramar el evento" },
+                                    newEndTime: { type: "string", description: "Nueva fecha y hora de fin al reprogramar (opcional)" },
+                                    newTitle: { type: "string", description: "Nuevo título si se modifica el evento" }
                                 },
                                 required: ["action"]
                             }
@@ -1365,14 +1369,14 @@ class VoiceSession {
                         },
                         {
                             name: "wappy_gestionar_agenda",
-                            description: "Gestiona la agenda, calendario y compromisos del SG-SST en Google Calendar y en el cronograma de WAPPY. Permite agendar inspecciones, capacitaciones, auditorías, comités COPASST o citas médicas laborales, así como listar eventos próximos y cancelar compromisos.",
+                            description: "Gestiona la agenda, calendario y compromisos del SG-SST en Google Calendar y en el cronograma de WAPPY. Permite agendar inspecciones, capacitaciones, auditorías, comités COPASST o citas médicas laborales, listar eventos próximos, reprogramar citas a nuevas fechas y cancelar o eliminar compromisos.",
                             parameters: {
                                 type: "object",
                                 properties: {
                                     accion: {
                                         type: "string",
-                                        enum: ["agendar_evento", "listar_agenda", "eliminar_evento"],
-                                        description: "Acción a realizar: 'agendar_evento' para programar, 'listar_agenda' para ver compromisos próximos, 'eliminar_evento' para cancelar."
+                                        enum: ["agendar_evento", "listar_agenda", "reprogramar_evento", "actualizar_evento", "eliminar_evento"],
+                                        description: "Acción a realizar: 'agendar_evento' para programar, 'listar_agenda' para ver compromisos próximos, 'reprogramar_evento' o 'actualizar_evento' para cambiar fecha/hora, 'eliminar_evento' para cancelar."
                                     },
                                     titulo: {
                                         type: "string",
@@ -1380,11 +1384,19 @@ class VoiceSession {
                                     },
                                     fecha_inicio: {
                                         type: "string",
-                                        description: "Fecha y hora de inicio en formato ISO o YYYY-MM-DD HH:mm (ej: '2026-10-15T09:00:00')."
+                                        description: "Fecha y hora de inicio en formato ISO o YYYY-MM-DD HH:mm con Hora Colombia."
                                     },
                                     fecha_fin: {
                                         type: "string",
                                         description: "Fecha y hora de finalización en formato ISO (opcional)."
+                                    },
+                                    nueva_fecha: {
+                                        type: "string",
+                                        description: "Nueva fecha y hora para reprogramar el evento (ej: '2026-10-18T14:00:00')."
+                                    },
+                                    nuevo_titulo: {
+                                        type: "string",
+                                        description: "Nuevo título si se modifica el evento."
                                     },
                                     descripcion: {
                                         type: "string",
@@ -1396,7 +1408,7 @@ class VoiceSession {
                                     },
                                     id_evento: {
                                         type: "string",
-                                        description: "ID del evento para eliminar o consultar."
+                                        description: "ID o palabra clave del evento para eliminar, consultar o reprogramar."
                                     }
                                 },
                                 required: ["accion"]
@@ -1934,7 +1946,10 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
    - CORREO ELECTRÓNICO ('wappy_enviar_correo'):
      * Redacta y envía correos electrónicos formales a cualquier destinatario (o a 'mi correo') utilizando Google Gmail o el servidor de WAPPY. Puedes enviar informes, citaciones o recordatorios.
    - GESTIÓN DE AGENDAS Y CALENDARIO ('wappy_gestionar_agenda' y 'google_calendar'):
-     * Agenda eventos, inspecciones de seguridad, capacitaciones, comités COPASST, auditorías o citas médicas laborales en Google Calendar y en el cronograma de WAPPY. Puedes también listar la agenda de eventos próximos.
+     * Tienes control total de agendas: agendar eventos, inspecciones de seguridad, capacitaciones, comités COPASST, auditorías o citas médicas laborales en Google Calendar y en el cronograma de WAPPY.
+     * REPROGRAMACIÓN Y EDICIÓN: Puedes cambiar de fecha y hora cualquier evento existente (ej: "pasa la cita de mañana para el viernes a las 4pm", "mueve la reunión a las 10am").
+     * ELIMINACIÓN Y CANCELACIÓN: Puedes cancelar o eliminar cualquier cita usando el nombre o motivo de la reunión sin exigir IDs al usuario (ej: "cancela la cita de bomberos", "elimina la reunión de extintores").
+     * CONSULTA: Puedes consultar y listar la agenda de eventos próximos en cualquier momento.
    - GOOGLE DRIVE ('google_drive'):
      * Conéctate a Google Drive para buscar archivos ('list_files_and_folders'), leer matrices y reglamentos ('read_document_content') o guardar informes generados ('write_file').
    - AUTONOMÍA TOTAL CON ROL DE AGENTE EXPERTO VS LLAMADO DE AGENTES:

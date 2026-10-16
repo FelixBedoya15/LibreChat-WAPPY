@@ -199,6 +199,7 @@ const deleteCalendarEvent = async (userId, syncId, companyId = null) => {
       return;
     }
 
+    // 1. Intentar buscar por wappySyncId
     const existing = await calendar.events.list({
       calendarId: 'primary',
       privateExtendedProperty: `wappySyncId=${syncId}`,
@@ -212,14 +213,86 @@ const deleteCalendarEvent = async (userId, syncId, companyId = null) => {
         eventId: eventId,
       });
       logger.info(`[GoogleCalendarService] Event deleted: (SyncID: ${syncId})`);
+      return;
+    }
+
+    // 2. Si no se encontró por syncId, intentar eliminar directamente por eventId
+    try {
+      await calendar.events.delete({
+        calendarId: 'primary',
+        eventId: syncId,
+      });
+      logger.info(`[GoogleCalendarService] Event deleted directly by EventID: ${syncId}`);
+      return;
+    } catch (directErr) {
+      // 3. Si falló por 404, buscar por texto si syncId parece un término o título
+      if (syncId && typeof syncId === 'string' && syncId.length > 3) {
+        const searchRes = await calendar.events.list({
+          calendarId: 'primary',
+          q: syncId,
+          maxResults: 3,
+        });
+        if (searchRes.data.items && searchRes.data.items.length > 0) {
+          const foundId = searchRes.data.items[0].id;
+          await calendar.events.delete({
+            calendarId: 'primary',
+            eventId: foundId,
+          });
+          logger.info(`[GoogleCalendarService] Event deleted by search term "${syncId}" (ID: ${foundId})`);
+        }
+      }
     }
   } catch (err) {
     logger.error(`[GoogleCalendarService] Error deleting event (${syncId}):`, err.message);
   }
 };
 
+/**
+ * Updates a Google Calendar event directly by eventId or updates fields.
+ */
+const updateCalendarEventDirect = async (userId, eventId, updates = {}, companyId = null) => {
+  try {
+    const calendar = await getCalendarClient(userId, companyId);
+    if (!calendar) {
+      return null;
+    }
+
+    const patchBody = {};
+    if (updates.summary || updates.title || updates.titulo) {
+      patchBody.summary = updates.summary || updates.title || updates.titulo;
+    }
+    if (updates.description || updates.descripcion) {
+      patchBody.description = updates.description || updates.descripcion;
+    }
+
+    const rawStart = updates.start || updates.startTime || updates.fecha_inicio || updates.fecha;
+    const rawEnd = updates.end || updates.endTime || updates.fecha_fin;
+
+    if (rawStart) {
+      patchBody.start = normalizeColombiaDateTime(rawStart);
+      patchBody.end = rawEnd ? normalizeColombiaDateTime(rawEnd) : normalizeColombiaDateTime(rawStart, 1);
+    } else if (rawEnd) {
+      patchBody.end = normalizeColombiaDateTime(rawEnd);
+    }
+
+    const res = await calendar.events.patch({
+      calendarId: 'primary',
+      eventId: eventId,
+      requestBody: patchBody,
+    });
+
+    logger.info(`[GoogleCalendarService] Event ${eventId} updated directly:`, res.data.summary);
+    return res.data;
+  } catch (err) {
+    logger.error(`[GoogleCalendarService] Error updating event directly (${eventId}):`, err.message);
+    throw err;
+  }
+};
+
 module.exports = {
   getCalendarClient,
+  normalizeColombiaDateTime,
   upsertCalendarEvent,
   deleteCalendarEvent,
+  updateCalendarEventDirect,
 };

@@ -162,6 +162,9 @@ const TOOL_ROUTES = {
       if (act.includes('eliminar') || act.includes('delete') || act.includes('cancelar')) {
         return 'DELETE';
       }
+      if (act.includes('reprogramar') || act.includes('actualizar') || act.includes('editar') || act.includes('reschedule') || act.includes('update')) {
+        return 'PUT';
+      }
       if (act.includes('listar') || act.includes('list') || act.includes('consultar') || act.includes('ver') || act.includes('leer')) {
         return 'GET';
       }
@@ -170,10 +173,28 @@ const TOOL_ROUTES = {
     path: (args) => {
       const act = (args.accion || args.action || '').toLowerCase();
       if (act.includes('eliminar') || act.includes('delete') || act.includes('cancelar')) {
-        const id = args.id || args.id_evento || args.eventId || '';
-        return `/agenda/events/${encodeURIComponent(String(id).trim())}`;
+        const id = args.id || args.id_evento || args.eventId || args.titulo || args.query || '';
+        return id ? `/agenda/events/${encodeURIComponent(String(id).trim())}` : '/agenda/events';
+      }
+      if (act.includes('reprogramar') || act.includes('actualizar') || act.includes('editar') || act.includes('reschedule') || act.includes('update')) {
+        const id = args.id || args.id_evento || args.eventId || args.titulo || args.query || '';
+        return id ? `/agenda/events/${encodeURIComponent(String(id).trim())}` : '/agenda/events';
       }
       return '/agenda/events';
+    },
+  },
+  wappy_reprogramar_agenda: {
+    method: 'PUT',
+    path: (args) => {
+      const id = args.id || args.id_evento || args.eventId || args.titulo || args.query || '';
+      return id ? `/agenda/events/${encodeURIComponent(String(id).trim())}` : '/agenda/events';
+    },
+  },
+  wappy_eliminar_agenda: {
+    method: 'DELETE',
+    path: (args) => {
+      const id = args.id || args.id_evento || args.eventId || args.titulo || args.query || '';
+      return id ? `/agenda/events/${encodeURIComponent(String(id).trim())}` : '/agenda/events';
     },
   },
   wappy_listar_agenda: { method: 'GET', path: '/agenda/events' },
