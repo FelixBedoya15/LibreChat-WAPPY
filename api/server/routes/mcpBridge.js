@@ -660,7 +660,14 @@ router.post('/profile', requireApiKeyOrJwt, async (req, res) => {
     const userId = req.user.id;
     const updateData = req.body || {};
 
-    let company = await CompanyInfo.findOne({ user: userId, isActive: true });
+    let company = null;
+    const targetId = updateData.companyId || updateData.empresaId || updateData.id;
+    if (targetId && mongoose.isValidObjectId(targetId)) {
+      company = await CompanyInfo.findOne({ user: userId, _id: targetId });
+    }
+    if (!company) {
+      company = await CompanyInfo.findOne({ user: userId, isActive: true });
+    }
     if (!company) {
       company = await CompanyInfo.findOne({ user: userId });
     }

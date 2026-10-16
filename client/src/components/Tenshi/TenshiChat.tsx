@@ -1891,6 +1891,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       mode: 'tenshi_voice',
       voice: 'Puck',
       route: `${location.pathname}${location.search}`,
+      companyId: localStorage.getItem('wappy_active_company_id') || undefined,
       onAudioReceived: (audioData: string) => {
         handleAudioReceived(audioData);
       },

@@ -2235,8 +2235,14 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                     const userIds = [this.userId, targetUserId].filter(Boolean);
 
                     const [companyInfo, fetchedMemories, recentTenshiMessages, recentConvos] = await Promise.all([
-                        CompanyInfo.findOne({ user: targetUserId, isActive: true }).lean().catch(() => null)
-                            .then(async (c) => c || await CompanyInfo.findOne({ user: targetUserId }).lean().catch(() => null)),
+                        (async () => {
+                            if (this.config.companyId && mongoose.isValidObjectId(this.config.companyId)) {
+                                const byId = await CompanyInfo.findOne({ _id: this.config.companyId, user: targetUserId }).lean().catch(() => null);
+                                if (byId) return byId;
+                            }
+                            return await CompanyInfo.findOne({ user: targetUserId, isActive: true }).lean().catch(() => null)
+                                .then(async (c) => c || await CompanyInfo.findOne({ user: targetUserId }).lean().catch(() => null));
+                        })(),
                         isMemoryEnabled ? getAllUserMemories(targetUserId).catch(() => []) : Promise.resolve([]),
                         (async () => {
                             try {
@@ -6104,7 +6110,12 @@ En la sección "4.1 Matriz Ergonómica Comparativa Multifase", en la columna "Te
             let finalSignatureHtml = '';
             let companyInfo = null;
             try {
-                companyInfo = await CompanyInfo.findOne({ user: this.userId, isActive: true }).lean();
+                if (this.config.companyId && mongoose.isValidObjectId(this.config.companyId)) {
+                    companyInfo = await CompanyInfo.findOne({ _id: this.config.companyId, user: this.userId }).lean();
+                }
+                if (!companyInfo) {
+                    companyInfo = await CompanyInfo.findOne({ user: this.userId, isActive: true }).lean();
+                }
                 if (!companyInfo) {
                     companyInfo = await CompanyInfo.findOne({ user: this.userId }).lean();
                 }
