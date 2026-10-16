@@ -532,9 +532,25 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         const { instructions: skillInstructions, activeTools, activeSkillNames } = getActiveSkillsData(userQuery, skillsList);
         logger.info(`[Tenshi Skill Router] Skills activadas por trigger: ${activeSkillNames.join(', ') || 'ninguna'}, herramientas dinámicas: ${activeTools.join(', ') || 'ninguna'}`);
 
+        const nowColombiaStr = new Date().toLocaleString('es-CO', {
+            timeZone: 'America/Bogota',
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+
         let systemMessage = `${config.systemPrompt}
 
 Hola, estás conversando con el usuario: ${req.user.name || req.user.username || 'Usuario'}
+
+### 🕒 ZONA HORARIA Y FECHA ACTUAL EN VIVO (COLOMBIA):
+- País y Zona Horaria Oficial: Colombia (America/Bogota, UTC-5).
+- Fecha y Hora Actual en Colombia: ${nowColombiaStr}.
+- REGLA ESTRICTA DE AGENDAMIENTO: Toda hora o fecha que el usuario mencione ("hoy", "mañana", "a las 3pm", "a las 8am", etc.) debe interpretarse e ingresarse SIEMPRE en HORA COLOMBIA (America/Bogota, UTC-5). NUNCA uses UTC ni horarios extranjeros. Al enviar fechas a herramientas como 'google_calendar' o 'wappy_gestionar_agenda', envía la fecha y hora con el offset '-05:00' (ejemplo: '2026-10-16T15:00:00-05:00').
 
 MANUAL DE FUNCIONAMIENTO DE WAPPY IA:
 ${manualContent}

@@ -1761,8 +1761,24 @@ class VoiceSession {
                     ]
                 }
             ];
+            const nowColombiaStr = new Date().toLocaleString('es-CO', {
+                timeZone: 'America/Bogota',
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
 
-            this.liveConfig.systemInstruction = `[DIRECTIVA CRÍTICA DE IDIOMA, CONDUCTA Y PROFESIONALISMO]:
+            this.liveConfig.systemInstruction = `[ZONA HORARIA Y FECHA ACTUAL EN COLOMBIA]:
+- Estás operando en Colombia.
+- Zona Horaria Oficial: America/Bogota (UTC-5).
+- Fecha y Hora Actual en Colombia: ${nowColombiaStr}.
+- REGLA CRÍTICA DE AGENDAMIENTO: Toda fecha u hora que el usuario mencione ("hoy", "mañana", "a las 3pm", "a las 8am", etc.) debe interpretarse e ingresarse SIEMPRE en HORA COLOMBIA (America/Bogota, UTC-5). NUNCA uses UTC ni horarios extranjeros. Al enviar fechas a herramientas como 'google_calendar' o 'wappy_gestionar_agenda', envía la fecha y hora con el offset '-05:00' (ejemplo: '2026-10-16T15:00:00-05:00').
+
+[DIRECTIVA CRÍTICA DE IDIOMA, CONDUCTA Y PROFESIONALISMO]:
 - IDIOMA EXCLUSIVO: ESPAÑOL DE COLOMBIA / LATINOAMÉRICA.
 - El usuario habla ÚNICA Y EXCLUSIVAMENTE en ESPAÑOL.
 - ESTÁ TERMINANTEMENTE PROHIBIDO interpretar o responder en inglés o cualquier otro idioma. Prohibido añadir frases, coletillas o cierres en inglés ("that's all set", "all set", "I've already conveyed...", "not medical advice", "as an AI...", etc.). CADA PALABRA que emitas por audio debe ser 100% en español.

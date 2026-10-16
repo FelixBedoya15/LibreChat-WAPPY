@@ -6054,8 +6054,18 @@ router.post('/agenda/events', requireApiKeyOrJwt, async (req, res) => {
 
     const eventTitle = titulo || title || 'Actividad SG-SST';
     const eventDesc = descripcion || description || '';
-    const rawStart = fecha_inicio || startTime || new Date(Date.now() + 24 * 3600 * 1000).toISOString();
-    const startDate = new Date(rawStart);
+    const rawStart = fecha_inicio || startTime;
+    let startDate;
+    if (rawStart) {
+      let s = String(rawStart).trim().replace(/[Zz]$/, '');
+      if (!s.includes('T') && s.includes(' ')) s = s.replace(' ', 'T');
+      if (s.length === 10) s = `${s}T09:00:00`;
+      s = s.replace(/[+-]\d{2}:\d{2}$/, '');
+      startDate = new Date(`${s}-05:00`);
+      if (isNaN(startDate.getTime())) startDate = new Date();
+    } else {
+      startDate = new Date(Date.now() + 24 * 3600 * 1000);
+    }
 
     // 1. Guardar en Kanban / Cronograma de WAPPY
     const task = await KanbanTask.create({
@@ -6077,8 +6087,8 @@ router.post('/agenda/events', requireApiKeyOrJwt, async (req, res) => {
         syncId: task._id.toString(),
         title: eventTitle,
         description: eventDesc,
-        startTime: startDate.toISOString(),
-        endTime: endTime || fecha_fin || new Date(startDate.getTime() + 3600000).toISOString(),
+        startTime: rawStart || startDate.toISOString(),
+        endTime: endTime || fecha_fin,
       }, companyId);
       if (gRes) {
         googleSynced = true;
@@ -6088,16 +6098,23 @@ router.post('/agenda/events', requireApiKeyOrJwt, async (req, res) => {
       logger.info(`[MCP Bridge] Google Calendar no conectado o sin sincronización: ${gCalErr.message}`);
     }
 
+    const fechaFormatCol = startDate.toLocaleString('es-CO', {
+      timeZone: 'America/Bogota',
+      dateStyle: 'full',
+      timeStyle: 'short',
+    });
+
     return res.json({
       exito: true,
-      mensaje: `Evento "${eventTitle}" agendado exitosamente para el ${startDate.toLocaleString('es-CO')}.`,
+      mensaje: `Evento "${eventTitle}" agendado exitosamente para el ${fechaFormatCol} (Hora Colombia).`,
       evento: {
         id: task._id,
         titulo: task.title,
+        descripcion: task.description,
         fecha: task.dueDate,
-        tipo: task.type,
-        googleCalendarSincronizado: googleSynced,
-        enlaceMeetOGoogle: googleEventLink,
+        fecha_colombia: fechaFormatCol,
+        googleSynced,
+        googleEventLink,
       },
     });
   } catch (error) {
@@ -6127,6 +6144,16 @@ router.get('/agenda/events', requireApiKeyOrJwt, async (req, res) => {
         titulo: t.title,
         descripcion: t.description,
         fecha: t.dueDate,
+        fecha_colombia: new Date(t.dueDate).toLocaleString('es-CO', {
+          timeZone: 'America/Bogota',
+          weekday: 'short',
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        }),
         estado: t.status,
         tipo: t.type,
         prioridad: t.priority,

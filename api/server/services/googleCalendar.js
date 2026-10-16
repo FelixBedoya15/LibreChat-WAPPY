@@ -66,6 +66,50 @@ const getCalendarClient = async (userId, companyId = null) => {
   }
 };
 
+const normalizeColombiaDateTime = (val, addHours = 0) => {
+  if (!val) return null;
+  if (typeof val === 'object' && val.dateTime) {
+    let dt = val.dateTime.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+    return {
+      dateTime: `${dt}-05:00`,
+      timeZone: 'America/Bogota',
+    };
+  }
+  if (typeof val === 'object' && val.date) {
+    return { date: val.date };
+  }
+  let s = String(val).trim();
+  if (s.endsWith('Z') || s.endsWith('z')) {
+    s = s.slice(0, -1);
+  }
+  if (!s.includes('T') && s.includes(' ')) {
+    s = s.replace(' ', 'T');
+  }
+  if (s.length === 10) {
+    s = `${s}T09:00:00`;
+  }
+  s = s.replace(/[+-]\d{2}:\d{2}$/, '');
+  if (s.length === 16) {
+    s = `${s}:00`;
+  }
+  if (addHours > 0) {
+    const parts = s.split('T');
+    const datePart = parts[0];
+    const timePart = parts[1] || '09:00:00';
+    const [year, month, day] = datePart.split('-').map(Number);
+    const [hour, min, sec] = timePart.split(':').map(Number);
+    const d = new Date(year, month - 1, day, hour + addHours, min || 0, sec || 0);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const da = String(d.getDate()).padStart(2, '0');
+    const h = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    const se = String(d.getSeconds()).padStart(2, '0');
+    return { dateTime: `${y}-${m}-${da}T${h}:${mi}:${se}-05:00`, timeZone: 'America/Bogota' };
+  }
+  return { dateTime: `${s}-05:00`, timeZone: 'America/Bogota' };
+};
+
 /**
  * Upserts a Google Calendar event.
  * Checks for existing events with the given syncId in privateExtendedProperties.
@@ -89,11 +133,14 @@ const upsertCalendarEvent = async (userId, eventData, syncId, companyId = null) 
       maxResults: 1,
     });
 
+    const startObj = normalizeColombiaDateTime(eventData.start || eventData.startTime || eventData.fecha_inicio);
+    const endObj = normalizeColombiaDateTime(eventData.end || eventData.endTime || eventData.fecha_fin, 1) || normalizeColombiaDateTime(eventData.start || eventData.startTime, 1);
+
     const body = {
-      summary: eventData.summary,
-      description: eventData.description,
-      start: eventData.start,
-      end: eventData.end,
+      summary: eventData.summary || eventData.title || eventData.titulo || 'Actividad SG-SST',
+      description: eventData.description || eventData.descripcion || '',
+      start: startObj,
+      end: endObj,
       colorId: eventData.colorId || null,
       extendedProperties: {
         private: {

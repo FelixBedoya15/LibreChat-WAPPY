@@ -1,4 +1,5 @@
 require('dotenv').config();
+process.env.TZ = process.env.TZ || 'America/Bogota';
 const fs = require('fs');
 const path = require('path');
 require('module-alias')({ base: path.resolve(__dirname, '..') });

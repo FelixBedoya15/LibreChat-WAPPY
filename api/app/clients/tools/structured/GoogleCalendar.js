@@ -69,36 +69,54 @@ class GoogleCalendarTool extends Tool {
     }
   }
 
+  _normalizeColombiaIso(str, addHours = 0) {
+    if (!str) return null;
+    let s = String(str).trim();
+    if (s.endsWith('Z') || s.endsWith('z')) {
+      s = s.slice(0, -1);
+    }
+    if (!s.includes('T') && s.includes(' ')) {
+      s = s.replace(' ', 'T');
+    }
+    if (s.length === 10) {
+      s = `${s}T09:00:00`;
+    }
+    s = s.replace(/[+-]\d{2}:\d{2}$/, '');
+    if (s.length === 16) {
+      s = `${s}:00`;
+    }
+    if (addHours > 0) {
+      const parts = s.split('T');
+      const datePart = parts[0];
+      const timePart = parts[1] || '09:00:00';
+      const [year, month, day] = datePart.split('-').map(Number);
+      const [hour, min, sec] = timePart.split(':').map(Number);
+      const d = new Date(year, month - 1, day, hour + addHours, min || 0, sec || 0);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const da = String(d.getDate()).padStart(2, '0');
+      const h = String(d.getHours()).padStart(2, '0');
+      const mi = String(d.getMinutes()).padStart(2, '0');
+      const se = String(d.getSeconds()).padStart(2, '0');
+      return `${y}-${m}-${da}T${h}:${mi}:${se}-05:00`;
+    }
+    return `${s}-05:00`;
+  }
+
   async createEvent(calendar, title, description, startTime, endTime) {
     try {
-      // Calculate end time if not provided (default 1 hour later)
-      let resolvedEndTime = endTime;
-      if (!resolvedEndTime) {
-        const startObj = new Date(startTime);
-        if (!isNaN(startObj.getTime())) {
-          const endObj = new Date(startObj.getTime() + 60 * 60 * 1000); // +1 hour
-          // Format ISO local
-          const y = endObj.getFullYear();
-          const m = String(endObj.getMonth() + 1).padStart(2, '0');
-          const d = String(endObj.getDate()).padStart(2, '0');
-          const h = String(endObj.getHours()).padStart(2, '0');
-          const min = String(endObj.getMinutes()).padStart(2, '0');
-          const s = String(endObj.getSeconds()).padStart(2, '0');
-          resolvedEndTime = `${y}-${m}-${d}T${h}:${min}:${s}`;
-        } else {
-          resolvedEndTime = startTime;
-        }
-      }
+      const normalizedStart = this._normalizeColombiaIso(startTime);
+      const normalizedEnd = endTime ? this._normalizeColombiaIso(endTime) : this._normalizeColombiaIso(startTime, 1);
 
       const eventBody = {
         summary: title,
         description: description || '',
         start: {
-          dateTime: startTime,
+          dateTime: normalizedStart,
           timeZone: 'America/Bogota',
         },
         end: {
-          dateTime: resolvedEndTime,
+          dateTime: normalizedEnd,
           timeZone: 'America/Bogota',
         },
         reminders: {
@@ -115,9 +133,22 @@ class GoogleCalendarTool extends Tool {
         requestBody: eventBody,
       });
 
-      return `Evento creado exitosamente:\n- Título: "${res.data.summary}"\n- ID: ${res.data.id}\n- Enlace directo al Evento: ${res.data.htmlLink}\n- Inicio: ${res.data.start.dateTime || res.data.start.date}\n- Fin: ${res.data.end.dateTime || res.data.end.date}`;
+      const startFormatted = new Date(res.data.start.dateTime || res.data.start.date).toLocaleString('es-CO', {
+        timeZone: 'America/Bogota',
+        dateStyle: 'full',
+        timeStyle: 'short',
+      });
+      const endFormatted = new Date(res.data.end.dateTime || res.data.end.date).toLocaleString('es-CO', {
+        timeZone: 'America/Bogota',
+        timeStyle: 'short',
+      });
+
+      return `Evento creado exitosamente en tu Google Calendar (Hora Colombia):\n- Título: "${res.data.summary}"\n- ID: ${res.data.id}\n- Enlace directo al Evento: ${res.data.htmlLink}\n- Inicio: ${startFormatted}\n- Fin: ${endFormatted}`;
     } catch (err) {
       logger.error('[GoogleCalendarTool] Create event failed:', err);
+      if (err.message && (err.message.includes('has not been used') || err.message.includes('disabled'))) {
+        throw new Error('La API de Google Calendar no está habilitada en tu proyecto de Google Cloud (Proyecto 802179818443). Debes habilitarla en https://console.developers.google.com/apis/api/calendar-json.googleapis.com/overview?project=802179818443 para poder consultar o agendar eventos.');
+      }
       throw new Error(`Fallo al crear evento en Google Calendar: ${err.message}`);
     }
   }
@@ -131,22 +162,32 @@ class GoogleCalendarTool extends Tool {
         orderBy: 'startTime',
       };
 
-      if (timeMin) params.timeMin = timeMin;
-      if (timeMax) params.timeMax = timeMax;
+      if (timeMin) params.timeMin = this._normalizeColombiaIso(timeMin);
+      if (timeMax) params.timeMax = this._normalizeColombiaIso(timeMax);
 
       const res = await calendar.events.list(params);
       const events = res.data.items || [];
 
       if (events.length === 0) {
-        return 'No se encontraron eventos programados para el rango especificado.';
+        return 'No se encontraron eventos programados para el rango especificado en tu cuenta de Google Calendar.';
       }
 
       const list = events.map(e => {
-        const start = e.start.dateTime || e.start.date;
-        return `- "${e.summary}" (ID: ${e.id}) - Fecha: ${start} - Link: ${e.htmlLink}`;
+        const rawDate = e.start.dateTime || e.start.date;
+        const localFormatted = new Date(rawDate).toLocaleString('es-CO', {
+          timeZone: 'America/Bogota',
+          weekday: 'short',
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        });
+        return `- "${e.summary}" (ID: ${e.id}) - Fecha (Colombia): ${localFormatted} - Link: ${e.htmlLink}`;
       }).join('\n');
 
-      return `Eventos programados encontrados:\n${list}`;
+      return `Eventos programados encontrados en Google Calendar (Hora Colombia):\n${list}`;
     } catch (err) {
       logger.error('[GoogleCalendarTool] List events failed:', err);
       if (err.message && (err.message.includes('has not been used') || err.message.includes('disabled'))) {
