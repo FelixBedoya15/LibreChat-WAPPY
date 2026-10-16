@@ -111,14 +111,17 @@ if (cjsTryPattern.test(cjs)) {
   cjs = cjs.replace(cjsTryPattern, teiRerankLogicCjs.trim());
 }
 
-// Forzar a createReranker a usar siempre el Reranker local TEI
-const createRerankerPattern = /const createReranker = \(config\) => \{[\s\S]*?return new JinaReranker\(\{ apiKey: [^}]+ \}\);\s*(?:\}\s*\};|\};)/;
+// Respetar rerankerType === 'none' para evitar ENOTFOUND librechat-reranker-d58plj cuando el contenedor TEI no existe
+const createRerankerPattern = /const createReranker = \(config\) => \{[\s\S]*?(?:return new JinaReranker\([^)]+\);\s*(?:\}\s*\};|\};)|return undefined;\s*\};)/;
 const customCreateReranker = `const createReranker = (config) => {
-    const { jinaApiKey, jinaApiUrl, logger } = config || {};
+    const { rerankerType, jinaApiKey, jinaApiUrl, logger } = config || {};
+    if (!rerankerType || rerankerType === 'none') {
+        return undefined;
+    }
     const defaultLogger = logger || utils.createDefaultLogger();
-    let effectiveUrl = jinaApiUrl || process.env.RERANKER_API_URL || 'http://librechat-reranker-d58plj:80/rerank';
-    if (effectiveUrl.includes('://reranker')) {
-        effectiveUrl = effectiveUrl.replace('://reranker', '://librechat-reranker-d58plj');
+    let effectiveUrl = jinaApiUrl || process.env.RERANKER_API_URL;
+    if (!effectiveUrl) {
+        return undefined;
     }
     const effectiveKey = jinaApiKey || process.env.JINA_API_KEY || 'local-dummy-key';
     return new JinaReranker({ apiKey: effectiveKey, apiUrl: effectiveUrl, logger: defaultLogger });
@@ -129,7 +132,7 @@ if (createRerankerPattern.test(cjs)) {
 }
 
 fs.writeFileSync(rerankersCjsPath, cjs, 'utf8');
-console.log('✓ rerankers.cjs configurado para usar SIEMPRE el Reranker TEI local');
+console.log('✓ rerankers.cjs configurado (rerankerType=none respetado sin ENOTFOUND)');
 
 // 2. Parchear search.cjs
 const searchCjsPath = path.join(targetDir, 'dist/cjs/tools/search/search.cjs');
@@ -141,8 +144,8 @@ searchCjs = searchCjs.replace(
   "engines: process.env.SEARXNG_ENGINES || 'yandex,wikipedia'"
 );
 
-// Bloquear dominios de publicidad, spam, Reddit, xvideos, prestamos financieros y bolsas de empleo extranjeras
-const blockedDomainsStr = "const blockedDomains = ['corporatefinanceinstitute.com', 'gao.gov', 'doordash.com', 'clipchamp.com', 'intervalworld.com', 'aol.com', 'microsoft.com', 'doubleclick.net', 'googleadservices.com', 'vineyardvines.com', 'zhihu.com', 'arbetsformedlingen.se', 'ledigajobb.se', 'healthgrades.com', 'vitadox.com', 'orthopedic.io', 'meudanfe.com.br', 'softonic.com', 'droidcam.com', 'capterra.com', 'g2.com', 'trustpilot.com', 'pinterest.com', 'anu.edu.au', '.edu.au', 'reddit.com', 'redd.it', 'everfulwholesale.com', 'towelsupercenter.com', 'xvideos.com', 'xvideos'];";
+// Bloquear dominios de publicidad, spam, TikTok, Reddit, xvideos, prestamos financieros y bolsas de empleo extranjeras
+const blockedDomainsStr = "const blockedDomains = ['tiktok.com', 'corporatefinanceinstitute.com', 'gao.gov', 'doordash.com', 'clipchamp.com', 'intervalworld.com', 'aol.com', 'microsoft.com', 'doubleclick.net', 'googleadservices.com', 'vineyardvines.com', 'zhihu.com', 'arbetsformedlingen.se', 'ledigajobb.se', 'healthgrades.com', 'vitadox.com', 'orthopedic.io', 'meudanfe.com.br', 'softonic.com', 'droidcam.com', 'capterra.com', 'g2.com', 'trustpilot.com', 'pinterest.com', 'anu.edu.au', '.edu.au', 'reddit.com', 'redd.it', 'everfulwholesale.com', 'towelsupercenter.com', 'xvideos.com', 'xvideos'];";
 if (searchCjs.includes('blockedDomains = [')) {
   searchCjs = searchCjs.replace(
     /const blockedDomains\s*=\s*\[[^\]]+\];/g,
