@@ -46,95 +46,95 @@ const SLIDES = [
     id: 'front',
     tone: 'plum',
     word: 'QUIBI',
-    kicker: 'QUIBI · CÁPSULAS BLANDAS CON RELLENO LÍQUIDO',
+    kicker: '✨ TU TRANSFORMACIÓN EMPIEZA HOY · SIENTE LA LIGEREZA',
     title: (
       <>
         {SLOGAN_A} <em>{SLOGAN_B}</em>.
       </>
     ),
-    sub: 'Vinagre de manzana y té verde en cápsulas blandas con centro líquido. Dos cápsulas al día, sin sabor ácido, sin dañar tu esmalte dental y con 0g de azúcar.',
+    sub: 'El hábito diario que transforma tu digestión, apaga los antojos y activa tu metabolismo de forma 100% natural. Dos perlas suaves al día para sentirte ligera, confiada y con energía radiante.',
     img: '/marketing/quibi/quibi-front.jpg',
     imgTitle: 'Envase Original QUIBI (QB) · 60 Cápsulas Blandas',
     contain: false,
     chips: [
-      { cls: 'c1', ico: '💧', title: 'Relleno Líquido', sub: 'Absorción gástrica' },
-      { cls: 'c2', ico: '🛡️', title: 'Invima Oficial', sub: 'RSA-4113-2025' },
+      { cls: 'c1', ico: '🔥', title: '«Despídete de la Pesadez»', sub: 'Vientre plano y ligereza desde el día 1' },
+      { cls: 'c2', ico: '🎯', title: '«Controla los Antojos Dulces»', sub: 'Saciedad y calma natural sin pasar hambre' },
     ],
   },
   {
     id: '3-bottles',
     tone: 'indigo',
     word: 'SOFTGEL',
-    kicker: 'FÓRMULA SINÉRGICA CON 5 ACTIVOS PRINCIPALES',
+    kicker: '⚡ ACTIVA TU ENERGÍA Y DESPIERTA TU METABOLISMO',
     title: (
       <>
-        Vinagre de Manzana, <em>Té Verde</em>, Glucomanano, Alcachofa y Cromo.
+        Cinco activos puros para <em>despertar tu mejor versión</em>.
       </>
     ),
-    sub: 'Presentación oficial de 60 unidades (30 días de suministro). Diseñadas para apoyar la saciedad natural, el metabolismo lipídico y la digestión ligera.',
+    sub: 'Vinagre de manzana, té verde, glucomanano, alcachofa y cromo trabajando en perfecta sinergia. Quema grasa, desinflama tu cuerpo y disfruta de una energía limpia durante todo el día.',
     img: '/marketing/quibi/quibi-3-bottles.jpg',
     imgTitle: 'Presentación Oficial QUIBI (QB) en Tres Ángulos',
     contain: true,
     chips: [
-      { cls: 'c1', ico: '🌿', title: '0g Azúcar', sub: 'Solo 5 kcal / cápsula' },
-      { cls: 'c2', ico: '⚡', title: '60 Unidades', sub: 'Tratamiento 30 días' },
+      { cls: 'c1', ico: '⚡', title: '«Energía Pura Todo el Día»', sub: 'Cero fatiga, máxima vitalidad activa' },
+      { cls: 'c2', ico: '🌱', title: '«Digestión Feliz y Ligera»', sub: 'Vientre desinflamado después de comer' },
     ],
   },
   {
     id: 'top-view',
     tone: 'rose',
     word: 'HÁBITOS',
-    kicker: 'UN HÁBITO SIMPLE · 2 CÁPSULAS AL DÍA',
+    kicker: '💖 EL HÁBITO DIARIO DE AMOR PROPIO QUE MERECES',
     title: (
       <>
-        Perlas suaves fáciles de pasar con <em>Efecto Saciante</em>.
+        Dos perlas al día para <em>recuperar tu confianza y seguridad</em>.
       </>
     ),
-    sub: 'Al tomarlas con agua antes de tus comidas principales, el glucomanano se hidrata generando plenitud natural mientras el té verde apoya tu metabolismo.',
+    sub: 'Olvida las dietas tortuosas y el sabor amargo del vinagre líquido. Un gesto tan simple como tomar dos cápsulas con agua para reconectar con tu bienestar y amar lo que ves en el espejo.',
     img: '/marketing/quibi/quibi-top-view.jpg',
     imgTitle: 'Detalle Superior de Cápsulas Blandas Azul Índigo',
     contain: false,
     chips: [
-      { cls: 'c1', ico: '🌱', title: 'Glucomanano', sub: 'Fibra saciante' },
-      { cls: 'c2', ico: '🥛', title: '2 al Día', sub: 'Antes de comidas' },
+      { cls: 'c1', ico: '✨', title: '«Ama lo que Ves al Espejo»', sub: 'Vuelve a lucir tu ropa con orgullo' },
+      { cls: 'c2', ico: '🛡️', title: '«Plenitud Total Sin Culpas»', sub: 'Llega satisfecha a cada comida' },
     ],
   },
   {
     id: 'nutrition',
     tone: 'plum',
     word: 'INVIMA',
-    kicker: 'TRANSPARENCIA Y RESPALDO SANITARIO COLOMBIANO',
+    kicker: '🌿 CUIDA TU CUERPO CON LO MEJOR DE LA NATURALEZA',
     title: (
       <>
-        Aprobado con Registro Invima <em>RSA-4113-2025</em>.
+        Fórmula limpia para <em>sentirte orgullosa de lo que tomas</em>.
       </>
     ),
-    sub: 'Elaborado por ALIMENTOS MYC en Tona, Santander para THERMIX. Libre de azúcares añadidos, libre de grasas y con 40 mcg de Picolinato de Cromo por porción.',
+    sub: '0g de azúcar añadida, solo 5 calorías y máxima absorción gástrica. Respaldo científico y sanitario para que cada día te acerques con seguridad a la meta de bienestar que siempre has soñado.',
     img: '/marketing/quibi/quibi-nutrition.jpg',
     imgTitle: 'Tabla Nutricional Oficial y Registro Invima',
     contain: false,
     chips: [
-      { cls: 'c1', ico: '📋', title: '5 Calorías', sub: '0g Azúcar añadido' },
-      { cls: 'c2', ico: '🏭', title: 'Alimentos MYC', sub: 'Hecho en Colombia' },
+      { cls: 'c1', ico: '💎', title: '«100% Sin Culpa Ni Azúcar»', sub: 'Solo 5 kcal · Apto Keto y Ayuno' },
+      { cls: 'c2', ico: '🏆', title: '«Tranquilidad & Respaldo Real»', sub: 'Con Autorización Invima RSA-4113-2025' },
     ],
   },
   {
     id: 'close',
     tone: 'ink',
     word: 'CAMBIOS',
-    kicker: 'COMPRA DIRECTA CON ENVÍO A TODA COLOMBIA',
+    kicker: '🚀 NO LO POSTERGUES MÁS · TU MOMENTO ES AHORA',
     title: (
       <>
-        Empieza hoy tu nuevo hábito con <em>QUIBI</em>.
+        El gran cambio en tu vida <em>comienza con una sola decisión</em>.
       </>
     ),
-    sub: 'Elige 1, 2 o 3 frascos con descuento directo. Paga en línea de forma segura o contra entrega en efectivo al recibir tu pedido.',
+    sub: '¿Por qué esperar otro lunes para empezar a cuidarte? Da el primer paso hoy hacia una vida más liviana, activa y feliz. Elige tu pack y recibe tu pedido en la puerta de tu casa.',
     img: '/marketing/quibi/quibi-close.jpg',
     imgTitle: 'Sello de Marca Original QB en Envase',
     contain: false,
     chips: [
-      { cls: 'c1', ico: '🚚', title: 'Envío Nacional', sub: 'Rápido y seguro' },
-      { cls: 'c2', ico: '💳', title: 'Pago Flexible', sub: 'Online o Contra Entrega' },
+      { cls: 'c1', ico: '🌟', title: '«Tu Bienestar es Hoy»', sub: 'Mereces sentirte ligera y renovada' },
+      { cls: 'c2', ico: '📦', title: '«Pide Hoy y Paga al Recibir»', sub: 'Envío gratis nacional y pago contra entrega' },
     ],
   },
 ];
@@ -873,8 +873,6 @@ export default function QuibiPage() {
                   aria-hidden={!isActive}
                 >
                   <div className="qb-slide-word">{slide.word}</div>
-                  <div className="qb-pill" style={{ top: '12%', right: '47%', transform: 'rotate(-18deg)' }} />
-                  <div className="qb-pill" style={{ bottom: '18%', left: '44%', transform: 'rotate(24deg)', animationDelay: '-3s' }} />
 
                   <div className="qb-slide-copy">
                     <div className="qb-kicker qb-in" style={{ '--d': '0.05s' } as React.CSSProperties}>
