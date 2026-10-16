@@ -52,6 +52,7 @@ const kanbanTaskSchema = new mongoose.Schema(
         'heights_inspection_finding',
         'copasst_finding',
         'convivencia_finding',
+        'predictivo_finding',
         'antigravity_delegation',
         'other',
       ],

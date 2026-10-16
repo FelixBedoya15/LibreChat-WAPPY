@@ -111,6 +111,21 @@ router.post('/sync', requireJwtAuth, async (req, res) => {
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
       savedList.push(doc);
+
+      try {
+        const feedWorkerEvent = require('./feedWorkerHelper');
+        await feedWorkerEvent(
+          company.user,
+          cleanCedula,
+          'brigada',
+          `Brigadista Activo (${updateData.grupoEspecialidad} — ${updateData.rolSCI})`,
+          40,
+          `BRIGADA-${cleanCedula}`,
+          { companyId: company._id, nombre: cleanNombre, cargo: updateData.cargo }
+        );
+      } catch (feedErr) {
+        logger.warn('[SGSST Brigada] feedWorkerEvent error:', feedErr.message);
+      }
     }
 
     // Sincronizar campo esBrigadista en PerfilSociodemograficoData

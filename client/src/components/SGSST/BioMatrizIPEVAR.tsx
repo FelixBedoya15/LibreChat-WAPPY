@@ -310,10 +310,13 @@ export default function BioMatrizIPEVAR({ workerId, initialWorker }: BioMatrizIP
       if (!res.ok) throw new Error('Error al cargar');
       const data = await res.json();
       const worker = data.worker || data || {};
+      const pts = worker?.percepcionRiesgoScore || 0;
       const rawRows: BioRiskRow[] = Array.isArray(worker?.riesgosBioIndividual) ? worker.riesgosBioIndividual : [];
-      const cleanRows = rawRows.filter(r => r && r.dominio_bio !== 'Seguridad');
+      const cleanRows = rawRows
+        .filter(r => r && r.dominio_bio !== 'Seguridad')
+        .map(r => calcularRiesgo(r, pts));
       setRows(cleanRows);
-      setPercepcionPts(worker?.percepcionRiesgoScore || 0);
+      setPercepcionPts(pts);
       setFitScore(worker?.fitScore || 0);
       setConclusions(worker?.bioChartConclusions || {});
     } catch (e) {
@@ -326,9 +329,14 @@ export default function BioMatrizIPEVAR({ workerId, initialWorker }: BioMatrizIP
 
   useEffect(() => {
     if (initialWorker) {
+      const pts = initialWorker.percepcionRiesgoScore || 0;
       const rawRows: BioRiskRow[] = Array.isArray(initialWorker.riesgosBioIndividual) ? initialWorker.riesgosBioIndividual : [];
-      setRows(rawRows.filter((r: any) => r && r.dominio_bio !== 'Seguridad'));
-      setPercepcionPts(initialWorker.percepcionRiesgoScore || 0);
+      setRows(
+        rawRows
+          .filter((r: any) => r && r.dominio_bio !== 'Seguridad')
+          .map((r: any) => calcularRiesgo(r, pts))
+      );
+      setPercepcionPts(pts);
       setFitScore(initialWorker.fitScore || 0);
       setConclusions(initialWorker.bioChartConclusions || {});
       setIsLoading(false);

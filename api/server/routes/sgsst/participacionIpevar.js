@@ -278,13 +278,18 @@ router.post('/apply-to-matrix', requireJwtAuth, async (req, res) => {
         // Premiar al colaborador (+150 pts de gamificación en Hoja de Vida Bio-Individual)
         if (matrixData.trabajadorCedula) {
             try {
+                const refId =
+                    reportId ||
+                    (Array.isArray(reportIds) && reportIds.length > 0 ? String(reportIds[0]) : null) ||
+                    resultingRowId;
                 await feedWorkerEvent(
                     userId,
                     matrixData.trabajadorCedula,
                     'participacion_ipevar',
                     `Aprobación e Integración en Matriz IPEVAR Oficial: ${matrixData.peligros ? matrixData.peligros.substring(0, 60) : 'Peligro'}`,
                     150,
-                    'approved'
+                    refId,
+                    { companyId }
                 );
             } catch (feedErr) {
                 logger.warn('[SGSST ParticipacionIPEVAR] Worker event feed error:', feedErr.message);
@@ -525,7 +530,19 @@ Presenta un bloque visual de resumen metodológico GTC-45 con tarjetas de métri
             const shortDesc = formData?.tarea ? formData.tarea.substring(0, 80) + '...' : 'Participación IPEVAR';
             for (const t of trabajadoresList) {
                 if (t.cedula) {
-                    await feedWorkerEvent(req.user.id || req.user, t.cedula, 'participacion_ipevar', shortDesc, 100, 'generate');
+                    const refId =
+                        t.inboxItemId ||
+                        t.id ||
+                        `IPEVAR-${String(t.cedula).trim()}-${(formData?.tarea || 'general').substring(0, 20)}`;
+                    await feedWorkerEvent(
+                        req.user.id || req.user,
+                        t.cedula,
+                        'participacion_ipevar',
+                        shortDesc,
+                        150,
+                        refId,
+                        { companyId }
+                    );
                 }
             }
         }

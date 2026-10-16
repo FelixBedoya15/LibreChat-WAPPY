@@ -306,7 +306,7 @@ export default function PublicComites() {
       norm: 'Res. 2013/1986 • Dec. 1072/15 Art. 2.2.4.6.8',
       icon: Users,
       color: 'from-teal-600 to-emerald-600',
-      pts: '+25 pts',
+      pts: '+50 pts',
       roles: ['Presidente', 'Secretario', 'Miembro Principal Trabajadores', 'Miembro Suplente Trabajadores', 'Representante Empleador', 'Asistente Invitado'],
     },
     cocolab: {
@@ -315,7 +315,7 @@ export default function PublicComites() {
       norm: 'Res. 3461/2025 • Ley 1010/2006 • Ley 2365/2024',
       icon: HeartHandshake,
       color: 'from-indigo-600 to-violet-600',
-      pts: '+25 pts',
+      pts: '+50 pts',
       roles: ['Presidente', 'Secretario', 'Representante Trabajadores', 'Representante Empleador', 'Invitado'],
     },
     brigada: {
@@ -345,7 +345,7 @@ export default function PublicComites() {
       <PublicWorkerHeader
         companyId={companyId || ''}
         companyName={company?.companyName || 'Somos SST'}
-        companyLogo={company?.logoUrl}
+        companyLogo={company?.logoUrl || company?.logo}
         currentModule="comites"
         workerCedula={cedula}
       />

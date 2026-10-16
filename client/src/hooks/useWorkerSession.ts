@@ -4,12 +4,15 @@ import axios from 'axios';
 
 export interface WorkerSessionData {
   companyId?: string;
+  urlCompanyId?: string;
   companyName?: string;
   nombre: string;
   cedula: string;
+  identificacion?: string;
   cargo?: string;
   fitScore?: number;
   nivel?: string;
+  firmaDigital?: string | null;
 }
 
 export function useWorkerSession(companyIdParam?: string) {
@@ -48,14 +51,18 @@ export function useWorkerSession(companyIdParam?: string) {
       if (rawSession) {
         const parsed = JSON.parse(rawSession);
         if (parsed?.cedula && parsed?.nombre) {
+          const cleanCed = String(parsed.cedula).trim();
           return {
             companyId: parsed.companyId || effectiveCompanyId,
+            urlCompanyId: parsed.urlCompanyId || effectiveCompanyId,
             companyName: parsed.companyName || '',
             nombre: parsed.nombre || '',
-            cedula: parsed.cedula || '',
+            cedula: cleanCed,
+            identificacion: cleanCed,
             cargo: parsed.cargo || '',
             fitScore: parsed.fitScore,
             nivel: parsed.nivel,
+            firmaDigital: parsed.firmaDigital || null,
           };
         }
       }
@@ -78,11 +85,14 @@ export function useWorkerSession(companyIdParam?: string) {
       const res = await axios.get(`/api/public-sgsst/colaborador-info/${targetCompanyId}/${ced}`);
       if (res.data?.success && res.data?.worker) {
         const w = res.data.worker;
+        const cleanCed = String(w.documento || ced).trim();
         const newSession: WorkerSessionData = {
-          companyId: targetCompanyId,
+          companyId: res.data.company?._id || targetCompanyId,
+          urlCompanyId: targetCompanyId,
           companyName: res.data.company?.companyName || 'Somos SST',
           nombre: w.nombre || '',
-          cedula: w.documento || ced,
+          cedula: cleanCed,
+          identificacion: cleanCed,
           cargo: w.cargo || 'Trabajador',
           fitScore: w.fitScore,
           nivel: w.nivel,
@@ -104,8 +114,12 @@ export function useWorkerSession(companyIdParam?: string) {
     const ced = getInitialCedula();
     if (!ced) return;
 
-    // If we already have full session matching this cédula, make sure localStorage keys are fresh
-    if (session && session.cedula === ced && session.nombre) {
+    // Check if the cached session already matches both the cédula and current company context
+    const matchesCompany = !effectiveCompanyId ||
+      session?.companyId === effectiveCompanyId ||
+      session?.urlCompanyId === effectiveCompanyId;
+
+    if (session && session.cedula === ced && session.nombre && matchesCompany) {
       localStorage.setItem('wappy_worker_cedula', ced);
       return;
     }
@@ -126,12 +140,15 @@ export function useWorkerSession(companyIdParam?: string) {
       if (!cleanCed) return;
       updated = {
         companyId: effectiveCompanyId || session?.companyId,
+        urlCompanyId: effectiveCompanyId || session?.urlCompanyId,
         companyName: session?.companyName || 'Somos SST',
         cedula: cleanCed,
+        identificacion: cleanCed,
         nombre: (nombreParam || session?.nombre || '').trim(),
         cargo: (cargoParam || session?.cargo || 'Trabajador').trim(),
         fitScore: session?.fitScore,
         nivel: session?.nivel,
+        firmaDigital: session?.firmaDigital || null,
       };
     } else if (dataOrCedula && typeof dataOrCedula === 'object') {
       const rawCed = dataOrCedula.cedula || (dataOrCedula as any).identificacion || (dataOrCedula as any).documento;
@@ -139,12 +156,15 @@ export function useWorkerSession(companyIdParam?: string) {
       const cleanCed = String(rawCed).trim();
       updated = {
         companyId: dataOrCedula.companyId || effectiveCompanyId || session?.companyId,
+        urlCompanyId: dataOrCedula.urlCompanyId || effectiveCompanyId || session?.urlCompanyId,
         companyName: dataOrCedula.companyName || session?.companyName || 'Somos SST',
         nombre: (dataOrCedula.nombre || session?.nombre || '').trim(),
         cedula: cleanCed,
+        identificacion: cleanCed,
         cargo: (dataOrCedula.cargo || session?.cargo || 'Trabajador').trim(),
         fitScore: dataOrCedula.fitScore ?? session?.fitScore,
         nivel: dataOrCedula.nivel || session?.nivel,
+        firmaDigital: dataOrCedula.firmaDigital ?? session?.firmaDigital ?? null,
       };
     } else {
       return;

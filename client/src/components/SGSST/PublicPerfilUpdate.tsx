@@ -143,7 +143,8 @@ export default function PublicPerfilUpdate() {
     };
 
     const handleVerify = async (overrideCedula?: string) => {
-        const targetCed = (overrideCedula || cedula || '').trim();
+        const safeOverride = typeof overrideCedula === 'string' ? overrideCedula : '';
+        const targetCed = (safeOverride || cedula || '').trim();
         if (!targetCed) { setVerifyError('Ingresa tu cédula.'); return; }
         setVerifying(true);
         setVerifyError('');
@@ -353,7 +354,7 @@ export default function PublicPerfilUpdate() {
                         )}
 
                         <button
-                            onClick={handleVerify}
+                            onClick={() => handleVerify()}
                             disabled={verifying}
                             className="mt-6 w-full bg-gray-900 hover:bg-black text-white py-3.5 rounded-xl font-bold tracking-wide shadow-md transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
                         >

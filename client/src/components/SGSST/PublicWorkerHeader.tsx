@@ -19,6 +19,7 @@ import {
   ArrowLeft,
   Package,
   Car,
+  ClipboardCheck,
 } from 'lucide-react';
 
 interface PublicWorkerHeaderProps {
@@ -180,7 +181,7 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
           icon: Vote,
           path: `/sgsst-public/votaciones/${companyId}`,
           color: 'text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800',
-          badge: '+20 pts',
+          badge: '+30 pts',
         },
         {
           id: 'comites',
@@ -189,7 +190,16 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
           icon: UserCheck,
           path: `/sgsst-public/comites/${companyId}`,
           color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800',
-          badge: '+25 pts',
+          badge: '+35 a +50 pts',
+        },
+        {
+          id: 'copasst-inspecciones',
+          name: 'Inspecciones COPASST',
+          desc: 'Rondas preventivas de inspección en puestos y locaciones',
+          icon: ClipboardCheck,
+          path: `/sgsst-public/copasst-inspecciones/${companyId}`,
+          color: 'text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800',
+          badge: '+50 pts',
         },
         {
           id: 'brigadista',
@@ -198,7 +208,7 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
           icon: Shield,
           path: `/sgsst-public/brigadista/${companyId}`,
           color: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800',
-          badge: 'Brigada',
+          badge: '+40 pts',
         },
         {
           id: 'convivencia',
@@ -244,7 +254,7 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
           icon: GraduationCap,
           path: `/sgsst-public/ruta-aprendizaje/${companyId}`,
           color: 'text-fuchsia-600 dark:text-fuchsia-400 bg-fuchsia-50 dark:bg-fuchsia-950/40 border-fuchsia-200 dark:border-fuchsia-800',
-          badge: 'Aprender',
+          badge: '+50 pts',
         },
       ],
     },

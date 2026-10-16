@@ -946,13 +946,20 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
             Conexión en tiempo real con reportes, inspecciones y formación
           </span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {[
             { title: 'ATEL', subtitle: 'Accidentes / Enfermedades', icon: '🚨', items: atel, emptyMsg: 'Sin eventos ATEL' },
             { title: 'Actos / Condiciones', subtitle: 'Reportes en terreno', icon: '⚠️', items: actos, emptyMsg: 'Sin reportes' },
             { title: 'IPEVR', subtitle: 'Participación activa', icon: '🎯', items: participaciones, emptyMsg: 'Sin registros' },
-            { title: 'Capacitaciones', subtitle: 'Formación SST', icon: '📚', items: capacitaciones, emptyMsg: 'Sin cursos' },
+            { title: 'Capacitaciones', subtitle: 'Formación SST / LMS', icon: '📚', items: capacitaciones, emptyMsg: 'Sin cursos' },
             { title: 'Termómetro Psicosocial', subtitle: 'Bienestar & Clima', icon: '❤️', items: termometroAnimo, emptyMsg: 'Sin check-ins' },
+            { title: 'Comités & Inspecciones', subtitle: 'COPASST, CCL, PESV', icon: '🏛️', items: worker.comites || [], emptyMsg: 'Sin actas/rondas' },
+            { title: 'Votaciones Paritarias', subtitle: 'Elecciones SST', icon: '🗳️', items: worker.votaciones || [], emptyMsg: 'Sin votos' },
+            { title: 'EPP y Dotación', subtitle: 'Solicitudes y entregas', icon: '🦺', items: worker.solicitud_epp || [], emptyMsg: 'Sin solicitudes' },
+            { title: 'Seguridad Vial PESV', subtitle: 'Preoperacionales', icon: '🚗', items: worker.inspeccion_vehicular_pesv || [], emptyMsg: 'Sin inspecciones' },
+            { title: 'Ergonomía & Puesto', subtitle: 'Evaluación postural IA', icon: '🪑', items: worker.estudio_puesto || [], emptyMsg: 'Sin mediciones' },
+            { title: 'Brigada & SCI', subtitle: 'Hoja de vida emergencias', icon: '🚒', items: worker.brigada || [], emptyMsg: 'Sin registros' },
+            { title: 'ATS & Perfil Anual', subtitle: 'Permisos y ficha médica', icon: '📋', items: [...ats, ...(worker.actualizaciones_perfil || [])], emptyMsg: 'Sin actualizaciones' },
           ].map(({ title, subtitle, icon, items, emptyMsg }) => {
             const hasItems = items.length > 0;
             return (

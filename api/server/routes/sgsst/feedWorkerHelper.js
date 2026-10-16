@@ -12,23 +12,79 @@ async function resolveEffectiveCompanyId(userId, explicitCompanyId = null) {
 }
 
 /**
+ * Recalcula los índices Bruto, Factor de Reducción, Efectivo y Clasificación
+ * de cada fila de la Matriz Bio-IPEVR en función del puntaje actual de Percepción del Riesgo.
+ */
+function recalculateBioRisks(riesgos = [], percepcionPts = 0, fitScore = undefined) {
+    if (!Array.isArray(riesgos) || riesgos.length === 0) return [];
+    const safePts = Math.max(0, Number(percepcionPts) || 0);
+    const factorReduccion = Number(Math.min(safePts / 500, 0.40).toFixed(3));
+
+    return riesgos.map(rawRisk => {
+        const risk = rawRisk && typeof rawRisk.toObject === 'function' ? rawRisk.toObject() : { ...rawRisk };
+        const susceptibilidad = Math.max(1, Math.min(5, Number(risk.nivel_susceptibilidad) || 1));
+        const exposicion = Math.max(1, Math.min(5, Number(risk.nivel_exposicion) || 1));
+        const bruto = susceptibilidad * exposicion;
+        const efectivo = Number((bruto * (1 - factorReduccion)).toFixed(1));
+
+        let clasificacion = 'Bajo';
+        if (efectivo >= 20) clasificacion = 'Crítico';
+        else if (efectivo >= 12) clasificacion = 'Alto';
+        else if (efectivo >= 6) clasificacion = 'Moderado';
+
+        risk.nivel_susceptibilidad = susceptibilidad;
+        risk.nivel_exposicion = exposicion;
+        risk.percepcion_riesgo_pts = safePts;
+        if (fitScore !== undefined && fitScore !== null) {
+            risk.fit_score = Number(fitScore);
+        }
+        risk.indice_bio_riesgo_bruto = bruto;
+        risk.factor_reduccion_percepcion = factorReduccion;
+        risk.indice_bio_riesgo_efectivo = efectivo;
+        risk.clasificacion_bio = clasificacion;
+        risk.intervencion_prioritaria = clasificacion === 'Crítico' || clasificacion === 'Alto';
+        return risk;
+    });
+}
+
+/**
+ * Conserva alertas operativas 360° (EPP, PESV, Químicos, ATEL, Actos) al sincronizar con Oráculo H1.
+ */
+function isOperationalAlert(alertStr) {
+    const s = String(alertStr || '').trim();
+    return (
+        s.startsWith('[') ||
+        s.startsWith('Restriccion_') ||
+        s.includes('_Restriccion') ||
+        s === 'Acto_Inseguro_Critico' ||
+        s.includes('EPP Convencional Vencido') ||
+        s.includes('Equipo de Alturas Vencido') ||
+        s.includes('Vehículo No Conforme') ||
+        s.includes('Inspección Preoperacional Rechazada') ||
+        s.includes('Exposición a Químico')
+    );
+}
+
+function mergeOperationalFitAlerts(socioAlerts = [], existingFitAlerts = []) {
+    const base = Array.isArray(socioAlerts) ? socioAlerts : [];
+    const operational = (Array.isArray(existingFitAlerts) ? existingFitAlerts : []).filter(isOperationalAlert);
+    return Array.from(new Set([...base, ...operational]));
+}
+
+/**
  * Registra un evento en la hoja de vida ocupacional del trabajador y aplica la lógica
  * de Integralidad Avanzada (SST 360) para mantener la Huella Biocéntrica, Matriz 360,
  * Capacitaciones y Gamificación vivas e interconectadas.
- * 
- * @param {string} userId - ID del usuario administrador o empresa.
- * @param {string} documento - Documento de identidad del trabajador.
- * @param {string} tipo_modulo - Módulo de origen ('atel', 'actos', 'participacion_ipevar', 'capacitacion', 'ats', 'comites', 'votaciones', 'solicitud_epp', 'inspeccion_vehicular_pesv', 'estudio_puesto', 'termometro_animo').
- * @param {string} descripcion - Descripción cualitativa del evento.
- * @param {number} puntos - Puntos de gamificación a sumar (o restar si es negativo).
- * @param {string} [referencia=null] - ID o enlace del registro origen (para idempotencia).
- * @param {object} [metadata={}] - Datos enriquecidos para la sincronización avanzada (puede incluir companyId, nombre, cargo).
  */
 async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, puntos, referencia = null, metadata = {}) {
     try {
         if (!documento || !tipo_modulo) return;
         const cleanDoc = String(documento).trim();
         if (!cleanDoc) return;
+
+        // Evitar que UUIDs o IDs de eventos erróneos se conviertan en trabajadores fantasma
+        const looksLikeUuidOrObjectId =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(cleanDoc) || /^[0-9a-f]{24}$/i.test(cleanDoc);
 
         const explicitCompanyId = metadata.companyId || (metadata.company && metadata.company._id) || null;
         const companyId = await resolveEffectiveCompanyId(userId, explicitCompanyId);
@@ -53,11 +109,18 @@ async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, punt
                         : { user: userId, $or: [{ companyId: null }, { companyId: { $exists: false } }] };
                     const perfilDoc = await PerfilSociodemograficoData.findOne(perfilQuery).lean();
                     if (perfilDoc && Array.isArray(perfilDoc.trabajadores)) {
-                        perfilWorker = perfilDoc.trabajadores.find(t => String(t.identificacion || t.cedula || '').trim() === cleanDoc);
+                        perfilWorker = perfilDoc.trabajadores.find(
+                            t => String(t.identificacion || t.cedula || t.documento || '').trim() === cleanDoc
+                        );
                     }
                 }
             } catch (errPerfil) {
                 console.warn('[feedWorkerEvent] Error checking PerfilSociodemografico:', errPerfil.message);
+            }
+
+            if (!perfilWorker && looksLikeUuidOrObjectId) {
+                console.warn(`[feedWorkerEvent] Ignorando documento inválido (UUID/ObjectId sin trabajador): ${cleanDoc}`);
+                return;
             }
 
             // Autocreado resiliente para garantizar que los puntos de gamificación NUNCA se pierdan
@@ -70,6 +133,7 @@ async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, punt
                     documento: cleanDoc,
                     cargo: perfilWorker?.cargo || metadata.cargo || 'Trabajador',
                     fitScore: Number(perfilWorker?.biocentricScore || 95),
+                    fitScoreDynamicPenalty: 0,
                     fitAlerts: perfilWorker?.biocentricAlerts || [],
                     percepcionRiesgoScore: 0,
                     percepcionRiesgoHistorial: [],
@@ -79,7 +143,14 @@ async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, punt
                     actos_inseguros: [],
                     participaciones_ipevar: [],
                     ats: [],
-                    termometro_animo: []
+                    termometro_animo: [],
+                    comites: [],
+                    votaciones: [],
+                    solicitud_epp: [],
+                    inspeccion_vehicular_pesv: [],
+                    estudio_puesto: [],
+                    actualizaciones_perfil: [],
+                    brigada: []
                 });
             } catch (errCreate) {
                 console.warn('[feedWorkerEvent] Worker creation fallback, trying retrieval:', errCreate.message);
@@ -94,24 +165,34 @@ async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, punt
 
         if (!worker) return;
 
-        // 3. Control de Idempotencia: si viene referencia y ya existe en el historial de ese módulo, evitar duplicar
+        // Normalizar alias de módulos
+        const normalizedModulo = tipo_modulo === 'perfil_socio' ? 'perfil' : tipo_modulo;
+
+        // 3. Control de Idempotencia: si viene referencia y ya existe en el historial, evitar duplicar
         if (referencia) {
+            const refStr = String(referencia).trim();
             const yaEnHistorial = (worker.percepcionRiesgoHistorial || []).some(
-                h => String(h.referencia || '') === String(referencia) && h.modulo === tipo_modulo
+                h =>
+                    String(h.referencia || '').trim() === refStr &&
+                    (h.modulo === tipo_modulo || h.modulo === normalizedModulo)
             );
-            const yaEnAtel = tipo_modulo === 'atel' && (worker.atel || []).some(
-                a => String(a.referenciaId || '') === String(referencia)
-            );
+            const yaEnAtel =
+                (tipo_modulo === 'atel' || tipo_modulo === 'atel_testimonio') &&
+                (worker.atel || []).some(a => String(a.referenciaId || '').trim() === refStr);
             if (yaEnHistorial || yaEnAtel) {
-                return; // Evento ya acreditado previamente
+                return worker; // Evento ya acreditado previamente
             }
         }
 
         const pts = Number(puntos) || 0;
+        const currentScore = Math.max(0, Number(worker.percepcionRiesgoScore) || 0);
+        const nuevoScore = Math.max(0, currentScore + pts);
+
         let fitScoreAdjustment = 0;
         let newAlerts = [];
         let updatedRiesgos = [...(worker.riesgosBioIndividual || [])];
         let updatedCapacitaciones = [...(worker.capacitaciones || [])];
+        let riesgosModified = false;
 
         // ─── 4. Procesamiento Ocupacional Enriquecido ─────────────────────────────
         
@@ -143,20 +224,16 @@ async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, punt
             // C. Materialización de Peligro en Matriz Bio-IPEVAR 360 (Hito 2)
             if (peligro && updatedRiesgos.length > 0) {
                 const cleanPeligro = peligro.toLowerCase().trim();
-                updatedRiesgos = updatedRiesgos.map(risk => {
+                updatedRiesgos = updatedRiesgos.map(rawRisk => {
+                    const risk = rawRisk && typeof rawRisk.toObject === 'function' ? rawRisk.toObject() : { ...rawRisk };
                     const matchDimension = risk.dimension_bio && risk.dimension_bio.toLowerCase().includes(cleanPeligro);
                     const matchPeligro = risk.peligro_cargo && risk.peligro_cargo.toLowerCase().includes(cleanPeligro);
                     
                     if (matchDimension || matchPeligro) {
                         risk.nivel_susceptibilidad = 5; // Crítico
-                        risk.nivel_exposicion = 4;       // Continuo
-                        risk.indice_bio_riesgo_bruto = 20; // 5 * 4
-                        
-                        const reduction = risk.factor_reduccion_percepcion || 0;
-                        risk.indice_bio_riesgo_efectivo = 20 * (1 - reduction);
-                        risk.clasificacion_bio = 'Crítico';
-                        risk.intervencion_prioritaria = true;
+                        risk.nivel_exposicion = Math.max(4, Number(risk.nivel_exposicion) || 4); // Continuo
                         risk.plan_accion_bio = `REVISIÓN URGENTE: Accidente materializado registrado el ${new Date().toLocaleDateString('es-CO')}.`;
+                        riesgosModified = true;
                     }
                     return risk;
                 });
@@ -195,34 +272,52 @@ async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, punt
 
         // ─── 5. Estructuración del Update en la Base de Datos ─────────────────────
         
-        const update = { $set: { updatedAt: Date.now() } };
+        const update = { $set: { updatedAt: Date.now() }, $push: {} };
+        const now = new Date();
 
-        // Insertar en el historial de hoja de vida ocupacional
+        // Insertar en el historial específico de cada módulo 360°
         if (tipo_modulo === 'atel') {
-            update.$push = { 
-                atel: { 
-                    fecha: new Date(), 
-                    tipo: metadata.tipo || 'Accidente de Trabajo', 
-                    descripcion, 
-                    referenciaId: referencia 
-                } 
+            update.$push.atel = {
+                fecha: now,
+                tipo: metadata.tipo || 'Accidente de Trabajo',
+                descripcion,
+                referenciaId: referencia
+            };
+        } else if (tipo_modulo === 'atel_testimonio') {
+            update.$push.atel = {
+                fecha: now,
+                tipo: 'Testimonio ATEL',
+                descripcion,
+                referenciaId: referencia
             };
         } else if (tipo_modulo === 'actos') {
-            update.$push = { 
-                actos_inseguros: { 
-                    fecha: new Date(), 
-                    tipo: metadata.esObservado ? 'Acto Inseguro' : 'Condición Insegura', 
-                    descripcion 
-                } 
+            update.$push.actos_inseguros = {
+                fecha: now,
+                tipo: metadata.esObservado ? 'Acto Inseguro' : 'Reporte Preventivo',
+                descripcion
             };
         } else if (tipo_modulo === 'participacion_ipevar') {
-            update.$push = { participaciones_ipevar: { fecha: new Date(), descripcion } };
+            update.$push.participaciones_ipevar = { fecha: now, descripcion };
         } else if (tipo_modulo === 'capacitacion') {
-            update.$push = { capacitaciones: { nombre: descripcion, fecha: new Date() } };
+            update.$push.capacitaciones = { nombre: descripcion, fecha: now };
         } else if (tipo_modulo === 'ats') {
-            update.$push = { ats: { fecha: new Date(), descripcion } };
+            update.$push.ats = { fecha: now, descripcion };
         } else if (tipo_modulo === 'termometro_animo') {
-            update.$push = { termometro_animo: { fecha: new Date(), descripcion, puntos: pts } };
+            update.$push.termometro_animo = { fecha: now, descripcion, puntos: pts };
+        } else if (tipo_modulo === 'comites') {
+            update.$push.comites = { fecha: now, descripcion, puntos: pts, referencia };
+        } else if (tipo_modulo === 'votaciones') {
+            update.$push.votaciones = { fecha: now, descripcion, puntos: pts, referencia };
+        } else if (tipo_modulo === 'solicitud_epp') {
+            update.$push.solicitud_epp = { fecha: now, descripcion, puntos: pts, referencia };
+        } else if (tipo_modulo === 'inspeccion_vehicular_pesv') {
+            update.$push.inspeccion_vehicular_pesv = { fecha: now, descripcion, puntos: pts, referencia };
+        } else if (tipo_modulo === 'estudio_puesto') {
+            update.$push.estudio_puesto = { fecha: now, descripcion, puntos: pts, referencia };
+        } else if (normalizedModulo === 'perfil') {
+            update.$push.actualizaciones_perfil = { fecha: now, descripcion, puntos: pts, referencia };
+        } else if (tipo_modulo === 'brigada') {
+            update.$push.brigada = { fecha: now, descripcion, puntos: pts, referencia };
         }
 
         // Integrar alertas médicas dinámicas
@@ -230,41 +325,51 @@ async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, punt
             update.$addToSet = { fitAlerts: { $each: newAlerts } };
         }
 
-        // Aplicar ajuste al fitScore (garantizando rango 0 - 100)
+        // Aplicar ajuste al fitScore (garantizando rango 0 - 100) y persistir penalización dinámica
+        let effectiveFit = Number(worker.fitScore) || 95;
         if (fitScoreAdjustment !== 0) {
-            const currentFit = Number(worker.fitScore) || 100;
-            const calculatedFit = Math.max(0, Math.min(100, currentFit + fitScoreAdjustment));
-            update.$set.fitScore = calculatedFit;
+            const currentPenalty = Number(worker.fitScoreDynamicPenalty) || 0;
+            const newPenalty = Math.max(0, Number((currentPenalty - fitScoreAdjustment).toFixed(2)));
+            effectiveFit = Math.max(0, Math.min(100, Number((effectiveFit + fitScoreAdjustment).toFixed(1))));
+            update.$set.fitScore = effectiveFit;
+            update.$set.fitScoreDynamicPenalty = newPenalty;
         }
 
-        // Persistir cambios en matrices complejas
-        if (tipo_modulo === 'atel') {
-            update.$set.riesgosBioIndividual = updatedRiesgos;
-            update.$set.capacitaciones = updatedCapacitaciones;
-        } else if (tipo_modulo === 'actos' && metadata.esObservado) {
+        // Recalcular automáticamente la Matriz Bio-IPEVR cuando cambian los puntos o se materializa un ATEL
+        if (updatedRiesgos.length > 0 && (pts !== 0 || riesgosModified || tipo_modulo === 'atel')) {
+            update.$set.riesgosBioIndividual = recalculateBioRisks(updatedRiesgos, nuevoScore, effectiveFit);
+        }
+
+        // Persistir capacitaciones prescritas automáticamente (si no se hizo $push directo a capacitaciones)
+        if ((tipo_modulo === 'atel' || (tipo_modulo === 'actos' && metadata.esObservado)) && tipo_modulo !== 'capacitacion') {
             update.$set.capacitaciones = updatedCapacitaciones;
         }
 
         // Gamificación: Sumar/restar puntos garantizando piso mínimo >= 0
         if (pts !== 0) {
-            const currentScore = Math.max(0, Number(worker.percepcionRiesgoScore) || 0);
-            const nuevoScore = Math.max(0, currentScore + pts);
             update.$set.percepcionRiesgoScore = nuevoScore;
-
-            if (!update.$push) update.$push = {};
             update.$push.percepcionRiesgoHistorial = {
-                fecha: new Date(),
+                fecha: now,
                 accion: descripcion,
                 puntos: pts,
-                modulo: tipo_modulo,
+                modulo: normalizedModulo,
                 referencia,
             };
         }
 
+        if (Object.keys(update.$push).length === 0) {
+            delete update.$push;
+        }
+
         await SgsstWorker.updateOne({ _id: worker._id }, update);
+        return worker;
     } catch (e) {
         console.error('[SGSST Sync 360] Error in feedWorkerEvent:', e);
     }
 }
+
+feedWorkerEvent.recalculateBioRisks = recalculateBioRisks;
+feedWorkerEvent.mergeOperationalFitAlerts = mergeOperationalFitAlerts;
+feedWorkerEvent.isOperationalAlert = isOperationalAlert;
 
 module.exports = feedWorkerEvent;

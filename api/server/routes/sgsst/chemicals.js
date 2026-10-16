@@ -113,15 +113,15 @@ async function syncChemicalsWithIpevar(userId, companyId, productosList) {
     // 2. Buscar todos los SgsstWorkers expuestos a químicos para modular sus riesgos
     const exposedWorkerIds = Object.keys(workerStatusMap);
     
+    const feedWorkerEvent = require('./feedWorkerHelper');
     // Obtener todos los trabajadores de la empresa
     const workers = await SgsstWorker.find({ user: userId, companyId });
 
     for (const worker of workers) {
-      const workerId = worker.perfilId;
       const newAlertsSet = new Set(worker.fitAlerts || []);
       const alertLabel = 'Exposición a Químico Sin FDS/Rótulo';
 
-      const status = workerStatusMap[workerId];
+      const status = workerStatusMap[worker.perfilId] || workerStatusMap[worker.documento];
       const isExposedNonConformant = status ? status.hasNonConformant : false;
 
       if (isExposedNonConformant) {
@@ -131,7 +131,8 @@ async function syncChemicalsWithIpevar(userId, companyId, productosList) {
       }
 
       // Recorrer los riesgos bio-individuales para buscar relacionados con disolventes/químicos
-      const updatedRiesgos = (worker.riesgosBioIndividual || []).map(risk => {
+      const rawUpdatedRiesgos = (worker.riesgosBioIndividual || []).map(rawRisk => {
+        const risk = rawRisk && typeof rawRisk.toObject === 'function' ? rawRisk.toObject() : { ...rawRisk };
         const isChemicalRisk = (risk.controles_individuo && /químico|quimico|solvente|sustancia|vapor|gases|humos/i.test(risk.controles_individuo)) ||
                               (risk.dimension_bio && /químico|quimico|solvente|sustancia|vapor|gases|humos/i.test(risk.dimension_bio));
         
@@ -153,6 +154,12 @@ async function syncChemicalsWithIpevar(userId, companyId, productosList) {
         }
         return risk;
       });
+
+      const updatedRiesgos = feedWorkerEvent.recalculateBioRisks(
+        rawUpdatedRiesgos,
+        worker.percepcionRiesgoScore || 0,
+        worker.fitScore
+      );
 
       // Actualizar worker en la DB
       await SgsstWorker.updateOne(

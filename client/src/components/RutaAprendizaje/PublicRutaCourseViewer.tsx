@@ -11,6 +11,7 @@ import { AttachmentViewer } from '~/components/Common/Attachments';
 
 interface WorkerSession {
     companyId: string;
+    urlCompanyId?: string;
     companyName: string;
     nombre: string;
     cedula: string;
@@ -51,8 +52,7 @@ export default function PublicRutaCourseViewer() {
 
         try {
             const parsed = JSON.parse(stored) as WorkerSession;
-            if (parsed.companyId !== companyId) {
-                localStorage.removeItem('wappy_worker_session');
+            if (!parsed.cedula || !parsed.nombre || (parsed.companyId !== companyId && parsed.urlCompanyId !== companyId)) {
                 navigate(`/sgsst-public/ruta-aprendizaje/${companyId}`);
                 return;
             }
@@ -113,7 +113,7 @@ export default function PublicRutaCourseViewer() {
         if (!session || !activeLessonId || !courseId || !companyId) return;
 
         try {
-            const response = await axios.post('/api/ruta-aprendizaje/public/progress', {
+            await axios.post('/api/ruta-aprendizaje/public/progress', {
                 companyId,
                 courseId,
                 lessonId: activeLessonId,
@@ -203,7 +203,6 @@ export default function PublicRutaCourseViewer() {
                 markCurrentComplete();
             } else {
                 // Course final exam approved -> Force course completion
-                // We mark the last lesson again to trigger isCourseCompleted inside the backend
                 if (course.lessons && course.lessons.length > 0) {
                     const lastLessonId = course.lessons[course.lessons.length - 1]._id;
                     axios.post('/api/ruta-aprendizaje/public/progress', {
@@ -211,7 +210,8 @@ export default function PublicRutaCourseViewer() {
                         courseId,
                         lessonId: lastLessonId,
                         workerCedula: session?.cedula,
-                        workerName: session?.nombre
+                        workerName: session?.nombre,
+                        examPassed: true
                     }).then(() => {
                         fetchCourseData(session?.cedula || '');
                     });

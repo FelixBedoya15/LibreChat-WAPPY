@@ -123,7 +123,7 @@ async function syncWorkerWithCompanyProfile({ companyId, userId, workerName, wor
         await perfilDoc.save();
         logger.info(`[EPT Sync] Worker ${cleanDoc} updated with EPT study in company ${companyId}`);
 
-        // Mantener también en SgsstWorker
+        // Mantener también en SgsstWorker y acreditar en Hoja de Vida 360°
         if (userId) {
           await SgsstWorker.findOneAndUpdate(
             { companyId, documento: cleanDoc },
@@ -140,6 +140,22 @@ async function syncWorkerWithCompanyProfile({ companyId, userId, workerName, wor
             },
             { upsert: true, new: true }
           ).catch((err) => logger.warn('[EPT Sync] SgsstWorker upsert warning:', err.message));
+
+          try {
+            const feedWorkerEvent = require('./feedWorkerHelper');
+            const dateKey = new Date().toISOString().slice(0, 10);
+            await feedWorkerEvent(
+              userId,
+              cleanDoc,
+              'estudio_puesto',
+              biomechanicalNote,
+              40,
+              `EPT-${cleanDoc}-${dateKey}`,
+              { companyId, nombre: currentWorker.nombre || cleanName, cargo: currentWorker.cargo || cleanCargo }
+            );
+          } catch (feedErr) {
+            logger.warn('[EPT Sync] feedWorkerEvent warning:', feedErr.message);
+          }
         }
       } else {
         // Trabajador aún no registrado en la empresa:

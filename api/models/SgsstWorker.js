@@ -119,19 +119,27 @@ const SgsstWorkerSchema = new mongoose.Schema({
 
   // FIT — Índice Biocéntrico Integral (sincronizado desde PerfilSociodemografico)
   fitScore: { type: Number, default: 0 },
+  fitScoreDynamicPenalty: { type: Number, default: 0 },
   fitAlerts: { type: Array, default: [] },  // e.g. ['Tabaquismo Activo', 'Alerta Burnout']
 
   // Gamificación — Percepción del Riesgo
   percepcionRiesgoScore: { type: Number, default: 0 },
   percepcionRiesgoHistorial: { type: [PercepcionHistorialSchema], default: [] },
 
-  // Historial de eventos por módulo (auto-feed)
+  // Historial de eventos por módulo (auto-feed 360°)
   atel: { type: [ATELSchema], default: [] },
   actos_inseguros: { type: [ActoInseguroSchema], default: [] },
   participaciones_ipevar: { type: [ParticipacionSchema], default: [] },
   capacitaciones: { type: [CapacitacionSchema], default: [] },
   ats: { type: [ATSSchema], default: [] },
   termometro_animo: { type: Array, default: [] },
+  comites: { type: Array, default: [] },
+  votaciones: { type: Array, default: [] },
+  solicitud_epp: { type: Array, default: [] },
+  inspeccion_vehicular_pesv: { type: Array, default: [] },
+  estudio_puesto: { type: Array, default: [] },
+  actualizaciones_perfil: { type: Array, default: [] },
+  brigada: { type: Array, default: [] },
 
   bioChartConclusions: { type: Object, default: {} },
   bioReportContent: { type: String, default: '' },

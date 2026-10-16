@@ -235,7 +235,13 @@ router.post('/seed-defaults', requireJwtAuth, async (req, res) => {
 // ─── Lógica de Sincronización PESV -> IPEVAR ─────────────────────────────────
 async function syncVehicleWithIpevar(userId, companyId, conductorId, vehicleDoc) {
   try {
-    const worker = await SgsstWorker.findOne({ user: userId, companyId, perfilId: conductorId });
+    const feedWorkerEvent = require('./feedWorkerHelper');
+    const cleanConductorId = String(conductorId || '').trim();
+    const worker = await SgsstWorker.findOne({
+      user: userId,
+      companyId,
+      $or: [{ perfilId: cleanConductorId }, { documento: cleanConductorId }]
+    });
     if (!worker) {
       logger.debug(`[SGSST Vehicles Sync] SgsstWorker no encontrado para id ${conductorId}`);
       return;
@@ -276,7 +282,8 @@ async function syncVehicleWithIpevar(userId, companyId, conductorId, vehicleDoc)
     }
 
     // Recorrer los riesgos bio-individuales para buscar relacionados con el PESV
-    const updatedRiesgos = (worker.riesgosBioIndividual || []).map(risk => {
+    const rawUpdatedRiesgos = (worker.riesgosBioIndividual || []).map(rawRisk => {
+      const risk = rawRisk && typeof rawRisk.toObject === 'function' ? rawRisk.toObject() : { ...rawRisk };
       const isDrivingRisk = risk.dominio_bio === 'Seguridad' || 
                            (risk.controles_individuo && /vial|tránsito|conducción|pesv/i.test(risk.controles_individuo)) ||
                            (risk.dimension_bio && /vial|tránsito|conducción|pesv/i.test(risk.dimension_bio));
@@ -298,6 +305,12 @@ async function syncVehicleWithIpevar(userId, companyId, conductorId, vehicleDoc)
       }
       return risk;
     });
+
+    const updatedRiesgos = feedWorkerEvent.recalculateBioRisks(
+      rawUpdatedRiesgos,
+      worker.percepcionRiesgoScore || 0,
+      worker.fitScore
+    );
 
     await SgsstWorker.updateOne(
       { _id: worker._id },

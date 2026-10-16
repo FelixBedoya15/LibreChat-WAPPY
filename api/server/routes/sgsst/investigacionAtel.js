@@ -860,8 +860,23 @@ REGLAS DE DISEÑO OBLIGATORIAS:
         // ── Auto-Feed Bio-Individual (Hoja de Vida) ──
         if (formData?.afectadoCedula) {
             const shortDesc = `${tipoEvento || 'ATEL'} - ${naturalezaLesion || ''}`;
-            // 0 points for getting hurt, but it registers the event
-            await feedWorkerEvent(req.user.id || req.user, formData.afectadoCedula, 'atel', shortDesc, 0, 'generate');
+            const refAtel =
+                req.body?.id ||
+                formData?.id ||
+                `ATEL-${String(formData.afectadoCedula).trim()}-${formData?.fechaEvento || 'evento'}`;
+            await feedWorkerEvent(
+                req.user.id || req.user,
+                formData.afectadoCedula,
+                'atel',
+                shortDesc,
+                0,
+                refAtel,
+                {
+                    tipo: tipoEvento || 'Accidente de Trabajo',
+                    parteCuerpo: formData?.parteCuerpo || '',
+                    consecuencia: naturalezaLesion || '',
+                }
+            );
         }
 
         res.json({

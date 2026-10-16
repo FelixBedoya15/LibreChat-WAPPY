@@ -66,10 +66,14 @@ export default function PublicVotaciones() {
         const activas = resElec.data.elecciones || [];
         setElecciones(activas);
 
-        // Preseleccionar si viene por URL o tomar la primera
+        // Preseleccionar si viene por URL (eleccionId o tipo) o tomar la primera
         const targetEleccionId = searchParams.get('eleccionId');
+        const targetTipo = searchParams.get('tipo')?.toLowerCase();
         if (targetEleccionId && activas.some((e: any) => e._id === targetEleccionId)) {
           setSelectedEleccionId(targetEleccionId);
+        } else if (targetTipo && activas.some((e: any) => String(e.tipoComite || '').toLowerCase() === targetTipo)) {
+          const matchByTipo = activas.find((e: any) => String(e.tipoComite || '').toLowerCase() === targetTipo);
+          if (matchByTipo) setSelectedEleccionId(matchByTipo._id);
         } else if (activas.length > 0) {
           setSelectedEleccionId(activas[0]._id);
         }
@@ -160,7 +164,7 @@ export default function PublicVotaciones() {
       <PublicWorkerHeader 
         companyId={companyId || ''} 
         companyName={company?.companyName}
-        companyLogo={company?.logo}
+        companyLogo={company?.logoUrl || company?.logo}
         currentModule="votaciones"
         title="Elecciones Paritarias SST"
         workerCedula={cedula || worker?.cedula}
@@ -173,6 +177,7 @@ export default function PublicVotaciones() {
             nombre={nombre}
             cedula={cedula}
             onClear={() => {
+              clearSession();
               setCedula('');
               setNombre('');
               setYaVoto(false);
@@ -203,7 +208,7 @@ export default function PublicVotaciones() {
             <div className="bg-white/10 backdrop-blur-md border border-white/20 px-4 py-2.5 rounded-2xl text-center self-stretch sm:self-auto">
               <span className="text-[10px] uppercase font-bold text-teal-200 tracking-wider block">Gamificación SST</span>
               <span className="text-lg font-black text-amber-300 flex items-center justify-center gap-1">
-                <Sparkles className="w-4 h-4" /> +20 pts
+                <Sparkles className="w-4 h-4" /> +30 pts
               </span>
             </div>
           </div>
@@ -243,7 +248,7 @@ export default function PublicVotaciones() {
               Tu participación democrática ha sido acreditada en el padrón electoral, y tu preferencia fue depositada en la urna digital de forma <strong>estrictamente anónima y secreta</strong>, imposible de vincular con tu identidad.
             </p>
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-800 dark:text-amber-300 font-bold text-xs">
-              <Sparkles className="w-4 h-4 text-amber-500" /> ¡Has sumado +20 puntos en tu perfil biocéntrico de prevención!
+              <Sparkles className="w-4 h-4 text-amber-500" /> ¡Has sumado +30 puntos en tu perfil biocéntrico de prevención!
             </div>
             <div className="pt-4">
               <button

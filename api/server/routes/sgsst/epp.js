@@ -619,7 +619,13 @@ router.post('/sync-manual', requireJwtAuth, async (req, res) => {
 // ─── Función de Sincronización con la Matriz Bio-IPEVAR (SgsstWorker) ─────────
 async function syncEppWithIpevar(userId, companyId, workerId, eppDoc) {
   try {
-    const worker = await SgsstWorker.findOne({ user: userId, companyId, perfilId: workerId });
+    const feedWorkerEvent = require('./feedWorkerHelper');
+    const cleanWorkerId = String(workerId || '').trim();
+    const cleanEppDoc = eppDoc?.documento ? String(eppDoc.documento).trim() : '';
+    const orClauses = [{ perfilId: cleanWorkerId }, { documento: cleanWorkerId }];
+    if (cleanEppDoc) orClauses.push({ documento: cleanEppDoc });
+
+    const worker = await SgsstWorker.findOne({ user: userId, companyId, $or: orClauses });
     if (!worker) {
       logger.debug(`[SGSST EPP Sync] SgsstWorker no encontrado para id ${workerId}`);
       return;
@@ -669,34 +675,33 @@ async function syncEppWithIpevar(userId, companyId, workerId, eppDoc) {
       newAlertsSet.delete(alertLabelAlturas);
     }
 
-    // 2. Modular el fitScore en función de los EPPs vencidos (Castigo de -10 pts por alerta)
-    // Partimos de un score base recalculado del Perfil Sociodemográfico o mantenemos el actual.
-    // Para simplificar, restamos 10 puntos por cada tipo de alerta activa, asegurando rango [0, 100].
-    let fitPenalty = 0;
-    if (hasExpiredRegular) fitPenalty += 10;
-    if (hasExpiredAlturas) fitPenalty += 15; // Mayor peso por alturas
-
     // Buscamos sincronizar con la matriz bio-individual (riesgosBioIndividual)
-    const updatedRiesgos = (worker.riesgosBioIndividual || []).map(risk => {
+    const rawUpdatedRiesgos = (worker.riesgosBioIndividual || []).map(rawRisk => {
+      const risk = rawRisk && typeof rawRisk.toObject === 'function' ? rawRisk.toObject() : { ...rawRisk };
       const eppRequired = risk.controles_individuo && /EPP|arnés|eslinga|casco|gafas/i.test(risk.controles_individuo);
       if (eppRequired) {
-        // Si hay alertas activas de EPP, marcamos el control como inefectivo
         if (hasExpiredRegular || hasExpiredAlturas) {
           return {
             ...risk,
             plan_accion_bio: '❌ ALERTA: EPP Requerido se encuentra VENCIDO o pendiente de entrega.',
-            nivel_susceptibilidad: Math.min(5, (risk.nivel_susceptibilidad || 1) + 1) // Incrementa susceptibilidad
+            nivel_susceptibilidad: Math.min(5, (risk.nivel_susceptibilidad || 1) + 1)
           };
         } else {
           return {
             ...risk,
             plan_accion_bio: '✅ EPP Verificado y al día.',
-            nivel_susceptibilidad: Math.max(1, (risk.nivel_susceptibilidad || 2) - 1) // Reduce susceptibilidad
+            nivel_susceptibilidad: Math.max(1, (risk.nivel_susceptibilidad || 2) - 1)
           };
         }
       }
       return risk;
     });
+
+    const updatedRiesgos = feedWorkerEvent.recalculateBioRisks(
+      rawUpdatedRiesgos,
+      worker.percepcionRiesgoScore || 0,
+      worker.fitScore
+    );
 
     // Guardar cambios en el SgsstWorker
     await SgsstWorker.updateOne(

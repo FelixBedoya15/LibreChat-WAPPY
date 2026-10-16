@@ -139,6 +139,30 @@ router.post('/save', requireJwtAuth, async (req, res) => {
       { $set: { formData, trabajadoresList, responsablesList, images, video, companyId, updatedAt: Date.now() } },
       { upsert: true, new: true }
     );
+
+    // Sincronizar participación en ATS con la Hoja de Vida 360° (SgsstWorker)
+    try {
+      const feedWorkerEvent = require('./feedWorkerHelper');
+      const tareaDesc = formData?.trabajoRealizar || formData?.actividad || 'Tarea crítica';
+      const fechaRef = formData?.fechaElaboracion || new Date().toISOString().slice(0, 10);
+      for (const t of (trabajadoresList || [])) {
+        const ced = String(t?.cedula || t?.identificacion || t?.documento || '').trim();
+        if (ced) {
+          await feedWorkerEvent(
+            req.user.id,
+            ced,
+            'ats',
+            `Participación en Análisis de Trabajo Seguro (ATS): ${tareaDesc}`,
+            40,
+            `ATS-${ced}-${fechaRef}-${String(tareaDesc).substring(0, 20)}`,
+            { companyId, nombre: t.nombre, cargo: t.cargo }
+          );
+        }
+      }
+    } catch (feedErr) {
+      logger.warn('[SGSST ATS] Worker 360 feed notice:', feedErr.message);
+    }
+
     res.json({ success: true });
   } catch (error) {
     logger.error('[SGSST ATS] Save error:', error);

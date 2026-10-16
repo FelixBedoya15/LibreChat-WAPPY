@@ -25,6 +25,7 @@ import {
   Check,
   ChevronRight,
   UserCheck,
+  GraduationCap,
 } from 'lucide-react';
 import PublicWorkerHeader from './PublicWorkerHeader';
 import useWorkerSession from '~/hooks/useWorkerSession';
@@ -130,8 +131,9 @@ export default function PublicBrigadistas() {
 
   // Inicializar cédula desde sesión si existe
   useEffect(() => {
-    if (isAuthenticated && sessionWorker?.identificacion && !cedula) {
-      setCedula(sessionWorker.identificacion);
+    const sessCed = sessionWorker?.cedula || (sessionWorker as any)?.identificacion;
+    if (isAuthenticated && sessCed && !cedula) {
+      setCedula(sessCed);
     }
   }, [isAuthenticated, sessionWorker, cedula]);
 

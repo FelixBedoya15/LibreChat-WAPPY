@@ -439,7 +439,7 @@ export default function PublicColaboradorHub() {
         {
           title: 'Elecciones Paritarias COPASST',
           desc: 'Votación secreta para elegir representantes de los colaboradores al COPASST',
-          points: '+20 pts',
+          points: '+30 pts',
           icon: Vote,
           path: `/sgsst-public/votaciones/${companyId}?tipo=copasst`,
           color: 'from-emerald-600 to-teal-700',
@@ -447,7 +447,7 @@ export default function PublicColaboradorHub() {
         {
           title: 'Actas Mensuales COPASST',
           desc: 'Firma digital de actas oficiales, quórum y compromisos mensuales',
-          points: '+50 a +100 pts',
+          points: '+50 pts',
           icon: UserCheck,
           path: `/sgsst-public/comites/${companyId}?tipo=copasst`,
           color: 'from-teal-600 to-emerald-700',
@@ -472,7 +472,7 @@ export default function PublicColaboradorHub() {
         {
           title: 'Elecciones Convivencia Laboral',
           desc: 'Votación paritaria secreta para elegir representantes al Comité de Convivencia',
-          points: '+20 pts',
+          points: '+30 pts',
           icon: Vote,
           path: `/sgsst-public/votaciones/${companyId}?tipo=cocolab`,
           color: 'from-indigo-600 to-violet-700',
@@ -480,7 +480,7 @@ export default function PublicColaboradorHub() {
         {
           title: 'Actas Trimestrales de Convivencia',
           desc: 'Firma digital reservada de actas ordinarias y extraordinarias del CCL',
-          points: '+50 a +100 pts',
+          points: '+50 pts',
           icon: UserCheck,
           path: `/sgsst-public/comites/${companyId}?tipo=cocolab`,
           color: 'from-purple-600 to-indigo-700',
@@ -613,7 +613,7 @@ export default function PublicColaboradorHub() {
         {
           title: 'Cursos & Capacitaciones (LMS)',
           desc: 'Aula virtual interactiva y certificaciones',
-          points: 'Aprender',
+          points: '+50 pts',
           icon: GraduationCap,
           path: `/sgsst-public/ruta-aprendizaje/${companyId}`,
           color: 'from-fuchsia-500 to-pink-600',
@@ -949,13 +949,20 @@ export default function PublicColaboradorHub() {
                   Conexión en tiempo real con reportes, inspecciones y formación
                 </span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                   { title: 'ATEL', subtitle: 'Accidentes / Enfermedades', icon: '🚨', items: data.worker.atel || [], emptyMsg: 'Sin eventos ATEL' },
                   { title: 'Actos / Condiciones', subtitle: 'Reportes en terreno', icon: '⚠️', items: data.worker.actos_inseguros || [], emptyMsg: 'Sin reportes' },
                   { title: 'IPEVR', subtitle: 'Participación activa', icon: '🎯', items: data.worker.participaciones_ipevar || [], emptyMsg: 'Sin registros' },
-                  { title: 'Capacitaciones', subtitle: 'Formación SST', icon: '📚', items: data.worker.capacitaciones || [], emptyMsg: 'Sin cursos' },
+                  { title: 'Capacitaciones', subtitle: 'Formación SST / LMS', icon: '📚', items: data.worker.capacitaciones || [], emptyMsg: 'Sin cursos' },
                   { title: 'Termómetro Psicosocial', subtitle: 'Bienestar & Clima', icon: '❤️', items: termometroAnimo, emptyMsg: 'Sin check-ins' },
+                  { title: 'Comités & Inspecciones', subtitle: 'COPASST, CCL, PESV', icon: '🏛️', items: data.worker.comites || [], emptyMsg: 'Sin actas/rondas' },
+                  { title: 'Votaciones Paritarias', subtitle: 'Elecciones SST', icon: '🗳️', items: data.worker.votaciones || [], emptyMsg: 'Sin votos' },
+                  { title: 'EPP y Dotación', subtitle: 'Solicitudes y entregas', icon: '🦺', items: data.worker.solicitud_epp || [], emptyMsg: 'Sin solicitudes' },
+                  { title: 'Seguridad Vial PESV', subtitle: 'Preoperacionales', icon: '🚗', items: data.worker.inspeccion_vehicular_pesv || [], emptyMsg: 'Sin inspecciones' },
+                  { title: 'Ergonomía & Puesto', subtitle: 'Evaluación postural IA', icon: '🪑', items: data.worker.estudio_puesto || [], emptyMsg: 'Sin mediciones' },
+                  { title: 'Brigada & SCI', subtitle: 'Hoja de vida emergencias', icon: '🚒', items: data.worker.brigada || [], emptyMsg: 'Sin registros' },
+                  { title: 'ATS & Perfil Anual', subtitle: 'Permisos y ficha médica', icon: '📋', items: [...(data.worker.ats || []), ...(data.worker.actualizaciones_perfil || [])], emptyMsg: 'Sin actualizaciones' },
                 ].map(({ title, subtitle, icon, items, emptyMsg }) => {
                   const hasItems = items.length > 0;
                   return (

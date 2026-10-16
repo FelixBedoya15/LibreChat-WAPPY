@@ -85,8 +85,10 @@ export default function PublicAltaDireccion() {
     };
 
     const validateIdentity = async (overrideCedula?: string, overrideNombre?: string) => {
-        const targetCed = (overrideCedula || cedula || '').trim();
-        const targetNom = (overrideNombre || nombre || '').trim();
+        const safeCed = typeof overrideCedula === 'string' ? overrideCedula : '';
+        const safeNom = typeof overrideNombre === 'string' ? overrideNombre : '';
+        const targetCed = (safeCed || cedula || '').trim();
+        const targetNom = (safeNom || nombre || '').trim();
         if (!targetNom || !targetCed) {
             setValidationError('Por favor ingrese su nombre y cédula para continuar.');
             return;
@@ -274,7 +276,7 @@ export default function PublicAltaDireccion() {
                         )}
 
                         <button
-                            onClick={validateIdentity}
+                            onClick={() => validateIdentity()}
                             disabled={isValidating}
                             className="mt-6 w-full bg-gradient-to-r from-teal-700 to-teal-900 hover:from-teal-800 hover:to-teal-950 text-white py-3.5 rounded-xl font-bold tracking-wide shadow-lg shadow-teal-800/30 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
                         >

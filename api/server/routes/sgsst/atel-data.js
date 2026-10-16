@@ -156,8 +156,8 @@ router.post('/save', requireJwtAuth, async (req, res) => {
                 const monthInfo = annualData[monthKey];
                 if (monthInfo && monthInfo.events && Array.isArray(monthInfo.events)) {
                     for (const ev of monthInfo.events) {
-                        // Sincronizar si tiene un documento, workerId o id del trabajador asociado
-                        const docIdentificacion = ev.documento || ev.workerId || ev.id;
+                        // Sincronizar solo si tiene documento/cédula real del trabajador (nunca ev.id que es el UUID del evento)
+                        const docIdentificacion = ev.documento || ev.colaborador?.cedula || ev.cedula || ev.workerId;
                         if (docIdentificacion && String(docIdentificacion).trim().length > 3) {
                             const descSiniestro = `[Siniestro ${ev.tipo}] Peligro: ${ev.peligro || 'N/A'}. Causa: ${ev.causaInmediata || 'N/A'}. Incap: ${ev.diasIncapacidad || 0} días.`;
                             

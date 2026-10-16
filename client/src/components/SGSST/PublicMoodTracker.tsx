@@ -103,7 +103,8 @@ export default function PublicMoodTracker() {
     if (!claimCedula.trim()) return;
     setClaimingPoints(true);
     try {
-      const res = await axios.post(`/api/public-sgsst/mood/claim-points/${companyId}`, {
+      const targetId = company?._id || companyId;
+      const res = await axios.post(`/api/public-sgsst/mood/claim-points/${targetId}`, {
         cedula: claimCedula.trim(),
         telemetryId,
       });
@@ -604,17 +605,19 @@ export default function PublicMoodTracker() {
               </div>
             </div>
 
-            {/* Desbloqueo directo para administradores o demostraciones */}
-            <div className="pt-3 border-t border-border-medium/60 space-y-2">
-              <p className="text-[11px] text-text-tertiary font-medium">¿Eres administrador o estás realizando una prueba?</p>
-              <button
-                onClick={handleUnlockDemo}
-                className="w-full py-2.5 px-4 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white rounded-2xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
-              >
-                <Sparkles className="w-4 h-4 text-emerald-200" />
-                <span>Habilitar Modo Demostración (Ilimitado)</span>
-              </button>
-            </div>
+            {/* Desbloqueo directo exclusivo para modo demostración por URL */}
+            {isDemoUrl && (
+              <div className="pt-3 border-t border-border-medium/60 space-y-2">
+                <p className="text-[11px] text-text-tertiary font-medium">¿Eres administrador o estás realizando una prueba?</p>
+                <button
+                  onClick={handleUnlockDemo}
+                  className="w-full py-2.5 px-4 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white rounded-2xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <Sparkles className="w-4 h-4 text-emerald-200" />
+                  <span>Habilitar Modo Demostración (Ilimitado)</span>
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <>

@@ -157,6 +157,31 @@ router.post('/save', requireJwtAuth, async (req, res) => {
       logger.error('[SGSST Capacitaciones] Google Calendar sync failed:', calErr.message);
     }
 
+    // Sincronizar capacitaciones completadas con la Hoja de Vida 360° (SgsstWorker)
+    try {
+      const feedWorkerEvent = require('./feedWorkerHelper');
+      for (const s of (sesiones || [])) {
+        if (s.estado === 'Completada' && Array.isArray(s.asistentes)) {
+          for (const asist of s.asistentes) {
+            const ced = String(asist?.cedula || asist?.identificacion || asist?.documento || '').trim();
+            if (ced) {
+              await feedWorkerEvent(
+                userId,
+                ced,
+                'capacitacion',
+                `Capacitación SST: ${s.tema || 'Sesión Formativa'}`,
+                50,
+                `CAP-${s.id || s.tema}-${ced}`,
+                { companyId, nombre: asist.nombre, cargo: asist.cargo }
+              );
+            }
+          }
+        }
+      }
+    } catch (feedErr) {
+      logger.warn('[SGSST Capacitaciones] Worker 360 feed notice:', feedErr.message);
+    }
+
     res.json({ success: true });
   } catch (error) {
     logger.error('[SGSST Capacitaciones] Save error:', error);

@@ -344,21 +344,38 @@ export default function PublicInspeccionesCopasst() {
   };
 
   const handleNextStep2 = () => {
-    // Si eligió modo checklist, convertir automáticamente los ítems que NO CUMPLEN a hallazgos
+    // Si eligió modo checklist, convertir o sincronizar automáticamente los ítems que NO CUMPLEN a hallazgos
     if (modo === 'checklist_tematico') {
       const failedItems = Object.entries(checklistResponses).filter(([_, val]) => val.estado === 'no_cumple');
-      if (failedItems.length > 0 && hallazgos.length === 0) {
-        const nuevosHallazgos: HallazgoItem[] = failedItems.map(([itemText, val], idx) => ({
-          id: Math.random().toString(36).substring(2, 9),
-          titulo: `Punto No Cumplido #${idx + 1}`,
-          descripcion: val.observacion || itemText,
-          criticidad: 'medio',
-          clasificacionPeligro: 'Locativo',
-          fotoEvidencia: val.foto,
-          medidaSugerida: 'Subsanar condición detectada en la lista de chequeo',
-          responsableAccion: '',
-        }));
-        setHallazgos(nuevosHallazgos);
+      if (failedItems.length > 0) {
+        setHallazgos((prev) => {
+          const merged = [...prev];
+          failedItems.forEach(([itemText, val], idx) => {
+            const desc = val.observacion || itemText;
+            const existingIdx = merged.findIndex(
+              (h) => h.descripcion === desc || h.descripcion === itemText || h.titulo.includes(itemText.slice(0, 25))
+            );
+            if (existingIdx >= 0) {
+              merged[existingIdx] = {
+                ...merged[existingIdx],
+                descripcion: desc,
+                fotoEvidencia: val.foto || merged[existingIdx].fotoEvidencia,
+              };
+            } else {
+              merged.push({
+                id: Math.random().toString(36).substring(2, 9),
+                titulo: `Punto No Cumplido #${idx + 1}: ${itemText.slice(0, 45)}`,
+                descripcion: desc,
+                criticidad: 'medio',
+                clasificacionPeligro: 'Locativo',
+                fotoEvidencia: val.foto,
+                medidaSugerida: 'Subsanar condición detectada en la lista de chequeo',
+                responsableAccion: '',
+              });
+            }
+          });
+          return merged;
+        });
       }
     }
     setStep(3);

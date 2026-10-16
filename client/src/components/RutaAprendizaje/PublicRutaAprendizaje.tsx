@@ -10,6 +10,7 @@ import WorkerSessionBadge from '../SGSST/WorkerSessionBadge';
 
 interface WorkerSession {
     companyId: string;
+    urlCompanyId?: string;
     companyName: string;
     nombre: string;
     cedula: string;
@@ -22,7 +23,7 @@ export default function PublicRutaAprendizaje() {
     const navigate = useNavigate();
     const { showToast } = useToastContext();
 
-    const { session: hookSession, worker: sessionWorker, isAuthenticated } = useWorkerSession(companyId);
+    const { session: hookSession, worker: sessionWorker, saveSession, clearSession } = useWorkerSession(companyId);
 
     // Session State
     const [session, setSession] = useState<WorkerSession | null>(null);
@@ -47,10 +48,8 @@ export default function PublicRutaAprendizaje() {
         if (stored) {
             try {
                 const parsed = JSON.parse(stored) as WorkerSession;
-                if (parsed.companyId === companyId) {
+                if (parsed.cedula && parsed.nombre && (parsed.companyId === companyId || parsed.urlCompanyId === companyId)) {
                     setSession(parsed);
-                } else {
-                    localStorage.removeItem('wappy_worker_session');
                 }
             } catch (e) {
                 localStorage.removeItem('wappy_worker_session');
@@ -81,12 +80,14 @@ export default function PublicRutaAprendizaje() {
             if (resolvedCed && resolvedNombre) {
                 const autoSession: WorkerSession = {
                     companyId: companyDetails._id || companyId || '',
+                    urlCompanyId: companyId || companyDetails._id || '',
                     companyName: companyDetails.companyName || hookSession?.companyName || '',
                     nombre: resolvedNombre,
                     cedula: resolvedCed,
                     cargo: resolvedCargo,
                     firmaDigital: hookSession?.firmaDigital || null
                 };
+                localStorage.setItem('wappy_worker_session', JSON.stringify(autoSession));
                 setSession(autoSession);
             }
         }
@@ -155,7 +156,8 @@ export default function PublicRutaAprendizaje() {
 
             if (response.data?.success) {
                 const newSession: WorkerSession = {
-                    companyId: response.data.companyId,
+                    companyId: response.data.companyId || companyDetails._id || companyId || '',
+                    urlCompanyId: companyId || response.data.companyId || '',
                     companyName: response.data.companyName,
                     nombre: response.data.worker.nombre,
                     cedula: response.data.worker.cedula,
@@ -163,6 +165,7 @@ export default function PublicRutaAprendizaje() {
                     firmaDigital: response.data.worker.firmaDigital || null
                 };
 
+                saveSession(newSession);
                 localStorage.setItem('wappy_worker_session', JSON.stringify(newSession));
                 localStorage.setItem('wappy_worker_cedula', newSession.cedula);
                 setSession(newSession);
@@ -178,6 +181,7 @@ export default function PublicRutaAprendizaje() {
     };
 
     const handleLogout = () => {
+        clearSession();
         localStorage.removeItem('wappy_worker_session');
         localStorage.removeItem('wappy_worker_cedula');
         setSession(null);

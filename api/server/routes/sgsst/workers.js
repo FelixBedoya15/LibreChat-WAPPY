@@ -6,6 +6,7 @@ const { getUserKey } = require('~/server/services/UserService');
 const { AuthKeys } = require('librechat-data-provider');
 const CompanyInfo = require('../../../models/CompanyInfo');
 const SgsstWorker = require('../../../models/SgsstWorker');
+const feedWorkerEvent = require('./feedWorkerHelper');
 const mongoose = require('mongoose');
 
 // We need to access PerfilSociodemograficoData. It's currently defined dynamically in its own route file,
@@ -367,9 +368,11 @@ async function syncWorkerWithOraculoH1(worker, userId) {
 
                     let updated = false;
 
-                    const liveScore = liveSocioWorker.biocentricScore !== undefined && liveSocioWorker.biocentricScore !== null 
-                        ? liveSocioWorker.biocentricScore 
-                        : worker.fitScore;
+                    const baseScore = liveSocioWorker.biocentricScore !== undefined && liveSocioWorker.biocentricScore !== null 
+                        ? Number(liveSocioWorker.biocentricScore)
+                        : Number(worker.fitScore || 95);
+                    const dynamicPenalty = Math.max(0, Number(worker.fitScoreDynamicPenalty) || 0);
+                    const liveScore = Math.max(0, Math.min(100, Number((baseScore - dynamicPenalty).toFixed(1))));
                     
                     if (worker.fitScore !== liveScore) {
                         worker.fitScore = liveScore;
@@ -386,10 +389,31 @@ async function syncWorkerWithOraculoH1(worker, userId) {
                         updated = true;
                     }
 
-                    // Compare fitAlerts or assign if different
-                    if (JSON.stringify(worker.fitAlerts) !== JSON.stringify(liveSocioWorker.biocentricAlerts || [])) {
-                        worker.fitAlerts = liveSocioWorker.biocentricAlerts || [];
+                    // Merge Oráculo H1 alerts while preserving operational 360° alerts
+                    const mergedAlerts = feedWorkerEvent.mergeOperationalFitAlerts(
+                        liveSocioWorker.biocentricAlerts || [],
+                        worker.fitAlerts || []
+                    );
+                    if (JSON.stringify(worker.fitAlerts) !== JSON.stringify(mergedAlerts)) {
+                        worker.fitAlerts = mergedAlerts;
                         updated = true;
+                    }
+
+                    // Auto-recalculate Bio-IPEVR matrix if perception points or reduction factor are out of sync
+                    const currentPts = Math.max(0, Number(worker.percepcionRiesgoScore) || 0);
+                    if (Array.isArray(worker.riesgosBioIndividual) && worker.riesgosBioIndividual.length > 0) {
+                        const expectedFactor = Number(Math.min(currentPts / 500, 0.40).toFixed(3));
+                        const needsRecalc = worker.riesgosBioIndividual.some(
+                            r => Number(r.percepcion_riesgo_pts || 0) !== currentPts || Number(r.factor_reduccion_percepcion || 0) !== expectedFactor
+                        );
+                        if (needsRecalc) {
+                            worker.riesgosBioIndividual = feedWorkerEvent.recalculateBioRisks(
+                                worker.riesgosBioIndividual,
+                                currentPts,
+                                worker.fitScore
+                            );
+                            updated = true;
+                        }
                     }
 
                     // Build a highly rich clinical profile from live sociodemographic details
@@ -1602,9 +1626,25 @@ router.post('/worker/:id/add-percepcion-pts', requireJwtAuth, async (req, res) =
         const worker = await SgsstWorker.findOne({ _id: req.params.id, user: req.user.id });
         if (!worker) return res.status(404).json({ error: 'Trabajador no encontrado' });
 
+        if (referencia) {
+            const yaExiste = (worker.percepcionRiesgoHistorial || []).some(
+                h => String(h.referencia || '') === String(referencia) && h.modulo === modulo
+            );
+            if (yaExiste) {
+                return res.json({ success: true, percepcionRiesgoScore: worker.percepcionRiesgoScore, worker });
+            }
+        }
+
         const nuevoPts = Math.max(0, (worker.percepcionRiesgoScore || 0) + (Number(puntos) || 0));
         worker.percepcionRiesgoScore = nuevoPts;
         worker.percepcionRiesgoHistorial.push({ fecha: new Date(), accion, puntos: Number(puntos), modulo, referencia });
+        if (Array.isArray(worker.riesgosBioIndividual) && worker.riesgosBioIndividual.length > 0) {
+            worker.riesgosBioIndividual = feedWorkerEvent.recalculateBioRisks(
+                worker.riesgosBioIndividual,
+                nuevoPts,
+                worker.fitScore
+            );
+        }
         worker.updatedAt = Date.now();
         await worker.save();
 
@@ -1616,44 +1656,33 @@ router.post('/worker/:id/add-percepcion-pts', requireJwtAuth, async (req, res) =
 });
 
 // POST: Feed desde módulo externo — agrega evento a hoja de vida del trabajador
-// body: { documento, tipo_modulo, descripcion, puntos, referencia }
+// body: { documento, tipo_modulo, descripcion, puntos, referencia, metadata }
 router.post('/feed-hoja-vida', requireJwtAuth, async (req, res) => {
     try {
-        const { documento, tipo_modulo, descripcion, puntos, referencia } = req.body;
+        const { documento, tipo_modulo, descripcion, puntos, referencia, metadata } = req.body;
         if (!documento || !tipo_modulo) return res.status(400).json({ error: 'documento y tipo_modulo requeridos' });
 
         const companyId = await getActiveCompanyId(req.user.id);
-        const worker = await SgsstWorker.findOne({ user: req.user.id, companyId, documento: String(documento).trim() });
-        if (!worker) return res.status(404).json({ error: 'Trabajador no encontrado con ese documento' });
+        await feedWorkerEvent(
+            req.user.id,
+            String(documento).trim(),
+            tipo_modulo,
+            descripcion,
+            Number(puntos) || 0,
+            referencia || null,
+            { ...(metadata || {}), companyId }
+        );
 
-        const pts = Number(puntos) || 0;
+        const updatedWorker = await SgsstWorker.findOne({
+            companyId,
+            documento: String(documento).trim()
+        }).lean();
 
-        const update = { $set: { updatedAt: Date.now() } };
-
-        if (tipo_modulo === 'atel') {
-            update.$push = { atel: { fecha: new Date(), tipo: descripcion, descripcion, referenciaId: referencia } };
-        } else if (tipo_modulo === 'actos') {
-            update.$push = { actos_inseguros: { fecha: new Date(), tipo: descripcion, descripcion } };
-        } else if (tipo_modulo === 'participacion_ipevar') {
-            update.$push = { participaciones_ipevar: { fecha: new Date(), descripcion } };
-        } else if (tipo_modulo === 'capacitacion') {
-            update.$push = { capacitaciones: { nombre: descripcion, fecha: new Date() } };
-        } else if (tipo_modulo === 'ats') {
-            update.$push = { ats: { fecha: new Date(), descripcion } };
-        } else if (tipo_modulo === 'termometro_animo') {
-            update.$push = { termometro_animo: { fecha: new Date(), descripcion, puntos: pts } };
-        }
-
-        if (pts !== 0) {
-            update.$inc = { percepcionRiesgoScore: pts };
-            if (!update.$push) update.$push = {};
-            update.$push.percepcionRiesgoHistorial = {
-                fecha: new Date(), accion: descripcion, puntos: pts, modulo: tipo_modulo, referencia,
-            };
-        }
-
-        await SgsstWorker.updateOne({ _id: worker._id }, update);
-        res.json({ success: true, percepcionRiesgoScore: (worker.percepcionRiesgoScore || 0) + pts });
+        res.json({
+            success: true,
+            percepcionRiesgoScore: updatedWorker ? updatedWorker.percepcionRiesgoScore : 0,
+            worker: updatedWorker
+        });
     } catch (error) {
         logger.error('[SGSST Workers] Feed hoja vida error:', error);
         res.status(500).json({ error: 'Error al actualizar hoja de vida del trabajador' });

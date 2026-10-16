@@ -861,7 +861,7 @@ router.get('/public/courses/:companyId/:courseId', async (req, res) => {
 // Update/Save worker progress (mark lesson complete / finish exam)
 router.post('/public/progress', async (req, res) => {
     try {
-        const { companyId, courseId, lessonId, workerCedula, workerName } = req.body;
+        const { companyId, courseId, lessonId, workerCedula, workerName, examPassed } = req.body;
 
         if (!companyId || !courseId || !lessonId || !workerCedula || !workerName) {
             return res.status(400).json({ error: 'Missing required parameters' });
@@ -907,7 +907,14 @@ router.post('/public/progress', async (req, res) => {
 
         const totalLessons = course.lessons.length;
         const eraCompletadoAntes = progress.isCourseCompleted;
-        if (progress.completedLessons.length >= totalLessons) {
+        const requiresFinalExam = Boolean(
+            course.exam &&
+            course.exam.isEnabled &&
+            Array.isArray(course.exam.questions) &&
+            course.exam.questions.length > 0
+        );
+
+        if (progress.completedLessons.length >= totalLessons && (!requiresFinalExam || examPassed === true)) {
             progress.isCourseCompleted = true;
         }
 
@@ -918,7 +925,8 @@ router.post('/public/progress', async (req, res) => {
             setImmediate(async () => {
                 try {
                     const CompanyInfo = require('../../models/CompanyInfo');
-                    const comp = await CompanyInfo.findById(companyId).lean();
+                    const comp = (await CompanyInfo.findById(companyId).lean().catch(() => null)) ||
+                                 (await CompanyInfo.findOne({ user: companyId }).lean().catch(() => null));
                     const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
                     await feedWorkerEvent(
                         comp?.user || course.user,
@@ -927,7 +935,7 @@ router.post('/public/progress', async (req, res) => {
                         `Curso completado satisfactoriamente: ${course.title || 'Capacitación SST'}`,
                         50,
                         `LMS-${course._id}`,
-                        { companyId, nombre: workerName }
+                        { companyId: comp?._id || companyId, nombre: workerName }
                     );
                 } catch (cErr) {
                     logger.warn('[Ruta Aprendizaje] Error feeding worker course completion:', cErr.message);

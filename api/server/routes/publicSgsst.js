@@ -226,12 +226,14 @@ router.get('/company/:companyId', async (req, res) => {
       }
     }
 
+    const resolvedLogo = company.logoBase64 || company.logoUrl || company.logo || null;
     return res.json({
       _id: company._id,
       user: company.user,
       companyName: company.companyName || 'Empresa Registrada',
       nit: company.nit || '',
-      logo: company.logoBase64 || null,
+      logo: resolvedLogo,
+      logoUrl: resolvedLogo,
       cargos,
     });
   } catch (error) {
@@ -379,14 +381,21 @@ router.post('/reporte-acto/:companyId', async (req, res) => {
     if (!esTercero && company.user && (workerFound?.identificacion || cedula)) {
       try {
         const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
+        const cleanWorkerDoc = String(workerFound?.identificacion || cedula).trim();
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const topicSlug = String(data?.tipo || data?.lugar || data?.descripcion || 'general')
+          .trim()
+          .toLowerCase()
+          .slice(0, 24);
+        const refActo = `ACTO-${cleanWorkerDoc}-${todayStr}-${topicSlug}`;
         await feedWorkerEvent(
           company.user,
-          String(workerFound?.identificacion || cedula).trim(),
+          cleanWorkerDoc,
           'actos',
           'Reporte de acto o condición insegura con evidencia',
           50,
-          newInboxItem.id,
-          { companyId: company._id, esObservado: false }
+          refActo,
+          { companyId: company._id, esObservado: false, nombre: workerFound?.nombre, cargo: workerFound?.cargo }
         );
       } catch (feedErr) {
         logger.error('[Public SGSST] Error feeding worker event for reporte-acto:', feedErr);
@@ -505,15 +514,27 @@ router.post('/participacion-ipevar/:companyId', async (req, res) => {
     if (company.user && (workerFound?.identificacion || cedula)) {
       try {
         const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
-        await feedWorkerEvent(
-          company.user,
-          String(workerFound?.identificacion || cedula).trim(),
-          'participacion_ipevar',
-          'Identificación y reporte de peligro IPEVR (GTC-45)',
-          150,
-          newInboxItem.id,
-          { companyId: company._id }
+        const cleanWorkerDoc = String(workerFound?.identificacion || cedula).trim();
+        const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
+        const existingWorker = await SgsstWorker.findOne({ companyId: company._id, documento: cleanWorkerDoc }).lean();
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const alreadyCreditedToday = (existingWorker?.percepcionRiesgoHistorial || []).some(
+          (h) =>
+            h.modulo === 'participacion_ipevar' &&
+            h.fecha &&
+            new Date(h.fecha).toISOString().slice(0, 10) === todayStr
         );
+        if (!alreadyCreditedToday) {
+          await feedWorkerEvent(
+            company.user,
+            cleanWorkerDoc,
+            'participacion_ipevar',
+            'Identificación y reporte de peligro IPEVR (GTC-45)',
+            150,
+            newInboxItem.id,
+            { companyId: company._id, nombre: workerFound.nombre, cargo: workerFound.cargo }
+          );
+        }
       } catch (feedErr) {
         logger.error('[Public SGSST] Error feeding worker event for IPEVAR:', feedErr);
       }
@@ -1074,19 +1095,34 @@ router.post('/perfil-update/:companyId/:workerId?', async (req, res) => {
           metadata: { module: 'perfil_socio', workerId },
         });
 
-        // Gamificación: +20 Puntos por actualización y validación responsable de perfil
+        // Gamificación: +30 Puntos por actualización y validación responsable de perfil
         const cleanDoc = String(worker.identificacion || cedula || '').trim();
         if (cleanDoc && company.user) {
           const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
-          await feedWorkerEvent(
-            company.user,
-            cleanDoc,
-            'perfil',
-            'Actualización y validación responsable de datos sociodemográficos y de salud',
-            20,
-            `PERFIL-${workerId || cleanDoc}-${Date.now()}`,
-            { companyId: company._id, nombre: worker.nombre, cargo: worker.cargo }
+          const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
+          const existingW = await SgsstWorker.findOne({ companyId: company._id, documento: cleanDoc }).lean();
+          const todayStr = new Date().toISOString().slice(0, 10);
+          const alreadyUpdatedToday = (existingW?.percepcionRiesgoHistorial || []).some(
+            (h) =>
+              (h.modulo === 'perfil' || h.modulo === 'perfil_socio') &&
+              h.fecha &&
+              new Date(h.fecha).toISOString().slice(0, 10) === todayStr
           );
+          if (!alreadyUpdatedToday) {
+            const updateRefId =
+              pushOps.actualizacionesPendientes?.id ||
+              pushOps.actualizacionesPendientesSalud?.id ||
+              `PERFIL-${cleanDoc}-${todayStr}`;
+            await feedWorkerEvent(
+              company.user,
+              cleanDoc,
+              'perfil',
+              'Actualización y validación responsable de datos sociodemográficos y de salud',
+              30,
+              updateRefId,
+              { companyId: company._id, nombre: worker.nombre, cargo: worker.cargo }
+            );
+          }
         }
       } catch (notifErr) {
         logger.warn('[Public Perfil Update] Could not process notification or gamification:', notifErr.message);
@@ -1427,8 +1463,7 @@ router.post('/mood/claim-points/:companyId', async (req, res) => {
     }
     const cleanCedula = String(cedula).trim();
 
-    const CompanyInfo = mongoose.models.CompanyInfo || require('~/models/CompanyInfo');
-    const company = await CompanyInfo.findById(companyId).lean();
+    const { company, worker: perfilWorker } = await resolveCompanyAndWorker(companyId, { cedula: cleanCedula });
     if (!company) {
       return res.status(404).json({ error: 'Empresa no encontrada.' });
     }
@@ -1437,6 +1472,12 @@ router.post('/mood/claim-points/:companyId', async (req, res) => {
     let worker = await SgsstWorker.findOne({ companyId: company._id, documento: cleanCedula }).lean();
     if (!worker && company.user) {
       worker = await SgsstWorker.findOne({ user: company.user, documento: cleanCedula }).lean();
+    }
+
+    if (!perfilWorker && !worker) {
+      return res.status(403).json({
+        error: 'La cédula ingresada no se encuentra registrada en el censo de colaboradores de esta empresa.'
+      });
     }
 
     // Validar si ya reclamó puntos recientemente (ventana de control de 24 horas para evitar spam en bucle)
@@ -2282,19 +2323,12 @@ REGLAS DE FORMATO Y SALIDA:
       }
     }
 
-    // Sincronizar o crear el trabajador en el perfil sociodemográfico de la empresa
+    // Sincronizar el trabajador existente en el perfil sociodemográfico (sin inyectar cédulas desconocidas)
+    let isRegisteredWorker = false;
     const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
     if (PerfilSociodemograficoData) {
-      let perfilDoc = await PerfilSociodemograficoData.findOne({ companyId: company._id });
-      if (!perfilDoc && company.user) {
-        perfilDoc = new PerfilSociodemograficoData({
-          user: company.user,
-          companyId: company._id,
-          trabajadores: [],
-        });
-      }
-
-      if (perfilDoc) {
+      const perfilDoc = await PerfilSociodemograficoData.findOne({ companyId: company._id });
+      if (perfilDoc && Array.isArray(perfilDoc.trabajadores)) {
         const existingIdx = perfilDoc.trabajadores.findIndex(
           (w) => w.identificacion && String(w.identificacion).trim() === cleanDoc
         );
@@ -2303,38 +2337,30 @@ REGLAS DE FORMATO Y SALIDA:
         const eptNote = `Auto-evaluación EPT vía QR (${dateStr}): ${finalActionLevel}. Actividad: ${cleanActividad}`;
 
         if (existingIdx >= 0) {
+          isRegisteredWorker = true;
           const w = perfilDoc.trabajadores[existingIdx];
           if (!w.cargo && cleanCargo) w.cargo = cleanCargo;
           w.completedByAI = true;
           w.diagnosticoMedico = w.diagnosticoMedico ? `${w.diagnosticoMedico} | ${eptNote}` : eptNote;
-        } else {
-          perfilDoc.trabajadores.push({
-            id: new mongoose.Types.ObjectId().toString(),
-            nombre: cleanName,
-            identificacion: cleanDoc,
-            cargo: cleanCargo,
-            completedByAI: true,
-            diagnosticoMedico: eptNote,
-            recomendacionesMedicas: 'Revisión postural y pausas activas periódicas.',
-          });
+          perfilDoc.markModified('trabajadores');
+          await perfilDoc.save();
         }
-        perfilDoc.markModified('trabajadores');
-        await perfilDoc.save();
       }
     }
 
-    // Gamificación: +40 Puntos por auto-evaluación ergonómica
-    if (company.user && cleanDoc) {
+    // Gamificación: +40 Puntos por auto-evaluación ergonómica (idempotente por día)
+    if (company.user && cleanDoc && isRegisteredWorker) {
       try {
         const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
+        const todayStr = new Date().toISOString().slice(0, 10);
         await feedWorkerEvent(
           company.user,
           cleanDoc,
           'estudio_puesto',
           `Auto-evaluación ergonómica de puesto de trabajo realizada (${finalActionLevel})`,
           40,
-          String(newStudy._id),
-          { companyId: company._id }
+          `EPT-${cleanDoc}-${todayStr}`,
+          { companyId: company._id, nombre: cleanName, cargo: cleanCargo }
         );
       } catch (feedErr) {
         logger.error('[Public SGSST] Error feeding worker event for estudio-puesto:', feedErr);
@@ -2450,6 +2476,7 @@ router.get('/colaborador-info/:companyId/:cedula', async (req, res) => {
 
     // 2. Consultar perfil maestro y puntos de gamificación en SgsstWorker
     const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
+    const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
     let worker = await SgsstWorker.findOne({
       user: company.user,
       $or: [
@@ -2465,20 +2492,44 @@ router.get('/colaborador-info/:companyId/:cedula', async (req, res) => {
       return res.status(404).json({ error: 'Trabajador no encontrado en la base de datos de la empresa.' });
     }
 
-    // Determinar valores efectivos unificados (prioridad a PerfilSociodemograficoData que es donde el usuario edita)
+    const score = Math.max(0, Number(worker?.percepcionRiesgoScore) || 0);
+    const factorReduccion = Math.min(score / 500, 0.40);
+
+    // Determinar valores efectivos unificados (preservando penalizaciones dinámicas y alertas operativas 360°)
     const effectiveNombre = perfilWorker?.nombre || worker?.nombre || 'Colaborador';
     const effectiveCargo = perfilWorker?.cargo || worker?.cargo || 'Personal Operativo';
     const rawFit = (perfilWorker?.biocentricScore !== undefined && perfilWorker?.biocentricScore !== null)
       ? Number(perfilWorker.biocentricScore)
       : (worker?.fitScore !== undefined && worker?.fitScore !== null ? Number(worker.fitScore) : 95);
-    const effectiveFitScore = (!isNaN(rawFit) && rawFit > 0) ? rawFit : 95;
-    const effectiveAlerts = (perfilWorker?.biocentricAlerts && perfilWorker.biocentricAlerts.length > 0)
-      ? perfilWorker.biocentricAlerts
-      : (worker?.fitAlerts || []);
+    const baseFitScore = (!isNaN(rawFit) && rawFit > 0) ? rawFit : 95;
+    const dynamicPenalty = Math.max(0, Number(worker?.fitScoreDynamicPenalty) || 0);
+    const effectiveFitScore = Math.max(0, Math.min(100, Number((baseFitScore - dynamicPenalty).toFixed(1))));
+    const effectiveAlerts = feedWorkerEvent.mergeOperationalFitAlerts(
+      perfilWorker?.biocentricAlerts || [],
+      worker?.fitAlerts || []
+    );
+
+    // Recalcular Matriz Bio-IPEVR con el puntaje actual de Percepción del Riesgo
+    const recalculatedRiesgos = feedWorkerEvent.recalculateBioRisks(
+      worker?.riesgosBioIndividual || [],
+      score,
+      effectiveFitScore
+    );
 
     // Sincronizar en SgsstWorker para consistencia total en toda la base de datos
     if (worker) {
-      if (worker.cargo !== effectiveCargo || worker.fitScore !== effectiveFitScore || worker.nombre !== effectiveNombre) {
+      const needsRiesgosUpdate =
+        Array.isArray(worker.riesgosBioIndividual) &&
+        worker.riesgosBioIndividual.length > 0 &&
+        JSON.stringify(worker.riesgosBioIndividual) !== JSON.stringify(recalculatedRiesgos);
+
+      if (
+        worker.cargo !== effectiveCargo ||
+        worker.fitScore !== effectiveFitScore ||
+        worker.nombre !== effectiveNombre ||
+        JSON.stringify(worker.fitAlerts || []) !== JSON.stringify(effectiveAlerts) ||
+        needsRiesgosUpdate
+      ) {
         SgsstWorker.updateOne(
           { _id: worker._id },
           {
@@ -2487,13 +2538,13 @@ router.get('/colaborador-info/:companyId/:cedula', async (req, res) => {
               cargo: effectiveCargo,
               fitScore: effectiveFitScore,
               fitAlerts: effectiveAlerts,
+              riesgosBioIndividual: recalculatedRiesgos,
               updatedAt: new Date(),
             }
           }
         ).catch(e => logger.warn('[Public SGSST] Error actualizando SgsstWorker en colaborador-info:', e.message));
       }
     } else if (perfilWorker) {
-      // Si no existía en SgsstWorker, inicializarlo de inmediato con await
       try {
         worker = await SgsstWorker.create({
           user: company.user,
@@ -2503,6 +2554,7 @@ router.get('/colaborador-info/:companyId/:cedula', async (req, res) => {
           documento: cleanCedula,
           cargo: effectiveCargo,
           fitScore: effectiveFitScore,
+          fitScoreDynamicPenalty: 0,
           fitAlerts: effectiveAlerts,
           percepcionRiesgoScore: 0,
           percepcionRiesgoHistorial: [],
@@ -2514,23 +2566,25 @@ router.get('/colaborador-info/:companyId/:cedula', async (req, res) => {
       }
     }
 
-    const score = Math.max(0, Number(worker?.percepcionRiesgoScore) || 0);
-    const factorReduccion = Math.min(score / 500, 0.40);
     const nivel = score >= 500 ? 'Líder Biocéntrico 360°'
       : score >= 300 ? 'Guardián de la Vida'
       : score >= 100 ? 'Colaborador Comprometido'
       : 'Nivel Inicial / Sin Eventos';
 
+    const hist = worker?.percepcionRiesgoHistorial || [];
     const termometroList = (worker?.termometro_animo && worker.termometro_animo.length > 0)
       ? worker.termometro_animo
-      : (worker?.percepcionRiesgoHistorial || []).filter(h => h.modulo === 'termometro_animo');
+      : hist.filter(h => h.modulo === 'termometro_animo');
+
+    const resolvedLogo = company.logoBase64 || company.logoUrl || company.logo || null;
 
     res.json({
       success: true,
       company: {
         id: company._id,
         companyName: company.companyName || 'Somos SST',
-        logoUrl: company.logoUrl || null,
+        logo: resolvedLogo,
+        logoUrl: resolvedLogo,
         arl: company.arl || '',
       },
       worker: {
@@ -2569,14 +2623,22 @@ router.get('/colaborador-info/:companyId/:cedula', async (req, res) => {
         nivel,
         factorReduccion,
         porcentajeReduccion: Math.round(factorReduccion * 100),
-        historial: (worker?.percepcionRiesgoHistorial || []).slice(-15).reverse(),
+        historial: hist.slice(-15).reverse(),
         atel: worker?.atel || [],
         actos_inseguros: worker?.actos_inseguros || [],
         participaciones_ipevar: worker?.participaciones_ipevar || [],
         capacitaciones: worker?.capacitaciones || [],
+        ats: worker?.ats || [],
         termometro_animo: termometroList,
-        riesgosBioIndividual: worker?.riesgosBioIndividual || [],
-        riesgosCount: (worker?.riesgosBioIndividual || []).length,
+        comites: (worker?.comites && worker.comites.length > 0) ? worker.comites : hist.filter(h => h.modulo === 'comites'),
+        votaciones: (worker?.votaciones && worker.votaciones.length > 0) ? worker.votaciones : hist.filter(h => h.modulo === 'votaciones'),
+        solicitud_epp: (worker?.solicitud_epp && worker.solicitud_epp.length > 0) ? worker.solicitud_epp : hist.filter(h => h.modulo === 'solicitud_epp'),
+        inspeccion_vehicular_pesv: (worker?.inspeccion_vehicular_pesv && worker.inspeccion_vehicular_pesv.length > 0) ? worker.inspeccion_vehicular_pesv : hist.filter(h => h.modulo === 'inspeccion_vehicular_pesv'),
+        estudio_puesto: (worker?.estudio_puesto && worker.estudio_puesto.length > 0) ? worker.estudio_puesto : hist.filter(h => h.modulo === 'estudio_puesto'),
+        actualizaciones_perfil: (worker?.actualizaciones_perfil && worker.actualizaciones_perfil.length > 0) ? worker.actualizaciones_perfil : hist.filter(h => h.modulo === 'perfil' || h.modulo === 'perfil_socio'),
+        brigada: (worker?.brigada && worker.brigada.length > 0) ? worker.brigada : hist.filter(h => h.modulo === 'brigada'),
+        riesgosBioIndividual: recalculatedRiesgos,
+        riesgosCount: recalculatedRiesgos.length,
       },
     });
   } catch (error) {
@@ -2606,22 +2668,37 @@ router.post('/comites/:companyId', async (req, res) => {
       return res.status(400).json({ error: 'Nombre, cédula y tipo de comité requeridos' });
     }
 
-    const company = await resolveActiveCompany(companyId);
+    const cleanCedula = String(trabajadorCedula).trim();
+    const { company, worker: workerFound } = await resolveCompanyAndWorker(companyId, { cedula: cleanCedula });
     if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
+    const existingWorker = !workerFound
+      ? await SgsstWorker.findOne({ companyId: company._id, documento: cleanCedula }).lean()
+      : null;
+
+    if (!workerFound && !existingWorker) {
+      return res.status(403).json({
+        error: 'La cédula ingresada no se encuentra registrada en el censo de colaboradores de esta empresa.'
+      });
+    }
+
+    const ptsPorComite = tipoComite === 'pesv' ? 40 : (tipoComite === 'brigada' ? 35 : 50);
 
     const newRegistro = new ComiteAsistencia({
       companyId: company._id,
       user: company.user,
       tipoComite,
       accion: accion || 'asistencia_reunion',
-      trabajadorNombre: String(trabajadorNombre).trim(),
-      trabajadorCedula: String(trabajadorCedula).trim(),
-      trabajadorCargo: String(trabajadorCargo || '').trim(),
+      trabajadorNombre: String(workerFound?.nombre || existingWorker?.nombre || trabajadorNombre).trim(),
+      trabajadorCedula: cleanCedula,
+      trabajadorCargo: String(workerFound?.cargo || existingWorker?.cargo || trabajadorCargo || '').trim(),
       rolEnComite: rolEnComite || 'Miembro',
       temasTratados: temasTratados || '',
       compromisos: compromisos || '',
       firma: firma || null,
       status: 'pending',
+      puntosOtorgados: ptsPorComite,
     });
 
     await newRegistro.save();
@@ -2633,20 +2710,20 @@ router.post('/comites/:companyId', async (req, res) => {
           user: new mongoose.Types.ObjectId(company.user),
           type: 'sgsst_comite_asistencia',
           title: `Registro de Asistencia a Comité (${tipoComite.toUpperCase()})`,
-          body: `${trabajadorNombre} (CC: ${trabajadorCedula}) ha registrado asistencia al ${tipoComite.toUpperCase()}.`,
+          body: `${trabajadorNombre} (CC: ${cleanCedula}) ha registrado asistencia al ${tipoComite.toUpperCase()}.`,
           metadata: { module: 'comites', recordId: newRegistro._id },
         });
 
-        // Gamificación: Otorgar puntos según tipo de comité (+50 COPASST/CCL, +40 PESV, +35 Brigada)
-        const ptsPorComite = tipoComite === 'pesv' ? 40 : (tipoComite === 'brigada' ? 35 : 50);
+        // Gamificación idempotente por día y comité (+50 COPASST/CCL, +40 PESV, +35 Brigada)
+        const todayStr = new Date().toISOString().slice(0, 10);
         const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
         await feedWorkerEvent(
           company.user,
-          String(trabajadorCedula).trim(),
+          cleanCedula,
           'comites',
           `Asistencia y participación registrada en Comité ${tipoComite.toUpperCase()}`,
           ptsPorComite,
-          String(newRegistro._id),
+          `COMITE-${tipoComite}-${cleanCedula}-${todayStr}`,
           { companyId: company._id, nombre: trabajadorNombre, cargo: trabajadorCargo }
         );
       } catch (err) {
@@ -2658,6 +2735,7 @@ router.post('/comites/:companyId', async (req, res) => {
       success: true,
       message: 'Registro de comité recibido exitosamente y en espera de validación del coordinador.',
       recordId: newRegistro._id,
+      puntosOtorgados: ptsPorComite,
     });
   } catch (error) {
     logger.error('[Public SGSST] POST /comites error:', error);
@@ -2737,12 +2815,14 @@ router.get('/copasst-inspecciones/:companyId', async (req, res) => {
       .limit(10)
       .lean();
 
+    const resolvedLogo = company.logoBase64 || company.logoUrl || company.logo || null;
     res.json({
       success: true,
       company: {
         id: company._id,
         companyName: company.companyName,
-        logo: company.logoUrl || null,
+        logo: resolvedLogo,
+        logoUrl: resolvedLogo,
         sedes: Array.from(sedesSet),
         areas: Array.from(areasSet),
       },
@@ -2781,7 +2861,8 @@ router.post('/copasst-inspeccion/:companyId', async (req, res) => {
       return res.status(400).json({ error: 'Nombre del inspector, cédula y área a inspeccionar son obligatorios' });
     }
 
-    const company = await resolveActiveCompany(companyId);
+    const cleanInspectorCedula = String(inspector.cedula).trim();
+    const { company, worker: workerFound } = await resolveCompanyAndWorker(companyId, { cedula: cleanInspectorCedula });
     if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
 
     const { SgsstCopasstInspeccion } = require('~/models/SgsstCopasst');
@@ -2809,7 +2890,7 @@ router.post('/copasst-inspeccion/:companyId', async (req, res) => {
       modo: modo || 'fotografico_rapido',
       inspector: {
         nombre: String(inspector.nombre).trim(),
-        cedula: String(inspector.cedula).trim(),
+        cedula: cleanInspectorCedula,
         cargo: String(inspector.cargo || '').trim(),
         rolComite: inspector.rolComite || 'Miembro COPASST',
         firma: inspector.firma || null,
@@ -2841,17 +2922,19 @@ router.post('/copasst-inspeccion/:companyId', async (req, res) => {
       }
     });
 
-    // ─── Gamificación Pasaporte SST: +50 Puntos al miembro del COPASST ───
-    if (company.user && inspector.cedula) {
+    // ─── Gamificación Pasaporte SST: +50 Puntos al miembro del COPASST (idempotente por día/área) ───
+    if (company.user && cleanInspectorCedula && workerFound) {
       try {
         const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const areaSlug = String(area).trim().toLowerCase().slice(0, 20);
         await feedWorkerEvent(
           company.user,
-          String(inspector.cedula).trim(),
+          cleanInspectorCedula,
           'comites',
           `Ronda de inspección de seguridad COPASST (${consecutivo}) en ${area}`,
           50,
-          nuevaInspeccion._id.toString(),
+          `INSP-COPASST-${cleanInspectorCedula}-${todayStr}-${areaSlug}`,
           { companyId: company._id, tipoInspeccion: tipoLabel || tipoInspeccion, hallazgosCount: (hallazgos || []).length }
         );
       } catch (feedErr) {
@@ -3005,8 +3088,19 @@ router.post('/votar/:companyId', async (req, res) => {
       return res.status(400).json({ error: 'Elección, cédula y candidato requeridos' });
     }
 
-    const company = await resolveActiveCompany(companyId);
+    const { company, worker: workerFound } = await resolveCompanyAndWorker(companyId, { cedula: cleanCedula });
     if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
+    const existingWorker = !workerFound
+      ? await SgsstWorker.findOne({ companyId: company._id, documento: cleanCedula }).lean()
+      : null;
+
+    if (!workerFound && !existingWorker) {
+      return res.status(403).json({
+        error: 'La cédula ingresada no se encuentra registrada en el censo electoral de colaboradores de esta empresa.'
+      });
+    }
 
     const { SgsstEleccion } = require('../../models/SgsstCopasst');
     const eleccion = await SgsstEleccion.findOne({ _id: eleccionId, companyId: company._id, estado: 'activa' });
@@ -3031,7 +3125,7 @@ router.post('/votar/:companyId', async (req, res) => {
       companyId: company._id,
       eleccionId: eleccion._id,
       trabajadorCedula: cleanCedula,
-      trabajadorNombre: trabajadorNombre || '',
+      trabajadorNombre: workerFound?.nombre || existingWorker?.nombre || trabajadorNombre || '',
       yaVoto: true,
       fechaVoto: new Date(),
     });
@@ -3050,7 +3144,7 @@ router.post('/votar/:companyId', async (req, res) => {
     // 4. Actualizar total acumulado de votos emitidos en la elección
     await SgsstEleccion.updateOne({ _id: eleccion._id }, { $inc: { totalVotosEmitidos: 1 } });
 
-    // 5. Otorgar puntos de gamificación al colaborador (+20 pts)
+    // 5. Otorgar puntos de gamificación al colaborador (+30 pts)
     setImmediate(async () => {
       try {
         const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
@@ -3059,9 +3153,9 @@ router.post('/votar/:companyId', async (req, res) => {
           cleanCedula,
           'votaciones',
           `Voto secreto en Elección Paritaria (${eleccion.titulo || (tipoComite || eleccion.tipoComite || 'COPASST').toUpperCase()})`,
-          20,
+          30,
           String(eleccion._id),
-          { companyId: company._id, nombre: trabajadorNombre }
+          { companyId: company._id, nombre: workerFound?.nombre || existingWorker?.nombre || trabajadorNombre }
         );
       } catch (err) {
         logger.warn('[Public Votacion] Gamification points error:', err.message);
@@ -3070,7 +3164,7 @@ router.post('/votar/:companyId', async (req, res) => {
 
     res.json({
       success: true,
-      message: '¡Tu voto ha sido registrado con éxito de forma 100% anónima, secreta y protegida por la ley!',
+      message: '¡Tu voto ha sido registrado con éxito de forma 100% anónima, secreta y protegida por la ley! (+30 pts)',
     });
   } catch (error) {
     if (error.code === 11000) {
@@ -3517,18 +3611,29 @@ router.post('/brigadista/:companyId', async (req, res) => {
       return res.status(400).json({ error: 'Cédula y nombre son obligatorios' });
     }
 
-    const company = await resolveActiveCompany(companyId);
+    const cleanCedula = String(cedula).trim();
+    const { company, worker: workerFound } = await resolveCompanyAndWorker(companyId, { cedula: cleanCedula });
     if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
 
+    const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
+    const existingWorker = !workerFound
+      ? await SgsstWorker.findOne({ companyId: company._id, documento: cleanCedula }).lean()
+      : null;
+
+    if (!workerFound && !existingWorker) {
+      return res.status(403).json({
+        error: 'La cédula ingresada no se encuentra registrada en el censo de colaboradores de esta empresa.'
+      });
+    }
+
     const SgsstBrigadista = require('~/models/SgsstBrigadista');
-    const cleanCedula = String(cedula).trim();
 
     const updatePayload = {
       companyId: company._id,
       user: company.user,
       cedula: cleanCedula,
-      nombre: String(nombre).trim(),
-      cargo: String(cargo || '').trim(),
+      nombre: String(workerFound?.nombre || existingWorker?.nombre || nombre).trim(),
+      cargo: String(workerFound?.cargo || existingWorker?.cargo || cargo || '').trim(),
       sede: String(sede || 'Sede Principal').trim(),
       area: String(area || '').trim(),
       grupoEspecialidad: grupoEspecialidad || 'Primeros Auxilios',
@@ -3591,7 +3696,7 @@ router.post('/brigadista/:companyId', async (req, res) => {
         'Hoja de Vida de Brigadista Certificada & Credencial SCI',
         40,
         `BRIGADA-${cleanCedula}`,
-        { companyId: company._id, nombre, cargo }
+        { companyId: company._id, nombre: updatePayload.nombre, cargo: updatePayload.cargo }
       );
     } catch (wErr) {
       logger.warn('[Public SGSST] Error awarding gamification points for Brigadista:', wErr.message);
@@ -3746,9 +3851,21 @@ router.post('/epp/solicitar/:companyId', async (req, res) => {
       return res.status(400).json({ error: 'Debe seleccionar al menos un elemento de protección' });
     }
 
-    const { company } = await resolveCompanyAndWorker(companyId, { cedula: documento });
+    const cleanDoc = String(documento).trim();
+    const { company, worker: workerFound } = await resolveCompanyAndWorker(companyId, { cedula: cleanDoc });
     if (!company) {
       return res.status(404).json({ error: 'Empresa no encontrada' });
+    }
+
+    const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
+    const existingWorker = !workerFound
+      ? await SgsstWorker.findOne({ companyId: company._id, documento: cleanDoc }).lean()
+      : null;
+
+    if (!workerFound && !existingWorker) {
+      return res.status(403).json({
+        error: 'La cédula ingresada no se encuentra registrada en el censo de colaboradores de esta empresa.'
+      });
     }
 
     const SgsstEppSolicitud = require('~/models/SgsstEppSolicitud');
@@ -3756,15 +3873,15 @@ router.post('/epp/solicitar/:companyId', async (req, res) => {
     const nuevaSolicitud = await SgsstEppSolicitud.create({
       companyId: company._id,
       user: company.user,
-      workerId: workerId || documento,
-      documento: String(documento).trim(),
-      nombreTrabajador: nombreTrabajador.trim(),
-      cargo: cargo || 'No especificado',
+      workerId: workerId || cleanDoc,
+      documento: cleanDoc,
+      nombreTrabajador: String(workerFound?.nombre || existingWorker?.nombre || nombreTrabajador).trim(),
+      cargo: workerFound?.cargo || existingWorker?.cargo || cargo || 'No especificado',
       items: items.map(it => ({
         eppId: it.eppId || null,
         codigo: it.codigo || '',
-        nombre: it.nombre,
         categoria: it.categoria || 'General',
+        nombre: it.nombre,
         tipo: it.tipo || 'Regular',
         talla: it.talla || '',
         cantidad: Number(it.cantidad) || 1,
@@ -3778,18 +3895,18 @@ router.post('/epp/solicitar/:companyId', async (req, res) => {
       fechaSolicitud: new Date()
     });
 
-    // Otorgar gamificación (+25 pts)
-    const cleanDoc = String(documento).trim();
+    // Otorgar gamificación (+25 pts, idempotente por día)
     try {
       const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
+      const todayStr = new Date().toISOString().slice(0, 10);
       await feedWorkerEvent(
         company.user,
         cleanDoc,
         'solicitud_epp',
         `Solicitud de dotación/reposición de EPP (${items.length} ítems)`,
         25,
-        String(nuevaSolicitud._id),
-        { companyId: company._id, nombre: nombreTrabajador, cargo }
+        `EPP-REQ-${cleanDoc}-${todayStr}`,
+        { companyId: company._id, nombre: nuevaSolicitud.nombreTrabajador, cargo: nuevaSolicitud.cargo }
       );
     } catch (gErr) {
       logger.warn('[Public SGSST] Gamification error on EPP request:', gErr.message);

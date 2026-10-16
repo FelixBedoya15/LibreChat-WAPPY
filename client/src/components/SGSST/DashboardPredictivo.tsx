@@ -80,6 +80,9 @@ interface ForecastData {
         expectedDaysCharged: number;
         expectedYearlyTotal?: number;
         topThreatenedDomain: string;
+        culturalShieldPct?: number;
+        financialExposureReal?: number;
+        scoreDiagnostico0312?: number;
     };
     timeSeries?: TimeSeriesPoint[];
     lesionDistribution?: LesionItem[];
@@ -109,23 +112,42 @@ interface ForecastData {
 }
 
 const ALL_TELEMETRY_DEFINITIONS = [
+    // Hito 1
     { id: 'huella_biocentrica', name: 'Huella Biocéntrica 360°', tag: 'H1', category: 'Humano', desc: 'FIT Score, perfil sociodemográfico y salud', unit: 'colaboradores' },
     { id: 'perfiles_cargo', name: 'Perfiles de Cargo & Profesiograma', tag: 'H1', category: 'Humano', desc: 'Exigencias físicas, biomecánicas y psicosociales', unit: 'cargos parametrizados' },
+    { id: 'diagnostico_0312', name: 'Diagnóstico Estándares Res. 0312', tag: 'H1', category: 'Gestión', desc: 'Autoevaluación de estándares mínimos SG-SST', unit: 'ítems evaluados' },
+    // Hito 2
     { id: 'matriz_ipevar', name: 'Matriz Bio-IPEVR (GTC-45)', tag: 'H2', category: 'Riesgos', desc: '9 dominios de peligros y evaluación bio-física', unit: 'peligros evaluados' },
-    { id: 'analisis_vulnerabilidad', name: 'Plan de Emergencias & Vulnerabilidad', tag: 'H2', category: 'Riesgos', desc: 'Análisis de amenazas naturales y técnicas', unit: 'amenazas analizadas' },
+    { id: 'percepcion_miedo', name: 'Percepción & Miedo (Voz IPEVR)', tag: 'H2', category: 'Operación', desc: 'Voz del trabajador, QR público y riesgo percibido', unit: 'percepciones recogidas' },
+    { id: 'matriz_legal', name: 'Matriz Legal & Cumplimiento', tag: 'H2', category: 'Gestión', desc: 'Normatividad colombiana y evaluación de requisitos', unit: 'artículos normativos' },
+    { id: 'inspecciones_copasst', name: 'Inspecciones & Actas COPASST', tag: 'H2', category: 'Operación', desc: 'Recorridos del comité paritario y hallazgos abiertos', unit: 'inspecciones' },
+    { id: 'comite_convivencia', name: 'Comité de Convivencia Laboral', tag: 'H2', category: 'Humano', desc: 'Casos psicosociales y gestión preventiva de acoso', unit: 'casos gestionados' },
+    { id: 'mood_telemetry', name: 'Telemetría de Clima & Fatiga', tag: 'H2', category: 'Humano', desc: 'Pulsos emocionales y estresores por área', unit: 'pulsos emocionales' },
+    // Hito 3
     { id: 'ergonomia_owas', name: 'Ergonomía OWAS & LIVA', tag: 'H3', category: 'Operación', desc: 'Sobrecarga postural, carga física y biomecánica', unit: 'posturas evaluadas' },
+    { id: 'estudio_puestos_ept', name: 'Estudios de Puesto RULA/REBA', tag: 'H3', category: 'Operación', desc: 'Calificación biomecánica RULA, REBA y NIOSH', unit: 'estudios EPT' },
     { id: 'permisos_alturas', name: 'Permisos de Alto Riesgo', tag: 'H3', category: 'Operación', desc: 'Alturas, caliente, confinados y energías peligrosas', unit: 'permisos tramitados' },
-    { id: 'sustancias_quimicas', name: 'Sustancias Químicas & SGA', tag: 'H3', category: 'Operación', desc: 'Fichas FDS e incompatibilidad de almacenamiento', unit: 'productos químicos' },
-    { id: 'seguridad_vial', name: 'Seguridad Vial PESV', tag: 'H3', category: 'Operación', desc: 'Flota, conductores y preoperacionales de vehículos', unit: 'vehículos en flota' },
+    { id: 'equipos_alturas', name: 'Inspección Equipos de Alturas', tag: 'H3', category: 'Operación', desc: 'Arneses, eslingas, líneas de vida y vencimientos', unit: 'equipos registrados' },
+    { id: 'sustancias_quimicas', name: 'Sustancias Químicas & SGA', tag: 'H3', category: 'Operación', desc: 'Fichas FDS y clasificación de peligrosidad', unit: 'productos químicos' },
+    { id: 'compatibilidad_quimica', name: 'Matriz Compatibilidad Química', tag: 'H3', category: 'Riesgos', desc: 'Choques reactivos SGA/UN en almacenamiento', unit: 'matrices SGA' },
+    { id: 'seguridad_vial', name: 'Seguridad Vial PESV & Flota', tag: 'H3', category: 'Operación', desc: 'Flota, conductores y preoperacionales de vehículos', unit: 'vehículos en flota' },
+    { id: 'matriz_pesv', name: 'Matriz de Riesgos Viales PESV', tag: 'H3', category: 'Riesgos', desc: 'Evaluación de rutas, actores viales y severidad', unit: 'riesgos viales' },
     { id: 'control_epp', name: 'Dotación & Control de EPP', tag: 'H3', category: 'Operación', desc: 'Inspección de equipos y reposición de dotación', unit: 'registros de dotación' },
-    { id: 'analisis_ats', name: 'Análisis de Trabajo Seguro (ATS)', tag: 'H3', category: 'Operación', desc: 'Procedimientos paso a paso para tareas no rutinarias', unit: 'formatos ATS' },
-    { id: 'reportes_actos', name: 'Reportes de Actos & Condiciones', tag: 'H3', category: 'Operación', desc: 'Tarjetas de observación preventiva en campo', unit: 'tarjetas de campo' },
-    { id: 'percepcion_miedo', name: 'Percepción & Miedo (Voz IPEVR)', tag: 'H3', category: 'Operación', desc: 'Voz del trabajador y riesgo percibido en campo', unit: 'percepciones recogidas' },
-    { id: 'estadisticas_atel', name: 'Gestión de Ausentismo & ATEL (Res. 0312)', tag: 'H4', category: 'Siniestralidad', desc: 'Ausentismo laboral, siniestralidad, severidad, frecuencia y costos', unit: 'eventos registrados' },
+    { id: 'solicitudes_epp', name: 'Solicitudes Digitales de EPP', tag: 'H3', category: 'Operación', desc: 'Pedidos activos de protección personal en campo', unit: 'solicitudes EPP' },
+    { id: 'analisis_ats', name: 'Análisis de Trabajo Seguro (ATS)', tag: 'H3', category: 'Operación', desc: 'Procedimientos paso a paso para tareas críticas', unit: 'formatos ATS' },
+    // Hito 4
+    { id: 'reportes_actos', name: 'Reportes de Actos & Condiciones', tag: 'H4', category: 'Operación', desc: 'Tarjetas de observación preventiva en campo', unit: 'tarjetas de campo' },
+    { id: 'estadisticas_atel', name: 'Gestión de Ausentismo & ATEL', tag: 'H4', category: 'Siniestralidad', desc: 'AT, Enfermedad Laboral, EG-EPS, prórrogas y costos', unit: 'eventos registrados' },
     { id: 'investigaciones_atel', name: 'Investigación ATEL (Res. 1401)', tag: 'H4', category: 'Siniestralidad', desc: 'Árbol de causas, modelo GEMA y lecciones', unit: 'árboles de causas' },
-    { id: 'matriz_legal', name: 'Matriz Legal & Cumplimiento', tag: 'SG', category: 'Gestión', desc: 'Normatividad colombiana y evaluación de requisitos', unit: 'artículos normativos' },
-    { id: 'programa_capacitaciones', name: 'Programa de Capacitaciones', tag: 'SG', category: 'Gestión', desc: 'Cronograma anual y cobertura de inducciones', unit: 'temas programados' },
-    { id: 'kanban_tasks', name: 'Compromisos & Hallazgos Kanban', tag: 'SG', category: 'Gestión', desc: 'Planes de acción, cierre de hallazgos y PHVA', unit: 'planes de acción' }
+    // Hito 5
+    { id: 'programa_capacitaciones', name: 'Programa de Capacitaciones', tag: 'H5', category: 'Gestión', desc: 'Cronograma anual y cobertura de inducciones', unit: 'temas programados' },
+    { id: 'academia_lms', name: 'Academia LMS & Certificación', tag: 'H5', category: 'Gestión', desc: 'Cursos interactivos y evaluaciones aprobadas', unit: 'inscripciones LMS' },
+    // Hito 6
+    { id: 'analisis_vulnerabilidad', name: 'Plan Emergencias & Vulnerabilidad', tag: 'H6', category: 'Riesgos', desc: 'Análisis de amenazas naturales, técnicas y sociales', unit: 'amenazas analizadas' },
+    { id: 'brigada_emergencias', name: 'Brigada de Emergencias Activa', tag: 'H6', category: 'Operación', desc: 'Brigadistas entrenados y capacidad de respuesta', unit: 'brigadistas activos' },
+    // Hito 7
+    { id: 'auditorias_sgsst', name: 'Auditorías & No Conformidades', tag: 'H7', category: 'Gestión', desc: 'Hallazgos de auditoría interna y revisión dirección', unit: 'registros auditoría' },
+    { id: 'kanban_tasks', name: 'Compromisos & Hallazgos Kanban', tag: 'H7', category: 'Gestión', desc: 'Planes de acción ACPM, cierre de hallazgos y PHVA', unit: 'planes de acción' }
 ];
 
 const TAG_STYLE_BY_CATEGORY: Record<string, string> = {
@@ -548,13 +570,52 @@ const DashboardPredictivo = () => {
         Recomendacion_Leve:   { pts: 3,  sev: 'info',     cat: 'Preventivo',       label: 'Recomendación Médica',  desc: 'Recomendación preventiva activa que debe ser gestionada por SST.' },
     };
 
+    const [dispatchingKanbanKey, setDispatchingKanbanKey] = useState<string | null>(null);
+    const [dispatchedKeys, setDispatchedKeys] = useState<Record<string, boolean>>({});
+
+    const handleDispatchToKanban = useCallback(async (
+        key: string,
+        actionsPayload: { title: string; description: string; priority: string; actionType?: string; referenceId?: string; referenceName?: string }[]
+    ) => {
+        if (!token || actionsPayload.length === 0) return;
+        setDispatchingKanbanKey(key);
+        try {
+            const res = await fetch('/api/sgsst/kanban/dispatch-actions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    sourceModule: 'predictivo',
+                    actions: actionsPayload
+                })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setDispatchedKeys(prev => ({ ...prev, [key]: true }));
+                showToast({
+                    message: `Se enviaron ${data.created + data.updated} acción(es) preventiva(s) al Tablero Kanban ACPM (Hito 7)`,
+                    status: 'success'
+                });
+                fetchForecast();
+            } else {
+                showToast({ message: data.error || 'No se pudo enviar al Kanban ACPM', status: 'error' });
+            }
+        } catch {
+            showToast({ message: 'Error de red al conectar con el Tablero Kanban', status: 'error' });
+        } finally {
+            setDispatchingKanbanKey(null);
+        }
+    }, [token, showToast, fetchForecast]);
+
     const calcFit = useCallback((w: any, profile: any) => {
         let score = 100;
         const auditItems: { title: string; description: string; pts: number; severity: string; category: string }[] = [];
         const add = (title: string, desc: string, pts: number, sev: string, cat: string) => {
             score -= pts; auditItems.push({ title, description: desc, pts, severity: sev, category: cat });
         };
-        if (!profile) return { score: 0, auditItems: [{ title: 'Sin rol asignado', description: 'No se encontró Perfil de Cargo.', pts: 100, severity: 'critical', category: 'Operativo' }] };
+        if (!profile) return { score: 0, accidentPropensity30d: 35, auditItems: [{ title: 'Sin rol asignado', description: 'No se encontró Perfil de Cargo.', pts: 100, severity: 'critical', category: 'Operativo' }], hasIATags: false };
 
         // 1. BIOMETRÍA
         if (w.imc) {
@@ -615,7 +676,28 @@ const DashboardPredictivo = () => {
             }
         }
 
-        // 4. VULNERABILIDAD SOCIODEMOGRÁFICA
+        // 4. CAPACITACIÓN Y CERTIFICACIONES REQUERIDAS POR EL CARGO (Eje Unificado H1)
+        const reqTraining = (profile.capacitacionesRequeridas || '').toLowerCase();
+        const workerTraining = (w.capacitacionSeguridad || '').toLowerCase();
+        if (reqTraining.includes('alturas') && !workerTraining.includes('alturas')) {
+            add('Falta Curso de Alturas', 'El cargo exige trabajo seguro en alturas y no se evidencia certificación vigente.', 15, 'critical', 'Seguridad');
+        }
+        if ((reqTraining.includes('vial') || reqTraining.includes('manejo defensivo')) && !workerTraining.includes('vial') && !workerTraining.includes('defensivo')) {
+            add('Brecha en Seguridad Vial PESV', 'El cargo exige formación en seguridad vial / manejo defensivo.', 10, 'warning', 'Seguridad');
+        }
+
+        // 5. EDAD Y ANTIGÜEDAD FRENTE A EXIGENCIAS DEL CARGO (Eje Unificado H1)
+        const ageNum = Number(w.edad) || 0;
+        if (ageNum > 55 && (profile.exigenciaFisica === 'Alta' || profile.exigenciaFisica === 'Muy Alta')) {
+            add('Desgaste Fisiológico vs Carga Alta', `Colaborador de ${ageNum} años asignado a cargo de exigencia física ${profile.exigenciaFisica}.`, 8, 'warning', 'Osteomuscular');
+        }
+        const antigStr = String(w.antiguedad || w.tiempoCargo || '').toLowerCase();
+        const isNovice = antigStr.includes('mes') || antigStr === '0' || antigStr.includes('< 1');
+        if (isNovice && profile.operaMaquinaria === 'Sí') {
+            add('Curva de Aprendizaje en Maquinaria', 'Baja antigüedad en cargo crítico con operación de maquinaria. Requiere supervisión.', 8, 'warning', 'Seguridad');
+        }
+
+        // 6. VULNERABILIDAD SOCIODEMOGRÁFICA
         let vs = 0;
         let socialDesc: string[] = [];
         if (['1', '2'].includes(w.estrato)) { vs++; socialDesc.push('estrato bajo'); }
@@ -628,10 +710,17 @@ const DashboardPredictivo = () => {
         if (vs >= 3) add('Vulnerabilidad Sociodemográfica', `Factores: ${socialDesc.join(', ')}.`, 0, 'info', 'Vigilancia Epidemiológica');
         else if (vs >= 2) add('Factores Psicosociales Externos', `Factores: ${socialDesc.join(', ')}.`, 0, 'info', 'Vigilancia Epidemiológica');
 
-        return { score: Math.max(0, score), auditItems, hasIATags };
+        const finalScore = Math.max(0, score);
+        // Propensión individual de accidente a 30 días (0-95%)
+        const basePropensity = Math.round((100 - finalScore) * 0.85);
+        const machineryBoost = profile.operaMaquinaria === 'Sí' ? 10 : 0;
+        const highPhysBoost = profile.exigenciaFisica === 'Alta' ? 8 : 0;
+        const accidentPropensity30d = Math.min(95, Math.max(4, basePropensity + (finalScore < 80 ? machineryBoost + highPhysBoost : 0)));
+
+        return { score: finalScore, accidentPropensity30d, auditItems, hasIATags };
     }, [TAG_RULES]);
 
-    // ─── Deterministic Conflict Detection Engine (Bio-Seguridad 360) ──────
+    // ─── Deterministic Conflict Detection Engine (Bio-Seguridad 360 - 6 Ejes) ──────
     const getActiveConflicts = useCallback((workersList: any[], profilesList: any[]) => {
         const conflictsList: { workerName: string; cargo: string; severity: 'critical' | 'warning' | 'info'; title: string; description: string }[] = [];
         workersList.forEach(w => {
@@ -687,6 +776,19 @@ const DashboardPredictivo = () => {
                     severity: 'info',
                     title: '🧠 EXTREMA CARGA PSICOSOCIAL',
                     description: `Trabajador con vulnerabilidad de salud mental asignado a rol de alta exigencia cognitiva/toma de decisiones. Riesgo agudo de burnout.`
+                });
+            }
+
+            // 5. Brecha de Certificación Crítica (Alturas)
+            const reqTraining = (profile.capacitacionesRequeridas || '').toLowerCase();
+            const workerTraining = (w.capacitacionSeguridad || '').toLowerCase();
+            if (reqTraining.includes('alturas') && !workerTraining.includes('alturas')) {
+                conflictsList.push({
+                    workerName: w.nombre,
+                    cargo: w.cargo,
+                    severity: 'critical',
+                    title: '⛑️ BRECHA DE CERTIFICACIÓN EN ALTURAS',
+                    description: `El perfil de cargo exige certificación vigente en Trabajo Seguro en Alturas (Res. 4272/2021) y no se registra soporte en la ficha del trabajador.`
                 });
             }
         });
@@ -1139,29 +1241,88 @@ const DashboardPredictivo = () => {
             {/* ═══ active conflicts list (strategic bioseguridad alerts) ═══ */}
             {activeConflicts.length > 0 && (
                 <div className="p-6 rounded-3xl border-2 border-red-500/20 bg-red-500/[0.03] dark:bg-red-500/[0.02] shadow-xl animate-in fade-in slide-in-from-top-4 duration-500">
-                    <div className="flex items-center gap-2 mb-4">
-                        <ShieldAlert className="h-5 w-5 text-red-500 animate-bounce" />
-                        <h3 className="text-sm font-black text-red-600 dark:text-red-400 tracking-[0.1em] uppercase">ALERTAS CRÍTICAS DE BIO-SEGURIDAD 360°</h3>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                        <div className="flex items-center gap-2">
+                            <ShieldAlert className="h-5 w-5 text-red-500 animate-bounce" />
+                            <h3 className="text-sm font-black text-red-600 dark:text-red-400 tracking-[0.1em] uppercase">
+                                ALERTAS CRÍTICAS DE BIO-SEGURIDAD 360° ({activeConflicts.length})
+                            </h3>
+                        </div>
+                        <button
+                            type="button"
+                            disabled={dispatchingKanbanKey === 'all-conflicts' || dispatchedKeys['all-conflicts']}
+                            onClick={() => handleDispatchToKanban(
+                                'all-conflicts',
+                                activeConflicts.map((c, idx) => ({
+                                    title: `${c.title.replace(/^[^\w]+/, '').trim()} · ${c.workerName} (${c.cargo})`,
+                                    description: c.description,
+                                    priority: c.severity === 'critical' ? 'urgent' : 'high',
+                                    actionType: 'preventiva',
+                                    referenceId: `bio-conflict-${idx}-${c.workerName}`,
+                                    referenceName: `${c.workerName} - ${c.cargo}`
+                                }))
+                            )}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white disabled:opacity-60"
+                        >
+                            {dispatchingKanbanKey === 'all-conflicts' ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : dispatchedKeys['all-conflicts'] ? (
+                                <CheckCircle className="w-3.5 h-3.5" />
+                            ) : (
+                                <ClipboardList className="w-3.5 h-3.5" />
+                            )}
+                            <span>{dispatchedKeys['all-conflicts'] ? 'Alertas en Kanban ACPM' : 'Enviar Alertas al Kanban ACPM'}</span>
+                        </button>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {activeConflicts.map((conf, index) => (
-                            <div key={index} className="flex items-start gap-4 p-4 rounded-2xl border border-red-500/20 bg-surface-primary dark:bg-slate-900/50 hover:shadow-lg transition-shadow group">
-                                <div className="p-2 bg-red-500/10 text-red-500 rounded-xl shrink-0">
-                                    <ShieldAlert className="w-5 h-5" />
+                        {activeConflicts.map((conf, index) => {
+                            const confKey = `conflict-${index}`;
+                            return (
+                                <div key={index} className="flex items-start justify-between gap-4 p-4 rounded-2xl border border-red-500/20 bg-surface-primary dark:bg-slate-900/50 hover:shadow-lg transition-shadow group">
+                                    <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                                        <div className="p-2 bg-red-500/10 text-red-500 rounded-xl shrink-0">
+                                            <ShieldAlert className="w-5 h-5" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <span className="inline-block px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-red-500/10 text-red-600 dark:text-red-400 mb-1 border border-red-500/20">
+                                                {conf.severity.toUpperCase()}
+                                            </span>
+                                            <h4 className="font-bold text-xs text-text-primary mb-1">
+                                                {conf.workerName} · <span className="text-text-secondary font-medium">{conf.cargo}</span>
+                                            </h4>
+                                            <p className="text-[11px] text-text-secondary leading-relaxed font-semibold">
+                                                {conf.description}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        disabled={dispatchingKanbanKey === confKey || dispatchedKeys[confKey]}
+                                        onClick={() => handleDispatchToKanban(confKey, [{
+                                            title: `${conf.title.replace(/^[^\w]+/, '').trim()} · ${conf.workerName}`,
+                                            description: conf.description,
+                                            priority: conf.severity === 'critical' ? 'urgent' : 'high',
+                                            actionType: 'preventiva',
+                                            referenceId: `bio-conflict-${conf.workerName}-${conf.cargo}`,
+                                            referenceName: `${conf.workerName} (${conf.cargo})`
+                                        }])}
+                                        title="Crear compromiso ACPM en Tablero Kanban"
+                                        className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-amber-100 shrink-0"
+                                    >
+                                        {dispatchingKanbanKey === confKey ? (
+                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        ) : dispatchedKeys[confKey] ? (
+                                            <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                                        ) : (
+                                            <ClipboardList className="w-3.5 h-3.5" />
+                                        )}
+                                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                                            <span className="text-[10px] font-bold">{dispatchedKeys[confKey] ? 'En Kanban' : 'Crear ACPM'}</span>
+                                        </div>
+                                    </button>
                                 </div>
-                                <div>
-                                    <span className="inline-block px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-red-500/10 text-red-600 dark:text-red-400 mb-1 border border-red-500/20">
-                                        {conf.severity.toUpperCase()}
-                                    </span>
-                                    <h4 className="font-bold text-xs text-text-primary mb-1">
-                                        {conf.workerName} · <span className="text-text-secondary font-medium">{conf.cargo}</span>
-                                    </h4>
-                                    <p className="text-[11px] text-text-secondary leading-relaxed font-semibold">
-                                        {conf.description}
-                                    </p>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             )}
@@ -1272,9 +1433,9 @@ const DashboardPredictivo = () => {
                         <div>
                             <h3 className="text-sm font-black text-text-primary flex items-center gap-2 tracking-[0.1em] uppercase">
                                 <Users className="h-4.5 w-4.5 text-teal-500" />
-                                MAPA DE CALOR: APTITUD BIO-INDIVIDUAL 360°
+                                MAPA DE CALOR: APTITUD BIO-INDIVIDUAL 360° (6 EJES + PROPENSIÓN 30D)
                             </h3>
-                            <p className="text-[11px] text-text-secondary font-semibold mt-0.5">Control de aptitud clínica-operativa de la plantilla completa.</p>
+                            <p className="text-[11px] text-text-secondary font-semibold mt-0.5">Control de aptitud clínica-operativa, certificaciones críticas y propensión individual de siniestralidad.</p>
                         </div>
                         <div className="relative max-w-xs w-full">
                             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-text-secondary" />
@@ -1317,7 +1478,7 @@ const DashboardPredictivo = () => {
                                 return (
                                     <div 
                                         key={w.id} 
-                                        onClick={() => setSelectedWorker({ ...w, calculatedScore: score, auditItems: fit.auditItems })}
+                                        onClick={() => setSelectedWorker({ ...w, calculatedScore: score, accidentPropensity30d: fit.accidentPropensity30d, auditItems: fit.auditItems })}
                                         className="p-4 rounded-2xl border border-border-light bg-surface-primary/70 hover:bg-surface-primary hover:border-teal-500/40 hover:shadow-md transition-all duration-300 cursor-pointer flex flex-col justify-between gap-3 group relative overflow-hidden"
                                     >
                                         {/* Visual hover background glow */}
@@ -1336,9 +1497,17 @@ const DashboardPredictivo = () => {
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="shrink-0 flex flex-col items-end">
+                                            <div className="shrink-0 flex flex-col items-end gap-1">
                                                 <span className={cn("px-2 py-0.5 rounded-lg text-[9px] font-black tracking-wider uppercase shadow-sm", sc.badge)}>
                                                     {score}% FIT
+                                                </span>
+                                                <span className={cn(
+                                                    "px-1.5 py-0.5 rounded-md text-[8px] font-mono font-bold border",
+                                                    fit.accidentPropensity30d >= 35
+                                                        ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
+                                                        : "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20"
+                                                )}>
+                                                    Riesgo 30d: {fit.accidentPropensity30d}%
                                                 </span>
                                             </div>
                                         </div>
@@ -1414,29 +1583,37 @@ const DashboardPredictivo = () => {
                             <div>
                                 <span className="text-[10px] font-black text-teal-600 dark:text-teal-400 uppercase tracking-[0.15em] flex items-center gap-1.5">
                                     <Layers className="w-3.5 h-3.5 text-teal-500" />
-                                    Fuentes Integradas & Motor Predictivo (17 Módulos)
+                                    Fuentes Integradas & Motor Predictivo ({ALL_TELEMETRY_DEFINITIONS.length} Módulos)
                                 </span>
                                 <p className="text-[9px] text-text-tertiary mt-0.5">
-                                    Red neuronal conectada en tiempo real a todo el ecosistema WAPPY SG-SST
+                                    Red neuronal conectada en tiempo real a los 8 Hitos del ecosistema WAPPY SG-SST
                                 </p>
                             </div>
-                            {forecast?.predictiveMetrics && (
-                                <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1 shadow-sm shrink-0">
-                                    <Sparkles className="w-2.5 h-2.5 text-emerald-500" />
-                                    Motor ML {forecast.predictiveMetrics.modelReliabilityMonthly} (1M) / {forecast.predictiveMetrics.modelReliabilityYearly} (1A)
-                                </span>
-                            )}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                                {forecast?.predictiveMetrics?.culturalShieldPct !== undefined && (
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-teal-100 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300 border border-teal-300 dark:border-teal-800 flex items-center gap-1 shadow-sm shrink-0" title="Atenuación de riesgo por Capacitaciones ejecutadas y Cierre de Kanban ACPM">
+                                        <ShieldCheck className="w-2.5 h-2.5 text-teal-500" />
+                                        Escudo Cultural: -{forecast.predictiveMetrics.culturalShieldPct}%
+                                    </span>
+                                )}
+                                {forecast?.predictiveMetrics && (
+                                    <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1 shadow-sm shrink-0">
+                                        <Sparkles className="w-2.5 h-2.5 text-emerald-500" />
+                                        Motor ML {forecast.predictiveMetrics.modelReliabilityMonthly} (1M) / {forecast.predictiveMetrics.modelReliabilityYearly} (1A)
+                                    </span>
+                                )}
+                            </div>
                         </div>
 
                         {/* Category Filter Pills */}
                         <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-3 no-scrollbar">
                             {[
-                                { key: 'Todos', label: 'Todos (17)' },
-                                { key: 'Humano', label: 'Humano (2)' },
-                                { key: 'Riesgos', label: 'Riesgos (2)' },
-                                { key: 'Operación', label: 'Operación (8)' },
-                                { key: 'Siniestralidad', label: 'Siniestralidad (2)' },
-                                { key: 'Gestión', label: 'Gestión (3)' },
+                                { key: 'Todos', label: `Todos (${ALL_TELEMETRY_DEFINITIONS.length})` },
+                                { key: 'Humano', label: `Humano (${ALL_TELEMETRY_DEFINITIONS.filter(x => x.category === 'Humano').length})` },
+                                { key: 'Riesgos', label: `Riesgos (${ALL_TELEMETRY_DEFINITIONS.filter(x => x.category === 'Riesgos').length})` },
+                                { key: 'Operación', label: `Operación (${ALL_TELEMETRY_DEFINITIONS.filter(x => x.category === 'Operación').length})` },
+                                { key: 'Siniestralidad', label: `Siniestralidad (${ALL_TELEMETRY_DEFINITIONS.filter(x => x.category === 'Siniestralidad').length})` },
+                                { key: 'Gestión', label: `Gestión (${ALL_TELEMETRY_DEFINITIONS.filter(x => x.category === 'Gestión').length})` },
                             ].map(cat => (
                                 <button
                                     key={cat.key}
@@ -1518,7 +1695,7 @@ const DashboardPredictivo = () => {
                                                 MODELO PREDICTIVO & CAUSALIDAD INTEGRAL SG-SST
                                             </h3>
                                             <span className="text-[10px] text-text-tertiary">
-                                                Modelo Ensamble ML · Random Forest + XGBoost Regressor
+                                                Modelo Ensamble ML · Random Forest + XGBoost Regressor · Pirámide de Bird
                                             </span>
                                         </div>
                                     </div>
@@ -1566,7 +1743,7 @@ const DashboardPredictivo = () => {
 
                             {/* Recommended Actions */}
                             <div className="p-6 rounded-3xl border border-border-medium/60 glass-premium shadow-xl hover:shadow-2xl transition-all duration-300">
-                                <div className="flex items-center justify-between mb-4">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                                     <div className="flex items-center gap-2.5">
                                         <div className="p-2 rounded-xl bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400">
                                             <ShieldCheck className="w-4 h-4" />
@@ -1576,13 +1753,39 @@ const DashboardPredictivo = () => {
                                                 ACCIONES PREVENTIVAS PRIORITARIAS
                                             </h3>
                                             <span className="text-[10px] text-text-tertiary">
-                                                Directrices Tácticas Derivadas del Oráculo IA
+                                                Directrices Tácticas Derivadas del Oráculo IA (Cierre de Bucle H8 → H7)
                                             </span>
                                         </div>
                                     </div>
-                                    <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
-                                        {forecast?.recommendedActions?.length || 3} Medidas Clave
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        {forecast?.recommendedActions && forecast.recommendedActions.length > 0 && (
+                                            <button
+                                                type="button"
+                                                disabled={dispatchingKanbanKey === 'all-recommended' || dispatchedKeys['all-recommended']}
+                                                onClick={() => handleDispatchToKanban(
+                                                    'all-recommended',
+                                                    forecast.recommendedActions.map((act, idx) => ({
+                                                        title: `Directriz Oráculo P${idx + 1}: ${cleanUUIDs(act).slice(0, 75)}`,
+                                                        description: cleanUUIDs(act),
+                                                        priority: idx === 0 ? 'urgent' : idx === 1 ? 'high' : 'medium',
+                                                        actionType: 'preventiva',
+                                                        referenceId: `oracle-action-${idx}-${cleanUUIDs(act).slice(0, 24)}`,
+                                                        referenceName: forecast.criticalArea || 'Centro Predictivo H8'
+                                                    }))
+                                                )}
+                                                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white disabled:opacity-60"
+                                            >
+                                                {dispatchingKanbanKey === 'all-recommended' ? (
+                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                ) : dispatchedKeys['all-recommended'] ? (
+                                                    <CheckCircle className="w-3.5 h-3.5" />
+                                                ) : (
+                                                    <ClipboardList className="w-3.5 h-3.5" />
+                                                )}
+                                                <span>{dispatchedKeys['all-recommended'] ? 'Enviadas al Kanban' : 'Enviar Todo al Kanban ACPM'}</span>
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
 
                                 <div className="space-y-3">
@@ -1600,23 +1803,52 @@ const DashboardPredictivo = () => {
                                             { label: 'P4 · Control Periódico', badge: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20' },
                                         ];
                                         const p = priorities[i] || priorities[priorities.length - 1];
+                                        const actKey = `rec-action-${i}`;
+                                        const cleanAct = cleanUUIDs(action);
 
                                         return (
-                                            <div key={i} className="flex items-start gap-3.5 p-3.5 bg-surface-primary/80 dark:bg-slate-900/50 hover:bg-surface-primary hover:border-teal-500/40 hover:shadow-md transition-all duration-300 rounded-2xl border border-border-light/80 group">
-                                                <div className="mt-0.5 h-7 w-7 rounded-xl flex items-center justify-center text-[11px] font-black text-white shrink-0 shadow-md group-hover:scale-105 transition-transform"
-                                                    style={{ background: 'linear-gradient(135deg, #0d9488, #10b981)' }}>
-                                                    {i + 1}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold border ${p.badge}`}>
-                                                            {p.label}
-                                                        </span>
+                                            <div key={i} className="flex items-start justify-between gap-3.5 p-3.5 bg-surface-primary/80 dark:bg-slate-900/50 hover:bg-surface-primary hover:border-teal-500/40 hover:shadow-md transition-all duration-300 rounded-2xl border border-border-light/80 group">
+                                                <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                                                    <div className="mt-0.5 h-7 w-7 rounded-xl flex items-center justify-center text-[11px] font-black text-white shrink-0 shadow-md group-hover:scale-105 transition-transform"
+                                                        style={{ background: 'linear-gradient(135deg, #0d9488, #10b981)' }}>
+                                                        {i + 1}
                                                     </div>
-                                                    <p className="text-xs text-text-primary font-medium leading-relaxed">
-                                                        {cleanUUIDs(action)}
-                                                    </p>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold border ${p.badge}`}>
+                                                                {p.label}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-xs text-text-primary font-medium leading-relaxed">
+                                                            {cleanAct}
+                                                        </p>
+                                                    </div>
                                                 </div>
+                                                <button
+                                                    type="button"
+                                                    disabled={dispatchingKanbanKey === actKey || dispatchedKeys[actKey]}
+                                                    onClick={() => handleDispatchToKanban(actKey, [{
+                                                        title: `Directriz Oráculo P${i + 1}: ${cleanAct.slice(0, 75)}`,
+                                                        description: cleanAct,
+                                                        priority: i === 0 ? 'urgent' : i === 1 ? 'high' : 'medium',
+                                                        actionType: 'preventiva',
+                                                        referenceId: `oracle-action-${i}-${cleanAct.slice(0, 24)}`,
+                                                        referenceName: forecast.criticalArea || 'Centro Predictivo H8'
+                                                    }])}
+                                                    title="Enviar acción al Tablero Kanban ACPM"
+                                                    className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 shrink-0"
+                                                >
+                                                    {dispatchingKanbanKey === actKey ? (
+                                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                    ) : dispatchedKeys[actKey] ? (
+                                                        <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                                                    ) : (
+                                                        <ClipboardList className="w-3.5 h-3.5" />
+                                                    )}
+                                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                                                        <span className="text-[10px] font-bold">{dispatchedKeys[actKey] ? 'Enviada' : 'Kanban ACPM'}</span>
+                                                    </div>
+                                                </button>
                                             </div>
                                         );
                                     }) : [1, 2, 3].map(i => (
