@@ -457,6 +457,7 @@ html_content = f"""<!DOCTYPE html>
             <span class="header-meta-item">⏰ <strong>Horario:</strong> 7:00 PM – 9:00 PM (Col)</span>
             <span class="header-meta-item">👥 <strong>Aforo:</strong> Máximo 12 Especialistas</span>
             <span class="header-meta-item">👨‍🏫 <strong>Docente:</strong> Félix Bedoya</span>
+            <span class="header-meta-item" style="background: rgba(255,255,255,0.25); border-color: #5eead4; color: #ffffff;">📹 <strong>Google Meet:</strong> meet.google.com/xvz-jmvv-iym</span>
           </div>
         </div>
         <div class="header-right">
@@ -464,6 +465,20 @@ html_content = f"""<!DOCTYPE html>
           {"<img src='" + tenshi_img + "' class='tenshi-avatar' alt='Tenshi Avatar'>" if tenshi_img else ""}
           <div style="font-size: 6pt; color: #a7f3d0; margin-top: 3px; font-weight: 700; letter-spacing: 0.5px;">TENSHI SST AI</div>
         </div>
+      </div>
+
+      <!-- BANNER OFICIAL DE CONEXIÓN GOOGLE MEET -->
+      <div style="background: linear-gradient(135deg, #042f2e 0%, #0d9488 100%); border: 1.5px solid #5eead4; border-radius: 9px; padding: 7px 12px; margin-bottom: 9px; color: #ffffff; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 6px rgba(13,148,136,0.18);">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 13pt;">📹</span>
+          <div>
+            <div style="font-size: 8.4pt; font-weight: 800; color: #ffffff;">Enlace Oficial de Conexión en Vivo · Google Meet</div>
+            <div style="font-size: 7pt; color: #a7f3d0;">Acceso directo para los 12 participantes (Inicia Martes 20 Octubre · 7:00 PM)</div>
+          </div>
+        </div>
+        <a href="https://meet.google.com/xvz-jmvv-iym" style="background: #ffffff; color: #042f2e; font-size: 7.8pt; font-weight: 800; padding: 4.5px 11px; border-radius: 6px; text-decoration: none; border: 1px solid #ccfbf1; box-shadow: 0 1px 3px rgba(0,0,0,0.15); display: inline-flex; align-items: center; gap: 4px;">
+          <span>👉</span> meet.google.com/xvz-jmvv-iym
+        </a>
       </div>
 
       <!-- SECCIÓN 1: REGLAS Y ACUERDOS -->
@@ -605,7 +620,7 @@ html_content = f"""<!DOCTYPE html>
         </div>
         <div style="text-align: right; font-size: 7.2pt; color: #ccfbf1;">
           Martes 20 Octubre · 7:00 – 9:00 PM<br>
-          <strong>Grupo Selecto: 12 Alumnos</strong>
+          📹 <strong>Google Meet:</strong> meet.google.com/xvz-jmvv-iym
         </div>
       </div>
 

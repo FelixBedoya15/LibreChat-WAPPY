@@ -26,7 +26,7 @@ const OFFICIAL_COURSE_PRODUCT = {
   title: 'Curso Ecosistema Autónomo SST: De la Operatividad a la Prevención Real',
   slug: 'curso-ecosistema-autonomo-sst',
   sku: 'WAPPY-CURSO-01',
-  shortDescription: '6 Clases grupales en vivo (martes 7 a 9 PM, inicia Octubre 20) + 1 sesión final VIP personalizada (3 a 4 horas). Conecta WAPPY con Antigravity, Tenshi Voice, NotebookLM y Workspace.',
+  shortDescription: '6 Clases grupales en vivo (martes 7 a 9 PM vía Google Meet, inicia Octubre 20) + 1 sesión final VIP personalizada (3 a 4 horas). Conecta WAPPY con Antigravity, Tenshi Voice, NotebookLM y Workspace.',
   description: 'Entrenamiento intensivo de alto nivel para profesionales y consultores SST en Colombia. Aprende a conectar WAPPY con Google Antigravity, Tenshi Voice (manos libres en campo), Google NotebookLM (citas normativas exactas y podcasts de capacitación), Google Workspace (Drive con archivo 20 años, Calendar y Gmail automatizados), Flow y la construcción de tu propio aplicativo o asistente SST llave en mano. Reduce el 50% de tu carga administrativa y documental desde la primera sesión.',
   category: 'capacitaciones',
   tags: ['Curso SST', 'Antigravity', 'Tenshi Voice', 'NotebookLM', 'WAPPY IA', 'Inteligencia Artificial', 'Normativa Colombiana'],
@@ -35,8 +35,9 @@ const OFFICIAL_COURSE_PRODUCT = {
   salePrice: 620000,
   hasDiscount: false,
   hasVariants: false,
-  estimatedDeliveryDays: 'Inicio Martes 20 Octubre · 7:00 PM',
+  estimatedDeliveryDays: 'Inicio Martes 20 Octubre · 7:00 PM (Google Meet: meet.google.com/xvz-jmvv-iym)',
   deliverables: [
+    'Enlace oficial Google Meet en vivo: https://meet.google.com/xvz-jmvv-iym',
     '6 Clases grupales en vivo los martes de 7:00 PM a 9:00 PM con streaming y grabaciones',
     '1 Sesión VIP personalizada 1 a 1 de 3 a 4 horas llave en mano (acordada individualmente)',
     'Ecosistema completo WAPPY + Antigravity + Tenshi Voice + NotebookLM + Workspace',
@@ -49,6 +50,10 @@ const OFFICIAL_COURSE_PRODUCT = {
     'Conexión a internet estable para las sesiones en vivo'
   ],
   faqs: [
+    {
+      question: '¿Cuál es el enlace oficial de conexión a las clases?',
+      answer: 'Nos conectaremos todos los martes de 7:00 PM a 9:00 PM (hora Colombia) a través de Google Meet en el siguiente enlace oficial: https://meet.google.com/xvz-jmvv-iym.'
+    },
     {
       question: '¿Cuáles son las formas de pago?',
       answer: 'El valor es de contado ($620.000 COP). Puedes pagar de contado mediante QR oficial WAPPY, Nequi, Bancolombia, PSE o financiar a crédito en 4 cuotas de $155.000 COP sin interés con Bancolombia/Nequi BNPL (comienzas a pagar el próximo mes) o con tu tarjeta de crédito habitual.'
@@ -375,6 +380,10 @@ const ensureSeedData = async () => {
           {
             $set: {
               title: OFFICIAL_COURSE_PRODUCT.title,
+              shortDescription: OFFICIAL_COURSE_PRODUCT.shortDescription,
+              estimatedDeliveryDays: OFFICIAL_COURSE_PRODUCT.estimatedDeliveryDays,
+              deliverables: OFFICIAL_COURSE_PRODUCT.deliverables,
+              faqs: OFFICIAL_COURSE_PRODUCT.faqs,
               regularPrice: 620000,
               salePrice: 620000,
               hasDiscount: false,
