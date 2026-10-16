@@ -206,8 +206,115 @@ const createDraft = async (userId, { to, subject, body, cc, bcc }, companyId = n
   }
 };
 
+/**
+ * Lists emails from Gmail matching optional query.
+ */
+const listEmails = async (userId, { query = '', maxResults = 10 } = {}, companyId = null) => {
+  try {
+    const gmail = await getGmailClient(userId, companyId);
+    if (!gmail) {
+      throw new Error('Google Workspace no está conectado o autorizado.');
+    }
+    const res = await gmail.users.messages.list({
+      userId: 'me',
+      q: query || undefined,
+      maxResults: Math.min(Number(maxResults) || 10, 25),
+    });
+    const messages = res.data.messages || [];
+    if (messages.length === 0) {
+      return [];
+    }
+
+    const detailed = await Promise.all(
+      messages.map(async (m) => {
+        try {
+          const detailRes = await gmail.users.messages.get({
+            userId: 'me',
+            id: m.id,
+            format: 'metadata',
+            metadataHeaders: ['Subject', 'From', 'Date', 'To'],
+          });
+          const headers = detailRes.data.payload?.headers || [];
+          const getHeader = (name) => headers.find((h) => h.name.toLowerCase() === name.toLowerCase())?.value || '';
+          return {
+            id: m.id,
+            threadId: m.threadId,
+            snippet: detailRes.data.snippet || '',
+            subject: getHeader('Subject'),
+            from: getHeader('From'),
+            to: getHeader('To'),
+            date: getHeader('Date'),
+          };
+        } catch (_) {
+          return { id: m.id, threadId: m.threadId, snippet: '' };
+        }
+      })
+    );
+
+    return detailed;
+  } catch (err) {
+    logger.error(`[GoogleGmailService] Error listing emails:`, err.message);
+    throw err;
+  }
+};
+
+/**
+ * Reads full content of an email message by ID.
+ */
+const readEmail = async (userId, messageId, companyId = null) => {
+  try {
+    const gmail = await getGmailClient(userId, companyId);
+    if (!gmail) {
+      throw new Error('Google Workspace no está conectado o autorizado.');
+    }
+    const res = await gmail.users.messages.get({
+      userId: 'me',
+      id: messageId,
+      format: 'full',
+    });
+    const payload = res.data.payload || {};
+    const headers = payload.headers || [];
+    const getHeader = (name) => headers.find((h) => h.name.toLowerCase() === name.toLowerCase())?.value || '';
+
+    let bodyText = '';
+    const extractBody = (part) => {
+      if (part.body?.data) {
+        const decoded = Buffer.from(part.body.data, 'base64').toString('utf8');
+        if (part.mimeType === 'text/plain') {
+          bodyText = decoded;
+        } else if (part.mimeType === 'text/html' && !bodyText) {
+          bodyText = decoded.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+        }
+      }
+      if (part.parts && Array.isArray(part.parts)) {
+        part.parts.forEach(extractBody);
+      }
+    };
+    extractBody(payload);
+
+    if (!bodyText && res.data.snippet) {
+      bodyText = res.data.snippet;
+    }
+
+    return {
+      id: res.data.id,
+      threadId: res.data.threadId,
+      subject: getHeader('Subject'),
+      from: getHeader('From'),
+      to: getHeader('To'),
+      date: getHeader('Date'),
+      body: bodyText || '(Mensaje sin texto extraíble)',
+    };
+  } catch (err) {
+    logger.error(`[GoogleGmailService] Error reading email ${messageId}:`, err.message);
+    throw err;
+  }
+};
+
 module.exports = {
   getGmailClient,
   sendEmail,
   createDraft,
+  listEmails,
+  readEmail,
 };

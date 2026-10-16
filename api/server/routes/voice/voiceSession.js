@@ -1094,18 +1094,21 @@ class VoiceSession {
                         },
                         {
                             name: "google_gmail",
-                            description: "Envía correos electrónicos o crea borradores en Gmail desde la cuenta del usuario.",
+                            description: "Envía correos electrónicos, crea borradores, lista o busca correos y lee correos en Gmail desde la cuenta del usuario.",
                             parameters: {
                                 type: "object",
                                 properties: {
-                                    action: { type: "string", description: "'send_email' o 'create_draft'" },
-                                    to: { type: "string", description: "Dirección de correo electrónico del destinatario" },
+                                    action: { type: "string", description: "'send_email', 'create_draft', 'list_emails' o 'read_email'" },
+                                    to: { type: "string", description: "Dirección de correo electrónico del destinatario (para send_email o create_draft)" },
                                     subject: { type: "string", description: "Asunto del correo electrónico" },
                                     body: { type: "string", description: "Contenido del mensaje (HTML o texto)" },
                                     cc: { type: "string", description: "Correos en copia" },
-                                    bcc: { type: "string", description: "Correos en copia oculta" }
+                                    bcc: { type: "string", description: "Correos en copia oculta" },
+                                    query: { type: "string", description: "Término de búsqueda o filtro para list_emails (ej. 'is:unread', 'from:...', 'subject:...')" },
+                                    maxResults: { type: "number", description: "Cantidad máxima de correos a listar (default 10)" },
+                                    messageId: { type: "string", description: "ID del correo específico a leer en read_email" }
                                 },
-                                required: ["action", "to", "subject", "body"]
+                                required: ["action"]
                             }
                         },
                         {

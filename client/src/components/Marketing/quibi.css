@@ -1160,56 +1160,125 @@
   position: fixed;
   inset: 0;
   z-index: 9990;
-  background: rgba(20, 4, 14, 0.65);
-  backdrop-filter: blur(6px);
+  background: rgba(35, 6, 26, 0.32);
+  backdrop-filter: blur(3px);
   animation: qbFade 0.2s ease both;
 }
 
+/* Floating island: detached from the edges, rounded, auto height */
 .mkt .qb-drawer {
   position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: min(500px, 100vw);
+  top: 16px;
+  right: 16px;
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
   z-index: 9995;
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(18px);
   color: var(--ink);
   display: flex;
   flex-direction: column;
-  box-shadow: -24px 0 60px rgba(20, 4, 14, 0.35);
-  animation: qbSlideInRight 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+  border-radius: 30px;
+  overflow: hidden;
+  border: 1px solid rgba(74, 16, 47, 0.08);
+  box-shadow:
+    0 40px 90px -24px rgba(35, 6, 26, 0.55),
+    0 12px 30px -12px rgba(35, 6, 26, 0.25);
+  animation: qbIslandIn 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: top right;
 }
 
 .mkt .qb-drawer-head {
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--line);
+  padding: 16px 16px 16px 22px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--bg);
+  background:
+    radial-gradient(80% 140% at 100% 0%, rgba(246, 168, 205, 0.35) 0%, transparent 60%),
+    linear-gradient(135deg, var(--qb-plum-2) 0%, var(--qb-plum) 55%, var(--qb-plum-deep) 100%);
+  color: #fff;
 }
 .mkt .qb-drawer-title {
   display: flex;
   align-items: center;
   gap: 10px;
   font-family: var(--display);
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 800;
+  color: #fff;
+}
+.mkt .qb-drawer-title small {
+  display: block;
+  font-family: var(--ui);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--qb-pink);
+  letter-spacing: 0.02em;
 }
 .mkt .qb-drawer-close {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border: 1px solid var(--line);
-  background: #fff;
-  color: var(--ink);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+.mkt .qb-drawer-close:hover {
+  background: rgba(255, 255, 255, 0.24);
+  transform: rotate(90deg);
 }
 
-/* Stepper inside Drawer */
+/* Empty cart state */
+.mkt .qb-cart-empty {
+  text-align: center;
+  padding: 26px 10px 10px;
+}
+.mkt .qb-cart-empty-ico {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 14px;
+  border-radius: 20px;
+  background: var(--qb-pink-soft);
+  color: var(--qb-plum);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mkt .qb-cart-empty h4 {
+  margin: 0 0 6px;
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 800;
+}
+.mkt .qb-cart-empty p {
+  margin: 0 0 18px;
+  font-size: 13.5px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.mkt .qb-line-remove {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 8px;
+  display: inline-flex;
+  transition: color 0.2s, background 0.2s;
+}
+.mkt .qb-line-remove:hover {
+  color: #dc2626;
+  background: #fef2f2;
+}
+.mkt .qb-drawer-step:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 .mkt .qb-drawer-steps {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1660,5 +1729,207 @@
   }
   .mkt .qb-sticky {
     display: flex;
+  }
+}
+
+/* ==========================================================================
+   v3 — Slogan, scroll-spy nav, floating cart island, product reel
+   ========================================================================== */
+@keyframes qbIslandIn {
+  from { opacity: 0; transform: translateY(-10px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Navbar: active section + keyboard focus in brand colors */
+.mkt.qbx .mkt-nav-links a {
+  cursor: pointer;
+}
+.mkt.qbx .mkt-nav-links a.is-active {
+  background: var(--qb-pink-soft);
+  color: var(--qb-plum);
+  box-shadow: inset 0 0 0 1px #f4c6de;
+}
+.mkt.qbx .mkt-nav-links a:focus-visible,
+.mkt.qbx .qb-cart-trigger:focus-visible {
+  outline: 2px solid var(--qb-pink);
+  outline-offset: 2px;
+}
+.mkt.qbx .mkt-logo-sub {
+  color: var(--qb-plum-2);
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-weight: 600;
+}
+.mkt .qb-cart-trigger.bump {
+  animation: qbBump 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes qbBump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+/* Slogan line used in hero and footer */
+.mkt .qb-slogan {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.mkt .qb-slogan em {
+  font-style: normal;
+  color: var(--qb-plum-2);
+}
+.mkt.qbx .foot-cta h3 em {
+  font-style: normal;
+  color: var(--qb-plum-2);
+}
+
+/* In-cart hint under pricing card button */
+.mkt .qb-incart {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #059669;
+  margin-top: 8px;
+}
+.mkt .feat-plan .qb-incart {
+  color: var(--qb-pink);
+}
+
+/* Video section: let our layouts define the height */
+.mkt.qbx .vid-shell.vid-poster-mode {
+  aspect-ratio: auto;
+}
+
+/* Product reel (real photos) shown when there is no product video file */
+.mkt .qb-reel {
+  position: relative;
+  height: 540px;
+  background: radial-gradient(90% 100% at 50% 40%, #5e163c 0%, var(--qb-plum-deep) 100%);
+  overflow: hidden;
+}
+.mkt .qb-reel img {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  max-width: 78%;
+  max-height: 80%;
+  object-fit: contain;
+  border-radius: 22px;
+  background: #fff;
+  padding: 6px;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  animation: qbReel 17.5s ease-in-out infinite;
+}
+@keyframes qbReel {
+  0% { opacity: 0; transform: scale(1.06); }
+  4% { opacity: 1; }
+  18% { opacity: 1; }
+  22% { opacity: 0; transform: scale(1); }
+  100% { opacity: 0; }
+}
+.mkt .qb-reel-top {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  right: 18px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+}
+.mkt .qb-reel-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+  padding: 6px 12px;
+  border-radius: 9999px;
+}
+.mkt .qb-reel-live i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--qb-pink);
+  animation: qbBlink 1.2s infinite;
+}
+@keyframes qbBlink {
+  50% { opacity: 0.25; }
+}
+.mkt .qb-reel-close {
+  border: none;
+  border-radius: 9999px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink);
+  cursor: pointer;
+}
+.mkt .qb-reel-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  padding: 60px 22px 20px;
+  background: linear-gradient(180deg, transparent 0%, rgba(20, 5, 14, 0.9) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  color: #fff;
+}
+.mkt .qb-reel-bottom strong {
+  font-family: var(--display);
+  font-size: 18px;
+}
+.mkt .qb-reel-bottom span {
+  display: block;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+@media (max-width: 640px) {
+  /* Cart island docks to the bottom on phones, still floating and rounded */
+  .mkt .qb-drawer {
+    top: auto;
+    right: 10px;
+    left: 10px;
+    bottom: 10px;
+    width: auto;
+    max-height: calc(100dvh - 20px);
+    border-radius: 26px;
+    transform-origin: bottom center;
+  }
+  .mkt .qb-reel {
+    height: 420px;
+  }
+  .mkt.qbx .mkt-logo-sub {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mkt .qb-pill,
+  .mkt .qb-chip,
+  .mkt .qb-reel img,
+  .mkt .qb-drawer {
+    animation: none !important;
+  }
+  .mkt .qb-reel img:first-child {
+    opacity: 1;
   }
 }

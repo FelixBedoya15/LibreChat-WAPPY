@@ -1,7 +1,7 @@
 const { z } = require('zod');
 const { Tool } = require('@langchain/core/tools');
 const { logger } = require('@librechat/data-schemas');
-const { sendEmail, createDraft } = require('~/server/services/googleGmail');
+const { sendEmail, createDraft, listEmails, readEmail } = require('~/server/services/googleGmail');
 const { getActiveCompany } = require('~/server/services/googleAuthHelper');
 
 class GoogleGmailTool extends Tool {
@@ -13,7 +13,7 @@ class GoogleGmailTool extends Tool {
     super(fields);
     this.name = 'google_gmail';
     this.description =
-      'Permite enviar correos electrónicos y crear borradores directamente desde la cuenta de Gmail (Google Workspace) conectada por el usuario. REGLA OBLIGATORIA: Si el usuario te pide enviar un documento, política, informe o matriz que acabas de crear o editar en el panel de Canvas, DEBES pasar el código HTML completo y estructurado de dicho documento en el parámetro "body", garantizando que el destinatario reciba el diseño visual completo.';
+      'Permite enviar correos electrónicos, crear borradores, buscar/listar correos y leer correos directamente desde la cuenta de Gmail (Google Workspace) conectada por el usuario. REGLA OBLIGATORIA: Si el usuario te pide enviar un documento, política, informe o matriz que acabas de crear o editar en el panel de Canvas, DEBES pasar el código HTML completo y estructurado de dicho documento en el parámetro "body", garantizando que el destinatario reciba el diseño visual completo.';
     
     this.req = fields.req;
     
@@ -21,12 +21,17 @@ class GoogleGmailTool extends Tool {
       action: z.enum([
         'send_email',
         'create_draft',
-      ]).describe('La acción a realizar en Gmail ("send_email" para enviar directamente o "create_draft" para guardar un borrador en Gmail).'),
-      to: z.string().describe('La dirección de correo electrónico del destinatario (ej. "trabajador@empresa.com").'),
-      subject: z.string().describe('El asunto del correo electrónico.'),
-      body: z.string().describe('El contenido del mensaje. REGLA CRÍTICA: Si estás enviando un documento o política del panel de Canvas, este parámetro DEBE contener todo el código HTML completo y estilizado del documento de Canvas para que el destinatario reciba la versión final diseñada.'),
+        'list_emails',
+        'read_email',
+      ]).describe('La acción a realizar en Gmail ("send_email" para enviar, "create_draft" para guardar borrador, "list_emails" para buscar y listar correos, "read_email" para leer un correo específico).'),
+      to: z.string().optional().describe('La dirección de correo electrónico del destinatario (obligatorio para "send_email" y "create_draft", ej. "trabajador@empresa.com").'),
+      subject: z.string().optional().describe('El asunto del correo electrónico (obligatorio para "send_email" y "create_draft").'),
+      body: z.string().optional().describe('El contenido del mensaje. REGLA CRÍTICA: Si estás enviando un documento o política del panel de Canvas, este parámetro DEBE contener todo el código HTML completo y estilizado del documento de Canvas para que el destinatario reciba la versión final diseñada.'),
       cc: z.string().optional().describe('Direcciones de correo en copia (CC) separadas por coma. Opcional.'),
       bcc: z.string().optional().describe('Direcciones de correo en copia oculta (BCC) separadas por coma. Opcional.'),
+      query: z.string().optional().describe('Filtro o término de búsqueda para "list_emails" (ej. "is:unread", "from:alguien@empresa.com", "subject:SST", etc.).'),
+      maxResults: z.number().optional().describe('Número máximo de correos a listar (por defecto 10, máximo 50).'),
+      messageId: z.string().optional().describe('El ID del correo específico que se desea leer detalladamente en "read_email".'),
     });
   }
 
@@ -36,7 +41,7 @@ class GoogleGmailTool extends Tool {
       throw new Error(`Validación fallida: ${JSON.stringify(validationResult.error.issues)}`);
     }
 
-    const { action, to, subject, body, cc, bcc } = validationResult.data;
+    const { action, to, subject, body, cc, bcc, query, maxResults, messageId } = validationResult.data;
     
     if (!this.req || !this.req.user) {
       throw new Error('Petición no autenticada. No se pudo obtener el contexto del usuario.');
@@ -163,6 +168,26 @@ class GoogleGmailTool extends Tool {
 
         const result = await createDraft(userId, { to, subject, body: finalBody, cc, bcc }, companyId);
         return `Borrador creado exitosamente en tu cuenta de Gmail:\n- Destinatario: ${to}\n- Asunto: "${subject}"\n- ID de borrador: ${result.id}\nPuedes revisarlo y enviarlo desde tu bandeja de salida en Gmail.`;
+      }
+
+      case 'list_emails': {
+        const result = await listEmails(userId, { query: query || '', maxResults: maxResults || 10 }, companyId);
+        if (!result || !result.messages || result.messages.length === 0) {
+          return `No se encontraron correos en tu cuenta de Gmail con el filtro de búsqueda: "${query || 'todos'}".`;
+        }
+        let summary = `Se encontraron ${result.messages.length} correos en tu cuenta de Gmail:\n\n`;
+        for (const m of result.messages) {
+          summary += `- [ID: ${m.id}] De: ${m.from || 'Desconocido'} | Asunto: "${m.subject || 'Sin asunto'}" | Fecha: ${m.date || 'Desconocida'}\n  Resumen: ${m.snippet || ''}\n\n`;
+        }
+        return summary.trim();
+      }
+
+      case 'read_email': {
+        if (!messageId) {
+          throw new Error('Se requiere el campo "messageId" para leer el contenido detallado de un correo específico.');
+        }
+        const msg = await readEmail(userId, messageId, companyId);
+        return `Detalles del correo:\n- ID: ${msg.id}\n- De: ${msg.from}\n- Para: ${msg.to}\n- Asunto: "${msg.subject}"\n- Fecha: ${msg.date}\n\nContenido:\n${msg.body || msg.snippet || 'Sin contenido de texto.'}`;
       }
 
       default:

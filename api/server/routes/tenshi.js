@@ -856,7 +856,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
             const operarGUIDeclaration = {
                 name: 'operar_interfaz_visual',
-                description: 'Operar Interfaz Visual (GUI): Permite simular clics y escrituras directamente en el navegador del usuario. Úsala cuando necesites hacer clic en un botón, escribir texto en un input, o hacer scroll en la pantalla activa del usuario.',
+                description: 'Operar Interfaz Visual (GUI): Permite simular clics y escrituras directamente en el navegador del usuario. Úsala cuando necesites hacer clic en un botón (ej: "Generar con IA", "Guardar", "Exportar", "Historial"), escribir texto en un input, o hacer scroll en la pantalla activa del usuario.',
                 parameters: {
                     type: 'OBJECT',
                     properties: {
@@ -866,7 +866,15 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         },
                         indice: {
                             type: 'NUMBER',
-                            description: 'El índice numérico del elemento interactivo obtenido de la lista del DOM (ej: 0, 1, 2...). Requerido para "click" y "escribir".'
+                            description: 'El índice numérico del elemento interactivo obtenido de la lista del DOM (ej: 0, 1, 2...). Opcional si se especifica "detalle".'
+                        },
+                        detalle: {
+                            type: 'STRING',
+                            description: 'Texto, etiqueta o nombre del botón/elemento con el que deseas interactuar (ej: "Generar con IA", "Guardar", "Historial", "Exportar a Excel"). Permite encontrar el botón semánticamente de forma segura.'
+                        },
+                        campo: {
+                            type: 'STRING',
+                            description: 'Nombre o placeholder del campo input donde escribir (opcional).'
                         },
                         texto: {
                             type: 'STRING',
@@ -1197,18 +1205,21 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
             const googleGmailDeclaration = {
                 name: 'google_gmail',
-                description: 'Envía correos electrónicos o crea borradores en Gmail desde la cuenta del usuario.',
+                description: 'Permite enviar correos electrónicos, crear borradores, buscar/listar correos y leer correos en Gmail desde la cuenta de Google Workspace conectada.',
                 parameters: {
                     type: 'OBJECT',
                     properties: {
-                        action: { type: 'STRING', description: 'send_email o create_draft' },
-                        to: { type: 'STRING', description: 'Dirección de correo electrónico del destinatario.' },
+                        action: { type: 'STRING', description: 'send_email, create_draft, list_emails o read_email' },
+                        to: { type: 'STRING', description: 'Dirección de correo electrónico del destinatario (para send_email o create_draft).' },
                         subject: { type: 'STRING', description: 'Asunto del correo electrónico.' },
                         body: { type: 'STRING', description: 'Contenido del mensaje (HTML o texto).' },
                         cc: { type: 'STRING', description: 'Correos en copia.' },
-                        bcc: { type: 'STRING', description: 'Correos en copia oculta.' }
+                        bcc: { type: 'STRING', description: 'Correos en copia oculta.' },
+                        query: { type: 'STRING', description: 'Filtro o término de búsqueda para list_emails (ej. "is:unread", "from:...", "subject:...").' },
+                        maxResults: { type: 'NUMBER', description: 'Cantidad máxima de correos a listar (opcional, default 10).' },
+                        messageId: { type: 'STRING', description: 'ID del mensaje específico a leer en read_email.' }
                     },
-                    required: ['action', 'to', 'subject', 'body']
+                    required: ['action']
                 }
             };
 
@@ -2119,9 +2130,16 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                         accion: c.args.accion,
                                         indice: c.args.indice,
                                         texto: c.args.texto,
-                                        direccion: c.args.direccion
+                                        direccion: c.args.direccion,
+                                        detalle: c.args.detalle || c.args.campo,
+                                        campo: c.args.campo
                                     }));
                                     requestedGuiAction = requestedGuiActions[0]; // fallback
+                                    toolOutput = JSON.stringify({
+                                        success: true,
+                                        message: `Acción visual programada: ${requestedGuiAction.accion}`
+                                    });
+                                    break;
                                 } else if (call.name === 'wappy_reintegrar_trabajador' || call.name === 'wappy_reactivar_trabajador') {
                                     const rawArgs = call.args || {};
                                     const target = rawArgs.idOrCedula || rawArgs.id || rawArgs.cedula || rawArgs.nombre || rawArgs.identificacion || rawArgs.target || '';

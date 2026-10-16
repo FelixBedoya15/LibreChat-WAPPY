@@ -788,6 +788,8 @@ export const WAPPY_NAV_MAP: Record<string, { route: string; sgsstModule?: string
   tenshi_admin: { route: '/tenshi/admin' },
   search: { route: '/search' },
   buscar: { route: '/search' },
+  quibi: { route: '/quibi' },
+  qb: { route: '/quibi' },
 
   // ─── PÁGINAS INSTITUCIONALES Y LEGALES ───
   privacy: { route: '/privacy' },
