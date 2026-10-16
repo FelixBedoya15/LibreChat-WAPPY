@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Check,
-  ShieldCheck,
   MessageCircle,
   ShoppingBag,
   ShoppingCart,
@@ -10,15 +9,34 @@ import {
   ArrowRight,
   ArrowLeft,
   Play,
-  CreditCard,
   Lock,
   Plus,
   Minus,
   Trash2,
-  Sparkles,
 } from 'lucide-react';
 import './marketing.css';
 import './quibi.css';
+
+// Lema oficial de marca
+const SLOGAN_A = 'Pequeños hábitos,';
+const SLOGAN_B = 'grandes cambios';
+
+// Cuando exista el video oficial del producto, poner aquí su ruta (ej. '/marketing/quibi/quibi.mp4').
+// Mientras esté vacío, la sección de video muestra un recorrido con las fotos reales del producto.
+const QUIBI_VIDEO_SRC = '';
+
+const WHATSAPP_NUMBER = '573054656064';
+const CART_STORAGE_KEY = 'quibi_cart_v1';
+
+// Navegación del encabezado → id de cada sección (todas existen en la página)
+const NAV_ITEMS = [
+  { id: 'inicio', label: 'Producto', icon: '💊', desc: 'Cápsulas blandas con relleno líquido' },
+  { id: 'componentes', label: 'Fórmula', icon: '🌿', desc: 'Activos y modo de uso' },
+  { id: 'video', label: 'Video', icon: '🎬', desc: 'Recorrido real del producto' },
+  { id: 'nutricion', label: 'Nutrición', icon: '📋', desc: 'Tabla nutricional e Invima' },
+  { id: 'precios', label: 'Packs y Precios', icon: '🛍️', desc: 'Desde $79.900 · Envío nacional' },
+  { id: 'faq', label: 'FAQ', icon: '❓', desc: 'Preguntas frecuentes' },
+];
 
 // ============================================================================
 // 5 AUTHENTIC MANUFACTURED PRODUCT SLIDES (Hero Showcase)
@@ -28,13 +46,13 @@ const SLIDES = [
     id: 'front',
     tone: 'plum',
     word: 'QUIBI',
-    kicker: 'CÁPSULAS BLANDAS CON RELLENO LÍQUIDO · INVIMA RSA-4113-2025',
+    kicker: 'QUIBI · CÁPSULAS BLANDAS CON RELLENO LÍQUIDO',
     title: (
       <>
-        El poder del <em>Vinagre de Manzana</em> sin quemar tu garganta.
+        {SLOGAN_A} <em>{SLOGAN_B}</em>.
       </>
     ),
-    sub: 'Cápsulas blandas de gelatina con centro líquido activo de vinagre de cidra y té verde. Se liberan en el estómago cuidando tu esmalte dental, con 0g de azúcar.',
+    sub: 'Vinagre de manzana y té verde en cápsulas blandas con centro líquido. Dos cápsulas al día, sin sabor ácido, sin dañar tu esmalte dental y con 0g de azúcar.',
     img: '/marketing/quibi/quibi-front.jpg',
     imgTitle: 'Envase Original QUIBI (QB) · 60 Cápsulas Blandas',
     contain: false,
@@ -65,14 +83,14 @@ const SLIDES = [
   {
     id: 'top-view',
     tone: 'rose',
-    word: 'SACIEDAD',
-    kicker: 'CONTROL DE APETITO Y DIGESTIÓN LIGERA',
+    word: 'HÁBITOS',
+    kicker: 'UN HÁBITO SIMPLE · 2 CÁPSULAS AL DÍA',
     title: (
       <>
         Perlas suaves fáciles de pasar con <em>Efecto Saciante</em>.
       </>
     ),
-    sub: 'Al tomarse con agua antes de tus comidas principales, el glucomanano se hidrata generando plenitud natural mientras los polifenoles activan la termogénesis.',
+    sub: 'Al tomarlas con agua antes de tus comidas principales, el glucomanano se hidrata generando plenitud natural mientras el té verde apoya tu metabolismo.',
     img: '/marketing/quibi/quibi-top-view.jpg',
     imgTitle: 'Detalle Superior de Cápsulas Blandas Azul Índigo',
     contain: false,
@@ -103,14 +121,14 @@ const SLIDES = [
   {
     id: 'close',
     tone: 'ink',
-    word: 'CALIDAD',
+    word: 'CAMBIOS',
     kicker: 'COMPRA DIRECTA CON ENVÍO A TODA COLOMBIA',
     title: (
       <>
-        Recibe tu tratamiento original <em>QUIBI</em> en casa.
+        Empieza hoy tu nuevo hábito con <em>QUIBI</em>.
       </>
     ),
-    sub: 'Adquiere 1, 2 o 3 frascos con descuento directo. Disponible para pago en línea seguro o pago contra entrega en efectivo al recibir tu pedido.',
+    sub: 'Elige 1, 2 o 3 frascos con descuento directo. Paga en línea de forma segura o contra entrega en efectivo al recibir tu pedido.',
     img: '/marketing/quibi/quibi-close.jpg',
     imgTitle: 'Sello de Marca Original QB en Envase',
     contain: false,
@@ -123,183 +141,201 @@ const SLIDES = [
 
 // 4 Quick Highlights under Hero Slider
 const STATS = [
-  { n: '60 Cápsulas', l: 'Relleno líquido · 30 días de uso', ico: '💊', bg: 'var(--qb-pink-soft)', c: 'var(--qb-plum)' },
-  { n: '0g Azúcar', l: 'Solo 5 kcal · Apto Keto y Ayuno', ico: '🌿', bg: '#ecfdf5', c: '#059669' },
-  { n: 'RSA-4113-2025', l: 'Autorización Sanitaria Invima', ico: '🛡️', bg: '#eff6ff', c: '#2b3a9e' },
-  { n: 'Envío Gratis', l: 'En packs de 2 y 3 frascos', ico: '🚚', bg: 'var(--qb-pink-soft)', c: 'var(--qb-plum)' },
+  { n: '60 Cápsulas', l: 'Relleno líquido · 30 días de uso', ico: '💊', bg: 'var(--qb-pink-soft)', c: 'var(--qb-plum)', target: 'componentes' },
+  { n: '0g Azúcar', l: 'Solo 5 kcal · Apto Keto y Ayuno', ico: '🌿', bg: '#ecfdf5', c: '#059669', target: 'nutricion' },
+  { n: 'RSA-4113-2025', l: 'Autorización Sanitaria Invima', ico: '🛡️', bg: '#eff6ff', c: '#2b3a9e', target: 'nutricion' },
+  { n: 'Envío Gratis', l: 'En packs de 2 y 3 frascos', ico: '🚚', bg: 'var(--qb-pink-soft)', c: 'var(--qb-plum)', target: 'precios' },
 ];
 
-// 12 Formula Components & Functional Pillars (WAPPY Tools Grid .intg .i .g)
+
+// 12 Formula Components & Functional Pillars with tailored dynamic SVGs
 const QUIBI_COMPONENTS = [
   {
-    title: 'Vinagre de Cidra de Manzana',
-    badge: 'Activo 1 · Digestión',
-    badgeBg: '#FEE2E2',
-    badgeColor: '#DC2626',
-    iconBg: '#FEF2F2',
-    iconColor: '#DC2626',
+    title: "Vinagre de Cidra de Manzana",
+    badge: "Activo 1 · Digestión",
+    badgeBg: "#FEE2E2",
+    badgeColor: "#DC2626",
+    iconBg: "#FEF2F2",
+    iconColor: "#DC2626",
     svg: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 2a4 4 0 0 0-4 4c0 1.5.8 2.8 2 3.5V11a2 2 0 0 0-2 2v1a7 7 0 0 0 14 0v-1a2 2 0 0 0-2-2V9.5c1.2-.7 2-2 2-3.5a4 4 0 0 0-4-4z" />
-        <path d="M12 11v10" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 14 5 22 8 22c1.25 0 2.5-1.06 4-1.06Z" />
+        <path d="M12 7V3c1.5 0 3 .5 3 2" />
       </svg>
     ),
   },
   {
-    title: 'Glucomanano Konjac',
-    badge: 'Activo 2 · Saciedad',
-    badgeBg: '#FEF3C7',
-    badgeColor: '#D97706',
-    iconBg: '#FFFBEB',
-    iconColor: '#D97706',
+    title: "Glucomanano Konjac",
+    badge: "Activo 2 · Saciedad",
+    badgeBg: "#FEF3C7",
+    badgeColor: "#D97706",
+    iconBg: "#FFFBEB",
+    iconColor: "#D97706",
     svg: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <polygon points="12 2 2 7 12 12 22 7 12 2" />
-        <polyline points="2 17 12 22 22 17" />
-        <polyline points="2 12 12 17 22 12" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 3v4c0 3 2 5.5 5 6.5-3 1-5 3.5-5 6.5v1h12v-1c0-3-2-5.5-5-6.5 3-1 5-3.5 5-6.5V3" />
+        <path d="M9 7h6" />
+        <path d="M9 17h6" />
+        <circle cx="12" cy="12" r="1.5" fill="currentColor" />
       </svg>
     ),
   },
   {
-    title: 'Té Verde (EGCG)',
-    badge: 'Activo 3 · Termogénesis',
-    badgeBg: '#DCFCE7',
-    badgeColor: '#16A34A',
-    iconBg: '#F0FDF4',
-    iconColor: '#16A34A',
+    title: "Té Verde (EGCG)",
+    badge: "Activo 3 · Termogénesis",
+    badgeBg: "#DCFCE7",
+    badgeColor: "#16A34A",
+    iconBg: "#F0FDF4",
+    iconColor: "#16A34A",
     svg: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
         <path d="M11 20A7 7 0 0 1 4 13C4 8 8 3 13 3c4 0 7 3 7 7 0 5-4 10-9 10z" />
-        <path d="M12 11c1.5 2 3 3.5 6 4" />
+        <path d="M11 20c0-4.5 2-8 7-9" />
+        <path d="M13 14c1.5 1 3 1.5 5 1.5" />
       </svg>
     ),
   },
   {
-    title: 'Extracto de Alcachofa',
-    badge: 'Activo 4 · Salud Hepática',
-    badgeBg: '#CCFBF1',
-    badgeColor: '#0D9488',
-    iconBg: '#F0FDFA',
-    iconColor: '#0D9488',
+    title: "Extracto de Alcachofa",
+    badge: "Activo 4 · Salud Hepática",
+    badgeBg: "#CCFBF1",
+    badgeColor: "#0D9488",
+    iconBg: "#F0FDFA",
+    iconColor: "#0D9488",
     svg: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        <circle cx="12" cy="11" r="3" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 3c-2 3-3 6-3 9 0 3.5 1.5 6 3 9 1.5-3 3-5.5 3-9 0-3-1-6-3-9z" />
+        <path d="M7 8c-1.5 2.5-2 5-2 7 0 2.5 2 4.5 4 6" />
+        <path d="M17 8c1.5 2.5 2 5 2 7 0 2.5-2 4.5-4 6" />
+        <path d="M9 12c-1.5 1-2.5 2.5-2.5 4" />
+        <path d="M15 12c1.5 1 2.5 2.5 2.5 4" />
       </svg>
     ),
   },
   {
-    title: 'Berenjena & Nasunina',
-    badge: 'Activo 5 · Drenaje Lipídico',
-    badgeBg: '#F3E8FF',
-    badgeColor: '#7E22CE',
-    iconBg: '#FAF5FF',
-    iconColor: '#7E22CE',
+    title: "Berenjena & Nasunina",
+    badge: "Activo 5 · Drenaje Lipídico",
+    badgeBg: "#F3E8FF",
+    badgeColor: "#7E22CE",
+    iconBg: "#FAF5FF",
+    iconColor: "#7E22CE",
     svg: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2c1.5 1.5 1.5 3.5 0 5-1.5-1.5-1.5-3.5 0-5z" />
+        <path d="M9 6c1 1 2 1.5 3 1.5s2-.5 3-1.5c1 1 1.5 2.5 1 4-1 3-1 6 1 9a6 6 0 0 1-10 0c2-3 2-6 1-9-.5-1.5 0-3 1-4z" />
+        <path d="M10 13c0 2 1 3.5 2 3.5s2-1.5 2-3.5" />
       </svg>
     ),
   },
   {
-    title: 'Spirulina Natural',
-    badge: 'Activo 6 · Micronutrientes',
-    badgeBg: '#E0F2FE',
-    badgeColor: '#0284C7',
-    iconBg: '#F0F9FF',
-    iconColor: '#0284C7',
+    title: "Spirulina Natural",
+    badge: "Activo 6 · Micronutrientes",
+    badgeBg: "#E0F2FE",
+    badgeColor: "#0284C7",
+    iconBg: "#F0F9FF",
+    iconColor: "#0284C7",
     svg: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <circle cx="12" cy="12" r="4" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 3a9 9 0 0 1 9 9c0 4.97-4.03 9-9 9s-9-4.03-9-9a7 7 0 0 1 7-7c3.86 0 7 3.14 7 7a5 5 0 0 1-5 5 3 3 0 0 1-3-3c0-1.1.9-2 2-2" />
+        <circle cx="12" cy="12" r="1.5" fill="currentColor" />
       </svg>
     ),
   },
   {
-    title: 'Picolinato de Cromo',
-    badge: 'Activo 7 · 40 mcg / Porción',
-    badgeBg: '#E0E7FF',
-    badgeColor: '#4338CA',
-    iconBg: '#EEF2FF',
-    iconColor: '#4338CA',
+    title: "Picolinato de Cromo",
+    badge: "Activo 7 · 40 mcg / Porción",
+    badgeBg: "#E0E7FF",
+    badgeColor: "#4338CA",
+    iconBg: "#EEF2FF",
+    iconColor: "#4338CA",
     svg: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="7" />
-        <polyline points="12 9 12 12 13.5 13.5" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="12 2 20 6.5 20 15.5 12 20 4 15.5 4 6.5" />
+        <path d="M12 7v5l3 3" />
+        <circle cx="12" cy="12" r="2" fill="currentColor" />
       </svg>
     ),
   },
   {
-    title: 'Aceite de Girasol',
-    badge: 'Activo 8 · Vehículo Lipídico',
-    badgeBg: '#FEF9C3',
-    badgeColor: '#CA8A04',
-    iconBg: '#FEFCE8',
-    iconColor: '#CA8A04',
+    title: "Aceite de Girasol",
+    badge: "Activo 8 · Vehículo Lipídico",
+    badgeBg: "#FEF9C3",
+    badgeColor: "#CA8A04",
+    iconBg: "#FEFCE8",
+    iconColor: "#CA8A04",
     svg: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="9" strokeDasharray="3 3" />
+        <path d="M12 6c-2.5 3.5-4 5.5-4 7.5a4 4 0 0 0 8 0c0-2-1.5-4-4-7.5z" />
+        <circle cx="12" cy="13.5" r="1.5" fill="currentColor" />
       </svg>
     ),
   },
   {
-    title: 'Cubierta de Gelatina Blanda',
-    badge: 'Tecnología · Softgel Índigo',
-    badgeBg: '#FCE7F3',
-    badgeColor: '#DB2777',
-    iconBg: '#FDF2F8',
-    iconColor: '#DB2777',
+    title: "Cubierta de Gelatina Blanda",
+    badge: "Tecnología · Softgel Índigo",
+    badgeBg: "#FCE7F3",
+    badgeColor: "#DB2777",
+    iconBg: "#FDF2F8",
+    iconColor: "#DB2777",
     svg: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="7" width="18" height="10" rx="5" transform="rotate(-30 12 12)" />
+        <path d="M9.5 7.5 L14.5 16.5" />
+        <circle cx="15" cy="10" r="1.5" fill="currentColor" />
       </svg>
     ),
   },
   {
-    title: 'Protección del Esmalte',
-    badge: 'Beneficio · Cero Acidez Oral',
-    badgeBg: '#D1FAE5',
-    badgeColor: '#059669',
-    iconBg: '#ECFDF5',
-    iconColor: '#059669',
+    title: "Protección del Esmalte",
+    badge: "Beneficio · Cero Acidez Oral",
+    badgeBg: "#D1FAE5",
+    badgeColor: "#059669",
+    iconBg: "#ECFDF5",
+    iconColor: "#059669",
     svg: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        <path d="m9 12 2 2 4-4" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 3c-3.5 0-7 1.5-7 6 0 4 1.5 7 2.5 10 1 3 2.5 3 3.5 1 1-2 1-5 1-5s0 3 1 5c1 2 2.5 2 3.5-1 1-3 2.5-6 2.5-10 0-4.5-3.5-6-7-6z" />
+        <path d="M8 8a2 2 0 0 1 2-2" />
+        <path d="M18 5l1.5-1.5M19.5 5L18 3.5" />
       </svg>
     ),
   },
   {
-    title: '0.7g Proteína por Cápsula',
-    badge: 'Nutrición · Sin Carbohidratos',
-    badgeBg: '#DBEAFE',
-    badgeColor: '#1D4ED8',
-    iconBg: '#EFF6FF',
-    iconColor: '#1D4ED8',
+    title: "0.7g Proteína por Cápsula",
+    badge: "Nutrición · Sin Carbohidratos",
+    badgeBg: "#DBEAFE",
+    badgeColor: "#1D4ED8",
+    iconBg: "#EFF6FF",
+    iconColor: "#1D4ED8",
     svg: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M18 8h1a4 4 0 0 1 0 8h-1" />
-        <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 6c4 0 4 6 8 6s4-6 8-6" />
+        <path d="M4 18c4 0 4-6 8-6s4 6 8 6" />
+        <line x1="8" y1="6" x2="8" y2="18" />
+        <line x1="16" y1="6" x2="16" y2="18" />
+        <circle cx="12" cy="12" r="2" fill="currentColor" />
       </svg>
     ),
   },
   {
-    title: 'Calidad Certificada BPM',
-    badge: 'Garantía · Lote Controlado',
-    badgeBg: '#F1F5F9',
-    badgeColor: '#475569',
-    iconBg: '#F8FAFC',
-    iconColor: '#475569',
+    title: "Calidad Certificada BPM",
+    badge: "Garantía · Lote Controlado",
+    badgeBg: "#F1F5F9",
+    badgeColor: "#475569",
+    iconBg: "#F8FAFC",
+    iconColor: "#475569",
     svg: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="9" r="6" />
+        <path d="m9 9 2 2 4-4" />
+        <path d="M8.5 14.5 6 21l6-2.5L18 21l-2.5-6.5" />
       </svg>
     ),
   },
 ];
 
-// Commercial Packages (Ready for Cart & Payment Gateway)
+// Commercial Packages
 export interface QuibiPackage {
   id: string;
   sku: string;
@@ -324,113 +360,156 @@ export interface QuibiPackage {
 
 const PACKAGES: QuibiPackage[] = [
   {
-    id: '1-frasco',
-    sku: 'QB-PACK-01',
-    title: 'Tratamiento 1 Mes',
-    shortTitle: '1 Frasco (60 Cáps.)',
+    id: "1-frasco",
+    sku: "QB-PACK-01",
+    title: "Tratamiento 1 Mes",
+    shortTitle: "1 Frasco (60 Cáps.)",
     bottles: 1,
     capsules: 60,
-    duration: '1 Frasco · 60 Cápsulas (30 Días)',
+    duration: "1 Frasco · 60 Cápsulas (30 Días)",
     priceNum: 79900,
     originalPriceNum: 95000,
-    price: '$79.900',
-    originalPrice: '$95.000',
-    unitPriceLabel: '$79.900 por frasco',
-    discount: 'AHORRAS 15%',
+    price: "$79.900",
+    originalPrice: "$95.000",
+    unitPriceLabel: "$79.900 por frasco",
+    discount: "AHORRAS 15%",
     freeShipping: false,
-    shippingLabel: '+ Envío nacional ($12.000)',
+    shippingLabel: "+ Envío nacional ($12.000)",
     featured: false,
-    img: '/marketing/quibi/quibi-front.jpg',
+    img: "/marketing/quibi/quibi-front.jpg",
     perks: [
-      '1 Frasco original QB (60 cápsulas blandas con relleno líquido)',
-      'Suministro completo para 30 días (2 cápsulas al día)',
-      '0g Azúcar Añadido · Registro Invima RSA-4113-2025',
-      'Pago en Línea (PSE / Tarjetas / Nequi) o Contra Entrega',
+      "1 Frasco original QB (60 cápsulas blandas con relleno líquido)",
+      "Suministro completo para 30 días (2 cápsulas al día)",
+      "0g Azúcar Añadido · Registro Invima RSA-4113-2025",
+      "Pago en Línea (PSE / Tarjetas / Nequi) o Contra Entrega",
     ],
-    badge: 'INICIAL · 30 DÍAS',
+    badge: "INICIAL · 30 DÍAS",
   },
   {
-    id: '2-frascos',
-    sku: 'QB-PACK-02',
-    title: 'Pack Transformación · 2 Meses',
-    shortTitle: '2 Frascos (120 Cáps.)',
+    id: "2-frascos",
+    sku: "QB-PACK-02",
+    title: "Pack Transformación · 2 Meses",
+    shortTitle: "2 Frascos (120 Cáps.)",
     bottles: 2,
     capsules: 120,
-    duration: '2 Frascos · 120 Cápsulas (60 Días)',
+    duration: "2 Frascos · 120 Cápsulas (60 Días)",
     priceNum: 139900,
     originalPriceNum: 190000,
-    price: '$139.900',
-    originalPrice: '$190.000',
-    unitPriceLabel: '$69.950 por frasco',
-    discount: 'AHORRAS $50.100 (26% OFF)',
+    price: "$139.900",
+    originalPrice: "$190.000",
+    unitPriceLabel: "$69.950 por frasco",
+    discount: "AHORRAS $50.100 (26% OFF)",
     freeShipping: true,
-    shippingLabel: '¡ENVÍO GRATIS A TODA COLOMBIA!',
+    shippingLabel: "¡ENVÍO GRATIS A TODA COLOMBIA!",
     featured: true,
-    img: '/marketing/quibi/quibi-3-bottles.jpg',
+    img: "/marketing/quibi/quibi-3-bottles.jpg",
     perks: [
-      '2 Frascos originales QB (120 cápsulas con relleno líquido)',
-      'ENVÍO GRATIS a cualquier ciudad o municipio de Colombia',
-      'Te sale a solo $69.950 cada frasco (Ahorras $50.100)',
-      'Pago en Línea o Contra Entrega en efectivo al recibir',
-      'Guía nutricional y acompañamiento por WhatsApp',
+      "2 Frascos originales QB (120 cápsulas con relleno líquido)",
+      "ENVÍO GRATIS a cualquier ciudad o municipio de Colombia",
+      "Te sale a solo $69.950 cada frasco (Ahorras $50.100)",
+      "Pago en Línea o Contra Entrega en efectivo al recibir",
+      "Guía nutricional y acompañamiento por WhatsApp",
     ],
-    badge: 'MÁS VENDIDO · ENVÍO GRATIS',
+    badge: "MÁS VENDIDO · ENVÍO GRATIS",
   },
   {
-    id: '3-frascos',
-    sku: 'QB-PACK-03',
-    title: 'Pack Integral · 3 Meses',
-    shortTitle: '3 Frascos (180 Cáps.)',
+    id: "3-frascos",
+    sku: "QB-PACK-03",
+    title: "Pack Integral · 3 Meses",
+    shortTitle: "3 Frascos (180 Cáps.)",
     bottles: 3,
     capsules: 180,
-    duration: '3 Frascos · 180 Cápsulas (90 Días)',
+    duration: "3 Frascos · 180 Cápsulas (90 Días)",
     priceNum: 189900,
     originalPriceNum: 285000,
-    price: '$189.900',
-    originalPrice: '$285.000',
-    unitPriceLabel: '$63.300 por frasco',
-    discount: 'AHORRAS $95.100 (33% OFF)',
+    price: "$189.900",
+    originalPrice: "$285.000",
+    unitPriceLabel: "$63.300 por frasco",
+    discount: "AHORRAS $95.100 (33% OFF)",
     freeShipping: true,
-    shippingLabel: '¡ENVÍO GRATIS PRIORITARIO!',
+    shippingLabel: "¡ENVÍO GRATIS PRIORITARIO!",
     featured: false,
-    img: '/marketing/quibi/quibi-3-bottles.jpg',
+    img: "/marketing/quibi/quibi-3-bottles.jpg",
     perks: [
-      '3 Frascos originales QB (180 cápsulas con relleno líquido)',
-      'ENVÍO GRATIS prioritario asegurado a nivel nacional',
-      'El mejor precio por unidad: $63.300 cada frasco',
-      'Ideal para tratamiento completo de 90 días o en pareja',
-      'Pago en Línea (PSE / Tarjetas) o Contra Entrega',
+      "3 Frascos originales QB (180 cápsulas con relleno líquido)",
+      "ENVÍO GRATIS prioritario asegurado a nivel nacional",
+      "El mejor precio por unidad: $63.300 cada frasco",
+      "Ideal para tratamiento completo de 90 días o en pareja",
+      "Pago en Línea (PSE / Tarjetas) o Contra Entrega",
     ],
-    badge: 'MEJOR PRECIO POR FRASCO',
+    badge: "MEJOR PRECIO POR FRASCO",
   },
 ];
 
-// Focused, Non-Redundant FAQs
+// Focused FAQs
 const FAQS = [
   {
-    q: '¿Son cápsulas o gomitas?',
-    a: 'Son CÁPSULAS BLANDAS de gelatina con RELLENO LÍQUIDO activo (softgels). No son gomas masticables ni contienen azúcar. Se tragan enteras con un vaso de agua para liberar el vinagre de manzana y el té verde directamente en el estómago sin tocar el esmalte dental.',
+    q: "¿Son cápsulas o gomitas?",
+    a: "Son CÁPSULAS BLANDAS de gelatina con RELLENO LÍQUIDO activo (softgels). No son gomas masticables ni contienen azúcar. Se tragan enteras con un vaso de agua para liberar el vinagre de manzana y el té verde directamente en el estómago sin tocar el esmalte dental.",
   },
   {
-    q: '¿Cómo se toman para obtener mejores resultados?',
-    a: 'Toma 2 cápsulas al día: 1 cápsula 20 a 30 minutos antes del almuerzo y 1 cápsula antes de la cena, siempre acompañadas de un vaso lleno de agua (250 ml) para activar la fibra del glucomanano.',
+    q: "¿Cómo se toman para obtener mejores resultados?",
+    a: "Toma 2 cápsulas al día: 1 cápsula 20 a 30 minutos antes del almuerzo y 1 cápsula antes de la cena, siempre acompañadas de un vaso lleno de agua (250 ml) para activar la fibra del glucomanano.",
   },
   {
-    q: '¿Qué métodos de pago aceptan y cuánto tarda el envío?',
-    a: 'Puedes pagar en línea con tarjeta de crédito, débito, PSE, Nequi o Daviplata, o elegir Pago Contra Entrega para pagar en efectivo cuando recibas el paquete en tu puerta. El envío tarda de 1 a 3 días hábiles en ciudades principales.',
+    q: "¿Qué métodos de pago aceptan y cuánto tarda el envío?",
+    a: "Puedes pagar en línea con tarjeta de crédito, débito, PSE, Nequi o Daviplata, o elegir Pago Contra Entrega para pagar en efectivo cuando recibas el paquete en tu puerta. El envío tarda de 1 a 3 días hábiles en ciudades principales.",
   },
   {
-    q: '¿Tienen contraindicaciones o rompen el ayuno?',
-    a: 'Aportan 0g de azúcares añadidos y solo 5 calorías por cápsula, siendo aptas para dietas bajas en carbohidratos o keto. Como todo suplemento alimenticio, si estás en embarazo, lactancia o tienes una condición médica específica, consulta a tu médico.',
+    q: "¿Tienen contraindicaciones o rompen el ayuno?",
+    a: "Aportan 0g de azúcares añadidos y solo 5 calorías por cápsula, siendo aptas para dietas bajas en carbohidratos o keto. Como todo suplemento alimenticio, si estás en embarazo, lactancia o tienes una condición médica específica, consulta a tu médico.",
   },
 ];
 
 const formatCOP = (val: number) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(val);
 
+type CartLine = { packId: string; qty: number };
+type PaymentMethod = 'online_card_pse' | 'online_nequi' | 'cod';
+
+const PAYMENT_LABELS: Record<PaymentMethod, string> = {
+  online_card_pse: 'Pago en Línea (Tarjeta / PSE)',
+  online_nequi: 'Pago en Línea (Nequi / Daviplata)',
+  cod: 'Pago Contra Entrega (Efectivo al recibir)',
+};
+
+const FREE_SHIPPING_THRESHOLD = 130000;
+const SHIPPING_COST = 12000;
+
+const loadCart = (): CartLine[] => {
+  try {
+    const raw = window.localStorage.getItem(CART_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (l: CartLine) => l && PACKAGES.some((p) => p.id === l.packId) && Number(l.qty) > 0,
+    );
+  } catch {
+    return [];
+  }
+};
+
+// Scroll robusto: en este proyecto el contenedor que hace scroll puede ser <body>
+// (html/body tienen overflow-x: hidden), por eso window.scrollTo no siempre funciona.
+// scrollIntoView respeta el scroll-margin-top de .mkt [id] y funciona en ambos casos.
+const scrollToId = (id: string) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  try {
+    window.history.replaceState(null, '', `#${id}`);
+  } catch {
+    // ignore
+  }
+};
+
+const getScrollTop = () =>
+  Math.max(window.scrollY || 0, document.documentElement.scrollTop || 0, document.body.scrollTop || 0);
+
 export default function QuibiPage() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState('inicio');
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
@@ -438,25 +517,50 @@ export default function QuibiPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   // ==========================================================================
-  // SHOPPING CART & CHECKOUT GATEWAY STATE
-  // Ready to plug into Wompi / MercadoPago / Bold / Stripe checkout API
+  // CARRITO (persistente en localStorage) + CHECKOUT
+  // Listo para conectar con Wompi / MercadoPago / Bold en handleCheckoutSubmit
   // ==========================================================================
-  const [selectedPackId, setSelectedPackId] = useState<string>('2-frascos');
-  const [cartQty, setCartQty] = useState<number>(1);
-  const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
+  const [cart, setCart] = useState<CartLine[]>(loadCart);
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const [drawerTab, setDrawerTab] = useState<'cart' | 'checkout' | 'success'>('cart');
+  const [cartBump, setCartBump] = useState(false);
+  const bumpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Checkout Customer & Gateway Form State
   const [clientName, setClientName] = useState('');
   const [clientDoc, setClientDoc] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [clientEmail, setClientEmail] = useState('');
   const [clientCity, setClientCity] = useState('');
   const [clientAddress, setClientAddress] = useState('');
-  const [paymentGatewayMethod, setPaymentGatewayMethod] = useState<'online_card_pse' | 'online_nequi' | 'cod'>('online_card_pse');
-  const [orderReference, setOrderReference] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('online_card_pse');
+  const [lastOrder, setLastOrder] = useState<{
+    reference: string;
+    lines: { title: string; qty: number; bottles: number; capsules: number; subtotal: number }[];
+    subtotal: number;
+    shipping: number;
+    total: number;
+    method: PaymentMethod;
+  } | null>(null);
 
-  // Auto-rotate hero slider every 6.5 seconds
+  // Título de pestaña con el lema
+  useEffect(() => {
+    const prev = document.title;
+    document.title = `QUIBI · ${SLOGAN_A} ${SLOGAN_B}`;
+    return () => {
+      document.title = prev;
+    };
+  }, []);
+
+  // Persistir carrito
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+    } catch {
+      // ignore
+    }
+  }, [cart]);
+
+  // Slider automático
   useEffect(() => {
     if (isPaused) return;
     const timer = setInterval(() => {
@@ -465,169 +569,246 @@ export default function QuibiPage() {
     return () => clearInterval(timer);
   }, [isPaused]);
 
+  // Navbar "scrolled" — escucha scroll en window y en body (captura)
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 40);
+    const onScroll = () => setIsScrolled(getScrollTop() > 40);
+    onScroll();
+    document.addEventListener('scroll', onScroll, { passive: true, capture: true });
+    return () => document.removeEventListener('scroll', onScroll, { capture: true } as EventListenerOptions);
+  }, []);
+
+  // Scroll-spy: resalta en el menú la sección visible
+  useEffect(() => {
+    const sections = NAV_ITEMS.map((n) => document.getElementById(n.id)).filter(Boolean) as HTMLElement[];
+    if (!sections.length || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) setActiveSection(entry.target.id);
+        });
+      },
+      { rootMargin: '-45% 0px -50% 0px', threshold: 0 },
+    );
+    sections.forEach((s) => observer.observe(s));
+    return () => observer.disconnect();
+  }, []);
+
+  // Si llegan con #seccion en la URL, ir a ella
+  useEffect(() => {
+    const hash = window.location.hash.replace('#', '');
+    if (hash && NAV_ITEMS.some((n) => n.id === hash)) {
+      const t = setTimeout(() => scrollToId(hash), 350);
+      return () => clearTimeout(t);
+    }
+  }, []);
+
+  // ESC cierra carrito / lightbox / menú
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setLightboxImg(null);
+      setIsCartOpen(false);
+      setIsMobileMenuOpen(false);
     };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  useEffect(() => () => {
+    if (bumpTimer.current) clearTimeout(bumpTimer.current);
+  }, []);
+
+  const goTo = useCallback((e: React.MouseEvent | null, id: string) => {
+    if (e) e.preventDefault();
+    setIsMobileMenuOpen(false);
+    setActiveSection(id);
+    scrollToId(id);
   }, []);
 
   const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % SLIDES.length);
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + SLIDES.length) % SLIDES.length);
 
-  const scrollToSection = (e: React.MouseEvent | null, id: string) => {
-    if (e) e.preventDefault();
-    setIsMobileMenuOpen(false);
-    const el = document.getElementById(id);
-    if (el) {
-      const navOffset = 85;
-      const bodyRect = document.body.getBoundingClientRect().top;
-      const elementRect = el.getBoundingClientRect().top;
-      const offsetPosition = elementRect - bodyRect - navOffset;
-      window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
-    }
-  };
-
-  // Cart Calculations
-  const currentPack = PACKAGES.find((p) => p.id === selectedPackId) || PACKAGES[1];
-  const subtotalOriginal = currentPack.originalPriceNum * cartQty;
-  const subtotalSale = currentPack.priceNum * cartQty;
+  // ---------- Cálculos del carrito ----------
+  const cartLines = useMemo(
+    () =>
+      cart
+        .map((l) => ({ ...l, pack: PACKAGES.find((p) => p.id === l.packId) as QuibiPackage }))
+        .filter((l) => Boolean(l.pack)),
+    [cart],
+  );
+  const cartCount = cartLines.reduce((acc, l) => acc + l.pack.bottles * l.qty, 0);
+  const subtotalSale = cartLines.reduce((acc, l) => acc + l.pack.priceNum * l.qty, 0);
+  const subtotalOriginal = cartLines.reduce((acc, l) => acc + l.pack.originalPriceNum * l.qty, 0);
   const totalSavings = subtotalOriginal - subtotalSale;
-  const qualifiesFreeShipping = currentPack.freeShipping || subtotalSale >= 130000;
-  const shippingCost = qualifiesFreeShipping ? 0 : 12000;
+  const isEmpty = cartLines.length === 0;
+  const qualifiesFreeShipping =
+    !isEmpty && (cartLines.some((l) => l.pack.freeShipping) || subtotalSale >= FREE_SHIPPING_THRESHOLD);
+  const shippingCost = isEmpty || qualifiesFreeShipping ? 0 : SHIPPING_COST;
   const finalTotal = subtotalSale + shippingCost;
-  const totalBottlesInCart = currentPack.bottles * cartQty;
+  const onlySinglePack = !isEmpty && cartLines.every((l) => l.packId === '1-frasco');
+  const qtyInCart = (packId: string) => cart.find((l) => l.packId === packId)?.qty || 0;
 
-  const handleAddToCart = (packId: string, goDirectToCheckout = false) => {
-    setSelectedPackId(packId);
-    setCartQty(1);
-    setDrawerTab(goDirectToCheckout ? 'checkout' : 'cart');
+  const openCart = (tab: 'cart' | 'checkout' = 'cart') => {
+    setIsMobileMenuOpen(false);
+    setDrawerTab(tab);
     setIsCartOpen(true);
   };
 
-  // Handler ready to connect to Payment Gateway (Wompi / MercadoPago / Bold)
+  const addToCart = (packId: string) => {
+    setCart((prev) => {
+      const exists = prev.find((l) => l.packId === packId);
+      if (exists) return prev.map((l) => (l.packId === packId ? { ...l, qty: l.qty + 1 } : l));
+      return [...prev, { packId, qty: 1 }];
+    });
+    setCartBump(true);
+    if (bumpTimer.current) clearTimeout(bumpTimer.current);
+    bumpTimer.current = setTimeout(() => setCartBump(false), 500);
+    openCart('cart');
+  };
+
+  const changeQty = (packId: string, delta: number) => {
+    setCart((prev) =>
+      prev
+        .map((l) => (l.packId === packId ? { ...l, qty: l.qty + delta } : l))
+        .filter((l) => l.qty > 0),
+    );
+  };
+
+  const removeLine = (packId: string) => setCart((prev) => prev.filter((l) => l.packId !== packId));
+
+  const upgradeToPack2 = () => {
+    setCart((prev) => {
+      const singles = prev.find((l) => l.packId === '1-frasco')?.qty || 0;
+      const rest = prev.filter((l) => l.packId !== '1-frasco');
+      const pack2 = rest.find((l) => l.packId === '2-frascos');
+      const qty = Math.max(1, Math.ceil(singles / 2));
+      if (pack2) return rest.map((l) => (l.packId === '2-frascos' ? { ...l, qty: l.qty + qty } : l));
+      return [...rest, { packId: '2-frascos', qty }];
+    });
+  };
+
+  // ---------- Checkout (punto de conexión con la pasarela) ----------
   const handleCheckoutSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isEmpty) {
+      setDrawerTab('cart');
+      return;
+    }
     if (!clientName.trim() || !clientPhone.trim() || !clientCity.trim() || !clientAddress.trim()) {
       alert('Por favor completa los datos de entrega para procesar tu orden.');
       return;
     }
 
-    const refCode = `QB-${Math.floor(100000 + Math.random() * 900000)}`;
-    setOrderReference(refCode);
+    const reference = `QB-${Date.now().toString().slice(-6)}`;
+    const order = {
+      reference,
+      lines: cartLines.map((l) => ({
+        title: l.pack.title,
+        qty: l.qty,
+        bottles: l.pack.bottles * l.qty,
+        capsules: l.pack.capsules * l.qty,
+        subtotal: l.pack.priceNum * l.qty,
+      })),
+      subtotal: subtotalSale,
+      shipping: shippingCost,
+      total: finalTotal,
+      method: paymentMethod,
+    };
 
-    // Payload structured for future payment gateway webhook / session creation
+    // TODO(pasarela): crear la transacción en el backend con este payload
+    // (amountInCents, reference, customer) y redirigir al checkout de Wompi / MercadoPago / Bold.
     const checkoutPayload = {
-      reference: refCode,
-      sku: currentPack.sku,
-      packTitle: currentPack.title,
-      quantity: cartQty,
-      totalBottles: totalBottlesInCart,
+      ...order,
       amountInCents: finalTotal * 100,
       currency: 'COP',
-      paymentMethod: paymentGatewayMethod,
+      items: cartLines.map((l) => ({ sku: l.pack.sku, qty: l.qty, unitPrice: l.pack.priceNum })),
       customer: {
-        name: clientName,
-        document: clientDoc,
-        phone: clientPhone,
-        email: clientEmail,
-        city: clientCity,
-        address: clientAddress,
+        name: clientName.trim(),
+        document: clientDoc.trim(),
+        phone: clientPhone.trim(),
+        email: clientEmail.trim(),
+        city: clientCity.trim(),
+        address: clientAddress.trim(),
       },
     };
-    console.info('[QUIBI Checkout Ready Payload]:', checkoutPayload);
+    console.info('[QUIBI checkout payload]', checkoutPayload);
 
+    setLastOrder(order);
+    setCart([]);
     setDrawerTab('success');
   };
 
-  const handleConfirmOrderOnWhatsApp = () => {
-    const methodLabel =
-      paymentGatewayMethod === 'online_card_pse'
-        ? 'Pago en Línea (Tarjeta / PSE)'
-        : paymentGatewayMethod === 'online_nequi'
-        ? 'Pago en Línea (Nequi / Daviplata)'
-        : 'Pago Contra Entrega (Efectivo al recibir)';
-
+  const confirmOrderOnWhatsApp = () => {
+    if (!lastOrder) return;
+    const lines = lastOrder.lines
+      .map((l) => `• ${l.title} x${l.qty} (${l.bottles} frascos / ${l.capsules} cápsulas) — ${formatCOP(l.subtotal)}`)
+      .join('\n');
     const msg =
-      `*ORDEN DE COMPRA QUIBI #${orderReference || 'QB-WEB'}*\n\n` +
-      `📦 *Producto:* ${currentPack.title} (x${cartQty} — ${totalBottlesInCart} frascos / ${currentPack.capsules * cartQty} cápsulas)\n` +
-      `💰 *Subtotal:* ${formatCOP(subtotalSale)}\n` +
-      `🚚 *Envío:* ${shippingCost === 0 ? 'GRATIS' : formatCOP(shippingCost)}\n` +
-      `💵 *TOTAL A PAGAR:* *${formatCOP(finalTotal)}*\n` +
-      `💳 *Método elegido:* ${methodLabel}\n\n` +
-      `👤 *Datos de Envío:*\n` +
+      `*ORDEN QUIBI #${lastOrder.reference}*\n\n` +
+      `📦 *Productos:*\n${lines}\n\n` +
+      `💰 Subtotal: ${formatCOP(lastOrder.subtotal)}\n` +
+      `🚚 Envío: ${lastOrder.shipping === 0 ? 'GRATIS' : formatCOP(lastOrder.shipping)}\n` +
+      `💵 *TOTAL: ${formatCOP(lastOrder.total)}*\n` +
+      `💳 Método: ${PAYMENT_LABELS[lastOrder.method]}\n\n` +
+      `👤 *Datos de envío:*\n` +
       `• Nombre: ${clientName}\n` +
       (clientDoc ? `• Cédula/NIT: ${clientDoc}\n` : '') +
       `• Teléfono: ${clientPhone}\n` +
+      (clientEmail ? `• Correo: ${clientEmail}\n` : '') +
       `• Ciudad: ${clientCity}\n` +
-      `• Dirección: ${clientAddress}\n`;
-
-    window.open(`https://wa.me/573054656064?text=${encodeURIComponent(msg)}`, '_blank');
+      `• Dirección: ${clientAddress}`;
+    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
   };
 
   const activeSlideData = SLIDES[currentSlide];
 
   return (
     <div className="mkt qbx">
-      {/* Mobile Menu Backdrop */}
       {isMobileMenuOpen && (
-        <div
-          className="mkt-mobile-menu-backdrop"
-          onClick={() => setIsMobileMenuOpen(false)}
-          aria-hidden="true"
-        />
+        <div className="mkt-mobile-menu-backdrop" onClick={() => setIsMobileMenuOpen(false)} aria-hidden="true" />
       )}
 
       {/* =====================================================================
-          FLOATING CAPSULE NAVBAR (Clean, No Cluttered Subtitles + Cart Trigger)
+          NAVBAR (logo + lema · enlaces con scroll-spy · carrito)
           ===================================================================== */}
       <nav className="mkt-nav" aria-label="Navegación principal">
         <div className={`mkt-nav-inner ${isScrolled ? 'scrolled' : ''}`}>
-          <a
-            className="mkt-nav-logo"
-            aria-label="QUIBI"
-            href="#inicio"
-            onClick={(e) => scrollToSection(e, 'inicio')}
-          >
+          <a className="mkt-nav-logo" aria-label="QUIBI — Inicio" href="#inicio" onClick={(e) => goTo(e, 'inicio')}>
             <div className="qb-logo-badge">QB</div>
             <div className="mkt-logo-text">
               <span className="mkt-logo-title">
                 QUIBI<span style={{ color: 'var(--qb-plum-2)' }}>.co</span>
               </span>
+              <span className="mkt-logo-sub">
+                {SLOGAN_A} {SLOGAN_B}
+              </span>
             </div>
           </a>
 
           <div className="mkt-nav-links">
-            <a href="#inicio" onClick={(e) => scrollToSection(e, 'inicio')}>Producto</a>
-            <a href="#componentes" onClick={(e) => scrollToSection(e, 'componentes')}>Fórmula</a>
-            <a href="#video" onClick={(e) => scrollToSection(e, 'video')}>Video</a>
-            <a href="#nutricion" onClick={(e) => scrollToSection(e, 'nutricion')}>Tabla Nutricional</a>
-            <a href="#precios" onClick={(e) => scrollToSection(e, 'precios')}>Packs y Precios</a>
-            <a href="#faq" onClick={(e) => scrollToSection(e, 'faq')}>FAQ</a>
+            {NAV_ITEMS.map((item) => (
+              <a
+                key={item.id}
+                href={`#${item.id}`}
+                className={activeSection === item.id ? 'is-active' : ''}
+                aria-current={activeSection === item.id ? 'true' : undefined}
+                onClick={(e) => goTo(e, item.id)}
+              >
+                {item.label}
+              </a>
+            ))}
           </div>
 
           <div className="mkt-nav-cta">
             <button
               type="button"
-              className="qb-cart-trigger"
-              onClick={() => {
-                setDrawerTab('cart');
-                setIsCartOpen(true);
-              }}
-              aria-label="Abrir carrito de compras"
+              className={`qb-cart-trigger ${cartBump ? 'bump' : ''}`}
+              onClick={() => openCart('cart')}
+              aria-label={`Abrir carrito (${cartCount} frascos)`}
             >
               <ShoppingCart className="w-4 h-4" />
               <span>Carrito</span>
-              <span className="qb-cart-badge">{totalBottlesInCart}</span>
-            </button>
-
-            <button
-              type="button"
-              className="btn btn-lime btn-sm"
-              onClick={() => scrollToSection(null, 'precios')}
-            >
-              Comprar Ahora
+              <span className="qb-cart-badge">{cartCount}</span>
             </button>
 
             <button
@@ -643,38 +824,18 @@ export default function QuibiPage() {
           </div>
         </div>
 
-        {/* Mobile Menu Drawer */}
         {isMobileMenuOpen && (
           <div className="mkt-mobile-menu-drawer">
             <div className="mkt-mobile-menu-links">
-              <button type="button" className="mkt-mobile-link" onClick={() => scrollToSection(null, 'inicio')}>
-                <span className="mkt-mobile-link-icon">💊</span>
-                <div className="mkt-mobile-link-info">
-                  <span className="mkt-mobile-link-title">Producto</span>
-                  <span className="mkt-mobile-link-desc">Cápsulas blandas con relleno líquido</span>
-                </div>
-              </button>
-              <button type="button" className="mkt-mobile-link" onClick={() => scrollToSection(null, 'componentes')}>
-                <span className="mkt-mobile-link-icon">🌿</span>
-                <div className="mkt-mobile-link-info">
-                  <span className="mkt-mobile-link-title">Fórmula y Componentes</span>
-                  <span className="mkt-mobile-link-desc">Vinagre de manzana, Té verde, Glucomanano y Cromo</span>
-                </div>
-              </button>
-              <button type="button" className="mkt-mobile-link" onClick={() => scrollToSection(null, 'nutricion')}>
-                <span className="mkt-mobile-link-icon">📋</span>
-                <div className="mkt-mobile-link-info">
-                  <span className="mkt-mobile-link-title">Tabla Nutricional & Invima</span>
-                  <span className="mkt-mobile-link-desc">Registro Invima RSA-4113-2025 · 0g Azúcar</span>
-                </div>
-              </button>
-              <button type="button" className="mkt-mobile-link" onClick={() => scrollToSection(null, 'precios')}>
-                <span className="mkt-mobile-link-icon">🛍️</span>
-                <div className="mkt-mobile-link-info">
-                  <span className="mkt-mobile-link-title">Packs y Precios</span>
-                  <span className="mkt-mobile-link-desc">Desde $79.900 con envío a toda Colombia</span>
-                </div>
-              </button>
+              {NAV_ITEMS.map((item) => (
+                <button key={item.id} type="button" className="mkt-mobile-link" onClick={() => goTo(null, item.id)}>
+                  <span className="mkt-mobile-link-icon">{item.icon}</span>
+                  <div className="mkt-mobile-link-info">
+                    <span className="mkt-mobile-link-title">{item.label}</span>
+                    <span className="mkt-mobile-link-desc">{item.desc}</span>
+                  </div>
+                </button>
+              ))}
             </div>
             <div className="mkt-mobile-menu-divider" />
             <div className="mkt-mobile-menu-actions">
@@ -682,14 +843,10 @@ export default function QuibiPage() {
                 type="button"
                 className="btn btn-primary"
                 style={{ width: '100%', justifyContent: 'center' }}
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  setDrawerTab('cart');
-                  setIsCartOpen(true);
-                }}
+                onClick={() => openCart('cart')}
               >
                 <ShoppingCart className="w-4 h-4" />
-                Ver Carrito y Pagar ({formatCOP(finalTotal)})
+                Ver carrito ({cartCount})
               </button>
             </div>
           </div>
@@ -697,7 +854,7 @@ export default function QuibiPage() {
       </nav>
 
       {/* =====================================================================
-          SECTION 1: HERO SLIDER + DIRECT PRODUCT SHOWCASE (#inicio)
+          1. HERO SLIDER (#inicio)
           ===================================================================== */}
       <header id="inicio" className="qb-hero">
         <div className="wrap">
@@ -716,21 +873,20 @@ export default function QuibiPage() {
                   aria-hidden={!isActive}
                 >
                   <div className="qb-slide-word">{slide.word}</div>
-
-                  {/* Decorative Floating Softgels */}
                   <div className="qb-pill" style={{ top: '12%', right: '47%', transform: 'rotate(-18deg)' }} />
                   <div className="qb-pill" style={{ bottom: '18%', left: '44%', transform: 'rotate(24deg)', animationDelay: '-3s' }} />
 
-                  {/* Left Copy & Direct Buy Actions */}
                   <div className="qb-slide-copy">
                     <div className="qb-kicker qb-in" style={{ '--d': '0.05s' } as React.CSSProperties}>
                       <span className="dot" />
                       <span>{slide.kicker}</span>
                     </div>
 
-                    <h1 className="qb-in" style={{ '--d': '0.12s' } as React.CSSProperties}>
-                      {slide.title}
-                    </h1>
+                    {index === 0 ? (
+                      <h1 className="qb-in" style={{ '--d': '0.12s' } as React.CSSProperties}>{slide.title}</h1>
+                    ) : (
+                      <h2 className="qb-in" style={{ '--d': '0.12s' } as React.CSSProperties}>{slide.title}</h2>
+                    )}
 
                     <p className="qb-slide-sub qb-in" style={{ '--d': '0.2s' } as React.CSSProperties}>
                       {slide.sub}
@@ -741,8 +897,7 @@ export default function QuibiPage() {
                         <span style={{ fontSize: 11, fontWeight: 700, opacity: 0.8, display: 'block' }}>
                           FRASCO X 60 CÁPSULAS
                         </span>
-                        <span className="now">$79.900</span>{' '}
-                        <span className="old">$95.000</span>
+                        <span className="now">$79.900</span> <span className="old">$95.000</span>
                       </div>
                       <span className="tag">o $69.950 c/u en Pack x2</span>
                     </div>
@@ -751,35 +906,34 @@ export default function QuibiPage() {
                       <button
                         type="button"
                         className="btn btn-lime"
-                        onClick={() => handleAddToCart('2-frascos', false)}
+                        tabIndex={isActive ? 0 : -1}
+                        onClick={() => addToCart('1-frasco')}
                       >
                         <ShoppingBag className="w-4 h-4" />
                         Agregar al Carrito
                       </button>
-
-                      <button
-                        type="button"
+                      <a
+                        href="#precios"
                         className="btn btn-glass"
-                        onClick={() => scrollToSection(null, 'precios')}
+                        tabIndex={isActive ? 0 : -1}
+                        onClick={(e) => goTo(e, 'precios')}
                       >
                         Ver los 3 Packs
                         <ArrowRight className="w-4 h-4" />
-                      </button>
+                      </a>
                     </div>
                   </div>
 
-                  {/* Right Media: Real Product Image + Interactive Thumbnails */}
                   <div className="qb-slide-media">
                     <div className="qb-frame-wrap">
                       <div className="qb-glow" />
                       <div
                         className={`qb-frame ${slide.contain ? 'fit-contain' : ''}`}
                         onClick={() => setLightboxImg(slide.img)}
-                        title="Clic para ampliar fotografía real del producto"
+                        title="Clic para ampliar"
                       >
                         <img src={slide.img} alt={slide.imgTitle} />
                       </div>
-
                       {slide.chips.map((chip, cidx) => (
                         <div key={cidx} className={`qb-chip ${chip.cls}`}>
                           <span className="qb-chip-ico">{chip.ico}</span>
@@ -791,8 +945,7 @@ export default function QuibiPage() {
                       ))}
                     </div>
 
-                    {/* Direct 5-Photo Thumbnail Selector inside Hero */}
-                    <div className="qb-thumbs" aria-label="Miniaturas del producto">
+                    <div className="qb-thumbs" aria-label="Fotos del producto">
                       {SLIDES.map((s, tidx) => (
                         <button
                           key={s.id}
@@ -800,6 +953,7 @@ export default function QuibiPage() {
                           className={`qb-thumb ${tidx === currentSlide ? 'active' : ''}`}
                           onClick={() => setCurrentSlide(tidx)}
                           title={s.imgTitle}
+                          tabIndex={isActive ? 0 : -1}
                         >
                           <img src={s.img} alt={s.imgTitle} />
                         </button>
@@ -810,12 +964,10 @@ export default function QuibiPage() {
               );
             })}
 
-            {/* Slider Bottom Controls */}
             <div className="qb-slider-ui">
               <div className="qb-count">
                 <b>0{currentSlide + 1}</b> / 0{SLIDES.length}
               </div>
-
               <div className="qb-dots">
                 {SLIDES.map((_, didx) => (
                   <button
@@ -829,7 +981,6 @@ export default function QuibiPage() {
                   </button>
                 ))}
               </div>
-
               <div className="qb-arrows">
                 <button type="button" className="qb-arrow" onClick={prevSlide} aria-label="Anterior">
                   <ArrowLeft className="w-5 h-5" />
@@ -841,10 +992,16 @@ export default function QuibiPage() {
             </div>
           </div>
 
-          {/* 4 Quick Product Guarantees */}
+          {/* Highlights → cada uno lleva a la sección que lo explica */}
           <div className="qb-stats">
-            {STATS.map((stat, sidx) => (
-              <div key={sidx} className="qb-stat">
+            {STATS.map((stat) => (
+              <a
+                key={stat.n}
+                href={`#${stat.target}`}
+                className="qb-stat"
+                onClick={(e) => goTo(e, stat.target)}
+                style={{ textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}
+              >
                 <div className="qb-stat-ico" style={{ background: stat.bg, color: stat.c }}>
                   <span style={{ fontSize: 21 }}>{stat.ico}</span>
                 </div>
@@ -852,31 +1009,30 @@ export default function QuibiPage() {
                   <div className="qb-stat-n">{stat.n}</div>
                   <div className="qb-stat-l">{stat.l}</div>
                 </div>
-              </div>
+              </a>
             ))}
           </div>
         </div>
       </header>
 
       {/* =====================================================================
-          SECTION 2: FÓRMULA & COMPONENTES (WAPPY .intg Grid + Compact Routine)
+          2. FÓRMULA (#componentes)
           ===================================================================== */}
       <section id="componentes" className="band">
         <div className="wrap">
           <div className="sec-head">
             <span className="eyebrow">
               <span className="dot" />
-              FORMULACIÓN CIENTÍFICA
+              FORMULACIÓN
             </span>
             <h2 className="display">
-              Activos Botánicos en cada <em>Cápsula Blanda</em>
+              Activos botánicos en cada <em>cápsula blanda</em>
             </h2>
             <p>
-              Extractos concentrados encapsulados en gelatina blanda con centro líquido para actuar directamente en el estómago sin causar acidez en la boca.
+              Extractos concentrados en gelatina blanda con centro líquido que actúan en el estómago, sin acidez en la boca.
             </p>
           </div>
 
-          {/* Exact WAPPY Tools Grid (.intg .i .g) */}
           <div className="intg">
             {QUIBI_COMPONENTS.map((item, idx) => (
               <div key={idx} className="i">
@@ -893,29 +1049,26 @@ export default function QuibiPage() {
             ))}
           </div>
 
-          {/* Single Compact 3-Step Daily Routine Strip (Replaces redundant sections) */}
           <div className="qb-routine-strip">
             <div className="qb-routine-item">
               <div className="qb-routine-num">01</div>
               <div>
-                <h4>2 Cápsulas al Día</h4>
-                <p>Toma 1 cápsula 20 minutos antes del almuerzo y 1 antes de la cena.</p>
+                <h4>2 cápsulas al día</h4>
+                <p>1 cápsula 20 minutos antes del almuerzo y 1 antes de la cena.</p>
               </div>
             </div>
-
             <div className="qb-routine-item">
               <div className="qb-routine-num">02</div>
               <div>
-                <h4>Acompaña con 250 ml de Agua</h4>
-                <p>El agua hidrata el glucomanano generando plenitud natural en el estómago.</p>
+                <h4>Con un vaso de agua</h4>
+                <p>250 ml de agua hidratan el glucomanano y generan plenitud natural.</p>
               </div>
             </div>
-
             <div className="qb-routine-item">
               <div className="qb-routine-num">03</div>
               <div>
-                <h4>Liberación sin Acidez Oral</h4>
-                <p>La perla se abre en el estómago protegiendo tu garganta y esmalte dental.</p>
+                <h4>Constancia diaria</h4>
+                <p>Pequeños hábitos sostenidos en el tiempo generan grandes cambios.</p>
               </div>
             </div>
           </div>
@@ -923,51 +1076,46 @@ export default function QuibiPage() {
       </section>
 
       {/* =====================================================================
-          SECTION 3: VIDEO & DEMOSTRACIÓN (Exact WAPPY Video Section Layout)
+          3. VIDEO (#video)
           ===================================================================== */}
       <section id="video" className="band" style={{ paddingTop: 10 }}>
         <div className="wrap">
           <div className="sec-head">
             <span className="eyebrow">
               <span className="dot" />
-              TECNOLOGÍA DE CÁPSULA BLANDA
+              CONÓCELO DE CERCA
             </span>
             <h2 className="display">
-              Conoce la <em>Liberación Líquida</em> de QUIBI
+              Así es <em>QUIBI</em> en la vida real
             </h2>
-            <p>
-              Mira cómo la cubierta de gelatina blanda protege los extractos activos hasta llegar al sistema digestivo.
-            </p>
+            <p>El frasco oficial de 60 unidades y sus cápsulas blandas azul índigo con relleno líquido.</p>
           </div>
 
           <div className="vid-control-bar">
             <div className="vid-control-left">
               <span className="vid-live-pill">
                 <span className="dot" style={{ background: '#10B981' }} />
-                Cápsula Blanda · Relleno Líquido
+                Cápsula blanda · Relleno líquido
               </span>
-              <span className="vid-tech-pill">
-                Invima RSA-4113-2025 · 60 Unidades
-              </span>
+              <span className="vid-tech-pill">Invima RSA-4113-2025 · 60 unidades</span>
             </div>
-
             <div className="vid-control-right">
               <button
                 type="button"
                 className={`vid-toggle-btn ${!showVideo ? 'active' : ''}`}
                 onClick={() => setShowVideo(false)}
               >
-                🖼️ Vista de Producto
+                🖼️ Presentación
               </button>
               <button
                 type="button"
                 className={`vid-toggle-btn ${showVideo ? 'active' : ''}`}
                 onClick={() => setShowVideo(true)}
               >
-                ▶️ Reproducir Video
+                ▶️ {QUIBI_VIDEO_SRC ? 'Reproducir video' : 'Ver recorrido'}
               </button>
               <a
-                href="https://wa.me/573054656064?text=Hola%20Thermix,%20deseo%20información%20sobre%20las%20cápsulas%20QUIBI"
+                href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola Thermix, quiero información sobre las cápsulas QUIBI')}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="vid-ext-link"
@@ -978,45 +1126,67 @@ export default function QuibiPage() {
             </div>
           </div>
 
-          <div className={`vid-shell ${showVideo ? 'vid-vertical-mode' : 'vid-poster-mode'}`}>
+          <div className="vid-shell vid-poster-mode">
             {!showVideo ? (
-              <div className="qb-poster" onClick={() => setShowVideo(true)}>
+              <div className="qb-poster" onClick={() => setShowVideo(true)} role="button" tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowVideo(true); } }}
+              >
                 <div className="qb-poster-copy">
                   <span
                     className="vid-live-pill"
                     style={{ background: 'rgba(246, 168, 205, 0.2)', color: 'var(--qb-pink)', borderColor: 'rgba(246, 168, 205, 0.35)' }}
                   >
-                    Presentación Oficial 60 Unidades
+                    Presentación oficial · 60 unidades
                   </span>
-                  <h3>Absorción Rápida sin Dañar tu Esmalte Dental</h3>
+                  <h3>Sin sabor ácido y sin dañar tu esmalte dental</h3>
                   <p>
-                    Olvida el sabor fuerte del vinagre líquido tradicional o el azúcar de las gomitas. Cada cápsula entrega la dosis exacta de activos botánicos.
+                    Olvida el vinagre líquido tradicional y el azúcar de las gomitas: cada cápsula entrega la dosis exacta de activos botánicos.
                   </p>
                   <div className="qb-play-btn">
                     <span className="qb-play-circle">
                       <Play className="w-4 h-4 fill-current ml-0.5" />
                     </span>
-                    <span>Ver Video Demostrativo</span>
+                    <span>{QUIBI_VIDEO_SRC ? 'Ver video' : 'Ver recorrido del producto'}</span>
                   </div>
                 </div>
-
                 <div className="qb-poster-visual">
-                  <img
-                    src="/marketing/quibi/quibi-3-bottles.jpg"
-                    alt="Presentación Oficial 3 Ángulos QUIBI"
-                  />
+                  <img src="/marketing/quibi/quibi-3-bottles.jpg" alt="Presentación oficial QUIBI" />
                 </div>
               </div>
-            ) : (
-              <div style={{ position: 'relative', width: '100%', height: '100%', background: '#000', borderRadius: 24, overflow: 'hidden' }}>
+            ) : QUIBI_VIDEO_SRC ? (
+              <div style={{ position: 'relative', width: '100%', height: 540, background: '#000' }}>
                 <video
-                  src="/marketing/wappy-motion.mp4"
+                  src={QUIBI_VIDEO_SRC}
                   autoPlay
                   controls
-                  loop
                   playsInline
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                 />
+              </div>
+            ) : (
+              <div className="qb-reel">
+                {SLIDES.map((s, i) => (
+                  <img key={s.id} src={s.img} alt={s.imgTitle} style={{ animationDelay: `${i * 3.5}s` }} />
+                ))}
+                <div className="qb-reel-top">
+                  <span className="qb-reel-live">
+                    <i />
+                    Recorrido real del producto
+                  </span>
+                  <button type="button" className="qb-reel-close" onClick={() => setShowVideo(false)}>
+                    ✕ Cerrar
+                  </button>
+                </div>
+                <div className="qb-reel-bottom">
+                  <div>
+                    <strong>QUIBI · 60 cápsulas blandas</strong>
+                    <span>{SLOGAN_A} {SLOGAN_B}</span>
+                  </div>
+                  <button type="button" className="btn btn-lime btn-sm" onClick={() => addToCart('1-frasco')}>
+                    <ShoppingBag className="w-4 h-4" />
+                    Agregar al carrito
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -1024,43 +1194,39 @@ export default function QuibiPage() {
       </section>
 
       {/* =====================================================================
-          SECTION 4: TABLA NUTRICIONAL OFICIAL & INVIMA (#nutricion)
+          4. NUTRICIÓN & INVIMA (#nutricion)
           ===================================================================== */}
       <section id="nutricion" className="band" style={{ paddingTop: 10 }}>
         <div className="wrap">
           <div className="sec-head">
             <span className="eyebrow">
               <span className="dot" />
-              TRANSPARENCIA Y REGISTRO OFICIAL
+              TRANSPARENCIA
             </span>
             <h2 className="display">
-              Tabla Nutricional y <em>Certificación Invima</em>
+              Tabla nutricional y <em>registro Invima</em>
             </h2>
-            <p>
-              Valores exactos declarados en el envase oficial fabricado por ALIMENTOS MYC para THERMIX.
-            </p>
+            <p>Valores declarados en el envase oficial fabricado por ALIMENTOS MYC para THERMIX.</p>
           </div>
 
           <div className="qb-nutri">
-            {/* Official Nutrition Table */}
             <div className="qb-table-card">
               <div className="qb-table-head">
                 <div>
                   <h3>Información Nutricional</h3>
-                  <span>Tamaño por porción: 1 Cápsula con relleno (2g)</span>
+                  <span>Porción: 1 cápsula con relleno (2g)</span>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <span style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', opacity: 0.85 }}>Porciones por envase</span>
                   <b>60</b>
                 </div>
               </div>
-
               <table className="qb-table">
                 <thead>
                   <tr>
                     <th>Nutriente</th>
                     <th>Por 100g</th>
-                    <th>Por porción (1 cápsula)</th>
+                    <th>Por porción</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1080,7 +1246,7 @@ export default function QuibiPage() {
                     <td>0.1 g</td>
                   </tr>
                   <tr className="hl">
-                    <td>Azúcares Añadidos</td>
+                    <td>Azúcares añadidos</td>
                     <td>0 g</td>
                     <td><strong style={{ color: '#059669' }}>0 g</strong></td>
                   </tr>
@@ -1101,13 +1267,11 @@ export default function QuibiPage() {
                   </tr>
                 </tbody>
               </table>
-
               <div className="qb-table-foot">
                 <strong>Ingredientes:</strong> Gelatina polvo, Vinagre de cidra de Manzana, Alcachofa, Berenjena, Spirulina, Té verde, Glucomanano, Aceite de Girasol, Agua, Sorbato de potasio, Picolinato de Cromo.
               </div>
             </div>
 
-            {/* Invima Card + Clickable Photo of Physical Label */}
             <div className="qb-cert">
               <div className="qb-cert-card">
                 <span
@@ -1117,7 +1281,6 @@ export default function QuibiPage() {
                   Autorización Sanitaria Colombia
                 </span>
                 <div className="qb-cert-code">RSA-4113-2025</div>
-
                 <div className="qb-cert-rows">
                   <div>
                     <span>Denominación:</span>
@@ -1133,7 +1296,7 @@ export default function QuibiPage() {
                   </div>
                   <div>
                     <span>Comercializa:</span>
-                    <b>THERMIX · Línea 305 4656064</b>
+                    <b>THERMIX · 305 4656064</b>
                   </div>
                   <div>
                     <span>Código EAN:</span>
@@ -1142,48 +1305,44 @@ export default function QuibiPage() {
                 </div>
               </div>
 
-              <div
+              <button
+                type="button"
                 className="qb-label-preview"
                 onClick={() => setLightboxImg('/marketing/quibi/quibi-nutrition.jpg')}
+                style={{ textAlign: 'left', width: '100%', font: 'inherit' }}
               >
                 <img src="/marketing/quibi/quibi-nutrition.jpg" alt="Etiqueta nutricional real" />
                 <div>
-                  <h4>🔍 Ver Fotografía Real del Envase e Invima</h4>
-                  <p>Haz clic para ampliar la foto real de la tabla nutricional impresa en el frasco.</p>
+                  <h4>🔍 Ver la etiqueta real del envase</h4>
+                  <p>Amplía la foto de la tabla nutricional impresa en el frasco.</p>
                 </div>
-              </div>
+              </button>
             </div>
           </div>
         </div>
       </section>
 
       {/* =====================================================================
-          SECTION 5: TIENDA / ELIGE TU PACK (#precios) — E-Commerce Ready
+          5. PACKS Y PRECIOS (#precios)
           ===================================================================== */}
       <section id="precios" className="band" style={{ paddingTop: 10 }}>
         <div className="wrap">
           <div className="sec-head">
             <span className="eyebrow">
               <span className="dot" />
-              TIENDA OFICIAL QUIBI
+              TIENDA OFICIAL
             </span>
             <h2 className="display">
-              Elige tu Pack y <em>Compra en Segundos</em>
+              Elige tu pack y <em>empieza tu hábito</em>
             </h2>
-            <p>
-              Selecciona tu tratamiento ideal. Agrega al carrito para pagar en línea con pasarela segura o solicita Pago Contra Entrega.
-            </p>
+            <p>Agrega al carrito y paga en línea o contra entrega. Envío gratis en packs de 2 y 3 frascos.</p>
           </div>
 
           <div className="price" style={{ maxWidth: 1080, margin: '0 auto' }}>
             {PACKAGES.map((pkg) => {
-              const isSelected = selectedPackId === pkg.id;
+              const inCart = qtyInCart(pkg.id);
               return (
-                <div
-                  key={pkg.id}
-                  className={`pcard qb-pcard ${pkg.featured ? 'feat-plan' : ''} ${isSelected ? 'qb-selected' : ''}`}
-                  onClick={() => setSelectedPackId(pkg.id)}
-                >
+                <div key={pkg.id} className={`pcard qb-pcard ${pkg.featured ? 'feat-plan' : ''} ${inCart ? 'qb-selected' : ''}`}>
                   {pkg.badge && <span className="pbadge">{pkg.badge}</span>}
 
                   <div className="pn">{pkg.title}</div>
@@ -1217,38 +1376,28 @@ export default function QuibiPage() {
                     <button
                       type="button"
                       className={pkg.featured ? 'btn btn-lime' : 'btn btn-primary'}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleAddToCart(pkg.id, true);
-                      }}
-                    >
-                      <CreditCard className="w-4 h-4" />
-                      <span>Comprar Ahora · {pkg.price}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      className="btn btn-glass"
-                      style={
-                        pkg.featured
-                          ? { background: 'rgba(255,255,255,0.12)', color: '#fff', borderColor: 'rgba(255,255,255,0.22)' }
-                          : undefined
-                      }
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleAddToCart(pkg.id, false);
-                      }}
+                      onClick={() => addToCart(pkg.id)}
                     >
                       <ShoppingCart className="w-4 h-4" />
-                      <span>Agregar al Carrito</span>
+                      <span>{inCart ? 'Agregar otro' : 'Agregar al Carrito'}</span>
                     </button>
+                    {inCart > 0 && (
+                      <button
+                        type="button"
+                        className="qb-incart"
+                        onClick={() => openCart('cart')}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        En tu carrito (x{inCart}) · Ver carrito
+                      </button>
+                    )}
                   </div>
                 </div>
               );
             })}
           </div>
 
-          {/* Payment Gateway Trust Strip */}
           <div className="qb-gateway-bar">
             <div className="qb-gateway-info">
               <div
@@ -1267,14 +1416,13 @@ export default function QuibiPage() {
                 <Lock className="w-5 h-5" />
               </div>
               <div>
-                <strong>Pasarela de Pago Segura & Despacho Contra Entrega</strong>
-                <span>Paga con tu método favorito o en efectivo al recibir el pedido en tu casa.</span>
+                <strong>Pago seguro o contra entrega</strong>
+                <span>Paga con tu método favorito o en efectivo al recibir el pedido.</span>
               </div>
             </div>
-
             <div className="qb-gateway-pills">
               <span className="qb-pay-pill">💳 Visa / Mastercard</span>
-              <span className="qb-pay-pill">🏦 PSE Débito</span>
+              <span className="qb-pay-pill">🏦 PSE</span>
               <span className="qb-pay-pill">📱 Nequi / Daviplata</span>
               <span className="qb-pay-pill">💵 Contra Entrega</span>
             </div>
@@ -1283,7 +1431,7 @@ export default function QuibiPage() {
       </section>
 
       {/* =====================================================================
-          SECTION 6: PREGUNTAS FRECUENTES (#faq)
+          6. FAQ (#faq)
           ===================================================================== */}
       <section id="faq" className="band" style={{ paddingTop: 10 }}>
         <div className="wrap">
@@ -1293,11 +1441,9 @@ export default function QuibiPage() {
               PREGUNTAS FRECUENTES
             </span>
             <h2 className="display">
-              Resolvemos tus <em>Dudas</em>
+              Resolvemos tus <em>dudas</em>
             </h2>
-            <p>
-              Respuestas claras sobre las cápsulas blandas con relleno líquido, consumo y envío.
-            </p>
+            <p>Consumo, pagos y envíos de las cápsulas QUIBI.</p>
           </div>
 
           <div className="faq">
@@ -1321,29 +1467,21 @@ export default function QuibiPage() {
       </section>
 
       {/* =====================================================================
-          SLIDE-OVER SHOPPING CART & PAYMENT GATEWAY CHECKOUT DRAWER
+          CARRITO · ISLA FLOTANTE
           ===================================================================== */}
       {isCartOpen && (
         <>
           <div className="qb-drawer-backdrop" onClick={() => setIsCartOpen(false)} />
-          <aside className="qb-drawer" aria-label="Carrito de compras y pasarela de pago">
+          <aside className="qb-drawer" role="dialog" aria-modal="true" aria-label="Carrito de compras">
             <div className="qb-drawer-head">
               <div className="qb-drawer-title">
-                <ShoppingBag className="w-5 h-5" style={{ color: 'var(--qb-plum)' }} />
-                <span>
-                  {drawerTab === 'cart'
-                    ? 'Tu Carrito QUIBI'
-                    : drawerTab === 'checkout'
-                    ? 'Checkout & Pasarela de Pago'
-                    : '¡Orden Lista!'}
-                </span>
+                <ShoppingBag className="w-5 h-5" style={{ color: 'var(--qb-pink)' }} />
+                <div>
+                  {drawerTab === 'cart' ? 'Tu carrito' : drawerTab === 'checkout' ? 'Envío y pago' : '¡Orden lista!'}
+                  <small>{SLOGAN_A} {SLOGAN_B}</small>
+                </div>
               </div>
-              <button
-                type="button"
-                className="qb-drawer-close"
-                onClick={() => setIsCartOpen(false)}
-                aria-label="Cerrar carrito"
-              >
+              <button type="button" className="qb-drawer-close" onClick={() => setIsCartOpen(false)} aria-label="Cerrar carrito">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -1355,214 +1493,171 @@ export default function QuibiPage() {
                   className={`qb-drawer-step ${drawerTab === 'cart' ? 'active' : ''}`}
                   onClick={() => setDrawerTab('cart')}
                 >
-                  1. Carrito ({totalBottlesInCart} {totalBottlesInCart === 1 ? 'frasco' : 'frascos'})
+                  1. Carrito ({cartCount})
                 </button>
                 <button
                   type="button"
                   className={`qb-drawer-step ${drawerTab === 'checkout' ? 'active' : ''}`}
                   onClick={() => setDrawerTab('checkout')}
+                  disabled={isEmpty}
                 >
-                  2. Envío y Pago Seguro
+                  2. Envío y pago
                 </button>
               </div>
             )}
 
             <div className="qb-drawer-body">
-              {drawerTab === 'cart' && (
+              {drawerTab === 'cart' && isEmpty && (
+                <div className="qb-cart-empty">
+                  <div className="qb-cart-empty-ico">
+                    <ShoppingCart className="w-7 h-7" />
+                  </div>
+                  <h4>Tu carrito está vacío</h4>
+                  <p>Elige tu pack de cápsulas QUIBI. Envío gratis desde 2 frascos.</p>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ justifyContent: 'center' }}
+                    onClick={() => {
+                      setIsCartOpen(false);
+                      goTo(null, 'precios');
+                    }}
+                  >
+                    Ver packs y precios
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              {drawerTab === 'cart' && !isEmpty && (
                 <>
-                  {/* Free Shipping Status Banner */}
                   <div className="qb-ship-banner">
                     <Truck className="w-4 h-4 shrink-0" />
                     <span>
                       {qualifiesFreeShipping
-                        ? '¡Felicidades! Tu pedido tiene ENVÍO GRATIS a toda Colombia.'
-                        : 'Elige el Pack x2 o Pack x3 para obtener ENVÍO GRATIS inmediato.'}
+                        ? '¡Tu pedido tiene ENVÍO GRATIS a toda Colombia!'
+                        : `Te faltan ${formatCOP(FREE_SHIPPING_THRESHOLD - subtotalSale)} para envío gratis, o cambia al Pack x2.`}
                     </span>
                   </div>
 
-                  {/* Selected Cart Item */}
-                  <div className="qb-cart-item">
-                    <img src={currentPack.img} alt={currentPack.title} />
-                    <div className="qb-cart-item-info">
-                      <h4>{currentPack.title}</h4>
-                      <small>{currentPack.duration} · Invima RSA-4113-2025</small>
-
-                      <div className="qb-qty-row">
-                        <div className="qb-qty-ctrl">
+                  {cartLines.map((line) => (
+                    <div key={line.packId} className="qb-cart-item">
+                      <img src={line.pack.img} alt={line.pack.title} />
+                      <div className="qb-cart-item-info">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                          <h4>{line.pack.title}</h4>
                           <button
                             type="button"
-                            onClick={() => setCartQty((q) => Math.max(1, q - 1))}
-                            aria-label="Disminuir cantidad"
+                            className="qb-line-remove"
+                            onClick={() => removeLine(line.packId)}
+                            aria-label={`Quitar ${line.pack.title}`}
                           >
-                            <Minus className="w-3.5 h-3.5 mx-auto" />
-                          </button>
-                          <span>{cartQty}</span>
-                          <button
-                            type="button"
-                            onClick={() => setCartQty((q) => q + 1)}
-                            aria-label="Aumentar cantidad"
-                          >
-                            <Plus className="w-3.5 h-3.5 mx-auto" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
-
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: 11, textDecoration: 'line-through', color: 'var(--muted)' }}>
-                            {formatCOP(subtotalOriginal)}
+                        <small>{line.pack.duration}</small>
+                        <div className="qb-qty-row">
+                          <div className="qb-qty-ctrl">
+                            <button type="button" onClick={() => changeQty(line.packId, -1)} aria-label="Disminuir">
+                              <Minus className="w-3.5 h-3.5 mx-auto" />
+                            </button>
+                            <span>{line.qty}</span>
+                            <button type="button" onClick={() => changeQty(line.packId, 1)} aria-label="Aumentar">
+                              <Plus className="w-3.5 h-3.5 mx-auto" />
+                            </button>
                           </div>
-                          <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--qb-plum)' }}>
-                            {formatCOP(subtotalSale)}
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: 11, textDecoration: 'line-through', color: 'var(--muted)' }}>
+                              {formatCOP(line.pack.originalPriceNum * line.qty)}
+                            </div>
+                            <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--qb-plum)' }}>
+                              {formatCOP(line.pack.priceNum * line.qty)}
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  ))}
 
-                  {/* Quick Pack Switcher / Upsell inside Cart */}
-                  <div className="qb-upsell-box">
-                    <h5>✨ Cambia de Pack y Ahorra Más:</h5>
-                    <div className="qb-upsell-grid">
-                      {PACKAGES.map((p) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          className={`qb-upsell-btn ${selectedPackId === p.id ? 'active' : ''}`}
-                          onClick={() => {
-                            setSelectedPackId(p.id);
-                            setCartQty(1);
-                          }}
-                        >
-                          <strong>{p.bottles} {p.bottles === 1 ? 'Frasco' : 'Frascos'}</strong>
-                          <span>{p.price}</span>
-                          <small>{p.freeShipping ? 'Envío Gratis' : '15% OFF'}</small>
-                        </button>
-                      ))}
+                  {onlySinglePack && (
+                    <div className="qb-upsell-box">
+                      <h5>✨ Ahorra más con el Pack x2</h5>
+                      <p style={{ margin: '0 0 10px', fontSize: 12.5, color: 'var(--muted)' }}>
+                        2 frascos por $139.900 ($69.950 c/u) con envío gratis.
+                      </p>
+                      <button type="button" className="btn btn-lime btn-sm" onClick={upgradeToPack2}>
+                        Cambiar a Pack x2
+                      </button>
                     </div>
-                  </div>
+                  )}
                 </>
               )}
 
               {drawerTab === 'checkout' && (
                 <form id="quibi-checkout-form" onSubmit={handleCheckoutSubmit}>
-                  <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--qb-plum)' }}>
-                    1. Datos de Contacto y Dirección
+                  <h4 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--qb-plum)' }}>
+                    1. Datos de entrega
                   </h4>
-
                   <div className="qb-fields">
                     <div className="qb-field">
-                      <label>Nombre y Apellido *</label>
-                      <input
-                        type="text"
-                        placeholder="Ej. Laura Gómez"
-                        value={clientName}
-                        onChange={(e) => setClientName(e.target.value)}
-                        required
-                      />
+                      <label htmlFor="qb-name">Nombre y apellido *</label>
+                      <input id="qb-name" type="text" autoComplete="name" placeholder="Ej. Laura Gómez" value={clientName} onChange={(e) => setClientName(e.target.value)} required />
                     </div>
-
                     <div className="qb-field">
-                      <label>Cédula / NIT</label>
-                      <input
-                        type="text"
-                        placeholder="Ej. 1037654321"
-                        value={clientDoc}
-                        onChange={(e) => setClientDoc(e.target.value)}
-                      />
+                      <label htmlFor="qb-doc">Cédula / NIT</label>
+                      <input id="qb-doc" type="text" placeholder="Ej. 1037654321" value={clientDoc} onChange={(e) => setClientDoc(e.target.value)} />
                     </div>
-
                     <div className="qb-field">
-                      <label>Celular / WhatsApp *</label>
-                      <input
-                        type="tel"
-                        placeholder="Ej. 310 123 4567"
-                        value={clientPhone}
-                        onChange={(e) => setClientPhone(e.target.value)}
-                        required
-                      />
+                      <label htmlFor="qb-phone">Celular / WhatsApp *</label>
+                      <input id="qb-phone" type="tel" autoComplete="tel" placeholder="Ej. 310 123 4567" value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} required />
                     </div>
-
                     <div className="qb-field">
-                      <label>Correo Electrónico</label>
-                      <input
-                        type="email"
-                        placeholder="tu@correo.com"
-                        value={clientEmail}
-                        onChange={(e) => setClientEmail(e.target.value)}
-                      />
+                      <label htmlFor="qb-email">Correo</label>
+                      <input id="qb-email" type="email" autoComplete="email" placeholder="tu@correo.com" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} />
                     </div>
-
                     <div className="qb-field">
-                      <label>Ciudad y Departamento *</label>
-                      <input
-                        type="text"
-                        placeholder="Ej. Medellín, Antioquia"
-                        value={clientCity}
-                        onChange={(e) => setClientCity(e.target.value)}
-                        required
-                      />
+                      <label htmlFor="qb-city">Ciudad y departamento *</label>
+                      <input id="qb-city" type="text" autoComplete="address-level2" placeholder="Ej. Medellín, Antioquia" value={clientCity} onChange={(e) => setClientCity(e.target.value)} required />
                     </div>
-
                     <div className="qb-field">
-                      <label>Dirección Completa *</label>
-                      <input
-                        type="text"
-                        placeholder="Calle / Cra # y Apto/Barrio"
-                        value={clientAddress}
-                        onChange={(e) => setClientAddress(e.target.value)}
-                        required
-                      />
+                      <label htmlFor="qb-address">Dirección *</label>
+                      <input id="qb-address" type="text" autoComplete="street-address" placeholder="Calle / Cra #, barrio" value={clientAddress} onChange={(e) => setClientAddress(e.target.value)} required />
                     </div>
                   </div>
 
-                  <h4 style={{ margin: '20px 0 10px', fontSize: 14, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--qb-plum)' }}>
-                    2. Selecciona Método en Pasarela de Pago
+                  <h4 style={{ margin: '20px 0 10px', fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--qb-plum)' }}>
+                    2. Método de pago
                   </h4>
-
-                  <div className="qb-pay-methods">
-                    <div
-                      className={`qb-pay-option ${paymentGatewayMethod === 'online_card_pse' ? 'selected' : ''}`}
-                      onClick={() => setPaymentGatewayMethod('online_card_pse')}
-                    >
-                      <div className="qb-pay-option-top">
-                        <strong>💳 Tarjeta de Crédito, Débito o PSE</strong>
-                        <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--qb-plum)', background: '#fff', padding: '2px 8px', borderRadius: 9999 }}>
-                          Pasarela Online
-                        </span>
-                      </div>
-                      <p>Visa, Mastercard, American Express y todos los bancos vía PSE.</p>
-                    </div>
-
-                    <div
-                      className={`qb-pay-option ${paymentGatewayMethod === 'online_nequi' ? 'selected' : ''}`}
-                      onClick={() => setPaymentGatewayMethod('online_nequi')}
-                    >
-                      <div className="qb-pay-option-top">
-                        <strong>📱 Nequi / Daviplata / Billeteras</strong>
-                        <span style={{ fontSize: 11, fontWeight: 800, color: '#059669', background: '#ecfdf5', padding: '2px 8px', borderRadius: 9999 }}>
-                          Aprobación Inmediata
-                        </span>
-                      </div>
-                      <p>Pago rápido desde tu celular sin costo adicional.</p>
-                    </div>
-
-                    <div
-                      className={`qb-pay-option ${paymentGatewayMethod === 'cod' ? 'selected' : ''}`}
-                      onClick={() => setPaymentGatewayMethod('cod')}
-                    >
-                      <div className="qb-pay-option-top">
-                        <strong>💵 Pago Contra Entrega (Efectivo)</strong>
-                        <span style={{ fontSize: 11, fontWeight: 800, color: '#1d4ed8', background: '#eff6ff', padding: '2px 8px', borderRadius: 9999 }}>
-                          Pagas al Recibir
-                        </span>
-                      </div>
-                      <p>Pagas en efectivo directamente al transportador cuando te entregue el pedido.</p>
-                    </div>
+                  <div className="qb-pay-methods" role="radiogroup" aria-label="Método de pago">
+                    {([
+                      { id: 'online_card_pse', title: '💳 Tarjeta o PSE', tag: 'Pago en línea', desc: 'Visa, Mastercard, Amex y todos los bancos vía PSE.' },
+                      { id: 'online_nequi', title: '📱 Nequi / Daviplata', tag: 'Inmediato', desc: 'Paga desde tu celular sin costo adicional.' },
+                      { id: 'cod', title: '💵 Contra entrega', tag: 'Pagas al recibir', desc: 'Pagas en efectivo al transportador cuando recibas el pedido.' },
+                    ] as { id: PaymentMethod; title: string; tag: string; desc: string }[]).map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={paymentMethod === m.id}
+                        className={`qb-pay-option ${paymentMethod === m.id ? 'selected' : ''}`}
+                        onClick={() => setPaymentMethod(m.id)}
+                        style={{ font: 'inherit', width: '100%' }}
+                      >
+                        <div className="qb-pay-option-top">
+                          <strong>{m.title}</strong>
+                          <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--qb-plum)', background: '#fff', padding: '2px 8px', borderRadius: 9999 }}>
+                            {m.tag}
+                          </span>
+                        </div>
+                        <p>{m.desc}</p>
+                      </button>
+                    ))}
                   </div>
                 </form>
               )}
 
-              {drawerTab === 'success' && (
-                <div style={{ textAlign: 'center', padding: '24px 8px' }}>
+              {drawerTab === 'success' && lastOrder && (
+                <div style={{ textAlign: 'center', padding: '18px 4px' }}>
                   <div
                     style={{
                       width: 64,
@@ -1579,55 +1674,59 @@ export default function QuibiPage() {
                     <Check className="w-8 h-8" />
                   </div>
                   <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--qb-plum)', background: 'var(--qb-pink-soft)', padding: '4px 12px', borderRadius: 9999 }}>
-                    ORDEN #{orderReference}
+                    ORDEN #{lastOrder.reference}
                   </span>
-                  <h3 style={{ margin: '12px 0 8px', fontFamily: 'var(--display)', fontSize: 24, fontWeight: 800 }}>
-                    ¡Tu Orden ha sido Generada!
+                  <h3 style={{ margin: '12px 0 8px', fontFamily: 'var(--display)', fontSize: 22, fontWeight: 800 }}>
+                    ¡Tu orden fue generada!
                   </h3>
                   <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.55, marginBottom: 20 }}>
-                    Hemos registrado tu pedido de <strong>{currentPack.title}</strong> por <strong>{formatCOP(finalTotal)}</strong>. Finaliza la validación de envío o link de pago inmediato con nuestro equipo oficial:
+                    Total <strong>{formatCOP(lastOrder.total)}</strong> · {PAYMENT_LABELS[lastOrder.method]}. Confirma el despacho
+                    {lastOrder.method === 'cod' ? '' : ' y recibe tu link de pago'} con nuestro equipo:
                   </p>
-
                   <button
                     type="button"
                     className="btn btn-primary"
                     style={{ width: '100%', justifyContent: 'center', marginBottom: 10 }}
-                    onClick={handleConfirmOrderOnWhatsApp}
+                    onClick={confirmOrderOnWhatsApp}
                   >
                     <MessageCircle className="w-4 h-4" />
-                    <span>Finalizar Pago y Despacho en WhatsApp</span>
+                    Confirmar por WhatsApp
                   </button>
-
                   <button
                     type="button"
                     className="btn btn-glass"
                     style={{ width: '100%', justifyContent: 'center' }}
-                    onClick={() => setDrawerTab('cart')}
+                    onClick={() => {
+                      setIsCartOpen(false);
+                      setDrawerTab('cart');
+                    }}
                   >
-                    Volver al Carrito
+                    Seguir viendo QUIBI
                   </button>
                 </div>
               )}
             </div>
 
-            {drawerTab !== 'success' && (
+            {drawerTab !== 'success' && !isEmpty && (
               <div className="qb-drawer-foot">
                 <div className="qb-sum-row">
-                  <span>Subtotal ({totalBottlesInCart} {totalBottlesInCart === 1 ? 'frasco' : 'frascos'})</span>
+                  <span>Subtotal ({cartCount} {cartCount === 1 ? 'frasco' : 'frascos'})</span>
                   <span>{formatCOP(subtotalSale)}</span>
                 </div>
-                <div className="qb-sum-row" style={{ color: '#059669', fontWeight: 700 }}>
-                  <span>Descuento aplicado</span>
-                  <span>− {formatCOP(totalSavings)}</span>
-                </div>
+                {totalSavings > 0 && (
+                  <div className="qb-sum-row" style={{ color: '#059669', fontWeight: 700 }}>
+                    <span>Ahorro incluido</span>
+                    <span>{formatCOP(totalSavings)}</span>
+                  </div>
+                )}
                 <div className="qb-sum-row">
-                  <span>Envío Nacional</span>
+                  <span>Envío nacional</span>
                   <span style={{ fontWeight: 700, color: shippingCost === 0 ? '#059669' : 'var(--ink)' }}>
                     {shippingCost === 0 ? 'GRATIS' : formatCOP(shippingCost)}
                   </span>
                 </div>
                 <div className="qb-sum-row total">
-                  <span>Total a Pagar</span>
+                  <span>Total</span>
                   <span>{formatCOP(finalTotal)}</span>
                 </div>
 
@@ -1638,7 +1737,7 @@ export default function QuibiPage() {
                     style={{ width: '100%', justifyContent: 'center', padding: '14px 20px', fontSize: 15 }}
                     onClick={() => setDrawerTab('checkout')}
                   >
-                    <span>Continuar al Pago Seguro</span>
+                    Continuar al pago
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 ) : (
@@ -1649,11 +1748,7 @@ export default function QuibiPage() {
                     style={{ width: '100%', justifyContent: 'center', padding: '14px 20px', fontSize: 15 }}
                   >
                     <Lock className="w-4 h-4" />
-                    <span>
-                      {paymentGatewayMethod === 'cod'
-                        ? `Confirmar Contra Entrega · ${formatCOP(finalTotal)}`
-                        : `Pagar Ahora · ${formatCOP(finalTotal)}`}
-                    </span>
+                    {paymentMethod === 'cod' ? `Confirmar pedido · ${formatCOP(finalTotal)}` : `Pagar · ${formatCOP(finalTotal)}`}
                   </button>
                 )}
               </div>
@@ -1662,45 +1757,32 @@ export default function QuibiPage() {
         </>
       )}
 
-      {/* =====================================================================
-          LIGHTBOX MODAL FOR REAL PRODUCT PHOTOS
-          ===================================================================== */}
+      {/* Lightbox */}
       {lightboxImg && (
         <div className="qb-lightbox" onClick={() => setLightboxImg(null)}>
           <button type="button" onClick={() => setLightboxImg(null)} aria-label="Cerrar imagen">
             ✕
           </button>
-          <img
-            src={lightboxImg}
-            alt="Vista ampliada oficial QUIBI"
-            onClick={(e) => e.stopPropagation()}
-          />
+          <img src={lightboxImg} alt="Vista ampliada QUIBI" onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
+
+      {/* Barra fija móvil → abre el carrito */}
+      {!isCartOpen && (
+        <div className="qb-sticky">
+          <div>
+            <b>QUIBI · 60 cápsulas</b>
+            <small>{cartCount > 0 ? `${cartCount} en carrito · ${formatCOP(finalTotal)}` : 'Desde $79.900 · Envío nacional'}</small>
+          </div>
+          <button type="button" className="btn btn-lime btn-sm" onClick={() => (cartCount > 0 ? openCart('cart') : goTo(null, 'precios'))}>
+            <ShoppingCart className="w-4 h-4" />
+            {cartCount > 0 ? `Carrito (${cartCount})` : 'Ver packs'}
+          </button>
         </div>
       )}
 
       {/* =====================================================================
-          STICKY MOBILE BAR
-          ===================================================================== */}
-      <div className="qb-sticky">
-        <div>
-          <b>QUIBI (QB) · 60 Cápsulas</b>
-          <small>Desde $79.900 · Envío Nacional</small>
-        </div>
-        <button
-          type="button"
-          className="btn btn-lime btn-sm"
-          onClick={() => {
-            setDrawerTab('cart');
-            setIsCartOpen(true);
-          }}
-        >
-          <ShoppingCart className="w-4 h-4" />
-          Comprar ({totalBottlesInCart})
-        </button>
-      </div>
-
-      {/* =====================================================================
-          FOOTER: EXACT WAPPY FOOTER STRUCTURE (Single Brand Block, No Duplication)
+          FOOTER (estilo WAPPY)
           ===================================================================== */}
       <footer>
         <div className="fcloud" style={{ top: 40, left: -50, width: 280, height: 110 }} />
@@ -1708,27 +1790,23 @@ export default function QuibiPage() {
 
         <div className="wrap">
           <div className="foot-cta">
-            <h3 className="display">Tu bienestar digestivo y metabólico empieza hoy.</h3>
-            <p>
-              Pide tus cápsulas blandas originales QUIBI con relleno líquido de vinagre de manzana y té verde. Envío rápido a toda Colombia.
-            </p>
+            <h3 className="display">
+              {SLOGAN_A} <em>{SLOGAN_B}</em>.
+            </h3>
+            <p>Empieza hoy con tus cápsulas blandas QUIBI de vinagre de manzana y té verde. Envío a toda Colombia.</p>
             <div className="hero-cta" style={{ marginTop: 22, display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => handleAddToCart('2-frascos', false)}
-              >
+              <a href="#precios" className="btn btn-primary" onClick={(e) => goTo(e, 'precios')}>
                 <ShoppingBag className="w-4 h-4" />
-                Comprar con Descuento
-              </button>
+                Ver packs y precios
+              </a>
               <a
-                href="https://wa.me/573054656064?text=Hola%20Thermix,%20deseo%20ordenar%20las%20cápsulas%20QUIBI"
+                href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola Thermix, quiero pedir las cápsulas QUIBI')}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn btn-glass"
               >
                 <MessageCircle className="w-4 h-4" />
-                WhatsApp Oficial (305 4656064)
+                WhatsApp 305 4656064
               </a>
             </div>
           </div>
@@ -1742,20 +1820,21 @@ export default function QuibiPage() {
                 </span>
               </div>
               <p className="foot-desc">
-                Alimento a base de gelatina con relleno líquido con vinagre de manzana y té verde. Con Glucomanano, Alcachofa, Berenjena, Spirulina y Picolinato de Cromo. Autorización Sanitaria Invima RSA-4113-2025. Fabricado por ALIMENTOS MYC (Tona, Santander) para THERMIX.
+                Alimento a base de gelatina con relleno líquido con vinagre de manzana y té verde. Con Glucomanano, Alcachofa, Berenjena, Spirulina y Picolinato de Cromo. Invima RSA-4113-2025. Fabricado por ALIMENTOS MYC (Tona, Santander) para THERMIX.
               </p>
             </div>
           </div>
 
-          {/* Giant Outline Watermark Word (WAPPY signature style) */}
           <div className="foot-word">QUIBI</div>
 
           <div className="foot-bottom">
             <span>© 2026 THERMIX · ALIMENTOS MYC · Colombia. Todos los derechos reservados.</span>
             <div className="foot-legal">
-              <a href="#precios" onClick={(e) => scrollToSection(e, 'precios')}>Tienda y Packs</a>
-              <a href="#nutricion" onClick={(e) => scrollToSection(e, 'nutricion')}>Invima RSA-4113-2025</a>
-              <a href="#faq" onClick={(e) => scrollToSection(e, 'faq')}>Preguntas Frecuentes</a>
+              {NAV_ITEMS.filter((n) => n.id !== 'inicio').map((n) => (
+                <a key={n.id} href={`#${n.id}`} onClick={(e) => goTo(e, n.id)}>
+                  {n.label}
+                </a>
+              ))}
             </div>
           </div>
         </div>
