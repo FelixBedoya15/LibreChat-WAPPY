@@ -6025,7 +6025,32 @@ router.post('/agenda/events', requireApiKeyOrJwt, async (req, res) => {
     const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
     const company = await getActiveCompany(targetUserId);
     const companyId = company ? String(company._id) : null;
-    const { titulo, title, fecha_inicio, startTime, fecha_fin, endTime, descripcion, description, tipo, type, prioridad, priority } = req.body;
+    const { accion, action, titulo, title, fecha_inicio, startTime, fecha_fin, endTime, descripcion, description, tipo, type, prioridad, priority } = req.body;
+    const act = (accion || action || '').toLowerCase();
+
+    // Defensa en profundidad: Si la acción solicitada es consultar/listar, devolver la agenda en vez de agendar
+    if (act.includes('listar') || act.includes('list') || act.includes('consultar') || act.includes('ver') || act.includes('leer')) {
+      const fromDate = new Date(Date.now() - 7 * 24 * 3600 * 1000);
+      const toDate = new Date(Date.now() + 30 * 24 * 3600 * 1000);
+      const tasks = await KanbanTask.find({
+        user: targetUserId,
+        dueDate: { $gte: fromDate, $lte: toDate },
+      }).sort({ dueDate: 1 }).limit(30).lean();
+
+      return res.json({
+        exito: true,
+        totalEventos: tasks.length,
+        eventos: tasks.map((t) => ({
+          id: t._id,
+          titulo: t.title,
+          descripcion: t.description,
+          fecha: t.dueDate,
+          estado: t.status,
+          tipo: t.type,
+          prioridad: t.priority,
+        })),
+      });
+    }
 
     const eventTitle = titulo || title || 'Actividad SG-SST';
     const eventDesc = descripcion || description || '';

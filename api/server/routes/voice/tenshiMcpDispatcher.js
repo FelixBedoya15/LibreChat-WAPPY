@@ -157,9 +157,19 @@ const TOOL_ROUTES = {
 
   // 8. Agendas, Citas y Calendario
   wappy_gestionar_agenda: {
-    method: (args) => (args.accion === 'eliminar' || args.action === 'delete') ? 'DELETE' : ((args.accion === 'listar' || args.action === 'list') ? 'GET' : 'POST'),
+    method: (args) => {
+      const act = (args.accion || args.action || '').toLowerCase();
+      if (act.includes('eliminar') || act.includes('delete') || act.includes('cancelar')) {
+        return 'DELETE';
+      }
+      if (act.includes('listar') || act.includes('list') || act.includes('consultar') || act.includes('ver') || act.includes('leer')) {
+        return 'GET';
+      }
+      return 'POST';
+    },
     path: (args) => {
-      if (args.accion === 'eliminar' || args.action === 'delete') {
+      const act = (args.accion || args.action || '').toLowerCase();
+      if (act.includes('eliminar') || act.includes('delete') || act.includes('cancelar')) {
         const id = args.id || args.id_evento || args.eventId || '';
         return `/agenda/events/${encodeURIComponent(String(id).trim())}`;
       }

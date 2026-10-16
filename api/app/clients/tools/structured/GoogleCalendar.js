@@ -149,6 +149,9 @@ class GoogleCalendarTool extends Tool {
       return `Eventos programados encontrados:\n${list}`;
     } catch (err) {
       logger.error('[GoogleCalendarTool] List events failed:', err);
+      if (err.message && (err.message.includes('has not been used') || err.message.includes('disabled'))) {
+        throw new Error('La API de Google Calendar no está habilitada en tu proyecto de Google Cloud (Proyecto 802179818443). Debes habilitarla en https://console.developers.google.com/apis/api/calendar-json.googleapis.com/overview?project=802179818443 para poder consultar o agendar eventos.');
+      }
       throw new Error(`Fallo al listar eventos en Google Calendar: ${err.message}`);
     }
   }

@@ -3225,11 +3225,23 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
                             });
 
                             if (this.geminiClient) {
+                                let agendaOutput = '';
+                                if (agendaRes?.eventos) {
+                                    if (agendaRes.eventos.length === 0) {
+                                        agendaOutput = 'No hay ningún evento ni compromiso agendado en el sistema para este periodo.';
+                                    } else {
+                                        agendaOutput = `Se encontraron ${agendaRes.eventos.length} compromiso(s) agendado(s):\n` +
+                                            agendaRes.eventos.map(e => `- ${e.titulo} (${e.fecha ? new Date(e.fecha).toLocaleString('es-CO') : 'Sin fecha'}): ${e.descripcion || 'Sin descripción'}`).join('\n');
+                                    }
+                                } else {
+                                    agendaOutput = agendaRes?.mensaje || JSON.stringify(agendaRes);
+                                }
+
                                 this.sendGeminiToolResponse([{
                                     id: fc.id,
                                     name: fc.name,
                                     response: {
-                                        result: agendaRes?.mensaje || (agendaRes?.eventos ? `Agenda consultada: ${agendaRes.eventos.length} eventos encontrados.` : JSON.stringify(agendaRes))
+                                        result: agendaOutput
                                     }
                                 }]);
                             }
