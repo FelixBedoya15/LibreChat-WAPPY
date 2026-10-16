@@ -2587,8 +2587,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           setIsGeneratingTechnicalReport(false);
         }
       },
-      onReportReceived: (html: string, messageId?: string, evaluatedFrames?: string[]) => {
-        console.log('[Tenshi Voice] Report received successfully');
+      onReportReceived: (html: string, messageId?: string, evaluatedFrames?: string[], newConvoId?: string) => {
+        console.log('[Tenshi Voice] Report received successfully', newConvoId ? `convo: ${newConvoId}` : '');
         setIsGeneratingTechnicalReport(false);
         setReportSuccessToast(true);
         manualCapturedPhasesRef.current.clear();
@@ -2632,6 +2632,22 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           setIsCanvasActive(true);
           setIsOpen(true);
           setIsVisionExpanded(false);
+
+          if (newConvoId && newConvoId !== 'new' && newConvoId !== conversation?.conversationId) {
+            console.log('[TenshiChat] Navegando a la nueva conversación creada para el informe:', newConvoId);
+            queryClient.invalidateQueries([QueryKeys.messages]);
+            queryClient.invalidateQueries([QueryKeys.allConversations]);
+            navigate(`/c/${newConvoId}`, { replace: true });
+          }
+        }
+      },
+      onConversationUpdated: (updatedConvoId?: string) => {
+        console.log('[Tenshi Voice] onConversationUpdated received:', updatedConvoId);
+        queryClient.invalidateQueries([QueryKeys.messages]);
+        queryClient.invalidateQueries([QueryKeys.allConversations]);
+        if (updatedConvoId && updatedConvoId !== 'new' && updatedConvoId !== conversation?.conversationId) {
+          console.log('[TenshiChat] Navegando a la conversación actualizada:', updatedConvoId);
+          navigate(`/c/${updatedConvoId}`, { replace: true });
         }
       },
       onError: (err: string) => {
