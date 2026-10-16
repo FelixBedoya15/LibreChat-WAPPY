@@ -34,7 +34,7 @@ const NAV_ITEMS = [
   { id: 'componentes', label: 'Fórmula', icon: '🌿', desc: 'Activos y modo de uso' },
   { id: 'video', label: 'Video', icon: '🎬', desc: 'Recorrido real del producto' },
   { id: 'nutricion', label: 'Nutrición', icon: '📋', desc: 'Tabla nutricional e Invima' },
-  { id: 'precios', label: 'Packs y Precios', icon: '🛍️', desc: 'Desde $79.900 · Envío nacional' },
+  { id: 'precios', label: 'Packs y Precios', icon: '🛍️', desc: 'Desde $96.000 · Envío nacional' },
   { id: 'faq', label: 'FAQ', icon: '❓', desc: 'Preguntas frecuentes' },
 ];
 
@@ -367,12 +367,12 @@ const PACKAGES: QuibiPackage[] = [
     bottles: 1,
     capsules: 60,
     duration: "1 Frasco · 60 Cápsulas (30 Días)",
-    priceNum: 79900,
-    originalPriceNum: 95000,
-    price: "$79.900",
-    originalPrice: "$95.000",
-    unitPriceLabel: "$79.900 por frasco",
-    discount: "AHORRAS 15%",
+    priceNum: 96000,
+    originalPriceNum: 115000,
+    price: "$96.000",
+    originalPrice: "$115.000",
+    unitPriceLabel: "$96.000 por frasco",
+    discount: "AHORRAS 16%",
     freeShipping: false,
     shippingLabel: "+ Envío nacional ($12.000)",
     featured: false,
@@ -393,12 +393,12 @@ const PACKAGES: QuibiPackage[] = [
     bottles: 2,
     capsules: 120,
     duration: "2 Frascos · 120 Cápsulas (60 Días)",
-    priceNum: 139900,
-    originalPriceNum: 190000,
-    price: "$139.900",
-    originalPrice: "$190.000",
-    unitPriceLabel: "$69.950 por frasco",
-    discount: "AHORRAS $50.100 (26% OFF)",
+    priceNum: 170000,
+    originalPriceNum: 230000,
+    price: "$170.000",
+    originalPrice: "$230.000",
+    unitPriceLabel: "$85.000 por frasco",
+    discount: "AHORRAS $60.000 (26% OFF)",
     freeShipping: true,
     shippingLabel: "¡ENVÍO GRATIS A TODA COLOMBIA!",
     featured: true,
@@ -406,7 +406,7 @@ const PACKAGES: QuibiPackage[] = [
     perks: [
       "2 Frascos originales QB (120 cápsulas con relleno líquido)",
       "ENVÍO GRATIS a cualquier ciudad o municipio de Colombia",
-      "Te sale a solo $69.950 cada frasco (Ahorras $50.100)",
+      "Te sale a solo $85.000 cada frasco (Ahorras $22.000 vs individual)",
       "Pago en Línea o Contra Entrega en efectivo al recibir",
       "Guía nutricional y acompañamiento por WhatsApp",
     ],
@@ -420,12 +420,12 @@ const PACKAGES: QuibiPackage[] = [
     bottles: 3,
     capsules: 180,
     duration: "3 Frascos · 180 Cápsulas (90 Días)",
-    priceNum: 189900,
-    originalPriceNum: 285000,
-    price: "$189.900",
-    originalPrice: "$285.000",
-    unitPriceLabel: "$63.300 por frasco",
-    discount: "AHORRAS $95.100 (33% OFF)",
+    priceNum: 240000,
+    originalPriceNum: 345000,
+    price: "$240.000",
+    originalPrice: "$345.000",
+    unitPriceLabel: "$80.000 por frasco",
+    discount: "AHORRAS $105.000 (30% OFF)",
     freeShipping: true,
     shippingLabel: "¡ENVÍO GRATIS PRIORITARIO!",
     featured: false,
@@ -433,7 +433,7 @@ const PACKAGES: QuibiPackage[] = [
     perks: [
       "3 Frascos originales QB (180 cápsulas con relleno líquido)",
       "ENVÍO GRATIS prioritario asegurado a nivel nacional",
-      "El mejor precio por unidad: $63.300 cada frasco",
+      "El mejor precio por unidad: solo $80.000 cada frasco",
       "Ideal para tratamiento completo de 90 días o en pareja",
       "Pago en Línea (PSE / Tarjetas) o Contra Entrega",
     ],
@@ -473,7 +473,7 @@ const PAYMENT_LABELS: Record<PaymentMethod, string> = {
   cod: 'Pago Contra Entrega (Efectivo al recibir)',
 };
 
-const FREE_SHIPPING_THRESHOLD = 130000;
+const FREE_SHIPPING_THRESHOLD = 150000;
 const SHIPPING_COST = 12000;
 
 const loadCart = (): CartLine[] => {
@@ -897,9 +897,9 @@ export default function QuibiPage() {
                         <span style={{ fontSize: 11, fontWeight: 700, opacity: 0.8, display: 'block' }}>
                           FRASCO X 60 CÁPSULAS
                         </span>
-                        <span className="now">$79.900</span> <span className="old">$95.000</span>
+                        <span className="now">$96.000</span> <span className="old">$115.000</span>
                       </div>
-                      <span className="tag">o $69.950 c/u en Pack x2</span>
+                      <span className="tag">o $85.000 c/u en Pack x2</span>
                     </div>
 
                     <div className="qb-slide-cta qb-in" style={{ '--d': '0.32s' } as React.CSSProperties}>
@@ -1583,7 +1583,7 @@ export default function QuibiPage() {
                     <div className="qb-upsell-box">
                       <h5>✨ Ahorra más con el Pack x2</h5>
                       <p style={{ margin: '0 0 10px', fontSize: 12.5, color: 'var(--muted)' }}>
-                        2 frascos por $139.900 ($69.950 c/u) con envío gratis.
+                        2 frascos por $170.000 ($85.000 c/u) con envío gratis.
                       </p>
                       <button type="button" className="btn btn-lime btn-sm" onClick={upgradeToPack2}>
                         Cambiar a Pack x2
@@ -1772,7 +1772,7 @@ export default function QuibiPage() {
         <div className="qb-sticky">
           <div>
             <b>QUIBI · 60 cápsulas</b>
-            <small>{cartCount > 0 ? `${cartCount} en carrito · ${formatCOP(finalTotal)}` : 'Desde $79.900 · Envío nacional'}</small>
+            <small>{cartCount > 0 ? `${cartCount} en carrito · ${formatCOP(finalTotal)}` : 'Desde $96.000 · Envío nacional'}</small>
           </div>
           <button type="button" className="btn btn-lime btn-sm" onClick={() => (cartCount > 0 ? openCart('cart') : goTo(null, 'precios'))}>
             <ShoppingCart className="w-4 h-4" />
