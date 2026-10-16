@@ -1697,14 +1697,21 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         rawFallbacks = [primaryAgentModel, ...matrixModels.filter((m) => m !== primaryAgentModel)];
         logger.info(`[WAPPY Brain Router] [MATRIZ / DOCS] Tarea estructurada detectada. Modelo prioritario: "${primaryAgentModel}"`);
       } else {
-        // Tarea Operativa / Rápida / Chat General:
-        // Prioridad: El modelo configurado del agente (predeterminado gemini-3.6-flash) -> gemini-3.5-flash -> gemini-3.5-flash-lite
-        const operationalModels = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite'];
-        if (!primaryAgentModel || primaryAgentModel.includes('live') || primaryAgentModel.includes('native-audio') || primaryAgentModel.includes('transcribe') || primaryAgentModel.includes('gemini-2.5') || primaryAgentModel.includes('gemini-3.7') || primaryAgentModel.includes('gemini-3.8')) {
-          primaryAgentModel = 'gemini-3.6-flash';
+        // Tarea Operativa / Rápida / Chat General / Búsqueda Web:
+        const hasWebSearchIntent = /\b(busca|buscar|busqueda|búsqueda|circular|norma|normativa|decreto|ley|resoluci[oó]n|sentencia|reforma|cu[aá]l es|vigente|vigencia|noticias|internet|web)\b/i.test(userQuery);
+        if (hasWebSearchIntent) {
+          // gemini-3.5-flash-lite no entra en bucle de pensamientos tras ejecutar tools: ejecuta web_search y responde de inmediato con alta calidad y 500 RPD
+          primaryAgentModel = 'gemini-3.5-flash-lite';
+          rawFallbacks = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.5-flash'];
+          logger.info(`[WAPPY Brain Router] [BÚSQUEDA WEB] Tarea con búsqueda web detectada. Modelo prioritario: "${primaryAgentModel}" (500 RPD, sin bucles de pensamiento)`);
+        } else {
+          const operationalModels = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.5-flash'];
+          if (!primaryAgentModel || primaryAgentModel.includes('live') || primaryAgentModel.includes('native-audio') || primaryAgentModel.includes('transcribe') || primaryAgentModel.includes('gemini-2.5') || primaryAgentModel.includes('gemini-3.7') || primaryAgentModel.includes('gemini-3.8')) {
+            primaryAgentModel = 'gemini-3.5-flash-lite';
+          }
+          rawFallbacks = [primaryAgentModel, ...operationalModels.filter((m) => m !== primaryAgentModel)];
+          logger.info(`[WAPPY Brain Router] [OPERATIVA / RÁPIDA] Tarea detectada. Modelo prioritario: "${primaryAgentModel}"`);
         }
-        rawFallbacks = [primaryAgentModel, ...operationalModels.filter((m) => m !== primaryAgentModel)];
-        logger.info(`[WAPPY Brain Router] [OPERATIVA / RÁPIDA] Tarea detectada. Modelo prioritario: "${primaryAgentModel}"`);
       }
 
       const now = Date.now();
@@ -2165,8 +2172,6 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
             fallbackMsg = 'He procesado tu solicitud y generado el contenido interactivo en Canvas. Ya puedes visualizarlo y utilizarlo en el panel lateral derecho.';
           } else if (isMatrixReq) {
             fallbackMsg = 'He procesado tu solicitud y registrado exitosamente los peligros en tu Matriz IPEVAR en vivo. Ya puedes visualizarlos y gestionarlos en el panel lateral.';
-          } else {
-            fallbackMsg = 'He procesado tu solicitud y registrado exitosamente la información en el sistema. Puedes visualizar los datos actualizados en el panel lateral.';
           }
         } else if (hasToolActivity) {
           // Si el modelo leyó el Canvas y se quedó sin escribir, aplicar la modificación pedida directamente.
@@ -2188,37 +2193,9 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
           }
           if (canvasApplied) {
             fallbackMsg = `✅ Listo. Apliqué tu solicitud en el Canvas (**${canvasApplied.title}**, versión ${canvasApplied.version}). Ya puedes verlo actualizado en el panel derecho.`;
-          } else if (isMatrixReq) {
-            fallbackMsg = 'He consultado la información y analizado los procesos de tu empresa. Ya puedes visualizar los datos en tu Matriz IPEVAR.';
-          } else {
-            fallbackMsg = 'He consultado la información en el sistema. Puedes visualizar los registros actualizados en el panel lateral.';
           }
-        } else if (isMatrixReq) {
-          fallbackMsg = 'He analizado tu solicitud para la matriz de peligros. Puedes visualizar la evaluación en el panel lateral.';
-        } else if (asksIndicatorsOrFormulas) {
-          fallbackMsg = `### 🏛️ Indicadores Mínimos de Accidentalidad (Resolución 0312 de 2019 - Artículo 30)
-
-Aquí tienes la explicación detallada de las características y fórmulas oficiales integradas:
-
-1. **Índice de Frecuencia de Accidentes de Trabajo (IF):**
-   - **Fórmula:** $\\text{IF} = \\left( \\frac{\\text{N° de accidentes de trabajo en el mes}}{\\text{N° de horas hombre trabajadas en el mes}} \\right) \\times 240.000$ (o constante $1.000.000$)
-   - **Interpretación:** Frecuencia con la que ocurren los siniestros laborales en relación con la exposición horaria.
-
-2. **Índice de Severidad de Accidentes de Trabajo (IS):**
-   - **Fórmula:** $\\text{IS} = \\left( \\frac{\\text{N° de días de incapacidad médica por AT en el mes} + \\text{días cargados}}{\\text{N° de horas hombre trabajadas en el mes}} \\right) \\times 240.000$
-   - **Interpretación:** Gravedad de las lesiones laborales medida por los días de trabajo perdidos respecto a las horas laboradas.
-
-3. **Proporción de Accidentes de Trabajo Mortales (PAM):**
-   - **Fórmula:** $\\text{PAM} = \\left( \\frac{\\text{N° de AT mortales en el año}}{\\text{N° total de AT en el año}} \\right) \\times 100$
-   - **Interpretación:** Porcentaje de siniestros laborales que resultaron en la muerte del trabajador.
-
-4. **Tasa de Accidentalidad (TA):**
-   - **Fórmula:** $\\text{TA} = \\left( \\frac{\\text{N° de AT ocurridos en el año}}{\\text{N° promedio de trabajadores en el año}} \\right) \\times 100$
-
-5. **Severidad y Ausentismo por Causa Médica:**
-   - **Fórmula:** $\\text{TAus} = \\left( \\frac{\\text{N° de días de ausencia laboral en el mes}}{\\text{N° de días de trabajo programados en el mes}} \\right) \\times 100$
-
-Estos indicadores están estructurados conforme a la Resolución 0312 de 2019 para el reporte y seguimiento en tu SG-SST.`;
+          // Para cualquier otra herramienta (como web_search, consultas de base de datos, etc.), NO asignamos
+          // un mensaje genérico falso de "panel lateral" para permitir que el Safety Net sintetice la respuesta completa con los resultados.
         } else if (isCanvasTask) {
           try {
             const CanvasTool = require('~/app/clients/tools/structured/CanvasTool');
@@ -2246,9 +2223,9 @@ Estos indicadores están estructurados conforme a la Resolución 0312 de 2019 pa
           }
         }
 
-        // Si aún no hay texto real generado (el modelo pensó pero no emitió texto),
-        // SINTETIZAR DE INMEDIATO LA RESPUESTA REAL COMPLETA mediante generateWithKeyRotation.
-        // NUNCA emitir preguntas pasivas ni pedir permiso al usuario.
+        // Si aún no hay texto real generado (el modelo pensó pero no emitió texto, o ejecutó herramientas como web_search sin redactar la conclusión),
+        // SINTETIZAR DE INMEDIATO LA RESPUESTA REAL COMPLETA mediante generateWithKeyRotation usando gemini-3.5-flash-lite.
+        // NUNCA emitir preguntas pasivas ni inventar paneles laterales inexistentes.
         if (!fallbackMsg) {
           const rawQuery = this.options.req?.body?.text || userQuery || '';
           const targetUserId = this.user ?? this.options?.req?.user?.id ?? 'global';
@@ -2257,15 +2234,28 @@ Estos indicadores están estructurados conforme a la Resolución 0312 de 2019 pa
 
           try {
             const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
-            logger.info(`[AgentClient Safety Net] Sintetizando respuesta de texto real para "${agentName}" (convoId: ${this.conversationId}) tras pensamientos del modelo sin texto emitido...`);
+            logger.info(`[AgentClient Safety Net] Sintetizando respuesta de texto real para "${agentName}" (convoId: ${this.conversationId}) tras pensamientos o herramientas sin texto emitido...`);
+
+            // Extraer resultados de herramientas ejecutadas (web_search, consultas, etc.)
+            const toolResultsParts = this.contentParts
+              .filter((p) => p && (p.type === ContentTypes.TOOL_RESULT || p.type === 'tool_result' || p.output != null || p.tool_call_id != null))
+              .map((p) => {
+                const out = p.output || p.content || p.text;
+                if (!out) return '';
+                const str = typeof out === 'string' ? out : JSON.stringify(out);
+                return str.slice(0, 4000);
+              })
+              .filter(Boolean)
+              .join('\n\n');
 
             const synthPrompt = [
               `Eres el agente "${agentName}".`,
               agentInstructions ? `TUS INSTRUCCIONES PRINCIPALES:\n${agentInstructions}` : '',
               `SOLICITUD O MENSAJE DEL USUARIO:\n"${rawQuery}"`,
+              toolResultsParts ? `INFORMACIÓN Y RESULTADOS DE BÚSQUEDA WEB / HERRAMIENTAS OBTENIDOS:\n${toolResultsParts.slice(0, 8000)}` : '',
               thoughtParts ? `RAZONAMIENTO PREVIO / BORRADOR:\n${thoughtParts.slice(0, 2500)}` : '',
-              `DIRECTIVA OBLIGATORIA: Redacta y entrega de inmediato la respuesta completa, detallada, profesional y directamente útil para el usuario. Responde a su solicitud con todo el contenido, análisis o redacción requerida.`,
-              `ESTÁ TERMINANTEMENTE PROHIBIDO pedir confirmación, preguntar si deseas que proceda, o emitir respuestas vacías o evasivas. Entrega el contenido real completo.`
+              `DIRECTIVA OBLIGATORIA: Redacta y entrega de inmediato la respuesta completa, detallada, profesional y directamente útil para el usuario en español. Si se ejecutó búsqueda web, integra y cita los hallazgos normativos (circulares, decretos, resoluciones, jurisprudencia o fuentes oficiales) para responder de forma precisa y profunda a la consulta.`,
+              `ESTÁ TERMINANTEMENTE PROHIBIDO pedir confirmación, preguntar si deseas que proceda, emitir respuestas evasivas o inventar menciones a paneles laterales si no se abrió un editor. Entrega el contenido real completo directamente en el chat.`
             ].filter(Boolean).join('\n\n');
 
             const synthResult = await generateWithKeyRotation('gemini-3.5-flash-lite', targetUserId, synthPrompt, {

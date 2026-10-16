@@ -395,10 +395,7 @@ Si el usuario te solicita redactar un contenido, guion, política, informe, o re
 
     tools = [...new Set(tools)];
 
-    let defaultModel = (process.env.GOOGLE_MODELS || 'gemini-3.6-flash').split(',')[0].trim();
-    if (defaultModel === 'gemini-3.8-flash' || defaultModel === 'gemini-3.7-flash') {
-      defaultModel = 'gemini-3.6-flash';
-    }
+    let defaultModel = process.env.DEFAULT_AGENT_MODEL || 'gemini-3.5-flash-lite';
     const agentModel = val.model || defaultModel;
 
     let agent = await Agent.findOne({ name: val.name });
