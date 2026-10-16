@@ -708,11 +708,11 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             const configuredModel = (config.model || '').replace('models/', '').trim();
             const candidateModels = [
                 configuredModel,
-                ...envModels,
+                'gemini-3.5-flash-lite',
+                'gemini-3.5-flash',
                 'gemini-3.8-flash',
                 'gemini-3.6-flash',
-                'gemini-3.5-flash',
-                'gemini-3.5-flash-lite'
+                ...envModels
             ].filter(Boolean);
             const modelFallbacks = [...new Set(candidateModels)];
 
@@ -2224,7 +2224,21 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                 }
                             } catch (e) { }
 
-                            const modelParts = (candidate && candidate.content && candidate.content.parts) || [{
+                            const rawCandidateParts = (candidate && candidate.content && Array.isArray(candidate.content.parts))
+                                ? candidate.content.parts
+                                : [];
+                            let firstFuncTaken = false;
+                            const filteredParts = rawCandidateParts.filter((p) => {
+                                if (p && p.functionCall) {
+                                    if (!firstFuncTaken && p.functionCall.name === call.name) {
+                                        firstFuncTaken = true;
+                                        return true;
+                                    }
+                                    return false;
+                                }
+                                return true;
+                            });
+                            const modelParts = filteredParts.length > 0 ? filteredParts : [{
                                 functionCall: { name: call.name, args: call.args }
                             }];
                             currentContents.push({ role: 'model', parts: modelParts });
@@ -2261,11 +2275,20 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
                         try {
                             responseText = responseResult.response.text();
-                            if (!responseText || !responseText.trim()) {
-                                responseText = "Entendido, procedo a realizar una acción en la pantalla...";
-                            }
                         } catch (textErr) {
-                            responseText = "Entendido, procedo a realizar una acción en la pantalla...";
+                            responseText = '';
+                        }
+
+                        if (!responseText || !responseText.trim()) {
+                            const hasGuiAction = Boolean(requestedGuiAction || (requestedGuiActions && requestedGuiActions.length > 0));
+                            const hasGeneratedArtifact = Boolean(capturedFile || capturedHtmlReport || capturedQrCode);
+                            if (hasGuiAction) {
+                                responseText = "Entendido, procedo a realizar una acción en la pantalla...";
+                            } else if (hasGeneratedArtifact) {
+                                responseText = "Listo, he generado el recurso solicitado y ya lo tienes disponible aquí en pantalla.";
+                            } else {
+                                throw new Error(`El modelo "${currentModel}" devolvió una respuesta vacía sin texto ni acción GUI.`);
+                            }
                         }
                         logger.info(`[Tenshi Backend] Final responseText: "${responseText}", guiAction: ${JSON.stringify(requestedGuiAction)}`);
                         lastError = null;
