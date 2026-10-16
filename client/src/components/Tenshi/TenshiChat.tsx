@@ -2091,7 +2091,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 action.args?.nuevo_chat ||
                 pendingForceNewChatRef.current ||
                 /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia|cambiemos|abrir\w*\s+(un\s+)?(nuevo\s+)?chat|abrirme|ábreme)\b/i.test(rawPregunta) ||
-                /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia|cambiemos|abrir\w*\s+(un\s+)?(nuevo\s+)?chat|abrirme|ábreme)\b/i.test(action.args?.pregunta || '')
+                /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia|cambiemos|abrir\w*\s+(un\s+)?(nuevo\s+)?chat|abrirme|ábreme)\b/i.test(action.args?.pregunta || '') ||
+                /\b(informe|reporte|estudio\s+de\s+puesto|estudio\s+ergon[oó]mico|dictamen|documento|acta|matriz)\b/i.test(rawPregunta) ||
+                /\b(informe|reporte|estudio\s+de\s+puesto|estudio\s+ergon[oó]mico|dictamen|documento|acta|matriz)\b/i.test(action.args?.pregunta || '')
               );
 
               // Consumir la bandera de forzar nuevo chat

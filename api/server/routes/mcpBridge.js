@@ -1810,6 +1810,8 @@ router.delete('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
 router.post('/workers/:idOrCedula/retirar', requireApiKeyOrJwt, async (req, res) => {
   try {
     const userId = req.user.id;
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
     const target = (req.params.idOrCedula || '').trim();
     const { fechaRetiro, motivoRetiro } = req.body || {};
 
@@ -1821,7 +1823,7 @@ router.post('/workers/:idOrCedula/retirar', requireApiKeyOrJwt, async (req, res)
       mongoose.models.PerfilSociodemograficoData ||
       require('~/models/PerfilSociodemograficoData');
 
-    const socioDocs = await PerfilSociodemograficoData.find({ user: userId });
+    const socioDocs = await PerfilSociodemograficoData.find(companyScope(userId, companyId));
     let updated = false;
     let workerData = null;
     const today = new Date().toISOString().split('T')[0];
@@ -1898,6 +1900,8 @@ router.post('/workers/:idOrCedula/retirar', requireApiKeyOrJwt, async (req, res)
 router.post('/workers/:idOrCedula/reactivar', requireApiKeyOrJwt, async (req, res) => {
   try {
     const userId = req.user.id;
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
     const target = (req.params.idOrCedula || '').trim();
 
     if (!target) {
@@ -1908,7 +1912,7 @@ router.post('/workers/:idOrCedula/reactivar', requireApiKeyOrJwt, async (req, re
       mongoose.models.PerfilSociodemograficoData ||
       require('~/models/PerfilSociodemograficoData');
 
-    const socioDocs = await PerfilSociodemograficoData.find({ user: userId });
+    const socioDocs = await PerfilSociodemograficoData.find(companyScope(userId, companyId));
     let updated = false;
     let workerData = null;
 
@@ -5948,7 +5952,7 @@ router.post('/email/send', requireApiKeyOrJwt, async (req, res) => {
     const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
     const company = await getActiveCompany(targetUserId);
     const companyId = company ? String(company._id) : null;
-    let { to, destinatario, subject, asunto, body, mensaje, html, texto } = req.body;
+    let { to, destinatario, subject, asunto, body, mensaje, html, texto, attachments, reportHtml, adjuntos, titulo } = req.body;
 
     let targetTo = String(to || destinatario || '').trim();
     if (!targetTo || targetTo.toLowerCase() === 'mi correo' || targetTo.toLowerCase() === 'a mi correo' || targetTo.toLowerCase() === 'yo') {
@@ -5962,9 +5966,69 @@ router.post('/email/send', requireApiKeyOrJwt, async (req, res) => {
     }
 
     const finalSubject = subject || asunto || `Notificación SG-SST - ${company?.companyName || 'WAPPY'}`;
-    const rawContent = body || mensaje || html || texto || '';
+    let rawContent = body || mensaje || html || texto || '';
 
-    const formattedHtml = `
+    // Detección y resolución automática de informe Canvas / LiveEditor
+    let resolvedReportHtml = reportHtml || req.body.contenido_informe || req.body.htmlReport || null;
+    let reportTitle = titulo || req.body.reportTitle || finalSubject;
+
+    const isReportEmail = Boolean(
+      resolvedReportHtml ||
+      req.body.adjuntar_informe ||
+      /informe|reporte|estudio|salud|dictamen|adjunto/i.test(finalSubject) ||
+      /informe|reporte|estudio|salud|dictamen|adjunt/i.test(rawContent)
+    );
+
+    if (isReportEmail && !resolvedReportHtml) {
+      try {
+        const CanvasSession = mongoose.models.CanvasSession || require('~/models/CanvasSession');
+        const recentCanvas = await CanvasSession.findOne({
+          user: targetUserId,
+          content: { $exists: true, $ne: '' },
+        }).sort({ updatedAt: -1 }).lean();
+
+        if (recentCanvas && recentCanvas.content && String(recentCanvas.content).length > 200) {
+          resolvedReportHtml = String(recentCanvas.content);
+          if (recentCanvas.title) reportTitle = recentCanvas.title;
+        } else {
+          const LiveEditorSession = mongoose.models.LiveEditorSession || require('~/models/LiveEditorSession');
+          const recentLive = await LiveEditorSession.findOne({
+            user: targetUserId,
+            content: { $exists: true, $ne: '' },
+          }).sort({ updatedAt: -1 }).lean();
+          if (recentLive && recentLive.content && String(recentLive.content).length > 200) {
+            resolvedReportHtml = String(recentLive.content);
+            if (recentLive.title) reportTitle = recentLive.title;
+          }
+        }
+      } catch (findReportErr) {
+        logger.warn('[MCP Bridge /email/send] Error buscando informe reciente:', findReportErr.message);
+      }
+    }
+
+    let formattedHtml = '';
+    if (resolvedReportHtml) {
+      const introBlock = rawContent && !rawContent.includes('<html') && rawContent.length < 500
+        ? `<div style="margin-bottom: 24px; padding: 16px; background-color: #f8fafc; border-left: 4px solid #0d9488; border-radius: 6px; font-size: 14px; color: #334155; line-height: 1.6;">${rawContent.replace(/\n/g, '<br/>')}</div>`
+        : '';
+
+      formattedHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+        <div style="border-bottom: 2px solid #0d9488; padding-bottom: 12px; margin-bottom: 20px;">
+          <h2 style="color: #0f172a; margin: 0; font-size: 20px;">${company?.companyName || 'WAPPY SG-SST'}</h2>
+          <p style="color: #64748b; font-size: 12px; margin: 4px 0 0 0;">Gestión Integral de Seguridad y Salud en el Trabajo &bull; Sistema Oficial</p>
+        </div>
+        ${introBlock}
+        <div class="wappy-report-embed" style="margin-top: 16px;">
+          ${resolvedReportHtml}
+        </div>
+        <div style="margin-top: 30px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; text-align: center;">
+          Documento técnico oficial generado, auditado y emitido a través de Tenshi en el ecosistema WAPPY &bull; <a href="https://wappy.club" style="color: #0d9488; text-decoration: none;">wappy.club</a>
+        </div>
+      </div>
+      `;
+    } else {
+      formattedHtml = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 650px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
         <div style="border-bottom: 2px solid #0d9488; padding-bottom: 12px; margin-bottom: 20px;">
           <h2 style="color: #0f172a; margin: 0; font-size: 20px;">${company?.companyName || 'WAPPY SG-SST'}</h2>
@@ -5977,7 +6041,19 @@ router.post('/email/send', requireApiKeyOrJwt, async (req, res) => {
           Mensaje generado y enviado a través de Tenshi en el ecosistema WAPPY.
         </div>
       </div>
-    `;
+      `;
+    }
+
+    // Preparar lista de archivos adjuntos
+    const finalAttachments = Array.isArray(attachments) ? [...attachments] : (Array.isArray(adjuntos) ? [...adjuntos] : []);
+    if (resolvedReportHtml) {
+      const cleanFilename = `${(reportTitle || 'Informe-Tecnico-SST').replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_ -]/g, '').trim()}.html`;
+      finalAttachments.push({
+        filename: cleanFilename,
+        contentType: 'text/html; charset=UTF-8',
+        content: resolvedReportHtml,
+      });
+    }
 
     let sentVia = 'google_gmail';
     let sendResult = null;
@@ -5988,8 +6064,9 @@ router.post('/email/send', requireApiKeyOrJwt, async (req, res) => {
         to: targetTo,
         subject: finalSubject,
         body: formattedHtml,
+        attachments: finalAttachments,
       }, companyId);
-      logger.info(`[MCP Bridge] Correo enviado vía Google Gmail a ${targetTo}`);
+      logger.info(`[MCP Bridge] Correo enviado vía Google Gmail a ${targetTo} con ${finalAttachments.length} archivo(s) adjunto(s)`);
     } catch (gErr) {
       logger.info(`[MCP Bridge] Google Gmail no disponible (${gErr.message}). Utilizando servidor SMTP/Mailgun del sistema...`);
     }
@@ -6001,17 +6078,19 @@ router.post('/email/send', requireApiKeyOrJwt, async (req, res) => {
         email: targetTo,
         subject: finalSubject,
         html: formattedHtml,
+        attachments: finalAttachments,
         throwError: true,
       });
-      logger.info(`[MCP Bridge] Correo enviado vía servidor del sistema a ${targetTo}`);
+      logger.info(`[MCP Bridge] Correo enviado vía servidor del sistema a ${targetTo} con ${finalAttachments.length} archivo(s) adjunto(s)`);
     }
 
     return res.json({
       exito: true,
-      mensaje: `Correo electrónico enviado exitosamente a "${targetTo}" con el asunto "${finalSubject}".`,
+      mensaje: `Correo electrónico enviado exitosamente a "${targetTo}" con el asunto "${finalSubject}".${finalAttachments.length > 0 ? ` Se adjuntó e incrustó el informe técnico (${finalAttachments[0].filename}).` : ''}`,
       destinatario: targetTo,
       asunto: finalSubject,
       canal: sentVia,
+      adjuntos: finalAttachments.map(a => a.filename),
     });
   } catch (error) {
     logger.error('[MCP Bridge] Error enviando correo:', error);

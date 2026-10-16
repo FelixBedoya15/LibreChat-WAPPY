@@ -9,7 +9,7 @@ interface VoiceMessage {
 interface UseVoiceSessionOptions {
     onAudioReceived?: (audioData: string) => void;
     onTextReceived?: (text: string, isUserTranscription?: boolean) => void;
-    onReportReceived?: (html: string, messageId?: string, evaluatedFrames?: string[]) => void;
+    onReportReceived?: (html: string, messageId?: string, evaluatedFrames?: string[], conversationId?: string, isNewReport?: boolean) => void;
     onWappyAction?: (action: { id: string; name: string; args: any }) => void;
     onAgentSwitched?: (data: { agentName: string; agentId: string; isBiomechanics: boolean; isFisioMode: boolean; conversationId?: string; badge?: string }) => void;
     onStatusChange?: (status: string) => void;
@@ -657,11 +657,13 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
 
             case 'report':
                 if (message.data.html) {
-                    console.log('[VoiceSession] Report received');
+                    console.log('[VoiceSession] Report received', message.data.conversationId ? `for conversation: ${message.data.conversationId}` : '');
                     optionsRef.current.onReportReceived?.(
                         message.data.html,
                         message.data.messageId,
-                        message.data.evaluatedFrames
+                        message.data.evaluatedFrames,
+                        message.data.conversationId,
+                        message.data.isNewReport
                     );
                     
                     // Unfreeze state and microphone cleanly
@@ -737,11 +739,12 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             case 'conversationUpdated':
                 console.log('[VoiceSession] Conversation updated event received from WS');
                 if (optionsRef.current.onConversationUpdated) {
-                    console.log('[VoiceSession] Executing onConversationUpdated callback with ID:', message.data.conversationId);
-                    optionsRef.current.onConversationUpdated(message.data.conversationId);
+                    console.log('[VoiceSession] Executing onConversationUpdated callback with ID:', message.data?.conversationId);
+                    optionsRef.current.onConversationUpdated(message.data?.conversationId);
                 } else {
                     console.warn('[VoiceSession] No onConversationUpdated callback defined');
                 }
+                break;
             case 'agent_switched':
                 console.log('[VoiceSession] Agent switched event received:', message.data);
                 optionsRef.current.onAgentSwitched?.(message.data);

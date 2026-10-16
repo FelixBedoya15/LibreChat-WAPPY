@@ -87,7 +87,9 @@ const SLIDES = [
     kicker: '💖 EL HÁBITO DIARIO DE AMOR PROPIO QUE MERECES',
     title: (
       <>
-        Dos perlas al día para <em>recuperar tu confianza y seguridad</em>.
+        Dos perlas al día<br />
+        para recuperar<br />
+        <em>tu confianza</em>.
       </>
     ),
     sub: 'Olvida las dietas tortuosas y el sabor amargo del vinagre líquido. Un gesto tan simple como tomar dos cápsulas con agua para reconectar con tu bienestar y amar lo que ves en el espejo.',

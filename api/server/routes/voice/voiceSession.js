@@ -3207,7 +3207,17 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
                             data: { status: 'loading', message: `Enviando correo a ${fc.args?.destinatario || ''}...` }
                         });
                         try {
-                            const mailRes = await executeTenshiMcpTool('wappy_enviar_correo', fc.args || {}, this.userId);
+                            const mailArgs = { ...(fc.args || {}) };
+                            if (!mailArgs.reportHtml && this.lastGeneratedReportHtml) {
+                                mailArgs.reportHtml = this.lastGeneratedReportHtml;
+                            }
+                            if (!mailArgs.reportHtml && this.lastGeneratedCanvasFile?.content) {
+                                mailArgs.reportHtml = this.lastGeneratedCanvasFile.content;
+                            }
+                            if (!mailArgs.titulo && this.lastGeneratedCanvasFile?.title) {
+                                mailArgs.titulo = this.lastGeneratedCanvasFile.title;
+                            }
+                            const mailRes = await executeTenshiMcpTool('wappy_enviar_correo', mailArgs, this.userId);
                             this.sendToClient({
                                 type: 'wappy_action',
                                 data: {
@@ -5294,6 +5304,7 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
                     if (sessionDoc?.content) {
                         generatedContent = typeof sessionDoc.content === 'string' ? sessionDoc.content : JSON.stringify(sessionDoc.content);
                         finalTitle = sessionDoc.title || finalTitle;
+                        this.lastGeneratedReportHtml = generatedContent;
                         ok = true;
 
                         // Sincronizar en tiempo real con el conversationId activo de pantalla si existe y no es temporal
@@ -6469,21 +6480,25 @@ ${workerSubHeaderHtml}
                         return md.trim();
                     };
 
+                    this.lastGeneratedReportHtml = reportHtml;
+
                     const cleanMarkdown = convertHtmlToMarkdown(reportHtml);
                     const reportTitle = this.isBiomechanics 
                         ? 'Informe Técnico de Ergonomía y Biomecánica' 
-                        : 'Informe Técnico de Evaluación de Riesgos y Peligros';
+                        : (this.currentInspectionSubject ? `Informe Técnico de ${this.currentInspectionSubject}` : 'Informe Técnico de Evaluación de Riesgos y Peligros');
 
                     const chatMessageText = `${cleanMarkdown}\n\n:::canvas{title="${reportTitle}" fileType="text" identifier="informe-ergonomico-${radicadoId}"}\n${reportHtml}\n:::\n`;
 
-                    const targetConversationId = (this.isFisioMode && this.fisioConversationId) ? this.fisioConversationId : this.conversationId;
+                    // REGLA CRÍTICA: SIEMPRE abrir y crear una conversación NUEVA dedicada para informes y estudios ergonómicos
+                    const targetConversationId = uuidv4();
+                    this.conversationId = targetConversationId;
                     const targetAgentId = this.isFisioMode ? (this.fisioAgent?.id || 'fisioterapeuta_laboral') : (this.agentObj?.id || 'tenshi');
                     const reportSender = this.isFisioMode ? (this.fisioAgent?.name || 'Fisioterapeuta Laboral') : (this.agentObj?.name || (this.isBiomechanics ? 'Fisioterapeuta Laboral' : 'Tenshi'));
                     const reportIconURL = this.isFisioMode ? (this.fisioAgent?.avatar?.filepath || this.fisioAgent?.avatar?.url) : (this.agentObj?.avatar?.filepath || this.agentObj?.avatar?.url || undefined);
                     const reportMessage = {
                         messageId,
                         conversationId: targetConversationId,
-                        parentMessageId: this.isFisioMode ? this.fisioLastMessageId : this.lastMessageId,
+                        parentMessageId: null,
                         sender: reportSender,
                         iconURL: reportIconURL,
                         user: this.userId,
@@ -6497,18 +6512,27 @@ ${workerSubHeaderHtml}
                         updatedAt: new Date(),
                     };
 
-                    if (targetConversationId && targetConversationId !== 'new') {
-                        try {
-                            await saveMessage({ user: { id: this.userId } }, reportMessage, { context: 'VoiceSession - Report' });
-                            if (this.isFisioMode) {
-                                this.fisioLastMessageId = messageId;
-                            } else {
-                                this.lastMessageId = messageId;
-                            }
-                            logger.info(`[VoiceSession] Report saved to DB with sender "${reportSender}" in convo "${targetConversationId}". MessageId: ${messageId}`);
-                        } catch (saveMsgErr) {
-                            logger.warn('[VoiceSession] Could not save report message in convo:', saveMsgErr.message);
+                    try {
+                        const workerName = (this.extractedWorkerMeta && this.extractedWorkerMeta.workerName) || this.user?.name || 'Colaborador';
+                        const convoTitle = this.isBiomechanics ? `Estudio Ergonómico — ${workerName}` : `${reportTitle} — ${workerName}`;
+                        await saveConvo({ user: { id: this.userId } }, {
+                            conversationId: targetConversationId,
+                            endpoint: 'agents',
+                            agent_id: targetAgentId,
+                            title: convoTitle,
+                            model: this.dbModel,
+                            tags: this.isBiomechanics ? ['tenshi-report', 'estudio-ergonomico', 'sgsst-live-analysis'] : ['tenshi-report', 'inspeccion-sst', 'sgsst-live-analysis']
+                        }, { context: 'VoiceSession - NewReportConvo' });
+
+                        await saveMessage({ user: { id: this.userId } }, reportMessage, { context: 'VoiceSession - Report' });
+                        if (this.isFisioMode) {
+                            this.fisioLastMessageId = messageId;
+                        } else {
+                            this.lastMessageId = messageId;
                         }
+                        logger.info(`[VoiceSession] Brand new report conversation created: "${targetConversationId}" with sender "${reportSender}". MessageId: ${messageId}`);
+                    } catch (saveMsgErr) {
+                        logger.warn('[VoiceSession] Could not save new report message in convo:', saveMsgErr.message);
                     }
 
                     // Get the frames evaluated immediately (available for all subsequent syncs)
@@ -6541,13 +6565,14 @@ ${workerSubHeaderHtml}
                         data: {
                             html: reportHtml,
                             messageId: messageId,
+                            conversationId: targetConversationId,
                             evaluatedFrames: evalFrames
                         }
                     });
 
                     this.sendToClient({
                         type: 'conversationUpdated',
-                        data: { conversationId: targetConversationId }
+                        data: { conversationId: targetConversationId, isNewReport: true }
                     });
 
                     // 2. INSTRUCT GEMINI LIVE TO ANNOUNCE REPORT COMPLETION
@@ -6775,42 +6800,10 @@ ${workerSubHeaderHtml}
                             logger.warn('[VoiceSession] Could not persist report in TenshiMessage:', tenshiSaveErr.message);
                         }
 
-                        // 2. Respaldo en el Chat de Agente Tenshi (Sidebar de agentes / Conversation y Message)
+                        // 2. Respaldo en CanvasSession para la nueva conversación dedicada
                         try {
                             const CanvasSession = require('~/models/CanvasSession');
-                            const { Conversation } = require('~/db/models');
-                            const TENSHI_AGENT_ID = '3579240c-ac93-4f4f-b0e4-95d87fc1ee27';
-
-                            let tenshiConvo = await Conversation.findOne({
-                                user: String(this.userId),
-                                agent_id: TENSHI_AGENT_ID,
-                            }).sort({ updatedAt: -1 }).lean();
-
-                            const convoId = tenshiConvo ? tenshiConvo.conversationId : uuidv4();
-
-                            await saveConvo({ user: { id: this.userId } }, {
-                                conversationId: convoId,
-                                endpoint: 'agents',
-                                agent_id: TENSHI_AGENT_ID,
-                                title: tenshiReportTitle,
-                                tags: ['tenshi-report', 'inspeccion-sst'],
-                            }, { context: 'VoiceSession - TenshiReportConvo' });
-
-                            const agentMsgId = uuidv4();
-                            const markdownSummary = `### 📋 ${tenshiReportTitle}\n\n` +
-                                `Se ha compilado el informe técnico oficial de inspección con evidencias fotográficas.\n\n` +
-                                `- **Estado**: Completado e indexado en Canvas.\n` +
-                                `- **Evidencias**: ${(evalFrames && evalFrames.length) || 3} captura(s) visual(es) analizada(s).\n\n` +
-                                `Puedes visualizar y descargar el informe completo en el editor interactivo Canvas adjunto a este chat.`;
-
-                            await saveMessage({ user: { id: this.userId } }, {
-                                messageId: agentMsgId,
-                                conversationId: convoId,
-                                user: String(this.userId),
-                                sender: 'Tenshi',
-                                text: markdownSummary,
-                                isCreatedByUser: false,
-                            }, { context: 'VoiceSession - TenshiReportMsg' });
+                            const convoId = targetConversationId;
 
                             await CanvasSession.findOneAndUpdate(
                                 { conversationId: convoId },

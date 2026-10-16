@@ -483,7 +483,7 @@ async function processTextReportDocument(content, fileType, title, userId, req, 
   }
 
   const companyContext = companyInfo
-    ? `Empresa: ${companyInfo.companyName || 'Empresa Activa'}\nNIT: ${companyInfo.nit || 'Sin NIT'}\nActividad Económica / Sector: ${companyInfo.economicSector || 'General'}\nClase de Riesgo ARL: ${companyInfo.riskLevel || 'Riesgo III'}\nNúmero de Colaboradores: ${companyInfo.numWorkers || companyInfo.employeeCount || 'No especificado'}\nCiudad / Sede: ${companyInfo.city || companyInfo.address || 'Colombia'}\nResponsable SG-SST: ${companyInfo.sstResponsible || 'Especialista SST'}`
+    ? `Empresa: ${companyInfo.companyName || 'Empresa Activa'}\nNIT: ${companyInfo.nit || 'Sin NIT'}\nActividad Económica: ${companyInfo.economicActivity || companyInfo.sector || 'General'}\nSector: ${companyInfo.sector || 'General'}\nClase de Riesgo ARL: ${companyInfo.riskLevel || 'Riesgo III'}\nNúmero de Colaboradores: ${companyInfo.workerCount || companyInfo.numWorkers || companyInfo.employeeCount || 'No especificado'}\nCiudad / Sede: ${companyInfo.city || companyInfo.address || 'Colombia'}\nDirección: ${companyInfo.address || 'Colombia'}\nRepresentante Legal: ${companyInfo.legalRepresentative || 'Representante Legal'}\nResponsable SG-SST: ${companyInfo.responsibleSST || companyInfo.sstResponsible || 'Especialista SST'}\nLicencia SST: ${companyInfo.licenseNumber || 'Sin Licencia'} (Vence: ${companyInfo.licenseExpiry || 'N/A'})\nTeléfono Responsable SST: ${companyInfo.responsibleSSTPhone || companyInfo.phone || 'N/A'}`
     : 'No hay información de empresa registrada en el perfil.';
 
   const prompt = `Eres el Especialista Principal y Consultor Senior en Seguridad y Salud en el Trabajo (SG-SST) de WAPPY IA y Somos SST en Colombia.

@@ -126,24 +126,81 @@ const markdownToHtml = (text) => {
 };
 
 /**
- * Helper to encode email message in RFC 822 format base64url.
+ * Helper to encode email message in RFC 822 / RFC 2046 format base64url.
+ * Supports inline HTML body and attachments (PDF, HTML, text, etc.).
  */
-const makeRawEmail = ({ from, to, subject, body, cc, bcc }) => {
+const makeRawEmail = ({ from, to, subject, body, cc, bcc, attachments = [] }) => {
   // Auto-convert markdown to HTML if the body isn't already HTML
   const htmlBody = markdownToHtml(body || '');
 
-  const str = [
-    'Content-Type: text/html; charset="UTF-8"\r\n',
+  const validAttachments = Array.isArray(attachments) ? attachments.filter(a => a && a.filename && a.content) : [];
+
+  if (validAttachments.length === 0) {
+    const str = [
+      'Content-Type: text/html; charset="UTF-8"\r\n',
+      'MIME-Version: 1.0\r\n',
+      from ? `From: ${from}\r\n` : '',
+      `To: ${to}\r\n`,
+      cc ? `Cc: ${cc}\r\n` : '',
+      bcc ? `Bcc: ${bcc}\r\n` : '',
+      `Subject: =?UTF-8?B?${Buffer.from(subject || '').toString('base64')}?=\r\n\r\n`,
+      htmlBody,
+    ].join('');
+
+    return Buffer.from(str)
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+  }
+
+  // Multipart/mixed message with attachments
+  const boundary = `wappy_boundary_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+  const lines = [
+    `Content-Type: multipart/mixed; boundary="${boundary}"\r\n`,
     'MIME-Version: 1.0\r\n',
     from ? `From: ${from}\r\n` : '',
     `To: ${to}\r\n`,
     cc ? `Cc: ${cc}\r\n` : '',
     bcc ? `Bcc: ${bcc}\r\n` : '',
     `Subject: =?UTF-8?B?${Buffer.from(subject || '').toString('base64')}?=\r\n\r\n`,
+    `--${boundary}\r\n`,
+    'Content-Type: text/html; charset="UTF-8"\r\n',
+    'Content-Transfer-Encoding: 8bit\r\n\r\n',
     htmlBody,
-  ].join('');
+    '\r\n',
+  ];
 
-  return Buffer.from(str)
+  for (const att of validAttachments) {
+    const filename = att.filename;
+    const contentType = att.contentType || 'application/octet-stream';
+    let base64Content = '';
+
+    if (Buffer.isBuffer(att.content)) {
+      base64Content = att.content.toString('base64');
+    } else if (typeof att.content === 'string') {
+      if (att.isBase64 || /^[A-Za-z0-9+/=]+$/.test(att.content.replace(/\s+/g, '')) && att.content.length % 4 === 0 && att.content.length > 500 && !att.content.includes('<')) {
+        base64Content = att.content.replace(/\s+/g, '');
+      } else {
+        base64Content = Buffer.from(att.content, 'utf-8').toString('base64');
+      }
+    }
+
+    const formattedBase64 = base64Content.match(/.{1,76}/g)?.join('\r\n') || base64Content;
+
+    lines.push(
+      `--${boundary}\r\n`,
+      `Content-Type: ${contentType}; name="${filename}"\r\n`,
+      `Content-Disposition: attachment; filename="${filename}"\r\n`,
+      'Content-Transfer-Encoding: base64\r\n\r\n',
+      formattedBase64,
+      '\r\n'
+    );
+  }
+
+  lines.push(`--${boundary}--\r\n`);
+
+  return Buffer.from(lines.join(''))
     .toString('base64')
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
@@ -151,9 +208,9 @@ const makeRawEmail = ({ from, to, subject, body, cc, bcc }) => {
 };
 
 /**
- * Sends an email via Gmail API.
+ * Sends an email via Gmail API with full attachment support.
  */
-const sendEmail = async (userId, { to, subject, body, cc, bcc }, companyId = null) => {
+const sendEmail = async (userId, { to, subject, body, cc, bcc, attachments }, companyId = null) => {
   try {
     const gmail = await getGmailClient(userId, companyId);
     if (!gmail) {
@@ -161,13 +218,13 @@ const sendEmail = async (userId, { to, subject, body, cc, bcc }, companyId = nul
     }
 
     const fromEmail = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EMAIL', false);
-    const raw = makeRawEmail({ from: fromEmail, to, subject, body, cc, bcc });
+    const raw = makeRawEmail({ from: fromEmail, to, subject, body, cc, bcc, attachments });
     const res = await gmail.users.messages.send({
       userId: 'me',
       requestBody: { raw },
     });
 
-    logger.info(`[GoogleGmailService] Email sent successfully to ${to} (ID: ${res.data.id})`);
+    logger.info(`[GoogleGmailService] Email sent successfully to ${to} (ID: ${res.data.id}) with ${(attachments || []).length} attachment(s)`);
     return res.data;
   } catch (err) {
     if (err.code === 403 || err.message?.toLowerCase().includes('insufficient permission')) {
@@ -180,9 +237,9 @@ const sendEmail = async (userId, { to, subject, body, cc, bcc }, companyId = nul
 };
 
 /**
- * Creates a draft email in Gmail.
+ * Creates a draft email in Gmail with full attachment support.
  */
-const createDraft = async (userId, { to, subject, body, cc, bcc }, companyId = null) => {
+const createDraft = async (userId, { to, subject, body, cc, bcc, attachments }, companyId = null) => {
   try {
     const gmail = await getGmailClient(userId, companyId);
     if (!gmail) {
@@ -190,7 +247,7 @@ const createDraft = async (userId, { to, subject, body, cc, bcc }, companyId = n
     }
 
     const fromEmail = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EMAIL', false);
-    const raw = makeRawEmail({ from: fromEmail, to, subject, body, cc, bcc });
+    const raw = makeRawEmail({ from: fromEmail, to, subject, body, cc, bcc, attachments });
     const res = await gmail.users.drafts.create({
       userId: 'me',
       requestBody: {

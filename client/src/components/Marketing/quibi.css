@@ -389,6 +389,7 @@
   letter-spacing: -0.035em;
   margin: 18px 0 0;
   color: inherit;
+  text-wrap: balance;
 }
 .mkt .qb-slide h1 em,
 .mkt .qb-slide h2 em {
