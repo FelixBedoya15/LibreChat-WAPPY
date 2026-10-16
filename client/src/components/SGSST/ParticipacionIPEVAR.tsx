@@ -592,8 +592,8 @@ const ParticipacionIPEVAR = () => {
                     if (liveEditorRef.current) liveEditorRef.current.setHTML(data.participacionesList[0].report || '');
                 } else {
                     const initial = createInitialParticipacion();
-                    setParticipacionesList([initial]);
-                    setActiveId(initial.id);
+                    setParticipacionesList([]);
+                    setActiveId(null);
                     setActiveParticipacion(initial);
                 }
             })
@@ -612,25 +612,43 @@ const ParticipacionIPEVAR = () => {
         showToast({ message: 'Nueva participación creada', status: 'info' });
     };
 
-    const handleDeleteParticipacion = (id: string) => {
+    const handleDeleteParticipacion = async (id: string) => {
         const updated = participacionesList.filter(p => p.id !== id);
+        setParticipacionesList(updated);
+
         if (updated.length === 0) {
             const initial = createInitialParticipacion();
-            setParticipacionesList([initial]);
-            setActiveId(initial.id);
+            setActiveId(null);
             setActiveParticipacion(initial);
             setGeneratedReport(null);
             editorContentRef.current = '';
             if (liveEditorRef.current) liveEditorRef.current.setHTML('');
-        } else {
-            setParticipacionesList(updated);
-            if (activeId === id) {
-                setActiveId(updated[0].id);
-                setActiveParticipacion(updated[0]);
-                setGeneratedReport(updated[0].report || null);
-                editorContentRef.current = updated[0].report || '';
-                if (liveEditorRef.current) liveEditorRef.current.setHTML(updated[0].report || '');
+        } else if (activeId === id) {
+            setActiveId(updated[0].id);
+            setActiveParticipacion(updated[0]);
+            setGeneratedReport(updated[0].report || null);
+            editorContentRef.current = updated[0].report || '';
+            if (liveEditorRef.current) liveEditorRef.current.setHTML(updated[0].report || '');
+        }
+
+        if (token) {
+            try {
+                const res = await fetch('/api/sgsst/participacion-ipevar/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ participacionesList: updated })
+                });
+                if (res.ok) {
+                    showToast({ message: 'Reporte eliminado correctamente', status: 'success', severity: 'success' });
+                } else {
+                    showToast({ message: 'Error al persistir la eliminación en el servidor', status: 'error' });
+                }
+            } catch (err) {
+                console.error('Error deleting participacion:', err);
+                showToast({ message: 'Error de conexión al eliminar el reporte', status: 'error' });
             }
+        } else {
+            showToast({ message: 'Reporte eliminado localmente', status: 'success', severity: 'success' });
         }
     };
 
@@ -1118,9 +1136,21 @@ const ParticipacionIPEVAR = () => {
         const editedReport = editorContentRef.current || generatedReport || undefined;
         let pList = participacionesList;
         if (activeId) {
-            pList = participacionesList.map(p => 
-                p.id === activeId ? { ...activeParticipacion, report: editedReport } : p
-            );
+            const exists = pList.some(p => p.id === activeId);
+            if (exists) {
+                pList = pList.map(p => 
+                    p.id === activeId ? { ...activeParticipacion, report: editedReport } : p
+                );
+            } else {
+                pList = [...pList, { ...activeParticipacion, report: editedReport }];
+            }
+            setParticipacionesList(pList);
+        } else {
+            const newId = activeParticipacion.id || `part-${Date.now()}`;
+            const toSave = { ...activeParticipacion, id: newId, report: editedReport };
+            setActiveId(newId);
+            setActiveParticipacion(toSave);
+            pList = [...pList, toSave];
             setParticipacionesList(pList);
         }
 
