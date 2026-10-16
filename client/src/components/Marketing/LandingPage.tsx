@@ -384,12 +384,12 @@ export default function LandingPage() {
           </div>
 
           <div className="mkt-nav-cta">
-            <button type="button" className="btn btn-ghost mkt-nav-signin" onClick={handleLogin}>
-              {lang === 'es' ? 'Ir a WAPPY' : 'Go to WAPPY'}
+            <button type="button" className="btn btn-ghost mkt-nav-signin" onClick={() => setIsDemoModalOpen(true)}>
+              {lang === 'es' ? 'Agendar demo' : 'Book a demo'}
             </button>
 
-            <button type="button" className="btn btn-lime btn-sm" onClick={() => setIsDemoModalOpen(true)}>
-              {lang === 'es' ? 'Agendar demo' : 'Book a demo'}
+            <button type="button" className="btn btn-lime btn-sm" onClick={handleLogin}>
+              {lang === 'es' ? 'Ir a WAPPY' : 'Go to WAPPY'}
             </button>
 
             {/* Mobile Hamburger Toggle Button */}
@@ -484,7 +484,7 @@ export default function LandingPage() {
             <div className="mkt-mobile-menu-actions">
               <button
                 type="button"
-                className="btn btn-outline-dark mkt-btn-ir-wappy"
+                className="btn btn-outline-dark mkt-btn-agendar-demo"
                 style={{
                   width: '100%',
                   justifyContent: 'center',
@@ -496,11 +496,11 @@ export default function LandingPage() {
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  handleLogin();
+                  setIsDemoModalOpen(true);
                   setTimeout(() => setIsMobileMenuOpen(false), 80);
                 }}
               >
-                {lang === 'es' ? 'Ir a WAPPY' : 'Go to WAPPY'}
+                {lang === 'es' ? 'Agendar demo' : 'Book a demo'}
               </button>
 
               <button

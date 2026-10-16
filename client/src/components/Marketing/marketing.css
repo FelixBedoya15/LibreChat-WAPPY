@@ -2482,6 +2482,10 @@ body,
 }
 
 @media (max-width: 860px) {
+  .mkt .mkt-nav-signin,
+  .mkt .nav-signin {
+    display: none !important;
+  }
   /* Bento Grids stack cleanly to 1 column on tablets & phones */
   .mkt .bento {
     grid-template-columns: 1fr !important;
