@@ -19,7 +19,7 @@ export type TenshiAvatarMood =
   | 'sleeping';
 
 export interface TenshiAvatarProps {
-  size?: number; // en píxeles (ej. 315, 180, 140, 92, 56, 36)
+  size?: number; // en píxeles (ej. 315, 180, 140, 92, 56, 32)
   mood?: TenshiAvatarMood;
   isSpeaking?: boolean;
   outputAmplitude?: number; // 0..1
@@ -127,6 +127,8 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
       const custom = e as CustomEvent<{ mood?: TenshiAvatarMood; durationMs?: number }>;
       if (custom.detail?.mood) {
         setIsSleeping(false);
+        setIsSquashing(true);
+        setTimeout(() => setIsSquashing(false), 320);
         triggerTransient(custom.detail.mood, custom.detail.durationMs || 2400);
       }
     };
@@ -162,8 +164,8 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
         return {
           id: now + i,
           kind,
-          x: 28 + Math.random() * 44,
-          y: 22 + Math.random() * 14,
+          x: 26 + Math.random() * 48,
+          y: 20 + Math.random() * 14,
           vx: (Math.random() - 0.5) * 2,
           vy: -2.5 - Math.random() * 2,
           size: 11 + Math.random() * 4,
@@ -212,7 +214,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
     setParticles(created);
   }, []);
 
-  // Sonidos y partículas al cambiar de estado
+  // Sonidos y partículas + rebote elástico al cambiar de estado
   const prevMoodRef = useRef(activeMood);
   useEffect(() => {
     if (prevMoodRef.current !== activeMood) {
@@ -273,7 +275,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
           setIsBlinking(true);
           setTimeout(() => {
             setIsBlinking(false);
-            // 22% de probabilidad de doble parpadeo rápido (muy vivo)
+            // 22% de probabilidad de doble parpadeo rápido
             if (Math.random() < 0.22) {
               setTimeout(() => {
                 setIsBlinking(true);
@@ -293,14 +295,13 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
     return () => clearTimeout(blinkTimer);
   }, [activeMood]);
 
-  // Seguimiento global 24/7 del cursor (incluso en el botón flotante) + Detector de inactividad (Sleep)
+  // Seguimiento global 24/7 del cursor + Detector de inactividad (Sleep)
   useEffect(() => {
     let returnCenterTimeout: NodeJS.Timeout;
 
     const resetSleepTimer = () => {
       setIsSleeping((prev) => {
         if (prev) {
-          // Se despierta con un pequeño salto elástico
           setIsSquashing(true);
           setTimeout(() => setIsSquashing(false), 320);
         }
@@ -311,7 +312,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
         if (!isSpeaking && !isVoiceActive && !isTyping) {
           setIsSleeping(true);
         }
-      }, 95000); // 95s sin mover el mouse -> Tenshi se duerme tranquilo
+      }, 95000);
     };
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -321,22 +322,24 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
 
       const rect = el.getBoundingClientRect();
       const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height * 0.36; // Centro a la altura de los ojos de Tenshi
+      const cy = rect.top + rect.height * 0.36;
 
       const dx = Math.max(-1, Math.min(1, (e.clientX - cx) / Math.max(window.innerWidth * 0.45, 320)));
       const dy = Math.max(-1, Math.min(1, (e.clientY - cy) / Math.max(window.innerHeight * 0.45, 320)));
 
       const factor = interactive ? 1 : 0.72;
-      const ry = dx * 15 * factor;
-      const rx = -dy * 12 * factor;
+      const ry = dx * 16 * factor;
+      const rx = -dy * 13 * factor;
       const rz =
         activeMood === 'question'
-          ? 9
+          ? 7.5
           : activeMood === 'listening'
           ? 4.5
           : activeMood === 'thinking'
           ? -4.5
-          : dx * 2.5 * factor;
+          : activeMood === 'love'
+          ? 5
+          : dx * 3.2 * factor;
 
       const glareX = 50 + dx * 38;
       const glareY = 50 + dy * 38;
@@ -346,9 +349,9 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
       // Resorte físico con retraso para la Aureola Celestial (Spring Lag de Coucou)
       setTimeout(() => {
         setHaloLag({
-          dx: dx * 5.5,
-          dy: dy * 3.2,
-          tilt: dx * 7,
+          dx: dx * 6,
+          dy: dy * 3.5,
+          tilt: dx * 8,
         });
       }, 65);
 
@@ -357,7 +360,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
         setTilt({
           rx: 0,
           ry: 0,
-          rz: activeMood === 'question' ? 8 : activeMood === 'thinking' ? -4 : 0,
+          rz: activeMood === 'question' ? 7 : activeMood === 'thinking' ? -4 : 0,
           lookX: 0,
           lookY: 0,
           glareX: 50,
@@ -383,7 +386,6 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
       if (!el) return;
       const rect = el.getBoundingClientRect();
       const relY = (e.clientY - rect.top) / rect.height;
-      // Solo cuenta si acaricia la mitad superior de la cabeza (entre la aureola y las gafas: 0% a 42%)
       if (relY > 0.45) return;
 
       if (lastPetXRef.current !== null) {
@@ -460,47 +462,30 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
     [onFileDrop, triggerTransient]
   );
 
-  // Escala reactiva a la voz y Squash & Stretch elástico
-  const voiceScale = isSpeaking ? 1 + Math.min(outputAmplitude * 0.22, 0.14) : isHovered ? 1.035 : 1;
+  // Cinemática Elástica de Cuerpo Completo (0 cortes clip-path, 100% acabado de estudio como BotEngine de Coucou)
+  const bodyScaleX = useMemo(() => {
+    if (isClicked || isSquashing) return 1.13;
+    if (isSpeaking) return 1 - Math.min(outputAmplitude * 0.06, 0.045);
+    if (isHovered || isDragOver) return 1.04;
+    return 1;
+  }, [isClicked, isSquashing, isSpeaking, outputAmplitude, isHovered, isDragOver]);
 
-  // ── ÁNGULOS DE ARTICULACIÓN DE BRAZOS Y CABEZA (RIGGING 2.5D) ──────────────
-  // Brazo izquierdo (pivote en hombro izquierdo 34.8% 63.8%)
-  const leftArmAngle = useMemo(() => {
-    if (isDragOver) return 38; // Abre los brazos para recibir el archivo
-    if (activeMood === 'greeting') return 36; // Levanta la mano saludando
-    if (activeMood === 'success' || activeMood === 'love') return 32; // Brazos arriba celebrando
-    if (activeMood === 'approval') return 24;
-    if (activeMood === 'annoyed') return -6;
-    if (isSpeaking) return 8 + Math.min(outputAmplitude * 28, 22);
-    if (isHovered) return 14;
-    return 0;
-  }, [isDragOver, activeMood, isSpeaking, outputAmplitude, isHovered]);
+  const bodyScaleY = useMemo(() => {
+    if (isClicked || isSquashing) return 0.85;
+    if (isSpeaking) return 1 + Math.min(outputAmplitude * 0.14, 0.11);
+    if (isHovered || isDragOver) return 1.04;
+    return 1;
+  }, [isClicked, isSquashing, isSpeaking, outputAmplitude, isHovered, isDragOver]);
 
-  // Brazo derecho (pivote en hombro derecho 64.8% 63.8%)
-  const rightArmAngle = useMemo(() => {
-    if (isDragOver) return -38;
-    if (activeMood === 'listening') return -24; // Mano hacia la oreja escuchando (como Coucou)
-    if (activeMood === 'thinking' || activeMood === 'question') return -18; // Mano reflexiva
-    if (activeMood === 'success' || activeMood === 'love') return -32;
-    if (activeMood === 'approval') return -24;
-    if (isSpeaking) return -(8 + Math.min(outputAmplitude * 26, 20));
-    if (isHovered) return -10;
+  const bodyTranslateY = useMemo(() => {
+    if (isClicked || isSquashing) return 4;
+    if (isSpeaking) return -Math.min(outputAmplitude * 7, 5);
+    if (activeMood === 'sleeping') return 2;
     return 0;
-  }, [isDragOver, activeMood, isSpeaking, outputAmplitude, isHovered]);
-
-  // Inclinación expresiva adicional de la cabeza (pivote en el cuello 50% 60.5%)
-  const headExtraTilt = useMemo(() => {
-    if (activeMood === 'question') return 9;
-    if (activeMood === 'listening') return 5;
-    if (activeMood === 'thinking') return -5;
-    if (activeMood === 'love') return 6;
-    if (activeMood === 'greeting') return -4;
-    return 0;
-  }, [activeMood]);
+  }, [isClicked, isSquashing, isSpeaking, outputAmplitude, activeMood]);
 
   // ── RENDERIZADO DE LOS VISORES HUD EXPRESIVOS (SIN CÍRCULOS DIABÓLICOS) ───
-  // Reemplaza los antiguos anillos concéntricos hipnóticos por Ojos Cápsula Suaves (Estilo Mochi / EVE / Astro Bot)
-  // con brillitos especulares de vida (catchlights), párpados cálidos y 14 expresiones amigables.
+  // Ojos Cápsula Suaves (Estilo Mochi / EVE / Astro Bot) con doble brillito especular blanco (catchlights)
   const renderHUDLenses = () => {
     if (!showHUD || size < 28) return null;
 
@@ -661,8 +646,6 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
     }
 
     // 7. OJO CÁPSULA EXPRESIVO PRINCIPAL (Idle, Listening, Speaking, Thinking, Question, Working, Approval)
-    // En lugar de un anillo hueco, es un óvalo relleno suave con dos brillitos especulares blancos (Catchlights)
-    // que le dan una mirada tierna, viva y amigable.
     const voiceBounceY = isSpeaking ? Math.min(outputAmplitude * 2.8, 2.2) : 0;
     const isCuriousRight = activeMood === 'question' && side === 'right';
     const isThinkingLeft = activeMood === 'thinking' && side === 'left';
@@ -769,8 +752,16 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
     return null;
   };
 
-  // Determinar si usamos el Rigging Articulado de 4 capas (Cabeza, Brazo Izq, Brazo Der, Torso)
-  const useArticulatedRig = size >= 52;
+  // Clase de animación cinemática sobre el cuerpo íntegro (sin cortes clip-path)
+  const bodyKinematicClass = useMemo(() => {
+    if (activeMood === 'dizzy') return 'animate-spin';
+    if (activeMood === 'annoyed') return 'animate-tenshi-shake';
+    if (activeMood === 'success' || activeMood === 'greeting') return 'animate-tenshi-happy-jump';
+    if (activeMood === 'love') return 'animate-tenshi-love-sway';
+    if (activeMood === 'working' || activeMood === 'searching') return 'animate-tenshi-work-bob';
+    if (!isSpeaking && !isClicked) return 'animate-tenshi-breathe-float';
+    return '';
+  }, [activeMood, isSpeaking, isClicked]);
 
   return (
     <div
@@ -828,33 +819,48 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
         .animate-tenshi-lens-gleam {
           animation: tenshi-lens-gleam 3.8s infinite ease-in-out;
         }
-        @keyframes tenshi-arm-idle-left {
-          0%, 100% { transform: rotateZ(0deg); }
-          50% { transform: rotateZ(6deg); }
-        }
-        @keyframes tenshi-arm-idle-right {
-          0%, 100% { transform: rotateZ(0deg); }
-          50% { transform: rotateZ(-6deg); }
-        }
-        @keyframes tenshi-arm-wave {
-          0%, 100% { transform: rotateZ(24deg); }
-          50% { transform: rotateZ(44deg); }
-        }
-        @keyframes tenshi-arm-work-left {
-          0%, 100% { transform: rotateZ(10deg) translateY(0); }
-          50% { transform: rotateZ(24deg) translateY(-1.5%); }
-        }
-        @keyframes tenshi-arm-work-right {
-          0%, 100% { transform: rotateZ(-24deg) translateY(-1.5%); }
-          50% { transform: rotateZ(-10deg) translateY(0); }
-        }
         @keyframes tenshi-particle-float {
           0% { transform: translate(0, 0) scale(0.7); opacity: 1; }
           100% { transform: translate(var(--tx, 0px), -26px) scale(1.15); opacity: 0; }
         }
-        @keyframes tenshi-torso-breathe {
-          0%, 100% { transform: scaleX(1) scaleY(1); }
-          50% { transform: scaleX(1.018) scaleY(0.985); }
+        @keyframes tenshi-breathe-float {
+          0%, 100% { transform: translateY(0px) scaleX(1) scaleY(1); }
+          50% { transform: translateY(-4px) scaleX(0.988) scaleY(1.022); }
+        }
+        .animate-tenshi-breathe-float {
+          animation: tenshi-breathe-float 3.4s infinite ease-in-out;
+        }
+        @keyframes tenshi-happy-jump {
+          0% { transform: translateY(0) scaleX(1) scaleY(1); }
+          20% { transform: translateY(3%) scaleX(1.12) scaleY(0.86); }
+          50% { transform: translateY(-9%) scaleX(0.92) scaleY(1.1) rotateZ(-3deg); }
+          75% { transform: translateY(2%) scaleX(1.06) scaleY(0.94) rotateZ(2deg); }
+          100% { transform: translateY(0) scaleX(1) scaleY(1) rotateZ(0deg); }
+        }
+        .animate-tenshi-happy-jump {
+          animation: tenshi-happy-jump 0.85s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+        }
+        @keyframes tenshi-love-sway {
+          0%, 100% { transform: rotateZ(-4deg) scaleX(1.02) scaleY(0.98); }
+          50% { transform: rotateZ(4deg) scaleX(0.98) scaleY(1.03) translateY(-3px); }
+        }
+        .animate-tenshi-love-sway {
+          animation: tenshi-love-sway 1.1s infinite ease-in-out;
+        }
+        @keyframes tenshi-work-bob {
+          0%, 100% { transform: translateY(0) scaleX(1.02) scaleY(0.98); }
+          50% { transform: translateY(-3px) scaleX(0.98) scaleY(1.025); }
+        }
+        .animate-tenshi-work-bob {
+          animation: tenshi-work-bob 0.48s infinite ease-in-out;
+        }
+        @keyframes tenshi-shake {
+          0%, 100% { transform: translateX(0) scaleX(1.08) scaleY(0.92); }
+          25% { transform: translateX(-5px) rotateZ(-3deg) scaleX(1.1) scaleY(0.9); }
+          75% { transform: translateX(5px) rotateZ(3deg) scaleX(1.1) scaleY(0.9); }
+        }
+        .animate-tenshi-shake {
+          animation: tenshi-shake 0.18s infinite ease-in-out;
         }
       `}</style>
 
@@ -897,7 +903,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
         />
       )}
 
-      {/* 2. Contenedor 3D del Avatar con Física de Rebote (Squash & Stretch + Rigging 2.5D) */}
+      {/* 2. Contenedor 3D del Avatar con Física Elástica de Cuerpo Entero (Estilo Coucou BotEngine — 0 cortes clip-path) */}
       <div
         className={cn(
           'relative h-full w-full flex items-center justify-center transition-all duration-200 ease-out select-none',
@@ -909,25 +915,19 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
             ? 'drop-shadow-[0_0_20px_rgba(251,113,133,0.55)]'
             : isVoiceActive
             ? 'drop-shadow-[0_0_18px_rgba(52,211,153,0.55)]'
-            : 'drop-shadow-[0_4px_12px_rgba(0,0,0,0.18)] hover:drop-shadow-[0_6px_20px_rgba(16,185,129,0.35)]',
-          activeMood === 'dizzy' && 'animate-spin',
-          !isSpeaking && !isClicked && activeMood !== 'dizzy' && 'animate-tenshi-float'
+            : 'drop-shadow-[0_4px_12px_rgba(0,0,0,0.18)] hover:drop-shadow-[0_6px_20px_rgba(16,185,129,0.35)]'
         )}
         style={{
           transformOrigin: '50% 92%',
           transform:
             activeMood === 'dizzy'
               ? 'scale(0.92)'
-              : isSquashing
-              ? `perspective(800px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg) scaleX(1.12) scaleY(0.86) translateY(3%)`
-              : `perspective(800px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg) rotateZ(${tilt.rz}deg) scale(${
-                  isClicked ? 0.9 : voiceScale
-                })`,
+              : `perspective(800px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg) rotateZ(${tilt.rz}deg) translateY(${bodyTranslateY}px) scaleX(${bodyScaleX}) scaleY(${bodyScaleY})`,
           transformStyle: 'preserve-3d',
           transition:
             isClicked || isSquashing
-              ? 'transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1)'
-              : 'transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1)',
+              ? 'transform 0.11s cubic-bezier(0.34, 1.56, 0.64, 1)'
+              : 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
         }}
       >
         {/* Halo Celestial Dorado Flotante con Resorte de Inercia (Spring Lag de Coucou) */}
@@ -963,128 +963,34 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
           </div>
         )}
 
-        {useArticulatedRig ? (
-          /* ── SISTEMA DE RIGGING ARTICULADO 2.5D SOBRE /assets/tenshi.png ── */
-          <div className="relative h-full w-full pointer-events-none select-none">
-            {/* CAPA 1: TORSO Y PATITAS (Respiración y soporte central) */}
-            <div
-              className="absolute inset-0"
-              style={{
-                clipPath: 'polygon(34.6% 58%, 64.8% 58%, 67% 100%, 33% 100%)',
-                transformOrigin: '50% 93%',
-                animation: 'tenshi-torso-breathe 3.2s infinite ease-in-out',
-              }}
-            >
-              <img
-                src="/assets/tenshi.png"
-                alt="Tenshi Torso"
-                className="h-full w-full object-contain object-center"
-              />
-              {/* Destello en la Estrella Dorada del pecho cuando ejecuta herramientas o busca */}
-              {(activeMood === 'working' ||
-                activeMood === 'searching' ||
-                activeMood === 'thinking' ||
-                isSpeaking) && (
-                <span
-                  className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-300/80 blur-[3px] animate-ping pointer-events-none"
-                  style={{ left: '57.2%', top: '65.5%', width: '5.5%', height: '4.2%' }}
-                />
-              )}
-            </div>
+        {/* Cuerpo 3D Íntegro de Tenshi (0 cortes en axilas o cuello) con Cinemática Elástica apoyada en sus pies */}
+        <div
+          className={cn('relative h-full w-full pointer-events-none select-none', bodyKinematicClass)}
+          style={{ transformOrigin: '50% 92%' }}
+        >
+          <img
+            src="/assets/tenshi.png"
+            alt="Tenshi"
+            className="h-full w-full object-contain object-center pointer-events-none select-none"
+            onError={(e) => {
+              e.currentTarget.src = '/assets/logo.svg';
+            }}
+          />
 
-            {/* CAPA 2: BRAZO IZQUIERDO ARTICULADO (Pivote en Hombro Izquierdo 34.8% 63.8%) */}
-            <div
-              className="absolute inset-0 transition-transform duration-200 ease-out"
-              style={{
-                clipPath: 'polygon(14% 60.5%, 35.8% 60.5%, 35.2% 72.5%, 34.5% 83%, 14% 83%)',
-                transformOrigin: '34.8% 63.8%',
-                transform: `rotateZ(${leftArmAngle}deg)`,
-                animation:
-                  activeMood === 'greeting'
-                    ? 'tenshi-arm-wave 0.55s infinite ease-in-out'
-                    : activeMood === 'working' || activeMood === 'searching'
-                    ? 'tenshi-arm-work-left 0.35s infinite ease-in-out'
-                    : leftArmAngle === 0
-                    ? 'tenshi-arm-idle-left 3.2s infinite ease-in-out'
-                    : undefined,
-              }}
-            >
-              <img
-                src="/assets/tenshi.png"
-                alt=""
-                aria-hidden="true"
-                className="h-full w-full object-contain object-center"
-              />
-            </div>
+          {/* Visores HUD Expresivos sincronizados con el cuerpo */}
+          {renderHUDLenses()}
 
-            {/* CAPA 3: BRAZO DERECHO ARTICULADO (Pivote en Hombro Derecho 64.8% 63.8%) */}
-            <div
-              className="absolute inset-0 transition-transform duration-200 ease-out"
-              style={{
-                clipPath: 'polygon(63.8% 60.5%, 86% 60.5%, 86% 83%, 65.0% 83%, 64.4% 72.5%)',
-                transformOrigin: '64.8% 63.8%',
-                transform: `rotateZ(${rightArmAngle}deg)`,
-                animation:
-                  activeMood === 'working' || activeMood === 'searching'
-                    ? 'tenshi-arm-work-right 0.35s infinite ease-in-out'
-                    : rightArmAngle === 0
-                    ? 'tenshi-arm-idle-right 3.2s infinite ease-in-out'
-                    : undefined,
-              }}
-            >
-              <img
-                src="/assets/tenshi.png"
-                alt=""
-                aria-hidden="true"
-                className="h-full w-full object-contain object-center"
-              />
-            </div>
-
-            {/* CAPA 4: CABEZA + OREJAS + GAFAS HUD (Pivote en el Cuello 50% 60.5%) */}
-            <div
-              className="absolute inset-0 z-10 transition-transform duration-200 ease-out"
-              style={{
-                transformOrigin: '50% 60.5%',
-                transform: `rotateZ(${headExtraTilt + tilt.lookX * 3.5}deg) translateY(${
-                  activeMood === 'sleeping' ? '1.8%' : isSpeaking ? `${-outputAmplitude * 1.6}%` : '0%'
-                })`,
-              }}
-            >
-              <div
-                className="absolute inset-0"
-                style={{
-                  clipPath:
-                    'polygon(0% 0%, 100% 0%, 100% 61.0%, 66% 61.6%, 50% 62.2%, 34% 61.6%, 0% 61.0%)',
-                }}
-              >
-                <img
-                  src="/assets/tenshi.png"
-                  alt="Tenshi"
-                  className="h-full w-full object-contain object-center"
-                  onError={(e) => {
-                    e.currentTarget.src = '/assets/logo.svg';
-                  }}
-                />
-              </div>
-
-              {/* Visores HUD Expresivos adheridos exactamente al movimiento de la cabeza */}
-              {renderHUDLenses()}
-            </div>
-          </div>
-        ) : (
-          /* Modo Mini (< 52px, para cabeceras compactas) */
-          <>
-            <img
-              src="/assets/tenshi.png"
-              alt="Tenshi"
-              className="h-full w-full object-contain object-center pointer-events-none select-none"
-              onError={(e) => {
-                e.currentTarget.src = '/assets/logo.svg';
-              }}
+          {/* Destello en la Estrella Dorada del pecho cuando ejecuta herramientas, busca o habla */}
+          {(activeMood === 'working' ||
+            activeMood === 'searching' ||
+            activeMood === 'thinking' ||
+            isSpeaking) && (
+            <span
+              className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-300/80 blur-[3px] animate-ping pointer-events-none z-20"
+              style={{ left: '57.2%', top: '65.5%', width: '5.5%', height: '4.2%' }}
             />
-            {renderHUDLenses()}
-          </>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Píldora de Estado Opcional Flotante (Estilo Coucou Capsule) */}
