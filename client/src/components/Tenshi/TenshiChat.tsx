@@ -56,7 +56,12 @@ import { getDehydratedDOM, executeGUIAction, getVisibleScreenContent } from '../
 import { useVoiceSession } from '~/hooks/useVoiceSession';
 import { cn, clearMessagesCache } from '~/utils';
 import { Constants, QueryKeys, EModelEndpoint } from 'librechat-data-provider';
-import { TenshiAvatar, triggerTenshiReaction, type TenshiAvatarMood } from './TenshiAvatar';
+import {
+  TenshiAvatar,
+  triggerTenshiReaction,
+  analyzeTenshiEmotionFromText,
+  type TenshiAvatarMood,
+} from './TenshiAvatar';
 import { tenshiAudio } from './tenshiAudio';
 import {
   loadTasksVision,
@@ -1374,12 +1379,6 @@ export default function TenshiChat() {
     if (guiSteps.some((s) => s.status === 'pending')) return 'working';
     if (isTyping || isChatSubmitting || isWaitingConsultation) return 'thinking';
     if (isVoiceActive) return 'listening';
-    if (messages.length > 1) {
-      const lastMsg = messages[messages.length - 1];
-      if (lastMsg?.role === 'assistant' && lastMsg.content?.trim().endsWith('?')) {
-        return 'question';
-      }
-    }
     return 'idle';
   }, [
     reportSuccessToast,
@@ -1390,8 +1389,22 @@ export default function TenshiChat() {
     isChatSubmitting,
     isWaitingConsultation,
     isVoiceActive,
-    messages,
   ]);
+
+  // Detector de estado de ánimo en vivo (caritas de gato 😺😹😻😼🙀😿😾) cuando el usuario habla o Tenshi responde
+  const lastAnalyzedMsgRef = useRef<string>('');
+  useEffect(() => {
+    if (messages.length <= 1) return;
+    const lastMsg = messages[messages.length - 1];
+    if (!lastMsg?.content) return;
+    const signature = `${messages.length}:${lastMsg.role}:${lastMsg.content.slice(0, 120)}`;
+    if (signature === lastAnalyzedMsgRef.current) return;
+    lastAnalyzedMsgRef.current = signature;
+    analyzeTenshiEmotionFromText(
+      lastMsg.content,
+      lastMsg.role === 'user' ? 'user' : 'assistant',
+    );
+  }, [messages]);
 
   const queryClient = useQueryClient();
   const latestChatMessage = useRecoilValue(store.latestMessageFamily(0));

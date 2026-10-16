@@ -36,7 +36,7 @@ export interface TenshiAvatarProps {
 
 interface Particle {
   id: number;
-  kind: 'spark' | 'heart' | 'z' | 'sweat';
+  kind: 'spark' | 'heart' | 'z' | 'sweat' | 'cat';
   x: number;
   y: number;
   vx: number;
@@ -44,18 +44,112 @@ interface Particle {
   size: number;
   color: string;
   label?: string;
+  delayMs?: number;
 }
 
 /**
- * Helper global para disparar reacciones espontáneas en Tenshi desde cualquier módulo SG-SST
+ * Helper global para disparar reacciones espontáneas y ráfagas de emoticones gatunos en Tenshi
  */
-export function triggerTenshiReaction(mood: TenshiAvatarMood, durationMs = 2400) {
+export function triggerTenshiReaction(
+  mood: TenshiAvatarMood,
+  durationMs = 2600,
+  emojis?: string[]
+) {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(
       new CustomEvent('tenshi-react', {
-        detail: { mood, durationMs },
+        detail: { mood, durationMs, emojis },
       })
     );
+  }
+}
+
+/**
+ * Detector de estado de ánimo en vivo (Texto + Voz) que lanza los emoticones de caritas de gato de Tenshi
+ */
+export function analyzeTenshiEmotionFromText(
+  text: string,
+  role: 'user' | 'assistant' = 'user'
+) {
+  if (!text || typeof text !== 'string') return;
+  const clean = text.trim();
+  if (!clean) return;
+
+  // 1. 😹 Risa / Humor
+  if (/\b(jaja\w*|jeje\w*|jiji\w*|chist\w*|qué risa|que risa|gracios\w*|divertid\w*)\b/i.test(clean) || /[😂🤣😹]/.test(clean)) {
+    triggerTenshiReaction('love', 2800, ['😹', '😸', '😺', '🐾', '✨']);
+    return;
+  }
+
+  // 2. 😻 Agradecimiento / Cariño
+  if (
+    /\b(gracias|muchas gracias|agradezc\w*|excelente|genial|súper|super|me encanta|te quiero|eres el mejor|brutal|maravillos\w*|increíble|increible)\b/i.test(
+      clean
+    ) ||
+    /[❤️🥰😻😽💚]/.test(clean)
+  ) {
+    triggerTenshiReaction('love', 2800, ['😻', '😽', '💚', '🐾', '✨']);
+    return;
+  }
+
+  // 3. 😼 Motivación / Actitud / Logro
+  if (
+    /\b(vamos con toda|listo|perfecto|logrado|aprobado|completado|éxito|exito|cumplimos|al 100|ganamos)\b/i.test(
+      clean
+    ) ||
+    /[🔥🚀🏆😼]/.test(clean)
+  ) {
+    triggerTenshiReaction('success', 2800, ['😼', '😸', '🔥', '🚀', '🏆']);
+    return;
+  }
+
+  // 4. 🙀 Sorpresa / Urgencia / Accidente SST
+  if (
+    /\b(accidente|urgente|grave|peligro\w*|emergencia|multa|lesión|lesion|hospital|mortal|incendio|sismo|riesgo crítico|riesgo critico)\b/i.test(
+      clean
+    ) ||
+    /[🙀😱🚨⚠️]/.test(clean)
+  ) {
+    triggerTenshiReaction('approval', 3000, ['🙀', '🚨', '⚠️', '🦺', '🐾']);
+    return;
+  }
+
+  // 5. 😿 Empatía / Estrés / Cansancio (principalmente cuando el usuario expresa fatiga o duda)
+  if (
+    role === 'user' &&
+    (/\b(qué estrés|que estres|estresad\w*|cansad\w*|qué difícil|que dificil|no entiendo|ayúdame|ayudame|complicad\w*|agotad\w*|abrumad\w*|triste)\b/i.test(
+      clean
+    ) ||
+      /[😿😢😭😤]/.test(clean))
+  ) {
+    triggerTenshiReaction('listening', 2800, ['😿', '😽', '🐾', '💪', '☕']);
+    return;
+  }
+
+  // 6. 😾 Molestia / Queja
+  if (
+    role === 'user' &&
+    (/\b(no funciona|no sirve|qué rabia|que rabia|molest\w*|dañad\w*|otra vez mal)\b/i.test(clean) ||
+      /[😾😡🤬💢]/.test(clean))
+  ) {
+    triggerTenshiReaction('annoyed', 2400, ['😾', '💢', '🐾']);
+    return;
+  }
+
+  // 7. 😺 Saludo / Bienvenida / Despedida
+  if (
+    role === 'user' &&
+    /\b(hola|buenos días|buenos dias|buenas tardes|buenas noches|saludos|chao|adiós|adios|hasta luego|hasta mañana)\b/i.test(
+      clean
+    )
+  ) {
+    triggerTenshiReaction('greeting', 2600, ['😺', '😸', '👋', '🐾', '✨']);
+    return;
+  }
+
+  // 8. Pregunta de Tenshi (solo dura 3.2 segundos y luego desaparece para no quedar pegada)
+  if (role === 'assistant' && clean.endsWith('?')) {
+    triggerTenshiReaction('question', 3200);
   }
 }
 
@@ -104,6 +198,25 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
   const lastPetDirRef = useRef<number>(0);
   const idleSleepTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Función para emitir una ráfaga de emoticones gatunos personalizados
+  const emitCustomEmojis = useCallback((emojis: string[]) => {
+    const now = Date.now();
+    const baseSize = size >= 200 ? 22 : size >= 80 ? 15 : 11;
+    const created: Particle[] = emojis.map((emoji, i) => ({
+      id: now + i,
+      kind: 'cat',
+      x: 16 + ((i * 17 + Math.random() * 12) % 68),
+      y: 16 + (i % 3) * 8,
+      vx: (i % 2 === 0 ? -1 : 1) * (8 + Math.random() * 14),
+      vy: -32 - Math.random() * 16,
+      size: baseSize + (i % 2) * 3,
+      color: '#10B981',
+      label: emoji,
+      delayMs: i * 110,
+    }));
+    setParticles(created);
+  }, [size]);
+
   // Función para activar una emoción temporal con auto-limpieza
   const triggerTransient = useCallback((newMood: TenshiAvatarMood, duration = 2200) => {
     setTransientMood(newMood);
@@ -124,17 +237,24 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
   // Escuchar eventos globales 'tenshi-react' de la plataforma WAPPY
   useEffect(() => {
     const handleGlobalReaction = (e: Event) => {
-      const custom = e as CustomEvent<{ mood?: TenshiAvatarMood; durationMs?: number }>;
+      const custom = e as CustomEvent<{
+        mood?: TenshiAvatarMood;
+        durationMs?: number;
+        emojis?: string[];
+      }>;
       if (custom.detail?.mood) {
         setIsSleeping(false);
         setIsSquashing(true);
         setTimeout(() => setIsSquashing(false), 320);
         triggerTransient(custom.detail.mood, custom.detail.durationMs || 2400);
+        if (custom.detail.emojis && custom.detail.emojis.length > 0) {
+          emitCustomEmojis(custom.detail.emojis);
+        }
       }
     };
     window.addEventListener('tenshi-react', handleGlobalReaction);
     return () => window.removeEventListener('tenshi-react', handleGlobalReaction);
-  }, [triggerTransient]);
+  }, [triggerTransient, emitCustomEmojis]);
 
   // Determinar emoción activa con prioridad jerárquica
   const activeMood: TenshiAvatarMood = useMemo(() => {
@@ -156,63 +276,80 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
     isDragOver ||
     activeMood !== 'idle';
 
-  // Emitir partículas según la emoción
-  const emitParticles = useCallback((kind: Particle['kind'], count: number) => {
-    const now = Date.now();
-    const created: Particle[] = Array.from({ length: count }, (_, i) => {
+  // Emitir partículas según la emoción (usando emoticones de cara de gato por defecto)
+  const emitParticles = useCallback(
+    (kind: Particle['kind'], count: number) => {
+      const now = Date.now();
+      const baseSize = size >= 200 ? 20 : size >= 80 ? 14 : 10;
       if (kind === 'heart') {
-        return {
-          id: now + i,
-          kind,
-          x: 26 + Math.random() * 48,
-          y: 20 + Math.random() * 14,
-          vx: (Math.random() - 0.5) * 2,
-          vy: -2.5 - Math.random() * 2,
-          size: 11 + Math.random() * 4,
-          color: '#FB7185',
-          label: Math.random() > 0.35 ? '♥' : '✨',
-        };
+        const catLove = ['😻', '😽', '💚', '🐾', '✨'];
+        setParticles(
+          Array.from({ length: count }, (_, i) => ({
+            id: now + i,
+            kind: 'cat',
+            x: 18 + ((i * 16 + Math.random() * 10) % 64),
+            y: 18 + (i % 2) * 8,
+            vx: (Math.random() - 0.5) * 18,
+            vy: -30,
+            size: baseSize + (i % 2) * 2,
+            color: '#FB7185',
+            label: catLove[i % catLove.length],
+            delayMs: i * 100,
+          }))
+        );
+        return;
       }
       if (kind === 'z') {
-        return {
-          id: now + i,
-          kind,
-          x: 64 + i * 7,
-          y: 18 - i * 5,
-          vx: 1,
-          vy: -1.5,
-          size: 10 + i * 3,
-          color: '#93C5FD',
-          label: 'z',
-        };
+        setParticles(
+          Array.from({ length: count }, (_, i) => ({
+            id: now + i,
+            kind,
+            x: 64 + i * 7,
+            y: 18 - i * 5,
+            vx: 6,
+            vy: -18,
+            size: 10 + i * 3,
+            color: '#93C5FD',
+            label: 'z',
+            delayMs: i * 150,
+          }))
+        );
+        return;
       }
       if (kind === 'sweat') {
-        return {
-          id: now + i,
-          kind,
-          x: 74,
-          y: 26,
-          vx: 0.5,
-          vy: 2.5,
-          size: 11,
-          color: '#38BDF8',
-          label: '💧',
-        };
+        setParticles([
+          {
+            id: now,
+            kind,
+            x: 74,
+            y: 26,
+            vx: 4,
+            vy: 14,
+            size: baseSize,
+            color: '#38BDF8',
+            label: '😿',
+          },
+        ]);
+        return;
       }
-      return {
-        id: now + i,
-        kind: 'spark',
-        x: 24 + Math.random() * 52,
-        y: 18 + Math.random() * 28,
-        vx: (Math.random() - 0.5) * 5,
-        vy: -3 - Math.random() * 4,
-        size: 5 + Math.random() * 5,
-        color: Math.random() > 0.45 ? '#10B981' : '#FBBF24',
-        label: Math.random() > 0.5 ? '✦' : undefined,
-      };
-    });
-    setParticles(created);
-  }, []);
+      const catSpark = ['😼', '😸', '😺', '🐾', '🔥', '🚀', '✨'];
+      setParticles(
+        Array.from({ length: count }, (_, i) => ({
+          id: now + i,
+          kind: 'cat',
+          x: 16 + ((i * 15 + Math.random() * 12) % 68),
+          y: 16 + (i % 3) * 7,
+          vx: (Math.random() - 0.5) * 22,
+          vy: -32,
+          size: baseSize + (i % 2) * 2,
+          color: '#10B981',
+          label: catSpark[i % catSpark.length],
+          delayMs: i * 95,
+        }))
+      );
+    },
+    [size]
+  );
 
   // Sonidos y partículas + rebote elástico al cambiar de estado
   const prevMoodRef = useRef(activeMood);
@@ -224,20 +361,24 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
         tenshiAudio.playSearch();
       } else if (activeMood === 'question') {
         tenshiAudio.playQuestion();
+      } else if (activeMood === 'approval') {
+        emitCustomEmojis(['🙀', '🚨', '⚠️', '🦺']);
+      } else if (activeMood === 'annoyed') {
+        emitCustomEmojis(['😾', '💢', '🐾']);
       } else if (activeMood === 'success') {
         tenshiAudio.playSuccess();
-        emitParticles('spark', 7);
+        emitParticles('spark', 5);
       } else if (activeMood === 'love') {
         tenshiAudio.playPurr();
         emitParticles('heart', 5);
       } else if (activeMood === 'greeting') {
-        emitParticles('spark', 3);
+        emitCustomEmojis(['😺', '😸', '👋', '🐾']);
       } else if (activeMood === 'sleeping') {
         emitParticles('z', 3);
       }
       prevMoodRef.current = activeMood;
     }
-  }, [activeMood, emitParticles]);
+  }, [activeMood, emitParticles, emitCustomEmojis]);
 
   // Emisión periódica de Zzz mientras duerme
   useEffect(() => {
@@ -253,7 +394,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
     if (particles.length === 0) return;
     const timer = setTimeout(() => {
       setParticles([]);
-    }, 1500);
+    }, 2200);
     return () => clearTimeout(timer);
   }, [particles]);
 
@@ -820,8 +961,10 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
           animation: tenshi-lens-gleam 3.8s infinite ease-in-out;
         }
         @keyframes tenshi-particle-float {
-          0% { transform: translate(0, 0) scale(0.7); opacity: 1; }
-          100% { transform: translate(var(--tx, 0px), -26px) scale(1.15); opacity: 0; }
+          0% { transform: translate(0, 0) scale(0.4); opacity: 0; }
+          18% { transform: translate(calc(var(--tx, 0px) * 0.25), calc(var(--ty, -28px) * 0.25)) scale(1.25); opacity: 1; }
+          75% { opacity: 1; }
+          100% { transform: translate(var(--tx, 0px), var(--ty, -34px)) scale(1); opacity: 0; }
         }
         @keyframes tenshi-breathe-float {
           0%, 100% { transform: translateY(0px) scaleX(1) scaleY(1); }
@@ -864,24 +1007,30 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
         }
       `}</style>
 
-      {/* Emisor de Partículas Contextuales (Chispas, Corazones, Zzz, Sudor) */}
+      {/* Emisor de Partículas Contextuales y Caritas de Gato (😺 😸 😹 😻 😼 😽 🙀 😿 😾 🐾) */}
       {particles.map((p) => (
         <span
           key={p.id}
-          className="absolute pointer-events-none z-40 font-bold select-none"
-          style={{
-            left: `${p.x}%`,
-            top: `${p.y}%`,
-            fontSize: p.label ? `${p.size}px` : undefined,
-            width: p.label ? undefined : p.size,
-            height: p.label ? undefined : p.size,
-            borderRadius: p.label ? undefined : '9999px',
-            backgroundColor: p.label ? undefined : p.color,
-            color: p.color,
-            textShadow: `0 0 8px ${p.color}`,
-            boxShadow: p.label ? undefined : `0 0 10px ${p.color}`,
-            animation: 'tenshi-particle-float 1.35s ease-out forwards',
-          }}
+          className="absolute pointer-events-none z-40 font-bold select-none drop-shadow-md"
+          style={
+            {
+              left: `${p.x}%`,
+              top: `${p.y}%`,
+              fontSize: p.label ? `${p.size}px` : undefined,
+              width: p.label ? undefined : p.size,
+              height: p.label ? undefined : p.size,
+              borderRadius: p.label ? undefined : '9999px',
+              backgroundColor: p.label ? undefined : p.color,
+              color: p.color,
+              textShadow: p.kind === 'cat' ? '0 2px 8px rgba(0,0,0,0.35)' : `0 0 8px ${p.color}`,
+              boxShadow: p.label ? undefined : `0 0 10px ${p.color}`,
+              animation: 'tenshi-particle-float 1.65s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+              animationDelay: `${p.delayMs || 0}ms`,
+              opacity: 0,
+              '--tx': `${p.vx}px`,
+              '--ty': `${p.vy}px`,
+            } as React.CSSProperties
+          }
         >
           {p.label}
         </span>
