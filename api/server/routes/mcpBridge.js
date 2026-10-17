@@ -6117,23 +6117,61 @@ router.post('/email/send', requireApiKeyOrJwt, async (req, res) => {
     if (isReportEmail && !resolvedReportHtml) {
       try {
         const CanvasSession = mongoose.models.CanvasSession || require('~/models/CanvasSession');
-        const recentCanvas = await CanvasSession.findOne({
-          user: targetUserId,
-          content: { $exists: true, $ne: '' },
-        }).sort({ updatedAt: -1 }).lean();
+        const LiveEditorSession = mongoose.models.LiveEditorSession || require('~/models/LiveEditorSession');
+        const companyFilter = companyId
+          ? { $or: [{ companyId }, { companyId: null }] }
+          : {};
 
-        if (recentCanvas && recentCanvas.content && String(recentCanvas.content).length > 200) {
-          resolvedReportHtml = String(recentCanvas.content);
-          if (recentCanvas.title) reportTitle = recentCanvas.title;
-        } else {
-          const LiveEditorSession = mongoose.models.LiveEditorSession || require('~/models/LiveEditorSession');
-          const recentLive = await LiveEditorSession.findOne({
+        const searchTerms = `${finalSubject} ${rawContent}`
+          .toLowerCase()
+          .replace(/\b(enviar|envia|envíame|correo|email|informe|reporte|documento|adjunto|por|favor|de|el|la|los|las|un|una|al|del)\b/g, ' ')
+          .trim()
+          .split(/\s+/)
+          .filter((w) => w.length >= 4);
+
+        const canvasCandidates = CanvasSession
+          ? await CanvasSession.find({
+              user: targetUserId,
+              ...companyFilter,
+              content: { $exists: true, $ne: '' },
+            })
+              .sort({ updatedAt: -1 })
+              .limit(15)
+              .lean()
+          : [];
+
+        let matchedCanvas = null;
+        if (searchTerms.length > 0 && canvasCandidates.length > 1) {
+          matchedCanvas = canvasCandidates.find((c) => {
+            const t = String(c.title || '').toLowerCase();
+            return searchTerms.some((term) => t.includes(term));
+          });
+        }
+        const selectedCanvas = matchedCanvas || canvasCandidates[0] || null;
+
+        if (selectedCanvas && selectedCanvas.content && String(selectedCanvas.content).length > 200) {
+          resolvedReportHtml = String(selectedCanvas.content);
+          if (selectedCanvas.title) reportTitle = selectedCanvas.title;
+        } else if (LiveEditorSession) {
+          const liveCandidates = await LiveEditorSession.find({
             user: targetUserId,
             content: { $exists: true, $ne: '' },
-          }).sort({ updatedAt: -1 }).lean();
-          if (recentLive && recentLive.content && String(recentLive.content).length > 200) {
-            resolvedReportHtml = String(recentLive.content);
-            if (recentLive.title) reportTitle = recentLive.title;
+          })
+            .sort({ updatedAt: -1 })
+            .limit(15)
+            .lean();
+
+          let matchedLive = null;
+          if (searchTerms.length > 0 && liveCandidates.length > 1) {
+            matchedLive = liveCandidates.find((l) => {
+              const t = String(l.title || '').toLowerCase();
+              return searchTerms.some((term) => t.includes(term));
+            });
+          }
+          const selectedLive = matchedLive || liveCandidates[0] || null;
+          if (selectedLive && selectedLive.content && String(selectedLive.content).length > 200) {
+            resolvedReportHtml = String(selectedLive.content);
+            if (selectedLive.title) reportTitle = selectedLive.title;
           }
         }
       } catch (findReportErr) {
