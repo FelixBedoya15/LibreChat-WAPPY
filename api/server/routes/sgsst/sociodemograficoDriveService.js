@@ -135,7 +135,16 @@ function mapSpreadsheetRowsDeterministically(rows) {
         if (v === undefined || v === null || String(v).trim() === '') continue;
         const nk = normalizeText(k);
         if (excludeKeywords.some((ex) => nk.includes(ex))) continue;
-        if (keywords.some((kw) => nk === kw || nk.includes(kw))) {
+        if (
+          keywords.some((kw) => {
+            if (nk === kw) return true;
+            if (kw.length <= 2) {
+              const words = nk.split(/\s+/);
+              return words.includes(kw);
+            }
+            return nk.includes(kw);
+          })
+        ) {
           return String(v).trim();
         }
       }
@@ -201,8 +210,8 @@ function mapSpreadsheetRowsDeterministically(rows) {
       peso: getByKeywords(['peso', 'peso kg']),
       talla: getByKeywords(['talla', 'estatura', 'altura cm', 'altura m']),
       imc: getByKeywords(['imc', 'indice de masa']),
-      presionArterial: getByKeywords(['presion arterial', 'tension arterial', 'pa', 'ta']),
-      frecuenciaCardiaca: getByKeywords(['frecuencia cardiaca', 'pulso', 'fc']),
+      presionArterial: getByKeywords(['presion arterial', 'tension arterial', 'pa', 'ta'], ['estado', 'departamento', 'nivel']),
+      frecuenciaCardiaca: getByKeywords(['frecuencia cardiaca', 'pulso', 'fc'], ['fecha']),
       fuma: getByKeywords(['fuma', 'tabaquismo', 'cigarrillo', 'fumador']),
       alcohol: getByKeywords(['alcohol', 'bebidas alcoholicas', 'licor', 'consumo alcohol']),
       deporte: getByKeywords(['deporte', 'actividad fisica', 'ejercicio']),
