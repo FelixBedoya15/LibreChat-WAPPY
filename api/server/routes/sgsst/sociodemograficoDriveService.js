@@ -11,7 +11,7 @@ const { generateWithKeyRotation } = require('./sgsstGemini');
 const { cleanAndParseJson } = require('./fileExtractorHelper');
 const perfilSocioRouter = require('./perfilSociodemografico');
 const SgsstWorker = require('~/models/SgsstWorker');
-const { CompanyInfo } = require('~/models/CompanyInfo');
+const CompanyInfo = require('~/models/CompanyInfo');
 
 /**
  * Normaliza texto eliminando tildes, signos extraños y pasando a minúsculas
