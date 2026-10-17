@@ -3674,26 +3674,81 @@ router.delete('/agentes-automatizaciones/:id', requireApiKeyOrJwt, async (req, r
 
 // ─── 19. CONVERSACIONES Y MENSAJES DE CHAT ──────────────────────────────────
 
+const stripHtmlForSummary = (htmlStr = '', maxLen = 3500) => {
+  if (!htmlStr || typeof htmlStr !== 'string') return '';
+  return htmlStr
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .substring(0, maxLen);
+};
+
 router.get('/conversaciones', requireApiKeyOrJwt, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const company = await getActiveCompany(targetUserId);
+    const companyId = company?._id;
     const Conversation = mongoose.models.Conversation;
+    const CanvasSession = mongoose.models.CanvasSession || require('~/models/CanvasSession');
     if (!Conversation) {
       return res.json({ conversaciones: [] });
     }
 
-    const convos = await Conversation.find({ user: userId })
+    const convos = await Conversation.find({ user: targetUserId })
       .sort({ updatedAt: -1 })
       .limit(30)
-      .select('conversationId title createdAt updatedAt')
+      .select('conversationId title tags createdAt updatedAt')
       .lean();
 
+    // Filtrar conversaciones que tengan tag de otra empresa distinta a la activa
+    const filteredConvos = companyId
+      ? convos.filter((c) => {
+          const companyTags = (c.tags || []).filter((t) => typeof t === 'string' && t.startsWith('company-'));
+          return companyTags.length === 0 || companyTags.includes(`company-${companyId}`);
+        })
+      : convos;
+
+    const convoIds = filteredConvos.map((c) => c.conversationId).filter(Boolean);
+    const canvasDocs = CanvasSession
+      ? await CanvasSession.find({
+          user: targetUserId,
+          $or: [
+            ...(companyId ? [{ companyId }] : []),
+            { conversationId: { $in: convoIds } },
+          ],
+        })
+          .sort({ updatedAt: -1 })
+          .limit(20)
+          .lean()
+      : [];
+
+    const canvasByConvo = new Map();
+    for (const cd of canvasDocs) {
+      if (cd.conversationId && !canvasByConvo.has(cd.conversationId)) {
+        canvasByConvo.set(cd.conversationId, cd);
+      }
+    }
+
     return res.json({
-      total: convos.length,
-      conversaciones: convos.map((c) => ({
-        conversationId: c.conversationId,
-        title: c.title,
-        updatedAt: c.updatedAt,
+      total: filteredConvos.length,
+      conversaciones: filteredConvos.map((c) => {
+        const canvas = canvasByConvo.get(c.conversationId);
+        return {
+          conversationId: c.conversationId,
+          title: c.title,
+          updatedAt: c.updatedAt,
+          tieneInformeCanvas: Boolean(canvas),
+          tituloInformeCanvas: canvas?.title || null,
+          resumenInformeCanvas: canvas?.content ? stripHtmlForSummary(canvas.content, 600) : null,
+        };
+      }),
+      ultimosInformesCanvas: canvasDocs.slice(0, 10).map((cd) => ({
+        conversationId: cd.conversationId,
+        titulo: cd.title,
+        fecha: cd.updatedAt,
+        resumen: stripHtmlForSummary(cd.content, 800),
       })),
     });
   } catch (error) {
@@ -3704,7 +3759,7 @@ router.get('/conversaciones', requireApiKeyOrJwt, async (req, res) => {
 
 router.get('/mensajes', requireApiKeyOrJwt, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
     const { conversationId } = req.query;
 
     if (!conversationId) {
@@ -3712,15 +3767,23 @@ router.get('/mensajes', requireApiKeyOrJwt, async (req, res) => {
     }
 
     const Message = mongoose.models.Message;
+    const CanvasSession = mongoose.models.CanvasSession || require('~/models/CanvasSession');
+    const LiveEditorSession = mongoose.models.LiveEditorSession || require('~/models/LiveEditorSession');
     if (!Message) {
       return res.json({ mensajes: [] });
     }
 
-    const mensajes = await Message.find({ conversationId, user: userId })
-      .sort({ createdAt: 1 })
-      .limit(50)
-      .select('messageId sender text createdAt isCreatedByUser')
-      .lean();
+    const [mensajes, canvasDoc, liveDoc] = await Promise.all([
+      Message.find({ conversationId, user: targetUserId })
+        .sort({ createdAt: 1 })
+        .limit(50)
+        .select('messageId sender text createdAt isCreatedByUser')
+        .lean(),
+      CanvasSession ? CanvasSession.findOne({ conversationId }).lean().catch(() => null) : null,
+      LiveEditorSession ? LiveEditorSession.findOne({ conversationId }).lean().catch(() => null) : null,
+    ]);
+
+    const reportDoc = canvasDoc || liveDoc;
 
     return res.json({
       total: mensajes.length,
@@ -3729,6 +3792,13 @@ router.get('/mensajes', requireApiKeyOrJwt, async (req, res) => {
         text: m.text,
         fecha: m.createdAt,
       })),
+      informeCanvas: reportDoc
+        ? {
+            titulo: reportDoc.title || 'Informe Técnico en Canvas',
+            fecha: reportDoc.updatedAt,
+            resumenTexto: stripHtmlForSummary(reportDoc.content, 4000),
+          }
+        : null,
     });
   } catch (error) {
     logger.error('[MCP Bridge] GET /mensajes error:', error);
@@ -5330,6 +5400,7 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
       try {
         const { Conversation, Message } = require('~/db/models');
         const LiveEditorSession = require('~/models/LiveEditorSession');
+        const CanvasSession = mongoose.models.CanvasSession || require('~/models/CanvasSession');
         
         const tagsList = Array.isArray(tagCandidates) ? tagCandidates : [tagCandidates];
         const companyTag = companyId ? `company-${companyId}` : null;
@@ -5343,11 +5414,18 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
           }).sort({ updatedAt: -1 }).limit(10).lean();
         }
         if (!convos || convos.length === 0) {
-          convos = await Conversation.find({
+          const fallbackConvos = await Conversation.find({
             user: targetUserId,
             tags: { $in: tagsList },
             $or: [{ isArchived: false }, { isArchived: { $exists: false } }],
-          }).sort({ updatedAt: -1 }).limit(10).lean();
+          }).sort({ updatedAt: -1 }).limit(20).lean();
+          // Excluir conversaciones que pertenezcan a otra empresa distinta
+          convos = companyTag
+            ? fallbackConvos.filter((c) => {
+                const cTags = (c.tags || []).filter((t) => typeof t === 'string' && t.startsWith('company-'));
+                return cTags.length === 0 || cTags.includes(companyTag);
+              })
+            : fallbackConvos;
         }
 
         if (!convos || convos.length === 0) {
@@ -5365,13 +5443,24 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
           }
         } catch (_) {}
 
-        // 2. Message model
+        // 2. CanvasSession
+        if (!htmlContent && CanvasSession) {
+          try {
+            const canvasSession = await CanvasSession.findOne({ conversationId: latestConvo.conversationId }).lean();
+            if (canvasSession?.content && canvasSession.content.length > 50) {
+              htmlContent = canvasSession.content;
+            }
+          } catch (_) {}
+        }
+
+        // 3. Message model
         if (!htmlContent) {
           try {
             const msgs = await Message.find({ conversationId: latestConvo.conversationId }).sort({ createdAt: -1 }).limit(5).lean();
             for (const m of msgs) {
-              if (m.content && (m.content.includes('<html') || m.content.includes('<div') || m.content.includes('<table') || m.content.includes('<header') || m.content.includes('<article') || m.content.includes('<section'))) {
-                htmlContent = m.content;
+              const msgBody = m.text || (typeof m.content === 'string' ? m.content : '');
+              if (msgBody && (msgBody.includes('<html') || msgBody.includes('<div') || msgBody.includes('<table') || msgBody.includes('<header') || msgBody.includes('<article') || msgBody.includes('<section') || msgBody.length > 100)) {
+                htmlContent = msgBody;
                 break;
               }
             }
@@ -5395,6 +5484,45 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
         return null;
       }
     };
+
+    // 0. INFORMES RECIENTES DE CANVAS / CHATS / HISTORIAL GENERAL
+    if (
+      targetApp.includes('canvas') ||
+      targetApp.includes('chat') ||
+      targetApp.includes('conversacion') ||
+      targetApp.includes('ultimo') ||
+      targetApp.includes('reciente') ||
+      targetApp.includes('historial')
+    ) {
+      const CanvasSession = mongoose.models.CanvasSession || require('~/models/CanvasSession');
+      const recentCanvasList = CanvasSession
+        ? await CanvasSession.find({
+            user: targetUserId,
+            ...(companyId ? { $or: [{ companyId }, { companyId: null }] } : {}),
+          })
+            .sort({ updatedAt: -1 })
+            .limit(10)
+            .lean()
+        : [];
+      const latestCanvas = recentCanvasList[0] || null;
+
+      return res.json({
+        aplicativo: 'Informes Generados en Chat y Visor Canvas',
+        empresa: company?.companyName || 'Empresa activa',
+        totalInformesCanvas: recentCanvasList.length,
+        ultimoInformeTitulo: latestCanvas?.title || 'Sin informes recientes en Canvas',
+        ultimoInformeFecha: latestCanvas?.updatedAt || null,
+        informeCompleto: latestCanvas?.content
+          ? stripHtmlForSummary(latestCanvas.content, 4000)
+          : 'No se encontraron informes recientes en el visor Canvas para la empresa activa.',
+        historialInformesRecientes: recentCanvasList.map((c) => ({
+          conversationId: c.conversationId,
+          titulo: c.title,
+          fecha: c.updatedAt,
+          resumen: stripHtmlForSummary(c.content, 600),
+        })),
+      });
+    }
 
     // 1. PERFILES DE CARGO
     if (targetApp.includes('perfil') && (targetApp.includes('cargo') || targetApp.includes('puesto')) && !targetApp.includes('socio')) {

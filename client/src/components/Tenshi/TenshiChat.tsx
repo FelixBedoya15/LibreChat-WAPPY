@@ -1415,6 +1415,9 @@ export default function TenshiChat() {
   const { conversation } = store.useCreateConversationAtom(0);
   const { newConversation } = useNewConvo(0);
   const setIsCanvasActive = useSetRecoilState(store.isCanvasActive);
+  const streamingCanvas = useRecoilValue(store.streamingCanvasState);
+  const streamingCanvasRef = useRef<any>(streamingCanvas);
+  streamingCanvasRef.current = streamingCanvas;
   const setStreamingCanvas = useSetRecoilState(store.streamingCanvasState);
   const setCanvasMaximized = useSetRecoilState(store.canvasMaximized);
   const currentConvoId = conversation?.conversationId;
@@ -1732,24 +1735,47 @@ export default function TenshiChat() {
       finalText.substring(0, 120),
     );
 
-    // 1. Si el Modo Voz está activo, instruir a Tenshi Live con el dictamen técnico
+    // Extraer texto legible del informe en Canvas si el especialista generó un entregable allí
+    let canvasTextExcerpt = '';
+    let canvasTitle = '';
+    try {
+      const activeCanvas = streamingCanvasRef.current;
+      if (activeCanvas?.content && typeof activeCanvas.content === 'string' && activeCanvas.content.length > 60) {
+        canvasTitle = activeCanvas.title || 'Informe Técnico en Canvas';
+        const cleanCanvasText = activeCanvas.content
+          .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+          .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (cleanCanvasText.length > 40) {
+          canvasTextExcerpt = cleanCanvasText.substring(0, 1800);
+        }
+      }
+    } catch (_) {}
+
+    const combinedText = canvasTextExcerpt
+      ? `${finalText}\n\n[CONTENIDO DEL INFORME GENERADO EN CANVAS "${canvasTitle}"]:\n${canvasTextExcerpt}`
+      : finalText;
+
+    // 1. Si el Modo Voz está activo, instruir a Tenshi Live con el dictamen técnico y el informe de Canvas
     if (isVoiceActiveRef.current || isVoiceActive) {
       lastActivityRef.current = Date.now();
       clearAudioQueue();
       setVoiceStatusText(`Tenshi respondiendo sobre ${consultation.agentName}...`);
-      const condensedDictamen = finalText.length > 1200 ? finalText.substring(0, 1200) + '...' : finalText;
-      const promptForTenshi = `[SISTEMA INTERNO WAPPY - RESPUESTA TÉCNICA EMITIDA]:
-El especialista ${consultation.agentName} ha terminado de responder en pantalla a la consulta: "${consultation.question}".
+      const condensedDictamen = combinedText.length > 2200 ? combinedText.substring(0, 2200) + '...' : combinedText;
+      const promptForTenshi = `[SISTEMA INTERNO WAPPY - RESPUESTA E INFORME TÉCNICO EMITIDO]:
+El especialista ${consultation.agentName} ha terminado de responder y generar el informe en pantalla a la consulta: "${consultation.question}".
 
-DICTAMEN TÉCNICO OFICIAL:
+DICTAMEN Y CONTENIDO DEL INFORME OFICIAL:
 """
 ${condensedDictamen}
 """
 
 DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
-1. Explica y sintetiza verbalmente de inmediato al usuario, con tu voz cercana y profesional, las conclusiones, fundamentos y medidas técnicas que dictaminó el especialista.
-2. Cita de forma fluida las normas, decretos, resoluciones, plazos o artículos clave que sustentan el dictamen (ej: Decreto 1072 de 2015, Resoluciones o Códigos aplicables).
-3. ESTÁ PROHIBIDO limitarte a decir "el especialista ya respondió" o mandar al usuario a revisar la pantalla. El usuario te está escuchando; explícale la respuesta técnica directamente.
+1. Explica y sintetiza verbalmente de inmediato al usuario, con tu voz cercana y profesional, los hallazgos, métricas, trabajadores evaluados, conclusiones y medidas técnicas que quedaron plasmadas en el informe y dictamen del especialista.
+2. Cita de forma fluida las normas, decretos, resoluciones, plazos o artículos clave que sustentan el informe (ej: Decreto 1072 de 2015, Resoluciones o Códigos aplicables).
+3. ESTÁ PROHIBIDO limitarte a decir "el especialista ya respondió" o mandar al usuario a revisar la pantalla. El usuario te está escuchando; explícale el reporte técnico directamente.
 4. CERO DISCLAIMERS: Prohibido decir "no constituye consejo médico", "consulte a un profesional", etc. WAPPY es una plataforma técnica profesional de SG-SST.
 5. CERO INGLÉS: 100% español profesional.`;
       sendTextMessageRef.current?.(promptForTenshi);
@@ -1757,10 +1783,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
     // 2. Registrar en la conversación interna de Tenshi y persistir en BD para continuidad de memoria
     const agentResponseExcerpt =
-      finalText.length > 2500
-        ? finalText.substring(0, 2500) + '... *(consulta completa disponible en el chat central)*'
-        : finalText;
-    const summaryText = `💡 **Dictamen de ${consultation.agentName}** sobre *"${consultation.question}"*:\n\n${agentResponseExcerpt}\n\n*(Consulta con especialista registrada)*`;
+      combinedText.length > 2800
+        ? combinedText.substring(0, 2800) + '... *(consulta e informe completo disponibles en el chat y visor Canvas)*'
+        : combinedText;
+    const summaryText = `💡 **Dictamen e Informe de ${consultation.agentName}** sobre *"${consultation.question}"*:\n\n${agentResponseExcerpt}\n\n*(Consulta e informe con especialista registrados)*`;
     setMessages((prev) => [
       ...prev,
       {
