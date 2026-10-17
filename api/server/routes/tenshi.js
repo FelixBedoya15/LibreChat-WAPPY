@@ -613,6 +613,7 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
      * ESTÁ TERMINANTEMENTE PROHIBIDO decir que no tienes una función para cambiar el estado de un colaborador a 'retirado'. ¡TIENES la función 'wappy_retirar_trabajador'!
      * 'wappy_actualizar_trabajador': Para editar cargos, salarios, áreas, sedes o estado de un trabajador.
      * 'wappy_registrar_trabajador': Para dar de alta a un nuevo colaborador en el SG-SST.
+     * 'wappy_importar_sociodemografico_drive': SIEMPRE que el usuario te pida buscar en su Google Drive (en una carpeta específica X o en su Drive) el archivo del Perfil Sociodemográfico o Condiciones de Salud y alimentar/cargar la información de los trabajadores en el Perfil Sociodemográfico y Condiciones de Salud de Somos SST, INVOCA DE INMEDIATO 'wappy_importar_sociodemografico_drive' indicando 'carpeta' (ej. el nombre de la carpeta X) y opcionalmente 'archivo'. Esta herramienta híbrida busca la carpeta en Drive, lee todas las hojas/archivos, procesa a todos los trabajadores con el modelo de texto 'gemini-3.5-flash-lite' (y respaldo 'gemini-3.6-flash') y alimenta automáticamente tanto el Perfil Sociodemográfico como las Condiciones de Salud y el Score Biocéntrico en Somos SST.
 6. **CONTROL TOTAL DE LA PLATAFORMA MEDIANTE CLICS Y OPERACIÓN VISUAL ('operar_interfaz_visual')**:
    - Puedes hacer clic en CUALQUIER BOTÓN, pestaña, menú o tarjeta de todos los aplicativos (ej: pestañas 'Retirados', 'Activos', 'Todos', botones '+ Agregar Trabajador', 'Guardar Localmente', 'Descargar', etc.) usando 'operar_interfaz_visual' indicando el índice [índice] o el texto/nombre del botón.
 7. **SUITE COMPLETA DE 41 OPERACIONES MCP DEL SG-SST ('wappy_mcp_sst' y 'wappy_resumen_general_360')**:
@@ -1807,6 +1808,32 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 }
             };
 
+            const wappyImportarSociodemograficoDriveDeclaration = {
+                name: 'wappy_importar_sociodemografico_drive',
+                description: 'Busca en Google Drive del usuario (dentro de la carpeta indicada o en todo el Drive) el archivo del Perfil Sociodemográfico y/o Condiciones de Salud, extrae todos los trabajadores usando el modelo de texto gemini-3.5-flash-lite (respaldo gemini-3.6-flash) y alimenta masivamente tanto el Perfil Sociodemográfico como las Condiciones de Salud en Somos SST.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        carpeta: {
+                            type: 'STRING',
+                            description: 'Nombre de la carpeta en Google Drive donde está el perfil sociodemográfico (ej: "SST", "Talento Humano", "Nomina", etc.). Dejar vacío si está en la raíz.'
+                        },
+                        archivo: {
+                            type: 'STRING',
+                            description: 'Nombre aproximado del archivo a buscar dentro de la carpeta (opcional, ej: "perfil sociodemografico", "condiciones de salud").'
+                        },
+                        fileId: {
+                            type: 'STRING',
+                            description: 'ID exacto del archivo en Google Drive si ya se conoce (opcional).'
+                        },
+                        texto_extraido: {
+                            type: 'STRING',
+                            description: 'Texto o contenido ya extraído previamente si ya se leyó el archivo (opcional).'
+                        }
+                    }
+                }
+            };
+
             // Assemble base tools and dynamically triggered tools (strictly excluding Group 7)
             const baseFunctionDeclarations = [
                 wappyNavegarDeclaration,
@@ -1839,6 +1866,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 wappyActualizarTrabajadorDeclaration,
                 wappyConsultarTrabajadoresDeclaration,
                 wappyRegistrarTrabajadorDeclaration,
+                wappyImportarSociodemograficoDriveDeclaration,
                 wappyConsultarEmpresasDeclaration,
                 wappyConsultarDetalleEmpresaDeclaration,
                 wappyConsultarCursosDeclaration,
@@ -1970,7 +1998,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         requestedGuiAction = null;
                         requestedGuiActions = null;
 
-                        while (calls && calls.length > 0 && loops < 5) {
+                        while (calls && calls.length > 0 && loops < 7) {
                             loops++;
                             const call = calls[0];
                             logger.info(`[Tenshi Tool Call] Executing ${call.name} with args:`, call.args);
@@ -2200,6 +2228,9 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                     toolOutput = JSON.stringify(res);
                                 } else if (call.name === 'wappy_registrar_trabajador') {
                                     const res = await executeTenshiMcpTool('wappy_registrar_trabajador', call.args || {}, targetUserId);
+                                    toolOutput = JSON.stringify(res);
+                                } else if (call.name === 'wappy_importar_sociodemografico_drive' || call.name === 'wappy_alimentar_sociodemografico_masivo') {
+                                    const res = await executeTenshiMcpTool('wappy_importar_sociodemografico_drive', call.args || {}, targetUserId);
                                     toolOutput = JSON.stringify(res);
                                 } else if (call.name === 'wappy_resumen_general_360') {
                                     const res = await executeTenshiMcpTool('wappy_resumen_general_360', call.args || {}, targetUserId);

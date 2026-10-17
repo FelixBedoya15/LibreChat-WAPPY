@@ -34,6 +34,7 @@ class GoogleDriveTool extends Tool {
       'Permite interactuar con Google Drive del usuario. Puedes buscar archivos y carpetas, leer el contenido de documentos (Google Docs, Google Sheets, Word .docx, Excel .xlsx/.xls, PDFs, txt) y crear o actualizar documentos y carpetas. Úsalo cuando necesites analizar archivos del usuario o guardar reportes.';
     
     this.req = fields.req;
+    this.userId = fields.userId || fields.user?.id || fields.req?.user?.id || (typeof fields.req?.user === 'string' ? fields.req.user : null);
     
     this.schema = z.object({
       action: z.enum([
@@ -55,10 +56,10 @@ class GoogleDriveTool extends Tool {
    * Returns an authorized google.auth.OAuth2 client.
    */
   async getAuthClient() {
-    if (!this.req || !this.req.user) {
+    const userId = this.userId || this.req?.user?.id || (typeof this.req?.user === 'string' ? this.req.user : null);
+    if (!userId) {
       throw new Error('Petición no autenticada. No se pudo obtener el contexto del usuario.');
     }
-    const userId = this.req.user.id;
     const company = await getActiveCompany(userId);
     const companyId = company ? String(company._id) : null;
 

@@ -576,6 +576,18 @@ class VoiceSession {
                             }
                         },
                         {
+                            name: "wappy_importar_sociodemografico_drive",
+                            description: "Busca en el Google Drive del usuario (dentro de una carpeta específica X o en todo Drive) el archivo del Perfil Sociodemográfico y/o Condiciones de Salud, extrae a todos los trabajadores usando el modelo de texto gemini-3.5-flash-lite (y respaldo gemini-3.6-flash) y alimenta masivamente tanto el Perfil Sociodemográfico como las Condiciones de Salud en Somos SST.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    carpeta: { type: "string", description: "Nombre de la carpeta en Google Drive donde está el perfil sociodemográfico (ej: 'SST', 'Nomina', 'Talento Humano')." },
+                                    archivo: { type: "string", description: "Nombre aproximado del archivo a buscar dentro de la carpeta (opcional)." },
+                                    fileId: { type: "string", description: "ID exacto del archivo en Google Drive si ya se conoce (opcional)." }
+                                }
+                            }
+                        },
+                        {
                             name: "wappy_mcp_sst",
                             description: "Suite oficial de operaciones y consultas MCP del SG-SST de WAPPY (las 41 herramientas). Permite consultar o alimentar de forma autónoma: diagnóstico 360°, empresa, trabajadores, matriz GTC45, matriz PESV, matriz legal, estándares 0312, comités (COPASST, Convivencia, Brigadas), químicos SGA, vehículos, EPP, reportes de actos y condiciones, perfiles de cargo, casos ATEL, cronograma y tareas, capacitaciones, auditorías y automatizaciones.",
                             parameters: {
@@ -1953,8 +1965,11 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
      * REPROGRAMACIÓN Y EDICIÓN: Puedes cambiar de fecha y hora cualquier evento existente (ej: "pasa la cita de mañana para el viernes a las 4pm", "mueve la reunión a las 10am").
      * ELIMINACIÓN Y CANCELACIÓN: Puedes cancelar o eliminar cualquier cita usando el nombre o motivo de la reunión sin exigir IDs al usuario (ej: "cancela la cita de bomberos", "elimina la reunión de extintores").
      * CONSULTA: Puedes consultar y listar la agenda de eventos próximos en cualquier momento.
-   - GOOGLE DRIVE ('google_drive'):
-     * Úsala ÚNICAMENTE cuando el usuario mencione explícitamente "Google Drive" o "Drive". NUNCA la priorices sobre SOMOS SST.
+   - GOOGLE DRIVE Y ALIMENTACIÓN MASIVA DEL PERFIL SOCIODEMOGRÁFICO ('wappy_importar_sociodemografico_drive' y 'google_drive'):
+     * SIEMPRE que el usuario te diga por voz: "busca en mi Drive el perfil sociodemográfico que está en la carpeta X y alimenta la información de los trabajadores en el perfil sociodemográfico y condiciones de salud de Somos SST" (o cualquier petición similar de importar/alimentar trabajadores desde Drive):
+       -> INVOCA DE INMEDIATO 'wappy_importar_sociodemografico_drive' pasando 'carpeta' con el nombre de la carpeta X y opcionalmente 'archivo'.
+       -> Esta herramienta híbrida busca la carpeta en Drive, lee todas las hojas/archivos, procesa a todos los trabajadores con el modelo de texto 'gemini-3.5-flash-lite' (y respaldo 'gemini-3.6-flash') y alimenta tanto el Perfil Sociodemográfico como las Condiciones de Salud en Somos SST.
+     * Para otras consultas generales de Drive, usa 'google_drive' únicamente cuando el usuario mencione explícitamente "Google Drive" o "Drive". NUNCA la priorices sobre SOMOS SST.
    - AUTONOMÍA TOTAL CON ROL DE AGENTE EXPERTO VS LLAMADO DE AGENTES:
      * SI EL USUARIO SOLO HACE LA PREGUNTA O CONSULTA TÉCNICA (ej: dolor lumbar, cómo calificar un accidente, qué hacer con el benceno, qué vientos son seguros para alturas, etc.): TENSHI ACTIVA DE INMEDIATO SU SKILL CON EL ROL DE AGENTE EXPERTO CORRESPONDIENTE (Médico Laboral, Abogado Laboral, Ingeniero Químico SST, Especialista en Alturas y Clima, etc.) y responde él mismo de forma integral, técnica y fundamentada usando sus herramientas y base de datos, sin desviar al usuario ni abrir un chat innecesario.
      * SI EL USUARIO PIDE EXPLÍCITAMENTE CONECTARSE O LLAMAR A UN AGENTE (ej: "conéctame con el médico", "llama al abogado", "pásame al especialista", "quiero el dictamen del médico laboral"): Tenshi tiene restaurada al 100% su capacidad para invocar 'consultar_agente_especializado' (para obtener su dictamen técnico en segundo plano y explicarlo en el chat de Tenshi) o invocar 'wappy_abrir_chat_agente' si el usuario pide ver el chat dedicado o nuevo chat en pantalla ("abre un chat con X").

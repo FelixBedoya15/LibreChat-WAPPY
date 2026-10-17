@@ -2550,6 +2550,16 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           } else if (action.name === 'wappy_retirar_trabajador') {
             window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
             resultMsg = `Trabajador marcado como retirado exitosamente.`;
+          } else if (
+            action.name === 'wappy_importar_sociodemografico_drive' ||
+            action.name === 'wappy_alimentar_sociodemografico_masivo' ||
+            action.name === 'wappy_registrar_trabajador' ||
+            action.name === 'wappy_actualizar_trabajador' ||
+            action.name === 'somos_sst'
+          ) {
+            window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
+            const res = (action as any).result || {};
+            resultMsg = res.mensaje || `Perfil Sociodemográfico y Condiciones de Salud actualizados en Somos SST.`;
           } else if (action.name === 'wappy_leer_informe_aplicativo') {
             tenshiAudio.playHistoryRead();
             const rawApp = action.args?.aplicativo || action.args?.modulo || 'perfil_cargo';
@@ -4617,6 +4627,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           (!!responseData.guiAction || (responseData.guiActions && responseData.guiActions.length > 0)),
       };
       setMessages((prev) => [...prev, assistantMsg]);
+      window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
 
       // Si Tenshi requiere una o más acciones visuales, las ejecutamos en secuencia en el cliente
       const actions = responseData.guiActions || (responseData.guiAction ? [responseData.guiAction] : []);

@@ -314,7 +314,7 @@ async function extractDriveFileData(drive, fileMeta) {
  * Busca en Google Drive la carpeta X y el/los archivos del Perfil Sociodemográfico y Condiciones de Salud
  */
 async function findSociodemograficoFilesInDrive({ userId, carpeta, archivo, fileId }) {
-  const driveTool = new GoogleDriveTool({ userId });
+  const driveTool = new GoogleDriveTool({ userId, req: { user: { id: userId } } });
   const auth = await driveTool.getAuthClient();
   const drive = google.drive({ version: 'v3', auth });
 
