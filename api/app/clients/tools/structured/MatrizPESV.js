@@ -118,7 +118,7 @@ class MatrizPESV extends Tool {
          }
 
          if (PerfilCargoModel) {
-             const cargoDataDoc = await PerfilCargoModel.findOne({ user: userId }).lean();
+             const cargoDataDoc = await PerfilCargoModel.findOne({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
              if (cargoDataDoc && (cargoDataDoc.perfiles || cargoDataDoc.perfilesList)) {
                  let perfiles = cargoDataDoc.perfilesList || cargoDataDoc.perfiles || [];
                  if (filtro_proceso) {
@@ -135,7 +135,7 @@ class MatrizPESV extends Tool {
          }
 
          if (PerfilSocioModel) {
-             const socioDataDoc = await PerfilSocioModel.findOne({ user: userId }).lean();
+             const socioDataDoc = await PerfilSocioModel.findOne({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
              if (socioDataDoc && socioDataDoc.trabajadores) {
                  let trabajadores = socioDataDoc.trabajadores;
                  if (filtro_proceso) {
@@ -154,7 +154,7 @@ class MatrizPESV extends Tool {
 
          if (VehiclesDataModel) {
              try {
-                 const vehDoc = await VehiclesDataModel.findOne({ user: userId }).lean();
+                 const vehDoc = await VehiclesDataModel.findOne({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
                  if (vehDoc && Array.isArray(vehDoc.vehicles)) {
                      payload.flota_vehicular_registrada = vehDoc.vehicles.map(v => ({
                          placa: v.placa,

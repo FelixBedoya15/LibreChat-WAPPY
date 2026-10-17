@@ -6122,7 +6122,10 @@ En la sección "4.1 Matriz Ergonómica Comparativa Multifase", en la columna "Te
                 let matchedWorker = null;
 
                 if (mongoose.models.PerfilSociodemograficoData) {
-                    const profileData = await mongoose.models.PerfilSociodemograficoData.findOne({ user: this.userId }).lean();
+                    const profileData = await mongoose.models.PerfilSociodemograficoData.findOne({
+                        user: this.userId,
+                        ...(companyInfo?._id ? { companyId: companyInfo._id } : {}),
+                    }).lean();
                     if (profileData && profileData.trabajadores) {
                         // Find the first worker whose name or identification is explicitly mentioned in the generated HTML
                         matchedWorker = profileData.trabajadores.find(w => {

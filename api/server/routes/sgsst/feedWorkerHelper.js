@@ -157,7 +157,7 @@ async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, punt
                 if (companyId) {
                     worker = await SgsstWorker.findOne({ companyId, documento: cleanDoc });
                 }
-                if (!worker && userId) {
+                if (!worker && userId && !companyId) {
                     worker = await SgsstWorker.findOne({ user: userId, documento: cleanDoc });
                 }
             }

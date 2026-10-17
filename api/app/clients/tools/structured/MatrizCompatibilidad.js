@@ -143,7 +143,7 @@ class MatrizCompatibilidad extends Tool {
         // Extraer perfiles de salud que tengan alergias químicas
         if (PerfilSocioModel) {
           const socioQuery = companyId ? { user: userId, companyId } : { user: userId };
-          const socioDataDoc = await PerfilSocioModel.findOne(socioQuery).lean() || await PerfilSocioModel.findOne({ user: userId }).lean();
+          const socioDataDoc = await PerfilSocioModel.findOne(socioQuery).lean();
           if (socioDataDoc && socioDataDoc.trabajadores) {
             payload.alergias_y_patologias_quimicas = socioDataDoc.trabajadores
               .filter(t => t.alergiasQuimicas && t.alergiasQuimicas !== 'Ninguna' && t.alergiasQuimicas !== '')

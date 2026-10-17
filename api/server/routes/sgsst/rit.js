@@ -16,7 +16,9 @@ router.post('/generate-chapter', requireJwtAuth, async (req, res) => {
         const userId = req.user.id;
 
         // Fetch company info
-        const companyInfo = await CompanyInfo.findOne({ user: userId });
+        const companyInfo =
+            (await CompanyInfo.findOne({ user: userId, isActive: true })) ||
+            (await CompanyInfo.findOne({ user: userId }));
         if (!companyInfo) {
             return res.status(404).json({ error: 'Company information not found. Please complete it first.' });
         }

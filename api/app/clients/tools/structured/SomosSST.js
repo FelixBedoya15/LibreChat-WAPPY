@@ -206,6 +206,7 @@ class SomosSST extends Tool {
       };
 
       const companyId = await getActiveCompanyId(userId);
+      const activeCompanyId = companyId;
       const { accion, nombre_o_cargo } = input;
 
       // Enforce strict active company filter to keep only current valid data and avoid mistakes
@@ -456,7 +457,7 @@ class SomosSST extends Tool {
         const fecha = new Date().toISOString().split('T')[0];
 
         let perfil = PerfilSocioModel ? await PerfilSocioModel.findOne({ companyId }) : null;
-        if (!perfil && PerfilSocioModel) {
+        if (!perfil && !companyId && PerfilSocioModel) {
           perfil = await PerfilSocioModel.findOne({ user: userId });
         }
 
@@ -497,6 +498,7 @@ class SomosSST extends Tool {
           await SgsstWorkerModel.updateMany(
             {
               user: userId,
+              ...(companyId ? { companyId } : {}),
               $or: [
                 { perfilId: workerFound.identificacion || cleanTarget },
                 { documento: workerFound.identificacion || cleanTarget },
@@ -538,7 +540,7 @@ class SomosSST extends Tool {
         }
         const cleanTarget = String(rawTarget).trim();
         let perfil = PerfilSocioModel ? await PerfilSocioModel.findOne({ companyId }) : null;
-        if (!perfil && PerfilSocioModel) {
+        if (!perfil && !companyId && PerfilSocioModel) {
           perfil = await PerfilSocioModel.findOne({ user: userId });
         }
 
@@ -1469,7 +1471,7 @@ class SomosSST extends Tool {
         let liveWorkerCount = company.workerCount;
         try {
           const socioDoc = PerfilSocioModel
-            ? (await PerfilSocioModel.findOne({ user: targetUserId, companyId: company._id }).lean() || await PerfilSocioModel.findOne({ user: targetUserId }).lean())
+            ? await PerfilSocioModel.findOne({ user: targetUserId, companyId: company._id }).lean()
             : null;
           if (socioDoc && Array.isArray(socioDoc.trabajadores)) {
             const activeWorkers = socioDoc.trabajadores.filter(w => {
@@ -1734,7 +1736,7 @@ Correo: ${company.email || 'N/A'}`;
         // ── CASO ESPECIAL: PERFILES DE CARGO ──────────────────────────────────
         if (appName.includes('cargo') || appName.includes('perfil_cargo')) {
           const PerfilCargoModel = modelLoader('PerfilCargoData', '~/server/routes/sgsst/perfilesCargo');
-          let cargoDoc = await PerfilCargoModel.findOne(queryObj) || await PerfilCargoModel.findOne({ user: userId });
+          let cargoDoc = await PerfilCargoModel.findOne(queryObj) || (!companyId ? await PerfilCargoModel.findOne({ user: userId }) : null);
           if (!cargoDoc) {
             cargoDoc = new PerfilCargoModel({ user: userId, companyId: activeCompanyId, perfilesList: [] });
           }
@@ -1900,7 +1902,7 @@ Correo: ${company.email || 'N/A'}`;
         }
 
         let doc = await modelObj.findOne(queryObj);
-        if (!doc) {
+        if (!doc && !companyId) {
           doc = await modelObj.findOne({ user: userId });
         }
 
@@ -2242,12 +2244,12 @@ Correo: ${company.email || 'N/A'}`;
         // 5. Historial de Sesiones de Trabajo (GTC45, PESV, Químicos, Canvas)
         const gtc45Model = mongoose.models.Gtc45WorkspaceSession;
         if (gtc45Model) {
-          const gtcDocs = await gtc45Model.find({ user: userId }).sort({ updatedAt: -1 }).limit(10).lean();
+          const gtcDocs = await gtc45Model.find({ user: userId, ...(companyId ? { companyId } : {}) }).sort({ updatedAt: -1 }).limit(10).lean();
           gtcDocs.forEach(g => historyLogs.push({ modulo: 'Matriz GTC-45 / IPEVAR', fecha: g.updatedAt ? new Date(g.updatedAt).toISOString().split('T')[0] : 'Reciente', evento: `Matriz IPEVAR: ${g.title || 'Evaluación de Peligros'}`, detalles: `Estado: ${g.status || 'Activa'}` }));
         }
         const pesvModel = mongoose.models.PesvWorkspaceSession;
         if (pesvModel) {
-          const pesvDocs = await pesvModel.find({ user: userId }).sort({ updatedAt: -1 }).limit(10).lean();
+          const pesvDocs = await pesvModel.find({ user: userId, ...(companyId ? { companyId } : {}) }).sort({ updatedAt: -1 }).limit(10).lean();
           pesvDocs.forEach(p => historyLogs.push({ modulo: 'Plan Estratégico Riesgo Vial (PESV)', fecha: p.updatedAt ? new Date(p.updatedAt).toISOString().split('T')[0] : 'Reciente', evento: `PESV: ${p.title || 'Plan Vial'}`, detalles: `Estado: ${p.status || 'Activo'}` }));
         }
 
@@ -2364,12 +2366,13 @@ Correo: ${company.email || 'N/A'}`;
         if (!KanbanTask) return JSON.stringify({ error: 'Modelo KanbanTask no disponible.' });
 
         const taskTitle = input.titulo_actividad || input.identificador_o_filtro || input.nombre_o_cargo;
+        const kanbanFilter = { user: userId, ...(companyId ? { companyId: companyId.toString() } : {}) };
         let task = null;
         if (taskTitle) {
-          task = await KanbanTask.findOne({ user: userId, title: { $regex: taskTitle, $options: 'i' } });
+          task = await KanbanTask.findOne({ ...kanbanFilter, title: { $regex: taskTitle, $options: 'i' } });
         }
         if (!task) {
-          task = await KanbanTask.findOne({ user: userId }).sort({ updatedAt: -1 });
+          task = await KanbanTask.findOne(kanbanFilter).sort({ updatedAt: -1 });
         }
 
         if (!task) return JSON.stringify({ error: 'No se encontró la actividad para actualizar en el Centro de Control ACPM.' });

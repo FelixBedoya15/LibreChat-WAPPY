@@ -1608,7 +1608,10 @@ router.post('/auto-assign-cargos', requireJwtAuth, async (req, res) => {
 
     // 2. Extraer información de la empresa si existe
     let companyContext = '';
-    const company = await CompanyInfo.findOne({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
+    const company = companyId
+      ? await CompanyInfo.findOne({ user: userId, _id: companyId }).lean()
+      : (await CompanyInfo.findOne({ user: userId, isActive: true }).lean()) ||
+        (await CompanyInfo.findOne({ user: userId }).lean());
     if (company) {
       companyContext = `Empresa: ${company.companyName || ''}, Actividad: ${company.economicActivity || ''}, Sector: ${company.sector || ''}`;
     }

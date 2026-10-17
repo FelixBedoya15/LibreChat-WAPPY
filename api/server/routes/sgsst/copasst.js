@@ -191,8 +191,7 @@ router.get('/trabajadores', requireJwtAuth, async (req, res) => {
       };
     });
 
-    const perfilDoc = await PerfilSociodemograficoData.findOne({ companyId: company._id }).lean()
-      || await PerfilSociodemograficoData.findOne({ user: req.user.id }).lean();
+    const perfilDoc = await PerfilSociodemograficoData.findOne({ companyId: company._id }).lean();
 
     if (perfilDoc && Array.isArray(perfilDoc.trabajadores)) {
       const existingCedulas = new Set((workers || []).map(w => String(w.cedula || '').trim()));

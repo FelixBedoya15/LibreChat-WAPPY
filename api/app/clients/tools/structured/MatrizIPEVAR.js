@@ -150,7 +150,7 @@ class MatrizIPEVAR extends Tool {
 
          // Extraer Cargos
          if (PerfilCargoModel) {
-             const cargoDataDoc = await PerfilCargoModel.findOne({ user: userId }).lean();
+             const cargoDataDoc = await PerfilCargoModel.findOne({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
              if (cargoDataDoc && cargoDataDoc.perfiles) {
                  // Si nos mandan filtro_proceso (ej. "soldador"), filtramos para no aglomerar el payload, sino devolvemos todo.
                  let perfiles = cargoDataDoc.perfiles;
@@ -168,7 +168,7 @@ class MatrizIPEVAR extends Tool {
 
          // Extraer Salud y Vencimientos
          if (PerfilSocioModel) {
-             const socioDataDoc = await PerfilSocioModel.findOne({ user: userId }).lean();
+             const socioDataDoc = await PerfilSocioModel.findOne({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
              if (socioDataDoc && socioDataDoc.trabajadores) {
                  let trabajadores = socioDataDoc.trabajadores;
                  if (filtro_proceso) {

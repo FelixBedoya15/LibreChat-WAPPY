@@ -492,19 +492,24 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
       }
     }
 
-    // Call Gemini 3.5 Flash with key rotation
-    const result = await generateWithKeyRotation('gemini-3.5-flash', userId, promptParts);
+    // Call Gemini 3.5 Flash Lite with key rotation
+    const result = await generateWithKeyRotation('gemini-3.5-flash-lite', userId, promptParts);
     const response = result.response;
     let reportHtml = response.text().replace(/```html/g, '').replace(/```/g, '').trim();
 
     // Attach dynamic signatures
     let finalSignatureHtml = '';
     try {
-      const companyInfo = await CompanyInfo.findOne({ user: userId }).lean();
+      const companyInfo =
+        (await CompanyInfo.findOne({ user: userId, isActive: true }).lean()) ||
+        (await CompanyInfo.findOne({ user: userId }).lean());
       let matchedWorker = null;
 
       if (mongoose.models.PerfilSociodemograficoData) {
-        const profileData = await mongoose.models.PerfilSociodemograficoData.findOne({ user: userId }).lean();
+        const profileData = await mongoose.models.PerfilSociodemograficoData.findOne({
+          user: userId,
+          ...(companyInfo?._id ? { companyId: companyInfo._id } : {}),
+        }).lean();
         if (profileData && profileData.trabajadores) {
           matchedWorker = profileData.trabajadores.find(w => {
             if (w.nombre && reportHtml.includes(w.nombre)) return true;

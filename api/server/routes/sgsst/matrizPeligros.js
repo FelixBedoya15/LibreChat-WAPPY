@@ -96,10 +96,15 @@ const MatrizPeligrosData = mongoose.models.MatrizPeligrosData || mongoose.model(
 async function getIntegratedSSTContext(userId) {
     let context = '\n\n**ECOSISTEMA SST INTEGRADO (CONTEXTO MULTI-APLICATIVO):**\n';
     try {
+        const activeComp =
+            (await CompanyInfo.findOne({ user: userId, isActive: true }).lean()) ||
+            (await CompanyInfo.findOne({ user: userId }).lean());
+        const baseFilter = { user: userId, ...(activeComp?._id ? { companyId: activeComp._id } : {}) };
+
         // 1. Perfil Sociodemográfico (Hallazgos médicos)
         const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
         if (PerfilSociodemograficoData) {
-            const psd = await PerfilSociodemograficoData.findOne({ user: userId }).lean();
+            const psd = await PerfilSociodemograficoData.findOne(baseFilter).lean();
             if (psd && psd.trabajadores?.length) {
                 const withFindings = psd.trabajadores.filter(t => t.diagnosticoMedico && t.diagnosticoMedico !== 'Apto / Sin Hallazgos');
                 context += `- **Salud (Perfil Sociodemográfico)**: ${psd.trabajadores.length} trabajadores. CASOS CRÍTICOS: ${withFindings.slice(0, 5).map(t => `${t.cargo}: ${t.diagnosticoMedico}`).join('; ')}.\n`;
@@ -109,7 +114,7 @@ async function getIntegratedSSTContext(userId) {
         // 2. Perfiles de Cargo
         const PerfilCargoData = mongoose.models.PerfilCargoData;
         if (PerfilCargoData) {
-            const pcd = await PerfilCargoData.findOne({ user: userId }).lean();
+            const pcd = await PerfilCargoData.findOne(baseFilter).lean();
             if (pcd && pcd.perfilesList?.length) {
                 context += `- **Perfiles de Cargo**: ${pcd.perfilesList.length} cargos documentados (Ej: ${pcd.perfilesList.slice(0, 5).map(p => p.nombreCargo).join(', ')}).\n`;
             }
@@ -118,7 +123,7 @@ async function getIntegratedSSTContext(userId) {
         // 3. Siniestralidad ATEL (Estadísticas anuales)
         const ATELAnnualData = mongoose.models.ATELAnnualData;
         if (ATELAnnualData) {
-            const ad = await ATELAnnualData.findOne({ user: userId }).lean();
+            const ad = await ATELAnnualData.findOne(baseFilter).lean();
             if (ad && ad.years) {
                 const years = Object.keys(ad.years).sort().reverse();
                 if (years.length > 0) {
@@ -140,7 +145,7 @@ async function getIntegratedSSTContext(userId) {
         // 4. Vulnerabilidad / Emergencias
         const AnalisisVulnerabilidadData = mongoose.models.AnalisisVulnerabilidadData;
         if (AnalisisVulnerabilidadData) {
-            const avd = await AnalisisVulnerabilidadData.findOne({ user: userId }).lean();
+            const avd = await AnalisisVulnerabilidadData.findOne(baseFilter).lean();
             if (avd && avd.formData?.amenazasList?.length) {
                 const critical = avd.formData.amenazasList.filter(a => a.nivelAmenaza === 'Inminente' || a.nivelAmenaza === 'Probable');
                 if (critical.length > 0) {
@@ -152,7 +157,7 @@ async function getIntegratedSSTContext(userId) {
         // 5. Investigación ATEL (Detalles de accidentes reales)
         const InvestigacionAtelData = mongoose.models.InvestigacionAtelData;
         if (InvestigacionAtelData) {
-            const iad = await InvestigacionAtelData.findOne({ user: userId }).lean();
+            const iad = await InvestigacionAtelData.findOne(baseFilter).lean();
             if (iad && iad.formData?.descripcionHechos) {
                 context += `- **Historial Accidentes (Investigación)**: Último evento relevante: "${iad.formData.descripcionHechos.substring(0, 150)}...". Causa raíz identificada: ${iad.formData.consecuencias || 'Sin especificar'}.\n`;
             }
@@ -161,7 +166,7 @@ async function getIntegratedSSTContext(userId) {
         // 6. Reporte de Actos y Condiciones Inseguras (Alertas tempranas)
         const ReporteActosData = mongoose.models.ReporteActosData;
         if (ReporteActosData) {
-            const rad = await ReporteActosData.findOne({ user: userId }).lean();
+            const rad = await ReporteActosData.findOne(baseFilter).lean();
             if (rad && rad.reportesList?.length) {
                 const recent = rad.reportesList.slice(-5);
                 context += `- **Reportes de Actos/Condiciones**: ${rad.reportesList.length} reportes. Hallazgos recientes: ${recent.map(r => r.hallazgo).join(' / ')}.\n`;
@@ -171,7 +176,7 @@ async function getIntegratedSSTContext(userId) {
         // 7. Análisis de Trabajo Seguro (ATS - Pasos críticos)
         const AnalisisTrabajoSeguroData = mongoose.models.AnalisisTrabajoSeguroData;
         if (AnalisisTrabajoSeguroData) {
-            const atsd = await AnalisisTrabajoSeguroData.findOne({ user: userId }).lean();
+            const atsd = await AnalisisTrabajoSeguroData.findOne(baseFilter).lean();
             if (atsd && atsd.pasos?.length) {
                 context += `- **ATS (Tareas Críticas)**: Actividad analizada en ATS: ${atsd.actividad || 'General'}. Pasos de riesgo: ${atsd.pasos.slice(0, 4).map(p => p.descripcion).join(', ')}.\n`;
             }
@@ -180,7 +185,7 @@ async function getIntegratedSSTContext(userId) {
         // 8. Método OWAS (Ergonomía/Posturas)
         const MetodoOwasData = mongoose.models.MetodoOwasData;
         if (MetodoOwasData) {
-            const owasd = await MetodoOwasData.findOne({ user: userId }).lean();
+            const owasd = await MetodoOwasData.findOne(baseFilter).lean();
             if (owasd && owasd.resultados?.length) {
                 const critical = owasd.resultados.filter(r => r.categoriaRiesgo >= 3);
                 if (critical.length > 0) {
@@ -192,7 +197,7 @@ async function getIntegratedSSTContext(userId) {
         // 9. Participación IPEVAR Trabajadores (Insumo primordial)
         const ParticipacionIpevarData = mongoose.models.ParticipacionIpevarData;
         if (ParticipacionIpevarData) {
-            const pid = await ParticipacionIpevarData.findOne({ user: userId }).lean();
+            const pid = await ParticipacionIpevarData.findOne(baseFilter).lean();
             if (pid && pid.formData) {
                 const f = pid.formData;
                 context += `- **Participación IPEVAR (Trabajadores)**: El personal identificó peligros en la tarea "${f.tarea || 'N/A'}". Reportaron: "${f.peligros || 'Sin especificar'}". Controles existentes observados: "${f.controlesExistentes || 'N/A'}". Percepción de suficiencia: ${f.suficientes ? 'Suficientes' : 'Insuficientes'}.\n`;
