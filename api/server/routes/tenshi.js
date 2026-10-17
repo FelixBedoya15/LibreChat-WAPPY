@@ -367,7 +367,7 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         }
 
         // Fetch dynamic knowledge concurrently via Promise.all for maximum response speed
-        const [latestBlogs, latestCourses, ticketContext, companyInfo, rawMemories, recentConvos] = await Promise.all([
+        const [latestBlogs, latestCourses, ticketContext, companyInfo, rawMemories, recentTenshiReports] = await Promise.all([
             BlogPost.find({ isPublished: true }).sort({ createdAt: -1 }).limit(3).lean().catch(() => []),
             Course.find({ isPublished: true }).sort({ createdAt: -1 }).limit(2).lean().catch(() => []),
             getRelevantTickets(req, userQuery).catch(() => ''),
@@ -384,32 +384,21 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
                 }
                 return info;
             })(),
+            getAllUserMemories(targetUserId).catch(() => []),
             (async () => {
                 try {
-                    const { Conversation, Message } = require('~/db/models');
                     const userFilter = [String(req.user.id), targetUserId].filter(Boolean);
-                    const convos = await Conversation.find({ user: { $in: userFilter } })
-                        .sort({ updatedAt: -1 })
-                        .limit(3)
-                        .select('conversationId title updatedAt agent_id')
+                    const reports = await TenshiMessage.find({
+                        user: { $in: userFilter },
+                        $or: [
+                            { htmlReport: { $exists: true, $nin: [null, ''] } },
+                            { 'file.content': { $exists: true, $nin: [null, ''] } }
+                        ]
+                    })
+                        .sort({ createdAt: -1 })
+                        .limit(4)
                         .lean();
-
-                    if (!convos || convos.length === 0) return [];
-
-                    return await Promise.all(
-                        convos.map(async (c) => {
-                            const msgs = await Message.find({ conversationId: c.conversationId })
-                                .sort({ createdAt: -1 })
-                                .limit(2)
-                                .select('text sender isCreatedByUser')
-                                .lean()
-                                .catch(() => []);
-                            return {
-                                title: c.title || 'Consulta técnica',
-                                messages: msgs.reverse(),
-                            };
-                        })
-                    );
+                    return reports || [];
                 } catch (e) {
                     return [];
                 }
@@ -511,21 +500,22 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         }
 
         let recentConvosBlock = '';
-        if (recentConvos && recentConvos.length > 0) {
-            recentConvosBlock = `### 💬 ACTIVIDAD RECIENTE Y CONSULTAS CON ESPECIALISTAS EN WAPPY:\n`;
-            for (const c of recentConvos) {
-                if (!c.messages || c.messages.length === 0) continue;
-                recentConvosBlock += `\n- Consulta: "${c.title}":\n`;
-                for (const m of c.messages) {
-                    const sender = m.isCreatedByUser ? 'Usuario' : (m.sender || 'Especialista');
-                    const maxLen = m.isCreatedByUser ? 300 : 3500;
-                    const snippet = text.length > maxLen ? text.substring(0, maxLen) + '...' : text;
-                    if (snippet) {
-                        recentConvosBlock += `  * ${sender}: "${snippet}"\n`;
-                    }
-                }
-            }
-            recentConvosBlock += `\n*REGLA DE CONTINUIDAD Y MEMORIA*: Tienes pleno conocimiento de estas consultas previas con los especialistas. Si el usuario te pregunta por lo que se habló o se consultó previamente (ej: batería de riesgo psicosocial, matriz de compatibilidad, etc.), respóndele con este contexto exacto.\n\n`;
+        if (recentTenshiReports && recentTenshiReports.length > 0) {
+            recentConvosBlock = `### 📄 ÚLTIMOS INFORMES Y DOCUMENTOS GENERADOS EN TU PROPIO CHAT DE TENSHI (DEL MÁS RECIENTE AL MÁS ANTIGUO):\n`;
+            recentTenshiReports.forEach((r, idx) => {
+                const title = r.file?.title || 'Informe Oficial SG-SST';
+                const rawHtml = r.file?.content || r.htmlReport || '';
+                const cleanSnippet = rawHtml
+                    .replace(/<style[\s\S]*?<\/style>/gi, '')
+                    .replace(/<script[\s\S]*?<\/script>/gi, '')
+                    .replace(/<[^>]+>/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim()
+                    .substring(0, 1800);
+                const dateStr = r.createdAt ? new Date(r.createdAt).toLocaleString('es-CO', { timeZone: 'America/Bogota' }) : 'Reciente';
+                recentConvosBlock += `\n${idx === 0 ? '🔥 [ÚLTIMO INFORME EN CHAT DE TENSHI]' : `[Informe #${idx + 1}]`} Título: "${title}" (${dateStr})\n  - Mensaje de entrega: "${(r.content || '').substring(0, 300)}"\n  - Contenido/Resumen del informe: ${cleanSnippet}\n`;
+            });
+            recentConvosBlock += `\n*REGLA DE MEMORIA DE INFORMES PROPIOS*: Estos informes están publicados directamente en TU propio chat de Tenshi. Si el usuario te dice "revisa nuestro chat", "el último informe que hiciste", "envíame el último informe del chat a mi correo" o te pregunta por el informe en vuestro chat, se refiere SIEMPRE al 🔥 [ÚLTIMO INFORME EN CHAT DE TENSHI] listado arriba. NUNCA inventes que no tienes informes ni menciones chats viejos de otros agentes.\n\n`;
         }
 
         const skillsList = (config.skills && config.skills.length > 0) ? config.skills : ['*'];
@@ -752,6 +742,18 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                     if (delimiterIndex !== -1) {
                         contentText = contentText.substring(0, delimiterIndex).trim();
                     }
+                }
+                const reportHtml = m.file?.content || m.htmlReport || '';
+                if (reportHtml && typeof reportHtml === 'string') {
+                    const cleanReportText = reportHtml
+                        .replace(/<style[\s\S]*?<\/style>/gi, '')
+                        .replace(/<script[\s\S]*?<\/script>/gi, '')
+                        .replace(/<[^>]+>/g, ' ')
+                        .replace(/\s+/g, ' ')
+                        .trim()
+                        .substring(0, 1500);
+                    const reportTitle = m.file?.title || 'Informe Oficial SG-SST';
+                    contentText += `\n[📄 INFORME GENERADO EN ESTE MENSAJE DEL CHAT DE TENSHI: "${reportTitle}" — Extracto: ${cleanReportText}]`;
                 }
 
                 history.push({
@@ -2290,7 +2292,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
                             let parsedResponse;
                             if (typeof toolOutput === 'object' && toolOutput !== null) {
-                                parsedResponse = toolOutput;
+                                parsedResponse = { ...toolOutput };
                             } else if (typeof toolOutput === 'string' && toolOutput.trim().startsWith('{')) {
                                 try {
                                     parsedResponse = JSON.parse(toolOutput);
@@ -2301,21 +2303,93 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                 parsedResponse = { result: String(toolOutput || 'Operación completada.') };
                             }
 
+                            // Aligerar el payload antes de enviarlo de vuelta al LLM en functionResponse
+                            // para evitar que documentos HTML de 100KB+ provoquen errores 503 por exceso de tokens
+                            const lightResponse = (parsedResponse && typeof parsedResponse === 'object')
+                                ? { ...parsedResponse }
+                                : { result: String(parsedResponse || 'OK') };
+                            if (lightResponse.informeOriginalHtml) {
+                                delete lightResponse.informeOriginalHtml;
+                                lightResponse.notaAdjunto = 'El informe HTML completo ya fue adjuntado automáticamente a la interfaz del chat para que el usuario lo visualice o descargue.';
+                            }
+                            if (lightResponse.htmlCode) {
+                                delete lightResponse.htmlCode;
+                                lightResponse.notaAdjunto = 'El documento HTML completo ya fue adjuntado automáticamente a la interfaz del chat.';
+                            }
+                            if (lightResponse.todosLosInformes && Array.isArray(lightResponse.todosLosInformes)) {
+                                lightResponse.todosLosInformes = lightResponse.todosLosInformes.slice(0, 5).map(inf => ({
+                                    titulo: inf.titulo,
+                                    fecha: inf.fecha,
+                                    resumen: typeof inf.resumen === 'string' ? inf.resumen.substring(0, 400) : undefined
+                                }));
+                            }
+                            if (typeof lightResponse.informeCompleto === 'string' && lightResponse.informeCompleto.length > 3500) {
+                                lightResponse.informeCompleto = lightResponse.informeCompleto
+                                    .replace(/<style[\s\S]*?<\/style>/gi, '')
+                                    .replace(/<script[\s\S]*?<\/script>/gi, '')
+                                    .replace(/<[^>]+>/g, ' ')
+                                    .replace(/\s+/g, ' ')
+                                    .trim()
+                                    .substring(0, 3500) + '... (resumido para síntesis rápida)';
+                            }
+                            if (typeof lightResponse.content === 'string' && lightResponse.content.length > 3500) {
+                                lightResponse.content = lightResponse.content
+                                    .replace(/<style[\s\S]*?<\/style>/gi, '')
+                                    .replace(/<script[\s\S]*?<\/script>/gi, '')
+                                    .replace(/<[^>]+>/g, ' ')
+                                    .replace(/\s+/g, ' ')
+                                    .trim()
+                                    .substring(0, 3500) + '...';
+                            }
+
                             currentContents.push({
                                 role: 'user',
                                 parts: [
                                     {
                                         functionResponse: {
                                             name: call.name,
-                                            response: parsedResponse
+                                            response: lightResponse
                                         }
                                     }
                                 ]
                             });
 
-                            responseResult = await geminiModel.generateContent({ contents: currentContents });
-                            candidate = responseResult.response.candidates && responseResult.response.candidates[0];
-                            calls = responseResult.response.functionCalls();
+                            try {
+                                responseResult = await geminiModel.generateContent({ contents: currentContents });
+                                candidate = responseResult.response.candidates && responseResult.response.candidates[0];
+                                calls = responseResult.response.functionCalls();
+                            } catch (synthErr) {
+                                logger.warn(`[Tenshi Synthesis Fallback] Error sintetizando respuesta de herramienta ${call.name} (${synthErr.message}). Rescatando resultado directo...`);
+                                // Si la herramienta ya se ejecutó con éxito pero el segundo llamado a Gemini dio 503,
+                                // no perder el resultado ni lanzar error 503 al usuario: construir síntesis limpia en español.
+                                let rescuedText = '';
+                                if (lightResponse.error) {
+                                    rescuedText = `Revisé el módulo solicitado: ${lightResponse.error}`;
+                                } else if (lightResponse.titulo || lightResponse.informeCompleto) {
+                                    const cleanExtract = String(lightResponse.informeCompleto || lightResponse.resumen || '')
+                                        .replace(/<[^>]+>/g, ' ')
+                                        .replace(/\s+/g, ' ')
+                                        .trim()
+                                        .substring(0, 700);
+                                    rescuedText = `✅ **Revisión completada: ${lightResponse.titulo || 'Informe del Aplicativo'}**\n\n${cleanExtract ? `${cleanExtract}...\n\n` : ''}Ya tienes el documento técnico oficial adjunto aquí mismo en nuestro chat para que puedas abrirlo, revisarlo en detalle o descargarlo en PDF/Word.`;
+                                } else if (lightResponse.mensaje || lightResponse.message || lightResponse.resumen) {
+                                    rescuedText = String(lightResponse.mensaje || lightResponse.message || lightResponse.resumen);
+                                } else if (capturedFile || capturedHtmlReport) {
+                                    rescuedText = `✅ Listo, he revisado y cargado el **${capturedFile?.title || 'Informe Oficial SG-SST'}** directamente aquí en nuestro chat para tu revisión.`;
+                                } else {
+                                    rescuedText = `✅ He ejecutado la revisión solicitada (${call.name}). Los datos han sido procesados correctamente.`;
+                                }
+                                responseResult = {
+                                    response: {
+                                        text: () => rescuedText,
+                                        candidates: [],
+                                        functionCalls: () => null
+                                    }
+                                };
+                                candidate = null;
+                                calls = null;
+                                break;
+                            }
                         }
 
                         try {
@@ -2380,7 +2454,11 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             }
 
             if (!succeeded && lastError) {
-                throw new Error(`Google AI Error (todos los modelos y claves fallaron): ${lastError.message}`);
+                if (capturedFile || capturedHtmlReport) {
+                    responseText = `✅ He recuperado el **${capturedFile?.title || 'Informe Oficial SG-SST'}** y ya lo tienes disponible aquí mismo en nuestro chat para abrirlo o descargarlo.`;
+                } else {
+                    throw new Error(`El servicio de IA experimenta alta demanda en este momento. Por favor intenta nuevamente en unos segundos.`);
+                }
             }
 
         } else if (config.provider === 'groq') {

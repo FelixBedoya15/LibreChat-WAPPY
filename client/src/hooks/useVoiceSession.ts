@@ -12,7 +12,7 @@ interface UseVoiceSessionOptions {
     onReportReceived?: (html: string, messageId?: string, evaluatedFrames?: string[], conversationId?: string, isNewReport?: boolean) => void;
     onWappyAction?: (action: { id: string; name: string; args: any }) => void;
     onAgentSwitched?: (data: { agentName: string; agentId: string; isBiomechanics: boolean; isFisioMode: boolean; conversationId?: string; badge?: string }) => void;
-    onStatusChange?: (status: string) => void;
+    onStatusChange?: (status: string, message?: string) => void;
     onError?: (error: string) => void;
     conversationId?: string;
     onConversationIdUpdate?: (newId: string) => void;
@@ -32,6 +32,7 @@ interface UseVoiceSessionOptions {
     actividad?: string;
     route?: string;
     agentName?: string;
+    personality?: string;
 }
 
 export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
@@ -566,6 +567,9 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             if (options.agentName) {
                 wsUrl += `&agentName=${encodeURIComponent(options.agentName)}`;
             }
+            if (options.personality) {
+                wsUrl += `&personality=${encodeURIComponent(options.personality)}`;
+            }
 
             console.log('[VoiceSession] Connecting to:', wsUrl);
             const ws = new WebSocket(wsUrl);
@@ -688,7 +692,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 const newStatus = message.data.status;
                 setStatus(newStatus);
                 statusRef.current = newStatus;
-                optionsRef.current.onStatusChange?.(newStatus);
+                optionsRef.current.onStatusChange?.(newStatus, message.data?.message);
 
                 if (newStatus === 'listening') {
                     if (!listeningStartTimeRef.current) {
@@ -896,6 +900,17 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     }, []);
 
     /**
+     * Send personality mode change in hot session
+     */
+    const sendPersonality = useCallback((personality: string) => {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+        wsRef.current.send(JSON.stringify({
+            type: 'set_personality',
+            data: { personality }
+        }));
+    }, []);
+
+    /**
      * Trigger Report Generation manually via WebSocket
      */
     const triggerReport = useCallback((): boolean => {
@@ -926,6 +941,8 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         sendInterrupt,
         sendWappyActionResult,
         sendScreenContext,
+        sendPersonality,
         triggerReport,
     };
 };
+

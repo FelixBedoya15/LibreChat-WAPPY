@@ -2237,7 +2237,7 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                     let rawMemories = [];
                     const userIds = [this.userId, targetUserId].filter(Boolean);
 
-                    const [companyInfo, fetchedMemories, recentTenshiMessages, recentConvos] = await Promise.all([
+                    const [companyInfo, fetchedMemories, recentTenshiMessages, recentTenshiReports] = await Promise.all([
                         (async () => {
                             if (this.config.companyId && mongoose.isValidObjectId(this.config.companyId)) {
                                 const byId = await CompanyInfo.findOne({ _id: this.config.companyId, user: targetUserId }).lean().catch(() => null);
@@ -2252,8 +2252,8 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                                 const TenshiMessage = require('~/models/TenshiMessage');
                                 return await TenshiMessage.find({ user: { $in: userIds } })
                                     .sort({ createdAt: -1 })
-                                    .limit(10)
-                                    .select('role content image media file htmlReport')
+                                    .limit(12)
+                                    .select('role content image media file htmlReport createdAt')
                                     .lean();
                             } catch (e) {
                                 return [];
@@ -2261,30 +2261,18 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                         })(),
                         (async () => {
                             try {
-                                const { Conversation, Message } = require('~/db/models');
-                                const convos = await Conversation.find({ user: { $in: userIds.map(String) } })
-                                    .sort({ updatedAt: -1 })
-                                    .limit(2)
-                                    .select('conversationId title updatedAt agent_id')
+                                const TenshiMessage = require('~/models/TenshiMessage');
+                                return await TenshiMessage.find({
+                                    user: { $in: userIds },
+                                    $or: [
+                                        { htmlReport: { $exists: true, $nin: [null, ''] } },
+                                        { 'file.content': { $exists: true, $nin: [null, ''] } }
+                                    ]
+                                })
+                                    .sort({ createdAt: -1 })
+                                    .limit(3)
+                                    .select('role content file htmlReport createdAt')
                                     .lean();
-
-                                if (!convos || convos.length === 0) return [];
-
-                                // Consultar únicamente el último mensaje clave por cada conversación para máxima ligereza y evitar desviar el tema actual
-                                return await Promise.all(
-                                    convos.map(async (c) => {
-                                        const msgs = await Message.find({ conversationId: c.conversationId })
-                                            .sort({ createdAt: -1 })
-                                            .limit(2)
-                                            .select('text sender isCreatedByUser')
-                                            .lean()
-                                            .catch(() => []);
-                                        return {
-                                            title: c.title || 'Consulta técnica',
-                                            messages: msgs.reverse(),
-                                        };
-                                    })
-                                );
                             } catch (e) {
                                 return [];
                             }
@@ -2346,28 +2334,42 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                         }
                     }
 
-                    // Inyectar Historial reciente de Tenshi (TenshiMessage) - UNIFICADO Y VIVO (Últimos 10 turnos completos)
+                    // Inyectar Historial reciente de Tenshi (TenshiMessage) - UNIFICADO Y VIVO (Últimos 12 turnos completos)
                     if (recentTenshiMessages && recentTenshiMessages.length > 0) {
                         const validMessages = [];
                         const reversedChronological = [...recentTenshiMessages].reverse();
                         for (const m of reversedChronological) {
                             const role = m.role === 'user' ? 'Usuario' : 'Tenshi';
                             const cleanContent = (m.content || '').replace(/\s+/g, ' ').trim();
-                            // Preservar los 10 turnos con tamaño ágil (hasta 250 caracteres por turno) para mantener memoria perfecta sin sobrecargar la inferencia de audio
-                            const snippet = cleanContent.length > 250 ? cleanContent.substring(0, 250) + '...' : cleanContent;
+                            const hasReport = Boolean(m.file || m.htmlReport);
+                            const maxLen = hasReport ? 600 : 300;
+                            let snippet = cleanContent.length > maxLen ? cleanContent.substring(0, maxLen) + '...' : cleanContent;
+                            if (hasReport) {
+                                const rawHtml = m.file?.content || m.htmlReport || '';
+                                const cleanReportText = rawHtml
+                                    .replace(/<style[\s\S]*?<\/style>/gi, '')
+                                    .replace(/<script[\s\S]*?<\/script>/gi, '')
+                                    .replace(/<[^>]+>/g, ' ')
+                                    .replace(/\s+/g, ' ')
+                                    .trim()
+                                    .substring(0, 900);
+                                if (cleanReportText) {
+                                    snippet += ` | Extracto del Informe "${m.file?.title || 'Informe Oficial SG-SST'}": ${cleanReportText}`;
+                                }
+                            }
                             if (snippet && !snippet.startsWith('[RESULTADO_GUI]')) {
                                 let extraLabel = '';
                                 if (m.image || m.media) extraLabel = ' [con evidencia/foto de cámara]';
-                                if (m.file || m.htmlReport) extraLabel = ` [con reporte/archivo: "${m.file?.title || 'Reporte'}"]`;
+                                if (hasReport) extraLabel = ` [📄 CON INFORME GENERADO EN TU CHAT DE TENSHI: "${m.file?.title || 'Informe Oficial SG-SST'}"]`;
                                 validMessages.push({ role: `${role}${extraLabel}`, snippet });
                             }
                         }
 
                         if (validMessages.length > 0) {
-                            companyAndMemoryPrompt += `\n\n[HISTORIAL CONVERSACIONAL RECIENTE DE TENSHI (ÚLTIMOS ${validMessages.length} TURNOS ACTIVOS - CHAT, LIVE Y CÁMARA)]:
+                            companyAndMemoryPrompt += `\n\n[HISTORIAL CONVERSACIONAL RECIENTE DE TU PROPIO CHAT DE TENSHI (ÚLTIMOS ${validMessages.length} TURNOS ACTIVOS - CHAT, LIVE Y CÁMARA)]:
 (DIRECTIVA CRÍTICA DE MEMORIA Y CONTINUIDAD:
-Este es el contexto vivo e inmediato de lo que has venido conversando con el usuario en Tenshi (a través de texto, voz en directo o visión por cámara).
-Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evidencias observadas, peticiones o acuerdos previos, y dar continuidad fluida sin olvidar lo hablado ni pedir que se repita la información):`;
+Este es el contexto vivo e inmediato de lo que has venido conversando con el usuario en TU propio chat de Tenshi.
+Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes generados, evidencias observadas y acuerdos previos):`;
                             validMessages.forEach((m, idx) => {
                                 const isLast = idx === validMessages.length - 1;
                                 const tag = isLast ? 'ÚLTIMO TURNO - PRESENTE INMEDIATO' : `Turno previo ${idx + 1}`;
@@ -2376,33 +2378,125 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
                         }
                     }
 
-                    // Inyectar síntesis muy breve de las últimas 1-2 conversaciones con especialistas (máximo 250 caracteres)
-                    if (recentConvos && recentConvos.length > 0) {
-                        companyAndMemoryPrompt += '\n\n[ARCHIVADO - HISTORIAL PASADO DE OTRAS CONSULTAS (TEMAS CERRADOS)]:\n(ESTOS ANTECEDENTES PERTENECEN A CHATS PASADOS Y NO TIENEN NADA QUE VER CON LO QUE EL USUARIO HACE AHORA. ESTÁ TERMINANTEMENTE PROHIBIDO TRAER ESTOS TEMAS AL TURNO ACTUAL A MENOS QUE EL USUARIO PREGUNTE EXPLÍCITAMENTE POR ELLOS):';
-                        for (const c of recentConvos) {
-                            if (!c.messages || c.messages.length === 0) continue;
-                            companyAndMemoryPrompt += `\n- Consulta histórica archivada: "${c.title}":`;
-                            for (const m of c.messages) {
-                                const sender = m.isCreatedByUser ? 'Usuario' : (m.sender || 'Especialista');
-                                const maxLen = m.isCreatedByUser ? 150 : 250;
-                                const text = (m.text || '').replace(/\s+/g, ' ').trim();
-                                const snippet = text.length > maxLen ? text.substring(0, maxLen) + '...' : text;
-                                if (snippet) {
-                                    companyAndMemoryPrompt += `\n  * ${sender}: "${snippet}"`;
-                                }
-                            }
-                        }
+                    // Inyectar los últimos informes oficiales generados en el propio chat de Tenshi
+                    if (recentTenshiReports && recentTenshiReports.length > 0) {
+                        companyAndMemoryPrompt += `\n\n[📄 ÚLTIMOS INFORMES OFICIALES PUBLICADOS EN TU PROPIO CHAT DE TENSHI (DEL MÁS RECIENTE AL MÁS ANTIGUO)]:
+(REGLA CRÍTICA: Cuando el usuario te diga "revisa nuestro chat", "el informe que generaste en el chat", "envíame el último informe del chat a mi correo" o pregunte por el último informe, se refiere SIEMPRE al 🔥 [ÚLTIMO INFORME EN CHAT DE TENSHI] listado a continuación. Conoces su título y contenido completo. NUNCA menciones temas viejos de otros agentes como burnout o simulacros a menos que estén en este informe):`;
+                        recentTenshiReports.forEach((r, idx) => {
+                            const title = r.file?.title || 'Informe Oficial SG-SST';
+                            const rawHtml = r.file?.content || r.htmlReport || '';
+                            const cleanExtract = rawHtml
+                                .replace(/<style[\s\S]*?<\/style>/gi, '')
+                                .replace(/<script[\s\S]*?<\/script>/gi, '')
+                                .replace(/<[^>]+>/g, ' ')
+                                .replace(/\s+/g, ' ')
+                                .trim()
+                                .substring(0, 1500);
+                            const dateStr = r.createdAt ? new Date(r.createdAt).toLocaleString('es-CO', { timeZone: 'America/Bogota' }) : 'Reciente';
+                            companyAndMemoryPrompt += `\n- ${idx === 0 ? '🔥 [ÚLTIMO INFORME EN CHAT DE TENSHI]' : `[Informe #${idx + 1}]`} Título: "${title}" (${dateStr}) -> Resumen/Contenido: ${cleanExtract}`;
+                        });
+                    }
+
+                    // ─── BRIEFING EJECUTIVO DIARIO Y MEMORIA AUTOBIOGRÁFICA (ESTILO DOT) ───
+                    try {
+                        const KanbanTask = mongoose.models.KanbanTask || require('~/models/KanbanTask');
+                        const { Conversation } = require('~/db/models');
+                        const activeCompId = companyInfo?._id ? String(companyInfo._id) : null;
+                        const taskScope = {
+                            user: targetUserId,
+                            ...(activeCompId ? {
+                                $or: [
+                                    { companyId: activeCompId },
+                                    { companyId: { $exists: false } },
+                                    { companyId: null },
+                                    { companyId: '' },
+                                ],
+                            } : {}),
+                        };
+
+                        const now = new Date();
+                        const colNowStr = now.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+                        const startOfToday = new Date(`${colNowStr}T00:00:00-05:00`);
+                        const endOfToday = new Date(`${colNowStr}T23:59:59.999-05:00`);
+                        const startOfTomorrow = new Date(endOfToday.getTime() + 1);
+                        const endOfTomorrow = new Date(endOfToday.getTime() + 24 * 3600 * 1000);
+
+                        const [todayTasks, tomorrowTasks, overdueTasks, latestSgsstReport] = await Promise.all([
+                            KanbanTask.find({
+                                ...taskScope,
+                                status: { $nin: ['done', 'dismissed'] },
+                                dueDate: { $gte: startOfToday, $lte: endOfToday },
+                            }).sort({ dueDate: 1 }).limit(5).select('title dueDate priority').lean().catch(() => []),
+                            KanbanTask.find({
+                                ...taskScope,
+                                status: { $nin: ['done', 'dismissed'] },
+                                dueDate: { $gte: startOfTomorrow, $lte: endOfTomorrow },
+                            }).sort({ dueDate: 1 }).limit(5).select('title dueDate priority').lean().catch(() => []),
+                            KanbanTask.find({
+                                ...taskScope,
+                                status: { $nin: ['done', 'dismissed'] },
+                                dueDate: { $lt: startOfToday },
+                            }).sort({ dueDate: -1 }).limit(3).select('title dueDate').lean().catch(() => []),
+                            Conversation.findOne({
+                                user: String(targetUserId),
+                                tags: { $elemMatch: { $regex: /^sgsst-/i } },
+                                ...(activeCompId ? {
+                                    $or: [
+                                        { tags: `company:${activeCompId}` },
+                                        { tags: { $not: /^company:/ } },
+                                    ],
+                                } : {}),
+                            }).sort({ updatedAt: -1 }).select('title updatedAt').lean().catch(() => null),
+                        ]);
+
+                        const fmtTime = (d) => d ? new Date(d).toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: true }) : '';
+                        const lastTitle = latestSgsstReport?.title ? latestSgsstReport.title.replace(/^\[.*?\]\s*/, '') : null;
+                        const todayList = (todayTasks || []).map(t => `${t.title} (${fmtTime(t.dueDate)})`).join(', ') || 'Sin actividades programadas para hoy';
+                        const tomorrowList = (tomorrowTasks || []).map(t => `${t.title} (${fmtTime(t.dueDate)})`).join(', ') || 'Ninguna actividad vence mañana';
+                        const overdueList = (overdueTasks || []).map(t => t.title).join(', ');
+
+                        companyAndMemoryPrompt += `\n\n[MEMORIA AUTOBIOGRÁFICA Y BRIEFING EJECUTIVO DEL DÍA (ESTILO DOT - PRIORIDAD MÁXIMA EN EL PRIMER SALUDO)]:
+- Empresa activa actual: ${companyInfo?.companyName || 'Tu Empresa'}.
+- Último informe o gestión realizada: ${lastTitle ? `"${lastTitle}"` : 'Evaluación del SG-SST'}.
+- Agenda programada para HOY (${colNowStr}): ${todayList}.
+- Actividades que vencen MAÑANA: ${tomorrowList}.${overdueList ? `\n- Actividades pendientes de días previos: ${overdueList}.` : ''}
+- REGLA OBLIGATORIA DE PRIMER SALUDO (ESTILO DOT):
+  En tu PRIMERA respuesta de la llamada (o cuando el usuario apenas enciende el micrófono, dice "Hola", hace ruido inicial o saluda), ESTÁ PROHIBIDO dar un saludo genérico como "¿En qué te puedo ayudar hoy con el chat?".
+  SIEMPRE en tu primera intervención de la llamada debes:
+  1) Saludar cálidamente al usuario por su nombre y mencionar su empresa activa (${companyInfo?.companyName || 'su empresa'}).
+  2) Preguntarle cómo le fue con su última gestión o informe (${lastTitle ? `"${lastTitle}"` : 'su último avance en el SG-SST'}).
+  3) Informarle de inmediato su agenda de hoy (${todayList}) y lo que vence mañana (${tomorrowList}).`;
+                    } catch (briefErr) {
+                        logger.warn('[VoiceSession] Could not build daily briefing context:', briefErr.message);
+                    }
+
+                    // ─── MODO DE PERSONALIDAD ADAPTATIVA DE TENSHI (1 CLIC) ───
+                    const initialPersonality = (this.config?.personality || 'consultor').toLowerCase();
+                    if (initialPersonality === 'express') {
+                        companyAndMemoryPrompt += `\n\n[MODO DE PERSONALIDAD ACTIVO: ⚡ EJECUTIVO EXPRESS]:
+Responde SIEMPRE en máximo 1 a 2 frases ultra-directas y al grano. Prioriza datos puntuales, cifras y acciones inmediatas sin introducciones largas.`;
+                    } else if (initialPersonality === 'auditor') {
+                        companyAndMemoryPrompt += `\n\n[MODO DE PERSONALIDAD ACTIVO: ⚖️ MODO AUDITOR]:
+Responde con rigor normativo estricto, citando artículos exactos del Decreto 1072 de 2015, Resolución 0312 de 2019, GTC 45 o normas aplicables, verificando cumplimiento legal y evidencias.`;
+                    } else {
+                        companyAndMemoryPrompt += `\n\n[MODO DE PERSONALIDAD ACTIVO: 🛡️ CONSULTOR SENIOR]:
+Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomendaciones prácticas para la empresa.`;
                     }
 
                     companyAndMemoryPrompt += `\n\n[DIRECTIVA ABSOLUTA DE ENFOQUE TEMÁTICO Y CONTINUIDAD]:
-1. TU TEMA DE TRABAJO EN ESTE MOMENTO está 100% delimitado por la pantalla visible actual (${humanScreen}) y por lo que el usuario te acaba de pedir en el último turno.
-2. Si estás en el Perfil Sociodemográfico, habla EXCLUSIVAMENTE de demografía, nómina, cargos, trabajadores y condiciones de salud de ese módulo. NUNCA menciones riesgos psicosociales ni temas de otros hitos que se trataron en el pasado.
-3. El último mensaje del usuario marca el hilo conductor exacto. Prohibido saltar a antecedentes pasados archivados.
-4. Ya conoces de memoria todos los datos de la empresa activa del usuario (Razón Social, NIT, ARL, trabajadores, sedes, macroprocesos, etc.). NUNCA digas que no tienes acceso a su empresa.
-5. Si el usuario te pregunta expresamente por conversaciones pasadas ("¿qué hablamos antes?"), responde con base en los antecedentes con precisión. Pero en la conversación ordinaria, mantén el foco riguroso en el turno actual y la pantalla visible.`;
+1. EN EL PRIMER TURNO DE LA LLAMADA: Entrega SIEMPRE el Briefing Ejecutivo del Día (empresa activa, pregunta cómo le fue con la última gestión "${lastTitle || 'reciente'}", menciona la agenda de hoy y los vencimientos de mañana).
+2. EN LOS TURNOS SIGUIENTES: Tu tema de trabajo está delimitado por la pantalla visible actual (${humanScreen}) y por lo que el usuario te pida en ese turno.
+3. Ya conoces de memoria todos los datos de la empresa activa del usuario (Razón Social, NIT, ARL, trabajadores, sedes, macroprocesos, etc.). NUNCA digas que no tienes acceso a su empresa.`;
 
                     this.liveConfig.systemInstruction = (this.liveConfig.systemInstruction || '') + companyAndMemoryPrompt;
-                    logger.info(`[VoiceSession] Injected active company, ${rawMemories?.length || 0} memories, ${recentTenshiMessages?.length || 0} Tenshi turns & ${recentConvos?.length || 0} specialist convos into Tenshi Voice instructions`);
+                    this.initialBriefingSummary = {
+                        companyName: companyInfo?.companyName || 'tu empresa',
+                        lastTitle: lastTitle || 'el último informe del SG-SST',
+                        todayList,
+                        tomorrowList,
+                        overdueList,
+                    };
+                    logger.info(`[VoiceSession] Injected active company, briefing, personality (${initialPersonality}), ${rawMemories?.length || 0} memories, ${recentTenshiMessages?.length || 0} Tenshi turns & ${recentConvos?.length || 0} specialist convos into Tenshi Voice instructions`);
 
                     // Guía Maestra de la Plataforma y Metodologías SST ya están incorporadas en systemInstruction base (máxima fluidez y baja latencia)
                 } catch (memErr) {
@@ -2652,6 +2746,29 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
                 };
 
                 for (const fc of toolCall.functionCalls) {
+                    const immediateToolLabels = {
+                        canvas_tool: `✍️ Redactando "${fc.args?.title || 'Informe Técnico'}"...`,
+                        canvas: `✍️ Redactando "${fc.args?.title || 'Informe Técnico'}"...`,
+                        wappy_crear_informe: `📄 Generando "${fc.args?.titulo || 'Informe Técnico'}"...`,
+                        wappy_generar_informe: `📄 Generando "${fc.args?.titulo || 'Informe Técnico'}"...`,
+                        wappy_leer_informe_aplicativo: `🔍 Leyendo Historial SOMOS SST (${fc.args?.aplicativo || 'Empresa'})...`,
+                        wappy_enviar_correo: `📧 Enviando correo a ${fc.args?.destinatario || 'tu bandeja'}...`,
+                        enviar_correo: `📧 Enviando correo a ${fc.args?.destinatario || 'tu bandeja'}...`,
+                        wappy_gestionar_agenda: '📅 Sincronizando Agenda SG-SST...',
+                        wappy_listar_agenda: '📅 Consultando Agenda SG-SST...',
+                        wappy_generar_analisis_aplicativo: `⚡ Procesando análisis IA (${fc.args?.aplicativo || 'SOMOS SST'})...`,
+                        wappy_abrir_chat_agente: '🤝 Conectando con especialista...',
+                        wappy_consultar_especialista: '🩺 Consultando especialista...',
+                        wappy_seleccionar_empresa: '🏢 Cambiando empresa activa...',
+                        wappy_activar_empresa: '🏢 Activando empresa...',
+                        operar_interfaz_visual: '✨ Tenshi operando tu pantalla...',
+                    };
+                    const immediateLabel = immediateToolLabels[fc.name] || `⚡ Ejecutando ${fc.name.replace(/^wappy_/, '').replace(/_/g, ' ')}...`;
+                    this.sendToClient({
+                        type: 'status',
+                        data: { status: 'loading', message: immediateLabel, toolName: fc.name }
+                    });
+
                     // Manejo de cambio de fase interactiva
                     if (fc.name === 'cambiar_fase_evaluacion') {
                         const targetPhase = fc.args?.fase || 2;
@@ -5054,6 +5171,24 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
                     }
                     const humanDesc = formatScreenRouteHuman(this.activeScreenRoute, this.activeScreenAgent);
                     logger.info(`[VoiceSession] Updated screen context: conversationId=${this.conversationId}, activeScreenAgent=${JSON.stringify(this.activeScreenAgent)}, route=${this.activeScreenRoute} (${humanDesc})`);
+                }
+                break;
+
+            case 'set_personality':
+                if (data && data.personality) {
+                    const pMode = String(data.personality).toLowerCase();
+                    this.config.personality = pMode;
+                    logger.info(`[VoiceSession] Personality mode updated in hot session to: ${pMode}`);
+                    if (this.geminiClient && this.geminiClient.setupCompleted) {
+                        const modeDirective = pMode === 'express'
+                            ? '[SISTEMA INTERNO WAPPY - CAMBIO DE MODO EN CALIENTE]: El usuario activó el modo "⚡ Ejecutivo Express". A partir de este momento, responde SIEMPRE en máximo 1 a 2 frases ultra-directas y al grano, priorizando cifras y acciones inmediatas. NO respondas en voz alta a este aviso; aplícalo en tu siguiente turno.'
+                            : pMode === 'auditor'
+                            ? '[SISTEMA INTERNO WAPPY - CAMBIO DE MODO EN CALIENTE]: El usuario activó el modo "⚖️ Modo Auditor". A partir de este momento, responde con rigor normativo estricto citando artículos del Decreto 1072 de 2015, Resolución 0312 de 2019 y normas aplicables. NO respondas en voz alta a este aviso; aplícalo en tu siguiente turno.'
+                            : '[SISTEMA INTERNO WAPPY - CAMBIO DE MODO EN CALIENTE]: El usuario activó el modo "🛡️ Consultor Senior". A partir de este momento, responde con calidez ejecutiva, criterio técnico integral y recomendaciones prácticas. NO respondas en voz alta a este aviso; aplícalo en tu siguiente turno.';
+                        try {
+                            this.geminiClient.sendText(modeDirective);
+                        } catch (_) {}
+                    }
                 }
                 break;
 

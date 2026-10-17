@@ -6585,9 +6585,10 @@ router.post('/agenda/events', requireApiKeyOrJwt, async (req, res) => {
       startDate = new Date(Date.now() + 24 * 3600 * 1000);
     }
 
-    // Guardar en Kanban / Cronograma de WAPPY
+    // Guardar en Kanban / Cronograma de WAPPY con aislamiento por empresa
     const task = await KanbanTask.create({
       user: targetUserId,
+      ...(companyId ? { companyId } : {}),
       title: eventTitle,
       description: eventDesc,
       status: 'todo',
@@ -6647,18 +6648,21 @@ router.put('/agenda/events', requireApiKeyOrJwt, handleUpdateAgendaEvent);
 router.get('/agenda/events', requireApiKeyOrJwt, async (req, res) => {
   try {
     const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const company = await getActiveCompany(targetUserId);
+    const companyId = company ? String(company._id) : null;
     const { timeMin, timeMax, dias, limit } = req.query;
 
     const fromDate = timeMin ? new Date(timeMin) : new Date(Date.now() - 7 * 24 * 3600 * 1000);
     const toDate = timeMax ? new Date(timeMax) : new Date(Date.now() + (Number(dias) || 30) * 24 * 3600 * 1000);
 
     const tasks = await KanbanTask.find({
-      user: targetUserId,
+      ...companyScope(targetUserId, companyId),
       dueDate: { $gte: fromDate, $lte: toDate },
     }).sort({ dueDate: 1 }).limit(Number(limit) || 30).lean();
 
     return res.json({
       exito: true,
+      empresa: company?.companyName || 'Empresa Activa',
       totalEventos: tasks.length,
       eventos: tasks.map((t) => ({
         id: t._id,
@@ -6683,6 +6687,142 @@ router.get('/agenda/events', requireApiKeyOrJwt, async (req, res) => {
   } catch (error) {
     logger.error('[MCP Bridge] Error al listar agenda:', error);
     return res.status(500).json({ error: 'Error al listar eventos de la agenda.' });
+  }
+});
+
+// ─── 36.5 BRIEFING EJECUTIVO PROACTIVO Y MEMORIA AUTOBIOGRÁFICA (ESTILO DOT) ──
+router.get('/briefing', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const company = await getActiveCompany(targetUserId);
+    const companyId = company ? String(company._id) : null;
+    const { Conversation } = require('~/db/models');
+
+    // Calcular inicio de hoy, fin de hoy y fin de mañana en Hora Colombia (UTC-5)
+    const now = new Date();
+    const colNowStr = now.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }); // YYYY-MM-DD
+    const startOfToday = new Date(`${colNowStr}T00:00:00-05:00`);
+    const endOfToday = new Date(`${colNowStr}T23:59:59.999-05:00`);
+    const endOfTomorrow = new Date(endOfToday.getTime() + 24 * 3600 * 1000);
+    const startOfTomorrow = new Date(endOfToday.getTime() + 1);
+
+    const scopeQuery = companyScope(targetUserId, companyId);
+
+    const [
+      todayTasks,
+      tomorrowTasks,
+      overdueTasks,
+      lastDoneTask,
+      latestReportConvo,
+    ] = await Promise.all([
+      KanbanTask.find({
+        ...scopeQuery,
+        status: { $nin: ['done', 'dismissed'] },
+        dueDate: { $gte: startOfToday, $lte: endOfToday },
+      }).sort({ dueDate: 1 }).limit(6).lean().catch(() => []),
+      KanbanTask.find({
+        ...scopeQuery,
+        status: { $nin: ['done', 'dismissed'] },
+        dueDate: { $gte: startOfTomorrow, $lte: endOfTomorrow },
+      }).sort({ dueDate: 1 }).limit(6).lean().catch(() => []),
+      KanbanTask.find({
+        ...scopeQuery,
+        status: { $nin: ['done', 'dismissed'] },
+        dueDate: { $lt: startOfToday },
+      }).sort({ dueDate: -1 }).limit(5).lean().catch(() => []),
+      KanbanTask.findOne({
+        ...scopeQuery,
+        status: { $in: ['done', 'in_progress'] },
+      }).sort({ updatedAt: -1 }).select('title status updatedAt sourceModule').lean().catch(() => null),
+      Conversation.findOne({
+        user: String(targetUserId),
+        tags: { $elemMatch: { $regex: /^sgsst-/i } },
+        ...(companyId ? {
+          $or: [
+            { tags: `company:${companyId}` },
+            { tags: { $not: /^company:/ } },
+          ],
+        } : {}),
+      }).sort({ updatedAt: -1 }).select('title tags updatedAt').lean().catch(() => null),
+    ]);
+
+    const formatTimeCol = (d) => {
+      if (!d) return '';
+      return new Date(d).toLocaleTimeString('es-CO', {
+        timeZone: 'America/Bogota',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+    };
+
+    const formatShortDateCol = (d) => {
+      if (!d) return '';
+      return new Date(d).toLocaleDateString('es-CO', {
+        timeZone: 'America/Bogota',
+        day: 'numeric',
+        month: 'short',
+      });
+    };
+
+    let ultimaActividad = null;
+    if (latestReportConvo && (!lastDoneTask || new Date(latestReportConvo.updatedAt) >= new Date(lastDoneTask.updatedAt))) {
+      ultimaActividad = {
+        tipo: 'informe',
+        titulo: (latestReportConvo.title || 'Informe SG-SST').replace(/^\[.*?\]\s*/, ''),
+        fecha: formatShortDateCol(latestReportConvo.updatedAt),
+        updatedAt: latestReportConvo.updatedAt,
+      };
+    } else if (lastDoneTask) {
+      ultimaActividad = {
+        tipo: 'tarea',
+        titulo: lastDoneTask.title,
+        estado: lastDoneTask.status === 'done' ? 'completada' : 'en curso',
+        fecha: formatShortDateCol(lastDoneTask.updatedAt),
+        updatedAt: lastDoneTask.updatedAt,
+      };
+    }
+
+    const agendaHoy = (todayTasks || []).map((t) => ({
+      id: String(t._id),
+      titulo: t.title,
+      hora: formatTimeCol(t.dueDate),
+      prioridad: t.priority || 'media',
+      tipo: t.type || 'manual',
+    }));
+
+    const vencenManana = (tomorrowTasks || []).map((t) => ({
+      id: String(t._id),
+      titulo: t.title,
+      hora: formatTimeCol(t.dueDate),
+      prioridad: t.priority || 'media',
+    }));
+
+    const vencidas = (overdueTasks || []).map((t) => ({
+      id: String(t._id),
+      titulo: t.title,
+      fecha: formatShortDateCol(t.dueDate),
+      prioridad: t.priority || 'alta',
+    }));
+
+    return res.json({
+      exito: true,
+      empresa: company?.companyName || 'Empresa Activa',
+      companyId,
+      responsableSST: company?.responsibleSST || '',
+      ultimaActividad,
+      agendaHoy,
+      vencenManana,
+      vencidas,
+      resumenConteo: {
+        hoy: agendaHoy.length,
+        manana: vencenManana.length,
+        vencidas: vencidas.length,
+      },
+    });
+  } catch (err) {
+    logger.error('[MCP Bridge /briefing] Error:', err);
+    return res.status(500).json({ error: err.message });
   }
 });
 

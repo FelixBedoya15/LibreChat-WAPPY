@@ -1142,9 +1142,9 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
         </div>
       </div>
 
-      {/* Píldora de Estado Opcional Flotante (Estilo Coucou Capsule) */}
+      {/* Píldora de Estado Flotante */}
       {statusText && (
-        <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-zinc-900/90 backdrop-blur-md px-2.5 py-0.5 text-[10px] font-medium text-emerald-300 border border-emerald-500/30 shadow-md pointer-events-none transition-all duration-300">
+        <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 z-50 whitespace-nowrap rounded-full bg-zinc-900/95 backdrop-blur-md px-3.5 py-1 text-xs sm:text-[11px] font-semibold text-emerald-300 border border-emerald-500/40 shadow-lg pointer-events-none transition-all duration-300">
           {statusText}
         </div>
       )}

@@ -412,6 +412,119 @@ class TenshiAudioEngine {
     osc.start(t);
     osc.stop(t + 0.47);
   }
+
+  /**
+   * Earcon de "Swoosh + Campanita" al enviar correo oficial (0 bytes externos)
+   */
+  public playMailSent() {
+    if (this.isMuted) return;
+    this.resume();
+    if (!this.ctx || !this.masterGain) return;
+
+    const t = this.ctx.currentTime;
+    // Barrido ascendente suave tipo "swoosh"
+    const swoosh = this.ctx.createOscillator();
+    const swooshGain = this.ctx.createGain();
+    swoosh.type = 'sine';
+    swoosh.frequency.setValueAtTime(320, t);
+    swoosh.frequency.exponentialRampToValueAtTime(1180, t + 0.14);
+    swooshGain.gain.setValueAtTime(0.08, t);
+    swooshGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+    swoosh.connect(swooshGain);
+    swooshGain.connect(this.masterGain);
+    swoosh.start(t);
+    swoosh.stop(t + 0.155);
+
+    // Doble nota cristalina de entrega (E6 -> A6)
+    [1318.51, 1760].forEach((freq, idx) => {
+      if (!this.ctx || !this.masterGain) return;
+      const start = t + 0.12 + idx * 0.065;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.11, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.18);
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+      osc.start(start);
+      osc.stop(start + 0.19);
+    });
+  }
+
+  /**
+   * Earcon de "Hojas / Expediente" al consultar informes en el Historial SOMOS SST
+   */
+  public playHistoryRead() {
+    if (this.isMuted) return;
+    this.resume();
+    if (!this.ctx || !this.masterGain) return;
+
+    const t = this.ctx.currentTime;
+    const notes = [587.33, 739.99, 880]; // Re - Fa# - La (D5, F#5, A5)
+    notes.forEach((freq, idx) => {
+      if (!this.ctx || !this.masterGain) return;
+      const start = t + idx * 0.045;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.09, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.11);
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+      osc.start(start);
+      osc.stop(start + 0.115);
+    });
+  }
+
+  /**
+   * Earcon de sincronización de Agenda / Cronograma
+   */
+  public playCalendarSync() {
+    if (this.isMuted) return;
+    this.resume();
+    if (!this.ctx || !this.masterGain) return;
+
+    const t = this.ctx.currentTime;
+    const notes = [659.25, 987.77]; // Mi - Si (E5, B5)
+    notes.forEach((freq, idx) => {
+      if (!this.ctx || !this.masterGain) return;
+      const start = t + idx * 0.06;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.11, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.15);
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+      osc.start(start);
+      osc.stop(start + 0.155);
+    });
+  }
+
+  /**
+   * Earcon ultra-suave para burbuja de Proactividad Silenciosa (Ambient Copilot)
+   */
+  public playWhisper() {
+    if (this.isMuted) return;
+    this.resume();
+    if (!this.ctx || !this.masterGain) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(528, t);
+    osc.frequency.exponentialRampToValueAtTime(660, t + 0.14);
+    gain.gain.setValueAtTime(0.05, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(t);
+    osc.stop(t + 0.16);
+  }
 }
 
 export const tenshiAudio = new TenshiAudioEngine();

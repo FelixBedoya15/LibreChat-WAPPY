@@ -18,6 +18,62 @@ export interface InteractiveElement {
 let selectorMap = new Map<number, HTMLElement>();
 
 /**
+ * Muestra un "Cursor Fantasma / Halo de Co-Browsing" ultraligero (100% CSS transform/opacity, 0% WebGL)
+ * alrededor del elemento del DOM que Tenshi está operando (clic, escritura o foco).
+ */
+export function triggerTenshiGhostHalo(el: HTMLElement | null, actionLabel = 'Tenshi operando') {
+  if (!el || typeof document === 'undefined') return;
+  try {
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return;
+
+    const halo = document.createElement('div');
+    halo.style.position = 'fixed';
+    halo.style.left = `${Math.max(4, rect.left - 6)}px`;
+    halo.style.top = `${Math.max(4, rect.top - 6)}px`;
+    halo.style.width = `${rect.width + 12}px`;
+    halo.style.height = `${rect.height + 12}px`;
+    halo.style.borderRadius = '14px';
+    halo.style.border = '2.5px solid #14b8a6';
+    halo.style.boxShadow = '0 0 0 4px rgba(20, 184, 166, 0.22)';
+    halo.style.pointerEvents = 'none';
+    halo.style.zIndex = '999999';
+    halo.style.transition = 'transform 0.35s ease-out, opacity 0.35s ease-out';
+    halo.style.transform = 'scale(0.96)';
+    halo.style.opacity = '1';
+
+    const badge = document.createElement('div');
+    badge.textContent = `✨ ${actionLabel}`;
+    badge.style.position = 'absolute';
+    badge.style.top = '-24px';
+    badge.style.left = '0px';
+    badge.style.background = 'linear-gradient(90deg, #0d9488, #10b981)';
+    badge.style.color = '#ffffff';
+    badge.style.fontSize = '10px';
+    badge.style.fontWeight = '700';
+    badge.style.padding = '2px 8px';
+    badge.style.borderRadius = '9999px';
+    badge.style.whiteSpace = 'nowrap';
+    badge.style.boxShadow = '0 4px 10px rgba(13, 148, 136, 0.35)';
+    halo.appendChild(badge);
+
+    document.body.appendChild(halo);
+
+    requestAnimationFrame(() => {
+      halo.style.transform = 'scale(1.02)';
+    });
+
+    setTimeout(() => {
+      halo.style.opacity = '0';
+      halo.style.transform = 'scale(1.06)';
+      setTimeout(() => {
+        if (halo.parentNode) halo.parentNode.removeChild(halo);
+      }, 360);
+    }, 1350);
+  } catch (_) {}
+}
+
+/**
  * Verifica si un elemento es visible en el viewport
  */
 function isElementVisible(el: HTMLElement): boolean {
@@ -241,6 +297,14 @@ export function getVisibleScreenContent(section?: string): string {
     const currentUrl = window.location.pathname + window.location.search;
     lines.push(`[PANTALLA ACTUAL: ${currentUrl}]`);
 
+    // 0. Incluir SIEMPRE primero el propio chat de Tenshi y sus informes generados
+    const ownChatSummary = (window as any).__TENSHI_OWN_CHAT_SUMMARY__;
+    if (ownChatSummary && typeof ownChatSummary === 'string' && ownChatSummary.trim()) {
+      lines.push('=== 💬 TU PROPIO CHAT DE TENSHI Y TUS ÚLTIMOS INFORMES GENERADOS ===');
+      lines.push(ownChatSummary.trim());
+      lines.push('');
+    }
+
     // 1. Detectar si hay un modal o diálogo activo en primer plano
     const modalEl = document.querySelector<HTMLElement>(
       '[role="dialog"], [aria-modal="true"], .modal, .dialog, [data-headlessui-state="open"]'
@@ -251,17 +315,17 @@ export function getVisibleScreenContent(section?: string): string {
       lines.push('[EN PRIMER PLANO: Ventana emergente / Modal de informe abierta]');
     }
 
-    // 1.1 Si hay mensajes de chat o respuestas de especialistas visibles en pantalla, extraer la respuesta completa
+    // 1.1 Si hay mensajes de chat o respuestas de especialistas visibles en la página de fondo
     const chatMessages = Array.from(rootScope.querySelectorAll<HTMLElement>(
       '.agent-turn .markdown, .agent-turn [class*="message-content"], [data-message-id] .markdown, [class*="text-message"], article .markdown'
     )).filter(m => isElementVisible(m) && !m.closest('.tenshi-widget-container'));
 
     if (chatMessages.length > 0) {
-      lines.push('=== RESPUESTA COMPLETA DEL ESPECIALISTA / AGENTE EN PANTALLA ===');
+      lines.push('=== CHAT DE FONDO DE OTRO AGENTE EN PANTALLA PRINCIPAL (NO ES TU CHAT DE TENSHI) ===');
       const lastMsg = chatMessages[chatMessages.length - 1];
       const text = lastMsg.innerText?.trim();
       if (text && text.length > 10) {
-        lines.push(text.length > 5000 ? text.substring(0, 5000) + '... [Ver resto en pantalla]' : text);
+        lines.push(text.length > 3500 ? text.substring(0, 3500) + '... [Ver resto en pantalla]' : text);
         lines.push('');
       }
     }
@@ -686,9 +750,10 @@ export async function executeGUIAction(
       // Desplazar campo a la vista de inmediato
       el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'auto' });
 
-      // Resaltar visualmente en azul
+      // Resaltar visualmente con Halo de Co-Browsing de Tenshi
+      triggerTenshiGhostHalo(el, 'Tenshi redactando...');
       const originalOutline = el.style.outline;
-      el.style.outline = '4px solid #3b82f6';
+      el.style.outline = '3px solid #14b8a6';
       setTimeout(() => {
         if (el) el.style.outline = originalOutline;
       }, 1000);
@@ -819,9 +884,10 @@ export async function executeGUIAction(
       // Desplazar elemento a la vista de inmediato
       el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'auto' });
 
-      // Resaltar visualmente en verde
+      // Resaltar visualmente con Halo de Co-Browsing de Tenshi
+      triggerTenshiGhostHalo(el, 'Tenshi accionando...');
       const originalOutline = el.style.outline;
-      el.style.outline = '4px solid #10b981';
+      el.style.outline = '3px solid #10b981';
       setTimeout(() => {
         if (el) el.style.outline = originalOutline;
       }, 800);

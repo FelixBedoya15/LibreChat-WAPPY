@@ -1367,31 +1367,237 @@ export default function TenshiChat() {
   // Estado de silenciado de micrófono del usuario (Mute de audio)
   const [isMicMuted, setIsMicMuted] = useState(false);
 
-  // Estado emocional derivado para Tenshi Alive 2.0 (inspirado en BotStates de Coucou)
+  // ─── 1. MEMORIA AUTOBIOGRÁFICA Y BRIEFING EJECUTIVO DIARIO (ESTILO DOT) ───
+  const [dailyBriefing, setDailyBriefing] = useState<{
+    empresa: string;
+    companyId: string | null;
+    responsableSST: string;
+    ultimaActividad: { tipo: string; titulo: string; fecha: string } | null;
+    agendaHoy: Array<{ id: string; titulo: string; hora: string; prioridad: string; estado: string }>;
+    vencenManana: Array<{ id: string; titulo: string; hora: string; prioridad: string }>;
+    vencidas: Array<{ id: string; titulo: string; fecha: string }>;
+  } | null>(null);
+  const [isBriefingDismissed, setIsBriefingDismissed] = useState(false);
+
+  const fetchDailyBriefing = useCallback(async (overrideCompanyId?: string) => {
+    if (!token) return;
+    try {
+      const compId = overrideCompanyId ?? localStorage.getItem('wappy_active_company_id') ?? '';
+      const res = await axios.get(`/api/mcp-bridge/briefing${compId ? `?companyId=${encodeURIComponent(compId)}` : ''}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.data?.success) {
+        setDailyBriefing(res.data);
+        setIsBriefingDismissed(false);
+      }
+    } catch (_) {}
+  }, [token]);
+
+  useEffect(() => {
+    if (isAuthenticated && token) {
+      fetchDailyBriefing();
+    }
+  }, [isAuthenticated, token, fetchDailyBriefing]);
+
+  useEffect(() => {
+    const onCompanyChanged = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      const newCompId = detail?.companyId || localStorage.getItem('wappy_active_company_id') || '';
+      fetchDailyBriefing(newCompId);
+    };
+    window.addEventListener('wappy-empresa-cambiada', onCompanyChanged);
+    window.addEventListener('wappy-reload-sgsst-data', onCompanyChanged);
+    return () => {
+      window.removeEventListener('wappy-empresa-cambiada', onCompanyChanged);
+      window.removeEventListener('wappy-reload-sgsst-data', onCompanyChanged);
+    };
+  }, [fetchDailyBriefing]);
+
+  // ─── 2. PÍLDORA VIVA ("ZERO DEAD AIR") Y 5. RICH VOICE CARDS (CONFIRMACIÓN INSTANTÁNEA) ───
+  const [liveActionPill, setLiveActionPill] = useState<string>('');
+  const liveActionPillTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const showLiveActionPill = useCallback((label: string, durationMs = 3800) => {
+    if (liveActionPillTimerRef.current) clearTimeout(liveActionPillTimerRef.current);
+    setLiveActionPill(label);
+    liveActionPillTimerRef.current = setTimeout(() => {
+      setLiveActionPill('');
+    }, durationMs);
+  }, []);
+
+  const [richVoiceCard, setRichVoiceCard] = useState<{
+    id: string;
+    kind: 'report' | 'email' | 'calendar' | 'company';
+    badge: string;
+    title: string;
+    subtitle: string;
+    companyName?: string;
+    htmlReport?: string;
+    actionPrompt?: string;
+    actionLabel?: string;
+  } | null>(null);
+  const richVoiceCardTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const triggerRichVoiceCard = useCallback((card: NonNullable<typeof richVoiceCard>, durationMs = 9000) => {
+    if (richVoiceCardTimerRef.current) clearTimeout(richVoiceCardTimerRef.current);
+    setRichVoiceCard(card);
+    richVoiceCardTimerRef.current = setTimeout(() => {
+      setRichVoiceCard(null);
+    }, durationMs);
+  }, []);
+
+  // ─── 6. MODO "PROACTIVIDAD SILENCIOSA" (AMBIENT COPILOT LOCAL — 0 TOKENS IA) ───
+  const [ambientTip, setAmbientTip] = useState<{
+    id: string;
+    title: string;
+    prompt: string;
+  } | null>(null);
+  const shownAmbientRoutesRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const routeKey = `${location.pathname}${location.search}`;
+    setAmbientTip(null);
+    if (isVoiceActive || isOpen || shownAmbientRoutesRef.current.has(routeKey)) return;
+
+    const lowerRoute = routeKey.toLowerCase();
+    let suggestion: { id: string; title: string; prompt: string } | null = null;
+
+    if (lowerRoute.includes('investigacion_atel')) {
+      suggestion = {
+        id: 'atel',
+        title: '💡 ¿Redactamos el árbol de causas o verificamos el reporte a la ARL de este caso ATEL?',
+        prompt: 'Por favor revisa los casos ATEL de la empresa activa y ayúdame con el análisis de causas y medidas de intervención bajo la Resolución 1401 de 2007.',
+      };
+    } else if (lowerRoute.includes('responsable')) {
+      suggestion = {
+        id: 'responsable',
+        title: '💡 ¿Consultamos el último informe del Responsable SG-SST en el historial o lo enviamos por correo?',
+        prompt: 'Por favor consulta el último informe del Responsable de Gestión SG-SST en el historial de SOMOS SST de la empresa activa y dime qué contiene.',
+      };
+    } else if (lowerRoute.includes('diagnostico_0312') || lowerRoute.includes('autoevaluacion')) {
+      suggestion = {
+        id: '0312',
+        title: '💡 ¿Revisamos qué estándares mínimos de la Resolución 0312 están pendientes en tu empresa?',
+        prompt: 'Consulta el diagnóstico de estándares mínimos de la Resolución 0312 de la empresa activa y dime cuáles ítems están pendientes por cumplir.',
+      };
+    } else if (lowerRoute.includes('condiciones_salud') || lowerRoute.includes('perfil_socio')) {
+      suggestion = {
+        id: 'salud',
+        title: '💡 ¿Quieres que lea el último diagnóstico de Condiciones de Salud / Sociodemográfico del historial?',
+        prompt: 'Por favor busca en el historial de SOMOS SST el último informe de Condiciones de Salud o Perfil Sociodemográfico de la empresa activa y dame un resumen.',
+      };
+    } else if (lowerRoute.includes('peligros') || lowerRoute.includes('gtc45')) {
+      suggestion = {
+        id: 'gtc45',
+        title: '💡 ¿Analizamos los peligros prioritarios de tu Matriz IPEVAR GTC 45?',
+        prompt: 'Consulta la matriz de peligros GTC 45 de la empresa activa e indícame los riesgos críticos y controles recomendados.',
+      };
+    } else if (lowerRoute.includes('/sgsst/control')) {
+      suggestion = {
+        id: 'control',
+        title: '💡 ¿Revisamos las actividades de tu agenda de hoy y las que vencen mañana?',
+        prompt: 'Por favor consulta mi agenda y cronograma del Centro de Control para hoy y mañana y dime qué actividades tenemos pendientes.',
+      };
+    }
+
+    if (!suggestion) return;
+    const chosen = suggestion;
+    const timer = setTimeout(() => {
+      if (!isVoiceActiveRef.current) {
+        shownAmbientRoutesRef.current.add(routeKey);
+        setAmbientTip(chosen);
+        tenshiAudio.playWhisper();
+      }
+    }, 16000);
+
+    return () => clearTimeout(timer);
+  }, [location.pathname, location.search, isVoiceActive, isOpen]);
+
+  // ─── 7. SELECTOR DE PERSONALIDAD ADAPTATIVA DE TENSHI (1 CLIC) ───
+  const [personalityMode, setPersonalityMode] = useState<'express' | 'consultor' | 'auditor'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('wappy_tenshi_personality');
+      if (saved === 'express' || saved === 'consultor' || saved === 'auditor') return saved;
+    }
+    return 'consultor';
+  });
+  const [hoveredPersonality, setHoveredPersonality] = useState<'express' | 'consultor' | 'auditor' | null>(null);
+  const sendPersonalityRef = useRef<((p: string) => void) | null>(null);
+
+  const handleSelectPersonality = useCallback((mode: 'express' | 'consultor' | 'auditor') => {
+    tenshiAudio.playBlip();
+    setPersonalityMode(mode);
+    try {
+      localStorage.setItem('wappy_tenshi_personality', mode);
+    } catch (_) {}
+    if (sendPersonalityRef.current) {
+      sendPersonalityRef.current(mode);
+    }
+    const modeLabels = {
+      express: '⚡ Modo Ejecutivo Express activo (Respuestas al grano)',
+      consultor: '🛡️ Modo Consultor Senior activo (Integral y cercano)',
+      auditor: '⚖️ Modo Auditor Legal activo (Rigor normativo Decreto 1072 / Res. 0312)',
+    };
+    showLiveActionPill(modeLabels[mode], 3200);
+    triggerTenshiReaction(mode === 'auditor' ? 'searching' : mode === 'express' ? 'working' : 'approval', 2000);
+  }, [showLiveActionPill]);
+
+  // ─── 3. EXPRESIVIDAD FÍSICA ULTRALIGERA (0% WebGL / 100% CSS) ───
   const derivedAvatarMood: TenshiAvatarMood = useMemo(() => {
     if (reportSuccessToast) return 'success';
     if (isTenshiSpeaking) return 'speaking';
-    if (tenshiStatus) {
-      const lower = tenshiStatus.toLowerCase();
-      if (lower.includes('busc') || lower.includes('consult') || lower.includes('norma') || lower.includes('web')) {
+    if (liveActionPill || tenshiStatus) {
+      const lower = `${liveActionPill} ${tenshiStatus}`.toLowerCase();
+      if (lower.includes('busc') || lower.includes('consult') || lower.includes('historial') || lower.includes('norma') || lower.includes('web') || lower.includes('leyendo')) {
         return 'searching';
+      }
+      if (lower.includes('correo') || lower.includes('enviando') || lower.includes('agenda')) {
+        return 'approval';
       }
       return 'working';
     }
     if (guiSteps.some((s) => s.status === 'pending')) return 'working';
     if (isTyping || isChatSubmitting || isWaitingConsultation) return 'thinking';
     if (isVoiceActive) return 'listening';
+    if (personalityMode === 'auditor') return 'searching';
     return 'idle';
   }, [
     reportSuccessToast,
     isTenshiSpeaking,
+    liveActionPill,
     tenshiStatus,
     guiSteps,
     isTyping,
     isChatSubmitting,
     isWaitingConsultation,
     isVoiceActive,
+    personalityMode,
   ]);
+
+  // Feedback auditivo suave periódico mientras Tenshi está pensando o ejecutando una herramienta pesada ("Zero Dead Air")
+  useEffect(() => {
+    const statusLower = `${voiceStatusText} ${liveActionPill} ${tenshiStatus || ''}`.toLowerCase();
+    const isActivelyProcessing =
+      !isTenshiSpeaking &&
+      (isTyping ||
+        isGeneratingTechnicalReport ||
+        Boolean(tenshiStatus) ||
+        statusLower.includes('procesando') ||
+        statusLower.includes('redactando') ||
+        statusLower.includes('compilando') ||
+        statusLower.includes('leyendo') ||
+        statusLower.includes('buscando') ||
+        statusLower.includes('consultando') ||
+        statusLower.includes('enviando') ||
+        statusLower.includes('agendando'));
+
+    if (!isActivelyProcessing) return;
+
+    tenshiAudio.playThink();
+    const interval = setInterval(() => {
+      tenshiAudio.playThink();
+    }, 2600);
+
+    return () => clearInterval(interval);
+  }, [isTyping, isGeneratingTechnicalReport, tenshiStatus, voiceStatusText, liveActionPill, isTenshiSpeaking]);
 
   // Detector de estado de ánimo en vivo (caritas de gato 😺😹😻😼🙀😿😾) cuando el usuario habla o Tenshi responde
   const lastAnalyzedMsgRef = useRef<string>('');
@@ -1918,6 +2124,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       voice: 'Puck',
       route: `${location.pathname}${location.search}`,
       companyId: localStorage.getItem('wappy_active_company_id') || undefined,
+      personality: personalityMode,
       onAudioReceived: (audioData: string) => {
         handleAudioReceived(audioData);
       },
@@ -1997,8 +2204,27 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         let resultMsg = 'Acción ejecutada';
         setTenshiStatus(`Tenshi ejecutando: ${action.name}...`);
 
+        // ─── 2. PÍLDORA VIVA ("ZERO DEAD AIR") SEGÚN LA HERRAMIENTA ───
+        const pillMap: Record<string, string> = {
+          wappy_leer_informe_aplicativo: '🔍 Leyendo Historial SOMOS SST...',
+          wappy_enviar_correo: '📧 Enviando correo con adjunto...',
+          wappy_gestionar_agenda: '📅 Sincronizando Agenda SG-SST...',
+          wappy_navegar: '🧭 Navegando en WAPPY...',
+          wappy_seleccionar_empresa: '🏢 Cambiando empresa activa...',
+          wappy_activar_empresa: '🏢 Activando empresa...',
+          operar_interfaz_visual: '✨ Tenshi operando pantalla...',
+          wappy_generar_analisis_aplicativo: '⚡ Ejecutando análisis IA...',
+          wappy_abrir_chat_agente: '🤝 Conectando con especialista...',
+        };
+        if (pillMap[action.name]) {
+          showLiveActionPill(pillMap[action.name], 4200);
+        } else {
+          showLiveActionPill(`⚡ ${action.name.replace(/^wappy_/, '').replace(/_/g, ' ')}...`, 3500);
+        }
+
         try {
           if (action.name === 'wappy_navegar') {
+            tenshiAudio.playBlip();
             const rawModulo = action.args?.modulo;
             const rawRuta = action.args?.ruta;
             const { targetRoute, targetSgsstModule } = resolveWappyDestination(rawModulo, rawRuta);
@@ -2251,11 +2477,19 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
             resultMsg = `Archivo "${title}" (${fileType}) entregado en el editor a pantalla completa y en el chat de Tenshi con botones de descarga.`;
           } else if (action.name === 'wappy_seleccionar_empresa' || action.name === 'wappy_activar_empresa') {
-            const companyName = action.args?.nombre_o_id || action.args?.empresa || action.args?.nombre || action.args?.id || action.result?.companyName;
+            tenshiAudio.playSuccess();
+            const companyName = action.args?.nombre_o_id || action.args?.empresa || action.args?.nombre || action.args?.id || (action as any).result?.companyName;
             resultMsg = `Empresa "${companyName}" seleccionada y activa en el sistema`;
             window.dispatchEvent(
               new CustomEvent('wappy-empresa-cambiada', { detail: { empresa: companyName } })
             );
+            triggerRichVoiceCard({
+              id: `comp-${Date.now()}`,
+              kind: 'company',
+              badge: '🏢 Empresa Activa',
+              title: String(companyName || 'Empresa Actualizada'),
+              subtitle: 'Expediente SG-SST y memoria aislada cargados',
+            });
           } else if (action.name === 'wappy_diligenciar_formulario') {
             const rawModulo = (action.args?.modulo || 'investigacion_atel').toLowerCase().trim();
             const campos = action.args?.campos || {};
@@ -2317,8 +2551,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
             resultMsg = `Trabajador marcado como retirado exitosamente.`;
           } else if (action.name === 'wappy_leer_informe_aplicativo') {
+            tenshiAudio.playHistoryRead();
             const rawApp = action.args?.aplicativo || action.args?.modulo || 'perfil_cargo';
-            const cargo = action.args?.cargo;
             const res = (action as any).result || {};
             let details = '';
             if (res.informeCompleto) {
@@ -2330,15 +2564,52 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             }
             resultMsg = details;
 
-            // Si hay informe completo o datos sustanciales, mostrar tarjeta en el chat de Tenshi
+            const reportTitle = res.tituloInforme || res.aplicativo || rawApp;
+            const companyLabel = res.empresa || dailyBriefing?.empresa || 'Empresa Activa';
+
+            // Mostrar Rich Voice Card de confirmación instantánea
+            triggerRichVoiceCard({
+              id: `rep-${Date.now()}`,
+              kind: 'report',
+              badge: `📑 Historial SOMOS SST • ${companyLabel}`,
+              title: String(reportTitle),
+              subtitle: res.fechaGeneracion
+                ? `Generado: ${new Date(res.fechaGeneracion).toLocaleDateString('es-CO')}`
+                : 'Informe oficial recuperado del expediente',
+              companyName: companyLabel,
+              htmlReport: res.informeOriginalHtml || undefined,
+              actionLabel: '📧 Enviar al correo del Responsable',
+              actionPrompt: `Envía por correo este último informe de ${rawApp} al correo oficial del responsable de la empresa activa.`,
+            });
+
+            // Si hay informe completo o datos sustanciales, mostrar tarjeta en el chat de Tenshi y persistir en BD
             if (res.informeCompleto && res.informeCompleto.length > 30) {
+              const msgContent = `📑 **Informe Técnico Oficial (${companyLabel}) - ${reportTitle}**:\n\n${res.informeCompleto}`;
+              const fileObj = res.informeOriginalHtml
+                ? {
+                    title: String(reportTitle),
+                    fileType: 'html',
+                    content: res.informeOriginalHtml,
+                    canvasId: `tenshi-app-report-${Date.now()}`,
+                  }
+                : undefined;
               setMessages((prev) => [
                 ...prev,
                 {
                   role: 'assistant',
-                  content: `📑 **Informe Técnico Oficial - ${res.aplicativo || rawApp}**:\n\n${res.informeCompleto}`,
+                  content: msgContent,
+                  htmlReport: res.informeOriginalHtml || undefined,
+                  file: fileObj,
                 },
               ]);
+              axios
+                .post('/api/tenshi/message', {
+                  role: 'assistant',
+                  content: msgContent,
+                  htmlReport: res.informeOriginalHtml || undefined,
+                  file: fileObj,
+                })
+                .catch(() => {});
             }
           } else if (action.name === 'wappy_activar_herramienta_agente') {
             const tool = (action.args?.herramienta || '').toLowerCase().trim();
@@ -2402,20 +2673,30 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             const format = info.formato || action.args?.formato || 'html';
 
             if (content) {
+              const msgContent = `📑 **${title}**\n\n${content}`;
+              const fileObj = {
+                title,
+                fileType: format,
+                content,
+                canvasId: `tenshi-report-${Date.now()}`,
+              };
               setMessages((prev) => [
                 ...prev,
                 {
                   role: 'assistant',
-                  content: `📑 **${title}**\n\n${content}`,
-                  file: {
-                    title,
-                    fileType: format,
-                    content,
-                    canvasId: `tenshi-report-${Date.now()}`,
-                  },
+                  content: msgContent,
+                  file: fileObj,
                   htmlReport: format === 'html' ? content : undefined,
                 },
               ]);
+              axios
+                .post('/api/tenshi/message', {
+                  role: 'assistant',
+                  content: msgContent,
+                  file: fileObj,
+                  htmlReport: format === 'html' ? content : undefined,
+                })
+                .catch(() => {});
               setIsOpen(true);
             }
             resultMsg = `Informe "${title}" entregado exitosamente en el chat de Tenshi.`;
@@ -2451,20 +2732,38 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               resultMsg = 'Llamada finalizada y colgada.';
             }
           } else if (action.name === 'wappy_enviar_correo') {
+            tenshiAudio.playMailSent();
             const res = (action as any).result || {};
             const dest = action.args?.destinatario || res.destinatario || '';
             const asunto = action.args?.asunto || res.asunto || '';
+            const adjunto = res.adjuntoHtml || 'Informe HTML adjunto';
+            triggerRichVoiceCard({
+              id: `mail-${Date.now()}`,
+              kind: 'email',
+              badge: '📧 Correo Oficial Enviado',
+              title: `Para: ${dest}`,
+              subtitle: `${asunto} • Adjunto: ${adjunto}`,
+            });
             setMessages((prev) => [
               ...prev,
               {
                 role: 'assistant',
-                content: `📧 **Correo Enviado Exitosamente**\n- **Destinatario:** ${dest}\n- **Asunto:** ${asunto}\n- **Canal:** ${res.canal || 'Servidor WAPPY'}\n- **Estado:** Entregado al servidor de mensajería.`,
+                content: `📧 **Correo Enviado Exitosamente**\n- **Destinatario:** ${dest}\n- **Asunto:** ${asunto}\n- **Adjunto:** ${adjunto}\n- **Canal:** ${res.canal || 'Servidor WAPPY'}\n- **Estado:** Entregado al servidor de mensajería.`,
               },
             ]);
             resultMsg = `Correo enviado exitosamente a ${dest}.`;
           } else if (action.name === 'wappy_gestionar_agenda') {
+            tenshiAudio.playCalendarSync();
             const res = (action as any).result || {};
             const msg = res.mensaje || (res.eventos ? `Agenda consultada: ${res.eventos.length} actividades próximas.` : 'Agenda actualizada.');
+            triggerRichVoiceCard({
+              id: `cal-${Date.now()}`,
+              kind: 'calendar',
+              badge: '📅 Agenda y Cronograma SG-SST',
+              title: action.args?.titulo || 'Sincronización de Agenda',
+              subtitle: msg,
+            });
+            fetchDailyBriefing();
             setMessages((prev) => [
               ...prev,
               {
@@ -2586,12 +2885,17 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           ]);
         }
       },
-      onStatusChange: (newStatus: string) => {
+      onStatusChange: (newStatus: string, statusMsg?: string) => {
         if (newStatus === 'connecting') {
           setVoiceStatusText('Conectando con Tenshi...');
+        } else if (newStatus === 'loading') {
+          const msg = statusMsg || '⏳ Tenshi procesando solicitud...';
+          setVoiceStatusText(msg);
+          showLiveActionPill(msg, 22000);
         } else if (newStatus === 'generating_report') {
           setIsGeneratingTechnicalReport(true);
           setVoiceStatusText('⏳ Compilando y generando informe técnico oficial...');
+          showLiveActionPill('⏳ Compilando informe técnico oficial...', 25000);
           // Asegurar captura de la fase activa actual (Fase 3 o la que esté) si no ha sido capturada aún
           const curIdx = currentErgoPhaseIndexRef.current;
           if (!manualCapturedPhasesRef.current.has(curIdx)) {
@@ -2602,14 +2906,18 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             setMessages((prev) => prev.map((m) => ({ ...m, isLiveVoice: false })));
             refetchHistoryRef.current?.();
           }
+          setLiveActionPill('');
           setVoiceStatusText('Tenshi te escucha...');
         } else if (newStatus === 'speaking') {
+          setLiveActionPill('');
           setVoiceStatusText('Tenshi respondiendo...');
         } else if (newStatus === 'interrupted') {
           clearAudioQueue();
+          setLiveActionPill('');
           setVoiceStatusText('Tenshi te escucha...');
           setMessages((prev) => prev.map((m) => ({ ...m, isLiveVoice: false })));
         } else if (newStatus === 'idle') {
+          setLiveActionPill('');
           setVoiceStatusText('');
           setIsGeneratingTechnicalReport(false);
         }
@@ -2634,20 +2942,30 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             ? 'Informe Técnico de Estudio de Puesto de Trabajo (EPT)'
             : 'Informe Técnico Oficial SG-SST';
           const canvasId = messageId || `tenshi-report-${Date.now()}`;
+          const msgContent = `📑 **${reportTitle}**\n\nHe compilado el informe oficial con las evidencias fotográficas y telemetría articular. Puedes visualizarlo o descargarlo desde el visor Canvas.`;
+          const fileObj = {
+            title: reportTitle,
+            fileType: 'html',
+            content: html,
+            canvasId,
+          };
           setMessages((prev) => [
             ...prev,
             {
               role: 'assistant',
-              content: `📑 **${reportTitle}**\n\nHe compilado el informe oficial con las evidencias fotográficas y telemetría articular. Puedes visualizarlo o descargarlo desde el visor Canvas.`,
-              file: {
-                title: reportTitle,
-                fileType: 'html',
-                content: html,
-                canvasId,
-              },
+              content: msgContent,
+              file: fileObj,
               htmlReport: html,
             },
           ]);
+          axios
+            .post('/api/tenshi/message', {
+              role: 'assistant',
+              content: msgContent,
+              file: fileObj,
+              htmlReport: html,
+            })
+            .catch(() => {});
           setStreamingCanvas({
             id: canvasId,
             title: reportTitle,
@@ -2694,7 +3012,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [navigate, handleAudioReceived, clearAudioQueue, isBiomechanicsActive]
+    [navigate, handleAudioReceived, clearAudioQueue, isBiomechanicsActive, personalityMode]
   );
 
   const {
@@ -2706,6 +3024,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     sendEvidenceImage,
     sendWappyActionResult,
     sendScreenContext,
+    sendPersonality,
     setIsPlayingAudio: setVoiceIsPlayingAudio,
     setMuted: setVoiceMuted,
     sendInterrupt: sendVoiceInterrupt,
@@ -2719,6 +3038,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   sendTextMessageRef.current = sendTextMessage;
   sendVideoFrameRef.current = sendVideoFrame;
   sendEvidenceImageRef.current = sendEvidenceImage;
+  sendPersonalityRef.current = sendPersonality;
   const sendScreenContextRef = useRef<((data: any) => void) | null>(null);
   sendScreenContextRef.current = sendScreenContext;
 
@@ -4120,25 +4440,71 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       const { title, html, messageId } = e.detail || {};
       if (!html || html.length < 30) return;
       const reportTitle = title || 'Informe de Estudio de Puesto de Trabajo Ergonómico';
+      const msgContent = `🩺 **${reportTitle}**\n\nHe registrado el informe oficial de tu **Estudio de Puesto de Trabajo Ergonómico en Vivo** realizado con la Fisioterapeuta Laboral (con las 3 fases posturales, telemetría MediaPipe 3D, matriz diagnóstica CIE-11 y 12 ejercicios de pausas activas ExerciseDB). Puedes **verlo en pantalla** o **descargarlo** directamente desde aquí:`;
+      const fileObj = {
+        title: reportTitle,
+        fileType: 'html',
+        content: html,
+        canvasId: messageId || `tenshi-ept-report-${Date.now()}`,
+      };
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content: `🩺 **${reportTitle}**\n\nHe registrado el informe oficial de tu **Estudio de Puesto de Trabajo Ergonómico en Vivo** realizado con la Fisioterapeuta Laboral (con las 3 fases posturales, telemetría MediaPipe 3D, matriz diagnóstica CIE-11 y 12 ejercicios de pausas activas ExerciseDB). Puedes **verlo en pantalla** o **descargarlo** directamente desde aquí:`,
+          content: msgContent,
           htmlReport: html,
-          file: {
-            title: reportTitle,
-            fileType: 'html',
-            content: html,
-            canvasId: messageId || `tenshi-ept-report-${Date.now()}`,
-          },
+          file: fileObj,
         },
       ]);
+      axios
+        .post('/api/tenshi/message', {
+          role: 'assistant',
+          content: msgContent,
+          htmlReport: html,
+          file: fileObj,
+        })
+        .catch(() => {});
       refetchHistoryRef.current?.();
     };
     window.addEventListener('tenshi-report-delivered', handleReportDelivered);
     return () => window.removeEventListener('tenshi-report-delivered', handleReportDelivered);
   }, []);
+
+  // Sincronizar siempre un resumen vivo del propio chat de Tenshi e informes generados en window.__TENSHI_OWN_CHAT_SUMMARY__
+  // para que leer_pantalla / getVisibleScreenContent siempre conozca los informes propios de Tenshi
+  useEffect(() => {
+    try {
+      const cleanMsgs = messages.filter((m) => !m.content?.startsWith('[RESULTADO_GUI]'));
+      const reports = cleanMsgs.filter((m) => Boolean(m.file?.content || m.htmlReport));
+      const summaryLines: string[] = [];
+      if (reports.length > 0) {
+        const lastReportMsg = reports[reports.length - 1];
+        const rTitle = lastReportMsg.file?.title || 'Informe Oficial SG-SST';
+        const rawHtml = lastReportMsg.file?.content || lastReportMsg.htmlReport || '';
+        const cleanText = rawHtml
+          .replace(/<style[\s\S]*?<\/style>/gi, '')
+          .replace(/<script[\s\S]*?<\/script>/gi, '')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .substring(0, 2200);
+        summaryLines.push(
+          `🔥 [ÚLTIMO INFORME GENERADO EN TU PROPIO CHAT DE TENSHI]: Título: "${rTitle}"\nContenido del informe: ${cleanText}`,
+        );
+      }
+      const recentSlice = cleanMsgs.slice(-6);
+      if (recentSlice.length > 0) {
+        summaryLines.push('--- Últimos mensajes en tu chat de Tenshi ---');
+        recentSlice.forEach((m) => {
+          const sender = m.role === 'user' ? 'Usuario' : 'Tenshi';
+          const text = (m.content || '').replace(/\s+/g, ' ').trim().substring(0, 350);
+          const rBadge = m.file || m.htmlReport ? ` [Adjunto: "${m.file?.title || 'Informe SG-SST'}"]` : '';
+          summaryLines.push(`* ${sender}${rBadge}: ${text}`);
+        });
+      }
+      (window as any).__TENSHI_OWN_CHAT_SUMMARY__ = summaryLines.join('\n');
+    } catch (_) {}
+  }, [messages]);
 
   useEffect(() => {
     // Si la visión en vivo está activa y expandida, no ejecutar scroll para no bloquear el compositor ni hacer titilar la cámara
@@ -4410,20 +4776,30 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       }
     } catch (error: any) {
       console.error('[Tenshi Frontend] Error in runChatTurn:', error);
-      setTenshiStatus('Error en la automatización.');
+      setTenshiStatus('');
       const status = error.response?.status;
-      let userFriendlyMsg = error.response?.data?.details || error.message;
+      const rawDetails = String(error.response?.data?.details || error.message || '');
+      let userFriendlyMsg = rawDetails;
 
-      if (status === 502 || userFriendlyMsg.includes('502')) {
+      if (status === 502 || rawDetails.includes('502')) {
         userFriendlyMsg =
           'Se interrumpió la conexión brevemente mientras el servidor terminaba de actualizarse (Error 502). Ya estamos totalmente en línea. ¡Por favor reenvíame tu solicitud!';
+      } else if (
+        status === 503 ||
+        rawDetails.includes('503') ||
+        rawDetails.toLowerCase().includes('service unavailable') ||
+        rawDetails.toLowerCase().includes('high demand') ||
+        rawDetails.toLowerCase().includes('alta demanda')
+      ) {
+        userFriendlyMsg =
+          'En este instante los servidores de IA tuvieron un pico de alta demanda temporal. Por favor vuelve a pulsar el botón o reenvíame tu consulta y la procesaremos de inmediato.';
       }
 
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content: `Lo siento, he tenido un inconveniente de conexión. ${userFriendlyMsg}`,
+          content: `⚠️ ${userFriendlyMsg}`,
         },
       ]);
       setIsTyping(false);
@@ -5032,6 +5408,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 outputAmplitude={outputAmplitude}
                 isVoiceActive={isVoiceActive}
                 isTyping={isTyping || isChatSubmitting || isWaitingConsultation || Boolean(tenshiStatus)}
+                statusText={liveActionPill || tenshiStatus || undefined}
                 interactive={true}
                 showHaloEffect={true}
                 showHUD={true}
@@ -5039,7 +5416,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             </div>
 
             {/* 2. Saludo & Subtítulo */}
-            <div className="text-center max-w-xs mt-2 mb-4">
+            <div className="text-center max-w-xs mt-7 mb-4">
               <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
                 ¡Hola, {user?.name?.split(' ')[0] || user?.username || 'Especialista'}!
               </h2>
@@ -5198,7 +5575,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200/60 dark:border-zinc-800/80 bg-slate-50/80 dark:bg-zinc-900/80 shrink-0">
                 <div className="flex items-center gap-2">
                   <MessageSquare className="w-4 h-4 text-emerald-500" />
-                  <span className="text-xs font-bold text-slate-800 dark:text-zinc-100">
+                  <span className="text-sm font-bold text-slate-800 dark:text-zinc-100">
                     Chat con Tenshi
                   </span>
                 </div>
@@ -5206,7 +5583,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   <button
                     type="button"
                     onClick={handleClearHistory}
-                    className="flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300"
+                    className="flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300"
                     title="Reiniciar chat"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
@@ -5223,6 +5600,47 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   >
                     <X className="w-4 h-4" />
                   </button>
+                </div>
+              </div>
+
+              {/* Selector de Personalidad Adaptativa (1 Clic - Móvil) con Letrero Estilo WAPPY */}
+              <div className="flex flex-col gap-1.5 border-b border-slate-200/50 bg-white/85 px-3.5 py-2 dark:border-zinc-800/70 dark:bg-zinc-900/85 shrink-0">
+                <div className="flex items-center justify-between gap-1.5">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+                    Modo:
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {([
+                      { id: 'express', label: '⚡ Express', desc: '⚡ Directo al grano: Respuestas ejecutivas en 1-2 frases' },
+                      { id: 'consultor', label: '🛡️ Consultor', desc: '🛡️ Consultor Senior: Cálido, explicativo y empático' },
+                      { id: 'auditor', label: '⚖️ Auditor', desc: '⚖️ Auditor Legal: Riguroso en Decreto 1072 y Res. 0312' },
+                    ] as const).map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => handleSelectPersonality(m.id)}
+                        onMouseEnter={() => setHoveredPersonality(m.id)}
+                        onMouseLeave={() => setHoveredPersonality(null)}
+                        className={cn(
+                          'px-3 py-1 rounded-xl text-xs font-bold transition-all active:scale-95 border shadow-2xs',
+                          personalityMode === m.id
+                            ? 'bg-teal-50 dark:bg-teal-950/60 border-teal-500 text-teal-600 dark:text-teal-300'
+                            : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 hover:bg-slate-50'
+                        )}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 rounded-xl bg-teal-50/80 dark:bg-teal-950/40 border border-teal-500/30 px-3 py-1.5 text-xs font-bold text-teal-700 dark:text-teal-300">
+                  <span>
+                    {(hoveredPersonality || personalityMode) === 'express'
+                      ? '⚡ Directo al grano: Respuestas ejecutivas en 1-2 frases'
+                      : (hoveredPersonality || personalityMode) === 'auditor'
+                        ? '⚖️ Auditor Legal: Rigor normativo en Decreto 1072 y Res. 0312'
+                        : '🛡️ Consultor Senior: Asesoría cálida, explicativa e integral en SG-SST'}
+                  </span>
                 </div>
               </div>
 
@@ -5485,7 +5903,69 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               )}
 
               {/* Mensajes del Chat */}
-              <div className={cn('overflow-y-auto px-4 py-3 flex flex-col gap-2.5', isVisionActive && isVisionExpanded ? 'hidden' : 'flex-1')}>
+              <div className={cn('overflow-y-auto px-4 py-3 flex flex-col gap-3', isVisionActive && isVisionExpanded ? 'hidden' : 'flex-1')}>
+                {/* 1. Tarjeta de Memoria Autobiográfica y Briefing del Día (Estilo Dot) */}
+                {dailyBriefing && !isBriefingDismissed && (
+                  <div className="rounded-2xl border border-teal-500/30 bg-gradient-to-br from-teal-50/90 via-white to-emerald-50/70 p-3.5 shadow-sm dark:border-teal-500/30 dark:from-teal-950/40 dark:via-zinc-900 dark:to-emerald-950/30">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="flex h-2.5 w-2.5 rounded-full bg-teal-500 animate-pulse" />
+                        <span className="text-xs font-extrabold text-teal-800 dark:text-teal-300 uppercase tracking-wide">
+                          Briefing del Día • {dailyBriefing.empresa || 'Tu Empresa'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsBriefingDismissed(true)}
+                        className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 p-0.5 rounded"
+                        title="Ocultar resumen"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <div className="space-y-2 text-xs leading-relaxed text-slate-700 dark:text-zinc-200">
+                      {dailyBriefing.ultimaActividad && (
+                        <div className="flex items-start gap-2 bg-white/80 dark:bg-zinc-800/70 rounded-xl px-3 py-2 border border-slate-200/60 dark:border-zinc-700/60">
+                          <span className="shrink-0">📋</span>
+                          <div>
+                            <span className="font-bold text-slate-800 dark:text-white">Última gestión: </span>
+                            <span>{dailyBriefing.ultimaActividad.titulo} ({dailyBriefing.ultimaActividad.tipo}) — ¿Cómo te fue con este avance?</span>
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex items-start gap-2 bg-white/80 dark:bg-zinc-800/70 rounded-xl px-3 py-2 border border-slate-200/60 dark:border-zinc-700/60">
+                        <span className="shrink-0">📅</span>
+                        <div>
+                          <span className="font-bold text-slate-800 dark:text-white">Agenda de hoy ({dailyBriefing.agendaHoy?.length || 0}): </span>
+                          {dailyBriefing.agendaHoy && dailyBriefing.agendaHoy.length > 0 ? (
+                            <span>{dailyBriefing.agendaHoy.slice(0, 2).map((t) => `${t.titulo}${t.hora ? ` (${t.hora})` : ''}`).join(' • ')}</span>
+                          ) : (
+                            <span className="text-slate-500 dark:text-zinc-400">Sin actividades críticas pendientes para hoy.</span>
+                          )}
+                        </div>
+                      </div>
+                      {((dailyBriefing.vencenManana && dailyBriefing.vencenManana.length > 0) || (dailyBriefing.vencidas && dailyBriefing.vencidas.length > 0)) && (
+                        <div className="flex items-start gap-2 bg-amber-50/80 dark:bg-amber-950/30 rounded-xl px-3 py-2 border border-amber-300/50 dark:border-amber-700/40">
+                          <span className="shrink-0">⏰</span>
+                          <div>
+                            {dailyBriefing.vencenManana && dailyBriefing.vencenManana.length > 0 && (
+                              <div>
+                                <span className="font-bold text-amber-800 dark:text-amber-300">Vence mañana ({dailyBriefing.vencenManana.length}): </span>
+                                <span>{dailyBriefing.vencenManana.slice(0, 2).map((t) => t.titulo).join(' • ')}</span>
+                              </div>
+                            )}
+                            {Boolean(dailyBriefing.vencidas && dailyBriefing.vencidas.length > 0) && (
+                              <div className="text-xs font-semibold text-amber-700 dark:text-amber-400 mt-0.5">
+                                Tienes {dailyBriefing.vencidas.length} actividad(es) vencida(s) en el cronograma.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {messages
                   .filter((m) => !m.content?.startsWith('[RESULTADO_GUI]') && !(m as any).isIntermediate)
                   .map((msg, i) => (
@@ -5495,7 +5975,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                     >
                       <div
                         className={cn(
-                          'max-w-[88%] rounded-2xl p-2.5 text-xs shadow-xs',
+                          'max-w-[90%] rounded-2xl p-3.5 text-sm leading-relaxed shadow-xs',
                           msg.role === 'user'
                             ? 'rounded-tr-none bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-medium'
                             : 'rounded-tl-none border border-slate-200/80 bg-white dark:border-zinc-800 dark:bg-zinc-800/90 text-slate-800 dark:text-zinc-100'
@@ -5566,14 +6046,14 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
                         {/* Render de Documento o Audio adjunto */}
                         {msg.media && (msg.media.type === 'document' || msg.media.type === 'audio') && (
-                          <div className="mt-2 p-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900/80 flex items-center justify-between gap-2">
+                          <div className="mt-2 p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900/80 flex items-center justify-between gap-2">
                             <div className="flex items-center gap-1.5 min-w-0">
                               <FileText className="h-4 w-4 shrink-0 text-teal-600 dark:text-teal-400" />
                               <div className="min-w-0 flex-1">
-                                <span className="truncate text-[11px] font-bold text-slate-800 dark:text-zinc-100 block">
+                                <span className="truncate text-xs font-bold text-slate-800 dark:text-zinc-100 block">
                                   {msg.media.name}
                                 </span>
-                                <span className="text-[9px] text-slate-500 dark:text-zinc-400">
+                                <span className="text-[10px] text-slate-500 dark:text-zinc-400">
                                   {formatBytes(msg.media.size)}
                                 </span>
                               </div>
@@ -5582,35 +6062,35 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                               <a
                                 href={msg.media.dataUrl}
                                 download={msg.media.name}
-                                className="p-1 rounded-lg text-slate-500 hover:text-teal-600 transition-colors"
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-teal-600 transition-colors"
                                 title="Descargar archivo"
                               >
-                                <Download className="h-3.5 w-3.5" />
+                                <Download className="h-4 w-4" />
                               </a>
                             )}
                           </div>
                         )}
                         {msg.file && (
-                          <div className="mt-2 p-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900/80 flex items-center justify-between gap-2">
-                            <span className="truncate text-[11px] font-bold text-slate-800 dark:text-zinc-100 flex-1">
+                          <div className="mt-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900/80 flex flex-wrap items-center justify-between gap-2">
+                            <span className="truncate text-xs font-bold text-slate-800 dark:text-zinc-100 flex-1 min-w-[140px]">
                               {msg.file.title}
                             </span>
-                            <div className="flex items-center gap-1 shrink-0">
+                            <div className="flex items-center gap-1.5 shrink-0">
                               <button
                                 type="button"
                                 onClick={() => handleDownloadFile(msg.file!)}
-                                className="px-2 py-1 rounded-lg bg-teal-600 text-white text-[10px] font-bold flex items-center gap-1 active:scale-95"
+                                className="px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-bold flex items-center gap-1 active:scale-95"
                                 title="Descargar archivo a tu dispositivo"
                               >
-                                <Download className="w-3 h-3" /> Descargar
+                                <Download className="w-3.5 h-3.5" /> Descargar
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleOpenFileInCanvas(msg.file!, true)}
-                                className="px-2 py-1 rounded-lg border border-slate-200 bg-white dark:border-zinc-700 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-[10px] font-bold flex items-center gap-1 active:scale-95"
+                                className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white dark:border-zinc-700 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-xs font-bold flex items-center gap-1 active:scale-95"
                                 title="Abrir en pantalla en el editor Canvas"
                               >
-                                <Eye className="w-3 h-3" /> Ver en pantalla
+                                <Eye className="w-3.5 h-3.5" /> Ver en pantalla
                               </button>
                             </div>
                           </div>
@@ -5619,7 +6099,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                           <button
                             type="button"
                             onClick={() => openHtmlReport(msg.htmlReport!)}
-                            className="mt-2 w-full text-center py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 text-[10px] font-bold border border-emerald-500/20 active:scale-95"
+                            className="mt-2.5 w-full text-center py-2 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 text-xs font-bold border border-emerald-500/20 active:scale-95"
                           >
                             Ver Informe Oficial
                           </button>
@@ -5892,6 +6372,47 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               >
                 <X className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
               </button>
+            </div>
+          </div>
+
+          {/* 7. Selector de Personalidad Adaptativa (1 Clic - Desktop) con Letrero Estilo WAPPY */}
+          <div className="flex shrink-0 flex-col gap-1 border-b border-slate-200/50 bg-white/90 px-3.5 py-2 dark:border-zinc-800/70 dark:bg-zinc-900/90 select-none">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-400">
+                Modo:
+              </span>
+              <div className="flex items-center gap-1.5">
+                {([
+                  { id: 'express', label: '⚡ Express', desc: '⚡ Directo al grano: Respuestas ejecutivas en 1-2 frases' },
+                  { id: 'consultor', label: '🛡️ Consultor', desc: '🛡️ Consultor Senior: Cálido, explicativo y empático' },
+                  { id: 'auditor', label: '⚖️ Auditor', desc: '⚖️ Auditor Legal: Riguroso en Decreto 1072 y Res. 0312' },
+                ] as const).map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => handleSelectPersonality(m.id)}
+                    onMouseEnter={() => setHoveredPersonality(m.id)}
+                    onMouseLeave={() => setHoveredPersonality(null)}
+                    className={cn(
+                      'px-2.5 py-1 rounded-xl text-[10px] font-bold transition-all active:scale-95 border shadow-2xs',
+                      personalityMode === m.id
+                        ? 'bg-teal-50 dark:bg-teal-950/60 border-teal-500 text-teal-600 dark:text-teal-300'
+                        : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700'
+                    )}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-2 rounded-xl bg-teal-50/80 dark:bg-teal-950/40 border border-teal-500/30 px-2.5 py-1 text-[10px] font-bold text-teal-700 dark:text-teal-300 transition-all">
+              <span className="truncate">
+                {(hoveredPersonality || personalityMode) === 'express'
+                  ? '⚡ Directo al grano: Respuestas ejecutivas en 1-2 frases'
+                  : (hoveredPersonality || personalityMode) === 'auditor'
+                    ? '⚖️ Auditor Legal: Rigor normativo en Decreto 1072 y Res. 0312'
+                    : '🛡️ Consultor Senior: Asesoría cálida, explicativa e integral en SG-SST'}
+              </span>
             </div>
           </div>
 
@@ -6196,6 +6717,127 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           {/* Historial de conversación */}
           <div className={cn("flex flex-1 flex-col overflow-hidden", isVisionActive && isVisionExpanded ? "hidden" : "")}>
             <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50/50 p-3 text-xs dark:bg-zinc-950/50">
+                {/* 5A. Rich Voice Card integrada dentro del chat cuando la ventana de chat está abierta en PC */}
+                {richVoiceCard && (
+                  <div className="rounded-2xl border border-teal-500/40 bg-white dark:bg-zinc-900 p-3 shadow-md animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-500/30 text-sm">
+                          {richVoiceCard.kind === 'email' ? '📧' : richVoiceCard.kind === 'calendar' ? '📅' : '📄'}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-extrabold text-slate-900 dark:text-white truncate">
+                            {richVoiceCard.title}
+                          </p>
+                          <p className="text-[10px] font-medium text-slate-500 dark:text-zinc-400 truncate">
+                            {richVoiceCard.subtitle}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setRichVoiceCard(null)}
+                        className="p-0.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    {richVoiceCard.badge && (
+                      <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-500/30 px-2 py-0.5 text-[9px] font-bold text-emerald-700 dark:text-emerald-300">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>{richVoiceCard.badge}</span>
+                      </div>
+                    )}
+                    {richVoiceCard.actionLabel && (richVoiceCard.htmlReport || richVoiceCard.actionPrompt) && (
+                      <div className="mt-2 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (richVoiceCard.htmlReport) {
+                              setStreamingCanvas({
+                                title: richVoiceCard.title || 'Informe Técnico Oficial SG-SST',
+                                content: richVoiceCard.htmlReport,
+                                status: 'complete',
+                              });
+                              setIsCanvasActive(true);
+                              setCanvasMaximized(true);
+                            } else if (richVoiceCard.actionPrompt) {
+                              handleSend(richVoiceCard.actionPrompt);
+                            }
+                            setRichVoiceCard(null);
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-[10px] shadow-sm transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white"
+                        >
+                          <span>{richVoiceCard.actionLabel}</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 1. Tarjeta de Memoria Autobiográfica y Briefing del Día (Estilo Dot - Desktop) */}
+                {dailyBriefing && !isBriefingDismissed && (
+                  <div className="rounded-2xl border border-teal-500/30 bg-gradient-to-br from-teal-50/90 via-white to-emerald-50/70 p-3 shadow-sm dark:border-teal-500/30 dark:from-teal-950/40 dark:via-zinc-900 dark:to-emerald-950/30">
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="flex h-2 w-2 rounded-full bg-teal-500 animate-pulse" />
+                        <span className="text-[11px] font-extrabold text-teal-800 dark:text-teal-300 uppercase tracking-wide">
+                          Briefing del Día • {dailyBriefing.empresa || 'Tu Empresa'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsBriefingDismissed(true)}
+                        className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 p-0.5 rounded"
+                        title="Ocultar resumen"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                    <div className="space-y-1.5 text-[11px] text-slate-700 dark:text-zinc-200">
+                      {dailyBriefing.ultimaActividad && (
+                        <div className="flex items-start gap-1.5 bg-white/80 dark:bg-zinc-800/70 rounded-xl px-2.5 py-1.5 border border-slate-200/60 dark:border-zinc-700/60">
+                          <span className="shrink-0">📋</span>
+                          <div>
+                            <span className="font-bold text-slate-800 dark:text-white">Última gestión: </span>
+                            <span>{dailyBriefing.ultimaActividad.titulo} ({dailyBriefing.ultimaActividad.tipo}) — ¿Cómo te fue con este avance?</span>
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex items-start gap-1.5 bg-white/80 dark:bg-zinc-800/70 rounded-xl px-2.5 py-1.5 border border-slate-200/60 dark:border-zinc-700/60">
+                        <span className="shrink-0">📅</span>
+                        <div>
+                          <span className="font-bold text-slate-800 dark:text-white">Agenda de hoy ({dailyBriefing.agendaHoy?.length || 0}): </span>
+                          {dailyBriefing.agendaHoy && dailyBriefing.agendaHoy.length > 0 ? (
+                            <span>{dailyBriefing.agendaHoy.slice(0, 2).map((t) => `${t.titulo}${t.hora ? ` (${t.hora})` : ''}`).join(' • ')}</span>
+                          ) : (
+                            <span className="text-slate-500 dark:text-zinc-400">Sin actividades críticas pendientes para hoy.</span>
+                          )}
+                        </div>
+                      </div>
+                      {((dailyBriefing.vencenManana && dailyBriefing.vencenManana.length > 0) || (dailyBriefing.vencidas && dailyBriefing.vencidas.length > 0)) && (
+                        <div className="flex items-start gap-1.5 bg-amber-50/80 dark:bg-amber-950/30 rounded-xl px-2.5 py-1.5 border border-amber-300/50 dark:border-amber-700/40">
+                          <span className="shrink-0">⏰</span>
+                          <div>
+                            {dailyBriefing.vencenManana && dailyBriefing.vencenManana.length > 0 && (
+                              <div>
+                                <span className="font-bold text-amber-800 dark:text-amber-300">Vence mañana ({dailyBriefing.vencenManana.length}): </span>
+                                <span>{dailyBriefing.vencenManana.slice(0, 2).map((t) => t.titulo).join(' • ')}</span>
+                              </div>
+                            )}
+                            {Boolean(dailyBriefing.vencidas && dailyBriefing.vencidas.length > 0) && (
+                              <div className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 mt-0.5">
+                                Tienes {dailyBriefing.vencidas.length} actividad(es) vencida(s) en el cronograma.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {(() => {
                   const visibleMessages = messages.filter(
                     (msg) => !msg.content?.startsWith('[RESULTADO_GUI]') && !(msg as any).isIntermediate
@@ -6830,7 +7472,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           position: 'fixed',
           left: `${position ? position.x : (typeof window !== 'undefined' ? window.innerWidth - 88 : 0)}px`,
           top: `${position ? position.y : (typeof window !== 'undefined' ? window.innerHeight - (isMobileScreen ? 185 : 110) : 0)}px`,
-          zIndex: 48,
+          zIndex: 10005,
         }}
         className="group relative cursor-grab active:cursor-grabbing select-none transition-transform duration-200 md:hover:scale-105 md:active:scale-95"
       >
@@ -6985,6 +7627,166 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           </button>
         </div>
 
+        {/* 1B. Tarjeta Flotante de Briefing del Día cuando el usuario activa el Micrófono */}
+        {isVoiceActive && !isOpen && dailyBriefing && !isBriefingDismissed && !richVoiceCard && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+            className="absolute bottom-28 right-0 w-80 sm:w-72 rounded-2xl border border-emerald-500/40 bg-zinc-900/95 backdrop-blur-xl p-3.5 text-zinc-100 shadow-2xl z-[10010] animate-in fade-in slide-in-from-bottom-2 duration-200 cursor-default"
+          >
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="flex h-2 w-2 shrink-0 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-xs sm:text-[11px] font-extrabold text-emerald-300 uppercase tracking-wide truncate">
+                  Briefing • {dailyBriefing.empresa || 'Tu Empresa'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsBriefingDismissed(true)}
+                className="p-0.5 rounded-lg text-zinc-400 hover:text-white"
+                title="Ocultar briefing"
+              >
+                <X className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+              </button>
+            </div>
+            <div className="space-y-1.5 text-xs sm:text-[11px] text-zinc-200 leading-snug">
+              {dailyBriefing.ultimaActividad && (
+                <div className="truncate">
+                  <span className="font-bold text-white">📋 Último: </span>
+                  <span>{dailyBriefing.ultimaActividad.titulo}</span>
+                </div>
+              )}
+              <div className="truncate">
+                <span className="font-bold text-white">📅 Hoy ({dailyBriefing.agendaHoy?.length || 0}): </span>
+                <span>
+                  {dailyBriefing.agendaHoy && dailyBriefing.agendaHoy.length > 0
+                    ? dailyBriefing.agendaHoy[0].titulo
+                    : 'Sin pendientes críticos hoy'}
+                </span>
+              </div>
+              <div className="truncate">
+                <span className="font-bold text-amber-300">⏰ Mañana ({dailyBriefing.vencenManana?.length || 0}): </span>
+                <span>
+                  {dailyBriefing.vencenManana && dailyBriefing.vencenManana.length > 0
+                    ? dailyBriefing.vencenManana[0].titulo
+                    : 'Nada vence mañana'}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 5. Tarjeta Interactiva Flotante de Confirmación Instantánea ("Rich Voice Card" siempre por encima del chat) */}
+        {richVoiceCard && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+            className="absolute bottom-28 right-0 w-80 sm:w-72 rounded-2xl border border-emerald-500/40 bg-zinc-900/95 backdrop-blur-xl p-3.5 text-zinc-100 shadow-2xl z-[10010] animate-in fade-in slide-in-from-bottom-2 duration-200 cursor-default"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-base">
+                  {richVoiceCard.kind === 'email' ? '📧' : richVoiceCard.kind === 'calendar' ? '📅' : '📄'}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-[11px] font-extrabold text-white truncate">
+                    {richVoiceCard.title}
+                  </p>
+                  <p className="text-[11px] sm:text-[10px] font-medium text-zinc-300 truncate">
+                    {richVoiceCard.subtitle}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRichVoiceCard(null)}
+                className="p-0.5 rounded-lg text-zinc-400 hover:text-white"
+                title="Cerrar"
+              >
+                <X className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+              </button>
+            </div>
+            {richVoiceCard.badge && (
+              <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-0.5 text-[11px] sm:text-[10px] font-bold text-emerald-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="truncate max-w-[230px]">{richVoiceCard.badge}</span>
+              </div>
+            )}
+            {richVoiceCard.actionLabel && (richVoiceCard.htmlReport || richVoiceCard.actionPrompt) && (
+              <div className="mt-2.5 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (richVoiceCard.htmlReport) {
+                      setStreamingCanvas({
+                        title: richVoiceCard.title || 'Informe Técnico Oficial SG-SST',
+                        content: richVoiceCard.htmlReport,
+                        status: 'complete',
+                      });
+                      setIsCanvasActive(true);
+                      setCanvasMaximized(true);
+                    } else if (richVoiceCard.actionPrompt) {
+                      setIsOpen(true);
+                      handleSend(richVoiceCard.actionPrompt);
+                    }
+                    setRichVoiceCard(null);
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold text-xs sm:text-[11px] shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-white"
+                >
+                  <span>{richVoiceCard.actionLabel}</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 6. Modo "Proactividad Silenciosa" (Ambient Copilot — siempre visible por encima del chat) */}
+        {ambientTip && !richVoiceCard && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+            className="absolute bottom-28 right-0 w-80 sm:w-72 rounded-2xl border border-emerald-500/40 bg-zinc-900/95 backdrop-blur-xl p-3.5 text-zinc-100 shadow-2xl z-[10010] animate-in fade-in slide-in-from-bottom-2 duration-200 cursor-default"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-xs sm:text-[11px] font-semibold text-zinc-100 leading-relaxed">
+                {ambientTip.title}
+              </p>
+              <button
+                type="button"
+                onClick={() => setAmbientTip(null)}
+                className="p-0.5 rounded-lg text-zinc-400 hover:text-white shrink-0"
+                title="Descartar sugerencia"
+              >
+                <X className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+              </button>
+            </div>
+            <div className="mt-3 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setAmbientTip(null)}
+                className="px-3 py-1.5 rounded-xl text-xs sm:text-[11px] font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition-all active:scale-95"
+              >
+                Ahora no
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const promptToSend = ambientTip.prompt;
+                  setAmbientTip(null);
+                  setIsOpen(true);
+                  handleSend(promptToSend);
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold text-xs sm:text-[11px] shadow-md transition-all active:scale-95 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white"
+              >
+                <span>Sí, revisar</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Avatar interactivo de Tenshi Flotando */}
         <TenshiAvatar
           size={92}
@@ -6993,6 +7795,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           outputAmplitude={outputAmplitude}
           isVoiceActive={isVoiceActive}
           isTyping={isTyping || isChatSubmitting || isWaitingConsultation || Boolean(tenshiStatus)}
+          statusText={liveActionPill || tenshiStatus || undefined}
           interactive={false}
           showHaloEffect={true}
           showHUD={true}
