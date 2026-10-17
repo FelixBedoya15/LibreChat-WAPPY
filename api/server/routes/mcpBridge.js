@@ -5377,6 +5377,135 @@ router.get('/user/plan-balance', requireApiKeyOrJwt, async (req, res) => {
 });
 
 // ─── 33. LECTURA UNIVERSAL DE INFORMES DE APLICATIVOS SG-SST ───────────────
+const resolveSgsstReportTags = (rawStr = '') => {
+  const s = String(rawStr || '').toLowerCase();
+  if (!s) return null;
+  if (s.includes('responsab') || s.includes('lider_sst') || s.includes('asignacion')) return ['sgsst-responsable'];
+  if (s.includes('politic')) return ['sgsst-politica'];
+  if (s.includes('objetivo') || s.includes('indicador') || s.includes('meta')) return ['sgsst-objetivos'];
+  if (s.includes('socio') || s.includes('demograf') || s.includes('condiciones de salud') || s.includes('condiciones_salud') || s.includes('salud')) {
+    return ['sgsst-condiciones-salud', 'sgsst-perfil-sociodemografico'];
+  }
+  if (s.includes('0312') || s.includes('diagnostico') || s.includes('estandar')) return ['sgsst-diagnostico'];
+  if (s.includes('auditoria')) return ['sgsst-auditoria'];
+  if (s.includes('ipevar') || s.includes('gtc45') || s.includes('peligro')) return ['sgsst-matriz-ipevar', 'sgsst-matriz-peligros', 'sgsst-bio-ipevar'];
+  if (s.includes('pesv') || s.includes('vial')) return ['sgsst-matriz-pesv', 'sgsst-vehicles'];
+  if (s.includes('quimic') || s.includes('compatib') || s.includes('sga')) return ['sgsst-chemicals', 'sgsst-matriz-compatibilidad'];
+  if (s.includes('vulnerab') || s.includes('emergenc') || s.includes('brigad')) return ['sgsst-vulnerabilidad', 'sgsst-plan-emergencias', 'sgsst-brigada-emergencias', 'sgsst-equipos-emergencia'];
+  if (s.includes('owas') || s.includes('postur') || s.includes('ergonom')) return ['sgsst-owas'];
+  if (s.includes('ats') || s.includes('trabajo_seguro') || s.includes('tarea_critica')) return ['sgsst-ats'];
+  if (s.includes('altura') || s.includes('arnes') || s.includes('caida')) return ['sgsst-heights', 'sgsst-permiso-alturas'];
+  if (s.includes('legal') || s.includes('norma') || s.includes('decreto')) return ['sgsst-matriz-legal'];
+  if (s.includes('copasst')) return ['sgsst-copasst'];
+  if (s.includes('convivencia')) return ['sgsst-convivencia'];
+  if (s.includes('comite')) return ['sgsst-copasst', 'sgsst-convivencia'];
+  if (s.includes('epp') || s.includes('dotacion') || s.includes('proteccion')) return ['sgsst-epp'];
+  if (s.includes('acto') || s.includes('condicion') || s.includes('buzon')) return ['sgsst-reporte-actos'];
+  if (s.includes('atel') || s.includes('accidente') || s.includes('investigacion')) return ['sgsst-investigacion-atel', 'sgsst-investigacion-profunda', 'sgsst-estadisticas-atel'];
+  if (s.includes('alta_direccion') || s.includes('gerencia') || s.includes('revision_direccion')) return ['sgsst-alta-direccion'];
+  if (s.includes('rhs') || s.includes('higiene')) return ['sgsst-rhs'];
+  if (s.includes('rit') || s.includes('reglamento')) return ['sgsst-rit', 'sgsst-rhs'];
+  if (s.includes('participacion')) return ['sgsst-participacion-ipevar'];
+  if (s.includes('termometro') || s.includes('animo') || s.includes('psicosocial')) return ['sgsst-termometro-psicosocial', 'sgsst-animo'];
+  if (s.includes('simulacro') || s.includes('evacuacion')) return ['sgsst-simulacros-emergencia'];
+  if (s.includes('predictivo') || s.includes('oraculo') || s.includes('compliance')) return ['sgsst-predictivo-ia', 'sgsst-oraculo-h1'];
+  if (s.includes('cargo') || s.includes('perfil_cargo')) return ['sgsst-perfil-cargo'];
+  return null;
+};
+
+const fetchLatestSgsstHistoryReport = async (targetUserId, companyId, tagCandidates) => {
+  try {
+    const { Conversation, Message } = require('~/db/models');
+    const LiveEditorSession = require('~/models/LiveEditorSession');
+    const CanvasSession = mongoose.models.CanvasSession || require('~/models/CanvasSession');
+
+    const tagsList = Array.isArray(tagCandidates) ? tagCandidates : [tagCandidates];
+    const companyTag = companyId ? `company-${companyId}` : null;
+
+    let convos = [];
+    if (companyTag) {
+      convos = await Conversation.find({
+        user: targetUserId,
+        tags: { $in: tagsList },
+        $and: [{ tags: companyTag }],
+        $or: [{ isArchived: false }, { isArchived: { $exists: false } }],
+      }).sort({ updatedAt: -1 }).limit(10).lean();
+    }
+    if (!convos || convos.length === 0) {
+      const fallbackConvos = await Conversation.find({
+        user: targetUserId,
+        tags: { $in: tagsList },
+        $or: [{ isArchived: false }, { isArchived: { $exists: false } }],
+      }).sort({ updatedAt: -1 }).limit(20).lean();
+      convos = companyTag
+        ? fallbackConvos.filter((c) => {
+            const cTags = (c.tags || []).filter((t) => typeof t === 'string' && t.startsWith('company-'));
+            return cTags.length === 0 || cTags.includes(companyTag);
+          })
+        : fallbackConvos;
+    }
+
+    if (!convos || convos.length === 0) {
+      return null;
+    }
+
+    const latestConvo = convos[0];
+    let htmlContent = '';
+
+    // 1. LiveEditorSession
+    try {
+      const liveSession = await LiveEditorSession.findOne({ conversationId: latestConvo.conversationId }).lean();
+      if (liveSession?.content && liveSession.content.length > 50) {
+        htmlContent = liveSession.content;
+      }
+    } catch (_) {}
+
+    // 2. CanvasSession
+    if (!htmlContent && CanvasSession) {
+      try {
+        const canvasSession = await CanvasSession.findOne({ conversationId: latestConvo.conversationId }).lean();
+        if (canvasSession?.content && canvasSession.content.length > 50) {
+          htmlContent = canvasSession.content;
+        }
+      } catch (_) {}
+    }
+
+    // 3. Message model
+    if (!htmlContent) {
+      try {
+        const msgs = await Message.find({ conversationId: latestConvo.conversationId }).sort({ createdAt: -1 }).limit(5).lean();
+        for (const m of msgs) {
+          const msgBody = m.text || (typeof m.content === 'string' ? m.content : '');
+          if (msgBody && (msgBody.includes('<html') || msgBody.includes('<div') || msgBody.includes('<table') || msgBody.includes('<header') || msgBody.includes('<article') || msgBody.includes('<section') || msgBody.length > 100)) {
+            htmlContent = msgBody;
+            break;
+          }
+        }
+      } catch (_) {}
+    }
+
+    const todosLosReportes = convos.map((c) => ({
+      id: c.conversationId,
+      titulo: c.title || 'Informe Oficial',
+      fecha: c.updatedAt,
+    }));
+
+    return {
+      titulo: latestConvo.title || 'Informe Oficial',
+      conversationId: latestConvo.conversationId,
+      totalDisponibles: convos.length,
+      todosLosReportes,
+      otrosDisponibles: todosLosReportes.slice(1),
+      fechaActualizacion: latestConvo.updatedAt,
+      htmlContent: htmlContent || '',
+      cleanSummaryText: stripHtmlForSummary(htmlContent, 3500),
+    };
+  } catch (e) {
+    logger.warn('[MCP Bridge] Error in fetchLatestSgsstHistoryReport:', e);
+    return null;
+  }
+};
+
 router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
   try {
     const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
@@ -5395,95 +5524,8 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
       });
     }
 
-    // Helper universal para extraer informes originales guardados en los aplicativos de SGSST
-    const getAppOriginalReport = async (tagCandidates) => {
-      try {
-        const { Conversation, Message } = require('~/db/models');
-        const LiveEditorSession = require('~/models/LiveEditorSession');
-        const CanvasSession = mongoose.models.CanvasSession || require('~/models/CanvasSession');
-        
-        const tagsList = Array.isArray(tagCandidates) ? tagCandidates : [tagCandidates];
-        const companyTag = companyId ? `company-${companyId}` : null;
-
-        let convos = [];
-        if (companyTag) {
-          convos = await Conversation.find({
-            user: targetUserId,
-            tags: { $all: [tagsList[0], companyTag] },
-            $or: [{ isArchived: false }, { isArchived: { $exists: false } }],
-          }).sort({ updatedAt: -1 }).limit(10).lean();
-        }
-        if (!convos || convos.length === 0) {
-          const fallbackConvos = await Conversation.find({
-            user: targetUserId,
-            tags: { $in: tagsList },
-            $or: [{ isArchived: false }, { isArchived: { $exists: false } }],
-          }).sort({ updatedAt: -1 }).limit(20).lean();
-          // Excluir conversaciones que pertenezcan a otra empresa distinta
-          convos = companyTag
-            ? fallbackConvos.filter((c) => {
-                const cTags = (c.tags || []).filter((t) => typeof t === 'string' && t.startsWith('company-'));
-                return cTags.length === 0 || cTags.includes(companyTag);
-              })
-            : fallbackConvos;
-        }
-
-        if (!convos || convos.length === 0) {
-          return null;
-        }
-
-        const latestConvo = convos[0];
-        let htmlContent = '';
-
-        // 1. LiveEditorSession
-        try {
-          const liveSession = await LiveEditorSession.findOne({ conversationId: latestConvo.conversationId }).lean();
-          if (liveSession?.content && liveSession.content.length > 50) {
-            htmlContent = liveSession.content;
-          }
-        } catch (_) {}
-
-        // 2. CanvasSession
-        if (!htmlContent && CanvasSession) {
-          try {
-            const canvasSession = await CanvasSession.findOne({ conversationId: latestConvo.conversationId }).lean();
-            if (canvasSession?.content && canvasSession.content.length > 50) {
-              htmlContent = canvasSession.content;
-            }
-          } catch (_) {}
-        }
-
-        // 3. Message model
-        if (!htmlContent) {
-          try {
-            const msgs = await Message.find({ conversationId: latestConvo.conversationId }).sort({ createdAt: -1 }).limit(5).lean();
-            for (const m of msgs) {
-              const msgBody = m.text || (typeof m.content === 'string' ? m.content : '');
-              if (msgBody && (msgBody.includes('<html') || msgBody.includes('<div') || msgBody.includes('<table') || msgBody.includes('<header') || msgBody.includes('<article') || msgBody.includes('<section') || msgBody.length > 100)) {
-                htmlContent = msgBody;
-                break;
-              }
-            }
-          } catch (_) {}
-        }
-
-        return {
-          titulo: latestConvo.title || 'Informe Oficial',
-          conversationId: latestConvo.conversationId,
-          totalDisponibles: convos.length,
-          otrosDisponibles: convos.slice(1).map(c => ({
-            id: c.conversationId,
-            titulo: c.title,
-            fecha: c.updatedAt
-          })),
-          fechaActualizacion: latestConvo.updatedAt,
-          htmlContent: htmlContent || '',
-        };
-      } catch (e) {
-        logger.warn('[MCP Bridge] Error in getAppOriginalReport:', e);
-        return null;
-      }
-    };
+    const getAppOriginalReport = (tagCandidates) =>
+      fetchLatestSgsstHistoryReport(targetUserId, companyId, tagCandidates);
 
     // 0. INFORMES RECIENTES DE CANVAS / CHATS / HISTORIAL GENERAL
     if (
@@ -5512,8 +5554,9 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
         totalInformesCanvas: recentCanvasList.length,
         ultimoInformeTitulo: latestCanvas?.title || 'Sin informes recientes en Canvas',
         ultimoInformeFecha: latestCanvas?.updatedAt || null,
+        informeOriginalHtml: latestCanvas?.content || '',
         informeCompleto: latestCanvas?.content
-          ? stripHtmlForSummary(latestCanvas.content, 4000)
+          ? stripHtmlForSummary(latestCanvas.content, 3500)
           : 'No se encontraron informes recientes en el visor Canvas para la empresa activa.',
         historialInformesRecientes: recentCanvasList.map((c) => ({
           conversationId: c.conversationId,
@@ -5522,6 +5565,25 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
           resumen: stripHtmlForSummary(c.content, 600),
         })),
       });
+    }
+
+    // 0.5 CONSULTA DIRECTA EN EL HISTORIAL DE REPORTES DEL APLICATIVO EN SOMOS SST
+    const matchedHistoryTags = resolveSgsstReportTags(targetApp);
+    if (matchedHistoryTags && !cargo) {
+      const historyRep = await getAppOriginalReport(matchedHistoryTags);
+      if (historyRep && historyRep.htmlContent) {
+        return res.json({
+          aplicativo: historyRep.titulo || targetApp,
+          empresa: company?.companyName || 'Empresa activa',
+          titulo: historyRep.titulo,
+          totalDisponiblesEnHistorial: historyRep.totalDisponibles,
+          historialReportes: historyRep.todosLosReportes,
+          otrosDisponibles: historyRep.otrosDisponibles,
+          fechaActualizacion: historyRep.fechaActualizacion,
+          informeOriginalHtml: historyRep.htmlContent,
+          informeCompleto: `Informe Oficial del Historial de SOMOS SST ("${historyRep.titulo}", fecha: ${new Date(historyRep.fechaActualizacion).toLocaleString('es-CO')}). Total de reportes en el historial de este aplicativo: ${historyRep.totalDisponibles}.\n\nContenido del último informe:\n${historyRep.cleanSummaryText}`,
+        });
+      }
     }
 
     // 1. PERFILES DE CARGO
@@ -5922,9 +5984,10 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
           titulo: appReport.titulo,
           totalDisponibles: appReport.totalDisponibles,
           otrosDisponibles: appReport.otrosDisponibles,
+          todosLosReportes: appReport.todosLosReportes,
           fechaActualizacion: appReport.fechaActualizacion,
           informeOriginalHtml: appReport.htmlContent,
-          informeCompleto: appReport.htmlContent,
+          informeCompleto: appReport.cleanSummaryText || appReport.htmlContent,
         });
       }
       return res.json({
@@ -5947,9 +6010,10 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
           titulo: appReport.titulo,
           totalDisponibles: appReport.totalDisponibles,
           otrosDisponibles: appReport.otrosDisponibles,
+          todosLosReportes: appReport.todosLosReportes,
           fechaActualizacion: appReport.fechaActualizacion,
           informeOriginalHtml: appReport.htmlContent,
-          informeCompleto: appReport.htmlContent,
+          informeCompleto: appReport.cleanSummaryText || appReport.htmlContent,
         });
       }
       return res.json({
@@ -6116,62 +6180,75 @@ router.post('/email/send', requireApiKeyOrJwt, async (req, res) => {
 
     if (isReportEmail && !resolvedReportHtml) {
       try {
-        const CanvasSession = mongoose.models.CanvasSession || require('~/models/CanvasSession');
-        const LiveEditorSession = mongoose.models.LiveEditorSession || require('~/models/LiveEditorSession');
-        const companyFilter = companyId
-          ? { $or: [{ companyId }, { companyId: null }] }
-          : {};
+        // 1. Priorizar el Historial oficial del aplicativo de SOMOS SST si el asunto o mensaje menciona un módulo
+        const matchedAppTags = resolveSgsstReportTags(`${finalSubject} ${rawContent} ${req.body.aplicativo || ''}`);
+        if (matchedAppTags) {
+          const sgsstHistoryRep = await fetchLatestSgsstHistoryReport(targetUserId, companyId, matchedAppTags);
+          if (sgsstHistoryRep && sgsstHistoryRep.htmlContent && String(sgsstHistoryRep.htmlContent).length > 100) {
+            resolvedReportHtml = String(sgsstHistoryRep.htmlContent);
+            if (sgsstHistoryRep.titulo) reportTitle = sgsstHistoryRep.titulo;
+          }
+        }
 
-        const searchTerms = `${finalSubject} ${rawContent}`
-          .toLowerCase()
-          .replace(/\b(enviar|envia|envíame|correo|email|informe|reporte|documento|adjunto|por|favor|de|el|la|los|las|un|una|al|del)\b/g, ' ')
-          .trim()
-          .split(/\s+/)
-          .filter((w) => w.length >= 4);
+        // 2. Si no es un módulo específico o no hay en el historial del módulo, buscar en CanvasSession / LiveEditorSession de la empresa activa
+        if (!resolvedReportHtml) {
+          const CanvasSession = mongoose.models.CanvasSession || require('~/models/CanvasSession');
+          const LiveEditorSession = mongoose.models.LiveEditorSession || require('~/models/LiveEditorSession');
+          const companyFilter = companyId
+            ? { $or: [{ companyId }, { companyId: null }] }
+            : {};
 
-        const canvasCandidates = CanvasSession
-          ? await CanvasSession.find({
+          const searchTerms = `${finalSubject} ${rawContent}`
+            .toLowerCase()
+            .replace(/\b(enviar|envia|envíame|correo|email|informe|reporte|documento|adjunto|por|favor|de|el|la|los|las|un|una|al|del)\b/g, ' ')
+            .trim()
+            .split(/\s+/)
+            .filter((w) => w.length >= 4);
+
+          const canvasCandidates = CanvasSession
+            ? await CanvasSession.find({
+                user: targetUserId,
+                ...companyFilter,
+                content: { $exists: true, $ne: '' },
+              })
+                .sort({ updatedAt: -1 })
+                .limit(15)
+                .lean()
+            : [];
+
+          let matchedCanvas = null;
+          if (searchTerms.length > 0 && canvasCandidates.length > 1) {
+            matchedCanvas = canvasCandidates.find((c) => {
+              const t = String(c.title || '').toLowerCase();
+              return searchTerms.some((term) => t.includes(term));
+            });
+          }
+          const selectedCanvas = matchedCanvas || canvasCandidates[0] || null;
+
+          if (selectedCanvas && selectedCanvas.content && String(selectedCanvas.content).length > 200) {
+            resolvedReportHtml = String(selectedCanvas.content);
+            if (selectedCanvas.title) reportTitle = selectedCanvas.title;
+          } else if (LiveEditorSession) {
+            const liveCandidates = await LiveEditorSession.find({
               user: targetUserId,
-              ...companyFilter,
               content: { $exists: true, $ne: '' },
             })
               .sort({ updatedAt: -1 })
               .limit(15)
-              .lean()
-          : [];
+              .lean();
 
-        let matchedCanvas = null;
-        if (searchTerms.length > 0 && canvasCandidates.length > 1) {
-          matchedCanvas = canvasCandidates.find((c) => {
-            const t = String(c.title || '').toLowerCase();
-            return searchTerms.some((term) => t.includes(term));
-          });
-        }
-        const selectedCanvas = matchedCanvas || canvasCandidates[0] || null;
-
-        if (selectedCanvas && selectedCanvas.content && String(selectedCanvas.content).length > 200) {
-          resolvedReportHtml = String(selectedCanvas.content);
-          if (selectedCanvas.title) reportTitle = selectedCanvas.title;
-        } else if (LiveEditorSession) {
-          const liveCandidates = await LiveEditorSession.find({
-            user: targetUserId,
-            content: { $exists: true, $ne: '' },
-          })
-            .sort({ updatedAt: -1 })
-            .limit(15)
-            .lean();
-
-          let matchedLive = null;
-          if (searchTerms.length > 0 && liveCandidates.length > 1) {
-            matchedLive = liveCandidates.find((l) => {
-              const t = String(l.title || '').toLowerCase();
-              return searchTerms.some((term) => t.includes(term));
-            });
-          }
-          const selectedLive = matchedLive || liveCandidates[0] || null;
-          if (selectedLive && selectedLive.content && String(selectedLive.content).length > 200) {
-            resolvedReportHtml = String(selectedLive.content);
-            if (selectedLive.title) reportTitle = selectedLive.title;
+            let matchedLive = null;
+            if (searchTerms.length > 0 && liveCandidates.length > 1) {
+              matchedLive = liveCandidates.find((l) => {
+                const t = String(l.title || '').toLowerCase();
+                return searchTerms.some((term) => t.includes(term));
+              });
+            }
+            const selectedLive = matchedLive || liveCandidates[0] || null;
+            if (selectedLive && selectedLive.content && String(selectedLive.content).length > 200) {
+              resolvedReportHtml = String(selectedLive.content);
+              if (selectedLive.title) reportTitle = selectedLive.title;
+            }
           }
         }
       } catch (findReportErr) {

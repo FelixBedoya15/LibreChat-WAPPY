@@ -757,7 +757,7 @@ class VoiceSession {
                         },
                         {
                             name: "google_drive",
-                            description: "Permite interactuar directamente con el Google Drive del usuario: buscar y listar archivos y carpetas (matrices GTC45, reglamentos, actas, inspecciones, etc.) o leer el contenido de documentos (Excel .xlsx/.xls, Word .docx, PDFs, Google Docs, Google Sheets). INVÓCALA SIEMPRE que el usuario te pida entrar, revisar, ver, buscar o consultar archivos de su Google Drive.",
+                            description: "Permite interactuar directamente con el Google Drive del usuario (listar archivos o leer documentos). REGLA ESTRICTA DE PRIORIDAD SOMOS SST: ESTÁ TERMINANTEMENTE PROHIBIDO usar 'google_drive' para buscar informes del SG-SST (Condiciones de Salud, Responsable, Matriz GTC45, Política, Objetivos, etc.) a menos que el usuario diga EXPLÍCITAMENTE la palabra 'Drive' o 'Google Drive'. Cuando el usuario pida consultar, leer o enviar un informe sin mencionar Drive, SIEMPRE usa 'wappy_leer_informe_aplicativo' (Historial oficial de SOMOS SST / WAPPY).",
                             parameters: {
                                 type: "object",
                                 properties: {
@@ -1204,13 +1204,13 @@ class VoiceSession {
                         },
                         {
                             name: "wappy_leer_informe_aplicativo",
-                            description: "Lee e inspecciona el informe técnico oficial de cualquiera de los 20 aplicativos del SG-SST (Perfiles de Cargo, Matriz IPEVAR / GTC-45, Diagnóstico Res. 0312, Sociodemográfico y Salud, Vulnerabilidad y Emergencias, Ergonomía OWAS, Estudio de Puesto de Trabajo, ATS, Alturas, Matriz Legal, Comités COPASST, Capacitaciones, EPP, Investigación ATEL, PESV, Químicos SGA, Actos y Condiciones, Vehículos, Cronograma, Auditoría Anual). Si se trata de perfiles de cargo, consulta el catálogo completo de todos los cargos de la empresa y el informe del cargo seleccionado o solicitado.",
+                            description: "Consulta, lee y extrae el último informe técnico oficial guardado en el Historial de SOMOS SST / WAPPY de cualquiera de los 30 aplicativos del SG-SST (Responsable SG-SST 'responsable', Condiciones de Salud 'condiciones_salud', Perfil Sociodemográfico 'perfil_socio', Política SST 'politica', Objetivos e Indicadores 'objetivos', Diagnóstico Res. 0312 'diagnostico_0312', Perfiles de Cargo 'perfil_cargo', Matriz IPEVAR / GTC-45 'gtc45', Vulnerabilidad y Emergencias 'vulnerabilidad', Ergonomía OWAS 'owas', Estudio de Puesto de Trabajo 'estudio_puesto', ATS 'ats', Alturas 'alturas', Matriz Legal 'legal', Comités COPASST 'comites', Capacitaciones 'capacitaciones', EPP 'epp', Investigación ATEL 'investigacion_atel', PESV 'pesv', Químicos SGA 'quimicos', Actos y Condiciones 'actos_condiciones', Vehículos 'vehiculos', Cronograma 'cronograma', Auditoría Anual 'auditoria', Alta Dirección 'alta_direccion', RIT 'rit'). ÚSALA SIEMPRE como primera opción cuando el usuario pida consultar, leer, buscar, revisar o enviar el último informe de cualquier módulo de SOMOS SST.",
                             parameters: {
                                 type: "object",
                                 properties: {
                                     aplicativo: {
                                         type: "string",
-                                        description: "Nombre o clave del aplicativo: 'perfil_cargo', 'gtc45', 'diagnostico_0312', 'investigacion_atel', 'pesv', 'quimicos', 'auditoria', 'perfil_socio', 'vulnerabilidad', 'owas', 'estudio_puesto', 'ats', 'alturas', 'legal', 'comites', 'capacitaciones', 'epp', 'actos_condiciones', 'vehiculos', 'cronograma'."
+                                        description: "Nombre o clave del aplicativo: 'responsable', 'condiciones_salud', 'perfil_socio', 'politica', 'objetivos', 'diagnostico_0312', 'perfil_cargo', 'gtc45', 'investigacion_atel', 'pesv', 'quimicos', 'auditoria', 'vulnerabilidad', 'owas', 'estudio_puesto', 'ats', 'alturas', 'legal', 'comites', 'capacitaciones', 'epp', 'actos_condiciones', 'vehiculos', 'cronograma', 'alta_direccion', 'rit'."
                                     },
                                     cargo: {
                                         type: "string",
@@ -1329,7 +1329,7 @@ class VoiceSession {
                         },
                         {
                             name: "wappy_generar_analisis_aplicativo",
-                            description: "Genera automáticamente con Inteligencia Artificial el análisis, informe técnico, protocolo o documentación oficial DENTRO de un aplicativo o módulo del SG-SST (Responsable SG-SST, Objetivos, Política SST, Perfiles de Cargo, Matriz Legal, Diagnóstico Res. 0312, Plan de Emergencias, etc.) ejecutando el motor de 'Generar con IA / Análisis IA' en el editor nativo del aplicativo. NUNCA uses canvas_tool si el usuario pide generar, crear o redactar el informe o análisis de un aplicativo o módulo del SG-SST; usa SIEMPRE esta herramienta.",
+                            description: "Genera UN NUEVO informe o análisis con Inteligencia Artificial DENTRO de un aplicativo o módulo del SG-SST pulsando el botón 'Generar con IA'. ⚠️ PROHIBICIÓN ESTRICTA: NUNCA uses 'wappy_generar_analisis_aplicativo' cuando el usuario pida ENVIAR POR CORREO, LEER, CONSULTAR o VER el último informe existente en el Historial (ej: 'envíame el último informe de responsable', 'mándame el informe al correo', 'léeme el último informe'). En esos casos DEBES usar 'wappy_leer_informe_aplicativo' y/o 'wappy_enviar_correo'. Solo usa 'wappy_generar_analisis_aplicativo' cuando el usuario pida expresamente CREAR o GENERAR UN INFORME NUEVO.",
                             parameters: {
                                 type: "object",
                                 properties: {
@@ -1915,10 +1915,9 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
   * Tras invocar la herramienta, confirma oralmente: "He escrito la información solicitada en el campo correspondiente."
 
 [HERRAMIENTAS]:
-1. **google_drive**: Tienes acceso directo a Google Drive mediante tu herramienta 'google_drive'.
-   - INVÓCALA DE INMEDIATO siempre que el usuario te pida entrar, buscar, revisar o mirar su Google Drive o sus archivos (ej: 'matriz de riesgos', 'política', etc.).
-   - Usa action: 'list_files_and_folders' para listar archivos con palabras clave simples (ej: 'politica', 'matriz', 'gtc45') o query vacío para listar los más recientes.
-   - Responde oralmente en 1 o 2 oraciones breves y amigables resumiendo los archivos principales encontrados (ej: la Matriz de Riesgos GTC 45) y preguntando el siguiente paso.
+1. **google_drive**: Tienes acceso a Google Drive mediante tu herramienta 'google_drive', PERO CON REGLA ESTRICTA DE PRIORIDAD SOMOS SST:
+   - ⚠️ **PRIORIDAD ABSOLUTA DE SOMOS SST / WAPPY SOBRE GOOGLE DRIVE**: Cuando el usuario te pida buscar, consultar, leer o enviar por correo un informe del SG-SST (ej: Condiciones de Salud, Responsable SG-SST, Política, Objetivos, Diagnóstico 0312, Matriz GTC-45, etc.) y NO mencione explícitamente la palabra "Drive" o "Google Drive", **ESTÁ TERMINANTEMENTE PROHIBIDO buscarlo en Google Drive**. DEBES buscarlo SIEMPRE en el Historial oficial de SOMOS SST / WAPPY invocando 'wappy_leer_informe_aplicativo'.
+   - Solo invoca 'google_drive' cuando el usuario diga explícitamente "en mi Drive", "en Google Drive" o "busca en Drive".
 2. **wappy_diligenciar_formulario**: Diligencia de inmediato formularios en pantalla (Investigación ATEL, PESV, Alturas, etc.).
    - INVÓCALA DE INMEDIATO cuando el usuario te pida escribir, llenar, colocar, redactar o reportar información en un aplicativo.
    - Parámetros: 'modulo' (ej: 'investigacion_atel') y 'campos' (objeto con datos como afectadoNombre, lugarEvento, descripcionHechos, etc.).
@@ -1935,8 +1934,12 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
    - Aplicativos y Dashboards: 'academia' (/academia?tab=cursos), 'training_admin', 'rutas' (/academia?tab=rutas), 'ruta_admin', 'events_meet', 'events_meet_admin', 'blog', 'blog_admin', 'marketplace' (/marketplace tienda productos SST), 'marketplace_admin', 'agents' (/agents catálogo especialistas IA), 'control' (Centro de Control / Kanban), 'animo_dashboard' (/sgsst/animo), 'planes', 'auditoria' (/auditoria), 'live' (/c/new), 'chat_sst', 'roadmap' (/hoja-de-ruta), 'contactanos', 'comunidad', 'matriz', 'embajadores', 'embajadores_dashboard', 'tenshi_admin', 'search', 'privacy', 'terms', 'about'.
    - Portales públicos del trabajador: 'public_reportar', 'public_animo', 'public_estudio_puesto', 'public_ipevar', 'public_alta_direccion', 'public_atel', 'public_colaborador', 'public_comites', 'public_convivencia', 'public_votaciones', 'public_inspecciones', 'public_brigadistas'.
    - INVÓCALA DE INMEDIATO siempre que el usuario mencione ir, abrir, consultar o ver cualquier hito, módulo o sección.
-4. **ORQUESTACIÓN TOTAL DESDE TENSHI (INFORMES, CORREOS, AGENDAS Y ESPECIALISTAS)**:
+4. **ORQUESTACIÓN TOTAL DESDE TENSHI (INFORMES DEL HISTORIAL, CORREOS, AGENDAS Y ESPECIALISTAS)**:
    - TÚ ERES LA DIRECTORA DE ORQUESTA CENTRAL DE WAPPY.
+   - ⚠️ **REGLA CRÍTICA — LEER O ENVIAR EL ÚLTIMO INFORME DEL HISTORIAL VS CREAR UNO NUEVO**:
+     * Cuando el usuario diga: "envíame el último informe de responsable", "mándame el informe de condiciones de salud al correo", "qué dice el último informe", "consulta el historial de informes":
+     * **ESTÁ TERMINANTEMENTE PROHIBIDO invocar 'wappy_generar_analisis_aplicativo'** (eso crea un informe nuevo desde cero y sobrescribe).
+     * **DEBES invocar 'wappy_leer_informe_aplicativo'** para extraer el último informe ya existente en el Historial de SOMOS SST, y si pidió enviarlo por correo, invoca inmediatamente 'wappy_enviar_correo' con el destinatario indicado (o 'mi correo').
    - ESTÁ TERMINANTEMENTE PROHIBIDO abrir nuevos chats (/c/new) o delegar sacando al usuario de tu conversación cuando te pida conceptos técnicos o informes de especialistas (Médico, Abogado, Auditor, Ergónomo, etc.).
    - CREACIÓN Y ENTREGA DE INFORMES EN EL CHAT DE TENSHI ('wappy_crear_informe' y 'canvas_tool'):
      * Cuando el usuario te pida crear, generar, redactar o entregar un informe o dictamen técnico oficial:
@@ -1944,14 +1947,14 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
      * El informe se entrega DIRECTAMENTE en el chat de Tenshi con visor interactivo y botones de descarga en Word, Excel o HTML.
      * Explica verbalmente los puntos clave y confírmale al usuario que ya se lo entregaste en su chat.
    - CORREO ELECTRÓNICO ('wappy_enviar_correo'):
-     * Redacta y envía correos electrónicos formales a cualquier destinatario (o a 'mi correo') utilizando Google Gmail o el servidor de WAPPY. Puedes enviar informes, citaciones o recordatorios.
+     * Redacta y envía correos electrónicos formales a cualquier destinatario (o a 'mi correo') utilizando Google Gmail o el servidor de WAPPY. Si el usuario pide enviar un informe de un aplicativo de SOMOS SST, el sistema adjuntará e incrustará automáticamente el último informe original HTML guardado en el Historial del aplicativo.
    - GESTIÓN DE AGENDAS Y CALENDARIO ('wappy_gestionar_agenda' y 'google_calendar'):
      * Tienes control total de agendas: agendar eventos, inspecciones de seguridad, capacitaciones, comités COPASST, auditorías o citas médicas laborales en Google Calendar y en el cronograma de WAPPY.
      * REPROGRAMACIÓN Y EDICIÓN: Puedes cambiar de fecha y hora cualquier evento existente (ej: "pasa la cita de mañana para el viernes a las 4pm", "mueve la reunión a las 10am").
      * ELIMINACIÓN Y CANCELACIÓN: Puedes cancelar o eliminar cualquier cita usando el nombre o motivo de la reunión sin exigir IDs al usuario (ej: "cancela la cita de bomberos", "elimina la reunión de extintores").
      * CONSULTA: Puedes consultar y listar la agenda de eventos próximos en cualquier momento.
    - GOOGLE DRIVE ('google_drive'):
-     * Conéctate a Google Drive para buscar archivos ('list_files_and_folders'), leer matrices y reglamentos ('read_document_content') o guardar informes generados ('write_file').
+     * Úsala ÚNICAMENTE cuando el usuario mencione explícitamente "Google Drive" o "Drive". NUNCA la priorices sobre SOMOS SST.
    - AUTONOMÍA TOTAL CON ROL DE AGENTE EXPERTO VS LLAMADO DE AGENTES:
      * SI EL USUARIO SOLO HACE LA PREGUNTA O CONSULTA TÉCNICA (ej: dolor lumbar, cómo calificar un accidente, qué hacer con el benceno, qué vientos son seguros para alturas, etc.): TENSHI ACTIVA DE INMEDIATO SU SKILL CON EL ROL DE AGENTE EXPERTO CORRESPONDIENTE (Médico Laboral, Abogado Laboral, Ingeniero Químico SST, Especialista en Alturas y Clima, etc.) y responde él mismo de forma integral, técnica y fundamentada usando sus herramientas y base de datos, sin desviar al usuario ni abrir un chat innecesario.
      * SI EL USUARIO PIDE EXPLÍCITAMENTE CONECTARSE O LLAMAR A UN AGENTE (ej: "conéctame con el médico", "llama al abogado", "pásame al especialista", "quiero el dictamen del médico laboral"): Tenshi tiene restaurada al 100% su capacidad para invocar 'consultar_agente_especializado' (para obtener su dictamen técnico en segundo plano y explicarlo en el chat de Tenshi) o invocar 'wappy_abrir_chat_agente' si el usuario pide ver el chat dedicado o nuevo chat en pantalla ("abre un chat con X").
@@ -2801,6 +2804,63 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
 
                     // Manejo directo de herramienta de Google Drive en modo voz
                     if (fc.name === 'google_drive') {
+                        const userContextLower = `${this.userTranscriptionText || ''} ${this.lastUserTranscription || ''} ${fc.args?.query || ''}`.toLowerCase();
+                        const explicitlyMentionsDrive = /\b(drive|google\s+drive|mi\s+nube|carpetas?\s+de\s+drive)\b/i.test(`${this.userTranscriptionText || ''} ${this.lastUserTranscription || ''}`);
+                        const asksForSstReport = /\b(informe|reporte|an[aá]lisis|condiciones\s+de\s+salud|responsable|pol[ií]tica|objetivos|diagn[oó]stico|0312|sociodemogr[aá]fico|vulnerabilidad|emergencia|auditor[ií]a|gtc\s*45|ipevar|pesv|matriz\s+legal|rit|reglamento|perfil|estudio\s+de\s+puesto|owas|somos\s+sst|historial)\b/i.test(userContextLower);
+
+                        if (!explicitlyMentionsDrive && asksForSstReport && (!fc.args?.action || fc.args.action === 'list_files_and_folders')) {
+                            let redirectedApp = fc.args?.query || 'responsable';
+                            if (/condiciones\s+de\s+salud|salud/i.test(userContextLower)) redirectedApp = 'condiciones_salud';
+                            else if (/sociodemogr/i.test(userContextLower)) redirectedApp = 'perfil_socio';
+                            else if (/responsab/i.test(userContextLower)) redirectedApp = 'responsable';
+                            else if (/pol[ií]tica/i.test(userContextLower)) redirectedApp = 'politica';
+                            else if (/objetivo|indicador/i.test(userContextLower)) redirectedApp = 'objetivos';
+                            else if (/diagn[oó]stico|0312/i.test(userContextLower)) redirectedApp = 'diagnostico_0312';
+                            else if (/gtc|ipevar|peligro/i.test(userContextLower)) redirectedApp = 'gtc45';
+                            else if (/pesv|vial/i.test(userContextLower)) redirectedApp = 'pesv';
+                            else if (/vulnerab|emergencia/i.test(userContextLower)) redirectedApp = 'vulnerabilidad';
+                            else if (/auditor/i.test(userContextLower)) redirectedApp = 'auditoria';
+                            else if (/legal/i.test(userContextLower)) redirectedApp = 'legal';
+                            else if (/rit|reglamento/i.test(userContextLower)) redirectedApp = 'rit';
+                            else if (/cargo|profesiograma/i.test(userContextLower)) redirectedApp = 'perfil_cargo';
+
+                            logger.info(`[VoiceSession] PRIORIDAD SOMOS SST: Interceptando google_drive -> wappy_leer_informe_aplicativo para "${redirectedApp}" (el usuario no mencionó Drive).`);
+                            try {
+                                const reportRes = await executeTenshiMcpTool('wappy_leer_informe_aplicativo', { aplicativo: redirectedApp }, this.userId);
+                                if (reportRes && typeof reportRes === 'object') {
+                                    const rawHtml = reportRes.informeOriginalHtml || reportRes.informeCompleto;
+                                    if (rawHtml && (rawHtml.includes('<html') || rawHtml.includes('<div') || rawHtml.includes('<table'))) {
+                                        this.lastGeneratedReportHtml = rawHtml;
+                                        this.lastGeneratedCanvasFile = {
+                                            title: reportRes.titulo || `Informe Oficial de ${reportRes.aplicativo || redirectedApp}`,
+                                            fileType: 'html',
+                                            content: rawHtml,
+                                        };
+                                        this.sendToClient({
+                                            type: 'canvas_file_generated',
+                                            data: this.lastGeneratedCanvasFile
+                                        });
+                                    }
+                                }
+                                const safeRes = { ...(reportRes || {}) };
+                                delete safeRes.informeOriginalHtml;
+                                const safeStr = JSON.stringify(safeRes).slice(0, 5500);
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: `[CONSULTADO EN HISTORIAL OFICIAL DE SOMOS SST / WAPPY]: ${safeStr}` }
+                                }]);
+                            } catch (redirErr) {
+                                logger.error('[VoiceSession] Error in SOMOS SST redirect from google_drive:', redirErr);
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error consultando informe en SOMOS SST: ${redirErr.message}` }
+                                }]);
+                            }
+                            continue;
+                        }
+
                         logger.info(`[VoiceSession] Gemini Live invoked tool "google_drive" with args:`, JSON.stringify(fc.args));
                         this.sendToClient({
                             type: 'status',
@@ -2812,16 +2872,16 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
                             const driveResult = await googleDriveTool._call(fc.args || { action: 'list_files_and_folders' });
                             logger.info(`[VoiceSession] google_drive executed successfully. Result length: ${driveResult?.length || 0}`);
                             if (this.geminiClient) {
-                                this.geminiClient.sendToolResponse([{
+                                this.sendGeminiToolResponse([{
                                     id: fc.id,
                                     name: fc.name,
-                                    response: { result: driveResult }
+                                    response: { result: String(driveResult || '').slice(0, 6000) }
                                 }]);
                             }
                         } catch (driveErr) {
                             logger.error('[VoiceSession] Error executing google_drive in voice mode:', driveErr);
                             if (this.geminiClient) {
-                                this.geminiClient.sendToolResponse([{
+                                this.sendGeminiToolResponse([{
                                     id: fc.id,
                                     name: fc.name,
                                     response: { error: `No se pudo acceder a Google Drive: ${driveErr.message}` }
@@ -3184,6 +3244,78 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
                     // Generación automática de análisis/informe en el editor nativo del aplicativo SG-SST
                     if (fc.name === 'wappy_generar_analisis_aplicativo') {
                         const app = fc.args?.aplicativo || 'responsable';
+                        const userTurnCtx = `${this.userTranscriptionText || ''} ${this.lastUserTranscription || ''} ${fc.args?.instruccion_adicional || ''}`.toLowerCase();
+                        const asksToSendOrReadExisting = /\b(env[ií]a(me|lo|r)?|m[aá]nda(me|lo|r)?|correo|gmail|[uú]ltimo\s+informe|historial|l[eé]e(me|lo)?|qu[eé]\s+dice|consulta(r)?|busca(r)?|mu[eé]stra(me)?|ver\s+el\s+informe)\b/i.test(userTurnCtx) &&
+                            !/\b(genera\s+uno\s+nuevo|crea\s+uno\s+nuevo|haz\s+uno\s+nuevo|nuevo\s+informe|volver\s+a\s+generar|regenera)\b/i.test(userTurnCtx);
+
+                        if (asksToSendOrReadExisting) {
+                            logger.warn(`[VoiceSession] Interceptando "wappy_generar_analisis_aplicativo" -> "wappy_leer_informe_aplicativo" para "${app}" porque el usuario pidió consultar/enviar un informe existente ("${userTurnCtx.trim()}").`);
+                            try {
+                                const reportRes = await executeTenshiMcpTool('wappy_leer_informe_aplicativo', { aplicativo: app }, this.userId);
+                                let rawHtml = '';
+                                if (reportRes && typeof reportRes === 'object') {
+                                    rawHtml = reportRes.informeOriginalHtml || reportRes.informeCompleto || '';
+                                    if (rawHtml && (rawHtml.includes('<html') || rawHtml.includes('<div') || rawHtml.includes('<table'))) {
+                                        this.lastGeneratedReportHtml = rawHtml;
+                                        this.lastGeneratedCanvasFile = {
+                                            title: reportRes.titulo || `Informe Oficial de ${reportRes.aplicativo || app}`,
+                                            fileType: 'html',
+                                            content: rawHtml,
+                                        };
+                                        this.sendToClient({
+                                            type: 'canvas_file_generated',
+                                            data: this.lastGeneratedCanvasFile
+                                        });
+                                    }
+                                }
+
+                                // Si el usuario pidió enviarlo por correo y dio un correo o dijo "mi correo", enviarlo de inmediato
+                                const wantsEmail = /\b(env[ií]a(me|lo|r)?|m[aá]nda(me|lo|r)?|correo|gmail)\b/i.test(userTurnCtx);
+                                const emailMatch = userTurnCtx.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+                                const mentionsMyEmail = /\b(mi\s+correo|a\s+mi\s+mail)\b/i.test(userTurnCtx);
+
+                                if (wantsEmail && (emailMatch || mentionsMyEmail)) {
+                                    const destEmail = emailMatch ? emailMatch[0] : 'mi correo';
+                                    const mailRes = await executeTenshiMcpTool('wappy_enviar_correo', {
+                                        destinatario: destEmail,
+                                        asunto: reportRes?.titulo || `Informe Oficial: ${reportRes?.aplicativo || app}`,
+                                        mensaje: `Adjunto encontrará el último informe oficial de ${reportRes?.aplicativo || app} extraído del Historial de SOMOS SST.`,
+                                        aplicativo: app,
+                                        titulo: reportRes?.titulo || `Informe de ${app}`,
+                                        reportHtml: rawHtml || undefined,
+                                    }, this.userId);
+
+                                    this.sendGeminiToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: {
+                                            result: `Se consultó el último informe del Historial de "${reportRes?.aplicativo || app}" ("${reportRes?.titulo || app}") sin crear uno nuevo y se envió por correo exitosamente: ${mailRes?.mensaje || 'Enviado'}. Confírmale al usuario que le enviaste el último informe existente en su Historial.`
+                                        }
+                                    }]);
+                                    continue;
+                                }
+
+                                const safeRes = { ...(reportRes || {}) };
+                                delete safeRes.informeOriginalHtml;
+                                const safeStr = JSON.stringify(safeRes).slice(0, 5500);
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: {
+                                        result: `Se extrajo el último informe existente del Historial de SOMOS SST para "${app}" (NO se creó un informe nuevo). Si el usuario pidió enviarlo por correo, invoca ahora 'wappy_enviar_correo' o pregúntale a qué correo desea enviarlo si no lo indicó. Resumen del informe: ${safeStr}`
+                                    }
+                                }]);
+                            } catch (readErr) {
+                                logger.error('[VoiceSession] Error intercepting wappy_generar_analisis_aplicativo to read existing report:', readErr);
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `No se pudo leer el informe del historial: ${readErr.message}` }
+                                }]);
+                            }
+                            continue;
+                        }
+
                         logger.info(`[VoiceSession] Gemini Live invoked "wappy_generar_analisis_aplicativo" for: ${app}`);
                         this.sendToClient({
                             type: 'wappy_action',
@@ -3978,11 +4110,12 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
 
                         try {
                             const result = await executeTenshiMcpTool(targetTool, targetArgs, this.userId);
-                            const resultStr = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
 
+                            let rawHtml = '';
                             if (result && typeof result === 'object') {
                                 if (result.informeOriginalHtml || (result.informeCompleto && (result.informeCompleto.includes('<html') || result.informeCompleto.includes('<div') || result.informeCompleto.includes('<table')))) {
-                                    const rawHtml = result.informeOriginalHtml || result.informeCompleto;
+                                    rawHtml = result.informeOriginalHtml || result.informeCompleto;
+                                    this.lastGeneratedReportHtml = rawHtml;
                                     this.lastGeneratedCanvasFile = {
                                         title: result.titulo || `Informe Oficial de ${result.aplicativo || 'SGSST'}`,
                                         fileType: 'html',
@@ -4000,8 +4133,57 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
                                 data: { id: fc.id, name: targetTool, args: targetArgs, result }
                             });
 
+                            // Si la herramienta fue wappy_leer_informe_aplicativo y el usuario en este turno pidió enviarlo por correo con dirección o "mi correo", despachar el correo de inmediato
+                            let autoEmailSummary = '';
+                            if (targetTool === 'wappy_leer_informe_aplicativo') {
+                                const userTurnCtx = `${this.userTranscriptionText || ''} ${this.lastUserTranscription || ''}`.toLowerCase();
+                                const wantsEmail = /\b(env[ií]a(me|lo|r)?|m[aá]nda(me|lo|r)?|correo|gmail)\b/i.test(userTurnCtx);
+                                const emailMatch = userTurnCtx.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+                                const mentionsMyEmail = /\b(mi\s+correo|a\s+mi\s+mail)\b/i.test(userTurnCtx);
+
+                                if (wantsEmail && (emailMatch || mentionsMyEmail)) {
+                                    const destEmail = emailMatch ? emailMatch[0] : 'mi correo';
+                                    try {
+                                        const mailRes = await executeTenshiMcpTool('wappy_enviar_correo', {
+                                            destinatario: destEmail,
+                                            asunto: result?.titulo || `Informe Oficial: ${result?.aplicativo || targetArgs?.aplicativo || 'SG-SST'}`,
+                                            mensaje: `Adjunto encontrará el último informe oficial de ${result?.aplicativo || targetArgs?.aplicativo || 'SG-SST'} extraído del Historial de SOMOS SST.`,
+                                            aplicativo: targetArgs?.aplicativo || result?.aplicativo,
+                                            titulo: result?.titulo,
+                                            reportHtml: rawHtml || undefined,
+                                        }, this.userId);
+                                        autoEmailSummary = `\n[ENVÍO AUTOMÁTICO DE CORREO COMPLETADO]: ${mailRes?.mensaje || `Informe enviado con éxito a ${destEmail}`}. Confirma verbalmente al usuario que ya le enviaste el informe a su correo.`;
+                                    } catch (autoMailErr) {
+                                        logger.warn('[VoiceSession] Auto-email after wappy_leer_informe_aplicativo failed:', autoMailErr.message);
+                                    }
+                                }
+                            }
+
+                            // Sanitizar payload para Gemini Live (evitar Code 1007 por exceso de HTML crudo)
+                            let safePayload = result;
+                            if (result && typeof result === 'object' && !Array.isArray(result)) {
+                                safePayload = { ...result };
+                                delete safePayload.informeOriginalHtml;
+                                if (typeof safePayload.informeCompleto === 'string' && safePayload.informeCompleto.length > 3500) {
+                                    safePayload.informeCompleto = safePayload.informeCompleto
+                                        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+                                        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+                                        .replace(/<[^>]+>/g, ' ')
+                                        .replace(/\s+/g, ' ')
+                                        .trim()
+                                        .slice(0, 3500);
+                                }
+                            }
+                            let resultStr = typeof safePayload === 'string' ? safePayload : JSON.stringify(safePayload);
+                            if (resultStr.length > 5500) {
+                                resultStr = resultStr.slice(0, 5500) + '... [Resumen truncado para voz]';
+                            }
+                            if (autoEmailSummary) {
+                                resultStr += autoEmailSummary;
+                            }
+
                             if (this.geminiClient) {
-                                this.geminiClient.sendToolResponse([{
+                                this.sendGeminiToolResponse([{
                                     id: fc.id,
                                     name: fc.name,
                                     response: { result: resultStr }
@@ -4010,7 +4192,7 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
                         } catch (mcpErr) {
                             logger.error(`[VoiceSession] Error executing MCP tool "${targetTool}":`, mcpErr);
                             if (this.geminiClient) {
-                                this.geminiClient.sendToolResponse([{
+                                this.sendGeminiToolResponse([{
                                     id: fc.id,
                                     name: fc.name,
                                     response: { error: `Error en la operación ${targetTool}: ${mcpErr.message}` }
@@ -4347,8 +4529,8 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los temas, evide
             const reasonStr = reason ? reason.toString() : '';
             logger.warn(`[VoiceSession] Gemini connection closed: Code ${code}, Reason: ${reasonStr}`);
             if (this.isActive) {
-                // Si la desconexión fue inesperada (1011, 1006, etc.) y el cliente sigue conectado, reintentar con el siguiente modelo/clave
-                if ((code === 1011 || code === 1006 || code === 1001 || !code) && this.clientWs && this.clientWs.readyState === WebSocket.OPEN) {
+                // Si la desconexión fue inesperada (1011, 1007, 1006, etc.) y el cliente sigue conectado, reintentar con el siguiente modelo/clave
+                if ((code === 1011 || code === 1007 || code === 1006 || code === 1001 || !code) && this.clientWs && this.clientWs.readyState === WebSocket.OPEN) {
                     const reconnected = await this.reconnectGemini(`Code ${code}: ${reasonStr}`);
                     if (reconnected) {
                         return;
