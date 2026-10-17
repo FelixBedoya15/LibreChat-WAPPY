@@ -1683,14 +1683,53 @@
     order: -1;
   }
   .mkt .qb-frame-wrap {
-    width: min(310px, 84%);
+    width: min(300px, 82%);
+    margin: 8px auto 0;
+    position: relative;
   }
+  /* Solo para celular: insignias más pequeñas y en las esquinas extremas para no tapar la imagen */
   .mkt .qb-chip {
-    font-size: 11px;
-    padding: 7px 10px 7px 7px;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 3.5px 10px 3.5px 4px;
+    gap: 6px;
+    border-radius: 9999px;
+    box-shadow: 0 10px 22px -4px rgba(74, 16, 47, 0.28), 0 2px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    background: rgba(255, 255, 255, 0.97);
+    max-width: 80%;
   }
-  .mkt .qb-chip.c1 { left: -2%; }
-  .mkt .qb-chip.c2 { right: -2%; }
+  .mkt .qb-chip small {
+    font-size: 8px;
+    font-weight: 600;
+    line-height: 1.15;
+    margin-top: 1px;
+    color: #475569;
+  }
+  .mkt .qb-chip-ico {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+    border-radius: 50%;
+  }
+  /* Posicionadas en las esquinas extremas exteriores para despejar completamente el producto */
+  .mkt .qb-chip.c1 {
+    top: -12px;
+    left: -12px;
+  }
+  .mkt .qb-chip.c2 {
+    bottom: -12px;
+    right: -12px;
+  }
+  .mkt .qb-kicker {
+    height: auto;
+    min-height: 30px;
+    padding: 6px 14px;
+    font-size: 10.5px;
+    line-height: 1.25;
+    text-align: center;
+    white-space: normal;
+  }
   .mkt .qb-slider-ui {
     left: 22px;
     right: 22px;
@@ -1716,6 +1755,30 @@
 }
 
 @media (max-width: 640px) {
+  .mkt .qb-frame-wrap {
+    width: min(270px, 80%);
+  }
+  .mkt .qb-chip {
+    font-size: 9.5px;
+    padding: 3px 8.5px 3px 3px;
+    gap: 5px;
+  }
+  .mkt .qb-chip small {
+    font-size: 7.5px;
+  }
+  .mkt .qb-chip-ico {
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+  }
+  .mkt .qb-chip.c1 {
+    top: -10px;
+    left: -8px;
+  }
+  .mkt .qb-chip.c2 {
+    bottom: -10px;
+    right: -8px;
+  }
   .mkt .qb-stats {
     grid-template-columns: 1fr 1fr;
     gap: 10px;

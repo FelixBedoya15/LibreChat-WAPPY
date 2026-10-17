@@ -57,8 +57,8 @@ const SLIDES = [
     imgTitle: 'Envase Original QUIBI (QB) · 60 Cápsulas Blandas',
     contain: false,
     chips: [
-      { cls: 'c1', ico: '🔥', title: '«Despídete de la Pesadez»', sub: 'Vientre plano y ligereza desde el día 1' },
-      { cls: 'c2', ico: '🎯', title: '«Controla los Antojos Dulces»', sub: 'Saciedad y calma natural sin pasar hambre' },
+      { cls: 'c1', ico: '🔥', title: '«Despídete de la Pesadez»', sub: 'Vientre plano y ligereza día 1' },
+      { cls: 'c2', ico: '🎯', title: '«Controla los Antojos»', sub: 'Saciedad y calma natural' },
     ],
   },
   {
@@ -76,8 +76,8 @@ const SLIDES = [
     imgTitle: 'Presentación Oficial QUIBI (QB) en Tres Ángulos',
     contain: true,
     chips: [
-      { cls: 'c1', ico: '⚡', title: '«Energía Pura Todo el Día»', sub: 'Cero fatiga, máxima vitalidad activa' },
-      { cls: 'c2', ico: '🌱', title: '«Digestión Feliz y Ligera»', sub: 'Vientre desinflamado después de comer' },
+      { cls: 'c1', ico: '⚡', title: '«Energía Todo el Día»', sub: 'Cero fatiga, pura vitalidad' },
+      { cls: 'c2', ico: '🌱', title: '«Digestión Ligera»', sub: 'Vientre desinflamado y feliz' },
     ],
   },
   {
@@ -97,8 +97,8 @@ const SLIDES = [
     imgTitle: 'Detalle Superior de Cápsulas Blandas Azul Índigo',
     contain: false,
     chips: [
-      { cls: 'c1', ico: '✨', title: '«Ama lo que Ves al Espejo»', sub: 'Vuelve a lucir tu ropa con orgullo' },
-      { cls: 'c2', ico: '🛡️', title: '«Plenitud Total Sin Culpas»', sub: 'Llega satisfecha a cada comida' },
+      { cls: 'c1', ico: '✨', title: '«Ama tu Reflejo»', sub: 'Luce tu ropa con orgullo' },
+      { cls: 'c2', ico: '🛡️', title: '«Plenitud Total»', sub: 'Come con calma y sin culpas' },
     ],
   },
   {
@@ -116,8 +116,8 @@ const SLIDES = [
     imgTitle: 'Tabla Nutricional Oficial y Registro Invima',
     contain: false,
     chips: [
-      { cls: 'c1', ico: '💎', title: '«100% Sin Culpa Ni Azúcar»', sub: 'Solo 5 kcal · Apto Keto y Ayuno' },
-      { cls: 'c2', ico: '🏆', title: '«Tranquilidad & Respaldo Real»', sub: 'Con Autorización Invima RSA-4113-2025' },
+      { cls: 'c1', ico: '💎', title: '«100% Sin Culpa»', sub: '0g azúcar · Solo 5 kcal' },
+      { cls: 'c2', ico: '🏆', title: '«Respaldo Real»', sub: 'Invima RSA-4113-2025' },
     ],
   },
   {
@@ -135,8 +135,8 @@ const SLIDES = [
     imgTitle: 'Sello de Marca Original QB en Envase',
     contain: false,
     chips: [
-      { cls: 'c1', ico: '🌟', title: '«Tu Bienestar es Hoy»', sub: 'Mereces sentirte ligera y renovada' },
-      { cls: 'c2', ico: '📦', title: '«Pide Hoy y Paga al Recibir»', sub: 'Envío gratis nacional y pago contra entrega' },
+      { cls: 'c1', ico: '🌟', title: '«Tu Bienestar es Hoy»', sub: 'Siéntete ligera y renovada' },
+      { cls: 'c2', ico: '📦', title: '«Pide Hoy, Paga al Recibir»', sub: 'Envío gratis contra entrega' },
     ],
   },
 ];

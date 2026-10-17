@@ -53,6 +53,8 @@ const TOOL_ROUTES = {
   // 3. Gestión Operativa & Colaboradores
   wappy_consultar_trabajadores: { method: 'GET', path: '/workers' },
   wappy_registrar_trabajador: { method: 'POST', path: '/workers' },
+  wappy_importar_sociodemografico_drive: { method: 'POST', path: '/workers/import-drive' },
+  wappy_alimentar_sociodemografico_masivo: { method: 'POST', path: '/workers/import-drive' },
   wappy_actualizar_trabajador: {
     method: 'PUT',
     path: (args) => {

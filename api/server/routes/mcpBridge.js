@@ -1431,10 +1431,71 @@ router.get('/workers', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
+// ─── Importación Híbrida desde Google Drive / Masiva (Perfil Sociodemográfico + Condiciones de Salud) ───
+router.post('/workers/import-drive', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const {
+      carpeta,
+      folder,
+      archivo,
+      fileName,
+      fileId,
+      texto_extraido,
+      datos_json,
+      trabajadores,
+    } = req.body || {};
+
+    const { importAndSyncSociodemografico } = require('./sgsst/sociodemograficoDriveService');
+    const result = await importAndSyncSociodemografico({
+      userId,
+      carpeta: carpeta || folder || '',
+      archivo: archivo || fileName || '',
+      fileId: fileId || '',
+      texto_extraido: texto_extraido || '',
+      datos_json: datos_json || null,
+      trabajadores: Array.isArray(trabajadores) ? trabajadores : null,
+    });
+
+    if (!result.exito) {
+      return res.status(400).json(result);
+    }
+    return res.status(200).json(result);
+  } catch (error) {
+    logger.error('[MCP Bridge] POST /workers/import-drive error:', error);
+    return res.status(500).json({
+      exito: false,
+      error: error.message || 'Error al importar el Perfil Sociodemográfico y Condiciones de Salud desde Drive.',
+    });
+  }
+});
+
 router.post('/workers', requireApiKeyOrJwt, async (req, res) => {
   try {
     const userId = req.user.id;
-    const workerData = req.body;
+    const workerData = req.body || {};
+
+    // Si viene un lote de trabajadores, datos_json, texto_extraido o carpeta de Drive, usar el motor híbrido
+    if (
+      Array.isArray(workerData.trabajadores) ||
+      workerData.datos_json ||
+      workerData.texto_extraido ||
+      workerData.carpeta ||
+      workerData.fileId
+    ) {
+      const { importAndSyncSociodemografico } = require('./sgsst/sociodemograficoDriveService');
+      const batchResult = await importAndSyncSociodemografico({
+        userId,
+        carpeta: workerData.carpeta || '',
+        archivo: workerData.archivo || '',
+        fileId: workerData.fileId || '',
+        texto_extraido: workerData.texto_extraido || '',
+        datos_json: workerData.datos_json || null,
+        trabajadores: Array.isArray(workerData.trabajadores) ? workerData.trabajadores : null,
+      });
+      return res.status(batchResult.exito ? 201 : 400).json(batchResult);
+    }
+
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
@@ -1448,140 +1509,28 @@ router.post('/workers', requireApiKeyOrJwt, async (req, res) => {
       return res.status(400).json({ error: 'nombre_completo y cedula son campos requeridos.' });
     }
 
-    // Calcular IMC si vienen peso y talla
-    let imc = workerData.imc || '';
-    const peso = workerData.peso ? parseFloat(String(workerData.peso).replace(',', '.')) : null;
-    const talla = workerData.talla ? parseFloat(String(workerData.talla).replace(',', '.')) : null;
-    if (peso && talla && peso > 0 && talla > 0) {
-      const tMeters = talla > 3 ? talla / 100 : talla;
-      imc = (peso / (tMeters * tMeters)).toFixed(1);
-    }
-
-    // 1. Guardar o actualizar en PerfilSociodemograficoData (lo que alimenta Hito 2 - Huella Biocéntrica)
-    const PerfilSociodemograficoData =
-      mongoose.models.PerfilSociodemograficoData ||
-      require('~/models/PerfilSociodemograficoData');
-
-    const queryFilter = companyId ? { user: userId, companyId } : { user: userId };
-    let socioDoc = await PerfilSociodemograficoData.findOne(queryFilter).lean();
-
-    let trabajadoresList = socioDoc && Array.isArray(socioDoc.trabajadores) ? [...socioDoc.trabajadores] : [];
-
-    const workerIndex = trabajadoresList.findIndex(
-      (w) => String(w.identificacion || w.documento || '').trim() === documento
-    );
-
-    const workerId = workerIndex >= 0 && trabajadoresList[workerIndex].id
-      ? trabajadoresList[workerIndex].id
-      : `worker_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-
-    const workerItem = {
-      id: workerId,
-      nombre,
-      identificacion: documento,
-      cargo,
-      areaTrabajo: area,
-      sede: workerData.sede || 'Principal',
-      tipoContrato,
-      salario: workerData.salario || '',
-      jornadaLaboral: workerData.jornadaLaboral || 'Diurna',
-      eps: workerData.eps || '',
-      afp: workerData.afp || '',
-      estadoPila: workerData.estadoPila || 'Pendiente de soporte PILA',
-      estadoLaboral: workerData.estadoLaboral || workerData.estado_laboral || 'Activo',
-      fechaRetiro: workerData.fechaRetiro || workerData.fecha_retiro || '',
-      motivoRetiro: workerData.motivoRetiro || workerData.motivo_retiro || '',
-      telefono: workerData.telefono || '',
-      correoElectronico: workerData.correoElectronico || workerData.correo || '',
-      direccion: workerData.direccion || '',
-      municipioDomicilio: workerData.municipioDomicilio || workerData.municipio || '',
-      barrio: workerData.barrio || '',
-      fechaNacimiento: workerData.fechaNacimiento || workerData.fecha_nacimiento || '',
-      edad: workerData.edad ? Number(workerData.edad) : undefined,
-      genero: workerData.genero || 'No especificado',
-      estadoCivil: workerData.estadoCivil || workerData.estado_civil || '',
-      nivelEscolaridad: workerData.nivelEscolaridad || workerData.escolaridad || workerData.nivel_escolaridad || '',
-      emergenciaContacto: workerData.emergenciaContacto || workerData.emergencia_contacto || '',
-      tipoSangre: workerData.tipoSangre || workerData.rh || '',
-      rh: workerData.rh || '',
-      enfermedades: workerData.enfermedades || '',
-      medicamentos: workerData.medicamentos || '',
-      diagnosticoMedico: workerData.diagnosticoMedico || workerData.diagnostico_medico || '',
-      recomendacionesMedicas: workerData.recomendacionesMedicas || workerData.recomendaciones_medicas || '',
-      fechaExamenMedico: workerData.fechaExamenMedico || workerData.fecha_examen_medico || '',
-      fechaSeguimiento: workerData.fechaSeguimiento || '',
-      peso: workerData.peso || '',
-      talla: workerData.talla || '',
-      imc,
-      presionArterial: workerData.presionArterial || '',
-      frecuenciaCardiaca: workerData.frecuenciaCardiaca || '',
-      limitacionesBiomecanicas: workerData.limitacionesBiomecanicas || '',
-      alergiasQuimicas: workerData.alergiasQuimicas || '',
-      fuma: workerData.fuma || '',
-      alcohol: workerData.alcohol || '',
-      deporte: workerData.deporte || '',
-      alimentacion: workerData.alimentacion || '',
-      riesgoCardiovascular: workerData.riesgoCardiovascular || '',
-      terapiaPsicologica: workerData.terapiaPsicologica || '',
-      personasCargo: workerData.personasCargo || '',
-      estrato: workerData.estrato || '',
-      vivienda: workerData.vivienda || '',
-      soatVencimiento: workerData.soatVencimiento || '',
-      tecnicomecanicaVencimiento: workerData.tecnicomecanicaVencimiento || '',
-      licenciaConduccion: workerData.licenciaConduccion || '',
-      licenciaSST: workerData.licenciaSST || '',
-      curso50h: workerData.curso50h || '',
-      curso20h: workerData.curso20h || '',
-      esCopasst: workerData.esCopasst || 'No',
-      esComiteConvivencia: workerData.esComiteConvivencia || 'No',
-      esBrigadista: workerData.esBrigadista || 'No',
-      esComiteSeguridadVial: workerData.esComiteSeguridadVial || 'No',
-      biocentricScore: workerData.biocentricScore !== undefined ? workerData.biocentricScore : 95,
-      completedByAI: true,
-      consentimientoFirmaDigital: workerData.consentimientoFirmaDigital || 'No',
-    };
-
-    if (workerIndex >= 0) {
-      trabajadoresList[workerIndex] = {
-        ...trabajadoresList[workerIndex],
-        ...workerItem,
-      };
-    } else {
-      trabajadoresList.push(workerItem);
-    }
-
-    await PerfilSociodemograficoData.findOneAndUpdate(
-      queryFilter,
-      { $set: { user: userId, companyId, trabajadores: trabajadoresList, updatedAt: new Date() } },
-      { upsert: true, new: true }
-    );
-
-    // 2. Sincronizar en SgsstWorker para consistencia integral
-    await SgsstWorker.findOneAndUpdate(
-      { documento, ...companyScope(userId, companyId) },
-      {
-        $set: {
-          user: userId,
-          companyId,
-          perfilId: workerId,
+    // Delegar también el registro individual al servicio unificado para garantizar cálculo de IMC,
+    // etiquetado clínico (bioTagsIA), biocentricScore, sincronización con SgsstWorker y CompanyInfo.workerCount
+    const { importAndSyncSociodemografico } = require('./sgsst/sociodemograficoDriveService');
+    const singleResult = await importAndSyncSociodemografico({
+      userId,
+      trabajadores: [
+        {
+          ...workerData,
           nombre,
-          documento,
+          identificacion: documento,
           cargo,
-          estadoLaboral: workerData.estadoLaboral || 'Activo',
-          eps: workerData.eps || '',
-          afp: workerData.afp || '',
-          updatedAt: new Date(),
+          areaTrabajo: area,
+          tipoContrato,
         },
-      },
-      { upsert: true, new: true }
-    );
+      ],
+    });
 
     return res.status(201).json({
       exito: true,
-      mensaje: `Trabajador ${nombre} registrado exitosamente en el Perfil Sociodemográfico (Hito 2).`,
-      id: workerId,
-      totalTrabajadores: trabajadoresList.length,
-      trabajador: workerItem,
+      mensaje: `Trabajador ${nombre} registrado y sincronizado exitosamente en el Perfil Sociodemográfico y Condiciones de Salud.`,
+      totalTrabajadores: singleResult.totalCensoEmpresa,
+      resumen: singleResult,
     });
   } catch (error) {
     logger.error('[MCP Bridge] POST /workers error:', error);

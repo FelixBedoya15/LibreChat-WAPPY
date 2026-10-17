@@ -36,12 +36,14 @@ class SomosSST extends Tool {
           'crear_actividad_acpm',
           'actualizar_actividad_acpm',
           'crear_trabajador',
+          'importar_sociodemografico_drive',
+          'alimentar_sociodemografico_masivo',
           'retirar_trabajador',
           'eliminar_trabajador',
           'actualizar_trabajador',
         ])
         .describe(
-          'La acción a ejecutar: consultar_expediente_integral, listar_trabajadores, resumen_empresa, consultar_informacion_empresa, crear_trabajador, retirar_trabajador, actualizar_trabajador, eliminar_trabajador, actualizar_informacion_empresa, editar_cualquier_aplicativo, generar_informe_html, consultar_historial_informes, consultar_planes_y_sistema, consultar_centro_control_acpm, crear_actividad_acpm, o actualizar_actividad_acpm.',
+          'La acción a ejecutar: consultar_expediente_integral, listar_trabajadores, resumen_empresa, consultar_informacion_empresa, crear_trabajador, importar_sociodemografico_drive (buscar archivo en carpeta de Google Drive y alimentar Perfil Sociodemográfico y Condiciones de Salud con gemini-3.5-flash-lite), alimentar_sociodemografico_masivo, retirar_trabajador, actualizar_trabajador, eliminar_trabajador, actualizar_informacion_empresa, editar_cualquier_aplicativo, generar_informe_html, consultar_historial_informes, consultar_planes_y_sistema, consultar_centro_control_acpm, crear_actividad_acpm, o actualizar_actividad_acpm.',
         ),
       razon_social: z.string().optional().describe('Razón Social o Nombre de la empresa.'),
       tipo_empresa: z.string().optional().describe('Tipo de empresa: "Persona Jurídica" o "Persona Natural".'),
@@ -309,6 +311,22 @@ class SomosSST extends Tool {
           mensaje: `Se encontraron ${trabajadores.length} trabajadores registrados en el Motor Bio-Individual.`,
           trabajadores: trabajadores
         });
+      }
+
+      // ── ACTION: IMPORTAR PERFIL SOCIODEMOGRÁFICO Y CONDICIONES DE SALUD DESDE GOOGLE DRIVE / MASIVO ──
+      if (
+        accion === 'importar_sociodemografico_drive' ||
+        accion === 'alimentar_sociodemografico_masivo' ||
+        (accion === 'crear_trabajador' && input.datos_json)
+      ) {
+        const { importAndSyncSociodemografico } = require('~/server/routes/sgsst/sociodemograficoDriveService');
+        const syncRes = await importAndSyncSociodemografico({
+          userId,
+          carpeta: input.nombre_o_cargo || input.identificador_o_filtro || '',
+          archivo: input.campo_a_modificar || input.nuevo_valor || '',
+          datos_json: input.datos_json || null,
+        });
+        return JSON.stringify(syncRes);
       }
 
       // ── ACTION: CREAR TRABAJADOR (CON INTEGRACIÓN AUTOMÁTICA DE EPT PENDIENTE) ─

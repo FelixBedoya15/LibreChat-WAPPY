@@ -1536,7 +1536,7 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
 
     // 3. Configurar e invocar a Gemini con rotación de claves y modelos (503/429/403/400)
     const personalization = req.user?.personalization?.geminiModels;
-    const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
+    const preferredModel = personalization?.sstManagement || 'gemini-3.5-flash-lite';
     const finalModelName = modelName || preferredModel;
 
     const modelInstance = {
@@ -1557,6 +1557,13 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
               direccion: { type: 'string' },
               telefono: { type: 'string' },
               cargo: { type: 'string' },
+              areaTrabajo: { type: 'string' },
+              sede: { type: 'string' },
+              salario: { type: 'string' },
+              eps: { type: 'string' },
+              afp: { type: 'string' },
+              arl: { type: 'string' },
+              rh: { type: 'string' },
               fechaExamenMedico: { type: 'string' },
               diagnosticoMedico: { type: 'string' },
               recomendacionesMedicas: { type: 'string' },
@@ -1596,7 +1603,10 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
               tecnicomecanicaVencimiento: { type: 'string' },
               licenciaConduccion: { type: 'string' },
               licenciaConduccionVencimiento: { type: 'string' },
-              licenciasConduccion: { type: 'array' },
+              licenciasConduccion: {
+                type: 'array',
+                items: { type: 'string' }
+              },
               licenciaSST: { type: 'string' },
               licenciaVencimiento: { type: 'string' },
               curso50h: { type: 'string' },
@@ -3170,8 +3180,17 @@ async function recalculateAndSyncAllWorkers(userId, companyId, trabajadoresList)
               fitScore: w.biocentricScore,
               fitAlerts: w.biocentricAlerts,
               updatedAt: Date.now()
+            },
+            $setOnInsert: {
+              user: userId,
+              companyId,
+              documento: cleanDoc,
+              perfilId: w.id || cleanDoc,
+              estado: w.estado || 'Activo',
+              createdAt: Date.now()
             }
-          }
+          },
+          upsert: true
         }
       });
     }
@@ -3189,5 +3208,7 @@ async function recalculateAndSyncAllWorkers(userId, companyId, trabajadoresList)
 
 router.recalculateAndSyncAllWorkers = recalculateAndSyncAllWorkers;
 router.calculateBiocentricFitBackend = calculateBiocentricFitBackend;
+router.runDeterministicSemanticTagging = runDeterministicSemanticTagging;
+router.extractTextFromFile = extractTextFromFile;
 
 module.exports = router;

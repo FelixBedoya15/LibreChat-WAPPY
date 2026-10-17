@@ -28,8 +28,8 @@ const geminiPoolManager = require('~/server/services/GeminiPoolManager');
 
 // Non-live Gemini models for 503 fallback rotation
 const SGSST_FALLBACK_MODELS = [
-  'gemini-3.6-flash',
   'gemini-3.5-flash-lite',
+  'gemini-3.6-flash',
 ];
 
 // Live-only models for VoiceSession / LiveAnalysis rotation
@@ -259,7 +259,7 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
     typeof modelInstance === 'string'
       ? modelInstance
       : (modelInstance && modelInstance.model) || ''
-  ).replace('models/', '').trim() || 'gemini-3.6-flash';
+  ).replace('models/', '').trim() || 'gemini-3.5-flash-lite';
 
   const genConfig = (modelInstance && typeof modelInstance === 'object' && modelInstance.generationConfig)
     ? modelInstance.generationConfig
@@ -270,7 +270,7 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
     .map(m => m.trim().replace('models/', ''))
     .filter(m => m && !m.includes('live') && !m.includes('native-audio'));
 
-  const candidateFallbacks = envModels.length > 0 ? envModels : SGSST_FALLBACK_MODELS;
+  const candidateFallbacks = [...new Set([...envModels, ...SGSST_FALLBACK_MODELS])];
   const fallbacks = candidateFallbacks.filter(m => m !== preferredModel);
   const modelsToTry = safeOpts.fastFallback ? [preferredModel] : [...new Set([preferredModel, ...fallbacks])];
 
