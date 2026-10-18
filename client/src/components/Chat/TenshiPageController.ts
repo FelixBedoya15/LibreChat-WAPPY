@@ -371,6 +371,19 @@ export function getVisibleScreenContent(section?: string): string {
       lines.push('');
     }
 
+    // 1.28 Detección Especializada de Artículos de Blog y Lecciones de Cursos (.prose, [data-tenshi-article], etc.)
+    const articleContentEl = rootScope.querySelector<HTMLElement>(
+      '.prose, article, [data-tenshi-article], .blog-post-content, .lesson-content'
+    );
+    if (articleContentEl && isElementVisible(articleContentEl)) {
+      const articleText = articleContentEl.innerText?.trim();
+      if (articleText && articleText.length > 50) {
+        lines.push('=== CONTENIDO DEL ARTÍCULO / LECCIÓN DEL CURSO EN PANTALLA ===');
+        lines.push(articleText.length > 8000 ? articleText.substring(0, 8000) + '... [Continúa en pantalla]' : articleText);
+        lines.push('');
+      }
+    }
+
     // 1.3 Detección Especializada de Catálogo de Perfiles de Cargo (Todos los cargos de la empresa)
     const perfilesResumenEl = rootScope.querySelector<HTMLElement>('[data-tenshi-data="resumen-perfiles-cargo"]');
     const perfilCards = Array.from(rootScope.querySelectorAll<HTMLElement>(

@@ -110,7 +110,9 @@ const MauricioPosadaRedirect = () => {
 const CursoWappy01Route = () => {
   return withSuspense(
     <AuthContextProvider>
-      <CursoWappy01Page />
+      <TenshiStandaloneHost>
+        <CursoWappy01Page />
+      </TenshiStandaloneHost>
       <ApiErrorWatcher />
     </AuthContextProvider>
   );
@@ -362,7 +364,9 @@ export const router = createBrowserRouter(
       path: 'comunidad',
       element: withSuspense(
         <AuthContextProvider>
-          <ComunidadPage />
+          <TenshiStandaloneHost>
+            <ComunidadPage />
+          </TenshiStandaloneHost>
           <ApiErrorWatcher />
         </AuthContextProvider>
       ),
@@ -449,7 +453,9 @@ export const router = createBrowserRouter(
       path: 'hoja-de-ruta',
       element: withSuspense(
         <AuthContextProvider>
-          <RoadmapPage />
+          <TenshiStandaloneHost>
+            <RoadmapPage />
+          </TenshiStandaloneHost>
           <ApiErrorWatcher />
           <RoadmapNotifier />
         </AuthContextProvider>
@@ -460,7 +466,9 @@ export const router = createBrowserRouter(
       path: 'contactanos',
       element: withSuspense(
         <AuthContextProvider>
-          <ContactPage />
+          <TenshiStandaloneHost>
+            <ContactPage />
+          </TenshiStandaloneHost>
           <ApiErrorWatcher />
           <RoadmapNotifier />
         </AuthContextProvider>
@@ -496,7 +504,9 @@ export const router = createBrowserRouter(
       path: 'blog/:postId/:slug?',
       element: withSuspense(
         <AuthContextProvider>
-          <BlogPostViewer />
+          <TenshiStandaloneHost>
+            <BlogPostViewer />
+          </TenshiStandaloneHost>
           <ApiErrorWatcher />
         </AuthContextProvider>
       ),

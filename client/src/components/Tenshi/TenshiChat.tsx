@@ -4597,7 +4597,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       const lastMessage = currentMessages.at(-1);
       const isLoopFeedback = lastMessage?.content?.startsWith('[RESULTADO_GUI]');
       
-      // Heurística de captura de DOM: capturar si estamos en un bucle interactivo de GUI, si el usuario pide interactuar o si estamos en SGSST
+      // Heurística de captura de DOM: capturar si estamos en un bucle interactivo de GUI, si el usuario pide interactuar o si estamos en páginas informativas/SGSST
       const textQuery = lastMessage?.role === 'user' ? lastMessage.content.toLowerCase() : '';
       const uiActionKeywords = [
         'clic', 'click', 'pantalla', 'formulario', 'abre', 'abrir', 'llena', 'llenar',
@@ -4607,12 +4607,28 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         'colocar', 'datos', 'crear', 'lee', 'leeme', 'léeme', 'muestra', 'muéstrame',
         'informe', 'registros', 'que hay', 'qué hay', 'ves', 'ver', 'mira', 'mirar',
         'viendo', 'desplaza', 'desplazar', 'desplazate', 'desplázate', 'desplazarse',
-        'baja', 'bajar', 'sube', 'subir', 'scrollear', 'deslizar', 'desliza'
+        'baja', 'bajar', 'sube', 'subir', 'scrollear', 'deslizar', 'desliza',
+        'explica', 'explícame', 'resume', 'resumen', 'articulo', 'artículo', 'curso',
+        'leccion', 'lección', 'post', 'blog', 'pagina', 'página', 'planes', 'precio',
+        'costo', 'terminos', 'términos', 'politica', 'política', 'trata', 'contenido',
+        'opinas', 'opina', 'entiendes', 'enseña', 'dice', 'leer'
       ];
       const isUiActionQuery = uiActionKeywords.some(kw => textQuery.includes(kw));
-      const isSgsstPage = window.location.pathname.startsWith('/sgsst');
+      const currentPath = window.location.pathname.toLowerCase();
+      const isInformationalOrSgsstPage =
+        currentPath.startsWith('/sgsst') ||
+        currentPath.startsWith('/blog') ||
+        currentPath.startsWith('/training') ||
+        currentPath.startsWith('/ruta-aprendizaje') ||
+        currentPath.startsWith('/planes') ||
+        currentPath.startsWith('/terms') ||
+        currentPath.startsWith('/privacy') ||
+        currentPath.startsWith('/about') ||
+        currentPath.startsWith('/hoja-de-ruta') ||
+        currentPath.startsWith('/contactanos') ||
+        currentPath.startsWith('/comunidad');
       
-      const shouldCaptureDOM = isLoopFeedback || isUiActionQuery || isSgsstPage;
+      const shouldCaptureDOM = isLoopFeedback || isUiActionQuery || isInformationalOrSgsstPage;
       
       let domState = '';
       if (shouldCaptureDOM) {
