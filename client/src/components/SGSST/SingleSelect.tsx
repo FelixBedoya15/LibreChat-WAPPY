@@ -16,7 +16,9 @@ const SingleSelect = ({
     disabled = false,
     allowCustomInput = false,
     compact = false,
-    className = ''
+    className = '',
+    id,
+    name
 }: {
     options: (string | { label: string; value: string; isHeader?: boolean })[];
     value: string;
@@ -26,6 +28,8 @@ const SingleSelect = ({
     allowCustomInput?: boolean;
     compact?: boolean;
     className?: string;
+    id?: string;
+    name?: string;
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
@@ -135,6 +139,8 @@ const SingleSelect = ({
         <>
             <div
                 ref={triggerRef}
+                id={id}
+                data-name={name}
                 onClick={disabled ? undefined : (allowCustomInput ? () => setIsOpen(true) : handleToggle)}
                 className={cn(
                     "w-full bg-surface-primary focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all flex items-center justify-between",

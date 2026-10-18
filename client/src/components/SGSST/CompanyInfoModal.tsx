@@ -519,6 +519,46 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isOpen, onClose]);
 
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleEmpresaCambiada = (e: any) => {
+            const { companyId, companyData } = e.detail || {};
+            if (companyData) {
+                setData(companyData);
+            }
+            loadCompanies();
+        };
+
+        const handleEmpresaActualizada = (e: any) => {
+            const { companyId, companyData } = e.detail || {};
+            if (companyData) {
+                setData(prev => (prev._id === companyId || !prev._id || (companyData.companyName && prev.companyName === companyData.companyName) ? { ...prev, ...companyData } : prev));
+            }
+            loadCompanies();
+        };
+
+        const handleDiligenciar = (e: any) => {
+            const detail = e.detail;
+            if (!detail) return;
+            const campos = detail.campos || detail;
+            if (detail.formulario && !['empresa', 'company', 'perfil_empresa', 'company_info'].includes(detail.formulario)) {
+                return;
+            }
+            setData(prev => ({ ...prev, ...campos }));
+        };
+
+        window.addEventListener('wappy-empresa-cambiada', handleEmpresaCambiada as EventListener);
+        window.addEventListener('wappy-empresa-actualizada', handleEmpresaActualizada as EventListener);
+        window.addEventListener('wappy-diligenciar-formulario', handleDiligenciar as EventListener);
+
+        return () => {
+            window.removeEventListener('wappy-empresa-cambiada', handleEmpresaCambiada as EventListener);
+            window.removeEventListener('wappy-empresa-actualizada', handleEmpresaActualizada as EventListener);
+            window.removeEventListener('wappy-diligenciar-formulario', handleDiligenciar as EventListener);
+        };
+    }, [isOpen, loadCompanies]);
+
     if (!isOpen) return null;
 
     const REQUIRED_FIELDS = [
@@ -615,6 +655,22 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                         {companiesWithLockStatus.map(c => (
                             <div 
                                 key={c._id}
+                                id={`company-card-${c._id}`}
+                                data-company-id={c._id}
+                                data-company-name={c.companyName || ''}
+                                data-action="seleccionar-empresa"
+                                data-is-active={c.isActive ? 'true' : 'false'}
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        if (c.isLocked) {
+                                            handleLockedCompanyClick(c);
+                                        } else {
+                                            handleSelectCompany(c);
+                                        }
+                                    }
+                                }}
                                 onClick={() => {
                                     if (c.isLocked) {
                                         handleLockedCompanyClick(c);
@@ -627,7 +683,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                     c.isLocked
                                         ? "border-border-medium bg-surface-primary/50 opacity-60 cursor-not-allowed"
                                         : data._id === c._id 
-                                            ? "border-teal-500 bg-teal-500/5 shadow-sm cursor-pointer" 
+                                            ? "border-teal-500 bg-teal-500/5 shadow-sm cursor-pointer ring-1 ring-teal-500" 
                                             : "border-border-medium bg-surface-primary hover:border-teal-400 cursor-pointer"
                                 )}
                             >
@@ -637,17 +693,37 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                     </span>
                                     {c.isLocked && <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
                                 </div>
-                                <div className="flex items-center justify-between mt-1 w-full">
-                                    <span className="text-xs text-text-secondary">NIT: {c.nit || 'N/A'}</span>
-                                    {!c.isLocked && c.isActive && (
-                                        <span className="flex items-center gap-1 text-[10px] font-bold text-teal-600 bg-teal-100 dark:bg-teal-900/30 px-1.5 py-0.5 rounded-full">
-                                            <CheckCircle className="h-3 w-3" /> Activa
-                                        </span>
+                                <div className="flex items-center justify-between mt-1 w-full gap-2">
+                                    <span className="text-xs text-text-secondary truncate">NIT: {c.nit || 'N/A'}</span>
+                                    {!c.isLocked && (
+                                        c.isActive ? (
+                                            <span className="flex items-center gap-1 text-[10px] font-bold text-teal-600 bg-teal-100 dark:bg-teal-900/30 px-1.5 py-0.5 rounded-full shrink-0">
+                                                <CheckCircle className="h-3 w-3" /> Activa
+                                            </span>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                id={`btn-activar-card-${c._id}`}
+                                                data-action="activar-empresa"
+                                                data-company-id={c._id}
+                                                data-company-name={c.companyName || ''}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleActivateCompany(c._id!);
+                                                }}
+                                                className="flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-100 hover:bg-amber-200 dark:text-amber-300 dark:bg-amber-900/40 dark:hover:bg-amber-900/60 px-2 py-0.5 rounded-full transition-colors cursor-pointer shrink-0"
+                                                title={`Activar ${c.companyName}`}
+                                            >
+                                                Activar
+                                            </button>
+                                        )
                                     )}
                                 </div>
                             </div>
                         ))}
                         <button 
+                            id="btn-nueva-empresa"
+                            data-action="nueva-empresa"
                             onClick={handleNewCompanyClick}
                             className={cn(
                                 "flex items-center justify-center gap-2 px-4 py-4 rounded-xl border border-dashed cursor-pointer transition-all min-w-[160px]",
@@ -672,7 +748,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                         <div className="space-y-6">
                             
                             {data._id && companies.some(c => c._id === data._id && !c.isActive) && (
-                                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-center justify-between">
+                                <div id="banner-empresa-inactiva" className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-center justify-between">
                                     <div className="flex items-center gap-3 text-amber-800 dark:text-amber-200">
                                         <Shield className="h-5 w-5" />
                                         <div>
@@ -680,13 +756,15 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                             <p className="text-xs opacity-90">Debes activarla para que el sistema y los agentes de IA comiencen a trabajar con su Matriz IPEVR, Hitos y Documentos.</p>
                                         </div>
                                     </div>
-                                    <ExpandingButton 
-                                        onClick={() => handleActivateCompany(data._id!)}
-                                        icon={Shield}
-                                        label="Activar esta Empresa"
-                                        variant="orange"
-                                        title="Activar esta empresa como la activa"
-                                    />
+                                    <div id="btn-activar-empresa-modal" data-action="activar-empresa-modal">
+                                        <ExpandingButton 
+                                            onClick={() => handleActivateCompany(data._id!)}
+                                            icon={Shield}
+                                            label="Activar esta Empresa"
+                                            variant="orange"
+                                            title="Activar esta empresa como la activa"
+                                        />
+                                    </div>
                                 </div>
                             )}
 
@@ -749,31 +827,31 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                     </div>
                                     <div className="md:col-span-2">
                                         <label className={labelClass}><Building2 className="h-3 w-3" />{t('com_ui_company_name', 'Razón Social')}</label>
-                                        <input className={inputClass} value={data.companyName} onChange={e => handleChange('companyName', e.target.value)} placeholder={t('com_ui_company_name_placeholder', 'Nombre de la empresa')} />
+                                        <input id="input-companyName" name="companyName" className={inputClass} value={data.companyName} onChange={e => handleChange('companyName', e.target.value)} placeholder={t('com_ui_company_name_placeholder', 'Nombre de la empresa')} />
                                     </div>
                                     <div>
                                         <label className={labelClass}><Building2 className="h-3 w-3" />Tipo de Empresa</label>
-                                        <SingleSelect value={data.companyType || 'Persona Jurídica'} onChange={val => handleChange('companyType', val)} placeholder="Seleccione..." options={['Persona Jurídica', 'Persona Natural']} />
+                                        <SingleSelect id="select-companyType" name="companyType" value={data.companyType || 'Persona Jurídica'} onChange={val => handleChange('companyType', val)} placeholder="Seleccione..." options={['Persona Jurídica', 'Persona Natural']} />
                                     </div>
                                     <div>
                                         <label className={labelClass}><Hash className="h-3 w-3" />{data.companyType === 'Persona Natural' ? 'Cédula de Ciudadanía' : 'NIT'}</label>
-                                        <input className={inputClass} value={data.nit} onChange={e => handleChange('nit', e.target.value)} placeholder={data.companyType === 'Persona Natural' ? 'Ej. 123456789' : '123456789-0'} />
+                                        <input id="input-nit" name="nit" className={inputClass} value={data.nit} onChange={e => handleChange('nit', e.target.value)} placeholder={data.companyType === 'Persona Natural' ? 'Ej. 123456789' : '123456789-0'} />
                                     </div>
                                     <div>
                                         <label className={labelClass}><User className="h-3 w-3" />{t('com_ui_company_legal_rep', 'Representante Legal')}</label>
-                                        <input className={inputClass} value={data.legalRepresentative} onChange={e => handleChange('legalRepresentative', e.target.value)} placeholder={t('com_ui_company_legal_rep_placeholder', 'Nombre completo')} />
+                                        <input id="input-legalRepresentative" name="legalRepresentative" className={inputClass} value={data.legalRepresentative} onChange={e => handleChange('legalRepresentative', e.target.value)} placeholder={t('com_ui_company_legal_rep_placeholder', 'Nombre completo')} />
                                     </div>
                                     <div>
                                         <label className={labelClass}><Hash className="h-3 w-3" />Cédula Rep. Legal</label>
-                                        <input className={inputClass} value={data.legalRepresentativeId || ''} onChange={e => handleChange('legalRepresentativeId', e.target.value)} placeholder="Ej. 12345678" />
+                                        <input id="input-legalRepresentativeId" name="legalRepresentativeId" className={inputClass} value={data.legalRepresentativeId || ''} onChange={e => handleChange('legalRepresentativeId', e.target.value)} placeholder="Ej. 12345678" />
                                     </div>
                                     <div>
                                         <label className={labelClass}><Users className="h-3 w-3" />{t('com_ui_company_workers', 'Número de Trabajadores')}</label>
-                                        <input className={inputClass} type="number" min="0" value={data.workerCount || ''} onChange={e => handleChange('workerCount', parseInt(e.target.value) || 0)} placeholder="0" />
+                                        <input id="input-workerCount" name="workerCount" className={inputClass} type="number" min="0" value={data.workerCount || ''} onChange={e => handleChange('workerCount', parseInt(e.target.value) || 0)} placeholder="0" />
                                     </div>
                                     <div className="md:col-span-3">
                                         <label className={labelClass}><Briefcase className="h-3 w-3" />{t('com_ui_company_sector', 'Sector')}</label>
-                                        <SingleSelect value={data.sector} onChange={val => handleChange('sector', val)} placeholder={t('com_ui_select_sector', 'Seleccionar sector')} options={SECTOR_OPTIONS} />
+                                        <SingleSelect id="select-sector" name="sector" value={data.sector} onChange={val => handleChange('sector', val)} placeholder={t('com_ui_select_sector', 'Seleccionar sector')} options={SECTOR_OPTIONS} />
                                     </div>
                                 </div>
                             </div>
@@ -786,43 +864,43 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                                     <div>
                                         <label className={labelClass}><Shield className="h-3 w-3" />ARL</label>
-                                        <SingleSelect value={data.arl} onChange={val => handleChange('arl', val)} placeholder={t('com_ui_select_arl', 'Seleccionar ARL')} options={ARL_OPTIONS} />
+                                        <SingleSelect id="select-arl" name="arl" value={data.arl} onChange={val => handleChange('arl', val)} placeholder={t('com_ui_select_arl', 'Seleccionar ARL')} options={ARL_OPTIONS} />
                                     </div>
                                     <div>
                                         <label className={labelClass}><Activity className="h-3 w-3" />{t('com_ui_risk_level', 'Nivel de Riesgo')}</label>
-                                        <SingleSelect value={data.riskLevel} onChange={val => handleChange('riskLevel', val)} placeholder={t('com_ui_select_level', 'Seleccionar nivel')} options={RISK_LEVELS} />
+                                        <SingleSelect id="select-riskLevel" name="riskLevel" value={data.riskLevel} onChange={val => handleChange('riskLevel', val)} placeholder={t('com_ui_select_level', 'Seleccionar nivel')} options={RISK_LEVELS} />
                                     </div>
                                     <div>
                                         <label className={labelClass}><Hash className="h-3 w-3" />Código CIIU</label>
-                                        <input className={inputClass} value={data.ciiu} onChange={e => handleChange('ciiu', e.target.value)} placeholder="Ej: 4711" />
+                                        <input id="input-ciiu" name="ciiu" className={inputClass} value={data.ciiu} onChange={e => handleChange('ciiu', e.target.value)} placeholder="Ej: 4711" />
                                     </div>
                                     <div className="md:col-span-3">
                                         <label className={labelClass}><Briefcase className="h-3 w-3" />{t('com_ui_economic_activity', 'Actividad Económica')}</label>
-                                        <input className={inputClass} value={data.economicActivity} onChange={e => handleChange('economicActivity', e.target.value)} placeholder={t('com_ui_economic_activity_placeholder', 'Descripción de la actividad')} />
+                                        <input id="input-economicActivity" name="economicActivity" className={inputClass} value={data.economicActivity} onChange={e => handleChange('economicActivity', e.target.value)} placeholder={t('com_ui_economic_activity_placeholder', 'Descripción de la actividad')} />
                                     </div>
                                     <div className="md:col-span-2">
                                         <label className={labelClass}><UserCheck className="h-3 w-3" />{t('com_ui_sst_responsible', 'Responsable del SG-SST')}</label>
-                                        <input className={inputClass} value={data.responsibleSST} onChange={e => handleChange('responsibleSST', e.target.value)} placeholder={t('com_ui_sst_responsible_placeholder', 'Nombre del responsable')} />
+                                        <input id="input-responsibleSST" name="responsibleSST" className={inputClass} value={data.responsibleSST} onChange={e => handleChange('responsibleSST', e.target.value)} placeholder={t('com_ui_sst_responsible_placeholder', 'Nombre del responsable')} />
                                     </div>
                                     <div>
                                         <label className={labelClass}><Phone className="h-3 w-3" />{t('com_ui_sst_responsible_phone', 'Contacto del Responsable')}</label>
-                                        <input className={inputClass} value={data.responsibleSSTPhone} onChange={e => handleChange('responsibleSSTPhone', e.target.value)} placeholder="+57 300 000 0000" />
+                                        <input id="input-responsibleSSTPhone" name="responsibleSSTPhone" className={inputClass} value={data.responsibleSSTPhone} onChange={e => handleChange('responsibleSSTPhone', e.target.value)} placeholder="+57 300 000 0000" />
                                     </div>
                                     <div>
                                         <label className={labelClass}><Briefcase className="h-3 w-3" />Nivel de Formación</label>
-                                        <input className={inputClass} value={data.formationLevel} onChange={e => handleChange('formationLevel', e.target.value)} placeholder="Técnico, Tecnólogo, Profesional, Especialista" />
+                                        <input id="input-formationLevel" name="formationLevel" className={inputClass} value={data.formationLevel} onChange={e => handleChange('formationLevel', e.target.value)} placeholder="Técnico, Tecnólogo, Profesional, Especialista" />
                                     </div>
                                     <div>
                                         <label className={labelClass}><Award className="h-3 w-3" />Número de Licencia SST</label>
-                                        <input className={inputClass} value={data.licenseNumber} onChange={e => handleChange('licenseNumber', e.target.value)} placeholder="Ej: 1234 de 2024" />
+                                        <input id="input-licenseNumber" name="licenseNumber" className={inputClass} value={data.licenseNumber} onChange={e => handleChange('licenseNumber', e.target.value)} placeholder="Ej: 1234 de 2024" />
                                     </div>
                                     <div>
                                         <label className={labelClass}><Calendar className="h-3 w-3" />Vigencia de Licencia</label>
-                                        <input type="date" className={inputClass} value={data.licenseExpiry} onChange={e => handleChange('licenseExpiry', e.target.value)} />
+                                        <input id="input-licenseExpiry" name="licenseExpiry" type="date" className={inputClass} value={data.licenseExpiry} onChange={e => handleChange('licenseExpiry', e.target.value)} />
                                     </div>
                                     <div className="md:col-span-3">
                                         <label className={labelClass}><FileText className="h-3 w-3" />Curso 50H / Actualización 20H</label>
-                                        <input type="date" className={inputClass} value={data.courseStatus} onChange={e => handleChange('courseStatus', e.target.value)} />
+                                        <input id="input-courseStatus" name="courseStatus" type="date" className={inputClass} value={data.courseStatus} onChange={e => handleChange('courseStatus', e.target.value)} />
                                     </div>
 
                                 </div>
@@ -838,9 +916,9 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                     <div className="rounded-xl border border-border-medium bg-surface-primary p-4">
                                         <h4 className="font-semibold text-sm mb-3">Firma Representante Legal</h4>
                                         <div className="space-y-4">
-                                            <div>
+                                             <div>
                                                 <label className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase leading-tight">Consentimiento Informado para uso de Firma Digital</label>
-                                                <SingleSelect value={data.legalRepConsent || 'No'} onChange={val => handleChange('legalRepConsent', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
+                                                <SingleSelect id="select-legalRepConsent" name="legalRepConsent" value={data.legalRepConsent || 'No'} onChange={val => handleChange('legalRepConsent', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
                                                 <p className="text-[10px] text-text-secondary mt-1">Habilita el uso automático de la firma en los informes generados.</p>
                                             </div>
                                             <div className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-border-medium rounded-xl relative hover:bg-surface-secondary/50 transition-colors">
@@ -879,7 +957,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                         <div className="space-y-4">
                                             <div>
                                                 <label className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase leading-tight">Consentimiento Informado para uso de Firma Digital</label>
-                                                <SingleSelect value={data.sstRespConsent || 'No'} onChange={val => handleChange('sstRespConsent', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
+                                                <SingleSelect id="select-sstRespConsent" name="sstRespConsent" value={data.sstRespConsent || 'No'} onChange={val => handleChange('sstRespConsent', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
                                                 <p className="text-[10px] text-text-secondary mt-1">Habilita el uso automático de la firma en los informes generados.</p>
                                             </div>
                                             <div className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-border-medium rounded-xl relative hover:bg-surface-secondary/50 transition-colors">
@@ -923,23 +1001,23 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                                     <div>
                                         <label className={labelClass}><MapPin className="h-3 w-3" />{t('com_ui_address', 'Dirección')}</label>
-                                        <input className={inputClass} value={data.address} onChange={e => handleChange('address', e.target.value)} placeholder={t('com_ui_address_placeholder', 'Dirección de la empresa')} />
+                                        <input id="input-address" name="address" className={inputClass} value={data.address} onChange={e => handleChange('address', e.target.value)} placeholder={t('com_ui_address_placeholder', 'Dirección de la empresa')} />
                                     </div>
                                     <div>
                                         <label className={labelClass}><MapPin className="h-3 w-3" />{t('com_ui_city', 'Ciudad')}</label>
-                                        <input className={inputClass} value={data.city} onChange={e => handleChange('city', e.target.value)} placeholder={t('com_ui_city', 'Ciudad')} />
+                                        <input id="input-city" name="city" className={inputClass} value={data.city} onChange={e => handleChange('city', e.target.value)} placeholder={t('com_ui_city', 'Ciudad')} />
                                     </div>
                                     <div>
                                         <label className={labelClass}><MapPin className="h-3 w-3" />Departamento</label>
-                                        <input className={inputClass} value={data.departamento || ''} onChange={e => handleChange('departamento', e.target.value)} placeholder="Ej. Antioquia" />
+                                        <input id="input-departamento" name="departamento" className={inputClass} value={data.departamento || ''} onChange={e => handleChange('departamento', e.target.value)} placeholder="Ej. Antioquia" />
                                     </div>
                                     <div>
                                         <label className={labelClass}><Phone className="h-3 w-3" />{t('com_ui_phone', 'Teléfono')}</label>
-                                        <input className={inputClass} value={data.phone} onChange={e => handleChange('phone', e.target.value)} placeholder="+57 300 123 4567" />
+                                        <input id="input-phone" name="phone" className={inputClass} value={data.phone} onChange={e => handleChange('phone', e.target.value)} placeholder="+57 300 123 4567" />
                                     </div>
                                     <div>
                                         <label className={labelClass}><Mail className="h-3 w-3" />{t('com_ui_email', 'Correo Electrónico')}</label>
-                                        <input className={inputClass} type="email" value={data.email} onChange={e => handleChange('email', e.target.value)} placeholder="empresa@ejemplo.com" />
+                                        <input id="input-email" name="email" className={inputClass} type="email" value={data.email} onChange={e => handleChange('email', e.target.value)} placeholder="empresa@ejemplo.com" />
                                     </div>
                                 </div>
                             </div>
@@ -952,6 +1030,8 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                 <div>
                                     <label className={labelClass}><FileText className="h-3 w-3" />{t('com_ui_activities_desc', 'Descripción de Actividades Generales')}</label>
                                     <textarea
+                                        id="input-generalActivities"
+                                        name="generalActivities"
                                         className={cn(inputClass, 'min-h-[80px] resize-y')}
                                         value={data.generalActivities}
                                         onChange={e => handleChange('generalActivities', e.target.value)}
@@ -1064,26 +1144,30 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                         )}
                     </div>
                     <div className="flex items-center gap-3">
-                        <ExpandingButton
-                            onClick={() => {
-                                const draftKey = `wappy_company_draft_${data._id || 'new'}`;
-                                localStorage.removeItem(draftKey);
-                                onClose();
-                            }}
-                            icon={X}
-                            label={t('com_ui_cancel', 'Cancelar')}
-                            variant="secondary"
-                            title={t('com_ui_cancel', 'Cancelar')}
-                        />
-                        <ExpandingButton
-                            onClick={() => handleSave()}
-                            disabled={saving || !isFormValid}
-                            isLoading={saving}
-                            icon={Save}
-                            label={saving ? t('com_ui_saving', 'Guardando...') : t('com_ui_save', 'Guardar Empresa')}
-                            variant="save"
-                            title={!isFormValid ? `Faltan: ${missingFields.map(f => FIELD_LABELS[f] || f).join(', ')}` : t('com_ui_save', 'Guardar Empresa')}
-                        />
+                        <div id="btn-cancelar-empresa" data-action="cancelar-empresa">
+                            <ExpandingButton
+                                onClick={() => {
+                                    const draftKey = `wappy_company_draft_${data._id || 'new'}`;
+                                    localStorage.removeItem(draftKey);
+                                    onClose();
+                                }}
+                                icon={X}
+                                label={t('com_ui_cancel', 'Cancelar')}
+                                variant="secondary"
+                                title={t('com_ui_cancel', 'Cancelar')}
+                            />
+                        </div>
+                        <div id="btn-guardar-empresa" data-action="guardar-empresa">
+                            <ExpandingButton
+                                onClick={() => handleSave()}
+                                disabled={saving || !isFormValid}
+                                isLoading={saving}
+                                icon={Save}
+                                label={saving ? t('com_ui_saving', 'Guardando...') : t('com_ui_save', 'Guardar Empresa')}
+                                variant="save"
+                                title={!isFormValid ? `Faltan: ${missingFields.map(f => FIELD_LABELS[f] || f).join(', ')}` : t('com_ui_save', 'Guardar Empresa')}
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
