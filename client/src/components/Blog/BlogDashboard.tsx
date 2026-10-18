@@ -96,7 +96,19 @@ const PostModal = ({ post, onClose, navigate }: { post: any, onClose: () => void
 const PostCard = ({ post, navigate, onMoreInfo }: { post: any, navigate: any, onMoreInfo?: () => void }) => {
     return (
         <div 
+            role="button"
+            tabIndex={0}
+            data-action="open-blog"
+            data-post-id={post._id}
+            data-title={post.title}
+            aria-label={`Abrir artículo del blog: ${post.title}`}
             onClick={() => navigate(`/blog/${post._id}/${sanitizeSlug(post.title)}`)}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    navigate(`/blog/${post._id}/${sanitizeSlug(post.title)}`);
+                }
+            }}
             className="group relative flex-none w-56 sm:w-64 md:w-80 aspect-video rounded-lg overflow-hidden cursor-pointer transition-all duration-300 hover:scale-105 hover:z-10 shadow-lg border border-border-light dark:border-white/5"
         >
             {/* Thumbnail */}

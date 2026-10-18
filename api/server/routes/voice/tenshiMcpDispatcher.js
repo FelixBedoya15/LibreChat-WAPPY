@@ -149,6 +149,13 @@ const TOOL_ROUTES = {
   wappy_consultar_mensajes_conversacion: { method: 'GET', path: '/messages' },
   wappy_consultar_archivos: { method: 'GET', path: '/files' },
 
+  // 5.1 Marketplace & Tienda SST
+  wappy_consultar_marketplace: { method: 'GET', path: '/marketplace/products' },
+  wappy_consultar_tienda: { method: 'GET', path: '/marketplace/products' },
+  wappy_consultar_productos_tienda: { method: 'GET', path: '/marketplace/products' },
+  wappy_consultar_pedidos_marketplace: { method: 'GET', path: '/marketplace/orders' },
+  wappy_consultar_compras_marketplace: { method: 'GET', path: '/marketplace/orders' },
+
   // 6. Lectura y Generación de Informes de Aplicativos
   wappy_leer_informe_aplicativo: { method: 'GET', path: '/informe' },
   wappy_crear_informe: { method: 'POST', path: '/reports/generate' },

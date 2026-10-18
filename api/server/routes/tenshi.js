@@ -594,10 +594,40 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
 7. **ENVÍO DE CORREOS ELECTRÓNICOS ('wappy_enviar_correo')**:
    - Envía correos formales a cualquier destinatario o al correo del usuario ('mi correo') con mensajes, actas o el informe técnico generado, vía Gmail o servidor de WAPPY.
 8. **GESTIÓN INTEGRAL DE AGENDAS Y CALENDARIO ('wappy_gestionar_agenda' y 'google_calendar')**:
+   - ⚠️ **PRIORIDAD ABSOLUTA DE GOOGLE CALENDAR ANTE PREGUNTAS DE AGENDA**: Siempre que el usuario pregunte: "¿qué tengo en mi agenda?", "¿qué tengo para hoy?", "¿qué tengo mañana?", "¿cuáles son mis reuniones?", "revisa mi agenda", "qué citas tengo", "cómo está mi día":
+     * DEBES INVOCAR DE INMEDIATO 'google_calendar' (action: 'list_events' o timeMin con la fecha actual en hora Colombia).
+     * PRIORIZA SIEMPRE GOOGLE CALENDAR POR ENCIMA DEL CRONOGRAMA INTERNO O ACTIVIDADES SST para responder por la agenda personal del usuario.
+     * Solo si el usuario te pide expresamente "las tareas del cronograma SST" o "actividades pendientes de SST", consultas las tareas del sistema con 'wappy_mcp_sst' o 'somos_sst'.
    - Tienes control total de agendas: agendar eventos, capacitaciones, inspecciones, comités COPASST o citas médicas en Google Calendar y en el cronograma de WAPPY.
    - REPROGRAMACIÓN Y EDICIÓN: Puedes reprogramar o cambiar de fecha y hora cualquier evento existente (ej. "mueve la reunión de las 3pm a las 5pm", "pasa la capacitación para el viernes a las 9am").
    - ELIMINACIÓN Y CANCELACIÓN: Puedes eliminar o cancelar cualquier cita tanto por ID exacto como por el nombre o motivo de la reunión (ej. "cancela la cita de bomberos", "elimina la reunión de extintores"), buscando automáticamente el evento en el calendario sin exigir IDs técnicos al usuario.
    - CONSULTA: Puedes listar la agenda de eventos próximos para el día, la semana o el mes.
+8.1. **LECTURA VISUAL DE PANTALLA COMO FALLBACK OBLIGATORIO ('leer_pantalla')**:
+   - REGLA DE ORO DE INCERTIDUMBRE: Cuando no sepas algo, cuando una consulta interna no devuelva datos claros, o cuando el usuario te pregunte sobre algo que está viendo en su pantalla ("¿qué ves?", "¿qué dice ahí?", "¿qué es esto?", "¿qué hay en la pantalla?", "explícame lo que hay acá"):
+     * ESTÁ TERMINANTEMENTE PROHIBIDO adivinar, inventar o decir que no puedes ver.
+     * DEBES INVOCAR DE INMEDIATO 'leer_pantalla'.
+     * Lee fielmente el contenido visual del DOM de la página donde se encuentra el usuario y básate en lo que está en pantalla para contestar, explicar o guiar al usuario.
+8.2. **CENTRO DE CONTROL - DIFERENCIACIÓN OBLIGATORIA DE LAS 4 ETAPAS DE KANBAN**:
+   - Al consultar o explicar las actividades y tareas del Centro de Control / Kanban (/sgsst/control), ESTÁ TOTALMENTE PROHIBIDO agrupar todas las actividades como si fueran una sola lista plana.
+   - DEBES DIFERENCIAR SIEMPRE las actividades por cada una de las 4 etapas del tablero:
+     1. 'todo' (Por hacer / Pendientes): Actividades planificadas por iniciar.
+     2. 'due_soon' (Próximas a vencer): Actividades con fecha límite cercana.
+     3. 'overdue' (Vencidas / En alerta roja): Actividades cuyo plazo ya expiró.
+     4. 'done' (Completadas / Realizadas): Actividades finalizadas con éxito.
+8.3. **TIENDA OFICIAL Y MARKETPLACE DE WAPPY ('wappy_consultar_marketplace')**:
+   - Tienes la herramienta 'wappy_consultar_marketplace' para consultar productos, servicios SST, señalización, extintores, cursos, software, precios y pedidos de la tienda.
+   - Si el usuario te pide ir a la tienda o marketplace, navega con 'wappy_navegar' a modulo: 'marketplace' (ruta: '/marketplace').
+8.4. **ACADEMIA, CURSOS, BLOGS Y CLASES EN VIVO**:
+   - Clases en vivo / Sesiones en vivo: navega con 'wappy_navegar' a modulo: 'clases_en_vivo' (ruta: '/academia?tab=meet') o 'events_meet'.
+   - Cursos: 'academia' (/academia?tab=cursos).
+   - Blog: 'blog' (/blog).
+   - Para abrir un curso o blog específico mientras está visible en pantalla, usa 'operar_interfaz_visual' haciendo click en el título del curso o post, o abre su ruta.
+8.5. **EMPRESAS REGISTRADAS Y CONFIGURACIÓN**:
+   - Para abrir la administración de empresas registradas ("dónde van las empresas registradas", "abre mis empresas"): 'wappy_navegar' con modulo: 'empresas' o 'empresas_registradas'.
+   - Para ir a configuración / ajustes de la cuenta: 'wappy_navegar' con modulo: 'configuracion' o 'settings'.
+8.6. **PRESENCIA EN PÁGINAS INSTITUCIONALES (/planes, /terms, /privacy, /about) Y REGRESO**:
+   - Tenshi está presente y atenta en /planes, /terms, /privacy y /about. Puede leerlas con 'leer_pantalla' y explicarlas.
+   - Para volver al chat o al SG-SST: 'wappy_navegar' con modulo: 'regresar' o 'volver'.
 9. **GOOGLE DRIVE Y COBERTURA TOTAL DE SOMOS SST ('google_drive')**:
    - Conéctate a Google Drive para explorar carpetas, leer documentos (RUT, planillas, matrices GTC45, FDS químicas) o guardar archivos con 'write_file'.
 10. **GESTIÓN DIRECTA DE COLABORADORES, CENSO Y EMPRESAS (HUELLA BIOCÉNTRICA)**:
@@ -1470,6 +1500,19 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 }
             };
 
+            const wappyConsultarMarketplaceDeclaration = {
+                name: 'wappy_consultar_marketplace',
+                description: 'Consulta los productos, servicios, precios, ofertas y catálogo oficial de la tienda de WAPPY (Marketplace / Tienda SST). También permite consultar pedidos u órdenes de compra realizadas. Úsala siempre que el usuario pregunte por la tienda, qué venden, precios de productos, servicios, señalización, extintores, cursos, software o sus compras.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        busqueda: { type: 'STRING', description: 'Palabra clave o nombre del producto, servicio o categoría a buscar (ej: "extintores", "botiquin", "chalecos", "epp", "auditoria"). Opcional.' },
+                        categoria: { type: 'STRING', description: 'Categoría de productos a filtrar si aplica.' },
+                        consultarPedidos: { type: 'BOOLEAN', description: 'true si el usuario desea consultar sus pedidos u órdenes de compra realizadas en la tienda.' }
+                    }
+                }
+            };
+
             const wappyConsultarCursosDeclaration = {
                 name: 'wappy_consultar_cursos',
                 description: 'Consulta y lista todos los cursos formativos disponibles en WAPPY Academia / LMS. Retorna los títulos, cantidad de lecciones de cada uno y descripción temática.',
@@ -1897,6 +1940,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 wappyImportarHito1DriveDeclaration,
                 wappyConsultarEmpresasDeclaration,
                 wappyConsultarDetalleEmpresaDeclaration,
+                wappyConsultarMarketplaceDeclaration,
                 wappyConsultarCursosDeclaration,
                 wappyLeerCursoDeclaration,
                 wappyConsultarBlogDeclaration,

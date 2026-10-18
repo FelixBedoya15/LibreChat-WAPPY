@@ -88,7 +88,19 @@ const CourseCard = ({ course, navigate, onMoreInfo }: { course: any, navigate: a
     
     return (
         <div 
+            role="button"
+            tabIndex={0}
+            data-action="open-course"
+            data-course-id={course._id}
+            data-title={course.title}
+            aria-label={`Abrir curso: ${course.title}`}
             onClick={() => navigate(`/training/${course._id}/${sanitizeSlug(course.title)}`)}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    navigate(`/training/${course._id}/${sanitizeSlug(course.title)}`);
+                }
+            }}
             className="group relative flex-none w-56 sm:w-64 md:w-80 aspect-video rounded-lg overflow-hidden cursor-pointer transition-all duration-300 hover:scale-105 hover:z-10 shadow-lg border border-border-light dark:border-white/5"
         >
             {/* Thumbnail */}

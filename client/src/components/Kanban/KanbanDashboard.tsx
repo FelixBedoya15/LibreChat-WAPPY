@@ -1207,7 +1207,7 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
         </div>
       ) : (
         /* Board columns container */
-        <div className={`overflow-x-auto p-6 flex gap-6 select-none ${
+        <div data-tenshi-kanban="board" className={`overflow-x-auto p-6 flex gap-6 select-none ${
           inline ? "flex-1" : "h-[750px] min-h-[600px]"
         }`}>
           {/* Column template */}
@@ -1219,6 +1219,9 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
           ].map(col => (
             <div 
               key={col.id}
+              data-tenshi-column={col.id}
+              data-tenshi-column-title={col.title}
+              data-tenshi-count={col.tasks.length}
               className={`flex-shrink-0 w-80 flex flex-col h-full bg-white/70 dark:bg-gray-900/70 border border-border-medium/35 rounded-2xl shadow-sm overflow-hidden ${col.border}`}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, col.id as any)}
@@ -1244,6 +1247,10 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
                   col.tasks.map(task => (
                     <div
                       key={task._id}
+                      data-tenshi-task={task._id}
+                      data-tenshi-title={task.title}
+                      data-tenshi-status={task.status}
+                      data-tenshi-due={task.dueDate}
                       draggable
                       onDragStart={(e) => handleDragStart(e, task._id)}
                       className="p-3.5 bg-white dark:bg-gray-950 border border-border-medium/40 hover:border-teal-500/40 dark:border-white/5 rounded-xl shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing transition-all group flex flex-col justify-between"

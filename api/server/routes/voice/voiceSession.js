@@ -371,11 +371,11 @@ class VoiceSession {
                                 properties: {
                                     modulo: {
                                         type: "string",
-                                        description: "Nombre clave del módulo, hito o aplicativo. Hitos 1 al 8: 'diagnostico' (0312), 'participacion_ipevar', 'matriz_ipevar_oficial', 'matriz_pesv_oficial', 'matriz_compatibilidad_oficial', 'vulnerabilidad', 'plan_emergencias', 'responsable', 'politica', 'objetivos', 'legal', 'rhs', 'rit', 'perfil_cargo', 'perfil_socio', 'condiciones_salud', 'copasst', 'cocolab', 'comite_pesv', 'brigada_emergencias', 'animo', 'metodo_owas', 'estudio_puesto', 'peligros', 'permiso_alturas', 'analisis_trabajo_seguro', 'epp_delivery', 'vehicles_pesv', 'heights_lifecycle', 'chemical_registry', 'equipos_emergencia', 'reporte_actos', 'capacitaciones', 'simulacros_emergencia', 'ruta_aprendizaje', 'app_builder', 'estadisticas', 'investigacion_atel', 'control_acpm', 'auditoria', 'alta_direccion', 'investigacion_profunda', 'predictivo'. Aplicativos y Dashboards: 'sgsst', 'planes', 'academia', 'training_admin', 'rutas', 'ruta_admin', 'blog', 'blog_admin', 'events_meet', 'events_meet_admin', 'marketplace' (/marketplace tienda productos SST), 'marketplace_admin', 'agents' (/agents catálogo agentes IA), 'control' (Kanban), 'animo_dashboard', 'live' (/c/new), 'chat_sst', 'roadmap', 'contactanos', 'comunidad', 'matriz', 'embajadores', 'embajadores_dashboard', 'tenshi_admin', 'search', 'privacy', 'terms', 'about'. Portales públicos: 'public_reportar', 'public_animo', 'public_estudio_puesto', 'public_ipevar', 'public_alta_direccion', 'public_atel', 'public_colaborador', 'public_comites', 'public_convivencia', 'public_votaciones', 'public_inspecciones', 'public_brigadistas'."
+                                        description: "Nombre clave del módulo, hito o aplicativo. Hitos 1 al 8: 'diagnostico' (0312), 'participacion_ipevar', 'matriz_ipevar_oficial', 'matriz_pesv_oficial', 'matriz_compatibilidad_oficial', 'vulnerabilidad', 'plan_emergencias', 'responsable', 'politica', 'objetivos', 'legal', 'rhs', 'rit', 'perfil_cargo', 'perfil_socio', 'condiciones_salud', 'copasst', 'cocolab', 'comite_pesv', 'brigada_emergencias', 'animo', 'metodo_owas', 'estudio_puesto', 'peligros', 'permiso_alturas', 'analisis_trabajo_seguro', 'epp_delivery', 'vehicles_pesv', 'heights_lifecycle', 'chemical_registry', 'equipos_emergencia', 'reporte_actos', 'capacitaciones', 'simulacros_emergencia', 'ruta_aprendizaje', 'app_builder', 'estadisticas', 'investigacion_atel', 'control_acpm', 'auditoria', 'alta_direccion', 'investigacion_profunda', 'predictivo'. Aplicativos y Dashboards: 'sgsst', 'planes' (/planes planes de suscripción), 'academia' (/academia?tab=cursos), 'training_admin', 'rutas' (/academia?tab=rutas), 'ruta_admin', 'blog' (/academia?tab=blog), 'blog_admin', 'clases_en_vivo' (/academia?tab=meet clases en vivo de la academia), 'events_meet', 'events_meet_admin', 'marketplace' (/marketplace o /tienda tienda productos SST), 'tienda', 'marketplace_admin', 'agents' (/agents catálogo agentes IA), 'control' (/sgsst/control Centro de Control / Kanban de actividades), 'animo_dashboard', 'empresas' (/sgsst?modal=empresas donde van las empresas registradas), 'empresas_registradas', 'configuracion' (sección de configuración y ajustes del usuario), 'settings', 'live' (/c/new), 'chat_sst', 'regresar' (para volver al chat desde planes/términos/privacidad/about), 'volver', 'roadmap', 'contactanos', 'comunidad', 'matriz', 'embajadores', 'embajadores_dashboard', 'tenshi_admin', 'search', 'privacy' (/privacy política de privacidad), 'terms' (/terms términos de servicio), 'about' (/about acerca de nosotros). Portales públicos: 'public_reportar', 'public_animo', 'public_estudio_puesto', 'public_ipevar', 'public_alta_direccion', 'public_atel', 'public_colaborador', 'public_comites', 'public_convivencia', 'public_votaciones', 'public_inspecciones', 'public_brigadistas'."
                                     },
                                     ruta: {
                                         type: "string",
-                                        description: "Ruta URL interna exacta (opcional si se especifica modulo). Ejemplos: '/sgsst?hito=hito8&module=predictivo', '/sgsst?hito=hito1&module=diagnostico', '/sgsst?hito=hito2&module=perfil_cargo', '/sgsst?hito=hito3&module=copasst', '/sgsst?hito=hito4&module=peligros', '/sgsst?hito=hito5&module=vehicles_pesv', '/sgsst?hito=hito6&module=capacitaciones', '/sgsst?hito=hito7&module=investigacion_atel', '/planes', '/academia?tab=cursos', '/training/admin', '/ruta-aprendizaje/admin', '/blog', '/blog/admin', '/events-meet', '/marketplace', '/marketplace/admin', '/agents', '/sgsst/control', '/sgsst/animo', '/auditoria', '/c/new', '/chat-sst', '/hoja-de-ruta', '/contactanos', '/comunidad', '/matriz', '/embajadores', '/embajadores/dashboard', '/tenshi/admin', '/privacy', '/terms', '/about'."
+                                        description: "Ruta URL interna exacta (opcional si se especifica modulo). Ejemplos: '/sgsst?hito=hito8&module=predictivo', '/sgsst?hito=hito1&module=diagnostico', '/sgsst?hito=hito2&module=perfil_cargo', '/sgsst?hito=hito3&module=copasst', '/sgsst?hito=hito4&module=peligros', '/sgsst?hito=hito5&module=vehicles_pesv', '/sgsst?hito=hito6&module=capacitaciones', '/sgsst?hito=hito7&module=investigacion_atel', '/planes', '/academia?tab=cursos', '/academia?tab=meet', '/academia?tab=blog', '/training/admin', '/ruta-aprendizaje/admin', '/blog', '/blog/admin', '/events-meet', '/marketplace', '/tienda', '/marketplace/admin', '/agents', '/sgsst/control', '/sgsst/animo', '/auditoria', '/c/new', '/chat-sst', '/hoja-de-ruta', '/contactanos', '/comunidad', '/matriz', '/embajadores', '/embajadores/dashboard', '/tenshi/admin', '/privacy', '/terms', '/about'."
                                     }
                                 },
                                 required: ["modulo"]
@@ -430,6 +430,17 @@ class VoiceSession {
                                 type: "object",
                                 properties: {
                                     dummy: { type: "string", description: "Parámetro opcional" }
+                                }
+                            }
+                        },
+                        {
+                            name: "wappy_consultar_marketplace",
+                            description: "Consulta y lista los productos, servicios, consultorías virtuales, software y plantillas disponibles en la tienda oficial de WAPPY (Marketplace / Tienda SST), con sus precios regulares, precios en oferta, categorías y descripciones. Invócala siempre que el usuario pregunte por la tienda, compras, marketplace, productos, precios, ofertas o servicios de SST.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    busqueda: { type: "string", description: "Término de búsqueda o palabra clave del producto (opcional)." },
+                                    categoria: { type: "string", description: "Categoría de producto o servicio (opcional)." }
                                 }
                             }
                         },
@@ -1852,6 +1863,55 @@ class VoiceSession {
     2. Lee o explica el dictamen técnico real con fidelidad citando sus artículos, decretos y argumentos específicos.
     3. NUNCA inventes lo que dice el especialista ni lo reduzcas a una frase genérica de 10 palabras si el usuario te pidió leerlo o conocer los detalles.
     4. NUNCA digas que "es la respuesta exacta" si solo estás diciendo un micro-resumen. Sé transparente y cita la sustancia real.
+
+[AGENDA PERSONAL Y REUNIONES - PRIORIDAD ABSOLUTA DE GOOGLE CALENDAR]:
+- SIEMPRE que el usuario te pregunte: "¿qué tengo en mi agenda?", "¿qué tengo para hoy?", "¿qué tengo mañana?", "¿cuáles son mis reuniones?", "revisa mi agenda", "qué citas tengo", "cómo está mi día":
+  * DEBES INVOCAR DE INMEDIATO 'google_calendar' (action: 'list_events' o timeMin con la fecha actual en hora Colombia).
+  * PRIORIZA SIEMPRE GOOGLE CALENDAR POR ENCIMA DEL CRONOGRAMA INTERNO O ACTIVIDADES SST para responder por la agenda personal del usuario.
+  * Solo si el usuario te pide expresamente "las tareas del cronograma SST" o "actividades pendientes de SST", consultas las tareas del sistema con 'wappy_mcp_sst' o 'somos_sst'.
+  * Si en Google Calendar no hay eventos programados para ese día, indícalo con claridad y menciona si tiene alguna tarea del SG-SST pendiente.
+
+[LECTURA VISUAL DE PANTALLA COMO FALLBACK OBLIGATORIO]:
+- REGLA DE ORO DE INCERTIDUMBRE: Cuando no sepas algo, cuando una consulta interna no devuelva datos claros, o cuando el usuario te pregunte sobre algo que está viendo en su pantalla ("¿qué ves?", "¿qué dice ahí?", "¿qué es esto?", "¿qué hay en la pantalla?", "explícame lo que hay acá"):
+  * ESTÁ TERMINANTEMENTE PROHIBIDO adivinar, inventar o decir que no puedes ver.
+  * DEBES INVOCAR DE INMEDIATO 'leer_pantalla'.
+  * Lee fielmente el contenido visual del DOM de la página donde se encuentra el usuario y básate en lo que está en pantalla para contestar, explicar o guiar al usuario.
+
+[CENTRO DE CONTROL - DIFERENCIACIÓN OBLIGATORIA DE LAS 4 ETAPAS DE KANBAN]:
+- Al consultar o explicar las actividades y tareas del Centro de Control / Kanban (/sgsst/control), ESTÁ TOTALMENTE PROHIBIDO agrupar todas las actividades como si fueran una sola lista plana.
+- DEBES DIFERENCIAR SIEMPRE las actividades por cada una de las 4 etapas del tablero:
+  1. 'todo' (Por hacer / Pendientes): Actividades planificadas por iniciar.
+  2. 'due_soon' (Próximas a vencer): Actividades con fecha límite cercana.
+  3. 'overdue' (Vencidas / En alerta roja): Actividades cuyo plazo ya expiró.
+  4. 'done' (Completadas / Realizadas): Actividades finalizadas con éxito.
+- Presenta las métricas y los nombres de las tareas clasificados claramente por su etapa correspondiente.
+
+[TIENDA OFICIAL Y MARKETPLACE DE WAPPY]:
+- Tienes la herramienta 'wappy_consultar_marketplace' para consultar el catálogo de productos, servicios SST, señalización, extintores, cursos, software y precios de la tienda oficial (Marketplace).
+- También puedes consultar pedidos y compras realizadas usando consultarPedidos: true.
+- Si el usuario te pide ir o ver la tienda o marketplace, invoca 'wappy_navegar' con modulo: 'marketplace' (ruta: '/marketplace').
+
+[ACADEMIA, CURSOS, BLOGS Y CLASES EN VIVO]:
+- Para ir a la Academia: 'wappy_navegar' con modulo: 'academia' (/academia?tab=cursos).
+- Para ir a las Clases en Vivo o Meet: 'wappy_navegar' con modulo: 'clases_en_vivo' (ruta: '/academia?tab=meet') o modulo: 'events_meet'.
+- Para ir al Blog: 'wappy_navegar' con modulo: 'blog' (/blog).
+- Para abrir un curso o blog específico mientras el usuario está en la academia o blog, invoca 'operar_interfaz_visual' haciendo click en el título del curso o post, o navega a su URL directa.
+
+[EMPRESAS REGISTRADAS Y CONFIGURACIÓN]:
+- Cuando el usuario pida abrir o ver dónde van las empresas registradas ("dónde van las empresas registradas", "abre mis empresas", "ver empresas registradas"):
+  * INVOCA DE INMEDIATO 'wappy_navegar' con modulo: 'empresas' o modulo: 'empresas_registradas'. Esto abrirá la ventana/modal de administración de empresas registradas.
+- Cuando el usuario pida ir a configuración o ajustes ("llévame a configuración", "abre configuración", "ajustes de la cuenta"):
+  * INVOCA DE INMEDIATO 'wappy_navegar' con modulo: 'configuracion' o modulo: 'settings'. Esto abrirá el panel oficial de configuración.
+
+[PRESENCIA EN PÁGINAS INSTITUCIONALES (/planes, /terms, /privacy, /about) Y REGRESO]:
+- Tenshi está presente, viva y atenta en las páginas institucionales:
+  * Planes y Tarifas: /planes ('planes')
+  * Términos del Servicio: /terms ('terms')
+  * Política de Privacidad y Tratamiento de Datos: /privacy ('privacy')
+  * Quiénes Somos / Acerca de WAPPY: /about ('about')
+- En estas páginas puedes usar 'leer_pantalla' para leer y explicar los planes, coberturas, cláusulas de privacidad o información institucional.
+- Cuando el usuario te pida regresar o volver ("regresemos", "volver al chat", "vamos al SG-SST", "volver"):
+  * INVOCA DE INMEDIATO 'wappy_navegar' con modulo: 'regresar' o modulo: 'volver' (o 'chat_sst' / 'sgsst') para volver a la conversación o al módulo anterior sin perder la continuidad.
 
 [REGLA ESTRICTA DE CORRELACIÓN TEMPORAL Y CONTINUIDAD DEL HILO CONVERSACIONAL]:
 - EL HILO CONDUCTOR LO MARCA EL MENSAJE MÁS RECIENTE Y LA PANTALLA ACTUAL: La conversación siempre avanza hacia adelante en el tiempo. Si el usuario saluda, dice "continuemos", "¿en qué íbamos?", da una orden o hace una pregunta, básate EXCLUSIVAMENTE en el [HILO CONDUCTOR ACTIVO Y VIGENTE] y en el módulo o pantalla abierta en este momento.
@@ -7287,6 +7347,54 @@ ${workerSubHeaderHtml}
             return;
         }
 
+        // 0.2. Failsafe para consulta de agenda personal / Google Calendar (prioridad absoluta)
+        const isAgendaQuery = /\b(qu[eé]\s+tengo\s+(hoy|mañana|en\s+mi\s+agenda|programado|para\s+hoy|para\s+mañana)|revisa\s+mi\s+agenda|mis\s+reuniones|mis\s+citas|c[oó]mo\s+est[aá]\s+mi\s+d[ií]a|agenda\s+de\s+(hoy|mañana))\b/i.test(userLower);
+        if (isAgendaQuery) {
+            logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Gemini omitió toolCall de agenda. Disparando google_calendar para: "${userText}"`);
+            this.sendToClient({
+                type: 'status',
+                data: { status: 'loading', message: 'Consultando tu agenda en Google Calendar...' }
+            });
+            try {
+                const GoogleCalendar = require('~/app/clients/tools/structured/GoogleCalendar');
+                const toolInstance = new GoogleCalendar({ req: { user: { id: this.userId } } });
+                toolInstance._call({ action: 'list_events' })
+                    .then(events => {
+                        const outputStr = typeof events === 'string' ? events : JSON.stringify(events);
+                        this.sendToClient({
+                            type: 'wappy_action',
+                            data: {
+                                id: `failsafe-cal-${Date.now()}`,
+                                name: 'google_calendar',
+                                args: { action: 'list_events' },
+                                result: outputStr
+                            }
+                        });
+                    })
+                    .catch(err => {
+                        logger.warn('[VoiceSession] [Tenshi Voice Failsafe] Error en failsafe google_calendar:', err.message);
+                    });
+            } catch (errCal) {
+                logger.warn('[VoiceSession] [Tenshi Voice Failsafe] Error instanciando google_calendar:', errCal.message);
+            }
+            return;
+        }
+
+        // 0.3. Failsafe para lectura de pantalla ante preguntas de lo que hay visible
+        const isReadScreenQuery = /\b(qu[eé]\s+(ves|dice|hay\s+en\s+(la\s+)?pantalla)|l[eé]eme\s+(la\s+)?pantalla|expl[ií]came\s+lo\s+que\s+hay|qu[eé]\s+es\s+esto)\b/i.test(userLower);
+        if (isReadScreenQuery) {
+            logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Detección de lectura de pantalla. Disparando leer_pantalla...`);
+            this.sendToClient({
+                type: 'wappy_action',
+                data: {
+                    id: `failsafe-readscreen-${Date.now()}`,
+                    name: 'leer_pantalla',
+                    args: { accion: 'leer' }
+                }
+            });
+            return;
+        }
+
         // 0.5. Failsafe prioritario para iniciar Estudio de Puesto de Trabajo Ergonómico en Vivo con la Fisioterapeuta
         const liveEptMatch =
             /\b(estudio\s+de\s+puesto|evaluaci[oó]n\s+ergon[oó]mica|an[aá]lisis\s+ergon[oó]mico|an[aá]lisis\s+biomec[aá]nico|estudio\s+ergon[oó]mico|inspecci[oó]n\s+ergon[oó]mica|puesto\s+de\s+trabajo\s+ergon[oó]mico)/i.test(userLower) &&
@@ -7721,6 +7829,30 @@ ${workerSubHeaderHtml}
             } else if (/control|kanban|acpm/i.test(userLower)) {
                 targetModulo = 'control_acpm';
                 targetRuta = '/sgsst/control';
+            } else if (/tienda|marketplace/i.test(userLower)) {
+                targetModulo = 'marketplace';
+                targetRuta = '/marketplace';
+            } else if (/clases?\s+en\s+vivo|sesiones?\s+en\s+vivo/i.test(userLower)) {
+                targetModulo = 'clases_en_vivo';
+                targetRuta = '/academia?tab=meet';
+            } else if (/empresas?\s+registradas?|mis\s+empresas|donde\s+van\s+las\s+empresas/i.test(userLower)) {
+                targetModulo = 'empresas';
+                targetRuta = '/sgsst?modal=empresas';
+            } else if (/configuraci[oó]n|ajustes|settings|preferencias/i.test(userLower)) {
+                targetModulo = 'configuracion';
+                targetRuta = '/settings';
+            } else if (/regresar|volver|ir\s+al\s+chat/i.test(userLower)) {
+                targetModulo = 'regresar';
+                targetRuta = '/c/new';
+            } else if (/t[eé]rminos(\s+de\s+servicio)?/i.test(userLower)) {
+                targetModulo = 'terms';
+                targetRuta = '/terms';
+            } else if (/privacidad|pol[ií]tica\s+de\s+privacidad/i.test(userLower)) {
+                targetModulo = 'privacy';
+                targetRuta = '/privacy';
+            } else if (/acerca\s+de|qui[eé]nes\s+somos|about/i.test(userLower)) {
+                targetModulo = 'about';
+                targetRuta = '/about';
             }
 
             if (targetModulo) {

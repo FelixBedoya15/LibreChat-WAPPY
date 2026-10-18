@@ -23,6 +23,7 @@ import Search from './Search';
 import Root from './Root';
 import RoadmapNotifier from '~/components/Roadmap/RoadmapNotifier';
 import { hasActivePlan } from '~/utils/planAccess';
+import TenshiStandaloneHost from '~/components/Tenshi/TenshiStandaloneHost';
 
 // Lazy-loaded secondary dashboards and public pages for fast initial bundle load
 const SGSSTDashboard = lazy(() => import('~/components/SGSST/Dashboard'));
@@ -313,7 +314,14 @@ export const router = createBrowserRouter(
     },
     {
       path: 'privacy',
-      element: withSuspense(<PrivacyPolicyPage />),
+      element: withSuspense(
+        <AuthContextProvider>
+          <TenshiStandaloneHost>
+            <PrivacyPolicyPage />
+          </TenshiStandaloneHost>
+          <ApiErrorWatcher />
+        </AuthContextProvider>
+      ),
       errorElement: <RouteErrorBoundary />,
     },
     {
@@ -323,7 +331,14 @@ export const router = createBrowserRouter(
     },
     {
       path: 'terms',
-      element: withSuspense(<TermsOfServicePage />),
+      element: withSuspense(
+        <AuthContextProvider>
+          <TenshiStandaloneHost>
+            <TermsOfServicePage />
+          </TenshiStandaloneHost>
+          <ApiErrorWatcher />
+        </AuthContextProvider>
+      ),
       errorElement: <RouteErrorBoundary />,
     },
     {
@@ -333,7 +348,14 @@ export const router = createBrowserRouter(
     },
     {
       path: 'about',
-      element: withSuspense(<WappyAboutPage />),
+      element: withSuspense(
+        <AuthContextProvider>
+          <TenshiStandaloneHost>
+            <WappyAboutPage />
+          </TenshiStandaloneHost>
+          <ApiErrorWatcher />
+        </AuthContextProvider>
+      ),
       errorElement: <RouteErrorBoundary />,
     },
     {
@@ -405,7 +427,9 @@ export const router = createBrowserRouter(
       path: 'planes',
       element: withSuspense(
         <AuthContextProvider>
-          <PlansPage />
+          <TenshiStandaloneHost>
+            <PlansPage />
+          </TenshiStandaloneHost>
           <ApiErrorWatcher />
         </AuthContextProvider>
       ),

@@ -263,20 +263,36 @@ export default function SGSSTDashboard() {
         hasCheckedRef.current = false;
     }, []);
 
-    // ─── handle navigate-sgsst event (from notification panel / tenshi) ───
+    // ─── handle navigate-sgsst & open-company-info events (from notification panel / tenshi) ───
     useEffect(() => {
         const handler = (e: Event) => {
             const { module } = (e as CustomEvent).detail || {};
             if (!module) return;
+            if (module === 'empresas' || module === 'empresas_registradas' || module === 'company_info') {
+                setShowCompanyInfo(true);
+                return;
+            }
             const targetHito = SGSST_MODULE_PHASE_MAP[module] || 'hito1';
             setSearchParams({ hito: targetHito, module });
         };
+        const openCompanyHandler = () => {
+            setShowCompanyInfo(true);
+        };
+
         window.addEventListener('navigate-sgsst', handler);
-        return () => window.removeEventListener('navigate-sgsst', handler);
+        window.addEventListener('open-company-info', openCompanyHandler);
+        return () => {
+            window.removeEventListener('navigate-sgsst', handler);
+            window.removeEventListener('open-company-info', openCompanyHandler);
+        };
     }, [setSearchParams]);
 
     // ─── URL Sync & Defensive Parameter Routing ─────────────────────────────
     useEffect(() => {
+        if (searchParams.get('modal') === 'empresas' || searchParams.get('module') === 'empresas') {
+            setShowCompanyInfo(true);
+        }
+
         const tabParam = searchParams.get('tab');
 
         // Redirección directa hacia el Centro de Control SST

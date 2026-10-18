@@ -804,6 +804,27 @@ export const WAPPY_NAV_MAP: Record<string, { route: string; sgsstModule?: string
   portafolio: { route: '/portafolio' },
   mauricioposada: { route: '/mauricioposada' },
 
+  // ─── CLASES Y SESIONES EN VIVO (MEET / ACADEMIA) ───
+  clases_en_vivo: { route: '/academia?tab=meet' },
+  clase_en_vivo: { route: '/academia?tab=meet' },
+  sesion_en_vivo: { route: '/academia?tab=meet' },
+  sesiones_en_vivo: { route: '/academia?tab=meet' },
+
+  // ─── EMPRESAS REGISTRADAS (MODAL / GESTIÓN) ───
+  empresas: { route: '/sgsst?modal=empresas' },
+  empresas_registradas: { route: '/sgsst?modal=empresas' },
+  empresa_info: { route: '/sgsst?modal=empresas' },
+
+  // ─── CONFIGURACIÓN Y AJUSTES DE CUENTA ───
+  configuracion: { route: '/settings' },
+  settings: { route: '/settings' },
+  ajustes: { route: '/settings' },
+  preferencias: { route: '/settings' },
+
+  // ─── NAVEGACIÓN DE RETORNO / REGRESO ───
+  regresar: { route: '/c/new' },
+  volver: { route: '/c/new' },
+
   // ─── PORTALES PÚBLICOS DEL TRABAJADOR (/sgsst-public/*) ───
   public_reportar: { route: '/sgsst-public/reportar' },
   reportar_publico: { route: '/sgsst-public/reportar' },
@@ -2231,11 +2252,21 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
             // Buffer temporal de 450ms para que la voz de Tenshi empiece a sonar antes del cambio visual en pantalla
             setTimeout(() => {
-              navigate(targetRoute);
-              if (targetSgsstModule) {
-                window.dispatchEvent(
-                  new CustomEvent('navigate-sgsst', { detail: { module: targetSgsstModule } })
-                );
+              const isSettings = rawModulo === 'configuracion' || rawModulo === 'settings' || rawModulo === 'ajustes' || targetRoute === '/settings';
+              const isCompanyModal = rawModulo === 'empresas' || rawModulo === 'empresas_registradas' || targetRoute.includes('modal=empresas');
+
+              if (isSettings) {
+                window.dispatchEvent(new CustomEvent('open-settings'));
+              } else if (isCompanyModal) {
+                navigate(targetRoute);
+                window.dispatchEvent(new CustomEvent('open-company-info'));
+              } else {
+                navigate(targetRoute);
+                if (targetSgsstModule) {
+                  window.dispatchEvent(
+                    new CustomEvent('navigate-sgsst', { detail: { module: targetSgsstModule } })
+                  );
+                }
               }
             }, 450);
 
@@ -4697,11 +4728,21 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             ]);
             await new Promise((resolve) => setTimeout(resolve, 200));
 
-            navigate(targetRoute);
-            if (targetSgsstModule) {
-              window.dispatchEvent(
-                new CustomEvent('navigate-sgsst', { detail: { module: targetSgsstModule } })
-              );
+            const isSettings = rawModulo === 'configuracion' || rawModulo === 'settings' || rawModulo === 'ajustes' || targetRoute === '/settings';
+            const isCompanyModal = rawModulo === 'empresas' || rawModulo === 'empresas_registradas' || targetRoute.includes('modal=empresas');
+
+            if (isSettings) {
+              window.dispatchEvent(new CustomEvent('open-settings'));
+            } else if (isCompanyModal) {
+              navigate(targetRoute);
+              window.dispatchEvent(new CustomEvent('open-company-info'));
+            } else {
+              navigate(targetRoute);
+              if (targetSgsstModule) {
+                window.dispatchEvent(
+                  new CustomEvent('navigate-sgsst', { detail: { module: targetSgsstModule } })
+                );
+              }
             }
 
             lastResult = { success: true, message: `Navegación completada con éxito hacia ${targetRoute}` };

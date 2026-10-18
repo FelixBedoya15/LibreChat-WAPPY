@@ -1985,8 +1985,41 @@ router.get('/tasks', requireApiKeyOrJwt, async (req, res) => {
 
     const tasks = await KanbanTask.find(filter).sort({ dueDate: 1 }).lean();
 
+    const todo = tasks.filter((t) => t.status === 'todo');
+    const due_soon = tasks.filter((t) => t.status === 'due_soon');
+    const overdue = tasks.filter((t) => t.status === 'overdue');
+    const done = tasks.filter((t) => t.status === 'done');
+
+    const fmtTask = (t) => `- "${t.title}" (Vence: ${t.dueDate ? new Date(t.dueDate).toLocaleDateString('es-CO') : 'Sin fecha'}) ${t.description ? `- ${t.description.substring(0, 70)}...` : ''}`;
+
+    const resumenKanban = [
+      `=== TABLERO KANBAN / CENTRO DE CONTROL SG-SST (Total: ${tasks.length} actividades) ===`,
+      `📌 ETAPA 1 - PENDIENTES (${todo.length} actividades):`,
+      todo.length > 0 ? todo.map(fmtTask).join('\n') : '  (Sin actividades pendientes)',
+      `⚠️ ETAPA 2 - PRÓXIMAS A VENCER (${due_soon.length} actividades):`,
+      due_soon.length > 0 ? due_soon.map(fmtTask).join('\n') : '  (Sin actividades próximas a vencer)',
+      `🚨 ETAPA 3 - VENCIDAS / ALERTA (${overdue.length} actividades):`,
+      overdue.length > 0 ? overdue.map(fmtTask).join('\n') : '  (No hay actividades vencidas)',
+      `✅ ETAPA 4 - COMPLETADAS (${done.length} actividades):`,
+      done.length > 0 ? done.map(fmtTask).join('\n') : '  (Sin actividades completadas)',
+    ].join('\n');
+
     return res.json({
       total: tasks.length,
+      resumenKanban,
+      estadisticas: {
+        pendientes: todo.length,
+        proximas: due_soon.length,
+        vencidas: overdue.length,
+        completadas: done.length,
+        porcentajeCumplimiento: tasks.length > 0 ? Math.round((done.length / tasks.length) * 100) : 100,
+      },
+      porEtapa: {
+        todo,
+        due_soon,
+        overdue,
+        done,
+      },
       tareas: tasks.map((t) => ({
         id: t._id.toString(),
         title: t.title,
@@ -4368,10 +4401,35 @@ router.get('/courses/progress', requireApiKeyOrJwt, async (req, res) => {
 
 router.get('/marketplace/products', requireApiKeyOrJwt, async (req, res) => {
   try {
-    const products = await MarketplaceProduct.find({}).sort({ createdAt: -1 }).lean();
+    const { busqueda, categoria, q } = req.query;
+    let query = {};
+    const searchTerm = busqueda || q;
+    if (searchTerm) {
+      const safeRegex = new RegExp(String(searchTerm).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      query.$or = [{ title: safeRegex }, { description: safeRegex }, { shortDescription: safeRegex }, { category: safeRegex }];
+    }
+    if (categoria) {
+      query.category = categoria;
+    }
+
+    const products = await MarketplaceProduct.find(query).sort({ createdAt: -1 }).lean();
+
+    const lineas = products
+      .map((p, i) => {
+        const precioReg = p.regularPrice ? `$${Number(p.regularPrice).toLocaleString('es-CO')}` : 'Consultar';
+        const precioOferta = p.salePrice && p.salePrice > 0 ? ` (¡En Oferta!: $${Number(p.salePrice).toLocaleString('es-CO')})` : '';
+        return `${i + 1}. "${p.title}" [Categoría: ${p.category || 'General'}] - Precio: ${precioReg}${precioOferta} - ${p.shortDescription || p.description || 'Servicio/Producto SST oficial WAPPY'}`;
+      })
+      .join('\n');
+
+    const resumenTexto =
+      products.length > 0
+        ? `Catálogo de la Tienda / Marketplace WAPPY (${products.length} productos/servicios disponibles):\n${lineas}`
+        : 'Actualmente no se encontraron productos disponibles en el Marketplace.';
 
     return res.json({
       total: products.length,
+      resumenTexto,
       productos: products.map((p) => ({
         id: p._id.toString(),
         title: p.title,

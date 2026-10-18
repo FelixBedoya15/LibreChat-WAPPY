@@ -107,8 +107,8 @@ function isInteractive(el: HTMLElement): boolean {
     return true;
   }
 
-  // Atributos y marcas de interactividad (Radix UI, tabs, accordions)
-  if (el.getAttribute('data-action') || el.getAttribute('data-clickable') || el.getAttribute('tabindex') === '0' || el.getAttribute('aria-expanded')) {
+  // Atributos y marcas de interactividad (Radix UI, tabs, accordions, cursos LMS, blog, eventos)
+  if (el.getAttribute('data-action') || el.getAttribute('data-clickable') || el.getAttribute('data-course-id') || el.getAttribute('data-post-id') || el.getAttribute('data-event-id') || el.getAttribute('data-tenshi-action') || el.getAttribute('tabindex') === '0' || el.getAttribute('aria-expanded')) {
     return true;
   }
 
@@ -341,6 +341,34 @@ export function getVisibleScreenContent(section?: string): string {
         lines.push(reportText.length > 10000 ? reportText.substring(0, 10000) + '... [Informe extenso continúa en pantalla]' : reportText);
         lines.push('');
       }
+    }
+
+    // 1.25 Detección Especializada de Tablero Kanban / Centro de Control ACPM (Desglose por 4 Etapas)
+    const kanbanBoard = rootScope.querySelector<HTMLElement>('[data-tenshi-kanban="board"]');
+    if (kanbanBoard) {
+      lines.push('=== TABLERO KANBAN / CENTRO DE CONTROL ACPM (DESGLOSE POR 4 ETAPAS) ===');
+      const columns = Array.from(kanbanBoard.querySelectorAll<HTMLElement>('[data-tenshi-column]'));
+      if (columns.length > 0) {
+        columns.forEach(col => {
+          const colId = col.getAttribute('data-tenshi-column') || '';
+          const colTitle = col.getAttribute('data-tenshi-column-title') || colId;
+          const tasks = Array.from(col.querySelectorAll<HTMLElement>('[data-tenshi-task]'));
+          lines.push(`* ETAPA [${colTitle.toUpperCase()}] (${tasks.length} actividades):`);
+          if (tasks.length === 0) {
+            lines.push('  (Sin actividades en esta etapa)');
+          } else {
+            tasks.slice(0, 10).forEach(t => {
+              const title = t.getAttribute('data-tenshi-title') || t.querySelector('h4')?.innerText?.trim() || 'Actividad';
+              const due = t.getAttribute('data-tenshi-due') || '';
+              lines.push(`  - "${title}"${due ? ` [Vence: ${due}]` : ''}`);
+            });
+            if (tasks.length > 10) {
+              lines.push(`  ... y ${tasks.length - 10} actividades más en esta columna.`);
+            }
+          }
+        });
+      }
+      lines.push('');
     }
 
     // 1.3 Detección Especializada de Catálogo de Perfiles de Cargo (Todos los cargos de la empresa)
@@ -860,10 +888,10 @@ export async function executeGUIAction(
         }
       }
 
-      // 3. Buscar en todos los elementos interactivos del DOM visible
+      // 3. Buscar en todos los elementos interactivos del DOM visible (incluyendo cursos, blogs, eventos y cards clickeables)
       if (!el) {
         const candidates = Array.from(document.querySelectorAll<HTMLElement>(
-          'button, [role="button"], [role="tab"], a, input[type="button"], input[type="submit"], [tabindex="0"], summary, [data-action], [data-clickable]'
+          'button, [role="button"], [role="tab"], a, input[type="button"], input[type="submit"], [tabindex="0"], summary, [data-action], [data-clickable], [data-course-id], [data-post-id], [data-event-id], [data-title], [data-tenshi-action], .cursor-pointer'
         )).filter(isElementVisible);
 
         for (const cand of candidates) {

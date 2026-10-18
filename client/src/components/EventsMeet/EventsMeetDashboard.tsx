@@ -249,7 +249,19 @@ const EventCard = ({ event, onMoreInfo }: { event: any; onMoreInfo: () => void }
 
     return (
         <div 
+            role="button"
+            tabIndex={0}
+            data-action="open-event"
+            data-event-id={event._id}
+            data-title={event.title}
+            aria-label={`Abrir clase o evento: ${event.title}`}
             onClick={onMoreInfo}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onMoreInfo();
+                }
+            }}
             className={`group relative flex-none w-56 sm:w-64 md:w-80 aspect-video rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-105 hover:z-10 shadow-lg border ${
                 isPast 
                     ? 'border-border-light dark:border-white/5 opacity-80 hover:opacity-100' 
