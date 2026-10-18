@@ -23,6 +23,75 @@ const { getActiveSkillInstructions, getActiveSkillsData } = require('~/server/se
 const { resolveApiKeys } = require('./sgsst/sgsstGemini');
 const { executeTenshiMcpTool, TOOL_ROUTES } = require('./voice/tenshiMcpDispatcher');
 
+function sanitizeSlug(title) {
+    if (!title || typeof title !== 'string') return '';
+    return title
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s-]/g, '')
+        .trim()
+        .replace(/\s+/g, '-');
+}
+
+async function findMatchingCourse(query) {
+    if (!query || typeof query !== 'string') return null;
+    const clean = query.trim();
+    if (mongoose.isValidObjectId(clean)) {
+        const byId = await Course.findById(clean).lean().catch(() => null);
+        if (byId) return byId;
+    }
+    let searchTerm = clean;
+    if (/\b(a\s*picar|a\s*pi\s*key|api\s*key)\b/i.test(searchTerm)) {
+        searchTerm = 'api key';
+    }
+    const safeRegex = new RegExp(searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    let course = await Course.findOne({
+        $or: [
+            { title: safeRegex },
+            { description: safeRegex },
+            { 'lessons.title': safeRegex }
+        ]
+    }).lean().catch(() => null);
+    if (course) return course;
+
+    const words = searchTerm.split(/\s+/).filter(w => w.length > 3 && !['para', 'curso', 'sobre', 'este', 'como', 'facil', 'abrir', 'abre'].includes(w.toLowerCase()));
+    for (const w of words) {
+        const wordRegex = new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+        course = await Course.findOne({
+            $or: [{ title: wordRegex }, { 'lessons.title': wordRegex }]
+        }).lean().catch(() => null);
+        if (course) return course;
+    }
+    return null;
+}
+
+async function findMatchingBlogPost(query) {
+    if (!query || typeof query !== 'string') return null;
+    const clean = query.trim();
+    if (mongoose.isValidObjectId(clean)) {
+        const byId = await BlogPost.findById(clean).lean().catch(() => null);
+        if (byId) return byId;
+    }
+    const safeRegex = new RegExp(clean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    let post = await BlogPost.findOne({
+        $or: [
+            { title: safeRegex },
+            { slug: safeRegex },
+            { tags: safeRegex }
+        ]
+    }).lean().catch(() => null);
+    if (post) return post;
+
+    const words = clean.split(/\s+/).filter(w => w.length > 3 && !['para', 'post', 'blog', 'articulo', 'sobre'].includes(w.toLowerCase()));
+    for (const w of words) {
+        const wordRegex = new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+        post = await BlogPost.findOne({ title: wordRegex }).lean().catch(() => null);
+        if (post) return post;
+    }
+    return null;
+}
+
 // Knowledge Retrieval System (RAG)
 async function getRelevantTickets(req, userQuery) {
     if (!userQuery || userQuery.length < 5) return '';
@@ -615,13 +684,17 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
      3. 'overdue' (Vencidas / En alerta roja): Actividades cuyo plazo ya expiró.
      4. 'done' (Completadas / Realizadas): Actividades finalizadas con éxito.
 8.3. **TIENDA OFICIAL Y MARKETPLACE DE WAPPY ('wappy_consultar_marketplace')**:
-   - Tienes la herramienta 'wappy_consultar_marketplace' para consultar productos, servicios SST, señalización, extintores, cursos, software, precios y pedidos de la tienda.
+   - Tienes la herramienta 'wappy_consultar_marketplace' para consultar productos, servicios SST, señalización, extintores, consultorías comerciales, software, precios y pedidos de la tienda.
    - Si el usuario te pide ir a la tienda o marketplace, navega con 'wappy_navegar' a modulo: 'marketplace' (ruta: '/marketplace').
-8.4. **ACADEMIA, CURSOS, BLOGS Y CLASES EN VIVO**:
+   - DIFERENCIACIÓN VITAL: La Tienda / Marketplace es para comprar productos y servicios con precio ($ COP). NUNCA la confundas con la Academia WAPPY LMS.
+8.4. **ACADEMIA WAPPY LMS, CURSOS, BLOGS Y CLASES EN VIVO**:
    - Clases en vivo / Sesiones en vivo: navega con 'wappy_navegar' a modulo: 'clases_en_vivo' (ruta: '/academia?tab=meet') o 'events_meet'.
-   - Cursos: 'academia' (/academia?tab=cursos).
-   - Blog: 'blog' (/blog).
-   - Para abrir un curso o blog específico mientras está visible en pantalla, usa 'operar_interfaz_visual' haciendo click en el título del curso o post, o abre su ruta.
+   - Cursos de formación interactivos: 'wappy_consultar_cursos' para listar, 'wappy_abrir_curso' para abrir inmediatamente un curso en pantalla (/training/:id/:slug), y 'wappy_leer_curso' para ver su temario.
+   - ⚠️ REGLA DE ACCIÓN DIRECTA: Cuando el usuario te diga "ábreme el curso de...", "ábreme el de...", "abre el curso...", "quiero ver el curso...", NO te limites a hacerle preguntas de relleno; DEBES INVOCAR DE INMEDIATO 'wappy_abrir_curso'.
+   - Blog técnico: 'wappy_consultar_blog' para listar, 'wappy_abrir_articulo_blog' para abrir en pantalla (/blog/:id/:slug), y 'wappy_leer_articulo_blog' para leer el texto.
+8.45. **CONTROL DE VIDEOLLAMADA Y CÁMARA**:
+   - PROHIBICIÓN ESTRICTA: NUNCA actives la cámara ni la videollamada por tu cuenta ni ante refranes, expresiones coloquiales ("lléname esta jeep...") o mención de vehículos u objetos físicos.
+   - Solo invoca 'wappy_controlar_videollamada' con accion: 'activar_camara' si el usuario te lo solicita explícitamente ("activa la cámara", "enciende videollamada").
 8.5. **EMPRESAS REGISTRADAS Y CONFIGURACIÓN**:
    - Para abrir la administración de empresas registradas ("dónde van las empresas registradas", "abre mis empresas"): 'wappy_navegar' con modulo: 'empresas' o 'empresas_registradas'.
    - Para ir a configuración / ajustes de la cuenta: 'wappy_navegar' con modulo: 'configuracion' o 'settings'.
@@ -1559,6 +1632,30 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 }
             };
 
+            const wappyAbrirCursoDeclaration = {
+                name: 'wappy_abrir_curso',
+                description: 'Abre de inmediato en pantalla un curso específico de la Academia WAPPY LMS navegando a su vista interactiva (/training/:id/:slug). DEBES invocar esta herramienta INMEDIATAMENTE siempre que el usuario te pida abrir, ver, entrar o mostrar un curso formativo de la academia ("ábreme el de api key", "abre el curso de primeros auxilios", "quiero ver el curso de trabajo en alturas").',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        curso: { type: 'STRING', description: 'Título, palabra clave, tema o ID del curso a abrir en pantalla (ej: "API Key", "Primeros Auxilios", "Trabajo en Alturas").' }
+                    },
+                    required: ['curso']
+                }
+            };
+
+            const wappyAbrirArticuloBlogDeclaration = {
+                name: 'wappy_abrir_articulo_blog',
+                description: 'Abre de inmediato en pantalla un artículo específico del Blog técnico de WAPPY navegando a su vista de lectura (/blog/:id/:slug). DEBES invocar esta herramienta cuando el usuario te pida abrir, leer o ver una publicación o artículo del blog.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        articulo: { type: 'STRING', description: 'Título, tema, palabra clave o ID del artículo del blog a abrir.' }
+                    },
+                    required: ['articulo']
+                }
+            };
+
             const wappyLeerInformeAplicativoDeclaration = {
                 name: 'wappy_leer_informe_aplicativo',
                 description: 'Lee e inspecciona el informe técnico oficial de cualquiera de los 20 aplicativos del SG-SST (Perfiles de Cargo, Matriz IPEVAR / GTC-45, Diagnóstico Res. 0312, Sociodemográfico y Salud, Vulnerabilidad y Emergencias, Ergonomía OWAS, Estudio de Puesto, ATS, Alturas, Matriz Legal, Comités COPASST, Capacitaciones, EPP, Actos y Condiciones, Investigación ATEL, PESV, Químicos SGA, Vehículos, Cronograma, Auditoría Anual). Si se trata de perfiles de cargo, consulta el catálogo completo de todos los cargos de la empresa y el informe del cargo seleccionado o solicitado.',
@@ -1942,8 +2039,10 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 wappyConsultarDetalleEmpresaDeclaration,
                 wappyConsultarMarketplaceDeclaration,
                 wappyConsultarCursosDeclaration,
+                wappyAbrirCursoDeclaration,
                 wappyLeerCursoDeclaration,
                 wappyConsultarBlogDeclaration,
+                wappyAbrirArticuloBlogDeclaration,
                 wappyLeerArticuloBlogDeclaration,
                 wappyResumenGeneral360Declaration,
                 wappyMcpSstDeclaration,
@@ -2229,6 +2328,48 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                         args: call.args
                                     };
                                     break;
+                                } else if (call.name === 'wappy_abrir_curso') {
+                                    const query = call.args?.curso || call.args?.course || call.args?.id || call.args?.titulo || '';
+                                    const course = await findMatchingCourse(query);
+                                    let targetRoute = '/academia?tab=cursos';
+                                    let courseTitle = query;
+                                    if (course) {
+                                        courseTitle = course.title;
+                                        targetRoute = `/training/${course._id}/${sanitizeSlug(course.title)}`;
+                                    }
+                                    requestedGuiAction = {
+                                        name: 'wappy_navegar',
+                                        accion: 'navegar',
+                                        modulo: 'training',
+                                        ruta: targetRoute,
+                                        args: { ruta: targetRoute, modulo: 'training' }
+                                    };
+                                    toolOutput = JSON.stringify({
+                                        success: true,
+                                        message: course ? `Abriendo curso "${courseTitle}" en pantalla: ${targetRoute}` : 'Abriendo catálogo de cursos de WAPPY Academia.'
+                                    });
+                                    break;
+                                } else if (call.name === 'wappy_abrir_articulo_blog') {
+                                    const query = call.args?.articulo || call.args?.slug || call.args?.id || call.args?.titulo || '';
+                                    const post = await findMatchingBlogPost(query);
+                                    let targetRoute = '/academia?tab=blog';
+                                    let postTitle = query;
+                                    if (post) {
+                                        postTitle = post.title;
+                                        targetRoute = `/blog/${post._id}/${sanitizeSlug(post.title)}`;
+                                    }
+                                    requestedGuiAction = {
+                                        name: 'wappy_navegar',
+                                        accion: 'navegar',
+                                        modulo: 'blog',
+                                        ruta: targetRoute,
+                                        args: { ruta: targetRoute, modulo: 'blog' }
+                                    };
+                                    toolOutput = JSON.stringify({
+                                        success: true,
+                                        message: post ? `Abriendo artículo "${postTitle}" en pantalla: ${targetRoute}` : 'Abriendo Blog de WAPPY.'
+                                    });
+                                    break;
                                 } else if (call.name === 'wappy_iniciar_estudio_ergonomico_vivo') {
                                     requestedGuiAction = {
                                         name: 'wappy_iniciar_estudio_ergonomico_vivo',
@@ -2238,6 +2379,17 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                     break;
                                 } else if (call.name === 'wappy_controlar_videollamada' || call.name === 'controlar_videollamada') {
                                     const rawAccion = call.args?.accion || 'activar_camara';
+                                    if (rawAccion === 'activar_camara') {
+                                        const userPrompt = (message || '').toLowerCase();
+                                        const explicitCam = /\b(activa|activar|enciende|encender|inicia|iniciar|pon|poner|prende|prender|abre|abrir|mostrar|ver)\s+(la\s+)?(c[aá]mara|videollamada|video|visi[oó]n)\b|\b(videollamada|c[aá]mara\s+en\s+vivo|activa\s+c[aá]mara|activa\s+video|prende\s+c[aá]mara)\b/i.test(userPrompt);
+                                        if (!explicitCam) {
+                                            toolOutput = JSON.stringify({
+                                                success: false,
+                                                error: 'Cámara NO activada: La videollamada requiere una orden explícita del usuario (ej: "activa la cámara", "inicia videollamada"). NUNCA actives la cámara ante expresiones casuales o refranes.'
+                                            });
+                                            break;
+                                        }
+                                    }
                                     requestedGuiAction = {
                                         action: 'wappy_controlar_videollamada',
                                         accion: rawAccion,

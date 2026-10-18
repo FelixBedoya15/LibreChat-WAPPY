@@ -2236,6 +2236,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           operar_interfaz_visual: '✨ Tenshi operando pantalla...',
           wappy_generar_analisis_aplicativo: '⚡ Ejecutando análisis IA...',
           wappy_abrir_chat_agente: '🤝 Conectando con especialista...',
+          wappy_abrir_curso: '🎓 Abriendo curso formativo...',
+          wappy_abrir_articulo_blog: '📰 Abriendo artículo del Blog...',
         };
         if (pillMap[action.name]) {
           showLiveActionPill(pillMap[action.name], 4200);
@@ -2271,6 +2273,20 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             }, 450);
 
             resultMsg = `Navegación exitosa a ${targetRoute}`;
+          } else if (action.name === 'wappy_abrir_curso') {
+            tenshiAudio.playBlip();
+            const targetRoute = action.args?.ruta || (action as any).result?.ruta || '/academia?tab=cursos';
+            setTimeout(() => {
+              navigate(targetRoute);
+            }, 450);
+            resultMsg = `Curso abierto con éxito en pantalla: ${targetRoute}`;
+          } else if (action.name === 'wappy_abrir_articulo_blog') {
+            tenshiAudio.playBlip();
+            const targetRoute = action.args?.ruta || (action as any).result?.ruta || '/academia?tab=blog';
+            setTimeout(() => {
+              navigate(targetRoute);
+            }, 450);
+            resultMsg = `Artículo del Blog abierto con éxito en pantalla: ${targetRoute}`;
           } else if (action.name === 'wappy_iniciar_estudio_ergonomico_vivo') {
             setMessages((prev) => [
               ...prev,
@@ -4759,6 +4775,36 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               content: `[RESULTADO_GUI] Navegación ejecutada con éxito a ${targetRoute}.`,
             });
 
+            index++;
+            continue;
+          }
+
+          if (
+            action.name === 'wappy_abrir_curso' ||
+            action.accion === 'abrir_curso' ||
+            action.action === 'wappy_abrir_curso'
+          ) {
+            const rawRuta = action.ruta || action.args?.ruta || '/academia?tab=cursos';
+            tenshiAudio.playBlip();
+            setTenshiStatus(`Abriendo curso...`);
+            navigate(rawRuta);
+            lastResult = { success: true, message: `Curso abierto con éxito: ${rawRuta}` };
+            setTenshiStatus('');
+            index++;
+            continue;
+          }
+
+          if (
+            action.name === 'wappy_abrir_articulo_blog' ||
+            action.accion === 'abrir_articulo_blog' ||
+            action.action === 'wappy_abrir_articulo_blog'
+          ) {
+            const rawRuta = action.ruta || action.args?.ruta || '/academia?tab=blog';
+            tenshiAudio.playBlip();
+            setTenshiStatus(`Abriendo artículo de blog...`);
+            navigate(rawRuta);
+            lastResult = { success: true, message: `Artículo de blog abierto con éxito: ${rawRuta}` };
+            setTenshiStatus('');
             index++;
             continue;
           }

@@ -11,6 +11,8 @@ const { v4: uuidv4 } = require('uuid');
 const { generateWithKeyRotation, SGSST_FALLBACK_MODELS, LIVE_FALLBACK_MODELS } = require('../sgsst/sgsstGemini');
 const mongoose = require('mongoose');
 const CompanyInfo = require('~/models/CompanyInfo');
+const { Course } = require('~/models/Course');
+const { BlogPost } = require('~/models/BlogPost');
 const { syncCompanyMemory } = require('../sgsst/companyInfo');
 const { buildSignatureSection, buildStandardHeader, buildWorkerSubHeader } = require('../sgsst/reportHeader');
 const fs = require('fs');
@@ -18,6 +20,75 @@ const path = require('path');
 const SKILLS_DIR = path.resolve(__dirname, '../../../config/skills');
 const { resolveInspectionProtocol, INSPECTION_PROTOCOLS } = require('./inspectionProtocols');
 const { executeTenshiMcpTool, TOOL_ROUTES } = require('./tenshiMcpDispatcher');
+
+function sanitizeSlug(title) {
+    if (!title || typeof title !== 'string') return '';
+    return title
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s-]/g, '')
+        .trim()
+        .replace(/\s+/g, '-');
+}
+
+async function findMatchingCourse(query) {
+    if (!query || typeof query !== 'string') return null;
+    const clean = query.trim();
+    if (mongoose.isValidObjectId(clean)) {
+        const byId = await Course.findById(clean).lean().catch(() => null);
+        if (byId) return byId;
+    }
+    let searchTerm = clean;
+    if (/\b(a\s*picar|a\s*pi\s*key|api\s*key)\b/i.test(searchTerm)) {
+        searchTerm = 'api key';
+    }
+    const safeRegex = new RegExp(searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    let course = await Course.findOne({
+        $or: [
+            { title: safeRegex },
+            { description: safeRegex },
+            { 'lessons.title': safeRegex }
+        ]
+    }).lean().catch(() => null);
+    if (course) return course;
+
+    const words = searchTerm.split(/\s+/).filter(w => w.length > 3 && !['para', 'curso', 'sobre', 'este', 'como', 'facil', 'abrir', 'abre'].includes(w.toLowerCase()));
+    for (const w of words) {
+        const wordRegex = new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+        course = await Course.findOne({
+            $or: [{ title: wordRegex }, { 'lessons.title': wordRegex }]
+        }).lean().catch(() => null);
+        if (course) return course;
+    }
+    return null;
+}
+
+async function findMatchingBlogPost(query) {
+    if (!query || typeof query !== 'string') return null;
+    const clean = query.trim();
+    if (mongoose.isValidObjectId(clean)) {
+        const byId = await BlogPost.findById(clean).lean().catch(() => null);
+        if (byId) return byId;
+    }
+    const safeRegex = new RegExp(clean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    let post = await BlogPost.findOne({
+        $or: [
+            { title: safeRegex },
+            { slug: safeRegex },
+            { tags: safeRegex }
+        ]
+    }).lean().catch(() => null);
+    if (post) return post;
+
+    const words = clean.split(/\s+/).filter(w => w.length > 3 && !['para', 'post', 'blog', 'articulo', 'sobre'].includes(w.toLowerCase()));
+    for (const w of words) {
+        const wordRegex = new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+        post = await BlogPost.findOne({ title: wordRegex }).lean().catch(() => null);
+        if (post) return post;
+    }
+    return null;
+}
 
 /**
  * Sanitizes voice transcription for common Spanish/SST phonetic misrecognitions
@@ -1315,6 +1386,34 @@ class VoiceSession {
                             }
                         },
                         {
+                            name: "wappy_abrir_curso",
+                            description: "Abre de inmediato en pantalla un curso específico de la Academia WAPPY LMS navegando a su vista interactiva (/training/:id/:slug). DEBES invocar esta herramienta INMEDIATAMENTE siempre que el usuario te pida abrir, ver, entrar o mostrar un curso formativo de la academia ('ábreme el de api key', 'abre el curso de primeros auxilios', 'quiero ver el curso de trabajo en alturas').",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    curso: {
+                                        type: "string",
+                                        description: "Título, palabra clave, tema o ID del curso a abrir en pantalla (ej: 'API Key', 'Primeros Auxilios', 'Trabajo en Alturas')."
+                                    }
+                                },
+                                required: ["curso"]
+                            }
+                        },
+                        {
+                            name: "wappy_abrir_articulo_blog",
+                            description: "Abre de inmediato en pantalla un artículo específico del Blog técnico de WAPPY navegando a su vista de lectura (/blog/:id/:slug). DEBES invocar esta herramienta cuando el usuario te pida abrir, leer o ver una publicación o artículo del blog.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    articulo: {
+                                        type: "string",
+                                        description: "Título, tema, palabra clave o ID del artículo del blog a abrir."
+                                    }
+                                },
+                                required: ["articulo"]
+                            }
+                        },
+                        {
                             name: "wappy_activar_herramienta_agente",
                             description: "Activa y ejecuta de inmediato cualquiera de las herramientas especializadas de los agentes de WAPPY ('canvas', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'gestor_automatizaciones', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'editor_live', 'generar_imagen_sst'). Invócala cuando el usuario pida abrir o activar una herramienta de un agente.",
                             parameters: {
@@ -1837,6 +1936,10 @@ class VoiceSession {
 - Si el usuario te pide: "activa videollamada", "activa la cámara", "activa video", "inicia videollamada", "enciende la cámara", "pon la cámara", invoca DE INMEDIATO la herramienta 'wappy_controlar_videollamada' con accion: 'activar_camara' y confirma en una sola frase breve: "¡Listo! Iniciando videollamada en vivo."
 - Si el usuario te pide: "apaga la cámara", "desactiva el video", "apaga videollamada", invoca 'wappy_controlar_videollamada' con accion: 'apagar_camara' y confirma: "Cámara apagada, continuamos por voz."
 - Si el usuario te pide: "cuelga", "colgar", "terminar llamada", "finalizar llamada", "chao", "hasta luego", invoca DE INMEDIATO 'wappy_controlar_videollamada' con accion: 'colgar_llamada' y despídete amablemente: "¡Con gusto! Que tengas un excelente día."
+- PROHIBICIÓN ESTRICTA DE ACTIVACIÓN NO SOLICITADA DE CÁMARA O VIDEOLLAMADA:
+  * NUNCA actives la cámara ni la videollamada por tu cuenta.
+  * Solo puedes invocar 'wappy_controlar_videollamada' con accion: 'activar_camara' si el usuario te lo solicita EXPLÍCITAMENTE con frases inequívocas como "activa la cámara", "enciende la cámara" o "inicia videollamada".
+  * Menciones casuales, frases coloquiales, refranes populares (ej: "lléname esta jeep, que nos vamos de viaje"), o menciones de vehículos u objetos físicos NO SON órdenes de encender la cámara ni de videollamada. NUNCA prendas la cámara ante tales expresiones.
 
 [REGLA DE ORO DE VERACIDAD Y GROUNDING - PROHIBICIÓN DE AFIRMAR ACCIONES NO EJECUTADAS]:
 - ESTÁ TERMINANTEMENTE PROHIBIDO afirmar verbalmente que has creado un archivo, landing page, prototipo, o que has buscado en Google Drive o que has abierto un chat SI NO ESTÁS INVOCANDO EL TOOL CALL EN ESTE MISMO TURNO O SI NO HAS RECIBIDO SU RESULTADO EXITOSO.
@@ -2164,11 +2267,15 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
      * Cronograma y Tareas Kanban ('cronograma')
      * Auditoría Anual del SG-SST ('auditoria')
    - INVÓCALA SIEMPRE que te pidan leer el informe o consultar el estado de cualquier aplicativo. ESTÁ ESTRICTAMENTE PROHIBIDO inventar datos o decir que no tienes acceso.
-16. **wappy_consultar_cursos y wappy_leer_curso (Academia WAPPY LMS)**:
+16. **ACADEMIA WAPPY LMS ('wappy_consultar_cursos', 'wappy_abrir_curso' y 'wappy_leer_curso')**:
    - 'wappy_consultar_cursos': Lista todos los cursos formativos de la academia, su cantidad de lecciones y descripción temática.
+   - 'wappy_abrir_curso': Abre DE INMEDIATO en la pantalla del usuario un curso específico navegando a su vista interactiva (/training/:id/:slug).
+     * ⚠️ REGLA DE ACCIÓN DIRECTA: Cuando el usuario te diga "ábreme el curso de...", "ábreme el de...", "abre el curso...", "quiero ver el curso...", NO te limites a hacerle preguntas conversacionales. DEBES INVOCAR DE INMEDIATO 'wappy_abrir_curso' para que el curso se abra inmediatamente en su pantalla.
    - 'wappy_leer_curso': Lee un curso completo con todas sus lecciones, temario, contenidos formativos y evaluaciones por su título o ID.
-17. **wappy_consultar_blog y wappy_leer_articulo_blog (Blog de WAPPY)**:
+   - DIFERENCIACIÓN OBLIGATORIA CON LA TIENDA (MARKETPLACE): La Academia LMS (/academia?tab=cursos) contiene los cursos formativos interactivos del trabajador. La Tienda oficial (/marketplace) contiene productos físicos, señalización, extintores y servicios con precio en dinero ($ COP). NUNCA los confundas.
+17. **BLOG DE WAPPY ('wappy_consultar_blog', 'wappy_abrir_articulo_blog' y 'wappy_leer_articulo_blog')**:
    - 'wappy_consultar_blog': Lista todos los artículos publicados en el blog, títulos, etiquetas y resúmenes.
+   - 'wappy_abrir_articulo_blog': Abre DE INMEDIATO en pantalla un artículo del blog navegando a su vista de lectura (/blog/:id/:slug).
    - 'wappy_leer_articulo_blog': Lee el texto íntegro y exhaustivo de cualquier artículo del blog para responder y enseñar a fondo.
 18. **wappy_activar_herramienta_agente (Activación Total de Herramientas de Agentes)**:
    - TIENES FACULTAD TOTAL para activar y ejecutar directamente cualquiera de las herramientas especializadas de los agentes ('canvas', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'gestor_automatizaciones', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'editor_live', 'generar_imagen_sst'). Invócala cuando el usuario te pida abrir, activar o ejecutar la herramienta de un agente.
@@ -3133,10 +3240,32 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         continue;
                     }
 
-                    // Manejo directo de videollamada y colgar por voz
+                    // Manejo directo de videollamada y colgar por voz con GUARDIA ESTRICTA
                     if (fc.name === 'wappy_controlar_videollamada' || fc.name === 'controlar_videollamada') {
                         const accion = fc.args?.accion || 'activar_camara';
                         logger.info(`[VoiceSession] Gemini Live invoked tool "${fc.name}" with accion: ${accion}`);
+
+                        // GUARDIA DE SEGURIDAD ESTRICTA: La cámara NUNCA debe encenderse sin orden explícita del usuario
+                        if (accion === 'activar_camara') {
+                            const recentUserText = `${this.userTranscriptionText || ''} ${this.lastUserTranscription || ''} ${this.lastUserRequest || ''}`.toLowerCase();
+                            const explicitCameraKeywords = /\b(activa|activar|enciende|encender|inicia|iniciar|pon|poner|prende|prender|abre|abrir|mostrar|ver)\s+(la\s+)?(c[aá]mara|videollamada|video|visi[oó]n)\b|\b(videollamada|c[aá]mara\s+en\s+vivo|activa\s+c[aá]mara|activa\s+video|prende\s+c[aá]mara)\b/i;
+                            const isExplicitCamera = explicitCameraKeywords.test(recentUserText);
+
+                            if (!isExplicitCamera) {
+                                logger.warn(`[VoiceSession] RECHAZADA activación alucinada de cámara. Texto del usuario: "${recentUserText.trim()}"`);
+                                if (this.geminiClient) {
+                                    this.sendGeminiToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: {
+                                            error: "Cámara NO activada: La cámara y videollamada requieren una orden explícita del usuario (ej: 'activa la cámara', 'enciende la cámara', 'inicia videollamada'). NUNCA actives la cámara por tu cuenta ante menciones casuales, refranes o de objetos sin orden explícita."
+                                        }
+                                    }]);
+                                }
+                                continue;
+                            }
+                        }
+
                         this.sendToClient({
                             type: 'wappy_action',
                             data: {
@@ -3156,6 +3285,124 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                 name: fc.name,
                                 response: { result: respText }
                             }]);
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de abrir curso en WAPPY Academia LMS (/training/:id/:slug)
+                    if (fc.name === 'wappy_abrir_curso' || fc.name === 'abrir_curso') {
+                        const query = fc.args?.curso || fc.args?.course || fc.args?.id || fc.args?.titulo || fc.args?.title || '';
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "${fc.name}" with query: "${query}"`);
+                        try {
+                            const course = await findMatchingCourse(query);
+                            if (course) {
+                                const slug = sanitizeSlug(course.title);
+                                const targetRoute = `/training/${course._id}/${slug}`;
+                                logger.info(`[VoiceSession] Abriendo curso "${course.title}" en ruta: ${targetRoute}`);
+                                this.sendToClient({
+                                    type: 'wappy_action',
+                                    data: {
+                                        id: fc.id,
+                                        name: 'wappy_navegar',
+                                        args: { ruta: targetRoute, modulo: 'training' }
+                                    }
+                                });
+                                if (this.geminiClient) {
+                                    this.sendGeminiToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: {
+                                            result: `Curso "${course.title}" abierto con éxito en la pantalla del usuario en la ruta ${targetRoute}. Confirma al usuario en una sola frase breve y entusiasta: "¡Listo! Ya te abrí el curso '${course.title}' en pantalla para que continúes tus lecciones."`
+                                        }
+                                    }]);
+                                }
+                            } else {
+                                this.sendToClient({
+                                    type: 'wappy_action',
+                                    data: {
+                                        id: fc.id,
+                                        name: 'wappy_navegar',
+                                        args: { ruta: '/academia?tab=cursos', modulo: 'academia' }
+                                    }
+                                });
+                                if (this.geminiClient) {
+                                    this.sendGeminiToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: {
+                                            result: `No encontré un curso específico para "${query}", pero te he abierto el catálogo de cursos de WAPPY Academia (/academia?tab=cursos) en pantalla. Confirma brevemente al usuario.`
+                                        }
+                                    }]);
+                                }
+                            }
+                        } catch (courseErr) {
+                            logger.error('[VoiceSession] Error executing wappy_abrir_curso:', courseErr);
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error abriendo curso: ${courseErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de abrir artículo de blog (/blog/:id/:slug)
+                    if (fc.name === 'wappy_abrir_articulo_blog' || fc.name === 'abrir_articulo_blog' || fc.name === 'abrir_blog') {
+                        const query = fc.args?.articulo || fc.args?.slug || fc.args?.id || fc.args?.titulo || '';
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "${fc.name}" with query: "${query}"`);
+                        try {
+                            const post = await findMatchingBlogPost(query);
+                            if (post) {
+                                const slug = sanitizeSlug(post.title);
+                                const targetRoute = `/blog/${post._id}/${slug}`;
+                                logger.info(`[VoiceSession] Abriendo artículo de blog "${post.title}" en ruta: ${targetRoute}`);
+                                this.sendToClient({
+                                    type: 'wappy_action',
+                                    data: {
+                                        id: fc.id,
+                                        name: 'wappy_navegar',
+                                        args: { ruta: targetRoute, modulo: 'blog' }
+                                    }
+                                });
+                                if (this.geminiClient) {
+                                    this.sendGeminiToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: {
+                                            result: `Artículo "${post.title}" abierto con éxito en la pantalla del usuario en la ruta ${targetRoute}. Confirma al usuario en una sola frase breve.`
+                                        }
+                                    }]);
+                                }
+                            } else {
+                                this.sendToClient({
+                                    type: 'wappy_action',
+                                    data: {
+                                        id: fc.id,
+                                        name: 'wappy_navegar',
+                                        args: { ruta: '/academia?tab=blog', modulo: 'blog' }
+                                    }
+                                });
+                                if (this.geminiClient) {
+                                    this.sendGeminiToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: {
+                                            result: `No encontré el artículo exacto "${query}", pero te he abierto la sección de Blog de WAPPY (/academia?tab=blog) en pantalla.`
+                                        }
+                                    }]);
+                                }
+                            }
+                        } catch (blogErr) {
+                            logger.error('[VoiceSession] Error executing wappy_abrir_articulo_blog:', blogErr);
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error abriendo artículo del blog: ${blogErr.message}` }
+                                }]);
+                            }
                         }
                         continue;
                     }
@@ -7391,6 +7638,61 @@ ${workerSubHeaderHtml}
                     name: 'leer_pantalla',
                     args: { accion: 'leer' }
                 }
+            });
+            return;
+        }
+
+        // 0.4. Failsafe prioritario para abrir cursos de la Academia WAPPY LMS (/training/:id/:slug)
+        const isAbrirCursoQuery = /\b(abre|abrir|[aá]breme|mu[eé]strame|ver|entrar\s+al|quiero\s+ver)\s+(el\s+)?(curso|tutorial|capacitaci[oó]n)?\s*(de|del)?\s*([a-z0-9ñáéíóú\s\-]+)/i.test(userLower) &&
+            !/\b(c[aá]mara|video|videollamada|m[oó]dulo|hito|agenda|calendario|pantalla)\b/i.test(userLower);
+        if (isAbrirCursoQuery) {
+            const courseTermMatch = userLower.match(/(?:abre|abrir|[aá]breme|mu[eé]strame|ver|entrar\s+al|quiero\s+ver)\s+(?:el\s+)?(?:curso|tutorial|capacitaci[oó]n)?\s*(?:de|del)?\s*([a-z0-9ñáéíóú\s\-]+)/i);
+            const rawTerm = courseTermMatch ? courseTermMatch[1].trim() : userText;
+            logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Gemini omitió wappy_abrir_curso. Buscando curso para: "${rawTerm}"`);
+            findMatchingCourse(rawTerm).then(course => {
+                let targetRoute = '/academia?tab=cursos';
+                if (course) {
+                    const slug = sanitizeSlug(course.title);
+                    targetRoute = `/training/${course._id}/${slug}`;
+                    logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Curso encontrado: "${course.title}". Navegando a: ${targetRoute}`);
+                }
+                this.sendToClient({
+                    type: 'wappy_action',
+                    data: {
+                        id: `failsafe-course-${Date.now()}`,
+                        name: 'wappy_navegar',
+                        args: { ruta: targetRoute, modulo: 'training' }
+                    }
+                });
+            }).catch(cErr => {
+                logger.warn('[VoiceSession] [Tenshi Voice Failsafe] Error buscando curso:', cErr.message);
+            });
+            return;
+        }
+
+        // 0.45. Failsafe prioritario para abrir artículo de Blog (/blog/:id/:slug)
+        const isAbrirBlogQuery = /\b(abre|abrir|[aá]breme|mu[eé]strame|leer|quiero\s+leer)\s+(el\s+)?(art[ií]culo|blog|post)\s*(de|del)?\s*([a-z0-9ñáéíóú\s\-]+)/i.test(userLower);
+        if (isAbrirBlogQuery) {
+            const blogTermMatch = userLower.match(/(?:abre|abrir|[aá]breme|mu[eé]strame|leer|quiero\s+leer)\s+(?:el\s+)?(?:art[ií]culo|blog|post)\s*(?:de|del)?\s*([a-z0-9ñáéíóú\s\-]+)/i);
+            const rawBlogTerm = blogTermMatch ? blogTermMatch[1].trim() : userText;
+            logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Gemini omitió wappy_abrir_articulo_blog. Buscando blog para: "${rawBlogTerm}"`);
+            findMatchingBlogPost(rawBlogTerm).then(post => {
+                let targetRoute = '/academia?tab=blog';
+                if (post) {
+                    const slug = sanitizeSlug(post.title);
+                    targetRoute = `/blog/${post._id}/${slug}`;
+                    logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Artículo encontrado: "${post.title}". Navegando a: ${targetRoute}`);
+                }
+                this.sendToClient({
+                    type: 'wappy_action',
+                    data: {
+                        id: `failsafe-blog-${Date.now()}`,
+                        name: 'wappy_navegar',
+                        args: { ruta: targetRoute, modulo: 'blog' }
+                    }
+                });
+            }).catch(bErr => {
+                logger.warn('[VoiceSession] [Tenshi Voice Failsafe] Error buscando blog:', bErr.message);
             });
             return;
         }
