@@ -558,6 +558,35 @@ class VoiceSession {
                             }
                         },
                         {
+                            name: "wappy_actualizar_empresa",
+                            description: "Modifica o edita la información de cualquier empresa registrada del usuario o de la empresa activa (razón social, NIT, tipo de empresa, representante legal, cédula rep legal, número de trabajadores, ARL, nivel de riesgo, actividad económica, CIIU, dirección, ciudad, departamento, teléfono, email, responsable SST, licencia SST, vigencia).",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    empresa: { type: "string", description: "Nombre, NIT o ID de la empresa a editar. Si se omite, se edita la empresa activa actual." },
+                                    companyName: { type: "string", description: "Nueva razón social de la empresa." },
+                                    nit: { type: "string", description: "Nuevo NIT o cédula de la empresa." },
+                                    companyType: { type: "string", description: "'Persona Jurídica' o 'Persona Natural'." },
+                                    legalRepresentative: { type: "string", description: "Nombre del representante legal." },
+                                    legalRepresentativeId: { type: "string", description: "Cédula del representante legal." },
+                                    workerCount: { type: "number", description: "Número de trabajadores." },
+                                    arl: { type: "string", description: "Nombre de la ARL (Sura, Positiva, Colmena, Bolívar, etc.)." },
+                                    riskLevel: { type: "string", description: "Nivel de riesgo ('I', 'II', 'III', 'IV', 'V')." },
+                                    ciiu: { type: "string", description: "Código CIIU." },
+                                    economicActivity: { type: "string", description: "Actividad económica." },
+                                    address: { type: "string", description: "Dirección principal." },
+                                    city: { type: "string", description: "Ciudad." },
+                                    departamento: { type: "string", description: "Departamento." },
+                                    phone: { type: "string", description: "Teléfono de contacto." },
+                                    email: { type: "string", description: "Correo electrónico." },
+                                    responsibleSST: { type: "string", description: "Nombre del Responsable SST." },
+                                    licenseNumber: { type: "string", description: "Licencia SST." },
+                                    licenseExpiry: { type: "string", description: "Fecha vigencia licencia SST." },
+                                    generalActivities: { type: "string", description: "Actividades generales." }
+                                }
+                            }
+                        },
+                        {
                             name: "wappy_retirar_trabajador",
                             description: "Marca a un colaborador como RETIRADO en el SG-SST (Huella Biocéntrica) conservando todo su historial ocupacional y trasladándolo a la pestaña 'Retirados'. Invócala de inmediato cuando el usuario te pida retirar, dar de baja o desvincular a un empleado.",
                             parameters: {
@@ -2003,6 +2032,10 @@ class VoiceSession {
 [EMPRESAS REGISTRADAS Y CONFIGURACIÓN]:
 - Cuando el usuario pida abrir o ver dónde van las empresas registradas ("dónde van las empresas registradas", "abre mis empresas", "ver empresas registradas"):
   * INVOCA DE INMEDIATO 'wappy_navegar' con modulo: 'empresas' o modulo: 'empresas_registradas'. Esto abrirá la ventana/modal de administración de empresas registradas.
+- Cuando el usuario pida activar o cambiar a otra empresa registrada (ej: "activa SERVICONSTRUCCIONES", "cambia a WAPPY SA", "selecciona la empresa X", "activa esta empresa"):
+  * INVOCA DE INMEDIATO 'wappy_activar_empresa' indicando 'empresa' con el nombre, NIT o ID. El sistema cambiará la empresa activa en la base de datos, actualizará en vivo la tarjeta activa en la ventana/modal y sincronizará la memoria aislada.
+- Cuando el usuario pida editar, modificar o actualizar datos de una empresa (ej: "ponle el NIT 12345", "cambia la ARL a Positiva", "el representante legal es Carlos Pérez", "cambia la dirección", "actualiza el teléfono", "edita la información de la empresa"):
+  * INVOCA DE INMEDIATO 'wappy_actualizar_empresa' pasando los campos modificados ('empresa', 'companyName', 'nit', 'legalRepresentative', 'workerCount', 'arl', 'riskLevel', 'ciiu', 'address', 'city', 'email', 'phone', etc.).
 - Cuando el usuario pida ir a configuración o ajustes ("llévame a configuración", "abre configuración", "ajustes de la cuenta"):
   * INVOCA DE INMEDIATO 'wappy_navegar' con modulo: 'configuracion' o modulo: 'settings'. Esto abrirá el panel oficial de configuración.
 
@@ -3513,7 +3546,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                         id: fc.id,
                                         name: fc.name,
                                         args: fc.args,
-                                        result: { success: true, companyName: found.companyName, companyId: found._id }
+                                        result: { success: true, companyName: found.companyName, companyId: found._id, companyData: found, empresa: found }
                                     }
                                 });
 
@@ -3540,6 +3573,109 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                     id: fc.id,
                                     name: fc.name,
                                     response: { error: `Error activando empresa: ${selErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de actualización o edición de empresa
+                    if (fc.name === 'wappy_actualizar_empresa' || fc.name === 'wappy_actualizar_perfil_empresa') {
+                        const term = fc.args?.empresa || fc.args?.nombre_o_id || fc.args?.id || fc.args?.companyId;
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "${fc.name}" with args:`, JSON.stringify(fc.args));
+                        try {
+                            let targetUserId = this.userId;
+                            try {
+                                const User = mongoose.models.User || require('~/models/User');
+                                const userDoc = await User.findById(this.userId).select('isSubUser parentUser').lean();
+                                if (userDoc?.isSubUser && userDoc?.parentUser) {
+                                    targetUserId = userDoc.parentUser.toString();
+                                }
+                            } catch (uErr) { }
+
+                            let company = null;
+                            if (term) {
+                                if (mongoose.isValidObjectId(term)) {
+                                    company = await CompanyInfo.findOne({ user: targetUserId, _id: term });
+                                }
+                                if (!company) {
+                                    const safeRegex = new RegExp(String(term).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+                                    company = await CompanyInfo.findOne({
+                                        user: targetUserId,
+                                        $or: [{ companyName: safeRegex }, { nit: term }]
+                                    });
+                                }
+                            }
+                            if (!company) {
+                                company = await CompanyInfo.findOne({ user: targetUserId, isActive: true });
+                            }
+                            if (!company) {
+                                company = await CompanyInfo.findOne({ user: targetUserId });
+                            }
+
+                            if (!company) {
+                                if (this.geminiClient) {
+                                    this.geminiClient.sendToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: { error: 'No se encontró ninguna empresa para actualizar en tu cuenta.' }
+                                    }]);
+                                }
+                                continue;
+                            }
+
+                            const updateFields = [
+                                'companyName', 'companyType', 'nit', 'legalRepresentative', 'legalRepresentativeId',
+                                'workerCount', 'arl', 'economicActivity', 'riskLevel', 'ciiu', 'address',
+                                'city', 'departamento', 'phone', 'email', 'generalActivities', 'sector',
+                                'responsibleSST', 'responsibleSSTPhone', 'formationLevel', 'licenseNumber',
+                                'courseStatus', 'licenseExpiry', 'sedes'
+                            ];
+
+                            const modifiedList = [];
+                            for (const f of updateFields) {
+                                if (fc.args[f] !== undefined && fc.args[f] !== null) {
+                                    company[f] = fc.args[f];
+                                    modifiedList.push(`${f}: ${fc.args[f]}`);
+                                }
+                            }
+
+                            await company.save();
+                            if (company.isActive) {
+                                await syncCompanyMemory(targetUserId, company);
+                            }
+
+                            this.sendToClient({
+                                type: 'wappy_action',
+                                data: {
+                                    id: fc.id,
+                                    name: fc.name,
+                                    args: fc.args,
+                                    result: {
+                                        success: true,
+                                        mensaje: `Empresa "${company.companyName}" actualizada con éxito.`,
+                                        empresa: company,
+                                        companyData: company
+                                    }
+                                }
+                            });
+
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: {
+                                        result: `Datos de la empresa "${company.companyName}" actualizados exitosamente en el sistema (${modifiedList.join(', ') || 'sin cambios'}).`
+                                    }
+                                }]);
+                            }
+                        } catch (actErr) {
+                            logger.error('[VoiceSession] Error in wappy_actualizar_empresa:', actErr);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error actualizando empresa: ${actErr.message}` }
                                 }]);
                             }
                         }

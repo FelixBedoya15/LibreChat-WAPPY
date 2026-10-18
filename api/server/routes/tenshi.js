@@ -710,6 +710,7 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
      * 'wappy_consultar_empresas': Cuando el usuario pregunte cuántas empresas tiene registradas o cuáles son, INVOCA DE INMEDIATO 'wappy_consultar_empresas'. WAPPY permite hasta 3 empresas por usuario. Reporta el total de empresas registradas, sus nombres, NIT, trabajadores y cuál está activa según 'resumenTexto'.
      * 'wappy_consultar_detalle_empresa': Cuando el usuario pida ver los datos o contenido de cualquiera de sus empresas (activa o inactiva), INVOCA 'wappy_consultar_detalle_empresa' indicando su nombre o NIT.
      * 'wappy_activar_empresa' / 'seleccionar_empresa': Cuando el usuario te pida activar, seleccionar o cambiar a otra de sus empresas registradas, INVOCA DE INMEDIATO 'wappy_activar_empresa' o 'seleccionar_empresa' con el nombre de la empresa.
+     * 'wappy_actualizar_empresa': Cuando el usuario te pida modificar, editar o actualizar la información de una empresa (razón social, NIT, representante legal, cédula rep legal, trabajadores, ARL, riesgo, actividad económica, CIIU, dirección, ciudad, teléfono, email, responsable SST, etc.), INVOCA DE INMEDIATO 'wappy_actualizar_empresa' con los campos correspondientes. El sistema actualizará el perfil en la base de datos, en la pantalla y en la memoria.
      * 'wappy_reintegrar_trabajador': Cuando el usuario te pida reintegrar, reactivar, volver a contratar, reincorporar o pasar a activo a un trabajador previamente retirado (ej: "reintegrar al trabajador Jorge Enrique Pineda" o "reactivar a Jorge Pineda"), INVOCA DE INMEDIATO 'wappy_reintegrar_trabajador' con su nombre o cédula. El sistema restaurará su estado laboral a 'Activo' en la base de datos y refrescará la plataforma.
      * ESTÁ TERMINANTEMENTE PROHIBIDO afirmar que ya reintegraste a un colaborador sin antes invocar 'wappy_reintegrar_trabajador'.
      * 'wappy_retirar_trabajador': Cuando el usuario te pida retirar, desvincular, dar de baja o sacar a un trabajador (ej: "dejar como retirado a Jorge Ricky Pineda" o "retirar a Jorge Pineda"), INVOCA DE INMEDIATO 'wappy_retirar_trabajador' con su nombre o cédula. El sistema conservará su historial médico y ocupacional de 20 años y lo trasladará a la pestaña 'Retirados'.
@@ -1050,6 +1051,51 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         }
                     },
                     required: ['nombre_o_id']
+                }
+            };
+
+            const wappyActivarEmpresaDeclaration = {
+                name: 'wappy_activar_empresa',
+                description: 'Activa o cambia la empresa en uso en WAPPY por su nombre, NIT o ID. Actualiza la empresa activa en la base de datos, en la pantalla y en la memoria.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        empresa: {
+                            type: 'STRING',
+                            description: 'Nombre, NIT o ID de la empresa a activar.'
+                        }
+                    },
+                    required: ['empresa']
+                }
+            };
+
+            const wappyActualizarEmpresaDeclaration = {
+                name: 'wappy_actualizar_empresa',
+                description: 'Modifica o edita la información de cualquier empresa registrada del usuario o de la empresa activa (razón social, NIT, tipo de empresa, representante legal, cédula rep legal, número de trabajadores, ARL, nivel de riesgo, actividad económica, CIIU, dirección, ciudad, departamento, teléfono, email, responsable SST, licencia SST, vigencia).',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        empresa: { type: 'STRING', description: 'Nombre, NIT o ID de la empresa a editar. Si se omite, se edita la empresa activa.' },
+                        companyName: { type: 'STRING', description: 'Nueva razón social de la empresa.' },
+                        nit: { type: 'STRING', description: 'Nuevo NIT o cédula.' },
+                        companyType: { type: 'STRING', description: "'Persona Jurídica' o 'Persona Natural'." },
+                        legalRepresentative: { type: 'STRING', description: 'Nombre del representante legal.' },
+                        legalRepresentativeId: { type: 'STRING', description: 'Cédula del representante legal.' },
+                        workerCount: { type: 'NUMBER', description: 'Número de trabajadores.' },
+                        arl: { type: 'STRING', description: 'Nombre de la ARL.' },
+                        riskLevel: { type: 'STRING', description: "Nivel de riesgo ('I', 'II', 'III', 'IV', 'V')." },
+                        ciiu: { type: 'STRING', description: 'Código CIIU.' },
+                        economicActivity: { type: 'STRING', description: 'Actividad económica.' },
+                        address: { type: 'STRING', description: 'Dirección principal.' },
+                        city: { type: 'STRING', description: 'Ciudad.' },
+                        departamento: { type: 'STRING', description: 'Departamento.' },
+                        phone: { type: 'STRING', description: 'Teléfono de contacto.' },
+                        email: { type: 'STRING', description: 'Correo electrónico.' },
+                        responsibleSST: { type: 'STRING', description: 'Nombre del Responsable SST.' },
+                        licenseNumber: { type: 'STRING', description: 'Licencia SST.' },
+                        licenseExpiry: { type: 'STRING', description: 'Fecha vigencia licencia SST.' },
+                        generalActivities: { type: 'STRING', description: 'Actividades generales.' }
+                    }
                 }
             };
 
@@ -2053,6 +2099,8 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 operarGUIDeclaration,
                 diligenciarFormularioDeclaration,
                 seleccionarEmpresaDeclaration,
+                wappyActivarEmpresaDeclaration,
+                wappyActualizarEmpresaDeclaration,
                 gestionarMemoriaDeclaration,
                 leerPantallaDeclaration
             ];
@@ -2285,9 +2333,56 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                         found.isActive = true;
                                         await found.save();
                                         await syncCompanyMemory(targetUserId, found);
-                                        toolOutput = JSON.stringify({ success: true, message: `Empresa "${found.companyName}" activada y sincronizada exitosamente con la memoria.` });
+                                        toolOutput = JSON.stringify({ success: true, message: `Empresa "${found.companyName}" activada y sincronizada exitosamente con la memoria.`, empresa: found, companyData: found });
                                     } else {
                                         toolOutput = JSON.stringify({ success: false, error: `No se encontró ninguna empresa que coincida con "${term}".` });
+                                    }
+                                } else if (call.name === 'wappy_actualizar_empresa' || call.name === 'wappy_actualizar_perfil_empresa' || call.name === 'actualizar_empresa') {
+                                    const term = call.args?.empresa || call.args?.nombre_o_id || call.args?.id || call.args?.companyId;
+                                    let company = null;
+                                    if (term) {
+                                        if (mongoose.isValidObjectId(term)) {
+                                            company = await CompanyInfo.findOne({ user: targetUserId, _id: term });
+                                        }
+                                        if (!company) {
+                                            const safeRegex = new RegExp(String(term).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+                                            company = await CompanyInfo.findOne({
+                                                user: targetUserId,
+                                                $or: [{ companyName: safeRegex }, { nit: term }]
+                                            });
+                                        }
+                                    }
+                                    if (!company) {
+                                        company = await CompanyInfo.findOne({ user: targetUserId, isActive: true });
+                                    }
+                                    if (!company) {
+                                        company = await CompanyInfo.findOne({ user: targetUserId });
+                                    }
+                                    if (!company) {
+                                        toolOutput = JSON.stringify({ success: false, error: 'No se encontró ninguna empresa para actualizar.' });
+                                    } else {
+                                        const updateFields = [
+                                            'companyName', 'companyType', 'nit', 'legalRepresentative', 'legalRepresentativeId',
+                                            'workerCount', 'arl', 'economicActivity', 'riskLevel', 'ciiu', 'address',
+                                            'city', 'departamento', 'phone', 'email', 'generalActivities', 'sector',
+                                            'responsibleSST', 'responsibleSSTPhone', 'formationLevel', 'licenseNumber',
+                                            'courseStatus', 'licenseExpiry', 'sedes'
+                                        ];
+                                        for (const f of updateFields) {
+                                            if (call.args[f] !== undefined && call.args[f] !== null) {
+                                                company[f] = call.args[f];
+                                            }
+                                        }
+                                        await company.save();
+                                        if (company.isActive) {
+                                            await syncCompanyMemory(targetUserId, company);
+                                        }
+                                        toolOutput = JSON.stringify({
+                                            success: true,
+                                            mensaje: `Empresa "${company.companyName}" actualizada exitosamente.`,
+                                            empresa: company,
+                                            companyData: company
+                                        });
                                     }
                                 } else if (call.name === 'gestionar_memoria') {
                                     const accion = call.args?.accion || 'consultar';

@@ -152,6 +152,8 @@ const getUnifiedHitos = (): Array<{
     }
 ];
 
+const UNIFIED_HITOS = getUnifiedHitos();
+
 const OrganicBlob = () => (
     <svg className="absolute top-0 right-0 w-64 h-64 opacity-20 transform translate-x-12 -translate-y-8 transition-transform duration-[1200ms] group-hover:scale-[1.35] group-hover:-rotate-[15deg] pointer-events-none" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
         <path fill="#ffffff" d="M47.7,-67.2C61.4,-57.1,71.5,-41.8,78.2,-24.5C84.9,-7.2,88.2,12.1,81.3,28.8C74.4,45.5,57.3,59.6,39.6,68.4C21.9,77.2,3.6,80.7,-14.2,78.7C-32,76.7,-49.3,69.2,-64.1,56.5C-78.9,43.8,-91.2,25.9,-93.8,6.8C-96.4,-12.3,-89.3,-32.6,-76.3,-48.1C-63.3,-63.6,-44.4,-74.3,-26.8,-76.6C-9.2,-78.9,7.1,-72.8,22.8,-71.8C38.5,-70.8,34,-77.3,47.7,-67.2Z" transform="translate(100 100)" />
@@ -173,7 +175,7 @@ export default function SGSSTDashboard() {
     const [missingFields, setMissingFields] = useState<string[]>([]);
     const [companyInfo, setCompanyInfo] = useState<any>(null);
     const hasCheckedRef = React.useRef(false);
-    const unifiedHitos = getUnifiedHitos();
+    const unifiedHitos = UNIFIED_HITOS;
 
     useEffect(() => {
         if (!token) return;
@@ -260,10 +262,22 @@ export default function SGSSTDashboard() {
 
     const handleModalClose = useCallback(() => {
         setShowCompanyInfo(false);
-        hasCheckedRef.current = false;
-    }, []);
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            let changed = false;
+            if (next.has('modal')) {
+                next.delete('modal');
+                changed = true;
+            }
+            if (next.get('module') === 'empresas' || next.get('module') === 'empresas_registradas' || next.get('module') === 'company_info') {
+                next.delete('module');
+                changed = true;
+            }
+            return changed ? next : prev;
+        }, { replace: true });
+    }, [setSearchParams]);
 
-    // ─── handle navigate-sgsst & open-company-info events (from notification panel / tenshi) ───
+    // ─── handle navigate-sgsst & open/close company-info events (from notification panel / tenshi) ───
     useEffect(() => {
         const handler = (e: Event) => {
             const { module } = (e as CustomEvent).detail || {};
@@ -278,14 +292,21 @@ export default function SGSSTDashboard() {
         const openCompanyHandler = () => {
             setShowCompanyInfo(true);
         };
+        const closeCompanyHandler = () => {
+            handleModalClose();
+        };
 
         window.addEventListener('navigate-sgsst', handler);
         window.addEventListener('open-company-info', openCompanyHandler);
+        window.addEventListener('close-company-info', closeCompanyHandler);
+        window.addEventListener('close-modal', closeCompanyHandler);
         return () => {
             window.removeEventListener('navigate-sgsst', handler);
             window.removeEventListener('open-company-info', openCompanyHandler);
+            window.removeEventListener('close-company-info', closeCompanyHandler);
+            window.removeEventListener('close-modal', closeCompanyHandler);
         };
-    }, [setSearchParams]);
+    }, [setSearchParams, handleModalClose]);
 
     // ─── URL Sync & Defensive Parameter Routing ─────────────────────────────
     useEffect(() => {

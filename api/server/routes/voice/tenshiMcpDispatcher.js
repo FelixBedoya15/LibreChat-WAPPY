@@ -17,6 +17,8 @@ const TOOL_ROUTES = {
     },
   },
   wappy_actualizar_perfil_empresa: { method: 'POST', path: '/profile' },
+  wappy_actualizar_empresa: { method: 'POST', path: '/profile' },
+  actualizar_empresa: { method: 'POST', path: '/profile' },
   wappy_consultar_empresas: { method: 'GET', path: '/companies' },
   wappy_listar_empresas: { method: 'GET', path: '/companies' },
   wappy_activar_empresa: {

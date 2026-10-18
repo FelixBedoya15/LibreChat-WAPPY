@@ -825,6 +825,13 @@ export const WAPPY_NAV_MAP: Record<string, { route: string; sgsstModule?: string
   regresar: { route: '/c/new' },
   volver: { route: '/c/new' },
 
+  // ─── CIERRE DE MODALES Y VENTANAS ───
+  cerrar: { route: 'ACTION_CLOSE_MODAL' },
+  cerrar_modal: { route: 'ACTION_CLOSE_MODAL' },
+  cerrar_ventana: { route: 'ACTION_CLOSE_MODAL' },
+  cerrar_empresas: { route: 'ACTION_CLOSE_MODAL' },
+  salir_modal: { route: 'ACTION_CLOSE_MODAL' },
+
   // ─── PORTALES PÚBLICOS DEL TRABAJADOR (/sgsst-public/*) ───
   public_reportar: { route: '/sgsst-public/reportar' },
   reportar_publico: { route: '/sgsst-public/reportar' },
@@ -2233,6 +2240,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           wappy_navegar: '🧭 Navegando en WAPPY...',
           wappy_seleccionar_empresa: '🏢 Cambiando empresa activa...',
           wappy_activar_empresa: '🏢 Activando empresa...',
+          wappy_actualizar_empresa: '📝 Actualizando datos de la empresa...',
+          wappy_actualizar_perfil_empresa: '📝 Actualizando datos de la empresa...',
           operar_interfaz_visual: '✨ Tenshi operando pantalla...',
           wappy_generar_analisis_aplicativo: '⚡ Ejecutando análisis IA...',
           wappy_abrir_chat_agente: '🤝 Conectando con especialista...',
@@ -2254,10 +2263,14 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
             // Buffer temporal de 450ms para que la voz de Tenshi empiece a sonar antes del cambio visual en pantalla
             setTimeout(() => {
+              const isCloseModal = rawModulo === 'cerrar' || rawModulo === 'cerrar_modal' || rawModulo === 'cerrar_ventana' || rawModulo === 'cerrar_empresas' || targetRoute === 'ACTION_CLOSE_MODAL';
               const isSettings = rawModulo === 'configuracion' || rawModulo === 'settings' || rawModulo === 'ajustes' || targetRoute === '/settings';
               const isCompanyModal = rawModulo === 'empresas' || rawModulo === 'empresas_registradas' || targetRoute.includes('modal=empresas');
 
-              if (isSettings) {
+              if (isCloseModal) {
+                window.dispatchEvent(new CustomEvent('close-company-info'));
+                window.dispatchEvent(new CustomEvent('close-modal'));
+              } else if (isSettings) {
                 window.dispatchEvent(new CustomEvent('open-settings'));
               } else if (isCompanyModal) {
                 navigate(targetRoute);
@@ -2525,17 +2538,80 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             resultMsg = `Archivo "${title}" (${fileType}) entregado en el editor a pantalla completa y en el chat de Tenshi con botones de descarga.`;
           } else if (action.name === 'wappy_seleccionar_empresa' || action.name === 'wappy_activar_empresa') {
             tenshiAudio.playSuccess();
-            const companyName = action.args?.nombre_o_id || action.args?.empresa || action.args?.nombre || action.args?.id || (action as any).result?.companyName;
-            resultMsg = `Empresa "${companyName}" seleccionada y activa en el sistema`;
+            const resData = (action as any).result || {};
+            const companyName = action.args?.nombre_o_id || action.args?.empresa || action.args?.nombre || action.args?.id || resData?.companyName || resData?.empresa?.companyName;
+            const companyId = resData?.companyId || resData?.empresa?._id || action.args?.id || action.args?.companyId;
+            const companyData = resData?.companyData || resData?.empresa;
+
+            if (companyId) localStorage.setItem('wappy_active_company_id', String(companyId));
+            if (companyName) localStorage.setItem('wappy_active_company_name', String(companyName));
+            if (companyData?.nit) localStorage.setItem('wappy_active_company_nit', String(companyData.nit));
+            if (companyData?.arl) localStorage.setItem('wappy_active_company_arl', String(companyData.arl));
+            if (companyData?.workerCount !== undefined) localStorage.setItem('wappy_active_company_workers', String(companyData.workerCount));
+            if (companyData?.riskLevel) localStorage.setItem('wappy_active_company_risk', String(companyData.riskLevel));
+            if (companyData?.logoBase64) {
+              localStorage.setItem('wappy_sst_global_logo', companyData.logoBase64);
+            }
+
+            resultMsg = `Empresa "${companyName}" seleccionada y activa en el sistema.`;
             window.dispatchEvent(
-              new CustomEvent('wappy-empresa-cambiada', { detail: { empresa: companyName } })
+              new CustomEvent('wappy-empresa-cambiada', { 
+                detail: { 
+                  empresa: companyName, 
+                  companyName, 
+                  companyId, 
+                  empresaId: companyId,
+                  companyData 
+                } 
+              })
             );
+            window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
             triggerRichVoiceCard({
               id: `comp-${Date.now()}`,
               kind: 'company',
               badge: '🏢 Empresa Activa',
               title: String(companyName || 'Empresa Actualizada'),
               subtitle: 'Expediente SG-SST y memoria aislada cargados',
+            });
+          } else if (action.name === 'wappy_actualizar_empresa' || action.name === 'wappy_actualizar_perfil_empresa') {
+            tenshiAudio.playSuccess();
+            const resData = (action as any).result || {};
+            const companyData = resData?.companyData || resData?.empresa || {};
+            const companyName = companyData?.companyName || action.args?.companyName || action.args?.nombre || action.args?.empresa || 'Empresa';
+            const companyId = companyData?._id || action.args?.id || action.args?.companyId;
+
+            // Si es la empresa activa actual, actualizar localStorage
+            const activeId = localStorage.getItem('wappy_active_company_id');
+            if (!activeId || activeId === companyId || companyData?.isActive) {
+              if (companyId) localStorage.setItem('wappy_active_company_id', String(companyId));
+              if (companyName) localStorage.setItem('wappy_active_company_name', String(companyName));
+              if (companyData?.nit) localStorage.setItem('wappy_active_company_nit', String(companyData.nit));
+              if (companyData?.arl) localStorage.setItem('wappy_active_company_arl', String(companyData.arl));
+              if (companyData?.workerCount !== undefined) localStorage.setItem('wappy_active_company_workers', String(companyData.workerCount));
+              if (companyData?.riskLevel) localStorage.setItem('wappy_active_company_risk', String(companyData.riskLevel));
+              if (companyData?.logoBase64) {
+                localStorage.setItem('wappy_sst_global_logo', companyData.logoBase64);
+              }
+            }
+
+            resultMsg = resData.mensaje || `Datos de la empresa "${companyName}" actualizados exitosamente en WAPPY.`;
+            window.dispatchEvent(
+              new CustomEvent('wappy-empresa-actualizada', { 
+                detail: { 
+                  empresa: companyData,
+                  companyData,
+                  companyName,
+                  companyId
+                } 
+              })
+            );
+            window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
+            triggerRichVoiceCard({
+              id: `comp-${Date.now()}`,
+              kind: 'company',
+              badge: '📝 Empresa Actualizada',
+              title: String(companyName),
+              subtitle: 'Información y perfil corporativo actualizados en vivo',
             });
           } else if (action.name === 'wappy_diligenciar_formulario') {
             const rawModulo = (action.args?.modulo || 'investigacion_atel').toLowerCase().trim();
@@ -4760,10 +4836,14 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             ]);
             await new Promise((resolve) => setTimeout(resolve, 200));
 
+            const isCloseModal = rawModulo === 'cerrar' || rawModulo === 'cerrar_modal' || rawModulo === 'cerrar_ventana' || rawModulo === 'cerrar_empresas' || targetRoute === 'ACTION_CLOSE_MODAL';
             const isSettings = rawModulo === 'configuracion' || rawModulo === 'settings' || rawModulo === 'ajustes' || targetRoute === '/settings';
             const isCompanyModal = rawModulo === 'empresas' || rawModulo === 'empresas_registradas' || targetRoute.includes('modal=empresas');
 
-            if (isSettings) {
+            if (isCloseModal) {
+              window.dispatchEvent(new CustomEvent('close-company-info'));
+              window.dispatchEvent(new CustomEvent('close-modal'));
+            } else if (isSettings) {
               window.dispatchEvent(new CustomEvent('open-settings'));
             } else if (isCompanyModal) {
               navigate(targetRoute);
