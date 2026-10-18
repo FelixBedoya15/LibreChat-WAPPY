@@ -2560,6 +2560,13 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
             const res = (action as any).result || {};
             resultMsg = res.mensaje || `Perfil Sociodemográfico y Condiciones de Salud actualizados en Somos SST.`;
+          } else if (action.name === 'wappy_importar_hito1_drive') {
+            window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
+            window.dispatchEvent(new CustomEvent('ipevar-official-updated'));
+            window.dispatchEvent(new CustomEvent('pesv-official-updated'));
+            window.dispatchEvent(new CustomEvent('sgsst-diagnostic-updated'));
+            const res = (action as any).result || {};
+            resultMsg = res.mensaje || `Aplicativo del Hito 1 actualizado exitosamente desde Google Drive.`;
           } else if (action.name === 'wappy_leer_informe_aplicativo') {
             tenshiAudio.playHistoryRead();
             const rawApp = action.args?.aplicativo || action.args?.modulo || 'perfil_cargo';

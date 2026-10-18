@@ -1470,6 +1470,42 @@ router.post('/workers/import-drive', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
+// ─── IMPORTAR APLICATIVOS DE HITO 1 DESDE GOOGLE DRIVE ────────────────────────
+router.post('/hito1/import-drive', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const {
+      modulo,
+      aplicativo,
+      carpeta,
+      folder,
+      archivo,
+      fileName,
+      fileId,
+    } = req.body || {};
+
+    const { importAndSyncHito1 } = require('./sgsst/hito1DriveService');
+    const result = await importAndSyncHito1({
+      userId,
+      modulo: modulo || aplicativo || 'auto',
+      carpeta: carpeta || folder || '',
+      archivo: archivo || fileName || '',
+      fileId: fileId || '',
+    });
+
+    if (!result.exito) {
+      return res.status(400).json(result);
+    }
+    return res.status(200).json(result);
+  } catch (error) {
+    logger.error('[MCP Bridge] POST /hito1/import-drive error:', error);
+    return res.status(500).json({
+      exito: false,
+      error: error.message || 'Error al importar los datos del Hito 1 desde Google Drive.',
+    });
+  }
+});
+
 router.post('/workers', requireApiKeyOrJwt, async (req, res) => {
   try {
     const userId = req.user.id;

@@ -39,6 +39,7 @@ const TOOL_ROUTES = {
   wappy_alimentar_matriz_gtc45: { method: 'POST', path: '/gtc45' },
   wappy_actualizar_riesgo_gtc45: { method: 'PUT', path: (args) => `/gtc45/${encodeURIComponent(args.id || '')}` },
   wappy_eliminar_riesgo_gtc45: { method: 'DELETE', path: (args) => `/gtc45/${encodeURIComponent(args.id || '')}` },
+  wappy_importar_hito1_drive: { method: 'POST', path: '/hito1/import-drive' },
   wappy_consultar_matriz_pesv: { method: 'GET', path: '/pesv' },
   wappy_alimentar_matriz_pesv: { method: 'POST', path: '/pesv' },
   wappy_actualizar_riesgo_pesv: { method: 'PUT', path: (args) => `/pesv/${encodeURIComponent(args.id || '')}` },

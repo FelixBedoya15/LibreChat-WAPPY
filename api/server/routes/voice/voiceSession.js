@@ -588,6 +588,19 @@ class VoiceSession {
                             }
                         },
                         {
+                            name: "wappy_importar_hito1_drive",
+                            description: "Busca en el Google Drive del usuario los archivos de los aplicativos del Hito 1 (Matriz IPEVR GTC-45, Matriz de Riesgos Viales PESV, Matriz de Compatibilidad Química SGA, Análisis de Vulnerabilidad/Diamante de Emergencias, Diagnóstico Inicial 0312 o Asignación del Responsable SST), extrae y normaliza los datos con gemini-3.5-flash-lite (y respaldo gemini-3.6-flash) y alimenta automáticamente los aplicativos oficiales en Somos SST.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    aplicativo: { type: "string", description: "Aplicativo a alimentar: 'gtc45', 'pesv', 'compatibilidad', 'vulnerabilidad', 'diagnostico', 'responsable' o 'auto'." },
+                                    carpeta: { type: "string", description: "Nombre de la carpeta en Google Drive donde están los archivos del SG-SST (opcional)." },
+                                    archivo: { type: "string", description: "Nombre aproximado del archivo en Google Drive (opcional)." },
+                                    fileId: { type: "string", description: "ID exacto del archivo en Google Drive si ya se conoce (opcional)." }
+                                }
+                            }
+                        },
+                        {
                             name: "wappy_mcp_sst",
                             description: "Suite oficial de operaciones y consultas MCP del SG-SST de WAPPY (las 41 herramientas). Permite consultar o alimentar de forma autónoma: diagnóstico 360°, empresa, trabajadores, matriz GTC45, matriz PESV, matriz legal, estándares 0312, comités (COPASST, Convivencia, Brigadas), químicos SGA, vehículos, EPP, reportes de actos y condiciones, perfiles de cargo, casos ATEL, cronograma y tareas, capacitaciones, auditorías y automatizaciones.",
                             parameters: {
@@ -1965,10 +1978,15 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
      * REPROGRAMACIÓN Y EDICIÓN: Puedes cambiar de fecha y hora cualquier evento existente (ej: "pasa la cita de mañana para el viernes a las 4pm", "mueve la reunión a las 10am").
      * ELIMINACIÓN Y CANCELACIÓN: Puedes cancelar o eliminar cualquier cita usando el nombre o motivo de la reunión sin exigir IDs al usuario (ej: "cancela la cita de bomberos", "elimina la reunión de extintores").
      * CONSULTA: Puedes consultar y listar la agenda de eventos próximos en cualquier momento.
-   - GOOGLE DRIVE Y ALIMENTACIÓN MASIVA DEL PERFIL SOCIODEMOGRÁFICO ('wappy_importar_sociodemografico_drive' y 'google_drive'):
-     * SIEMPRE que el usuario te diga por voz: "busca en mi Drive el perfil sociodemográfico que está en la carpeta X y alimenta la información de los trabajadores en el perfil sociodemográfico y condiciones de salud de Somos SST" (o cualquier petición similar de importar/alimentar trabajadores desde Drive):
+   - GOOGLE DRIVE Y ALIMENTACIÓN MASIVA DEL PERFIL SOCIODEMOGRÁFICO Y HITO 1 ('wappy_importar_sociodemografico_drive', 'wappy_importar_hito1_drive' y 'google_drive'):
+     * PERFIL SOCIODEMOGRÁFICO: SIEMPRE que el usuario te diga por voz: "busca en mi Drive el perfil sociodemográfico que está en la carpeta X y alimenta la información de los trabajadores en el perfil sociodemográfico y condiciones de salud de Somos SST" (o cualquier petición similar de importar/alimentar trabajadores desde Drive):
        -> INVOCA DE INMEDIATO 'wappy_importar_sociodemografico_drive' pasando 'carpeta' con el nombre de la carpeta X y opcionalmente 'archivo'.
        -> Esta herramienta híbrida busca la carpeta en Drive, lee todas las hojas/archivos, procesa a todos los trabajadores con el modelo de texto 'gemini-3.5-flash-lite' (y respaldo 'gemini-3.6-flash') y alimenta tanto el Perfil Sociodemográfico como las Condiciones de Salud en Somos SST.
+     * APLICATIVOS DEL HITO 1 (GTC-45, PESV, COMPATIBILIDAD QUÍMICA SGA, VULNERABILIDAD, DIAGNÓSTICO 0312, RESPONSABLE SST):
+       -> SIEMPRE que el usuario te pida buscar o importar desde Drive las matrices o documentos del Hito 1 (ej: "busca en mi Drive la matriz de riesgos GTC-45", "importa la matriz vial PESV", "carga la matriz de compatibilidad química", "alimenta el análisis de vulnerabilidad o emergencias", "importa el diagnóstico de estándares 0312", "carga la asignación del responsable SST"):
+       -> INVOCA DE INMEDIATO 'wappy_importar_hito1_drive' indicando 'aplicativo' ('gtc45', 'pesv', 'compatibilidad', 'vulnerabilidad', 'diagnostico', 'responsable' o 'auto'), 'carpeta' (si la especifica) y 'archivo' (si lo especifica).
+       -> Extrae, normaliza y calcula con fórmulas matemáticas exactas y el modelo 'gemini-3.5-flash-lite' (respaldo 'gemini-3.6-flash'), alimentando los aplicativos oficiales en Somos SST.
+       -> NOTA: La matriz legal está actualmente en construcción por lo que no debe procesarse en este hito.
      * Para otras consultas generales de Drive, usa 'google_drive' únicamente cuando el usuario mencione explícitamente "Google Drive" o "Drive". NUNCA la priorices sobre SOMOS SST.
    - AUTONOMÍA TOTAL CON ROL DE AGENTE EXPERTO VS LLAMADO DE AGENTES:
      * SI EL USUARIO SOLO HACE LA PREGUNTA O CONSULTA TÉCNICA (ej: dolor lumbar, cómo calificar un accidente, qué hacer con el benceno, qué vientos son seguros para alturas, etc.): TENSHI ACTIVA DE INMEDIATO SU SKILL CON EL ROL DE AGENTE EXPERTO CORRESPONDIENTE (Médico Laboral, Abogado Laboral, Ingeniero Químico SST, Especialista en Alturas y Clima, etc.) y responde él mismo de forma integral, técnica y fundamentada usando sus herramientas y base de datos, sin desviar al usuario ni abrir un chat innecesario.

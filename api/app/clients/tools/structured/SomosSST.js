@@ -38,12 +38,13 @@ class SomosSST extends Tool {
           'crear_trabajador',
           'importar_sociodemografico_drive',
           'alimentar_sociodemografico_masivo',
+          'importar_hito1_drive',
           'retirar_trabajador',
           'eliminar_trabajador',
           'actualizar_trabajador',
         ])
         .describe(
-          'La acción a ejecutar: consultar_expediente_integral, listar_trabajadores, resumen_empresa, consultar_informacion_empresa, crear_trabajador, importar_sociodemografico_drive (buscar archivo en carpeta de Google Drive y alimentar Perfil Sociodemográfico y Condiciones de Salud con gemini-3.5-flash-lite), alimentar_sociodemografico_masivo, retirar_trabajador, actualizar_trabajador, eliminar_trabajador, actualizar_informacion_empresa, editar_cualquier_aplicativo, generar_informe_html, consultar_historial_informes, consultar_planes_y_sistema, consultar_centro_control_acpm, crear_actividad_acpm, o actualizar_actividad_acpm.',
+          'La acción a ejecutar: consultar_expediente_integral, listar_trabajadores, resumen_empresa, consultar_informacion_empresa, crear_trabajador, importar_sociodemografico_drive (alimentar Perfil Sociodemográfico y Condiciones de Salud desde Drive), importar_hito1_drive (buscar y alimentar aplicativos del Hito 1: Matriz IPEVR GTC-45, Matriz PESV, Matriz Compatibilidad SGA, Análisis de Vulnerabilidad, Diagnóstico 0312 o Responsable SST desde Google Drive con gemini-3.5-flash-lite), alimentar_sociodemografico_masivo, retirar_trabajador, actualizar_trabajador, eliminar_trabajador, actualizar_informacion_empresa, editar_cualquier_aplicativo, generar_informe_html, consultar_historial_informes, consultar_planes_y_sistema, consultar_centro_control_acpm, crear_actividad_acpm, o actualizar_actividad_acpm.',
         ),
       razon_social: z.string().optional().describe('Razón Social o Nombre de la empresa.'),
       tipo_empresa: z.string().optional().describe('Tipo de empresa: "Persona Jurídica" o "Persona Natural".'),
@@ -327,6 +328,19 @@ class SomosSST extends Tool {
           datos_json: input.datos_json || null,
         });
         return JSON.stringify(syncRes);
+      }
+
+      // ── ACTION: IMPORTAR APLICATIVOS DE HITO 1 DESDE GOOGLE DRIVE ─────────────
+      if (accion === 'importar_hito1_drive') {
+        const { importAndSyncHito1 } = require('~/server/routes/sgsst/hito1DriveService');
+        const hito1Res = await importAndSyncHito1({
+          userId,
+          modulo: input.modulo || input.aplicativo || input.campo_a_modificar || 'auto',
+          carpeta: input.nombre_o_cargo || input.identificador_o_filtro || '',
+          archivo: input.nuevo_valor || '',
+          fileId: input.datos_json?.fileId || '',
+        });
+        return JSON.stringify(hito1Res);
       }
 
       // ── ACTION: CREAR TRABAJADOR (CON INTEGRACIÓN AUTOMÁTICA DE EPT PENDIENTE) ─
