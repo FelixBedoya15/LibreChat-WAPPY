@@ -221,6 +221,13 @@ export default function PublicPerfilUpdate() {
 
     // Auto-advance if worker session or query param detected
     useEffect(() => {
+        // Validar aislamiento estricto de empresa: jamás auto-avanzar si la sesión es de otra empresa
+        const targetCid = company?._id || companyId;
+        const sessionCid = session?.companyId || session?.urlCompanyId;
+        if (targetCid && sessionCid && sessionCid !== targetCid) {
+            return;
+        }
+
         // Si hay un workerId específico en la URL y difiere de la sesión previa, no forzar sesión vieja
         const targetCed = sessionWorker?.cedula || session?.cedula;
         if (workerId && workerId !== 'undefined') {
@@ -237,7 +244,7 @@ export default function PublicPerfilUpdate() {
             setCedula(targetCed);
             handleVerify(targetCed);
         }
-    }, [sessionWorker?.cedula, session?.cedula, step, workerData, verifying, workerId]);
+    }, [sessionWorker?.cedula, session?.cedula, session?.companyId, session?.urlCompanyId, step, workerData, verifying, workerId, companyId, company?._id]);
 
     const handleSubmit = async () => {
         setSubmitting(true);

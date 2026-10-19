@@ -83,16 +83,25 @@ async function resolveCompanyAndWorker(companyId, { cedula, workerId } = {}) {
     return false;
   };
 
-  // 1. Buscar en la empresa resuelta directamente
+  // 1. Buscar en la empresa resuelta directamente (priorizando companyId de forma estricta)
   let perfil = await PerfilSociodemograficoData.findOne({
     user: new mongoose.Types.ObjectId(company.user),
     $or: [
       { companyId: company._id },
       { companyId: company._id.toString() },
-      { companyId: { $exists: false } },
-      { companyId: null },
     ],
   }).lean();
+
+  // Si no se encuentra perfil por companyId, permitir fallback a registro legado sin companyId
+  if (!perfil) {
+    perfil = await PerfilSociodemograficoData.findOne({
+      user: new mongoose.Types.ObjectId(company.user),
+      $or: [
+        { companyId: { $exists: false } },
+        { companyId: null },
+      ],
+    }).lean();
+  }
 
   let worker = null;
   if (perfil && Array.isArray(perfil.trabajadores) && perfil.trabajadores.length > 0) {
@@ -104,35 +113,7 @@ async function resolveCompanyAndWorker(companyId, { cedula, workerId } = {}) {
     return { company, perfil, worker };
   }
 
-  // 2. Fallback Multi-Empresa inteligente:
-  // Si no se encontró el trabajador en esta empresa, buscar en todas las demás empresas del mismo usuario
-  try {
-    const allCompanies = await CompanyInfo.find({ user: company.user }).lean();
-    for (const altCompany of allCompanies) {
-      if (String(altCompany._id) === String(company._id)) continue;
-
-      const altPerfil = await PerfilSociodemograficoData.findOne({
-        user: new mongoose.Types.ObjectId(altCompany.user),
-        $or: [
-          { companyId: altCompany._id },
-          { companyId: altCompany._id.toString() },
-          { companyId: { $exists: false } },
-          { companyId: null },
-        ],
-      }).lean();
-
-      if (altPerfil && Array.isArray(altPerfil.trabajadores) && altPerfil.trabajadores.length > 0) {
-        const altWorker = altPerfil.trabajadores.find(matchWorkerEntry);
-        if (altWorker) {
-          return { company: altCompany, perfil: altPerfil, worker: altWorker };
-        }
-      }
-    }
-  } catch (err) {
-    logger.warn('[Public SGSST] Multi-company worker search error:', err.message);
-  }
-
-  // 3. Fallback a SgsstWorker si no se encontró en PerfilSociodemograficoData
+  // 2. Fallback a SgsstWorker si no se encontró en PerfilSociodemograficoData (ESTRICTAMENTE para esta empresa)
   if (!worker) {
     try {
       const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
@@ -147,7 +128,13 @@ async function resolveCompanyAndWorker(companyId, { cedula, workerId } = {}) {
         }
         const sw = await SgsstWorker.findOne({
           user: company.user,
-          $or: swFilter,
+          $or: [
+            { companyId: company._id },
+            { companyId: company._id.toString() },
+            { companyId: { $exists: false } },
+            { companyId: null },
+          ],
+          $and: [{ $or: swFilter }],
         }).lean();
         if (sw) {
           worker = {
@@ -180,7 +167,7 @@ async function resolveCompanyAndWorker(companyId, { cedula, workerId } = {}) {
             biocentricAlerts: sw.fitAlerts,
           };
           if (!perfil) {
-            perfil = { trabajadores: [worker] };
+            perfil = { companyId: company._id, trabajadores: [worker] };
           } else if (!perfil.trabajadores || perfil.trabajadores.length === 0) {
             perfil.trabajadores = [worker];
           }

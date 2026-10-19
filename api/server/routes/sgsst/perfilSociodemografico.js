@@ -1313,11 +1313,12 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 
       return res.json({
         trabajadores: finalWorkers,
+        companyId: companyId || data?.companyId || null,
         actualizacionesPendientes: isSub ? [] : (data?.actualizacionesPendientes || []),
         actualizacionesPendientesSalud: isSub ? [] : (data?.actualizacionesPendientesSalud || [])
       });
     } else {
-      res.json({ trabajadores: [], actualizacionesPendientes: [], actualizacionesPendientesSalud: [] });
+      res.json({ trabajadores: [], companyId: companyId || null, actualizacionesPendientes: [], actualizacionesPendientesSalud: [] });
     }
   } catch (error) {
     logger.error('[SGSST PerfilSociodemografico] Load error:', error);

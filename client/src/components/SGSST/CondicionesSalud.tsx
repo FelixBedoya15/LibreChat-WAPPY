@@ -248,6 +248,7 @@ const CondicionesSalud = () => {
     const [isGeneratingFull, setIsGeneratingFull] = useState(false);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [companyInfo, setCompanyInfo] = useState<any>(null);
+    const [loadedCompanyId, setLoadedCompanyId] = useState<string>('');
     const [cargosDisponibles, setCargosDisponibles] = useState<any[]>([]);
 
     // Report state
@@ -318,6 +319,9 @@ const CondicionesSalud = () => {
                         );
                         setTrabajadores(normalized);
                         syncWorkersSignaturesToStorage(normalized);
+                    }
+                    if (data.companyId) {
+                        setLoadedCompanyId(String(data.companyId));
                     }
                     if (data.actualizacionesPendientesSalud) {
                         setInboxPerfil(data.actualizacionesPendientesSalud);
@@ -1062,7 +1066,7 @@ const CondicionesSalud = () => {
     // ─── QR: Portal de auto-actualización por el propio trabajador ───────
     const getUpdateQrValue = (w: WorkerEntry) => {
         const base = window.location.origin;
-        const targetCompanyId = companyInfo?._id || user?.id || '';
+        const targetCompanyId = companyInfo?._id || loadedCompanyId || user?.id || '';
         return `${base}/sgsst-public/perfil-update/${targetCompanyId}/${w.id}`;
     };
 
@@ -2443,7 +2447,7 @@ const CondicionesSalud = () => {
 
                             <div className="relative group flex flex-col items-center gap-2.5 py-2 shrink-0">
                                 <div id="portal-public-qr-container" className="p-3 border border-border-medium bg-white rounded-xl shadow-sm">
-                                    <QRCodeSVG value={`${window.location.origin}/sgsst-public/perfil-update/${companyInfo?._id || user?.id || ''}`} size={115} className="mx-auto" level="H" includeMargin={false} />
+                                    <QRCodeSVG value={`${window.location.origin}/sgsst-public/perfil-update/${companyInfo?._id || loadedCompanyId || user?.id || ''}`} size={115} className="mx-auto" level="H" includeMargin={false} />
                                 </div>
                                 <button
                                     onClick={() => downloadQR("Portal_Publico_SGSST", 'portal-public-qr-container')}
@@ -2459,12 +2463,12 @@ const CondicionesSalud = () => {
                                 <div className="flex items-center gap-2">
                                     <input
                                         readOnly
-                                        value={`${window.location.origin}/sgsst-public/perfil-update/${companyInfo?._id || user?.id || ''}`}
+                                        value={`${window.location.origin}/sgsst-public/perfil-update/${companyInfo?._id || loadedCompanyId || user?.id || ''}`}
                                         className="flex-grow text-[10px] font-mono px-3 py-2.5 bg-surface-secondary dark:bg-zinc-800 border border-border-medium rounded-xl outline-none text-text-secondary"
                                     />
                                     <button
                                         onClick={() => {
-                                            navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/perfil-update/${companyInfo?._id || user?.id || ''}`);
+                                            navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/perfil-update/${companyInfo?._id || loadedCompanyId || user?.id || ''}`);
                                             showToast({ message: 'Enlace copiado al portapapeles', severity: NotificationSeverity.SUCCESS });
                                         }}
                                         className="px-3.5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-[10px] font-bold rounded-xl transition-colors shadow-sm shrink-0"

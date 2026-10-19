@@ -21,7 +21,7 @@ export function useWorkerSession(companyIdParam?: string) {
   
   const effectiveCompanyId = companyIdParam || params.companyId;
 
-  // Resolve initial cédula from URL query, route params, or localStorage
+  // Resolve initial cédula from URL query, route params, or scoped localStorage
   const getInitialCedula = (): string => {
     try {
       const qParams = new URLSearchParams(location.search);
@@ -30,14 +30,33 @@ export function useWorkerSession(companyIdParam?: string) {
 
       if (params.cedula && params.cedula.trim()) return params.cedula.trim();
 
+      // 1. Scoped session for effectiveCompanyId has priority
+      if (effectiveCompanyId) {
+        const scopedRaw = localStorage.getItem(`wappy_worker_session_${effectiveCompanyId}`);
+        if (scopedRaw) {
+          const parsed = JSON.parse(scopedRaw);
+          if (parsed?.cedula && String(parsed.cedula).trim()) return String(parsed.cedula).trim();
+        }
+        const scopedCed = localStorage.getItem(`wappy_worker_cedula_${effectiveCompanyId}`);
+        if (scopedCed && scopedCed.trim()) return scopedCed.trim();
+      }
+
+      // 2. Global legacy session ONLY if it strictly matches effectiveCompanyId
       const rawSession = localStorage.getItem('wappy_worker_session');
       if (rawSession) {
         const parsed = JSON.parse(rawSession);
-        if (parsed?.cedula && String(parsed.cedula).trim()) return String(parsed.cedula).trim();
+        const matches = !effectiveCompanyId ||
+          parsed?.companyId === effectiveCompanyId ||
+          parsed?.urlCompanyId === effectiveCompanyId;
+        if (matches && parsed?.cedula && String(parsed.cedula).trim()) {
+          return String(parsed.cedula).trim();
+        }
       }
 
-      const directCed = localStorage.getItem('wappy_worker_cedula');
-      if (directCed && directCed.trim()) return directCed.trim();
+      if (!effectiveCompanyId) {
+        const directCed = localStorage.getItem('wappy_worker_cedula');
+        if (directCed && directCed.trim()) return directCed.trim();
+      }
     } catch (e) {
       // ignore
     }
@@ -47,10 +66,37 @@ export function useWorkerSession(companyIdParam?: string) {
   // Resolve initial session data from localStorage
   const getInitialSession = (): WorkerSessionData | null => {
     try {
+      // 1. Scoped session for effectiveCompanyId
+      if (effectiveCompanyId) {
+        const scopedRaw = localStorage.getItem(`wappy_worker_session_${effectiveCompanyId}`);
+        if (scopedRaw) {
+          const parsed = JSON.parse(scopedRaw);
+          if (parsed?.cedula && parsed?.nombre) {
+            const cleanCed = String(parsed.cedula).trim();
+            return {
+              companyId: parsed.companyId || effectiveCompanyId,
+              urlCompanyId: parsed.urlCompanyId || effectiveCompanyId,
+              companyName: parsed.companyName || '',
+              nombre: parsed.nombre || '',
+              cedula: cleanCed,
+              identificacion: cleanCed,
+              cargo: parsed.cargo || '',
+              fitScore: parsed.fitScore,
+              nivel: parsed.nivel,
+              firmaDigital: parsed.firmaDigital || null,
+            };
+          }
+        }
+      }
+
+      // 2. Global legacy session ONLY if it strictly matches effectiveCompanyId
       const rawSession = localStorage.getItem('wappy_worker_session');
       if (rawSession) {
         const parsed = JSON.parse(rawSession);
-        if (parsed?.cedula && parsed?.nombre) {
+        const matches = !effectiveCompanyId ||
+          parsed?.companyId === effectiveCompanyId ||
+          parsed?.urlCompanyId === effectiveCompanyId;
+        if (matches && parsed?.cedula && parsed?.nombre) {
           const cleanCed = String(parsed.cedula).trim();
           return {
             companyId: parsed.companyId || effectiveCompanyId,
@@ -99,6 +145,10 @@ export function useWorkerSession(companyIdParam?: string) {
         };
 
         setSession(newSession);
+        if (targetCompanyId) {
+          localStorage.setItem(`wappy_worker_session_${targetCompanyId}`, JSON.stringify(newSession));
+          localStorage.setItem(`wappy_worker_cedula_${targetCompanyId}`, newSession.cedula);
+        }
         localStorage.setItem('wappy_worker_session', JSON.stringify(newSession));
         localStorage.setItem('wappy_worker_cedula', newSession.cedula);
       }
@@ -120,6 +170,9 @@ export function useWorkerSession(companyIdParam?: string) {
       session?.urlCompanyId === effectiveCompanyId;
 
     if (session && session.cedula === ced && session.nombre && matchesCompany) {
+      if (effectiveCompanyId) {
+        localStorage.setItem(`wappy_worker_cedula_${effectiveCompanyId}`, ced);
+      }
       localStorage.setItem('wappy_worker_cedula', ced);
       return;
     }
@@ -172,6 +225,11 @@ export function useWorkerSession(companyIdParam?: string) {
 
     setSession(updated);
     try {
+      const cid = updated.companyId || updated.urlCompanyId || effectiveCompanyId;
+      if (cid) {
+        localStorage.setItem(`wappy_worker_session_${cid}`, JSON.stringify(updated));
+        localStorage.setItem(`wappy_worker_cedula_${cid}`, updated.cedula);
+      }
       localStorage.setItem('wappy_worker_session', JSON.stringify(updated));
       localStorage.setItem('wappy_worker_cedula', updated.cedula);
     } catch (e) {}
@@ -180,10 +238,20 @@ export function useWorkerSession(companyIdParam?: string) {
   const clearSession = useCallback(() => {
     setSession(null);
     try {
-      localStorage.removeItem('wappy_worker_session');
-      localStorage.removeItem('wappy_worker_cedula');
+      if (effectiveCompanyId) {
+        localStorage.removeItem(`wappy_worker_session_${effectiveCompanyId}`);
+        localStorage.removeItem(`wappy_worker_cedula_${effectiveCompanyId}`);
+      }
+      const rawSession = localStorage.getItem('wappy_worker_session');
+      if (rawSession) {
+        const parsed = JSON.parse(rawSession);
+        if (!effectiveCompanyId || parsed?.companyId === effectiveCompanyId || parsed?.urlCompanyId === effectiveCompanyId) {
+          localStorage.removeItem('wappy_worker_session');
+          localStorage.removeItem('wappy_worker_cedula');
+        }
+      }
     } catch (e) {}
-  }, []);
+  }, [effectiveCompanyId]);
 
   const isAuthenticated = Boolean(session && session.cedula && session.nombre);
 
