@@ -36,6 +36,7 @@ router.get('/internal/session/:userId', async (req, res) => {
       email: session.email || '',
       cookies: session.cookies,
       cookieCount: session.cookieCount || session.cookies.length,
+      updatedAt: session.updatedAt ? new Date(session.updatedAt).toISOString() : null,
     });
   } catch (err) {
     logger.error('[NotebookLM Internal] Error fetching session:', err);
@@ -305,11 +306,38 @@ router.post('/session', requireJwtAuth, async (req, res) => {
       }
     }
 
-    // 2. Probar conexión en vivo contra Google
-    const testResult = validateCookiesLocally(cookies);
+    // 2. Probar conexión en vivo contra Google y sincronizar en caliente con notebooklm-mcp
+    let testResult = validateCookiesLocally(cookies);
+    let notebooksCount = null;
+    if (testResult.success) {
+      try {
+        const notebooklmUrl = process.env.NOTEBOOKLM_URL || 'http://notebooklm-mcp:9420';
+        const mcpRes = await fetch(`${notebooklmUrl}/api/direct-tool`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-id': String(userId),
+            'x-user-email': String(effectiveEmail),
+            'x-notebooklm-auth': JSON.stringify(cookies),
+          },
+          body: JSON.stringify({ name: 'notebook_list', arguments: {} }),
+        });
+        const mcpData = await mcpRes.json().catch(() => ({}));
+        if (!mcpRes.ok || mcpData?.error) {
+          testResult = {
+            success: false,
+            reason: mcpData?.error || `Error de sesión en Google NotebookLM (HTTP ${mcpRes.status})`,
+          };
+        } else if (Array.isArray(mcpData?.result)) {
+          notebooksCount = mcpData.result.length;
+        }
+      } catch (liveErr) {
+        logger.warn(`[NotebookLM] Advertencia sincronizando con notebooklm-mcp: ${liveErr.message}`);
+      }
+    }
 
     // 3. Guardar en MongoDB
-    const updatedSession = await NotebookSession.findOneAndUpdate(
+    await NotebookSession.findOneAndUpdate(
       { user: userId },
       {
         email: effectiveEmail,
@@ -327,10 +355,11 @@ router.post('/session', requireJwtAuth, async (req, res) => {
       email: effectiveEmail,
       cookieCount: cookies.length,
       isValid: testResult.success,
+      notebooksCount,
       testWarning: testResult.success ? null : testResult.reason,
       message: testResult.success
-        ? '¡Sesión de Google NotebookLM vinculada y verificada con éxito!'
-        : `Sesión guardada. Advertencia de Google: ${testResult.reason}`,
+        ? `¡Sesión de Google NotebookLM vinculada y verificada con éxito!${notebooksCount !== null ? ` (${notebooksCount} cuadernos detectados)` : ''}`
+        : `Sesión guardada, pero Google rechazó las cookies: ${testResult.reason}`,
     });
   } catch (error) {
     logger.error('[NotebookLM] Error guardando sesión:', error);
@@ -340,23 +369,26 @@ router.post('/session', requireJwtAuth, async (req, res) => {
 
 /**
  * POST /api/notebooklm/test
- * Prueba en vivo la sesión actual del usuario
+ * Prueba en vivo la sesión actual del usuario contra el contenedor notebooklm-mcp
  */
 router.post('/test', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
     let cookies = [];
+    let effectiveEmail = req.user.email || '';
 
     // Buscar en MongoDB primero
     const session = await NotebookSession.findOne({ user: userId }).lean();
     if (session && Array.isArray(session.cookies) && session.cookies.length > 0) {
       cookies = session.cookies;
+      effectiveEmail = session.email || effectiveEmail;
     } else {
       // Buscar en disco
       const primaryPath = getStoragePaths(userId)[0];
       if (fs.existsSync(primaryPath)) {
         const parsed = JSON.parse(fs.readFileSync(primaryPath, 'utf8'));
         cookies = parsed.cookies || [];
+        effectiveEmail = parsed.notebooklm?.account?.email || effectiveEmail;
       }
     }
 
@@ -366,7 +398,38 @@ router.post('/test', requireJwtAuth, async (req, res) => {
       });
     }
 
-    const testResult = validateCookiesLocally(cookies);
+    let testResult = validateCookiesLocally(cookies);
+    let notebooksCount = null;
+
+    if (testResult.success) {
+      try {
+        const notebooklmUrl = process.env.NOTEBOOKLM_URL || 'http://notebooklm-mcp:9420';
+        const mcpRes = await fetch(`${notebooklmUrl}/api/direct-tool`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-id': String(userId),
+            'x-user-email': String(effectiveEmail),
+            'x-notebooklm-auth': JSON.stringify(cookies),
+          },
+          body: JSON.stringify({ name: 'notebook_list', arguments: {} }),
+        });
+        const mcpData = await mcpRes.json().catch(() => ({}));
+        if (!mcpRes.ok || mcpData?.error) {
+          testResult = {
+            success: false,
+            reason: mcpData?.error || `La sesión de Google NotebookLM ha expirado (HTTP ${mcpRes.status}).`,
+          };
+        } else if (Array.isArray(mcpData?.result)) {
+          notebooksCount = mcpData.result.length;
+        }
+      } catch (liveErr) {
+        testResult = {
+          success: false,
+          reason: `No se pudo contactar al motor NotebookLM MCP: ${liveErr.message}`,
+        };
+      }
+    }
 
     await NotebookSession.findOneAndUpdate(
       { user: userId },
@@ -375,10 +438,11 @@ router.post('/test', requireJwtAuth, async (req, res) => {
 
     return res.json({
       success: testResult.success,
+      notebooksCount,
       reason: testResult.reason || null,
       message: testResult.success
-        ? '¡La sesión contra Google NotebookLM está ACTIVA y funcionando correctamente!'
-        : `La sesión falló la verificación: ${testResult.reason}`,
+        ? `¡La sesión contra Google NotebookLM está ACTIVA y funcionando!${notebooksCount !== null ? ` Se detectaron ${notebooksCount} cuadernos disponibles.` : ''}`
+        : `La sesión falló la verificación en vivo: ${testResult.reason}`,
     });
   } catch (error) {
     logger.error('[NotebookLM] Error probando sesión:', error);

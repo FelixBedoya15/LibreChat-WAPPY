@@ -265,6 +265,30 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const streamingCanvas = useRecoilValue(store.streamingCanvasState);
   const streamingLoadedAtRef = useRef<number>(streamingCanvas?.content ? Date.now() : 0);
 
+  const extractSmartTitle = useCallback((rawContent: string, candidateTitle?: string) => {
+    const cleanCandidate = (candidateTitle || '').trim();
+    if (cleanCandidate && cleanCandidate !== 'Archivo sin título') {
+      return cleanCandidate;
+    }
+    if (typeof rawContent === 'string' && rawContent.length > 0) {
+      const titleTagMatch = rawContent.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+      if (titleTagMatch?.[1]) {
+        const extracted = titleTagMatch[1].replace(/<[^>]+>/g, '').trim();
+        if (extracted && extracted !== 'Plantilla Informativa SST') {
+          return extracted.slice(0, 90);
+        }
+      }
+      const h1Match = rawContent.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+      if (h1Match?.[1]) {
+        const extracted = h1Match[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+        if (extracted) {
+          return extracted.slice(0, 90);
+        }
+      }
+    }
+    return cleanCandidate || 'Documento SG-SST';
+  }, []);
+
   const initialStreamingType = React.useMemo(() => {
     if (!streamingCanvas) return 'text';
     const raw = String(streamingCanvas.content || '');
@@ -278,8 +302,10 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     return (streamingCanvas.fileType as any) || 'text';
   }, [streamingCanvas]);
 
-  const initialStreamingTitle = streamingCanvas?.title || 'Archivo sin título';
   const initialStreamingContent = streamingCanvas?.content || '';
+  const initialStreamingTitle = streamingCanvas
+    ? extractSmartTitle(initialStreamingContent, streamingCanvas.title)
+    : 'Archivo sin título';
 
   // Main Canvas session state
   const [fileType, setFileType] = useState<
@@ -668,7 +694,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
         rawContent.includes('<!DOCTYPE html') ||
         rawContent.includes('<html');
       const resolvedFileType = isHtml ? 'html' : ((streamingCanvas.fileType as any) || 'text');
-      const resolvedTitle = streamingCanvas.title || 'Documento SG-SST';
+      const resolvedTitle = extractSmartTitle(rawContent, streamingCanvas.title);
 
       // Convert markdown → HTML for text documents
       const htmlContent =
@@ -689,7 +715,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
       titleRef.current = resolvedTitle;
       dbTitleRef.current = resolvedTitle;
     }
-  }, [streamingCanvas, markdownToHtml]);
+  }, [streamingCanvas, markdownToHtml, extractSmartTitle]);
 
   // ── Fetch session from database ──────────────────────────────────────────
   const fetchSession = useCallback(
@@ -1288,7 +1314,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     <div
       className={`flex h-full w-full flex-col overflow-hidden bg-surface-primary text-text-primary ${
         isMaximized
-          ? 'fixed inset-0 z-[999999] m-0 h-screen w-screen rounded-none shadow-2xl pt-[max(env(safe-area-inset-top),2.5rem)] sm:pt-0'
+          ? 'fixed inset-0 z-[9990] m-0 h-screen w-screen rounded-none shadow-2xl pt-[max(env(safe-area-inset-top),2.5rem)] sm:pt-0'
           : 'relative pt-[max(env(safe-area-inset-top),1.5rem)] sm:pt-0'
       }`}
     >

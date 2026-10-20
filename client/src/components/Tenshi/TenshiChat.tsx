@@ -1097,6 +1097,19 @@ export default function TenshiChat() {
   const [tenshiStatus, setTenshiStatus] = useState<string>('');
   const [guiSteps, setGuiSteps] = useState<{ action: string; details: string; status: 'pending' | 'success' | 'failed' }[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const desktopMessagesScrollRef = useRef<HTMLDivElement>(null);
+  const mobileMessagesScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollMessagesToBottom = useCallback((smooth = false) => {
+    [desktopMessagesScrollRef.current, mobileMessagesScrollRef.current].forEach((container) => {
+      if (!container) return;
+      if (smooth && typeof container.scrollTo === 'function') {
+        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+      } else {
+        container.scrollTop = container.scrollHeight;
+      }
+    });
+  }, []);
   // Registro persistente en memoria para evitar que videos o imágenes en blobUrl expiren al sincronizar con el backend
   const liveMediaBlobsRef = useRef<Map<string, { blobUrl?: string; dataUrl?: string; thumbnailUrl?: string; mimeType?: string; name: string }>>(new Map());
 
@@ -2555,7 +2568,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               });
               setIsOpen(true);
               setTimeout(() => {
-                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                scrollMessagesToBottom(true);
               }, 150);
             }
 
@@ -4033,15 +4046,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     }
   }, [isChatSubmitting, extractSpecialistAnswer, handleCompleteConsultation]);
 
-  const [position, setPosition] = useState<{ x: number; y: number } | null>(() => {
-    if (typeof window !== 'undefined') {
-      return {
-        x: Math.max(16, window.innerWidth - 88),
-        y: Math.max(16, window.innerHeight - 110),
-      };
-    }
-    return null;
-  });
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const tenshiRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{
     mouseX: number;
@@ -4209,15 +4214,15 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         top: `${top}px`,
         width: `${chatW}px`,
         height: `${chatH}px`,
-        zIndex: 1000002,
+        zIndex: 2147483644,
       };
     }
 
     const tenshiW = 70;
     const tenshiH = 92;
 
-    const curX = position ? position.x : (typeof window !== 'undefined' ? window.innerWidth - 88 : 0);
-    const curY = position ? position.y : (typeof window !== 'undefined' ? window.innerHeight - 110 : 0);
+    const curX = position ? position.x : (typeof window !== 'undefined' ? window.innerWidth - 90 : 0);
+    const curY = position ? position.y : (typeof window !== 'undefined' ? window.innerHeight - 112 : 0);
 
     const spaceLeft = curX;
     const spaceRight = window.innerWidth - (curX + tenshiW);
@@ -4240,6 +4245,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     } else {
       top = Math.min(window.innerHeight - chatH - 12, curY);
     }
+    top = Math.max(12, Math.min(top, window.innerHeight - chatH - 12));
+    left = Math.max(12, Math.min(left, window.innerWidth - chatW - 12));
 
     return {
       position: 'fixed',
@@ -4247,7 +4254,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       top: `${top}px`,
       width: `${chatW}px`,
       height: `${chatH}px`,
-      zIndex: 1000002,
+      zIndex: 2147483644,
     };
   };
 
@@ -4770,10 +4777,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     if (isVisionActive && isVisionExpanded) {
       return;
     }
-    if ((isOpen || isHeroChatOpen) && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'auto' });
+    if (isOpen || isHeroChatOpen) {
+      scrollMessagesToBottom(false);
     }
-  }, [messages, isOpen, isHeroChatOpen, isVisionActive, isVisionExpanded]);
+  }, [messages, isOpen, isHeroChatOpen, isVisionActive, isVisionExpanded, scrollMessagesToBottom]);
 
   const positionClasses = {
     'bottom-right': 'bottom-24 md:bottom-6 right-6',
@@ -5552,7 +5559,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     return null;
   }
 
-  return (
+  const tenshiPortalContent = (
     <>
       {/* Dynamic Keyframes for Tenshi Live Avatar */}
       <style>{`
@@ -5657,7 +5664,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       )}
 
       {/* 📱 1. MODO HEROICO / PANTALLA COMPLETA EN CELULAR */}
-      {isMobileHeroMode ? (
+      {isMobileHeroMode && isMobileScreen ? (
         <div
           id="tenshi-mobile-hero-container"
           className="fixed inset-x-0 top-0 bottom-0 z-[50] flex flex-col md:hidden bg-slate-100 dark:bg-zinc-950 bg-gradient-to-b from-slate-50 via-teal-50 to-slate-100 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 text-slate-800 dark:text-zinc-100 overflow-hidden animate-in fade-in duration-200"
@@ -6261,7 +6268,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               )}
 
               {/* Mensajes del Chat */}
-              <div className={cn('overflow-y-auto px-4 py-3 flex flex-col gap-3', isVisionActive && isVisionExpanded ? 'hidden' : 'flex-1')}>
+              <div
+                ref={mobileMessagesScrollRef}
+                className={cn('min-h-0 overflow-y-auto px-4 py-3 flex flex-col gap-3', isVisionActive && isVisionExpanded ? 'hidden' : 'flex-1')}
+              >
                 {/* 1. Tarjeta de Memoria Autobiográfica y Briefing del Día (Estilo Dot) */}
                 {dailyBriefing && !isBriefingDismissed && (
                   <div className="rounded-2xl border border-teal-500/30 bg-gradient-to-br from-teal-50/90 via-white to-emerald-50/70 p-3.5 shadow-sm dark:border-teal-500/30 dark:from-teal-950/40 dark:via-zinc-900 dark:to-emerald-950/30">
@@ -6616,7 +6626,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             <>
               {/* Backdrop para cerrar al hacer clic o tap por fuera */}
               <div
-                className="fixed inset-0 z-[1000001] bg-black/40 backdrop-blur-[2px] md:bg-transparent md:backdrop-blur-none transition-opacity"
+                style={{ zIndex: 2147483643 }}
+                className="fixed inset-0 bg-black/40 backdrop-blur-[2px] md:bg-transparent md:backdrop-blur-none transition-opacity"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleClose();
@@ -6629,13 +6640,18 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 aria-label="Cerrar chat de Tenshi"
               />
               <div
-                style={getChatPositionStyle()}
+                style={isFullscreen ? { zIndex: 2147483644 } : getChatPositionStyle()}
                 onClick={(e) => e.stopPropagation()}
                 onTouchEnd={(e) => e.stopPropagation()}
+                onScroll={(e) => {
+                  if (e.currentTarget.scrollTop !== 0) {
+                    e.currentTarget.scrollTop = 0;
+                  }
+                }}
                 className={cn(
-                  'flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 shadow-2xl backdrop-blur-xl transition-all duration-300 animate-in fade-in zoom-in-95 z-[1000002]',
+                  'flex flex-col overflow-hidden overflow-clip rounded-2xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 shadow-2xl backdrop-blur-xl transition-all duration-300 animate-in fade-in zoom-in-95',
                   isFullscreen
-                    ? 'fixed inset-3 sm:inset-6 z-[1000002] w-auto h-auto'
+                    ? 'fixed inset-3 sm:inset-6 w-auto h-auto'
                     : ''
                 )}
               >
@@ -7073,8 +7089,18 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           )}
 
           {/* Historial de conversación */}
-          <div className={cn("flex flex-1 flex-col overflow-hidden", isVisionActive && isVisionExpanded ? "hidden" : "")}>
-            <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50/50 p-3 text-xs dark:bg-zinc-950/50">
+          <div
+            onScroll={(e) => {
+              if (e.currentTarget.scrollTop !== 0) {
+                e.currentTarget.scrollTop = 0;
+              }
+            }}
+            className={cn("flex flex-1 min-h-0 flex-col overflow-hidden overflow-clip", isVisionActive && isVisionExpanded ? "hidden" : "")}
+          >
+            <div
+              ref={desktopMessagesScrollRef}
+              className="flex-1 min-h-0 space-y-3 overflow-y-auto bg-slate-50/50 p-3 text-xs dark:bg-zinc-950/50"
+            >
                 {/* 5A. Rich Voice Card integrada dentro del chat cuando la ventana de chat está abierta en PC */}
                 {richVoiceCard && (
                   <div className="rounded-2xl border border-teal-500/40 bg-white dark:bg-zinc-900 p-3 shadow-md animate-in fade-in slide-in-from-top-2 duration-200">
@@ -7826,13 +7852,22 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         onClick={handleTenshiInteraction}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        style={{
-          position: 'fixed',
-          left: `${position ? position.x : (typeof window !== 'undefined' ? window.innerWidth - 88 : 0)}px`,
-          top: `${position ? position.y : (typeof window !== 'undefined' ? window.innerHeight - (isMobileScreen ? 185 : 110) : 0)}px`,
-          zIndex: 1000005,
-        }}
-        className="group relative cursor-grab active:cursor-grabbing select-none transition-transform duration-200 md:hover:scale-105 md:active:scale-95"
+        style={
+          position
+            ? {
+                position: 'fixed',
+                left: `${position.x}px`,
+                top: `${position.y}px`,
+                zIndex: 2147483645,
+              }
+            : {
+                position: 'fixed',
+                right: '20px',
+                bottom: isMobileScreen ? '96px' : '20px',
+                zIndex: 2147483645,
+              }
+        }
+        className="group relative cursor-grab active:cursor-grabbing select-none transition-transform duration-200 md:hover:scale-105 md:active:scale-95 pointer-events-auto"
       >
         {/* Micro-dock flotante en Hover (Desktop) o Siempre Visible en Móvil */}
         <div
@@ -8162,5 +8197,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     </>
   )}
 </>
-);
+  );
+
+  return typeof document !== 'undefined' ? createPortal(tenshiPortalContent, document.body) : tenshiPortalContent;
 }

@@ -267,8 +267,8 @@ async def get_client_for_request() -> NotebookLMClient:
                 except Exception:
                     pass
 
-    # Si aún no existe, intentar obtenerlo de la API interna
-    if user_id and (not user_storage_file.exists() or user_storage_file.stat().st_size == 0):
+    # Sincronizar siempre desde la API interna de LibreChat si hay user_id y no vino x-notebooklm-auth directo
+    if user_id and not user_auth:
         for base_host in ["http://LibreChat:3080", "http://api:3080", "http://localhost:3080"]:
             try:
                 import urllib.request
@@ -278,26 +278,41 @@ async def get_client_for_request() -> NotebookLMClient:
                     if resp.status == 200:
                         session_json = json.loads(resp.read().decode("utf-8"))
                         fetched_cookies = session_json.get("cookies", [])
+                        remote_updated_at = str(session_json.get("updatedAt") or "")
                         if fetched_cookies:
-                            sync_data = {
-                                "cookies": fetched_cookies,
-                                "origins": [],
-                                "notebooklm": {
-                                    "version": 1,
-                                    "account": {
-                                        "authuser": 0,
-                                        "email": session_json.get("email") or user_email or f"{user_id}@wappy.internal",
+                            # Comprobar si cambió respecto al archivo actual en disco
+                            needs_write = not user_storage_file.exists() or user_storage_file.stat().st_size == 0
+                            if not needs_write:
+                                try:
+                                    existing_data = json.loads(user_storage_file.read_text())
+                                    existing_updated = str(existing_data.get("notebooklm", {}).get("updatedAt") or "")
+                                    existing_count = len(existing_data.get("cookies", []))
+                                    if (remote_updated_at and remote_updated_at != existing_updated) or existing_count != len(fetched_cookies):
+                                        needs_write = True
+                                except Exception:
+                                    needs_write = True
+
+                            if needs_write:
+                                sync_data = {
+                                    "cookies": fetched_cookies,
+                                    "origins": [],
+                                    "notebooklm": {
+                                        "version": 1,
+                                        "updatedAt": remote_updated_at,
+                                        "account": {
+                                            "authuser": 0,
+                                            "email": session_json.get("email") or user_email or f"{user_id}@wappy.internal",
+                                        },
                                     },
-                                },
-                            }
-                            target_profile_dir.mkdir(parents=True, exist_ok=True)
-                            user_storage_file.write_text(json.dumps(sync_data, indent=2))
-                            try:
-                                os.chmod(user_storage_file, 0o600)
-                            except Exception:
-                                pass
-                            logger.info(f"Sesión restaurada dinámicamente para '{safe_profile}' desde {base_host} ({len(fetched_cookies)} cookies).")
-                            break
+                                }
+                                target_profile_dir.mkdir(parents=True, exist_ok=True)
+                                user_storage_file.write_text(json.dumps(sync_data, indent=2))
+                                try:
+                                    os.chmod(user_storage_file, 0o600)
+                                except Exception:
+                                    pass
+                                logger.info(f"Sesión sincronizada dinámicamente para '{safe_profile}' desde {base_host} ({len(fetched_cookies)} cookies).")
+                        break
             except Exception as ex:
                 logger.debug(f"No se pudo consultar {base_host} para sesión de usuario: {ex}")
 

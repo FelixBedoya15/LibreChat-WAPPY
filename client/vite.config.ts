@@ -46,9 +46,10 @@ export default defineConfig(({ command }) => ({
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
+        cleanupOutdatedCaches: true,
         navigateFallback: null,
         globPatterns: [
-          '**/*.{js,css,html}',
+          '**/*.{js,css}',
           'assets/favicon*.png',
           'assets/icon-*.png',
           'assets/apple-touch-icon*.png',
@@ -56,7 +57,7 @@ export default defineConfig(({ command }) => ({
           'manifest.webmanifest',
           'manifest.json',
         ],
-        globIgnores: ['images/**/*', 'videos/**/*', '**/*.map'],
+        globIgnores: ['images/**/*', 'videos/**/*', '**/*.map', '**/*.html'],
         maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
         navigateFallbackDenylist: [/^\/oauth/, /^\/api/, /^\/download/],
         runtimeCaching: [
