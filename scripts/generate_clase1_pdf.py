@@ -765,7 +765,102 @@ html_content = f"""<!DOCTYPE html>
         <strong>Grabaciones y Recursos:</strong> Disponibles en la Academia WAPPY en menos de 12 horas tras finalizar la clase.
       </div>
       <div class="footer-contact">
-        Página 2 de 2 · WAPPY Academia
+        Página 2 de 3 · WAPPY Academia
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== PÁGINA 3: PROMPTS CONVERSACIONALES SIN CÓDIGO ==================== -->
+  <div class="page-break"></div>
+
+  <div class="page-container">
+    <div>
+      <div class="header-card compact">
+        <div class="header-left">
+          <span class="header-badge" style="margin-bottom: 2px;">Especial para No Programadores</span>
+          <div style="font-size: 12pt; font-weight: 800; color: #ffffff;">6 Prompts Conversacionales para el Chat de Antigravity</div>
+          <div style="font-size: 7.4pt; color: #a7f3d0;">Copia y pega estas instrucciones en español en el chat de Antigravity para que él cree todo sin programar</div>
+        </div>
+        <div style="text-align: right; font-size: 7.2pt; color: #ccfbf1;">
+          wappy.club/clase1<br>
+          💬 <strong>Cero Código · 100% Chat</strong>
+        </div>
+      </div>
+
+      <div class="section-title">
+        <span class="section-title-icon">5</span>
+        Prompts Listos para Enviar al Chat de Antigravity (Paso a Paso)
+      </div>
+
+      <div class="rules-grid" style="grid-template-columns: 1fr; gap: 7px;">
+        <div class="rule-card">
+          <div class="rule-header">
+            <span class="rule-title">💬 Prompt 1 · Crear las Carpetas del Proyecto y Transformar tu Agente en Experto SST</span>
+            <span class="rule-badge badge-teal">AGENTS.md Automático</span>
+          </div>
+          <div class="rule-desc" style="font-style: italic; color: #0f172a;">
+            "Hola Antigravity. Soy profesional de Seguridad y Salud en el Trabajo (SST) en Colombia y no soy programador, así que necesito que tú hagas todas las configuraciones técnicas por mí. 1) Crea dentro de esta carpeta las subcarpetas: inspecciones, epp_trabajadores, normativa_sst, rescate_drive e informes_generados. 2) Crea y configura automáticamente tu archivo AGENTS.md para transformarte en mi Asistente Experto en SG-SST de Colombia bajo el Decreto 1072 de 2015, la Resolución 0312 de 2019 y la GTC 45, conectando siempre los resultados con mi plataforma principal WAPPY."
+          </div>
+        </div>
+
+        <div class="rule-card">
+          <div class="rule-header">
+            <span class="rule-title">💬 Prompt 2 · Crear un Skill (Habilidad para una Tarea Rutinaria)</span>
+            <span class="rule-badge badge-teal">SKILL.md Automático</span>
+          </div>
+          <div class="rule-desc" style="font-style: italic; color: #0f172a;">
+            "Necesito que crees por mí un Skill (habilidad personalizada) dentro de este proyecto llamado auditor-inspecciones-y-epp. Crea tú mismo la carpeta y el archivo SKILL.md para que cada vez que yo ponga fotos o documentos en la carpeta inspecciones o epp_trabajadores, analices cada archivo, identifiques el peligro según la GTC 45, propongas la medida correctiva con responsable y dejes todo listo para subirlo a WAPPY vía MCP."
+          </div>
+        </div>
+
+        <div class="rule-card">
+          <div class="rule-header">
+            <span class="rule-title">💬 Prompt 3 · Conectar por MCP a WAPPY y Alimentar Matrices desde tus Carpetas</span>
+            <span class="rule-badge badge-teal">Conexión WAPPY MCP</span>
+          </div>
+          <div class="rule-desc" style="font-style: italic; color: #0f172a;">
+            "Quiero que te conectes vía MCP con mi cuenta oficial de WAPPY usando mis credenciales: [PEGAR DATO MCP DE WAPPY]. Verifica que tengas acceso a las herramientas de WAPPY (Matriz GTC 45, PESV, Trabajadores y Cronograma), lee los archivos que tengo en mis carpetas locales inspecciones y epp_trabajadores, y aliméntalos directamente dentro de mi empresa en WAPPY."
+          </div>
+        </div>
+
+        <div class="rule-card">
+          <div class="rule-header">
+            <span class="rule-title">💬 Prompt 4 · Conectar por MCP a Google NotebookLM (Memoria Legal Cero Alucinaciones)</span>
+            <span class="rule-badge badge-teal">NotebookLM MCP</span>
+          </div>
+          <div class="rule-desc" style="font-style: italic; color: #0f172a;">
+            "Configura la conexión MCP con mi Google NotebookLM donde tengo cargados el Decreto 1072 de 2015 y la Resolución 0312 de 2019. Establece como regla que antes de redactar cualquier informe o alimentar un riesgo en WAPPY, consultes primero mi cuaderno de NotebookLM para citar el artículo exacto de la norma colombiana sin inventar nada."
+          </div>
+        </div>
+
+        <div class="rule-card">
+          <div class="rule-header">
+            <span class="rule-title">💬 Prompt 5 · Conectar a Google Drive para Rescatar Información y Alimentar a WAPPY</span>
+            <span class="rule-badge badge-teal">Google Drive 20 Años</span>
+          </div>
+          <div class="rule-desc" style="font-style: italic; color: #0f172a;">
+            "Conéctate a mi carpeta de Google Drive llamada SG-SST Empresa, rescata los informes, actas del COPASST o inspecciones subidas recientemente, extrae los compromisos clave y úsalos para alimentar y actualizar automáticamente mi Matriz de Peligros y mi Cronograma de Actividades dentro de WAPPY."
+          </div>
+        </div>
+
+        <div class="rule-card urgent">
+          <div class="rule-header">
+            <span class="rule-title">💬 Prompt 6 · Crear el Trigger y Automatización al Llegar a la Oficina (Cron + Workflow)</span>
+            <span class="rule-badge badge-amber">Trigger Matutino</span>
+          </div>
+          <div class="rule-desc" style="font-style: italic; color: #0f172a;">
+            "Configura una automatización completa (Trigger, tarea programada Cron y el comando /rutina-oficina) para que cada mañana cuando llegue a la oficina, prenda mi computador y abra este chat (o a las 7:30 AM), ejecutes automáticamente: 1) Leer mi Google Drive y mi carpeta inspecciones, 2) Cruzar con NotebookLM y redactar el informe técnico en informes_generados, 3) Conectarte por MCP a WAPPY para registrar las actividades y hallazgos, y 4) Mostrarme el resumen listo."
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-callout">
+      <div>
+        <strong>Versión Interactiva con Botones de Copiado:</strong> Disponible en vivo en <strong>https://wappy.club/clase1</strong>
+      </div>
+      <div class="footer-contact">
+        Página 3 de 3 · WAPPY Academia
       </div>
     </div>
   </div>
