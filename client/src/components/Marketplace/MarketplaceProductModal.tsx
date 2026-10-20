@@ -13,7 +13,9 @@ import {
   ShoppingCart,
   Zap,
   ExternalLink,
+  Edit,
 } from 'lucide-react';
+import { useAuthContext } from '~/hooks/AuthContext';
 import type { MarketplaceProduct, ProductVariantOption } from './types';
 import { useMarketplace } from './MarketplaceContext';
 
@@ -27,7 +29,12 @@ const formatCOP = (amount: number) => {
 };
 
 const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
-  const { addToCart, setIsCheckoutOpen } = useMarketplace();
+  const { user } = useAuthContext();
+  const { addToCart, setIsCheckoutOpen, openEditProduct } = useMarketplace();
+
+  const isAdmin =
+    user?.role === 'ADMIN' ||
+    user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com';
 
   // Find first variant group
   const variantGroup = product?.variants?.[0];
@@ -103,7 +110,11 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
             <div className="md:col-span-7 p-6 flex flex-col justify-between">
               <div>
                 <div className="flex flex-wrap items-center gap-2 mb-2">
-                  {product.isTest ? (
+                  {product.status === 'draft' ? (
+                    <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 shadow-xs border border-amber-300">
+                      📝 Estado Borrador (Solo Admin)
+                    </span>
+                  ) : product.isTest ? (
                     <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 shadow-xs border border-amber-300">
                       🧪 Modo Prueba (Solo Admin)
                     </span>
@@ -183,6 +194,17 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => openEditProduct(product)}
+                      className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
+                    >
+                      <Edit className="h-4 w-4" />
+                      <span>Editar Producto / Wompi</span>
+                    </button>
+                  )}
+
                   {product.slug === 'curso-ecosistema-autonomo-sst' && (
                     <a
                       href="/cursowappy01"

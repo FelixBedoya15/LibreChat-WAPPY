@@ -109,9 +109,9 @@ const ADELANTO_COURSE_PRODUCT = {
     }
   ],
   featuredImage: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80',
-  status: 'published',
+  status: 'draft',
   isFeatured: true,
-  isTest: false,
+  isTest: true,
   stockType: 'unlimited',
   availableSlots: 0,
   rating: 5.0,
@@ -458,11 +458,13 @@ const ensureSeedData = async (force = false) => {
       if (!adelantoCourse) {
         await MarketplaceProduct.create(ADELANTO_COURSE_PRODUCT);
         logger.info('[Marketplace] Partner Course "Adelanto" seeded into database.');
-      } else if (!adelantoCourse.providerWompi?.publicKey) {
+      } else if (!adelantoCourse.providerWompi?.publicKey || !adelantoCourse.isTest) {
         await MarketplaceProduct.updateOne(
           { slug: 'curso-adelanto' },
           {
             $set: {
+              status: 'draft',
+              isTest: true,
               paymentRecipient: 'PROVIDER',
               providerName: ADELANTO_COURSE_PRODUCT.providerName,
               providerWompi: ADELANTO_COURSE_PRODUCT.providerWompi
@@ -527,13 +529,13 @@ const getProducts = async (req, res) => {
     ));
 
     const query = {};
-    if (!(isAdmin && includeAll === 'true')) {
-      query.status = 'published';
-    }
-
-    // Non-admin users and visitors ONLY see official public products (never test products)
     if (!isAdmin) {
+      // Non-admin users and visitors ONLY see official published products (never draft or test products)
+      query.status = 'published';
       query.isTest = { $ne: true };
+    } else if (includeAll !== 'true') {
+      // Admin in catalog view sees both published and draft products
+      query.status = { $in: ['published', 'draft'] };
     }
 
     if (category && category !== 'all') {
@@ -592,8 +594,8 @@ const getProductBySlugOrId = async (req, res) => {
       req.user.email?.toLowerCase() === 'felix.bedoya15@gmail.com'
     ));
 
-    // If it is a test product, only admins can view it
-    if (product.isTest && !isAdmin) {
+    // If it is a test or draft product, only admins can view it
+    if ((product.isTest || product.status === 'draft') && !isAdmin) {
       return res.status(404).json({ error: 'Servicio no disponible públicamente.' });
     }
 
@@ -689,7 +691,7 @@ const createCheckout = async (req, res) => {
 
     for (const item of items) {
       const product = await MarketplaceProduct.findById(item.productId).lean();
-      if (!product || product.status !== 'published') {
+      if (!product || product.status === 'archived') {
         return res.status(400).json({ error: `El servicio "${item.title || 'seleccionado'}" no está disponible actualmente.` });
       }
       loadedProducts.push(product);

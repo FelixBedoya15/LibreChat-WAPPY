@@ -1,7 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Star, CheckCircle2, Clock, Eye, ShoppingCart, ShieldAlert } from 'lucide-react';
+import { Star, CheckCircle2, Clock, Eye, ShoppingCart, Edit } from 'lucide-react';
 import { cn } from '~/utils';
+import { useAuthContext } from '~/hooks/AuthContext';
 import type { MarketplaceProduct } from './types';
 import { useMarketplace } from './MarketplaceContext';
 
@@ -22,7 +23,13 @@ const formatCOP = (amount: number) => {
 };
 
 const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
-  const { addToCart, setSelectedProductDetail } = useMarketplace();
+  const { user } = useAuthContext();
+  const { addToCart, setSelectedProductDetail, openEditProduct } = useMarketplace();
+
+  const isAdmin =
+    user?.role === 'ADMIN' ||
+    user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com';
+  const isDraftOrTest = product.status === 'draft' || product.isTest;
 
   const serviceBadge = SERVICE_TYPE_LABELS[product.serviceType] || SERVICE_TYPE_LABELS.service_virtual;
   const currentPrice = product.hasDiscount && (product.salePrice ?? 0) > 0 ? (product.salePrice ?? product.regularPrice) : product.regularPrice;
@@ -45,7 +52,7 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
       onClick={() => setSelectedProductDetail(product)}
       className={cn(
         'group cursor-pointer rounded-2xl transition-all duration-200 overflow-hidden flex flex-col h-full',
-        product.isTest
+        isDraftOrTest
           ? 'border-2 border-dashed border-amber-400 dark:border-amber-500/80 bg-gradient-to-b from-amber-50/70 via-white to-amber-50/30 dark:from-amber-950/40 dark:via-zinc-900 dark:to-amber-950/20 shadow-xs hover:shadow-md hover:border-amber-500 ring-2 ring-amber-400/20'
           : 'border border-slate-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs hover:shadow-md hover:border-teal-500/40 dark:hover:border-teal-500/40'
       )}
@@ -59,7 +66,11 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
           loading="lazy"
         />
         <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5 items-center">
-          {product.isTest ? (
+          {product.status === 'draft' ? (
+            <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 shadow-md border border-amber-300 flex items-center gap-1">
+              📝 Borrador · Solo Admin
+            </span>
+          ) : product.isTest ? (
             <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 shadow-md border border-amber-300 flex items-center gap-1">
               🧪 Prueba · Solo Admin
             </span>
@@ -71,12 +82,28 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shadow-2xs ${serviceBadge.color}`}>
             {serviceBadge.label}
           </span>
-          {product.isFeatured && !product.isTest && (
+          {product.isFeatured && !isDraftOrTest && (
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-2xs">
               Destacado
             </span>
           )}
         </div>
+
+        {/* Admin Quick Edit Pill on top-right of image */}
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              openEditProduct(product);
+            }}
+            title="Editar este producto o configurar pasarela Wompi"
+            className="absolute bottom-2.5 right-2.5 z-10 flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-900/90 hover:bg-amber-500 text-white hover:text-slate-950 font-bold text-[11px] shadow-md backdrop-blur-xs transition-all active:scale-95"
+          >
+            <Edit className="h-3 w-3" />
+            <span>Editar</span>
+          </button>
+        )}
 
         {discountPercent > 0 && (
           <div className="absolute top-2.5 right-2.5 bg-red-500 text-white font-black text-[10px] px-2 py-0.5 rounded-full shadow-md">
@@ -125,13 +152,8 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
         )}
 
         {/* Admin test notice or Official public notice */}
-        {product.isTest ? (
-          <div className="mb-3 py-1.5 px-2.5 rounded-xl bg-amber-100/90 dark:bg-amber-950/60 border border-amber-300/80 dark:border-amber-800 text-[10px] font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
-            <span className="text-xs">🔒</span>
-            <span>Servicio en Prueba (Solo tú como Admin lo ves)</span>
-          </div>
-        ) : product.paymentRecipient === 'PROVIDER' ? (
-          <div className="mb-3 py-1.5 px-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200/80 dark:border-purple-800 text-[10px] font-bold text-purple-800 dark:text-purple-200 flex items-center justify-between gap-1.5">
+        {product.paymentRecipient === 'PROVIDER' && (
+          <div className="mb-2 py-1.5 px-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200/80 dark:border-purple-800 text-[10px] font-bold text-purple-800 dark:text-purple-200 flex items-center justify-between gap-1.5">
             <span className="flex items-center gap-1">
               <span>🤝</span>
               <span>Proveedor: {product.providerName || 'Aliado'}</span>
@@ -140,7 +162,18 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
               Wompi Directo
             </span>
           </div>
-        ) : (
+        )}
+
+        {isDraftOrTest ? (
+          <div className="mb-3 py-1.5 px-2.5 rounded-xl bg-amber-100/90 dark:bg-amber-950/60 border border-amber-300/80 dark:border-amber-800 text-[10px] font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+            <span className="text-xs">🔒</span>
+            <span>
+              {product.status === 'draft'
+                ? 'Estado Borrador (Solo visible para Admin)'
+                : 'Servicio en Prueba (Solo visible para Admin)'}
+            </span>
+          </div>
+        ) : product.paymentRecipient !== 'PROVIDER' ? (
           <div className="mb-3 py-1.5 px-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200/80 dark:border-teal-800 text-[10px] font-bold text-teal-800 dark:text-teal-200 flex items-center justify-between gap-1.5">
             <span className="flex items-center gap-1">
               <span>🌟</span>
@@ -152,13 +185,13 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
               </span>
             ) : null}
           </div>
-        )}
+        ) : null}
 
         {/* Spacer */}
         <div className="mt-auto pt-2 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between">
           <div>
             <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-zinc-500 block">
-              {product.isTest ? 'Inversión desde' : 'Contado (Opción Crédito)'}
+              {isDraftOrTest ? 'Inversión desde' : 'Contado (Opción Crédito)'}
             </span>
             <div className="flex items-baseline gap-1.5">
               <span className="text-base font-extrabold text-teal-700 dark:text-teal-300">
@@ -173,6 +206,20 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
           </div>
 
           <div className="flex items-center gap-1.5">
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openEditProduct(product);
+                }}
+                title="Editar Producto / Configurar Wompi"
+                className="w-8 h-8 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-all flex items-center justify-center shadow-2xs active:scale-95"
+              >
+                <Edit className="h-4 w-4" />
+              </button>
+            )}
+
             <button
               type="button"
               onClick={(e) => {
@@ -190,13 +237,13 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
               onClick={handleQuickAdd}
               className={cn(
                 'flex items-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 text-white',
-                product.isTest
+                isDraftOrTest
                   ? 'bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600'
                   : 'bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600'
               )}
             >
               <ShoppingCart className="h-3.5 w-3.5" />
-              <span>{product.isTest ? 'Probar' : 'Inscribirme'}</span>
+              <span>{isDraftOrTest ? 'Probar' : 'Inscribirme'}</span>
             </button>
           </div>
         </div>

@@ -14,10 +14,13 @@ import {
   CheckCircle2,
   Clock,
   Layers,
+  Edit,
+  Plus,
 } from 'lucide-react';
 import axios from 'axios';
 import { useAuthContext } from '~/hooks/AuthContext';
 import type { MarketplaceProduct, MarketplaceCategory } from './types';
+import { useMarketplace } from './MarketplaceContext';
 import MarketplaceProductCard from './MarketplaceProductCard';
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
@@ -33,6 +36,7 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 
 const MarketplaceCatalog: React.FC = () => {
   const { user } = useAuthContext();
+  const { catalogRefreshKey, openEditProduct, setActiveTab } = useMarketplace();
   const isAdmin =
     user?.role === 'ADMIN' ||
     user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com';
@@ -89,10 +93,12 @@ const MarketplaceCatalog: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [selectedCategory, searchQuery, sortBy]);
+  }, [selectedCategory, searchQuery, sortBy, catalogRefreshKey]);
 
-  // Non-admins strictly only see public non-test products
-  const visibleProducts = isAdmin ? products : products.filter((p) => !p.isTest);
+  // Non-admins strictly only see public non-test published products
+  const visibleProducts = isAdmin
+    ? products
+    : products.filter((p) => !p.isTest && p.status === 'published');
 
   return (
     <div className="space-y-6">
@@ -133,16 +139,31 @@ const MarketplaceCatalog: React.FC = () => {
 
       {/* Admin Test Notification Banner */}
       {isAdmin && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 shadow-xs">
           <div className="flex items-start sm:items-center gap-2">
             <span className="text-base">👑</span>
             <span>
-              <strong>Panel Admin Activo:</strong> Estás visualizando el <strong>Curso Oficial WAPPY</strong> (visible para todos) y los <strong>servicios en modo prueba</strong> ({visibleProducts.filter((p) => p.isTest).length} productos con borde y etiqueta ámbar). Los usuarios normales <strong>únicamente ven el curso oficial</strong>.
+              <strong>Panel Admin Activo:</strong> Estás viendo los productos públicos y los <strong>productos en borrador / prueba</strong> ({visibleProducts.filter((p) => p.isTest || p.status === 'draft').length} exclusivos para Admin). Puedes editarlos haciendo clic en <strong>"Editar"</strong> sobre cualquier tarjeta.
             </span>
           </div>
-          <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 shrink-0 self-start sm:self-auto">
-            Solo Admin
-          </span>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('admin')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-white dark:bg-zinc-800 hover:bg-amber-100 dark:hover:bg-zinc-700 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700 shadow-2xs transition-all active:scale-95"
+            >
+              <Edit className="h-3.5 w-3.5" />
+              <span>Tabla de Productos</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => openEditProduct()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-sm transition-all active:scale-95"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Nuevo Producto</span>
+            </button>
+          </div>
         </div>
       )}
 

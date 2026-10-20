@@ -9,6 +9,7 @@ import {
   Settings,
   ShoppingCart,
   Sparkles,
+  Plus,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { MarketplaceProvider, useMarketplace } from './MarketplaceContext';
@@ -34,9 +35,11 @@ const MarketplaceContent: React.FC = () => {
     setIsCartOpen,
     selectedProductDetail,
     setSelectedProductDetail,
+    activeTab,
+    setActiveTab,
+    openEditProduct,
   } = useMarketplace();
 
-  const [activeTab, setActiveTab] = useState<'catalog' | 'my-orders' | 'admin'>('catalog');
   const [completedOrderNumber, setCompletedOrderNumber] = useState<string | null>(null);
 
   const isAdmin =
@@ -124,17 +127,32 @@ const MarketplaceContent: React.FC = () => {
                     setCompletedOrderNumber(null);
                     setActiveTab('admin');
                   }}
-                  className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shadow-2xs active:scale-95 ${
+                  className={`px-3 h-9 flex items-center justify-center gap-1.5 rounded-xl border text-xs transition-all shadow-2xs active:scale-95 ${
                     activeTab === 'admin' && !completedOrderNumber
                       ? 'bg-teal-50 dark:bg-teal-950/50 border-teal-500 text-teal-600 dark:text-teal-300 font-bold'
-                      : 'border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700'
+                      : 'border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 font-semibold'
                   }`}
-                  title="Gestor WooCommerce (Administración de Pedidos y Catálogo)"
+                  title="Gestor de Productos, Cursos y Pedidos (Solo Admin)"
                 >
                   <Settings className="h-4 w-4" />
+                  <span className="hidden sm:inline">Admin</span>
                 </button>
               )}
             </div>
+
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCompletedOrderNumber(null);
+                  openEditProduct();
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
+              >
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Crear Producto</span>
+              </button>
+            )}
 
             {/* Cart Button */}
             <button

@@ -27,6 +27,15 @@ interface MarketplaceContextType {
   discountAmount: number;
   totalAmount: number;
   totalItems: number;
+  activeTab: 'catalog' | 'my-orders' | 'admin';
+  setActiveTab: (tab: 'catalog' | 'my-orders' | 'admin') => void;
+  editingProduct: Partial<MarketplaceProduct> | null;
+  setEditingProduct: React.Dispatch<React.SetStateAction<Partial<MarketplaceProduct> | null>>;
+  isProductModalOpen: boolean;
+  setIsProductModalOpen: (open: boolean) => void;
+  openEditProduct: (product?: Partial<MarketplaceProduct>) => void;
+  catalogRefreshKey: number;
+  triggerCatalogRefresh: () => void;
 }
 
 const MarketplaceContext = createContext<MarketplaceContextType | undefined>(undefined);
@@ -47,6 +56,57 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [selectedProductDetail, setSelectedProductDetail] = useState<MarketplaceProduct | null>(null);
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  const [activeTab, setActiveTab] = useState<'catalog' | 'my-orders' | 'admin'>('catalog');
+  const [editingProduct, setEditingProduct] = useState<Partial<MarketplaceProduct> | null>(null);
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [catalogRefreshKey, setCatalogRefreshKey] = useState(0);
+
+  const triggerCatalogRefresh = () => setCatalogRefreshKey((k) => k + 1);
+
+  const openEditProduct = (product?: Partial<MarketplaceProduct>) => {
+    setSelectedProductDetail(null);
+    if (product) {
+      setEditingProduct({
+        ...product,
+        paymentRecipient: product.paymentRecipient || 'WAPPY',
+        providerName: product.providerName || '',
+        providerWompi: {
+          publicKey: product.providerWompi?.publicKey || '',
+          privateKey: product.providerWompi?.privateKey || '',
+          eventsSecret: product.providerWompi?.eventsSecret || '',
+          integritySecret: product.providerWompi?.integritySecret || '',
+        },
+      });
+    } else {
+      setEditingProduct({
+        title: '',
+        slug: '',
+        sku: '',
+        category: 'capacitaciones',
+        serviceType: 'service_virtual',
+        regularPrice: 150000,
+        salePrice: 0,
+        hasDiscount: false,
+        status: 'draft',
+        isTest: true,
+        isFeatured: false,
+        stockType: 'unlimited',
+        availableSlots: 0,
+        deliverables: [],
+        requirements: [],
+        paymentRecipient: 'WAPPY',
+        providerName: '',
+        providerWompi: {
+          publicKey: '',
+          privateKey: '',
+          eventsSecret: '',
+          integritySecret: '',
+        },
+      });
+    }
+    setActiveTab('admin');
+    setIsProductModalOpen(true);
+  };
 
   // Sync to local storage
   useEffect(() => {
@@ -166,6 +226,15 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         discountAmount,
         totalAmount,
         totalItems,
+        activeTab,
+        setActiveTab,
+        editingProduct,
+        setEditingProduct,
+        isProductModalOpen,
+        setIsProductModalOpen,
+        openEditProduct,
+        catalogRefreshKey,
+        triggerCatalogRefresh,
       }}
     >
       {children}

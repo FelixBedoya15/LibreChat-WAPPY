@@ -26,13 +26,30 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import type { MarketplaceProduct, MarketplaceOrder, MarketplaceCoupon } from './types';
+import { useMarketplace } from './MarketplaceContext';
 
 const formatCOP = (amount: number) => {
   return `$${Math.round(amount).toLocaleString('es-CO')} COP`;
 };
 
 const MarketplaceAdminDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'coupons'>('orders');
+  const {
+    editingProduct,
+    setEditingProduct,
+    isProductModalOpen,
+    setIsProductModalOpen,
+    openEditProduct,
+    triggerCatalogRefresh,
+  } = useMarketplace();
+
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'coupons'>('products');
+
+  // Ensure products tab is active when opening the product edit modal
+  useEffect(() => {
+    if (isProductModalOpen) {
+      setActiveTab('products');
+    }
+  }, [isProductModalOpen]);
 
   // Orders State
   const [orders, setOrders] = useState<MarketplaceOrder[]>([]);
@@ -51,8 +68,6 @@ const MarketplaceAdminDashboard: React.FC = () => {
   // Products State
   const [products, setProducts] = useState<MarketplaceProduct[]>([]);
   const [productSearch, setProductSearch] = useState('');
-  const [editingProduct, setEditingProduct] = useState<Partial<MarketplaceProduct> | null>(null);
-  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
 
   // Coupons State
   const [coupons, setCoupons] = useState<MarketplaceCoupon[]>([]);
@@ -202,6 +217,7 @@ const MarketplaceAdminDashboard: React.FC = () => {
       setIsProductModalOpen(false);
       setEditingProduct(null);
       fetchProducts();
+      triggerCatalogRefresh();
     } catch (err: any) {
       showNotification(err.response?.data?.error || 'Error al guardar servicio.', 'error');
     } finally {
@@ -215,6 +231,7 @@ const MarketplaceAdminDashboard: React.FC = () => {
       await axios.delete(`/api/marketplace/admin/products/${id}`);
       showNotification('Servicio eliminado.', 'success');
       fetchProducts();
+      triggerCatalogRefresh();
     } catch (err) {
       showNotification('Error al eliminar servicio.', 'error');
     }
@@ -222,11 +239,12 @@ const MarketplaceAdminDashboard: React.FC = () => {
 
   // Reseed catalog
   const handleReseedCatalog = async () => {
-    if (!window.confirm('¿Deseas restablecer el catálogo de Salud Ocupacional a los 7 servicios predeterminados?')) return;
+    if (!window.confirm('¿Deseas restablecer el catálogo de Salud Ocupacional a los servicios predeterminados?')) return;
     try {
       await axios.post('/api/marketplace/admin/reseed');
       showNotification('Catálogo restablecido con éxito.', 'success');
       fetchProducts();
+      triggerCatalogRefresh();
     } catch (err) {
       showNotification('Error al restablecer catálogo.', 'error');
     }
@@ -275,18 +293,34 @@ const MarketplaceAdminDashboard: React.FC = () => {
       {/* Top Floating Capsule Toolbar (WAPPY SGSSTToolbar Style) */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-lg shadow-slate-200/40 dark:shadow-none">
-          {/* Tab 1: Pedidos */}
+          {/* Tab 1: Servicios / Productos */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('products')}
+            className={`px-3 h-9 flex items-center justify-center gap-1.5 rounded-xl border text-xs transition-all shadow-2xs active:scale-95 ${
+              activeTab === 'products'
+                ? 'bg-teal-50 dark:bg-teal-950/50 border-teal-500 text-teal-600 dark:text-teal-300 font-bold'
+                : 'border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 font-semibold'
+            }`}
+            title="Catálogo de Servicios y Cursos (Productos)"
+          >
+            <Package className="h-4 w-4" />
+            <span>Productos y Cursos</span>
+          </button>
+
+          {/* Tab 2: Pedidos */}
           <button
             type="button"
             onClick={() => setActiveTab('orders')}
-            className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shadow-2xs active:scale-95 relative ${
+            className={`px-3 h-9 flex items-center justify-center gap-1.5 rounded-xl border text-xs transition-all shadow-2xs active:scale-95 relative ${
               activeTab === 'orders'
                 ? 'bg-teal-50 dark:bg-teal-950/50 border-teal-500 text-teal-600 dark:text-teal-300 font-bold'
-                : 'border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700'
+                : 'border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 font-semibold'
             }`}
-            title="Gestor de Pedidos (WooCommerce Orders)"
+            title="Gestor de Pedidos"
           >
             <ShoppingBag className="h-4 w-4" />
+            <span>Pedidos</span>
             {ordersStats.pendingReviewCount > 0 && (
               <span className="bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center absolute -top-1.5 -right-1.5">
                 {ordersStats.pendingReviewCount}
@@ -294,32 +328,19 @@ const MarketplaceAdminDashboard: React.FC = () => {
             )}
           </button>
 
-          {/* Tab 2: Servicios / Productos */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('products')}
-            className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shadow-2xs active:scale-95 ${
-              activeTab === 'products'
-                ? 'bg-teal-50 dark:bg-teal-950/50 border-teal-500 text-teal-600 dark:text-teal-300 font-bold'
-                : 'border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700'
-            }`}
-            title="Catálogo de Servicios SST (WooCommerce Products)"
-          >
-            <Package className="h-4 w-4" />
-          </button>
-
           {/* Tab 3: Cupones */}
           <button
             type="button"
             onClick={() => setActiveTab('coupons')}
-            className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shadow-2xs active:scale-95 ${
+            className={`px-3 h-9 flex items-center justify-center gap-1.5 rounded-xl border text-xs transition-all shadow-2xs active:scale-95 ${
               activeTab === 'coupons'
                 ? 'bg-teal-50 dark:bg-teal-950/50 border-teal-500 text-teal-600 dark:text-teal-300 font-bold'
-                : 'border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700'
+                : 'border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 font-semibold'
             }`}
             title="Cupones y Descuentos"
           >
             <Ticket className="h-4 w-4" />
+            <span>Cupones</span>
           </button>
         </div>
 
@@ -330,7 +351,7 @@ const MarketplaceAdminDashboard: React.FC = () => {
               type="button"
               onClick={handleReseedCatalog}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-zinc-800 text-slate-600 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 shadow-xs"
-              title="Restablecer los 7 servicios iniciales"
+              title="Restablecer servicios iniciales"
             >
               <RotateCcw className="h-3.5 w-3.5" />
               <span>Restablecer Catálogo</span>
@@ -338,34 +359,7 @@ const MarketplaceAdminDashboard: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => {
-                setEditingProduct({
-                  title: '',
-                  slug: '',
-                  sku: '',
-                  category: 'capacitaciones',
-                  serviceType: 'service_virtual',
-                  regularPrice: 150000,
-                  salePrice: 0,
-                  hasDiscount: false,
-                  status: 'published',
-                  isTest: false,
-                  isFeatured: false,
-                  stockType: 'unlimited',
-                  availableSlots: 0,
-                  deliverables: [],
-                  requirements: [],
-                  paymentRecipient: 'WAPPY',
-                  providerName: '',
-                  providerWompi: {
-                    publicKey: '',
-                    privateKey: '',
-                    eventsSecret: '',
-                    integritySecret: '',
-                  },
-                });
-                setIsProductModalOpen(true);
-              }}
+              onClick={() => openEditProduct()}
               className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white"
             >
               <Plus className="h-4 w-4" />
