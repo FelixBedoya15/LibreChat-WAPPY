@@ -512,11 +512,11 @@ const MetodoOwas = () => {
                   </div>
                 </div>
 
-                {/* Res. 0312 Est. 3.1.5: CUMPLE */}
+                {/* ISO 45001 Num. 6.1.2 · Res. 0312 Est. 3.1.5: CUMPLE */}
                 <SGSSTLegalBadge
                   standardCode="3.1.5"
-                  label="Res. 0312 Est. 3.1.5: CUMPLE"
-                  tooltip="Res. 0312/2019 Estándar 3.1.5 — Identificación de Peligros Biomecánicos y Vigilancia Ergonómica"
+                  label="ISO 45001 Num. 6.1.2 · Res. 0312 Est. 3.1.5: CUMPLE"
+                  tooltip="ISO 45001:2018 Num. 6.1.2 (Riesgos biomecánicos y ergonomía) · Res. 0312/2019 Estándar 3.1.5"
                   moduleName="Evaluación Ergonómica OWAS"
                 />
               </div>

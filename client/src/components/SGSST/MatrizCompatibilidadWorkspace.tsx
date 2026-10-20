@@ -264,11 +264,11 @@ export default function MatrizCompatibilidadWorkspace() {
                   </div>
                 </div>
 
-                {/* Res. 0312 Est. 4.1.3: CUMPLE */}
+                {/* ISO 45001 Num. 8.1.2 · Res. 0312 Est. 4.1.3: CUMPLE */}
                 <SGSSTLegalBadge
                   standardCode="4.1.3"
-                  label="Res. 0312 Est. 4.1.3: CUMPLE"
-                  tooltip="Res. 0312/2019 Estándar 4.1.3 — Identificación y Control de Sustancias Químicas Peligrosas / SGA (Res. 773/21 y Dec. 1496/18)"
+                  label="ISO 45001 Num. 8.1.2 · Res. 0312 Est. 4.1.3: CUMPLE"
+                  tooltip="ISO 45001:2018 Num. 8.1.2 (Sustancias químicas peligrosas) · Res. 0312/2019 Estándar 4.1.3 (Res. 773/21 y Dec. 1496/18)"
                   moduleName="Matriz de Compatibilidad Química"
                 />
               </div>

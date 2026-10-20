@@ -7,7 +7,7 @@ import {
     FileText, Target, Stethoscope, Scale, Users, UserCircle, BarChart, Activity, AlertTriangle, ShieldAlert,
     ClipboardCheck, Briefcase, GitMerge, UserCheck, BrainCircuit, Blocks, Heart, GraduationCap, Shield, Eye,
     Car, Wrench, FlaskConical, Trello, Search, Lock, Hammer,
-    Award, HeartHandshake
+    Award, HeartHandshake, Compass, ShoppingBag, Sparkles
 } from 'lucide-react';
 import { cn } from '~/utils';
 
@@ -63,6 +63,12 @@ import MatrizCompatibilidadWorkspace from './MatrizCompatibilidadWorkspace';
 import CopasstWorkspace from './CopasstWorkspace';
 import ConvivenciaWorkspace from './ConvivenciaWorkspace';
 import ComitePesvWorkspace from './ComitePesvWorkspace';
+import ContextoPartesInteresadasWorkspace from './ContextoPartesInteresadasWorkspace';
+import GestionCambioWorkspace from './GestionCambioWorkspace';
+import ContratistasWorkspace from './ContratistasWorkspace';
+import ComunicacionesWorkspace from './ComunicacionesWorkspace';
+import OportunidadesWorkspace from './OportunidadesWorkspace';
+import ComprasWorkspace from './ComprasWorkspace';
 
 // Manual Icon Map to avoid dynamic import issues
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -72,7 +78,8 @@ const ICON_MAP: Record<string, React.ElementType> = {
     Briefcase, GitMerge, FolderOpen, UserCheck,
     BrainCircuit, Blocks, Heart, Shield,
     Car, Wrench, FlaskConical, Trello, Search,
-    Award, HeartHandshake
+    Award, HeartHandshake, Compass, ShoppingBag,
+    Sparkles, MessageSquare
 };
 
 
@@ -485,6 +492,20 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                     </div>
                                                 )}
 
+                                                {/* Show ContextoPartesInteresadasWorkspace for contexto_organizacion category */}
+                                                {category.id === 'contexto_organizacion' && (
+                                                    <div className="mb-6">
+                                                        <ContextoPartesInteresadasWorkspace />
+                                                    </div>
+                                                )}
+
+                                                {/* Show OportunidadesWorkspace for oportunidades_sst category */}
+                                                {category.id === 'oportunidades_sst' && (
+                                                    <div className="mb-6">
+                                                        <OportunidadesWorkspace />
+                                                    </div>
+                                                )}
+
                                                 {/* Show MatrizIPEVARWorkspace for matriz_ipevar_oficial category */}
                                                 {category.id === 'matriz_ipevar_oficial' && (
                                                     <div className="mb-6">
@@ -703,6 +724,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                      </div>
                                                  )}
 
+                                                 {/* Show ComunicacionesWorkspace for comunicaciones_sst category */}
+                                                 {category.id === 'comunicaciones_sst' && (
+                                                     <div className="mb-6">
+                                                         <ComunicacionesWorkspace />
+                                                     </div>
+                                                 )}
+
                                                  {/* Show Ruta de Aprendizaje for ruta_aprendizaje category */}
                                                  {category.id === 'ruta_aprendizaje' && (
                                                      <div className="mb-6 p-6 rounded-2xl bg-gradient-to-br from-emerald-950/20 via-surface-secondary to-surface-primary border border-border-light dark:border-white/10 shadow-xl space-y-6">
@@ -811,6 +839,27 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                 {category.id === 'simulacros_emergencia' && (
                                                     <div className="mb-6">
                                                         <SimulacrosEmergenciaWorkspace />
+                                                    </div>
+                                                )}
+
+                                                {/* Show GestionCambioWorkspace for gestion_cambio category */}
+                                                {category.id === 'gestion_cambio' && (
+                                                    <div className="mb-6">
+                                                        <GestionCambioWorkspace />
+                                                    </div>
+                                                )}
+
+                                                {/* Show ContratistasWorkspace for contratistas_proveedores category */}
+                                                {category.id === 'contratistas_proveedores' && (
+                                                    <div className="mb-6">
+                                                        <ContratistasWorkspace />
+                                                    </div>
+                                                )}
+
+                                                {/* Show ComprasWorkspace for compras_sst category */}
+                                                {category.id === 'compras_sst' && (
+                                                    <div className="mb-6">
+                                                        <ComprasWorkspace />
                                                     </div>
                                                 )}
 

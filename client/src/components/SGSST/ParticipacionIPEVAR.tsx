@@ -1555,11 +1555,11 @@ const ParticipacionIPEVAR = () => {
                                     </div>
                                 </div>
 
-                                {/* Res. 0312 Est. 4.1.2: CUMPLE */}
+                                {/* ISO 45001 Num. 5.4 · Res. 0312 Est. 4.1.2: CUMPLE */}
                                 <SGSSTLegalBadge
                                     standardCode="4.1.2"
-                                    label="Res. 0312 Est. 4.1.2: CUMPLE"
-                                    tooltip="Res. 0312/2019 Estándar 4.1.2 — Identificación de Peligros con Participación de Todos los Niveles y Auto-reporte (Dec. 1072/15 Art. 2.2.4.6.15)"
+                                    label="ISO 45001 Num. 5.4 · Res. 0312 Est. 4.1.2: CUMPLE"
+                                    tooltip="ISO 45001:2018 Num. 5.4 (Consulta y participación de los trabajadores) · Res. 0312/2019 Estándar 4.1.2 — Identificación de Peligros con Participación (Dec. 1072/15 Art. 2.2.4.6.15)"
                                     moduleName="Participación IPEVAR"
                                 />
                             </div>

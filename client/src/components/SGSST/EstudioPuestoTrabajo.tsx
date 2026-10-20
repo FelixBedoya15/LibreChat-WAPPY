@@ -945,11 +945,11 @@ export default function EstudioPuestoTrabajo() {
                   </div>
                 </div>
 
-                {/* Res. 0312 Est. 3.1.5: CUMPLE */}
+                {/* ISO 45001 Num. 6.1.2 · Res. 0312 Est. 3.1.5: CUMPLE */}
                 <SGSSTLegalBadge
                   standardCode="3.1.5"
-                  label="Res. 0312 Est. 3.1.5: CUMPLE"
-                  tooltip="Res. 0312/2019 Estándar 3.1.5 y 3.1.7 — Estudio de Puesto de Trabajo e Intervención Ergonómica"
+                  label="ISO 45001 Num. 6.1.2 · Res. 0312 Est. 3.1.5: CUMPLE"
+                  tooltip="ISO 45001:2018 Num. 6.1.2 (Riesgos biomecánicos y ergonómicos) · Res. 0312/2019 Estándar 3.1.5 — Estudio de Puesto de Trabajo (EPT)"
                   moduleName="Estudio de Puesto de Trabajo (EPT)"
                 />
               </div>

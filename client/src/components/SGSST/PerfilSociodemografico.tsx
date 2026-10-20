@@ -1293,11 +1293,11 @@ const PerfilSociodemografico = () => {
                                     </div>
                                 </div>
 
-                                {/* Res. 0312 Est. 3.1.1: CUMPLE */}
+                                {/* ISO 45001 Num. 9.1.1 · Res. 0312 Est. 3.1.1: CUMPLE */}
                                 <SGSSTLegalBadge
                                     standardCode="3.1.1"
-                                    label="Res. 0312 Est. 3.1.1: CUMPLE"
-                                    tooltip="Res. 0312/2019 Estándar 3.1.1 — Perfil Sociodemográfico de los Trabajadores y Diagnóstico de Salud (Dec. 1072/15 Art. 2.2.4.6.12)"
+                                    label="ISO 45001 Num. 9.1.1 · Res. 0312 Est. 3.1.1: CUMPLE"
+                                    tooltip="ISO 45001:2018 Num. 9.1.1 (Perfil sociodemográfico) · Res. 0312/2019 Estándar 3.1.1 (Dec. 1072/15 Art. 2.2.4.6.12)"
                                     moduleName="Perfil Sociodemográfico"
                                 />
                             </div>

@@ -539,11 +539,11 @@ export default function AltaDireccionChecklist() {
                                     </div>
                                 </div>
 
-                                {/* Res. 0312 Est. 6.1.3: CUMPLE */}
+                                {/* ISO 45001 Num. 9.3 · Res. 0312 Est. 6.1.3: CUMPLE */}
                                 <SGSSTLegalBadge
                                     standardCode="6.1.3"
-                                    label="Res. 0312 Est. 6.1.3: CUMPLE"
-                                    tooltip="Res. 0312/2019 Estándar 6.1.3 — Revisión anual del SG-SST por la Alta Dirección y comunicación a COPASST (Dec. 1072/15 Art. 2.2.4.6.31)"
+                                    label="ISO 45001 Num. 9.3 · Res. 0312 Est. 6.1.3: CUMPLE"
+                                    tooltip="ISO 45001:2018 Num. 9.3 (Revisión por la dirección) · Res. 0312/2019 Estándar 6.1.3 — Revisión anual del SG-SST por la Alta Dirección y comunicación a COPASST (Dec. 1072/15 Art. 2.2.4.6.31)"
                                     moduleName="Revisión por la Alta Dirección"
                                 />
                             </div>

@@ -647,11 +647,11 @@ export default function ProgramaCapacitaciones() {
                   </div>
                 </div>
 
-                {/* Res. 0312 Est. 1.2.1: CUMPLE */}
+                {/* ISO 45001 Num. 7.2 · Res. 0312 Est. 1.2.1: CUMPLE */}
                 <SGSSTLegalBadge
                   standardCode="1.2.1"
-                  label="Res. 0312 Est. 1.2.1: CUMPLE"
-                  tooltip="Res. 0312/2019 Estándar 1.2.1 — Programa de Capacitación Anual en SST (Dec. 1072/15 Art. 2.2.4.6.11)"
+                  label="ISO 45001 Num. 7.2 · Res. 0312 Est. 1.2.1: CUMPLE"
+                  tooltip="ISO 45001:2018 Num. 7.2 (Competencia y formación en SST) · Res. 0312/2019 Estándar 1.2.1 — Programa de Capacitación Anual en SST (Dec. 1072/15 Art. 2.2.4.6.11)"
                   moduleName="Programa de Capacitación Anual"
                 />
               </div>

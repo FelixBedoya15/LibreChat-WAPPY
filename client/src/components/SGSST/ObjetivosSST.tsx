@@ -384,11 +384,11 @@ const ObjetivosSST = () => {
                                     </div>
                                 </div>
 
-                                {/* Res. 0312 Est. 2.2.1: CUMPLE */}
+                                {/* ISO 45001 Num. 6.2 · Res. 0312 Est. 2.2.1: CUMPLE */}
                                 <SGSSTLegalBadge
                                     standardCode="2.2.1"
-                                    label="Res. 0312 Est. 2.2.1: CUMPLE"
-                                    tooltip="Res. 0312/2019 Estándar 2.2.1 — Objetivos de Seguridad y Salud en el Trabajo medibles y coherentes con la política (Dec. 1072/15 Art. 2.2.4.6.18)"
+                                    label="ISO 45001 Num. 6.2 · Res. 0312 Est. 2.2.1: CUMPLE"
+                                    tooltip="ISO 45001:2018 Num. 6.2 (Objetivos de la SST y planificación) · Res. 0312/2019 Estándar 2.2.1 — Objetivos de Seguridad y Salud en el Trabajo medibles y coherentes con la política (Dec. 1072/15 Art. 2.2.4.6.18)"
                                     moduleName="Objetivos del SG-SST"
                                 />
                             </div>

@@ -275,11 +275,11 @@ export default function MatrizPESVWorkspace() {
                   </div>
                 </div>
 
-                {/* Res. 0312 Art. 32 / Paso 8: CUMPLE */}
+                {/* ISO 45001 Num. 6.1.2 · Res. 0312 Art. 32 / PESV: CUMPLE */}
                 <SGSSTLegalBadge
-                  standardCode="32"
-                  label="Res. 0312 Art. 32 / Paso 8: CUMPLE"
-                  tooltip="Res. 0312/2019 Art. 32 y Res. 20223040040595 (Paso 8 — Evaluación y Control de Riesgos Viales)"
+                  standardCode="4.1.1"
+                  label="ISO 45001 Num. 6.1.2 · Res. 0312 Art. 32 / PESV: CUMPLE"
+                  tooltip="ISO 45001:2018 Num. 6.1.2 (Riesgos viales y operacionales) · Res. 0312/2019 Art. 32 y Res. 20223040040595 (Paso 8 — Control de Riesgos Viales)"
                   moduleName="Matriz PESV"
                 />
               </div>

@@ -1062,11 +1062,11 @@ const InvestigacionATEL = () => {
                                     </div>
                                 </div>
 
-                                {/* Res. 0312 Est. 3.2.2: CUMPLE */}
+                                {/* ISO 45001 Num. 10.2 · Res. 0312 Est. 3.2.2: CUMPLE */}
                                 <SGSSTLegalBadge
                                     standardCode="3.2.2"
-                                    label="Res. 0312 Est. 3.2.2: CUMPLE"
-                                    tooltip="Res. 0312/2019 Estándar 3.2.2 — Investigación de incidentes, accidentes y enfermedades laborales con COPASST (Res. 1401/07)"
+                                    label="ISO 45001 Num. 10.2 · Res. 0312 Est. 3.2.2: CUMPLE"
+                                    tooltip="ISO 45001:2018 Num. 10.2 (Investigación de incidentes y no conformidades) · Res. 0312/2019 Estándar 3.2.2 y Res. 1401/2007 (Investigación ATEL con COPASST)"
                                     moduleName="Investigación de Incidentes y ATEL"
                                 />
                             </div>

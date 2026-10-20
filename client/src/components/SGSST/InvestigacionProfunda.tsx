@@ -180,11 +180,11 @@ const InvestigacionProfunda = () => {
                                     </div>
                                 </div>
 
-                                {/* Res. 0312 / Dec. 1072: CUMPLE */}
+                                {/* ISO 45001 Num. 10.2 · Res. 0312 / Dec. 1072: CUMPLE */}
                                 <SGSSTLegalBadge
                                     standardCode="3.2.2"
-                                    label="Res. 0312 / Dec. 1072: CUMPLE"
-                                    tooltip="Dec. 1072/2015 Art. 2.2.4.6.32 y Res. 0312/2019 Estándar 3.2.2 — Investigación Profunda, Doctrina y Marco Jurídico en SST"
+                                    label="ISO 45001 Num. 10.2 · Res. 0312 / Dec. 1072: CUMPLE"
+                                    tooltip="ISO 45001:2018 Num. 10.2 (Investigación y causas de raíz) · Dec. 1072/2015 Art. 2.2.4.6.32 y Res. 0312/2019 Estándar 3.2.2 — Investigación Profunda, Doctrina y Marco Jurídico en SST"
                                     moduleName="Investigación Profunda SST"
                                 />
                             </div>

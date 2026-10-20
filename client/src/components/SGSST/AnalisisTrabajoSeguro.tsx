@@ -519,11 +519,11 @@ const AnalisisTrabajoSeguro = () => {
                                     </div>
                                 </div>
 
-                                {/* Res. 0312 Est. 4.2.3: CUMPLE */}
+                                {/* ISO 45001 Num. 8.1.2 · Res. 0312 Est. 4.2.3: CUMPLE */}
                                 <SGSSTLegalBadge
                                     standardCode="4.2.3"
-                                    label="Res. 0312 Est. 4.2.3: CUMPLE"
-                                    tooltip="Res. 0312/2019 Estándar 4.2.3 — Procedimientos e Instructivos de Trabajo Seguro (ATS) por Tarea (Dec. 1072/15 Art. 2.2.4.6.24)"
+                                    label="ISO 45001 Num. 8.1.2 · Res. 0312 Est. 4.2.3: CUMPLE"
+                                    tooltip="ISO 45001:2018 Num. 8.1.2 (Controles operacionales) · Res. 0312/2019 Estándar 4.2.3 — Procedimientos e Instructivos ATS (Dec. 1072/15 Art. 2.2.4.6.24)"
                                     moduleName="Análisis de Trabajo Seguro (ATS)"
                                 />
                             </div>

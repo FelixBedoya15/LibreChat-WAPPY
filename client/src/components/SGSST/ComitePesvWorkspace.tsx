@@ -577,11 +577,11 @@ export default function ComitePesvWorkspace() {
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/20 border border-teal-400/30 text-teal-200 text-xs font-bold uppercase tracking-wider">
                 <Car className="w-3.5 h-3.5" /> Res. 20223040040595 Paso 1, 2 y 20 • Ley 1503/2011 • ISO 39001
               </div>
-              {/* Res. 0312 Art. 32 / Paso 2: CUMPLE */}
+              {/* ISO 45001 Num. 5.1 · Res. 0312 Art. 32 / PESV: CUMPLE */}
               <SGSSTLegalBadge
-                standardCode="32"
-                label="Res. 0312 Art. 32 / Paso 2: CUMPLE"
-                tooltip="Res. 0312/2019 Art. 32 y Res. 20223040040595 (Paso 2 — Comité de Seguridad Vial y Líder PESV)"
+                standardCode="1.1.6"
+                label="ISO 45001 Num. 5.1 · Res. 0312 Art. 32 / PESV: CUMPLE"
+                tooltip="ISO 45001:2018 Num. 5.1 (Liderazgo y compromiso) · Res. 0312/2019 Art. 32 y Res. 20223040040595 (Paso 2 — Comité de Seguridad Vial)"
                 moduleName="Comité de Seguridad Vial (PESV)"
               />
             </div>

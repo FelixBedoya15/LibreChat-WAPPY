@@ -714,11 +714,11 @@ export default function VehiclesWorkspace() {
                   </div>
                 </div>
 
-                {/* Res. 0312 Art. 32 / Paso 10: CUMPLE */}
+                {/* ISO 45001 Num. 8.1.2 · Res. 0312 Art. 32 / PESV: CUMPLE */}
                 <SGSSTLegalBadge
                   standardCode="32"
-                  label="Res. 0312 Art. 32 / Paso 10: CUMPLE"
-                  tooltip="Res. 0312/2019 Art. 32 y Res. 20223040040595 (Paso 10 — Mantenimiento y Control de Vehículos y Flota PESV)"
+                  label="ISO 45001 Num. 8.1.2 · Res. 0312 Art. 32 / PESV: CUMPLE"
+                  tooltip="ISO 45001:2018 Num. 8.1.2 (Control operacional de equipos) · Res. 0312/2019 Art. 32 y Res. 20223040040595 (Paso 10 — Mantenimiento y Control de Vehículos PESV)"
                   moduleName="Flota Vehicular y Mantenimiento PESV"
                 />
               </div>

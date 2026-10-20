@@ -934,11 +934,11 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({
                   </div>
                 </div>
 
-                {/* Res. 0312 Est. 6.1.2: CUMPLE */}
+                {/* ISO 45001 Num. 9.2 · Res. 0312 Est. 6.1.2: CUMPLE */}
                 <SGSSTLegalBadge
                   standardCode="6.1.2"
-                  label="Res. 0312 Est. 6.1.2: CUMPLE"
-                  tooltip="Res. 0312/2019 Estándar 6.1.2 — Realización y alcance de la Auditoría Anual del SG-SST con COPASST (Dec. 1072/15 Art. 2.2.4.6.29)"
+                  label="ISO 45001 Num. 9.2 · Res. 0312 Est. 6.1.2: CUMPLE"
+                  tooltip="ISO 45001:2018 Num. 9.2 (Auditoría interna) · Res. 0312/2019 Estándar 6.1.2 — Realización y alcance de la Auditoría Anual del SG-SST con COPASST (Dec. 1072/15 Art. 2.2.4.6.29)"
                   moduleName="Auditoría Interna SG-SST"
                 />
               </div>

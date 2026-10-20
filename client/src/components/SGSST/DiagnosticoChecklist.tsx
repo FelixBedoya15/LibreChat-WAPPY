@@ -944,8 +944,8 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             <div className="flex flex-wrap items-center gap-2">
               <SGSSTLegalBadge
                 standardCode="2.3.1"
-                label="Res. 0312 Est. 2.3.1: CUMPLE"
-                tooltip="Res. 0312/2019 Est. 2.3.1 — Evaluación Inicial e identificación de prioridades (Dec. 1072/15 Art. 2.2.4.6.16)"
+                label="ISO 45001 Num. 9.1.2 · Res. 0312 Est. 2.3.1: CUMPLE"
+                tooltip="ISO 45001:2018 Num. 9.1.2 (Evaluación del cumplimiento) · Res. 0312/2019 Est. 2.3.1 — Evaluación Inicial e identificación de prioridades (Dec. 1072/15 Art. 2.2.4.6.16)"
                 moduleName="Diagnóstico Inicial"
               />
             </div>

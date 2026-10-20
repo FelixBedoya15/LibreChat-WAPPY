@@ -1392,11 +1392,11 @@ const CondicionesSalud = () => {
                                     </div>
                                 </div>
 
-                                {/* Res. 0312 Est. 3.1.4: CUMPLE */}
+                                {/* ISO 45001 Num. 9.1.1 · Res. 0312 Est. 3.1.4: CUMPLE */}
                                 <SGSSTLegalBadge
                                     standardCode="3.1.4"
-                                    label="Res. 0312 Est. 3.1.4: CUMPLE"
-                                    tooltip="Res. 0312/2019 Estándar 3.1.4 — Evaluaciones médicas ocupacionales periódicas y de ingreso (Dec. 1072/15 Art. 2.2.4.6.24)"
+                                    label="ISO 45001 Num. 9.1.1 · Res. 0312 Est. 3.1.4: CUMPLE"
+                                    tooltip="ISO 45001:2018 Num. 9.1.1 (Evaluaciones médicas y salud ocupacional) · Res. 0312/2019 Estándar 3.1.4 (Dec. 1072/15 Art. 2.2.4.6.24)"
                                     moduleName="Condiciones de Salud y EMOs"
                                 />
                             </div>

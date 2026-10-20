@@ -400,11 +400,11 @@ export default function BioIndividualHub() {
                   </div>
                 </div>
 
-                {/* Res. 0312 Est. 4.1.1: CUMPLE */}
+                {/* ISO 45001 Num. 6.1.2 · Res. 0312 Est. 4.1.1: CUMPLE */}
                 <SGSSTLegalBadge
                   standardCode="4.1.1"
-                  label="Res. 0312 Est. 4.1.1: CUMPLE"
-                  tooltip="Res. 0312/2019 Estándar 4.1.1 — Identificación Bio-Individual de Peligros y Valoración de Riesgos por Trabajador"
+                  label="ISO 45001 Num. 6.1.2 · Res. 0312 Est. 4.1.1: CUMPLE"
+                  tooltip="ISO 45001:2018 Num. 6.1.2 (Peligros y riesgos bioindividuales) · Res. 0312/2019 Estándar 4.1.1"
                   moduleName="Matriz Bio-IPEVR Individual"
                 />
               </div>

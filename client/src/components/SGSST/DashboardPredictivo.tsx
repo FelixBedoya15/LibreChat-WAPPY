@@ -1099,8 +1099,8 @@ const DashboardPredictivo = () => {
                                 </span>
                                 <SGSSTLegalBadge
                                     standardCode="6.1.4"
-                                    label="Res. 0312 Est. 6.1.4: CUMPLE"
-                                    tooltip="Res. 0312/2019 Estándar 6.1.4 y Dec. 1072/15 Art. 2.2.4.6.20 — Indicadores de Gestión, Causalidad Predictiva y Mejora Continua"
+                                    label="ISO 45001 Num. 9.1.1 · Res. 0312 Est. 6.1.4: CUMPLE"
+                                    tooltip="ISO 45001:2018 Num. 9.1.1 (Analítica y evaluación del desempeño) · Res. 0312/2019 Estándar 6.1.4 y Dec. 1072/15 Art. 2.2.4.6.20 — Indicadores de Gestión, Causalidad Predictiva y Mejora Continua"
                                     moduleName="Centro de Inteligencia Predictiva"
                                 />
                                 {forecast?.activeCompany?.name && (

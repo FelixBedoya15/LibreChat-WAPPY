@@ -1563,11 +1563,11 @@ export default function EPPWorkspace() {
                   </div>
                 </div>
 
-                {/* Res. 0312 Est. 4.2.4: CUMPLE */}
+                {/* ISO 45001 Num. 8.1.2 · Res. 0312 Est. 4.2.4: CUMPLE */}
                 <SGSSTLegalBadge
                   standardCode="4.2.4"
-                  label="Res. 0312 Est. 4.2.4: CUMPLE"
-                  tooltip="Res. 0312/2019 Estándar 4.2.4 — Suministro de EPP, reposición y verificación de entrega formal (Dec. 1072/15 Art. 2.2.4.6.24)"
+                  label="ISO 45001 Num. 8.1.2 · Res. 0312 Est. 4.2.4: CUMPLE"
+                  tooltip="ISO 45001:2018 Num. 8.1.2 (Jerarquía de controles y EPP) · Res. 0312/2019 Estándar 4.2.4 (Dec. 1072/15 Art. 2.2.4.6.24)"
                   moduleName="Suministro y Control de EPP"
                 />
               </div>

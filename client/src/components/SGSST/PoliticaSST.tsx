@@ -407,11 +407,11 @@ const PoliticaSST = () => {
                                     </div>
                                 </div>
 
-                                {/* Res. 0312 Est. 2.1.1: CUMPLE */}
+                                {/* ISO 45001 Num. 5.2 · Res. 0312 Est. 2.1.1: CUMPLE */}
                                 <SGSSTLegalBadge
                                     standardCode="2.1.1"
-                                    label="Res. 0312 Est. 2.1.1: CUMPLE"
-                                    tooltip="Res. 0312/2019 Estándar 2.1.1 — Política de Seguridad y Salud en el Trabajo fechada, firmada y comunicada (Dec. 1072/15 Art. 2.2.4.6.5)"
+                                    label="ISO 45001 Num. 5.2 · Res. 0312 Est. 2.1.1: CUMPLE"
+                                    tooltip="ISO 45001:2018 Num. 5.2 (Política de la SST) · Res. 0312/2019 Estándar 2.1.1 — Política de Seguridad y Salud en el Trabajo fechada, firmada y comunicada (Dec. 1072/15 Art. 2.2.4.6.5)"
                                     moduleName="Política de SST"
                                 />
                             </div>

@@ -397,11 +397,11 @@ const ReglamentoInterno = () => {
                                     </div>
                                 </div>
 
-                                {/* Res. 0312 / CST Art. 104: CUMPLE */}
+                                {/* ISO 45001 Num. 7.5 · Res. 0312 / CST Art. 104: CUMPLE */}
                                 <SGSSTLegalBadge
                                     standardCode="1.1.3"
-                                    label="Res. 0312 / CST Art. 104: CUMPLE"
-                                    tooltip="Código Sustantivo del Trabajo Art. 104 a 125 y Res. 0312/2019 Estándar 1.1.3 — Reglamento Interno de Trabajo (RIT) y Régimen Disciplinario"
+                                    label="ISO 45001 Num. 7.5 · Res. 0312 / CST Art. 104: CUMPLE"
+                                    tooltip="ISO 45001:2018 Num. 7.5 (Información documentada) · Código Sustantivo del Trabajo Art. 104 a 125 y Res. 0312/2019 Estándar 1.1.3 — Reglamento Interno de Trabajo (RIT)"
                                     moduleName="Reglamento Interno de Trabajo (RIT)"
                                 />
                             </div>

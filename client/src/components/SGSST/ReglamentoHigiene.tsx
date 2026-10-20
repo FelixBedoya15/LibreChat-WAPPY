@@ -290,11 +290,11 @@ const ReglamentoHigiene = () => {
                                     </div>
                                 </div>
 
-                                {/* Res. 0312 / CST Art. 349: CUMPLE */}
+                                {/* ISO 45001 Num. 7.5 · Res. 0312 / CST Art. 349: CUMPLE */}
                                 <SGSSTLegalBadge
                                     standardCode="2.1.1"
-                                    label="Res. 0312 / CST Art. 349: CUMPLE"
-                                    tooltip="Res. 0312/2019 Estándar 2.1.1 y Código Sustantivo del Trabajo Art. 349 — Reglamento de Higiene y Seguridad Industrial"
+                                    label="ISO 45001 Num. 7.5 · Res. 0312 / CST Art. 349: CUMPLE"
+                                    tooltip="ISO 45001:2018 Num. 7.5 (Información documentada) · Res. 0312/2019 Estándar 2.1.1 y Código Sustantivo del Trabajo Art. 349 — Reglamento de Higiene y Seguridad Industrial"
                                     moduleName="Reglamento de Higiene y Seguridad"
                                 />
                             </div>

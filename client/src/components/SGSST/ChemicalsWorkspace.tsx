@@ -577,11 +577,11 @@ export default function ChemicalsWorkspace() {
                   </div>
                 </div>
 
-                {/* Res. 0312 Est. 4.1.3: CUMPLE */}
+                {/* ISO 45001 Num. 8.1.2 · Res. 0312 Est. 4.1.3: CUMPLE */}
                 <SGSSTLegalBadge
                   standardCode="4.1.3"
-                  label="Res. 0312 Est. 4.1.3: CUMPLE"
-                  tooltip="Res. 0312/2019 Estándar 4.1.3 — Inventario de Sustancias Químicas, FDS y Rotulado SGA (Res. 773/21 y Dec. 1496/18)"
+                  label="ISO 45001 Num. 8.1.2 · Res. 0312 Est. 4.1.3: CUMPLE"
+                  tooltip="ISO 45001:2018 Num. 8.1.2 (Sustancias químicas peligrosas) · Res. 0312/2019 Estándar 4.1.3 — Inventario de Sustancias Químicas, FDS y Rotulado SGA (Res. 773/21 y Dec. 1496/18)"
                   moduleName="Inventario Químico y SGA"
                 />
               </div>

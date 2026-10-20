@@ -269,11 +269,11 @@ export default function MatrizIPEVARWorkspace() {
                   </div>
                 </div>
 
-                {/* Res. 0312 Est. 4.1.1: CUMPLE */}
+                {/* ISO 45001 Num. 6.1.2 · Res. 0312 Est. 4.1.1: CUMPLE */}
                 <SGSSTLegalBadge
                   standardCode="4.1.1"
-                  label="Res. 0312 Est. 4.1.1: CUMPLE"
-                  tooltip="Res. 0312/2019 Estándar 4.1.1 — Metodología de Identificación de Peligros, Evaluación y Valoración de Riesgos (Dec. 1072/15 Art. 2.2.4.6.15)"
+                  label="ISO 45001 Num. 6.1.2 · Res. 0312 Est. 4.1.1: CUMPLE"
+                  tooltip="ISO 45001:2018 Num. 6.1.2 (Identificación de peligros y valoración de riesgos) · Res. 0312/2019 Estándar 4.1.1 (Dec. 1072/15 Art. 2.2.4.6.15)"
                   moduleName="Matriz IPEVAR"
                 />
               </div>

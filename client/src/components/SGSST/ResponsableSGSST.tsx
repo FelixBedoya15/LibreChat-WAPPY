@@ -407,11 +407,11 @@ const ResponsableSGSST = () => {
                                     </div>
                                 </div>
 
-                                {/* Res. 0312 Est. 1.1.1: CUMPLE */}
+                                {/* ISO 45001 Num. 5.3 · Res. 0312 Est. 1.1.1: CUMPLE */}
                                 <SGSSTLegalBadge
                                     standardCode="1.1.1"
-                                    label="Res. 0312 Est. 1.1.1: CUMPLE"
-                                    tooltip="Res. 0312/2019 Estándar 1.1.1 — Asignación y perfil del responsable del Sistema de Gestión de Seguridad y Salud en el Trabajo (Dec. 1072/15 Art. 2.2.4.6.8)"
+                                    label="ISO 45001 Num. 5.3 · Res. 0312 Est. 1.1.1: CUMPLE"
+                                    tooltip="ISO 45001:2018 Num. 5.3 (Roles, responsabilidades y autoridades) · Res. 0312/2019 Estándar 1.1.1 — Asignación y perfil del responsable del Sistema de Gestión de Seguridad y Salud en el Trabajo (Dec. 1072/15 Art. 2.2.4.6.8)"
                                     moduleName="Asignación Responsable SG-SST"
                                 />
                             </div>

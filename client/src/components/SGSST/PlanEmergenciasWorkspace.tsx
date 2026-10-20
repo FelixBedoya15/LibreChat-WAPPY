@@ -294,11 +294,11 @@ const PlanEmergenciasWorkspace: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Res. 0312 Est. 5.1.1: CUMPLE */}
+                {/* ISO 45001 Num. 8.2 · Res. 0312 Est. 5.1.1: CUMPLE */}
                 <SGSSTLegalBadge
                   standardCode="5.1.1"
-                  label="Res. 0312 Est. 5.1.1: CUMPLE"
-                  tooltip="Res. 0312/2019 Estándar 5.1.1 — Plan de Prevención, Preparación y Respuesta ante Emergencias (PPRE)"
+                  label="ISO 45001 Num. 8.2 · Res. 0312 Est. 5.1.1: CUMPLE"
+                  tooltip="ISO 45001:2018 Num. 8.2 (Preparación y respuesta ante emergencias) · Res. 0312/2019 Estándar 5.1.1 — Plan de Prevención, Preparación y Respuesta ante Emergencias (PPRE)"
                   moduleName="Plan de Emergencias"
                 />
               </div>

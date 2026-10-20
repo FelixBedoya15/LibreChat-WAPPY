@@ -1634,11 +1634,11 @@ const PerfilesCargo = () => {
                                     </div>
                                 </div>
 
-                                {/* Res. 0312 Est. 1.1.3: CUMPLE */}
+                                {/* ISO 45001 Num. 7.2 · Res. 0312 Est. 1.1.3: CUMPLE */}
                                 <SGSSTLegalBadge
                                     standardCode="1.1.3"
-                                    label="Res. 0312 Est. 1.1.3: CUMPLE"
-                                    tooltip="Res. 0312/2019 Estándar 1.1.3 — Asignación de responsabilidades en SST y perfiles de cargo (Dec. 1072/15 Art. 2.2.4.6.8)"
+                                    label="ISO 45001 Num. 7.2 · Res. 0312 Est. 1.1.3: CUMPLE"
+                                    tooltip="ISO 45001:2018 Num. 7.2 (Competencia y perfiles de cargo) · Res. 0312/2019 Estándar 1.1.3 (Dec. 1072/15 Art. 2.2.4.6.8)"
                                     moduleName="Perfiles de Cargo y Responsabilidades SST"
                                 />
                             </div>

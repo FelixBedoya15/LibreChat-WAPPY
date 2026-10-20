@@ -786,11 +786,11 @@ export default function HeightsWorkspace() {
                   </div>
                 </div>
 
-                {/* Res. 0312 / Res. 4272: CUMPLE */}
+                {/* ISO 45001 Num. 8.1.2 · Res. 4272 / Est. 4.2.1: CUMPLE */}
                 <SGSSTLegalBadge
                   standardCode="4.2.1"
-                  label="Res. 0312 / Res. 4272: CUMPLE"
-                  tooltip="Res. 0312/2019 Estándar 4.2.1 y Res. 4272/2021 — Inventario, Hojas de Vida e Inspección de Equipos Contra Caídas"
+                  label="ISO 45001 Num. 8.1.2 · Res. 4272 / Est. 4.2.1: CUMPLE"
+                  tooltip="ISO 45001:2018 Num. 8.1.2 (Control operacional e inspección de equipos) · Res. 0312/2019 Est. 4.2.1 y Res. 4272/2021 — Inventario, Hojas de Vida e Inspección de Equipos Contra Caídas"
                   moduleName="Equipos de Protección Contra Caídas"
                 />
               </div>

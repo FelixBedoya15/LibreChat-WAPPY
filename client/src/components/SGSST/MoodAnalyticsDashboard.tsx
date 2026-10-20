@@ -683,8 +683,8 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
                   <h2 className="text-2xl font-black tracking-tight text-white">Analítica de Estado de Ánimo</h2>
                   <SGSSTLegalBadge
                     standardCode="3.1.6"
-                    label="Res. 0312 Est. 3.1.6: CUMPLE"
-                    tooltip="Res. 0312/2019 Estándar 3.1.6 y Res. 2764/2022 — Vigilancia Epidemiológica de Factores de Riesgo Psicosocial y Batería de Riesgo Psicosocial"
+                    label="ISO 45001 Num. 6.1.2 · Res. 0312 Est. 3.1.6: CUMPLE"
+                    tooltip="ISO 45001:2018 Num. 6.1.2 (Factores psicosociales) · Res. 0312/2019 Estándar 3.1.6 y Res. 2764/2022 — Riesgo Psicosocial"
                     moduleName="Termómetro Psicosocial y Analítica de Clima"
                   />
                 </div>

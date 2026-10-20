@@ -406,11 +406,11 @@ const EquiposEmergenciaWorkspace: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Res. 0312 Est. 5.1.1: CUMPLE */}
+                {/* ISO 45001 Num. 8.2 · Res. 0312 Est. 5.1.1: CUMPLE */}
                 <SGSSTLegalBadge
                   standardCode="5.1.1"
-                  label="Res. 0312 Est. 5.1.1: CUMPLE"
-                  tooltip="Res. 0312/2019 Estándar 5.1.1 — Inspección y dotación de equipos de prevención y atención de emergencias"
+                  label="ISO 45001 Num. 8.2 · Res. 0312 Est. 5.1.1: CUMPLE"
+                  tooltip="ISO 45001:2018 Num. 8.2 (Equipos para respuesta a emergencias) · Res. 0312/2019 Estándar 5.1.1 — Inspección y dotación de equipos de prevención y atención de emergencias"
                   moduleName="Equipos de Emergencia"
                 />
               </div>

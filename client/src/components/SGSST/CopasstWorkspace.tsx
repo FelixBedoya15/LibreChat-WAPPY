@@ -827,11 +827,11 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">
                   {isVigia ? 'Menos de 10 Trabajadores' : `${config?.company?.workerCount || 0} Trabajadores • ${config?.company?.representantesPorParte || 1} Miembro(s) por parte`}
                 </span>
-                {/* Res. 0312 Est. 1.1.6: CUMPLE */}
+                {/* ISO 45001 Num. 5.4 · Res. 0312 Est. 1.1.6: CUMPLE */}
                 <SGSSTLegalBadge
                   standardCode="1.1.6"
-                  label="Res. 0312 Est. 1.1.6: CUMPLE"
-                  tooltip="Res. 0312/2019 Estándar 1.1.6 y 1.1.7 — Conformación, Capacitación y Funcionamiento del COPASST / Vigía SST"
+                  label="ISO 45001 Num. 5.4 · Res. 0312 Est. 1.1.6: CUMPLE"
+                  tooltip="ISO 45001:2018 Num. 5.4 (Consulta y participación de los trabajadores) · Res. 0312/2019 Estándar 1.1.6 — Conformación del COPASST / Vigía SST"
                   moduleName="COPASST / Vigía SST"
                 />
               </div>

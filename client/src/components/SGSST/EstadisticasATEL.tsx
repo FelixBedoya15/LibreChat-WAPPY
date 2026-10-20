@@ -1085,11 +1085,11 @@ const EstadisticasATEL = () => {
                                 </button>
                             </div>
                             <span className="text-xs text-text-secondary">| Res. 0312 Art. 30 · NTC 3793 · Factor Financiero IBC</span>
-                            {/* Res. 0312 Art. 30: CUMPLE */}
+                            {/* ISO 45001 Num. 9.1.1 · Res. 0312 Art. 30: CUMPLE */}
                             <SGSSTLegalBadge
                                 standardCode="30"
-                                label="Res. 0312 Art. 30: CUMPLE"
-                                tooltip="Res. 0312/2019 Art. 30 y Dec. 1072/15 Art. 2.2.4.6.21 — Indicadores Mínimos del SG-SST (Frecuencia, Severidad, Mortalidad y Ausentismo)"
+                                label="ISO 45001 Num. 9.1.1 · Res. 0312 Art. 30: CUMPLE"
+                                tooltip="ISO 45001:2018 Num. 9.1.1 (Seguimiento y evaluación del desempeño) · Res. 0312/2019 Art. 30 y Dec. 1072/15 Art. 2.2.4.6.21 — Indicadores Mínimos del SG-SST (Frecuencia, Severidad, Mortalidad y Ausentismo)"
                                 moduleName="Estadísticas e Indicadores ATEL"
                             />
                             {activeCompanyInfo?.name && (

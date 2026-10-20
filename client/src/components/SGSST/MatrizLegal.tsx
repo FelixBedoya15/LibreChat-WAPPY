@@ -720,11 +720,11 @@ const MatrizLegal = () => {
                                     </div>
                                 </div>
 
-                                {/* Res. 0312 Est. 2.1.1: CUMPLE */}
+                                {/* ISO 45001 Num. 6.1.3 · Res. 0312 Est. 2.1.1: CUMPLE */}
                                 <SGSSTLegalBadge
                                     standardCode="2.1.1"
-                                    label="Res. 0312 Est. 2.1.1: CUMPLE"
-                                    tooltip="Res. 0312/2019 Estándar 2.1.1 — Matriz Legal y Requisitos Normativos del SG-SST (Dec. 1072/15 Art. 2.2.4.6.8)"
+                                    label="ISO 45001 Num. 6.1.3 · Res. 0312 Est. 2.1.1: CUMPLE"
+                                    tooltip="ISO 45001:2018 Num. 6.1.3 (Determinación de requisitos legales) · Res. 0312/2019 Estándar 2.1.1 — Matriz Legal y Requisitos Normativos del SG-SST (Dec. 1072/15 Art. 2.2.4.6.12)"
                                     moduleName="Matriz Legal"
                                 />
                             </div>

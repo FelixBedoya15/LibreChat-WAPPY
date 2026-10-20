@@ -495,8 +495,8 @@ export default function OraculoPredictivoH1() {
                             <h1 className="text-2xl font-black tracking-tight">Oráculo Predictivo H1</h1>
                             <SGSSTLegalBadge
                                 standardCode="3.1.4"
-                                label="Res. 0312 Est. 3.1.4: CUMPLE"
-                                tooltip="Res. 0312/2019 Estándar 3.1.4 — Evaluaciones Médicas Ocupacionales y Dictámenes de Compatibilidad Cargo-Persona"
+                                label="ISO 45001 Num. 9.1.1 · Res. 0312 Est. 3.1.4: CUMPLE"
+                                tooltip="ISO 45001:2018 Num. 9.1.1 (Compatibilidad médica y aptitud laboral) · Res. 0312/2019 Estándar 3.1.4 — Dictámenes de Compatibilidad Cargo-Persona"
                                 moduleName="Dictamen de Compatibilidad Cargo-Persona"
                             />
                         </div>

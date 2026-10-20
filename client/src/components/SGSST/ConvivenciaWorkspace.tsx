@@ -811,11 +811,11 @@ export default function ConvivenciaWorkspace() {
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
                   Resolución 3461 de 2025 • Ley 2365 de 2024
                 </span>
-                {/* Res. 0312 Est. 1.1.8: CUMPLE */}
+                {/* ISO 45001 Num. 5.4 · Res. 0312 Est. 1.1.8: CUMPLE */}
                 <SGSSTLegalBadge
                   standardCode="1.1.8"
-                  label="Res. 0312 Est. 1.1.8: CUMPLE"
-                  tooltip="Res. 0312/2019 Estándar 1.1.8 — Conformación y funcionamiento del Comité de Convivencia Laboral (Res. 652/12, Res. 1356/12 y Res. 3461/25)"
+                  label="ISO 45001 Num. 5.4 · Res. 0312 Est. 1.1.8: CUMPLE"
+                  tooltip="ISO 45001:2018 Num. 5.4 (Consulta y participación) · Res. 0312/2019 Estándar 1.1.8 — Comité de Convivencia Laboral (Res. 3461/25)"
                   moduleName="Comité de Convivencia Laboral"
                 />
               </div>

@@ -686,11 +686,11 @@ const ReporteActosCondiciones = () => {
                                     </div>
                                 </div>
 
-                                {/* Res. 0312 Est. 4.1.2: CUMPLE */}
+                                {/* ISO 45001 Num. 5.4 · Res. 0312 Est. 4.1.2: CUMPLE */}
                                 <SGSSTLegalBadge
                                     standardCode="4.1.2"
-                                    label="Res. 0312 Est. 4.1.2: CUMPLE"
-                                    tooltip="Res. 0312/2019 Estándar 4.1.2 — Identificación de Peligros y Auto-reporte de Actos y Condiciones Inseguras (Dec. 1072/15 Art. 2.2.4.6.15)"
+                                    label="ISO 45001 Num. 5.4 · Res. 0312 Est. 4.1.2: CUMPLE"
+                                    tooltip="ISO 45001:2018 Num. 5.4 (Participación de los trabajadores) · Res. 0312/2019 Estándar 4.1.2 y Dec. 1072/15 Art. 2.2.4.6.15 (Auto-reporte de condiciones y actos inseguros)"
                                     moduleName="Auto-reporte de Actos y Condiciones"
                                 />
                             </div>

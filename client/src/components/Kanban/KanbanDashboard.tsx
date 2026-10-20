@@ -839,8 +839,8 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
                 </h1>
                 <SGSSTLegalBadge
                   standardCode="7.1.1"
-                  label="Res. 0312 Est. 7.1.1: CUMPLE"
-                  tooltip="Res. 0312/2019 Estándar 7.1.1 y Dec. 1072/15 Art. 2.2.4.6.33 — Acciones Preventivas, Correctivas y de Mejora (ACPM)"
+                  label="ISO 45001 Num. 10.2 · Res. 0312 Est. 7.1.1: CUMPLE"
+                  tooltip="ISO 45001:2018 Num. 10.2 (Acciones preventivas, correctivas y de mejora) · Res. 0312/2019 Estándar 7.1.1 y Dec. 1072/15 Art. 2.2.4.6.33 — Acciones Preventivas, Correctivas y de Mejora (ACPM)"
                   moduleName="Tablero Kanban de Acciones ACPM"
                 />
               </div>
@@ -857,8 +857,8 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
                 </h2>
                 <SGSSTLegalBadge
                   standardCode="7.1.1"
-                  label="Res. 0312 Est. 7.1.1: CUMPLE"
-                  tooltip="Res. 0312/2019 Estándar 7.1.1 y Dec. 1072/15 Art. 2.2.4.6.33 — Acciones Preventivas, Correctivas y de Mejora (ACPM)"
+                  label="ISO 45001 Num. 10.2 · Res. 0312 Est. 7.1.1: CUMPLE"
+                  tooltip="ISO 45001:2018 Num. 10.2 (Acciones preventivas, correctivas y de mejora) · Res. 0312/2019 Estándar 7.1.1 y Dec. 1072/15 Art. 2.2.4.6.33 — Acciones Preventivas, Correctivas y de Mejora (ACPM)"
                   moduleName="Tablero Kanban de Acciones ACPM"
                 />
               </div>
@@ -876,8 +876,8 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
               </h2>
               <SGSSTLegalBadge
                 standardCode="7.1.1"
-                label="Res. 0312 Est. 7.1.1: CUMPLE"
-                tooltip="Res. 0312/2019 Estándar 7.1.1 y Dec. 1072/15 Art. 2.2.4.6.33 — Acciones Preventivas, Correctivas y de Mejora (ACPM)"
+                label="ISO 45001 Num. 10.2 · Res. 0312 Est. 7.1.1: CUMPLE"
+                tooltip="ISO 45001:2018 Num. 10.2 (Acciones preventivas, correctivas y de mejora) · Res. 0312/2019 Estándar 7.1.1 y Dec. 1072/15 Art. 2.2.4.6.33 — Acciones Preventivas, Correctivas y de Mejora (ACPM)"
                 moduleName="Tablero Kanban de Acciones ACPM"
               />
             </div>

@@ -325,11 +325,11 @@ const BrigadaEmergenciasWorkspace: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Res. 0312 Est. 5.1.2: CUMPLE */}
+                {/* ISO 45001 Num. 8.2 · Res. 0312 Est. 5.1.2: CUMPLE */}
                 <SGSSTLegalBadge
                   standardCode="5.1.2"
-                  label="Res. 0312 Est. 5.1.2: CUMPLE"
-                  tooltip="Res. 0312/2019 Estándar 5.1.2 — Conformación, Capacitación y Dotación de la Brigada de Emergencias (Dec. 1072/15 Art. 2.2.4.6.25)"
+                  label="ISO 45001 Num. 8.2 · Res. 0312 Est. 5.1.2: CUMPLE"
+                  tooltip="ISO 45001:2018 Num. 8.2 (Preparación y respuesta ante emergencias) · Res. 0312/2019 Estándar 5.1.2 — Brigada de Emergencias (Dec. 1072/15 Art. 2.2.4.6.25)"
                   moduleName="Brigada de Emergencias"
                 />
               </div>
