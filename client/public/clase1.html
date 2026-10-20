@@ -71,9 +71,36 @@
 
     .container {
       width: 100%;
-      max-width: 1240px;
+      max-width: min(1240px, 100vw);
       margin: 0 auto;
       padding: 0 clamp(14px, 3.5vw, 40px);
+      overflow-x: hidden;
+    }
+
+    header, section, .deck-stage, .hero-inner, .hero-tenshi-card {
+      max-width: 100%;
+    }
+
+    @media (max-width: 640px) {
+      .eyebrow {
+        font-size: 10px;
+        padding: 6px 12px;
+        justify-content: center;
+        text-align: center;
+        line-height: 1.35;
+      }
+      .hero h1 {
+        font-size: 27px;
+        line-height: 1.12;
+      }
+      .hero h1 .highlight-lime {
+        display: inline;
+        padding: 0 6px;
+        border-radius: 8px;
+      }
+      .hero-ctas .btn {
+        width: 100%;
+      }
     }
 
     /* ==========================================================================
@@ -192,6 +219,46 @@
       }
     }
 
+    @media (max-width: 520px) {
+      .nav {
+        padding: 6px 8px 6px 12px;
+        gap: 6px;
+      }
+      .brand-icon {
+        width: 32px;
+        height: 32px;
+      }
+      .brand-text .main {
+        font-size: 14px;
+      }
+      .brand-text .sub {
+        font-size: 8px;
+      }
+      .nav .btn-dark {
+        padding: 7px 11px;
+        font-size: 11px;
+        gap: 5px;
+      }
+      .nav .arrow-pip {
+        width: 20px;
+        height: 20px;
+        font-size: 11px;
+      }
+    }
+
+    /* Evitar cualquier desbordamiento en celdas Grid/Flex */
+    .hero-inner > *,
+    .s-grid-2 > *,
+    .s-grid-3 > *,
+    .s-grid-4 > *,
+    .prompt-cards-grid > *,
+    .zero-code-banner > *,
+    .guide-blocks-grid > *,
+    .g-list > * {
+      min-width: 0;
+      max-width: 100%;
+    }
+
     /* Botones oficiales wappy.club */
     .btn {
       display: inline-flex;
@@ -274,7 +341,7 @@
     .hero {
       position: relative;
       background: var(--sky);
-      padding-top: clamp(92px, 11vw, 128px);
+      padding-top: clamp(98px, 10vw, 132px);
       padding-bottom: clamp(36px, 5vw, 60px);
       overflow: hidden;
       border-bottom: 1px solid rgba(14, 19, 0, 0.08);
@@ -2719,12 +2786,16 @@ Configúralo para que cada mañana cuando yo llegue a la oficina, prenda mi comp
         document.getElementById('btn-prev').disabled = (currentSlide === 1);
         document.getElementById('btn-next').disabled = (currentSlide === totalSlides);
 
-        // Actualizar pills superiores
+        // Actualizar pills superiores sin mover el scroll vertical de la página
+        const strip = document.getElementById('slide-pills-strip');
         const pills = document.querySelectorAll('.slide-num-pill');
         pills.forEach((p, idx) => {
           if (idx + 1 === currentSlide) {
             p.classList.add('active');
-            p.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            if (strip) {
+              const targetLeft = p.offsetLeft - (strip.clientWidth / 2) + (p.clientWidth / 2);
+              strip.scrollTo({ left: Math.max(0, targetLeft), behavior: 'smooth' });
+            }
           } else {
             p.classList.remove('active');
           }
@@ -2850,10 +2921,11 @@ Configúralo para que cada mañana cuando yo llegue a la oficina, prenda mi comp
     // 4. Animación de Red Neuronal en el Canvas del Escenario
     function initDeckCanvas() {
       const canvas = document.getElementById('deck-canvas');
-      if (!canvas) return;
+      const stage = document.getElementById('deck-stage');
+      if (!canvas || !stage) return;
       const ctx = canvas.getContext('2d');
-      let width = canvas.width = canvas.offsetWidth || 1000;
-      let height = canvas.height = canvas.offsetHeight || 600;
+      let width = canvas.width = stage.clientWidth || 360;
+      let height = canvas.height = stage.clientHeight || 520;
 
       const nodes = Array.from({ length: 28 }, () => ({
         x: Math.random() * width,
