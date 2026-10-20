@@ -8187,15 +8187,21 @@ ${workerSubHeaderHtml}
             } else if (/responsable sst|asignaci[oó]n responsable/i.test(userLower)) {
                 targetModulo = 'responsable';
                 targetRuta = '/sgsst?hito=hito1&module=responsable';
-            } else if (/pol[ií]tica sst|objetivos sst/i.test(userLower)) {
+            } else if (/pol[ií]tica(\s+sst)?/i.test(userLower)) {
                 targetModulo = 'politica';
                 targetRuta = '/sgsst?hito=hito1&module=politica';
+            } else if (/objetivos?(\s+sst)?|metas?(\s+sst)?|indicadores?(\s+sst)?/i.test(userLower)) {
+                targetModulo = 'objetivos';
+                targetRuta = '/sgsst?hito=hito1&module=objetivos';
             } else if (/matriz legal|requisitos legales/i.test(userLower)) {
                 targetModulo = 'legal';
                 targetRuta = '/sgsst?hito=hito1&module=legal';
-            } else if (/reglamento|rhs|higiene/i.test(userLower)) {
+            } else if (/rhs|reglamento.*higiene/i.test(userLower)) {
                 targetModulo = 'rhs';
                 targetRuta = '/sgsst?hito=hito1&module=rhs';
+            } else if (/rit|reglamento.*interno/i.test(userLower)) {
+                targetModulo = 'rit';
+                targetRuta = '/sgsst?hito=hito1&module=rit';
             } else if (/participaci[oó]n ipevar|reportar peligro/i.test(userLower)) {
                 targetModulo = 'participacion_ipevar';
                 targetRuta = '/sgsst?hito=hito1&module=participacion_ipevar';
@@ -8226,6 +8232,9 @@ ${workerSubHeaderHtml}
             } else if (/condiciones de salud|ex[aá]menes m[eé]dicos/i.test(userLower)) {
                 targetModulo = 'condiciones_salud';
                 targetRuta = '/sgsst?hito=hito2&module=condiciones_salud';
+            } else if (/compatibilidad.*cargo|dictamen.*cargo|or[aá]culo.*cargo/i.test(userLower)) {
+                targetModulo = 'oraculo_predictivo';
+                targetRuta = '/sgsst?hito=hito2&module=oraculo_predictivo';
             } else if (/copasst|vig[ií]a/i.test(userLower)) {
                 targetModulo = 'copasst';
                 targetRuta = '/sgsst?hito=hito3&module=copasst';

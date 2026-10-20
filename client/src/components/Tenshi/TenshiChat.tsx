@@ -615,6 +615,7 @@ export const WAPPY_NAV_MAP: Record<string, { route: string; sgsstModule?: string
   salud: { route: '/sgsst?hito=hito2&module=condiciones_salud', sgsstModule: 'condiciones_salud' },
   examenes_medicos: { route: '/sgsst?hito=hito2&module=condiciones_salud', sgsstModule: 'condiciones_salud' },
   bio_motor: { route: '/sgsst?hito=hito2&module=perfil_cargo', sgsstModule: 'perfil_cargo' },
+  oraculo_predictivo: { route: '/sgsst?hito=hito2&module=oraculo_predictivo', sgsstModule: 'oraculo_predictivo' },
   oraculo_predictivo_hito2: { route: '/sgsst?hito=hito2&module=oraculo_predictivo', sgsstModule: 'oraculo_predictivo' },
   compatibilidad_cargo: { route: '/sgsst?hito=hito2&module=oraculo_predictivo', sgsstModule: 'oraculo_predictivo' },
   hito2: { route: '/sgsst?hito=hito2', sgsstModule: 'perfil_cargo' },
@@ -726,7 +727,7 @@ export const WAPPY_NAV_MAP: Record<string, { route: string; sgsstModule?: string
   // ─── HITO 8: Inteligencia Artificial & Oráculo Predictivo (/sgsst?hito=hito8) ───
   predictivo: { route: '/sgsst?hito=hito8&module=predictivo', sgsstModule: 'predictivo' },
   oraculo: { route: '/sgsst?hito=hito8&module=predictivo', sgsstModule: 'predictivo' },
-  oraculo_predictivo: { route: '/sgsst?hito=hito8&module=predictivo', sgsstModule: 'predictivo' },
+  oraculo_predictivo_hito8: { route: '/sgsst?hito=hito8&module=predictivo', sgsstModule: 'predictivo' },
   siniestralidad: { route: '/sgsst?hito=hito8&module=predictivo', sgsstModule: 'predictivo' },
   inteligencia_artificial: { route: '/sgsst?hito=hito8&module=predictivo', sgsstModule: 'predictivo' },
   hito8: { route: '/sgsst?hito=hito8', sgsstModule: 'predictivo' },
