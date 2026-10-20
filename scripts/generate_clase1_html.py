@@ -143,16 +143,16 @@ html_content = f'''<!DOCTYPE html>
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: clamp(8px, 2vw, 24px);
-      background: rgba(255, 255, 255, 0.92);
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.94);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border: 1px solid rgba(14, 19, 0, 0.08);
       border-radius: 9999px;
-      padding: 8px 10px 8px 16px;
+      padding: 7px 8px 7px 16px;
       box-shadow: 0 12px 36px -8px rgba(14, 19, 0, 0.14);
       width: 100%;
-      max-width: 1120px;
+      max-width: 1060px;
     }}
 
     .brand {{
@@ -1562,14 +1562,14 @@ html_content = f'''<!DOCTYPE html>
       </a>
 
       <div class="nav-links">
-        <a href="#presentacion" class="active-pill">🎬 Presentación Interactiva (15 Slides)</a>
-        <a href="#prompts-chat">💬 Prompts para el Chat (Sin Código)</a>
-        <a href="#guia-paso-a-paso">📘 Guía Paso a Paso</a>
-        <a href="/assets/Clase_1_Antigravity_Syllabus_y_Reglas_WAPPY.pdf" download>📄 Descargar PDF</a>
+        <a href="#presentacion" class="active-pill">🎬 Presentación</a>
+        <a href="#prompts-chat">💬 Prompts Chat</a>
+        <a href="#guia-paso-a-paso">📘 Guía</a>
+        <a href="/assets/Clase_1_Antigravity_Syllabus_y_Reglas_WAPPY.pdf" download>📄 PDF</a>
       </div>
 
-      <a href="https://meet.google.com/xvz-jmvv-iym" target="_blank" rel="noopener noreferrer" class="btn btn-dark">
-        Entrar a Meet (7:00 PM)
+      <a href="https://meet.google.com/xvz-jmvv-iym" target="_blank" rel="noopener noreferrer" class="btn btn-dark" style="flex-shrink: 0;">
+        Entrar a Meet
         <span class="arrow-pip">↗</span>
       </a>
     </nav>
