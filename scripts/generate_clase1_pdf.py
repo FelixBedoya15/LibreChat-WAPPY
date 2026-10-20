@@ -634,21 +634,21 @@ html_content = f"""<!DOCTYPE html>
         <!-- Bloque 1 -->
         <div class="timeline-item">
           <div class="timeline-time">
-            <span class="time-range">7:00 – 7:15 PM</span>
-            <span class="time-dur">15 Minutos (Máx)</span>
+            <span class="time-range">7:00 – 7:25 PM</span>
+            <span class="time-dur">25 Minutos</span>
           </div>
           <div class="timeline-content">
             <div class="timeline-title">
-              <span>Módulo 1: Introducción a la IA & Despegue (Cámaras 100%)</span>
-              <span class="timeline-badge">Intro Express</span>
+              <span>Módulo 1: Conceptos Básicos de IA Explicados Sencillo ("Para Niños")</span>
+              <span class="timeline-badge">Fundamentos Clave</span>
             </div>
             <div class="timeline-desc">
-              Encendido de cámaras, saludo inicial de los 12 alumnos y comprensión rápida del salto cuántico de la IA.
+              Apertura de cámaras (10 min) y nivelación de conceptos antes de ver herramientas técnicas.
             </div>
             <ul class="topics-list">
-              <li><strong>De ChatGPT a la IA Agéntica:</strong> Por qué los chatbots de texto plano fallan ante el rigor documental del SG-SST (Dec. 1072/15 y Res. 0312/19).</li>
-              <li><strong>WAPPY como Núcleo Central:</strong> El cerebro normativo y base de datos viva que jamás se reemplaza.</li>
-              <li><strong>Los 3 niveles de madurez:</strong> Asistente de texto vs Copiloto reactivo vs Agente ejecutor autónomo.</li>
+              <li><strong>¿Qué es la IA y qué son los Modelos?:</strong> El cerebro matemático entrenado (Gemini, Claude, GPT).</li>
+              <li><strong>¿Qué es un LLM y qué son los Tokens?:</strong> Modelos de lenguaje y las "moneditas/sílabas" con que procesan texto.</li>
+              <li><strong>¿Qué son Claves API y qué es MCP?:</strong> La llave secreta de acceso y el cable USB-C universal que da manos a la IA.</li>
             </ul>
           </div>
         </div>
@@ -656,21 +656,21 @@ html_content = f"""<!DOCTYPE html>
         <!-- Bloque 2 -->
         <div class="timeline-item">
           <div class="timeline-time">
-            <span class="time-range">7:15 – 7:45 PM</span>
-            <span class="time-dur">30 Minutos</span>
+            <span class="time-range">7:25 – 7:50 PM</span>
+            <span class="time-dur">25 Minutos</span>
           </div>
           <div class="timeline-content">
             <div class="timeline-title">
-              <span>Módulo 2: Antigravity: Qué es, Cómo Funciona, Instalación y Proyectos</span>
+              <span>Módulo 2: Google Antigravity: Qué es, Instalación, Carpetas y Primer Chat</span>
               <span class="timeline-badge">Setup & Proyecto</span>
             </div>
             <div class="timeline-desc">
-              Entendiendo la plataforma agéntica de Google e instalando el entorno en tu computador.
+              De quién es Antigravity (Google DeepMind), a qué modelos accede y cómo crear tu primer proyecto.
             </div>
             <ul class="topics-list">
-              <li><strong>¿Qué es Antigravity y cómo funciona?:</strong> Arquitectura, superficies (IDE, Desktop, CLI <code>agy</code>), workflows y control humano.</li>
-              <li><strong>Descarga e Instalación en Vivo:</strong> Paso a paso en Windows, macOS y Linux con vinculación de cuenta Google.</li>
-              <li><strong>Creación del Primer Proyecto SST:</strong> Estructura de carpetas locales y creación del archivo <code>AGENTS.md</code> blindado con leyes colombianas.</li>
+              <li><strong>Descarga e Instalación Paso a Paso:</strong> En Windows y Mac con login de Google para habilitar Gemini.</li>
+              <li><strong>Tu Proyecto es una Carpeta en tu PC:</strong> Crear <code>/Mi_Empresa_SST</code> con subcarpetas de inspecciones y EPP.</li>
+              <li><strong>Tu Primer Chat Agéntico:</strong> Abrir la carpeta y pedirle al agente que lea los archivos de tu disco duro.</li>
             </ul>
           </div>
         </div>
@@ -678,21 +678,21 @@ html_content = f"""<!DOCTYPE html>
         <!-- Bloque 3 -->
         <div class="timeline-item">
           <div class="timeline-time">
-            <span class="time-range">7:45 – 8:25 PM</span>
-            <span class="time-dur">40 Minutos</span>
+            <span class="time-range">7:50 – 8:20 PM</span>
+            <span class="time-dur">30 Minutos</span>
           </div>
           <div class="timeline-content">
             <div class="timeline-title">
-              <span>Módulo 3: Triggers, Skills Rutinarias, NotebookLM & Google Drive</span>
-              <span class="timeline-badge" style="background:#ecfdf5; color:#047857; border-color:#a7f3d0;">Automatización Real</span>
+              <span>Módulo 3: Conectar a WAPPY con MCP y Alimentar Datos desde tu PC</span>
+              <span class="timeline-badge" style="background:#ecfdf5; color:#047857; border-color:#a7f3d0;">Alimentación en Vivo</span>
             </div>
             <div class="timeline-desc">
-              Configuración de disparadores locales, habilidades paso a paso y conexión con herramientas de Google.
+              WAPPY es el cerebro SST insustituible; Antigravity es la fábrica local que lo alimenta.
             </div>
             <ul class="topics-list">
-              <li><strong>Automatización y Triggers Locales:</strong> Disparadores por cron (horarios), carpetas vigiladas en disco (file watchers de fotos) y umbrales de riesgo.</li>
-              <li><strong>Creación de Skills para Tareas Rutinarias:</strong> Estructura <code>SKILL.md</code> para auditar entregas de EPP e inspecciones periódicas.</li>
-              <li><strong>Google NotebookLM & Drive de 20 Años:</strong> Citas textuales de decretos sin alucinaciones y archivo digital legal (Dec. 1072 Art. 2.2.4.6.13).</li>
+              <li><strong>Obtener la Conexión MCP en WAPPY:</strong> Vincular las 55+ herramientas en Antigravity en 2 clics.</li>
+              <li><strong>Alimentar a WAPPY:</strong> Antigravity procesa un Excel o foto en tu PC y actualiza la Matriz GTC 45 de WAPPY.</li>
+              <li><strong>Conexión a Drive y NotebookLM:</strong> Archivo legal de 20 años y memoria jurídica sin alucinaciones.</li>
             </ul>
           </div>
         </div>
@@ -700,21 +700,21 @@ html_content = f"""<!DOCTYPE html>
         <!-- Bloque 4 -->
         <div class="timeline-item">
           <div class="timeline-time">
-            <span class="time-range">8:25 – 9:00 PM</span>
-            <span class="time-dur">35 Minutos</span>
+            <span class="time-range">8:20 – 9:00 PM</span>
+            <span class="time-dur">40 Minutos</span>
           </div>
           <div class="timeline-content">
             <div class="timeline-title">
-              <span>Módulo 4: Alimentar a WAPPY desde Antigravity, Taller en Vivo y Reto #1</span>
-              <span class="timeline-badge" style="background:#fef2f2; color:#b91c1c; border-color:#fecaca;">Alimentación & Taller</span>
+              <span>Módulo 4: Triggers, Agentes, Skills, Workflows y Reto Semanal</span>
+              <span class="timeline-badge" style="background:#fef2f2; color:#b91c1c; border-color:#fecaca;">Automatización Total</span>
             </div>
             <div class="timeline-desc">
-              Conexión bidireccional vía MCP, resolución colaborativa de dudas y reto semanal.
+              Creación de disparadores automáticos, reglas y procedimientos rutinarios.
             </div>
             <ul class="topics-list">
-              <li><strong>Alimentar a WAPPY vía MCP:</strong> Cómo Antigravity procesa archivos locales y actualiza en vivo las matrices GTC 45, PESV y trabajadores de WAPPY.</li>
-              <li><strong>Laboratorio Práctico Guiado:</strong> Ejecución de tu primer agente local conectado en pantalla compartida.</li>
-              <li><strong>Asignación del Reto Semanal #1:</strong> Primer agente local sincronizado con WAPPY antes de la Clase 2.</li>
+              <li><strong>Triggers en Acción:</strong> Llegas a la oficina, prendes el PC, el agente lee Drive y genera informes automáticamente.</li>
+              <li><strong>Agentes (`AGENTS.md`) y Skills (`SKILL.md`):</strong> La constitución legal y las recetas para tareas rutinarias.</li>
+              <li><strong>Taller en Pantalla Compartida y Reto #1:</strong> Dejar tu primer agente funcionando antes de la Clase 2.</li>
             </ul>
           </div>
         </div>
