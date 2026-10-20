@@ -634,21 +634,21 @@ html_content = f"""<!DOCTYPE html>
         <!-- Bloque 1 -->
         <div class="timeline-item">
           <div class="timeline-time">
-            <span class="time-range">7:00 – 7:25 PM</span>
-            <span class="time-dur">25 Minutos</span>
+            <span class="time-range">7:00 – 7:15 PM</span>
+            <span class="time-dur">15 Minutos (Máx)</span>
           </div>
           <div class="timeline-content">
             <div class="timeline-title">
-              <span>Módulo 1: Bienvenida, Acuerdos y el Salto a la IA Agéntica en SST</span>
-              <span class="timeline-badge">Fundamentos</span>
+              <span>Módulo 1: Introducción a la IA & Despegue (Cámaras 100%)</span>
+              <span class="timeline-badge">Intro Express</span>
             </div>
             <div class="timeline-desc">
-              Encendido de cámaras, presentación del grupo de 12 participantes y comprensión del cambio de paradigma en SST.
+              Encendido de cámaras, saludo inicial de los 12 alumnos y comprensión rápida del salto cuántico de la IA.
             </div>
             <ul class="topics-list">
-              <li><strong>Apertura de cámaras y bienvenida oficial:</strong> Presentación rápida de cada prevencionista y calibración de objetivos.</li>
-              <li><strong>El colapso del paradigma "Chatbot":</strong> Por qué ChatGPT genérico y los prompts planos fallan ante el rigor documental del SG-SST (Decreto 1072/15 y Res. 0312/19).</li>
-              <li><strong>Los 3 niveles de autonomía:</strong> Asistente de consulta vs Copiloto interactivo vs Sistema Agéntico Autónomo en SST.</li>
+              <li><strong>De ChatGPT a la IA Agéntica:</strong> Por qué los chatbots tradicionales y prompts de texto plano fallan ante la complejidad del SG-SST (Decreto 1072/15 y Res. 0312/19).</li>
+              <li><strong>Los 3 niveles de madurez:</strong> Asistente de texto vs Copiloto reactivo vs Agente Autónomo con herramientas.</li>
+              <li><strong>El Núcleo Inquebrantable:</strong> WAPPY como cerebro, repositorio central y centro de cumplimiento normativo que jamás se reemplaza.</li>
             </ul>
           </div>
         </div>
@@ -656,23 +656,21 @@ html_content = f"""<!DOCTYPE html>
         <!-- Bloque 2 -->
         <div class="timeline-item">
           <div class="timeline-time">
-            <span class="time-range">7:25 – 8:05 PM</span>
+            <span class="time-range">7:15 – 7:55 PM</span>
             <span class="time-dur">40 Minutos</span>
           </div>
           <div class="timeline-content">
             <div class="timeline-title">
-              <span>Módulo 2: Anatomía de Google Antigravity: Los 4 Pilares Maestros</span>
-              <span class="timeline-badge">Arquitectura</span>
+              <span>Módulo 2: Antigravity como Multiplicador de WAPPY & Motor de Triggers</span>
+              <span class="timeline-badge">Arquitectura & Triggers</span>
             </div>
             <div class="timeline-desc">
-              Dominio de la plataforma de desarrollo agéntico de Google: interfaces, entornos de ejecución y pilares de configuración.
+              Cómo Antigravity ejecuta automatizaciones locales y disparadores (triggers) que la web no puede hacer sola.
             </div>
             <ul class="topics-list">
-              <li><strong>Superficies de Antigravity:</strong> Antigravity IDE (basado en VS Code), Antigravity 2.0 (Desktop app) y CLI (<code>agy</code>).</li>
-              <li><strong>Pilar 1: Workflows:</strong> Automatización de secuencias repetitivas guiadas mediante archivos Markdown y comandos <code>/slash</code>.</li>
-              <li><strong>Pilar 2: Rules (Reglas Persistentes):</strong> Inyección de contexto normativo inviolable (ej: <code>AGENTS.md</code> y directrices legales).</li>
-              <li><strong>Pilar 3: Skills (Habilidades Modulares):</strong> Estructura <code>SKILL.md</code> y divulgación progresiva sin saturar tokens.</li>
-              <li><strong>Pilar 4: Model Context Protocol (MCP):</strong> El puerto USB-C universal que permite al agente leer bases de datos y ejecutar APIs.</li>
+              <li><strong>¿Antigravity puede tener Triggers?:</strong> Automatización por cron (horarios), carpetas vigiladas (file watcher en disco local) y disparadores reactivos por umbrales.</li>
+              <li><strong>Superficies de Antigravity:</strong> Antigravity IDE, Antigravity 2.0 y terminal CLI (<code>agy</code>).</li>
+              <li><strong>Los 4 Pilares de Control:</strong> <em>Rules</em> (reglas inviolables <code>AGENTS.md</code>), <em>Skills</em> (habilidades bajo demanda <code>SKILL.md</code>), <em>Workflows</em> y <em>MCP</em>.</li>
             </ul>
           </div>
         </div>
@@ -680,22 +678,21 @@ html_content = f"""<!DOCTYPE html>
         <!-- Bloque 3 -->
         <div class="timeline-item">
           <div class="timeline-time">
-            <span class="time-range">8:05 – 8:40 PM</span>
-            <span class="time-dur">35 Minutos</span>
+            <span class="time-range">7:55 – 8:35 PM</span>
+            <span class="time-dur">40 Minutos</span>
           </div>
           <div class="timeline-content">
             <div class="timeline-title">
-              <span>Módulo 3: El Puente Estratégico: Antigravity + WAPPY + Herramientas Google</span>
-              <span class="timeline-badge" style="background:#ecfdf5; color:#047857; border-color:#a7f3d0;">Integración</span>
+              <span>Módulo 3: El Puente Técnico: Antigravity + WAPPY + Google Tools</span>
+              <span class="timeline-badge" style="background:#ecfdf5; color:#047857; border-color:#a7f3d0;">Integración Real</span>
             </div>
             <div class="timeline-desc">
-              Cómo orquestar las herramientas para que trabajen como un único equipo interdisciplinario autónomo.
+              Conexión bidireccional entre el agente de escritorio y los servicios en la nube.
             </div>
             <ul class="topics-list">
-              <li><strong>Antigravity + WAPPY vía MCP:</strong> Cómo el agente lee y alimenta en vivo la Matriz GTC 45, PESV, inventario químico y ausentismo.</li>
-              <li><strong>Antigravity + Google NotebookLM:</strong> Indexación de códigos legales de 400 páginas para citas textuales exactas y creación de podcasts formativos en audio.</li>
-              <li><strong>Antigravity + Google Workspace:</strong> Archivo digital de 20 años en Google Drive, generación de actas en Docs/PDF y cronogramas en Calendar/Sheets.</li>
-              <li><strong>Tenshi Voice en Campo:</strong> Protocolo WebSocket Multimodal Live API de Google Gemini para reportes hablados manos libres.</li>
+              <li><strong>Antigravity + WAPPY vía MCP:</strong> Lectura y alimentación autónoma de matrices GTC 45, PESV, productos químicos y ausentismo.</li>
+              <li><strong>Antigravity + Google NotebookLM:</strong> Citas textuales de normativa colombiana sin alucinaciones y generación de podcasts en audio.</li>
+              <li><strong>Antigravity + Google Workspace:</strong> Archivo digital de 20 años en Google Drive, generación automática de actas PDF y cronogramas en Calendar.</li>
             </ul>
           </div>
         </div>
@@ -703,21 +700,21 @@ html_content = f"""<!DOCTYPE html>
         <!-- Bloque 4 -->
         <div class="timeline-item">
           <div class="timeline-time">
-            <span class="time-range">8:40 – 9:00 PM</span>
-            <span class="time-dur">20 Minutos</span>
+            <span class="time-range">8:35 – 9:00 PM</span>
+            <span class="time-dur">25 Minutos</span>
           </div>
           <div class="timeline-content">
             <div class="timeline-title">
-              <span>Módulo 4: Laboratorio en Vivo #1, Q&A y Reto Semanal</span>
+              <span>Módulo 4: Taller en Vivo, Debugging y Reto Semanal</span>
               <span class="timeline-badge" style="background:#fef2f2; color:#b91c1c; border-color:#fecaca;">Taller Práctico</span>
             </div>
             <div class="timeline-desc">
-              Construcción del primer artefacto agéntico y resolución de dudas técnicas con acompañamiento directo.
+              Configuración en vivo del primer agente de escritorio y resolución de dudas técnicas.
             </div>
             <ul class="topics-list">
-              <li><strong>Laboratorio Práctico en Vivo:</strong> Redacción de la primera <code>Rule</code> de seguridad y creación de un <code>Skill</code> básico para auditar un acto o condición insegura.</li>
-              <li><strong>Ronda de Preguntas y Debugging:</strong> Resolución de bloqueos de instalación, permisos o variables en terminal.</li>
-              <li><strong>Asignación del Reto #1:</strong> Dejar configurado su primer agente local conectado a WAPPY antes de la Clase 2.</li>
+              <li><strong>Práctica Guiada:</strong> Redacción de la primera <code>Rule</code> de seguridad y creación de un <code>Skill</code> para auditar hallazgos en campo.</li>
+              <li><strong>Resolución de Conflictos:</strong> Pantalla compartida para resolver configuraciones de terminal y variables de entorno.</li>
+              <li><strong>Asignación del Reto #1:</strong> Primer agente local sincronizado con WAPPY antes de la Clase 2.</li>
             </ul>
           </div>
         </div>

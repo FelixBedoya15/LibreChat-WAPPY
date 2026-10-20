@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-  <title>Clase 1: Google Antigravity & Ecosistema Autónomo SST | WAPPY IA</title>
-  <meta name="description" content="Presentación interactiva y guía paso a paso para la Clase 1 del Curso Ecosistema Autónomo SST. Martes 20 de Octubre · 7:00 PM Col.">
+  <title>Clase 1: Introducción a la IA & Google Antigravity como Potenciador de WAPPY | WAPPY IA</title>
+  <meta name="description" content="Presentación oficial y guía de la Clase 1. Introducción a la IA (15 min), el rol de WAPPY como cerebro SST y Antigravity como fábrica de triggers y automatizaciones locales.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@600;700;800;900&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
@@ -13,6 +13,7 @@
       --lime: #c7f303;
       --lime-hover: #b5de02;
       --lime-glow: rgba(199, 243, 3, 0.35);
+      --slate-950: #020617;
       --slate-900: #0f172a;
       --slate-800: #1e293b;
       --slate-700: #334155;
@@ -113,7 +114,7 @@
     }
 
     /* ==========================================================================
-       FLOATING CAPSULE NAVBAR
+       FLOATING NAVBAR CAPSULE
        ========================================================================== */
     .nav-wrap {
       position: sticky;
@@ -126,7 +127,7 @@
     .nav-inner {
       max-width: 1040px;
       margin: 0 auto;
-      background: rgba(255, 255, 255, 0.92);
+      background: rgba(255, 255, 255, 0.94);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
       border: 1px solid rgba(226, 232, 240, 0.9);
@@ -150,19 +151,34 @@
       object-fit: contain;
     }
 
-    .nav-tag {
-      display: none;
-      font-size: 11px;
-      font-weight: 800;
-      background: #f0fdfa;
-      color: #0f766e;
-      border: 1px solid #99f6e4;
-      padding: 3px 8px;
+    .nav-view-toggles {
+      display: inline-flex;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      padding: 3px;
       border-radius: 999px;
     }
 
-    @media (min-width: 640px) {
-      .nav-tag { display: inline-block; }
+    .toggle-btn {
+      border: none;
+      background: transparent;
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 999px;
+      cursor: pointer;
+      color: var(--slate-600);
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .toggle-btn.active {
+      background: #ffffff;
+      color: var(--teal);
+      font-weight: 800;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
     }
 
     .nav-actions {
@@ -191,7 +207,225 @@
     }
 
     /* ==========================================================================
-       HERO PRESENTATION SECTION
+       SLIDE DECK / PRESENTATION VIEWER (MODO PRESENTACIÓN)
+       ========================================================================== */
+    #presentation-mode {
+      display: block;
+      margin-bottom: 24px;
+    }
+
+    .deck-container {
+      background: #0f172a;
+      border-radius: 24px;
+      color: #ffffff;
+      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.25);
+      border: 1.5px solid #334155;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .deck-topbar {
+      background: #1e293b;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #334155;
+    }
+
+    .deck-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .deck-counter {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      color: #5eead4;
+    }
+
+    .slide-viewport {
+      min-height: 440px;
+      padding: 32px 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+      background: radial-gradient(circle at top right, rgba(13, 148, 136, 0.25) 0%, rgba(15, 23, 42, 1) 65%);
+    }
+
+    @media (min-width: 640px) {
+      .slide-viewport {
+        min-height: 480px;
+        padding: 44px 48px;
+      }
+    }
+
+    .slide {
+      display: none;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    .slide.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .slide-badge {
+      display: inline-block;
+      background: rgba(94, 234, 212, 0.15);
+      border: 1px solid #5eead4;
+      color: #5eead4;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      margin-bottom: 12px;
+    }
+
+    .slide-badge.intro {
+      background: rgba(199, 243, 3, 0.15);
+      border-color: #c7f303;
+      color: #c7f303;
+    }
+
+    .slide h2 {
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 900;
+      line-height: 1.25;
+      color: #ffffff;
+      margin-bottom: 14px;
+    }
+
+    @media (min-width: 640px) {
+      .slide h2 { font-size: 32px; }
+    }
+
+    .slide-lead {
+      font-size: 15px;
+      color: #cbd5e1;
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+
+    .slide-content-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    @media (min-width: 640px) {
+      .slide-content-grid.two-cols {
+        grid-template-columns: 1fr 1fr;
+      }
+      .slide-content-grid.three-cols {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    .slide-card {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 14px;
+      padding: 16px;
+    }
+
+    .slide-card.highlight {
+      border-color: #5eead4;
+      background: rgba(13, 148, 136, 0.15);
+    }
+
+    .slide-card h4 {
+      font-size: 14px;
+      font-weight: 800;
+      color: #5eead4;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .slide-card h4.lime {
+      color: #c7f303;
+    }
+
+    .slide-card p {
+      font-size: 12.5px;
+      color: #cbd5e1;
+      line-height: 1.45;
+    }
+
+    /* Deck Controls */
+    .deck-footer {
+      background: #1e293b;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid #334155;
+    }
+
+    .deck-nav-btns {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-slide-nav {
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 8px 18px;
+      border-radius: 999px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-slide-nav:hover:not(:disabled) {
+      background: #0d9488;
+      border-color: #5eead4;
+    }
+
+    .btn-slide-nav:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .slide-progress-bar {
+      height: 4px;
+      background: #334155;
+      width: 100%;
+    }
+
+    .slide-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #0d9488 0%, #c7f303 100%);
+      width: 8.33%;
+      transition: width 0.3s ease;
+    }
+
+    /* ==========================================================================
+       HERO & GENERAL SECTIONS
        ========================================================================== */
     .hero {
       background: linear-gradient(145deg, #042f2e 0%, #0f766e 60%, #115e59 100%);
@@ -202,17 +436,6 @@
       position: relative;
       overflow: hidden;
       box-shadow: 0 12px 30px rgba(15, 118, 110, 0.18);
-    }
-
-    .hero-bg-glow {
-      position: absolute;
-      width: 320px;
-      height: 320px;
-      background: radial-gradient(circle, rgba(199, 243, 3, 0.22) 0%, transparent 70%);
-      top: -80px;
-      right: -80px;
-      border-radius: 50%;
-      pointer-events: none;
     }
 
     .hero-badge {
@@ -241,14 +464,14 @@
     }
 
     @media (min-width: 640px) {
-      .hero h1 { font-size: 34px; }
+      .hero h1 { font-size: 32px; }
     }
 
     .hero-sub {
       font-size: 14px;
       color: #a7f3d0;
       line-height: 1.5;
-      max-width: 680px;
+      max-width: 720px;
       margin-bottom: 20px;
     }
 
@@ -256,7 +479,7 @@
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 10px;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
 
     @media (min-width: 640px) {
@@ -340,7 +563,7 @@
     }
 
     /* ==========================================================================
-       SECTION HEADERS
+       SECTION HEADERS & CARDS
        ========================================================================== */
     .sec-header {
       margin-bottom: 16px;
@@ -375,9 +598,51 @@
       margin-top: 4px;
     }
 
-    /* ==========================================================================
-       RULES GRID (6 CARDS)
-       ========================================================================== */
+    /* Synergistic Highlight: WAPPY vs Antigravity */
+    .synergy-card {
+      background: linear-gradient(135deg, #f0fdfa 0%, #e6fffa 100%);
+      border: 2px solid #5eead4;
+      border-radius: 20px;
+      padding: 22px;
+      margin: 20px 0;
+    }
+
+    .synergy-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin-top: 14px;
+    }
+
+    @media (min-width: 640px) {
+      .synergy-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    .synergy-box {
+      background: #ffffff;
+      border-radius: 14px;
+      padding: 16px;
+      border: 1px solid #ccfbf1;
+      box-shadow: 0 2px 8px rgba(15, 118, 110, 0.05);
+    }
+
+    .synergy-box h4 {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--teal);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .synergy-box p {
+      font-size: 12.5px;
+      color: var(--slate-700);
+      line-height: 1.45;
+    }
+
+    /* Rules Grid */
     .rules-grid {
       display: grid;
       grid-template-columns: 1fr;
@@ -395,12 +660,6 @@
       border-radius: 16px;
       padding: 16px;
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
-      transition: transform 0.2s ease;
-    }
-
-    .rule-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.05);
     }
 
     .rule-card.urgent {
@@ -417,7 +676,7 @@
     }
 
     .rule-title {
-      font-size: 14px;
+      font-size: 13.5px;
       font-weight: 800;
       color: var(--slate-900);
     }
@@ -448,9 +707,7 @@
       line-height: 1.45;
     }
 
-    /* ==========================================================================
-       PASO A PASO TIMELINE (4 MODULES)
-       ========================================================================== */
+    /* Step Card */
     .step-card {
       background: #ffffff;
       border: 1px solid var(--slate-200);
@@ -458,7 +715,6 @@
       padding: 20px;
       margin-bottom: 16px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.03);
-      position: relative;
     }
 
     .step-header {
@@ -542,9 +798,7 @@
       font-size: 12px;
     }
 
-    /* ==========================================================================
-       COPYABLE CODE & PROMPTS BOX
-       ========================================================================== */
+    /* Copyable code box */
     .code-box {
       background: #0f172a;
       color: #f8fafc;
@@ -602,46 +856,7 @@
       color: #e2e8f0;
     }
 
-    /* ==========================================================================
-       BRIDGE ARCHITECTURE GRID (4 PILLARS)
-       ========================================================================== */
-    .bridge-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 12px;
-      margin-top: 12px;
-    }
-
-    @media (min-width: 640px) {
-      .bridge-grid { grid-template-columns: repeat(2, 1fr); }
-    }
-
-    .bridge-card {
-      background: #ffffff;
-      border: 1px solid var(--slate-200);
-      border-radius: 16px;
-      padding: 16px;
-    }
-
-    .bridge-card h4 {
-      font-size: 14px;
-      font-weight: 800;
-      color: var(--teal);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 6px;
-    }
-
-    .bridge-card p {
-      font-size: 12px;
-      color: var(--slate-600);
-      line-height: 1.4;
-    }
-
-    /* ==========================================================================
-       CHECKLIST SECTION
-       ========================================================================== */
+    /* Checklist */
     .check-card {
       background: #ffffff;
       border: 1px solid var(--slate-200);
@@ -682,9 +897,7 @@
       color: var(--slate-600);
     }
 
-    /* ==========================================================================
-       RESOURCES / DOWNLOADS BOX
-       ========================================================================== */
+    /* Resources Box */
     .resources-box {
       background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
       border-radius: 20px;
@@ -734,25 +947,7 @@
       gap: 6px;
     }
 
-    .btn-pdf:hover {
-      background: #0f766e;
-    }
-
-    .btn-wa {
-      background: #25D366;
-      color: #ffffff;
-      font-weight: 800;
-      font-size: 12px;
-      padding: 10px 18px;
-      border-radius: 999px;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    /* ==========================================================================
-       MOBILE STICKY BOTTOM BAR (WHATSAPP FRIENDLY)
-       ========================================================================== */
+    /* Mobile bar */
     .mobile-bar {
       position: fixed;
       bottom: 12px;
@@ -770,12 +965,6 @@
       justify-content: space-between;
     }
 
-    .mobile-bar-info {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
     .mobile-bar-btn {
       background: linear-gradient(135deg, #0d9488 0%, #10b981 100%);
       color: #ffffff;
@@ -787,9 +976,6 @@
       white-space: nowrap;
     }
 
-    /* ==========================================================================
-       FOOTER
-       ========================================================================== */
     footer {
       margin-top: 40px;
       text-align: center;
@@ -805,7 +991,7 @@
   <!-- TOP LIVE BAR -->
   <div class="top-live-bar">
     <span class="live-pulse"><span class="live-dot"></span> EN VIVO HOY</span>
-    <span>Martes 20 de Octubre · 7:00 PM a 9:00 PM (Hora Colombia)</span>
+    <span>Martes 20 de Octubre · 7:00 PM a 9:00 PM (Hora Colombia, GMT-5)</span>
   </div>
 
   <!-- FLOATING NAVBAR -->
@@ -813,7 +999,14 @@
     <div class="nav-inner">
       <div class="nav-logo">
         <img src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAhQAAACaCAYAAADxX9FkAAAQAElEQVR4AezdB7xlRZE/8DuByUMyrzkHzGFdc06LrrquOYsBzJgVAwKCYAAlqaBizhEVIyqKiqJgWMMfI7gqmckBmPn/vu3r55nLCze9mTdw3ufU6z4dqquqq6vq9Al3bqf9ayXQSqCVQCuBVgKtBFoJDCmBNqAYUoBt91YCrQRaCbQSaCUw8xKY/SO0AcXsn6OWwlYCrQRaCbQSaCUw6yXQBhSzfopaAlsJtBJoJdBKYKYl0OIfXgJtQDG8DFsMrQRaCbQSaCXQSuAKL4E2oLjCq0ArgFYCrQRaCcy0BFr8VwQJtAHFFWGWWx5bCbQSaCXQSqCVwAxLoA0oZljALfpWAq0EWgnMtARa/K0EZoME2oBiNsxCS0MrgVYCrQRaCbQS2M4l0AYU2/kEtuS3EmglMNMSaPG3Emgl0IsE2oCiFym1bVoJtBJoJdBKoJVAK4EpJdAGFFOKp61sJdBKYKYl0OJvJdBK4PIhgTaguHzMY8tFK4FWAq0EWgm0EtimEmgDim0q/nbwVgIzLYEWfyuBVgKtBLaOBNqAYuvIuR2llUArgVYCrQRaCVyuJdAGFJfr6W2Zm2kJtPhbCbQSaCXQSuCfEmgDin/Kof3fSqCVQCuBVgKtBFoJDCGBNqAYQnjbedc5oX8iSPFsOVo6Wgm0Emgl0Epge5FAG1BsLzM1OjoFEeYdzAvaCs4raJOq9mgl0EqglUArgVYCvUmAA+mt5eWnFWfZC1x+OP4XJ5Vv8z4/xTsEFo7BgqTzA+pqu5y2RyuBVgKtBFoJtBKYXgKcx/Sttr8W1SHWFJ/DQMVT0+1PIp0O2nfsdDrXDtwgcJPATQO7BJYFlgQEF4IMstIepLg9Wgm0Emgl0EqglcDUEuA4pm6xfdRyfBXwVMF2vqtuwFG6Cq+p/GRQ20j1BXBVvNI6nnQCKc2+orlz5z59hx12OC3p70LdLwKnBR4auFJgp8DSAJngdbvhKzS3RyuBVgKtBFoJbGMJcIzbmISBh+fwAB4AJ8jxA4GAq22wKCMsHgNX4TsmDzhQqatzjrSCNqD2qSlcAG5jAONWGqQg6Gflgba5mzdvnrdp06bOnDlzOvPnzwdksGso3jlABnjEm/Ypao9WAq0EWgm0EmglML0EOMTpW82eFpwcmBuS0M65z0ueA1yQlDPkHG+c/P2WLFny1DjN5wdek/z+uTo/ZOnSpW9dvHjx25J/q/yCBQvePG/evP2Sf1X6PC/wpJTdP6nbAVdNujwg6AAcbg02jGXMSgM6Km3SdJtdR3YmOpfmL/wWwi655JJOAE+CK3ziDU94Id9ZyUchvv3XSqCVQCuBVgKzSgKcxqwiaBJiOLYK1YELIsAuixYtuksCghfMmTPnuOXLl39x8eLFX0wA8b5ciR8S5/mG1L08V+bPT/0ecapPTvkTL7744idmrCcFnpEAYs/UvXDhwoWvCuyf+qMScHw8eD6SuiPS5pnB9x9JBRiu6DnfGmDYwbALwhFX2sgVVJrTddsfkcXcBFdzE1M0iVmYE0GFYEKeTCvtqWqPVgKtBFoJtBJoJTC9BDiOCVrNmiIOGY2AswaunpfFwd8vzv7wwI9ylX1iAoQ3J1h41OrVq++0bt2666XsyuvXr1+6YcOG+StWrFizcePG8wJ/W7Vq1ZkJGP6UIOSPa9as+XM4PSvtz027jSmfl3RZggrPFFw35XdM2cPjhN8YfJ/fcccdv5gx9otjvlv62QlxZV8DDA5ZcMEpCy44ZrTioUK6bbOj0iBtEkGmaK70knV3m2b7Nt9KoJVAK4FWAq0ELiMBzuMyhbOggENDG+CUFyQAuGYc/X2THpr0F7nK/lKCiGfk/Ppx9hvi6C8InBVnf3LSj6bswKR7hpcngLSXPj75x6Xf4xNsyD82QcZjU/aYlD0q8Nj0f3YCjTcl/5HsWpySfv+X9IIEFutXrlx5g9Q/ObsdHw0NJ2QXY58ENHdP/+sGamBh50JwMdGuBb5Ams+ag4ybgD4wawhsCWkl0EqglUArgUkkMIuKOZJZRE6HIwPocsXMMf97blnsFQd/TAKETyYQeE7Sa+X8wuwcnB4n/6WkR6Z835TtnUBinzj/IwLHB34W5v4Q+GvgnMCFgZWBVWMgr+zsnP8l8NsEED9I+rHAwQkcXhjYK2WvTVBxZMq+mkDiNwliViUQuU7On57zoxNkvCllT0h6u5R5DbN5S0Rg0dwBwB9I01lzoAcgqKbyLbQSaCXQSqCVQCuBniTAcffUcCs04siAHYllCRL+I876DXHk74pDf1OCg/vGiXdyq+P0devWfSj0HJKyA5O+JUHEp5KeEhAUCBLWJC9okF+R/EUDgkDjVxnnGwlWjgmO1+aWymvXrl17YAKNT4W23+YWyeKk90ndPkkPTFDx3Oxa3D7nNbAQXAiMBBb1Vgi5A/ym6YwfW2ucGWekHaCVQCuBVgJbUQLtUH1IgFPro/mMNOXsgB2J+XHGN54/f/4b45jfk0DhhTm/ZXYfNub8BIEFZx4qPHD5nZx7BmJ1ztcFpN0BhGCiCeoFGhX0mSivTNtmX/l/ZJyfBj4deHPGf1WCnNfn1sd3QiNZ7rZ48eLnJNg4MOleaXP9gFshoN4KsVvhuQWBkz54T7P2aCXQSqCVQCuBVgLbrwQ4tG1JPWcKinNN0PCk7AR8Ibc09oqj9trmpSHuKwG3Mt6W9LuBMwMcfncQweFXEAxoI2CwW7E2fbRfnxRsSFphY/Kgnku10R7oCwdccMIN/i8Bxanp+/HsmLwotHtT5Ptr1qyZl4Dipil7dm6DvDPBhldQ7VIIKqTeqPDwpt0KfAPzQA5B1x6tBFoJtBK4gkigZfNyJQGObFsxxIEaf1Gc7m0CJ+SWwXvjmG8cR31JiPpm0ufklsIByf82wKlz/Bx8t3Pn6IFy9QIBQQHQ5+L0h1OAsin5zYHJDnXaAH30haMGGvCjBRhPcHF2aHVb5CkJJvZI/kfZWbk0uxa3SP4d4enNGcynrgUVoO5WuA1iZ0ZQQR4gTS93B766YTYy2U1jPd9eaJ2NdLY0tRJoJXAFkQCHvrVZrUaaE71adiOesWnTpo/H6d4ntzjW5XbHT+KU3wxC2O8DHDyHLkgQNHDgFZxz7Jy84IHT11YQIBioAUTQlAc+8cuBu+VghwC4BQHkgXqgLVqNX4MLOOE2hrHQZGyBBVrA10K7HZa3hLdfBjbm/EEJmN4aIh4WuFrATkUNKuxWoKc5Zpps1we5ATKcDrQD24phY4PLC534wA/YVjJtx50dEmipaCWwVSXA+GzNARk5MC8OdrcEEW8KHJCdiRvlav5PyX8g6YEJML4ZojhqzpvT5rCbQYRz9TWI0I6zrwGEIAAETTkWLl269MrJXX3hwoXXSvTgB7KulXNvaoBrJu8hSk4ecPI1uGjKSGABr9R4wNgCDLSgSYBzVvAdHT5ekSDJx7HOTf5G4fkl4fHZqbtRQFABmrdAmkEFOaXZdnWguYKAEQiWyDJi71Rwrhy/2pBx7be1GDaecQE6AJrQ1k2ncvXaAn23Jp3GA2SFDvQ06USvc+Xqtat06re1aG3HaSXQSuAKLAFGZ2uxz7CBuXGq/7l48eJ3J5DwTYclORdAHJzbAx8JMd6s4LA5aM7ZVb9gQupcgGF3gBPn0GsQoQ9nHxTjhy9D3mvH5Tu+e4e58z+ybOmyD8yfO/d9l86Zd+yihYuOXbJo8XuWL1/+7rQ+JjQckvQOgfrBKoEFQ81IkxPaQZp0jAOMCdAxUWDhGYuDEiS9ZvHixT+8+OKLd8qOxaNzO2SfIPEmiDEEFVJvgtTxOARjgTTdLg60ArSTGQcnMMOXoAmPlVd5ZW754Lk6Qf3BTDIMPzCnlVY0dNOJVoBOfKAVT2jVF8CzNWitdBofHRPRui1lOpMymL24W8paCbQS2EICjOIWBTN0wvACxniPJUuWHLty5co7x4mvi4P98IYNG96Zcf36ZXXMrvTtQggigLyyZiDBkQOOHcBfwTiM8HXnzplz3Ib165+0YtWK+65Zs/re69atv8f8HebffcOG9XffuHHj3VetWnX37FrcI7daHp8dhDeGjqsHfCnTsw6cCSPOQcIHjEFu0jQdDy7QILipPAiI0Oz7F8cLKhJIfCI7Ftms2PTvGctzFQ8KAo6A45JyFJwb+usYdZw0nbUHGtGL7huGymeFv/clPTHwo8A3w/t7I+PnJl+DNjtCvjSKbw57a/CNTmAel4Qer/vuv9NOO30xdP0guviDRYsWHZ+8uXlkUrtXAkw/nGaO6AOHXvUBLpCmIz/gJVNjjcs0cj0x6+bHSb+VgPy4jPqi8HHbpHbgppNpmrVHK4FWAq0EZkYCDNbMYP4XVoYRLIzBfsWuu+56WJzrVWIEV23YsOGtceq+73B+mnPIdh04YQFEdyBhB4CzbgYR6VYO+AF+OAuwIIb3VnM6c66z8eKNnfnz5nfmzZ3XiWPrbNi4oZMdik48eyc0dUJDJ7T44azdOp2OVz05Ec6OA6nOjsPbIfUAfmOBOSlzoL/CpSkAaBYErUkg8YuM86p58+YdmZ2Y1XEGV4tTeHXG3z1tOVVgvBpUGKfir2Ok6aw70IZOXws9NPxxdodGto/NHN8h5zfJ7sxtwv/uKXtNqP9kArhDk9qhaTrByreghHzTZKQHOoGA4IGh6aTQ9MXQ+JKVK1feJ/Nw89B3k82bN985ZU8J3e/I6J8NPC2AN0HmzsmbJ7QKNNEKJ0jVyA745kZXbxxZHRZ6fhz6yMwXXe8Q3blRdrtunboHZ8RXpO5zSdUL1q6SfA0s0Elv0Umm8KZ6uzhaIlsJtBLYziTAEcwkyQwY2CXGce9ly5a9IsHEohjDv8Yovj4Dfz2gnvNdn7xbGs1AQlkziEiTyxz644MDvvbiBQv+K5HEQ9Jq5zjuhXHayXZK8HDppktLMCGwiHPP1sLmThxIgdLon/84jauG3gfm9K6BawQ4+go1wDCecY0P0myLQ3Ah+MGbwAIvK+LE3pIx94kMzosMdowzeEHA1TAnwFkZpzqC6cbYYsBtcIJvMnCl/+046efGKe8Y3uZH9n7JVJDWWbduHfnPSR3HtiwysDPznjG+PaTadNYcvnbwwj8KtuABV86YB8VBfyY03Tb5haFpbuajBJYpL4Fl6Jub8gXRHc/avDy68OYQcauAAEiwabeCHpgftMIN0mToAx68PyA6+uXAnqGHnsyPXOeE5g46jZK1pO28lPu42gMTBLl995+po7PorEFxDSrg1SdN2qOVQCuBVgKjlQADM1qM/8LGcIEl2UbeO1dTr12zZs3yGPJTY/heFiNoK1w9h8vZ1mBC6jkJuxUcMozoZLhdZcnrB+SBq/2n7bzTzsddfMmln7h006anpNPV5nXmLVuzdk3ZmahGeOGChSWA2LR5U2funLklH8dRdi7iRODkzK8SI+5Zh8PTz4+BMdJuhTDQ9VYIx+cqtZsmOJShZzs0JwAAEABJREFUF8wNLQ584skOzEfixAQS/5uxd80Ye6TBQwMclYBCYMFhdTsCuNNsVhxowduDQ/8n4uiuk7ntZG7HHV4ccSdBUyd1heAEHKUuwcbc8L1z5P3SpP+TyuqoyZb8ybXKzjhpMtyxdOlSV+5Hh5YXZtxFoVmQU+YfjZnv8QHQnXad6Cj6BQ13TuUbAjcPoFXwZ67MkXrzPQo64QAPihyPC403iHzQUAKzjF1oTiAhW2SNzuiS/JykO6ef53MEbPRVoEZn6dSWMi0Y2n+tBFoJtBIYnQQ4hNFh+xcmRhEsjHF+ZYzeS2MEF8dAfjf5t8eh+ES2ersPHOzqdLUzIS+4WJ5+N0gZIwg4b8DBOudsGHFwl+w4HLJ08ZK3rVhx0b3SZ94OCxZoe+XNnUuXLUwAkbKO2x5pV3YoBBPKpKGnOI5cCRajnHK4F2b8eaFzeRzNQ0P3AWn34tTdMsBINx0KetBRQTDg1ok26ACcDlkLkOxWCJi+Fof1usDP4uCulN0bQYXAhZPiVOGRxzOa9M/wAx2bB+o1dSfzd+M0OSYy2jU8lGAh+bIzwRGSKWetznl0oNQpC9/kvSTpMyLbuwRPt1yrzIyT6oEP/ZcnmN1z+fLlj8icFqecMQvCOOGS+of2zHsH3XHMitDofE4C4huH7pek0NtBE139GwekycCH/jeNLvjc/NXQg5aMWwIfNMlHH8eDDLJ1LgXhz3ddXhAK3P5AJz1sBj/0yDhpstUO4zVhqw28FQfC31YcbtYNdUXnf9ZNyLYgiHGZqXHnxWjvHXjZhg0bFiX9fgyk5wf+lAEpXzOYEFDUYGJunM/jYtj9QNdr09aWOINYgbPlZDnyB6TdYXPmznn8ytWrlsbKdjblRsaGjRvV7RrvveyS3OZQpk6eZ20CI5wxysFYJ0Mmtrxt0XdCt23wq+bq+kmh6+Wprw/AMdb1irrSc7PQc3gM/3vS7hEB9ehGM5rgNjze18f4nxSHtl/kclqc7S5xDH4d1U6FQEKfpcEhr6+ARX+yS/E2PdBgm923NWyvF2LCR0n9S6AgKc5bxnl4lS3OUSb8S5ZkDuwouaJ2u4nM8E2mAiljAW0HAX3vkoDgxQkqyu0NSKqjlq90yStvpniiFymfk3m9ceC+qeek0Wpua8BofoyV6s4goK8g8v2Rh1st4zhyXvLkhVY0SRWizXltoyzndOcZyXv2A52jlmlQT3rgA9DVyYCsap22YFKEs6wCrRUqD5Wfmtby6dKKZ6p0lrFfyKn0Vv4q31JQy6dLK56p0jLgLP03Gd3bmtwmXRPNQa0fOZ0GGzVSxHo19GnZZn51kC+KIfx5jJydCd9nMCaH6ird7Q0gmPDw4qVx3F6tvOvq1atvHefsitBT93cPnnoFawuXIb9LHPy7YkjvEBh3FGnnYOQZUc7Y+aTAINfK5NFeIPnEIHPGHWKckd8ZuWsCjBemvd2TSo9xGG0P730jQcGTwu8dQlt9/kIdetFSHWRinY6dijVp+904qX2D90+BXZL3GyD64oFjBfoKKvQnPzSGjG12oOFOoZVzHYqI4ND/evmHZ3NLnniuAYWxBuVXP/ieHv1zi6XMaZ3b6pQz9pRH9LAEQWm/MPP10MyT4Ade88p5mxuG1HhgSnyTVOp3p9C229q1lkOn3IabpO14cWgazzczwSMo8eArOsGoZNocpjuPBzAvFcAuE9nUVB44B/RZO3MM9E3XWXugD6AV7aDJD56cA/lu0H4yIIcmGKMJxq2wrQRUx0cXWvHSzaPzyfhXp89EAF8TjNENdXzpbJBBpa/SXc9rik6wtWg1VgU0VDmTe4Vaph5oPzL6IBwZsiBC3Lw41fsl/+oY8WUxwOcl74e0/pbUeN3BhMDCswXKN+U+/C7p40rQfeP5Md43i3P20+GPSX9Xwxy5rfZjc37ttC1Ov2lY04fwGFBpmk1/xADXRniQL2ktDw2dBBV2LW4b/gQVnIpdimtnPL80+pa0uXro9+0L97NtjTPq2jDoggL0FLwZQFCB53Xh4Tu5AhZ8XRQHK6jweuUt0oZT5bCAAEN/MoQDpMlWP4y7ODw/O/OLp6EICO+dyA1PdwsiV/6u0pv8WqzGBGnS6XT6+B/cN160aNG9jZN5K4FBaC+BRa9oMjfl1of26bssAazXOOkXQCsDaqHiQ7N+ofK2184777w0OlD6G7dkBvgXvZ0fuFO60r+RyjQ4JzrwgH9yoKf0lX6QkfErOK+gXjvth5rniQgacVnlD53mu7k28TMRf8rpRzfguwL+mwAv/IBcAJkCY5MxQE+FEbM6Ibo6FhrQgj504w2fk/GvTptuqPxL4akp/isYA5CBcQHeK1SaJiR4BgqNZ2x0oAltldaaKgNkBLQH+oIZIKsDb4VKG3qqXMm+zgM5q0O/tpW2kdAF2UgQBUlhKFdzN43xfmUM+fXjXM/JVrdXBf+YesQXB5q8XQmwRTCRcrcDlsdoXyk4BBSdGEXPOOyasmel3m2EG6XswJxfL7iLg0j5+JE6ZcaqAhuv6zODH7jKbQ9jhbeCIrS58vMw4Q1T9vw4mKdmZ8XzAKU+jnZuoAYUrrpNZnMSS7v886AmmdidOSEOZN8ERquC74a5j/7E1AugKAWFaCqCeSv0pU2/Bxn326e7/S7Zfbpdd+Gg5+YsTv/f0r/yWXmtC3JQXudk3u6c20lXyi2P8vxGxih6FRn3tAMQPSs6kDkv/TI/C0LvHYMHjeg1P+aWzg0zL/T+HhdeeOEcYwkqjJ1x+j5CY+mT/l6BvkpOmrRaF8PQGXSXOcwPnLfKOvCs0YFpcWB4kL4pdLwp5+B1sQvWsEBb8GhtcEToq0YYHvjSZdYc6AHk+dwlS5a41XdwqPOgrosLt5eenPPHB1z4eGvrv5L3tpm3b7wFddcEtLdOmd04c2LnsgI5ABceFex+kQ3bQT5Vz8jJHFobdA5dFYJ+Rg/jPTJ8vC5ze2jm1e8svSIj+vrvU5OyWY9LyjaaZ7dvvS3nBxLvmXJ2048++jKxQJcOTCQDvIPKv3XWlEGTf/oCZloG8BuHDMyB+UAXGtFawbk5U8cuaNs9VxHFyA50AXSRi/HJ+5UZwSMDfg2bLtaHyemZNuhDm374giNdhjsgGg7Dlr2Xx5HulQV3rxjFFVG8w1N9WgDRnCfHaT8XdAcTaVaOq8axcljlJHg6nEEU2LcrHp3C5yb/70mLo5dOAISDNzBB9aRF+qmsqXy5Os3i8XBeOY/BnhPe7hc6nhxad1+2bNmiuk0dZ1Pax0EyDBaMibMY6uTBDapjrzsVZPP+9D8yQcr63PK5W/AzSPpX5ZXCQ0HhAIWmEf7rBdWSVatW/RuZ9NJ4ujaRYSdOf1nwkZlFCCqf/c7hFsMF5/Wjj/ONoSIyldgVGZ/PUjDJP4FHrcrcePB0XuafY0EfOoGF3JyTQebl6hkLLmOUQDrndeiB0tDr2y9XTWe0VkCn9TgIjUF1mQMeu3Icy89yEXFwxn1x4PlZu27fPSfyenbOnxW9fkECvGMyJ98IFs6GY+VYGDl6jsZKG7xpNmuOJ4TuX4aaw8Ljc8MLOyR4ElT4yu7bU+cDfUcl9W2d9yf9cODjkcNnwv+XYhvd3jwteM4I/C5lpwW+H/h64HMBz17ZqXxs+rFxV0/KhgAy4rSqM6i2oOqedQJmQm5w7ph19P3Q88nwsU8Cw2dHPz38+6qUCRwFWYclf0TgXYH3Bj4Q8CzcJ5N+PuCLyN7u+1Xyfqfpl+H5R4ETA18KfCxyIUvPkglE7ETTD/wLPNgH/HPYbGqVQVOn0QoyxMgO+LwZ9ubYj+/E3v8gmE8J/DQ0fzVyMeeer2Ovq05XetGKTvNEt0c5R+gC8F4nOknmZ4aeL4W214fWV4S+l2S+jkudrzabq0ofXSJDdI2MJogy9tAHpjxM+Yg4/6du2LDBrgLF+04wm2zOk8MUSEy2M6GNp+k5qqW5vVAccxTXQ5HlKjGC8Xro3bNA50eZy62O4B8/IrySjwFDD+iXv0JDkGzRL0ZwfKxMTKErtOyYCbtbAodFMTDp0imOAF0Zn4OkRJSJkzBp5GDi55bGnQ76jAcEFQKu+L2Nx0R+x8MbWT42C8zT+vrDRwGkzuGCA3S28t/CBFTL8TrsuLmiLSgiS3KxCMkJf1I8Kh+ER33oyU6CPXMSQzA+j/3QHl4LjfTr4osvFoww7mgEnKC00lra9vsves5YzjVG9LvshvSDQ7/u9uF5XvikM2SJRik6yaZCd7d+z+eE9ttnPdiBkC9rNWOX9QBZ5raURbnLrlBounLWESfkNVwGjsNoGrhKo+7bGqqc9g/N1l6HrPFinnohLmuYzpSm+oR/esgu7Bo5XSdw88CdAj5yx0lzzJ4d+1nG+mT6u9r0vJIAg4O1Tugg5yoQg8v8kltdL+guY47o36OyjgQ5BV0uAEoa+oo8Bkjp+vLwfI3AjQK3CdwjsnlSEAvSPpj05MBJsRHkodzuRr3SJgM6w8bS8eY6xDtI95Edjw59Lwufd8nF3m0yJzeNXfDQ8+0iFztSnvd7f5z51zKigEhdpdXarvNkDdY5StOBD/wB+F4Zf+HDiXaIloeegjT0lnXnJPq6POvwWaH7HjmnQ2giN3pT6YEv1YMfEA3e+189EXLDGJWDsmCWhZFTQrwoyYOH6jwjYUdCQOG1UOccKEfKocKk3Zw406VZuM6LojLgTqJokgLBXwxTxihtSmH+KU+iDF+AsBVNC2N90aCfhQngGjeMkKAjPNagQuBQjH+Ui5HQpExijKyJYoDQABeY2+l0jAE6jT8yIAu3P84OrsOjAD+NYuwcBXhO2lk4FgwFgJMBgRet3bjSfEYP43lGRDr0QDUYy0IlPzySUxOMU6Hf8XxtkpxKvxiCMjf0yxxGzqV8un/mXBtp5lWwjB40wg3k61yo07wviJ5vCu7NaKKL5NErAm0r1D5wJL85+kOv0NQNqR76KDhD+34x+vJlLViXMMcelF1EqXNAhtLo95LQxggzugwcB8k50G3yhA9ovq3hGpmX63GiSelpoSfzVdLp/uE5/HbMkf7kA8bmaKruO6TP7dN/z4z1gfT9Xhr7yJrXrAVinierjrU6LHZn1PKbkzVz74xd7K40dJW5xcMwANdUEEfpubSHhXcB64nRmc8m7xaTz+LTHcEo5yi4YhvZEGtyqPU4AU2/ZTOAusxHuYWKd+e5+JP4iJ9b3S8JjV9IgZcJmvNU9bs5R2nW92FdgEWh40ORyf7RzaXmhF7BVi+eUldsXtoV/YsukY+1VuWFFrLSbWgYBSKMzV2+fPk7wtA1snD+FiF/LIL/R6iDn5MURAgowIaUK2PoONKclkMeroURTrnNwRBlYkqlf4QV41WUOuMU46W8G0LHtQK3D5jQ7uotzkPr+HnyhOtbFj5kdN2cl8lAh4kB8sFb+mRyLnPloWKMTrzDJ62AP6BZN+CfTC7OGD8NDl+SvHCEnvUAABAASURBVCD5myQvqLBIGFuGo7lw4APd+Gby3MOpxaAMO0h4KyjCJ3z4AL3Iq/Sb7h890abqkTmkQ8qMKZ0K0GeezXmMqmACnbo06USvc6BuELgwdG0KlL7GK5ne/wnQ3Upwi7H0iv5eEtq9kk2v6FcpH/E/v5z74CrnjFfWZZW3c+ORI9mTuTxI3e1S5t46p9Bt5KpT1H1bg6+7FruDfnOD/jpXUxEX/sar5fVXEPtY9cjppGAsldqnLyfwiIztRxTdSvBsRtNhufCotqHKbxidNLT+1jvc5TahdRDdKrZRg5kEviDBanHexo3O3DRycFvoa5Gnj7h5HocM6JDAgn1kJ9nLUckAi3aLvo1vJ1XfQ4PTsosuoz5BkDVAn30O3+fx0SdoFvzVoAJt1W7o2g+YkwXRg89GBz2zU3TJ2AAiF090p56nHRn+OXUXBOgI34QGuCqkargDQ8NgQAiinpQrzQdk4i+NgL+eSf9pkCpnxAQQAgkgP1EwkeYduAhmHkFkp0LexHScB2fJa1gnU3kVmPLNmzeXNmlr8h6V+ttaiLVNzgsuqfZNUKZt0rsFHpzxF9Z+2gVnWUCpc1rGkTFRyrrbRg74IV9pE3SbCMgKcAyXBO9Xg9c9181RnIcHnweaKAFlsFNh0Tgn54p/IrzjZWP8lfMmvaVggH9kMkC3LbqgSUF4deVX+Zgo1axfcIVe5jxGqPRFcz+8V/r0qXonH2SjojGoyiEA5/y30PtSk3/kA5IdP+q5q4+A3UDffvk35WhM6vaiH6ejUxVqcEHXxnENkME//bZFP74eKp4q73pOjmTvXB7Ip8wDY5wVZ8BhcgiuonrWa3hmGMrOkfmPTIsdQL/8dOOGv/Em+jipqbrMm6IC8FUoBfnXbJvTcoyV2f73vIL74q6KOa3qVNkHMuRUzZG5Kn0H/Rd9YttLd3IomRH8q4EnVLFzRfe7ZRDforoEMyXzz3+LI7/Hps+HcurC0bNCdceG02Ynm/wPK4OIYPPzYoftshc6My6bJdkCBEFprMwcCHo8L9TcTRlGx/EBDskYvohbaIgsjFfyJZN/qS+6mmzZUU/qrgF9SLZj/XeD8qGgIh8GyfV23HHH5wXBvEz8GWHsM8kjFNOMnN0JIJhwPpVB25z+PiBUnEDwFIEQjHw3KK/KJ81kl4mWRtFKXpuJoBtXL+dNPM32yrvPU4b/qaDZpebJDTD+Z4end0Qef4lx9vrsY7L4RL2CCIsFUFiGt595RFMdr01njwTcBvx8gnK7Cp1c5fwmOvSHzHlZC8mXtYDc6EXRbanzXLltSgD8/bRZlq3XqyUtt+miO79O/UUB664C3bIGU1yMinRQEAh4u2HQ/vi4XtbrzYJAMAEYW7rddAap3qbHhZw4eZNt5qYQE7pLOuw/eAUWcIOKz9zX/CSpZ87cv/cQqK/4cloupgRn5FjtgzUPJkEzfXHo8gOO0zccoAU5RodLUBqdLRgyXtkRKidT/Mu8/Ft03k6A5xYEVTWooEtNPZoCS09V7PIfQ99+5ivjljU2Xc/wxTZ7C8ar5ubGLgXaBH1sufrp0NR6c8g/Pjr+7QWhpZZPmdKj0Pu/afSHADvA1vDH0sku8NO0/6MfZjqdLfFjjsI+JsTeIk6PITwuTc4OwItQgYSdCSniqzEzOWl22SPMbw6uElH1IjCKV0F7EHps7xQw+d3QHLXWNcvkJytXN8NANgz+pZHDT6I4H8JT6Lltzj1QI4CwO2GxkH9VSvMBZpi8GUXfpL+Zn9FBB0Re6avpgGjGu5n343J1sypBxcakHkj7e9bDOga3tooelLUhpfcxWBdme/MzafPz9LtlgvpiiLMG1qf+Z+ln/TEewBpkUOgXSPXAB769Ksh5DYxEx+i3Ky0G1pUlqLpN140DNN1WsCKydJRbsZmbQkdkXNJh/mUnsgSMUngEKxmozGHWu6IpIYGk4NMOxRvT0PY/h2qnQrBHpuzDKOR4IboyxkiPymPd9aj8C7Bq2VQDZn243cDfeAvH66qCKjJw8UWX2Er8azOoHlmbwJo5InL47tKlS4t/mYo2dWM8LA5fAm/BBKhzw373Gzgvj969LVD0xhjTQWTM79qdsP7ZA7ssUjaBn8YXNHiUDgyEPHDndLxpBPuINWvWLEmU+MOcfzdAQAhEvEACyGMKwSDNJj7GmC9Gc+IWW5YyrE3YsrZTruqiAFukzTbddd3nzbY13z2e81ondR7AJ1A0CJCh5ylcffw2CJbHYXjS27cpyJjRBQyG82HnMkP0fAzDV8+DjKjh9kArGsEvo3/Hx0ksWLJkydMCnoR/T4zrr2OQ/i9wcco4kNUp+0vg6zFYXs3+SwzrIxNMLInelec8gkcw8bvI0PpjQEA1IHUtpnqgg2Gmbz7ANhCCrk5+ybV+h8SVNeAItrZed5E1fmpu3D7ivIptiuxLOt5iwEzs5viVboLD8pA3VJnXnvA3+lwzNLn9wZnWK+HqUIeWY4I+O11IG3dk0bFyPsw/9Ed3Cwr5GqwJsHIxVcqn+hd/Uar1DY3PzInn3/AvqBLs0iWOW1BBb0GaDXSwyRzwXvF5qyvdU2FClzUZvny7xjdI0ATsUrDfdW6mo0u9NfeayMVaKT5tqrHVRSckXtV1S1UQQY/dWm3aA3zRcW2HAgQOggBzO2QxPCjG744R7CVJvYvLUMFH6AwZEEw475Vo7ccXLmSTgYmi1BW0UwbkRwET4arjSY1RU/kuwHMtMmEVatlkaW2n/7lRioMsnCyyW0bWXrUr8k9nRhf0qpTpMpIDfSNB1IUEX4pqKn9FATI13/tEn36e9TR/7dq1d036kBijjwbeEXhjDNk7siNxaPJvjdPxEObVly9f/pTkbxDdKE4o/X2V9nMR3MoAw8GISK3HukORqoFveZgfH8+5CSTDQJwABzU3tgQ+V9ScICfA2FZHwE4Zc5ihhu17cWgsOFwdZi2WLfpSMMS/zG95NgBuOKHKepf0hD/zXuY8TkYg6bbH09PZVfBOSTkusiTHKsNB5Xhx9CooR3ugHzT5r06YnHsZjY0ek53voeydPr4TQwb4p090qdrIVA901PXJx/lxy7eyydNhwhu5ZW36OQo//ogewYQUXeaml2DHvF0/O5EvIpfgm27oUh+5CCK+nhNrnw0QTFR7wNfyzXgDaTbcQckGxfBvMQYPzWS6p4Ng92cIhlFEKAYAA2YSlE9FtLrNWUxrCQsQXK/EhQ73Y8cXl/4g+MqbGIOmFirIRDJ8vZKjHb5dEeIb4E85aOadTwTa6OcBzS9ld+LHUeBlWWzeQrFYyJoyArsUzikdmAjf9lh2eeKlF/mb83NjgJ4Q3T/dbkR0+CaZ832T/k900JcWGaGrRCfvH53eI8HEM1atWnVVBjn6YRvWlYj39v1uDsPhV3yBPH1kQOiVsXqhqbuNOQEvDj3ddX2fh7dypRXH6sqSXnOAQHBBt6te9417hB083LuZc4Azc1F2FUbBf8UR/oscMq8Cg3LLw1jTAVrYvuhLaZpzgZldTAGFrXWOq3nRUdoN8G9cX4w3QP8Ju+BXRZN/co5uK+4ZKp6snWWRwcPSUTBRZUCXRmUjrZ2LO53OOzPOGRlnyiNtSr35CfiOh+c8zAmg53R8umDHevMxxbfF55rL4usK4mn+RS4npondJYGFYAJUW8BH4Wd8btN2qGPQgMJ7yXcOsT4ytTKGzFfQKlEMFsMFBBbOEd0LoR7K/L/gc/+3tKe8wMLLeOMBg3PlFI9RGoNNSS8ObEz5+oD7z2vSdlX6rgysAJnkiyqk7qKAOqDd2rRZF9gQ2Bi4NDA+bnc+fcvkShGMJmlAMCUirPyTAahySpOeDn3W5GrVV+cujlIyvN7BpmQWCYWUMrzmU3lPiK8gjfqVdy9imQkZo9NcC77/FCIemzk/wVoI+EDXv8dYekXMK8R7Rg8eHrhZdioYo3KVmz6/jB66l+5T94yGHYoVKRdQ0EVrkj4aC6RqoMNuyP1j3Abq3OzEeWQtKlqYteNbBwKmamzlq26TOdB2q0N4jfj/KbLMR9k9SNlUdGj8izTwxUxff3x98p74f13S/QJvCRwRHO+LTflcbJXbmgx8ijtlPmPHSn6qf2gB2gSHgJI+eNbKVXANKKocB7EP+IC+pvK9woVp6N69t1HoJf59DvoNKfdhs0Ojw++Ozn4oMvCNjXOjA6nqnX+N0x/fsmVeMlFspIAC/+QgoOCIq40sbQf4RwbAOl0Xub90OhyhpTQZS+my29YCiarjaFNubsBEOi6YuFvG+6+xtVL0w3wX5JP/uyDyJVe+iD0QTADBBd/M1uAHTI6ljxoM9NG8NMWwL/A9IcbAh4NODdF1dwJhFgXDhWDGi/CVg4Jgqn/Bdakrsyy0chVAwaJs8l7dWhshnhOh/jllv40inRYh/zjbOt9Nenzo+VQi3Y8EPhg4LvC+1B0LUv/u1B8FUn5U4MjAURnv6MBRqX9P0mMCxwbeD9Lvg1GEj4deAdO3M54Pdp2W8X8bOv6SBX9e6Fif8/GAI21KgBG6yZYsyEFq8qosgrKng8zApRnrOxnrtNC0PHnv7kNggQgoAKV0bn6A+u0Ntle6RylnOmLd/F+Q+rzxM6KDvi2xuqFbqeqUV8SyTjam/E/RNwb6wJz/NZUCCFclDLqAghFhVOCFn06lWd+H+aHXL8x68SOAfSOYrEPod4VOrxlaRpbRldJtem3cybpvlfJFi/jlTlnfmZOSTjGwz0v7XoRnWX6Tdt648To9A29H1y2pj6b8vbE1b8+6Fij+Z/Iviix+xqbEVqV66iNzXxpIM/clH/vgl3vJjyylCN/a9oGOeUj/2yHKJ8s9zyPAcj9f2ZdT/qnAB0P3u8O3YOPR0avHhJd3hf/VvfCf/iWIiG0sO8jp59zv4vitIbxXGdAjwRY9mqPfgIAva8ha+lZw+IBVkomP8FV8g1q0JfWKq0Cn0kbHBTvmB21pssWB1jmRi/VtjZTK+J+yk1VOJv93QqpcSAgg2AB2wTlbwCfhAz9pNppjIgamxRxmdssW6wOjuJdk0j2M6UoI45wmBwoQ7LxXovX3GpTvt9ti/GvGOD1jfSsLzPfwLbx35Yrs6Cy+d2Wijo6Qj87CPiogKHhfyj4a+GzgC1HS4wNfDnwt8PW0PTHpd8fgpKTfC5yUcsHId5J+M3i/HvhK4IuBzwfPZ8LfhwPH5PyIpO9I2TuTf2fGfGcCkkND2+EpOzbnrjJ+HJn8MYbnopQtyMKgxCLD5gROK98JGmzK2H/NGN8I2DHxQRvbeeaPIhpHyvCS4wQo/lUUmv91MmBuFDgGHHq2dGvKuZkfhj6LG1g31o+A4OuZ8ydGV+1IPC/p0TFMHJEr332jZ4KOl6XcZ+59c0Ig4eM1QL4aEWsSXvjBoHTaUvbEeglopkNCT4B2jL60Qi0Pf6Uo53TatjAjy+BKqzOk66OScxmvz3+bs95Ll8i6OC/mLnAmAAAQAElEQVRpKej6Fz6U/Dz/zKG1bw7Mx3kpM0fehGuC21RAMHhi5LFH7NFLg0dQWRxSlV1sShk7eEpAU2lQHl2odX58y6efyQ+QIRvBPpCj7v3C5tBT+hiz5kvB2L9mWejBD3BxyYkJbL162s2/Nk343+Bn232fxIVc5Wk8NVz8gmS8DO+RW3G4WR90825pgG/8A067GVAMq0v8mqDilZkbzjrDdcpcyYT/8bxzgMakdkx87Ip+ywt40Fftt/mZk3YOqd2J++UEP4Vfco4PKrfyU170QArwLg2cGRDM0j8+CI1SwQW9ZAvwMIwtyBBbHojfsmTqs8JgJu6xa9asWRSh/TmTL/KueAiY4QLy/RLs09s/ysJ9UoT2uIzxkuTfEuF9MJPxhSwyRvPUjPnLwP8LqR6OsegsVEFNFRohEhhhoc1kUS6TZyuM4aogWjSxJtiio3T41B8eE2AiLIa/hw48/zZ0nR4aTomj/3rK/G7J+xLsvH3dunVvXL169T4JKgQbfgBHX3hMInmE7HIYA5STKf7hAayNTH6YgOWvGdM9UldzuqEX3XisBqMXvPpe3oHcwEzx2ZRzMz/MeOgF9M86on9/D0LrzFXd4VkPfojJQ9DOlXtegsOioxUEI9YEYw4PfPQP7qAb6JiTNf/krENrpxi36bDEVhQjr130d7zP0qVLSzkDmPXTNIq2hK1V6xHI02+6TcYAuq0N/crNemcDOVQ2wFwI8MxLE8wbqPPGlp0b5j4X2fkq5l/JB8SmFJmlvMgr9mfcqWRO7OKW+tgHzsxvAHGinFWVIVsxp9PpDCLDCfk3p6G1HOiKfSr5/KNvgBzosKBKUDGRDMijyqDyb9f75cHzZsFD9K7wlvPCe9YAHsfL0BHHbnei3v7wbZPKO/7Jgo3kDwbh39AVyALg78zMzZvsqqtEJ3rNTcoVFZrQVk7yLzLynIs3Nfij6nvQ2KSv0jg3cvXZ8fJcjXmGC79kEFzB+M/DWlKfC3EFfguG7ln//CKQV2ZO2ALtRgqE2y9CDvjJiI7AbOu532uxE7AFhFgpYfdKNOGhRXp68NoxEGGJXC00grAY/CKlX1W7dSbu7pm4R0a4fvVvvxiow5ctW3ZUJva41H0s9H1ip512+nTKffv9s4sXL/aLf59On0+qA1mgn0j/T+24446fTv2n0+8zaf/p1H0yfT+a9APLli07JumRAT8O9Ny0e1Ta3Sdwx/S/bvozrmgzYehF928SXHwnfHhox2Ji0MkCf/gkL/kKvczB5uD7VZTrd6FFe19fI3O4KCKjK3XeD164Zgtsr3RX+aG/5odJzSt9sYbojoCUfnFK1oOrPE5HvgJDLM8wM9zaV92zHuGDd1C68DY3hvJ50fniyKKP0+LKOimGP+uuGProbznPxUJJGcCKRF102zcVqjNgcAUV1RlU3a5dtmbar+y0N3/sISNuLtixiUDAAcyZOQYc71lxHH63Yn3S8kopGZF/5qHwzqmQsROyXL58eQksUm+Xgj1gF5ryY3/MJdCtV8DPZdqipRaiUTBjrjO+YjpH96oOTyYDvAP8g8q/QMPO8Jfggx9STtS4Vf/wD5xzqtqEBh8DdOFV+Zey06PSIfIA+Dtq7dq1dqTKbQhzNEaDZHyt1PLIyG+0+EVZui2gAPKVxjpH0oeF7zviN/06yY+vI7wqq7Ix/+HbG5L8soCM3ahylZI/fTQvaAeFxlH9Q3A/uCihX8W7ZiZvTa7SbakQqPK6eBCsrFei9Z2TQMCnU28Sg3L/OO1nhahXRnEOiACPiFP/cMo/lja2eo/MxBwUIe6TxbRn6gUVd40Dv0V2Bm6aHYJrp+7KoW+nFStWLM1EL8j5/JR7Nc1YBF6ixvSxNVYWqvqMuUNwLgpfy9P3KsFxneC8cdLdguMemTz3+J6fQOJ1OT84/d+b/KcShAhKjg2db8zEvzCT+oRM9v2Sd/vmqslTFopcF7iUcpM/mkCGn/Qw8eDvoeHUwIbgvEVa29bUFz4Ap3HgTfWMHWiZCeR4mQm8M4FzpmklY2AdWVPVKTEMDK6ggdOp4Fw5g8xpMSb6WZfwgGHkgN/7Zh3eLOuhGM5ekGWdlLWWddXJ+i1dsmZLmnVcgoqs89KGU8jaU/eA/HPFZt0AefpNt9EB0mR2Hg2qyJz82UNgPqYCjheYO3O4Ok7i1OB7BVklLUfmoKRVjrEF5dy/VatWFYeT/NUD7AEnBcjP+UhtQ+grH/sydxmvHOZ6jEb801+8g+l4V0/PQZWBnY3nxab+ro4Ru1v0Jfa1jF11zODoIQ80pFxwim/8A3n80x+gyzBQ+WOPnx9El6ARDXQaDeYodJRdldSXNLzYWXFRfNuUCSZcpEvpOjrpOTqXp//b4LPm4G7qAbzp3xFEKh/jm5w9CEuGRYfSptoEuqXenKA9VaM9EN0rxjIBIdpX7UykKyJPJmMeDoRSCGARIVr5dLA8ivH4COTdUcKvJf10HOabI8jnZUL+O+d3jkCvlbJFCQ46CTYKvhinS3fZZZcNOV+f/uVtjuwqrIxwVwbPRSDnF4beC9L2/Ezw+cFzXiblvPQ5L3jPTfm56VsgwcB56aNce/1WpO/KtF2VoMGErAvuDWnji6CdjO0DQ35dbk4UfOnKlStvmODjXlGWR2ain5mx3PZ4Z8Z4R/K27jx5bQsO1CsG8i9yLUxN/Y8CbMr43w++8zKGCNzHUvQyBxTRgpGHE6jrhsnKu9tdXs7JbXvlBe3WEbCmrC2GgrF1tcFgAEGGc+XqtdNePwDPMDKgM+7lvmjM4ZcrpaydXnAen7W8Rtusk9I++luvokuatV0MrTalQaezW1JXl9YKIyu1Zui2NZPqrX4MIkN9gDnohu7yOl/SakvNpTn9UGzQWbFHhWl2kKxiw8o8kJ9zUNsk7+NObIIggl0AVX7ms+Dq4x96L9M845QLtNgjTnI8aKx6kg76gW7+pzqvMuAA8X9BfIEvVBY9iQ0M2k4JKowTm1vOK+/0K3abbGpQVWUgJYNB+C9jdP2rfPmqsYtrz9KVJuYEXeQjGJBXgfbwIuti9inJuJB2Gx7YkaPr5m2H9H1L1o5vTxS+yTjtS17qPP6sI4hMuxJIRgYeerVTzh7wWwIy9oEcq11ANxQjh34X5065Gr83AWXL0n1bAAflqItA6hzRYDqibxzBvSpCflgWyDWjCJfECZ8Twf8h4NPT3wwCT6t+KUHBZ2OUPpL2x0aRjo4DPzITd2R2F45M3RGh6ciUHR483uJwfkQEfUT6eG3JFwU9TOnBysOC24eCvK9/WMZ+RxbpO9KvPHCZ8Q4PPu2PDK/GODrnHhTyQKg3Q96VMb0J4raIp7W/koDk6xnrpOA4PW3PTPBxfnB6JuTaKf+v8OVBNl9vYxgpzCDK7TcbTgv+syhT8HqAjfwBfIyG1LlFA8LOjBy9zO2MDHwFRErW1hRgbAHjABhdKbD21GkH9BuJuLJerh/dLhcT0b/iPLI2psPtdqjfGPmmtnRWB0aQ0Y/+FmfE2KrLOnShosmclLnPbGdCQAHkF3Q6HQ6h6re2WwsGlaV+Taj0Kqv5miprgrk0rxtiw75CZhpGNsWZkmPmpOzykK98bZM8GV0t7dmDCsPIDl1Bt+WRcUpB9KOksXnF4cWxOa99pE1QNxE029BfQKfp+BcyVrmYi+2velJwpLykdCh2t+Rjn+mooJQcuvlXxjaC0n7If5XONwTP362PpGWOzEvVcym61MUfSHx3xe982KEQUICyUxEf95D0fSae8CclU3KWN4b5l5eOgVdZvUEkEBVECCiAiw4yJMsqY+OPHAi2H6S7RbGvRxhhzO4EQZoUKWKBReAc4dPh1vf3EfT7EkR8KIJ7cQKCZyXiekHGcUvj4Aj1yORFfu9P8PDhnH8658cn/WoM0LeiXD7ccWKCCc9deHvj+2n3vSyskwM/SP4HSX+Y1PnJSb8XOCmK/51Mhj4Fkv928HoN6FupOzHg/MS0/XYA/m9EGb6R8Yx7fNp+NuN/PGUfCi3Hhe73ZVLfk3pvfxwUHtz+eEN4e2dkVfpGGCaazAHeQYp7Oqo83Sf/9Zhy3SA9dwrAZ9EIKBgN0MTdzKf5rD2adDbzs5bgCQibSbrpALC+gHwF56CeT0DaQEX4mRu9fn7WyDyGLOuh3BeO0ZsO4ffTgCH7dtbBJYHi/IKnOJ2s91T/80qTk3QCtzRr6z+SMriCCVCv3Lp1O822ykGuW2WgsUGMB8wpu/rVXMyVqtibsrNT5ejcvDjXgH1WlvxVAuTVBPNZIdU9H2i5TGNjmrvoR5lTdJjX2NzadsJ+tXKaVF/Ap3hm6Bfw61PHYweNhQa0xO6qtjsh6PC7HnhnGys4x39pN4J/6ANoXBneX0uHc4FpB0JQU+bKWkldkZF1EL9Rhk47t64fnhPBBH1nz6+d+TsKr/EpBYf++MQ3no1R8alLe+PxX2592p2oAYVgou5O0CW0ZriZOTiiXjG7arhBmFw6xthP0rH2J0xKD/ohGnOrIqSjcstg7xgRr32eFLzeV/5zhLRrhLV7lOVxccrPyNjPTvrMpM/JFuBeCUL2zOLZM2V7ZmI8T7FnFp0HJ5+XNk+N4H3gxI6AKB9w6IRLyFXgIjjbQr7Nvjx4H5JbJXum/9477rjjK3P+sqQvzFjPhzsRMNzPTX6vjCvV9umh43GZfA9rLopie/3rjMjpp4HPJ/jwlK5dFjSQEXn1I6eIpBzk5cfT4KVAFPBGpaZTrtzqojEvc1IOkmzXx2zlYVvRZdwKzYmtZdJmeV/5SRrbin0qA8aQZU2UZyii55M0L8UMm4fDrDdf/zxZ/6zpYuzltcqaoccFn3PlDG7ydvHcJrQzUQMK+Ro04xOk6eX6sObZinOrEyL32JXCtLyMeZGaG+1iN52SG1vAiQJ5MDK5mavYbWOVeUSPOSwFo/mHf7ApeC/EJ50xrrGqHNCgzJDxF8UJx6/QF/yCbv5HJoOMiT7Arn8i5yfnArMED8lvsVOB9vBRAmt12iX9r5TfJqlg4urxW3bOr4ZXPOLHuom/SZNOubUR/1R4hAvvmW8PsArgrbembxNcCOrRRo/QWfDMxD+C7hlvJswDWfGdizlhT5Hqj0BOskK/ROuPWYzD4TsLt02AYNfiPRH0MyOwR0c5do9QHxwh7x4h/6fz7CI8LM76Ycn/Vybm4RHuw5N/WBbUQ9PncWm3bwT/8SyyPcLktTNRtpOWJzVxOya11eQZjttl0t6ZwOGrUdDXrFixQt+HJsi5f/A/IOlDMtbu2QXZPRHw7mhIHg0PzlgPzPlDAo/ImHtkYr1p8uqM53vylBh/JhQIaIDAAs/9yipoO5szxinJ+CroksjHg5nGMBc1oDCu8zT715F+Rckjp38Vzr7cKBc67shGuj0DmQBzCsxvnetmqlw90B4My7cLiScFieC1XG1ljeW0U4xi9K/k/ct6klSgo3SdgfNRLh8xKnVV48tFzAAAEABJREFU/2JPihMqhY1/tT5FPjPPKQJBDQch0Kh8pslWO7aVHhkXrI09K8xax6CcdP2LvSolsZVScpuTDH2oMnOeor4PtuoynRpzVepiP0vAWE5G9w//gI8Yd6Td6CstscO1ysUkfvEOyME5qG1GlaKPTefDXpL5KbdnIDdv1gb6zMsEeu9DkX6DxMfN3h0Zlm9O6AtyXmQaH+O0rMGah7MUdjpfTSqQICP+2UWyC2frD00Tzl/6jPQg4F4QmoAdM1G3CHTivH0DQkSkHKFVkFLnhAt6wa2NPoXpXPnfIkZq34xxizhx0dimBASr4+zPy2T8IzsF/0ikdnYm5R/ZLThbPjsK56TfOWlzTgR8zi677HJuAokVweN3MBZnQp+Qfj4IdPTOO+8sSHnvrrvu+oFERh9M4PLR4Pc1zXtecMEFxlsTXOen/dmpPzv5s9PmnAo5L2OpD/wjff8eGs5LQLImUK60EmTcNeN74MaWI4NPTvgkH3wKKKT47kdO2m7OHJwZ2v6eQGde+K2Bi7m0aCoYs4KxRwnwomWUOOGCV3o5hYHYIhNgXumSK3ROlbF0G6ACZ6tMvXba6wcGGjid9J2bdecJ9i3eg0+dtVICgqzF8oAywxdDKtCg2z54J4guBi5r8Afp84esiyQdbYpjKCeT/9sla9j3FPDIOYLKI32fM3nXkdfMhL73QySbUS4IMh9F7pzUNAjIjYyqrGqqDEzTfbwa72C8YBtkNsfe0qfiXHscn640ea75Hrv31Yx8ABv/y8zRsfELxflbH9YGbLHX5XahtGv+rGkfsPK6r6YFtNGWb5EqhAtOdc6zRv6U8dwxEDwIJkANLsgMTf36Gqj7BgLutdOuEdCucWbetGjuTiCUAQHyhAp6xVvbXTP4/z1X/k9MelOGJ0L0WWHPK7wnzvOoCNCHo94ah31w6g5K2wMj5DdlR+GARGwHpPyACPeACy+88KAI/O2BYxII/Dl1HP2y0H794Ll+JuR6CR6ul92GGyRwuU7q58dBm+hTM/b7cwXmveK3xwgekro35/zAwJtAzvcHwbV/4IAEPer88tyRoe+kQDGUUX5bWLZsd4uRdXVHYRj6upDJqAlVDtOl+lwUGv4YWhnyq2VMhlY/88mRSEEdS90VFchre+Td3JlDQG9coV85eu9VMw8suorxmy6C1rLjFibtwGknuKj6pj+AL036OvS5d9bUzaPD5fcDsqZKIAFLaJGU4KBeGWc9cnb/mwqvs9qhcJXEuIHjorep6pRt4ATjJT/Vv6xBRhY/dBxwkoImeo4+MBWKy0vdTbLOybbIe0zO0/HGoZJPN9R+ymt+urTfdVRx13Q6/NPWx9aW27vRiSKD6OV0fYxtHUi7Ybq+g9STER/Igb8x/sKbhcUfQBZfVIIha8DaiR9SPCVoo60+1h4cOph/dclfGnl8Oqm1Zo0JJuxOyCurfjlNZv5gaHodZXkEtJSjjyP3hUoTpC/hVSBMQlXeK2i/OMbloMC7s8vwuDh5AYDFc0Iir48Fke/fnxoB+jrljyPAk0PL95OelNQzFyfFuY9D2p8YA/eFlB2ToGG/GEOvHZXoPn1S3SkKmXIP7pSx0v4Paf+x4PNapmcUTk/+Jyn7QeB7gYpfHnw/Ze5Zoc2tko8loPG66ykU/aKLLlqcHZTHhqeXhAcP3TCEDCNjSO5zCiGD/fO7Jujz2uqyyIUTgQlehlY6Gf7JyvWfLTAQjRMQT7cmKJ71RfgH5tEX9fwI0deiS2dE536YQNLvB9ji9NsQn8/5y8KRb554CM2bRAIMOtGtb3CmaU+HtrFhc14c/SoBAL1myGrv6HVZU+qVhQ5rlgG1LlxR250QUAD5j8Y4MnTlyi1rTrcpIfbGLb0bppH1UwMKjlKQRT7oTPXl9sAfuC15R35lLlwAVVs2BeccSq2Go+a3x5Rduym+EU8Pe+Df+udQdenmv/tcm1GAMflDAfU7s4BcgJdAgl/jcwyiXNoL1Lb6wuGcHKQB/s/Xoq2v1cFXgwm7FXYnqk9GV6pn9rAgexnBO+hXisHYNQxo73VRE4JIBBOg1DnQph/wuxd3zE6DHYTYTXawszoL6LtBQihJOhYHY+RhL7dbgK8C1lS+gjLgHI5v5LZICRxqlE8hg78sTshjLH+cFG6KixcTYnKUUY6KTzoRaPPbGPwPh4ESsCQg2SnG9jq5TXLT4MYUQyhiNgb5pXigw+8KnJH5sEMBL+dB7nCa0wrOBxpgmk7GAtM067u6m97u874Rbocd8AzM654xIieHBz8MdOc4YA61vGqZMs48/nbBLaNnL8y515efltSW6ZWS2hWzY8ERN3UO7lT3dFw36+IhoaHoczXgKSudnVtHYzahriWfCfdrp9YrI1eDCevp/Kw5V1OCjoJjun+uzLJmJ/rQ1aA8TTfkZPUzoe+TjdVd7ted70DWsS+lLrpQ0mn+kb0maK/gvIKymp8u7aftdLj6raezu0XvFuaizU5yCVzp5TSI6BxbrlmTfnmgfNQAL+AT/c7UOWiODpdx4g9KSq8Fh+Vkin/aaKtJ7QsXnNGHCwNeE8VnDSb4LH7S+hNM4R89UMw4cDw9DRLCrx4DslOMFwK9X26SEUpwQDlQBnrCO9ZoRbaz9kp+30Rev7doYikJiDNPcYdgqtB8DRCoa6byFWpdOY8R+32ClRIlJk8hLw4vl3LIzilmUn3QjRdBjMWIBjjUgWbeeRMEFCsz2ehfF3y2iH8bJXh/dnQ8kCaIAGQOyA9vg8KZmQsLi5OZKKCAv8KgYzT6bbdZc7o9EW/OdoxOHpm1cGj0yHdMBA+FBwYma6OcR4fL7QcOPe13TrkHu16Vhp6rqbsVggrBSXNnzBhpNumhfm7Gel7G91sCJViIbpcdPeNmrEJD7MI4kui6wEMAZP1Yr9YQkFdm3b09fG3SNul438kyeMt4bh/6poLgiL5LBRR1l2Ky7qMs31Z6ZC58/ddtriLzzHUJyNivaRgke3R3g27KpL1Cv+3hRbt0GICDvdyLriWoGMcV3RzPT5IR0KKbX6rgfJLmIys2hvFWZc0cZq3waebNCFJ6rcz5VKCNtvpoJ1UGZ2ThIoKPMs/SGkxYb3YI0YAWXbcKmKieBsrkLQszi5YsWYJozlM/xCK6gnPlg4Af/vIRqp9nLAsGLngFE4yRiIuCEF4F55OBNrXuyhZfdg7WRynfnwl5USbjlXHI34nRLIFGCGacjFHHkjcxFYe0idN5N6yNoVyL/uD3EJuvln02uP2+h0AFPxXwl6q+D/02516a3wnZkOiVgeU0lENWF6DU+fYE2yPNo5Qv/hdnnR0VeFquQnwNtTiRONUyTnRXoCqQHC+PTlsvnL6A9UHZEfMQ5bXToe5UCDjtjtHxXtf84oz1NHps7NBTgpesmXK7Ino3ToPxs7aUe3DaTp+1Y60Aa8Q5A2ctnxG+vELtdl1InPowflrMjVH1o2ECCfoOmkESnsguTWfsqOtrkAEGoU0ffIG9Y1cEUGVs9oU9MxelYPJ/LniqvWnan0F4GaRPpQwvoJ73muqD/2uE3yfpRBfxL98DcLKV/2Y6DC89DNuB33i+oPmurBVfrrQ+t1izvSDSxvrCt7VQeQ9Ov8rqtWzrC58udqXWHB9mraEBLdBsFTBZPQ2UCV0YBZ6bnQQEY0I/xCIayAPl/YJ+aLk0Ed2maryChGAYogrNcwJTLp0M1F+aK6HbhHZG1wR8I3h9afKPmaDjA94MYQwZYLwxfpPhm6rcWBeHfh/w2UwBYgTwVcozphT9AJ4qs1R1Ov3+y72080P7qvDmdhFnAR80FmETlI0a8DVqnFd0fGXOovuPidH47yoMepRzV/61iK6WIFhdHG05lx9rNyc7YvdMY1+1FFB4psJHczhhTsk6K2OlzWSHegZ8V3ij08UYChp0iF7b5ZMtQYWMLfiUe66jBuG2XQFb0dR5un9I+NRtWsATGmJU75LGXvPGhwBJcIEfQRJ6Uz0rD7RVaMq+lk2UagcEiLfKRc8zzDPuzIWUPatlzicAAYQLGXaBzJ0DaxdM0GVGiybic6qyyr/5PSj8LooOjOs63sE0FNtJxz++qwyc4x9M033oamPxKW8zb7HX4+sF5h7oL+tcW2AdwBFc1pPdCb4Kfhf5ggnrTRlfY2zdtiqYtJ4GzISKKUwugk2OfiYFIB7UMmm/oP/mCPkSigOCgGCMRSGANk1ojt0sl1cHrh5ctw4uV3Zed/WlSROyJmN5uPQMRittPNRmLGPqX5VdV3iA8smg1MeoMv766se4wgeMCeQrL/poNwisCc3rMy/Rr/m2sysuY1eYEG/4LuU1LSd9/svYdbw+e2795qF1JIMOI68eCbhWHK3nJRZmd2ALY0JHKw46VnmSOq91Y+3mh9b/SZlf7fSApoCCExZ4WsNTrXu6MzdK9bz0L0fFL2goBfmHviTlSFup56pOS4bOM3KMG3BO55vr5seh72tp2/MRuQggvNkiFVSAukvB8aK7Z3z9Ngy9413kyV1B6JKUuap5dQx/KtBE1gCNvYD5AdY0m/SlyHopnMHHhkkK1LIx+ZeyBB8lzT/Psgjm2DRgDpp2p9/123P7SldoaPLfrwzwD/YLnicGylF10RigFOafOQHJjge7yf8+gGe8A3Jw3jMv6T/oYQxgvGND95mV3pqO6ciU+GsbfeQFFcH17XTyW1rmVyBRAwrnfIy1ZmyQplvvMMm9jDYvSrswTM3LVYpJqYRKK8AjL+0VKFwFfTZnK2e1hSl6SYEFSDjJlkPbkhn7N914c4Lr/uvXr18S+ldlMgQUhE653Jr4W8b7rUUY8AqeB9rwZxxjV3A+NuSkSaVlQXAyyKJRY6EfUCwgDyCCtwnKegFjwXVp6J4XBWOAlHX3hbu7bFTnE403LO5R0wvfTNCJT7ilo4I5MRi7Zy59e8FuWtkeHQL5shjYO6W/gMKVvYCiOmDrfjL6PYB9z9Bxy/Tt6Uhb7exOWFd0XiAB5Bk4a4rOmwtwaWjz8Tfl+k4KaVfqso49gHzvnAiKalBR+bFOp+Ip3YY+0H0ZJGMBnIuIsovj3rZGsZV2htCENo4R3U1Ae/NcXhnw1ptdKrup3vKBckIglzH5l3r0xNbJe7WffMkfmBvn7MaEvOg0BfTbx21YvJMB/u0mVR6lEwHegfm9VmzbsaHnFYFJj6yZsmsReZc1Q/4JwLTHp4eD8Y1/IK+8qYvaziQYyzo4wLzEf5ax5M1VOZninzba4jP+S7BkXXmz0IW9vIACCOLxaI6N2e98TUFF71Ume7rWDA8HOT9XwyJkxDb7ILxCs3y6PLwADRSPU/RrdeeMKcTOEaJfYoNHG/XaAef6AvXdoBwsjqK9YGxCROwWmXJCd+V0YRbkqRnn3Fx9uarbPYjwB79FQOmlxlamb5pMeKjzVcHrL1u2TPBFeb1lUsrTo8rIOVz4APJAOUjTng50+hytwAWeZl95AOsGV8QAABAASURBVFFN5bcn2F7pHkTGeJ0bXXxWjAadK1e8jMkgyMb6eO7gdsl7OFMwMdEVvXHTZPxwPicOysOdxUmO10yRyfpyj/h3acLIMZ6MG3BurdH9VI8fPs7mt4A+M14ySSbrtwRWCdI7WaNXyVoV6HA4+JGSVy/rc5IRei7u5qF0jNMraWQ2TmfkQXZuO5E7R4pOeYGd3aKJQODnOwvPCs6vhtePhNcpgwkDVx0ReOUijC3wrMvm9PX8FgdjDtg6KZvEbkzIC3xTQL998OP3WNhPc2S+BBlTycAvpN4/6+DNkeFP4weeMAU9pSrrpQRyTgQT9EQ+4OcbONwqA/zL14AiTWb8IDNgzI+Gn99lXoue0OteRo8czGeZV/MbHN5aFEBYZ/iTl5rjYea3F3KmbcORTdtIgyyYzVF0wnFaoZzXkz7SYrjS3viMAaXjFD2j8YeM49f15kZZ7pM26rSxMCmm1Hlpn/qKqzuF+ymZhFsHn1dGPT/hNza0M8GUywT8MJP26yhxZ+nSpQIK24z6Gsd4Imb5qcbUHiwMzeU7GlnQHlx1e6X2Q688gK8C/tTpjzYQtqY9iuzRHfqbRqLX/tMOcDlpsL3I48oxFtcjc8YGyA8JnqEQlHNo9Jg+07+qaxOh992H3Tmo6qwmalTLtItt8N0JgYM1xbABeWX01BwYs6nnULzHv6kA/qwpDroEWcmzCXjBEyclX9eQccBUKEdaF3rG8clbj5EHJ3Cl5PcL/a+Kozsgjd6Xq1PPbHnN7xsp+1psxAmxTV9O3fezhn+dtqel7G0554iLE0l+2iM4ytW5C76xxr8MLS6gOFGOB8ibD7bPnICx5jOWPCqYXxf6Xpv0sNjiTyb/1cjBzgs5fCV8fznlXw/vvqliB/lz0bu9IoedUpdu0x+Rc9GPGkyk76aAMfCMd0An2XsywDuYHvloWrDPl4Sf94T3gjE8Fn0uJ1P8o0uRTWkR/gQP1lrlSyAB8Ga9mVtjbU3eCm31n0Ve81OlXvMKPxs9MNlrn6nw2bp8eRbVS6NMz4+SiUQfkPxdowgLU37+mBC9f27bltGoBkTqnENmHAFDVcF5UO5w++Daa926dYKJfwTfN0MQQTM4hE74Ps19dibtixlz7erVq+0wPDPtGGH4jVWBMWa44Ad1vJpq99Qo9wMWL15szIsyPjy3TXrn4H9o8HrQzffa7ZrslnM4jQMfuaItxT0dZdzQznhZJD11GlEjcgQjQjeOpsqgykFaYbxRHxnzxen00aXnpujSWArkh4GrRkfmR3/GDY38MAjTF/+u+qT0TDqZruGB/F+cteL2S7pPf6Qtg+bZibKe0oMuAvpBR41nbLreBLS4irRTkW4TH1k7pSIOsmxtRyY3T8HVA9abuZXCayz0p2rrHRyD0SqdzuVByu1U3iyG02uvN8vV6Q1imG4cuHnW7S0ju9skiLzdkiVLbpDznQSR+EyZre1xPQieKQ/tNRgbk23jrDkdu0SAQ3XOoao3N7r0A4P08abbv0Umtwqvt4ocbhxabxg53DTn7N9tw/ftArcM79fI3JpHfeyEs2s90Zd+W+xSRIa/CvjYE0eLfzoq33S6PeEeQSNyA974+Eh4XxPaet6lMKeRVdH9yMiuU53LypfU3Fpz5nY6kme0vtcFiNANmbhLGL1Q1Gu/NL3M4SMtV8ltgbtGufzol4e/Dkzk9t5E2McmffWaNWsYDDsGS9NOve1D9yTrdpnUFiKDIrigiBWWJhK8S3Dve5WrXOWWyVuYX8ok2pJldBCEH5NcjGjG/UYm63vhzXv2t0+fZ6SRq0X4bdMZCzjvHs/5lWIknpzJ3z/95ghiYiSuHV722mmnnfaJ3F6dxfTs1PlNkf9MeocsIlvRaGZYGV0yRQ9Ik2kPvOh7ScZlKGoHfMl3p8pGCRzIKPHBhScpGQD5Ct3ntXyqdIfMq63XqdoMUoeWOl+1v7Ka7zf13MKu0RG/mzF+ZRpD3C+e7vZopFvkWlNlAL2g2Wd5dOmpgXED3aycKJ915dXEqgt0Dk5j0W3rxVoFzW1+50C9hzknQl3KyCBrq1yBZ02jy60hPxpm3ekPjGUtTMZXwTXkP7xdBgVZoS9yYDuK4ZeP3qG1lOmUiyW3c8tHyfBR69WtXcsndIojdR7b4YJEtidAg4ZjqWdZPGzOibqi9cCeATgd8zQhH/pPAwP1i06P6zOeOUd0Anlj1tRcx/aWYEI5uUqng9jvIvexvi7kfDyN4638k4VzdrLa/oH4mY6WKeqNa9f6s/wMHZmi7RZV2sZfKBO440FwZE6BvDL4wdbmC13jYAGOn0ySqQRuiIPcFGdfF6/mjEdNa975lBAl+3R2A14QfN6Xf0Ecrs/7HpIr+89EeOcsX768fEwnY3UCV0/9HpkEvxjqKW8PT7rqEmBwFtVQXTUK9e8Z+OVJ35lA5CFnn322YOIbWcBfDo7rRImfloX9suDaJ4t2/7Q5KPlnRnEXZcLenr6nhbac7nDf1L8s548JuCIyXnMsxtC410n/3YP3kLSD70rpb0yLaGFw/i30n5iF8oHQdFjaHBzj4f7gm5P3ewfzkpoDsgM57fkQ6CzK2D4WJDptdqxzVtNmXXfeuKC7fLJzOI1ngU7WZtByQVuVhxSgDcBZU/lewJUxPemlbT9t0AG3PvJNUNY3RFd2iS7Ny3wW/YFAXjoE2Po1V0365LtRKgNPj/LvGH0tV1DdjSY5/7c4hKem7rHR8ZckfevSpUuPTf5joZ/x/ELyx2c9HZ+6kmYM+c+n3Ha/XchUTX7EJow724yFNrcE6IrdiQrmQyBDZyZHNngN+VymN9piX4pD49gyj2X7nfMM/yWAiO0paa5OS//YuZL6F3tU5htfbIey2IiyQwGH8+kADcbI2D9PWwEFByqQaH6bgNOpAYU1nKZ9HRPyPx2GzPF4k8x7CQyV0TH8yYfu0kZeOVkoIFfpVACnejjSF4/vjTzOTZlgAv+APARU1gKnm+oZOiZGS95gU9bBx+s843fi5v8qDS/lJLp0TjJnB+yyCCLYX6nzbcVXyNny6HXxEcbGOEdXwxayq4OKCQ7KVqGWT5f+PVfytjy/n4X2zSjEx3N+dPLvSXpRjGvpT+mS3zXpgxNovDIL8NBMxOGBo5M/JhP03uQ/mEX6maQfT5DysuC6lUWZ+i9HKY8Ooh3Sbo9ly5bdKwro6felUb4dM9bVM1E+V/zM9PGDW6/LBP4k5Qtyfqvg2iN4357x3xVc7wr+dweOzflxwfPxpJ8JXT5C9MQsgiutXEl3O55GZ0AuCo5vB74enCcntdg9x/H75D2sSaaUG8iDkFo+iiKdCsjaj0Itz7gWikhVmT7wVHA+E0CZPR8yatx2puqVpmCrAt5AP+Np7+r1Gv106rEtnbcOpJVGeWBc0COqjrbg+tHJedGVTua09I1ulXSIfxuDz1URfWjqmfNutB7ifC6nqCL9JNMCRxY6Bd13T5/bp8Nua9euvXV0/Hbh4/ZZf3bj7pCyO2StlVRZ1s8d08YDluky+QF/5FKuWtO/yCb9yd7FAztkjgUVLnTmB1Odg2RHepijCRHGDoxvz8dmlJ2J8OeiorSPfEoa+ZTAKPatBCAKyTtyKnw5xy8+w2MJKpRNBdrqHxn9Ju0+FOBI7RqZd6lzjoezrTqQZn0f5Np3p8zxOG94gqCmZKReqlweL+QlVTYdwDXWf0P6HZf2XhVliPEPBFbsIztZHe9E+p+uM35syjrwK7wXN3VmqlGrHKI7v0w79AsgzCeoPA0TKAbt6I5+lIQT9O0GV+c+g4sKiwzAI62gbjIwmYByA8IAhGPi/xZh/z0LZLx/HLxFOieTsWMU6Iapu0vg3on07p+yByV//yzM26XuqilbEOGfGzg8Ze+FJMHAC5JeL7sibwsckHK/BLdPFHjv9D08ivjfWcjaXJiy12USj0v/lckvTturBe/tknqV7gEpe1DGeGDK7hm4efr6Bda5Kc8QnbJ4UuYq5bzgwE9n7A+vFSgGwHcFdeQy1nzqJPTeOOPMDw0MhgVE9rVTz3hqhz7TizK+W0ilGyNaMvmX8vzvjBvMcjLFv9o+vAjErpWm9UpTYMFBcNhzU97kL6c9He7dXrka3e4emefuoknP4UCjNEElmgQ/6JJHJ5BXhlYwKb6uipAy577RxR2i++NVVTbjBZNkot+lJkjoXcmHRqmgj1OpOiatekZHADrB7uHvRvjTETTzzieC0DxeHH0v+eApqbqaV1Dr5aO3kmkBjtpIf+A8vHoOqwYUggp5umMO8AM0HQmEj3F8yZd1XhHjJfSUMraK7JWpV17byyuXshdSbdTXucavc+XaSrWrc9HUD2XaBjyAeGTa+jYBJ8pW+70hdoEN4oSac5+mfR/0esJO6KugAf6lFULfuF7i07n2ZKCNc+Wgzq9yoJ0UzJs3T2KHqkA5yb/0x/dbk/1JAP94JwN59pHzZW/pfppsk8NaA3ZL/rfO7XSUhLcqu1+nLR7MJV8JBInK4AVpsm2PSZVkArLOieO4KBNuYfmtAAzIwwHkJ+g2aZH2biNcLwbxzlkcT0ik+YosmNfHYd/Awqo9CTXjlohfPm05rE1pvybtL0z/c5M/M+UU6v1pu2/62hG4S+reEVz3SOCxOPVew3I1Mw7B50l4zutJqT8qcOv0/0bgVVHmD2dxnAp3xvlH8ucFVkXxbSVniE6dbPSUK4rg83qbK5HrZuv3sRn/YWnoK3/eHvHchLHJDlBwaRPSfPojPF0ruI1psVBSc6BjN05lU4Gxp6qfqG5t+HQ1cGlkUfiVoid0lcXOWCibqHOzTHvnkTE85oJOmA/OwVWnlLPG35y0BUmmPLTxcK93+cvDbqF3yg6TVUYHSlX0oZmix+039KFVik756tBK+x7+ofV6oe9e5BfdH9cpMuyhv92w0iy6KfAuuhi6Q/Km01PBqVQjJGWANqW8Oe9zIv/yqmg6papTcISmkp+N/0Kb4JMdEkhYU8AcmJu5oZlck4zsmBAfmYcW67Bs5xvNvEX+4zJUPxnE3pR+TQejrbWjLnan1MvDTT+k2TllD89LWzuwn0xZdaKCyJlwpgPxTz6hrezg4KWu99A9zhd5KQfaAvySgXbZmVZUAjbldFR56r0k8MP0PygN/BQBGeAfyNfdCXovoKLzIM23yWFs4OHKngigR2NyccsDD4II/IDmWoa3J5wz2cjC6wl/lOGiRN8rkzJ4nmPQT/9uUN4LPCG4DomCHJdF8v6kL49iPDgwPwrzpwQvG1K2BR5KBBRG0OsCvitxSgT+rfT5SupOipKtixLfN7hfEgP90uC+dso5uSslfVTqPHFtl8XDm/dM2RMCnBi0twnO/dLmxcHDYbhn9a3U+8zp11N2Smg6K20Y5LIgsnOhX9mSZRQof/one/E/MrbXSO+U2y1PjMHeJ/TsG74Ybg+VWaCg9O/jnz5zcvvm5sYOLa5AgHJKBdCf43MbAAAQAElEQVQnBX2g7rnp5sj82xn79KTFcEpBeGfoioF1Ph1G7YOnPIQW2WTaFggCzA8nzUlwGPIcRXXWeJ0MtTo6eePI/36TNVKeeZVMCdpkzulPaZd5rLReK+WCRLShEa3y/Tg1tPponLd+lpjP4Cz4DUY20ukgQiv0RemszWK8w/uK4HJV40rGLSqBpzyDxDBV3fCQ9G7pSyfLvBkv67AYcPlZDH7fg+ztUAD5ZlBHvqMin05dBhc50YnIu8gr67K0oTfqyskU/2K3ytzBYR6thdiZEhiqgzfrosxpRZP6Fblt8rGc7xP4QUAA4SrdswPS6kzNe3O+65ynywTH1EUD8U8G0cOCGS+xhYXfUpB/5JTE7mTRXfnYycI/+6HvqlXigk6RAZmQR/qdHtg3bbx67I0OQUTlX97OnAstOt90vIbYlmAO3OrviYbw6OKUfTeX1q35BHhyXm19T/hmutGESjLBoL5guTIGbmUMj8kWUBCMBcvIA7icV5gAzb+KoijXinL8LSWfitD2jeK9KovqNSnbJ3Dw+vXr/5DxivJZZGk3fqSe03If9ZZZXHfPQnxQ+noo7NnB++y0f1Ta3CI4czoXvcX5p+2NUu7VTrsGjwv+vYL0+hkfvtImed+M96rqE9PZQ6N7pZ+8LeF7pf5mAUFPunbGF0HalPPcUtmc/B8ip08GPhB4b3ZHjkp6bBzGt8MXOXqddE46NCGnPR/zsjj/PfRzPq5ALRy4IKgKJnVunqRTQS9tan9twerI4XUp5KiKQYi8y6KP/EuaumkPfYKntItsBGY3jNzdW+egzTGQ56y7nUXlWX95QA93jGwOjuEpwaTKQSFzOa4b+Mo8ljkPrTtEl7xn74FdzsxDsmjl1JpBBXrQBZAhBcqtm7tHBnsEwvbcMpZGIPgl00J0oeiuhjGw3iZgbE5If+uLMaIfUnPFGNENc6jLnPQXfMuXtZK1VPJ1XsrJ7Pznw10euqUf5kBKTwSfZDxKqifFRy8MRFey/ktgYQdB+XSgT+bJOqb7ZR7NIXxRiKprgnZz54fXjkz9y1PvwVZXrZyoFMxUMJHhOgPxryN9ynrskEVsYeFJucAB//JZT0X35K0xae0jLxBJ+teUfT5tfWX1bZGbV47xjHdAFoKr2RpMhIXyjJy1KD8thF96gSdrVgBhbQN5YB2DaXFtjQaMWq/jXBCjdw4Goxg3TKe6aOFgGAGlA6me+ogyvCP49k96RFp+PHBCDJuPdlASH5s6PguHISyKmDHT5J8HQ5c6i3BulG9ZHPUu6btL8suTeq6gODRtQAKOcp6xGOwbRcEfv9NOOz0u418XriaMtSnKnfqF6e+5DR8dulLOlwXKq33/pKRT2qEt7TqMSIzAutDj1suf08YOiodwvBf+qZyLpt8WHF5rohSUhDKAVPd8eEj1usbNeF67o6DkDl8FOEHPSPtoCC9lPinjHxh+LskiL8FfzktKppHztCjxoJF+jEv6CNa8XSOo4KS9TQPkm86avtE9UPN0cmlwvDE03Q9NcKNFOgiYV/qDTroPhzJzHXo98OnbIpyaXRV0Sjk3jq0GQGhsAnrRerPgOCa8Lw3QTeiL/GToonQqQJe+eERn2m6O0baOTk3e/WMBp0s8a6n7ao3OXCU0PC46W9aZMbOOitGHMzhm8+HrtvcIgfRCMAHInWzJGH8gTYY+zN9lkETXGPxSHp0rKT3JDkIJDshwDCY8p0s6JfiVuBotaebV3PmdoW9nft8e3C5+vIn2rTRwRW73tAJn6qq8+cyAwNEatVZBug11DMR/+Ci35EJ/Gdw5/ZLSOeXyY7pbXrOlg9HJVF3iWTofvPpEdPqlQfDKFH4kqZ03PDf5bwYT7GH3LYF02+ZHnQe7DT0RE34Fk3ac9DWfTVAGesK1NRpNqCSTDCxC9jW3jYksb5IJ95aBphZuXcDyvS5gQjXpBMS5yhtDuQciPRh5Sl2MBqJ4UqCc4hF4BYtTuXptsxBly0KW0c4tibRbsGLFih2cw1H7aAOcK0+7EjDUVJk6bZqgrBqWtPUmh/eFKTVjLlq20KWMRM0z7njGuyCgV8Ug3xvGAO0aHtcngPK9+jqP8JAnkO8VZ5OdXvLwAm8RHBY5vymd1pMPII+cC/gkU4K20adxZ8rYRJYc857By1nYAdg5SNyWUm4XoDoOOwGA45Zy7G+NbjK+OyQdn/v0H/jInBb60EZ/IOIwlOfKyZsNz03ZtQPoBGgVAAksODtOrtIodX7X8PnF4LghGZAbR1RlkbrxwCJ4Jz2iA4U2faML5twPB30+HaqDoW/0sDugSJMOXfKhtYX6o0MhQI90tkPm2K1JMiZrIE8X2KK6LkbBBlldBg+dMAeho9RJlXGQkenG6PA5qT8jcFrgp4GfBPw42o+Sfi/t/UjaZxP8fij5ozOH+yV9Zubi6ZmDVwbpoUl9lE8Q4RPnFThTTtUVOodjjtkcdmXUwQTeJ5QlXsNHCUBDa0mVjfHPRrB7Z0YWvwxfPwtfpya103JKyn6Yviem7Pjw/fHovm8RHRo8L8m6eHJSO8S+7fPh5L1mX3mvaZUBXTcO+8p/DGJXM8RWOcjEHPU0GDsQP8We62d9g3qurCc8W6vRhEoyyeCIPyPKsi4KMD8T7lUxTeGweAUV8pQPqJsM4KpAOBYAIQsoLArG7+yM8+qAT8h2onjj0EQa5SxKnIVb6mtd+hVDqzw0ly15de7HOYcvCq1oKIAfjCHxQZnPJu+K0AKn5Ay6VBmFxxse8Urx8U4GVR7SoJj8yHh3DB9zkq6NwtkJIW/9qrJJnU+OZPga+I1Tgoqg85zI/4am2L9NZU5S1tORBVPaR6fKHJqfzM2OQbRnEDw3OD33IoCtwYXAgsMWXHAiu0QPHpl230n7Z8U4p/v8EgzmfKgjRq7gCf6CJ3IvNDrJeJ1cOTm/bdr5VUQfLfOwIDqB4MKORaVVat28MQGhV5qvDwddhZ8cXLWF+BKMhX/DTAm1TVLG1Y8p2e3jaGyTAvpHF+kcfau6Bq+3Sp5D7sa2JkBoK4EYOjTaloCeqcYP3btGdrfudDoCCYEmELDNT79qj5Id+oBrQiTmL/IvASBZahQH+dPQtl/KD0j9wYFDAvL7Jn39GOyX9t5OOCp9jkveLqbv1vgENbsHqvOUN8fA1XgzkGBTJnKkm4N3VAcbMyGu8DJua8NDaRP+14b/d6XOujgo+bcEPDyJ5zek/PU5lyp7Rzq5JfzRpF8M2JXwMwl4xzeQB/in3/in39W20m8+xAVa1fFR8h+yRnaYq56QsYWxEewsXiaCnvBsrUaTLpIuAiojv80CXxFlUO3+pXI4LF5BBXBO+YB2UwFBAUrAsTJ4lAIQunern54x/xCYEA8FBlm4xQjWRtpnIoqiK2OoY3hkbSGVtlHocu6f9k1Q1gsYN9vffuzoT6FDJE3JGXCKzphLBRIUHk94A3jFM+UH5DDdkGRKxp7xwNvZUThBjHL94ang3PyA6fAOUg+vMYwnODoxtDwy8nhh5PidyMKtGHxrMyl+c5K2xWlrlL6Scosq88fh3Sc4D07gxPD6iuOD0sADhPdP+sjAm3I19IO0eX/63jx9UtQp/UtmyH/0BorgLw5DHs1SZZyu9RBdunLosDNyTOh4VeofEfBQqNcbH5L8s9Lvw6Hve4G9E/QsSWoOy4OQZJCgJM3+SXv4LflJ/pEpfTovY7lye09oeV3anhhgbDkc4MqNDnI4dM46M29p1qEzjw/dbtuUrXZ8gNCmfmQyLMiG+Bcep+wd3slYQCG4BPJ1lwKfYEocg1Y2aQsdRUeiE2Rs54HcrXk2wFyYG06RgwQ1L20Cp9kE/ThQOOxGwGdt0QH42RJzay0aGwzK0mT9JpThJPzD4bsJf0qGbUAruulk5RP/FZQ185V35XgH+pIB+0qn2Vh48U+3qy21NvAPMvysPOhnT4SN2YgmT/iqAIe8dFYA598PIX/KorFLYeH4ZTxXAxSNk7OVK4VT2XR4qyAIy0IAFgWgHICinJwxX5VFejojy+BR4hjncfwMsTIFJqCm6ddRDpQ5l8aISiYE+DPWeJ0x60nF7bzm40Q2JRp3ReG5CLsFFrvFA+Sr0lv0eAJ4BHgGZFEB+qnAT6zfQoOM61UpRou8yRFOID8hPvwB/UcExjImw2Hhfzb43QJ4bPBz+I+ODJ0fErl6M8TvquiT6s54IBE5lnNzZL7SpzjbBCk5nbM4c+ZDSXsF9yEpeM8YvDPz8OzU+Uz6Ak5Z/4Ko8a+pK7U4Zbajz0zqiujg4PGVxxen/g0pc59W8Ey2Zfck5UWXpBlPUgLTmjduaHVP387EQ4PvdYF3hM5jA0cH9k2bB4X+pQEfkSpBLUTpV56/qcELWShTF9gUuV2Y/j9L/n0BT/bbCgZ7B9cbUoYHgWU1xOaB8WV46Z+5oXfkTi/SpYOGV4Ym+fHnAMpJ419k4WwcQse4HMYKvUJtW5+8fpN5cxEgde5bJWcEh2eJ/pT0z+l/ZsCbUh4YPSdlHIQ3swq6nJfUv/BdZBQenU4I2qf+pqn0XRD2SEAhFVC40OnVHgXFlAc8l2mQsUtZTckzekjGHB6Zc3h2J9kDc9KE6iSbZYIGQC76mEO44DCXNYhgG+FnP0CdW2MXmkb8j22/DMrKd03H+NcOvewCOq0jthBPeJuIbzJQV0Fb/IMqA/zDRQbwVpta+a8yMP5sBjus/dA3U3PaDw09tZ1wkUzSE1Nud7gKElC4svFwpuaUzeIF8hwcUDcVwFmBMlRQJk9RKM03skhfFfjm0qVLGbBxRwQ5Q0yhGWIKrYyhkSpvgrIYtGIUpYyWshjCYrzkGfNaV/PwwaM90C7jbYhT/0noEkwwnhTfQgDyFkA15hYXnipv8sA5gHI6mBM67hj4N/SmsQc+zaH+ZGUMIK8sTS5zTFZ+mYY9FMAF8GFcvDIkHBoH5/mOX0eGJwfXp+J8bfXuETnun211behRgcixzMkYX2XLv+bTtx6CVtE9h8FxyJfPtNcG3WlkNa4r5jS7Sb5fcmbmzL3pw5J63uDU6I2g0NW+3ZV3B8/zQ6dPUZ+UNuuTH8eTed8imEjbojvayAfQtCDn6KxgGz5VWx6RQynwTEYNjMkC7wlIVkfXvhK5vSW4jklDD+ShkVxd/UntBLm6czUnoCBXRpkBb+qfOTJXQdOxNv8rODli55NCeC8BVWgp85Q+eN0cOXp42i2WF0Z2L0+5rfx9MtevCLKXJn1xyl6U/PODQ0C5V9I9U/bswLMCPqX/1JQ9MW0eFR6flfTTOV+P9+R72iFJe8FYpnZO8xVSMqcb9KUfe2TYycA6m6yuu5x8ydo65Pg4QHNhbQgOgHwT1AMOs4J+AhLrCh62sDuIaM5rNx2jPO+Hf+Nqj3/04gFP+K28S4EygPeaymvf5L/KAD62BuAdkDUw7vYAnrHqic6sLbZGcNxT+23dyKT3Q8PmLPavxRj4rIQ0vwAAEABJREFU5bRdYmRuks4mEh7BRF3AzlNVDJe0X4ATUBZKuT4GxwdMXhrDe0Ssh8XVyfhlu7gijxHrpK4YQEaZ4XfeBG1DP6NYIHgLDu21qw/daVPr5I0lVTaGY036eHXrE5l0wQQjDmowYXFYEIwAHvBTAYp+gZHaIQb0bhnPGy0WnQ8XkTW8FpjFZixyU9brGP207capLzAuGswNvvHv6oI8XJFwdu6LktUnsq3+jOjSj8JLmQdIyTj8lfM40hJUkPl0oK820m6ADy66kDYeYv1K9ORdaecTva6S0cUJS6tT5qAFRD9P25fF6Xvo9AL0pV856EGcask3/2WMQn8tq+eTpZFDZ/78+YxGeRpeO30zLhrem3G8IeSBPPShE6ATNMvImP4JZBlqBtlcVJ0wRwB6H7J6dZMfhZMBGaLLXKXN+QnSjsg6fGfy3iZBg7GlaEJ3N0xW3mznvrnfuHlieP9bZB700x+hpRNayPzOac1QCyYEm9IFKasBRbJDHdZfPwi0r2uCDTAX04F2wJwB66nikFrXFcwl6IemYdrip5/+1S6hGx/46ua/u8w5wHtN9QXwVN6leAf90DRb2nqWqidaYiMF1oJj8gf61VR+VoFJ75Ugk+dZgV8tWbLEazu+POkJd8LBYA0opBZxP7gno8GYlIdCUcY/x6gdmMYPiYM4ldGJ8ensuOM/d5AYPcAApv4y27jq0vcyh0BCIQProTtpeCzBCVzq9FU+9uGa03LuYSM/xMMoVsfJecoz6JyqRVEXAl6gGgauFSfm2ZUF4f2UIOJcknSMYRECsiIz4wH1Mw3GAcZFC75dUZCBwII8ODqyARzf6Zk7H/k6kVNAIFlnfmUtohLolZMp/mUeOJPLtDCnQEWcMl2wrf7ljPHdlHF+6EEHZ1ihbruaxwpnxel/NHP/2tB2YdJCW3AURyadCCajq7stGtEHyIEByRgCrw9mPMEXeaEFbU06lakDdiPIWZApkCB7czCRLvhl03tH9ncM/m5yJjy3czJW4bbLIZGhN5mq/OggeVZwXumUNul2XqHZTr6CN6QeGZmfZQ2PjTtpElpKXYJGRtdbQdIaUMjXixw2CpT2W+GfseqaqOvC2miC8olAm2Y5PBW2AukjGYIPQHOTD3x1Q7N+sjw8TRgJgdsICb34p8PqgQB2IeuAHmut70SgblbAIE7fD5x8bOnSpXYCbhLj51kKzFAgixfIV8bVDQMUiaIxjoIKuxW/zu7AU9euXfvyOP6fxfisYIwZvjjc8bEY62rYpeMVjQwDHlylhHHSR1lwF0flPAGLj1X5INUvVq9e7fsZrnBd3TLmFRhYjpNRt8XHoFs8aMdDGWOIf2533Da0+f2QTeHZ2yTkDKVxBBNAvnvMUYxvnOnAOMYG6EAPOZR5S2dy4fDIiKw8A/LqOLbfk3PqSxBnLuMgyg6FsmFg7ty53m2/JPg9de/7IHWeOGQBhdQcVqeMPoGQFHDU54fG4xPEvSXphgDdL7QOQ5u+9BK/NR9HvyL4fUrZrgQ5oReNlVbnaFKHPjIVQAByJnOyNwfmA0APypqMkXpN1m3Z4VM4FaBt7Jaih+w8W2J8skJTDQ4EDc6rHNWb3+mg2U4ewO9ZpOeGTnxMRV6py5qoQZ6HdZekEHgDiCGuuxSD2LqgGuggZxdWtXOdA2kvUPttz2m1TXioPE+Wr/XNVNvLG9ALPPWsi+xDbJfbpfoCfaUArlkFiOuHIBPOUH0ujJ6XBX/NLObdgoDyAMEEsJicYxqkyVCHccHcjHeDMUyMzxfj+F+SgOCARHFfDE2/zfbn+QkqfNmzbCOnfbnS5aAYR4Z0rH9JYsBLffoXJyEoCb5OAqZL40DOT/szsmvxjbR7d8p9hMvOAOPOeNudYdwZdk6IUedABT/kBNBdxhriHxn6+uM9Vq5c6SubrlxdyZk/Y3AidVxGeBRjDkFux/joqimayASglezIisx+FwfqGYGNWThlTIFdyoZy2NGFEhBCGIf4j5z7PgMHZ67oDscFlHHOHDO6yBGgU6oMrRcmiPNan9+IgXYcfzkZ4h9+8R79vDRp/eYAOukWGgGanStHD9rQSKaAjJsyJ3vQpMytjltmLdyXfCOTZt2EebRlbXDw3mAyX+QlcLAGBBFoU0aG6skRfeTWC2hbQV844PIwtk/eT0hXszBrs6zdlLkNe8ekbncIKgBjzCZZK9ZRqrfKwf7VgbbmuHXMbZ1W/vEOtjU9s2l867QneuJ/6DYdJsNu6AnH1mxkkfUzXjVQf4wjt9h9tvc/Ygg92Y5ZgYQrAguYQinrB/9UbY19ywQIBy5ZssST7X6+2HgM7fcSSBwWh39gJuCwBDrvS2BwQtLTYzz/HvrsYJTfBkn9FldmwWdMP317Udr+I07DB1i+GXyfCL73xVgdFcPrB8cEErZ1GbybBuceCTj89LmPKU2kIOiFe1TgmwUPCl/efvBwHodCvhyJPOcC0GJsMMjY/fWbegS4moC2CuhGL2fy+fD1mziu4qQTEOJxi3maepjJa+M4L8m8CgI4QGNxVhxz0wmSX9MpVxqllU5t/hZcr81oHk4eCX3Ro6DrFL6jaxdG1+wEVMda6URrDSTIrJvWpozlC86uf3RlTsbYOzLpqpr8NOvl0qwDOyb0Hg1oEUQAa4880St4QBt5DQr4goOs10cn3j85Zf+sCX0lU3nK/HhV186EYAIILtikao/IofSZ4X9sq7HADA81K9GTd5OwKoeaNuuuaPnJ1uhl5ECv44smCii0nXWypPQI6wcYWSCgWJEFfKsYwVuNIeDgBRNAnlJhGow1GTyJgblbxnL/d6/sIBwaY/L6YPuPgJ0CRuwvmYCTYjQ/nKtSvxx6SNI3xiC+IWX752rL9999/tqPkYH3puzwwCGpPzht3xJchycQeV/wfDrwvZx7+t8V2bqM56NEe+200057h5YHpZ8PLvlENAMGZsJwkZ15emBouXFodKvFWxPKKCYjzAADMjA3ytN81h7oQyd60b8yfH048nZrojybINCLfKdlIFf007VZk/n0zA9HxfFxipwgBynAUI4G9KALVJzyFdB6cXD9NkHA30NrbTNU2uQxeL21gS7OWYpO9KJbGTrRUWntd+wrZb0+ptKetTRt/7T1JpGHKtEgwBFEALQp66ar0lbl1m+qPx4vjk74UJmHYyelM/SVOnoAIk+/M+RH2wQSNaBgkNkka8Z6Kn1m+J/x6hDG7IZaN9tTdA9CI/uvbzcMguvy1sea6ImnrFcXG/RXe7KsOiyvbFYB4gYl6JdZzJz3DmH60UHCmcInJQALSkChLNVDHwtjYK4bg7EoRt1PXV83Bvixuap9Wxz94cH+1IDvERjXhK1M27+Gxl8HTgt8L3B84KMBD7yBDyUvcLDN7Ff7PGkugOC0becyoB6g+Z+Mc2h2JPYNrw/KbYcrZ4fGlvzCjO31WfdrGTC8W0ij4jkslWOnjP2MRKrz4mg9We/+OtkyvhwiaDqb0qn7X+SxxVV1Lw6lG8eIz80THjiQn2QuNmROyxDJl3QE/zzsxwGSEefHCQL5KjN0gMmGUwfQujK0+QR92UWZrEOv5Zwg0D7zIfAR5AgOpeiUOker8dGheT/A+IBnphM9TfKvIzpMl0tB9Hs8H7rMi9fEjY8WQYQ1UYMc5doMSlcZc5J/cOLZ1xNLk+h+SdEInITGcssyc8LwKgKCbwG+gALIswvWDDkA7fqBuXVMdGSuxtdSLi4Knqq7Y3VVzsaqUNptj//C+xx8JS3ky8tUnuWB+rG6bv5VtxAJxJdERJvH11mKxvP0uXnOZuec3vIrVY+60zSZHccgjm9zSLfYz41UTogAXEm5Uvf1RoxauAIKIE8YykG6DnxsjPJ6zdAT8AUJYWf3YUm2yO0cPCNO930xjoIL770/MO19J8OrZBy+CWGcGUU7DrbAPUwmVVYcTPrskkVx1wywR26tHJG8B9GemXFukiBiUerLZ7wzljcHLooh82CaxdMMJvAKgmaoAw5z9LQEU34/5ezw7KoNHxAz5ow6YHzNi/kB6rcXQPdZ4e2S6FRZXMmPG+ypmNB+qvrop7nmDGtAYZ7Jyzn5kRWYCo06bdC5MWP66WT3NpUPBcFVHeHm6JJA1jyiD51AXpmx0TDoePRoT8E4BFkn5RmjyKcERujgGNVH5zVR71sXgjF0WOcCCSl5joquMlbXP3wCPH8gdZvRm13EInM0guxSpqpTHt6NkS55ehM+7JhO9aGr0raPf3NiY5Ybs9IhqNCfPcjalC3fKamyy1yyf9ZvqRv7130+Vjz7k/C+M16TbkEsedeCyKg8HEun0hb/tUq63fKO+FFCfIm1WOwcvJFVtQHWnKJyTtesS3JNIf+SpByzVpaFsUJif/8sdkbuxCzkkyMgVwnPDgq/W8BxY55CSZ0POk5Q/uuI8n4xCn1kFq0n4YshTL6zZs2aMjnr16+fF3puHoV+TMr3yWQclXMfKTo0wYEfm+H4ORJGcUWn07ELcUmMw9MC2jFeH8gYb8okPzkBxG7B4YuC5dPEKGHUslNgh8QrhF9Oma8AmmAyYQCBPEj1UAe8NwwtL4+R3BwD6iremxGCNPjxwrAD82HsoQbcBp3xAVZmAXkosSwmdGQeJQOD/pm/NUFANoC8gLxggryMnSY9H/qdFf0qDqTnXlM0jI4KntDFUcOPPnOqTL7S2S+tdVR69IjouB8wK7och1eMf+TjLRjjl+9gRNeKgx5LPXuCDnRZM0BeGbrQA+o4o07x7euabj2O40YbqOteRdZs4Us+Dt4bUZ6lYIOseTsU8tUWkYemvcKOWfPlCp3cdJIC8nOOnuhvkanzgLHQP5PyyTBb54ju7IxXa8qI+JVWwHtkVE+tDfzjHSivqfwVGiIra2fcf8WvFd0lW/6FcMiXfikbkyudJcMKms06GMbRY+zPWbw+7nRRFM5Hrh4eDjk7gURdxHYpKJexCCVNBjqMx8AeE6G/NQb9gjjZsoAzQcUJpcyuQYnyGJjsIizOIvBVyR0SHPiyH2ONDgudUXSl7/cwfpBJXZ72N0zqbYpiPODPecEtaII/+Ey+j/t8JhP+o3BCOVzBwSV1bhz0pnrgg6wWR7FeFhqunmDp7Nxq8ZEjD8WpM47xgHwdc9hxByZ4iI5oXh15+mBaQWMhhe+SH/IfB0g2gJyAvDFBv+jpzv/Rr347TtQ+81t0NrzTH3QBeo5OYLxB6NxiuOj28yvNdDnnJQgn56zhYtyqvltPKTe2W4DkJ5AQmMlXfRsJXVsQueUJnsGmrDnfK1lv/VWdkArEIrey3qX4ih0q5+nj2SrBBPvDHkmbdsga2nLEKc7ME9yakE/wyxa5yaAHDerIMal1SobmE8y0vJAxYxCbOxd/lW/8kn/4LGOqI6PoTbGXkQGdwX+F7Zr/wuTw/+iznUi74uO7bdDSXfKUB1We8iknO7caqyyb+gSnZrMCONdBCLsCy9wAABAASURBVMEEwNjxUaJT47At5EdEqTwQZeG6IqhBhXNjWcRgkDH1qYJ9VxR8/xjCf2S8sqgptkkAlJ3xQVOM6Oq09WlsV/YMCzrgQj98JumE9DsoTntNJq8EKTkvV2zViMBnjKRnZ/J9IthbHwwsQ+uWCXAuUCEX+I0zCJCRq6x7h55HBOAQvPgypoAN3cZh3KV4UNbLmHDDN9vgksj3zMi3ODqGy9wOSmR0UldyYdjNhzyQB+SlTT9Avvp5zubSqhv9IOhuS8/GyhgMgQTa0AnkjWdcMNa0r8R8L4tu302vSnPOnRbjLxMHUPQ9c1DWU9YNXfP8CboAPafflUb0AN1nEvDvmZUnhqaV6Le+0Zl1WIxyPUdE1npdv+yPT4ujkQyseyAPNO8VVmSM8+A2vjmzJpv6qRwydbFLG5P6JDp5CRSrzPCCHqD59gBoBb+zpqxPvMuTf/gsPCiPjIo+kUVk4FVjQQUZVBtV9bn0uQL/O6XKS0qWdCkyKyJRBqo8o3fsTfUvbH7VJ/NS+syWfxbYMLRYIH+Lgh0W2BABXDMK5keh3PrgvF0hCCrka1Ax6HiEB4xJuB+J4r4+Y/qBp2IEM3ZxRiYIhCa/wfDxDGh3ghHRv4JzNAH5L2cSD7RI0r4cJjmTaUei4E/d33L+mVT6YiADy1l5fQ6gqRoPNNZx0rzvAz3XDz17Z8yrBC4MLZ7loEiQcTYUCyizUIcZD85tDpm/b8Vp4G3cUQxJFPl41Zd8yAnA35wfcut3GM8V0IV++12mvcBprNCzOJU+NMqju9I61mygZHUc8Gsz1lezXryW+pfok29z/CM7FZ7bODPGTMD9i8yBtzo+kVF8c8UtQc+g4Hci/U6zGT3MDQjZl/r1zrtm/R2cte0B61+Ehz+m4uzw5hao174viE04L+X/SOoBV59X716TgxDst0uek3H9Ls2K3D49NwHZXzO2N1D+kPH/X+j6dcb8ecb+fs4PyyCe9apy41TrfOIn1dvd8d5Q/Jmsz3Njjy6KLv09QehZ4fnPgd+nnI39VWR0WmTxhciB3WUX2Ui20lqkz/ivEJRXuAPvp0VeD4p9f1vS90RfPhld+mbOBfFnZQ2eHxl6g9InD34QWft59yrL5jqs8hyBEEeDYpiAgmDAphijE6NkH/LwSJj/jwjo7iHPlbSrhGZQocyYHGaaDHQwsAxu3XnYN4GDXy9UXh6YzOS4D7wpNJ2QEWzbWswALTtnAfg41LVSd/2A+8peO52Xyf1wDOxxMRgp7pTgJLjhcp+Z4f1Yp9Mx6a7YTDBjC7oXDVrIpjPAH9nYnn1U+vrGR5LOMeGJ8SI7SsRIAosUX8oGHQ/+2QCM9ueiO+UbD9GjUdDEqPs0uiukCsPKi5zXxmDaoRoFjX7cCh5BqvlEp7TSOYwuwYteAfGhOfHKqDcgHhh9eqjzOEZvR3n+6YU5f2XgjQHO48ykdig8uEzXqyGz9tCU6q1yoJ9+k4c18PboBpqfFB6eEAoek/R/kj4u69fvgDwl50+PQX5JyvyQ2kS0w5nqno/NuY/9pYzrYe3dsvPpi5zWp+/Q7BUH4EfQXpoxX5mx98+5W5NkZ2vb+N0OteeBZ0lD8rIunxJ6bhG4Q+A/Y/efEJ6fGXh+zt2Wenlk9Orkj4wc7FAIktlH9rIGVVtTd0LKrDzI4KTo6wGhzucM3pD0VTknx6dEf1yUPzrnT48crUeBMVnSJ77Gzo/1AI+5AUGx7Q8OalgqMGXBH5BFZwFz2F4jtd3o6t8OBUcuuOAoBRWcJuh3bIIDxiRQTvVzGXfvRMZnJMLbHCUXCGxI3qL2OihDSKHvlGDBVb7fczgxwc/3E1icnH4nxIn9ZwjxeujiGNijg8NnljdlMhli23hnZAy/rOjqzlWHReLqDZjgajCGNbZkMi+03zOwRwKipQEfsfJhIXLDN4eDbyBP9mQCwsZ2eaCd0f5VFtNvwnuRu3QIbrwx8uP0Nz8cNHlJ6Q2ZkaVx06TvY110463pxUgmGe6IbglWXeGhD060mtuqT+gEgw6kL37hg9t6oMOMlG9MCLq6wc5OdYp0nhFDE9nBBwalp59+xgHGNT46zCnjin50dtOOJ1Dp155c9YcHvl5p0BaQn/7GJw/jw2+cicZXJxjTVh9969jw9Tr+bGmHZvpDR5v6M5H8yYNczA8bqT29058c4ZotfG0VOroGwT9doBN8Bx2p+kSeZAeqHOXpkzZVl6sdg6sL/bY7HTagwAwgnLMTnb42zvmcXL3dLM7AVYMvaLrdIaAAggpBBufIeYJ+uTceoJiESlG/FUf00iA6JUGC2xyiP59JZqgptFsGf06wcH7oWpy2i+OoF8YpLAitvisA387pj0b3S9+VQOMnwcUQ+DGpQ1LnU9dwmVTAIJtcCmGRWSzkABdIl74OspiTbcQbRI6i/JuEBtvQApkqL/wyjKCOSQ6DjNcXcVuhMR7M5V6JzC2qci88+lSGzjwJFEvev8imvJkgrefSCpk7shPgkpU5AvBbxHWeavN+U7T+OrTZsSp0VATojI6V09SP19UyaRfNnh35SjowuvQNoLk5v6ke+qAndBResnDlTJ85PYa/CcqAesZOe/2GldugTJA3+o2PDjIiL2sQjWit9DO8QJl1ik9tydT6gQc+0A89+pEfHXKRAi/8xqlj11QZushOW330haPfcfuhcabaohnt5G/9kD/bh0e8Vr7JXV4Z2Zgf7bTXb3uWwahkS5aALOkjvaSf9KnKk/zIsYJz8qz6ZA2QJTyjomskeIYNKBCBKYDBb2cX4N3ZElyfWwUPiHH97zQQQNil8IEZDrsGFcYuTjRt+j2MByi5cS3Y78cRvSTbb2/JuH68yz3UquAXJHj4YZy1hylXZXfCroMx3Xu1A0DxPfeBTnT9b64a35yg48Dg9Kuidiaak2viTS5Da2yKQUHQBODuB6oclifYeXWc4X0y7jnJfyhIbB0KKCqfFNCYFqgxyWCQMYN61h34MG8Hxen6MbZxAjN/Zc446cin5COfktb5VDfWwX1eP55mETLoFqy5Irth5wqNYH3G3ye6dkrSEjgsXbrU63IlEBqjo+y0yGc+vVq9RV14vDQBhmDYbbRKZ6W1Go1RzC96AX3BP/1h5OuYjD59BvJoUEdm2tI1+qc/PABbWxOMSRZoQA+6JuIB/QAvlQ/zro++cPRLt7GB/lV+ZAN/Hct48soA+aHPPOqjLxyg3/FnS3uyowdkiTc84hXflX95ZerIyDxpr5/+M8DLdoeSDgA6QTfoCB0lL3IjP0CWQF45mWurD1nCAWaNADjPURCDKQyuSzDxoQQTx+cqe4cY2sfFyD8sAwgqBBM+MCVtBhWpHugwJjAplJXi2jI/Is7n1GAU1QFORfR3Xm5lnBN6xp9mT/AzJzSiGz3ospvCucPn89bvCx5XuvDUgKIGE3VytYUDLWne92E8sEPk5ncinpCdlA1xmr5x4auYEMJPkSgdPi+PC5T8gPn8YPTnoMyj3aPygGbkQQ5llyJBY8nHmRdHnuCvnGcutRVEHp2C+lEmc8/YWZBk11yMaTbwYU4uDI1PiR75Pkj5HkqlUxoeCvIEDiUVVCSAKA/5puDi0Ov3Zr6UPKOBRiDf1C0yAWk21AEHIF86Sw50airQBmiPX/3BUIQM0dnYAC34QJu10OTBHINaph792uunP+iXDH0APPAZu44xUWpcbbTVR1/Q77izpT3aARniB294nIj3WqYNIAP99AezhadtSQc5AHKp8iSryWSqnBy11UdfsC15uMzYowwoMIfZs3Jl/7Y471/kim1pjL6Hve6TkTlrTrs7qHD1zaGmSd+HMYFxCZsii/IYZY7EzgMjzZksjpG/UwKK5Yw64x5nsGOMvddc0YU+gQ+ZwGly4RIdwgEXnHA3DX6d3L6JTwd8g3mha8/Q8/zQtkNoOjVO0y0bAUSadSgTI+lcirY6Llq1uTwAXvBFvsfGIT8jcvlN5HFJ5FH4i4xKUJGyEkzEKZfy/FsfXfte6j186GNj5kvwJzV/5pJ+0BXjgHQb6NAXnXD9NQHgk0Pn4dGvVehMWh7kDf1b0Oo89HpYWJDrN2V8w0Wwik6AVvpmnptzPBCRE3RCN0B7BTxMBLVeqg+YAOVWL0IHQFcTJuJBWbONfsMQrD9o4jRGNzTr5fUBw4y9zfp2DYyPypO0m/d6rq6CPqAL1RX+lExAlVMzrXKsabNOHzDrBMh5joooDAKO/Zcx+G9cvXr13+O4l+RWwwtiZO+SgewEuPVRg4rqxGtQwbmmWd+HcQmc8DlfBpkDAZwTJ3z90HR7Bh+EprL9HCN/s4zmjQ8PjAoo0EIucDLq+sIDKi5j4NOY2gVF3wdegdssT8xVri97LsrV9h9Dk9eEOBf1xkFDHRtN+Bxm7L6J3UodyBJfeBYEuh3whOjQK6M/p2QH54IEDZ42vzgOfGPm0ZycnXn1SuFbE0x4O8ET0Zw04LjJES46UWVnnFGwhFY4/WbMm0PPE6JXx4aOs0LfytAlgPFNAjSvSNnvMqhAaf+kdp88K4JOIKCogQ/9muk5JoNeIKTO6qMXHrQZNRNw9gKjHne24OuFd21mC73bAx3kNR3Maj44zlESSBjFyMaofi3G/3VLliw5J7sV18j5nnEK9et1NaiQzkRQwSExyoDBx+Md8++GcUrlvntoKve7ly9ffs2UXzcgoEALEFRw5vhh2OGAC8grUwfSte8DbmBn5BFxQvsEw1WyO2Gb/s3Je2VPPT44QsGElINSRsZp1vcxKL19DzREBzQCfAqkyOSjcdZPz86XVwSfGcf8ggRdXtV7ccZ5UfK+meDH3fxoGifttodbVJx03VEyd8POW4YbP9AI4KQTgoEfRq/2yy7EIwNPCZ17JahA597JvzBlrwl8MRi80VHpRKuAwu6XwMccwzfoHAd9e2w/EmgpbSVw+ZHATAQUjCxjeHGCiE+uWbPmDQkkXLF5a2HPiM43KlyVCybsVEjtXNgdQA9HCtK076OObXzA2Et3TiDxgDikuaHJNyUK4tDVWbVq1YLsDnjF1bcoBBMV0IOOirPicl6h4OnzH5xghwRc/7148eJ944RutHbt2t+HPm+TeACUHIzHoQomAEfDySofZnx9+yR5qzdHo3nDLxlwtBwvR+whSB828gEm325we6O+XsVJg8mCCTjhHhVDcAF0CljMkwDG9y9Oj66dnADCTsSPk/fGiUCxSSue7KIIRvBojmswAS8YFa0tnlYCrQRaCcyoBDiuUQ/ACDLcHB8j+9EY0zdl2/ovucq8WZz3CzKgj+sIJAQUHLm8IMMuQd0d4HTTdKADDU3w64N3z9Vieeo+DrwgDV3lPnzugd8kV5BXSqHABggqBBRVPk1c8mk60IEnOOF/XsZ8U2Ry49D1m+RdZXOQ6jkoOxK29AGnSpZkanwwEAHbSSf8AfySBUdbnbVbGJywoAFwykDelb766qCkxj3bAAAOOElEQVTJkNzgoJNwjloEcAK0CgbMleAADXZI0IS+CugEeECrZybMMR71hwc+MGpar3D4WoZbCbQS2HoS4LxmYjTGkAFnHN1D9oDh/tnSPyvO/DpJfTPCV9cEFEBQIXULgLOtzpwDBoPSqC/YPY57SXYpyu2OOO+CL1eP5Ty7BFdK3o+bGVdQIxXYkI/+pf0Q/+CACyzLLY79QsObslV/7QQTZyQ9IuP/JPiNyflxSpwMkOcUyZJMyTZN+z8yxninjDuen6UZfAI8450MyEJgwQnbCXCbAHDeQBln3gwk9IUHzBSrcANjmT/BARrMX6UVfWgF6FSOFzwJJPTDKzxgpmht8bYSaCXQSmBGJMDBzQjiIGUUq4FlOD8dh/a6OLK/51aDr1LuEafqDRCfwRZQgO6ggoPljEFQ9n2gwfv/u8aJl9dFc5uh7FLAlMCmvMK3bt06P2zmw1aKjVXBOXAuHQT0BXOzO3PN8H5kgqqXhI5FCSTs2hwUpHYm0MqpcDBrUgY4Jc5JeXU2qbpCHeQC8E+fON8aXJAVGQF5slKnTVNm+s+00IwBuulEE9rQCORBk0586Qtmms4R4m9RtRJoJdBK4F8SmMmAoo7CwDLufjzs8wkqnhkH/rvly5fPj1N9XJy6BxLdkhBQVGjeArFbgE7AMVe8/aSHZ4fCDsAlAosENeVWR2gRSPi40Om5JeOLmBwRYODRXccYxNCjFc1gUfi8ZwKJDyT1RsemjHdabrm8KgP8JqAtGXE4AgkgzxkpR8sgNAT1lkeCmC0Lto8zvANyAOYHkE0TlKkH2oOtzaExARoAmpo0yisD6oH2YGvT2o7XSqCVQCuBkUmAsxsZsgkQMZKA0WRIOUi/ofHU1atXfzFOdWXgXnHyPtn98PS/RkBQ4auVdisEFm6BuA1htwK9nC9I056OzQkmTs9uyHNza+Pza/MXp152KZKuXrNmzTdCw4eDyRsCtsvtpqATvYw++lPd84E2gFY0Xztj75kx3p303gmmfMXx03Hsggk/dqStIMa4Agk0zEgwMcZBv/yMdZs1Cfqng9lC7HR0qp+U1railUArgVYC25MEOL2ZppfRBONBRRz87+JQX52dgiN23XXXM3Pl7uNSL01g4RcCfa/C7Qe3RQQXAgsPbAos7FZw0pxwhV7o35Qxf5UdgTdkjOOSX5NbD+fl3G8xAK8mekDO/e16b1tQ0U9AUekhUzSi3y86HpaxDspuzI0SUPw+tz3ek50Rv8/hPjqZGKcGEjMdTPQiq7ZNK4FWAq0EWgm0EuhbApxf350G6CCgABy0K39O9P/iWI++4IILXhkne/KCBQsWxdHvntTnp/2M6w0yDqcM7FjYraiBRXPHAg/VmafLhEcZe+PGjX9J8OJLir4N4KeG7UwIJjyB78l7T+V7eM5ugXvc6NUXTIS4josGIOABuyWIODjByzvC28Mz5rwET98KfweuX7/eR5jgh9u9dEGEIEY6kzsTZVcmgdxEfFwBy1qWWwm0Emgl0EpglBLgBEeJbypcnDJwVS6o4LDtCnw9TvZZgcPT+eI43uvEGT8tV/SH54reL5YKKCrYsaiBhdc7a2BhR4Bzx48UBF05jAk4cLcWfAfg83HuHLvbHDWY8BqfHQqOnaNHI1r1LYjG/sENjAWMDdCyU9q83K2VOO5nJZC4doIYwcJbc8vjwNT5jgIagKBCHbBDIZggE3RONG66t0crgVYCrQRaCbQSmJ0S4BC3NmUcNIfJcXKgHKmfGT8oOxa7xwF/JwStye0IOxSvT2DhldPHpuw6gV0CgosaWHjNtHvXgnPHF+D4QbqVw5icuYCBIxdACGrsTMjXYEIbNKJVRzjgq2AMYDfCp8XRatfDT57vv27dumuH/hXz588/ITw9LQi+EMCn8Y1tHONLBRPKjDlZEJPu29fRUttKoJVAK4FWAlcsCXCQ24JjjprD5mA5Ug6VY/1Zruz9SNa+IerkBBNuP1w/tw1el1shR6bsOSm7R9IbBgQWboV4xsKuRXdwYceAw+f48SkoSLeOcY1Zgxnj2i1Ag1sxnDr6tNVP/wpwAkHMjdLgQdlNeX1o/lzo88ns62Un4pzsspyUMh/zekva2BExpvGMJZAAggnjGhM9ZGFckG4ze4S+mR2gxd5KoJVAK4FWAlcoCXCY24phjhNwpJw4h+sq/h+5qv9QHPVL4/TenKv8b+f2xPnZubj58uXL/RrnQakTcPiM971DfDO4sHNRAwxOH7g1AgQCQHBQgwvjc/YVlJOJNtoCD4PqL2C5UQKaB4emVyxcuPDIJUuWvDu07R3abhL4WwKJrwcODd0Hh67vBQQM+JIKIioILPAqmMA7GaAFpNt0x2D1uYXUCX2lc03LSfuvlUArgVYCrQRaCQwpAc5zSBRDdedAAYfOsXK+dgrWxFGfkav9D2zYsOE1uX3w6gQRH1q/fv2f4wivkbr7LF68+CVx6gfk/G1x8q8PFU8O3CfQvDViB6MGGQINQQGogYZgoYKgAajTRvvrJGi4f8Z+dsA4fknyHTvttNNrQ9d9AldJvV+QPC7O+sAEEocmGPp2aHAbBS8CCTsRAglvdUgFE+vTpu5K4J0MQIpn/BA0jQcWMz5aO0ArgVYCrQRaCVwhJLCtA4oqZM4UuFIXWLhydwXPGZ+RRl9OEHFQ4NkJKt4Y535ygo3Vcei+8XDn7Bg8JQHGa3Nr5Ig4+E+m/gPp88bchvD8wiOSv1fgNgE/Ve5WhV0Nzz3IK7t16u6ZwMQvfz4zeN4aPF9YtmzZCWvXrj0ueN6UoObpGefOyV/n/Pyl7Ykp2y/1r07fDySQ8OEsv9uA9jUpQ7sg4v+zd/YscpVhGEarTZm/kL+Rf2BhoWApfhSCoFipWCgWIopahCgLQlgMFiJI0EZTGE0RLCxstIqxFQ2BhA1LliXkvgYeeBkymWwyZ+Y9Zy6YmzNzPt73ea5T3Pe8M7NbYh89ETTokV7pGeV0HxKQgAQkIIHxEuglUEAQY0W8Y8dseQePOde7fH6NwX/iPJdg8UL0dFYF3s0KxY/R9YSLE1khOBmDP5X9pzPgi9EHeb4bfRv9lPMuRb9Ev0aXc/xytvyFzEsJEd8nFOwlqHyS0PJyxju9v79/KkHlZOY6kfP+y74fcvy9XPd8wgQ/b+WXInyhtMICIYJVCEIE3//gOfsIEvRCT/RGj/SKMtx6Hulv9r9LmC2s2CBqKPFaSUACEpCABI5NoKdAUcVjbhguxss7eUyYjwgIFhg3Jo1hX41Bnj86OnojAeCZXPxKXp/NxyAXDg8Pf9vZ2bkW8/83Kwk3olsJFHeyvRs9Gc0eWXF4Ivvv5tyDjHEzJns9BwgIV7P/Sp5fODg4+CLjvZoA8VLm+ChzXMyWn5gSEAgKBAbqaUWN1MpxzqMHeqEvRI8ZZq2P2ZzpcbZNQKrJeQ1r6kK8RnXcrQQkIAEJSGApgR4DRRWNqSHMDjPmowKCBSaNWWPamDg/9/wHo89KwpmsIrwT03wtAeH17Hsr+96PPk64+Cw6G+1GX+YYf7FyN8b6ec49k0k/TcD4MOGB72O8mWveTojglxt8fPJ7jvOHr+ZDDasQiDqoh3BBbdRIkKBmaqcHekEZamOP2fzpefa/TNimEsJOiVoNFYHiQwISkIAEjkdgWaA43mirPxsDLGF0GDPmh1kTLjB4TBwzx9Qxd8THI3+lnCsRH0t8l+030floLzqXQLEXfZVw8XVe87cu+Djj5zwnPPydLUHlfmOzHzEPc3IOIYJaqKkNEdSMqocMu9EH9f2fIMGKze2swsCt6icEVe3UvNFCnVwCEpCABMZFoPdAUTTLkDE6RLDg3fR8uMDYMUmMHsNHmP8icbzVovPYX+cxdmvCmDQBh1qoidqoEVF39dDD9mJWYJ5LkHoqejYrMHxpldDFr1Loi1BEqKgeequ/B4bWIAEJSKBDApsvaSyBoiWFySEMG2F+GDmGjrFj8LzbxhwJGJg/qqCBcaIKCPNbjpW4hmsRYzEm4yOMlzmZmxqoBVEbamvu4Tk1XUshrNz8mZUZvuD6R17znRG+EwIH+oQhPXF+DvuQgAQkIAEJLCcwxkDRdoXpIYwcYewIo0eYIyIAIIIGIhjUluel2scWcQ1iDMSYCMNlHuZE1IDa2np8To3UTS8EJIITqxO1AgMHghLncG6PPViTBCQggbUTcMLlBMYeKNoOMUCEwbfCHAkAJQIBwjjZtmr31flsGaMdk3lKbQ09P6966YWeCEoECFYlEM8JGvCg1zq/556sTQISkIAEOiEwpUAxj7QMsbaY5Lww11bzx3ld19d2fp4xva4e6JlQQYAiRCCCBPvansfUm7VKQAKjJWDhUyAw5UAxhfszRA8VKggOBItW7EOcM8TcjikBCUhAAhMlYKCY6I1d0haBYZGWXOphCUhgbASsVwLrIGCgWAdl55CABCQgAQlMnICBYuI32PYkIIGhCTi+BCQAAQMFFJQEJCABCUhAAo9FwEDxWPi8WAISGJqA40tAAuMgYKAYx32ySglIQAISkEDXBAwUXd8ei5PA0AQcXwISkMBqCBgoVsPRUSQgAQlIQAJbTcBAsdW33+aHJuD4EpCABLaFgIFiW+60fUpAAhKQgAQGJGCgGBCuQw9NwPElIAEJSKAXAgaKXu6EdUhAAhKQgARGTMBAMeKbN3Tpji8BCUhAAhJ4WAIGiocl5XkSkIAEJCABCSwkYKBYiGboA44vAQlIQAISmA4BA8V07qWdSEACEpCABDZGYLKBYmNEnVgCEpCABCSwhQQMFFt4021ZAhKQgAQksGoCjxgoVl2G40lAAhKQgAQkMGYCBoox3z1rl4AEJCABCTyIwBqP3QMAAP//Oc3utgAAAAZJREFUAwDjKxmazWr/+wAAAABJRU5ErkJggg==' alt='WAPPY'>
-        <span class="nav-tag">Clase 01 · Antigravity</span>
+        <div class="nav-view-toggles">
+          <button class="toggle-btn active" id="btn-view-deck" onclick="setViewMode('deck')">
+            <span>🖥️</span> <span>Presentación</span>
+          </button>
+          <button class="toggle-btn" id="btn-view-guide" onclick="setViewMode('guide')">
+            <span>📖</span> <span>Guía Completa</span>
+          </button>
+        </div>
       </div>
       <div class="nav-actions">
         <a href="https://meet.google.com/xvz-jmvv-iym" target="_blank" rel="noopener noreferrer" class="btn-meet-nav">
@@ -825,332 +1018,604 @@
   </div>
 
   <div class="wrap">
-    <!-- HERO PRESENTATION -->
-    <section class="hero">
-      <div class="hero-bg-glow"></div>
-      <span class="hero-badge">Especialización Práctica SST con IA Agéntica</span>
-      <h1>Clase 1: El Poder Autónomo de Google Antigravity & su Conexión con WAPPY</h1>
-      <p class="hero-sub">
-        De la operatividad documental a la prevención real en Colombia. Guía de acompañamiento en vivo, paso a paso metodológico, reglas de participación y comandos listos para desplegar tu primer agente SST hoy.
-      </p>
 
-      <div class="hero-meta-grid">
-        <div class="hero-meta-item">
-          <div class="hero-meta-label">🗓️ Fecha</div>
-          <div class="hero-meta-val">Hoy Martes 20 Oct</div>
+    <!-- ==========================================================================
+         SECCIÓN DE PRESENTACIÓN INTERACTIVA (SLIDE DECK EN VIVO)
+         ========================================================================== -->
+    <div id="presentation-mode">
+      <div class="deck-container">
+        <div class="deck-topbar">
+          <div class="deck-title">
+            <span>Diapositiva en Vivo</span>
+            <span class="deck-counter" id="deck-counter">1 / 10</span>
+          </div>
+          <div style="font-size: 11px; color: #94a3b8;">
+            Usa las flechas <strong>← / →</strong> de tu teclado
+          </div>
         </div>
-        <div class="hero-meta-item">
-          <div class="hero-meta-label">⏰ Horario</div>
-          <div class="hero-meta-val">7:00 – 9:00 PM Col</div>
+
+        <div class="slide-progress-bar">
+          <div class="slide-progress-fill" id="slide-progress"></div>
         </div>
-        <div class="hero-meta-item">
-          <div class="hero-meta-label">👥 Aforo</div>
-          <div class="hero-meta-val">12 Especialistas</div>
+
+        <div class="slide-viewport">
+
+          <!-- SLIDE 1: PORTADA -->
+          <div class="slide active" id="slide-1">
+            <span class="slide-badge">Curso Ecosistema Autónomo SST · Clase 1</span>
+            <h2>Google Antigravity como Potenciador de WAPPY</h2>
+            <p class="slide-lead">
+              De la operatividad documental a la prevención real: cómo conectar el cerebro normativo de WAPPY con la fábrica de triggers y automatizaciones de Antigravity en tu computador.
+            </p>
+            <div class="slide-content-grid three-cols">
+              <div class="slide-card highlight">
+                <h4>🧠 WAPPY</h4>
+                <p>El Centro de Mando: Especialistas SST, matriz legal colombiana, comités, químicos y Tenshi Voice.</p>
+              </div>
+              <div class="slide-card highlight">
+                <h4>⚡ Antigravity</h4>
+                <p>El Brazo Ejecutor: Lee tus carpetas locales, ejecuta triggers programados y automatiza lo que la web no puede tocar.</p>
+              </div>
+              <div class="slide-card highlight">
+                <h4>🤝 La Alianza</h4>
+                <p>Prevención autónoma 24/7 sin que tengas que programar ni una sola línea de código compleja.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- SLIDE 2: BIENVENIDA Y ACUERDOS -->
+          <div class="slide" id="slide-2">
+            <span class="slide-badge">Acuerdos de Convivencia</span>
+            <h2>Bienvenida y Reglas de Oro de Nuestra Clase</h2>
+            <p class="slide-lead">
+              Para garantizar que los 12 participantes dominen la herramienta y salgan hoy con su entorno operativo:
+            </p>
+            <div class="slide-content-grid two-cols">
+              <div class="slide-card">
+                <h4>📷 Cámara Encendida (10 a 15 Min)</h4>
+                <p>Obligatoria al inicio para saludarnos, verificar asistencia y calibrar expectativas humanas.</p>
+              </div>
+              <div class="slide-card">
+                <h4>💻 Entorno Dual (PC + Celular)</h4>
+                <p>Computador para Antigravity y celular a la mano para probar Tenshi Voice y WhatsApp.</p>
+              </div>
+              <div class="slide-card">
+                <h4>🎙️ Micrófono & Preguntas</h4>
+                <p>Silenciado por defecto. Usa la mano virtual o el chat; abriremos rondas de Q&A en cada bloque.</p>
+              </div>
+              <div class="slide-card">
+                <h4>🤝 Debugging Colaborativo</h4>
+                <p>Todos programamos en vivo. Si a uno le sale un error, compartimos pantalla: <em>el error de uno es la lección de todos</em>.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- SLIDE 3: INTRODUCCIÓN A LA IA (15 MINUTOS) -->
+          <div class="slide" id="slide-3">
+            <span class="slide-badge intro">Bloque 1 · Máximo 15 Minutos</span>
+            <h2>Introducción a la IA: De la Charla Pasiva a la Acción Agéntica</h2>
+            <p class="slide-lead">
+              ¿Qué es la IA y por qué el modelo tradicional de "hacerle preguntas a un chat" ya quedó obsoleto en SST?
+            </p>
+            <div class="slide-content-grid three-cols">
+              <div class="slide-card">
+                <h4 class="lime">1. IA Predictiva</h4>
+                <p>Calcula probabilidades y estadísticas. Útil para tendencias históricas de accidentalidad.</p>
+              </div>
+              <div class="slide-card">
+                <h4 class="lime">2. IA Generativa (ChatGPT)</h4>
+                <p>Redacta textos y responde preguntas. Pero es pasiva: <em>no tiene manos, no ejecuta ni lee tu disco duro</em>.</p>
+              </div>
+              <div class="slide-card highlight">
+                <h4>3. IA Agéntica (Antigravity + WAPPY)</h4>
+                <p>Planifica, razona, ejecuta herramientas, vigila carpetas, dispara triggers y trabaja sola en segundo plano.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- SLIDE 4: POR QUÉ CHATGPT FALLA EN SST -->
+          <div class="slide" id="slide-4">
+            <span class="slide-badge intro">Realidad del Sector</span>
+            <h2>Por qué la IA Tradicional Falla en la Prevención de Riesgos</h2>
+            <p class="slide-lead">
+              El Sistema de Gestión de Seguridad y Salud en el Trabajo en Colombia no perdona la improvisación:
+            </p>
+            <div class="slide-content-grid two-cols">
+              <div class="slide-card">
+                <h4>❌ Los Dolores del Chatbot Tradicional</h4>
+                <p>• Alucinaciones normativas (inventa artículos del Decreto 1072 o Res. 0312).<br>• No recuerda el historial de tu empresa ni los hallazgos pasados.<br>• No puede abrir 50 PDFs de inspecciones en tu PC ni actualizar un Excel.</p>
+              </div>
+              <div class="slide-card highlight">
+                <h4>✅ La Solución del Ecosistema WAPPY</h4>
+                <p>• Agentes con contexto legal permanente e inviolable.<br>• Citas jurídicas textuales sin inventar datos.<br>• Conexión directa a tus archivos y carpetas locales mediante Antigravity.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- SLIDE 5: EL ROL DE WAPPY -->
+          <div class="slide" id="slide-5">
+            <span class="slide-badge">La Plataforma Madre</span>
+            <h2>WAPPY: El Cerebro y Centro de Mando del SG-SST</h2>
+            <p class="slide-lead">
+              WAPPY nunca se reemplaza; es la base de datos viva y el equipo interdisciplinario que respalda tu gestión:
+            </p>
+            <div class="slide-content-grid three-cols">
+              <div class="slide-card">
+                <h4>👨‍⚕️ Agentes Especialistas</h4>
+                <p>Abogado Laboral, Higienista, Médico Ocupacional, Experto en Riesgo Vial y Químico.</p>
+              </div>
+              <div class="slide-card">
+                <h4>📊 Matrices Centralizadas</h4>
+                <p>GTC 45, PESV (Res. 20223040040595), matriz legal, inventario SGA y ausentismo.</p>
+              </div>
+              <div class="slide-card">
+                <h4>🎙️ Tenshi Voice</h4>
+                <p>El asistente de voz en el celular para dictar hallazgos en campo manos libres.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- SLIDE 6: EL ROL DE ANTIGRAVITY -->
+          <div class="slide" id="slide-6">
+            <span class="slide-badge">El Super-Motor Local</span>
+            <h2>Antigravity: El Brazo Ejecutor que Potencia a WAPPY</h2>
+            <p class="slide-lead">
+              ¿Por qué necesitas a Antigravity en tu computador? Para hacer todo lo que una web en la nube no puede tocar:
+            </p>
+            <div class="slide-content-grid three-cols">
+              <div class="slide-card highlight">
+                <h4>📁 Lectura de Archivos Locales</h4>
+                <p>Lee 500 contratos o certificados médicos en tu disco duro y genera el consolidado para WAPPY.</p>
+              </div>
+              <div class="slide-card highlight">
+                <h4>⏰ Triggers & Automatizaciones</h4>
+                <p>Se despierta solo por reloj (cron) o cuando entra un archivo nuevo a una carpeta.</p>
+              </div>
+              <div class="slide-card highlight">
+                <h4>🔌 Conexión MCP Universal</h4>
+                <p>Ejecuta las 55+ herramientas de WAPPY como si fuera un prevencionista operando el sistema 24/7.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- SLIDE 7: LOS TRIGGERS EN ANTIGRAVITY -->
+          <div class="slide" id="slide-7">
+            <span class="slide-badge">Superpoder Clave</span>
+            <h2>¿Antigravity Puede Tener Triggers? ¡Absolutamente Sí!</h2>
+            <p class="slide-lead">
+              Los triggers son disparadores automáticos que ponen a trabajar a tus agentes sin que tú estés frente a la pantalla:
+            </p>
+            <div class="slide-content-grid two-cols">
+              <div class="slide-card">
+                <h4>⏰ 1. Trigger Temporal (Cron Schedules)</h4>
+                <p><strong>Ejemplo:</strong> Todos los lunes a las 6:00 AM, audita el cronograma de WAPPY y redacta recordatorios para los responsables de actividades vencidas.</p>
+              </div>
+              <div class="slide-card">
+                <h4>📂 2. Trigger por Carpeta (File Watcher)</h4>
+                <p><strong>Ejemplo:</strong> Al caer fotos tomadas en obra a la carpeta <code>/Fotos_Inspeccion</code>, las analiza con visión computacional y registra el acto inseguro en WAPPY.</p>
+              </div>
+              <div class="slide-card">
+                <h4>🚨 3. Trigger por Umbral Reactivo</h4>
+                <p><strong>Ejemplo:</strong> Si el ausentismo laboral supera el 5% en WAPPY, se activa de inmediato para pedirle al Médico Ocupacional un reporte epidemiológico.</p>
+              </div>
+              <div class="slide-card">
+                <h4>⚡ 4. Trigger por Webhooks / Subagentes</h4>
+                <p><strong>Ejemplo:</strong> Al diligenciar un formulario de Google o WhatsApp, se dispara un subagente en segundo plano sin congelar tu computador.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- SLIDE 8: CÓMO SE CONECTAN VIA MCP -->
+          <div class="slide" id="slide-8">
+            <span class="slide-badge">Arquitectura del Puente</span>
+            <h2>El Conector MCP: El Puerto USB-C entre Antigravity y WAPPY</h2>
+            <p class="slide-lead">
+              El <strong>Model Context Protocol (MCP)</strong> permite a Antigravity controlar y consultar a WAPPY directamente:
+            </p>
+            <div class="slide-content-grid three-cols">
+              <div class="slide-card">
+                <h4>1. Antigravity Pregunta</h4>
+                <p>El agente local necesita saber qué tareas de SST están pendientes en la empresa.</p>
+              </div>
+              <div class="slide-card">
+                <h4>2. MCP Ejecuta la Herramienta</h4>
+                <p>Llama a <code>wappy_consultar_cronograma_sst</code> en tiempo real con seguridad.</p>
+              </div>
+              <div class="slide-card highlight">
+                <h4>3. WAPPY Responde y se Actualiza</h4>
+                <p>WAPPY entrega la información y recibe los reportes generados por Antigravity de inmediato.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- SLIDE 9: PROYECTO 1 EN VIVO -->
+          <div class="slide" id="slide-9">
+            <span class="slide-badge">Laboratorio Práctico</span>
+            <h2>Proyecto en Vivo: Creación de tu Primer Trigger de Seguridad</h2>
+            <p class="slide-lead">
+              Hoy configuramos en vivo una regla persistente (<code>AGENTS.md</code>) y una habilidad (<code>SKILL.md</code>) en tu máquina:
+            </p>
+            <div class="slide-content-grid two-cols">
+              <div class="slide-card highlight">
+                <h4>Paso 1: Blindar la Regla Normativa</h4>
+                <p>Definir que el agente solo aplique la GTC 45 y el Decreto 1072, citando artículo y sanción correspondiente.</p>
+              </div>
+              <div class="slide-card highlight">
+                <h4>Paso 2: Conectar el Disparador a WAPPY</h4>
+                <p>Hacer que el agente clasifique una condición insegura y la radique directamente en el panel de control de WAPPY.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- SLIDE 10: RETO SEMANAL -->
+          <div class="slide" id="slide-10">
+            <span class="slide-badge">Reto de la Semana</span>
+            <h2>Tu Misión para la Clase 2 (Semana 1)</h2>
+            <p class="slide-lead">
+              El conocimiento se fija cuando lo aplicas al día siguiente en tus empresas clientes:
+            </p>
+            <div class="slide-content-grid two-cols">
+              <div class="slide-card highlight">
+                <h4>🎯 El Reto Técnico</h4>
+                <p>Dejar instalado Antigravity en tu computador y configurar tu primer trigger que consulte a WAPPY antes del próximo martes.</p>
+              </div>
+              <div class="slide-card">
+                <h4>🤝 Soporte VIP en WhatsApp</h4>
+                <p>Si te trabas con un comando o permiso, envías captura al grupo privado y te ayudamos paso a paso.</p>
+              </div>
+            </div>
+          </div>
+
         </div>
-        <div class="hero-meta-item">
-          <div class="hero-meta-label">👨‍🏫 Docente Líder</div>
-          <div class="hero-meta-val">Félix Bedoya</div>
+
+        <div class="deck-footer">
+          <div class="deck-nav-btns">
+            <button class="btn-slide-nav" id="btn-prev" onclick="prevSlide()" disabled>← Anterior</button>
+            <button class="btn-slide-nav" id="btn-next" onclick="nextSlide()">Siguiente →</button>
+          </div>
+          <a href="https://meet.google.com/xvz-jmvv-iym" target="_blank" rel="noopener noreferrer" class="btn-meet-nav">
+            <span>📹</span> Entrar a Google Meet (7:00 PM)
+          </a>
         </div>
       </div>
+    </div>
 
-      <!-- CTA ENLACE GOOGLE MEET -->
-      <div class="hero-cta-box">
-        <div class="hero-cta-info">
-          <h3>📹 Sala Virtual Oficial de la Clase</h3>
-          <p>La sala se abre a las 6:50 PM para pruebas de audio y cámara. Código: <strong>xvz-jmvv-iym</strong></p>
-        </div>
-        <a href="https://meet.google.com/xvz-jmvv-iym" target="_blank" rel="noopener noreferrer" class="hero-cta-btn">
-          <span>👉</span> Entrar a Google Meet
-        </a>
-      </div>
-    </section>
+    <!-- ==========================================================================
+         SECCIÓN GUÍA COMPLETA (MODO GUÍA DE ESTUDIO CONTINUA)
+         ========================================================================== -->
+    <div id="guide-mode" style="display: block;">
 
-    <!-- SECCIÓN 1: REGLAS DE ORO -->
-    <section>
-      <div class="sec-header">
-        <span class="sec-tag">Convivencia & Calidad</span>
-        <h2 class="sec-title">Reglas de Oro y Acuerdos de Participación</h2>
-        <p class="sec-sub">Para asegurar el máximo aprendizaje práctico en el grupo selecto de 12 profesionales:</p>
-      </div>
-
-      <div class="rules-grid">
-        <div class="rule-card urgent">
-          <div class="rule-top">
-            <span class="rule-title">📷 1. Cámara Encendida (Min. 10 Min)</span>
-            <span class="rule-badge badge-amber">Obligatorio</span>
-          </div>
-          <p class="rule-desc">
-            Cámara encendida durante los <strong>primeros 10 a 15 minutos</strong> para el saludo inicial, llamado a lista y conexión humana del equipo. Luego puedes apagarla si requieres optimizar tu conexión.
-          </p>
-        </div>
-
-        <div class="rule-card">
-          <div class="rule-top">
-            <span class="rule-title">💻 2. Entorno Dual: PC + Celular</span>
-            <span class="rule-badge badge-teal">Hardware</span>
-          </div>
-          <p class="rule-desc">
-            <strong>Computador:</strong> Windows 10/11, Mac o Linux (8GB+ RAM) para operar Antigravity IDE/CLI. <strong>Celular:</strong> disponible para probar Tenshi Voice y recibir alertas en tiempo real.
-          </p>
-        </div>
-
-        <div class="rule-card">
-          <div class="rule-top">
-            <span class="rule-title">🌐 3. Conexión Estable de Red</span>
-            <span class="rule-badge badge-teal">Conectividad</span>
-          </div>
-          <p class="rule-desc">
-            Internet de 30 a 50 Mbps mínimo (Wi-Fi 5GHz o cable). Los sockets de voz y los modelos de lenguaje requieren estabilidad para evitar latencia o cortes.
-          </p>
-        </div>
-
-        <div class="rule-card">
-          <div class="rule-top">
-            <span class="rule-title">🎙️ 4. Micrófono & Preguntas</span>
-            <span class="rule-badge badge-teal">Interacción</span>
-          </div>
-          <p class="rule-desc">
-            Micrófono silenciado por defecto para mantener la limpieza del audio. Usa <strong>"Levantar la mano"</strong> o el chat para formular preguntas; habrá rondas activas al final de cada bloque.
-          </p>
-        </div>
-
-        <div class="rule-card">
-          <div class="rule-top">
-            <span class="rule-title">🤝 5. Debugging Colaborativo</span>
-            <span class="rule-badge badge-teal">Metodología</span>
-          </div>
-          <p class="rule-desc">
-            Clase 100% práctica: todos programamos en vivo. Si a alguien le sale un error, compartimos pantalla para resolverlo juntos: <em>el error de uno es la lección de los doce</em>.
-          </p>
-        </div>
-
-        <div class="rule-card">
-          <div class="rule-top">
-            <span class="rule-title">🔒 6. Confidencialidad SST</span>
-            <span class="rule-badge badge-teal">Ética Legal</span>
-          </div>
-          <p class="rule-desc">
-            En los talleres aplicados se usarán datos ficticios o anonimizados (ocultando nombres de trabajadores y NITs según la Ley 1581 de 2012 de Colombia).
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <!-- SECCIÓN 2: CHECKLIST PREVIO INTERACTIVO -->
-    <section>
-      <div class="sec-header">
-        <span class="sec-tag">Antes de las 7:00 PM</span>
-        <h2 class="sec-title">Checklist Técnico Previo (Marca lo que ya tienes listo)</h2>
-      </div>
-
-      <div class="check-card">
-        <label class="check-item">
-          <input type="checkbox" class="check-input" id="chk1" onchange="saveCheck('chk1')">
-          <div class="check-text">
-            <h4>Cuenta de Google Activa y Verificada</h4>
-            <p>Acceso verificado a Google Drive, Google Meet y Google Workspace.</p>
-          </div>
-        </label>
-        <label class="check-item">
-          <input type="checkbox" class="check-input" id="chk2" onchange="saveCheck('chk2')">
-          <div class="check-text">
-            <h4>Acceso Confirmado a la Plataforma WAPPY</h4>
-            <p>Usuario habilitado en WAPPY con acceso a la Tienda y Academia.</p>
-          </div>
-        </label>
-        <label class="check-item">
-          <input type="checkbox" class="check-input" id="chk3" onchange="saveCheck('chk3')">
-          <div class="check-text">
-            <h4>Google Chrome o Brave Actualizado</h4>
-            <p>Navegador moderno con soporte activo para WebRTC y WebSockets de voz.</p>
-          </div>
-        </label>
-        <label class="check-item">
-          <input type="checkbox" class="check-input" id="chk4" onchange="saveCheck('chk4')">
-          <div class="check-text">
-            <h4>Smartphone a la Mano con WhatsApp</h4>
-            <p>Dispositivo móvil cargado para interactuar con Tenshi Voice y el grupo de soporte.</p>
-          </div>
-        </label>
-        <label class="check-item">
-          <input type="checkbox" class="check-input" id="chk5" onchange="saveCheck('chk5')">
-          <div class="check-text">
-            <h4>Espacio Silencioso con Auriculares y Micrófono</h4>
-            <p>Entorno libre de ruidos para escuchar con claridad y participar en las dinámicas.</p>
-          </div>
-        </label>
-      </div>
-    </section>
-
-    <!-- SECCIÓN 3: TEMARIO PASO A PASO -->
-    <section>
-      <div class="sec-header">
-        <span class="sec-tag">Cronograma 7:00 PM – 9:00 PM</span>
-        <h2 class="sec-title">Paso a Paso de la Clase de Hoy</h2>
-        <p class="sec-sub">Los 4 bloques que transformarán tu manera de gestionar el SG-SST:</p>
-      </div>
-
-      <!-- PASO 1 -->
-      <div class="step-card">
-        <div class="step-header">
-          <div class="step-tag-wrap">
-            <span class="step-pill">Módulo 01</span>
-            <span class="step-time">7:00 PM – 7:25 PM (25 Min)</span>
-          </div>
-          <span style="font-size:11px; font-weight:800; color:#0f766e;">Fundamentos Agénticos</span>
-        </div>
-        <h3 class="step-title">Bienvenida, Acuerdos y el Salto a la IA Agéntica en SST</h3>
-        <p class="step-desc">
-          Encuadre metodológico y comprensión profunda del cambio de paradigma: por qué los modelos conversacionales tradicionales fallan ante el rigor del SG-SST en Colombia.
+      <!-- HERO BANNER -->
+      <section class="hero">
+        <span class="hero-badge">Especialización Práctica SST con IA Agéntica</span>
+        <h1>Clase 1: Introducción a la IA & Google Antigravity como Potenciador de WAPPY</h1>
+        <p class="hero-sub">
+          Aprende a conectar el centro de mando y cumplimiento legal de WAPPY con la potencia de automatización local, carpetas y triggers de Google Antigravity.
         </p>
-        <ul class="step-list">
-          <li><strong>Apertura de cámaras y bienvenida oficial:</strong> Presentación ágil de los 12 prevencionistas y calibración de objetivos de automatización.</li>
-          <li><strong>El colapso del paradigma "Chatbot":</strong> Por qué ChatGPT genérico y los prompts planos alucinan con el Decreto 1072/15 y la Resolución 0312/19.</li>
-          <li><strong>Los 3 niveles de madurez en SST:</strong> Nivel 1 (Chatbot pasivo) ➔ Nivel 2 (Copiloto interactivo) ➔ Nivel 3 (Sistema Agéntico Autónomo).</li>
-        </ul>
-      </div>
 
-      <!-- PASO 2 -->
-      <div class="step-card">
-        <div class="step-header">
-          <div class="step-tag-wrap">
-            <span class="step-pill">Módulo 02</span>
-            <span class="step-time">7:25 PM – 8:05 PM (40 Min)</span>
+        <div class="hero-meta-grid">
+          <div class="hero-meta-item">
+            <div class="hero-meta-label">🗓️ Fecha</div>
+            <div class="hero-meta-val">Hoy Martes 20 Oct</div>
           </div>
-          <span style="font-size:11px; font-weight:800; color:#0f766e;">Arquitectura Google</span>
+          <div class="hero-meta-item">
+            <div class="hero-meta-label">⏰ Horario</div>
+            <div class="hero-meta-val">7:00 – 9:00 PM Col</div>
+          </div>
+          <div class="hero-meta-item">
+            <div class="hero-meta-label">👥 Aforo</div>
+            <div class="hero-meta-val">12 Especialistas</div>
+          </div>
+          <div class="hero-meta-item">
+            <div class="hero-meta-label">👨‍🏫 Docente Líder</div>
+            <div class="hero-meta-val">Félix Bedoya</div>
+          </div>
         </div>
-        <h3 class="step-title">Anatomía de Google Antigravity: Los 4 Pilares Maestros</h3>
-        <p class="step-desc">
-          Exploración a fondo de la plataforma agéntica de Google: cómo orquesta herramientas, terminales, archivos locales y modelos avanzados.
+
+        <div class="hero-cta-box">
+          <div class="hero-cta-info">
+            <h3>📹 Sala Virtual Oficial Google Meet</h3>
+            <p>La sala se abre a las 6:50 PM para pruebas de audio y cámara. Código: <strong>xvz-jmvv-iym</strong></p>
+          </div>
+          <a href="https://meet.google.com/xvz-jmvv-iym" target="_blank" rel="noopener noreferrer" class="hero-cta-btn">
+            <span>👉</span> Entrar a Google Meet
+          </a>
+        </div>
+      </section>
+
+      <!-- EL CONCEPTO CLAVE: WAPPY + ANTIGRAVITY -->
+      <section class="synergy-card">
+        <span class="sec-tag">El Concepto Maestro de la Clase</span>
+        <h3 style="font-family: var(--font-display); font-size: 19px; font-weight: 900; color: #042f2e;">
+          ¿Por qué Antigravity NO reemplaza a WAPPY, sino que lo multiplica?
+        </h3>
+        <p style="font-size: 13px; color: #0f766e; margin-top: 4px;">
+          Antigravity no es un competidor ni una plataforma SST aislada. Es la herramienta de Google que le da brazos y piernas a WAPPY para operar en tu computador.
         </p>
-        <ul class="step-list">
-          <li><strong>Las 3 superficies de Antigravity:</strong> Antigravity IDE (VS Code con lentes de IA), Antigravity 2.0 (Desktop app) y CLI (<code>agy</code>).</li>
-          <li><strong>Pilar 1: Workflows (Guías de Trayectoria):</strong> Procedimientos estructurados en Markdown ejecutables con comandos <code>/slash</code>.</li>
-          <li><strong>Pilar 2: Rules (Reglas Persistentes de Contexto):</strong> Inyección de directrices legales inviolables (ej: <code>AGENTS.md</code> y criterios normativos).</li>
-          <li><strong>Pilar 3: Skills (Habilidades Modulares):</strong> Empaquetado de conocimientos en <code>SKILL.md</code> con divulgación progresiva sin saturar tokens.</li>
-          <li><strong>Pilar 4: Model Context Protocol (MCP):</strong> El puerto USB-C universal que conecta el agente con bases de datos, APIs y herramientas locales.</li>
-        </ul>
-      </div>
 
-      <!-- PASO 3 -->
-      <div class="step-card">
-        <div class="step-header">
-          <div class="step-tag-wrap">
-            <span class="step-pill">Módulo 03</span>
-            <span class="step-time">8:05 PM – 8:40 PM (35 Min)</span>
+        <div class="synergy-grid">
+          <div class="synergy-box">
+            <h4>🧠 WAPPY: El Cerebro y Centro de Mando</h4>
+            <p>
+              Alberga tus especialistas (Médico, Abogado, Higienista), la matriz legal colombiana, comités, productos químicos SGA, gestión de trabajadores y Tenshi Voice en campo.
+            </p>
           </div>
-          <span style="font-size:11px; font-weight:800; color:#0f766e;">Integración Multimodal</span>
-        </div>
-        <h3 class="step-title">El Puente Estratégico: Antigravity + WAPPY + Herramientas Google</h3>
-        <p class="step-desc">
-          Aprende cómo conectar todas las piezas para que trabajen como un único equipo interdisciplinario autónomo para tu empresa.
-        </p>
-        
-        <div class="bridge-grid">
-          <div class="bridge-card">
-            <h4>1. WAPPY Platform (MCP)</h4>
-            <p>Acceso y actualización en vivo de la Matriz GTC 45, PESV (Res. 20223040040595), trabajadores, químicos SGA y comités.</p>
-          </div>
-          <div class="bridge-card">
-            <h4>2. Google NotebookLM</h4>
-            <p>Cerebro legal con citas textuales exactas de decretos de 400 páginas y generación automática de podcasts de capacitación.</p>
-          </div>
-          <div class="bridge-card">
-            <h4>3. Google Workspace</h4>
-            <p>Archivo digital de 20 años en Google Drive, generación de actas en Docs/PDF y cronogramas en Calendar/Sheets.</p>
-          </div>
-          <div class="bridge-card">
-            <h4>4. Tenshi Voice en Campo</h4>
-            <p>Asistente manos libres vía WebSocket Multimodal Live API para inspecciones y dictado de condiciones inseguras.</p>
+          <div class="synergy-box">
+            <h4>⚡ Antigravity: El Brazo Ejecutor & Triggers</h4>
+            <p>
+              Ejecuta tareas programadas (cron), vigila carpetas locales del disco duro, procesa miles de PDFs y conecta las herramientas del computador con la nube de WAPPY.
+            </p>
           </div>
         </div>
-      </div>
+      </section>
 
-      <!-- PASO 4 -->
-      <div class="step-card">
-        <div class="step-header">
-          <div class="step-tag-wrap">
-            <span class="step-pill">Módulo 04</span>
-            <span class="step-time">8:40 PM – 9:00 PM (20 Min)</span>
+      <!-- SECCIÓN 1: REGLAS DE ORO -->
+      <section>
+        <div class="sec-header">
+          <span class="sec-tag">Convivencia & Calidad</span>
+          <h2 class="sec-title">Reglas de Oro y Acuerdos de Participación</h2>
+        </div>
+
+        <div class="rules-grid">
+          <div class="rule-card urgent">
+            <div class="rule-top">
+              <span class="rule-title">📷 1. Cámara Encendida (Primeros 10-15 Min)</span>
+              <span class="rule-badge badge-amber">Obligatorio</span>
+            </div>
+            <p class="rule-desc">
+              Cámara encendida durante los <strong>primeros 10 a 15 minutos</strong> para el saludo inicial, llamado a lista y conexión humana del grupo selecto. Luego puedes apagarla si necesitas optimizar tu conexión.
+            </p>
           </div>
-          <span style="font-size:11px; font-weight:800; color:#ef4444;">Laboratorio & Q&A</span>
-        </div>
-        <h3 class="step-title">Laboratorio Práctico en Vivo #1 & Reto Semanal</h3>
-        <p class="step-desc">
-          Construcción de tu primer artefacto agéntico, resolución de dudas en vivo y asignación del reto de la semana.
-        </p>
-        <ul class="step-list">
-          <li><strong>Taller guiado:</strong> Creación de tu primer archivo <code>AGENTS.md</code> y tu primer <code>SKILL.md</code> en tu computador.</li>
-          <li><strong>Ronda de preguntas y debugging colaborativo:</strong> Ajuste de variables de entorno y verificación del entorno de cada alumno.</li>
-          <li><strong>Reto de la Semana (Laboratorio 1):</strong> Dejar configurado tu primer agente local conectado a WAPPY antes de la Clase 2.</li>
-        </ul>
-      </div>
-    </section>
 
-    <!-- SECCIÓN 4: CAJA DE HERRAMIENTAS Y PROMPTS LISTOS -->
-    <section>
-      <div class="sec-header">
-        <span class="sec-tag">Caja de Herramientas</span>
-        <h2 class="sec-title">Prompts y Plantillas Listas para Copiar en Clase</h2>
-        <p class="sec-sub">Usa estos bloques de código durante la sesión práctica (haz clic en Copiar):</p>
-      </div>
+          <div class="rule-card">
+            <div class="rule-top">
+              <span class="rule-title">💻 2. Entorno Dual: Computador + Celular</span>
+              <span class="rule-badge badge-teal">Hardware</span>
+            </div>
+            <p class="rule-desc">
+              <strong>Computador:</strong> Windows 10/11, Mac o Linux (8GB+ RAM) para operar Antigravity. <strong>Celular:</strong> a la mano para probar Tenshi Voice y recibir alertas en tiempo real.
+            </p>
+          </div>
 
-      <!-- Code Box 1: AGENTS.md -->
-      <div class="code-box">
-        <div class="code-box-header">
-          <span class="code-box-title">📄 AGENTS.md · Regla de Oro Legal SG-SST</span>
-          <button class="btn-copy" onclick="copyCode('code1', this)">Copiar</button>
+          <div class="rule-card">
+            <div class="rule-top">
+              <span class="rule-title">🌐 3. Conexión Estable de Red</span>
+              <span class="rule-badge badge-teal">Conectividad</span>
+            </div>
+            <p class="rule-desc">
+              Internet de 30 a 50 Mbps mínimo (Wi-Fi 5GHz o cable). Los sockets de voz y los modelos de lenguaje exigen estabilidad para evitar caídas o latencia.
+            </p>
+          </div>
+
+          <div class="rule-card">
+            <div class="rule-top">
+              <span class="rule-title">🎙️ 4. Micrófono & Preguntas</span>
+              <span class="rule-badge badge-teal">Interacción</span>
+            </div>
+            <p class="rule-desc">
+              Micrófono en silencio por defecto. Usa <strong>"Levantar la mano"</strong> o el chat para formular preguntas; abriremos rondas activas de Q&A en cada bloque.
+            </p>
+          </div>
+
+          <div class="rule-card">
+            <div class="rule-top">
+              <span class="rule-title">🤝 5. Debugging Colaborativo</span>
+              <span class="rule-badge badge-teal">Metodología</span>
+            </div>
+            <p class="rule-desc">
+              Clase 100% práctica: todos programamos en vivo. Si a alguien le sale un error, compartimos pantalla para resolverlo juntos: <em>el error de uno es la lección de los doce</em>.
+            </p>
+          </div>
+
+          <div class="rule-card">
+            <div class="rule-top">
+              <span class="rule-title">🔒 6. Confidencialidad SST</span>
+              <span class="rule-badge badge-teal">Ética Legal</span>
+            </div>
+            <p class="rule-desc">
+              En los talleres aplicados se usarán datos ficticios o anonimizados (ocultando nombres de trabajadores y NITs según la Ley 1581 de 2012 de Colombia).
+            </p>
+          </div>
         </div>
-        <pre class="code-content" id="code1"># REGLAS DEL AGENTE SST - PROYECTO COLOMBIA
+      </section>
+
+      <!-- SECCIÓN 2: CHECKLIST PREVIO -->
+      <section>
+        <div class="sec-header">
+          <span class="sec-tag">Antes de las 7:00 PM</span>
+          <h2 class="sec-title">Checklist Técnico Previo (Marca lo que ya tienes listo)</h2>
+        </div>
+
+        <div class="check-card">
+          <label class="check-item">
+            <input type="checkbox" class="check-input" id="chk1" onchange="saveCheck('chk1')">
+            <div class="check-text">
+              <h4>Cuenta de Google Activa y Verificada</h4>
+              <p>Acceso verificado a Google Drive, Google Meet y Google Workspace.</p>
+            </div>
+          </label>
+          <label class="check-item">
+            <input type="checkbox" class="check-input" id="chk2" onchange="saveCheck('chk2')">
+            <div class="check-text">
+              <h4>Acceso Confirmado a la Plataforma WAPPY</h4>
+              <p>Usuario habilitado en WAPPY con acceso a la Tienda y Academia.</p>
+            </div>
+          </label>
+          <label class="check-item">
+            <input type="checkbox" class="check-input" id="chk3" onchange="saveCheck('chk3')">
+            <div class="check-text">
+              <h4>Google Chrome o Brave Actualizado</h4>
+              <p>Navegador moderno con soporte activo para WebRTC y WebSockets de voz.</p>
+            </div>
+          </label>
+          <label class="check-item">
+            <input type="checkbox" class="check-input" id="chk4" onchange="saveCheck('chk4')">
+            <div class="check-text">
+              <h4>Smartphone a la Mano con WhatsApp</h4>
+              <p>Dispositivo móvil cargado para interactuar con Tenshi Voice y el grupo de soporte.</p>
+            </div>
+          </label>
+          <label class="check-item">
+            <input type="checkbox" class="check-input" id="chk5" onchange="saveCheck('chk5')">
+            <div class="check-text">
+              <h4>Espacio Silencioso con Auriculares y Micrófono</h4>
+              <p>Entorno libre de ruidos para escuchar con claridad y participar en las dinámicas.</p>
+            </div>
+          </label>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 3: TEMARIO PASO A PASO -->
+      <section>
+        <div class="sec-header">
+          <span class="sec-tag">Cronograma 7:00 PM – 9:00 PM</span>
+          <h2 class="sec-title">Paso a Paso de la Clase de Hoy</h2>
+        </div>
+
+        <!-- PASO 1 -->
+        <div class="step-card">
+          <div class="step-header">
+            <div class="step-tag-wrap">
+              <span class="step-pill" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a;">Apertura</span>
+              <span class="step-time">7:00 PM – 7:15 PM (15 Minutos Máx)</span>
+            </div>
+            <span style="font-size:11px; font-weight:800; color:#b45309;">Concepto Clave</span>
+          </div>
+          <h3 class="step-title">1. Introducción a la Inteligencia Artificial (Fundamentos Clave)</h3>
+          <p class="step-desc">
+            En 15 minutos desmitificamos la IA: qué es, qué no es, y por qué el modelo tradicional de "hacerle preguntas a un chatbot" ya quedó atrás para los prevencionistas de riesgos.
+          </p>
+          <ul class="step-list">
+            <li><strong>De la IA Generativa (ChatGPT) a la IA Agéntica:</strong> Por qué responder texto no es suficiente cuando se gestiona una matriz de 300 peligros o 60 estándares mínimos.</li>
+            <li><strong>Por qué no necesitas ser programador:</strong> La nueva era agéntica se programa en lenguaje natural, reglas de negocio y lógica de procesos.</li>
+            <li><strong>El triángulo del prevencionista moderno:</strong> LLMs (modelos de lenguaje) + RAG (contexto normativo sin alucinaciones) + Agentes ejecutores de herramientas.</li>
+          </ul>
+        </div>
+
+        <!-- PASO 2 -->
+        <div class="step-card">
+          <div class="step-header">
+            <div class="step-tag-wrap">
+              <span class="step-pill">Módulo 02</span>
+              <span class="step-time">7:15 PM – 7:45 PM (30 Minutos)</span>
+            </div>
+            <span style="font-size:11px; font-weight:800; color:#0f766e;">La Alianza Estratégica</span>
+          </div>
+          <h3 class="step-title">2. WAPPY (Cerebro SST) + Antigravity (Fábrica de Triggers y Automatizaciones)</h3>
+          <p class="step-desc">
+            Comprende la división de roles: WAPPY es el cerebro normativo y Antigravity es el brazo ejecutor local que hace lo que una web en la nube no puede tocar.
+          </p>
+          <ul class="step-list">
+            <li><strong>El rol inamovible de WAPPY:</strong> Donde residen tus agentes especialistas (Médico, Abogado, Higienista, Riesgo Vial), la matriz legal colombiana, químicos SGA y Tenshi Voice.</li>
+            <li><strong>El rol multiplicador de Antigravity:</strong> Instalado en tu computador, lee tus carpetas locales, procesa PDFs masivos y ejecuta tareas en segundo plano.</li>
+            <li><strong>Los 4 Pilares de Antigravity:</strong> Workflows (guías de procesos), Rules (reglas inviolables), Skills (habilidades modulares) y MCP (el conector universal).</li>
+          </ul>
+        </div>
+
+        <!-- PASO 3 -->
+        <div class="step-card">
+          <div class="step-header">
+            <div class="step-tag-wrap">
+              <span class="step-pill">Módulo 03</span>
+              <span class="step-time">7:45 PM – 8:25 PM (40 Minutos)</span>
+            </div>
+            <span style="font-size:11px; font-weight:800; color:#0f766e;">Superpoderes con Triggers</span>
+          </div>
+          <h3 class="step-title">3. Triggers en Antigravity para Potenciar a WAPPY</h3>
+          <p class="step-desc">
+            Aprende a crear disparadores automáticos para que el sistema trabaje solo mientras tú estás en campo o con clientes.
+          </p>
+          <ul class="step-list">
+            <li><strong>Trigger 1 · Cron / Horario:</strong> El auditor semanal de WAPPY que despierta los lunes a las 6:00 AM para revisar el cronograma de actividades y alertar a la gerencia.</li>
+            <li><strong>Trigger 2 · Carpetas Locales (File Watcher):</strong> Al guardar fotos de obra o inspecciones en el PC, Antigravity las analiza y registra el reporte de acto/condición en WAPPY.</li>
+            <li><strong>Trigger 3 · Umbrales Reactivos:</strong> Activación automática de planes de acción cuando un indicador en WAPPY sobrepasa el límite permitido.</li>
+            <li><strong>Conexión MCP:</strong> Cómo Antigravity ejecuta en tiempo real las 55+ herramientas nativas de WAPPY.</li>
+          </ul>
+        </div>
+
+        <!-- PASO 4 -->
+        <div class="step-card">
+          <div class="step-header">
+            <div class="step-tag-wrap">
+              <span class="step-pill">Módulo 04</span>
+              <span class="step-time">8:25 PM – 9:00 PM (35 Minutos)</span>
+            </div>
+            <span style="font-size:11px; font-weight:800; color:#ef4444;">Laboratorio en Vivo</span>
+          </div>
+          <h3 class="step-title">4. Laboratorio Práctico en Vivo #1 & Reto Semanal</h3>
+          <p class="step-desc">
+            Construcción en vivo de tu primer trigger local en tu máquina y asignación del reto de la semana.
+          </p>
+          <ul class="step-list">
+            <li><strong>Taller guiado:</strong> Redacción de tu archivo <code>AGENTS.md</code> y creación de tu primera habilidad conectada a WAPPY.</li>
+            <li><strong>Ronda de preguntas y debugging colaborativo:</strong> Ajuste de variables y resolución de dudas técnicas en vivo.</li>
+            <li><strong>Reto de la Semana (Laboratorio 1):</strong> Dejar configurado tu primer trigger que consulte a WAPPY antes del próximo martes.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 4: PROMPTS LISTOS -->
+      <section>
+        <div class="sec-header">
+          <span class="sec-tag">Caja de Herramientas</span>
+          <h2 class="sec-title">Prompts y Plantillas Listas para Copiar en Clase</h2>
+        </div>
+
+        <div class="code-box">
+          <div class="code-box-header">
+            <span class="code-box-title">📄 AGENTS.md · Regla de Oro Legal SG-SST</span>
+            <button class="btn-copy" onclick="copyCode('code1', this)">Copiar</button>
+          </div>
+          <pre class="code-content" id="code1"># REGLAS DEL AGENTE SST - PROYECTO COLOMBIA
 
 > [!CRITICAL]
 > Eres un prevencionista experto en Seguridad y Salud en el Trabajo bajo la legislación colombiana (Decreto 1072 de 2015 y Resolución 0312 de 2019).
 >
 > 1. Toda recomendación técnica DEBE citar el artículo, decreto o resolución oficial vigente.
 > 2. En planes de mejora, define siempre: Actividad, Responsable, Recursos y Fecha límite.
-> 3. Nunca inventes normativas ni asumas datos no confirmados por la empresa.</pre>
-      </div>
-
-      <!-- Code Box 2: SKILL.md -->
-      <div class="code-box">
-        <div class="code-box-header">
-          <span class="code-box-title">⚙️ SKILL.md · Habilidad de Inspección de Seguridad</span>
-          <button class="btn-copy" onclick="copyCode('code2', this)">Copiar</button>
+> 3. WAPPY es tu fuente central de verdad: consulta siempre los datos reales de la empresa.</pre>
         </div>
-        <pre class="code-content" id="code2">---
+
+        <div class="code-box">
+          <div class="code-box-header">
+            <span class="code-box-title">⚙️ SKILL.md · Habilidad de Trigger de Inspección</span>
+            <button class="btn-copy" onclick="copyCode('code2', this)">Copiar</button>
+          </div>
+          <pre class="code-content" id="code2">---
 name: auditoria-condiciones-inseguras
-description: Habilidad especializada para clasificar actos y condiciones inseguras según la GTC 45 y la Resolución 1401 de 2007.
+description: Habilidad especializada para vigilar carpetas de fotos, clasificar actos inseguros y radicar en WAPPY.
 ---
 
 # Procedimiento de Inspección Agéntica
-1. Lee la descripción del hallazgo o fotografía de campo.
-2. Identifica el factor de riesgo (Físico, Químico, Biológico, Biomecánico, Psicosocial, Seguridad).
-3. Evalúa el nivel de deficiencia y exposición preliminar.
-4. Genera la acción preventiva inmediata en formato de reporte WAPPY.</pre>
-      </div>
-    </section>
+1. Detecta la nueva fotografía o reporte en la carpeta vigilada.
+2. Identifica el factor de riesgo según la GTC 45 (Físico, Químico, Biomecánico, Seguridad).
+3. Evalúa el nivel de deficiencia y la medida correctiva sugerida.
+4. Conéctate a WAPPY vía MCP y registra el reporte en el centro de control.</pre>
+        </div>
+      </section>
 
-    <!-- SECCIÓN 5: RECURSOS Y DESCARGAS -->
-    <section class="resources-box">
-      <div class="res-left">
-        <h3>Descarga la Guía Oficial y Únete al Grupo VIP</h3>
-        <p>Ten a la mano el PDF de 2 páginas con el temario minuteado y conéctate al canal privado de WhatsApp.</p>
-      </div>
-      <div class="res-actions">
-        <a href="/assets/Clase_1_Antigravity_Syllabus_y_Reglas_WAPPY.pdf" download class="btn-pdf">
-          <span>📄</span> Descargar Guía PDF
-        </a>
-        <a href="https://meet.google.com/xvz-jmvv-iym" target="_blank" rel="noopener noreferrer" class="btn-meet-nav">
-          <span>📹</span> Google Meet (7:00 PM)
-        </a>
-      </div>
-    </section>
+      <!-- SECCIÓN 5: RECURSOS -->
+      <section class="resources-box">
+        <div class="res-left">
+          <h3>Descarga la Guía Oficial en PDF y Accede a la Clase</h3>
+          <p>Ten a la mano el documento con las reglas y cronograma y conéctate puntual a las 6:50 PM.</p>
+        </div>
+        <div class="res-actions">
+          <a href="/assets/Clase_1_Antigravity_Syllabus_y_Reglas_WAPPY.pdf" download class="btn-pdf">
+            <span>📄</span> Descargar Guía PDF
+          </a>
+          <a href="https://meet.google.com/xvz-jmvv-iym" target="_blank" rel="noopener noreferrer" class="btn-meet-nav">
+            <span>📹</span> Google Meet (7:00 PM)
+          </a>
+        </div>
+      </section>
 
-    <!-- FOOTER -->
-    <footer>
-      <p><strong>WAPPY IA</strong> · Especialización Práctica en IA Agéntica para SG-SST</p>
-      <p style="margin-top: 4px;">Docente: Félix Bedoya · Grupo Exclusivo de 12 Participantes · Clase 01</p>
-    </footer>
+      <footer>
+        <p><strong>WAPPY IA</strong> · Especialización Práctica en IA Agéntica para SG-SST</p>
+        <p style="margin-top: 4px;">Docente: Félix Bedoya · Grupo Exclusivo de 12 Participantes · Clase 01</p>
+      </footer>
+    </div>
+
   </div>
 
   <!-- FLOATING BOTTOM BAR (MOBILE ONLY) -->
@@ -1168,6 +1633,69 @@ description: Habilidad especializada para clasificar actos y condiciones insegur
   </div>
 
   <script>
+    // Slide Deck Controller
+    let currentSlide = 1;
+    const totalSlides = 10;
+
+    function showSlide(index) {
+      if (index < 1 || index > totalSlides) return;
+      document.querySelectorAll('.slide').forEach(el => el.classList.remove('active'));
+      const activeEl = document.getElementById('slide-' + index);
+      if (activeEl) {
+        activeEl.classList.add('active');
+        currentSlide = index;
+        document.getElementById('deck-counter').innerText = currentSlide + ' / ' + totalSlides;
+        document.getElementById('slide-progress').style.width = ((currentSlide / totalSlides) * 100) + '%';
+        
+        document.getElementById('btn-prev').disabled = (currentSlide === 1);
+        document.getElementById('btn-next').disabled = (currentSlide === totalSlides);
+      }
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides) showSlide(currentSlide + 1);
+    }
+
+    function prevSlide() {
+      if (currentSlide > 1) showSlide(currentSlide - 1);
+    }
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+      if (document.getElementById('presentation-mode').style.display !== 'none') {
+        if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+          e.preventDefault();
+          nextSlide();
+        } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+          e.preventDefault();
+          prevSlide();
+        }
+      }
+    });
+
+    // Toggle between Presentation Mode and Guide Mode
+    function setViewMode(mode) {
+      const deckEl = document.getElementById('presentation-mode');
+      const guideEl = document.getElementById('guide-mode');
+      const btnDeck = document.getElementById('btn-view-deck');
+      const btnGuide = document.getElementById('btn-view-guide');
+
+      if (mode === 'deck') {
+        deckEl.style.display = 'block';
+        guideEl.style.display = 'none';
+        btnDeck.classList.add('active');
+        btnGuide.classList.remove('active');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        deckEl.style.display = 'none';
+        guideEl.style.display = 'block';
+        btnDeck.classList.remove('active');
+        btnGuide.classList.add('active');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+
+    // Copy to clipboard
     function copyCode(id, btn) {
       const el = document.getElementById(id);
       if (!el) return;
@@ -1184,6 +1712,7 @@ description: Habilidad especializada para clasificar actos y condiciones insegur
       });
     }
 
+    // Checklist persistence
     function saveCheck(id) {
       const el = document.getElementById(id);
       if (el) {
@@ -1191,7 +1720,6 @@ description: Habilidad especializada para clasificar actos y condiciones insegur
       }
     }
 
-    // Restore checklist on load
     document.addEventListener('DOMContentLoaded', () => {
       ['chk1', 'chk2', 'chk3', 'chk4', 'chk5'].forEach(id => {
         const val = localStorage.getItem('wappy_clase1_' + id);
@@ -1200,6 +1728,8 @@ description: Habilidad especializada para clasificar actos y condiciones insegur
           el.checked = true;
         }
       });
+      // Default show slide 1
+      showSlide(1);
     });
   </script>
 </body>
