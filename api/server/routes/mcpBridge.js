@@ -5453,6 +5453,12 @@ const resolveSgsstReportTags = (rawStr = '') => {
   if (s.includes('simulacro') || s.includes('evacuacion')) return ['sgsst-simulacros-emergencia'];
   if (s.includes('predictivo') || s.includes('oraculo') || s.includes('compliance')) return ['sgsst-predictivo-ia', 'sgsst-oraculo-h1'];
   if (s.includes('cargo') || s.includes('perfil_cargo')) return ['sgsst-perfil-cargo'];
+  if (s.includes('contexto') || s.includes('dofa') || s.includes('pestel') || s.includes('parte') || s.includes('stakeholder')) return ['sgsst-contexto-organizacion', 'sgsst-partes-interesadas'];
+  if (s.includes('oportunidad') || s.includes('riesgos_sistema') || s.includes('riesgo del sistema')) return ['sgsst-oportunidades-sst'];
+  if (s.includes('compra') || s.includes('adquisicion')) return ['sgsst-compras-sst'];
+  if (s.includes('contratista') || s.includes('proveedor')) return ['sgsst-contratistas-proveedores'];
+  if (s.includes('cambio') || s.includes('moc')) return ['sgsst-gestion-cambio'];
+  if (s.includes('comunicacion')) return ['sgsst-comunicaciones-sst'];
   return null;
 };
 

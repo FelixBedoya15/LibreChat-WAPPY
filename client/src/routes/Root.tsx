@@ -139,7 +139,7 @@ export default function Root() {
   };
 
   const isPublicRoute = (pathname: string) => {
-    const publicPaths = ['/', '', '/landing', '/inicio', '/planes', '/contactanos', '/privacy', '/terms', '/about', '/register', '/login', '/comunidad', '/comunidadmp', '/wappyvital', '/portafolio', '/portafolio.html', '/embajadores', '/embajadores.html', '/mauricioposada', '/mauricioposada.html', '/cursowappy01', '/cursowappy01.html'];
+    const publicPaths = ['/', '', '/landing', '/inicio', '/planes', '/contactanos', '/privacy', '/terms', '/about', '/register', '/login', '/comunidad', '/comunidadmp', '/wappyvital', '/portafolio', '/portafolio.html', '/embajadores', '/embajadores.html', '/mauricioposada', '/mauricioposada.html', '/cursowappy01', '/cursowappy01.html', '/clase1', '/clase1.html'];
     if (publicPaths.includes(pathname)) {
       return true;
     }

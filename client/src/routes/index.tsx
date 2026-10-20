@@ -75,6 +75,7 @@ const ContactPage = lazy(() => import('~/components/Plans/ContactPage'));
 const AmbassadorDashboard = lazy(() => import('~/components/Ambassadors/AmbassadorDashboard'));
 const RoadmapPage = lazy(() => import('~/components/Roadmap/RoadmapPage'));
 const CursoWappy01Page = lazy(() => import('~/components/Courses/CursoWappy01Page'));
+const Clase1Page = lazy(() => import('~/components/Courses/Clase1Page'));
 
 const PageLoader = () => (
   <div className="flex h-full w-full items-center justify-center p-8 min-h-[50vh]">
@@ -112,6 +113,17 @@ const CursoWappy01Route = () => {
     <AuthContextProvider>
       <TenshiStandaloneHost>
         <CursoWappy01Page />
+      </TenshiStandaloneHost>
+      <ApiErrorWatcher />
+    </AuthContextProvider>
+  );
+};
+
+const Clase1Route = () => {
+  return withSuspense(
+    <AuthContextProvider>
+      <TenshiStandaloneHost>
+        <Clase1Page />
       </TenshiStandaloneHost>
       <ApiErrorWatcher />
     </AuthContextProvider>
@@ -498,6 +510,16 @@ export const router = createBrowserRouter(
     {
       path: 'cursowappy01.html',
       element: <CursoWappy01Route />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'clase1',
+      element: <Clase1Route />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'clase1.html',
+      element: <Clase1Route />,
       errorElement: <RouteErrorBoundary />,
     },
     {
