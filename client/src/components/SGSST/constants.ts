@@ -9,12 +9,14 @@ export const PHASE_CATEGORIES = {
         { 
             id: 'contexto_organizacion', title: 'Contexto y Partes Interesadas (DOFA / Stakeholders)', icon: 'Compass',
             bioRationale: 'Evaluación del contexto interno/externo (DOFA/PESTEL) y matriz de expectativas de partes interesadas (trabajadores, contratistas, comunidad y entes de control) para cimentar la gobernanza de SST.', 
-            normativity: 'Hito 1: Gobernanza y Cimiento Legal (ISO 45001 Num. 4.1 y 4.2 • Res. 0312)' 
+            normativity: 'Hito 1: Gobernanza y Cimiento Legal (ISO 45001 Num. 4.1 y 4.2 • Res. 0312)',
+            defaultDisabled: true
         },
         { 
             id: 'oportunidades_sst', title: 'Riesgos del Sistema y Oportunidades SST', icon: 'Sparkles',
             bioRationale: 'Identificación planificada de oportunidades de innovación, ergonomía y bienestar en SST, y gestión de riesgos estratégicos para el SG-SST.', 
-            normativity: 'Hito 1: Gobernanza y Cimiento Legal (ISO 45001 Num. 6.1.1 y 6.1.2.3 • Res. 0312 Est. 2.4.1)' 
+            normativity: 'Hito 1: Gobernanza y Cimiento Legal (ISO 45001 Num. 6.1.1 y 6.1.2.3 • Res. 0312 Est. 2.4.1)',
+            defaultDisabled: true
         },
         { 
             id: 'participacion_ipevar', title: 'Participación IPEVR Comunitaria', icon: 'Users',
@@ -194,17 +196,20 @@ export const PHASE_CATEGORIES = {
         { 
             id: 'gestion_cambio', title: 'Gestión del Cambio en SST (MOC)', icon: 'GitMerge',
             bioRationale: 'Procedimiento y flujo sistemático para evaluar, aprobar y controlar los impactos en SST antes de implementar cambios locativos, técnicos, normativos o de personal en la organización.', 
-            normativity: 'Hito 5: Dinámica Operativa y Terreno (ISO 45001 Num. 8.1.3 • Dec. 1072 Art. 2.2.4.6.26)' 
+            normativity: 'Hito 5: Dinámica Operativa y Terreno (ISO 45001 Num. 8.1.3 • Dec. 1072 Art. 2.2.4.6.26)',
+            defaultDisabled: true
         },
         { 
             id: 'contratistas_proveedores', title: 'Control y Gestión de Contratistas', icon: 'Briefcase',
             bioRationale: 'Padrón, calificación técnica, inducción y verificación en terreno de seguridad social (PILA), certificaciones y cumplimiento de normas SST para contratistas y terceros.', 
-            normativity: 'Hito 5: Dinámica Operativa y Terreno (ISO 45001 Num. 8.1.4.2 • Dec. 1072 Art. 2.2.4.6.28)' 
+            normativity: 'Hito 5: Dinámica Operativa y Terreno (ISO 45001 Num. 8.1.4.2 • Dec. 1072 Art. 2.2.4.6.28)',
+            defaultDisabled: true
         },
         { 
             id: 'compras_sst', title: 'Compras y Adquisiciones en SST', icon: 'ShoppingBag',
             bioRationale: 'Control previo y verificación de especificaciones de seguridad en la adquisición de materias primas, insumos químicos, maquinaria, herramientas y EPP.', 
-            normativity: 'Hito 5: Dinámica Operativa y Terreno (ISO 45001 Num. 8.1.4.1 • Dec. 1072 Art. 2.2.4.6.27)' 
+            normativity: 'Hito 5: Dinámica Operativa y Terreno (ISO 45001 Num. 8.1.4.1 • Dec. 1072 Art. 2.2.4.6.27)',
+            defaultDisabled: true
         }
     ],
 
@@ -229,7 +234,8 @@ export const PHASE_CATEGORIES = {
         { 
             id: 'comunicaciones_sst', title: 'Plan y Matriz de Comunicaciones SST', icon: 'MessageSquare',
             bioRationale: 'Estructuración de canales internos con colaboradores y protocolo de vocería oficial ante medios de comunicación, autoridades y comunidad vecina.', 
-            normativity: 'Hito 6: Cultura, Escuela e Innovación (ISO 45001 Num. 7.4 • Dec. 1072 Art. 2.2.4.6.14 • Res. 0312 Est. 2.8.1)' 
+            normativity: 'Hito 6: Cultura, Escuela e Innovación (ISO 45001 Num. 7.4 • Dec. 1072 Art. 2.2.4.6.14 • Res. 0312 Est. 2.8.1)',
+            defaultDisabled: true
         },
         { 
             id: 'ruta_aprendizaje', title: 'Rutas de Aprendizaje (LMS)', icon: 'GraduationCap',
@@ -297,6 +303,12 @@ export const DEFAULT_CONSTRUCTION_APPS = [
     'plan_emergencias',
     'equipos_emergencia',
     'simulacros_emergencia',
+    'contexto_organizacion',
+    'oportunidades_sst',
+    'gestion_cambio',
+    'contratistas_proveedores',
+    'compras_sst',
+    'comunicaciones_sst',
 ];
 
 export const SGSST_MODULE_PHASE_MAP: Record<string, string> = {
