@@ -700,6 +700,20 @@ const startServer = async () => {
     next();
   });
 
+  app.get(['/clase1', '/clase1.html'], (req, res, next) => {
+    const candidatePaths = [
+      path.resolve(__dirname, '../../client/dist/clase1.html'),
+      path.resolve(__dirname, '../../client/public/clase1.html'),
+      path.resolve(__dirname, '../../clase1.html'),
+    ];
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        return res.sendFile(p);
+      }
+    }
+    next();
+  });
+
   app.post('/api/embajadores/send-otp', async (req, res) => {
     try {
       const { email, name, otpCode } = req.body;

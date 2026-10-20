@@ -120,14 +120,8 @@ const CursoWappy01Route = () => {
 };
 
 const Clase1Route = () => {
-  return withSuspense(
-    <AuthContextProvider>
-      <TenshiStandaloneHost>
-        <Clase1Page />
-      </TenshiStandaloneHost>
-      <ApiErrorWatcher />
-    </AuthContextProvider>
-  );
+  window.location.replace('/clase1.html');
+  return null;
 };
 
 const RootIndexRedirect = () => {

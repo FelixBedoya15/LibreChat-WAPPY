@@ -18,7 +18,7 @@ html_content = f'''<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
   <title>Clase 1: Introducción a la IA, WAPPY & Antigravity | Ecosistema Autónomo SST</title>
   <meta name="description" content="Presentación interactiva y guía paso a paso de la Clase 1. Introducción a la IA (15 min), WAPPY y Antigravity, instalación, creación de proyectos, triggers, skills, NotebookLM, Drive y alimentación a WAPPY.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -51,25 +51,27 @@ html_content = f'''<!DOCTYPE html>
       --font-code: "Fira Code", monospace;
     }}
 
-    * {{
+    /* Global reset preventing horizontal scroll */
+    *, *::before, *::after {{
       box-sizing: border-box;
       margin: 0;
       padding: 0;
+      max-width: 100%;
       -webkit-font-smoothing: antialiased;
     }}
 
-    html {{
-      scroll-behavior: smooth;
-      scroll-padding-top: 90px;
+    html, body {{
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden !important;
+      background-color: var(--bg);
+      color: var(--slate-900);
+      font-family: var(--font-ui);
+      line-height: 1.5;
     }}
 
     body {{
-      font-family: var(--font-ui);
-      background-color: var(--bg);
-      color: var(--slate-900);
-      line-height: 1.55;
-      overflow-x: hidden;
-      padding-bottom: 90px;
+      padding-bottom: 80px;
     }}
 
     a {{
@@ -78,9 +80,16 @@ html_content = f'''<!DOCTYPE html>
     }}
 
     .wrap {{
-      max-width: 1060px;
+      width: 100%;
+      max-width: 1040px;
       margin: 0 auto;
-      padding: 0 16px;
+      padding: 0 12px;
+    }}
+
+    @media (min-width: 640px) {{
+      .wrap {{
+        padding: 0 20px;
+      }}
     }}
 
     /* ==========================================================================
@@ -89,38 +98,39 @@ html_content = f'''<!DOCTYPE html>
     .top-live-bar {{
       background: linear-gradient(90deg, #042f2e 0%, #0f766e 50%, #042f2e 100%);
       color: #ffffff;
-      padding: 8px 16px;
-      font-size: 12px;
+      padding: 6px 12px;
+      font-size: 11px;
       font-weight: 600;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
+      gap: 8px;
       text-align: center;
+      flex-wrap: wrap;
       border-bottom: 1px solid rgba(94, 234, 212, 0.25);
     }}
 
     .live-pulse {{
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       background: rgba(239, 68, 68, 0.25);
       border: 1px solid #ef4444;
       color: #fecaca;
-      padding: 2px 8px;
+      padding: 2px 7px;
       border-radius: 999px;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }}
 
     .live-dot {{
-      width: 7px;
-      height: 7px;
+      width: 6px;
+      height: 6px;
       background-color: #ef4444;
       border-radius: 50%;
-      box-shadow: 0 0 8px #ef4444;
+      box-shadow: 0 0 6px #ef4444;
       animation: pulse 1.5s infinite;
     }}
 
@@ -130,55 +140,107 @@ html_content = f'''<!DOCTYPE html>
     }}
 
     /* ==========================================================================
-       FLOATING NAVBAR CAPSULE
+       FLOATING NAVBAR CAPSULE (RESPONSIVE)
        ========================================================================== */
     .nav-wrap {{
       position: sticky;
-      top: 12px;
+      top: 8px;
       z-index: 100;
-      padding: 0 16px;
-      margin-bottom: 16px;
+      padding: 0 8px;
+      margin-bottom: 12px;
+    }}
+
+    @media (min-width: 640px) {{
+      .nav-wrap {{
+        top: 12px;
+        padding: 0 16px;
+        margin-bottom: 16px;
+      }}
     }}
 
     .nav-inner {{
-      max-width: 1060px;
+      max-width: 1040px;
       margin: 0 auto;
-      background: rgba(255, 255, 255, 0.94);
+      background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
       border: 1px solid rgba(226, 232, 240, 0.9);
-      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06);
-      border-radius: 20px;
-      padding: 8px 16px;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
+      border-radius: 16px;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }}
+
+    @media (min-width: 640px) {{
+      .nav-inner {{
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 16px;
+        border-radius: 20px;
+      }}
+    }}
+
+    .nav-top-row {{
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      width: 100%;
+    }}
+
+    @media (min-width: 640px) {{
+      .nav-top-row {{
+        width: auto;
+        gap: 16px;
+      }}
     }}
 
     .nav-logo {{
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
     }}
 
     .nav-logo img {{
-      height: 28px;
+      height: 24px;
       object-fit: contain;
     }}
 
+    @media (min-width: 640px) {{
+      .nav-logo img {{
+        height: 28px;
+      }}
+    }}
+
+    .nav-logo-text {{
+      font-size: 13px;
+      font-weight: 900;
+      color: #042f2e;
+      letter-spacing: -0.3px;
+    }}
+
     .nav-view-toggles {{
-      display: inline-flex;
+      display: flex;
+      width: 100%;
       background: #f1f5f9;
       padding: 3px;
       border-radius: 12px;
-      gap: 2px;
+      gap: 3px;
+    }}
+
+    @media (min-width: 640px) {{
+      .nav-view-toggles {{
+        width: auto;
+      }}
     }}
 
     .toggle-btn {{
+      flex: 1;
       border: none;
       background: transparent;
-      padding: 6px 12px;
+      padding: 7px 10px;
       border-radius: 9px;
       font-size: 12px;
       font-weight: 700;
@@ -186,8 +248,17 @@ html_content = f'''<!DOCTYPE html>
       cursor: pointer;
       display: flex;
       align-items: center;
+      justify-content: center;
       gap: 5px;
       transition: all 0.2s ease;
+      white-space: nowrap;
+    }}
+
+    @media (min-width: 640px) {{
+      .toggle-btn {{
+        flex: initial;
+        padding: 6px 14px;
+      }}
     }}
 
     .toggle-btn.active {{
@@ -199,57 +270,86 @@ html_content = f'''<!DOCTYPE html>
     .nav-actions {{
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
+    }}
+
+    .btn-wappy-home {{
+      font-size: 11px;
+      font-weight: 700;
+      color: #0f766e;
+      padding: 5px 9px;
+      border-radius: 8px;
+      background: #f0fdfa;
+      border: 1px solid #ccfbf1;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }}
 
     .btn-meet-nav {{
       background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
       color: #ffffff;
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 800;
-      padding: 7px 14px;
+      padding: 6px 12px;
       border-radius: 999px;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       transition: all 0.2s ease;
-      box-shadow: 0 2px 8px rgba(13, 148, 136, 0.3);
+      box-shadow: 0 2px 6px rgba(13, 148, 136, 0.3);
       white-space: nowrap;
     }}
 
-    .btn-meet-nav:hover {{
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(13, 148, 136, 0.45);
+    @media (min-width: 640px) {{
+      .btn-meet-nav {{
+        font-size: 12px;
+        padding: 7px 14px;
+      }}
     }}
 
     /* ==========================================================================
-       SLIDE DECK PRESENTATION MODE
+       SLIDE DECK PRESENTATION MODE (MOBILE OPTIMIZED)
        ========================================================================== */
     #presentation-mode {{
       display: block;
-      margin-bottom: 30px;
+      margin-bottom: 24px;
+      width: 100%;
     }}
 
     .deck-container {{
       background: #0f172a;
       border: 1px solid #334155;
-      border-radius: 24px;
+      border-radius: 18px;
       overflow: hidden;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
       color: #ffffff;
+      width: 100%;
+    }}
+
+    @media (min-width: 640px) {{
+      .deck-container {{
+        border-radius: 24px;
+      }}
     }}
 
     .deck-topbar {{
       background: #1e293b;
-      padding: 12px 20px;
+      padding: 10px 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       border-bottom: 1px solid #334155;
     }}
 
+    @media (min-width: 640px) {{
+      .deck-topbar {{
+        padding: 12px 20px;
+      }}
+    }}
+
     .deck-title {{
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 700;
       color: #94a3b8;
       display: flex;
@@ -260,32 +360,59 @@ html_content = f'''<!DOCTYPE html>
     .deck-counter {{
       background: #0d9488;
       color: #ffffff;
-      padding: 2px 10px;
+      padding: 2px 9px;
       border-radius: 999px;
       font-size: 11px;
       font-weight: 800;
       letter-spacing: 0.5px;
     }}
 
+    .deck-hint-kbd {{
+      display: none;
+    }}
+
+    @media (min-width: 640px) {{
+      .deck-hint-kbd {{
+        display: block;
+        font-size: 11px;
+        color: #94a3b8;
+      }}
+    }}
+
+    .deck-hint-touch {{
+      display: block;
+      font-size: 10.5px;
+      color: #5eead4;
+      font-weight: 600;
+    }}
+
+    @media (min-width: 640px) {{
+      .deck-hint-touch {{
+        display: none;
+      }}
+    }}
+
     .slide-viewport {{
       position: relative;
-      min-height: 480px;
-      padding: 32px 24px;
+      min-height: 380px;
+      padding: 18px 14px;
       display: flex;
       flex-direction: column;
       justify-content: center;
+      touch-action: pan-y;
+      user-select: none;
     }}
 
-    @media (min-width: 768px) {{
+    @media (min-width: 640px) {{
       .slide-viewport {{
-        min-height: 520px;
-        padding: 44px 40px;
+        min-height: 480px;
+        padding: 36px 32px;
       }}
     }}
 
     .slide {{
       display: none;
-      animation: fadeInSlide 0.35s ease forwards;
+      animation: fadeInSlide 0.25s ease forwards;
     }}
 
     .slide.active {{
@@ -293,7 +420,7 @@ html_content = f'''<!DOCTYPE html>
     }}
 
     @keyframes fadeInSlide {{
-      from {{ opacity: 0; transform: translateY(8px); }}
+      from {{ opacity: 0; transform: translateY(6px); }}
       to {{ opacity: 1; transform: translateY(0); }}
     }}
 
@@ -302,13 +429,14 @@ html_content = f'''<!DOCTYPE html>
       background: rgba(94, 234, 212, 0.15);
       border: 1px solid #5eead4;
       color: #5eead4;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 0.8px;
-      padding: 4px 12px;
+      letter-spacing: 0.6px;
+      padding: 3px 9px;
       border-radius: 999px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
+      line-height: 1.2;
     }}
 
     .slide-badge.intro {{
@@ -325,48 +453,72 @@ html_content = f'''<!DOCTYPE html>
 
     .slide h2 {{
       font-family: var(--font-display);
-      font-size: 24px;
+      font-size: 18px;
       font-weight: 900;
-      line-height: 1.25;
+      line-height: 1.3;
       color: #ffffff;
+      margin-bottom: 8px;
+      word-break: break-word;
+    }}
+
+    @media (min-width: 640px) {{
+      .slide h2 {{
+        font-size: 26px;
+        margin-bottom: 12px;
+      }}
+    }}
+
+    .slide-lead {{
+      font-size: 12.5px;
+      color: #cbd5e1;
+      line-height: 1.45;
       margin-bottom: 14px;
     }}
 
     @media (min-width: 640px) {{
-      .slide h2 {{ font-size: 30px; }}
-    }}
-
-    .slide-lead {{
-      font-size: 15px;
-      color: #cbd5e1;
-      line-height: 1.5;
-      margin-bottom: 20px;
+      .slide-lead {{
+        font-size: 14px;
+        line-height: 1.5;
+        margin-bottom: 18px;
+      }}
     }}
 
     .slide-content-grid {{
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 12px;
-      margin-top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
     }}
 
     @media (min-width: 640px) {{
       .slide-content-grid.two-cols {{
+        display: grid;
         grid-template-columns: 1fr 1fr;
+        gap: 12px;
       }}
       .slide-content-grid.three-cols {{
+        display: grid;
         grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
       }}
+      .slide-content-grid.four-cols {{
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+      }}
+    }}
+
+    @media (min-width: 1024px) {{
       .slide-content-grid.four-cols {{
         grid-template-columns: repeat(4, 1fr);
       }}
     }}
 
     .slide-card {{
-      background: rgba(30, 41, 59, 0.7);
+      background: rgba(30, 41, 59, 0.75);
       border: 1px solid rgba(148, 163, 184, 0.2);
-      border-radius: 14px;
-      padding: 16px;
+      border-radius: 12px;
+      padding: 12px 14px;
     }}
 
     .slide-card.highlight {{
@@ -380,13 +532,14 @@ html_content = f'''<!DOCTYPE html>
     }}
 
     .slide-card h4 {{
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 800;
       color: #5eead4;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
       display: flex;
       align-items: center;
       gap: 6px;
+      line-height: 1.3;
     }}
 
     .slide-card h4.lime {{
@@ -398,51 +551,81 @@ html_content = f'''<!DOCTYPE html>
     }}
 
     .slide-card p {{
-      font-size: 12.5px;
+      font-size: 11.5px;
       color: #cbd5e1;
-      line-height: 1.45;
+      line-height: 1.4;
+    }}
+
+    @media (min-width: 640px) {{
+      .slide-card p {{
+        font-size: 12.5px;
+      }}
     }}
 
     .slide-card code {{
       font-family: var(--font-code);
-      background: rgba(0, 0, 0, 0.35);
-      padding: 1px 5px;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 1px 4px;
       border-radius: 4px;
       color: #5eead4;
-      font-size: 11px;
+      font-size: 10.5px;
     }}
 
-    /* Deck Controls */
+    /* Deck Controls (Touch-Friendly Responsive) */
     .deck-footer {{
       background: #1e293b;
-      padding: 14px 20px;
+      padding: 12px 14px;
       display: flex;
-      align-items: center;
-      justify-content: space-between;
+      flex-direction: column;
+      gap: 10px;
       border-top: 1px solid #334155;
-      gap: 12px;
-      flex-wrap: wrap;
+    }}
+
+    @media (min-width: 640px) {{
+      .deck-footer {{
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 20px;
+      }}
     }}
 
     .deck-nav-btns {{
       display: flex;
-      align-items: center;
-      gap: 10px;
+      width: 100%;
+      gap: 8px;
+    }}
+
+    @media (min-width: 640px) {{
+      .deck-nav-btns {{
+        width: auto;
+      }}
     }}
 
     .btn-slide-nav {{
+      flex: 1;
       background: rgba(255, 255, 255, 0.12);
       border: 1px solid rgba(255, 255, 255, 0.2);
       color: #ffffff;
-      font-size: 13px;
+      font-size: 12.5px;
       font-weight: 700;
-      padding: 8px 18px;
-      border-radius: 999px;
+      padding: 10px 14px;
+      border-radius: 10px;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       gap: 6px;
       transition: all 0.2s ease;
+      touch-action: manipulation;
+    }}
+
+    @media (min-width: 640px) {{
+      .btn-slide-nav {{
+        flex: initial;
+        border-radius: 999px;
+        padding: 8px 18px;
+      }}
     }}
 
     .btn-slide-nav:hover:not(:disabled) {{
@@ -451,8 +634,31 @@ html_content = f'''<!DOCTYPE html>
     }}
 
     .btn-slide-nav:disabled {{
-      opacity: 0.35;
+      opacity: 0.3;
       cursor: not-allowed;
+    }}
+
+    .deck-meet-btn {{
+      width: 100%;
+      background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+      color: #ffffff;
+      font-size: 12.5px;
+      font-weight: 800;
+      padding: 10px 16px;
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow: 0 2px 8px rgba(13, 148, 136, 0.3);
+    }}
+
+    @media (min-width: 640px) {{
+      .deck-meet-btn {{
+        width: auto;
+        border-radius: 999px;
+        padding: 8px 18px;
+      }}
     }}
 
     .slide-progress-bar {{
@@ -469,17 +675,22 @@ html_content = f'''<!DOCTYPE html>
     }}
 
     /* ==========================================================================
-       HERO & GENERAL SECTIONS
+       HERO & GENERAL SECTIONS (GUIDE MODE)
        ========================================================================== */
     .hero {{
       background: linear-gradient(145deg, #042f2e 0%, #0f766e 60%, #115e59 100%);
-      border-radius: 24px;
-      padding: 32px 24px;
+      border-radius: 18px;
+      padding: 22px 16px;
       color: #ffffff;
-      position: relative;
-      overflow: hidden;
-      margin-bottom: 24px;
-      box-shadow: 0 10px 30px rgba(15, 118, 110, 0.18);
+      margin-bottom: 20px;
+      box-shadow: 0 10px 25px rgba(15, 118, 110, 0.15);
+    }}
+
+    @media (min-width: 640px) {{
+      .hero {{
+        border-radius: 24px;
+        padding: 32px 24px;
+      }}
     }}
 
     .hero-badge {{
@@ -487,64 +698,74 @@ html_content = f'''<!DOCTYPE html>
       background: rgba(255, 255, 255, 0.15);
       border: 1px solid rgba(255, 255, 255, 0.3);
       color: #ccfbf1;
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 0.8px;
-      padding: 3px 10px;
+      letter-spacing: 0.7px;
+      padding: 3px 9px;
       border-radius: 999px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }}
 
     .hero h1 {{
       font-family: var(--font-display);
-      font-size: 26px;
+      font-size: 21px;
       font-weight: 900;
-      line-height: 1.2;
+      line-height: 1.25;
       color: #ffffff;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
+      word-break: break-word;
     }}
 
     @media (min-width: 640px) {{
-      .hero h1 {{ font-size: 34px; }}
+      .hero h1 {{
+        font-size: 32px;
+      }}
     }}
 
     .hero-sub {{
-      font-size: 14.5px;
+      font-size: 13px;
       color: #e6fffa;
-      max-width: 820px;
-      line-height: 1.5;
-      margin-bottom: 20px;
+      line-height: 1.45;
+      margin-bottom: 16px;
+    }}
+
+    @media (min-width: 640px) {{
+      .hero-sub {{
+        font-size: 14.5px;
+      }}
     }}
 
     .hero-meta-grid {{
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
-      margin-bottom: 20px;
+      gap: 8px;
+      margin-bottom: 16px;
     }}
 
     @media (min-width: 640px) {{
-      .hero-meta-grid {{ grid-template-columns: repeat(4, 1fr); }}
+      .hero-meta-grid {{
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+      }}
     }}
 
     .hero-meta-item {{
       background: rgba(0, 0, 0, 0.22);
       border: 1px solid rgba(255, 255, 255, 0.15);
-      padding: 10px 14px;
-      border-radius: 12px;
+      padding: 8px 10px;
+      border-radius: 10px;
     }}
 
     .hero-meta-label {{
-      font-size: 10.5px;
+      font-size: 10px;
       color: #a7f3d0;
       text-transform: uppercase;
       font-weight: 700;
-      letter-spacing: 0.5px;
     }}
 
     .hero-meta-val {{
-      font-size: 13.5px;
+      font-size: 12.5px;
       font-weight: 800;
       color: #ffffff;
       margin-top: 2px;
@@ -553,12 +774,11 @@ html_content = f'''<!DOCTYPE html>
     .hero-cta-box {{
       background: rgba(255, 255, 255, 0.12);
       border: 1.5px solid #5eead4;
-      border-radius: 16px;
-      padding: 16px 20px;
+      border-radius: 14px;
+      padding: 14px 16px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      align-items: flex-start;
+      gap: 10px;
     }}
 
     @media (min-width: 640px) {{
@@ -570,137 +790,142 @@ html_content = f'''<!DOCTYPE html>
     }}
 
     .hero-cta-info h3 {{
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 800;
       color: #ffffff;
       margin-bottom: 2px;
     }}
 
     .hero-cta-info p {{
-      font-size: 12px;
+      font-size: 11.5px;
       color: #ccfbf1;
     }}
 
     .hero-cta-btn {{
       display: inline-flex;
       align-items: center;
-      gap: 8px;
+      justify-content: center;
+      gap: 6px;
       background: #ffffff;
       color: #042f2e;
       font-family: var(--font-display);
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 900;
-      padding: 12px 24px;
+      padding: 10px 20px;
       border-radius: 999px;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
-      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
       white-space: nowrap;
     }}
 
-    .hero-cta-btn:hover {{
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-      background: #f0fdfa;
+    /* Synergistic Highlight */
+    .synergy-card {{
+      background: linear-gradient(135deg, #f0fdfa 0%, #e6fffa 100%);
+      border: 2px solid #5eead4;
+      border-radius: 16px;
+      padding: 16px;
+      margin: 16px 0;
     }}
 
-    /* ==========================================================================
-       SECTION HEADERS & CARDS
-       ========================================================================== */
+    @media (min-width: 640px) {{
+      .synergy-card {{
+        border-radius: 20px;
+        padding: 22px;
+        margin: 20px 0;
+      }}
+    }}
+
+    .synergy-grid {{
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 12px;
+    }}
+
+    @media (min-width: 640px) {{
+      .synergy-grid {{
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }}
+    }}
+
+    .synergy-box {{
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 14px;
+      border: 1px solid #ccfbf1;
+      box-shadow: 0 2px 6px rgba(15, 118, 110, 0.05);
+    }}
+
+    .synergy-box h4 {{
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--teal);
+      margin-bottom: 4px;
+    }}
+
+    .synergy-box p {{
+      font-size: 12px;
+      color: var(--slate-700);
+      line-height: 1.4;
+    }}
+
+    /* Section Headers */
     .sec-header {{
-      margin-bottom: 16px;
-      margin-top: 36px;
+      margin-bottom: 12px;
+      margin-top: 28px;
     }}
 
     .sec-tag {{
       display: inline-block;
-      font-size: 10px;
+      font-size: 9.5px;
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.8px;
       background: #ccfbf1;
       color: #0f766e;
       border: 1px solid #99f6e4;
-      padding: 2px 8px;
+      padding: 2px 7px;
       border-radius: 999px;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }}
 
     .sec-title {{
       font-family: var(--font-display);
-      font-size: 22px;
+      font-size: 19px;
       font-weight: 900;
       color: var(--slate-900);
       line-height: 1.25;
-    }}
-
-    .sec-sub {{
-      font-size: 13.5px;
-      color: var(--slate-600);
-      margin-top: 4px;
-    }}
-
-    /* Synergistic Highlight: WAPPY vs Antigravity */
-    .synergy-card {{
-      background: linear-gradient(135deg, #f0fdfa 0%, #e6fffa 100%);
-      border: 2px solid #5eead4;
-      border-radius: 20px;
-      padding: 22px;
-      margin: 20px 0;
-    }}
-
-    .synergy-grid {{
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 16px;
-      margin-top: 14px;
+      word-break: break-word;
     }}
 
     @media (min-width: 640px) {{
-      .synergy-grid {{ grid-template-columns: 1fr 1fr; }}
-    }}
-
-    .synergy-box {{
-      background: #ffffff;
-      border-radius: 14px;
-      padding: 16px;
-      border: 1px solid #ccfbf1;
-      box-shadow: 0 2px 8px rgba(15, 118, 110, 0.05);
-    }}
-
-    .synergy-box h4 {{
-      font-size: 15px;
-      font-weight: 800;
-      color: var(--teal);
-      margin-bottom: 6px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }}
-
-    .synergy-box p {{
-      font-size: 12.5px;
-      color: var(--slate-700);
-      line-height: 1.45;
+      .sec-title {{
+        font-size: 22px;
+      }}
     }}
 
     /* Rules Grid */
     .rules-grid {{
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }}
 
     @media (min-width: 640px) {{
-      .rules-grid {{ grid-template-columns: 1fr 1fr; }}
+      .rules-grid {{
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }}
     }}
 
     .rule-card {{
       background: #ffffff;
       border: 1px solid var(--slate-200);
       border-left: 4px solid var(--teal);
-      border-radius: 16px;
-      padding: 16px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+      border-radius: 14px;
+      padding: 14px;
     }}
 
     .rule-card.urgent {{
@@ -713,21 +938,23 @@ html_content = f'''<!DOCTYPE html>
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
+      gap: 6px;
     }}
 
     .rule-title {{
-      font-size: 13.5px;
+      font-size: 13px;
       font-weight: 800;
       color: var(--slate-900);
     }}
 
     .rule-badge {{
-      font-size: 9px;
+      font-size: 8.5px;
       font-weight: 800;
-      padding: 2px 6px;
-      border-radius: 6px;
+      padding: 1.5px 5px;
+      border-radius: 4px;
       text-transform: uppercase;
+      white-space: nowrap;
     }}
 
     .badge-amber {{
@@ -743,28 +970,36 @@ html_content = f'''<!DOCTYPE html>
     }}
 
     .rule-desc {{
-      font-size: 12px;
+      font-size: 11.5px;
       color: var(--slate-700);
-      line-height: 1.45;
+      line-height: 1.4;
     }}
 
-    /* Step Card */
+    /* Step Cards */
     .step-card {{
       background: #ffffff;
       border: 1px solid var(--slate-200);
-      border-radius: 20px;
-      padding: 22px;
-      margin-bottom: 18px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+      border-radius: 16px;
+      padding: 16px 14px;
+      margin-bottom: 14px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+    }}
+
+    @media (min-width: 640px) {{
+      .step-card {{
+        border-radius: 20px;
+        padding: 20px;
+        margin-bottom: 16px;
+      }}
     }}
 
     .step-header {{
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      margin-bottom: 12px;
+      gap: 6px;
+      margin-bottom: 10px;
       border-bottom: 1px solid var(--slate-100);
-      padding-bottom: 12px;
+      padding-bottom: 10px;
     }}
 
     @media (min-width: 640px) {{
@@ -778,53 +1013,60 @@ html_content = f'''<!DOCTYPE html>
     .step-tag-wrap {{
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }}
 
     .step-pill {{
       background: #ccfbf1;
       color: #0f766e;
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 800;
-      padding: 3px 8px;
-      border-radius: 6px;
+      padding: 2px 7px;
+      border-radius: 5px;
     }}
 
     .step-time {{
-      font-size: 12px;
+      font-size: 11.5px;
       color: var(--slate-600);
       font-weight: 600;
     }}
 
     .step-title {{
       font-family: var(--font-display);
-      font-size: 17px;
+      font-size: 15px;
       font-weight: 800;
       color: var(--slate-900);
-      margin-bottom: 8px;
+      margin-bottom: 6px;
+      word-break: break-word;
+    }}
+
+    @media (min-width: 640px) {{
+      .step-title {{
+        font-size: 17px;
+      }}
     }}
 
     .step-desc {{
-      font-size: 13px;
+      font-size: 12.5px;
       color: var(--slate-700);
-      line-height: 1.5;
-      margin-bottom: 12px;
+      line-height: 1.45;
+      margin-bottom: 10px;
     }}
 
     .step-list {{
       list-style: none;
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      margin-top: 10px;
+      gap: 5px;
+      margin-top: 8px;
     }}
 
     .step-list li {{
-      font-size: 12.5px;
+      font-size: 12px;
       color: var(--slate-700);
-      padding-left: 18px;
+      padding-left: 16px;
       position: relative;
-      line-height: 1.45;
+      line-height: 1.4;
     }}
 
     .step-list li::before {{
@@ -833,22 +1075,23 @@ html_content = f'''<!DOCTYPE html>
       left: 0;
       color: var(--teal);
       font-weight: 900;
-      font-size: 12px;
+      font-size: 11px;
     }}
 
-    /* Copyable code box */
+    /* Copyable Code Box */
     .code-box {{
       background: #0f172a;
       color: #f8fafc;
-      border-radius: 14px;
+      border-radius: 12px;
       overflow: hidden;
-      margin: 12px 0;
+      margin: 10px 0;
       border: 1px solid #334155;
+      width: 100%;
     }}
 
     .code-box-header {{
       background: #1e293b;
-      padding: 8px 14px;
+      padding: 6px 12px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -857,7 +1100,7 @@ html_content = f'''<!DOCTYPE html>
 
     .code-box-title {{
       font-family: var(--font-code);
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 600;
       color: #94a3b8;
     }}
@@ -866,31 +1109,22 @@ html_content = f'''<!DOCTYPE html>
       background: rgba(255, 255, 255, 0.1);
       border: 1px solid rgba(255, 255, 255, 0.2);
       color: #ffffff;
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 700;
-      padding: 3px 10px;
-      border-radius: 6px;
+      padding: 2px 8px;
+      border-radius: 5px;
       cursor: pointer;
-      transition: all 0.2s ease;
-    }}
-
-    .btn-copy:hover {{
-      background: #0d9488;
-      border-color: #5eead4;
-    }}
-
-    .btn-copy.copied {{
-      background: #10b981;
-      border-color: #34d399;
     }}
 
     .code-content {{
-      padding: 12px 14px;
+      padding: 10px 12px;
       font-family: var(--font-code);
-      font-size: 11.5px;
-      line-height: 1.45;
+      font-size: 11px;
+      line-height: 1.4;
       overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
       white-space: pre-wrap;
+      word-break: break-all;
       color: #e2e8f0;
     }}
 
@@ -898,18 +1132,17 @@ html_content = f'''<!DOCTYPE html>
     .check-card {{
       background: #ffffff;
       border: 1px solid var(--slate-200);
-      border-radius: 18px;
-      padding: 18px;
+      border-radius: 16px;
+      padding: 14px;
     }}
 
     .check-item {{
       display: flex;
       align-items: flex-start;
-      gap: 12px;
-      padding: 10px 0;
+      gap: 10px;
+      padding: 8px 0;
       border-bottom: 1px solid var(--slate-100);
       cursor: pointer;
-      user-select: none;
     }}
 
     .check-item:last-child {{
@@ -917,34 +1150,34 @@ html_content = f'''<!DOCTYPE html>
     }}
 
     .check-input {{
-      width: 18px;
-      height: 18px;
+      width: 17px;
+      height: 17px;
       accent-color: var(--teal);
       margin-top: 2px;
-      cursor: pointer;
+      flex-shrink: 0;
     }}
 
     .check-text h4 {{
-      font-size: 13px;
+      font-size: 12.5px;
       font-weight: 700;
       color: var(--slate-900);
     }}
 
     .check-text p {{
-      font-size: 11.5px;
+      font-size: 11px;
       color: var(--slate-600);
     }}
 
     /* Resources Box */
     .resources-box {{
       background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-      border-radius: 20px;
-      padding: 24px;
+      border-radius: 16px;
+      padding: 18px 14px;
       color: #ffffff;
       display: flex;
       flex-direction: column;
-      gap: 16px;
-      margin-top: 24px;
+      gap: 12px;
+      margin-top: 20px;
     }}
 
     @media (min-width: 640px) {{
@@ -952,17 +1185,18 @@ html_content = f'''<!DOCTYPE html>
         flex-direction: row;
         align-items: center;
         justify-content: space-between;
+        padding: 24px;
       }}
     }}
 
     .res-left h3 {{
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 800;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
     }}
 
     .res-left p {{
-      font-size: 12px;
+      font-size: 11.5px;
       color: var(--slate-400);
     }}
 
@@ -977,49 +1211,19 @@ html_content = f'''<!DOCTYPE html>
       color: #ffffff;
       font-weight: 800;
       font-size: 12px;
-      padding: 10px 18px;
+      padding: 9px 16px;
       border-radius: 999px;
-      transition: all 0.2s ease;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-    }}
-
-    /* Mobile bar */
-    .mobile-bar {{
-      position: fixed;
-      bottom: 12px;
-      left: 12px;
-      right: 12px;
-      z-index: 999;
-      background: rgba(15, 23, 42, 0.95);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(94, 234, 212, 0.3);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-      border-radius: 16px;
-      padding: 10px 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }}
-
-    .mobile-bar-btn {{
-      background: linear-gradient(135deg, #0d9488 0%, #10b981 100%);
-      color: #ffffff;
-      font-size: 13px;
-      font-weight: 900;
-      padding: 9px 18px;
-      border-radius: 999px;
-      box-shadow: 0 4px 10px rgba(13, 148, 136, 0.4);
-      white-space: nowrap;
+      gap: 5px;
     }}
 
     footer {{
-      margin-top: 40px;
+      margin-top: 32px;
       text-align: center;
       font-size: 11px;
-      color: var(--slate-600);
-      padding: 20px 0;
+      color: var(--slate-500);
+      padding: 16px 0;
       border-top: 1px solid var(--slate-200);
     }}
   </style>
@@ -1029,28 +1233,33 @@ html_content = f'''<!DOCTYPE html>
   <!-- TOP LIVE BAR -->
   <div class="top-live-bar">
     <span class="live-pulse"><span class="live-dot"></span> EN VIVO HOY</span>
-    <span>Martes 20 de Octubre · 7:00 PM a 9:00 PM (Hora Colombia, GMT-5)</span>
+    <span>Martes 20 Oct · 7:00 – 9:00 PM (Hora Col, GMT-5)</span>
   </div>
 
-  <!-- FLOATING NAVBAR -->
+  <!-- FLOATING NAVBAR (RESPONSIVE CAPSULE) -->
   <div class="nav-wrap">
     <div class="nav-inner">
-      <div class="nav-logo">
-        {"<img src='" + logo_wappy + "' alt='WAPPY'>" if logo_wappy else "<strong>WAPPY</strong>"}
-        <div class="nav-view-toggles">
-          <button class="toggle-btn active" id="btn-view-deck" onclick="setViewMode('deck')">
-            <span>🖥️</span> <span>Presentación</span>
-          </button>
-          <button class="toggle-btn" id="btn-view-guide" onclick="setViewMode('guide')">
-            <span>📖</span> <span>Guía Completa</span>
-          </button>
+      <div class="nav-top-row">
+        <div class="nav-logo">
+          {"<img src='" + logo_wappy + "' alt='WAPPY'>" if logo_wappy else "<span class='nav-logo-text'>WAPPY IA</span>"}
+        </div>
+        <div class="nav-actions">
+          <a href="https://wappy.club" class="btn-wappy-home" title="Ir a la plataforma WAPPY">
+            <span>←</span> <span>WAPPY</span>
+          </a>
+          <a href="https://meet.google.com/xvz-jmvv-iym" target="_blank" rel="noopener noreferrer" class="btn-meet-nav">
+            <span>📹</span> <span>Meet</span>
+          </a>
         </div>
       </div>
-      <div class="nav-actions">
-        <a href="https://meet.google.com/xvz-jmvv-iym" target="_blank" rel="noopener noreferrer" class="btn-meet-nav">
-          <span>📹</span>
-          <span>Google Meet</span>
-        </a>
+      
+      <div class="nav-view-toggles">
+        <button class="toggle-btn active" id="btn-view-deck" onclick="setViewMode('deck')">
+          <span>🖥️</span> <span>Presentación</span>
+        </button>
+        <button class="toggle-btn" id="btn-view-guide" onclick="setViewMode('guide')">
+          <span>📖</span> <span>Guía Completa</span>
+        </button>
       </div>
     </div>
   </div>
@@ -1058,17 +1267,20 @@ html_content = f'''<!DOCTYPE html>
   <div class="wrap">
 
     <!-- ==========================================================================
-         SECCIÓN DE PRESENTACIÓN INTERACTIVA (SLIDE DECK EN VIVO - 12 SLIDES)
+         SECCIÓN DE PRESENTACIÓN INTERACTIVA (12 SLIDES RESPONSIVE)
          ========================================================================== -->
     <div id="presentation-mode">
       <div class="deck-container">
         <div class="deck-topbar">
           <div class="deck-title">
-            <span>Diapositiva en Vivo</span>
             <span class="deck-counter" id="deck-counter">1 / 12</span>
+            <span>Diapositiva en Vivo</span>
           </div>
-          <div style="font-size: 11px; color: #94a3b8;">
+          <div class="deck-hint-kbd">
             Usa las flechas <strong>← / →</strong> de tu teclado
+          </div>
+          <div class="deck-hint-touch">
+            👈 Desliza o toca botones 👉
           </div>
         </div>
 
@@ -1076,14 +1288,14 @@ html_content = f'''<!DOCTYPE html>
           <div class="slide-progress-fill" id="slide-progress"></div>
         </div>
 
-        <div class="slide-viewport">
+        <div class="slide-viewport" id="slide-viewport">
 
           <!-- SLIDE 1: PORTADA -->
           <div class="slide active" id="slide-1">
             <span class="slide-badge">Curso Ecosistema Autónomo SST · Clase 1</span>
             <h2>Introducción a la IA, WAPPY & Google Antigravity</h2>
             <p class="slide-lead">
-              De la operatividad documental a la prevención real: cómo instalar, estructurar proyectos, automatizar tareas con triggers y alimentar a WAPPY desde tu computador.
+              De la operatividad documental a la prevención real: cómo estructurar proyectos, automatizar tareas con triggers y alimentar a WAPPY desde tu computador.
             </p>
             <div class="slide-content-grid three-cols">
               <div class="slide-card highlight">
@@ -1096,7 +1308,7 @@ html_content = f'''<!DOCTYPE html>
               </div>
               <div class="slide-card highlight">
                 <h4>🚀 3. Sinergia Total</h4>
-                <p>Automatizaciones sin programar código complejo: NotebookLM, Drive de 20 años y MCP en vivo.</p>
+                <p>Automatizaciones sin programar: NotebookLM, Drive de 20 años y MCP en vivo.</p>
               </div>
             </div>
           </div>
@@ -1123,7 +1335,7 @@ html_content = f'''<!DOCTYPE html>
               </div>
               <div class="slide-card">
                 <h4>🤝 4. Debugging Colaborativo</h4>
-                <p>Todos programamos al mismo tiempo. Compartimos pantalla para resolver errores: <em>el error de uno es la lección de todos</em>.</p>
+                <p>Todos programamos en vivo. Compartimos pantalla para resolver errores: <em>el error de uno es la lección de todos</em>.</p>
               </div>
             </div>
           </div>
@@ -1361,7 +1573,7 @@ html_content = f'''<!DOCTYPE html>
             <button class="btn-slide-nav" id="btn-prev" onclick="prevSlide()" disabled>← Anterior</button>
             <button class="btn-slide-nav" id="btn-next" onclick="nextSlide()">Siguiente →</button>
           </div>
-          <a href="https://meet.google.com/xvz-jmvv-iym" target="_blank" rel="noopener noreferrer" class="btn-meet-nav">
+          <a href="https://meet.google.com/xvz-jmvv-iym" target="_blank" rel="noopener noreferrer" class="deck-meet-btn">
             <span>📹</span> Entrar a Google Meet (7:00 PM)
           </a>
         </div>
@@ -1369,7 +1581,7 @@ html_content = f'''<!DOCTYPE html>
     </div>
 
     <!-- ==========================================================================
-         SECCIÓN GUÍA COMPLETA (MODO GUÍA DE ESTUDIO CONTINUA)
+         SECCIÓN GUÍA COMPLETA (MODO GUÍA DE ESTUDIO CONTINUA RESPONSIVE)
          ========================================================================== -->
     <div id="guide-mode" style="display: none;">
 
@@ -1414,10 +1626,10 @@ html_content = f'''<!DOCTYPE html>
       <!-- EL CONCEPTO CLAVE: WAPPY + ANTIGRAVITY -->
       <section class="synergy-card">
         <span class="sec-tag">El Concepto Maestro de la Clase</span>
-        <h3 style="font-family: var(--font-display); font-size: 19px; font-weight: 900; color: #042f2e;">
+        <h3 style="font-family: var(--font-display); font-size: 17px; font-weight: 900; color: #042f2e;">
           ¿Por qué Antigravity NO reemplaza a WAPPY, sino que lo multiplica?
         </h3>
-        <p style="font-size: 13px; color: #0f766e; margin-top: 4px;">
+        <p style="font-size: 12.5px; color: #0f766e; margin-top: 4px;">
           Antigravity no es un competidor ni una plataforma SST aislada. Es la herramienta de Google que le da brazos y piernas a WAPPY para operar en tu computador.
         </p>
 
@@ -1816,20 +2028,6 @@ description: Habilidad especializada para vigilar carpetas de fotos, clasificar 
 
   </div>
 
-  <!-- FLOATING BOTTOM BAR (MOBILE ONLY) -->
-  <div class="mobile-bar">
-    <div class="mobile-bar-info">
-      <span class="live-dot"></span>
-      <div>
-        <div style="font-size:11px; font-weight:800; color:#ffffff;">CLASE EN VIVO HOY</div>
-        <div style="font-size:10px; color:#99f6e4;">7:00 PM (Abre 6:50 PM)</div>
-      </div>
-    </div>
-    <a href="https://meet.google.com/xvz-jmvv-iym" target="_blank" rel="noopener noreferrer" class="mobile-bar-btn">
-      Entrar a Meet 👉
-    </a>
-  </div>
-
   <script>
     // Slide Deck Controller
     let currentSlide = 1;
@@ -1871,6 +2069,31 @@ description: Habilidad especializada para vigilar carpetas de fotos, clasificar 
       }}
     }});
 
+    // Mobile Touch Swipe Navigation (Instagram Story style)
+    let touchStartX = 0;
+    let touchEndX = 0;
+    const viewport = document.getElementById('slide-viewport');
+
+    viewport.addEventListener('touchstart', (e) => {{
+      touchStartX = e.changedTouches[0].screenX;
+    }}, {{ passive: true }});
+
+    viewport.addEventListener('touchend', (e) => {{
+      touchEndX = e.changedTouches[0].screenX;
+      handleSwipe();
+    }}, {{ passive: true }});
+
+    function handleSwipe() {{
+      const swipeDistance = touchEndX - touchStartX;
+      if (Math.abs(swipeDistance) > 45) {{
+        if (swipeDistance < 0) {{
+          nextSlide(); // Swiped left -> next
+        }} else {{
+          prevSlide(); // Swiped right -> prev
+        }}
+      }}
+    }}
+
     // Toggle between Presentation Mode and Guide Mode
     function setViewMode(mode) {{
       const deckEl = document.getElementById('presentation-mode');
@@ -1900,10 +2123,8 @@ description: Habilidad especializada para vigilar carpetas de fotos, clasificar 
       navigator.clipboard.writeText(el.innerText).then(() => {{
         const originalText = btn.innerText;
         btn.innerText = '¡Copiado! ✓';
-        btn.classList.add('copied');
         setTimeout(() => {{
           btn.innerText = originalText;
-          btn.classList.remove('copied');
         }}, 2000);
       }}).catch(err => {{
         alert('Copia el texto manualmente.');
