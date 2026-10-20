@@ -82,8 +82,8 @@ const MarketplaceContent: React.FC = () => {
             </div>
           </div>
 
-          {/* Floating Capsule Toolbar */}
-          <div className="flex items-center gap-3">
+          {/* Floating Capsule Toolbar (All Expandable/Collapsible on Hover) */}
+          <div className="flex items-center gap-2">
             <div className="inline-flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-lg shadow-slate-200/40 dark:shadow-none">
               {/* Tab: Catálogo */}
               <button
@@ -92,14 +92,17 @@ const MarketplaceContent: React.FC = () => {
                   setCompletedOrderNumber(null);
                   setActiveTab('catalog');
                 }}
-                className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shadow-2xs active:scale-95 ${
+                className={`group flex h-9 min-w-[36px] items-center justify-center rounded-xl border px-2.5 transition-all duration-300 shadow-2xs active:scale-95 ${
                   activeTab === 'catalog' && !completedOrderNumber
                     ? 'bg-teal-50 dark:bg-teal-950/50 border-teal-500 text-teal-600 dark:text-teal-300 font-bold'
                     : 'border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700'
                 }`}
                 title="Catálogo de la Tienda"
               >
-                <Layers className="h-4 w-4" />
+                <Layers className="h-4 w-4 shrink-0" />
+                <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[160px] group-hover:opacity-100">
+                  <span className="text-xs font-bold">Catálogo</span>
+                </div>
               </button>
 
               {/* Tab: Mis Pedidos */}
@@ -109,17 +112,20 @@ const MarketplaceContent: React.FC = () => {
                   setCompletedOrderNumber(null);
                   setActiveTab('my-orders');
                 }}
-                className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shadow-2xs active:scale-95 ${
+                className={`group flex h-9 min-w-[36px] items-center justify-center rounded-xl border px-2.5 transition-all duration-300 shadow-2xs active:scale-95 ${
                   activeTab === 'my-orders' && !completedOrderNumber
                     ? 'bg-teal-50 dark:bg-teal-950/50 border-teal-500 text-teal-600 dark:text-teal-300 font-bold'
                     : 'border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700'
                 }`}
                 title="Mis Servicios Contratados"
               >
-                <Clock className="h-4 w-4" />
+                <Clock className="h-4 w-4 shrink-0" />
+                <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[160px] group-hover:opacity-100">
+                  <span className="text-xs font-bold">Mis Pedidos</span>
+                </div>
               </button>
 
-              {/* Tab: Administración WooCommerce (Solo ADMIN) */}
+              {/* Tab: Administración (Solo ADMIN) */}
               {isAdmin && (
                 <button
                   type="button"
@@ -127,47 +133,58 @@ const MarketplaceContent: React.FC = () => {
                     setCompletedOrderNumber(null);
                     setActiveTab('admin');
                   }}
-                  className={`px-3 h-9 flex items-center justify-center gap-1.5 rounded-xl border text-xs transition-all shadow-2xs active:scale-95 ${
+                  className={`group flex h-9 min-w-[36px] items-center justify-center rounded-xl border px-2.5 transition-all duration-300 shadow-2xs active:scale-95 ${
                     activeTab === 'admin' && !completedOrderNumber
                       ? 'bg-teal-50 dark:bg-teal-950/50 border-teal-500 text-teal-600 dark:text-teal-300 font-bold'
-                      : 'border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 font-semibold'
+                      : 'border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700'
                   }`}
                   title="Gestor de Productos, Cursos y Pedidos (Solo Admin)"
                 >
-                  <Settings className="h-4 w-4" />
-                  <span className="hidden sm:inline">Admin</span>
+                  <Settings className="h-4 w-4 shrink-0" />
+                  <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[160px] group-hover:opacity-100">
+                    <span className="text-xs font-bold">Admin</span>
+                  </div>
                 </button>
               )}
-            </div>
 
-            {isAdmin && (
+              {/* Crear Producto (Solo ADMIN) */}
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCompletedOrderNumber(null);
+                    openEditProduct();
+                  }}
+                  title="Crear Nuevo Producto / Servicio"
+                  className="group flex h-9 min-w-[36px] items-center justify-center rounded-xl px-2.5 font-bold text-xs shadow-sm transition-all duration-300 active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
+                >
+                  <Plus className="h-4 w-4 shrink-0" />
+                  <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[180px] group-hover:opacity-100">
+                    <span className="text-xs font-bold">Crear Producto</span>
+                  </div>
+                </button>
+              )}
+
+              {/* Cart Button */}
               <button
                 type="button"
-                onClick={() => {
-                  setCompletedOrderNumber(null);
-                  openEditProduct();
-                }}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
+                onClick={() => setIsCartOpen(true)}
+                title="Abrir Carrito de Compras"
+                className="group relative flex h-9 min-w-[36px] items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 px-2.5 shadow-2xs hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all duration-300 active:scale-95 text-slate-700 dark:text-zinc-200"
               >
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Crear Producto</span>
+                <div className="relative flex items-center justify-center shrink-0">
+                  <ShoppingCart className="h-4 w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                  {totalItems > 0 && (
+                    <span className="bg-teal-600 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center absolute -top-2 -right-2 shadow-xs">
+                      {totalItems}
+                    </span>
+                  )}
+                </div>
+                <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[140px] group-hover:opacity-100">
+                  <span className="text-xs font-bold">Carrito</span>
+                </div>
               </button>
-            )}
-
-            {/* Cart Button */}
-            <button
-              type="button"
-              onClick={() => setIsCartOpen(true)}
-              className="relative flex items-center gap-2 px-3.5 py-2 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-md hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all active:scale-95 text-slate-700 dark:text-zinc-200"
-            >
-              <ShoppingCart className="h-4 w-4 text-teal-600 dark:text-teal-400" />
-              <span className="text-xs font-bold hidden sm:inline">Carrito</span>
-              {totalItems > 0 && (
-                <span className="bg-teal-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-xs">
-                  {totalItems}
-                </span>
-              )}
-            </button>
+            </div>
           </div>
         </div>
 

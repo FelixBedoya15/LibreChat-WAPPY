@@ -198,10 +198,13 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
                     <button
                       type="button"
                       onClick={() => openEditProduct(product)}
-                      className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
+                      title="Editar Producto / Configurar Wompi"
+                      className="group/editModal flex h-9 min-w-[36px] items-center justify-center px-2.5 rounded-xl font-bold text-xs shadow-md transition-all duration-300 active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
                     >
-                      <Edit className="h-4 w-4" />
-                      <span>Editar Producto / Wompi</span>
+                      <Edit className="h-4 w-4 shrink-0" />
+                      <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover/editModal:ml-1.5 group-hover/editModal:max-w-[180px] group-hover/editModal:opacity-100">
+                        <span>Editar Producto / Wompi</span>
+                      </div>
                     </button>
                   )}
 
@@ -210,29 +213,38 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
                       href="/cursowappy01"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl font-bold text-xs bg-slate-900 hover:bg-slate-800 text-white shadow-sm transition-all"
+                      title="Ver Landing Page"
+                      className="group/landingBtn flex h-9 min-w-[36px] items-center justify-center px-2.5 rounded-xl font-bold text-xs bg-slate-900 hover:bg-slate-800 text-white shadow-sm transition-all duration-300 active:scale-95"
                     >
-                      <span>Ver Landing Page</span>
-                      <ExternalLink className="h-3.5 w-3.5" />
+                      <ExternalLink className="h-4 w-4 shrink-0" />
+                      <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover/landingBtn:ml-1.5 group-hover/landingBtn:max-w-[160px] group-hover/landingBtn:opacity-100">
+                        <span>Ver Landing Page</span>
+                      </div>
                     </a>
                   )}
 
                   <button
                     type="button"
                     onClick={handleAddToCart}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700"
+                    title="Añadir al Carrito"
+                    className="group/cartModal flex h-9 min-w-[36px] items-center justify-center px-2.5 rounded-xl font-bold text-xs shadow-md transition-all duration-300 active:scale-95 bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700"
                   >
-                    <ShoppingCart className="h-4 w-4" />
-                    <span>Al Carrito</span>
+                    <ShoppingCart className="h-4 w-4 shrink-0" />
+                    <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover/cartModal:ml-1.5 group-hover/cartModal:max-w-[140px] group-hover/cartModal:opacity-100">
+                      <span>Al Carrito</span>
+                    </div>
                   </button>
 
                   <button
                     type="button"
                     onClick={handleBuyNow}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white"
+                    title={product.isTest ? 'Probar Compra' : 'Comprar Ahora'}
+                    className="group/buyModal flex h-9 min-w-[36px] items-center justify-center px-2.5 rounded-xl font-bold text-xs shadow-md transition-all duration-300 active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white"
                   >
-                    <Zap className="h-4 w-4" />
-                    <span>{product.isTest ? 'Probar Compra' : 'Comprar Ahora'}</span>
+                    <Zap className="h-4 w-4 shrink-0" />
+                    <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover/buyModal:ml-1.5 group-hover/buyModal:max-w-[160px] group-hover/buyModal:opacity-100">
+                      <span>{product.isTest ? 'Probar Compra' : 'Comprar Ahora'}</span>
+                    </div>
                   </button>
                 </div>
               </div>

@@ -143,25 +143,31 @@ const MarketplaceCatalog: React.FC = () => {
           <div className="flex items-start sm:items-center gap-2">
             <span className="text-base">👑</span>
             <span>
-              <strong>Panel Admin Activo:</strong> Estás viendo los productos públicos y los <strong>productos en borrador / prueba</strong> ({visibleProducts.filter((p) => p.isTest || p.status === 'draft').length} exclusivos para Admin). Puedes editarlos haciendo clic en <strong>"Editar"</strong> sobre cualquier tarjeta.
+              <strong>Panel Admin Activo:</strong> Estás viendo los productos públicos y los <strong>productos en borrador / prueba</strong> ({visibleProducts.filter((p) => p.isTest || p.status === 'draft').length} exclusivos para Admin). Puedes editarlos pasando el cursor sobre el botón de edición en cualquier tarjeta.
             </span>
           </div>
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={() => setActiveTab('admin')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-white dark:bg-zinc-800 hover:bg-amber-100 dark:hover:bg-zinc-700 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700 shadow-2xs transition-all active:scale-95"
+              title="Abrir Tabla de Productos y Cursos"
+              className="group flex h-9 min-w-[36px] items-center justify-center rounded-xl px-2.5 font-bold text-xs bg-white dark:bg-zinc-800 hover:bg-amber-100 dark:hover:bg-zinc-700 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700 shadow-2xs transition-all duration-300 active:scale-95"
             >
-              <Edit className="h-3.5 w-3.5" />
-              <span>Tabla de Productos</span>
+              <Edit className="h-4 w-4 shrink-0" />
+              <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[180px] group-hover:opacity-100">
+                <span className="text-xs font-bold">Tabla de Productos</span>
+              </div>
             </button>
             <button
               type="button"
               onClick={() => openEditProduct()}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-sm transition-all active:scale-95"
+              title="Crear Nuevo Producto o Curso"
+              className="group flex h-9 min-w-[36px] items-center justify-center rounded-xl px-2.5 font-bold text-xs bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-sm transition-all duration-300 active:scale-95"
             >
-              <Plus className="h-3.5 w-3.5" />
-              <span>Nuevo Producto</span>
+              <Plus className="h-4 w-4 shrink-0" />
+              <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[180px] group-hover:opacity-100">
+                <span className="text-xs font-bold">Nuevo Producto</span>
+              </div>
             </button>
           </div>
         </div>
@@ -198,19 +204,28 @@ const MarketplaceCatalog: React.FC = () => {
         </div>
       </div>
 
-      {/* Categories Filter Pills */}
+      {/* Categories Filter Pills (Expandable / Collapsible on Hover) */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
         <button
           type="button"
           onClick={() => setSelectedCategory('all')}
-          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 active:scale-95 shadow-2xs ${
+          title="Todos los Servicios"
+          className={`group flex h-9 min-w-[36px] items-center justify-center px-2.5 rounded-xl text-xs font-bold transition-all duration-300 shrink-0 active:scale-95 shadow-2xs ${
             selectedCategory === 'all'
               ? 'bg-teal-600 text-white shadow-md shadow-teal-600/20'
               : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800'
           }`}
         >
-          {CATEGORY_ICONS.all}
-          <span>Todos los Servicios</span>
+          <span className="shrink-0">{CATEGORY_ICONS.all}</span>
+          <div
+            className={`flex items-center overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out ${
+              selectedCategory === 'all'
+                ? 'ml-1.5 max-w-[200px] opacity-100'
+                : 'max-w-0 opacity-0 group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100'
+            }`}
+          >
+            <span>Todos los Servicios</span>
+          </div>
         </button>
 
         {categories.map((cat) => {
@@ -220,14 +235,23 @@ const MarketplaceCatalog: React.FC = () => {
               key={cat._id}
               type="button"
               onClick={() => setSelectedCategory(cat.slug)}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 active:scale-95 shadow-2xs ${
+              title={cat.name}
+              className={`group flex h-9 min-w-[36px] items-center justify-center px-2.5 rounded-xl text-xs font-bold transition-all duration-300 shrink-0 active:scale-95 shadow-2xs ${
                 isSelected
                   ? 'bg-teal-600 text-white shadow-md shadow-teal-600/20'
                   : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800'
               }`}
             >
-              {CATEGORY_ICONS[cat.slug] || <Layers className="h-3.5 w-3.5" />}
-              <span>{cat.name}</span>
+              <span className="shrink-0">{CATEGORY_ICONS[cat.slug] || <Layers className="h-3.5 w-3.5" />}</span>
+              <div
+                className={`flex items-center overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out ${
+                  isSelected
+                    ? 'ml-1.5 max-w-[200px] opacity-100'
+                    : 'max-w-0 opacity-0 group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100'
+                }`}
+              >
+                <span>{cat.name}</span>
+              </div>
             </button>
           );
         })}

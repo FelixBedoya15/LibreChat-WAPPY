@@ -89,7 +89,7 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
           )}
         </div>
 
-        {/* Admin Quick Edit Pill on top-right of image */}
+        {/* Admin Quick Edit Pill on bottom-right of image (Expandable on Hover) */}
         {isAdmin && (
           <button
             type="button"
@@ -98,10 +98,12 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
               openEditProduct(product);
             }}
             title="Editar este producto o configurar pasarela Wompi"
-            className="absolute bottom-2.5 right-2.5 z-10 flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-900/90 hover:bg-amber-500 text-white hover:text-slate-950 font-bold text-[11px] shadow-md backdrop-blur-xs transition-all active:scale-95"
+            className="group/topEdit absolute bottom-2.5 right-2.5 z-10 flex h-8 min-w-[32px] items-center justify-center px-2 rounded-xl bg-slate-900/90 hover:bg-amber-500 text-white hover:text-slate-950 font-bold text-[11px] shadow-md backdrop-blur-xs transition-all duration-300 active:scale-95"
           >
-            <Edit className="h-3 w-3" />
-            <span>Editar</span>
+            <Edit className="h-3.5 w-3.5 shrink-0" />
+            <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover/topEdit:ml-1.5 group-hover/topEdit:max-w-[120px] group-hover/topEdit:opacity-100">
+              <span>Editar</span>
+            </div>
           </button>
         )}
 
@@ -214,9 +216,12 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
                   openEditProduct(product);
                 }}
                 title="Editar Producto / Configurar Wompi"
-                className="w-8 h-8 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-all flex items-center justify-center shadow-2xs active:scale-95"
+                className="group/editBtn flex h-8 min-w-[32px] items-center justify-center rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 px-2 transition-all duration-300 shadow-2xs active:scale-95"
               >
-                <Edit className="h-4 w-4" />
+                <Edit className="h-3.5 w-3.5 shrink-0" />
+                <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover/editBtn:ml-1.5 group-hover/editBtn:max-w-[100px] group-hover/editBtn:opacity-100">
+                  <span className="text-[11px] font-bold">Editar</span>
+                </div>
               </button>
             )}
 
@@ -227,23 +232,29 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
                 setSelectedProductDetail(product);
               }}
               title="Examinar detalles"
-              className="w-8 h-8 rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all flex items-center justify-center shadow-2xs active:scale-95"
+              className="group/viewBtn flex h-8 min-w-[32px] items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 px-2 transition-all duration-300 shadow-2xs active:scale-95"
             >
-              <Eye className="h-4 w-4" />
+              <Eye className="h-3.5 w-3.5 shrink-0" />
+              <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover/viewBtn:ml-1.5 group-hover/viewBtn:max-w-[100px] group-hover/viewBtn:opacity-100">
+                <span className="text-[11px] font-bold">Examinar</span>
+              </div>
             </button>
 
             <button
               type="button"
               onClick={handleQuickAdd}
+              title={isDraftOrTest ? 'Probar Compra' : 'Inscribirme / Añadir al Carrito'}
               className={cn(
-                'flex items-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 text-white',
+                'group/cartBtn flex h-8 min-w-[32px] items-center justify-center px-2.5 rounded-xl font-bold text-xs shadow-md transition-all duration-300 active:scale-95 text-white',
                 isDraftOrTest
                   ? 'bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600'
                   : 'bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600'
               )}
             >
-              <ShoppingCart className="h-3.5 w-3.5" />
-              <span>{isDraftOrTest ? 'Probar' : 'Inscribirme'}</span>
+              <ShoppingCart className="h-3.5 w-3.5 shrink-0" />
+              <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover/cartBtn:ml-1.5 group-hover/cartBtn:max-w-[120px] group-hover/cartBtn:opacity-100">
+                <span className="text-[11px] font-bold">{isDraftOrTest ? 'Probar' : 'Inscribirme'}</span>
+              </div>
             </button>
           </div>
         </div>
