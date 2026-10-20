@@ -839,6 +839,7 @@ export default function MatrizPESVTable({
           setMatrixRows(normalizedRows);
           isDirtyRef.current = false;
           window.dispatchEvent(new CustomEvent('pesv-official-updated'));
+          window.dispatchEvent(new CustomEvent('sgsst-diagnostic-updated'));
           if (onRefreshOfficialList) onRefreshOfficialList();
         }
         return;
@@ -875,6 +876,7 @@ export default function MatrizPESVTable({
         }
         isDirtyRef.current = false;
         window.dispatchEvent(new CustomEvent('pesv-official-updated'));
+        window.dispatchEvent(new CustomEvent('sgsst-diagnostic-updated'));
       }
     } catch (err) {
       console.error('[MatrizPESV] Save error:', err);

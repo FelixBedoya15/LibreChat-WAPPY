@@ -37,6 +37,7 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import ExportDropdown from './ExportDropdown';
 import { UpgradeWall } from './UpgradeWall';
+import { findSgaPictogram } from './MatrizCompatibilidadConstants';
 
 interface ChemicalProduct {
   id: string;
@@ -413,7 +414,18 @@ export default function ChemicalsWorkspace() {
   };
 
   const buildHtmlFicha = (prod: ChemicalProduct) => {
-    const sgaBadges = (prod.pictogramasSga || []).map(p => `<span style="background:#f1f5f9; border:1px solid #cbd5e1; padding:4px 8px; border-radius:5px; font-weight:bold; font-size:11px; margin-right:5px; display:inline-block;">${p}</span>`).join('');
+    const sgaBadges = (prod.pictogramasSga || [])
+      .map((p) => {
+        const meta = findSgaPictogram(p);
+        if (meta) {
+          return `<div style="display:inline-flex;flex-direction:column;align-items:center;margin:4px 8px;padding:6px;border:2px solid #dc2626;border-radius:8px;background:#fff;">
+            <img src="${meta.svgUrl}" alt="${meta.name}" style="width:52px;height:52px;object-fit:contain;" />
+            <span style="font-weight:bold;font-size:10px;color:#991b1b;margin-top:3px;">${meta.ghsCode} · ${meta.name}</span>
+          </div>`;
+        }
+        return `<span style="background:#f1f5f9; border:1px solid #cbd5e1; padding:4px 8px; border-radius:5px; font-weight:bold; font-size:11px; margin-right:5px; display:inline-block;">${p}</span>`;
+      })
+      .join('');
     const incompatList = (prod.incompatibilidades || []).map(i => `<li>${i}</li>`).join('') || '<li>Ninguna identificada.</li>';
     
     // Nombres expuestos
@@ -929,12 +941,19 @@ export default function ChemicalsWorkspace() {
                   <div className="p-5 border-t border-border-medium bg-surface-primary space-y-3.5">
                     <div className="flex flex-wrap gap-2.5">
                       {selectedProduct.pictogramasSga && selectedProduct.pictogramasSga.length > 0 ? (
-                        selectedProduct.pictogramasSga.map((pic, idx) => (
-                          <div key={idx} className="flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 border-red-500/80 bg-red-500/5 text-red-600 dark:text-red-400 font-extrabold text-xs shadow-2xs">
-                            <div className="w-3.5 h-3.5 rotate-45 border-2 border-red-500 bg-white dark:bg-zinc-900 shrink-0" />
-                            <span>{pic}</span>
-                          </div>
-                        ))
+                        selectedProduct.pictogramasSga.map((pic, idx) => {
+                          const meta = findSgaPictogram(pic);
+                          return (
+                            <div key={idx} className="flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 border-red-500/80 bg-red-500/5 text-red-600 dark:text-red-400 font-extrabold text-xs shadow-2xs">
+                              {meta?.svgUrl ? (
+                                <img src={meta.svgUrl} alt={meta.name} className="w-6 h-6 object-contain bg-white rounded-xs p-0.5 shrink-0" />
+                              ) : (
+                                <div className="w-3.5 h-3.5 rotate-45 border-2 border-red-500 bg-white dark:bg-zinc-900 shrink-0" />
+                              )}
+                              <span>{meta ? `${meta.name} (${meta.ghsCode})` : pic}</span>
+                            </div>
+                          );
+                        })
                       ) : (
                         <span className="text-xs text-text-tertiary italic">Sin pictogramas de peligro seleccionados (Sustancia de bajo riesgo).</span>
                       )}
