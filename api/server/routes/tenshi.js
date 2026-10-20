@@ -396,6 +396,7 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         let capturedHtmlReport = null;
         let capturedQrCode = null;
         let capturedFile = null;
+        let capturedDelegatedOrder = null;
         let requestedGuiAction = null;
         let requestedGuiActions = null;
 
@@ -2573,6 +2574,14 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                     const targetTool = call.name === 'wappy_mcp_sst' ? (call.args?.herramienta || call.args?.tool || 'wappy_resumen_general_360') : call.name;
                                     const targetArgs = call.name === 'wappy_mcp_sst' ? (call.args?.parametros || call.args?.args || call.args || {}) : (call.args || {});
                                     const res = await executeTenshiMcpTool(targetTool, targetArgs, targetUserId);
+                                    if ((targetTool === 'wappy_delegar_orden_antigravity' || targetTool === 'delegar_orden_antigravity') && res?.ordenId) {
+                                        capturedDelegatedOrder = {
+                                            ordenId: res.ordenId,
+                                            titulo: res.detalles?.titulo || targetArgs?.titulo || 'Orden Antigravity',
+                                            formato: res.detalles?.formatoEntregable || targetArgs?.tipo_entregable || 'html',
+                                            estado: res.estado || 'todo',
+                                        };
+                                    }
                                     toolOutput = JSON.stringify(res);
                                 } else {
                                     break;
@@ -2943,6 +2952,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             htmlReport: capturedHtmlReport,
             qrCode: capturedQrCode,
             file: capturedFile,
+            delegatedOrder: capturedDelegatedOrder,
             guiAction: requestedGuiAction,
             guiActions: requestedGuiActions
         });

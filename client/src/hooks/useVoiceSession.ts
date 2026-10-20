@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthContext } from '~/hooks/AuthContext';
 
 interface VoiceMessage {
-    type: 'audio' | 'text' | 'status' | 'error' | 'interrupted' | 'conversationId' | 'conversationUpdated' | 'report' | 'wappy_action' | 'agent_switched';
+    type: 'audio' | 'text' | 'status' | 'error' | 'interrupted' | 'conversationId' | 'conversationUpdated' | 'report' | 'wappy_action' | 'agent_switched' | 'tenshi_report_delivered' | 'canvas_file_generated';
     data: any;
 }
 
@@ -752,6 +752,24 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             case 'agent_switched':
                 console.log('[VoiceSession] Agent switched event received:', message.data);
                 optionsRef.current.onAgentSwitched?.(message.data);
+                break;
+
+            case 'tenshi_report_delivered':
+                console.log('[VoiceSession] Tenshi report delivered event received:', message.data);
+                if (typeof window !== 'undefined' && message.data) {
+                    window.dispatchEvent(
+                        new CustomEvent('tenshi-antigravity-delivered', { detail: message.data })
+                    );
+                }
+                break;
+
+            case 'canvas_file_generated':
+                console.log('[VoiceSession] Canvas file generated event received:', message.data);
+                if (typeof window !== 'undefined' && message.data) {
+                    window.dispatchEvent(
+                        new CustomEvent('tenshi-canvas-file-generated', { detail: message.data })
+                    );
+                }
                 break;
         }
     }, []);

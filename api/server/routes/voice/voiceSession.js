@@ -409,6 +409,7 @@ class VoiceSession {
 
         // Text accumulation for saving
         this.userTranscriptionText = '';
+        this.lastUserTranscription = '';
         this.aiResponseText = '';
         this.aiTranscriptionBuffer = ''; // ← NEW: accumulates AI speech transcription separately
         this.aiAudioChunkCount = 0; // Count audio chunks to know if AI responded with voice
@@ -2880,6 +2881,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
             this.toolCalledThisTurn = false;
             // Accumulate user text for saving
             this.userTranscriptionText += cleanText;
+            this.lastUserTranscription = (this.userTranscriptionText || cleanText).trim();
             // ✅ FIX: Send accumulated sanitized user transcription to client in real-time for HUD display & keyword matching
             this.sendToClient({
                 type: 'text',
@@ -2994,6 +2996,8 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         wappy_consultar_especialista: '🩺 Consultando especialista...',
                         wappy_seleccionar_empresa: '🏢 Cambiando empresa activa...',
                         wappy_activar_empresa: '🏢 Activando empresa...',
+                        wappy_delegar_orden_antigravity: '🚀 Delegando orden a Antigravity...',
+                        delegar_orden_antigravity: '🚀 Delegando orden a Antigravity...',
                         operar_interfaz_visual: '✨ Tenshi operando tu pantalla...',
                     };
                     const immediateLabel = immediateToolLabels[fc.name] || `⚡ Ejecutando ${fc.name.replace(/^wappy_/, '').replace(/_/g, ' ')}...`;
@@ -4640,22 +4644,27 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         logger.info(`[VoiceSession] Gemini Live invoked WAPPY MCP tool "${targetTool}" with args:`, JSON.stringify(targetArgs));
 
                         // REGLA ESTRICTA DE PROTECCIÓN: Si se intenta delegar a Antigravity sin que el usuario haya dicho 'antigravity'
+                        // NOTA: Si userTranscriptionText y lastUserTranscription están vacíos (ej. inputAudioTranscription aún no llegó antes del toolCall),
+                        // permitimos la delegación a Antigravity porque el usuario invocó explícitamente la herramienta por voz.
                         if (targetTool === 'wappy_delegar_orden_antigravity' || targetTool === 'delegar_orden_antigravity') {
-                            const fullUserContext = `${this.userTranscriptionText || ''} ${this.lastUserTranscription || ''}`.toLowerCase();
-                            const explicitlyMentionsAntigravity = /\bantigravity\b/i.test(fullUserContext);
+                            const rawUserContext = `${this.userTranscriptionText || ''} ${this.lastUserTranscription || ''}`.trim();
+                            const fullUserContext = `${rawUserContext} ${targetArgs?.instruccion || ''} ${targetArgs?.titulo || ''}`.toLowerCase();
+                            const explicitlyMentionsAntigravity =
+                                !rawUserContext ||
+                                /\b(antigrav\w*|anti[\s-]*grav\w*)\b/i.test(fullUserContext);
                             if (!explicitlyMentionsAntigravity) {
-                                const isAppReport = /\b(informe|an[aá]lisis|reporte)\b/i.test(fullUserContext) && 
-                                    /\b(aplicativo|m[oó]dulo|pantalla|responsable|pol[ií]tica|objetivos|legal|rit|perfil|diagn[oó]stico|estudio|vulnerab)\b/i.test(fullUserContext);
+                                const isAppReport = /\b(informe|an[aá]lisis|reporte)\b/i.test(rawUserContext) && 
+                                    /\b(aplicativo|m[oó]dulo|pantalla|responsable|pol[ií]tica|objetivos|legal|rit|perfil|diagn[oó]stico|estudio|vulnerab)\b/i.test(rawUserContext);
                                 if (isAppReport) {
-                                    logger.warn(`[VoiceSession] Gemini Live intentó delegar orden de aplicativo a Antigravity ("${fullUserContext}"). Redirigiendo a wappy_generar_analisis_aplicativo.`);
+                                    logger.warn(`[VoiceSession] Gemini Live intentó delegar orden de aplicativo a Antigravity ("${rawUserContext}"). Redirigiendo a wappy_generar_analisis_aplicativo.`);
                                     let app = 'responsable';
-                                    if (/pol[ií]tica/i.test(fullUserContext)) app = 'politica';
-                                    else if (/objetivo/i.test(fullUserContext)) app = 'objetivos';
-                                    else if (/legal/i.test(fullUserContext)) app = 'legal';
-                                    else if (/rit|reglamento/i.test(fullUserContext)) app = 'rit';
-                                    else if (/cargo/i.test(fullUserContext)) app = 'perfil_cargo';
-                                    else if (/diagn[oó]stico|0312/i.test(fullUserContext)) app = 'diagnostico';
-                                    else if (/emergencia|vulnerab/i.test(fullUserContext)) app = 'vulnerabilidad';
+                                    if (/pol[ií]tica/i.test(rawUserContext)) app = 'politica';
+                                    else if (/objetivo/i.test(rawUserContext)) app = 'objetivos';
+                                    else if (/legal/i.test(rawUserContext)) app = 'legal';
+                                    else if (/rit|reglamento/i.test(rawUserContext)) app = 'rit';
+                                    else if (/cargo/i.test(rawUserContext)) app = 'perfil_cargo';
+                                    else if (/diagn[oó]stico|0312/i.test(rawUserContext)) app = 'diagnostico';
+                                    else if (/emergencia|vulnerab/i.test(rawUserContext)) app = 'vulnerabilidad';
 
                                     this.sendToClient({
                                         type: 'wappy_action',
@@ -4666,7 +4675,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                         }
                                     });
                                     if (this.geminiClient) {
-                                        this.geminiClient.sendToolResponse([{
+                                        this.sendGeminiToolResponse([{
                                             id: fc.id,
                                             name: fc.name,
                                             response: { result: `Generación de Análisis IA ejecutada exitosamente dentro del aplicativo "${app}". Confirma al usuario en una sola frase breve y entusiasta: "¡Listo! Ya activé la generación del informe con Inteligencia Artificial directamente en el editor del aplicativo en tu pantalla."` }
@@ -4675,21 +4684,21 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                     continue;
                                 }
 
-                                logger.warn(`[VoiceSession] Gemini Live intentó delegar a Antigravity sin mención del usuario ("${fullUserContext}"). Redirigiendo a canvas_tool.`);
+                                logger.warn(`[VoiceSession] Gemini Live intentó delegar a Antigravity sin mención del usuario ("${rawUserContext}"). Redirigiendo a executeCanvasTool.`);
                                 const requestedType = targetArgs.tipo_entregable === 'word' ? 'text' : (targetArgs.tipo_entregable || 'html');
                                 const docTitle = targetArgs.titulo || 'Aplicativo SG-SST';
                                 const userReq = targetArgs.instruccion || this.lastUserTranscription || 'Generar aplicativo interactivo';
-                                await this.handleTenshiCanvasAction(fc.id, {
+                                const canvasRes = await this.executeCanvasTool({
                                     fileType: requestedType,
                                     title: docTitle,
                                     prompt: userReq,
                                     content: ''
-                                }, userReq);
+                                }, userReq, fc.id);
                                 if (this.geminiClient) {
-                                    this.geminiClient.sendToolResponse([{
+                                    this.sendGeminiToolResponse([{
                                         id: fc.id,
                                         name: fc.name,
-                                        response: { result: `El entregable '${docTitle}' fue generado directamente en pantalla con canvas_tool en lugar de delegar a Antigravity.` }
+                                        response: { result: canvasRes?.ok ? `El entregable '${docTitle}' fue generado directamente en pantalla con canvas_tool en lugar de delegar a Antigravity.` : `No se pudo generar '${docTitle}': ${canvasRes?.failReason || 'Error desconocido'}` }
                                     }]);
                                 }
                                 continue;
@@ -5600,6 +5609,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                     const isInternalSystemMessage = /^\[SISTEMA INTERNO WAPPY/i.test(data.text);
                     if (!isInternalSystemMessage) {
                         this.userTranscriptionText += (this.userTranscriptionText ? '\n' : '') + data.text;
+                        this.lastUserTranscription = data.text;
                     }
                     
                     if (this.geminiClient) {

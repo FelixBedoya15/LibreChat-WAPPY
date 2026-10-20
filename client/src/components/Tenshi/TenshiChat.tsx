@@ -2071,9 +2071,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         return;
       }
 
-      console.log(`[Tenshi Watchdog] Iniciando sondeo silencioso cada 15s para orden delegada ID: ${ordenId}`);
+      console.log(`[Tenshi Watchdog] Iniciando sondeo ágil cada 6s para orden delegada ID: ${ordenId}`);
       let attempts = 0;
-      const MAX_ATTEMPTS = 60; // 15 minutos (60 * 15s)
+      const MAX_ATTEMPTS = 150; // 15 minutos (150 * 6s)
 
       const timer = setInterval(async () => {
         attempts++;
@@ -2158,7 +2158,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         } catch (_) {
           // Ignorar errores transitorios de red
         }
-      }, 15000);
+      }, 6000);
 
       activeOrderWatchdogsRef.current.set(ordenId, timer);
     },
@@ -2269,6 +2269,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           wappy_abrir_chat_agente: '🤝 Conectando con especialista...',
           wappy_abrir_curso: '🎓 Abriendo curso formativo...',
           wappy_abrir_articulo_blog: '📰 Abriendo artículo del Blog...',
+          wappy_delegar_orden_antigravity: '🚀 Orden enviada a Antigravity...',
+          delegar_orden_antigravity: '🚀 Orden enviada a Antigravity...',
         };
         if (pillMap[action.name]) {
           showLiveActionPill(pillMap[action.name], 4200);
@@ -2994,22 +2996,31 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             } else {
               const ordenId = res.ordenId || res.detalles?.ordenId || action.args?.ordenId || '';
               const messageId = `antigravity-delegated-${Date.now()}`;
+              const bubbleContent =
+                `🚀 **Orden Delegada a Antigravity**\n\n` +
+                `📌 **Tarea:** ${titulo}\n` +
+                `📝 **Instrucción:** ${instruccion}\n` +
+                `🏢 **Empresa:** ${empresa}\n` +
+                `🎯 **Formato Solicitado:** ${formato}\n` +
+                (ordenId ? `🆔 **ID de Orden:** \`${ordenId}\`\n\n` : '\n') +
+                `*Antigravity ha recibido la instrucción pura y elaborará el entregable en segundo plano.*`;
 
               setMessages((prev) => [
                 ...prev,
                 {
                   _id: messageId,
                   role: 'assistant',
-                  content: `🚀 **Orden Delegada a Antigravity**\n\n` +
-                    `📌 **Tarea:** ${titulo}\n` +
-                    `📝 **Instrucción:** ${instruccion}\n` +
-                    `🏢 **Empresa:** ${empresa}\n` +
-                    `🎯 **Formato Solicitado:** ${formato}\n\n` +
-                    `*Antigravity ha recibido la instrucción pura y elaborará el entregable en segundo plano.*`,
+                  content: bubbleContent,
                   delegatedOrderId: ordenId,
                   delegatedStatus: 'todo',
                 },
               ]);
+              axios
+                .post('/api/tenshi/message', {
+                  role: 'assistant',
+                  content: bubbleContent,
+                })
+                .catch(() => {});
               setIsOpen(true);
               resultMsg = `Orden "${titulo}" delegada exitosamente a Antigravity con su instrucción.`;
 
@@ -4632,6 +4643,92 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     return () => window.removeEventListener('tenshi-report-delivered', handleReportDelivered);
   }, []);
 
+  // Escuchar entrega instantánea por WebSocket cuando Antigravity completa una orden delegada (Push 0-latencia)
+  useEffect(() => {
+    const handleAntigravityDelivered = (e: any) => {
+      const { ordenId, title, html, file, messageId, summary } = e.detail || {};
+      const finalTitle = title || file?.title || 'Entregable de Antigravity';
+      const contenido = file?.content || html || '';
+      const fileType = file?.fileType || (html ? 'html' : 'text');
+      const isHtml = fileType === 'html' || (typeof contenido === 'string' && (contenido.trim().startsWith('<!DOCTYPE') || contenido.trim().startsWith('<html')));
+      const canvasFileType = isHtml ? 'html' : (fileType === 'word' || fileType === 'documento' ? 'text' : fileType);
+      const chatSummary = summary || 'Entregable procesado y completado por Antigravity. Puedes visualizarlo o descargarlo desde aquí.';
+
+      // Detener el timer de polling si estaba activo para esta orden
+      if (ordenId && activeOrderWatchdogsRef.current.has(ordenId)) {
+        clearInterval(activeOrderWatchdogsRef.current.get(ordenId));
+        activeOrderWatchdogsRef.current.delete(ordenId);
+      }
+
+      try {
+        tenshiAudio.playSuccess();
+      } catch (_) {}
+
+      const fileObj = contenido
+        ? {
+            title: finalTitle,
+            fileType: canvasFileType,
+            content: contenido,
+            canvasId: file?.canvasId || messageId || `antigravity-report-${Date.now()}`,
+          }
+        : undefined;
+
+      setMessages((prev) => {
+        const hasPendingBubble = ordenId && prev.some((m) => m.delegatedOrderId === ordenId);
+        if (hasPendingBubble) {
+          return prev.map((m) => {
+            if (m.delegatedOrderId === ordenId) {
+              return {
+                ...m,
+                content: `⚡ **${finalTitle} — Entregable Listo por Antigravity**\n\n${chatSummary}`,
+                file: fileObj,
+                htmlReport: isHtml ? contenido : undefined,
+                delegatedStatus: 'done',
+              };
+            }
+            return m;
+          });
+        }
+        return [
+          ...prev,
+          {
+            _id: messageId || `antigravity-done-${Date.now()}`,
+            role: 'assistant',
+            content: `⚡ **${finalTitle} — Entregable Listo por Antigravity**\n\n${chatSummary}`,
+            file: fileObj,
+            htmlReport: isHtml ? contenido : undefined,
+            delegatedOrderId: ordenId,
+            delegatedStatus: 'done',
+          },
+        ];
+      });
+
+      setIsOpen(true);
+      refetchHistoryRef.current?.();
+
+      if (contenido && window.location.pathname.startsWith('/c/')) {
+        setStreamingCanvas({
+          id: fileObj?.canvasId || `antigravity-${Date.now()}`,
+          title: finalTitle,
+          fileType: canvasFileType,
+          content: contenido,
+          messageId: '',
+          isStreaming: false,
+        });
+        setIsCanvasActive(true);
+      }
+
+      if (isVoiceActiveRef.current) {
+        sendTextMessageRef.current?.(
+          `[SISTEMA INTERNO WAPPY]: Antigravity acaba de entregar en vivo el resultado de la orden "${finalTitle}". Confírmale al usuario en una sola frase breve y entusiasta que el entregable de Antigravity ya está disponible en su chat de Tenshi.`
+        );
+      }
+    };
+
+    window.addEventListener('tenshi-antigravity-delivered', handleAntigravityDelivered);
+    return () => window.removeEventListener('tenshi-antigravity-delivered', handleAntigravityDelivered);
+  }, [setIsCanvasActive, setStreamingCanvas]);
+
   // Sincronizar siempre un resumen vivo del propio chat de Tenshi e informes generados en window.__TENSHI_OWN_CHAT_SUMMARY__
   // para que leer_pantalla / getVisibleScreenContent siempre conozca los informes propios de Tenshi
   useEffect(() => {
@@ -4784,18 +4881,39 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         responseData.guiAction?.name === 'wappy_iniciar_estudio_ergonomico_vivo' ||
         responseData.guiAction?.accion === 'iniciar_estudio_ergonomico_vivo';
 
+      const delegatedOrder = responseData.delegatedOrder;
+      const assistantMsgId = delegatedOrder?.ordenId
+        ? `antigravity-delegated-${Date.now()}`
+        : undefined;
+
       const assistantMsg = {
-        role: 'assistant',
+        ...(assistantMsgId ? { _id: assistantMsgId } : {}),
+        role: 'assistant' as const,
         content: responseData.response,
         htmlReport: responseData.htmlReport,
         qrCode: responseData.qrCode,
         file: responseData.file,
+        ...(delegatedOrder?.ordenId
+          ? {
+              delegatedOrderId: delegatedOrder.ordenId,
+              delegatedStatus: delegatedOrder.estado || 'todo',
+            }
+          : {}),
         isIntermediate:
           !isLiveEptGui &&
           (!!responseData.guiAction || (responseData.guiActions && responseData.guiActions.length > 0)),
       };
       setMessages((prev) => [...prev, assistantMsg]);
       window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
+
+      if (delegatedOrder?.ordenId && assistantMsgId) {
+        iniciarMonitoreoOrden(
+          delegatedOrder.ordenId,
+          delegatedOrder.titulo || 'Orden Antigravity',
+          delegatedOrder.formato || 'html',
+          assistantMsgId,
+        );
+      }
 
       // Si Tenshi requiere una o más acciones visuales, las ejecutamos en secuencia en el cliente
       const actions = responseData.guiActions || (responseData.guiAction ? [responseData.guiAction] : []);

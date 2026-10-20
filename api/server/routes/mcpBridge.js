@@ -49,6 +49,7 @@ const Partner = mongoose.models.Partner || require('~/models/Partner');
 const PartnerCommission = mongoose.models.PartnerCommission || require('~/models/PartnerCommission');
 const PayoutRequest = mongoose.models.PayoutRequest || require('~/models/PayoutRequest');
 const TenshiConfig = mongoose.models.TenshiConfig || require('~/models/TenshiConfig');
+const TenshiMessage = mongoose.models.TenshiMessage || require('~/models/TenshiMessage');
 const Ticket = mongoose.models.Ticket || require('~/models/Ticket');
 const SgsstHeightsData = mongoose.models.SgsstHeightsData || require('~/models/SgsstHeightsData');
 const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData || (() => {
@@ -7815,16 +7816,31 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
     try {
       const { activeSessions } = require('./voice/voiceSession');
       if (activeSessions) {
-        const userSession = activeSessions.get(String(targetUserId));
+        let userSession = activeSessions.get(String(targetUserId));
+        if (!userSession) {
+          for (const [key, sess] of activeSessions.entries()) {
+            if (String(key) === String(targetUserId)) {
+              userSession = sess;
+              break;
+            }
+          }
+        }
         if (userSession && typeof userSession.sendToClient === 'function') {
+          let normalizedFileType = finalFormat;
+          if (finalFormat === 'word' || finalFormat === 'doc' || finalFormat === 'docx' || finalFormat === 'documento') {
+            normalizedFileType = 'text';
+          } else if (isHtml) {
+            normalizedFileType = 'html';
+          }
           userSession.sendToClient({
             type: 'tenshi_report_delivered',
             data: {
+              ordenId: task._id.toString(),
               title: task.title,
-              html: (finalFormat === 'html') ? finalContent : undefined,
+              html: isHtml ? finalContent : undefined,
               file: {
                 title: task.title,
-                fileType: finalFormat,
+                fileType: normalizedFileType,
                 content: finalContent,
                 canvasId: `antigravity-${task._id}`,
               },
