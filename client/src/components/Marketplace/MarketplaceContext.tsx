@@ -75,14 +75,26 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const cartItemId = `${product._id}${variantId}`;
 
     setCart((prev) => {
-      const existingIndex = prev.findIndex((item) => item.id === cartItemId);
+      const targetRecipient = product.paymentRecipient || 'WAPPY';
+      const targetProvider = product.providerName || '';
+
+      // Filter out items from incompatible payment gateways (WAPPY vs different Provider)
+      const compatiblePrev = prev.filter((item) => {
+        const itemRecipient = item.paymentRecipient || 'WAPPY';
+        const itemProvider = item.providerName || '';
+        if (itemRecipient !== targetRecipient) return false;
+        if (targetRecipient === 'PROVIDER' && itemProvider !== targetProvider) return false;
+        return true;
+      });
+
+      const existingIndex = compatiblePrev.findIndex((item) => item.id === cartItemId);
       if (existingIndex > -1) {
-        const updated = [...prev];
+        const updated = [...compatiblePrev];
         updated[existingIndex].quantity += quantity;
         return updated;
       }
       return [
-        ...prev,
+        ...compatiblePrev,
         {
           id: cartItemId,
           productId: product._id,
@@ -94,6 +106,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
           quantity,
           featuredImage: product.featuredImage,
           category: product.category,
+          paymentRecipient: targetRecipient,
+          providerName: targetProvider,
           selectedVariant: variantOption
             ? {
                 name: variantName || 'Opción',

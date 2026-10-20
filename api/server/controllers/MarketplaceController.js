@@ -74,12 +74,72 @@ const OFFICIAL_COURSE_PRODUCT = {
   stockType: 'limited',
   availableSlots: 12,
   rating: 5.0,
-  reviewsCount: 12
+  reviewsCount: 12,
+  paymentRecipient: 'WAPPY'
 };
+
+// Partner Course "Adelanto" connected to Mauricio Posada's Wompi Sandbox
+const ADELANTO_COURSE_PRODUCT = {
+  title: 'Curso Adelanto',
+  slug: 'curso-adelanto',
+  sku: 'WAPPY-ADELANTO-01',
+  shortDescription: 'Curso especializado Adelanto con pasarela de pagos conectada directamente al proveedor aliado (Mauricio Posada).',
+  description: 'Formación integral del programa Adelanto en el ecosistema WAPPY. Este producto procesa sus pagos directamente hacia la cuenta Wompi del proveedor aliado (Mauricio Posada) para validación y recaudo independiente.',
+  category: 'capacitaciones',
+  tags: ['Adelanto', 'Curso SST', 'Proveedor Aliado', 'WAPPY IA'],
+  serviceType: 'service_virtual',
+  regularPrice: 150000,
+  salePrice: 0,
+  hasDiscount: false,
+  hasVariants: false,
+  estimatedDeliveryDays: 'Acceso inmediato · Modalidad Virtual',
+  deliverables: [
+    'Acceso completo a las sesiones y contenidos del Curso Adelanto',
+    'Material práctico descargable y plantillas aplicables',
+    'Certificado de participación y acompañamiento especializado'
+  ],
+  requirements: [
+    'Computador o dispositivo móvil con conexión a internet',
+    'Correo electrónico y WhatsApp activos para envío de accesos'
+  ],
+  faqs: [
+    {
+      question: '¿A quién se realiza el pago de este curso?',
+      answer: 'El pago se procesa de forma 100% segura a través de la pasarela Wompi conectada directamente al proveedor aliado Mauricio Posada.'
+    }
+  ],
+  featuredImage: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80',
+  status: 'published',
+  isFeatured: true,
+  isTest: false,
+  stockType: 'unlimited',
+  availableSlots: 0,
+  rating: 5.0,
+  reviewsCount: 5,
+  paymentRecipient: 'PROVIDER',
+  providerName: 'Mauricio Posada',
+  providerWompi: {
+    publicKey: 'pub_test_2GjhltTKLs90rNb19ddrcv4Cj8xZujfk',
+    privateKey: 'prv_test_UxyMfuX6vAhnhDfUMyNsCmpiViBlwpuu',
+    eventsSecret: 'test_events_onGHUTU2i0mPJq1utJ6jVISerJrizpMn',
+    integritySecret: 'test_integrity_MeG6viY2yh3tOrOpg2gxSLmUu3VxeCtm'
+  }
+};
+
+const DEFAULT_TEST_SLUGS = [
+  'bateria-riesgo-psicosocial-completa',
+  'matriz-ipevar-gtc45-asistida',
+  'diseno-implementacion-pesv',
+  'paquete-examenes-medicos-ocupacionales-10',
+  'estudio-puesto-trabajo-ergonomico',
+  'auditoria-externa-estandares-minimos-0312',
+  'investigacion-tecnica-accidente-trabajo-atel'
+];
 
 // Default initial catalog products
 const DEFAULT_PRODUCTS = [
   OFFICIAL_COURSE_PRODUCT,
+  ADELANTO_COURSE_PRODUCT,
   {
     title: 'Batería de Riesgo Psicosocial Completa (Res. 2764 / 2022)',
     slug: 'bateria-riesgo-psicosocial-completa',
@@ -353,9 +413,26 @@ const DEFAULT_PRODUCTS = [
   }
 ];
 
+let seedInitialized = false;
+
+// Helper: Strip sensitive provider Wompi keys for non-admin users
+const sanitizeProductForClient = (product, isAdmin) => {
+  if (!product) return product;
+  const copy = { ...product };
+  if (!isAdmin && copy.providerWompi) {
+    copy.providerWompi = {
+      publicKey: copy.providerWompi.publicKey || ''
+    };
+  }
+  return copy;
+};
+
 // Helper: Ensure default data on boot/first request
-const ensureSeedData = async () => {
+const ensureSeedData = async (force = false) => {
   if (mongoose.connection.readyState !== 1) {
+    return;
+  }
+  if (seedInitialized && !force) {
     return;
   }
   try {
@@ -369,38 +446,38 @@ const ensureSeedData = async () => {
       await MarketplaceProduct.insertMany(DEFAULT_PRODUCTS);
       logger.info('[Marketplace] Default SST products seeded successfully.');
     } else {
-      // Upsert the official course product (available to all users)
+      // Ensure the official course product exists
       const course = await MarketplaceProduct.findOne({ slug: 'curso-ecosistema-autonomo-sst' });
       if (!course) {
         await MarketplaceProduct.create(OFFICIAL_COURSE_PRODUCT);
         logger.info('[Marketplace] Official Course seeded into database.');
-      } else {
+      }
+
+      // Ensure the partner course "Adelanto" exists with Mauricio Posada's test Wompi credentials
+      const adelantoCourse = await MarketplaceProduct.findOne({ slug: 'curso-adelanto' });
+      if (!adelantoCourse) {
+        await MarketplaceProduct.create(ADELANTO_COURSE_PRODUCT);
+        logger.info('[Marketplace] Partner Course "Adelanto" seeded into database.');
+      } else if (!adelantoCourse.providerWompi?.publicKey) {
         await MarketplaceProduct.updateOne(
-          { slug: 'curso-ecosistema-autonomo-sst' },
+          { slug: 'curso-adelanto' },
           {
             $set: {
-              title: OFFICIAL_COURSE_PRODUCT.title,
-              shortDescription: OFFICIAL_COURSE_PRODUCT.shortDescription,
-              estimatedDeliveryDays: OFFICIAL_COURSE_PRODUCT.estimatedDeliveryDays,
-              deliverables: OFFICIAL_COURSE_PRODUCT.deliverables,
-              faqs: OFFICIAL_COURSE_PRODUCT.faqs,
-              regularPrice: 620000,
-              salePrice: 620000,
-              hasDiscount: false,
-              isTest: false,
-              status: 'published',
-              isFeatured: true,
-              availableSlots: 12
+              paymentRecipient: 'PROVIDER',
+              providerName: ADELANTO_COURSE_PRODUCT.providerName,
+              providerWompi: ADELANTO_COURSE_PRODUCT.providerWompi
             }
           }
         );
       }
-      // Ensure all test products have isTest: true
+
+      // Ensure only the 7 initial sample services remain marked as test products
       await MarketplaceProduct.updateMany(
-        { slug: { $ne: 'curso-ecosistema-autonomo-sst' }, isTest: { $ne: true } },
+        { slug: { $in: DEFAULT_TEST_SLUGS }, isTest: { $ne: true } },
         { $set: { isTest: true } }
       );
     }
+    seedInitialized = true;
   } catch (err) {
     logger.error('[Marketplace] Error seeding default data:', err);
   }
@@ -418,10 +495,18 @@ if (mongoose.connection.readyState === 1) {
 // GET /api/marketplace/categories
 const getCategories = async (req, res) => {
   try {
-    let categories = await MarketplaceCategory.find({ active: true }).sort({ order: 1 }).lean();
-    if (categories.length === 0) {
-      await ensureSeedData();
-      categories = await MarketplaceCategory.find({ active: true }).sort({ order: 1 }).lean();
+    let rawCategories = await MarketplaceCategory.find({ active: true }).sort({ order: 1 }).lean();
+    if (rawCategories.length === 0) {
+      await ensureSeedData(true);
+      rawCategories = await MarketplaceCategory.find({ active: true }).sort({ order: 1 }).lean();
+    }
+    const seenSlugs = new Set();
+    const categories = [];
+    for (const cat of rawCategories) {
+      if (cat.slug && !seenSlugs.has(cat.slug)) {
+        seenSlugs.add(cat.slug);
+        categories.push(cat);
+      }
     }
     return res.json({ success: true, categories });
   } catch (error) {
@@ -434,13 +519,17 @@ const getCategories = async (req, res) => {
 const getProducts = async (req, res) => {
   try {
     await ensureSeedData();
-    const { category, search, tag, sort, featured } = req.query;
-    const query = { status: 'published' };
+    const { category, search, tag, sort, featured, includeAll } = req.query;
 
     const isAdmin = !!(req.user && (
       req.user.role === 'ADMIN' ||
       req.user.email?.toLowerCase() === 'felix.bedoya15@gmail.com'
     ));
+
+    const query = {};
+    if (!(isAdmin && includeAll === 'true')) {
+      query.status = 'published';
+    }
 
     // Non-admin users and visitors ONLY see official public products (never test products)
     if (!isAdmin) {
@@ -462,7 +551,8 @@ const getProducts = async (req, res) => {
         { title: regex },
         { shortDescription: regex },
         { tags: regex },
-        { sku: regex }
+        { sku: regex },
+        { providerName: regex }
       ];
     }
 
@@ -472,7 +562,8 @@ const getProducts = async (req, res) => {
     if (sort === 'rating') sortOption = { rating: -1 };
     if (sort === 'sales') sortOption = { salesCount: -1 };
 
-    const products = await MarketplaceProduct.find(query).sort(sortOption).lean();
+    const rawProducts = await MarketplaceProduct.find(query).sort(sortOption).lean();
+    const products = rawProducts.map(p => sanitizeProductForClient(p, isAdmin));
     return res.json({ success: true, count: products.length, products, isAdmin });
   } catch (error) {
     logger.error('[Marketplace] getProducts error:', error);
@@ -515,9 +606,15 @@ const getProductBySlugOrId = async (req, res) => {
     if (!isAdmin) {
       relatedQuery.isTest = { $ne: true };
     }
-    const related = await MarketplaceProduct.find(relatedQuery).limit(3).lean();
+    const rawRelated = await MarketplaceProduct.find(relatedQuery).limit(3).lean();
+    const related = rawRelated.map(p => sanitizeProductForClient(p, isAdmin));
 
-    return res.json({ success: true, product, related, isAdmin });
+    return res.json({
+      success: true,
+      product: sanitizeProductForClient(product, isAdmin),
+      related,
+      isAdmin
+    });
   } catch (error) {
     logger.error('[Marketplace] getProductBySlugOrId error:', error);
     return res.status(500).json({ error: 'Error al obtener detalle del servicio.' });
@@ -588,12 +685,14 @@ const createCheckout = async (req, res) => {
     // Recalculate prices directly from DB to prevent client-side manipulation
     let subtotal = 0;
     const verifiedItems = [];
+    const loadedProducts = [];
 
     for (const item of items) {
       const product = await MarketplaceProduct.findById(item.productId).lean();
       if (!product || product.status !== 'published') {
         return res.status(400).json({ error: `El servicio "${item.title || 'seleccionado'}" no está disponible actualmente.` });
       }
+      loadedProducts.push(product);
 
       const basePrice = (product.hasDiscount && product.salePrice > 0) ? product.salePrice : product.regularPrice;
       let variantDelta = 0;
@@ -627,6 +726,41 @@ const createCheckout = async (req, res) => {
         selectedVariant: selectedVariantData,
         subtotal: lineSubtotal
       });
+    }
+
+    // Determine Payment Recipient & Wompi Gateway (WAPPY vs Provider)
+    let orderPaymentRecipient = 'WAPPY';
+    let orderProviderName = 'WAPPY Oficial';
+    let targetWompiPublicKey = process.env.WOMPI_PUBLIC_KEY;
+    let targetWompiIntegritySecret = process.env.WOMPI_INTEGRITY_SECRET || '';
+
+    const providerProducts = loadedProducts.filter(p => p.paymentRecipient === 'PROVIDER');
+    const wappyProducts = loadedProducts.filter(p => p.paymentRecipient !== 'PROVIDER');
+
+    if (providerProducts.length > 0 && wappyProducts.length > 0) {
+      return res.status(400).json({
+        error: 'No es posible combinar en un mismo pago servicios de WAPPY con servicios de proveedores independientes. Por favor realiza el pago por separado.'
+      });
+    }
+
+    if (providerProducts.length > 0) {
+      const uniqueProviderKeys = new Set(providerProducts.map(p => (p.providerWompi?.publicKey || '').trim()));
+      if (uniqueProviderKeys.size > 1) {
+        return res.status(400).json({
+          error: 'Tu carrito contiene productos de distintos proveedores con pasarelas diferentes. Por favor realiza el pago de cada proveedor por separado.'
+        });
+      }
+      const mainProviderProduct = providerProducts[0];
+      orderPaymentRecipient = 'PROVIDER';
+      orderProviderName = mainProviderProduct.providerName?.trim() || 'Proveedor Aliado';
+      targetWompiPublicKey = (mainProviderProduct.providerWompi?.publicKey || '').trim();
+      targetWompiIntegritySecret = (mainProviderProduct.providerWompi?.integritySecret || '').trim();
+
+      if (!targetWompiPublicKey) {
+        return res.status(400).json({
+          error: `El proveedor (${orderProviderName}) aún no tiene configurada su Llave Pública de Wompi.`
+        });
+      }
     }
 
     // Apply Promo Code
@@ -676,12 +810,16 @@ const createCheckout = async (req, res) => {
       promoCode: appliedPromo,
       totalAmount,
       currency: 'COP',
+      paymentRecipient: orderPaymentRecipient,
+      providerName: orderProviderName,
       paymentMethod,
       paymentStatus: 'PENDING',
       fulfillmentStatus: 'NUEVO',
       serviceTimeline: [{
         status: 'NUEVO',
-        comment: 'Pedido generado en tienda SST.',
+        comment: orderPaymentRecipient === 'PROVIDER'
+          ? `Pedido generado en tienda SST (Pago directo a proveedor: ${orderProviderName}).`
+          : 'Pedido generado en tienda SST (Pago WAPPY Oficial).',
         updatedAt: new Date(),
         updatedBy: 'Sistema Marketplace'
       }]
@@ -694,16 +832,14 @@ const createCheckout = async (req, res) => {
       order.wompiReference = reference;
       await order.save();
 
-      const publicKey = process.env.WOMPI_PUBLIC_KEY;
-      if (!publicKey) {
-        throw new Error('WOMPI_PUBLIC_KEY no configurada en el servidor');
+      if (!targetWompiPublicKey) {
+        throw new Error('WOMPI_PUBLIC_KEY no configurada para este producto.');
       }
 
-      const integritySecret = process.env.WOMPI_INTEGRITY_SECRET || '';
       let signature = '';
-      if (integritySecret) {
+      if (targetWompiIntegritySecret) {
         // sha256(reference + amountInCents + currency + integritySecret)
-        const stringToSign = `${reference}${amountInCents}COP${integritySecret}`;
+        const stringToSign = `${reference}${amountInCents}COP${targetWompiIntegritySecret}`;
         signature = crypto.createHash('sha256').update(stringToSign, 'utf-8').digest('hex');
       }
 
@@ -711,12 +847,15 @@ const createCheckout = async (req, res) => {
         success: true,
         orderId: order._id,
         orderNumber: order.orderNumber,
+        paymentRecipient: orderPaymentRecipient,
+        providerName: orderProviderName,
         wompi: {
-          publicKey,
+          publicKey: targetWompiPublicKey,
           reference,
           amountInCents,
           currency: 'COP',
-          signature
+          signature,
+          isSandbox: targetWompiPublicKey.startsWith('pub_test_')
         }
       });
     }
@@ -756,22 +895,54 @@ const verifyPayment = async (req, res) => {
       return res.json({ success: true, paymentStatus: 'APPROVED', orderNumber: order.orderNumber });
     }
 
+    // Determine Wompi environment & credentials from product if PROVIDER, else WAPPY env
+    let publicKey = process.env.WOMPI_PUBLIC_KEY || '';
+    let privateKey = process.env.WOMPI_PRIVATE_KEY || '';
+
+    if (order.paymentRecipient === 'PROVIDER' && order.items?.length > 0) {
+      const firstProduct = await MarketplaceProduct.findById(order.items[0].productId).lean();
+      if (firstProduct?.providerWompi?.publicKey) {
+        publicKey = firstProduct.providerWompi.publicKey.trim();
+        privateKey = (firstProduct.providerWompi.privateKey || '').trim();
+      }
+    }
+
+    const isSandbox = publicKey.startsWith('pub_test_') || privateKey.startsWith('prv_test_');
+    const primaryBaseUrl = isSandbox ? 'https://sandbox.wompi.co/v1' : 'https://production.wompi.co/v1';
+    const fallbackBaseUrl = isSandbox ? 'https://production.wompi.co/v1' : 'https://sandbox.wompi.co/v1';
+
     // If transactionId provided, consult Wompi API
     let isApproved = false;
     if (transactionId) {
       order.wompiTransactionId = transactionId;
+      const headers = {};
+      if (privateKey) {
+        headers['Authorization'] = `Bearer ${privateKey}`;
+      }
+
+      let wompiData = null;
       try {
-        const wompiRes = await axios.get(`https://production.wompi.co/v1/transactions/${transactionId}`, {
+        const wompiRes = await axios.get(`${primaryBaseUrl}/transactions/${transactionId}`, {
+          headers,
           timeout: 10000
         });
-        const status = wompiRes.data?.data?.status;
-        if (status === 'APPROVED') {
-          isApproved = true;
-        } else if (status === 'DECLINED' || status === 'ERROR') {
-          order.paymentStatus = 'DECLINED';
-        }
+        wompiData = wompiRes.data?.data;
       } catch (err) {
-        logger.warn('[Marketplace] Could not verify directly with Wompi API:', err.message);
+        try {
+          const fallbackRes = await axios.get(`${fallbackBaseUrl}/transactions/${transactionId}`, {
+            timeout: 10000
+          });
+          wompiData = fallbackRes.data?.data;
+        } catch (fallbackErr) {
+          logger.warn('[Marketplace] Could not verify directly with Wompi API:', err.message);
+        }
+      }
+
+      const status = wompiData?.status;
+      if (status === 'APPROVED') {
+        isApproved = true;
+      } else if (status === 'DECLINED' || status === 'ERROR' || status === 'VOIDED') {
+        order.paymentStatus = status === 'VOIDED' ? 'VOIDED' : 'DECLINED';
       }
     }
 
@@ -779,7 +950,7 @@ const verifyPayment = async (req, res) => {
       order.paymentStatus = 'APPROVED';
       order.serviceTimeline.push({
         status: 'PAGO_APROBADO',
-        comment: `Pago aprobado por Wompi (${order.wompiTransactionId || 'Ref: ' + order.wompiReference})`,
+        comment: `Pago aprobado por Wompi${order.paymentRecipient === 'PROVIDER' ? ` (Proveedor: ${order.providerName || 'Aliado'})` : ''} (${order.wompiTransactionId || 'Ref: ' + order.wompiReference})`,
         updatedAt: new Date(),
         updatedBy: 'Wompi Gateway'
       });
@@ -808,7 +979,7 @@ const verifyPayment = async (req, res) => {
 // POST /api/marketplace/webhook (Wompi Events)
 const handleWebhook = async (req, res) => {
   try {
-    const { event, data } = req.body || {};
+    const { event, data, signature, timestamp } = req.body || {};
     if (event === 'transaction.updated' && data?.transaction) {
       const tx = data.transaction;
       const reference = tx.reference;
@@ -818,12 +989,38 @@ const handleWebhook = async (req, res) => {
       if (reference) {
         const order = await MarketplaceOrder.findOne({ wompiReference: reference });
         if (order) {
+          // Optional checksum verification using either Provider's eventsSecret or WAPPY's eventsSecret
+          if (signature?.checksum && Array.isArray(signature?.properties) && timestamp) {
+            let eventsSecret = process.env.WOMPI_EVENTS_SECRET || '';
+            if (order.paymentRecipient === 'PROVIDER' && order.items?.length > 0) {
+              const firstProduct = await MarketplaceProduct.findById(order.items[0].productId).lean();
+              if (firstProduct?.providerWompi?.eventsSecret) {
+                eventsSecret = firstProduct.providerWompi.eventsSecret.trim();
+              }
+            }
+            if (eventsSecret) {
+              const propValues = signature.properties.map(prop => {
+                const parts = prop.split('.');
+                let val = data;
+                for (const p of parts) {
+                  val = val ? val[p] : '';
+                }
+                return val !== undefined && val !== null ? String(val) : '';
+              }).join('');
+              const stringToHash = `${propValues}${timestamp}${eventsSecret}`;
+              const calculatedChecksum = crypto.createHash('sha256').update(stringToHash, 'utf-8').digest('hex');
+              if (calculatedChecksum.toLowerCase() !== String(signature.checksum).toLowerCase()) {
+                logger.warn(`[Marketplace Webhook] Checksum mismatch for order ${order.orderNumber}. Proceeding with caution.`);
+              }
+            }
+          }
+
           order.wompiTransactionId = transactionId;
           if (status === 'APPROVED' && order.paymentStatus !== 'APPROVED') {
             order.paymentStatus = 'APPROVED';
             order.serviceTimeline.push({
               status: 'PAGO_APROBADO',
-              comment: `Pago confirmado vía webhook Wompi (${transactionId})`,
+              comment: `Pago confirmado vía webhook Wompi${order.paymentRecipient === 'PROVIDER' ? ` (Proveedor: ${order.providerName || 'Aliado'})` : ''} (${transactionId})`,
               updatedAt: new Date(),
               updatedBy: 'Wompi Webhook'
             });

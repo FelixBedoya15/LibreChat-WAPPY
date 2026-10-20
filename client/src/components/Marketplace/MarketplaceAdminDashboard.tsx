@@ -89,7 +89,7 @@ const MarketplaceAdminDashboard: React.FC = () => {
   const fetchProducts = async () => {
     try {
       const { data } = await axios.get('/api/marketplace/products', {
-        params: { search: productSearch },
+        params: { search: productSearch, includeAll: 'true' },
       });
       if (data.success) {
         setProducts(data.products || []);
@@ -161,18 +161,43 @@ const MarketplaceAdminDashboard: React.FC = () => {
   };
 
   // Product actions
+  const handleUploadProductImage = async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const { data } = await axios.post('/api/marketplace/admin/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      if (data.success && data.url) {
+        setEditingProduct((prev) => (prev ? { ...prev, featuredImage: data.url } : prev));
+        showNotification('Imagen subida correctamente.', 'success');
+      }
+    } catch (err) {
+      showNotification('Error al subir la imagen del producto.', 'error');
+    }
+  };
+
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct) return;
+
+    if (
+      editingProduct.paymentRecipient === 'PROVIDER' &&
+      !editingProduct.providerWompi?.publicKey?.trim()
+    ) {
+      showNotification('Debes ingresar al menos la Llave Pública de Wompi del proveedor.', 'error');
+      return;
+    }
+
     setLoading(true);
 
     try {
       if (editingProduct._id) {
         await axios.put(`/api/marketplace/admin/products/${editingProduct._id}`, editingProduct);
-        showNotification('Servicio actualizado con éxito.', 'success');
+        showNotification('Producto / Servicio actualizado con éxito.', 'success');
       } else {
         await axios.post('/api/marketplace/admin/products', editingProduct);
-        showNotification('Servicio creado con éxito.', 'success');
+        showNotification('Producto / Servicio creado con éxito.', 'success');
       }
       setIsProductModalOpen(false);
       setEditingProduct(null);
@@ -317,21 +342,34 @@ const MarketplaceAdminDashboard: React.FC = () => {
                 setEditingProduct({
                   title: '',
                   slug: '',
-                  category: 'medicina_laboral',
+                  sku: '',
+                  category: 'capacitaciones',
                   serviceType: 'service_virtual',
-                  regularPrice: 350000,
+                  regularPrice: 150000,
                   salePrice: 0,
                   hasDiscount: false,
                   status: 'published',
+                  isTest: false,
+                  isFeatured: false,
+                  stockType: 'unlimited',
+                  availableSlots: 0,
                   deliverables: [],
                   requirements: [],
+                  paymentRecipient: 'WAPPY',
+                  providerName: '',
+                  providerWompi: {
+                    publicKey: '',
+                    privateKey: '',
+                    eventsSecret: '',
+                    integritySecret: '',
+                  },
                 });
                 setIsProductModalOpen(true);
               }}
               className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white"
             >
               <Plus className="h-4 w-4" />
-              <span>Nuevo Servicio SST</span>
+              <span>Nuevo Producto / Servicio</span>
             </button>
           </div>
         )}
@@ -565,96 +603,139 @@ const MarketplaceAdminDashboard: React.FC = () => {
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-50 dark:bg-zinc-800/60 text-slate-500 font-semibold border-b border-slate-200 dark:border-zinc-800">
                 <tr>
-                  <th className="p-3">Servicio</th>
+                  <th className="p-3">Servicio / Producto</th>
                   <th className="p-3">Categoría</th>
+                  <th className="p-3">Recaudo Wompi</th>
                   <th className="p-3">Precio Base</th>
                   <th className="p-3">Oferta</th>
                   <th className="p-3">Ventas</th>
-                  <th className="p-3">Estado</th>
+                  <th className="p-3">Estado & Visibilidad</th>
                   <th className="p-3 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-zinc-800">
-                {products.map((prod) => (
-                  <tr key={prod._id} className="hover:bg-slate-50/70 dark:hover:bg-zinc-800/40">
-                    <td className="p-3">
-                      <div className="flex items-center gap-2.5">
-                        <img
-                          src={prod.featuredImage || 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&auto=format&fit=crop&q=80'}
-                          alt={prod.title}
-                          className="w-10 h-10 rounded-xl object-cover shrink-0"
-                        />
-                        <div>
-                          <div className="font-bold text-slate-800 dark:text-zinc-100">{prod.title}</div>
-                          <div className="text-[10px] text-slate-400 font-mono">SKU: {prod.sku || 'N/A'}</div>
+                {products.map((prod) => {
+                  const isProvider = prod.paymentRecipient === 'PROVIDER';
+                  const isSandboxKey = prod.providerWompi?.publicKey?.startsWith('pub_test_');
+                  return (
+                    <tr key={prod._id} className="hover:bg-slate-50/70 dark:hover:bg-zinc-800/40">
+                      <td className="p-3">
+                        <div className="flex items-center gap-2.5">
+                          <img
+                            src={prod.featuredImage || 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&auto=format&fit=crop&q=80'}
+                            alt={prod.title}
+                            className="w-10 h-10 rounded-xl object-cover shrink-0"
+                          />
+                          <div>
+                            <div className="font-bold text-slate-800 dark:text-zinc-100">{prod.title}</div>
+                            <div className="text-[10px] text-slate-400 font-mono">SKU: {prod.sku || 'N/A'}</div>
+                          </div>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    <td className="p-3">
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300">
-                        {prod.category}
-                      </span>
-                    </td>
-
-                    <td className="p-3 font-semibold">{formatCOP(prod.regularPrice)}</td>
-
-                    <td className="p-3">
-                      {prod.hasDiscount && (prod.salePrice ?? 0) > 0 ? (
-                        <span className="font-bold text-teal-600 dark:text-teal-400">
-                          {formatCOP(prod.salePrice ?? 0)}
+                      <td className="p-3">
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300">
+                          {prod.category}
                         </span>
-                      ) : (
-                        <span className="text-slate-400">-</span>
-                      )}
-                    </td>
+                      </td>
 
-                    <td className="p-3 font-bold">{prod.salesCount || 0}</td>
-
-                    <td className="p-3">
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          prod.status === 'published'
-                            ? 'bg-emerald-50 text-emerald-700'
-                            : 'bg-slate-100 text-slate-600'
-                        }`}
-                      >
-                        {prod.status}
-                      </span>
-                    </td>
-
-                    <td className="p-3 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {/* Editar Micro Button */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingProduct(prod);
-                            setIsProductModalOpen(true);
-                          }}
-                          className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-xs active:scale-95 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-amber-100"
-                        >
-                          <Edit className="h-3.5 w-3.5" />
-                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
-                            <span className="text-[10px] font-bold">Editar</span>
+                      <td className="p-3">
+                        {isProvider ? (
+                          <div className="flex flex-col items-start gap-1">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                              🤝 Proveedor: {prod.providerName || 'Aliado'}
+                            </span>
+                            <span className="text-[9px] font-mono text-slate-500">
+                              {isSandboxKey ? '🧪 Wompi Sandbox' : '✅ Wompi Prod'}
+                            </span>
                           </div>
-                        </button>
+                        ) : (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                            🏢 WAPPY Oficial
+                          </span>
+                        )}
+                      </td>
 
-                        {/* Eliminar Micro Button */}
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteProduct(prod._id)}
-                          className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-xs active:scale-95 text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
-                            <span className="text-[10px] font-bold">Borrar</span>
-                          </div>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      <td className="p-3 font-semibold">{formatCOP(prod.regularPrice)}</td>
+
+                      <td className="p-3">
+                        {prod.hasDiscount && (prod.salePrice ?? 0) > 0 ? (
+                          <span className="font-bold text-teal-600 dark:text-teal-400">
+                            {formatCOP(prod.salePrice ?? 0)}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">-</span>
+                        )}
+                      </td>
+
+                      <td className="p-3 font-bold">{prod.salesCount || 0}</td>
+
+                      <td className="p-3">
+                        <div className="flex flex-col items-start gap-1">
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              prod.status === 'published'
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : 'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            {prod.status === 'published' ? 'Publicado' : prod.status === 'draft' ? 'Borrador' : 'Archivado'}
+                          </span>
+                          {prod.isTest ? (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800">
+                              🧪 Solo Admin
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-teal-100 text-teal-800">
+                              🌟 Público
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="p-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* Editar Micro Button */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingProduct({
+                                ...prod,
+                                paymentRecipient: prod.paymentRecipient || 'WAPPY',
+                                providerName: prod.providerName || '',
+                                providerWompi: {
+                                  publicKey: prod.providerWompi?.publicKey || '',
+                                  privateKey: prod.providerWompi?.privateKey || '',
+                                  eventsSecret: prod.providerWompi?.eventsSecret || '',
+                                  integritySecret: prod.providerWompi?.integritySecret || '',
+                                },
+                              });
+                              setIsProductModalOpen(true);
+                            }}
+                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-xs active:scale-95 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-amber-100"
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                              <span className="text-[10px] font-bold">Editar</span>
+                            </div>
+                          </button>
+
+                          {/* Eliminar Micro Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteProduct(prod._id)}
+                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-xs active:scale-95 text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                              <span className="text-[10px] font-bold">Borrar</span>
+                            </div>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -903,79 +984,104 @@ const MarketplaceAdminDashboard: React.FC = () => {
       {/* MODAL: CREATE / EDIT PRODUCT */}
       {isProductModalOpen && editingProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-zinc-900 border rounded-3xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto space-y-4">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="font-bold text-base text-slate-900 dark:text-zinc-100">
-                {editingProduct._id ? 'Editar Servicio SST' : 'Crear Nuevo Servicio SST'}
-              </h3>
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 w-full max-w-3xl max-h-[92vh] overflow-y-auto space-y-5 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-slate-200 dark:border-zinc-800 pb-3">
+              <div>
+                <h3 className="font-bold text-base text-slate-900 dark:text-zinc-100">
+                  {editingProduct._id ? 'Editar Producto / Servicio SST' : 'Crear Nuevo Producto / Servicio SST'}
+                </h3>
+                <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+                  Configura las características del curso o servicio y define si el recaudo va a WAPPY o a un proveedor aliado.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setIsProductModalOpen(false)}
-                className="w-8 h-8 rounded-full border flex items-center justify-center"
+                className="w-8 h-8 rounded-full border border-slate-200 dark:border-zinc-700 flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveProduct} className="space-y-4 text-xs">
-              <div>
-                <label className="font-semibold block mb-1">Título del Servicio *</label>
-                <input
-                  type="text"
-                  required
-                  value={editingProduct.title || ''}
-                  onChange={(e) => setEditingProduct({ ...editingProduct, title: e.target.value })}
-                  className="w-full p-2 border rounded-xl bg-white dark:bg-zinc-800"
-                />
+            <form onSubmit={handleSaveProduct} className="space-y-5 text-xs">
+              {/* 1. Basic Info */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">
+                    Título del Curso / Producto / Servicio *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ej. Curso Adelanto"
+                    value={editingProduct.title || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, title: e.target.value })}
+                    className="w-full p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">
+                    Código SKU
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej. WAPPY-ADELANTO-01"
+                    value={editingProduct.sku || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, sku: e.target.value })}
+                    className="w-full p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 font-mono"
+                  />
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold block mb-1">Categoría *</label>
+                  <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">Categoría *</label>
                   <select
-                    value={editingProduct.category || 'medicina_laboral'}
+                    value={editingProduct.category || 'capacitaciones'}
                     onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value })}
-                    className="w-full p-2 border rounded-xl bg-white dark:bg-zinc-800"
+                    className="w-full p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800"
                   >
+                    <option value="capacitaciones">Capacitación Certificada / Cursos</option>
                     <option value="medicina_laboral">Medicina Laboral</option>
                     <option value="gtc45_ipevar">Matrices & Peligros GTC-45</option>
                     <option value="pesv">Seguridad Vial PESV</option>
                     <option value="psicosocial">Riesgo Psicosocial</option>
                     <option value="ergonomia">Ergonomía & Puesto de Trabajo</option>
                     <option value="auditoria">Auditoría & Consultoría SST</option>
-                    <option value="capacitaciones">Capacitación Certificada</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="font-semibold block mb-1">Modalidad del Servicio</label>
+                  <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">Modalidad del Servicio</label>
                   <select
                     value={editingProduct.serviceType || 'service_virtual'}
                     onChange={(e) => setEditingProduct({ ...editingProduct, serviceType: e.target.value as any })}
-                    className="w-full p-2 border rounded-xl bg-white dark:bg-zinc-800"
+                    className="w-full p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800"
                   >
                     <option value="service_virtual">100% Virtual</option>
                     <option value="service_onsite">Presencial / En IPS</option>
                     <option value="service_hybrid">Modalidad Híbrida</option>
                     <option value="digital_download">Descargable / Formato</option>
+                    <option value="consulting_hours">Asesoría por Horas</option>
                   </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold block mb-1">Precio Regular (COP) *</label>
+                  <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">Precio Regular (COP) *</label>
                   <input
                     type="number"
                     required
                     value={editingProduct.regularPrice || 0}
                     onChange={(e) => setEditingProduct({ ...editingProduct, regularPrice: Number(e.target.value) })}
-                    className="w-full p-2 border rounded-xl bg-white dark:bg-zinc-800"
+                    className="w-full p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800"
                   />
                 </div>
 
                 <div>
-                  <label className="font-semibold block mb-1">Precio de Oferta (COP)</label>
+                  <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">Precio de Oferta (COP)</label>
                   <input
                     type="number"
                     value={editingProduct.salePrice || 0}
@@ -986,50 +1092,351 @@ const MarketplaceAdminDashboard: React.FC = () => {
                         hasDiscount: Number(e.target.value) > 0,
                       })
                     }
-                    className="w-full p-2 border rounded-xl bg-white dark:bg-zinc-800"
+                    className="w-full p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="font-semibold block mb-1">Descripción Corta</label>
-                <textarea
-                  rows={2}
-                  value={editingProduct.shortDescription || ''}
-                  onChange={(e) => setEditingProduct({ ...editingProduct, shortDescription: e.target.value })}
-                  className="w-full p-2 border rounded-xl bg-white dark:bg-zinc-800"
-                />
+              {/* 2. DESTINO DE PAGO: WAPPY VS PROVEEDOR */}
+              <div className="p-4 rounded-2xl border-2 border-teal-500/30 dark:border-teal-500/40 bg-teal-50/30 dark:bg-teal-950/20 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <span className="font-bold text-sm text-slate-900 dark:text-zinc-100 block">
+                      Destino del Pago (Pasarela Wompi)
+                    </span>
+                    <span className="text-[11px] text-slate-500 dark:text-zinc-400">
+                      Elige si los pagos de este producto ingresan a la cuenta Wompi de WAPPY o a la cuenta Wompi de un proveedor/compañero.
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditingProduct({ ...editingProduct, paymentRecipient: 'WAPPY' })}
+                    className={`p-3 rounded-xl border text-left transition-all flex items-start gap-2.5 ${
+                      (editingProduct.paymentRecipient || 'WAPPY') === 'WAPPY'
+                        ? 'bg-teal-50 dark:bg-teal-950/70 border-teal-600 text-teal-900 dark:text-teal-200 ring-2 ring-teal-500/20 font-bold'
+                        : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <ShieldCheck className="h-5 w-5 text-teal-600 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="text-xs font-bold">🏢 Pago a WAPPY (Por defecto)</div>
+                      <div className="text-[10px] opacity-80 font-normal mt-0.5">
+                        Usa las credenciales globales de Wompi configuradas en el servidor de WAPPY.
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEditingProduct({
+                        ...editingProduct,
+                        paymentRecipient: 'PROVIDER',
+                        providerWompi: editingProduct.providerWompi || {
+                          publicKey: '',
+                          privateKey: '',
+                          eventsSecret: '',
+                          integritySecret: '',
+                        },
+                      })
+                    }
+                    className={`p-3 rounded-xl border text-left transition-all flex items-start gap-2.5 ${
+                      editingProduct.paymentRecipient === 'PROVIDER'
+                        ? 'bg-purple-50 dark:bg-purple-950/70 border-purple-600 text-purple-900 dark:text-purple-200 ring-2 ring-purple-500/20 font-bold'
+                        : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <DollarSign className="h-5 w-5 text-purple-600 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="text-xs font-bold">🤝 Pago a Proveedor / Aliado</div>
+                      <div className="text-[10px] opacity-80 font-normal mt-0.5">
+                        Conecta este producto a las llaves de Wompi propias de un compañero o proveedor.
+                      </div>
+                    </div>
+                  </button>
+                </div>
+
+                {/* Provider Wompi Credentials Form */}
+                {editingProduct.paymentRecipient === 'PROVIDER' && (
+                  <div className="mt-3 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-purple-200 dark:border-purple-800/70 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-zinc-800 pb-2.5">
+                      <div>
+                        <h4 className="font-bold text-xs text-purple-800 dark:text-purple-300">
+                          Credenciales Wompi del Proveedor
+                        </h4>
+                        <p className="text-[10px] text-slate-500">
+                          Soporta llaves de pruebas (Sandbox: <code className="font-mono">pub_test_...</code>) o de producción (<code className="font-mono">pub_prod_...</code>).
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEditingProduct({
+                            ...editingProduct,
+                            providerName: editingProduct.providerName || 'Mauricio Posada',
+                            providerWompi: {
+                              publicKey: 'pub_test_2GjhltTKLs90rNb19ddrcv4Cj8xZujfk',
+                              privateKey: 'prv_test_UxyMfuX6vAhnhDfUMyNsCmpiViBlwpuu',
+                              eventsSecret: 'test_events_onGHUTU2i0mPJq1utJ6jVISerJrizpMn',
+                              integritySecret: 'test_integrity_MeG6viY2yh3tOrOpg2gxSLmUu3VxeCtm',
+                            },
+                          })
+                        }
+                        className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 hover:bg-purple-200 transition-colors"
+                      >
+                        ⚡ Cargar llaves de prueba (Mauricio Posada)
+                      </button>
+                    </div>
+
+                    <div>
+                      <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">
+                        Nombre del Proveedor / Compañero Aliado *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Ej. Mauricio Posada"
+                        value={editingProduct.providerName || ''}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, providerName: e.target.value })}
+                        className="w-full p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-slate-50 dark:bg-zinc-800"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">
+                          Llave Pública (Public Key) *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="pub_test_... o pub_prod_..."
+                          value={editingProduct.providerWompi?.publicKey || ''}
+                          onChange={(e) =>
+                            setEditingProduct({
+                              ...editingProduct,
+                              providerWompi: {
+                                ...editingProduct.providerWompi,
+                                publicKey: e.target.value.trim(),
+                              },
+                            })
+                          }
+                          className="w-full p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-slate-50 dark:bg-zinc-800 font-mono text-[11px]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">
+                          Llave Privada (Private Key)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="prv_test_... o prv_prod_..."
+                          value={editingProduct.providerWompi?.privateKey || ''}
+                          onChange={(e) =>
+                            setEditingProduct({
+                              ...editingProduct,
+                              providerWompi: {
+                                ...editingProduct.providerWompi,
+                                privateKey: e.target.value.trim(),
+                              },
+                            })
+                          }
+                          className="w-full p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-slate-50 dark:bg-zinc-800 font-mono text-[11px]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">
+                          Secreto de Integridad (Integrity Secret) *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="test_integrity_... o prod_integrity_..."
+                          value={editingProduct.providerWompi?.integritySecret || ''}
+                          onChange={(e) =>
+                            setEditingProduct({
+                              ...editingProduct,
+                              providerWompi: {
+                                ...editingProduct.providerWompi,
+                                integritySecret: e.target.value.trim(),
+                              },
+                            })
+                          }
+                          className="w-full p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-slate-50 dark:bg-zinc-800 font-mono text-[11px]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">
+                          Secreto de Eventos (Events Secret)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="test_events_... o prod_events_..."
+                          value={editingProduct.providerWompi?.eventsSecret || ''}
+                          onChange={(e) =>
+                            setEditingProduct({
+                              ...editingProduct,
+                              providerWompi: {
+                                ...editingProduct.providerWompi,
+                                eventsSecret: e.target.value.trim(),
+                              },
+                            })
+                          }
+                          className="w-full p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-slate-50 dark:bg-zinc-800 font-mono text-[11px]"
+                        />
+                      </div>
+                    </div>
+
+                    {editingProduct.providerWompi?.publicKey && (
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px]">
+                        <span
+                          className={`font-bold px-2.5 py-1 rounded-lg ${
+                            editingProduct.providerWompi.publicKey.startsWith('pub_test_')
+                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                              : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                          }`}
+                        >
+                          {editingProduct.providerWompi.publicKey.startsWith('pub_test_')
+                            ? '🧪 Modo Detectado: Wompi Sandbox (Escenario de Pruebas)'
+                            : '✅ Modo Detectado: Wompi Producción (Pagos Reales)'}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          URL Eventos (Webhook): {window.location.origin}/api/marketplace/webhook
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
-              <div>
-                <label className="font-semibold block mb-1">Imagen Destacada (URL)</label>
-                <input
-                  type="text"
-                  value={editingProduct.featuredImage || ''}
-                  onChange={(e) => setEditingProduct({ ...editingProduct, featuredImage: e.target.value })}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full p-2 border rounded-xl bg-white dark:bg-zinc-800"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+              {/* 3. Descriptions & Media */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold block mb-1">Plazo Estimado</label>
+                  <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">Descripción Corta (Tarjeta)</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Resumen atractivo que se muestra en el catálogo..."
+                    value={editingProduct.shortDescription || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, shortDescription: e.target.value })}
+                    className="w-full p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">Descripción Detallada (Modal)</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Explicación completa del curso o servicio..."
+                    value={editingProduct.description || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
+                    className="w-full p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800"
+                  />
+                </div>
+              </div>
+
+              {/* Deliverables & Requirements */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">
+                    Entregables Incluidos (1 por línea)
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder={'Acceso a las sesiones en vivo\nMaterial descargable\nCertificado de asistencia'}
+                    value={(editingProduct.deliverables || []).join('\n')}
+                    onChange={(e) =>
+                      setEditingProduct({
+                        ...editingProduct,
+                        deliverables: e.target.value.split('\n').filter((line) => line.trim() !== ''),
+                      })
+                    }
+                    className="w-full p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">
+                    Requisitos del Servicio (1 por línea)
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder={'Conexión a internet estable\nCorreo electrónico activo'}
+                    value={(editingProduct.requirements || []).join('\n')}
+                    onChange={(e) =>
+                      setEditingProduct({
+                        ...editingProduct,
+                        requirements: e.target.value.split('\n').filter((line) => line.trim() !== ''),
+                      })
+                    }
+                    className="w-full p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800"
+                  />
+                </div>
+              </div>
+
+              {/* Image URL + Upload */}
+              <div>
+                <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">Imagen Destacada (URL o Subir Archivo)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={editingProduct.featuredImage || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, featuredImage: e.target.value })}
+                    placeholder="https://images.unsplash.com/..."
+                    className="flex-1 p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800"
+                  />
+                  <label className="px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 hover:bg-slate-100 cursor-pointer font-bold flex items-center gap-1.5 shrink-0">
+                    <span>Subir Imagen</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleUploadProductImage(file);
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Delivery, Status & Visibility */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">Plazo / Fecha de Inicio</label>
                   <input
                     type="text"
                     value={editingProduct.estimatedDeliveryDays || ''}
                     onChange={(e) => setEditingProduct({ ...editingProduct, estimatedDeliveryDays: e.target.value })}
-                    placeholder="Ej. 5 días hábiles"
-                    className="w-full p-2 border rounded-xl bg-white dark:bg-zinc-800"
+                    placeholder="Ej. Acceso inmediato"
+                    className="w-full p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800"
                   />
                 </div>
 
                 <div>
-                  <label className="font-semibold block mb-1">Estado</label>
+                  <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">Visibilidad en Tienda</label>
+                  <select
+                    value={editingProduct.isTest ? 'test' : 'public'}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, isTest: e.target.value === 'test' })}
+                    className="w-full p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800"
+                  >
+                    <option value="public">🌟 Público (Visible para todos)</option>
+                    <option value="test">🧪 Modo Prueba (Solo Admin)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">Estado de Publicación</label>
                   <select
                     value={editingProduct.status || 'published'}
                     onChange={(e) => setEditingProduct({ ...editingProduct, status: e.target.value as any })}
-                    className="w-full p-2 border rounded-xl bg-white dark:bg-zinc-800"
+                    className="w-full p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800"
                   >
                     <option value="published">Publicado</option>
                     <option value="draft">Borrador</option>
@@ -1038,20 +1445,20 @@ const MarketplaceAdminDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t">
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-zinc-800">
                 <button
                   type="button"
                   onClick={() => setIsProductModalOpen(false)}
-                  className="px-4 py-2 border rounded-xl font-bold"
+                  className="px-4 py-2 border border-slate-200 dark:border-zinc-700 rounded-xl font-bold hover:bg-slate-50 dark:hover:bg-zinc-800"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-5 py-2 bg-gradient-to-r from-teal-600 to-teal-700 text-white font-bold rounded-xl shadow-md"
+                  className="px-5 py-2 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold rounded-xl shadow-md transition-all active:scale-95"
                 >
-                  {loading ? 'Guardando...' : 'Guardar Servicio'}
+                  {loading ? 'Guardando...' : 'Guardar Producto / Servicio'}
                 </button>
               </div>
             </form>

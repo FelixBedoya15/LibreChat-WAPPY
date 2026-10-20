@@ -23,6 +23,15 @@ export interface ProductFAQ {
   answer: string;
 }
 
+export type PaymentRecipient = 'WAPPY' | 'PROVIDER';
+
+export interface ProviderWompiConfig {
+  publicKey?: string;
+  privateKey?: string;
+  eventsSecret?: string;
+  integritySecret?: string;
+}
+
 export interface MarketplaceProduct {
   _id: string;
   title: string;
@@ -53,6 +62,9 @@ export interface MarketplaceProduct {
   salesCount?: number;
   rating?: number;
   reviewsCount?: number;
+  paymentRecipient?: PaymentRecipient;
+  providerName?: string;
+  providerWompi?: ProviderWompiConfig;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -78,6 +90,8 @@ export interface CartItem {
   quantity: number;
   featuredImage?: string;
   category: string;
+  paymentRecipient?: PaymentRecipient;
+  providerName?: string;
   selectedVariant?: {
     name: string;
     label: string;
@@ -125,6 +139,8 @@ export interface MarketplaceOrder {
   promoCode?: string;
   totalAmount: number;
   currency: string;
+  paymentRecipient?: PaymentRecipient;
+  providerName?: string;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
   wompiReference?: string;

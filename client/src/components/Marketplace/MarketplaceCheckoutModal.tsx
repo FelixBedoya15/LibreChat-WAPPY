@@ -71,6 +71,9 @@ const MarketplaceCheckoutModal: React.FC<Props> = ({ onSuccess }) => {
 
   if (!isCheckoutOpen) return null;
 
+  const isProviderOrder = cart.some((item) => item.paymentRecipient === 'PROVIDER');
+  const activeProviderName = cart.find((item) => item.paymentRecipient === 'PROVIDER')?.providerName || 'Proveedor Aliado';
+
   // Coupon application
   const handleApplyCoupon = async () => {
     if (!couponInput.trim()) return;
@@ -119,11 +122,12 @@ const MarketplaceCheckoutModal: React.FC<Props> = ({ onSuccess }) => {
     setIsLoading(true);
 
     try {
+      const effectivePaymentMethod = isProviderOrder ? 'WOMPI' : paymentMethod;
       // 1. Send checkout request
       const { data } = await axios.post('/api/marketplace/checkout', {
         customer,
         items: cart,
-        paymentMethod,
+        paymentMethod: effectivePaymentMethod,
         promoCode: appliedCoupon?.code,
       });
 
@@ -134,7 +138,7 @@ const MarketplaceCheckoutModal: React.FC<Props> = ({ onSuccess }) => {
       const { orderNumber, wompi } = data;
 
       // 2. Handle WOMPI
-      if (paymentMethod === 'WOMPI' && wompi) {
+      if (effectivePaymentMethod === 'WOMPI' && wompi) {
         const openWompi = () => {
           try {
             // @ts-ignore
@@ -488,45 +492,60 @@ const MarketplaceCheckoutModal: React.FC<Props> = ({ onSuccess }) => {
                   </h4>
 
                   {/* Payment method selector */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod('WOMPI')}
-                      className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all ${
-                        paymentMethod === 'WOMPI'
-                          ? 'border-teal-500 bg-teal-50/70 dark:bg-teal-950/40 text-teal-800 dark:text-teal-200 shadow-sm'
-                          : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-400'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <CreditCard className="h-5 w-5 text-teal-600" />
-                        {paymentMethod === 'WOMPI' && <CheckCircle2 className="h-4 w-4 text-teal-600" />}
+                  {isProviderOrder ? (
+                    <div className="p-3.5 rounded-2xl border-2 border-purple-500/70 bg-purple-50/70 dark:bg-purple-950/40 text-purple-900 dark:text-purple-200 shadow-xs space-y-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 font-bold text-xs">
+                          <CreditCard className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                          <span>Pasarela Wompi · Proveedor Aliado</span>
+                        </div>
+                        <CheckCircle2 className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                       </div>
-                      <div>
-                        <div className="font-bold text-xs">Pasarela Wompi</div>
-                        <div className="text-[10px] text-slate-500">Tarjetas, PSE, Nequi, Bancolombia</div>
-                      </div>
-                    </button>
+                      <p className="text-[11px] text-purple-800 dark:text-purple-300">
+                        Pago procesado directamente hacia la cuenta Wompi de <strong>{activeProviderName}</strong> (Tarjetas, PSE, Nequi, Bancolombia).
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('WOMPI')}
+                        className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all ${
+                          paymentMethod === 'WOMPI'
+                            ? 'border-teal-500 bg-teal-50/70 dark:bg-teal-950/40 text-teal-800 dark:text-teal-200 shadow-sm'
+                            : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-400'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <CreditCard className="h-5 w-5 text-teal-600" />
+                          {paymentMethod === 'WOMPI' && <CheckCircle2 className="h-4 w-4 text-teal-600" />}
+                        </div>
+                        <div>
+                          <div className="font-bold text-xs">Pasarela Wompi</div>
+                          <div className="text-[10px] text-slate-500">Tarjetas, PSE, Nequi, Bancolombia</div>
+                        </div>
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod('MANUAL_TRANSFER')}
-                      className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all ${
-                        paymentMethod === 'MANUAL_TRANSFER'
-                          ? 'border-teal-500 bg-teal-50/70 dark:bg-teal-950/40 text-teal-800 dark:text-teal-200 shadow-sm'
-                          : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-400'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <QrCode className="h-5 w-5 text-teal-600" />
-                        {paymentMethod === 'MANUAL_TRANSFER' && <CheckCircle2 className="h-4 w-4 text-teal-600" />}
-                      </div>
-                      <div>
-                        <div className="font-bold text-xs">Transferencia Directa</div>
-                        <div className="text-[10px] text-slate-500">Nequi QR / Comprobante</div>
-                      </div>
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('MANUAL_TRANSFER')}
+                        className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all ${
+                          paymentMethod === 'MANUAL_TRANSFER'
+                            ? 'border-teal-500 bg-teal-50/70 dark:bg-teal-950/40 text-teal-800 dark:text-teal-200 shadow-sm'
+                            : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-400'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <QrCode className="h-5 w-5 text-teal-600" />
+                          {paymentMethod === 'MANUAL_TRANSFER' && <CheckCircle2 className="h-4 w-4 text-teal-600" />}
+                        </div>
+                        <div>
+                          <div className="font-bold text-xs">Transferencia Directa</div>
+                          <div className="text-[10px] text-slate-500">Nequi QR / Comprobante</div>
+                        </div>
+                      </button>
+                    </div>
+                  )}
 
                   {/* Coupon Input */}
                   <div className="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/40 border border-slate-200/80 dark:border-zinc-800">

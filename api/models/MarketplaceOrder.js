@@ -36,6 +36,8 @@ const marketplaceOrderSchema = new mongoose.Schema({
   currency: { type: String, default: 'COP' },
   
   // Payment
+  paymentRecipient: { type: String, enum: ['WAPPY', 'PROVIDER'], default: 'WAPPY' },
+  providerName: { type: String, trim: true, default: '' },
   paymentMethod: { type: String, enum: ['WOMPI', 'MANUAL_TRANSFER'], default: 'WOMPI' },
   paymentStatus: {
     type: String,

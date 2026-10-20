@@ -154,7 +154,11 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
               <div className="mt-5 p-4 rounded-2xl bg-teal-50/70 dark:bg-teal-950/40 border border-teal-200/80 dark:border-teal-900/50 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <span className="text-[10px] font-bold text-teal-800 dark:text-teal-300 uppercase tracking-wider block">
-                    {product.isTest ? 'Inversión' : 'Pago de Contado (Opciones a Crédito)'}
+                    {product.paymentRecipient === 'PROVIDER'
+                      ? `Recaudo Directo Proveedor: ${product.providerName || 'Aliado'}`
+                      : product.isTest
+                      ? 'Inversión'
+                      : 'Pago de Contado (Opciones a Crédito)'}
                   </span>
                   <div className="flex items-baseline gap-2">
                     <span className="text-2xl font-black text-teal-900 dark:text-teal-100">
@@ -166,15 +170,20 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
                       </span>
                     )}
                   </div>
-                  {!product.isTest && (
+                  {product.slug === 'curso-ecosistema-autonomo-sst' && (
                     <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 mt-1">
                       💳 Opción a crédito: 4 cuotas de $155.000 COP (0% interés con Bancolombia / Nequi)
+                    </div>
+                  )}
+                  {product.paymentRecipient === 'PROVIDER' && (
+                    <div className="text-[11px] font-bold text-purple-700 dark:text-purple-300 mt-1">
+                      🤝 Pasarela Wompi conectada a {product.providerName || 'Proveedor Aliado'}
                     </div>
                   )}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  {!product.isTest && (
+                  {product.slug === 'curso-ecosistema-autonomo-sst' && (
                     <a
                       href="/cursowappy01"
                       target="_blank"

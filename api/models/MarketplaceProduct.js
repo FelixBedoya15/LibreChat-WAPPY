@@ -53,6 +53,20 @@ const marketplaceProductSchema = new mongoose.Schema({
   reviewsCount: { type: Number, default: 1 },
   stockType: { type: String, enum: ['unlimited', 'limited'], default: 'unlimited' },
   availableSlots: { type: Number, default: 0 },
+
+  // Payment Destination & Custom Provider Wompi Gateway
+  paymentRecipient: {
+    type: String,
+    enum: ['WAPPY', 'PROVIDER'],
+    default: 'WAPPY'
+  },
+  providerName: { type: String, trim: true, default: '' },
+  providerWompi: {
+    publicKey: { type: String, trim: true, default: '' },
+    privateKey: { type: String, trim: true, default: '' },
+    eventsSecret: { type: String, trim: true, default: '' },
+    integritySecret: { type: String, trim: true, default: '' }
+  },
   
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });

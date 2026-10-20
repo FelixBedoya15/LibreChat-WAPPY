@@ -130,15 +130,27 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
             <span className="text-xs">🔒</span>
             <span>Servicio en Prueba (Solo tú como Admin lo ves)</span>
           </div>
+        ) : product.paymentRecipient === 'PROVIDER' ? (
+          <div className="mb-3 py-1.5 px-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200/80 dark:border-purple-800 text-[10px] font-bold text-purple-800 dark:text-purple-200 flex items-center justify-between gap-1.5">
+            <span className="flex items-center gap-1">
+              <span>🤝</span>
+              <span>Proveedor: {product.providerName || 'Aliado'}</span>
+            </span>
+            <span className="text-[9px] font-black px-1.5 py-0.5 rounded-md bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200">
+              Wompi Directo
+            </span>
+          </div>
         ) : (
           <div className="mb-3 py-1.5 px-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200/80 dark:border-teal-800 text-[10px] font-bold text-teal-800 dark:text-teal-200 flex items-center justify-between gap-1.5">
             <span className="flex items-center gap-1">
               <span>🌟</span>
               <span>Servicio Oficial WAPPY</span>
             </span>
-            <span className="text-[9px] font-black px-1.5 py-0.5 rounded-md bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200">
-              12 Cupos
-            </span>
+            {product.availableSlots && product.availableSlots > 0 ? (
+              <span className="text-[9px] font-black px-1.5 py-0.5 rounded-md bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200">
+                {product.availableSlots} Cupos
+              </span>
+            ) : null}
           </div>
         )}
 
