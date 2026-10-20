@@ -175,14 +175,193 @@ function preparePreviewHtml(html: string, isForDownload: boolean = false): strin
   });
 
   // 5. Disparador de eventos de resize, iconos y readiness para reactivar scripts interactivos
+  function _autoHideInitialBlockingModals() {
+    try {
+      // Si el LLM generó un modal de asistente, diagnóstico o ayuda sin la clase .hidden inicial
+      // y está tapando toda la pantalla desde el primer segundo, lo ocultamos de entrada para dejar ver el aplicativo
+      var overlays = document.querySelectorAll('.fixed.inset-0:not(.hidden)');
+      overlays.forEach(function(el) {
+        var text = (el.innerText || '').toLowerCase();
+        var id = (el.id || '').toLowerCase();
+        if (
+          id.indexOf('modal') !== -1 ||
+          id.indexOf('assistant') !== -1 ||
+          id.indexOf('asistente') !== -1 ||
+          id.indexOf('help') !== -1 ||
+          id.indexOf('info') !== -1 ||
+          text.indexOf('asistente virtual') !== -1 ||
+          text.indexOf('diagnóstico automático') !== -1 ||
+          text.indexOf('causas frecuentes') !== -1 ||
+          text.indexOf('información importante') !== -1 ||
+          text.indexOf('cumplimiento legal') !== -1 ||
+          text.indexOf('wappy ai copilot') !== -1
+        ) {
+          _closeModalElement(el);
+        }
+      });
+    } catch (e) {}
+  }
+
   function _kickstartApp() {
     try {
+      _autoHideInitialBlockingModals();
       if (typeof window.lucide !== 'undefined' && typeof window.lucide.createIcons === 'function') {
         window.lucide.createIcons();
       }
       window.dispatchEvent(new Event('resize'));
     } catch (e) {}
   }
+
+  // 6. Manejador Universal de Cierre y Apertura de Modales y Drawers (Evita recuadros bloqueados o sin función de cierre)
+  function _closeModalElement(modalEl) {
+    if (!modalEl) return;
+    try {
+      modalEl.classList.add('hidden');
+      modalEl.classList.remove('flex', 'block', 'grid', 'open', 'active', 'show');
+      modalEl.style.removeProperty('display');
+      // Observar si después de quitar display inline sigue visible (porque el autor no usó .hidden sino otra clase)
+      var computed = window.getComputedStyle(modalEl);
+      if (computed && computed.display !== 'none') {
+        modalEl.style.setProperty('display', 'none', 'important');
+      }
+      modalEl.setAttribute('aria-hidden', 'true');
+      // Si es un drawer lateral que usa translate-x-full
+      if (modalEl.id === 'ai-drawer' || modalEl.className.indexOf('right-0') !== -1) {
+        modalEl.classList.add('translate-x-full');
+      }
+    } catch (e) {}
+  }
+
+  function _openModalElement(modalEl) {
+    if (!modalEl) return;
+    try {
+      modalEl.style.removeProperty('display');
+      modalEl.classList.remove('hidden', 'translate-x-full');
+      if (!modalEl.classList.contains('flex') && !modalEl.classList.contains('block') && !modalEl.classList.contains('grid')) {
+        modalEl.classList.add('flex');
+      }
+      modalEl.setAttribute('aria-hidden', 'false');
+    } catch (e) {}
+  }
+
+  // Interceptar classList.remove('hidden') para limpiar cualquier display:none inline previo cuando el usuario sí quiera abrir un modal
+  try {
+    var _origClassListRemove = DOMTokenList.prototype.remove;
+    DOMTokenList.prototype.remove = function() {
+      var res = _origClassListRemove.apply(this, arguments);
+      for (var i = 0; i < arguments.length; i++) {
+        if (arguments[i] === 'hidden' || arguments[i] === 'translate-x-full') {
+          try {
+            var hiddenFixed = document.querySelectorAll('[style*="display: none"]');
+            hiddenFixed.forEach(function(el) {
+              if (!el.classList.contains('hidden')) {
+                el.style.removeProperty('display');
+              }
+            });
+          } catch (err) {}
+          break;
+        }
+      }
+      return res;
+    };
+  } catch (e) {}
+
+  // Funciones globales de respaldo por si el HTML generado las invoca pero olvidó definirlas
+  var _fallbackCloseFns = [
+    'closeModal', 'closeAssistant', 'closeAiModal', 'closeLegalModal',
+    'closeImportantInfoModal', 'cerrarModal', 'cerrarAsistente', 'hideModal',
+    'dismissModal', 'toggleModal', 'closeSyncModal', 'ejecutarSincronizacion', 'syncCanvas'
+  ];
+  _fallbackCloseFns.forEach(function(fnName) {
+    if (typeof window[fnName] !== 'function') {
+      window[fnName] = function() {
+        var overlays = document.querySelectorAll('.fixed.inset-0, [id*="modal"], [id*="assistant"], [id*="asistente"], [id*="dialog"], [role="dialog"]');
+        overlays.forEach(function(el) { _closeModalElement(el); });
+      };
+    }
+  });
+
+  // Delegación global de clics para botones de cerrar (✕, X, Cerrar, Entendido), botón flotante de Asistente IA y clic en el fondo oscuro (backdrop)
+  document.addEventListener('click', function(e) {
+    try {
+      var target = e.target;
+      if (!target || typeof target.closest !== 'function') return;
+
+      // A) Clic directo en el backdrop oscuro (div.fixed.inset-0) fuera de la tarjeta del modal
+      if (
+        target.classList &&
+        target.classList.contains('fixed') &&
+        target.classList.contains('inset-0') &&
+        target.children.length > 0
+      ) {
+        _closeModalElement(target);
+        return;
+      }
+
+      // B) Clic en el botón flotante #wappy-ai-floating-btn si no tiene handler propio
+      var floatingBtn = target.closest('#wappy-ai-floating-btn, #wappy-ai-floating-trigger');
+      if (floatingBtn && !floatingBtn.getAttribute('onclick')) {
+        var drawer = document.querySelector('#wappy-ai-chat-drawer, #ai-drawer, [id*="assistant-modal"], [id*="ai-modal"], [id*="asistente"]');
+        if (drawer) {
+          if (drawer.classList.contains('hidden') || drawer.classList.contains('translate-x-full')) {
+            _openModalElement(drawer);
+          } else {
+            _closeModalElement(drawer);
+          }
+          return;
+        }
+      }
+
+      // C) Clic en un botón de cierre dentro de cualquier modal/overlay fijo
+      var btn = target.closest('button, [role="button"], a, .cursor-pointer');
+      if (!btn) return;
+
+      var modalContainer = btn.closest('.fixed.inset-0, [id*="modal"], [id*="dialog"], [id*="assistant"], [id*="asistente"], [role="dialog"], #wappy-ai-chat-drawer, #ai-drawer');
+      if (!modalContainer) return;
+
+      var rawText = (btn.innerText || btn.textContent || '').trim();
+      var cleanText = rawText.toLowerCase();
+      var ariaLabel = (btn.getAttribute('aria-label') || btn.getAttribute('title') || '').toLowerCase();
+      var onclickAttr = (btn.getAttribute('onclick') || '').toLowerCase();
+      var hasXIcon = btn.querySelector('[data-lucide="x"], .lucide-x, svg line[x1="18"][y1="6"], svg path[d*="M18 6"], svg path[d*="6 18"], svg path[d*="M6 18"], svg path[d*="18 6"]');
+
+      var isCloseAction =
+        cleanText === 'x' ||
+        cleanText === '✕' ||
+        cleanText === '✖' ||
+        cleanText === '×' ||
+        cleanText === 'cerrar' ||
+        cleanText === 'entendido' ||
+        cleanText === 'ocultar' ||
+        cleanText === 'salir' ||
+        cleanText === 'aceptar' ||
+        cleanText === 'continuar' ||
+        ariaLabel.indexOf('cerrar') !== -1 ||
+        ariaLabel.indexOf('close') !== -1 ||
+        onclickAttr.indexOf('close') !== -1 ||
+        onclickAttr.indexOf('cerrar') !== -1 ||
+        onclickAttr.indexOf('hide') !== -1 ||
+        onclickAttr.indexOf('dismiss') !== -1 ||
+        onclickAttr.indexOf('sincronizar') !== -1 ||
+        cleanText.indexOf('ejecutar sincronización') !== -1 ||
+        Boolean(hasXIcon && cleanText.length <= 2);
+
+      if (isCloseAction) {
+        setTimeout(function() {
+          _closeModalElement(modalContainer);
+        }, 10);
+      }
+    } catch (err) {}
+  }, true);
+
+  // Cerrar cualquier modal abierto con la tecla Escape
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      var overlays = document.querySelectorAll('.fixed.inset-0:not(.hidden), [id*="modal"]:not(.hidden), [id*="assistant"]:not(.hidden), [id*="asistente"]:not(.hidden), [role="dialog"]:not(.hidden)');
+      overlays.forEach(function(el) { _closeModalElement(el); });
+    }
+  });
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _kickstartApp);
   } else {
@@ -544,16 +723,24 @@ function preparePreviewHtml(html: string, isForDownload: boolean = false): strin
     transform: scale(0.97) !important;
   }
 
-  /* ── 7. Utilidades Base ── */
-  .hidden { display: none !important; }
+  /* ── 7. Utilidades Base (Respetando estrictamente .hidden sobre .flex / .block / .grid) ── */
   .overflow-hidden { overflow: hidden !important; }
   .absolute { position: absolute !important; }
   .relative { position: relative !important; }
-  .flex { display: flex !important; }
+  .flex:not(.hidden) { display: flex !important; }
   .items-center { align-items: center !important; }
   .justify-between { justify-content: space-between !important; }
   .gap-2 { gap: 0.5rem !important; }
   .gap-4 { gap: 1rem !important; }
+  .hidden,
+  [hidden],
+  .hidden.flex,
+  .hidden.block,
+  .hidden.grid,
+  .hidden.inline-flex,
+  .hidden.inline-block {
+    display: none !important;
+  }
 
   /* ── 8. SVGs de Fondo Protegidos ── */
   .gradient-banner svg,

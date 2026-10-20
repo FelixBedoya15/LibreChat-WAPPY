@@ -443,7 +443,8 @@ Cuando el usuario pida que el aplicativo esté **"conectado a la IA"**, tenga un
 
 ### 🎯 PROTOCOLO DEL AGENTE:
 1. Incluye el **Botón Flotante Lanzador** y el **Panel / Drawer de Chat** en el HTML del aplicativo.
-2. Integra el **Selector de Modelos Oficiales de WAPPY** en el encabezado del chat (`gemini-3.6-flash`, `gemini-3.5-flash`, `gemini-3.5-flash-lite`).
+2. **REGLA ESTRICTA DE VISIBILIDAD INICIAL:** Todo modal, ventana emergente, pop-up de ayuda/diagnóstico o drawer de asistente IA DEBE iniciar SIEMPRE oculto por defecto (`class="... hidden"`). ESTÁ TERMINANTEMENTE PROHIBIDO abrir un modal de diagnóstico o asistente automáticamente al cargar la página tapando el aplicativo. Además, todo botón de cierre (`✕`, `Cerrar`) debe ejecutar una función JavaScript real que agregue la clase `hidden` al contenedor del modal.
+3. Integra el **Selector de Modelos Oficiales de WAPPY** en el encabezado del chat (`gemini-3.6-flash`, `gemini-3.5-flash`, `gemini-3.5-flash-lite`).
 3. Conecta el chat de forma híbrida: si está dentro de WAPPY usa `/api/sgsst/canvas/app-builder/generate`, y si está en local (`file:///`) o standalone se conecta directamente a la API de Google Gemini (`generativelanguage.googleapis.com`).
 4. Implementa el **micro-botón de configuración discreto (icono ⚙️)** en el encabezado del chat con un panel colapsable que contenga un campo protegido (`type="password"`) guardado en `localStorage.getItem('wappy_gemini_api_key')`, para que la clave no quede visible ni expuesta a los trabajadores.
 5. Implementa la función `getAppCurrentContext()` para que el asistente conozca en todo momento las filas de datos, filtros aplicados, totales e indicadores calculados en pantalla.

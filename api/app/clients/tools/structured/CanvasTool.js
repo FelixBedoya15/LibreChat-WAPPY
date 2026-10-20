@@ -316,7 +316,9 @@ ${toolsContext ? `## HERRAMIENTAS Y BASES DE DATOS VINCULADAS:\n${toolsContext}\
    - Tabla reactiva con buscador, filtros y celdas estilizadas.
    - Botón funcional de Imprimir / Descargar PDF (\`window.print()\`).
 
-7. **BLOQUE 6: BOTÓN FLOTANTE "ASISTENTE IA":**
+7. **BLOQUE 6: BOTÓN FLOTANTE "ASISTENTE IA" Y REGLA ESTRICTA DE MODALES OCULTOS POR DEFECTO:**
+   - **REGLA DE ORO (NO BLOQUEAR PANTALLA):** NUNCA muestres un modal, ventana emergente, pop-up o panel de "Asistente Virtual" abierto por defecto al cargar el aplicativo. Cualquier modal o drawer secundario DEBE iniciar SIEMPRE oculto (con la clase \`hidden\`) para que el usuario visualice el aplicativo principal de inmediato.
+   - Si agregas un modal o drawer para el botón flotante, asegúrate de que su botón de cerrar (\`✕\`), el clic fuera del modal y sus botones de acción llamen a una función JavaScript real que le agregue la clase \`hidden\`.
 \`\`\`html
 <div id="wappy-ai-floating-btn" class="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-gradient-to-r from-teal-500 to-emerald-600 text-white font-bold text-xs px-4 py-2.5 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all cursor-pointer border border-teal-300/30">
     <i data-lucide="bot" class="w-4 h-4"></i>
@@ -415,7 +417,118 @@ function injectStandaloneCssIfMissing(html) {
     border: 1px solid rgba(51, 65, 85, 0.8) !important; background-color: #1e293b !important; color: #f8fafc !important;
   }
   button:active, [type="button"]:active { transform: scale(0.97) !important; }
+  .hidden, [hidden], .hidden.flex, .hidden.block, .hidden.grid, .hidden.inline-flex, .hidden.inline-block {
+    display: none !important;
+  }
 </style>
+<script id="__wappy_modal_guard__">
+(function() {
+  function _closeModalEl(el) {
+    if (!el) return;
+    try {
+      el.classList.add('hidden');
+      el.classList.remove('flex', 'block', 'grid', 'open', 'active', 'show');
+      el.style.removeProperty('display');
+      var comp = window.getComputedStyle(el);
+      if (comp && comp.display !== 'none') {
+        el.style.setProperty('display', 'none', 'important');
+      }
+      el.setAttribute('aria-hidden', 'true');
+      if (el.id === 'ai-drawer' || el.className.indexOf('right-0') !== -1) {
+        el.classList.add('translate-x-full');
+      }
+    } catch (e) {}
+  }
+
+  function _autoHideInitialModals() {
+    try {
+      var overlays = document.querySelectorAll('.fixed.inset-0:not(.hidden)');
+      overlays.forEach(function(el) {
+        var text = (el.innerText || '').toLowerCase();
+        var id = (el.id || '').toLowerCase();
+        if (
+          id.indexOf('modal') !== -1 ||
+          id.indexOf('assistant') !== -1 ||
+          id.indexOf('asistente') !== -1 ||
+          id.indexOf('help') !== -1 ||
+          id.indexOf('info') !== -1 ||
+          text.indexOf('asistente virtual') !== -1 ||
+          text.indexOf('diagnóstico automático') !== -1 ||
+          text.indexOf('causas frecuentes') !== -1 ||
+          text.indexOf('información importante') !== -1 ||
+          text.indexOf('cumplimiento legal') !== -1 ||
+          text.indexOf('wappy ai copilot') !== -1
+        ) {
+          _closeModalEl(el);
+        }
+      });
+    } catch (e) {}
+  }
+
+  var _fallbackFns = [
+    'closeModal', 'closeAssistant', 'closeAiModal', 'closeLegalModal',
+    'closeImportantInfoModal', 'cerrarModal', 'cerrarAsistente', 'hideModal',
+    'dismissModal', 'toggleModal', 'closeSyncModal', 'ejecutarSincronizacion', 'syncCanvas'
+  ];
+  _fallbackFns.forEach(function(fn) {
+    if (typeof window[fn] !== 'function') {
+      window[fn] = function() {
+        var overlays = document.querySelectorAll('.fixed.inset-0, [id*="modal"], [id*="assistant"], [id*="asistente"], [id*="dialog"], [role="dialog"]');
+        overlays.forEach(function(el) { _closeModalEl(el); });
+      };
+    }
+  });
+
+  document.addEventListener('click', function(e) {
+    try {
+      var target = e.target;
+      if (!target || typeof target.closest !== 'function') return;
+      if (target.classList && target.classList.contains('fixed') && target.classList.contains('inset-0') && target.children.length > 0) {
+        _closeModalEl(target);
+        return;
+      }
+      var btn = target.closest('button, [role="button"], a, .cursor-pointer');
+      if (!btn) return;
+      var modalContainer = btn.closest('.fixed.inset-0, [id*="modal"], [id*="dialog"], [id*="assistant"], [id*="asistente"], [role="dialog"], #wappy-ai-chat-drawer, #ai-drawer');
+      if (!modalContainer) return;
+
+      var cleanText = ((btn.innerText || btn.textContent || '').trim()).toLowerCase();
+      var ariaLabel = (btn.getAttribute('aria-label') || btn.getAttribute('title') || '').toLowerCase();
+      var onclickAttr = (btn.getAttribute('onclick') || '').toLowerCase();
+      var hasXIcon = btn.querySelector('[data-lucide="x"], .lucide-x, svg line[x1="18"][y1="6"], svg path[d*="M18 6"], svg path[d*="6 18"], svg path[d*="M6 18"], svg path[d*="18 6"]');
+
+      var isClose =
+        cleanText === 'x' || cleanText === '✕' || cleanText === '✖' || cleanText === '×' ||
+        cleanText === 'cerrar' || cleanText === 'entendido' || cleanText === 'ocultar' ||
+        cleanText === 'salir' || cleanText === 'aceptar' || cleanText === 'continuar' ||
+        ariaLabel.indexOf('cerrar') !== -1 || ariaLabel.indexOf('close') !== -1 ||
+        onclickAttr.indexOf('close') !== -1 || onclickAttr.indexOf('cerrar') !== -1 ||
+        onclickAttr.indexOf('hide') !== -1 || onclickAttr.indexOf('dismiss') !== -1 ||
+        onclickAttr.indexOf('sincronizar') !== -1 ||
+        cleanText.indexOf('ejecutar sincronización') !== -1 ||
+        Boolean(hasXIcon && cleanText.length <= 2);
+
+      if (isClose) {
+        setTimeout(function() { _closeModalEl(modalContainer); }, 10);
+      }
+    } catch (err) {}
+  }, true);
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      var overlays = document.querySelectorAll('.fixed.inset-0:not(.hidden), [id*="modal"]:not(.hidden), [id*="assistant"]:not(.hidden), [id*="asistente"]:not(.hidden), [role="dialog"]:not(.hidden)');
+      overlays.forEach(function(el) { _closeModalEl(el); });
+    }
+  });
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _autoHideInitialModals);
+  } else {
+    setTimeout(_autoHideInitialModals, 50);
+    setTimeout(_autoHideInitialModals, 300);
+  }
+})();
+</script>
 `;
 
   if (/<head[^>]*>/i.test(html)) {
