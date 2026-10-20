@@ -442,7 +442,7 @@ class VoiceSession {
                                 properties: {
                                     modulo: {
                                         type: "string",
-                                        description: "Nombre clave del módulo, hito o aplicativo. Hitos 1 al 8: 'diagnostico' (0312), 'participacion_ipevar', 'matriz_ipevar_oficial', 'matriz_pesv_oficial', 'matriz_compatibilidad_oficial', 'vulnerabilidad', 'plan_emergencias', 'responsable', 'politica', 'objetivos', 'legal', 'rhs', 'rit', 'perfil_cargo', 'perfil_socio', 'condiciones_salud', 'copasst', 'cocolab', 'comite_pesv', 'brigada_emergencias', 'animo', 'metodo_owas', 'estudio_puesto', 'peligros', 'permiso_alturas', 'analisis_trabajo_seguro', 'epp_delivery', 'vehicles_pesv', 'heights_lifecycle', 'chemical_registry', 'equipos_emergencia', 'reporte_actos', 'capacitaciones', 'simulacros_emergencia', 'ruta_aprendizaje', 'app_builder', 'estadisticas', 'investigacion_atel', 'control_acpm', 'auditoria', 'alta_direccion', 'investigacion_profunda', 'predictivo'. Aplicativos y Dashboards: 'sgsst', 'planes' (/planes planes de suscripción), 'academia' (/academia?tab=cursos), 'training_admin', 'rutas' (/academia?tab=rutas), 'ruta_admin', 'blog' (/academia?tab=blog), 'blog_admin', 'clases_en_vivo' (/academia?tab=meet clases en vivo de la academia), 'events_meet', 'events_meet_admin', 'marketplace' (/marketplace o /tienda tienda productos SST), 'tienda', 'marketplace_admin', 'agents' (/agents catálogo agentes IA), 'control' (/sgsst/control Centro de Control / Kanban de actividades), 'animo_dashboard', 'empresas' (/sgsst?modal=empresas donde van las empresas registradas), 'empresas_registradas', 'configuracion' (sección de configuración y ajustes del usuario), 'settings', 'live' (/c/new), 'chat_sst', 'regresar' (para volver al chat desde planes/términos/privacidad/about), 'volver', 'roadmap', 'contactanos', 'comunidad', 'matriz', 'embajadores', 'embajadores_dashboard', 'tenshi_admin', 'search', 'privacy' (/privacy política de privacidad), 'terms' (/terms términos de servicio), 'about' (/about acerca de nosotros). Portales públicos: 'public_reportar', 'public_animo', 'public_estudio_puesto', 'public_ipevar', 'public_alta_direccion', 'public_atel', 'public_colaborador', 'public_comites', 'public_convivencia', 'public_votaciones', 'public_inspecciones', 'public_brigadistas'."
+                                        description: "Nombre clave del módulo, hito o aplicativo. Hitos 1 al 8: 'contexto_organizacion' (DOFA y partes interesadas), 'diagnostico' (0312), 'responsable', 'politica', 'objetivos', 'legal', 'rhs', 'rit', 'participacion_ipevar', 'matriz_ipevar_oficial', 'matriz_pesv_oficial', 'matriz_compatibilidad_oficial', 'oportunidades_sst', 'vulnerabilidad', 'plan_emergencias', 'perfil_cargo', 'perfil_socio', 'condiciones_salud', 'oraculo_predictivo', 'copasst', 'cocolab', 'comite_pesv', 'brigada_emergencias', 'peligros', 'metodo_owas', 'estudio_puesto', 'animo', 'compras_sst', 'contratistas_proveedores', 'gestion_cambio', 'analisis_trabajo_seguro', 'permiso_alturas', 'heights_lifecycle', 'epp_delivery', 'chemical_registry', 'vehicles_pesv', 'equipos_emergencia', 'comunicaciones_sst', 'capacitaciones', 'ruta_aprendizaje', 'reporte_actos', 'simulacros_emergencia', 'app_builder', 'estadisticas', 'investigacion_atel', 'control_acpm', 'auditoria', 'alta_direccion', 'investigacion_profunda', 'predictivo'. Aplicativos y Dashboards: 'sgsst', 'planes' (/planes planes de suscripción), 'academia' (/academia?tab=cursos), 'training_admin', 'rutas' (/academia?tab=rutas), 'ruta_admin', 'blog' (/academia?tab=blog), 'blog_admin', 'clases_en_vivo' (/academia?tab=meet clases en vivo de la academia), 'events_meet', 'events_meet_admin', 'marketplace' (/marketplace o /tienda tienda productos SST), 'tienda', 'marketplace_admin', 'agents' (/agents catálogo agentes IA), 'control' (/sgsst/control Centro de Control / Kanban de actividades), 'animo_dashboard', 'empresas' (/sgsst?modal=empresas donde van las empresas registradas), 'empresas_registradas', 'configuracion' (sección de configuración y ajustes del usuario), 'settings', 'live' (/c/new), 'chat_sst', 'regresar' (para volver al chat desde planes/términos/privacidad/about), 'volver', 'roadmap', 'contactanos', 'comunidad', 'matriz', 'embajadores', 'embajadores_dashboard', 'tenshi_admin', 'search', 'privacy' (/privacy política de privacidad), 'terms' (/terms términos de servicio), 'about' (/about acerca de nosotros). Portales públicos: 'public_reportar', 'public_animo', 'public_estudio_puesto', 'public_ipevar', 'public_alta_direccion', 'public_atel', 'public_colaborador', 'public_comites', 'public_convivencia', 'public_votaciones', 'public_inspecciones', 'public_brigadistas'."
                                     },
                                     ruta: {
                                         type: "string",
@@ -2144,14 +2144,14 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
    - Parámetros: 'modulo' (ej: 'investigacion_atel') y 'campos' (objeto con datos como afectadoNombre, lugarEvento, descripcionHechos, etc.).
    - Responde oralmente en una sola frase breve: "¡Listo! Ya te dejé diligenciado el reporte en el formulario."
 3. **wappy_navegar**: Navega a cualquier módulo de los 8 Hitos Estratégicos o aplicativo del sistema WAPPY.
-   - Hito 1 (Gobernanza y Cimiento Legal): 'diagnostico' (0312), 'participacion_ipevar', 'matriz_ipevar_oficial', 'matriz_pesv_oficial', 'matriz_compatibilidad_oficial', 'vulnerabilidad', 'plan_emergencias', 'responsable', 'politica', 'objetivos', 'legal', 'rhs', 'rit'.
-   - Hito 2 (Huella Biocéntrica): 'perfil_cargo' (profesigrama), 'perfil_socio' (sociodemográfico), 'condiciones_salud'.
-   - Hito 3 (Comités, Brigadas y Órganos de Gobernanza): 'copasst', 'cocolab' (convivencia), 'comite_pesv', 'brigada_emergencias'.
-   - Hito 4 (Evaluación Dinámica de Riesgos): 'animo' (termómetro psicosocial), 'metodo_owas' (ergonomía), 'estudio_puesto' (EPT), 'peligros' (matriz bio-IPEVR / GTC 45).
-   - Hito 5 (Dinámica Operativa y Terreno): 'permiso_alturas', 'analisis_trabajo_seguro' (ATS), 'epp_delivery' (EPP), 'vehicles_pesv' (PESV automotores), 'heights_lifecycle', 'chemical_registry' (químicos SGA), 'equipos_emergencia'.
-   - Hito 6 (Cultura, Escuela e Innovación): 'reporte_actos', 'capacitaciones' (PAC), 'simulacros_emergencia', 'ruta_aprendizaje' (LMS), 'app_builder'.
-   - Hito 7 (Auditoría, Causalidad & Cierre de Ciclo): 'estadisticas' (ATEL/ausentismo), 'investigacion_atel', 'control_acpm' (Kanban), 'auditoria', 'alta_direccion', 'investigacion_profunda'.
-   - Hito 8 (Inteligencia Artificial & Oráculo Predictivo): 'predictivo' (oráculo, siniestralidad predictiva).
+   - Hito 1 (Gobernanza y Cimiento Legal): 'contexto_organizacion' (DOFA / PESTEL / partes interesadas), 'diagnostico' (0312), 'responsable', 'politica', 'objetivos', 'legal', 'rhs', 'rit', 'participacion_ipevar', 'matriz_ipevar_oficial' (GTC 45), 'matriz_pesv_oficial', 'matriz_compatibilidad_oficial' (SGA), 'oportunidades_sst' (riesgos del sistema y oportunidades), 'vulnerabilidad', 'plan_emergencias' (PPRE).
+   - Hito 2 (Huella Biocéntrica): 'perfil_cargo' (profesigrama / roles), 'perfil_socio' (sociodemográfico), 'condiciones_salud', 'oraculo_predictivo' (compatibilidad cargo-persona).
+   - Hito 3 (Comités, Brigadas y Órganos de Gobernanza): 'copasst' (vigía), 'cocolab' (convivencia), 'comite_pesv' (seguridad vial), 'brigada_emergencias' (SCI y comités de crisis).
+   - Hito 4 (Evaluación Dinámica de Riesgos): 'peligros' (matriz bio-IPEVR), 'metodo_owas' (ergonomía postural), 'estudio_puesto' (EPT biomecánico), 'animo' (termómetro psicosocial).
+   - Hito 5 (Dinámica Operativa y Terreno): 'compras_sst' (adquisiciones), 'contratistas_proveedores' (gestión y control), 'gestion_cambio' (MOC), 'analisis_trabajo_seguro' (ATS), 'permiso_alturas', 'heights_lifecycle' (hoja de vida alturas), 'epp_delivery' (EPP), 'chemical_registry' (SGA químicos), 'vehicles_pesv' (PESV automotores), 'equipos_emergencia' (extintores, botiquines).
+   - Hito 6 (Cultura, Escuela e Innovación): 'comunicaciones_sst' (plan y matriz de comunicaciones), 'capacitaciones' (PAC), 'ruta_aprendizaje' (LMS), 'reporte_actos', 'simulacros_emergencia', 'app_builder'.
+   - Hito 7 (Auditoría, Causalidad y Mejora Continua): 'estadisticas' (ATEL / ausentismo), 'investigacion_atel', 'control_acpm' (Kanban), 'auditoria', 'alta_direccion' (revisión gerencial), 'investigacion_profunda'.
+   - Hito 8 (Inteligencia Artificial & Oráculo Predictivo): 'predictivo' (oráculo estocástico, siniestralidad predictiva).
    - Aplicativos y Dashboards: 'academia' (/academia?tab=cursos), 'training_admin', 'rutas' (/academia?tab=rutas), 'ruta_admin', 'events_meet', 'events_meet_admin', 'blog', 'blog_admin', 'marketplace' (/marketplace tienda productos SST), 'marketplace_admin', 'agents' (/agents catálogo especialistas IA), 'control' (Centro de Control / Kanban), 'animo_dashboard' (/sgsst/animo), 'planes', 'auditoria' (/auditoria), 'live' (/c/new), 'chat_sst', 'roadmap' (/hoja-de-ruta), 'contactanos', 'comunidad', 'matriz', 'embajadores', 'embajadores_dashboard', 'tenshi_admin', 'search', 'privacy', 'terms', 'about'.
    - Portales públicos del trabajador: 'public_reportar', 'public_animo', 'public_estudio_puesto', 'public_ipevar', 'public_alta_direccion', 'public_atel', 'public_colaborador', 'public_comites', 'public_convivencia', 'public_votaciones', 'public_inspecciones', 'public_brigadistas'.
    - INVÓCALA DE INMEDIATO siempre que el usuario mencione ir, abrir, consultar o ver cualquier hito, módulo o sección.
@@ -8174,12 +8174,13 @@ ${workerSubHeaderHtml}
             } else if (/planes|precios|suscripci[oó]n|tarifas/i.test(userLower)) {
                 targetModulo = 'planes';
                 targetRuta = '/planes';
-            } else if (/pesv|seguridad vial|veh[ií]culos/i.test(userLower)) {
-                targetModulo = 'vehicles_pesv';
-                targetRuta = '/sgsst?hito=hito4&module=vehicles_pesv';
-            } else if (/qu[ií]mica|sga|compatibilidad/i.test(userLower)) {
-                targetModulo = 'chemical_registry';
-                targetRuta = '/sgsst?hito=hito4&module=chemical_registry';
+            } else if (/hito\s*([1-8])/i.test(userLower)) {
+                const hNum = userLower.match(/hito\s*([1-8])/i)[1];
+                targetModulo = `hito${hNum}`;
+                targetRuta = `/sgsst?hito=hito${hNum}`;
+            } else if (/contexto|partes interesadas|dofa|pestel/i.test(userLower)) {
+                targetModulo = 'contexto_organizacion';
+                targetRuta = '/sgsst?hito=hito1&module=contexto_organizacion';
             } else if (/diagn[oó]stico|evaluaci[oó]n inicial|0312/i.test(userLower)) {
                 targetModulo = 'diagnostico';
                 targetRuta = '/sgsst?hito=hito1&module=diagnostico';
@@ -8195,9 +8196,27 @@ ${workerSubHeaderHtml}
             } else if (/reglamento|rhs|higiene/i.test(userLower)) {
                 targetModulo = 'rhs';
                 targetRuta = '/sgsst?hito=hito1&module=rhs';
-            } else if (/vulnerabilidad|plan.*emergencia/i.test(userLower)) {
+            } else if (/participaci[oó]n ipevar|reportar peligro/i.test(userLower)) {
+                targetModulo = 'participacion_ipevar';
+                targetRuta = '/sgsst?hito=hito1&module=participacion_ipevar';
+            } else if (/matriz gtc|matriz ipevar|gtc 45 oficial/i.test(userLower)) {
+                targetModulo = 'matriz_ipevar_oficial';
+                targetRuta = '/sgsst?hito=hito1&module=matriz_ipevar_oficial';
+            } else if (/matriz pesv|matriz vial/i.test(userLower)) {
+                targetModulo = 'matriz_pesv_oficial';
+                targetRuta = '/sgsst?hito=hito1&module=matriz_pesv_oficial';
+            } else if (/matriz compatibilidad/i.test(userLower)) {
+                targetModulo = 'matriz_compatibilidad_oficial';
+                targetRuta = '/sgsst?hito=hito1&module=matriz_compatibilidad_oficial';
+            } else if (/oportunidades|riesgos del sistema/i.test(userLower)) {
+                targetModulo = 'oportunidades_sst';
+                targetRuta = '/sgsst?hito=hito1&module=oportunidades_sst';
+            } else if (/vulnerabilidad/i.test(userLower)) {
                 targetModulo = 'vulnerabilidad';
                 targetRuta = '/sgsst?hito=hito1&module=vulnerabilidad';
+            } else if (/plan.*emergencia|ppre/i.test(userLower)) {
+                targetModulo = 'plan_emergencias';
+                targetRuta = '/sgsst?hito=hito1&module=plan_emergencias';
             } else if (/perfil.*cargo|profesigrama/i.test(userLower)) {
                 targetModulo = 'perfil_cargo';
                 targetRuta = '/sgsst?hito=hito2&module=perfil_cargo';
@@ -8207,57 +8226,96 @@ ${workerSubHeaderHtml}
             } else if (/condiciones de salud|ex[aá]menes m[eé]dicos/i.test(userLower)) {
                 targetModulo = 'condiciones_salud';
                 targetRuta = '/sgsst?hito=hito2&module=condiciones_salud';
-            } else if (/participaci[oó]n ipevar|reportar peligro/i.test(userLower)) {
-                targetModulo = 'participacion_ipevar';
-                targetRuta = '/sgsst?hito=hito1&module=participacion_ipevar';
+            } else if (/copasst|vig[ií]a/i.test(userLower)) {
+                targetModulo = 'copasst';
+                targetRuta = '/sgsst?hito=hito3&module=copasst';
+            } else if (/cocolab|convivencia/i.test(userLower)) {
+                targetModulo = 'cocolab';
+                targetRuta = '/sgsst?hito=hito3&module=cocolab';
+            } else if (/comit[eé].*pesv|comit[eé].*seguridad vial|csv/i.test(userLower)) {
+                targetModulo = 'comite_pesv';
+                targetRuta = '/sgsst?hito=hito3&module=comite_pesv';
+            } else if (/brigada|comit[eé].*crisis|sci/i.test(userLower)) {
+                targetModulo = 'brigada_emergencias';
+                targetRuta = '/sgsst?hito=hito3&module=brigada_emergencias';
             } else if (/peligro|gtc.*45|ipevar/i.test(userLower)) {
                 targetModulo = 'peligros';
-                targetRuta = '/sgsst?hito=hito3&module=peligros';
-            } else if (/permiso.*alturas|permiso.*tsa/i.test(userLower)) {
-                targetModulo = 'permiso_alturas';
-                targetRuta = '/sgsst?hito=hito4&module=permiso_alturas';
-            } else if (/\bats\b|an[aá]lisis de trabajo seguro/i.test(userLower)) {
-                targetModulo = 'analisis_trabajo_seguro';
-                targetRuta = '/sgsst?hito=hito4&module=analisis_trabajo_seguro';
+                targetRuta = '/sgsst?hito=hito4&module=peligros';
             } else if (/m[eé]todo owas|owas|ergonom[ií]a laboral/i.test(userLower)) {
                 targetModulo = 'metodo_owas';
                 targetRuta = '/sgsst?hito=hito4&module=metodo_owas';
-            } else if (/epp|entrega.*epp|dotaci[oó]n/i.test(userLower)) {
-                targetModulo = 'epp_delivery';
-                targetRuta = '/sgsst?hito=hito4&module=epp_delivery';
+            } else if (/estudio.*puesto|\bept\b/i.test(userLower)) {
+                targetModulo = 'estudio_puesto';
+                targetRuta = '/sgsst?hito=hito4&module=estudio_puesto';
+            } else if (/term[oó]metro|[aá]nimo/i.test(userLower)) {
+                targetModulo = 'animo';
+                targetRuta = '/sgsst?hito=hito4&module=animo';
+            } else if (/compras|adquisiciones/i.test(userLower)) {
+                targetModulo = 'compras_sst';
+                targetRuta = '/sgsst?hito=hito5&module=compras_sst';
+            } else if (/contratistas|proveedores/i.test(userLower)) {
+                targetModulo = 'contratistas_proveedores';
+                targetRuta = '/sgsst?hito=hito5&module=contratistas_proveedores';
+            } else if (/gesti[oó]n.*cambio|\bmoc\b/i.test(userLower)) {
+                targetModulo = 'gestion_cambio';
+                targetRuta = '/sgsst?hito=hito5&module=gestion_cambio';
+            } else if (/\bats\b|an[aá]lisis de trabajo seguro/i.test(userLower)) {
+                targetModulo = 'analisis_trabajo_seguro';
+                targetRuta = '/sgsst?hito=hito5&module=analisis_trabajo_seguro';
+            } else if (/permiso.*alturas|permiso.*tsa/i.test(userLower)) {
+                targetModulo = 'permiso_alturas';
+                targetRuta = '/sgsst?hito=hito5&module=permiso_alturas';
             } else if (/l[ií]nea de vida|ciclo.*altura|arn[eé]s/i.test(userLower)) {
                 targetModulo = 'heights_lifecycle';
-                targetRuta = '/sgsst?hito=hito4&module=heights_lifecycle';
+                targetRuta = '/sgsst?hito=hito5&module=heights_lifecycle';
+            } else if (/epp|entrega.*epp|dotaci[oó]n/i.test(userLower)) {
+                targetModulo = 'epp_delivery';
+                targetRuta = '/sgsst?hito=hito5&module=epp_delivery';
+            } else if (/qu[ií]mica|registro.*qu[ií]mico|inventario.*qu[ií]mico/i.test(userLower)) {
+                targetModulo = 'chemical_registry';
+                targetRuta = '/sgsst?hito=hito5&module=chemical_registry';
+            } else if (/pesv|seguridad vial|veh[ií]culos|automotores/i.test(userLower)) {
+                targetModulo = 'vehicles_pesv';
+                targetRuta = '/sgsst?hito=hito5&module=vehicles_pesv';
+            } else if (/equipos.*emergencia|extintores/i.test(userLower)) {
+                targetModulo = 'equipos_emergencia';
+                targetRuta = '/sgsst?hito=hito5&module=equipos_emergencia';
+            } else if (/comunicaciones|matriz.*comunicaci[oó]n/i.test(userLower)) {
+                targetModulo = 'comunicaciones_sst';
+                targetRuta = '/sgsst?hito=hito6&module=comunicaciones_sst';
             } else if (/capacitaci[oó]n|pac|programa capacitaci[oó]n/i.test(userLower)) {
                 targetModulo = 'capacitaciones';
-                targetRuta = '/sgsst?hito=hito5&module=capacitaciones';
+                targetRuta = '/sgsst?hito=hito6&module=capacitaciones';
             } else if (/ruta.*aprendizaje|lms/i.test(userLower)) {
                 targetModulo = 'ruta_aprendizaje';
-                targetRuta = '/sgsst?hito=hito5&module=ruta_aprendizaje';
+                targetRuta = '/sgsst?hito=hito6&module=ruta_aprendizaje';
             } else if (/reporte de actos|condiciones inseguras/i.test(userLower)) {
                 targetModulo = 'reporte_actos';
-                targetRuta = '/sgsst?hito=hito5&module=reporte_actos';
+                targetRuta = '/sgsst?hito=hito6&module=reporte_actos';
+            } else if (/simulacros?/i.test(userLower)) {
+                targetModulo = 'simulacros_emergencia';
+                targetRuta = '/sgsst?hito=hito6&module=simulacros_emergencia';
             } else if (/app.*builder|constructor.*app|micro.*app/i.test(userLower)) {
                 targetModulo = 'app_builder';
-                targetRuta = '/sgsst?hito=hito5&module=app_builder';
-            } else if (/estad[ií]sticas|indicadores atel/i.test(userLower)) {
+                targetRuta = '/sgsst?hito=hito6&module=app_builder';
+            } else if (/estad[ií]sticas|indicadores atel|ausentismo/i.test(userLower)) {
                 targetModulo = 'estadisticas';
-                targetRuta = '/sgsst?hito=hito6&module=estadisticas';
+                targetRuta = '/sgsst?hito=hito7&module=estadisticas';
             } else if (/investigaci[oó]n.*accidente|[aá]rbol de causas/i.test(userLower)) {
                 targetModulo = 'investigacion_atel';
-                targetRuta = '/sgsst?hito=hito6&module=investigacion_atel';
+                targetRuta = '/sgsst?hito=hito7&module=investigacion_atel';
             } else if (/alta direcci[oó]n|revisi[oó]n gerencial/i.test(userLower)) {
                 targetModulo = 'alta_direccion';
-                targetRuta = '/sgsst?hito=hito6&module=alta_direccion';
+                targetRuta = '/sgsst?hito=hito7&module=alta_direccion';
             } else if (/investigaci[oó]n profunda/i.test(userLower)) {
                 targetModulo = 'investigacion_profunda';
-                targetRuta = '/sgsst?hito=hito6&module=investigacion_profunda';
+                targetRuta = '/sgsst?hito=hito7&module=investigacion_profunda';
             } else if (/auditor[ií]a/i.test(userLower)) {
                 targetModulo = 'auditoria';
                 targetRuta = '/auditoria';
             } else if (/predictivo|or[aá]culo/i.test(userLower)) {
                 targetModulo = 'predictivo';
-                targetRuta = '/sgsst?hito=hito7&module=predictivo';
+                targetRuta = '/sgsst?hito=hito8&module=predictivo';
             } else if (/videollamada|c[aá]mara|en vivo/i.test(userLower)) {
                 targetModulo = 'live';
                 targetRuta = '/live';

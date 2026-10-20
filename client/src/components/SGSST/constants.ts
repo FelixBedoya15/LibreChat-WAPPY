@@ -2,54 +2,15 @@ export const PHASE_CATEGORIES = {
     // ─── HITO 01: GOBERNANZA Y CIMIENTO LEGAL ───
     hito1: [
         { 
-            id: 'diagnostico', title: 'Diagnóstico Inicial', icon: 'Stethoscope',
-            bioRationale: 'Evalúa el grado de madurez preventiva y el nivel de cumplimiento legal de los estándares mínimos para recibir de forma segura al ser humano.', 
-            normativity: 'Hito 1: Gobernanza y Cimiento Legal' 
-        },
-        { 
             id: 'contexto_organizacion', title: 'Contexto y Partes Interesadas (DOFA / Stakeholders)', icon: 'Compass',
             bioRationale: 'Evaluación del contexto interno/externo (DOFA/PESTEL) y matriz de expectativas de partes interesadas (trabajadores, contratistas, comunidad y entes de control) para cimentar la gobernanza de SST.', 
             normativity: 'Hito 1: Gobernanza y Cimiento Legal (ISO 45001 Num. 4.1 y 4.2 • Res. 0312)',
             defaultDisabled: true
         },
         { 
-            id: 'oportunidades_sst', title: 'Riesgos del Sistema y Oportunidades SST', icon: 'Sparkles',
-            bioRationale: 'Identificación planificada de oportunidades de innovación, ergonomía y bienestar en SST, y gestión de riesgos estratégicos para el SG-SST.', 
-            normativity: 'Hito 1: Gobernanza y Cimiento Legal (ISO 45001 Num. 6.1.1 y 6.1.2.3 • Res. 0312 Est. 2.4.1)',
-            defaultDisabled: true
-        },
-        { 
-            id: 'participacion_ipevar', title: 'Participación IPEVR Comunitaria', icon: 'Users',
-            bioRationale: 'Empodera la voz del colaborador sobre los peligros que percibe en su cotidianidad vital para alimentar y actualizar la Matriz IPEVR.', 
+            id: 'diagnostico', title: 'Diagnóstico Inicial', icon: 'Stethoscope',
+            bioRationale: 'Evalúa el grado de madurez preventiva y el nivel de cumplimiento legal de los estándares mínimos para recibir de forma segura al ser humano.', 
             normativity: 'Hito 1: Gobernanza y Cimiento Legal' 
-        },
-        { 
-            id: 'matriz_ipevar_oficial', title: 'Matriz IPEVR (GTC 45)', icon: 'AlertTriangle',
-            bioRationale: 'Columna vertebral preventiva del SG-SST. Identifica peligros, evalúa y valora riesgos bajo GTC 45:2012 para proteger la integridad de los colaboradores.', 
-            normativity: 'Hito 1: Gobernanza y Cimiento Legal (GTC 45:2012 / Dec. 1072 / Res. 0312)' 
-        },
-        { 
-            id: 'matriz_pesv_oficial', title: 'Matriz de Riesgos Viales (PESV)', icon: 'Car',
-            bioRationale: 'Identificación, evaluación y valoración de riesgos de seguridad vial por actor vial y factor de riesgo (Humano, Vehicular, Infraestructura y Entorno), sincronizada con Perfiles de Cargo, Flota y ACPM.', 
-            normativity: 'Hito 1: Gobernanza y Cimiento Legal (Res. 20223040040595 Paso 6 • ISO 39001)',
-            defaultDisabled: true
-        },
-        { 
-            id: 'matriz_compatibilidad_oficial', title: 'Matriz de Compatibilidad Química (SGA)', icon: 'FlaskConical',
-            bioRationale: 'Evaluación técnica de compatibilidad, segregación de sustancias químicas, clasificación ONU y auditoría de Fichas de Seguridad (FDS) y rotulado SGA, sincronizada con el Inventario Químico del Hito 5 y el Centro de Control.', 
-            normativity: 'Hito 1: Gobernanza y Cimiento Legal (Decreto 1496 de 2018 • SGA / GHS • NTC 3966)',
-            defaultDisabled: true
-        },
-        { 
-            id: 'vulnerabilidad', title: 'Análisis de Vulnerabilidad', icon: 'Target',
-            bioRationale: 'Evalúa las amenazas naturales, tecnológicas y sociales mediante la metodología del Diamante de Colores.', 
-            normativity: 'Hito 1: Gobernanza y Cimiento Legal (Dec. 1072 Art. 2.2.4.6.25)' 
-        },
-        { 
-            id: 'plan_emergencias', title: 'Plan de Emergencias y Contingencias (PPRE)', icon: 'ShieldAlert',
-            bioRationale: 'Consolida las amenazas del Diamante, la Brigada (Hito 3), el inventario de equipos (Hito 5) y los simulacros (Hito 6) en el Documento Maestro de Prevención, Preparación y Respuesta ante Emergencias, MEDEVAC y PONs.', 
-            normativity: 'Hito 1: Gobernanza y Cimiento Legal (Dec. 1072 Art. 2.2.4.6.25 • Res. 0312 E1.1.11)',
-            defaultDisabled: true
         },
         { 
             id: 'responsable', title: 'Responsable SG-SST', icon: 'UserCheck',
@@ -80,6 +41,45 @@ export const PHASE_CATEGORIES = {
             id: 'rit', title: 'Reglamento Interno (RIT)', icon: 'Briefcase',
             bioRationale: 'Marco de convivencia justa, orden, respeto interpersonal y régimen disciplinario con debido proceso.', 
             normativity: 'Hito 1: Gobernanza y Cimiento Legal' 
+        },
+        { 
+            id: 'participacion_ipevar', title: 'Participación IPEVR Comunitaria', icon: 'Users',
+            bioRationale: 'Empodera la voz del colaborador sobre los peligros que percibe en su cotidianidad vital para alimentar y actualizar la Matriz IPEVR.', 
+            normativity: 'Hito 1: Gobernanza y Cimiento Legal' 
+        },
+        { 
+            id: 'matriz_ipevar_oficial', title: 'Matriz IPEVR (GTC 45)', icon: 'AlertTriangle',
+            bioRationale: 'Columna vertebral preventiva del SG-SST. Identifica peligros, evalúa y valora riesgos bajo GTC 45:2012 para proteger la integridad de los colaboradores.', 
+            normativity: 'Hito 1: Gobernanza y Cimiento Legal (GTC 45:2012 / Dec. 1072 / Res. 0312)' 
+        },
+        { 
+            id: 'matriz_pesv_oficial', title: 'Matriz de Riesgos Viales (PESV)', icon: 'Car',
+            bioRationale: 'Identificación, evaluación y valoración de riesgos de seguridad vial por actor vial y factor de riesgo (Humano, Vehicular, Infraestructura y Entorno), sincronizada con Perfiles de Cargo, Flota y ACPM.', 
+            normativity: 'Hito 1: Gobernanza y Cimiento Legal (Res. 20223040040595 Paso 6 • ISO 39001)',
+            defaultDisabled: true
+        },
+        { 
+            id: 'matriz_compatibilidad_oficial', title: 'Matriz de Compatibilidad Química (SGA)', icon: 'FlaskConical',
+            bioRationale: 'Evaluación técnica de compatibilidad, segregación de sustancias químicas, clasificación ONU y auditoría de Fichas de Seguridad (FDS) y rotulado SGA, sincronizada con el Inventario Químico del Hito 5 y el Centro de Control.', 
+            normativity: 'Hito 1: Gobernanza y Cimiento Legal (Decreto 1496 de 2018 • SGA / GHS • NTC 3966)',
+            defaultDisabled: true
+        },
+        { 
+            id: 'oportunidades_sst', title: 'Riesgos del Sistema y Oportunidades SST', icon: 'Sparkles',
+            bioRationale: 'Identificación planificada de oportunidades de innovación, ergonomía y bienestar en SST, y gestión de riesgos estratégicos para el SG-SST.', 
+            normativity: 'Hito 1: Gobernanza y Cimiento Legal (ISO 45001 Num. 6.1.1 y 6.1.2.3 • Res. 0312 Est. 2.4.1)',
+            defaultDisabled: true
+        },
+        { 
+            id: 'vulnerabilidad', title: 'Análisis de Vulnerabilidad', icon: 'Target',
+            bioRationale: 'Evalúa las amenazas naturales, tecnológicas y sociales mediante la metodología del Diamante de Colores.', 
+            normativity: 'Hito 1: Gobernanza y Cimiento Legal (Dec. 1072 Art. 2.2.4.6.25)' 
+        },
+        { 
+            id: 'plan_emergencias', title: 'Plan de Emergencias y Contingencias (PPRE)', icon: 'ShieldAlert',
+            bioRationale: 'Consolida las amenazas del Diamante, la Brigada (Hito 3), el inventario de equipos (Hito 5) y los simulacros (Hito 6) en el Documento Maestro de Prevención, Preparación y Respuesta ante Emergencias, MEDEVAC y PONs.', 
+            normativity: 'Hito 1: Gobernanza y Cimiento Legal (Dec. 1072 Art. 2.2.4.6.25 • Res. 0312 E1.1.11)',
+            defaultDisabled: true
         }
     ],
 
@@ -134,8 +134,8 @@ export const PHASE_CATEGORIES = {
     // ─── HITO 04: EVALUACIÓN DINÁMICA DE RIESGOS ───
     hito4: [
         { 
-            id: 'animo', title: 'Termómetro Psicosocial', icon: 'Heart',
-            bioRationale: 'Monitorea en tiempo real y de forma 100% anónima el bienestar psicosocial, estrés y fatiga con pulsos periódicos (7, 30 y 90 días) mediante código QR.', 
+            id: 'peligros', title: 'Matriz Bio-IPEVR', icon: 'AlertTriangle',
+            bioRationale: 'Hub centralizado de consciencia bio-individual. Síntesis y culminación evaluativa: cruza los peligros del puesto con la anatomía y percepción del trabajador.', 
             normativity: 'Hito 4: Evaluación Dinámica de Riesgos' 
         },
         { 
@@ -149,8 +149,8 @@ export const PHASE_CATEGORIES = {
             normativity: 'Hito 4: Evaluación Dinámica de Riesgos (Res. 2400 / ISO 11226)' 
         },
         { 
-            id: 'peligros', title: 'Matriz Bio-IPEVR', icon: 'AlertTriangle',
-            bioRationale: 'Hub centralizado de consciencia bio-individual. Síntesis y culminación evaluativa: cruza los peligros del puesto con la anatomía y percepción del trabajador.', 
+            id: 'animo', title: 'Termómetro Psicosocial', icon: 'Heart',
+            bioRationale: 'Monitorea en tiempo real y de forma 100% anónima el bienestar psicosocial, estrés y fatiga con pulsos periódicos (7, 30 y 90 días) mediante código QR.', 
             normativity: 'Hito 4: Evaluación Dinámica de Riesgos' 
         }
     ],
@@ -158,45 +158,9 @@ export const PHASE_CATEGORIES = {
     // ─── HITO 05: DINÁMICA OPERATIVA Y TERRENO ───
     hito5: [
         { 
-            id: 'permiso_alturas', title: 'Permiso de Trabajo en Alturas', icon: 'Briefcase',
-            bioRationale: 'Protección absoluta, validación de listas y protocolos de rescate ante trabajos en alturas (Res. 4272/2021).', 
-            normativity: 'Hito 5: Dinámica Operativa y Terreno' 
-        },
-        { 
-            id: 'analisis_trabajo_seguro', title: 'Análisis de Trabajo Seguro (ATS)', icon: 'ShieldAlert',
-            bioRationale: 'Induce a un estado de consciencia plena paso a paso antes de ejecutar una tarea riesgosa o no rutinaria.', 
-            normativity: 'Hito 5: Dinámica Operativa y Terreno' 
-        },
-        { 
-            id: 'epp_delivery', title: 'Entrega y Seguimiento de EPP', icon: 'Shield',
-            bioRationale: 'Asegura la entrega oportuna, control de caducidad y firmas de conformidad de elementos de protección personal.', 
-            normativity: 'Hito 5: Dinámica Operativa y Terreno' 
-        },
-        { 
-            id: 'vehicles_pesv', title: 'Hoja de Vida Automotores (PESV)', icon: 'Car',
-            bioRationale: 'Controla el ciclo de mantenimiento, SOAT, Técnico-Mecánica e inspecciones diarias pre-operacionales firmadas (Res. 20223040040595).',
-            normativity: 'Hito 5: Dinámica Operativa y Terreno'
-        },
-        { 
-            id: 'heights_lifecycle', title: 'Hoja de Vida de Equipos de Alturas', icon: 'Wrench',
-            bioRationale: 'Administra y certifica la vida útil de arneses, eslingas e inspecciones anuales reglamentarias contra caídas.',
-            normativity: 'Hito 5: Dinámica Operativa y Terreno'
-        },
-        { 
-            id: 'chemical_registry', title: 'Registro y Rótulo de Productos Químicos', icon: 'FlaskConical',
-            bioRationale: 'Inventario de sustancias químicas, compatibilidad de almacenamiento, control de FDS y pictogramas SGA.',
-            normativity: 'Hito 5: Dinámica Operativa y Terreno'
-        },
-        { 
-            id: 'equipos_emergencia', title: 'Inventario e Inspección de Equipos de Emergencia', icon: 'Wrench',
-            bioRationale: 'Control en terreno, hojas de vida, recargas e inspecciones periódicas de extintores portátiles (NTC 2885), botiquines, camillas y alarmas.',
-            normativity: 'Hito 5: Dinámica Operativa y Terreno (Dec. 1072 Art. 2.2.4.6.25 Num. 9)',
-            defaultDisabled: true
-        },
-        { 
-            id: 'gestion_cambio', title: 'Gestión del Cambio en SST (MOC)', icon: 'GitMerge',
-            bioRationale: 'Procedimiento y flujo sistemático para evaluar, aprobar y controlar los impactos en SST antes de implementar cambios locativos, técnicos, normativos o de personal en la organización.', 
-            normativity: 'Hito 5: Dinámica Operativa y Terreno (ISO 45001 Num. 8.1.3 • Dec. 1072 Art. 2.2.4.6.26)',
+            id: 'compras_sst', title: 'Compras y Adquisiciones en SST', icon: 'ShoppingBag',
+            bioRationale: 'Control previo y verificación de especificaciones de seguridad en la adquisición de materias primas, insumos químicos, maquinaria, herramientas y EPP.', 
+            normativity: 'Hito 5: Dinámica Operativa y Terreno (ISO 45001 Num. 8.1.4.1 • Dec. 1072 Art. 2.2.4.6.27)',
             defaultDisabled: true
         },
         { 
@@ -206,9 +170,45 @@ export const PHASE_CATEGORIES = {
             defaultDisabled: true
         },
         { 
-            id: 'compras_sst', title: 'Compras y Adquisiciones en SST', icon: 'ShoppingBag',
-            bioRationale: 'Control previo y verificación de especificaciones de seguridad en la adquisición de materias primas, insumos químicos, maquinaria, herramientas y EPP.', 
-            normativity: 'Hito 5: Dinámica Operativa y Terreno (ISO 45001 Num. 8.1.4.1 • Dec. 1072 Art. 2.2.4.6.27)',
+            id: 'gestion_cambio', title: 'Gestión del Cambio en SST (MOC)', icon: 'GitMerge',
+            bioRationale: 'Procedimiento y flujo sistemático para evaluar, aprobar y controlar los impactos en SST antes de implementar cambios locativos, técnicos, normativos o de personal en la organización.', 
+            normativity: 'Hito 5: Dinámica Operativa y Terreno (ISO 45001 Num. 8.1.3 • Dec. 1072 Art. 2.2.4.6.26)',
+            defaultDisabled: true
+        },
+        { 
+            id: 'analisis_trabajo_seguro', title: 'Análisis de Trabajo Seguro (ATS)', icon: 'ShieldAlert',
+            bioRationale: 'Induce a un estado de consciencia plena paso a paso antes de ejecutar una tarea riesgosa o no rutinaria.', 
+            normativity: 'Hito 5: Dinámica Operativa y Terreno' 
+        },
+        { 
+            id: 'permiso_alturas', title: 'Permiso de Trabajo en Alturas', icon: 'Briefcase',
+            bioRationale: 'Protección absoluta, validación de listas y protocolos de rescate ante trabajos en alturas (Res. 4272/2021).', 
+            normativity: 'Hito 5: Dinámica Operativa y Terreno' 
+        },
+        { 
+            id: 'heights_lifecycle', title: 'Hoja de Vida de Equipos de Alturas', icon: 'Wrench',
+            bioRationale: 'Administra y certifica la vida útil de arneses, eslingas e inspecciones anuales reglamentarias contra caídas.',
+            normativity: 'Hito 5: Dinámica Operativa y Terreno'
+        },
+        { 
+            id: 'epp_delivery', title: 'Entrega y Seguimiento de EPP', icon: 'Shield',
+            bioRationale: 'Asegura la entrega oportuna, control de caducidad y firmas de conformidad de elementos de protección personal.', 
+            normativity: 'Hito 5: Dinámica Operativa y Terreno' 
+        },
+        { 
+            id: 'chemical_registry', title: 'Registro y Rótulo de Productos Químicos', icon: 'FlaskConical',
+            bioRationale: 'Inventario de sustancias químicas, compatibilidad de almacenamiento, control de FDS y pictogramas SGA.',
+            normativity: 'Hito 5: Dinámica Operativa y Terreno'
+        },
+        { 
+            id: 'vehicles_pesv', title: 'Hoja de Vida Automotores (PESV)', icon: 'Car',
+            bioRationale: 'Controla el ciclo de mantenimiento, SOAT, Técnico-Mecánica e inspecciones diarias pre-operacionales firmadas (Res. 20223040040595).',
+            normativity: 'Hito 5: Dinámica Operativa y Terreno'
+        },
+        { 
+            id: 'equipos_emergencia', title: 'Inventario e Inspección de Equipos de Emergencia', icon: 'Wrench',
+            bioRationale: 'Control en terreno, hojas de vida, recargas e inspecciones periódicas de extintores portátiles (NTC 2885), botiquines, camillas y alarmas.',
+            normativity: 'Hito 5: Dinámica Operativa y Terreno (Dec. 1072 Art. 2.2.4.6.25 Num. 9)',
             defaultDisabled: true
         }
     ],
@@ -216,9 +216,10 @@ export const PHASE_CATEGORIES = {
     // ─── HITO 06: CULTURA, ESCUELA E INNOVACIÓN ───
     hito6: [
         { 
-            id: 'reporte_actos', title: 'Reporte de Actos y Condiciones', icon: 'AlertTriangle',
-            bioRationale: 'Canal seguro para reportar actos y condiciones inseguras con foto, activando la protección comunitaria antes del daño.', 
-            normativity: 'Hito 6: Cultura, Escuela e Innovación' 
+            id: 'comunicaciones_sst', title: 'Plan y Matriz de Comunicaciones SST', icon: 'MessageSquare',
+            bioRationale: 'Estructuración de canales internos con colaboradores y protocolo de vocería oficial ante medios de comunicación, autoridades y comunidad vecina.', 
+            normativity: 'Hito 6: Cultura, Escuela e Innovación (ISO 45001 Num. 7.4 • Dec. 1072 Art. 2.2.4.6.14 • Res. 0312 Est. 2.8.1)',
+            defaultDisabled: true
         },
         { 
             id: 'capacitaciones', title: 'Programa de Capacitación SG-SST', icon: 'UserCheck',
@@ -226,21 +227,20 @@ export const PHASE_CATEGORIES = {
             normativity: 'Hito 6: Cultura, Escuela e Innovación' 
         },
         { 
+            id: 'ruta_aprendizaje', title: 'Rutas de Aprendizaje (LMS)', icon: 'GraduationCap',
+            bioRationale: 'Aula virtual interactiva con cursos personalizados, evaluaciones asistidas por IA y certificación de competencias.', 
+            normativity: 'Hito 6: Cultura, Escuela e Innovación' 
+        },
+        { 
+            id: 'reporte_actos', title: 'Reporte de Actos y Condiciones', icon: 'AlertTriangle',
+            bioRationale: 'Canal seguro para reportar actos y condiciones inseguras con foto, activando la protección comunitaria antes del daño.', 
+            normativity: 'Hito 6: Cultura, Escuela e Innovación' 
+        },
+        { 
             id: 'simulacros_emergencia', title: 'Gestión y Evaluación de Simulacros de Emergencia', icon: 'Activity',
             bioRationale: 'Planeación de hipótesis, cronometraje de tiempos de evacuación, evaluación de respuesta comunitaria y actas de simulacro anual obligatorio.', 
             normativity: 'Hito 6: Cultura, Escuela e Innovación (Dec. 1072 Art. 2.2.4.6.25 Num. 10)',
             defaultDisabled: true
-        },
-        { 
-            id: 'comunicaciones_sst', title: 'Plan y Matriz de Comunicaciones SST', icon: 'MessageSquare',
-            bioRationale: 'Estructuración de canales internos con colaboradores y protocolo de vocería oficial ante medios de comunicación, autoridades y comunidad vecina.', 
-            normativity: 'Hito 6: Cultura, Escuela e Innovación (ISO 45001 Num. 7.4 • Dec. 1072 Art. 2.2.4.6.14 • Res. 0312 Est. 2.8.1)',
-            defaultDisabled: true
-        },
-        { 
-            id: 'ruta_aprendizaje', title: 'Rutas de Aprendizaje (LMS)', icon: 'GraduationCap',
-            bioRationale: 'Aula virtual interactiva con cursos personalizados, evaluaciones asistidas por IA y certificación de competencias.', 
-            normativity: 'Hito 6: Cultura, Escuela e Innovación' 
         },
         { 
             id: 'app_builder', title: 'Creador de Aplicativos (App Builder)', icon: 'Blocks',
