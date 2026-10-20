@@ -11,6 +11,15 @@ export interface MatrixRow {
   tiene_rotulo: 'Sí' | 'No';
   incompatibilidades: string;
   requisitos_almacenamiento: string;
+  numero_onu?: string;
+  cas?: string;
+  palabra_advertencia?: 'PELIGRO' | 'ATENCIÓN' | string;
+  frases_h?: string;
+  consejos_p?: string;
+  epp_recomendado?: string;
+  primeros_auxilios?: string;
+  control_derrames?: string;
+  pubchem_cid?: number | string;
 }
 
 export const CLASES_ONU = [
@@ -33,17 +42,128 @@ export const CLASES_ONU = [
 
 export const ESTADO_OPCIONES = ['Líquido', 'Sólido', 'Gas'];
 
-export const SGA_PICTOGRAMS = [
-  { key: 'inflamable', name: 'Inflamable', icon: '🔥' },
-  { key: 'corrosivo', name: 'Corrosivo', icon: '🧪' },
-  { key: 'calavera', name: 'Toxicidad Aguda', icon: '💀' },
-  { key: 'peligro_salud', name: 'Peligro Grave para la Salud', icon: '👤' },
-  { key: 'signo_exclamacion', name: 'Irritante / Dañino', icon: '⚠️' },
-  { key: 'medio_ambiente', name: 'Peligro Ambiental', icon: '🐟' },
-  { key: 'comburente', name: 'Comburente', icon: '⭕' },
-  { key: 'explosivo', name: 'Explosivo', icon: '💥' },
-  { key: 'gas_comprimido', name: 'Gas bajo Presión', icon: '💨' }
+export interface SgaPictogramMeta {
+  key: string;
+  name: string;
+  ghsCode: string;
+  svgUrl: string;
+  signalWord: 'PELIGRO' | 'ATENCIÓN';
+  icon: string;
+  defaultH: string;
+  defaultP: string;
+}
+
+export const SGA_PICTOGRAMS: SgaPictogramMeta[] = [
+  {
+    key: 'inflamable',
+    name: 'Inflamable',
+    ghsCode: 'GHS02',
+    svgUrl: 'https://pubchem.ncbi.nlm.nih.gov/images/ghs/GHS02.svg',
+    signalWord: 'PELIGRO',
+    icon: '🔥',
+    defaultH: 'H225: Líquido y vapores muy inflamables.',
+    defaultP: 'P210: Mantener alejado del calor, chispas, llamas abiertas y superficies calientes. No fumar.'
+  },
+  {
+    key: 'corrosivo',
+    name: 'Corrosivo',
+    ghsCode: 'GHS05',
+    svgUrl: 'https://pubchem.ncbi.nlm.nih.gov/images/ghs/GHS05.svg',
+    signalWord: 'PELIGRO',
+    icon: '🧪',
+    defaultH: 'H314: Provoca quemaduras graves en la piel y lesiones oculares graves.',
+    defaultP: 'P280: Usar guantes, ropa de protección y equipo de protección para los ojos y la cara.'
+  },
+  {
+    key: 'calavera',
+    name: 'Toxicidad Aguda',
+    ghsCode: 'GHS06',
+    svgUrl: 'https://pubchem.ncbi.nlm.nih.gov/images/ghs/GHS06.svg',
+    signalWord: 'PELIGRO',
+    icon: '💀',
+    defaultH: 'H301/H311/H331: Tóxico en caso de ingestión, contacto con la piel o inhalación.',
+    defaultP: 'P260: No respirar los vapores o aerosoles. P301+P310: En caso de ingestión, llamar inmediatamente a un centro de toxicología.'
+  },
+  {
+    key: 'peligro_salud',
+    name: 'Peligro Grave para la Salud',
+    ghsCode: 'GHS08',
+    svgUrl: 'https://pubchem.ncbi.nlm.nih.gov/images/ghs/GHS08.svg',
+    signalWord: 'PELIGRO',
+    icon: '👤',
+    defaultH: 'H350/H372: Puede provocar cáncer o daños en los órganos tras exposiciones prolongadas o repetidas.',
+    defaultP: 'P201: Procurarse las instrucciones antes del uso. P280: Usar equipo de protección personal obligatorio.'
+  },
+  {
+    key: 'signo_exclamacion',
+    name: 'Irritante / Dañino',
+    ghsCode: 'GHS07',
+    svgUrl: 'https://pubchem.ncbi.nlm.nih.gov/images/ghs/GHS07.svg',
+    signalWord: 'ATENCIÓN',
+    icon: '⚠️',
+    defaultH: 'H315/H319/H335: Provoca irritación cutánea, irritación ocular grave o puede irritar las vías respiratorias.',
+    defaultP: 'P264: Lavarse cuidadosamente tras la manipulación. P271: Utilizar únicamente en exteriores o en un lugar bien ventilado.'
+  },
+  {
+    key: 'medio_ambiente',
+    name: 'Peligro Ambiental',
+    ghsCode: 'GHS09',
+    svgUrl: 'https://pubchem.ncbi.nlm.nih.gov/images/ghs/GHS09.svg',
+    signalWord: 'ATENCIÓN',
+    icon: '🐟',
+    defaultH: 'H400/H410: Muy tóxico para los organismos acuáticos, con efectos nocivos duraderos.',
+    defaultP: 'P273: No dispersar en el medio ambiente. P391: Recoger los vertidos.'
+  },
+  {
+    key: 'comburente',
+    name: 'Comburente',
+    ghsCode: 'GHS03',
+    svgUrl: 'https://pubchem.ncbi.nlm.nih.gov/images/ghs/GHS03.svg',
+    signalWord: 'PELIGRO',
+    icon: '⭕',
+    defaultH: 'H272: Puede agravar un incendio; comburente.',
+    defaultP: 'P220: Mantener alejado de la ropa y otros materiales combustibles.'
+  },
+  {
+    key: 'explosivo',
+    name: 'Explosivo',
+    ghsCode: 'GHS01',
+    svgUrl: 'https://pubchem.ncbi.nlm.nih.gov/images/ghs/GHS01.svg',
+    signalWord: 'PELIGRO',
+    icon: '💥',
+    defaultH: 'H201: Explosivo; peligro de explosión en masa.',
+    defaultP: 'P210: Mantener alejado de fuentes de ignición, chispas y fricción. P240: Toma de tierra y enlace equipotencial.'
+  },
+  {
+    key: 'gas_comprimido',
+    name: 'Gas bajo Presión',
+    ghsCode: 'GHS04',
+    svgUrl: 'https://pubchem.ncbi.nlm.nih.gov/images/ghs/GHS04.svg',
+    signalWord: 'ATENCIÓN',
+    icon: '💨',
+    defaultH: 'H280: Contiene gas a presión; puede explotar si se calienta.',
+    defaultP: 'P410+P403: Proteger de la luz solar. Almacenar en un lugar bien ventilado.'
+  }
 ];
+
+export function findSgaPictogram(keyOrName: string): SgaPictogramMeta | undefined {
+  if (!keyOrName) return undefined;
+  const clean = keyOrName.trim().toLowerCase();
+  return SGA_PICTOGRAMS.find(
+    (p) =>
+      p.key.toLowerCase() === clean ||
+      p.name.toLowerCase() === clean ||
+      p.ghsCode.toLowerCase() === clean ||
+      (clean.includes('tóxic') && p.key === 'calavera') ||
+      (clean.includes('toxic') && p.key === 'calavera') ||
+      (clean.includes('ambient') && p.key === 'medio_ambiente') ||
+      (clean.includes('salud') && p.key === 'peligro_salud') ||
+      (clean.includes('cancer') && p.key === 'peligro_salud') ||
+      (clean.includes('mutag') && p.key === 'peligro_salud') ||
+      (clean.includes('irrit') && p.key === 'signo_exclamacion') ||
+      (clean.includes('gas') && p.key === 'gas_comprimido')
+  );
+}
 
 export interface CompatibilityResult {
   status: 'compatible' | 'caution' | 'incompatible';

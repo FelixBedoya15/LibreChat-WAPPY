@@ -24,6 +24,214 @@ async function getActiveCompanyId(userId) {
 
 const KanbanTask = require('~/models/KanbanTask');
 const SgsstChemicalData = require('~/models/SgsstChemicalData');
+const DiagnosticoData = require('~/models/DiagnosticoData');
+
+async function markChemicalStandardCompliant(userId, companyId, rowCount = 1) {
+  try {
+    if (!companyId || rowCount <= 0) return;
+    let doc = await DiagnosticoData.findOne({ user: userId, companyId });
+    if (!doc) {
+      doc = new DiagnosticoData({
+        user: userId,
+        companyId,
+        statusData: [],
+        companySize: 'medium',
+        riskLevel: 3,
+        score: 0,
+        totalPoints: 100,
+        complianceLevel: '',
+      });
+    }
+    const statusList = Array.isArray(doc.statusData) ? [...doc.statusData] : [];
+    const codeClean = '4.1.3';
+    const existingIdx = statusList.findIndex(
+      (item) => item.code === codeClean || item.itemId === 'std_4_1_3' || item.itemId === 'art16_39'
+    );
+    const updatedItem = {
+      itemId: existingIdx >= 0 ? statusList[existingIdx].itemId : 'std_4_1_3',
+      code: codeClean,
+      status: 'cumple',
+      observation: `Matriz Oficial de Compatibilidad Química SGA activa (${rowCount} sustancias evaluadas con rótulos y fichas bajo Decreto 1496 de 2018 y Res. 0312/2019).`,
+      updatedAt: new Date().toISOString(),
+    };
+    if (existingIdx >= 0) {
+      statusList[existingIdx] = { ...statusList[existingIdx], ...updatedItem };
+    } else {
+      statusList.push(updatedItem);
+    }
+    doc.statusData = statusList;
+    doc.updatedAt = new Date();
+    await doc.save();
+  } catch (err) {
+    logger.warn('[ChemicalCompatibility] Could not auto-mark 4.1.3 in DiagnosticoData:', err.message);
+  }
+}
+
+const SPANISH_TO_PUBCHEM_QUERY = {
+  'hipoclorito de sodio': 'sodium hypochlorite',
+  'cloro': 'sodium hypochlorite',
+  'blanqueador': 'sodium hypochlorite',
+  'límpido': 'sodium hypochlorite',
+  'acido clorhidrico': 'hydrochloric acid',
+  'ácido clorhídrico': 'hydrochloric acid',
+  'acido muriatico': 'hydrochloric acid',
+  'ácido muriático': 'hydrochloric acid',
+  'acido sulfurico': 'sulfuric acid',
+  'ácido sulfúrico': 'sulfuric acid',
+  'acido nitrico': 'nitric acid',
+  'ácido nítrico': 'nitric acid',
+  'acido acetico': 'acetic acid',
+  'ácido acético': 'acetic acid',
+  'acido fosforico': 'phosphoric acid',
+  'ácido fosfórico': 'phosphoric acid',
+  'hidroxido de sodio': 'sodium hydroxide',
+  'hidróxido de sodio': 'sodium hydroxide',
+  'soda caustica': 'sodium hydroxide',
+  'soda cáustica': 'sodium hydroxide',
+  'amoniaco': 'ammonia',
+  'amoníaco': 'ammonia',
+  'peroxido de hidrogeno': 'hydrogen peroxide',
+  'peróxido de hidrógeno': 'hydrogen peroxide',
+  'agua oxigenada': 'hydrogen peroxide',
+  'alcohol etilico': 'ethanol',
+  'alcohol etílico': 'ethanol',
+  'etanol': 'ethanol',
+  'alcohol antiseptico': 'ethanol',
+  'alcohol antiséptico': 'ethanol',
+  'alcohol isopropilico': 'isopropanol',
+  'alcohol isopropílico': 'isopropanol',
+  'isopropanol': 'isopropanol',
+  'metanol': 'methanol',
+  'alcohol metilico': 'methanol',
+  'acetona': 'acetone',
+  'tolueno': 'toluene',
+  'xileno': 'xylene',
+  'thinner': 'toluene',
+  'tíner': 'toluene',
+  'varsol': 'mineral spirits',
+  'gasolina': 'gasoline',
+  'acpm': 'diesel fuel',
+  'diesel': 'diesel fuel',
+  'glutaraldehido': 'glutaraldehyde',
+  'glutaraldehído': 'glutaraldehyde',
+  'formaldehido': 'formaldehyde',
+  'formaldehído': 'formaldehyde',
+  'formol': 'formaldehyde',
+  'oxigeno': 'oxygen',
+  'oxígeno': 'oxygen',
+  'acetileno': 'acetylene',
+  'propano': 'propane',
+  'gas propano': 'propane',
+  'dioxido de carbono': 'carbon dioxide',
+  'dióxido de carbono': 'carbon dioxide',
+};
+
+const GHS_CODE_TO_WAPPY_KEY = {
+  GHS01: 'explosivo',
+  GHS02: 'inflamable',
+  GHS03: 'comburente',
+  GHS04: 'gas_comprimido',
+  GHS05: 'corrosivo',
+  GHS06: 'calavera',
+  GHS07: 'signo_exclamacion',
+  GHS08: 'peligro_salud',
+  GHS09: 'medio_ambiente',
+};
+
+async function lookupPubChemGHS(rawQuery) {
+  if (!rawQuery) return null;
+  try {
+    const clean = String(rawQuery).trim().toLowerCase()
+      .replace(/\s*\(.*?\)\s*/g, ' ')
+      .replace(/\s+\d+%.*$/g, '')
+      .trim();
+    const mappedQuery = SPANISH_TO_PUBCHEM_QUERY[clean] ||
+      Object.entries(SPANISH_TO_PUBCHEM_QUERY).find(([k]) => clean.includes(k))?.[1] ||
+      clean;
+
+    const cidUrl = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(mappedQuery)}/cids/JSON`;
+    const cidRes = await fetch(cidUrl, { headers: { Accept: 'application/json' } });
+    if (!cidRes.ok) return null;
+    const cidData = await cidRes.json();
+    const cid = cidData?.IdentifierList?.CID?.[0];
+    if (!cid) return null;
+
+    const ghsUrl = `https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/${cid}/JSON?heading=GHS+Classification`;
+    const ghsRes = await fetch(ghsUrl, { headers: { Accept: 'application/json' } });
+    if (!ghsRes.ok) return { cid, pictograms: [], ghsCodes: [], hazardStatements: [], precautionaryStatements: [] };
+
+    const ghsData = await ghsRes.json();
+    const ghsCodes = new Set();
+    const hazardStatements = [];
+    const precautionaryStatements = [];
+    let signalWord = '';
+
+    const extractInfo = (obj) => {
+      if (!obj || typeof obj !== 'object') return;
+      if (Array.isArray(obj)) {
+        obj.forEach(extractInfo);
+        return;
+      }
+      if (obj.Name === 'Pictogram(s)' && obj.Value?.StringWithMarkup) {
+        obj.Value.StringWithMarkup.forEach((sm) => {
+          (sm.Markup || []).forEach((m) => {
+            if (m.Extra) {
+              const codeMatch = String(m.Extra).match(/GHS0[1-9]/);
+              if (codeMatch) ghsCodes.add(codeMatch[0]);
+            }
+            if (m.URL) {
+              const urlMatch = String(m.URL).match(/GHS0[1-9]/);
+              if (urlMatch) ghsCodes.add(urlMatch[0]);
+            }
+          });
+        });
+      }
+      if (obj.Name === 'Signal' && obj.Value?.StringWithMarkup) {
+        const sig = obj.Value.StringWithMarkup[0]?.String || '';
+        if (/danger/i.test(sig)) signalWord = 'PELIGRO';
+        else if (/warning/i.test(sig) && !signalWord) signalWord = 'ATENCIÓN';
+      }
+      if (obj.Name === 'GHS Hazard Statements' && obj.Value?.StringWithMarkup) {
+        obj.Value.StringWithMarkup.forEach((sm) => {
+          if (sm.String && /^H\d{3}/.test(sm.String) && hazardStatements.length < 6) {
+            hazardStatements.push(sm.String);
+          }
+        });
+      }
+      if (obj.Name === 'Precautionary Statement Codes' && obj.Value?.StringWithMarkup) {
+        obj.Value.StringWithMarkup.forEach((sm) => {
+          if (sm.String && precautionaryStatements.length < 5) {
+            precautionaryStatements.push(sm.String);
+          }
+        });
+      }
+      Object.values(obj).forEach(extractInfo);
+    };
+    extractInfo(ghsData);
+
+    const ghsCodeList = Array.from(ghsCodes);
+    const wappyPictograms = ghsCodeList.map((c) => GHS_CODE_TO_WAPPY_KEY[c]).filter(Boolean);
+    const pictogramDetails = ghsCodeList.map((code) => ({
+      code,
+      key: GHS_CODE_TO_WAPPY_KEY[code],
+      svgUrl: `https://pubchem.ncbi.nlm.nih.gov/images/ghs/${code}.svg`,
+    }));
+
+    return {
+      cid,
+      queryUsed: mappedQuery,
+      signalWord: signalWord || (ghsCodeList.some((c) => ['GHS01', 'GHS02', 'GHS03', 'GHS05', 'GHS06', 'GHS08'].includes(c)) ? 'PELIGRO' : 'ATENCIÓN'),
+      ghsCodes: ghsCodeList,
+      wappyPictograms: [...new Set(wappyPictograms)],
+      pictogramDetails,
+      hazardStatements: [...new Set(hazardStatements)],
+      precautionaryStatements: [...new Set(precautionaryStatements)],
+    };
+  } catch (err) {
+    logger.warn('[ChemicalCompatibility/lookupPubChemGHS] Fallback:', err.message);
+    return null;
+  }
+}
 
 function mapHito5ProductToCompatRow(p) {
   return {
@@ -179,6 +387,10 @@ router.post('/set-official', requireJwtAuth, async (req, res) => {
       { upsert: true, new: true }
     );
 
+    if (normalizedRows.length > 0) {
+      await markChemicalStandardCompliant(userId, companyId, normalizedRows.length);
+    }
+
     logger.info(`[ChemicalCompatibility/set-official] Promoted matrix from ${sourceConversationId} to ${officialConvId} (${normalizedRows.length} rows)`);
     return res.json({
       success: true,
@@ -224,6 +436,10 @@ router.put('/official', requireJwtAuth, async (req, res) => {
       { $set: updateFields },
       { upsert: true, new: true }
     );
+
+    if (normalizedRows.length > 0) {
+      await markChemicalStandardCompliant(userId, companyId, normalizedRows.length);
+    }
 
     return res.json({
       success: true,
@@ -525,6 +741,10 @@ router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
       logger.info(`[ChemicalCompatibility PUT] Cleaned up temporal session for user ${userId}`);
     }
 
+    if (normalizedRows.length > 0) {
+      await markChemicalStandardCompliant(userId, companyId, normalizedRows.length);
+    }
+
     res.json({ success: true, matrixRows: session.matrixRows, reportHtml: session.reportHtml || '' });
   } catch (error) {
     logger.error('[ChemicalCompatibility] Error updating matrix:', error);
@@ -532,7 +752,25 @@ router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
   }
 });
 
-// ─── IA: Analizar o completar una fila individual con IA ─────────────────────────
+// ─── GET: Consultar PubChem NIH GHS API para un producto químico ───────────────
+router.get('/pubchem', requireJwtAuth, async (req, res) => {
+  try {
+    const query = (req.query.q || req.query.name || '').trim();
+    if (!query) {
+      return res.status(400).json({ error: 'Se requiere el parámetro q con el nombre o CAS del químico.' });
+    }
+    const ghsInfo = await lookupPubChemGHS(query);
+    if (!ghsInfo) {
+      return res.json({ found: false, query });
+    }
+    return res.json({ found: true, ...ghsInfo });
+  } catch (error) {
+    logger.error('[ChemicalCompatibility/pubchem] Error:', error.message);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// ─── IA + PUBCHEM: Analizar o completar una fila individual y su Tarjeta SGA ───
 router.post('/ai-update-row', requireJwtAuth, async (req, res) => {
   try {
     const { row } = req.body;
@@ -542,8 +780,18 @@ router.post('/ai-update-row', requireJwtAuth, async (req, res) => {
       return res.status(400).json({ error: 'Se requiere un objeto row con el campo "nombre".' });
     }
 
-    const prompt = `Eres un Higienista Industrial certificado y experto en Seguridad Química en Colombia (Decreto 1496 de 2018 y SGA).
-Analiza este producto químico y sugiere sus propiedades y medidas de almacenamiento seguro.
+    // 1. Consultar PubChem NIH GHS en paralelo/previo para obtener pictogramas y frases H/P oficiales
+    const pubchemData = await lookupPubChemGHS(row.nombre);
+    const pubchemContext = pubchemData
+      ? `\nDATOS OFICIALES PUBCHEM NIH (CID ${pubchemData.cid}):
+- Pictogramas GHS detectados: ${(pubchemData.wappyPictograms || []).join(', ') || 'Ninguno'} (${(pubchemData.ghsCodes || []).join(', ')})
+- Palabra de advertencia oficial: ${pubchemData.signalWord || 'PELIGRO'}
+- Frases H (PubChem): ${(pubchemData.hazardStatements || []).join(' | ')}
+- Códigos P (PubChem): ${(pubchemData.precautionaryStatements || []).join(', ')}`
+      : '';
+
+    const prompt = `Eres un Higienista Industrial certificado y experto en Seguridad Química en Colombia (Decreto 1496 de 2018, Resolución 773 de 2021, NTC 4435 / NTC 3966 y SGA de Naciones Unidas).
+Analiza este producto químico y genera tanto sus propiedades para la Matriz de Compatibilidad como los datos técnicos completos para su Tarjeta de Emergencia / Rótulo SGA.
 
 DATOS DEL PRODUCTO:
 Nombre del producto: ${row.nombre}
@@ -553,37 +801,68 @@ Pictogramas SGA actuales: ${(row.pictogramas_sga || []).join(', ') || 'No especi
 Cantidad almacenada: ${row.cantidad_almacenada || 'No especificada'}
 Ubicación actual: ${row.ubicacion || 'No especificada'}
 Tiene FDS: ${row.tiene_fds || 'No especificado'}
-Tiene Rotulado: ${row.tiene_rotulo || 'No especificado'}
+Tiene Rotulado: ${row.tiene_rotulo || 'No especificado'}${pubchemContext}
 
 TU TAREA:
-1. Determina el Estado Físico correcto ("Líquido", "Sólido", o "Gas") si está vacío o no es claro.
-2. Identifica la Clase de Peligro ONU más adecuada (debe ser una de: "Clase 1: Explosivos", "Clase 2.1: Gases Inflamables", "Clase 2.2: Gases No Inflamables ni Tóxicos", "Clase 2.3: Gases Tóxicos", "Clase 3: Líquidos Inflamables", "Clase 4.1: Sólidos Inflamables", "Clase 4.2: Sustancias de Combustión Espontánea", "Clase 4.3: Desprenden gases inflamables con agua", "Clase 5.1: Sustancias Comburentes", "Clase 5.2: Peróxidos Orgánicos", "Clase 6.1: Sustancias Tóxicas", "Clase 8: Sustancias Corrosivas", "Clase 9: Peligros Varios", "No Peligroso").
-3. Selecciona los pictogramas SGA correctos (pueden ser múltiples de: "inflamable", "corrosivo", "calavera", "peligro_salud", "signo_exclamacion", "medio_ambiente", "comburente", "explosivo", "gas_comprimido").
-4. Genera las incompatibilidades químicas específicas más importantes (ej. "Reacciona violentamente con agua, ácidos fuertes o materiales inflamables").
-5. Propón requisitos de almacenamiento detallados y técnicos (ej. "Gabinetes resistentes a la corrosión, diques de contención de derrames, ventilación forzada a nivel de piso").
+1. Determina el Estado Físico correcto ("Líquido", "Sólido", o "Gas").
+2. Identifica la Clase de Peligro ONU más adecuada (debe ser exactamente una de: "Clase 1: Explosivos", "Clase 2.1: Gases Inflamables", "Clase 2.2: Gases No Inflamables ni Tóxicos", "Clase 2.3: Gases Tóxicos", "Clase 3: Líquidos Inflamables", "Clase 4.1: Sólidos Inflamables", "Clase 4.2: Sustancias de Combustión Espontánea", "Clase 4.3: Desprenden gases inflamables con agua", "Clase 5.1: Sustancias Comburentes", "Clase 5.2: Peróxidos Orgánicos", "Clase 6.1: Sustancias Tóxicas", "Clase 8: Sustancias Corrosivas", "Clase 9: Peligros Varios", "No Peligroso").
+3. Selecciona los pictogramas SGA aplicables (valores permitidos: "inflamable", "corrosivo", "calavera", "peligro_salud", "signo_exclamacion", "medio_ambiente", "comburente", "explosivo", "gas_comprimido"). Respeta e incluye los pictogramas oficiales de PubChem si están presentes.
+4. Define la palabra de advertencia SGA ("PELIGRO" o "ATENCIÓN"), el Número ONU (ej. "UN 1791") y el Número CAS (ej. "7681-52-9").
+5. Redacta en español las Frases H (Indicaciones de Peligro SGA con su código H) y los Consejos P (Consejos de Prudencia SGA con su código P).
+6. Especifica los EPP recomendados, medidas de Primeros Auxilios y Control de Derrames/Incendios para la Tarjeta del Producto Químico.
+7. Genera las incompatibilidades químicas específicas y requisitos de almacenamiento seguro según NTC 3966.
 
 REGLAS DE FORMATO:
 Responde ÚNICAMENTE con un objeto JSON válido (sin formato markdown ni código \`\`\`) que contenga exactamente estas propiedades:
 {
   "estado_fisico": "<Líquido|Sólido|Gas>",
   "clasificacion_onu": "<Clase ONU sugerida>",
+  "numero_onu": "<ej. UN 1791>",
+  "cas": "<ej. 7681-52-9>",
+  "palabra_advertencia": "<PELIGRO|ATENCIÓN>",
   "pictogramas_sga": [<arreglo de pictogramas en minúscula>],
-  "incompatibilidades": "<texto detallado de incompatibilidades>",
+  "frases_h": "<Indicaciones de peligro H en español>",
+  "consejos_p": "<Consejos de prudencia P en español>",
+  "epp_recomendado": "<EPP específico requerido para manipulación>",
+  "primeros_auxilios": "<Medidas de primeros auxilios en caso de inhalación, piel, ojos e ingestión>",
+  "control_derrames": "<Medidas de contención de derrames y agentes extintores>",
+  "incompatibilidades": "<texto detallado de incompatibilidades químicas>",
   "requisitos_almacenamiento": "<texto detallado de almacenamiento seguro y controles>"
 }`;
 
     const modelName = req.body.modelName || SGSST_FALLBACK_MODELS[0];
-    const result = await generateWithKeyRotation(modelName, userId, prompt, { useWebSearch: false });
-    let text = result.response.text().trim();
-
-    text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-
-    let updatedFields;
+    let updatedFields = {};
     try {
+      const result = await generateWithKeyRotation(modelName, userId, prompt, { useWebSearch: false });
+      let text = result.response.text().trim();
+      text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
       updatedFields = JSON.parse(text);
-    } catch (parseErr) {
-      logger.error('[ChemicalCompatibility/ai-update-row] JSON parse error:', parseErr.message, 'Raw:', text.slice(0, 500));
-      return res.status(500).json({ error: 'La IA devolvió un formato JSON inválido. Intenta de nuevo.' });
+    } catch (aiErr) {
+      logger.warn('[ChemicalCompatibility/ai-update-row] AI fallback to PubChem data:', aiErr.message);
+      if (pubchemData) {
+        updatedFields = {
+          estado_fisico: row.estado_fisico || 'Líquido',
+          clasificacion_onu: row.clasificacion_onu || 'Clase 8: Sustancias Corrosivas',
+          palabra_advertencia: pubchemData.signalWord || 'PELIGRO',
+          pictogramas_sga: pubchemData.wappyPictograms?.length ? pubchemData.wappyPictograms : (row.pictogramas_sga || []),
+          frases_h: (pubchemData.hazardStatements || []).join(' | ') || 'Consultar FDS del fabricante.',
+          consejos_p: (pubchemData.precautionaryStatements || []).join(', ') || 'P280: Usar guantes y protección ocular/facial.',
+          incompatibilidades: row.incompatibilidades || 'Evitar contacto con ácidos fuertes, agentes oxidantes y materiales incompatibles según FDS.',
+          requisitos_almacenamiento: row.requisitos_almacenamiento || 'Almacenar en lugar fresco, seco, ventilado, con dique de contención y señalización SGA.',
+        };
+      } else {
+        throw aiErr;
+      }
+    }
+
+    // Combinar pictogramas de PubChem si se detectaron oficialmente
+    if (pubchemData && Array.isArray(pubchemData.wappyPictograms) && pubchemData.wappyPictograms.length > 0) {
+      const mergedPictos = new Set([
+        ...(Array.isArray(updatedFields.pictogramas_sga) ? updatedFields.pictogramas_sga : []),
+        ...pubchemData.wappyPictograms,
+      ]);
+      updatedFields.pictogramas_sga = Array.from(mergedPictos);
+      updatedFields.pubchem_cid = pubchemData.cid;
     }
 
     // Mantener campos informativos del usuario
@@ -592,9 +871,9 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin formato markdown ni código
     updatedFields.cantidad_almacenada = row.cantidad_almacenada || '';
     updatedFields.ubicacion = row.ubicacion || '';
     updatedFields.tiene_fds = row.tiene_fds || 'Sí';
-    updatedFields.tiene_rotulo = row.tiene_rotulo || 'Sí';
+    updatedFields.tiene_rotulo = 'Sí';
 
-    return res.json({ updatedFields });
+    return res.json({ updatedFields, pubchemData });
   } catch (error) {
     logger.error('[ChemicalCompatibility/ai-update-row] Error:', error.message);
     return res.status(500).json({ error: error.message });

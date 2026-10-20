@@ -83,5 +83,6 @@ module.exports = {
     copasst: require('./copasst'),
     convivencia: require('./convivencia'),
     brigada: require('./brigada'),
+    contexto: require('./contexto'),
 };
 

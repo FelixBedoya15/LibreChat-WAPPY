@@ -98,13 +98,20 @@ export default function MatrizCompatibilidadDashboard({
           prodA,
           prodB,
           status: res.status,
-          label: res.label,
-          notes: res.notes,
-          segregationRule: res.status === 'incompatible' 
-            ? 'Separación física obligatoria mínima de 3 metros o almacenamiento en armarios de seguridad independientes (NTC 3966).'
-            : res.status === 'caution'
-            ? 'Verificar sección 10 de la Ficha de Datos de Seguridad de ambos productos antes de almacenar en la misma estantería.'
-            : 'Almacenamiento conjunto permitido en la misma área o cubeto sin incompatibilidad directa.'
+          label:
+            res.status === 'incompatible'
+              ? 'INCOMPATIBLE (SEGREGAR)'
+              : res.status === 'caution'
+              ? 'PRECAUCIÓN (VERIFICAR FDS)'
+              : 'COMPATIBLE',
+          notes: res.reason,
+          segregationRule:
+            res.recommendation ||
+            (res.status === 'incompatible'
+              ? 'Separación física obligatoria mínima de 3 metros o almacenamiento en armarios de seguridad independientes (NTC 3966).'
+              : res.status === 'caution'
+              ? 'Verificar sección 10 de la Ficha de Datos de Seguridad de ambos productos antes de almacenar en la misma estantería.'
+              : 'Almacenamiento conjunto permitido en la misma área o cubeto sin incompatibilidad directa.'),
         });
       }
     }
@@ -658,7 +665,7 @@ export default function MatrizCompatibilidadDashboard({
                             CRUCE #{idx + 1}
                           </span>
                           <span className="text-xs font-bold text-slate-900 dark:text-zinc-100">
-                            {pair.prodA.nombre_comercial} <span className="text-slate-400 font-normal">vs</span> {pair.prodB.nombre_comercial}
+                            {pair.prodA.nombre || (pair.prodA as any).nombre_comercial} <span className="text-slate-400 font-normal">vs</span> {pair.prodB.nombre || (pair.prodB as any).nombre_comercial}
                           </span>
                         </div>
 
@@ -685,13 +692,13 @@ export default function MatrizCompatibilidadDashboard({
                       <div className="text-[11px] grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                         <div className="p-2 rounded-xl bg-surface-primary border border-border-light">
                           <span className="text-[9px] font-bold uppercase text-slate-400 block">Sustancia A:</span>
-                          <p className="font-bold text-slate-900 dark:text-zinc-100">{pair.prodA.nombre_comercial}</p>
-                          <p className="text-[10px] text-slate-500">{pair.prodA.clasificacion_onu || 'Clase no definida'} • ONU {pair.prodA.numero_onu || 'N/A'}</p>
+                          <p className="font-bold text-slate-900 dark:text-zinc-100">{pair.prodA.nombre || (pair.prodA as any).nombre_comercial}</p>
+                          <p className="text-[10px] text-slate-500">{pair.prodA.clasificacion_onu || 'Clase no definida'} • {pair.prodA.ubicacion || 'Almacén'}</p>
                         </div>
                         <div className="p-2 rounded-xl bg-surface-primary border border-border-light">
                           <span className="text-[9px] font-bold uppercase text-slate-400 block">Sustancia B:</span>
-                          <p className="font-bold text-slate-900 dark:text-zinc-100">{pair.prodB.nombre_comercial}</p>
-                          <p className="text-[10px] text-slate-500">{pair.prodB.clasificacion_onu || 'Clase no definida'} • ONU {pair.prodB.numero_onu || 'N/A'}</p>
+                          <p className="font-bold text-slate-900 dark:text-zinc-100">{pair.prodB.nombre || (pair.prodB as any).nombre_comercial}</p>
+                          <p className="text-[10px] text-slate-500">{pair.prodB.clasificacion_onu || 'Clase no definida'} • {pair.prodB.ubicacion || 'Almacén'}</p>
                         </div>
                       </div>
 

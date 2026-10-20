@@ -237,19 +237,19 @@ const SGSST_REPORT_MODULES = [
   },
   {
     tags: ['sgsst-vehicles', 'sgsst-matriz-pesv'],
-    moduleTitle: 'Hito 4: Seguridad Vial / PESV',
-    codes: [],
+    moduleTitle: 'Hito 1 / Hito 5: Matriz de Riesgos Viales (PESV)',
+    codes: ['32 PESV', '32'],
     auditIds: ['aud_ley_2050', 'aud_pol_vial'],
     art3Ids: [],
     art9Ids: [],
   },
   {
-    tags: ['sgsst-chemicals'],
-    moduleTitle: 'Hito 4: Registro Químicos SGA',
+    tags: ['sgsst-chemicals', 'sgsst-matriz-compatibilidad'],
+    moduleTitle: 'Hito 1 / Hito 5: Matriz de Compatibilidad Química (SGA)',
     codes: ['4.1.3'],
     auditIds: ['aud_4_1_3', 'aud_sga'],
-    art3Ids: [],
-    art9Ids: [],
+    art3Ids: ['art_carcinogenos'],
+    art9Ids: ['art_carcinogenos'],
   },
   {
     tags: ['sgsst-reporte-actos'],
@@ -454,6 +454,110 @@ async function scanComplianceForUser(userId, user = {}) {
     logger.warn('[ComplianceScanner] Official IPEVAR check skip:', errIpevar.message);
   }
 
+  // Verificar directamente la Matriz de Riesgos Viales (PESV) Oficial Activa de la empresa
+  try {
+    const PESVWorkspaceSession = mongoose.models.PESVWorkspaceSession || require('~/models/PESVWorkspaceSession');
+    if (PESVWorkspaceSession) {
+      const officialPesv = (await PESVWorkspaceSession.findOne({
+        user: targetUserId,
+        ...(companyId ? { companyId } : {}),
+        isOfficial: true,
+        'matrixRows.0': { $exists: true },
+      }).lean()) || (await PESVWorkspaceSession.findOne({
+        conversationId: `official-pesv-${companyId || targetUserId}`,
+        'matrixRows.0': { $exists: true },
+      }).lean()) || (await PESVWorkspaceSession.findOne({
+        user: targetUserId,
+        ...(companyId ? { companyId } : {}),
+        'matrixRows.0': { $exists: true },
+      }).sort({ updatedAt: -1 }).lean());
+
+      if (officialPesv && officialPesv.matrixRows?.length) {
+        const rowsCount = officialPesv.matrixRows.length;
+        const pesvTitle = officialPesv.officialTitle || 'Matriz de Riesgos Viales PESV Oficial';
+        tagReports['sgsst-matriz-pesv'] = {
+          conversationId: officialPesv.conversationId,
+          title: `${pesvTitle} (${rowsCount} riesgos viales evaluados bajo Res. 20223040040595)`,
+          updatedAt: officialPesv.updatedAt,
+        };
+      }
+    }
+  } catch (errPesv) {
+    logger.warn('[ComplianceScanner] Official PESV check skip:', errPesv.message);
+  }
+
+  // Verificar directamente la Matriz de Compatibilidad Química (SGA) Oficial Activa de la empresa
+  try {
+    const ChemicalCompatibilitySession =
+      mongoose.models.ChemicalCompatibilitySession || require('~/models/ChemicalCompatibilitySession');
+    if (ChemicalCompatibilitySession) {
+      const officialChem = (await ChemicalCompatibilitySession.findOne({
+        user: targetUserId,
+        ...(companyId ? { companyId } : {}),
+        isOfficial: true,
+        'matrixRows.0': { $exists: true },
+      }).lean()) || (await ChemicalCompatibilitySession.findOne({
+        conversationId: `official-chem-${companyId || targetUserId}`,
+        'matrixRows.0': { $exists: true },
+      }).lean()) || (await ChemicalCompatibilitySession.findOne({
+        user: targetUserId,
+        ...(companyId ? { companyId } : {}),
+        'matrixRows.0': { $exists: true },
+      }).sort({ updatedAt: -1 }).lean());
+
+      if (officialChem && officialChem.matrixRows?.length) {
+        const rowsCount = officialChem.matrixRows.length;
+        const chemTitle = officialChem.officialTitle || 'Matriz de Compatibilidad Química Oficial (SGA)';
+        tagReports['sgsst-matriz-compatibilidad'] = {
+          conversationId: officialChem.conversationId,
+          title: `${chemTitle} (${rowsCount} productos químicos evaluados bajo SGA / Decreto 1496 de 2018)`,
+          updatedAt: officialChem.updatedAt,
+        };
+      }
+    }
+  } catch (errChem) {
+    logger.warn('[ComplianceScanner] Official Chemical Compatibility check skip:', errChem.message);
+  }
+
+  // Verificar también Inventario de Sustancias Químicas (SgsstChemicalData) y Flota Vehicular (SgsstVehicleData)
+  try {
+    const SgsstChemicalData = mongoose.models.SgsstChemicalData || require('~/models/SgsstChemicalData');
+    if (SgsstChemicalData && !tagReports['sgsst-chemicals']) {
+      const chemInv = await SgsstChemicalData.findOne({
+        user: targetUserId,
+        ...(companyId ? { companyId } : {}),
+        'productos.0': { $exists: true },
+      }).lean();
+      if (chemInv && chemInv.productos?.length) {
+        tagReports['sgsst-chemicals'] = {
+          conversationId: `chem-inv-${companyId}`,
+          title: `Inventario de Sustancias Químicas SGA (${chemInv.productos.length} sustancias registradas)`,
+          updatedAt: chemInv.updatedAt || new Date(),
+        };
+      }
+    }
+    const SgsstVehicleData = mongoose.models.SgsstVehicleData || require('~/models/SgsstVehicleData');
+    if (SgsstVehicleData && !tagReports['sgsst-vehicles']) {
+      const vehCount = await SgsstVehicleData.countDocuments({
+        user: targetUserId,
+        ...(companyId ? { companyId } : {}),
+      });
+      if (vehCount > 0) {
+        const latestVeh = await SgsstVehicleData.findOne({
+          user: targetUserId,
+          ...(companyId ? { companyId } : {}),
+        }).sort({ updatedAt: -1 }).lean();
+        tagReports['sgsst-vehicles'] = {
+          conversationId: `veh-inv-${companyId}`,
+          title: `Parque Automotor y Control PESV (${vehCount} vehículos registrados)`,
+          updatedAt: latestVeh?.updatedAt || new Date(),
+        };
+      }
+    }
+  } catch (errInv) {
+    logger.warn('[ComplianceScanner] Chemical/Vehicle inventory check skip:', errInv.message);
+  }
+
   // 5. Strictly populate evidenceMap ONLY for modules with confirmed saved reports
   const evidenceMap = {};
   const modulesWithData = [];
@@ -565,6 +669,32 @@ async function scanComplianceForUser(userId, user = {}) {
             };
             if (item.code) {
               evidenceMap[`code_${item.code}`] = payload;
+              for (const mod of SGSST_REPORT_MODULES) {
+                if (mod.codes.includes(item.code)) {
+                  if (!modulesWithData.includes(mod.moduleTitle)) {
+                    modulesWithData.push(mod.moduleTitle);
+                  }
+                  for (const id of mod.auditIds) {
+                    if (!evidenceMap[id]) evidenceMap[id] = payload;
+                  }
+                  for (const id of mod.art3Ids) {
+                    if (!evidenceMap[id]) evidenceMap[id] = payload;
+                  }
+                  for (const id of mod.art9Ids) {
+                    if (!evidenceMap[id]) evidenceMap[id] = payload;
+                  }
+                }
+              }
+              if (item.code === '4.1.3') {
+                evidenceMap['aud_4_1_3'] = evidenceMap['aud_4_1_3'] || payload;
+                evidenceMap['aud_sga'] = evidenceMap['aud_sga'] || payload;
+                evidenceMap['art16_39'] = evidenceMap['art16_39'] || payload;
+                evidenceMap['art_carcinogenos'] = evidenceMap['art_carcinogenos'] || payload;
+              }
+              if (item.code === '32 PESV' || item.code === '32') {
+                evidenceMap['aud_ley_2050'] = evidenceMap['aud_ley_2050'] || payload;
+                evidenceMap['aud_pol_vial'] = evidenceMap['aud_pol_vial'] || payload;
+              }
             }
             if (item.itemId) {
               evidenceMap[item.itemId] = payload;

@@ -8,9 +8,51 @@ const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const PESVWorkspaceSession = require('~/models/PESVWorkspaceSession');
 const CompanyInfo = require('~/models/CompanyInfo');
 const KanbanTask = require('~/models/KanbanTask');
+const DiagnosticoData = require('~/models/DiagnosticoData');
 const { buildSignatureSection } = require('./reportHeader');
 const { generateWithKeyRotation, SGSST_FALLBACK_MODELS, cleanRawRows } = require('./sgsstGemini');
 const { ensurePerfilExists } = require('./perfilesCargo');
+
+async function markPesvStandardCompliant(userId, companyId, rowCount = 1) {
+  try {
+    if (!companyId || rowCount <= 0) return;
+    let doc = await DiagnosticoData.findOne({ user: userId, companyId });
+    if (!doc) {
+      doc = new DiagnosticoData({
+        user: userId,
+        companyId,
+        statusData: [],
+        companySize: 'medium',
+        riskLevel: 3,
+        score: 0,
+        totalPoints: 100,
+        complianceLevel: '',
+      });
+    }
+    const statusList = Array.isArray(doc.statusData) ? [...doc.statusData] : [];
+    const codeClean = '32 PESV';
+    const existingIdx = statusList.findIndex(
+      (item) => item.code === codeClean || item.code === '32' || item.itemId === 'std_32_PESV'
+    );
+    const updatedItem = {
+      itemId: existingIdx >= 0 ? statusList[existingIdx].itemId : 'std_32_PESV',
+      code: codeClean,
+      status: 'cumple',
+      observation: `Matriz Oficial de Riesgos Viales PESV activa (${rowCount} peligros viales evaluados bajo Res. 20223040040595 y Art. 32 Res. 0312/2019).`,
+      updatedAt: new Date().toISOString(),
+    };
+    if (existingIdx >= 0) {
+      statusList[existingIdx] = { ...statusList[existingIdx], ...updatedItem };
+    } else {
+      statusList.push(updatedItem);
+    }
+    doc.statusData = statusList;
+    doc.updatedAt = new Date();
+    await doc.save();
+  } catch (err) {
+    logger.warn('[PESVWorkspace] Could not auto-mark 32 PESV in DiagnosticoData:', err.message);
+  }
+}
 
 function toSentenceCase(str) {
   if (!str) return '';
@@ -151,6 +193,10 @@ router.post('/set-official', requireJwtAuth, async (req, res) => {
       { upsert: true, new: true }
     );
 
+    if (normalizedRows.length > 0) {
+      await markPesvStandardCompliant(userId, companyId, normalizedRows.length);
+    }
+
     logger.info(`[PESVWorkspace /set-official] Official PESV matrix established. Rows: ${normalizedRows.length}, user: ${userId}`);
 
     res.json({
@@ -215,6 +261,10 @@ router.put('/official', requireJwtAuth, async (req, res) => {
         }
       );
       logger.info(`[PESVWorkspace PUT /official] Sincronizada en paralelo con el chat fuente "${session.sourceConversationId}"`);
+    }
+
+    if (normalizedRows.length > 0) {
+      await markPesvStandardCompliant(userId, companyId, normalizedRows.length);
     }
 
     res.json({

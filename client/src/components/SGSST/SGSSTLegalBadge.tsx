@@ -49,6 +49,8 @@ export const ISO_45001_MAPPING: Record<string, { isoClause: string; isoTitle: st
   '4.1.2': { isoClause: 'Num. 5.4', isoTitle: 'Participación en IPEVR y reporte de actos y condiciones', resCode: 'Est. 4.1.2' },
   '4.1.3': { isoClause: 'Num. 8.1.2', isoTitle: 'Control de sustancias químicas peligrosas y SGA', resCode: 'Est. 4.1.3' },
   '4.1.4': { isoClause: 'Num. 9.1.1', isoTitle: 'Mediciones higiénicas y ambientales en el trabajo', resCode: 'Est. 4.1.4' },
+  '32 PESV': { isoClause: 'Num. 6.1.2 / 8.1.2', isoTitle: 'Identificación de riesgos viales y controles operacionales PESV', resCode: 'Art. 32 PESV' },
+  '32': { isoClause: 'Num. 6.1.2 / 8.1.2', isoTitle: 'Plan Estratégico de Seguridad Vial y control vehicular PESV', resCode: 'Art. 32 PESV' },
 
   // Hito 5: Dinámica Operativa y Terreno
   '4.2.1': { isoClause: 'Num. 8.1.2', isoTitle: 'Mantenimiento preventivo y correctivo de equipos', resCode: 'Est. 4.2.1' },
@@ -180,6 +182,8 @@ export const SGSSTLegalBadge: React.FC<SGSSTLegalBadgeProps> = ({
         } else {
           checkStatus();
         }
+      } else if (!detail || !detail.standardCode) {
+        checkStatus();
       }
     };
     window.addEventListener('sgsst-diagnostic-updated', handleSync);

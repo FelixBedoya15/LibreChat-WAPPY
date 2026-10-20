@@ -942,6 +942,24 @@ router.get('/standard-status', requireJwtAuth, async (req, res) => {
 
         const doc = await DiagnosticoData.findOne({ user: userId, companyId }).lean();
         const statusMap = {};
+
+        // 1. Auto-detect real compliance evidence across WAPPY modules (Matrices Oficiales, Reportes, Inventarios)
+        try {
+            const scanResult = await scanComplianceForUser(userId, req.user || {});
+            const evidenceMap = scanResult?.evidenceMap || {};
+            Object.keys(evidenceMap).forEach((key) => {
+                if (key.startsWith('code_')) {
+                    const codeKey = key.replace(/^code_/, '');
+                    statusMap[codeKey] = evidenceMap[key]?.status || 'cumple';
+                } else {
+                    statusMap[key] = evidenceMap[key]?.status || 'cumple';
+                }
+            });
+        } catch (scanErr) {
+            logger.warn('[SGSST Diagnostico] standard-status auto-scan fallback:', scanErr.message);
+        }
+
+        // 2. Apply explicit manual overrides/states stored in DiagnosticoData
         if (doc && Array.isArray(doc.statusData)) {
             doc.statusData.forEach((item) => {
                 if (item.code) {
