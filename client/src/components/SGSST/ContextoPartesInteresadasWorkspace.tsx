@@ -665,27 +665,25 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
 
           {/* BOTONES PRINCIPALES DE ACCIÓN CONFORME A REGLAS WAPPY */}
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-            {/* Botón Naranja / IA: Generación Inteligente desde datos de la Empresa */}
-            <button
+            {/* Botón Naranja / IA: Generación Inteligente desde datos de la Empresa (Expansible) */}
+            <ExpandingButton
               onClick={handleGenerateMatrixAI}
-              disabled={isGeneratingMatrix}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white disabled:opacity-50 cursor-pointer"
+              icon={Sparkles}
+              label={isGeneratingMatrix ? 'Analizando Empresa...' : 'Generar Matriz con IA'}
+              variant="orange"
+              isLoading={isGeneratingMatrix}
               title="Recolectar datos de la empresa (GTC-45, 0312, perfil) y generar matriz completa con IA"
-            >
-              <Sparkles className={`w-4 h-4 ${isGeneratingMatrix ? 'animate-spin' : ''}`} />
-              <span>{isGeneratingMatrix ? 'Analizando Empresa...' : 'Generar Matriz con IA'}</span>
-            </button>
+            />
 
-            {/* Botón Teal / Confirmar: Compilar Informe Oficial */}
-            <button
+            {/* Botón Teal / Confirmar: Compilar Informe Oficial (Expansible) */}
+            <ExpandingButton
               onClick={handleCompileReport}
-              disabled={isCompilingReport}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white disabled:opacity-50 cursor-pointer"
+              icon={FileText}
+              label={isCompilingReport ? 'Compilando...' : 'Compilar Informe Oficial'}
+              variant="teal"
+              isLoading={isCompilingReport}
               title="Compilar informe formal con encabezado oficial WAPPY y firmas digitales"
-            >
-              <FileText className={`w-4 h-4 ${isCompilingReport ? 'animate-spin' : ''}`} />
-              <span>{isCompilingReport ? 'Compilando...' : 'Compilar Informe Oficial'}</span>
-            </button>
+            />
 
             {/* Botón Guardar Datos */}
             <ExpandingButton
