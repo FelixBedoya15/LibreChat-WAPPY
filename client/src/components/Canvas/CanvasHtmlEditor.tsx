@@ -69,6 +69,11 @@ function preparePreviewHtml(html: string, isForDownload: boolean = false): strin
   if (!html) return '';
   let content = cleanHtmlContent(html);
 
+  // Limpiar cualquier bloque previo de estilos autónomos o guard de modales embebido en el HTML de la base de datos
+  content = content
+    .replace(/<style id="__wappy_standalone_design_system__">[\s\S]*?<\/style>\s*/gi, '')
+    .replace(/<script id="__wappy_modal_guard__">[\s\S]*?<\/script>\s*/gi, '');
+
   // Sanitizar cualquier SVG con path orgánico decorativo que use fill="currentColor" para evitar que pinte en negro
   content = content.replace(/(<svg[^>]*>[\s\S]*?<path[^>]*?)fill="currentColor"/gi, '$1fill="rgba(255,255,255,0.25)"');
 
@@ -177,13 +182,22 @@ function preparePreviewHtml(html: string, isForDownload: boolean = false): strin
   // 5. Disparador de eventos de resize, iconos y readiness para reactivar scripts interactivos
   function _autoHideInitialBlockingModals() {
     try {
-      // Si el LLM generó un modal de asistente, diagnóstico o ayuda sin la clase .hidden inicial
-      // y está tapando toda la pantalla desde el primer segundo, lo ocultamos de entrada para dejar ver el aplicativo
-      var overlays = document.querySelectorAll('.fixed.inset-0:not(.hidden)');
+      // 1) Asegurar que todo elemento fijo o modal con la clase .hidden tenga display: none !important
+      var hiddenEls = document.querySelectorAll('.hidden');
+      hiddenEls.forEach(function(el) {
+        if (el.classList.contains('fixed') || (el.id && el.id.toLowerCase().indexOf('modal') !== -1)) {
+          el.classList.remove('flex', 'block', 'grid');
+          el.style.setProperty('display', 'none', 'important');
+        }
+      });
+
+      // 2) Ocultar cualquier modal de asistente, diagnóstico o ayuda que esté tapando la pantalla al iniciar
+      var overlays = document.querySelectorAll('.fixed.inset-0, [id*="modal"], [id*="assistant"], [id*="asistente"]');
       overlays.forEach(function(el) {
         var text = (el.innerText || '').toLowerCase();
         var id = (el.id || '').toLowerCase();
         if (
+          id === 'modalia' ||
           id.indexOf('modal') !== -1 ||
           id.indexOf('assistant') !== -1 ||
           id.indexOf('asistente') !== -1 ||
@@ -196,7 +210,9 @@ function preparePreviewHtml(html: string, isForDownload: boolean = false): strin
           text.indexOf('cumplimiento legal') !== -1 ||
           text.indexOf('wappy ai copilot') !== -1
         ) {
-          _closeModalElement(el);
+          if (el.id !== 'wappy-ai-floating-btn' && el.id !== 'wappy-ai-floating-trigger') {
+            _closeModalElement(el);
+          }
         }
       });
     } catch (e) {}
@@ -218,12 +234,7 @@ function preparePreviewHtml(html: string, isForDownload: boolean = false): strin
     try {
       modalEl.classList.add('hidden');
       modalEl.classList.remove('flex', 'block', 'grid', 'open', 'active', 'show');
-      modalEl.style.removeProperty('display');
-      // Observar si después de quitar display inline sigue visible (porque el autor no usó .hidden sino otra clase)
-      var computed = window.getComputedStyle(modalEl);
-      if (computed && computed.display !== 'none') {
-        modalEl.style.setProperty('display', 'none', 'important');
-      }
+      modalEl.style.setProperty('display', 'none', 'important');
       modalEl.setAttribute('aria-hidden', 'true');
       // Si es un drawer lateral que usa translate-x-full
       if (modalEl.id === 'ai-drawer' || modalEl.className.indexOf('right-0') !== -1) {
@@ -269,7 +280,7 @@ function preparePreviewHtml(html: string, isForDownload: boolean = false): strin
   // Funciones globales de respaldo por si el HTML generado las invoca pero olvidó definirlas
   var _fallbackCloseFns = [
     'closeModal', 'closeAssistant', 'closeAiModal', 'closeLegalModal',
-    'closeImportantInfoModal', 'cerrarModal', 'cerrarAsistente', 'hideModal',
+    'closeImportantInfoModal', 'cerrarModal', 'cerrarModalIA', 'cerrarAsistente', 'hideModal',
     'dismissModal', 'toggleModal', 'closeSyncModal', 'ejecutarSincronizacion', 'syncCanvas'
   ];
   _fallbackCloseFns.forEach(function(fnName) {

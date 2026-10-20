@@ -281,8 +281,18 @@ router.get('/:conversationId', requireJwtAuth, async (req, res) => {
       });
     }
 
+    let servedContent = session.content;
+    if (session.fileType === 'html' && typeof servedContent === 'string' && servedContent.length > 0) {
+      try {
+        const CanvasTool = require('~/app/clients/tools/structured/CanvasTool');
+        if (typeof CanvasTool.injectStandaloneCssIfMissing === 'function') {
+          servedContent = CanvasTool.injectStandaloneCssIfMissing(servedContent);
+        }
+      } catch (_) {}
+    }
+
     res.json({
-      content: session.content,
+      content: servedContent,
       title: session.title,
       fileType: session.fileType,
       version: session.version,
@@ -343,13 +353,22 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
     let session = await CanvasSession.findOne({ conversationId });
     const existingContent = session ? session.content : null;
 
-    const processedContent = await processTextDocument(
+    let processedContent = await processTextDocument(
       finalContent,
       fileType,
       finalTitle,
       userId,
       existingContent,
     );
+
+    if (fileType === 'html' && typeof processedContent === 'string' && processedContent.length > 0) {
+      try {
+        const CanvasTool = require('~/app/clients/tools/structured/CanvasTool');
+        if (typeof CanvasTool.injectStandaloneCssIfMissing === 'function') {
+          processedContent = CanvasTool.injectStandaloneCssIfMissing(processedContent);
+        }
+      } catch (_) {}
+    }
 
     if (!session) {
       // Crear nueva sesión

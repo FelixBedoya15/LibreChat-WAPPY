@@ -1656,18 +1656,22 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       // Verbos de consulta / explicación (usando límites de palabra \b para NUNCA confundir 'indicadores' con 'indica')
       const PURE_EXPLANATION_REGEX = /\b(explicar|explica|expl[ií]came|expliques|cu[aá]l es|cu[aá]les son|qu[eé] es|c[oó]mo funciona|como funciona|dame la f[oó]rmula|dame las f[oó]rmulas|f[oó]rmulas automatizadas|formulas automatizadas|no que me expliques|aclara|aclarame|por qu[eé]|para qu[eé]|vuelveme a indicar|vuelve a indicar|volver a indicar)\b/i;
 
+      // Quejas o reportes de errores visuales / problemas con Canvas (NUNCA deben disparar autogeneración de aplicativos falsos)
+      const CANVAS_TROUBLESHOOTING_REGEX = /\b(no veo|no puedo ver|no puedo visualizar|no se ve|no me deja|no me permite|sigue igual|aparece igual|no aparece|no carga|bloquea|bloqueado|quitarlo|cerrar su pantalla|en primera plana)\b/i;
+
       // Verbos de creación / diseño / desarrollo
       const CREATION_INTENT_REGEX = /\b(crear|crea|cr[eé]ame|dise[nñ]ar|dise[nñ]a|dise[nñ]ame|construir|construye|hacer|haz|hazme|generar|genera|desarrollar|desarrolla|programar|programa|elaborar|elabora|redactar|redacta|realizar|realiza|implementar|implementa|montar|monta|deseo|quiero|necesito|armar|arma)\b/i;
 
       const hasCanvasTrigger = CANVAS_APP_TRIGGERS.some((kw) => userQuery.includes(kw));
       const hasMatrixDocTrigger = COMPLEX_MATRIX_DOC_TRIGGERS.some((kw) => userQuery.includes(kw));
       const isPureExplanation = PURE_EXPLANATION_REGEX.test(userQuery);
+      const isTroubleshootingComplaint = CANVAS_TROUBLESHOOTING_REGEX.test(userQuery);
       const hasCreationIntent = CREATION_INTENT_REGEX.test(userQuery);
 
       // Prioridad Crítica: Las tareas de Matrices Especializadas (IPEVAR, PESV, Química) y Documentos Legales
       // tienen precedencia absoluta sobre Canvas. Si el usuario pide diseñar/elaborar una matriz, es una tarea de MATRIZ.
-      const isMatrixOrDocTask = hasMatrixDocTrigger && !isPureExplanation;
-      const isCanvasTask = !isMatrixOrDocTask && hasCanvasTrigger && (!isPureExplanation || hasCreationIntent);
+      const isMatrixOrDocTask = hasMatrixDocTrigger && !isPureExplanation && !isTroubleshootingComplaint;
+      const isCanvasTask = !isMatrixOrDocTask && !isTroubleshootingComplaint && hasCanvasTrigger && (!isPureExplanation || hasCreationIntent);
 
       const isComplexTask = isMatrixOrDocTask;
       const userExplicitModel = this.options.req?.body?.model;
@@ -2174,10 +2178,11 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
             fallbackMsg = 'He procesado tu solicitud y registrado exitosamente los peligros en tu Matriz IPEVAR en vivo. Ya puedes visualizarlos y gestionarlos en el panel lateral.';
           }
         } else if (hasToolActivity) {
-          // Si el modelo leyó el Canvas y se quedó sin escribir, aplicar la modificación pedida directamente.
+          // Si el modelo leyó el Canvas y se quedó sin escribir, aplicar la modificación pedida directamente
+          // (SOLO si la consulta no es una queja de visualización/soporte técnico).
           let canvasApplied = null;
           const usedCanvas = this.contentParts.some((p) => (p?.name || p?.tool_call?.name || '') === 'canvas');
-          if (usedCanvas && this.conversationId) {
+          if (usedCanvas && this.conversationId && !isTroubleshootingComplaint) {
             try {
               const CanvasTool = require('~/app/clients/tools/structured/CanvasTool');
               const originalQuery = this.options.req?.body?.text || userQuery;
@@ -2196,27 +2201,34 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
           }
           // Para cualquier otra herramienta (como web_search, consultas de base de datos, etc.), NO asignamos
           // un mensaje genérico falso de "panel lateral" para permitir que el Safety Net sintetice la respuesta completa con los resultados.
-        } else if (isCanvasTask) {
+        } else if (isCanvasTask && !isTroubleshootingComplaint) {
           try {
-            const CanvasTool = require('~/app/clients/tools/structured/CanvasTool');
-            const targetReq = this.options.req || {};
-            if (!targetReq.body) targetReq.body = {};
-            if (this.conversationId && (!targetReq.body.conversationId || targetReq.body.conversationId === 'new')) {
-              targetReq.body.conversationId = this.conversationId;
+            const CanvasSession = require('~/models/CanvasSession');
+            const existingSession = this.conversationId ? await CanvasSession.findOne({ conversationId: this.conversationId }) : null;
+            // Si ya existe un documento válido (Excel, Word o presentación) en esta conversación y el usuario no pidió explícitamente un aplicativo HTML,
+            // NUNCA sobrescribirlo con un aplicativo HTML autogenerado.
+            const explicitlyAsksHtmlApp = /aplicativo|aplicaci[oó]n|dashboard|calculadora|simulador|html|interfaz web/i.test(userQuery);
+            if (!existingSession || existingSession.fileType === 'html' || explicitlyAsksHtmlApp) {
+              const CanvasTool = require('~/app/clients/tools/structured/CanvasTool');
+              const targetReq = this.options.req || {};
+              if (!targetReq.body) targetReq.body = {};
+              if (this.conversationId && (!targetReq.body.conversationId || targetReq.body.conversationId === 'new')) {
+                targetReq.body.conversationId = this.conversationId;
+              }
+              const canvasTool = new CanvasTool({ req: targetReq });
+              const appTitle = (userQuery ? `Aplicativo: ${userQuery.slice(0, 50)}` : 'Aplicativo SG-SST Interactivo').trim();
+              const synthesisPrompt = thoughtParts || userQuery || 'Aplicativo interactivo SG-SST';
+
+              logger.info(`[AgentClient Fallback] Autogenerando Canvas interactivo tras pensamientos del modelo para convoId: ${this.conversationId}`);
+              await canvasTool._call({
+                accion: 'crear',
+                fileType: 'html',
+                title: appTitle,
+                content: synthesisPrompt,
+              });
+
+              fallbackMsg = '¡Listo! He diseñado y desplegado el aplicativo interactivo en tu panel lateral de Canvas. Ya puedes interactuar con él, gestionar los datos y visualizar los indicadores en tiempo real.';
             }
-            const canvasTool = new CanvasTool({ req: targetReq });
-            const appTitle = (userQuery ? `Aplicativo: ${userQuery.slice(0, 50)}` : 'Aplicativo SG-SST Interactivo').trim();
-            const synthesisPrompt = thoughtParts || userQuery || 'Aplicativo interactivo SG-SST';
-
-            logger.info(`[AgentClient Fallback] Autogenerando Canvas interactivo tras pensamientos del modelo para convoId: ${this.conversationId}`);
-            await canvasTool._call({
-              accion: 'crear',
-              fileType: 'html',
-              title: appTitle,
-              content: synthesisPrompt,
-            });
-
-            fallbackMsg = '¡Listo! He diseñado y desplegado el aplicativo interactivo en tu panel lateral de Canvas. Ya puedes interactuar con él, gestionar los datos y visualizar los indicadores en tiempo real.';
           } catch (canvasErr) {
             logger.error('[AgentClient Fallback] Error autogenerando Canvas:', canvasErr);
             fallbackMsg = 'He estructurado el aplicativo interactivo para tus indicadores. Puedes visualizarlo y editarlo en tu panel lateral de Canvas.';

@@ -372,7 +372,11 @@ RESPUESTA ESTRICTA: Responde ÚNICAMENTE con el documento HTML5 completo (empeza
 
 function injectStandaloneCssIfMissing(html) {
   if (!html || typeof html !== 'string') return html;
-  if (html.includes('__wappy_standalone_design_system__')) return html;
+
+  // Eliminar cualquier bloque previo de estilos autónomos o guard de modales para garantizar que siempre tengan la versión más reciente
+  let cleanedHtml = html
+    .replace(/<style id="__wappy_standalone_design_system__">[\s\S]*?<\/style>\s*/gi, '')
+    .replace(/<script id="__wappy_modal_guard__">[\s\S]*?<\/script>\s*/gi, '');
 
   const standaloneCss = `
 <style id="__wappy_standalone_design_system__">
@@ -428,11 +432,7 @@ function injectStandaloneCssIfMissing(html) {
     try {
       el.classList.add('hidden');
       el.classList.remove('flex', 'block', 'grid', 'open', 'active', 'show');
-      el.style.removeProperty('display');
-      var comp = window.getComputedStyle(el);
-      if (comp && comp.display !== 'none') {
-        el.style.setProperty('display', 'none', 'important');
-      }
+      el.style.setProperty('display', 'none', 'important');
       el.setAttribute('aria-hidden', 'true');
       if (el.id === 'ai-drawer' || el.className.indexOf('right-0') !== -1) {
         el.classList.add('translate-x-full');
@@ -442,11 +442,22 @@ function injectStandaloneCssIfMissing(html) {
 
   function _autoHideInitialModals() {
     try {
-      var overlays = document.querySelectorAll('.fixed.inset-0:not(.hidden)');
+      // 1. Asegurar que todo elemento que tenga la clase .hidden tenga display: none !important
+      var hiddenEls = document.querySelectorAll('.hidden');
+      hiddenEls.forEach(function(el) {
+        if (el.classList.contains('fixed') || el.id.toLowerCase().indexOf('modal') !== -1) {
+          el.classList.remove('flex', 'block', 'grid');
+          el.style.setProperty('display', 'none', 'important');
+        }
+      });
+
+      // 2. Ocultar cualquier modal de asistente/diagnóstico que esté tapando la pantalla al inicio
+      var overlays = document.querySelectorAll('.fixed.inset-0, [id*="modal"], [id*="assistant"], [id*="asistente"]');
       overlays.forEach(function(el) {
         var text = (el.innerText || '').toLowerCase();
         var id = (el.id || '').toLowerCase();
         if (
+          id === 'modalia' ||
           id.indexOf('modal') !== -1 ||
           id.indexOf('assistant') !== -1 ||
           id.indexOf('asistente') !== -1 ||
@@ -459,7 +470,9 @@ function injectStandaloneCssIfMissing(html) {
           text.indexOf('cumplimiento legal') !== -1 ||
           text.indexOf('wappy ai copilot') !== -1
         ) {
-          _closeModalEl(el);
+          if (el.id !== 'wappy-ai-floating-btn' && el.id !== 'wappy-ai-floating-trigger') {
+            _closeModalEl(el);
+          }
         }
       });
     } catch (e) {}
@@ -467,7 +480,7 @@ function injectStandaloneCssIfMissing(html) {
 
   var _fallbackFns = [
     'closeModal', 'closeAssistant', 'closeAiModal', 'closeLegalModal',
-    'closeImportantInfoModal', 'cerrarModal', 'cerrarAsistente', 'hideModal',
+    'closeImportantInfoModal', 'cerrarModal', 'cerrarModalIA', 'cerrarAsistente', 'hideModal',
     'dismissModal', 'toggleModal', 'closeSyncModal', 'ejecutarSincronizacion', 'syncCanvas'
   ];
   _fallbackFns.forEach(function(fn) {
@@ -516,14 +529,19 @@ function injectStandaloneCssIfMissing(html) {
 
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
-      var overlays = document.querySelectorAll('.fixed.inset-0:not(.hidden), [id*="modal"]:not(.hidden), [id*="assistant"]:not(.hidden), [id*="asistente"]:not(.hidden), [role="dialog"]:not(.hidden)');
-      overlays.forEach(function(el) { _closeModalEl(el); });
+      var overlays = document.querySelectorAll('.fixed.inset-0, [id*="modal"], [id*="assistant"], [id*="asistente"], [role="dialog"]');
+      overlays.forEach(function(el) {
+        if (el.id !== 'wappy-ai-floating-btn' && el.id !== 'wappy-ai-floating-trigger') {
+          _closeModalEl(el);
+        }
+      });
     }
   });
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _autoHideInitialModals);
   } else {
+    _autoHideInitialModals();
     setTimeout(_autoHideInitialModals, 50);
     setTimeout(_autoHideInitialModals, 300);
   }
@@ -531,10 +549,10 @@ function injectStandaloneCssIfMissing(html) {
 </script>
 `;
 
-  if (/<head[^>]*>/i.test(html)) {
-    return html.replace(/<head[^>]*>/i, (m) => `${m}\n${standaloneCss}`);
+  if (/<head[^>]*>/i.test(cleanedHtml)) {
+    return cleanedHtml.replace(/<head[^>]*>/i, (m) => `${m}\n${standaloneCss}`);
   }
-  return `${standaloneCss}\n${html}`;
+  return `${standaloneCss}\n${cleanedHtml}`;
 }
 
 /**
@@ -1553,6 +1571,10 @@ Responde ÚNICAMENTE con el documento completo modificado, sin bloques de markdo
     return null;
   }
 
+  if (session.fileType === 'html') {
+    updated = injectStandaloneCssIfMissing(updated);
+  }
+
   const maxHistoryVersion = (session.history || []).reduce((m, i) => Math.max(m, i.version || 0), 0);
   const nextVersion = Math.max(maxHistoryVersion, session.version || 0) + 1;
   session.content = updated;
@@ -1571,5 +1593,6 @@ CanvasTool.processHtmlAppDocument = processHtmlAppDocument;
 CanvasTool.processTextReportDocument = processTextReportDocument;
 CanvasTool.syncCanvasToLiveEditor = syncCanvasToLiveEditor;
 CanvasTool.applyCanvasModification = applyCanvasModification;
+CanvasTool.injectStandaloneCssIfMissing = injectStandaloneCssIfMissing;
 
 module.exports = CanvasTool;
