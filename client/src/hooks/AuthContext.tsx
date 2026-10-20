@@ -187,8 +187,11 @@ const AuthContextProvider = ({
       return false;
     }
 
-    const publicPaths = ['/', '', '/landing', '/inicio', '/planes', '/contactanos', '/privacy', '/terms', '/about', '/register', '/login', '/comunidad', '/comunidadmp', '/wappyvital', '/portafolio', '/portafolio.html', '/embajadores', '/embajadores.html', '/mauricioposada', '/mauricioposada.html'];
+    const publicPaths = ['/', '', '/landing', '/inicio', '/planes', '/contactanos', '/privacy', '/terms', '/about', '/register', '/login', '/comunidad', '/comunidadmp', '/wappyvital', '/matriz', '/quibi', '/qb', '/bateria-psicosocial', '/portafolio', '/portafolio.html', '/embajadores', '/embajadores.html', '/mauricioposada', '/mauricioposada.html'];
     if (publicPaths.includes(pathname)) {
+      return true;
+    }
+    if (pathname.startsWith('/bateria-psicosocial/') || pathname === '/bateria-psicosocial') {
       return true;
     }
     if (pathname.startsWith('/comunidad/') || pathname === '/comunidad') {

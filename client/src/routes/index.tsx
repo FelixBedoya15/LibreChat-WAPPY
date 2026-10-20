@@ -50,6 +50,7 @@ const WappyAboutPage = lazy(() => import('~/components/Auth/WappyAboutPage'));
 const ComunidadPage = lazy(() => import('~/components/Marketing/ComunidadPage'));
 const MatrizPage = lazy(() => import('~/components/Marketing/MatrizPage'));
 const QuibiPage = lazy(() => import('~/components/Marketing/QuibiPage'));
+const BateriaPsicosocialPage = lazy(() => import('~/components/Marketing/BateriaPsicosocialPage'));
 const LandingPage = lazy(() => import('~/components/Marketing/LandingPage'));
 const AgentMarketplace = lazy(() => import('~/components/Agents/Marketplace'));
 const CourseViewer = lazy(() => import('~/components/Training/CourseViewer'));
@@ -275,6 +276,16 @@ export const router = createBrowserRouter(
     {
       path: 'sgsst-public/inspeccion-vehicular/:companyId',
       element: withSuspense(<PublicInspeccionVehicular />),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'bateria-psicosocial',
+      element: withSuspense(
+        <AuthContextProvider>
+          <BateriaPsicosocialPage />
+          <ApiErrorWatcher />
+        </AuthContextProvider>
+      ),
       errorElement: <RouteErrorBoundary />,
     },
     {
