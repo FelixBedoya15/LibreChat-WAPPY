@@ -11,6 +11,7 @@ import type {
 import type { MentionOption, ConvoGenerator } from '~/common';
 import { getConvoSwitchLogic, getModelSpecIconURL, removeUnavailableTools, logger } from '~/utils';
 import { useDefaultConvo } from '~/hooks';
+import { useAgentsMapContext } from '~/Providers/AgentsMapContext';
 import store from '~/store';
 
 export default function useSelectMention({
@@ -31,6 +32,7 @@ export default function useSelectMention({
   returnHandlers?: boolean;
 }) {
   const getDefaultConversation = useDefaultConvo();
+  const agentsMap = useAgentsMapContext();
   const modularChat = useRecoilValue(store.modularChat);
   const availableTools = useRecoilValue(store.availableTools);
 
@@ -80,7 +82,14 @@ export default function useSelectMention({
 
         const currentConvo = getDefaultConversation({
           /* target endpointType is necessary to avoid endpoint mixing */
-          conversation: { ...(conversation ?? {}), endpointType: template.endpointType },
+          conversation: {
+            ...(conversation ?? {}),
+            endpoint: newEndpoint,
+            agent_id: newEndpoint === EModelEndpoint.agents ? (preset.agent_id ?? template.agent_id) : undefined,
+            assistant_id: isAssistantsEndpoint(newEndpoint) ? (preset.assistant_id ?? template.assistant_id) : undefined,
+            model: preset.model ?? template.model ?? conversation?.model,
+            endpointType: template.endpointType,
+          },
           preset: template,
           cleanOutput: true,
         });
@@ -165,6 +174,10 @@ export default function useSelectMention({
           /* target endpointType is necessary to avoid endpoint mixing */
           conversation: {
             ...(conversation ?? {}),
+            endpoint: newEndpoint,
+            agent_id: newEndpoint === EModelEndpoint.agents ? (agent_id || template.agent_id) : undefined,
+            assistant_id: isAssistantsEndpoint(newEndpoint) ? (assistant_id || template.assistant_id) : undefined,
+            model: model || template.model || conversation?.model,
             spec: null,
             iconURL: null,
             modelLabel: null,
@@ -233,7 +246,14 @@ export default function useSelectMention({
         template.modelLabel = null;
         const currentConvo = getDefaultConversation({
           /* target endpointType is necessary to avoid endpoint mixing */
-          conversation: { ...(conversation ?? {}), endpointType: template.endpointType },
+          conversation: {
+            ...(conversation ?? {}),
+            endpoint: newEndpoint,
+            agent_id: newEndpoint === EModelEndpoint.agents ? (newPreset.agent_id ?? template.agent_id) : undefined,
+            assistant_id: isAssistantsEndpoint(newEndpoint) ? (newPreset.assistant_id ?? template.assistant_id) : undefined,
+            model: newPreset.model ?? template.model ?? conversation?.model,
+            endpointType: template.endpointType,
+          },
           preset: template,
           cleanInput: true,
         });
@@ -288,10 +308,11 @@ export default function useSelectMention({
       } else if (isAgentsEndpoint(option.type)) {
         onSelectEndpoint(option.type, {
           agent_id: key,
+          model: agentsMap?.[key]?.model ?? '',
         });
       }
     },
-    [modelSpecs, onSelectEndpoint, onSelectPreset, onSelectSpec, presets, assistantsMap],
+    [modelSpecs, onSelectEndpoint, onSelectPreset, onSelectSpec, presets, assistantsMap, agentsMap],
   );
 
   if (returnHandlers) {

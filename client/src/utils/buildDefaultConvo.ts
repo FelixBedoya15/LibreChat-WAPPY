@@ -72,18 +72,22 @@ const buildDefaultConvo = ({
   const assistantId = conversation?.assistant_id || convo?.assistant_id || '';
   const defaultAssistantId = lastConversationSetup?.assistant_id ?? '';
   if (isAssistantsEndpoint(endpoint)) {
-    defaultConvo.assistant_id = assistantId || defaultAssistantId || '';
+    defaultConvo.assistant_id = defaultAssistantId || assistantId || '';
+  } else {
+    defaultConvo.assistant_id = undefined;
   }
 
   // Ensures agent_id is always defined
   const agentId = conversation?.agent_id || convo?.agent_id || '';
   const defaultAgentId = lastConversationSetup?.agent_id ?? '';
-  let finalAgentId = agentId || defaultAgentId || '';
+  let finalAgentId = defaultAgentId || agentId || '';
   if (isAgentsEndpoint(endpoint) && !finalAgentId && typeof window !== 'undefined') {
     finalAgentId = localStorage.getItem(`${LocalStorageKeys.AGENT_ID_PREFIX}0`) || '';
   }
   if (isAgentsEndpoint(endpoint)) {
     defaultConvo.agent_id = finalAgentId;
+  } else {
+    defaultConvo.agent_id = undefined;
   }
 
   defaultConvo.tools = lastConversationSetup?.tools ?? lastSelectedTools ?? defaultConvo.tools;

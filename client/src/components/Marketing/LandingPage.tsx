@@ -60,13 +60,26 @@ export default function LandingPage() {
         ''
       ).trim();
 
+      const isPortafolioPath = location.pathname.includes('/portafolio');
+
+      // Si estamos en la página principal institucional y NO viene un parámetro de referido en la URL,
+      // la página oficial no debe mostrar ningún embajador ni arrastrar valores residuales de localStorage.
+      if (!isPortafolioPath && !urlRef) {
+        setActiveRef('');
+        setAmbassador(null);
+        try {
+          localStorage.removeItem('wappy_ref');
+          sessionStorage.removeItem('wappy_ref');
+        } catch (e) {}
+        return;
+      }
+
       let storedRef = '';
       try {
         storedRef = (localStorage.getItem('wappy_ref') || sessionStorage.getItem('wappy_ref') || '').trim();
       } catch (e) {}
 
-      const isPortafolioPath = location.pathname.includes('/portafolio');
-      const resolvedRef = urlRef || (isPortafolioPath ? storedRef || 'felix-bedoya' : storedRef);
+      const resolvedRef = urlRef || (isPortafolioPath ? storedRef || 'felix-bedoya' : '');
 
       if (urlRef) {
         try {
@@ -162,7 +175,7 @@ export default function LandingPage() {
   };
 
   const getRefQuery = () => {
-    const refToUse = activeRef || ambassador?.slug || localStorage.getItem('wappy_ref') || '';
+    const refToUse = activeRef || ambassador?.slug || '';
     if (refToUse) {
       try {
         localStorage.setItem('wappy_ref', refToUse);

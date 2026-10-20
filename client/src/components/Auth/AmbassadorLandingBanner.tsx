@@ -21,7 +21,7 @@ export default function AmbassadorLandingBanner() {
       const urlRef = (searchParams.get('ref') || searchParams.get('referral') || searchParams.get('r') || '').trim();
       let storedRef = '';
       try {
-        storedRef = (localStorage.getItem('wappy_ref') || sessionStorage.getItem('wappy_ref') || '').trim();
+        storedRef = (sessionStorage.getItem('wappy_ref') || '').trim();
       } catch (e) {}
 
       const activeRef = urlRef || storedRef;

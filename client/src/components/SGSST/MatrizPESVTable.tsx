@@ -592,29 +592,62 @@ export default function MatrizPESVTable({
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [dashboardHeight, setDashboardHeight] = useState(35);
   const containerRef = useRef<HTMLDivElement>(null);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
 
   const dragStartRef = useRef<{ y: number; height: number } | null>(null);
 
+  const calculateMaxDashboardPct = useCallback(() => {
+    if (!containerRef.current) return 70;
+    const rect = containerRef.current.getBoundingClientRect();
+    if (rect.height <= 0) return 70;
+
+    const headerEl = containerRef.current.querySelector<HTMLElement>('[data-pesv-section="header"]');
+    const headerH = headerEl ? headerEl.offsetHeight : 64;
+
+    const filtersEl = containerRef.current.querySelector<HTMLElement>('[data-pesv-section="filters"]');
+    const filtersH = filtersEl ? filtersEl.offsetHeight : 52;
+
+    const theadEl = tableContainerRef.current?.querySelector<HTMLElement>('thead');
+    const theadH = theadEl ? theadEl.offsetHeight : 44;
+
+    const firstRowEl = tableContainerRef.current?.querySelector<HTMLElement>('tbody tr');
+    const firstRowH = firstRowEl ? firstRowEl.offsetHeight : 72;
+
+    // Espacio mínimo para la tabla: encabezado + al menos 1 fila completa + scrollbar horizontal y margen
+    const minTableH = theadH + firstRowH + 18;
+    // Espacio superior mínimo: Cabecera + Filtros + Tabla mínima + Barra Resizer (16px)
+    const minTopSpace = headerH + filtersH + minTableH + 16;
+
+    const maxDashboardPx = Math.max(80, rect.height - minTopSpace);
+    const maxPct = Math.max(10, Math.min(85, (maxDashboardPx / rect.height) * 100));
+    return maxPct;
+  }, []);
+
   const startDrag = (e: React.MouseEvent | React.TouchEvent) => {
+    let isTouch = 'touches' in e;
+    if (!isTouch) {
+      e.preventDefault();
+    }
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     dragStartRef.current = { y: clientY, height: dashboardHeight };
     document.addEventListener('mousemove', handleDrag);
     document.addEventListener('mouseup', endDrag);
     document.addEventListener('touchmove', handleDrag, { passive: false });
     document.addEventListener('touchend', endDrag);
+    if (!isTouch) {
+      document.body.style.cursor = 'row-resize';
+    }
   };
 
   const handleDrag = (e: MouseEvent | TouchEvent) => {
     if (!dragStartRef.current || !containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    if (rect.height <= 0) return;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    const deltaY = clientY - dragStartRef.current.y;
-    const totalH = containerRef.current.clientHeight;
-    if (totalH === 0) return;
-    const deltaPercent = (deltaY / totalH) * 100;
-    let newH = dragStartRef.current.height - deltaPercent;
-    if (newH < 10) newH = 10;
-    if (newH > 80) newH = 80;
-    setDashboardHeight(newH);
+    const newH = rect.bottom - clientY;
+    const rawPct = (newH / rect.height) * 100;
+    const maxPct = calculateMaxDashboardPct();
+    setDashboardHeight(Math.max(10, Math.min(rawPct, maxPct)));
   };
 
   const endDrag = () => {
@@ -623,7 +656,18 @@ export default function MatrizPESVTable({
     document.removeEventListener('mouseup', endDrag);
     document.removeEventListener('touchmove', handleDrag);
     document.removeEventListener('touchend', endDrag);
+    document.body.style.cursor = '';
   };
+
+  // Asegurar que si la ventana cambia de tamaño, el dashboard no opaque la primera fila de la matriz
+  useEffect(() => {
+    const handleResize = () => {
+      const maxPct = calculateMaxDashboardPct();
+      setDashboardHeight((prev) => Math.min(prev, maxPct));
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [calculateMaxDashboardPct]);
 
   const actualConvoId =
     !isOfficialApp && conversation?.conversationId && conversation.conversationId !== 'new'
@@ -2694,6 +2738,7 @@ export default function MatrizPESVTable({
         ) : (
           /* ── Header Clásico para Chat / Pantalla Completa ── */
           <div
+            data-pesv-section="header"
             className="relative z-[300] flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border-light bg-surface-secondary px-3 py-2 sm:px-4 sm:py-0"
             style={{ minHeight: '4rem' }}
           >
@@ -2892,7 +2937,10 @@ export default function MatrizPESVTable({
         {(!isOfficialApp || isMaximized || isTableExpanded) && (
           <div className="flex flex-col flex-1 min-h-0 bg-surface-primary">
             {/* ── Barra de Filtros ── */}
-            <div className="relative z-[200] flex shrink-0 flex-wrap items-center gap-2 border-b border-border-light bg-surface-secondary px-4 py-2.5">
+            <div
+              data-pesv-section="filters"
+              className="relative z-[200] flex shrink-0 flex-wrap items-center gap-2 border-b border-border-light bg-surface-secondary px-4 py-2.5"
+            >
               <div className="relative">
                 <input
                   type="search"
@@ -2970,7 +3018,11 @@ export default function MatrizPESVTable({
             </div>
 
             {/* ── Tabla de spreadsheet ── */}
-            <div className="flex-1 overflow-auto custom-scrollbar-ipevar">
+            <div
+              ref={tableContainerRef}
+              style={{ minHeight: '135px' }}
+              className="flex-1 overflow-auto custom-scrollbar-ipevar"
+            >
               <style>{`
                 .custom-scrollbar-ipevar::-webkit-scrollbar {
                   height: 10px;
@@ -3573,6 +3625,10 @@ export default function MatrizPESVTable({
         <div
           onMouseDown={startDrag}
           onTouchStart={startDrag}
+          onDoubleClick={() => {
+            setDashboardHeight((prev) => (prev > 35 ? 35 : calculateMaxDashboardPct()));
+          }}
+          title="Arrastra para redimensionar (doble clic para contraer/expandir)"
           className="group/resizer relative z-20 flex h-4 shrink-0 cursor-row-resize touch-none items-center justify-center border-y border-border-light bg-surface-tertiary transition-colors hover:bg-teal-500/20"
         >
           <div className="h-1 w-12 rounded-full bg-border-heavy group-hover/resizer:bg-teal-500/50" />
