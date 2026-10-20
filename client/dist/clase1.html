@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-  <title>Clase 1: Introducción a la IA & Google Antigravity como Potenciador de WAPPY | WAPPY IA</title>
-  <meta name="description" content="Presentación oficial y guía de la Clase 1. Introducción a la IA (15 min), el rol de WAPPY como cerebro SST y Antigravity como fábrica de triggers y automatizaciones locales.">
+  <title>Clase 1: Introducción a la IA, WAPPY & Antigravity | Ecosistema Autónomo SST</title>
+  <meta name="description" content="Presentación interactiva y guía paso a paso de la Clase 1. Introducción a la IA (15 min), WAPPY y Antigravity, instalación, creación de proyectos, triggers, skills, NotebookLM, Drive y alimentación a WAPPY.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@600;700;800;900&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
@@ -62,7 +62,7 @@
     }
 
     .wrap {
-      max-width: 1040px;
+      max-width: 1060px;
       margin: 0 auto;
       padding: 0 16px;
     }
@@ -125,103 +125,102 @@
     }
 
     .nav-inner {
-      max-width: 1040px;
+      max-width: 1060px;
       margin: 0 auto;
       background: rgba(255, 255, 255, 0.94);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
       border: 1px solid rgba(226, 232, 240, 0.9);
       box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06);
-      border-radius: 999px;
-      height: 60px;
+      border-radius: 20px;
+      padding: 8px 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 12px 0 18px;
+      gap: 12px;
     }
 
     .nav-logo {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
     }
 
     .nav-logo img {
-      height: 32px;
+      height: 28px;
       object-fit: contain;
     }
 
     .nav-view-toggles {
       display: inline-flex;
       background: #f1f5f9;
-      border: 1px solid #e2e8f0;
       padding: 3px;
-      border-radius: 999px;
+      border-radius: 12px;
+      gap: 2px;
     }
 
     .toggle-btn {
       border: none;
       background: transparent;
       padding: 6px 12px;
-      font-size: 11px;
+      border-radius: 9px;
+      font-size: 12px;
       font-weight: 700;
-      border-radius: 999px;
+      color: #64748b;
       cursor: pointer;
-      color: var(--slate-600);
-      transition: all 0.2s ease;
-      display: inline-flex;
+      display: flex;
       align-items: center;
       gap: 5px;
+      transition: all 0.2s ease;
     }
 
     .toggle-btn.active {
       background: #ffffff;
-      color: var(--teal);
-      font-weight: 800;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+      color: #0f766e;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
     }
 
     .nav-actions {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
 
     .btn-meet-nav {
+      background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 7px 14px;
+      border-radius: 999px;
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
-      color: #ffffff;
-      font-weight: 800;
-      font-size: 12px;
-      padding: 8px 16px;
-      border-radius: 999px;
-      box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
       transition: all 0.2s ease;
+      box-shadow: 0 2px 8px rgba(13, 148, 136, 0.3);
+      white-space: nowrap;
     }
 
     .btn-meet-nav:hover {
       transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(13, 148, 136, 0.4);
+      box-shadow: 0 4px 12px rgba(13, 148, 136, 0.45);
     }
 
     /* ==========================================================================
-       SLIDE DECK / PRESENTATION VIEWER (MODO PRESENTACIÓN)
+       SLIDE DECK PRESENTATION MODE
        ========================================================================== */
     #presentation-mode {
       display: block;
-      margin-bottom: 24px;
+      margin-bottom: 30px;
     }
 
     .deck-container {
       background: #0f172a;
+      border: 1px solid #334155;
       border-radius: 24px;
-      color: #ffffff;
-      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.25);
-      border: 1.5px solid #334155;
       overflow: hidden;
-      position: relative;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+      color: #ffffff;
     }
 
     .deck-topbar {
@@ -234,7 +233,7 @@
     }
 
     .deck-title {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 700;
       color: #94a3b8;
       display: flex;
@@ -243,42 +242,42 @@
     }
 
     .deck-counter {
-      background: rgba(255, 255, 255, 0.1);
-      padding: 3px 10px;
+      background: #0d9488;
+      color: #ffffff;
+      padding: 2px 10px;
       border-radius: 999px;
       font-size: 11px;
       font-weight: 800;
-      color: #5eead4;
+      letter-spacing: 0.5px;
     }
 
     .slide-viewport {
-      min-height: 440px;
-      padding: 32px 28px;
+      position: relative;
+      min-height: 480px;
+      padding: 32px 24px;
       display: flex;
       flex-direction: column;
       justify-content: center;
-      position: relative;
-      background: radial-gradient(circle at top right, rgba(13, 148, 136, 0.25) 0%, rgba(15, 23, 42, 1) 65%);
     }
 
-    @media (min-width: 640px) {
+    @media (min-width: 768px) {
       .slide-viewport {
-        min-height: 480px;
-        padding: 44px 48px;
+        min-height: 520px;
+        padding: 44px 40px;
       }
     }
 
     .slide {
       display: none;
-      animation: fadeIn 0.3s ease-in-out;
+      animation: fadeInSlide 0.35s ease forwards;
     }
 
     .slide.active {
       display: block;
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
+    @keyframes fadeInSlide {
+      from { opacity: 0; transform: translateY(8px); }
       to { opacity: 1; transform: translateY(0); }
     }
 
@@ -302,6 +301,12 @@
       color: #c7f303;
     }
 
+    .slide-badge.amber {
+      background: rgba(245, 158, 11, 0.15);
+      border-color: #f59e0b;
+      color: #fbbf24;
+    }
+
     .slide h2 {
       font-family: var(--font-display);
       font-size: 24px;
@@ -312,7 +317,7 @@
     }
 
     @media (min-width: 640px) {
-      .slide h2 { font-size: 32px; }
+      .slide h2 { font-size: 30px; }
     }
 
     .slide-lead {
@@ -336,6 +341,9 @@
       .slide-content-grid.three-cols {
         grid-template-columns: repeat(3, 1fr);
       }
+      .slide-content-grid.four-cols {
+        grid-template-columns: repeat(4, 1fr);
+      }
     }
 
     .slide-card {
@@ -347,7 +355,12 @@
 
     .slide-card.highlight {
       border-color: #5eead4;
-      background: rgba(13, 148, 136, 0.15);
+      background: rgba(13, 148, 136, 0.18);
+    }
+
+    .slide-card.lime-border {
+      border-color: #c7f303;
+      background: rgba(199, 243, 3, 0.08);
     }
 
     .slide-card h4 {
@@ -364,10 +377,23 @@
       color: #c7f303;
     }
 
+    .slide-card h4.amber {
+      color: #fbbf24;
+    }
+
     .slide-card p {
       font-size: 12.5px;
       color: #cbd5e1;
       line-height: 1.45;
+    }
+
+    .slide-card code {
+      font-family: var(--font-code);
+      background: rgba(0, 0, 0, 0.35);
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: #5eead4;
+      font-size: 11px;
     }
 
     /* Deck Controls */
@@ -378,6 +404,8 @@
       align-items: center;
       justify-content: space-between;
       border-top: 1px solid #334155;
+      gap: 12px;
+      flex-wrap: wrap;
     }
 
     .deck-nav-btns {
@@ -432,24 +460,22 @@
       border-radius: 24px;
       padding: 32px 24px;
       color: #ffffff;
-      margin-bottom: 24px;
       position: relative;
       overflow: hidden;
-      box-shadow: 0 12px 30px rgba(15, 118, 110, 0.18);
+      margin-bottom: 24px;
+      box-shadow: 0 10px 30px rgba(15, 118, 110, 0.18);
     }
 
     .hero-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(255, 255, 255, 0.16);
-      border: 1px solid rgba(255, 255, 255, 0.28);
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.3);
       color: #ccfbf1;
       font-size: 11px;
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.8px;
-      padding: 4px 12px;
+      padding: 3px 10px;
       border-radius: 999px;
       margin-bottom: 12px;
     }
@@ -464,14 +490,14 @@
     }
 
     @media (min-width: 640px) {
-      .hero h1 { font-size: 32px; }
+      .hero h1 { font-size: 34px; }
     }
 
     .hero-sub {
-      font-size: 14px;
-      color: #a7f3d0;
+      font-size: 14.5px;
+      color: #e6fffa;
+      max-width: 820px;
       line-height: 1.5;
-      max-width: 720px;
       margin-bottom: 20px;
     }
 
@@ -488,36 +514,35 @@
 
     .hero-meta-item {
       background: rgba(0, 0, 0, 0.22);
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
       padding: 10px 14px;
+      border-radius: 12px;
     }
 
     .hero-meta-label {
-      font-size: 10px;
-      font-weight: 700;
-      color: #99f6e4;
+      font-size: 10.5px;
+      color: #a7f3d0;
       text-transform: uppercase;
+      font-weight: 700;
       letter-spacing: 0.5px;
-      margin-bottom: 2px;
     }
 
     .hero-meta-val {
-      font-size: 13px;
+      font-size: 13.5px;
       font-weight: 800;
       color: #ffffff;
+      margin-top: 2px;
     }
 
     .hero-cta-box {
       background: rgba(255, 255, 255, 0.12);
       border: 1.5px solid #5eead4;
       border-radius: 16px;
-      padding: 16px;
+      padding: 16px 20px;
       display: flex;
       flex-direction: column;
       gap: 12px;
       align-items: flex-start;
-      backdrop-filter: blur(8px);
     }
 
     @media (min-width: 640px) {
@@ -567,7 +592,7 @@
        ========================================================================== */
     .sec-header {
       margin-bottom: 16px;
-      margin-top: 32px;
+      margin-top: 36px;
     }
 
     .sec-tag {
@@ -593,7 +618,7 @@
     }
 
     .sec-sub {
-      font-size: 13px;
+      font-size: 13.5px;
       color: var(--slate-600);
       margin-top: 4px;
     }
@@ -712,8 +737,8 @@
       background: #ffffff;
       border: 1px solid var(--slate-200);
       border-radius: 20px;
-      padding: 20px;
-      margin-bottom: 16px;
+      padding: 22px;
+      margin-bottom: 18px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.03);
     }
 
@@ -741,22 +766,18 @@
     }
 
     .step-pill {
+      background: #ccfbf1;
+      color: #0f766e;
       font-size: 11px;
       font-weight: 800;
-      padding: 3px 10px;
-      border-radius: 999px;
-      background: #f1f5f9;
-      color: var(--slate-700);
+      padding: 3px 8px;
+      border-radius: 6px;
     }
 
     .step-time {
       font-size: 12px;
-      font-weight: 800;
-      color: var(--teal);
-      background: #f0fdfa;
-      border: 1px solid #ccfbf1;
-      padding: 3px 10px;
-      border-radius: 999px;
+      color: var(--slate-600);
+      font-weight: 600;
     }
 
     .step-title {
@@ -764,13 +785,13 @@
       font-size: 17px;
       font-weight: 800;
       color: var(--slate-900);
-      margin-bottom: 4px;
+      margin-bottom: 8px;
     }
 
     .step-desc {
       font-size: 13px;
-      color: var(--slate-600);
-      line-height: 1.45;
+      color: var(--slate-700);
+      line-height: 1.5;
       margin-bottom: 12px;
     }
 
@@ -779,6 +800,7 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
+      margin-top: 10px;
     }
 
     .step-list li {
@@ -786,7 +808,7 @@
       color: var(--slate-700);
       padding-left: 18px;
       position: relative;
-      line-height: 1.4;
+      line-height: 1.45;
     }
 
     .step-list li::before {
@@ -1020,14 +1042,14 @@
   <div class="wrap">
 
     <!-- ==========================================================================
-         SECCIÓN DE PRESENTACIÓN INTERACTIVA (SLIDE DECK EN VIVO)
+         SECCIÓN DE PRESENTACIÓN INTERACTIVA (SLIDE DECK EN VIVO - 12 SLIDES)
          ========================================================================== -->
     <div id="presentation-mode">
       <div class="deck-container">
         <div class="deck-topbar">
           <div class="deck-title">
             <span>Diapositiva en Vivo</span>
-            <span class="deck-counter" id="deck-counter">1 / 10</span>
+            <span class="deck-counter" id="deck-counter">1 / 12</span>
           </div>
           <div style="font-size: 11px; color: #94a3b8;">
             Usa las flechas <strong>← / →</strong> de tu teclado
@@ -1043,225 +1065,275 @@
           <!-- SLIDE 1: PORTADA -->
           <div class="slide active" id="slide-1">
             <span class="slide-badge">Curso Ecosistema Autónomo SST · Clase 1</span>
-            <h2>Google Antigravity como Potenciador de WAPPY</h2>
+            <h2>Introducción a la IA, WAPPY & Google Antigravity</h2>
             <p class="slide-lead">
-              De la operatividad documental a la prevención real: cómo conectar el cerebro normativo de WAPPY con la fábrica de triggers y automatizaciones de Antigravity en tu computador.
+              De la operatividad documental a la prevención real: cómo instalar, estructurar proyectos, automatizar tareas con triggers y alimentar a WAPPY desde tu computador.
             </p>
             <div class="slide-content-grid three-cols">
               <div class="slide-card highlight">
-                <h4>🧠 WAPPY</h4>
-                <p>El Centro de Mando: Especialistas SST, matriz legal colombiana, comités, químicos y Tenshi Voice.</p>
+                <h4>🧠 1. WAPPY (Cerebro)</h4>
+                <p>Centro de mando: especialistas SST, matriz legal colombiana, químicos SGA y Tenshi Voice.</p>
               </div>
               <div class="slide-card highlight">
-                <h4>⚡ Antigravity</h4>
-                <p>El Brazo Ejecutor: Lee tus carpetas locales, ejecuta triggers programados y automatiza lo que la web no puede tocar.</p>
+                <h4>⚡ 2. Antigravity (Brazo)</h4>
+                <p>Plataforma agéntica local: ejecuta triggers, vigila carpetas locales y conecta tu PC con WAPPY.</p>
               </div>
               <div class="slide-card highlight">
-                <h4>🤝 La Alianza</h4>
-                <p>Prevención autónoma 24/7 sin que tengas que programar ni una sola línea de código compleja.</p>
+                <h4>🚀 3. Sinergia Total</h4>
+                <p>Automatizaciones sin programar código complejo: NotebookLM, Drive de 20 años y MCP en vivo.</p>
               </div>
             </div>
           </div>
 
-          <!-- SLIDE 2: BIENVENIDA Y ACUERDOS -->
+          <!-- SLIDE 2: BIENVENIDA Y REGLAS DE ORO -->
           <div class="slide" id="slide-2">
-            <span class="slide-badge">Acuerdos de Convivencia</span>
+            <span class="slide-badge amber">Acuerdos de Convivencia</span>
             <h2>Bienvenida y Reglas de Oro de Nuestra Clase</h2>
             <p class="slide-lead">
-              Para garantizar que los 12 participantes dominen la herramienta y salgan hoy con su entorno operativo:
+              Para garantizar que los 12 participantes dominen la herramienta y dejen hoy su entorno 100% operativo:
             </p>
             <div class="slide-content-grid two-cols">
               <div class="slide-card">
-                <h4>📷 Cámara Encendida (10 a 15 Min)</h4>
-                <p>Obligatoria al inicio para saludarnos, verificar asistencia y calibrar expectativas humanas.</p>
+                <h4>📷 1. Cámara Encendida (Primeros 10-15 Min)</h4>
+                <p>Obligatoria al inicio para el saludo, llamado a lista y conexión humana del grupo selecto de 12.</p>
               </div>
               <div class="slide-card">
-                <h4>💻 Entorno Dual (PC + Celular)</h4>
-                <p>Computador para Antigravity y celular a la mano para probar Tenshi Voice y WhatsApp.</p>
+                <h4>💻 2. Entorno Dual (PC + Celular)</h4>
+                <p>Computador para operar Antigravity y celular cargado para Tenshi Voice y WhatsApp.</p>
               </div>
               <div class="slide-card">
-                <h4>🎙️ Micrófono & Preguntas</h4>
-                <p>Silenciado por defecto. Usa la mano virtual o el chat; abriremos rondas de Q&A en cada bloque.</p>
+                <h4>🎙️ 3. Micrófono & Preguntas</h4>
+                <p>Silenciado por defecto. Usa la mano virtual o el chat; abriremos rondas de Q&A en cada módulo.</p>
               </div>
               <div class="slide-card">
-                <h4>🤝 Debugging Colaborativo</h4>
-                <p>Todos programamos en vivo. Si a uno le sale un error, compartimos pantalla: <em>el error de uno es la lección de todos</em>.</p>
+                <h4>🤝 4. Debugging Colaborativo</h4>
+                <p>Todos programamos al mismo tiempo. Compartimos pantalla para resolver errores: <em>el error de uno es la lección de todos</em>.</p>
               </div>
             </div>
           </div>
 
-          <!-- SLIDE 3: INTRODUCCIÓN A LA IA (15 MINUTOS) -->
+          <!-- SLIDE 3: INTRODUCCIÓN A LA IA (15 MINUTOS MÁXIMO) -->
           <div class="slide" id="slide-3">
-            <span class="slide-badge intro">Bloque 1 · Máximo 15 Minutos</span>
+            <span class="slide-badge intro">Módulo 1 · 15 Minutos (7:00 – 7:15 PM)</span>
             <h2>Introducción a la IA: De la Charla Pasiva a la Acción Agéntica</h2>
             <p class="slide-lead">
-              ¿Qué es la IA y por qué el modelo tradicional de "hacerle preguntas a un chat" ya quedó obsoleto en SST?
+              ¿Por qué los chatbots de texto plano (como ChatGPT genérico) fallan estrepitosamente ante la complejidad técnica del SG-SST?
             </p>
             <div class="slide-content-grid three-cols">
               <div class="slide-card">
-                <h4 class="lime">1. IA Predictiva</h4>
-                <p>Calcula probabilidades y estadísticas. Útil para tendencias históricas de accidentalidad.</p>
-              </div>
-              <div class="slide-card">
-                <h4 class="lime">2. IA Generativa (ChatGPT)</h4>
-                <p>Redacta textos y responde preguntas. Pero es pasiva: <em>no tiene manos, no ejecuta ni lee tu disco duro</em>.</p>
+                <h4 class="lime">1. IA Generativa (ChatGPT)</h4>
+                <p>Solo redacta texto pasivo. No tiene acceso a tu disco duro, no ejecuta tareas, no vigila carpetas y suele alucinar normas.</p>
               </div>
               <div class="slide-card highlight">
-                <h4>3. IA Agéntica (Antigravity + WAPPY)</h4>
-                <p>Planifica, razona, ejecuta herramientas, vigila carpetas, dispara triggers y trabaja sola en segundo plano.</p>
+                <h4>2. IA Agéntica (El Salto)</h4>
+                <p>Razona, planifica, lee archivos locales, llama herramientas externas (MCP), toma decisiones seguras y trabaja en segundo plano.</p>
+              </div>
+              <div class="slide-card lime-border">
+                <h4 class="lime">3. En SG-SST Colombiano</h4>
+                <p>El Decreto 1072/15 y la Res. 0312/19 exigen rigor legal, evidencia verificable y trazabilidad. La IA debe ejecutar, no adivinar.</p>
               </div>
             </div>
           </div>
 
-          <!-- SLIDE 4: POR QUÉ CHATGPT FALLA EN SST -->
+          <!-- SLIDE 4: WAPPY Y ANTIGRAVITY -->
           <div class="slide" id="slide-4">
-            <span class="slide-badge intro">Realidad del Sector</span>
-            <h2>Por qué la IA Tradicional Falla en la Prevención de Riesgos</h2>
+            <span class="slide-badge">Módulo 2 · Sinergia Clave</span>
+            <h2>WAPPY y Antigravity: Roles y Alianza Estratégica</h2>
             <p class="slide-lead">
-              El Sistema de Gestión de Seguridad y Salud en el Trabajo en Colombia no perdona la improvisación:
+              Antigravity <strong>NUNCA reemplaza a WAPPY</strong>. WAPPY es el cerebro SST insustituible y Antigravity es la fábrica que lo potencializa:
             </p>
             <div class="slide-content-grid two-cols">
-              <div class="slide-card">
-                <h4>❌ Los Dolores del Chatbot Tradicional</h4>
-                <p>• Alucinaciones normativas (inventa artículos del Decreto 1072 o Res. 0312).<br>• No recuerda el historial de tu empresa ni los hallazgos pasados.<br>• No puede abrir 50 PDFs de inspecciones en tu PC ni actualizar un Excel.</p>
-              </div>
               <div class="slide-card highlight">
-                <h4>✅ La Solución del Ecosistema WAPPY</h4>
-                <p>• Agentes con contexto legal permanente e inviolable.<br>• Citas jurídicas textuales sin inventar datos.<br>• Conexión directa a tus archivos y carpetas locales mediante Antigravity.</p>
+                <h4>🧠 WAPPY: El Núcleo de Gestión y Cumplimiento</h4>
+                <p>• Agentes especialistas (Médico Ocupacional, Abogado Laboral, Higienista).<br>• Matrices centralizadas: GTC 45, PESV, Químicos SGA, Cronograma.<br>• Base de datos viva y Tenshi Voice para campo.</p>
+              </div>
+              <div class="slide-card lime-border">
+                <h4 class="lime">⚡ Antigravity: El Brazo Local y Fábrica de Triggers</h4>
+                <p>• Lee carpetas locales de tu computador sin subir gigabytes a la nube.<br>• Ejecuta automatizaciones por horario (cron) y por eventos en disco.<br>• Alimenta y consulta a WAPPY mediante el protocolo MCP.</p>
               </div>
             </div>
           </div>
 
-          <!-- SLIDE 5: EL ROL DE WAPPY -->
+          <!-- SLIDE 5: QUÉ ES ANTIGRAVITY Y CÓMO FUNCIONA -->
           <div class="slide" id="slide-5">
-            <span class="slide-badge">La Plataforma Madre</span>
-            <h2>WAPPY: El Cerebro y Centro de Mando del SG-SST</h2>
+            <span class="slide-badge">Módulo 3 · Arquitectura</span>
+            <h2>¿Qué es Google Antigravity y Cómo Funciona?</h2>
             <p class="slide-lead">
-              WAPPY nunca se reemplaza; es la base de datos viva y el equipo interdisciplinario que respalda tu gestión:
+              Antigravity es el entorno de desarrollo y ejecución de agentes autónomos creado por Google:
             </p>
-            <div class="slide-content-grid three-cols">
+            <div class="slide-content-grid four-cols">
               <div class="slide-card">
-                <h4>👨‍⚕️ Agentes Especialistas</h4>
-                <p>Abogado Laboral, Higienista, Médico Ocupacional, Experto en Riesgo Vial y Químico.</p>
+                <h4>1. Rules (Reglas)</h4>
+                <p>Archivos <code>AGENTS.md</code> con instrucciones legales inviolables que el agente nunca ignora.</p>
               </div>
               <div class="slide-card">
-                <h4>📊 Matrices Centralizadas</h4>
-                <p>GTC 45, PESV (Res. 20223040040595), matriz legal, inventario SGA y ausentismo.</p>
+                <h4>2. Skills (Habilidades)</h4>
+                <p>Carpetas con <code>SKILL.md</code> que enseñan al agente a ejecutar tareas específicas paso a paso.</p>
               </div>
               <div class="slide-card">
-                <h4>🎙️ Tenshi Voice</h4>
-                <p>El asistente de voz en el celular para dictar hallazgos en campo manos libres.</p>
+                <h4>3. Workflows</h4>
+                <p>Comandos rápidos <code>/slash</code> para disparar flujos rutinarios complejos con una sola palabra.</p>
+              </div>
+              <div class="slide-card highlight">
+                <h4>4. Protocolo MCP</h4>
+                <p>El puerto USB-C universal que permite al agente invocar las 55+ herramientas de WAPPY Cloud.</p>
               </div>
             </div>
           </div>
 
-          <!-- SLIDE 6: EL ROL DE ANTIGRAVITY -->
+          <!-- SLIDE 6: DESCARGAR E INSTALAR ANTIGRAVITY -->
           <div class="slide" id="slide-6">
-            <span class="slide-badge">El Super-Motor Local</span>
-            <h2>Antigravity: El Brazo Ejecutor que Potencia a WAPPY</h2>
+            <span class="slide-badge">Módulo 4 · Instalación Práctica</span>
+            <h2>Descargar e Instalar Antigravity en tu Computador</h2>
             <p class="slide-lead">
-              ¿Por qué necesitas a Antigravity en tu computador? Para hacer todo lo que una web en la nube no puede tocar:
+              Paso a paso para dejar tu entorno listo hoy mismo en Windows, macOS o Linux:
             </p>
             <div class="slide-content-grid three-cols">
-              <div class="slide-card highlight">
-                <h4>📁 Lectura de Archivos Locales</h4>
-                <p>Lee 500 contratos o certificados médicos en tu disco duro y genera el consolidado para WAPPY.</p>
+              <div class="slide-card">
+                <h4>Paso 1: Instalación de Antigravity</h4>
+                <p>Descarga el ejecutable oficial o instálalo vía terminal CLI según tu sistema operativo.</p>
+              </div>
+              <div class="slide-card">
+                <h4>Paso 2: Conexión de Cuenta Google</h4>
+                <p>Inicia sesión con tu cuenta de Google para habilitar Gemini 2.5 / 1.5 Pro y los servicios cloud.</p>
               </div>
               <div class="slide-card highlight">
-                <h4>⏰ Triggers & Automatizaciones</h4>
-                <p>Se despierta solo por reloj (cron) o cuando entra un archivo nuevo a una carpeta.</p>
-              </div>
-              <div class="slide-card highlight">
-                <h4>🔌 Conexión MCP Universal</h4>
-                <p>Ejecuta las 55+ herramientas de WAPPY como si fuera un prevencionista operando el sistema 24/7.</p>
+                <h4>Paso 3: Verificación de Terminal</h4>
+                <p>Abre tu consola y ejecuta <code>agy --version</code> para verificar que el motor agéntico responde.</p>
               </div>
             </div>
           </div>
 
-          <!-- SLIDE 7: LOS TRIGGERS EN ANTIGRAVITY -->
+          <!-- SLIDE 7: CREAR UN PROYECTO EN ANTIGRAVITY -->
           <div class="slide" id="slide-7">
-            <span class="slide-badge">Superpoder Clave</span>
+            <span class="slide-badge">Módulo 5 · Estructura</span>
+            <h2>Crear tu Primer Proyecto de SST en Antigravity</h2>
+            <p class="slide-lead">
+              Cómo crear y organizar una carpeta de trabajo local que se convertirá en el centro de operaciones de tu agente:
+            </p>
+            <div class="slide-content-grid three-cols">
+              <div class="slide-card">
+                <h4>1. Crear Carpeta de Trabajo</h4>
+                <p>Crea una carpeta local: <code>Mi_Empresa_SST/</code> en tu disco duro y ábrela en Antigravity.</p>
+              </div>
+              <div class="slide-card highlight">
+                <h4>2. Estructura Recomendada</h4>
+                <p>Subcarpetas: <code>/inspecciones</code>, <code>/normativa</code>, <code>/informes</code> y archivo <code>AGENTS.md</code>.</p>
+              </div>
+              <div class="slide-card">
+                <h4>3. Workspace Activo</h4>
+                <p>El agente reconoce automáticamente los archivos locales y respeta las directrices del proyecto.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- SLIDE 8: CÓMO AUTOMATIZAR TAREAS Y TRIGGERS -->
+          <div class="slide" id="slide-8">
+            <span class="slide-badge lime-border">Módulo 6 · Automatización & Triggers</span>
             <h2>¿Antigravity Puede Tener Triggers? ¡Absolutamente Sí!</h2>
             <p class="slide-lead">
-              Los triggers son disparadores automáticos que ponen a trabajar a tus agentes sin que tú estés frente a la pantalla:
+              Los triggers son disparadores que despiertan al agente automáticamente sin que tengas que tocar el teclado:
             </p>
             <div class="slide-content-grid two-cols">
-              <div class="slide-card">
+              <div class="slide-card highlight">
                 <h4>⏰ 1. Trigger Temporal (Cron Schedules)</h4>
-                <p><strong>Ejemplo:</strong> Todos los lunes a las 6:00 AM, audita el cronograma de WAPPY y redacta recordatorios para los responsables de actividades vencidas.</p>
+                <p><strong>Ejemplo:</strong> Todos los lunes a las 6:00 AM, el agente revisa el cronograma de WAPPY, detecta actividades vencidas y redacta alertas a responsables.</p>
               </div>
-              <div class="slide-card">
-                <h4>📂 2. Trigger por Carpeta (File Watcher)</h4>
-                <p><strong>Ejemplo:</strong> Al caer fotos tomadas en obra a la carpeta <code>/Fotos_Inspeccion</code>, las analiza con visión computacional y registra el acto inseguro en WAPPY.</p>
+              <div class="slide-card highlight">
+                <h4>📂 2. Trigger por Carpeta (File Watchers)</h4>
+                <p><strong>Ejemplo:</strong> Al guardar una foto de obra en <code>/inspecciones</code>, el agente la analiza con visión IA y radica el reporte de condición insegura en WAPPY.</p>
               </div>
               <div class="slide-card">
                 <h4>🚨 3. Trigger por Umbral Reactivo</h4>
-                <p><strong>Ejemplo:</strong> Si el ausentismo laboral supera el 5% en WAPPY, se activa de inmediato para pedirle al Médico Ocupacional un reporte epidemiológico.</p>
+                <p><strong>Ejemplo:</strong> Si el ausentismo supera el 5% en WAPPY, el agente dispara un informe epidemiológico con el Médico Ocupacional.</p>
               </div>
               <div class="slide-card">
-                <h4>⚡ 4. Trigger por Webhooks / Subagentes</h4>
-                <p><strong>Ejemplo:</strong> Al diligenciar un formulario de Google o WhatsApp, se dispara un subagente en segundo plano sin congelar tu computador.</p>
+                <h4>⚡ 4. Trigger por Scripts Locales</h4>
+                <p><strong>Ejemplo:</strong> Ejecución tras descargar nóminas o listados de personal para actualizar trabajadores en WAPPY.</p>
               </div>
             </div>
           </div>
 
-          <!-- SLIDE 8: CÓMO SE CONECTAN VIA MCP -->
-          <div class="slide" id="slide-8">
-            <span class="slide-badge">Arquitectura del Puente</span>
-            <h2>El Conector MCP: El Puerto USB-C entre Antigravity y WAPPY</h2>
+          <!-- SLIDE 9: CREAR SKILLS PARA TAREAS RUTINARIAS -->
+          <div class="slide" id="slide-9">
+            <span class="slide-badge">Módulo 7 · Habilidades Modulares</span>
+            <h2>Crear Skills e Instrucciones para Tareas Rutinarias</h2>
             <p class="slide-lead">
-              El <strong>Model Context Protocol (MCP)</strong> permite a Antigravity controlar y consultar a WAPPY directamente:
+              Un Skill es una receta empaquetada (<code>SKILL.md</code>) para que el agente ejecute un proceso repetitivo a la perfección:
             </p>
             <div class="slide-content-grid three-cols">
               <div class="slide-card">
-                <h4>1. Antigravity Pregunta</h4>
-                <p>El agente local necesita saber qué tareas de SST están pendientes en la empresa.</p>
+                <h4>Anatomía de un Skill</h4>
+                <p>Encabezado YAML con <code>name</code> y <code>description</code>, seguido de pasos lógicos en Markdown.</p>
+              </div>
+              <div class="slide-card highlight">
+                <h4>Ejemplo 1: Inspección de EPP</h4>
+                <p>Paso 1: Leer remisión → Paso 2: Validar certificados → Paso 3: Radicar entrega en WAPPY.</p>
               </div>
               <div class="slide-card">
-                <h4>2. MCP Ejecuta la Herramienta</h4>
-                <p>Llama a <code>wappy_consultar_cronograma_sst</code> en tiempo real con seguridad.</p>
-              </div>
-              <div class="slide-card highlight">
-                <h4>3. WAPPY Responde y se Actualiza</h4>
-                <p>WAPPY entrega la información y recibe los reportes generados por Antigravity de inmediato.</p>
+                <h4>Ejemplo 2: Matriz GTC 45</h4>
+                <p>Revisa nuevos puestos de trabajo y calcula nivel de deficiencia y probabilidad automáticamente.</p>
               </div>
             </div>
           </div>
 
-          <!-- SLIDE 9: PROYECTO 1 EN VIVO -->
-          <div class="slide" id="slide-9">
-            <span class="slide-badge">Laboratorio Práctico</span>
-            <h2>Proyecto en Vivo: Creación de tu Primer Trigger de Seguridad</h2>
-            <p class="slide-lead">
-              Hoy configuramos en vivo una regla persistente (<code>AGENTS.md</code>) y una habilidad (<code>SKILL.md</code>) en tu máquina:
-            </p>
-            <div class="slide-content-grid two-cols">
-              <div class="slide-card highlight">
-                <h4>Paso 1: Blindar la Regla Normativa</h4>
-                <p>Definir que el agente solo aplique la GTC 45 y el Decreto 1072, citando artículo y sanción correspondiente.</p>
-              </div>
-              <div class="slide-card highlight">
-                <h4>Paso 2: Conectar el Disparador a WAPPY</h4>
-                <p>Hacer que el agente clasifique una condición insegura y la radique directamente en el panel de control de WAPPY.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- SLIDE 10: RETO SEMANAL -->
+          <!-- SLIDE 10: CONEXIÓN NOTEBOOKLM Y GOOGLE DRIVE -->
           <div class="slide" id="slide-10">
-            <span class="slide-badge">Reto de la Semana</span>
-            <h2>Tu Misión para la Clase 2 (Semana 1)</h2>
+            <span class="slide-badge">Módulo 8 · Ecosistema Google</span>
+            <h2>Conectar con Google NotebookLM & Google Drive</h2>
             <p class="slide-lead">
-              El conocimiento se fija cuando lo aplicas al día siguiente en tus empresas clientes:
+              El puente que une la inteligencia agéntica con el almacenamiento legal y la memoria documental:
             </p>
             <div class="slide-content-grid two-cols">
               <div class="slide-card highlight">
-                <h4>🎯 El Reto Técnico</h4>
-                <p>Dejar instalado Antigravity en tu computador y configurar tu primer trigger que consulte a WAPPY antes del próximo martes.</p>
+                <h4>📚 Google NotebookLM: Memoria Jurídica</h4>
+                <p>• Indexa códigos de 500 páginas (Decreto 1072, Resoluciones 0312, 1401, 2400).<br>• Citas textuales exactas con página y artículo, eliminando alucinaciones.<br>• Genera podcasts explicativos en audio para capacitaciones del COPASST.</p>
+              </div>
+              <div class="slide-card highlight">
+                <h4>☁️ Google Drive: Archivo de 20 Años</h4>
+                <p>• Cumplimiento estricto del archivo digital obligatorio de 20 años (Dec. 1072/15 Art. 2.2.4.6.13).<br>• Antigravity organiza automáticamente carpetas por año, sede y trabajador.<br>• Sincronización transparente de actas, firmas y certificados médicos.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- SLIDE 11: ALIMENTAR A WAPPY DESDE ANTIGRAVITY -->
+          <div class="slide" id="slide-11">
+            <span class="slide-badge lime-border">Módulo 9 · Alimentación en Vivo</span>
+            <h2>Alimentar a WAPPY desde Antigravity vía MCP</h2>
+            <p class="slide-lead">
+              Cómo el agente local envía los datos procesados en tu computador hacia las bases de datos de WAPPY Cloud:
+            </p>
+            <div class="slide-content-grid three-cols">
+              <div class="slide-card">
+                <h4>1. Lectura Local</h4>
+                <p>Antigravity procesa un Excel de nómina, un PDF de examen ocupacional o una foto de inspección.</p>
+              </div>
+              <div class="slide-card highlight">
+                <h4>2. Llamada MCP Segura</h4>
+                <p>Invoca herramientas como <code>wappy_alimentar_matriz_gtc45</code> o <code>wappy_registrar_trabajador</code>.</p>
+              </div>
+              <div class="slide-card">
+                <h4>3. Sincronización WAPPY</h4>
+                <p>Tu panel de WAPPY se actualiza en tiempo real: reportes, matrices e indicadores listos para auditoría.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- SLIDE 12: TALLER EN VIVO Y RETO SEMANAL -->
+          <div class="slide" id="slide-12">
+            <span class="slide-badge amber">Módulo 10 · Práctica & Reto #1</span>
+            <h2>Laboratorio en Vivo y Reto Semanal #1</h2>
+            <p class="slide-lead">
+              El aprendizaje se consolida ejecutando. Tu misión para la siguiente sesión:
+            </p>
+            <div class="slide-content-grid two-cols">
+              <div class="slide-card highlight">
+                <h4>🎯 Reto de la Semana (Clase 1 → Clase 2)</h4>
+                <p>1. Dejar instalado Antigravity en tu equipo.<br>2. Crear tu proyecto con <code>AGENTS.md</code> blindado con normativa colombiana.<br>3. Ejecutar tu primer skill o trigger que consulte o alimente un dato en WAPPY.</p>
               </div>
               <div class="slide-card">
                 <h4>🤝 Soporte VIP en WhatsApp</h4>
-                <p>Si te trabas con un comando o permiso, envías captura al grupo privado y te ayudamos paso a paso.</p>
+                <p>Si surge algún error de terminal o variables de entorno, compártelo en el grupo privado de WhatsApp de los 12 alumnos y lo resolvemos juntos.</p>
               </div>
             </div>
           </div>
@@ -1283,14 +1355,14 @@
     <!-- ==========================================================================
          SECCIÓN GUÍA COMPLETA (MODO GUÍA DE ESTUDIO CONTINUA)
          ========================================================================== -->
-    <div id="guide-mode" style="display: block;">
+    <div id="guide-mode" style="display: none;">
 
       <!-- HERO BANNER -->
       <section class="hero">
         <span class="hero-badge">Especialización Práctica SST con IA Agéntica</span>
-        <h1>Clase 1: Introducción a la IA & Google Antigravity como Potenciador de WAPPY</h1>
+        <h1>Clase 1: Introducción a la IA, WAPPY & Google Antigravity</h1>
         <p class="hero-sub">
-          Aprende a conectar el centro de mando y cumplimiento legal de WAPPY con la potencia de automatización local, carpetas y triggers de Google Antigravity.
+          Aprende a conectar el centro de mando y cumplimiento legal de WAPPY con la potencia de automatización local, carpetas vigiladas, triggers y herramientas de Google (NotebookLM y Drive).
         </p>
 
         <div class="hero-meta-grid">
@@ -1468,88 +1540,198 @@
       <!-- SECCIÓN 3: TEMARIO PASO A PASO -->
       <section>
         <div class="sec-header">
-          <span class="sec-tag">Cronograma 7:00 PM – 9:00 PM</span>
+          <span class="sec-tag">Programa Oficial Detallado</span>
           <h2 class="sec-title">Paso a Paso de la Clase de Hoy</h2>
         </div>
 
-        <!-- PASO 1 -->
+        <!-- TEMA 1: INTRO A LA IA -->
         <div class="step-card">
           <div class="step-header">
             <div class="step-tag-wrap">
-              <span class="step-pill" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a;">Apertura</span>
+              <span class="step-pill" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a;">Módulo 01</span>
               <span class="step-time">7:00 PM – 7:15 PM (15 Minutos Máx)</span>
             </div>
-            <span style="font-size:11px; font-weight:800; color:#b45309;">Concepto Clave</span>
+            <span style="font-size:11px; font-weight:800; color:#b45309;">Apertura & Despegue</span>
           </div>
-          <h3 class="step-title">1. Introducción a la Inteligencia Artificial (Fundamentos Clave)</h3>
+          <h3 class="step-title">1. Introducción a la Inteligencia Artificial (De ChatGPT a la IA Agéntica)</h3>
           <p class="step-desc">
-            En 15 minutos desmitificamos la IA: qué es, qué no es, y por qué el modelo tradicional de "hacerle preguntas a un chatbot" ya quedó atrás para los prevencionistas de riesgos.
+            En los primeros 15 minutos desmitificamos la IA: qué es, qué no es, y por qué los chatbots de texto plano fallan ante el rigor del SG-SST (Decreto 1072/15 y Res. 0312/19).
           </p>
           <ul class="step-list">
-            <li><strong>De la IA Generativa (ChatGPT) a la IA Agéntica:</strong> Por qué responder texto no es suficiente cuando se gestiona una matriz de 300 peligros o 60 estándares mínimos.</li>
-            <li><strong>Por qué no necesitas ser programador:</strong> La nueva era agéntica se programa en lenguaje natural, reglas de negocio y lógica de procesos.</li>
-            <li><strong>El triángulo del prevencionista moderno:</strong> LLMs (modelos de lenguaje) + RAG (contexto normativo sin alucinaciones) + Agentes ejecutores de herramientas.</li>
+            <li><strong>El colapso del prompt plano:</strong> Escribirle a un chat genérico no sirve para auditar 60 estándares mínimos ni para rastrear 200 exámenes médicos ocupacionales.</li>
+            <li><strong>Los 3 niveles de madurez:</strong> Asistente de texto vs Copiloto interactivo vs Agente Autónomo con herramientas de sistema operativo.</li>
+            <li><strong>Por qué no requieres ser programador:</strong> La IA Agéntica se parametriza en lenguaje natural, matrices de decisión y reglas de negocio SST.</li>
           </ul>
         </div>
 
-        <!-- PASO 2 -->
+        <!-- TEMA 2: WAPPY Y ANTIGRAVITY -->
         <div class="step-card">
           <div class="step-header">
             <div class="step-tag-wrap">
               <span class="step-pill">Módulo 02</span>
-              <span class="step-time">7:15 PM – 7:45 PM (30 Minutos)</span>
+              <span class="step-time">7:15 PM – 7:30 PM (15 Minutos)</span>
             </div>
             <span style="font-size:11px; font-weight:800; color:#0f766e;">La Alianza Estratégica</span>
           </div>
-          <h3 class="step-title">2. WAPPY (Cerebro SST) + Antigravity (Fábrica de Triggers y Automatizaciones)</h3>
+          <h3 class="step-title">2. WAPPY y Antigravity: Roles y Sinergia Inquebrantable</h3>
           <p class="step-desc">
-            Comprende la división de roles: WAPPY es el cerebro normativo y Antigravity es el brazo ejecutor local que hace lo que una web en la nube no puede tocar.
+            Comprende la división exacta de funciones: WAPPY es el cerebro y repositorio normativo; Antigravity es el brazo ejecutor local que potencia a WAPPY.
           </p>
           <ul class="step-list">
-            <li><strong>El rol inamovible de WAPPY:</strong> Donde residen tus agentes especialistas (Médico, Abogado, Higienista, Riesgo Vial), la matriz legal colombiana, químicos SGA y Tenshi Voice.</li>
-            <li><strong>El rol multiplicador de Antigravity:</strong> Instalado en tu computador, lee tus carpetas locales, procesa PDFs masivos y ejecuta tareas en segundo plano.</li>
-            <li><strong>Los 4 Pilares de Antigravity:</strong> Workflows (guías de procesos), Rules (reglas inviolables), Skills (habilidades modulares) y MCP (el conector universal).</li>
+            <li><strong>WAPPY como Cerebro Central:</strong> Aloja a los agentes especializados (Abogado Laboral, Higienista, Médico Ocupacional), las bases de datos legales y Tenshi Voice.</li>
+            <li><strong>Antigravity como Brazo Multiplicador:</strong> Lee tu disco duro, ejecuta tareas por horario y vigila carpetas locales para alimentar a WAPPY sin esfuerzo manual.</li>
+            <li><strong>Prevención 360°:</strong> Lo que una aplicación web no puede tocar por seguridad en tu PC, lo ejecuta Antigravity de forma autorizada.</li>
           </ul>
         </div>
 
-        <!-- PASO 3 -->
+        <!-- TEMA 3: QUÉ ES ANTIGRAVITY Y CÓMO FUNCIONA -->
         <div class="step-card">
           <div class="step-header">
             <div class="step-tag-wrap">
               <span class="step-pill">Módulo 03</span>
-              <span class="step-time">7:45 PM – 8:25 PM (40 Minutos)</span>
+              <span class="step-time">7:30 PM – 7:45 PM (15 Minutos)</span>
             </div>
-            <span style="font-size:11px; font-weight:800; color:#0f766e;">Superpoderes con Triggers</span>
+            <span style="font-size:11px; font-weight:800; color:#0f766e;">Arquitectura Técnica</span>
           </div>
-          <h3 class="step-title">3. Triggers en Antigravity para Potenciar a WAPPY</h3>
+          <h3 class="step-title">3. ¿Qué es Google Antigravity y Cómo Funciona?</h3>
           <p class="step-desc">
-            Aprende a crear disparadores automáticos para que el sistema trabaje solo mientras tú estás en campo o con clientes.
+            Explicación didáctica de la arquitectura agéntica de Google: cómo piensa un agente, cómo navega los archivos y cómo ejecuta acciones.
           </p>
           <ul class="step-list">
-            <li><strong>Trigger 1 · Cron / Horario:</strong> El auditor semanal de WAPPY que despierta los lunes a las 6:00 AM para revisar el cronograma de actividades y alertar a la gerencia.</li>
-            <li><strong>Trigger 2 · Carpetas Locales (File Watcher):</strong> Al guardar fotos de obra o inspecciones en el PC, Antigravity las analiza y registra el reporte de acto/condición en WAPPY.</li>
-            <li><strong>Trigger 3 · Umbrales Reactivos:</strong> Activación automática de planes de acción cuando un indicador en WAPPY sobrepasa el límite permitido.</li>
-            <li><strong>Conexión MCP:</strong> Cómo Antigravity ejecuta en tiempo real las 55+ herramientas nativas de WAPPY.</li>
+            <li><strong>Entornos de Antigravity:</strong> Antigravity IDE (entorno visual de trabajo), Antigravity Desktop app y terminal CLI (<code>agy</code>).</li>
+            <li><strong>Los 4 Pilares Maestros:</strong> Rules (reglas persistentes inviolables), Skills (habilidades bajo demanda), Workflows (flujos guiados) y MCP (Model Context Protocol).</li>
+            <li><strong>Control Humano en el Bucle (Human-in-the-Loop):</strong> El agente solicita confirmación antes de ejecutar cambios críticos o eliminar datos.</li>
           </ul>
         </div>
 
-        <!-- PASO 4 -->
+        <!-- TEMA 4: DESCARGAR E INSTALAR ANTIGRAVITY -->
         <div class="step-card">
           <div class="step-header">
             <div class="step-tag-wrap">
               <span class="step-pill">Módulo 04</span>
-              <span class="step-time">8:25 PM – 9:00 PM (35 Minutos)</span>
+              <span class="step-time">7:45 PM – 8:00 PM (15 Minutos)</span>
             </div>
-            <span style="font-size:11px; font-weight:800; color:#ef4444;">Laboratorio en Vivo</span>
+            <span style="font-size:11px; font-weight:800; color:#0f766e;">Instalación en Vivo</span>
           </div>
-          <h3 class="step-title">4. Laboratorio Práctico en Vivo #1 & Reto Semanal</h3>
+          <h3 class="step-title">4. Descargar e Instalar Antigravity en tu Equipo</h3>
           <p class="step-desc">
-            Construcción en vivo de tu primer trigger local en tu máquina y asignación del reto de la semana.
+            Instalación en tiempo real para todos los sistemas operativos (Windows, Mac y Linux) garantizando que ningún alumno se quede atrás.
           </p>
           <ul class="step-list">
-            <li><strong>Taller guiado:</strong> Redacción de tu archivo <code>AGENTS.md</code> y creación de tu primera habilidad conectada a WAPPY.</li>
-            <li><strong>Ronda de preguntas y debugging colaborativo:</strong> Ajuste de variables y resolución de dudas técnicas en vivo.</li>
-            <li><strong>Reto de la Semana (Laboratorio 1):</strong> Dejar configurado tu primer trigger que consulte a WAPPY antes del próximo martes.</li>
+            <li><strong>Requisitos de sistema:</strong> Computador con Windows 10/11, macOS o Linux con mínimo 8GB de memoria RAM.</li>
+            <li><strong>Instalación y Login de Google:</strong> Vinculación segura de la cuenta de Google para habilitar las APIs y modelos agénticos.</li>
+            <li><strong>Comprobación en Terminal:</strong> Verificación de dependencias y primer comando de prueba en vivo.</li>
+          </ul>
+          <div class="code-box">
+            <div class="code-box-header">
+              <span class="code-box-title">💻 Terminal · Verificación de Instalación</span>
+              <button class="btn-copy" onclick="copyCode('cmd-install', this)">Copiar</button>
+            </div>
+            <pre class="code-content" id="cmd-install"># Comprobar la versión instalada de Antigravity
+agy --version
+
+# Iniciar el entorno interactivo
+agy</pre>
+          </div>
+        </div>
+
+        <!-- TEMA 5: CREAR UN PROYECTO EN ANTIGRAVITY -->
+        <div class="step-card">
+          <div class="step-header">
+            <div class="step-tag-wrap">
+              <span class="step-pill">Módulo 05</span>
+              <span class="step-time">8:00 PM – 8:15 PM (15 Minutos)</span>
+            </div>
+            <span style="font-size:11px; font-weight:800; color:#0f766e;">Estructura de Carpetas</span>
+          </div>
+          <h3 class="step-title">5. Crear tu Primer Proyecto SST en Antigravity</h3>
+          <p class="step-desc">
+            Aprende a estructurar el espacio de trabajo local para que el agente entienda tu contexto empresarial y normativo desde el primer segundo.
+          </p>
+          <ul class="step-list">
+            <li><strong>Creación de la carpeta del proyecto:</strong> Apertura de la carpeta en Antigravity y configuración del workspace.</li>
+            <li><strong>El archivo <code>AGENTS.md</code>:</strong> La "constitución" inviolable del proyecto con leyes colombianas, responsabilidades y alcance del SG-SST.</li>
+            <li><strong>Estructura recomendada:</strong> Carpetas para <code>/inspecciones</code>, <code>/epp</code>, <code>/ausentismo</code> y <code>/normativa</code>.</li>
+          </ul>
+        </div>
+
+        <!-- TEMA 6: AUTOMATIZAR TAREAS Y TRIGGERS -->
+        <div class="step-card">
+          <div class="step-header">
+            <div class="step-tag-wrap">
+              <span class="step-pill" style="background:#ccfbf1; color:#047857; border:1px solid #99f6e4;">Módulo 06</span>
+              <span class="step-time">8:15 PM – 8:30 PM (15 Minutos)</span>
+            </div>
+            <span style="font-size:11px; font-weight:800; color:#047857;">Superpoder Clave</span>
+          </div>
+          <h3 class="step-title">6. Cómo Automatizar Tareas y Triggers en Antigravity</h3>
+          <p class="step-desc">
+            ¿Antigravity puede tener triggers? ¡SÍ! Aprende a configurar disparadores automáticos que ejecuten acciones sin intervención manual.
+          </p>
+          <ul class="step-list">
+            <li><strong>Trigger 1 · Temporizador Cron:</strong> Programación para que el agente se active cada lunes a las 6:00 AM y revise tareas vencidas en WAPPY.</li>
+            <li><strong>Trigger 2 · Carpetas Vigiladas (File Watcher):</strong> Al guardar fotos de inspecciones en tu PC, el agente las analiza con visión computacional y radica el hallazgo.</li>
+            <li><strong>Trigger 3 · Umbrales Reactivos:</strong> Disparos automáticos si un indicador de riesgo o ausentismo sobrepasa el límite permitido.</li>
+          </ul>
+        </div>
+
+        <!-- TEMA 7: CREAR SKILLS RUTINARIAS -->
+        <div class="step-card">
+          <div class="step-header">
+            <div class="step-tag-wrap">
+              <span class="step-pill">Módulo 07</span>
+              <span class="step-time">8:30 PM – 8:40 PM (10 Minutos)</span>
+            </div>
+            <span style="font-size:11px; font-weight:800; color:#0f766e;">Habilidades Modulares</span>
+          </div>
+          <h3 class="step-title">7. Crear Skills e Instrucciones para Tareas Rutinarias</h3>
+          <p class="step-desc">
+            Aprende a empaquetar procedimientos repetitivos de tu empresa en archivos <code>SKILL.md</code> para que el agente los ejecute de forma estandarizada.
+          </p>
+          <ul class="step-list">
+            <li><strong>Estructura de un Skill:</strong> Nombre, descripción precisa y pasos de ejecución secuenciales.</li>
+            <li><strong>Caso práctico:</strong> Skill para auditar entregas de EPP y contrastarlas con la matriz de elementos de protección personal.</li>
+            <li><strong>Ahorro de tokens:</strong> Las habilidades solo se cargan en la memoria del agente cuando son invocadas, optimizando costos y velocidad.</li>
+          </ul>
+        </div>
+
+        <!-- TEMA 8: NOTEBOOKLM Y DRIVE -->
+        <div class="step-card">
+          <div class="step-header">
+            <div class="step-tag-wrap">
+              <span class="step-pill">Módulo 08</span>
+              <span class="step-time">8:40 PM – 8:50 PM (10 Minutos)</span>
+            </div>
+            <span style="font-size:11px; font-weight:800; color:#0f766e;">Ecosistema Google</span>
+          </div>
+          <h3 class="step-title">8. Conectar con Google NotebookLM & Google Drive</h3>
+          <p class="step-desc">
+            Integra la memoria jurídica oficial y el almacenamiento documental legal de 20 años en tu ecosistema agéntico.
+          </p>
+          <ul class="step-list">
+            <li><strong>Google NotebookLM como memoria jurídica:</strong> Carga de códigos normativos (Decreto 1072, Res. 0312, 1401) para obtener citas exactas con página y artículo, sin inventar nada.</li>
+            <li><strong>Generación de Podcasts en Audio:</strong> Creación de cápsulas de 5 minutos generadas por IA para divulgar lecciones aprendidas al COPASST.</li>
+            <li><strong>Google Drive para Archivo de 20 Años:</strong> Cumplimiento legal del Artículo 2.2.4.6.13 del Decreto 1072/15 con carpetas estructuradas y respaldadas.</li>
+          </ul>
+        </div>
+
+        <!-- TEMA 9: ALIMENTAR A WAPPY -->
+        <div class="step-card">
+          <div class="step-header">
+            <div class="step-tag-wrap">
+              <span class="step-pill" style="background:#ccfbf1; color:#047857; border:1px solid #99f6e4;">Módulo 09</span>
+              <span class="step-time">8:50 PM – 9:00 PM (10 Minutos)</span>
+            </div>
+            <span style="font-size:11px; font-weight:800; color:#047857;">Alimentación en Vivo</span>
+          </div>
+          <h3 class="step-title">9. Alimentar a WAPPY desde Antigravity vía MCP</h3>
+          <p class="step-desc">
+            El cierre maestro: cómo Antigravity lee los archivos locales y actualiza automáticamente las bases de datos de WAPPY Cloud.
+          </p>
+          <ul class="step-list">
+            <li><strong>El conector MCP de WAPPY:</strong> Conexión autenticada con las herramientas oficiales de WAPPY (matrices GTC 45, PESV, trabajadores, químicos).</li>
+            <li><strong>Flujo bidireccional:</strong> Antigravity consulta el estado de la empresa en WAPPY, procesa la información y devuelve los registros consolidados.</li>
+            <li><strong>Asignación del Reto Semanal #1:</strong> Dejar tu primer agente local configurado y sincronizado con WAPPY antes de la Clase 2.</li>
           </ul>
         </div>
       </section>
@@ -1573,7 +1755,7 @@
 >
 > 1. Toda recomendación técnica DEBE citar el artículo, decreto o resolución oficial vigente.
 > 2. En planes de mejora, define siempre: Actividad, Responsable, Recursos y Fecha límite.
-> 3. WAPPY es tu fuente central de verdad: consulta siempre los datos reales de la empresa.</pre>
+> 3. WAPPY es tu cerebro y fuente central de verdad: consulta siempre los datos reales de la empresa.</pre>
         </div>
 
         <div class="code-box">
@@ -1587,7 +1769,7 @@ description: Habilidad especializada para vigilar carpetas de fotos, clasificar 
 ---
 
 # Procedimiento de Inspección Agéntica
-1. Detecta la nueva fotografía o reporte en la carpeta vigilada.
+1. Detecta la nueva fotografía o reporte en la carpeta vigilada /inspecciones.
 2. Identifica el factor de riesgo según la GTC 45 (Físico, Químico, Biomecánico, Seguridad).
 3. Evalúa el nivel de deficiencia y la medida correctiva sugerida.
 4. Conéctate a WAPPY vía MCP y registra el reporte en el centro de control.</pre>
@@ -1635,7 +1817,7 @@ description: Habilidad especializada para vigilar carpetas de fotos, clasificar 
   <script>
     // Slide Deck Controller
     let currentSlide = 1;
-    const totalSlides = 10;
+    const totalSlides = 12;
 
     function showSlide(index) {
       if (index < 1 || index > totalSlides) return;

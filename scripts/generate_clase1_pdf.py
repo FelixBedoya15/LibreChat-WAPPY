@@ -646,9 +646,9 @@ html_content = f"""<!DOCTYPE html>
               Encendido de cámaras, saludo inicial de los 12 alumnos y comprensión rápida del salto cuántico de la IA.
             </div>
             <ul class="topics-list">
-              <li><strong>De ChatGPT a la IA Agéntica:</strong> Por qué los chatbots tradicionales y prompts de texto plano fallan ante la complejidad del SG-SST (Decreto 1072/15 y Res. 0312/19).</li>
-              <li><strong>Los 3 niveles de madurez:</strong> Asistente de texto vs Copiloto reactivo vs Agente Autónomo con herramientas.</li>
-              <li><strong>El Núcleo Inquebrantable:</strong> WAPPY como cerebro, repositorio central y centro de cumplimiento normativo que jamás se reemplaza.</li>
+              <li><strong>De ChatGPT a la IA Agéntica:</strong> Por qué los chatbots de texto plano fallan ante el rigor documental del SG-SST (Dec. 1072/15 y Res. 0312/19).</li>
+              <li><strong>WAPPY como Núcleo Central:</strong> El cerebro normativo y base de datos viva que jamás se reemplaza.</li>
+              <li><strong>Los 3 niveles de madurez:</strong> Asistente de texto vs Copiloto reactivo vs Agente ejecutor autónomo.</li>
             </ul>
           </div>
         </div>
@@ -656,21 +656,21 @@ html_content = f"""<!DOCTYPE html>
         <!-- Bloque 2 -->
         <div class="timeline-item">
           <div class="timeline-time">
-            <span class="time-range">7:15 – 7:55 PM</span>
-            <span class="time-dur">40 Minutos</span>
+            <span class="time-range">7:15 – 7:45 PM</span>
+            <span class="time-dur">30 Minutos</span>
           </div>
           <div class="timeline-content">
             <div class="timeline-title">
-              <span>Módulo 2: Antigravity como Multiplicador de WAPPY & Motor de Triggers</span>
-              <span class="timeline-badge">Arquitectura & Triggers</span>
+              <span>Módulo 2: Antigravity: Qué es, Cómo Funciona, Instalación y Proyectos</span>
+              <span class="timeline-badge">Setup & Proyecto</span>
             </div>
             <div class="timeline-desc">
-              Cómo Antigravity ejecuta automatizaciones locales y disparadores (triggers) que la web no puede hacer sola.
+              Entendiendo la plataforma agéntica de Google e instalando el entorno en tu computador.
             </div>
             <ul class="topics-list">
-              <li><strong>¿Antigravity puede tener Triggers?:</strong> Automatización por cron (horarios), carpetas vigiladas (file watcher en disco local) y disparadores reactivos por umbrales.</li>
-              <li><strong>Superficies de Antigravity:</strong> Antigravity IDE, Antigravity 2.0 y terminal CLI (<code>agy</code>).</li>
-              <li><strong>Los 4 Pilares de Control:</strong> <em>Rules</em> (reglas inviolables <code>AGENTS.md</code>), <em>Skills</em> (habilidades bajo demanda <code>SKILL.md</code>), <em>Workflows</em> y <em>MCP</em>.</li>
+              <li><strong>¿Qué es Antigravity y cómo funciona?:</strong> Arquitectura, superficies (IDE, Desktop, CLI <code>agy</code>), workflows y control humano.</li>
+              <li><strong>Descarga e Instalación en Vivo:</strong> Paso a paso en Windows, macOS y Linux con vinculación de cuenta Google.</li>
+              <li><strong>Creación del Primer Proyecto SST:</strong> Estructura de carpetas locales y creación del archivo <code>AGENTS.md</code> blindado con leyes colombianas.</li>
             </ul>
           </div>
         </div>
@@ -678,21 +678,21 @@ html_content = f"""<!DOCTYPE html>
         <!-- Bloque 3 -->
         <div class="timeline-item">
           <div class="timeline-time">
-            <span class="time-range">7:55 – 8:35 PM</span>
+            <span class="time-range">7:45 – 8:25 PM</span>
             <span class="time-dur">40 Minutos</span>
           </div>
           <div class="timeline-content">
             <div class="timeline-title">
-              <span>Módulo 3: El Puente Técnico: Antigravity + WAPPY + Google Tools</span>
-              <span class="timeline-badge" style="background:#ecfdf5; color:#047857; border-color:#a7f3d0;">Integración Real</span>
+              <span>Módulo 3: Triggers, Skills Rutinarias, NotebookLM & Google Drive</span>
+              <span class="timeline-badge" style="background:#ecfdf5; color:#047857; border-color:#a7f3d0;">Automatización Real</span>
             </div>
             <div class="timeline-desc">
-              Conexión bidireccional entre el agente de escritorio y los servicios en la nube.
+              Configuración de disparadores locales, habilidades paso a paso y conexión con herramientas de Google.
             </div>
             <ul class="topics-list">
-              <li><strong>Antigravity + WAPPY vía MCP:</strong> Lectura y alimentación autónoma de matrices GTC 45, PESV, productos químicos y ausentismo.</li>
-              <li><strong>Antigravity + Google NotebookLM:</strong> Citas textuales de normativa colombiana sin alucinaciones y generación de podcasts en audio.</li>
-              <li><strong>Antigravity + Google Workspace:</strong> Archivo digital de 20 años en Google Drive, generación automática de actas PDF y cronogramas en Calendar.</li>
+              <li><strong>Automatización y Triggers Locales:</strong> Disparadores por cron (horarios), carpetas vigiladas en disco (file watchers de fotos) y umbrales de riesgo.</li>
+              <li><strong>Creación de Skills para Tareas Rutinarias:</strong> Estructura <code>SKILL.md</code> para auditar entregas de EPP e inspecciones periódicas.</li>
+              <li><strong>Google NotebookLM & Drive de 20 Años:</strong> Citas textuales de decretos sin alucinaciones y archivo digital legal (Dec. 1072 Art. 2.2.4.6.13).</li>
             </ul>
           </div>
         </div>
@@ -700,21 +700,21 @@ html_content = f"""<!DOCTYPE html>
         <!-- Bloque 4 -->
         <div class="timeline-item">
           <div class="timeline-time">
-            <span class="time-range">8:35 – 9:00 PM</span>
-            <span class="time-dur">25 Minutos</span>
+            <span class="time-range">8:25 – 9:00 PM</span>
+            <span class="time-dur">35 Minutos</span>
           </div>
           <div class="timeline-content">
             <div class="timeline-title">
-              <span>Módulo 4: Taller en Vivo, Debugging y Reto Semanal</span>
-              <span class="timeline-badge" style="background:#fef2f2; color:#b91c1c; border-color:#fecaca;">Taller Práctico</span>
+              <span>Módulo 4: Alimentar a WAPPY desde Antigravity, Taller en Vivo y Reto #1</span>
+              <span class="timeline-badge" style="background:#fef2f2; color:#b91c1c; border-color:#fecaca;">Alimentación & Taller</span>
             </div>
             <div class="timeline-desc">
-              Configuración en vivo del primer agente de escritorio y resolución de dudas técnicas.
+              Conexión bidireccional vía MCP, resolución colaborativa de dudas y reto semanal.
             </div>
             <ul class="topics-list">
-              <li><strong>Práctica Guiada:</strong> Redacción de la primera <code>Rule</code> de seguridad y creación de un <code>Skill</code> para auditar hallazgos en campo.</li>
-              <li><strong>Resolución de Conflictos:</strong> Pantalla compartida para resolver configuraciones de terminal y variables de entorno.</li>
-              <li><strong>Asignación del Reto #1:</strong> Primer agente local sincronizado con WAPPY antes de la Clase 2.</li>
+              <li><strong>Alimentar a WAPPY vía MCP:</strong> Cómo Antigravity procesa archivos locales y actualiza en vivo las matrices GTC 45, PESV y trabajadores de WAPPY.</li>
+              <li><strong>Laboratorio Práctico Guiado:</strong> Ejecución de tu primer agente local conectado en pantalla compartida.</li>
+              <li><strong>Asignación del Reto Semanal #1:</strong> Primer agente local sincronizado con WAPPY antes de la Clase 2.</li>
             </ul>
           </div>
         </div>
