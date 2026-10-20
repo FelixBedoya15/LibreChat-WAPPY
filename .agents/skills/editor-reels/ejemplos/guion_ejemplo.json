@@ -1,0 +1,369 @@
+{
+ "video": "reels/prueba/base.mp4",
+ "correcciones": {
+  "convierte": "conviertes",
+  "video": "vídeo"
+ },
+ "destacar": [
+  [
+   "google",
+   0,
+   1
+  ],
+  [
+   "ecosistema"
+  ],
+  [
+   "gratis"
+  ],
+  [
+   "gemini"
+  ],
+  [
+   "notebook"
+  ],
+  [
+   "cerebro"
+  ],
+  [
+   "google",
+   15.4,
+   16
+  ],
+  [
+   "stitch"
+  ],
+  [
+   "antigravity"
+  ],
+  [
+   "funcional"
+  ],
+  [
+   "presupuestos"
+  ],
+  [
+   "google",
+   32.6,
+   33.2
+  ],
+  [
+   "flow"
+  ],
+  [
+   "todo",
+   40.2,
+   41
+  ],
+  [
+   "junto",
+   40.2,
+   41
+  ],
+  [
+   "sencilla"
+  ],
+  [
+   "vídeo",
+   49.8,
+   50.3
+  ]
+ ],
+ "partir_subtitulos_en": [
+  2.24,
+  13.76,
+  51.1,
+  51.8
+ ],
+ "zooms": [
+  [
+   1.0,
+   1.02
+  ],
+  [
+   1.05,
+   1.06
+  ],
+  [
+   1.0,
+   1.025
+  ],
+  [
+   1.045,
+   1.06
+  ],
+  [
+   1.0,
+   1.025
+  ],
+  [
+   1.05,
+   1.06
+  ],
+  [
+   1.0,
+   1.02
+  ],
+  [
+   1.045,
+   1.06
+  ],
+  [
+   1.0,
+   1.03
+  ],
+  [
+   1.05,
+   1.06
+  ],
+  [
+   1.0,
+   1.04
+  ]
+ ],
+ "logos": {
+  "google": "Google",
+  "gemini": "Gemini",
+  "stitch": "Google Stitch",
+  "antigravity": "Antigravity",
+  "flow": "Google Flow"
+ },
+ "capitulos": [
+  {
+   "i": 7.9,
+   "f": 15.4333,
+   "num": "01",
+   "titulo": "Conocimiento",
+   "logo": "gemini",
+   "logoDesde": 10.0
+  },
+  {
+   "i": 15.4333,
+   "f": 21.1333,
+   "num": "02",
+   "titulo": "Diseño",
+   "logo": "stitch",
+   "logoDesde": 17.1
+  },
+  {
+   "i": 21.1333,
+   "f": 31.9667,
+   "num": "03",
+   "titulo": "Desarrollo",
+   "logo": "antigravity",
+   "logoDesde": 23.75
+  },
+  {
+   "i": 31.9667,
+   "f": 40.3,
+   "num": "04",
+   "titulo": "Marketing",
+   "logo": "flow",
+   "logoDesde": 34.3
+  },
+  {
+   "i": 40.3,
+   "f": 49.5333,
+   "titulo": "Todo junto",
+   "logo": "google",
+   "logoDesde": 40.3
+  }
+ ],
+ "elementos": [
+  {
+   "tipo": "logo",
+   "i": 0.0,
+   "f": 5.0,
+   "logo": "google",
+   "nombre": "Google"
+  },
+  {
+   "tipo": "ecosistema",
+   "i": 4.82,
+   "f": 6.9,
+   "centro": "google",
+   "logos": [
+    "gemini",
+    "stitch",
+    "antigravity",
+    "flow"
+   ],
+   "entradas": [
+    5.1,
+    5.3,
+    5.5,
+    5.7
+   ]
+  },
+  {
+   "tipo": "destacado",
+   "i": 6.85,
+   "f": 8.05,
+   "texto": "Gratis",
+   "color": "green",
+   "icono": "check"
+  },
+  {
+   "tipo": "logo",
+   "i": 8.05,
+   "f": 10.2,
+   "logo": "gemini",
+   "nombre": "Gemini Notebook",
+   "acoplar": 9.55
+  },
+  {
+   "tipo": "convergencia",
+   "i": 10.25,
+   "f": 15.4333,
+   "iconos": [
+    "file",
+    "mail",
+    "msg",
+    "image",
+    "chart",
+    "folder",
+    "db",
+    "calendar"
+   ],
+   "unir": 13.85,
+   "final": {
+    "icono": "brain",
+    "texto": "EL CEREBRO DE TU NEGOCIO",
+    "en": 14.45
+   }
+  },
+  {
+   "tipo": "logo",
+   "i": 15.55,
+   "f": 17.3,
+   "logo": "stitch",
+   "nombre": "Google Stitch",
+   "acoplar": 16.65
+  },
+  {
+   "tipo": "mockup",
+   "i": 17.35,
+   "f": 21.1333,
+   "appEn": 999,
+   "titulo": "tunegocio.com"
+  },
+  {
+   "tipo": "logo",
+   "i": 22.15,
+   "f": 24.0,
+   "logo": "antigravity",
+   "nombre": "Antigravity",
+   "acoplar": 23.3
+  },
+  {
+   "tipo": "mockup",
+   "i": 23.75,
+   "f": 31.9667,
+   "appEn": 24.9,
+   "titulo": "tunegocio.com",
+   "totalEn": 30.95,
+   "resaltes": [
+    {
+     "en": 27.32,
+     "k": 0
+    },
+    {
+     "en": 28.2,
+     "k": 1
+    },
+    {
+     "en": 30.92,
+     "k": 2
+    }
+   ]
+  },
+  {
+   "tipo": "logo",
+   "i": 32.72,
+   "f": 34.5,
+   "logo": "flow",
+   "nombre": "Google Flow",
+   "acoplar": 33.85
+  },
+  {
+   "tipo": "chips",
+   "i": 36.1,
+   "f": 40.3,
+   "columnas": 2,
+   "items": [
+    {
+     "texto": "Imágenes",
+     "icono": "image",
+     "en": 36.17
+    },
+    {
+     "texto": "Vídeos",
+     "icono": "video",
+     "en": 36.8
+    },
+    {
+     "texto": "Anuncios",
+     "icono": "megaphone",
+     "en": 37.5
+    },
+    {
+     "texto": "Redes",
+     "icono": "share",
+     "en": 39.44
+    }
+   ]
+  },
+  {
+   "tipo": "pipeline",
+   "i": 40.3,
+   "f": 45.9,
+   "nodos": [
+    {
+     "logo": "gemini",
+     "texto": "CONOCIMIENTO",
+     "en": 41.02
+    },
+    {
+     "logo": "stitch",
+     "texto": "DISEÑO",
+     "en": 42.26
+    },
+    {
+     "logo": "antigravity",
+     "texto": "DESARROLLO",
+     "en": 43.18
+    },
+    {
+     "logo": "flow",
+     "texto": "MARKETING",
+     "en": 45.14
+    }
+   ]
+  },
+  {
+   "tipo": "lista",
+   "i": 46.3,
+   "f": 49.5,
+   "color": "green",
+   "items": [
+    {
+     "texto": "Muy sencillo",
+     "en": 46.32
+    },
+    {
+     "texto": "Sin conocimientos",
+     "en": 47.5
+    }
+   ]
+  },
+  {
+   "tipo": "cta",
+   "i": 49.6,
+   "f": 53.8335,
+   "etiqueta": "COMENTA",
+   "palabra": "VÍDEO",
+   "escribirEn": 49.94,
+   "sub": "y te enseño a implementarlo paso a paso"
+  }
+ ]
+}

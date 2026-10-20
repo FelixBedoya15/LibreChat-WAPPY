@@ -1,0 +1,28 @@
+{
+  "muse": {
+    "name": "Muse",
+    "aliases": [
+      "Muse"
+    ],
+    "file": "logos/muse.svg",
+    "source": "vectorizado del icono oficial (ai.meta.com/muse/download)",
+    "color": "#0381F7",
+    "mono": false,
+    "wordmark": null,
+    "quality": "high",
+    "fetched": "2026-09-28"
+  },
+  "metalockup": {
+    "name": "Meta (logotipo completo)",
+    "aliases": [
+      "Meta lockup"
+    ],
+    "file": "logos/meta-lockup.svg",
+    "source": "web oficial de Meta",
+    "color": "#0082FB",
+    "mono": false,
+    "wordmark": null,
+    "quality": "high",
+    "fetched": "2026-09-28"
+  }
+}

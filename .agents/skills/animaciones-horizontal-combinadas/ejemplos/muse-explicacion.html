@@ -1,0 +1,1341 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Muse explicación</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+@font-face{font-family:'Outfit';font-weight:400;font-display:block;src:url(assets/fonts/outfit-400.woff2) format('woff2')}
+@font-face{font-family:'Outfit';font-weight:500;font-display:block;src:url(assets/fonts/outfit-500.woff2) format('woff2')}
+@font-face{font-family:'Outfit';font-weight:600;font-display:block;src:url(assets/fonts/outfit-600.woff2) format('woff2')}
+@font-face{font-family:'Outfit';font-weight:700;font-display:block;src:url(assets/fonts/outfit-700.woff2) format('woff2')}
+@font-face{font-family:'Outfit';font-weight:800;font-display:block;src:url(assets/fonts/outfit-800.woff2) format('woff2')}
+@font-face{font-family:'JetBrains Mono';font-weight:400;font-display:block;src:url(assets/fonts/jbmono-400.woff2) format('woff2')}
+@font-face{font-family:'JetBrains Mono';font-weight:500;font-display:block;src:url(assets/fonts/jbmono-500.woff2) format('woff2')}
+@font-face{font-family:'JetBrains Mono';font-weight:600;font-display:block;src:url(assets/fonts/jbmono-600.woff2) format('woff2')}
+
+/* =====================================================================
+   PALETA: base oscura del canal + un color por bando.
+   .lado-a / .lado-b / .lado-n definen --c (color), --rgb (el mismo en r,g,b), --c2 (claro) y --c3 (muy claro).
+   Cambia los valores por los colores de marca de lo que se compare (references/diseno.md).
+   ===================================================================== */
+:root{
+  --bg:#0a0c10; --text:#eef1f7; --text2:#d5dae4; --muted:#98a1b3; --label:#8d97ab;
+  --gold:#E9C46A; --green:#3ddc84; --red:#ec6a5e;
+  --grad1:#E8906F; --grad2:#86A3FF;                       /* degradado de la palabra clave del título */
+  --card-b:#252932; --chip-bg:#12151c; --chip-b:#2a2f3a;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --sans:'Outfit',system-ui,sans-serif;
+}
+.lado-a{--c:#D97757;--rgb:217,119,87;--c2:#EE9A7A;--c3:#F4B79E}      /* ej.: Claude / Anthropic */
+.lado-b{--c:#7C9CFF;--rgb:124,156,255;--c2:#A5BAFF;--c3:#C8D5FF}     /* ej.: OpenAI */
+.lado-n{--c:#3e6ef2;--rgb:62,110,242;--c2:#6f8ff0;--c3:#a8bcfe}      /* neutro: azul del canal */
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#050608;overflow:hidden}
+#viewport{position:absolute;left:0;right:0;top:0;bottom:56px;display:flex;align-items:center;justify-content:center}
+body.render #viewport{bottom:0;align-items:flex-start;justify-content:flex-start}
+#stage{position:relative;width:1920px;height:1080px;overflow:hidden;background:var(--bg);font-family:var(--sans);color:var(--text);flex:none}
+
+/* fondo */
+#grid{position:absolute;inset:0;background-image:radial-gradient(circle,rgba(160,176,214,.15) 1.3px,transparent 1.9px);background-size:36px 36px;
+  -webkit-mask-image:radial-gradient(ellipse 72% 72% at 50% 48%,#000 30%,transparent 100%);mask-image:radial-gradient(ellipse 72% 72% at 50% 48%,#000 30%,transparent 100%)}
+.glow{position:absolute;left:0;top:0;width:1500px;height:1500px;border-radius:50%;background:radial-gradient(closest-side,rgba(var(--rgb),.22),rgba(var(--rgb),.065) 52%,transparent 100%)}
+#glowN{--rgb:78,108,220}
+#vignette{position:absolute;inset:0;background:radial-gradient(ellipse 85% 82% at 50% 50%,transparent 58%,rgba(0,0,0,.5) 100%);pointer-events:none}
+#noise{position:absolute;inset:0;opacity:.04;pointer-events:none}
+#world{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:960px 540px}
+#wires{position:absolute;left:0;top:0;z-index:2;overflow:visible}
+
+.L{position:absolute;left:0;top:0;visibility:hidden}
+.z1{z-index:1}.z2{z-index:2}.z3{z-index:3}.z4{z-index:4}.z5{z-index:5}.z6{z-index:6}.z7{z-index:7}.z8{z-index:8}
+
+/* títulos */
+.eyebrow{font-family:var(--mono);font-size:24px;font-weight:500;letter-spacing:.22em;color:var(--label);white-space:nowrap}
+.title{font-weight:800;font-size:106px;letter-spacing:-.03em;line-height:1.08;white-space:nowrap;color:var(--text)}
+.title .ch{display:inline-block}
+.title .ch.grad{color:transparent;-webkit-background-clip:text;background-clip:text;background-image:linear-gradient(90deg,var(--grad1),var(--grad2))}
+.uline{width:150px;height:7px;border-radius:4px;background:linear-gradient(90deg,var(--grad1),var(--grad2))}
+.caret-i{display:inline-block;width:.55em;height:1em;margin-left:3px;vertical-align:-4px;background:#aab6d3;opacity:.85}
+
+/* chip de cabecera: texto que se escribe al ritmo de la voz */
+.chip{display:flex;align-items:center;gap:16px;height:72px;padding:0 32px 0 26px;border-radius:999px;background:var(--chip-bg);border:1.5px solid var(--chip-b);
+  font-family:var(--mono);font-size:30px;font-weight:500;color:#dfe4ee;white-space:nowrap;box-shadow:0 20px 50px -24px rgba(0,0,0,.8)}
+.chip .ic{width:32px;height:32px;color:#b7c1da;display:flex;flex:none}
+.chip .tx{position:relative;display:flex;align-items:center}
+.chip .strike{position:absolute;left:-6px;right:-6px;top:50%;height:3px;margin-top:-1px;border-radius:2px;background:#ec8a70;transform-origin:0 50%;transform:scaleX(0);box-shadow:0 0 10px rgba(236,138,112,.6)}
+
+/* tarjeta de herramienta/modelo: logo + empresa + familia + nombre grande */
+.mcard{width:500px;height:300px;border-radius:30px;background:linear-gradient(180deg,#15171e,#0d0f14);border:1.5px solid var(--card-b);box-shadow:0 44px 90px -40px rgba(0,0,0,.9)}
+.mcard .hi{position:absolute;inset:-1.5px;border-radius:30px;border:1.5px solid rgba(var(--rgb),.85);
+  background:linear-gradient(160deg,rgba(var(--rgb),.17),rgba(var(--rgb),.035) 62%);
+  box-shadow:0 0 0 1px rgba(var(--rgb),.22),0 36px 100px -30px rgba(var(--rgb),.7);opacity:0}
+.mcard .ltile{position:absolute;left:36px;top:36px;width:88px;height:88px;border-radius:24px;background:#0b0c10;border:1.5px solid rgba(var(--rgb),.5);
+  display:flex;align-items:center;justify-content:center;box-shadow:0 14px 40px -16px rgba(var(--rgb),.7);color:var(--c3)}
+.mcard .ltile img{width:54px;height:54px;object-fit:contain;display:block}
+.mcard .co{position:absolute;right:38px;top:66px;font-family:var(--mono);font-size:19px;font-weight:500;letter-spacing:.16em;color:var(--c3)}
+.mcard .fam{position:absolute;left:38px;top:150px;font-size:34px;font-weight:500;color:#9aa3b5;white-space:nowrap}
+.mcard .name{position:absolute;left:35px;top:190px;font-size:84px;font-weight:800;letter-spacing:-.03em;line-height:1;color:#f3f5fa;white-space:nowrap;display:flex}
+.mcard .name span{display:inline-block}
+.mcard .ver{color:var(--c2);margin-left:.2em}
+
+/* nodo de flujo (132x132): caja con icono o logo y etiqueta debajo; el hueco punteado con "+" se rellena */
+.nodo{width:132px;height:132px}
+.nodo .caja{position:absolute;inset:0;border-radius:32px;background:#0f1117;border:1.5px solid rgba(var(--rgb),.5);display:flex;align-items:center;justify-content:center;
+  color:var(--c3);box-shadow:0 20px 50px -20px rgba(var(--rgb),.7)}
+.nodo .hueco{position:absolute;inset:0;border-radius:32px;border:2px dashed #3d4556;display:flex;align-items:center;justify-content:center;color:#4f596d}
+.nodo .hi{position:absolute;inset:-1.5px;border-radius:32px;border:1.5px solid rgba(var(--rgb),.9);box-shadow:0 0 0 1px rgba(var(--rgb),.25),0 24px 70px -20px rgba(var(--rgb),.8);opacity:0}
+.nodo .lbl{position:absolute;left:50%;top:150px;transform:translateX(-50%);font-family:var(--mono);font-size:24px;font-weight:500;color:var(--text2);white-space:nowrap}
+
+/* insignia redonda: "VS" o "=" */
+.badge{width:74px;height:74px;border-radius:50%;background:#12151c;border:1.5px solid #343a47;box-shadow:0 16px 40px -14px rgba(0,0,0,.9)}
+.badge > *{position:absolute;left:0;top:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+.badge .vs{font-weight:800;font-size:28px;color:#f1f3f8;letter-spacing:.02em}
+.badge .eq{color:#c3cad8}
+
+/* barras (precios, métricas) */
+.track{width:250px;border-radius:22px 22px 6px 6px;border:1.5px dashed #394156;background:rgba(255,255,255,.012)}
+.bar{width:250px;border-radius:22px 22px 6px 6px;overflow:hidden;background:linear-gradient(180deg,var(--c2),rgba(var(--rgb),.75));box-shadow:0 30px 80px -30px rgba(var(--rgb),.8)}
+.bar .price{position:absolute;left:0;right:0;top:24px;text-align:center;font-weight:800;font-size:52px;color:#fff;letter-spacing:-.01em;white-space:nowrap}
+.bar .pcap{position:absolute;left:0;right:0;top:88px;text-align:center;font-family:var(--mono);font-size:19px;color:rgba(255,255,255,.85);letter-spacing:.06em;white-space:nowrap}
+.bar .mark{position:absolute;left:0;right:0;border-top:2.5px dashed rgba(255,255,255,.8);opacity:0}
+.bar .shine{position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,0) 60%);opacity:0}
+.baseline{height:2px;border-radius:1px;background:#2f3544}
+.nota{height:62px;padding:0 28px 0 24px;border-radius:999px;background:#0d0f14;border:1.5px solid #5a6276;display:flex;align-items:center;gap:12px;
+  font-family:var(--mono);font-size:29px;font-weight:500;color:#eef1f7;white-space:nowrap;box-shadow:0 14px 34px -14px rgba(0,0,0,.9)}
+.nota b{font-family:var(--sans);font-weight:800;font-size:40px;color:var(--c2)}
+.pulse{border-style:solid}
+
+/* ---------- piezas de la explicación de Muse ---------- */
+.lado-claw{--c:#E5484D;--rgb:229,72,77;--c2:#F07A7E;--c3:#F7B4B6}          /* OpenClaw: rojo de su logo */
+.lado-hermes{--c:#C9D1E0;--rgb:201,209,224;--c2:#DDE3EE;--c3:#EEF1F7}     /* Hermes (Nous): blanco y negro */
+.lado-g{--c:#4F8CF7;--rgb:79,140,247;--c2:#86AEF9;--c3:#C0D5FC}          /* Google Antigravity */
+.lado-meta{--c:#0A7CFF;--rgb:10,124,255;--c2:#5AA6FF;--c3:#AFD2FF}
+.lado-wa{--c:#25D366;--rgb:37,211,102;--c2:#5BE08F;--c3:#A6F0C3}
+.lado-mail{--c:#C3CEE4;--rgb:195,206,228;--c2:#D8E0EF;--c3:#EDF1F8}
+#glowA{--rgb:61,220,132}
+#glowB{--rgb:217,119,87}
+
+/* icono de la app Muse (ficha blanca) */
+.mficha{background:linear-gradient(180deg,#ffffff,#eef3fb);display:flex;align-items:center;justify-content:center;
+  box-shadow:0 36px 80px -34px rgba(0,0,0,.95),0 0 0 1px rgba(255,255,255,.1),0 0 60px -10px rgba(47,134,255,.35)}
+.mficha img{display:block}
+
+/* insignia "≈" */
+.aprox{width:64px;height:64px;border-radius:50%;background:#12151c;border:1.5px solid #343a47;display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:38px;color:#e9edf5;box-shadow:0 16px 40px -14px rgba(0,0,0,.9)}
+
+/* "GRATIS" */
+.gratis{height:84px;padding:0 38px 0 28px;border-radius:999px;display:flex;align-items:center;gap:14px;
+  background:linear-gradient(180deg,rgba(61,220,132,.24),rgba(61,220,132,.07));border:2px solid rgba(61,220,132,.9);
+  color:#effff5;font-weight:800;font-size:46px;letter-spacing:.05em;white-space:nowrap;
+  box-shadow:0 0 0 1px rgba(61,220,132,.2),0 22px 70px -18px rgba(61,220,132,.75)}
+.gratis .ic{color:#3ddc84;display:flex}
+
+/* medidor del límite semanal */
+.medidor{width:660px;height:200px;border-radius:28px;background:linear-gradient(180deg,#151821,#0d0f14);border:1.5px solid var(--card-b);
+  box-shadow:0 40px 90px -40px rgba(0,0,0,.95)}
+.medidor .cab{position:absolute;left:34px;top:30px;display:flex;align-items:center;gap:14px;font-family:var(--mono);font-size:24px;font-weight:600;
+  letter-spacing:.14em;color:#aab4c8;white-space:nowrap}
+.medidor .cab .ic{color:#6aa8ff;display:flex}
+.medidor .pista{position:absolute;left:34px;right:34px;top:100px;height:34px;border-radius:17px;border:2px dashed #3a4356;background:rgba(255,255,255,.015)}
+.medidor .relleno{position:absolute;left:0;top:0;bottom:0;border-radius:15px;background:linear-gradient(90deg,#2f86ff,#6aa8ff);
+  box-shadow:0 0 22px 2px rgba(47,134,255,.7)}
+.medidor .dias{position:absolute;left:34px;right:34px;top:150px;display:flex;justify-content:space-between;font-family:var(--mono);font-size:19px;color:#5d6679}
+.cifra{font-weight:800;font-size:170px;letter-spacing:-.04em;line-height:1;color:#f5f7fb;white-space:nowrap}
+.cifra .u{color:#6aa8ff;font-size:.62em;margin-left:.08em}
+.marca3{width:0;height:0;border-left:13px solid transparent;border-right:13px solid transparent;border-top:18px solid #6aa8ff;filter:drop-shadow(0 0 8px rgba(47,134,255,.8))}
+
+/* panel de conectores */
+.panel{width:860px;height:560px;border-radius:34px;background:linear-gradient(180deg,#151821,#0c0e13);border:1.5px solid var(--card-b);
+  box-shadow:0 50px 110px -40px rgba(0,0,0,.95)}
+.panel .tit{position:absolute;left:44px;top:34px;display:flex;align-items:center;gap:18px;font-size:42px;font-weight:700;color:#f3f5fa;letter-spacing:-.01em}
+.panel .tit .mini{width:58px;height:58px;border-radius:15px}
+.panel .tit small{font-family:var(--mono);font-size:21px;font-weight:500;color:#7d879b;letter-spacing:.08em;margin-left:6px}
+.panel .fila{position:absolute;left:34px;right:34px;height:112px;border-radius:22px;background:#10131a;border:1.5px solid #222734;display:flex;align-items:center;padding:0 26px;gap:22px}
+.panel .fila .hi{position:absolute;inset:-1.5px;border-radius:22px;border:1.5px solid rgba(var(--rgb),.9);box-shadow:0 0 0 1px rgba(var(--rgb),.2),0 20px 60px -24px rgba(var(--rgb),.8);opacity:0}
+.panel .fila .nom{font-size:36px;font-weight:600;color:#eef1f7;flex:1}
+.boton{position:relative;width:236px;height:64px;border-radius:32px;display:flex;align-items:center;justify-content:center;gap:12px;
+  font-family:var(--mono);font-size:24px;font-weight:600;color:#cfe0ff;border:2px solid rgba(47,134,255,.8);background:rgba(47,134,255,.1)}
+.boton > span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:12px}
+.boton .ok{color:#062b16;background:#3ddc84;border-radius:30px;opacity:0}
+.boton .gira{opacity:0}
+.boton .gira i{width:26px;height:26px;border-radius:50%;border:3px solid rgba(207,224,255,.25);border-top-color:#cfe0ff;display:block}
+.cursor{width:44px;height:44px;color:#fff;filter:drop-shadow(0 4px 10px rgba(0,0,0,.85))}
+
+/* nube de Meta */
+.vm{width:380px;height:220px;border-radius:22px;background:#0b0d12;border:1.5px solid #2e3544;box-shadow:0 30px 70px -30px rgba(0,0,0,.95)}
+.vm .barra{position:absolute;left:0;right:0;top:0;height:34px;border-bottom:1px solid #1f2430;display:flex;align-items:center;gap:8px;padding-left:14px}
+.vm .barra i{width:10px;height:10px;border-radius:50%;background:#3a4252;display:block}
+.vm .dentro{position:absolute;left:0;right:0;top:34px;bottom:0;display:flex;align-items:center;justify-content:center;gap:24px}
+.vm .estado{display:flex;flex-direction:column;gap:10px;font-family:var(--mono);font-size:22px;color:#9fe7bd}
+.vm .estado b{display:flex;align-items:center;gap:10px;font-weight:600}
+.vm .estado b i{width:12px;height:12px;border-radius:50%;background:#3ddc84;box-shadow:0 0 10px 2px rgba(61,220,132,.7);display:block}
+.vm .estado span{color:#7d879b;font-size:19px}
+.portatil{width:190px;height:190px;color:#aab4c8}
+.tachon{height:6px;border-radius:3px;background:#ec6a5e;box-shadow:0 0 12px rgba(236,106,94,.7)}
+
+/* nivel de inteligencia */
+.barraM{width:150px;border-radius:20px 20px 6px 6px;background:linear-gradient(180deg,#39404f,#262b36);border:1.5px solid #3a4150}
+.barraM.muse{background:linear-gradient(180deg,#5aa2ff,rgba(47,134,255,.75));border-color:rgba(106,168,255,.9);box-shadow:0 30px 80px -26px rgba(47,134,255,.85)}
+.barraM .brillo{position:absolute;inset:0;border-radius:20px 20px 6px 6px;background:linear-gradient(180deg,rgba(255,255,255,.6),rgba(255,255,255,0) 55%);opacity:0}
+.cabeza{width:112px;height:112px;border-radius:30px;background:#0f1117;border:1.5px solid #3a4150;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 20px 50px -20px rgba(0,0,0,.9)}
+.cabeza.muse{border-color:rgba(106,168,255,.9);box-shadow:0 0 0 1px rgba(47,134,255,.25),0 20px 60px -18px rgba(47,134,255,.8)}
+.etq{font-family:var(--mono);font-size:26px;font-weight:600;color:#c9d0de;white-space:nowrap}
+.etq.muse{color:#8fc0ff}
+.casi{height:58px;padding:0 24px;border-radius:999px;background:#0d0f14;border:1.5px solid rgba(233,196,106,.85);display:flex;align-items:center;gap:10px;
+  font-family:var(--mono);font-size:28px;font-weight:600;color:#f3dca0;white-space:nowrap;box-shadow:0 14px 40px -14px rgba(233,196,106,.6)}
+.lineaTop{height:0;border-top:2.5px dashed rgba(233,196,106,.75)}
+.lblTop{font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:.14em;color:#e9c46a;white-space:nowrap}
+
+/* mapa */
+.pin{width:92px;height:102px}
+.pin .pf{position:absolute;left:0;top:0;width:92px;height:92px;border-radius:24px;background:linear-gradient(180deg,#fff,#edf2fb);display:flex;align-items:center;justify-content:center;
+  box-shadow:0 22px 50px -16px rgba(0,0,0,.9),0 0 0 3px rgba(47,134,255,.55),0 0 50px 0 rgba(47,134,255,.45)}
+.pin .pico{position:absolute;left:36px;top:84px;width:0;height:0;border-left:10px solid transparent;border-right:10px solid transparent;border-top:18px solid #edf2fb}
+
+.lado-n{--c:#2F86FF;--rgb:47,134,255;--c2:#6AA8FF;--c3:#B5D3FF}   /* Muse */
+#glowN{--rgb:47,134,255}
+
+/* intro con cara: en la previsualización, los planos de cara muestran la grabación (no sale en el render) */
+#cara{position:absolute;left:0;top:0;width:1920px;height:1080px;object-fit:cover;z-index:50;display:none;background:#000}
+#planoTag{position:absolute;right:18px;top:14px;z-index:60;font-family:var(--mono);font-size:18px;color:#fff;background:rgba(0,0,0,.55);padding:4px 10px;border-radius:8px;display:none}
+body.render #cara, body.render #planoTag{display:none !important}
+
+/* controles de previsualización (no salen en el render) */
+#controls{position:fixed;left:0;right:0;bottom:0;height:56px;display:flex;align-items:center;gap:14px;padding:0 18px;background:#0a0c10;border-top:1px solid #1e2129;
+  font-family:var(--mono);color:var(--muted);font-size:13px}
+#controls button{width:38px;height:34px;border-radius:8px;border:1px solid #2b303d;background:#141a2c;color:#cfdbff;font-size:15px;cursor:pointer}
+#controls input{flex:1;accent-color:#7C9CFF}
+#controls .t{min-width:110px;text-align:right}
+body.render #controls{display:none}
+</style>
+</head>
+<body>
+<div id="viewport">
+  <div id="stage">
+    <div id="grid"></div>
+    <div id="glowN" class="glow"></div>
+    <div id="glowA" class="glow lado-a"></div>
+    <div id="glowB" class="glow lado-b"></div>
+    <div id="world">
+      <svg id="wires" width="1920" height="1080" viewBox="0 0 1920 1080">
+        <defs><radialGradient id="dotHalo"><stop offset="0" stop-color="#9db4ff" stop-opacity=".65"/><stop offset="1" stop-color="#9db4ff" stop-opacity="0"/></radialGradient></defs>
+        <g id="wiresG"></g><g id="dotsG"></g>
+      </svg>
+    </div>
+    <div id="vignette"></div>
+    <div id="noise"></div>
+    <video id="cara" muted playsinline preload="auto"></video>
+    <div id="planoTag"></div>
+  </div>
+</div>
+<div id="controls">
+  <button id="play" title="Reproducir / pausa (espacio)">▶</button>
+  <input id="scrub" type="range" min="0" max="10" step="0.01" value="0">
+  <span class="t" id="tlabel">0.00 s</span>
+</div>
+<audio id="audio" preload="auto"></audio>
+
+<script>
+'use strict';
+/* =====================================================================
+   Motor de animación: cada fotograma es una función pura de t (segundos).
+   render(t) coloca todo; render.mjs captura t = fotograma / FPS y ffmpeg añade la voz.
+   Nada depende del fotograma anterior: se puede renderizar en paralelo y saltar a cualquier t.
+   ===================================================================== */
+const CONFIG = { dur: 75.0167, audio: 'assets/audio/voz.wav', ancho: 1920, alto: 1080, montaje: true };   // «anim.py nuevo» rellena dur y audio; montaje: true en intros con cara (nuevo --video)
+const CX = CONFIG.ancho / 2, CY = CONFIG.alto / 2;
+const Q = new URLSearchParams(location.search);
+const RENDER = Q.has('render');
+if (RENDER) document.body.classList.add('render');
+
+/* ---------- Guion: inicio de cada palabra clave (de trabajo/tiempos.json, en segundos) ----------
+   Un visual entra 0,02–0,05 s antes de su palabra. Ejemplo: T.opus = 4.64 -> la tarjeta arranca en T.opus - .04 */
+const T = {
+  // plano «trio» (el corte desde la cara cae justo antes de «similar»)
+  similar: 4.06, openclaw: 5.04, hermes: 5.96, hermesFin: 6.41,
+  de: 6.75, totalmente: 8.45, gratis: 9.35, gratisFin: 9.79, amplios: 10.39, limites: 11.01, semanales: 11.51, semanalesFin: 12.07,
+  // plano «uso»: «un 3 % de mi suscripción semanal»
+  un: 15.91, tres: 16.13, tresFin: 16.99, mi: 17.29, suscripcion: 17.53, semanal: 18.41, semanalFin: 18.85,
+  // plano «noes»: «Claude Code, Antigravity o Codex. Más bien, un asistente personal…»
+  claude: 22.18, code: 22.46, antigravity: 22.92, codex: 23.96, codexFin: 24.34, masBien: 24.66,
+  asistente: 26.08, personal: 26.78, personalFin: 27.30, integra: 27.74, trabajo: 28.80, herramientas: 29.84, dia: 30.76, diaFin: 31.24,
+  // plano «eco»: «su punto clave es la integración… ecosistema de herramientas de Meta»
+  punto: 35.85, clave: 36.17, integracion: 37.09, ecosistema: 39.21, herramientas2: 40.25, meta: 40.97, metaFin: 41.27,
+  // plano «clic»: «a base de clic… WhatsApp… Instagram o Facebook. Además, vive en la nube de Meta… instalarlo»
+  base: 43.75, clic: 44.15, conectar: 44.75, whatsapp: 45.63, instagram: 48.12, facebook: 48.90, facebookFin: 49.28,
+  ademas: 49.56, vive: 50.18, entorno: 50.90, nube: 51.82, meta2: 52.90, no: 53.96, preocuparte: 54.36, instalarlo: 55.40, instalarloFin: 55.98,
+  // plano «modelos»: «casi con la misma inteligencia que los más potentes. Y aunque solo está disponible en Estados Unidos»
+  hoy: 61.51, encuentra: 61.99, casi: 63.15, misma: 63.67, inteligencia: 63.95, mas: 64.99, potentes: 65.19, potentesFin: 65.65,
+  solo: 66.43, disponible: 66.81, en: 67.61, estados: 67.79, unidos: 68.35, unidosFin: 68.69,
+};
+
+window.__T = T;   // tools/comprobar.mjs --palabras saca un fotograma del MP4 en cada uno
+
+/* ---------- utilidades ---------- */
+const clamp = (x, a = 0, b = 1) => x < a ? a : x > b ? b : x;
+const lerp = (a, b, p) => a + (b - a) * p;
+const E = {
+  lin: p => p,
+  out2: p => 1 - (1 - p) * (1 - p),
+  out3: p => 1 - Math.pow(1 - p, 3),
+  out4: p => 1 - Math.pow(1 - p, 4),
+  in2: p => p * p,
+  in3: p => p * p * p,
+  io3: p => p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2,
+  io4: p => p < .5 ? 8 * p * p * p * p : 1 - Math.pow(-2 * p + 2, 4) / 2,
+  ioSine: p => -(Math.cos(Math.PI * p) - 1) / 2,
+  outExpo: p => p >= 1 ? 1 : 1 - Math.pow(2, -10 * p),
+  back: p => { const s = 1.70158; return 1 + (s + 1) * Math.pow(p - 1, 3) + s * Math.pow(p - 1, 2); },
+  spring: p => p >= 1 ? 1 : 1 - Math.exp(-6.5 * p) * Math.cos(10.5 * p),
+};
+/* progreso 0..1 de una animación que empieza en t0 y dura d, con curva e */
+const P = (t, t0, d, e = E.out3) => e(clamp((t - t0) / d));
+/* 0 -> 1 -> 0 (seno) entre t0 y t0+d: golpes de escala, parpadeos */
+const bump = (t, t0, d) => (t < t0 || t > t0 + d) ? 0 : Math.sin(Math.PI * (t - t0) / d);
+/* destello: sube en rise s y cae exponencialmente */
+const flash = (t, t0, rise = .08, decay = 3.2) => t < t0 ? 0 : t < t0 + rise ? (t - t0) / rise : Math.exp(-(t - t0 - rise) * decay);
+const blink = (t, hz = 2.2) => (Math.floor(t * hz * 2) % 2 === 0) ? 1 : 0;
+/* muelle amortiguado: respuesta a un escalón (0 -> 1, con rebote) y a un golpe (0 -> ±1 -> 0) */
+function step(tau, w = 9, z = .35) {
+  if (tau <= 0) return 0;
+  const wd = w * Math.sqrt(1 - z * z);
+  return 1 - Math.exp(-z * w * tau) * (Math.cos(wd * tau) + (z * w / wd) * Math.sin(wd * tau));
+}
+function impulse(tau, w = 10, z = .3) {
+  if (tau <= 0) return 0;
+  const wd = w * Math.sqrt(1 - z * z);
+  return Math.exp(-z * w * tau) * Math.sin(wd * tau);
+}
+/* fotogramas clave: [[t, {props}, curva], ...]. norm() rellena lo que falte con el fotograma anterior
+   (KF solo interpola las propiedades presentes en cada fotograma: sin norm() se pierden). */
+function norm(keys) {
+  let prev = {};
+  return keys.map(([t, v, e]) => { const full = { ...prev, ...v }; prev = full; return e ? [t, full, e] : [t, full]; });
+}
+function KF(t, keys) {
+  if (t <= keys[0][0]) return keys[0][1];
+  for (let i = 1; i < keys.length; i++) {
+    const [t1, v1, e = E.io3] = keys[i], [t0, v0] = keys[i - 1];
+    if (t < t1) {
+      const p = e(clamp((t - t0) / (t1 - t0))), o = {};
+      for (const k in v1) o[k] = lerp(v0[k] ?? v1[k], v1[k], p);
+      return o;
+    }
+  }
+  return keys[keys.length - 1][1];
+}
+const mix = (a, b, p) => `rgb(${a.map((v, i) => Math.round(lerp(v, b[i], p))).join(',')})`;
+
+const $ = id => document.getElementById(id);
+const STAGE = $('stage'), WORLD = $('world'), WIRES = $('wiresG'), DOTS = $('dotsG');
+const SVGNS = 'http://www.w3.org/2000/svg';
+
+function mk(tag, cls, parent, html) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html != null) e.innerHTML = html;
+  (parent || WORLD).appendChild(e);
+  return e;
+}
+
+/* coloca un elemento de primer nivel. x,y = punto de anclaje (por defecto el centro; ax/ay en %)
+   o = opacidad, s/sx/sy = escala, r = giro, ry = giro 3D en Y (volteo de carta), b = desenfoque px,
+   g = escala de grises 0..1, br = brillo. Con o ≈ 0 lo oculta (visibility hidden). */
+function put(e, o) {
+  const op = o.o ?? 1;
+  if (!(op > 0.002)) { if (e._v !== 0) { e.style.visibility = 'hidden'; e.style.opacity = 0; e._v = 0; } return; }
+  if (e._v !== 1) { e.style.visibility = 'visible'; e._v = 1; }
+  const ax = o.ax ?? 50, ay = o.ay ?? 50;
+  let tr = `translate(${o.x.toFixed(2)}px,${o.y.toFixed(2)}px) translate(${-ax}%,${-ay}%)`;
+  if (o.ry) tr += ` perspective(1600px) rotateY(${o.ry.toFixed(3)}deg)`;
+  if (o.r) tr += ` rotate(${o.r.toFixed(3)}deg)`;
+  const s = o.s ?? 1, sx = (o.sx ?? 1) * s, sy = (o.sy ?? 1) * s;
+  if (sx !== 1 || sy !== 1) tr += ` scale(${sx.toFixed(4)},${sy.toFixed(4)})`;
+  e.style.transform = tr;
+  e.style.transformOrigin = `${ax}% ${ay}%`;
+  e.style.opacity = op.toFixed(4);
+  const f = [], b = o.b ?? 0, g = o.g ?? 0, br = o.br ?? 1;
+  if (b > 0.05) f.push(`blur(${b.toFixed(2)}px)`);
+  if (g > 0.005) f.push(`grayscale(${g.toFixed(3)})`);
+  if (Math.abs(br - 1) > 0.005) f.push(`brightness(${br.toFixed(3)})`);
+  e.style.filter = f.length ? f.join(' ') : 'none';
+}
+const off = e => put(e, { o: 0 });
+
+/* ---------- intro con cara (anim.py nuevo --video): planos de cara y planos de animación ----------
+   edicion/montaje.json dice qué fotogramas del vídeo sin pausas son cara (la grabación) y cuáles animación a
+   pantalla completa. Sin ese archivo todo es animación, como siempre. V.<id> = { a, b }: el tramo visible de cada
+   plano de animación, en segundos. Cada escena se pinta dentro de su ventana (dentro(t, V.id)) y apaga todo fuera. */
+let PLANOS = [], CERCA = { cx: 1920, y0: 0 }, FPS_M = 60;
+const V = {};
+async function cargarMontaje() {
+  if (!CONFIG.montaje) return;
+  try {
+    const r = await fetch('edicion/montaje.json', { cache: 'no-store' });
+    if (!r.ok) return;
+    const m = await r.json();
+    PLANOS = m.planos || []; CERCA = m.cerca || CERCA; FPS_M = m.fps || 60;
+    for (const p of PLANOS) if (p.tipo === 'anim') V[p.id] = { a: p.f0 / FPS_M, b: p.f1 / FPS_M };
+  } catch (e) { /* sin montaje: todo animación */ }
+}
+/* ¿t cae en la ventana w? (con margen: al revisar un instante fuera del corte no se quedan piezas colgadas) */
+const dentro = (t, w, pre = .2, post = .08) => !!w && t >= w.a - pre && t < w.b + post;
+function ventanaDe(t) { for (const k in V) if (dentro(t, V[k])) return V[k]; return null; }
+/* cámara = fotogramas clave CAMK y, en intros con cara, un asentamiento 1,06 -> 1 al entrar en cada plano de
+   animación: acompaña el corte desde la cara (el primer fotograma nunca está quieto) */
+function camara(t) {
+  const c = { ...KF(t, CAMK) }, w = ventanaDe(t);
+  if (w) c.s *= 1 + .06 * (1 - P(t, w.a, .55, E.out4));
+  return c;
+}
+/* posición en el mundo para que una pieza se vea fija en pantalla (x, y, escala s) aunque la cámara se mueva
+   (rótulos que tienen que leerse mientras la cámara se acerca a otra cosa): put(el, { ...fijo(t, CX, 112, 1.2), o }) */
+function fijo(t, x, y, s = 1) {
+  const c = camara(t);
+  return { x: (x - CX) / c.s + c.x, y: (y - CY) / c.s + c.y, s: s / c.s };
+}
+
+/* ---------- iconos de línea (Lucide, licencia ISC) ---------- */
+const ICON = {
+  mousePointer2: '<path d="M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z"/>',
+  appWindow: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 4v4"/><path d="M2 8h20"/><path d="M6 4v4"/>',
+  arrowDown: '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
+  arrowLeft: '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+  arrowRight: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  arrowUpRight: '<path d="M7 7h10v10"/><path d="M7 17 17 7"/>',
+  arrowUp: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
+  badgeDollarSign: '<path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/>',
+  bell: '<path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/>',
+  bookOpen: '<path d="M12 5v16"/><path d="M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z"/>',
+  bot: '<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>',
+  brain: '<path d="M12 18V5"/><path d="M15 13a4.17 4.17 0 0 1-3-4 4.17 4.17 0 0 1-3 4"/><path d="M17.598 6.5A3 3 0 1 0 12 5a3 3 0 1 0-5.598 1.5"/><path d="M17.997 5.125a4 4 0 0 1 2.526 5.77"/><path d="M18 18a4 4 0 0 0 2-7.464"/><path d="M19.967 17.483A4 4 0 1 1 12 18a4 4 0 1 1-7.967-.517"/><path d="M6 18a4 4 0 0 1-2-7.464"/><path d="M6.003 5.125a4 4 0 0 0-2.526 5.77"/>',
+  briefcase: '<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>',
+  building2: '<path d="M10 12h4"/><path d="M10 8h4"/><path d="M14 21v-3a2 2 0 0 0-4 0v3"/><path d="M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2"/><path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"/>',
+  calendarDays: '<path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M8 13h.01"/><path d="M12 13h.01"/><path d="M16 13h.01"/><path d="M8 17h.01"/><path d="M12 17h.01"/><path d="M16 17h.01"/>',
+  camera: '<path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"/><circle cx="12" cy="13" r="3"/>',
+  chartColumn: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  chevronsUp: '<path d="m17 11-5-5-5 5"/><path d="m17 18-5-5-5 5"/>',
+  circleCheck: '<circle cx="12" cy="12" r="10"/><path d="m16 9-5.5 5.5L8 12"/>',
+  circleHelp: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  circleX: '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>',
+  clapperboard: '<path d="m12.296 3.464 3.02 3.956"/><path d="M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3z"/><path d="M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="m6.18 5.276 3.1 3.899"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  cloud: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+  code: '<path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/>',
+  coins: '<path d="M13.744 17.736a6 6 0 1 1-7.48-7.48"/><path d="M15 6h1v4"/><path d="m6.134 14.768.866-.5 2 3.464"/><circle cx="16" cy="8" r="6"/>',
+  cpu: '<path d="M12 20v2"/><path d="M12 2v2"/><path d="M17 20v2"/><path d="M17 2v2"/><path d="M2 12h2"/><path d="M2 17h2"/><path d="M2 7h2"/><path d="M20 12h2"/><path d="M20 17h2"/><path d="M20 7h2"/><path d="M7 20v2"/><path d="M7 2v2"/><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="8" y="8" width="8" height="8" rx="1"/>',
+  crown: '<path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/>',
+  database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/>',
+  download: '<path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/>',
+  equal: '<line x1="5" x2="19" y1="9" y2="9"/><line x1="5" x2="19" y1="15" y2="15"/>',
+  fileCode: '<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 12.5 8 15l2 2.5"/><path d="m14 12.5 2 2.5-2 2.5"/>',
+  fileText: '<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+  film: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 3v18"/><path d="M3 7.5h4"/><path d="M3 12h18"/><path d="M3 16.5h4"/><path d="M17 3v18"/><path d="M17 7.5h4"/><path d="M17 16.5h4"/>',
+  flag: '<path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528"/>',
+  flaskConical: '<path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2"/><path d="M6.453 15h11.094"/><path d="M8.5 2h7"/>',
+  folder: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+  gamepad2: '<line x1="6" x2="10" y1="11" y2="11"/><line x1="8" x2="8" y1="9" y2="13"/><line x1="15" x2="15.01" y1="12" y2="12"/><line x1="18" x2="18.01" y1="10" y2="10"/><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z"/>',
+  gauge: '<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>',
+  gitBranch: '<path d="M15 6a9 9 0 0 0-9 9V3"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>',
+  globe: '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
+  graduationCap: '<path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>',
+  handCoins: '<path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17"/><path d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9"/><path d="m2 16 6 6"/><circle cx="16" cy="9" r="2.9"/><circle cx="6" cy="5" r="3"/>',
+  hourglass: '<path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/>',
+  image: '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+  inbox: '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  key: '<path d="m2 21 9.6-9.6"/><path d="m7.5 15.5 2.3 2.3a1 1 0 0 1 0 1.4l-2.1 2.1a1 1 0 0 1-1.4 0L4 19"/><circle cx="15.5" cy="7.5" r="5.5"/>',
+  laptop: '<path d="M18 5a2 2 0 0 1 2 2v8.526a2 2 0 0 0 .212.897l1.068 2.127a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45l1.068-2.127A2 2 0 0 0 4 15.526V7a2 2 0 0 1 2-2z"/><path d="M20.054 15.987H3.946"/>',
+  layers: '<path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/>',
+  layoutTemplate: '<rect width="18" height="7" x="3" y="3" rx="1"/><rect width="9" height="7" x="3" y="14" rx="1"/><rect width="5" height="7" x="16" y="14" rx="1"/>',
+  lightbulb: '<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  listChecks: '<path d="M13 5h8"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/>',
+  lock: '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  mail: '<path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"/><rect x="2" y="4" width="20" height="16" rx="2"/>',
+  medal: '<path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15"/><path d="M11 12 5.12 2.2"/><path d="m13 12 5.88-9.8"/><path d="M8 7h8"/><circle cx="12" cy="17" r="5"/><path d="M12 18v-2h-.5"/>',
+  messageSquare: '<path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/>',
+  mic: '<path d="M12 19v3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><rect x="9" y="2" width="6" height="13" rx="3"/>',
+  minus: '<path d="M5 12h14"/>',
+  monitor: '<rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>',
+  moon: '<path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/>',
+  newspaper: '<path d="M15 18h-5"/><path d="M18 14h-8"/><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-4 0v-9a2 2 0 0 1 2-2h2"/><rect width="8" height="4" x="10" y="6" rx="1"/>',
+  palette: '<path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"/><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/>',
+  panelsTopLeft: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>',
+  penTool: '<path d="M15.707 21.293a1 1 0 0 1-1.414 0l-1.586-1.586a1 1 0 0 1 0-1.414l5.586-5.586a1 1 0 0 1 1.414 0l1.586 1.586a1 1 0 0 1 0 1.414z"/><path d="m18 13-1.375-6.874a1 1 0 0 0-.746-.776L3.235 2.028a1 1 0 0 0-1.207 1.207L5.35 15.879a1 1 0 0 0 .776.746L13 18"/><path d="m2.3 2.3 7.286 7.286"/><circle cx="11" cy="11" r="2"/>',
+  percent: '<line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+  piggyBank: '<path d="M11 17h3v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-3a3.16 3.16 0 0 0 2-2h1a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1h-1a5 5 0 0 0-2-4V3a4 4 0 0 0-3.2 1.6l-.3.4H11a6 6 0 0 0-6 6v1a5 5 0 0 0 2 4v3a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1z"/><path d="M16 10h.01"/><path d="M2 8v1a2 2 0 0 0 2 2h1"/>',
+  play: '<path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/>',
+  plug: '<path d="M12 22v-5"/><path d="M15 8V2"/><path d="M17 8a1 1 0 0 1 1 1v4a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1z"/><path d="M9 8V2"/>',
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  puzzle: '<path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z"/>',
+  refreshCw: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  repeat2: '<path d="m2 9 3-3 3 3"/><path d="M13 18H7a2 2 0 0 1-2-2V6"/><path d="m22 15-3 3-3-3"/><path d="M11 6h6a2 2 0 0 1 2 2v10"/>',
+  rocket: '<path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09"/><path d="M9 12a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.4 22.4 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 .05 5 .05"/>',
+  scale: '<path d="M12 3v18"/><path d="m19 8 3 8a5 5 0 0 1-6 0zV7"/><path d="M3 7h1a17 17 0 0 0 8-2 17 17 0 0 0 8 2h1"/><path d="m5 8 3 8a5 5 0 0 1-6 0zV7"/><path d="M7 21h10"/>',
+  scissors: '<circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/>',
+  search: '<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>',
+  send: '<path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/>',
+  server: '<rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/>',
+  settings: '<path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/>',
+  shieldCheck: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+  shoppingCart: '<path d="m2.05 2.05 1.099-.028a1 1 0 0 1 1.008.815l2.69 14.347A1 1 0 0 0 7.83 18H18"/><path d="M4.563 5h16.435a1 1 0 0 1 .981 1.204l-1.026 6.226A2 2 0 0 1 18.962 14H6.25"/><circle cx="18" cy="20" r="2"/><circle cx="8" cy="20" r="2"/>',
+  slidersHorizontal: '<path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/>',
+  smartphone: '<rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/>',
+  sparkles: '<path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/>',
+  squareTerminal: '<path d="m7 11 2-2-2-2"/><path d="M11 13h4"/><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>',
+  star: '<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>',
+  store: '<path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5"/><path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244"/><path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+  sunrise: '<path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/>',
+  swords: '<path d="m13 19 6-6"/><path d="M14.5 17.5 3.586 6.586A2 2 0 013 5.172V3h2.172a2 2 0 011.414.586L17.5 14.5"/><path d="m14.828 6.172 2.586-2.586A2 2 0 0118.828 3H21v2.172a2 2 0 01-.586 1.414l-2.586 2.586"/><path d="m16 16 4 4"/><path d="m19 21 2-2"/><path d="m5 14 4 4"/><path d="m5 21-2-2"/><path d="M7.5 16.5 4 20"/>',
+  target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  thumbsDown: '<path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"/><path d="M17 14V2"/>',
+  thumbsUp: '<path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/><path d="M7 10v12"/>',
+  timer: '<line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/>',
+  trendingDown: '<path d="M16 17h6v-6"/><path d="m22 17-8.5-8.5-5 5L2 7"/>',
+  trendingUp: '<path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/>',
+  triangleAlert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  trophy: '<path d="M10 14.66V17a1 1 0 0 1-1 1 2 2 0 0 0-2 2v2"/><path d="M14 14.66V17a1 1 0 0 0 1 1 2 2 0 0 1 2 2v2"/><path d="M17.916 10H19.5A2.5 2.5 0 0 0 22 7.5V5a1 1 0 0 0-1-1h-3"/><path d="M4 22h16"/><path d="M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z"/><path d="M6.084 10H4.5A2.5 2.5 0 0 1 2 7.5V5a1 1 0 0 1 1-1h3"/>',
+  unlink: '<path d="m18.84 12.25 1.72-1.71h-.02a5.004 5.004 0 0 0-.12-7.07 5.006 5.006 0 0 0-6.95 0l-1.72 1.71"/><path d="m5.17 11.75-1.71 1.71a5.004 5.004 0 0 0 .12 7.07 5.006 5.006 0 0 0 6.95 0l1.71-1.71"/><line x1="8" x2="8" y1="2" y2="5"/><line x1="2" x2="5" y1="8" y2="8"/><line x1="16" x2="16" y1="19" y2="22"/><line x1="19" x2="22" y1="16" y2="16"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/>',
+  video: '<path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/>',
+  wandSparkles: '<path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/>',
+  workflow: '<rect width="8" height="8" x="3" y="3" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect width="8" height="8" x="13" y="13" rx="2"/>',
+  wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  zap: '<path d="M15.914 4a1.5 1.5 0 00-2.474-1.561l-9 9A1.5 1.5 0 005.5 14h4.002a.5.5 0 01.471.666L8.086 20a1.5 1.5 0 002.475 1.56l9-9A1.5 1.5 0 0018.5 10h-3.997a.5.5 0 01-.472-.667z"/>',
+};
+/* icon(nombre, tamaño, grosor) -> HTML del SVG. Con dibujable = true cada trazo lleva pathLength=1
+   y se puede "dibujar" con drawStrokes(svg, progreso) (el svg es el elemento ya insertado). */
+function icon(name, size, sw = 2, dibujable = false) {
+  if (!ICON[name]) console.error('icono desconocido: ' + name);
+  const inner = dibujable ? (ICON[name] || '').replace(/<(path|circle|rect|line|polyline|polygon|ellipse)\b/g, '<$1 pathLength="1"') : (ICON[name] || '');
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" style="display:block;overflow:visible">${inner}</svg>`;
+}
+/* dibuja los trazos de un SVG con pathLength=1. stagger = desfase entre trazos (0..1) */
+function drawStrokes(svg, p, stagger = 0) {
+  const parts = svg._parts || (svg._parts = [...svg.querySelectorAll('[pathLength]')]);
+  const n = parts.length, span = 1 - (n - 1) * stagger;
+  for (let i = 0; i < n; i++) {
+    const q = stagger ? clamp((p - i * stagger) / span) : p;
+    parts[i].style.strokeDasharray = q >= 1 ? 'none' : '1 2';
+    parts[i].style.strokeDashoffset = (1 - q).toFixed(4);
+    parts[i].style.opacity = q > 0.002 ? 1 : 0;
+  }
+}
+/* ---------- logos: <img data-logo="slug">. Al arrancar se lee assets/logos/logos.json (anim.py logos) ---------- */
+/* crea las piezas al principio del archivo (no dentro de render): así el arranque espera a que sus logos carguen */
+let LOGOS = null;   // registro de logos.json, cargado al arrancar
+const logo = (slug, size = 54) => {
+  const f = LOGOS && LOGOS[slug] ? ` src="assets/logos/${LOGOS[slug].file.split('/').pop()}"` : '';
+  return `<img data-logo="${slug}"${f} width="${size}" height="${size}" alt="" style="width:${size}px;height:${size}px;object-fit:contain;display:block">`;
+};
+
+/* ---------- conectores discontinuos y paquetes que viajan por ellos ---------- */
+class Wire {
+  constructor(pts, o = {}) {
+    this.el = document.createElementNS(SVGNS, 'path');
+    this.el.setAttribute('fill', 'none');
+    this.el.setAttribute('stroke', o.color || '#4a5266');
+    this.el.setAttribute('stroke-width', o.width || 2);
+    this.el.setAttribute('stroke-linecap', 'round');
+    if (o.dash !== null) this.el.setAttribute('stroke-dasharray', o.dash || '7 9');
+    if (!o.hidden) WIRES.appendChild(this.el);
+    this.set(pts);
+  }
+  set(pts) {
+    this.pts = pts; this.seg = []; this.L = 0;
+    for (let i = 1; i < pts.length; i++) {
+      const l = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+      this.seg.push(l); this.L += l;
+    }
+  }
+  at(f) {   // punto en la fracción f del recorrido
+    let d = clamp(f) * this.L;
+    for (let i = 0; i < this.seg.length; i++) {
+      if (d <= this.seg[i] || i === this.seg.length - 1) {
+        const p = this.seg[i] ? clamp(d / this.seg[i]) : 0, a = this.pts[i], b = this.pts[i + 1];
+        return [lerp(a[0], b[0], p), lerp(a[1], b[1], p)];
+      }
+      d -= this.seg[i];
+    }
+  }
+  sub(a, b) {
+    const A0 = a * this.L, B0 = b * this.L, out = [];
+    let acc = 0;
+    for (let i = 0; i < this.seg.length; i++) {
+      const s0 = acc, s1 = acc + this.seg[i]; acc = s1;
+      if (s1 < A0 || s0 > B0 || !this.seg[i]) continue;
+      const p0 = clamp((A0 - s0) / this.seg[i]), p1 = clamp((B0 - s0) / this.seg[i]);
+      const a0 = this.pts[i], b0 = this.pts[i + 1];
+      if (!out.length) out.push(`M${lerp(a0[0], b0[0], p0).toFixed(2)} ${lerp(a0[1], b0[1], p0).toFixed(2)}`);
+      out.push(`L${lerp(a0[0], b0[0], p1).toFixed(2)} ${lerp(a0[1], b0[1], p1).toFixed(2)}`);
+    }
+    return out.join('');
+  }
+  /* dibuja el tramo [a,b] (fracciones 0..1). flow = desplazamiento de las rayas en px (sensación de flujo) */
+  draw(a, b, op = 1, flow = 0) {
+    if (b - a <= 0.0005 || op <= 0.002) { this.el.style.opacity = 0; this.el.setAttribute('d', ''); return; }
+    this.el.setAttribute('d', this.sub(a, b));
+    this.el.style.opacity = op.toFixed(3);
+    this.el.style.strokeDashoffset = (a * this.L - flow).toFixed(2);
+  }
+}
+class Dot {
+  constructor(r = 5.5, color = '#dbe5ff') {
+    this.g = document.createElementNS(SVGNS, 'g');
+    const h = document.createElementNS(SVGNS, 'circle'); h.setAttribute('r', r * 3.4); h.setAttribute('fill', 'url(#dotHalo)');
+    const c = document.createElementNS(SVGNS, 'circle'); c.setAttribute('r', r); c.setAttribute('fill', color);
+    this.g.append(h, c); DOTS.appendChild(this.g); this.g.style.opacity = 0;
+  }
+  at(x, y, o = 1, s = 1) { this.g.setAttribute('transform', `translate(${x.toFixed(2)} ${y.toFixed(2)}) scale(${s.toFixed(3)})`); this.g.style.opacity = o.toFixed(3); }
+  hide() { this.g.style.opacity = 0; }
+}
+/* paquete que recorre un cable entre t0 y t1 (rev = al revés) */
+function travel(dot, wire, t, t0, t1, rev = false, e = E.io3) {
+  if (t < t0 || t > t1 + 0.14) { dot.hide(); return; }
+  const p = e(clamp((t - t0) / (t1 - t0)));
+  const [x, y] = wire.at(rev ? 1 - p : p);
+  dot.at(x, y, clamp((t - t0) / 0.07) * (1 - clamp((t - t1) / 0.14)));
+}
+
+/* ---------- anillos que se expanden (rect redondeado o círculo) ---------- */
+const PULSES = [];
+function pulse(t0, dur, x, y, w, h, r, rgb, to, bw = 2) {
+  const e = mk('div', 'L pulse z6');
+  e.style.width = w + 'px'; e.style.height = h + 'px'; e.style.borderRadius = r + 'px';
+  e.style.borderWidth = bw + 'px'; e.style.borderColor = `rgba(${rgb},.95)`;
+  PULSES.push({ e, t0, dur, x, y, to });
+}
+/* anillo alrededor de una tarjeta que se mueve con fotogramas clave (se toma su posición en t0) */
+const ringCard = (t0, keys, rgb, to = 1.16, dur = .8) => { const k = KF(t0, keys); pulse(t0, dur, k.x, k.y, 500 * k.s, 300 * k.s, 30 * k.s, rgb, to); };
+
+/* ---------- título letra a letra (palabra clave con degradado) ---------- */
+function letters(text, cls, gradWord) {
+  const d = mk('div', cls);
+  const g0 = gradWord ? text.indexOf(gradWord) : -1, g1 = g0 + (gradWord || '').length;
+  d._ch = [...text].map((c, i) => {
+    const s = document.createElement('span');
+    s.className = 'ch' + (i >= g0 && i < g1 && g0 >= 0 ? ' grad' : '');
+    s.textContent = c === ' ' ? ' ' : c;     // espacio duro: un espacio normal en inline-block desaparece
+    d.appendChild(s); return s;
+  });
+  return d;
+}
+/* tiempos por letra: cada palabra entra con su inicio en la voz (starts = inicio de cada palabra) */
+function letterTimes(text, starts, lead = .05, gap = .024) {
+  const out = []; let w = 0, k = 0;
+  for (const c of text) { if (c === ' ') { out.push(null); w++; k = 0; continue; } out.push((starts[w] ?? starts[starts.length - 1]) - lead + k * gap); k++; }
+  return out;
+}
+function lettersIn(d, t, times, dur = .5) {
+  d._ch.forEach((c, i) => {
+    const t0 = times[i]; if (t0 == null) return;
+    const p = E.out4(clamp((t - t0) / dur));
+    c.style.transform = `translateY(${((1 - p) * .42).toFixed(3)}em)`;
+    c.style.opacity = clamp((t - t0) / (dur * .52)).toFixed(3);
+  });
+}
+/* degradado continuo en la palabra clave aunque cada letra sea una pieza (llamar en layout()) */
+function gradLetters(d) {
+  const g = d._ch.filter(c => c.classList.contains('grad'));
+  if (!g.length) return;
+  const x0 = g[0].offsetLeft, W = g[g.length - 1].offsetLeft + g[g.length - 1].offsetWidth - x0;
+  g.forEach(c => { c.style.backgroundSize = `${W}px 100%`; c.style.backgroundPosition = `${-(c.offsetLeft - x0)}px 0`; });
+}
+
+/* ---------- chip de cabecera con texto que se escribe al ritmo de la voz ----------
+   fases: [{ t0, icono, textos: [[inicio, fin, 'texto'], ...], tachar: t, borrar: [inicio, fin] }]
+   pintar(t, {x, y, o}) cada fotograma. */
+class ChipEscrito {
+  constructor(fases, z = 'z6') {
+    this.fases = fases;
+    this.el = mk('div', `L chip ${z}`, null, '<span class="ic"></span><span class="tx"><span class="t"></span><span class="caret-i"></span><span class="strike"></span></span>');
+    this.ic = this.el.querySelector('.ic'); this.tx = this.el.querySelector('.t');
+    this.caret = this.el.querySelector('.caret-i'); this.strike = this.el.querySelector('.strike');
+  }
+  pintar(t, pos) {
+    if (!(pos.o > .002)) { off(this.el); return; }
+    let ph = this.fases[0];
+    for (const f of this.fases) if (t >= f.t0) ph = f;
+    if (this.ph !== ph) {
+      this.ic.innerHTML = ph.icono ? icon(ph.icono, 32, 2) : ''; this.ic.style.display = ph.icono ? 'flex' : 'none'; this.ph = ph;
+      if (ph._w == null) {   // ancho con el texto completo: el chip no crece mientras se escribe (no se desplaza)
+        const pv = this.tx.textContent, cd = this.caret.style.display;
+        this.el.style.width = ''; this.tx.textContent = ph.textos.map(x => x[2]).join(''); this.caret.style.display = 'inline-block';
+        ph._w = this.el.offsetWidth; this.tx.textContent = pv; this.caret.style.display = cd;
+      }
+      this.el.style.width = ph._w + 'px';
+    }
+    let s = '', typing = false;
+    for (const [a, b, txt] of ph.textos) {
+      const n = Math.floor(clamp((t - a) / (b - a)) * txt.length + (t >= a ? 1 : 0));
+      s += txt.slice(0, Math.min(n, txt.length));
+      if (t >= a && t < b) typing = true;
+    }
+    const del = ph.borrar && t > ph.borrar[0];
+    if (del) s = s.slice(0, Math.floor(s.length * (1 - P(t, ph.borrar[0], ph.borrar[1] - ph.borrar[0], E.lin))));
+    this.tx.textContent = s;
+    const last = ph.textos[ph.textos.length - 1][1];
+    this.caret.style.display = (typing || (t > ph.t0 && t < last + .7) || del) ? 'inline-block' : 'none';
+    this.caret.style.opacity = typing ? 1 : blink(t, 2.4);
+    const st = ph.tachar ? P(t, ph.tachar, .36, E.io3) * (ph.borrar ? 1 - P(t, ph.borrar[0] - .1, .1, E.lin) : 1) : 0;
+    this.strike.style.transform = `scaleX(${st.toFixed(4)})`;
+    this.ic.style.opacity = P(t, ph.t0, .25).toFixed(3);
+    put(this.el, pos);
+  }
+}
+
+/* segmentos para ChipEscrito que escriben cada palabra mientras se dice (no a velocidad fija):
+   textos: escribirPalabras('sale muy barato', [T.sale, T.muy, T.barato], T.baratoFin) */
+function escribirPalabras(texto, inicios, fin) {
+  const ws = texto.split(' ');
+  return ws.map((w, i) => {
+    const a = inicios[i] - .03, b = (i + 1 < ws.length ? inicios[i + 1] : fin) - .05;
+    return [a, Math.max(a + .06, b), (i ? ' ' : '') + w];
+  });
+}
+/* fija el ancho de una pieza cuyo texto se escribe letra a letra (mide el texto completo): no se desplaza al crecer.
+   Llamar en layout(). Ej.: anchoFijo(eyebrow, 'LO PRIMERO<span class="caret-i"></span>') */
+function anchoFijo(el, html) {
+  const prev = el.innerHTML; el.innerHTML = html; const w = el.offsetWidth; el.innerHTML = prev;
+  el.style.width = w + 'px'; return w;
+}
+
+/* ---------- nodo de flujo (automatizaciones, integraciones, pasos) ----------
+   nodo({ lado, logo: 'gmail' | icono: 'inbox', etiqueta: 'fuente' }) -> caja 132x132 con etiqueta debajo.
+   nodoEstado(el, { relleno, h, dibujo, etiqueta }): relleno 0 = hueco punteado con "+", 1 = caja llena (entra con rebote);
+   h = resalte; dibujo = progreso del trazo del icono (si se creó con icono); etiqueta = opacidad del texto (por
+   defecto, la del relleno). Colócalo con put() como cualquier pieza. */
+function nodo(o) {
+  const e = mk('div', `L nodo lado-${o.lado || 'n'} z3`);
+  e._hueco = mk('div', 'hueco', e, icon('plus', 40, 2));
+  e._caja = mk('div', 'caja', e, o.logo ? logo(o.logo, 72) : icon(o.icono || 'bot', 60, 1.9, true));
+  e._hi = mk('div', 'hi', e);
+  e._lbl = mk('div', 'lbl', e, o.etiqueta || '');
+  e._svg = e._caja.querySelector('svg');
+  return e;
+}
+function nodoEstado(e, { relleno = 1, h = 0, dibujo = null, etiqueta = relleno } = {}) {
+  e._lbl.style.opacity = clamp(etiqueta * 1.6).toFixed(3);   // la etiqueta sale con el relleno (etiqueta: 1 para verla siempre)
+  e._hueco.style.opacity = (1 - clamp(relleno * 2)).toFixed(3);
+  e._caja.style.opacity = clamp(relleno * 1.6).toFixed(3);
+  e._caja.style.transform = `scale(${lerp(.6, 1, E.back(clamp(relleno))).toFixed(4)})`;
+  e._hi.style.opacity = clamp(h).toFixed(3);
+  if (e._svg && dibujo != null) drawStrokes(e._svg, dibujo, .08);
+}
+/* lleva una pieza por un cable: progreso p de t0 a t1 (curva e), con el resto de propiedades en extra (o, s...).
+   Si los extremos del cable se mueven, actualízalo antes con wire.set([[x,y], ...]). */
+function viajar(el, wire, t, t0, t1, extra = {}, e = E.io3) {
+  const [x, y] = wire.at(e(clamp((t - t0) / (t1 - t0))));
+  put(el, { ...extra, x, y });
+}
+
+/* ---------- tarjeta de herramienta / modelo ----------
+   tarjeta({ lado: 'a'|'b'|'n', logo: 'claude' (slug de assets/logos) o icono: 'bot', empresa: 'ANTHROPIC',
+             familia: 'Claude', nombre: 'Opus', version: '5.5' }). Tamaño base 500x300 (se escala con put s). */
+function tarjeta(o) {
+  const e = mk('div', `L mcard lado-${o.lado || 'n'} z3`);
+  e._hi = mk('div', 'hi', e);
+  e._tile = mk('div', 'ltile', e, o.logo ? logo(o.logo, 54) : icon(o.icono || 'sparkles', 46, 2));
+  e._co = mk('div', 'co', e, o.empresa || '');
+  e._fam = mk('div', 'fam', e, o.familia || '');
+  e._name = mk('div', 'name', e, `<span class="nm">${o.nombre}</span>${o.version ? `<span class="ver">${o.version}</span>` : ''}`);
+  e._nm = e._name.querySelector('.nm'); e._ver = e._name.querySelector('.ver');
+  return e;
+}
+/* coloca la tarjeta (k = {x,y,s,o,...}) y su resalte h (0..1: borde y brillo de su color) */
+function card(e, k, h = 0) { put(e, k); e._hi.style.opacity = clamp(h).toFixed(3); }
+/* texto que sube y aparece */
+function rise(el, t, t0, d = .42, dy = 16) {
+  const p = P(t, t0, d, E.out4);
+  el.style.opacity = clamp((t - t0) / (d * .55)).toFixed(3);
+  el.style.transform = `translateY(${((1 - p) * dy).toFixed(2)}px)`;
+}
+/* texto que entra con golpe (grande y desenfocado -> tamaño normal): para nombres que dice la voz */
+function slam(el, t, t0, from = 1.4) {
+  if (!el) return;
+  const r = clamp((t - t0) / .5), p = E.out4(r);
+  el.style.opacity = clamp(r * 3.5).toFixed(3);
+  el.style.transformOrigin = '0% 75%';
+  el.style.transform = `scale(${lerp(from, 1, p).toFixed(4)})`;
+  el.style.filter = r > 0 && r < 1 ? `blur(${((1 - p) * 7).toFixed(2)}px)` : 'none';
+}
+/* insignia "VS" / "=" (vsP 0..1 cruza de "=" a "VS") */
+function insignia() {
+  const e = mk('div', 'L badge z5', null, `<div class="eq">${icon('equal', 30, 2.4)}</div><div class="vs">VS</div>`);
+  e._eq = e.querySelector('.eq'); e._vs = e.querySelector('.vs');
+  return e;
+}
+function badgeState(e, vsP) {
+  e._eq.style.opacity = (1 - vsP).toFixed(3);
+  e._eq.style.transform = `rotate(${(vsP * 90).toFixed(1)}deg) scale(${(1 - .5 * vsP).toFixed(3)})`;
+  e._vs.style.opacity = vsP.toFixed(3);
+  e._vs.style.transform = `scale(${lerp(.4, 1, E.back(vsP)).toFixed(3)})`;
+}
+/* barra de métrica: crece desde la base; el texto solo aparece cuando cabe (sin cifras intermedias) */
+function barra(lado, texto, sub = '') {
+  const e = mk('div', `L bar lado-${lado} z3`, null, `<div class="price">${texto}</div><div class="pcap">${sub}</div><div class="mark"></div><div class="shine"></div>`);
+  e._price = e.querySelector('.price'); e._cap = e.querySelector('.pcap'); e._mark = e.querySelector('.mark'); e._shine = e.querySelector('.shine');
+  return e;
+}
+function crecer(e, t, { x, base, alto, t0, dur = .9 }) {
+  const p = P(t, t0, dur, E.out3), h = Math.max(1, alto * p);
+  e.style.height = h.toFixed(1) + 'px';
+  put(e, { x, y: base, ay: 100, o: p > 0 ? 1 : 0 });
+  const tp = clamp((h - 120) / 50);
+  e._price.style.opacity = tp.toFixed(3); e._price.style.transform = `translateY(${((1 - tp) * 10).toFixed(2)}px)`;
+  e._cap.style.opacity = clamp((h - 150) / 30).toFixed(3);
+}
+
+/* =====================================================================
+   MUSE · QUÉ ES (parte que sigue a la intro): 6 planos de animación entre planos de la cara.
+   Las ventanas salen de edicion/montaje.json (V.trio, V.uso, V.noes, V.eco, V.clic, V.modelos).
+   ===================================================================== */
+const grid = $('grid'), glowN = $('glowN'), glowA = $('glowA'), glowB = $('glowB');
+const RGB_MUSE = '47,134,255', RGB_VERDE = '61,220,132';
+
+/* ---------- logo de Muse (el de la intro): contorno exacto + eje para escribirlo a mano ---------- */
+const MUSE = {"viewBox": [137.7, 173.7, 235.8, 156.7], "outline": "M320.76 327.14C320.23 327.24 319.62 327.31 318.99 327.35C318.36 327.39 317.66 327.39 317.00 327.40C316.34 327.40 315.65 327.41 315.00 327.39C314.35 327.36 313.65 327.33 313.10 327.24C312.54 327.15 312.14 327.03 311.66 326.87C311.18 326.71 310.67 326.49 310.20 326.29C309.73 326.09 309.29 325.90 308.85 325.67C308.40 325.45 307.94 325.20 307.52 324.94C307.10 324.68 306.72 324.40 306.33 324.13C305.94 323.86 305.55 323.63 305.19 323.33C304.82 323.04 304.46 322.71 304.15 322.35C303.85 321.99 303.60 321.57 303.33 321.18C303.06 320.78 302.79 320.40 302.53 319.99C302.28 319.58 302.00 319.21 301.79 318.74C301.58 318.27 301.42 317.66 301.26 317.16C301.10 316.66 300.99 316.25 300.84 315.74C300.68 315.24 300.50 314.63 300.35 314.13C300.19 313.62 300.02 313.23 299.92 312.71C299.81 312.18 299.75 311.60 299.71 310.99C299.66 310.37 299.67 309.66 299.66 309.00C299.65 308.34 299.65 307.67 299.65 307.00C299.65 306.33 299.65 305.67 299.67 305.00C299.68 304.33 299.72 303.66 299.76 303.00C299.79 302.34 299.85 301.64 299.89 301.04C299.93 300.45 299.96 299.96 300.00 299.44C300.04 298.93 300.08 298.50 300.15 297.93C300.21 297.35 300.31 296.65 300.38 296.00C300.44 295.34 300.51 294.67 300.56 294.00C300.61 293.33 300.63 292.66 300.66 292.00C300.69 291.34 300.71 290.63 300.75 290.01C300.80 289.40 300.85 288.82 300.93 288.29C301.00 287.77 301.13 287.41 301.21 286.86C301.29 286.31 301.36 285.64 301.41 285.00C301.46 284.35 301.49 283.67 301.51 283.00C301.54 282.33 301.55 281.67 301.56 281.00C301.57 280.33 301.55 279.66 301.57 279.00C301.59 278.34 301.61 277.63 301.67 277.03C301.73 276.43 301.85 275.92 301.95 275.40C302.05 274.88 302.16 274.48 302.25 273.92C302.35 273.35 302.45 272.65 302.52 272.00C302.59 271.35 302.61 270.67 302.65 270.00C302.70 269.33 302.71 268.67 302.77 268.00C302.83 267.33 302.93 266.67 303.02 266.00C303.11 265.33 303.25 264.67 303.33 264.00C303.42 263.33 303.49 262.67 303.53 262.00C303.58 261.33 303.59 260.67 303.61 260.00C303.62 259.33 303.62 258.66 303.63 258.00C303.65 257.34 303.65 256.64 303.70 256.05C303.75 255.47 303.87 254.95 303.92 254.50C303.98 254.06 304.04 253.57 304.03 253.39C304.02 253.21 304.01 253.22 303.87 253.42C303.73 253.62 303.45 254.21 303.19 254.61C302.93 255.01 302.60 255.39 302.32 255.79C302.04 256.20 301.77 256.63 301.52 257.05C301.27 257.47 301.06 257.89 300.81 258.30C300.56 258.70 300.27 259.08 300.02 259.50C299.76 259.92 299.53 260.38 299.28 260.82C299.03 261.25 298.76 261.68 298.52 262.10C298.28 262.52 298.06 262.90 297.82 263.32C297.59 263.75 297.35 264.22 297.11 264.65C296.88 265.09 296.65 265.52 296.42 265.95C296.20 266.38 295.99 266.81 295.75 267.24C295.51 267.66 295.24 268.09 294.98 268.50C294.72 268.92 294.44 269.32 294.20 269.74C293.96 270.16 293.77 270.59 293.54 271.03C293.31 271.46 293.08 271.93 292.84 272.35C292.59 272.77 292.32 273.16 292.07 273.57C291.82 273.99 291.61 274.41 291.35 274.84C291.10 275.26 290.79 275.69 290.54 276.11C290.29 276.53 290.09 276.93 289.86 277.36C289.62 277.79 289.40 278.28 289.16 278.70C288.92 279.13 288.68 279.50 288.43 279.91C288.19 280.33 287.93 280.75 287.69 281.18C287.44 281.62 287.21 282.10 286.96 282.52C286.71 282.95 286.43 283.31 286.19 283.72C285.95 284.14 285.75 284.58 285.53 285.02C285.30 285.46 285.10 285.94 284.86 286.36C284.61 286.78 284.29 287.12 284.03 287.53C283.77 287.94 283.55 288.37 283.29 288.82C283.02 289.26 282.77 289.69 282.47 290.18C282.17 290.68 281.78 291.30 281.47 291.80C281.16 292.29 280.88 292.71 280.62 293.15C280.36 293.59 280.15 293.99 279.91 294.42C279.67 294.85 279.44 295.31 279.19 295.73C278.94 296.14 278.67 296.50 278.42 296.91C278.16 297.31 277.92 297.72 277.68 298.16C277.44 298.59 277.21 299.07 276.97 299.50C276.73 299.94 276.48 300.35 276.23 300.75C275.98 301.16 275.74 301.54 275.47 301.94C275.21 302.34 274.90 302.75 274.64 303.17C274.39 303.58 274.17 304.00 273.93 304.43C273.69 304.85 273.45 305.31 273.20 305.73C272.94 306.14 272.67 306.49 272.40 306.89C272.14 307.29 271.88 307.71 271.62 308.12C271.36 308.53 271.12 308.96 270.85 309.36C270.58 309.76 270.26 310.09 270.00 310.50C269.73 310.90 269.51 311.37 269.25 311.77C268.99 312.18 268.71 312.54 268.44 312.93C268.16 313.32 267.87 313.72 267.60 314.13C267.33 314.53 267.10 314.97 266.82 315.35C266.54 315.73 266.21 316.04 265.91 316.40C265.61 316.77 265.30 317.15 265.01 317.54C264.73 317.93 264.47 318.35 264.19 318.74C263.91 319.12 263.65 319.48 263.34 319.83C263.04 320.19 262.69 320.53 262.35 320.86C262.02 321.19 261.67 321.51 261.32 321.83C260.98 322.15 260.66 322.49 260.29 322.78C259.92 323.07 259.53 323.33 259.12 323.59C258.71 323.85 258.27 324.12 257.84 324.35C257.40 324.58 256.99 324.80 256.51 324.98C256.03 325.15 255.53 325.28 254.95 325.38C254.36 325.48 253.66 325.52 253.00 325.57C252.34 325.62 251.67 325.65 251.00 325.66C250.33 325.66 249.66 325.65 249.00 325.61C248.34 325.56 247.64 325.52 247.06 325.40C246.48 325.28 245.98 325.11 245.52 324.91C245.05 324.71 244.67 324.44 244.26 324.19C243.86 323.95 243.46 323.74 243.08 323.46C242.70 323.17 242.31 322.86 241.99 322.51C241.67 322.15 241.41 321.73 241.15 321.33C240.89 320.93 240.68 320.53 240.46 320.11C240.23 319.68 239.97 319.28 239.80 318.76C239.62 318.25 239.52 317.58 239.40 317.02C239.28 316.46 239.16 315.92 239.06 315.40C238.95 314.89 238.87 314.49 238.79 313.92C238.71 313.35 238.64 312.65 238.60 312.00C238.56 311.35 238.54 310.67 238.56 310.00C238.58 309.33 238.63 308.64 238.69 308.01C238.75 307.37 238.83 306.73 238.90 306.18C238.96 305.64 239.02 305.28 239.09 304.75C239.16 304.22 239.26 303.61 239.32 302.99C239.39 302.36 239.45 301.66 239.49 301.00C239.53 300.34 239.55 299.67 239.57 299.00C239.59 298.33 239.58 297.66 239.62 297.00C239.65 296.34 239.71 295.63 239.78 295.04C239.84 294.44 239.91 293.94 239.98 293.42C240.05 292.90 240.12 292.49 240.19 291.92C240.26 291.35 240.34 290.65 240.41 290.00C240.48 289.35 240.53 288.65 240.61 288.00C240.69 287.36 240.79 286.69 240.87 286.15C240.95 285.60 241.00 285.24 241.08 284.71C241.16 284.19 241.28 283.61 241.36 282.99C241.44 282.37 241.54 281.66 241.58 281.00C241.63 280.34 241.61 279.65 241.65 279.00C241.68 278.35 241.72 277.65 241.78 277.08C241.85 276.52 241.96 276.12 242.06 275.60C242.16 275.09 242.30 274.57 242.40 273.97C242.49 273.37 242.57 272.66 242.63 272.00C242.69 271.34 242.71 270.63 242.77 270.01C242.82 269.40 242.88 268.84 242.96 268.32C243.04 267.80 243.16 267.44 243.25 266.89C243.34 266.33 243.46 265.65 243.52 265.00C243.58 264.35 243.57 263.66 243.60 263.00C243.63 262.34 243.65 261.64 243.71 261.04C243.78 260.45 243.88 259.96 243.99 259.44C244.09 258.92 244.23 258.50 244.34 257.93C244.45 257.35 244.56 256.65 244.64 256.00C244.71 255.35 244.74 254.63 244.80 254.03C244.86 253.43 244.91 252.92 244.99 252.41C245.07 251.89 245.17 251.49 245.25 250.92C245.34 250.35 245.43 249.65 245.49 249.00C245.54 248.35 245.56 247.66 245.60 247.00C245.64 246.34 245.65 245.64 245.72 245.05C245.79 244.47 245.90 244.00 246.01 243.48C246.12 242.97 246.27 242.52 246.38 241.94C246.48 241.36 246.56 240.65 246.63 240.00C246.70 239.35 246.72 238.63 246.78 238.04C246.84 237.44 246.91 236.94 246.99 236.42C247.08 235.90 247.21 235.49 247.29 234.92C247.36 234.35 247.46 233.61 247.44 233.00C247.43 232.40 247.35 231.58 247.20 231.27C247.05 230.97 246.77 231.00 246.54 231.17C246.31 231.35 246.06 231.90 245.82 232.32C245.59 232.74 245.38 233.26 245.14 233.69C244.91 234.13 244.65 234.50 244.41 234.92C244.17 235.34 243.93 235.77 243.71 236.22C243.49 236.68 243.30 237.21 243.08 237.66C242.87 238.11 242.64 238.49 242.41 238.91C242.18 239.34 241.93 239.77 241.70 240.23C241.48 240.68 241.28 241.19 241.07 241.65C240.86 242.11 240.63 242.54 240.42 242.99C240.22 243.43 240.03 243.85 239.83 244.32C239.63 244.79 239.46 245.33 239.25 245.79C239.04 246.25 238.78 246.67 238.55 247.09C238.31 247.51 238.05 247.86 237.84 248.31C237.62 248.76 237.46 249.31 237.25 249.78C237.04 250.25 236.78 250.68 236.55 251.11C236.32 251.54 236.11 251.93 235.89 252.38C235.68 252.83 235.49 253.34 235.26 253.79C235.03 254.24 234.76 254.67 234.53 255.09C234.29 255.51 234.06 255.87 233.84 256.32C233.62 256.76 233.44 257.29 233.22 257.75C233.00 258.21 232.75 258.64 232.53 259.08C232.31 259.52 232.11 259.93 231.91 260.39C231.71 260.84 231.54 261.37 231.33 261.83C231.11 262.29 230.83 262.72 230.59 263.14C230.35 263.56 230.11 263.92 229.88 264.36C229.66 264.80 229.46 265.33 229.24 265.78C229.02 266.24 228.78 266.67 228.56 267.11C228.34 267.54 228.12 267.93 227.91 268.39C227.70 268.84 227.53 269.36 227.30 269.84C227.07 270.31 226.82 270.72 226.54 271.24C226.26 271.76 225.89 272.41 225.62 272.94C225.35 273.48 225.15 273.98 224.91 274.45C224.68 274.91 224.43 275.31 224.21 275.75C223.98 276.18 223.80 276.62 223.59 277.07C223.37 277.53 223.17 278.03 222.93 278.47C222.70 278.91 222.41 279.28 222.17 279.70C221.94 280.13 221.74 280.57 221.51 281.01C221.29 281.45 221.08 281.93 220.83 282.35C220.59 282.78 220.30 283.14 220.06 283.58C219.82 284.02 219.60 284.52 219.39 284.97C219.17 285.42 218.99 285.86 218.77 286.29C218.55 286.72 218.27 287.11 218.05 287.56C217.82 288.01 217.61 288.52 217.41 288.97C217.20 289.43 217.03 289.88 216.81 290.31C216.59 290.74 216.31 291.13 216.07 291.57C215.84 292.01 215.62 292.50 215.40 292.94C215.18 293.39 214.97 293.82 214.73 294.23C214.49 294.65 214.21 295.01 213.96 295.44C213.72 295.87 213.50 296.36 213.27 296.80C213.04 297.25 212.81 297.68 212.58 298.12C212.35 298.55 212.12 298.97 211.89 299.41C211.66 299.84 211.42 300.29 211.18 300.73C210.94 301.16 210.69 301.59 210.46 302.01C210.22 302.44 210.02 302.85 209.79 303.27C209.55 303.69 209.28 304.10 209.03 304.53C208.78 304.95 208.54 305.38 208.30 305.81C208.07 306.24 207.85 306.68 207.62 307.11C207.38 307.54 207.14 307.99 206.90 308.41C206.65 308.84 206.38 309.26 206.12 309.66C205.87 310.07 205.65 310.45 205.37 310.85C205.10 311.26 204.77 311.67 204.50 312.07C204.23 312.47 204.01 312.85 203.75 313.24C203.49 313.64 203.22 314.06 202.94 314.45C202.66 314.85 202.36 315.23 202.08 315.61C201.80 316.00 201.53 316.40 201.24 316.76C200.95 317.13 200.64 317.47 200.34 317.82C200.03 318.18 199.73 318.54 199.42 318.89C199.10 319.25 198.78 319.62 198.45 319.96C198.11 320.29 197.76 320.61 197.40 320.91C197.03 321.22 196.62 321.49 196.25 321.77C195.87 322.06 195.53 322.34 195.15 322.63C194.77 322.91 194.37 323.20 193.96 323.46C193.56 323.71 193.14 323.94 192.70 324.16C192.26 324.39 191.79 324.63 191.32 324.81C190.86 324.99 190.46 325.12 189.90 325.23C189.35 325.35 188.65 325.41 188.00 325.48C187.35 325.56 186.67 325.66 186.00 325.70C185.33 325.74 184.66 325.74 184.00 325.71C183.34 325.67 182.63 325.56 182.01 325.47C181.39 325.38 180.78 325.29 180.26 325.14C179.74 324.99 179.35 324.76 178.91 324.55C178.46 324.34 178.03 324.13 177.61 323.89C177.19 323.65 176.74 323.39 176.36 323.11C175.98 322.82 175.65 322.51 175.34 322.17C175.03 321.83 174.76 321.45 174.49 321.06C174.21 320.66 173.95 320.24 173.71 319.82C173.47 319.39 173.25 318.94 173.04 318.48C172.83 318.02 172.63 317.53 172.44 317.07C172.26 316.60 172.07 316.21 171.94 315.70C171.82 315.18 171.75 314.60 171.69 313.99C171.63 313.37 171.61 312.66 171.60 312.00C171.60 311.34 171.63 310.67 171.64 310.00C171.64 309.33 171.65 308.67 171.65 308.00C171.65 307.33 171.64 306.66 171.66 306.00C171.68 305.35 171.72 304.64 171.78 304.07C171.84 303.49 171.94 303.06 172.03 302.54C172.12 302.02 172.22 301.54 172.31 300.95C172.40 300.36 172.49 299.65 172.56 299.00C172.63 298.35 172.67 297.64 172.74 297.06C172.82 296.48 172.91 296.04 173.01 295.52C173.10 295.00 173.21 294.53 173.29 293.95C173.38 293.36 173.46 292.66 173.51 292.00C173.57 291.34 173.58 290.64 173.64 290.01C173.70 289.38 173.75 288.75 173.85 288.21C173.95 287.68 174.12 287.32 174.24 286.78C174.37 286.25 174.52 285.59 174.63 285.00C174.73 284.40 174.81 283.75 174.89 283.21C174.97 282.67 175.03 282.31 175.11 281.78C175.19 281.24 175.30 280.62 175.38 279.99C175.46 279.36 175.52 278.65 175.59 278.00C175.65 277.36 175.70 276.68 175.79 276.13C175.88 275.57 176.00 275.22 176.12 274.69C176.24 274.17 176.38 273.59 176.49 272.99C176.61 272.38 176.71 271.64 176.80 271.06C176.88 270.48 176.93 270.02 177.02 269.50C177.10 268.98 177.20 268.53 177.30 267.94C177.40 267.36 177.51 266.66 177.59 266.00C177.67 265.34 177.70 264.67 177.79 264.00C177.87 263.33 177.97 262.67 178.10 262.00C178.23 261.33 178.44 260.65 178.57 260.00C178.70 259.36 178.79 258.69 178.88 258.14C178.97 257.59 179.02 257.23 179.11 256.71C179.20 256.18 179.34 255.60 179.44 254.99C179.54 254.37 179.62 253.63 179.70 253.01C179.78 252.39 179.82 251.79 179.91 251.26C180.01 250.73 180.15 250.37 180.27 249.83C180.39 249.28 180.53 248.61 180.64 248.00C180.74 247.39 180.81 246.73 180.90 246.19C180.98 245.65 181.05 245.29 181.15 244.76C181.25 244.22 181.41 243.61 181.50 242.99C181.59 242.37 181.63 241.63 181.70 241.02C181.78 240.41 181.84 239.87 181.96 239.35C182.07 238.83 182.23 238.45 182.37 237.91C182.50 237.36 182.64 236.63 182.76 236.08C182.87 235.54 182.95 235.13 183.05 234.61C183.15 234.09 183.26 233.57 183.35 232.97C183.45 232.37 183.53 231.64 183.60 231.00C183.68 230.36 183.73 229.68 183.81 229.13C183.90 228.58 184.00 228.22 184.11 227.70C184.22 227.18 184.37 226.58 184.49 225.99C184.60 225.40 184.71 224.69 184.81 224.15C184.92 223.60 185.00 223.24 185.10 222.72C185.21 222.19 185.33 221.60 185.43 220.99C185.53 220.37 185.62 219.63 185.70 219.01C185.78 218.39 185.83 217.77 185.92 217.24C186.01 216.71 186.14 216.35 186.25 215.81C186.36 215.27 186.56 214.58 186.58 214.00C186.60 213.43 186.53 212.65 186.37 212.36C186.21 212.07 185.88 212.11 185.62 212.27C185.36 212.43 185.10 212.95 184.82 213.31C184.54 213.68 184.22 214.04 183.94 214.44C183.66 214.84 183.40 215.30 183.14 215.70C182.88 216.10 182.64 216.45 182.37 216.85C182.10 217.24 181.80 217.68 181.53 218.08C181.25 218.48 181.00 218.86 180.73 219.25C180.45 219.63 180.15 219.96 179.88 220.37C179.61 220.77 179.38 221.27 179.12 221.68C178.86 222.09 178.59 222.42 178.33 222.82C178.07 223.21 177.80 223.65 177.55 224.06C177.29 224.47 177.06 224.91 176.79 225.30C176.53 225.70 176.22 226.04 175.96 226.45C175.69 226.85 175.46 227.33 175.20 227.74C174.94 228.14 174.67 228.49 174.40 228.88C174.12 229.28 173.83 229.69 173.57 230.10C173.30 230.50 173.08 230.93 172.81 231.32C172.53 231.71 172.21 232.04 171.93 232.44C171.65 232.84 171.41 233.31 171.15 233.71C170.88 234.12 170.63 234.46 170.36 234.85C170.09 235.24 169.79 235.67 169.52 236.07C169.25 236.47 169.01 236.88 168.74 237.26C168.47 237.65 168.17 237.97 167.91 238.38C167.65 238.79 167.43 239.30 167.18 239.72C166.93 240.14 166.68 240.50 166.41 240.90C166.14 241.30 165.85 241.71 165.58 242.11C165.31 242.51 165.06 242.91 164.79 243.30C164.51 243.68 164.20 244.02 163.92 244.42C163.64 244.81 163.37 245.25 163.10 245.65C162.82 246.04 162.56 246.40 162.27 246.77C161.98 247.14 161.67 247.49 161.36 247.85C161.05 248.20 160.72 248.55 160.40 248.90C160.08 249.24 159.76 249.59 159.42 249.92C159.09 250.25 158.75 250.58 158.37 250.86C157.98 251.15 157.55 251.38 157.13 251.62C156.70 251.86 156.26 252.09 155.82 252.31C155.38 252.53 154.94 252.76 154.46 252.92C153.98 253.08 153.51 253.19 152.94 253.26C152.36 253.33 151.63 253.35 151.01 253.34C150.38 253.32 149.72 253.27 149.18 253.16C148.63 253.06 148.27 252.90 147.74 252.69C147.22 252.49 146.58 252.21 146.04 251.93C145.50 251.65 144.95 251.34 144.52 251.02C144.10 250.70 143.81 250.35 143.48 250.00C143.16 249.66 142.86 249.30 142.58 248.92C142.30 248.54 142.03 248.19 141.82 247.72C141.61 247.25 141.45 246.59 141.30 246.07C141.16 245.56 141.06 245.14 140.97 244.62C140.88 244.10 140.79 243.57 140.75 242.97C140.71 242.37 140.67 241.62 140.71 241.02C140.74 240.42 140.84 239.88 140.95 239.37C141.05 238.85 141.20 238.44 141.34 237.92C141.48 237.39 141.63 236.72 141.80 236.21C141.97 235.69 142.18 235.29 142.38 234.85C142.59 234.41 142.83 234.00 143.06 233.56C143.28 233.12 143.49 232.65 143.72 232.20C143.96 231.76 144.24 231.33 144.48 230.91C144.72 230.48 144.94 230.09 145.17 229.67C145.41 229.24 145.65 228.77 145.90 228.36C146.15 227.94 146.42 227.59 146.68 227.19C146.93 226.78 147.18 226.35 147.43 225.93C147.68 225.51 147.92 225.07 148.19 224.68C148.47 224.29 148.80 223.97 149.07 223.57C149.34 223.17 149.57 222.68 149.82 222.27C150.08 221.86 150.34 221.49 150.60 221.09C150.86 220.70 151.13 220.28 151.39 219.87C151.65 219.47 151.88 219.04 152.15 218.65C152.43 218.25 152.75 217.92 153.03 217.52C153.31 217.13 153.55 216.67 153.84 216.29C154.12 215.90 154.43 215.59 154.73 215.23C155.03 214.88 155.33 214.54 155.63 214.16C155.92 213.77 156.22 213.33 156.49 212.93C156.77 212.53 156.98 212.14 157.25 211.75C157.52 211.37 157.82 211.00 158.12 210.63C158.41 210.26 158.74 209.91 159.02 209.52C159.31 209.13 159.55 208.67 159.83 208.28C160.11 207.89 160.39 207.56 160.69 207.20C160.99 206.84 161.31 206.48 161.62 206.12C161.93 205.76 162.24 205.43 162.56 205.05C162.88 204.66 163.18 204.28 163.52 203.82C163.87 203.36 164.27 202.74 164.62 202.29C164.96 201.84 165.28 201.49 165.61 201.12C165.93 200.75 166.25 200.42 166.56 200.06C166.88 199.71 167.20 199.36 167.51 199.00C167.81 198.63 168.12 198.24 168.42 197.87C168.71 197.50 168.96 197.12 169.26 196.76C169.55 196.39 169.87 196.04 170.19 195.69C170.50 195.34 170.83 195.02 171.14 194.67C171.46 194.32 171.76 193.93 172.07 193.58C172.39 193.22 172.71 192.90 173.03 192.55C173.36 192.19 173.70 191.83 174.01 191.46C174.31 191.09 174.59 190.68 174.89 190.31C175.18 189.94 175.42 189.62 175.77 189.23C176.12 188.84 176.58 188.40 176.99 187.99C177.40 187.57 177.85 187.13 178.22 186.75C178.60 186.38 178.90 186.08 179.23 185.74C179.56 185.40 179.87 185.05 180.20 184.71C180.53 184.37 180.87 184.02 181.22 183.71C181.57 183.40 181.92 183.14 182.29 182.85C182.67 182.57 183.07 182.29 183.46 181.99C183.85 181.70 184.24 181.38 184.63 181.10C185.01 180.81 185.36 180.55 185.77 180.29C186.19 180.02 186.61 179.81 187.12 179.53C187.64 179.25 188.33 178.87 188.86 178.60C189.39 178.32 189.78 178.09 190.29 177.89C190.80 177.68 191.41 177.52 191.92 177.38C192.44 177.23 192.85 177.10 193.37 177.01C193.89 176.92 194.42 176.88 195.03 176.83C195.63 176.77 196.35 176.69 197.00 176.67C197.65 176.66 198.36 176.67 198.94 176.73C199.52 176.79 199.97 176.90 200.49 177.02C201.00 177.13 201.51 177.26 202.03 177.42C202.55 177.58 203.16 177.75 203.62 177.96C204.08 178.17 204.41 178.43 204.80 178.69C205.18 178.96 205.56 179.25 205.92 179.56C206.28 179.86 206.65 180.18 206.98 180.52C207.31 180.86 207.62 181.24 207.93 181.60C208.23 181.96 208.53 182.30 208.79 182.69C209.05 183.09 209.28 183.55 209.49 183.99C209.69 184.44 209.85 184.87 210.03 185.35C210.20 185.83 210.37 186.39 210.54 186.88C210.71 187.37 210.93 187.77 211.06 188.29C211.18 188.82 211.24 189.40 211.30 190.01C211.35 190.63 211.36 191.34 211.37 192.00C211.39 192.66 211.38 193.33 211.38 194.00C211.38 194.67 211.38 195.33 211.38 196.00C211.37 196.67 211.38 197.34 211.36 198.00C211.34 198.66 211.31 199.37 211.26 199.99C211.21 200.61 211.14 201.19 211.06 201.72C210.99 202.24 210.92 202.60 210.83 203.15C210.75 203.70 210.63 204.36 210.55 205.00C210.47 205.65 210.42 206.33 210.35 207.00C210.28 207.67 210.22 208.33 210.13 209.00C210.03 209.67 209.89 210.33 209.78 211.00C209.67 211.67 209.52 212.33 209.44 213.00C209.36 213.67 209.34 214.35 209.29 215.00C209.25 215.64 209.22 216.32 209.15 216.87C209.08 217.42 208.97 217.78 208.86 218.30C208.75 218.83 208.60 219.41 208.49 220.01C208.38 220.61 208.31 221.35 208.22 221.91C208.12 222.47 208.02 222.86 207.92 223.38C207.81 223.90 207.66 224.42 207.58 225.03C207.49 225.63 207.43 226.34 207.39 227.00C207.35 227.66 207.35 228.36 207.31 228.99C207.27 229.63 207.24 230.26 207.15 230.80C207.06 231.34 206.90 231.70 206.78 232.23C206.65 232.77 206.51 233.40 206.40 234.00C206.29 234.60 206.20 235.29 206.12 235.83C206.04 236.37 205.99 236.73 205.91 237.26C205.83 237.79 205.72 238.39 205.63 239.01C205.54 239.63 205.44 240.34 205.37 241.00C205.30 241.66 205.28 242.36 205.22 242.95C205.15 243.54 205.08 244.01 204.98 244.53C204.88 245.05 204.73 245.49 204.61 246.06C204.50 246.64 204.39 247.38 204.30 247.99C204.20 248.59 204.15 249.18 204.06 249.71C203.98 250.23 203.88 250.59 203.78 251.14C203.68 251.69 203.55 252.36 203.47 253.00C203.38 253.64 203.33 254.37 203.26 254.98C203.18 255.58 203.12 256.12 203.02 256.64C202.93 257.16 202.80 257.53 202.68 258.09C202.57 258.65 202.45 259.39 202.35 259.99C202.25 260.59 202.17 261.17 202.07 261.69C201.98 262.21 201.89 262.57 201.80 263.12C201.71 263.67 201.58 264.37 201.54 265.00C201.50 265.63 201.47 266.43 201.56 266.92C201.65 267.41 201.85 267.87 202.07 267.94C202.29 268.01 202.62 267.67 202.87 267.35C203.13 267.03 203.35 266.47 203.58 266.03C203.81 265.59 203.99 265.15 204.22 264.72C204.46 264.30 204.72 263.90 204.97 263.47C205.22 263.05 205.45 262.60 205.70 262.18C205.95 261.75 206.24 261.34 206.49 260.92C206.74 260.51 206.97 260.14 207.19 259.69C207.41 259.24 207.59 258.70 207.81 258.24C208.03 257.78 208.26 257.36 208.49 256.93C208.72 256.51 208.95 256.13 209.18 255.69C209.40 255.24 209.60 254.73 209.83 254.29C210.07 253.84 210.33 253.43 210.56 253.00C210.79 252.57 211.00 252.16 211.22 251.71C211.44 251.26 211.63 250.74 211.86 250.30C212.09 249.85 212.34 249.46 212.57 249.04C212.81 248.61 213.03 248.20 213.26 247.75C213.49 247.31 213.70 246.82 213.93 246.38C214.15 245.93 214.39 245.51 214.61 245.08C214.84 244.64 215.04 244.21 215.28 243.79C215.51 243.36 215.78 242.93 216.03 242.51C216.28 242.09 216.56 241.68 216.79 241.25C217.02 240.83 217.22 240.39 217.43 239.94C217.65 239.49 217.85 238.98 218.08 238.54C218.31 238.09 218.56 237.68 218.80 237.25C219.04 236.82 219.27 236.39 219.51 235.96C219.74 235.54 219.96 235.12 220.19 234.69C220.43 234.26 220.68 233.84 220.92 233.41C221.16 232.97 221.38 232.53 221.61 232.10C221.85 231.67 222.10 231.24 222.34 230.82C222.58 230.40 222.83 230.01 223.07 229.57C223.31 229.14 223.52 228.68 223.77 228.22C224.01 227.76 224.27 227.35 224.56 226.83C224.85 226.31 225.22 225.61 225.51 225.09C225.79 224.58 225.99 224.15 226.25 223.73C226.51 223.31 226.80 222.99 227.05 222.58C227.31 222.16 227.52 221.67 227.76 221.24C228.01 220.80 228.28 220.40 228.52 219.98C228.77 219.57 229.02 219.17 229.24 218.73C229.46 218.28 229.63 217.72 229.86 217.29C230.09 216.86 230.35 216.53 230.61 216.13C230.88 215.73 231.20 215.34 231.45 214.91C231.71 214.48 231.89 214.01 232.12 213.57C232.35 213.13 232.60 212.70 232.84 212.27C233.07 211.85 233.32 211.44 233.56 211.02C233.80 210.60 234.04 210.18 234.29 209.77C234.53 209.36 234.79 208.96 235.04 208.54C235.28 208.12 235.52 207.67 235.77 207.25C236.02 206.82 236.31 206.42 236.56 206.01C236.82 205.60 237.05 205.19 237.31 204.79C237.56 204.39 237.85 204.00 238.12 203.60C238.38 203.19 238.65 202.78 238.90 202.36C239.14 201.95 239.34 201.52 239.58 201.10C239.83 200.68 240.11 200.25 240.38 199.84C240.64 199.44 240.89 199.07 241.17 198.67C241.44 198.27 241.71 197.91 242.02 197.46C242.33 197.02 242.68 196.48 243.02 196.00C243.36 195.51 243.71 194.98 244.04 194.57C244.37 194.15 244.67 193.87 245.00 193.52C245.32 193.17 245.65 192.82 245.98 192.49C246.32 192.16 246.67 191.85 247.01 191.52C247.36 191.20 247.70 190.85 248.06 190.55C248.43 190.25 248.80 189.97 249.21 189.72C249.63 189.48 250.14 189.29 250.58 189.07C251.02 188.84 251.41 188.59 251.85 188.38C252.29 188.18 252.68 187.96 253.21 187.82C253.73 187.68 254.38 187.60 255.01 187.54C255.64 187.47 256.33 187.43 257.00 187.42C257.67 187.41 258.34 187.43 259.00 187.47C259.66 187.50 260.37 187.54 260.99 187.61C261.61 187.68 262.20 187.75 262.71 187.89C263.23 188.03 263.62 188.24 264.07 188.44C264.51 188.65 264.94 188.89 265.39 189.13C265.83 189.36 266.31 189.60 266.71 189.86C267.11 190.12 267.45 190.40 267.80 190.71C268.14 191.01 268.48 191.31 268.76 191.69C269.05 192.07 269.29 192.55 269.51 193.00C269.73 193.45 269.87 193.93 270.09 194.37C270.30 194.82 270.58 195.21 270.78 195.66C270.97 196.12 271.14 196.53 271.26 197.09C271.37 197.65 271.42 198.35 271.49 199.00C271.55 199.65 271.60 200.33 271.63 201.00C271.66 201.67 271.67 202.33 271.68 203.00C271.68 203.67 271.68 204.33 271.68 205.00C271.68 205.67 271.68 206.33 271.67 207.00C271.67 207.67 271.67 208.33 271.66 209.00C271.64 209.67 271.62 210.33 271.59 211.00C271.57 211.67 271.53 212.33 271.50 213.00C271.48 213.67 271.46 214.33 271.44 215.00C271.43 215.67 271.41 216.33 271.40 217.00C271.38 217.67 271.36 218.33 271.35 219.00C271.33 219.67 271.32 220.35 271.29 221.00C271.26 221.65 271.22 222.35 271.16 222.92C271.10 223.48 271.03 223.88 270.95 224.40C270.88 224.92 270.78 225.43 270.70 226.03C270.63 226.63 270.55 227.34 270.51 228.00C270.46 228.66 270.48 229.34 270.44 230.00C270.40 230.66 270.34 231.37 270.28 231.99C270.22 232.60 270.13 233.17 270.05 233.69C269.97 234.22 269.90 234.57 269.81 235.12C269.73 235.68 269.61 236.36 269.54 237.00C269.47 237.65 269.43 238.33 269.40 239.00C269.37 239.67 269.37 240.34 269.35 241.00C269.33 241.66 269.31 242.37 269.26 242.99C269.22 243.61 269.15 244.20 269.08 244.73C269.01 245.26 268.91 245.61 268.84 246.16C268.76 246.71 268.68 247.37 268.62 248.01C268.55 248.64 268.51 249.34 268.44 250.00C268.37 250.65 268.29 251.36 268.21 251.94C268.13 252.52 268.06 252.96 267.98 253.48C267.90 254.00 267.81 254.46 267.72 255.05C267.64 255.64 267.54 256.34 267.49 257.00C267.43 257.66 267.42 258.33 267.40 259.00C267.38 259.67 267.40 260.34 267.38 261.00C267.37 261.66 267.35 262.37 267.29 262.99C267.24 263.60 267.15 264.18 267.07 264.70C266.99 265.23 266.91 265.58 266.83 266.13C266.75 266.68 266.65 267.36 266.59 268.00C266.53 268.65 266.46 269.38 266.49 269.99C266.51 270.59 266.59 271.34 266.74 271.63C266.89 271.92 267.15 271.88 267.40 271.73C267.65 271.58 267.95 271.08 268.22 270.72C268.50 270.37 268.80 270.01 269.05 269.60C269.30 269.18 269.50 268.67 269.74 268.23C269.98 267.78 270.25 267.36 270.49 266.94C270.74 266.52 270.95 266.14 271.19 265.72C271.43 265.31 271.69 264.86 271.94 264.44C272.20 264.02 272.46 263.62 272.71 263.20C272.96 262.78 273.21 262.35 273.45 261.92C273.69 261.49 273.91 261.05 274.15 260.63C274.40 260.21 274.68 259.82 274.93 259.41C275.18 259.00 275.40 258.58 275.66 258.16C275.92 257.74 276.22 257.31 276.47 256.89C276.72 256.48 276.91 256.09 277.14 255.66C277.37 255.22 277.59 254.73 277.83 254.31C278.07 253.89 278.35 253.53 278.60 253.13C278.86 252.72 279.12 252.30 279.37 251.87C279.62 251.44 279.84 250.98 280.09 250.56C280.34 250.13 280.62 249.75 280.87 249.34C281.13 248.93 281.36 248.52 281.61 248.10C281.86 247.68 282.12 247.25 282.36 246.83C282.61 246.40 282.83 245.99 283.06 245.56C283.30 245.13 283.51 244.66 283.76 244.24C284.02 243.82 284.32 243.44 284.58 243.04C284.84 242.63 285.07 242.23 285.32 241.82C285.57 241.41 285.83 240.98 286.10 240.58C286.36 240.18 286.67 239.83 286.93 239.42C287.19 239.00 287.41 238.53 287.65 238.09C287.88 237.65 288.08 237.22 288.33 236.80C288.57 236.38 288.84 236.00 289.10 235.58C289.35 235.17 289.60 234.70 289.85 234.30C290.11 233.89 290.36 233.54 290.61 233.13C290.86 232.73 291.13 232.31 291.38 231.88C291.63 231.45 291.85 230.99 292.10 230.56C292.35 230.13 292.61 229.71 292.86 229.30C293.12 228.90 293.36 228.54 293.62 228.14C293.89 227.74 294.19 227.30 294.44 226.89C294.69 226.47 294.88 226.06 295.13 225.65C295.38 225.24 295.66 224.82 295.93 224.42C296.20 224.02 296.47 223.62 296.75 223.23C297.02 222.85 297.31 222.48 297.61 222.11C297.90 221.75 298.23 221.40 298.53 221.03C298.83 220.66 299.13 220.26 299.41 219.87C299.70 219.49 299.94 219.08 300.23 218.71C300.53 218.35 300.85 218.03 301.17 217.69C301.49 217.34 301.80 217.00 302.15 216.65C302.50 216.31 302.85 215.97 303.28 215.61C303.72 215.25 304.32 214.83 304.78 214.49C305.25 214.16 305.68 213.87 306.09 213.60C306.51 213.33 306.88 213.10 307.30 212.87C307.72 212.63 308.15 212.37 308.62 212.17C309.08 211.96 309.52 211.79 310.08 211.64C310.65 211.50 311.35 211.37 312.00 211.29C312.65 211.21 313.33 211.17 314.00 211.16C314.67 211.14 315.34 211.15 316.00 211.20C316.66 211.24 317.37 211.31 317.99 211.42C318.61 211.53 319.23 211.66 319.73 211.84C320.23 212.03 320.60 212.29 321.01 212.53C321.43 212.77 321.82 213.02 322.21 213.28C322.61 213.55 323.02 213.81 323.39 214.10C323.76 214.40 324.11 214.72 324.44 215.06C324.77 215.40 325.09 215.78 325.36 216.16C325.64 216.54 325.86 216.94 326.11 217.35C326.36 217.76 326.64 218.15 326.86 218.61C327.09 219.06 327.30 219.53 327.46 220.07C327.63 220.62 327.74 221.33 327.84 221.87C327.95 222.41 328.02 222.78 328.10 223.30C328.18 223.82 328.28 224.40 328.33 225.01C328.38 225.63 328.38 226.34 328.38 227.00C328.39 227.66 328.40 228.33 328.37 229.00C328.33 229.67 328.27 230.33 328.20 231.00C328.12 231.67 327.99 232.33 327.92 233.00C327.86 233.67 327.85 234.33 327.82 235.00C327.80 235.67 327.80 236.33 327.77 237.00C327.74 237.67 327.72 238.33 327.67 239.00C327.62 239.67 327.53 240.33 327.49 241.00C327.45 241.67 327.44 242.33 327.43 243.00C327.41 243.67 327.43 244.33 327.42 245.00C327.41 245.67 327.39 246.33 327.37 247.00C327.34 247.67 327.31 248.33 327.28 249.00C327.25 249.66 327.23 250.36 327.20 250.99C327.16 251.62 327.12 252.23 327.07 252.76C327.02 253.29 326.96 253.65 326.90 254.19C326.84 254.73 326.78 255.37 326.72 256.01C326.67 256.64 326.61 257.33 326.57 258.00C326.53 258.67 326.52 259.33 326.51 260.00C326.49 260.67 326.50 261.33 326.49 262.00C326.47 262.67 326.44 263.34 326.40 264.00C326.35 264.66 326.28 265.36 326.22 265.95C326.15 266.53 326.07 267.00 326.00 267.52C325.93 268.04 325.85 268.48 325.79 269.06C325.72 269.64 325.66 270.34 325.62 271.00C325.57 271.66 325.55 272.33 325.52 273.00C325.50 273.67 325.48 274.33 325.47 275.00C325.46 275.67 325.47 276.33 325.45 277.00C325.44 277.67 325.42 278.33 325.40 279.00C325.37 279.67 325.32 280.34 325.28 281.00C325.25 281.66 325.22 282.37 325.18 282.99C325.14 283.60 325.09 284.16 325.04 284.68C324.99 285.20 324.93 285.56 324.86 286.11C324.80 286.67 324.71 287.35 324.65 288.00C324.59 288.65 324.54 289.33 324.50 290.00C324.47 290.67 324.44 291.34 324.44 292.00C324.45 292.66 324.45 293.39 324.52 293.98C324.58 294.58 324.70 295.28 324.82 295.55C324.95 295.83 325.05 295.78 325.26 295.62C325.47 295.47 325.79 294.96 326.09 294.62C326.38 294.27 326.74 293.92 327.03 293.53C327.32 293.14 327.57 292.69 327.83 292.29C328.10 291.89 328.34 291.53 328.61 291.13C328.87 290.73 329.16 290.30 329.43 289.90C329.70 289.50 329.94 289.12 330.21 288.73C330.48 288.34 330.78 287.97 331.06 287.57C331.34 287.17 331.61 286.72 331.87 286.32C332.13 285.92 332.37 285.56 332.62 285.16C332.88 284.76 333.16 284.32 333.42 283.90C333.67 283.49 333.89 283.06 334.15 282.66C334.41 282.26 334.71 281.90 334.98 281.50C335.25 281.09 335.49 280.64 335.75 280.23C336.02 279.83 336.30 279.47 336.57 279.07C336.84 278.68 337.11 278.27 337.36 277.86C337.62 277.45 337.84 277.00 338.10 276.60C338.37 276.19 338.67 275.83 338.94 275.43C339.20 275.02 339.42 274.58 339.68 274.17C339.94 273.75 340.24 273.34 340.50 272.94C340.77 272.54 341.00 272.17 341.26 271.77C341.52 271.36 341.79 270.94 342.05 270.53C342.31 270.11 342.58 269.69 342.83 269.29C343.09 268.88 343.32 268.51 343.58 268.11C343.84 267.70 344.13 267.28 344.38 266.86C344.64 266.44 344.87 266.04 345.11 265.61C345.36 265.18 345.60 264.72 345.85 264.30C346.10 263.89 346.33 263.51 346.60 263.12C346.86 262.73 347.16 262.33 347.45 261.95C347.73 261.56 348.03 261.18 348.32 260.80C348.60 260.42 348.86 260.04 349.14 259.66C349.43 259.29 349.74 258.90 350.04 258.54C350.35 258.18 350.67 257.85 350.99 257.50C351.31 257.16 351.63 256.81 351.98 256.48C352.33 256.15 352.72 255.82 353.10 255.54C353.49 255.27 353.87 255.07 354.29 254.83C354.70 254.59 355.11 254.33 355.57 254.13C356.04 253.93 356.50 253.77 357.07 253.65C357.64 253.54 358.35 253.47 359.00 253.44C359.66 253.40 360.34 253.41 361.00 253.44C361.66 253.46 362.37 253.49 362.96 253.59C363.55 253.68 364.08 253.83 364.55 254.02C365.02 254.21 365.38 254.47 365.78 254.73C366.17 254.98 366.56 255.25 366.92 255.55C367.29 255.85 367.66 256.18 367.98 256.53C368.30 256.88 368.60 257.23 368.85 257.64C369.11 258.06 369.31 258.54 369.50 259.01C369.69 259.47 369.87 259.94 370.01 260.45C370.15 260.95 370.27 261.45 370.35 262.04C370.42 262.64 370.47 263.35 370.47 264.00C370.47 264.66 370.41 265.37 370.34 265.97C370.27 266.58 370.16 267.11 370.05 267.63C369.93 268.15 369.81 268.55 369.67 269.08C369.54 269.61 369.43 270.28 369.25 270.79C369.07 271.30 368.83 271.71 368.62 272.16C368.41 272.61 368.20 273.00 367.99 273.48C367.78 273.96 367.60 274.49 367.35 275.04C367.10 275.60 366.75 276.29 366.48 276.81C366.21 277.34 365.97 277.74 365.72 278.19C365.47 278.64 365.23 279.07 364.99 279.50C364.74 279.93 364.49 280.35 364.24 280.76C363.98 281.18 363.72 281.59 363.47 282.00C363.21 282.41 362.94 282.81 362.68 283.21C362.42 283.61 362.15 283.97 361.90 284.39C361.64 284.80 361.41 285.30 361.16 285.71C360.90 286.12 360.64 286.46 360.37 286.85C360.10 287.25 359.81 287.67 359.55 288.08C359.29 288.49 359.07 288.91 358.81 289.31C358.55 289.71 358.25 290.07 357.99 290.48C357.73 290.89 357.50 291.35 357.24 291.76C356.98 292.17 356.70 292.54 356.43 292.94C356.16 293.33 355.91 293.74 355.64 294.15C355.38 294.55 355.13 294.98 354.85 295.37C354.57 295.75 354.25 296.08 353.96 296.47C353.68 296.85 353.40 297.27 353.13 297.66C352.86 298.05 352.60 298.43 352.33 298.81C352.06 299.20 351.78 299.58 351.50 299.97C351.22 300.37 350.93 300.77 350.66 301.17C350.39 301.57 350.16 301.98 349.88 302.37C349.60 302.75 349.28 303.12 348.97 303.48C348.66 303.85 348.33 304.17 348.03 304.54C347.73 304.92 347.46 305.34 347.18 305.72C346.90 306.10 346.64 306.45 346.35 306.82C346.06 307.19 345.74 307.57 345.43 307.93C345.13 308.29 344.82 308.64 344.52 309.01C344.21 309.37 343.91 309.76 343.63 310.14C343.34 310.52 343.09 310.95 342.79 311.31C342.49 311.68 342.16 311.98 341.84 312.32C341.52 312.67 341.18 313.02 340.86 313.36C340.54 313.70 340.22 314.03 339.90 314.38C339.58 314.72 339.27 315.11 338.95 315.45C338.62 315.80 338.28 316.11 337.94 316.44C337.61 316.77 337.26 317.10 336.93 317.44C336.60 317.77 336.29 318.11 335.95 318.44C335.62 318.78 335.28 319.12 334.93 319.45C334.59 319.77 334.23 320.08 333.88 320.39C333.52 320.69 333.16 321.00 332.79 321.29C332.42 321.58 332.01 321.83 331.63 322.11C331.25 322.40 330.89 322.71 330.50 322.99C330.10 323.27 329.67 323.54 329.27 323.79C328.86 324.04 328.49 324.27 328.07 324.51C327.65 324.75 327.24 325.04 326.76 325.24C326.28 325.45 325.68 325.59 325.18 325.75C324.69 325.92 324.27 326.06 323.77 326.22C323.27 326.38 322.68 326.57 322.18 326.72C321.68 326.88 321.29 327.03 320.76 327.14Z", "eje": "M145.5 250.3C147.0 248.1 152.0 240.4 154.3 236.9C156.7 233.5 157.7 231.9 159.4 229.4C161.1 226.9 162.9 224.5 164.6 222.0C166.4 219.5 168.0 217.0 169.8 214.5C171.5 212.1 173.1 209.3 175.3 207.3C177.4 205.3 180.0 203.8 182.6 202.5C185.2 201.1 188.5 199.4 191.1 199.3C193.6 199.2 197.0 200.1 198.0 202.1C199.0 204.0 197.1 208.0 196.9 211.0C196.7 214.0 197.1 217.1 196.8 220.1C196.6 223.1 195.6 226.0 195.2 229.0C194.7 231.9 194.4 234.9 193.9 237.9C193.5 240.9 193.2 243.9 192.7 246.8C192.2 249.8 191.4 252.8 190.9 255.7C190.5 258.7 190.2 261.7 189.9 264.7C189.7 267.7 189.3 270.8 189.5 273.7C189.6 276.6 189.3 280.7 190.9 282.1C192.4 283.6 196.0 283.0 198.8 282.4C201.5 281.8 204.7 280.5 207.1 278.8C209.5 277.2 211.4 274.8 213.1 272.4C214.8 269.9 215.7 266.9 217.1 264.2C218.5 261.6 220.0 258.9 221.4 256.3C222.8 253.6 224.3 251.0 225.6 248.3C226.9 245.6 228.1 242.7 229.4 240.1C230.8 237.4 232.3 234.8 233.9 232.2C235.4 229.6 236.5 226.5 238.5 224.4C240.6 222.4 243.7 221.4 246.3 220.1C249.0 218.8 252.6 216.1 254.6 216.7C256.6 217.2 258.0 220.8 258.6 223.5C259.1 226.1 258.1 229.4 258.0 232.4C257.9 235.5 258.1 238.5 257.9 241.5C257.8 244.5 257.4 247.5 257.0 250.5C256.7 253.5 256.4 256.4 256.1 259.4C255.7 262.4 255.2 265.4 255.0 268.4C254.8 271.4 254.9 274.5 255.0 277.4C255.1 280.3 254.2 284.5 255.6 285.9C257.1 287.2 260.9 286.2 263.6 285.5C266.3 284.9 269.5 283.5 271.9 281.9C274.3 280.2 276.3 277.9 278.1 275.6C279.9 273.2 281.1 270.3 282.6 267.7C284.2 265.1 285.9 262.6 287.4 260.0C288.9 257.4 290.0 254.5 291.7 252.1C293.5 249.7 295.6 247.3 298.0 245.7C300.4 244.0 303.8 242.4 306.3 242.1C308.8 241.8 311.7 242.1 313.1 243.8C314.6 245.5 314.9 249.4 315.0 252.3C315.2 255.3 314.2 258.3 314.0 261.3C313.8 264.3 314.2 267.4 314.0 270.4C313.8 273.4 313.1 276.3 312.9 279.3C312.8 282.3 313.0 285.4 313.0 288.4C313.0 291.4 312.9 294.5 312.9 297.5C313.0 300.4 311.7 304.4 313.0 306.2C314.3 308.1 318.2 308.8 320.9 308.7C323.7 308.7 327.0 307.3 329.6 305.9C332.1 304.4 334.3 302.3 336.4 300.1C338.4 298.0 340.0 295.3 341.7 292.9C343.5 290.4 345.1 287.9 346.8 285.3C348.4 282.8 350.0 280.2 351.6 277.6C353.2 275.1 354.3 273.6 356.6 270.1C358.9 266.6 364.0 258.9 365.4 256.7", "sw": 25.8, "A": [187.9, 185.2], "B": [312.6, 331.4], "ca": "#0256DF", "cb": "#0381F7"};
+let museN = 0;
+function museSVG(w) {
+  const k = museN++, [x, y, vw, vh] = MUSE.viewBox;
+  return `<svg class="museM" viewBox="${x} ${y} ${vw} ${vh}" width="${w}" height="${(w * vh / vw).toFixed(1)}" style="display:block;overflow:visible">
+<defs><linearGradient id="mg${k}" gradientUnits="userSpaceOnUse" x1="${MUSE.A[0]}" y1="${MUSE.A[1]}" x2="${MUSE.B[0]}" y2="${MUSE.B[1]}"><stop offset="0" stop-color="${MUSE.ca}"/><stop offset="1" stop-color="${MUSE.cb}"/></linearGradient>
+<mask id="mm${k}" maskUnits="userSpaceOnUse" x="${x - 30}" y="${y - 30}" width="${vw + 60}" height="${vh + 60}"><path class="eje" d="${MUSE.eje}" pathLength="1" fill="none" stroke="#fff" stroke-width="${(MUSE.sw * 1.6).toFixed(1)}" stroke-linecap="round" stroke-linejoin="round"/></mask></defs>
+<path d="${MUSE.outline}" fill="url(#mg${k})" mask="url(#mm${k})"/></svg>`;
+}
+function museDibujo(el, p) {
+  const e = el._eje || (el._eje = el.querySelector('.eje'));
+  if (p >= 1) { e.style.strokeDasharray = 'none'; e.setAttribute('stroke-width', (MUSE.sw * 3).toFixed(1)); e.style.opacity = 1; return; }
+  e.setAttribute('stroke-width', (MUSE.sw * 1.6).toFixed(1));
+  e.style.strokeDasharray = `${p.toFixed(4)} 2`;
+  e.style.opacity = p > .002 ? 1 : 0;
+}
+function museFicha(size, z = 'z5') {
+  const e = mk('div', `L mficha ${z}`);
+  e.style.width = e.style.height = size + 'px'; e.style.borderRadius = (size * .235).toFixed(1) + 'px';
+  e.innerHTML = museSVG(size * .64);
+  return e;
+}
+/* hijos de una pieza: posición, escala y opacidad */
+function loc(el, x, y, s = 1, o = 1, r = 0) {
+  el.style.left = x.toFixed(1) + 'px'; el.style.top = y.toFixed(1) + 'px';
+  el.style.transform = `translate(-50%,-50%)${r ? ` rotate(${r.toFixed(2)}deg)` : ''} scale(${s.toFixed(4)})`;
+  el.style.opacity = clamp(o).toFixed(3);
+}
+/* extremo de un cable que sale del borde de una pieza: de a hacia b, recortado ra y rb */
+function tramo(a, b, ra, rb) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1;
+  return [[a[0] + dx / L * ra, a[1] + dy / L * ra], [b[0] - dx / L * rb, b[1] - dy / L * rb]];
+}
+
+/* =====================================================================
+   1 · TRÍO — «similar a OpenClaw o Hermes» · «totalmente gratis con amplios límites semanales»
+   ===================================================================== */
+const TRIO = { y: 500, s: .88, x: [440, 960, 1480] };
+const tMuse = tarjeta({ lado: 'n', logo: 'muse', empresa: 'META', familia: 'Agente de IA', nombre: 'Muse' });
+const tClaw = tarjeta({ lado: 'claw', logo: 'openclaw', empresa: 'OPEN SOURCE', familia: 'Agente de IA', nombre: 'OpenClaw' });
+const tHermes = tarjeta({ lado: 'hermes', logo: 'hermesagent', empresa: 'NOUS RESEARCH', familia: 'Agente de IA', nombre: 'Hermes' });
+const aprox = [0, 1].map(() => mk('div', 'L aprox z5', null, '≈'));
+const cabTrio = mk('div', 'L eyebrow z5'); cabTrio.style.fontSize = '32px'; cabTrio.style.color = '#aab4c8';
+const chipMomento = new ChipEscrito([{ t0: T.de - .12, icono: 'hourglass', textos: [[T.de - .04, T.de + .5, 'de momento']] }]);
+const gratis = mk('div', 'L gratis z6', null, `<span class="ic">${icon('circleCheck', 42, 2.4)}</span><span>GRATIS</span>`);
+function medidor() {
+  const e = mk('div', 'L medidor z4', null, `<div class="cab"><span class="ic">${icon('gauge', 30, 2)}</span><span>LÍMITE SEMANAL</span></div>
+<div class="pista"><div class="relleno"></div></div><div class="dias">${'LMXJVSD'.split('').map(d => `<span>${d}</span>`).join('')}</div>`);
+  e._pista = e.querySelector('.pista'); e._rel = e.querySelector('.relleno'); e._dias = e.querySelector('.dias');
+  return e;
+}
+const med1 = medidor();
+const TMK = norm([
+  [T.similar - .34, { x: 960, y: TRIO.y + 16, s: .66, o: 0 }],
+  [T.similar + .16, { y: TRIO.y, s: TRIO.s, o: 1 }, E.out4],
+  [T.de - .06, {}],
+  [T.de + .55, { x: 560, y: 470, s: .92 }, E.io4],
+]);
+
+function escenaTrio(t) {
+  if (!dentro(t, V.trio)) { [tMuse, tClaw, tHermes, ...aprox, cabTrio, gratis, med1].forEach(off); chipMomento.pintar(t, { o: 0 }); return; }
+  const X = P(t, T.de - .1, .4, E.in3);                                           // salen OpenClaw y Hermes
+  card(tMuse, KF(t, TMK), .75 + .25 * P(t, T.gratis, .4));
+  rise(tMuse._fam, t, T.similar - .34); slam(tMuse._nm, t, T.similar - .3, 1.2);
+  const pc = P(t, T.openclaw - .1, .5, E.out4), ph = P(t, T.hermes - .1, .5, E.out4);
+  card(tClaw, { x: lerp(250, TRIO.x[0], pc) - X * 70, y: TRIO.y, s: TRIO.s * (1 - .08 * X), o: clamp(pc * 2) * (1 - X), b: (1 - pc) * 6 + X * 6 },
+       .55 * P(t, T.openclaw, .3) * (1 - .5 * P(t, T.hermes, .4)));
+  rise(tClaw._fam, t, T.openclaw - .1); slam(tClaw._nm, t, T.openclaw - .02, 1.25);
+  card(tHermes, { x: lerp(1670, TRIO.x[2], ph) + X * 70, y: TRIO.y, s: TRIO.s * (1 - .08 * X), o: clamp(ph * 2) * (1 - X), b: (1 - ph) * 6 + X * 6 },
+       .55 * P(t, T.hermes, .3));
+  rise(tHermes._fam, t, T.hermes - .1); slam(tHermes._nm, t, T.hermes - .02, 1.25);
+  aprox.forEach((a, i) => {
+    const p = clamp((t - (T.similar + .1 + i * .12)) / .4);
+    put(a, { x: i ? 1220 : 700, y: TRIO.y, s: lerp(.4, 1, E.back(p)), o: clamp(p * 3) * (1 - X) });
+  });
+  const n = Math.floor(P(t, T.similar - .02, .55, E.lin) * 18);
+  cabTrio.innerHTML = 'AGENTES PERSONALES'.slice(0, n) + (t < T.hermesFin ? '<span class="caret-i"></span>' : '');
+  put(cabTrio, { x: CX, y: 250, o: (t > T.similar - .05 ? 1 : 0) * (1 - X) });
+  // de momento, gratis y con un límite semanal amplio
+  chipMomento.pintar(t, { x: 1300, y: 200 + (1 - P(t, T.de - .12, .35)) * 12, s: 1.08, o: P(t, T.de - .12, .25) });
+  const g = clamp((t - (T.gratis - .06)) / .42), gp = E.out4(g);
+  put(gratis, { x: 1300, y: 318, s: lerp(1.45, 1, gp), o: clamp(g * 3), b: g > 0 && g < 1 ? (1 - gp) * 8 : 0 });
+  const pm = P(t, T.amplios - .14, .45);
+  put(med1, { x: 1300, y: 590, s: lerp(.9, 1, E.out3(pm)), o: pm });
+  med1._pista.style.right = lerp(420, 34, P(t, T.amplios, .7, E.out3)).toFixed(1) + 'px';    // «amplios»: la pista se alarga
+  med1._rel.style.width = '0px';
+  med1._dias.style.opacity = P(t, T.semanales - .05, .4).toFixed(3);
+}
+
+/* =====================================================================
+   2 · USO — «un 3 % de mi suscripción semanal»
+   ===================================================================== */
+const med2 = medidor();
+const chipVideo = new ChipEscrito([{ t0: T.un - .5, icono: 'clapperboard', textos: [[T.un - .48, T.un - .12, 'todo este vídeo']] }]);
+const cifra = mk('div', 'L cifra z5', null, '3<span class="u">%</span>');
+const marca3 = mk('div', 'L marca3 z6');
+const M2 = { x: CX, y: 660, s: 1.45 };
+function escenaUso(t) {
+  if (!dentro(t, V.uso)) { [med2, cifra, marca3].forEach(off); chipVideo.pintar(t, { o: 0 }); return; }
+  chipVideo.pintar(t, { x: CX, y: 150, s: 1.12, o: 1 });
+  put(med2, { ...M2, o: 1 });
+  med2._pista.style.right = '34px';
+  med2._dias.style.opacity = 1;
+  const f = P(t, T.tres - .03, .6, E.out3);
+  med2._rel.style.width = (588 * .03 * f).toFixed(2) + 'px';                     // 3 % de la pista
+  const c = clamp((t - (T.tres - .06)) / .45), cp = E.out4(c);
+  put(cifra, { x: CX, y: 355, s: lerp(1.5, 1, cp) * (1 + .03 * bump(t, T.tresFin, .3)), o: clamp(c * 3), b: c > 0 && c < 1 ? (1 - cp) * 10 : 0 });
+  const fx = M2.x + (-330 + 34 + 2 + 588 * .03 / 2) * M2.s;
+  put(marca3, { x: fx, y: M2.y - 20 * M2.s - 6 * (1 - E.out3(P(t, T.tres + .25, .35))), o: P(t, T.tres + .25, .3) });
+}
+
+/* =====================================================================
+   3 · NO ES… — «no se trata de un Claude Code, Antigravity o Codex. Más bien, un asistente personal…»
+   ===================================================================== */
+const tClaude = tarjeta({ lado: 'a', logo: 'claude', empresa: 'ANTHROPIC', familia: 'Claude', nombre: 'Code' });
+const tAnti = tarjeta({ lado: 'g', logo: 'antigravity', empresa: 'GOOGLE', familia: 'Google', nombre: 'Antigravity' });
+const tCodex = tarjeta({ lado: 'b', logo: 'codex', empresa: 'OPENAI', familia: 'OpenAI', nombre: 'Codex' });
+tAnti._name.style.fontSize = '68px'; tAnti._name.style.top = '200px';
+const CODIG = [tClaude, tAnti, tCodex].map((el, i) => ({ el, x: TRIO.x[i], t: [T.claude, T.antigravity, T.codex][i] }));
+const chipProg = new ChipEscrito([{ t0: T.claude - .32, icono: 'code', textos: [[T.claude - .3, T.claude + .3, 'agentes de programación']], tachar: T.codexFin + .02 }]);
+const fichaN = museFicha(210, 'z5');
+const chipAsis = new ChipEscrito([{ t0: T.asistente - .12, icono: 'sparkles', textos: [[T.asistente - .03, T.asistente + .34, 'asistente'], [T.personal - .03, T.personal + .3, ' personal']] }]);
+const HERR = [
+  { el: nodo({ lado: 'mail', logo: 'gmail', etiqueta: 'Gmail' }), x: 540, y: 300, t: T.integra - .04 },
+  { el: nodo({ lado: 'mail', logo: 'microsoftoutlook', etiqueta: 'Outlook' }), x: 1380, y: 300, t: T.integra + .38 },
+  { el: nodo({ lado: 'mail', logo: 'googlecalendar', etiqueta: 'Calendar' }), x: 540, y: 690, t: T.trabajo - .04 },
+  { el: nodo({ lado: 'mail', logo: 'googledrive', etiqueta: 'Drive' }), x: 1380, y: 690, t: T.herramientas - .04 },
+];
+const wHerr = HERR.map(() => new Wire([[0, 0], [0, 0]]));
+const dHerr = HERR.map(() => new Dot(6));
+const FN = { x: CX, y: 470 };
+function escenaNoes(t) {
+  if (!dentro(t, V.noes)) {
+    [...CODIG.map(c => c.el), fichaN, ...HERR.map(h => h.el)].forEach(off); chipProg.pintar(t, { o: 0 }); chipAsis.pintar(t, { o: 0 });
+    wHerr.forEach(w => w.draw(0, 0, 0)); dHerr.forEach(d => d.hide()); return;
+  }
+  const des = P(t, T.codexFin + .02, .45, E.io3);       // descartados: pierden el color y se encogen
+  const sal = P(t, T.masBien - .08, .32, E.in3);        // y se van (antes de que llegue la ficha de Muse)
+  CODIG.forEach((c, i) => {
+    const p = P(t, c.t - (i ? .08 : .3), .5, E.out4);
+    card(c.el, { x: c.x, y: 520 - sal * 70 + (1 - p) * 30, s: TRIO.s * (1 - .1 * des), o: clamp(p * 2) * (1 - sal), g: des, br: 1 - .35 * des, b: (1 - p) * 6 + sal * 6 },
+         .8 * P(t, c.t, .3) * (1 - des));
+    rise(c.el._fam, t, c.t - .12); slam(c.el._nm, t, c.t - .02, 1.25);
+  });
+  chipProg.pintar(t, { x: CX, y: 215, s: 1.1, o: P(t, T.claude - .32, .2) * (1 - sal) });
+  const pf = P(t, T.masBien + .26, .5, E.lin);
+  put(fichaN, { x: FN.x, y: FN.y, s: lerp(.62, 1, E.back(pf)) * (1 + .05 * bump(t, T.dia + .3, .3)), o: clamp(pf * 4) });
+  museDibujo(fichaN, P(t, T.masBien + .3, .62, E.ioSine));
+  chipAsis.pintar(t, { x: CX, y: 660, s: 1.1, o: P(t, T.asistente - .12, .25) });
+  HERR.forEach((h, i) => {
+    const p = clamp((t - h.t) / .45);
+    put(h.el, { x: h.x, y: h.y, s: 1.22 * lerp(.7, 1, E.back(p)), o: clamp(p * 3) });
+    nodoEstado(h.el, { relleno: clamp(p * 1.3), h: P(t, h.t, .3) * (1 - .6 * P(t, h.t + .8, .5)) + .7 * bump(t, T.dia + .3, .45) });
+    wHerr[i].set(tramo([FN.x, FN.y], [h.x, h.y], 130, 110));
+    wHerr[i].draw(0, P(t, h.t + .04, .4, E.io3), .9 * clamp(p * 3), t * 14);
+    travel(dHerr[i], wHerr[i], t, T.dia - .1 + i * .05, T.dia + .38 + i * .05, true);
+  });
+}
+
+/* =====================================================================
+   4 · ECOSISTEMA — «su punto clave es la integración… con todo el ecosistema de herramientas de Meta»
+   ===================================================================== */
+const cabEco = mk('div', 'L eyebrow z5');
+const TIT_ECO = 'Integración';
+const titEco = letters(TIT_ECO, 'L title z5', TIT_ECO);
+titEco.style.setProperty('--grad1', '#5aa2ff'); titEco.style.setProperty('--grad2', '#d4e6ff');
+const titEcoT = letterTimes(TIT_ECO, [T.integracion]);
+const fichaE = museFicha(180, 'z5');
+const FE = { x: CX, y: 468 };
+const APPS_META = [['whatsapp', 'WhatsApp', 162], ['instagram', 'Instagram', 126], ['facebook', 'Facebook', 90], ['messenger', 'Messenger', 54], ['threads', 'Threads', 18]]
+  .map(([lg, nombre, ang], i) => ({ el: nodo({ lado: 'meta', logo: lg, etiqueta: nombre }), x: FE.x + 330 * Math.cos(ang * Math.PI / 180),
+    y: FE.y + 330 * Math.sin(ang * Math.PI / 180), t: T.ecosistema - .06 + i * .17 }));
+const wEco = APPS_META.map(() => new Wire([[0, 0], [0, 0]]));
+const dEco = APPS_META.map(() => new Dot(6));
+const metaEco = mk('div', 'L z5', null, '<img src="assets/logos/meta-lockup.svg" alt="" style="height:52px;width:auto;display:block">');
+function escenaEco(t) {
+  if (!dentro(t, V.eco)) { [cabEco, titEco, fichaE, metaEco, ...APPS_META.map(a => a.el)].forEach(off); wEco.forEach(w => w.draw(0, 0, 0)); dEco.forEach(d => d.hide()); return; }
+  const n = Math.floor(P(t, T.punto - .04, .5, E.lin) * 11);
+  cabEco.innerHTML = 'PUNTO CLAVE'.slice(0, n) + (t < T.integracion + .4 ? '<span class="caret-i"></span>' : '');
+  put(cabEco, { x: CX, y: 118, o: 1 });
+  lettersIn(titEco, t, titEcoT);
+  put(titEco, { x: CX, y: 200, o: t > T.integracion - .1 ? 1 : 0 });
+  const pf = P(t, V.eco.a - .35, .5, E.lin);
+  put(fichaE, { x: FE.x, y: FE.y, s: lerp(.7, 1, E.back(pf)) * (1 + APPS_META.reduce((s, a, i) => s + .045 * bump(t, T.herramientas2 + .45 + i * .08, .25), 0)), o: clamp(pf * 4) });
+  museDibujo(fichaE, P(t, V.eco.a - .3, .6, E.ioSine));
+  APPS_META.forEach((a, i) => {
+    const p = clamp((t - a.t) / .45);
+    put(a.el, { x: a.x, y: a.y, s: lerp(.6, 1, E.back(p)), o: clamp(p * 3) });
+    nodoEstado(a.el, { relleno: clamp(p * 1.3), h: P(t, T.herramientas2 + .45 + i * .08, .3) * .8 });
+    wEco[i].set(tramo([FE.x, FE.y], [a.x, a.y], 112, 84));
+    wEco[i].draw(0, P(t, T.herramientas2 - .05 + i * .06, .4, E.io3), .9, t * 14);
+    travel(dEco[i], wEco[i], t, T.herramientas2 + .05 + i * .08, T.herramientas2 + .45 + i * .08, true);
+  });
+  const m = P(t, T.meta - .06, .45, E.out4);
+  put(metaEco, { x: CX, y: 988 - (1 - m) * 14, o: m });
+}
+
+/* =====================================================================
+   5 · CLIC Y NUBE — «a base de clic te vas a conectar a WhatsApp… Instagram o Facebook» ·
+       «vive en un entorno en la nube de Meta… no tienes que preocuparte de instalarlo»
+   ===================================================================== */
+const FILAS = [['whatsapp', 'WhatsApp', 'wa', 150], ['instagram', 'Instagram', 'meta', 282], ['facebook', 'Facebook', 'meta', 414]];
+const panel = mk('div', 'L panel z4');
+panel.innerHTML = `<div class="tit"><div class="mini mficha">${museSVG(37)}</div>Conectores<small>MUSE</small></div>` +
+  FILAS.map(([lg, nom, lado, y]) => `<div class="fila lado-${lado}" style="top:${y}px"><div class="hi"></div>${logo(lg, 64)}<div class="nom">${nom}</div>
+<div class="boton"><span class="con">Conectar</span><span class="gira"><i></i></span><span class="ok">${icon('check', 26, 3)}Conectado</span></div></div>`).join('');
+const PF = [...panel.querySelectorAll('.fila')].map(f => ({ hi: f.querySelector('.hi'), con: f.querySelector('.con'), gira: f.querySelector('.gira'),
+  giraI: f.querySelector('.gira i'), ok: f.querySelector('.ok'), boton: f.querySelector('.boton') }));
+const cursor = mk('div', 'L cursor z7', null, icon('mousePointer2', 44, 1.8));
+const BOTON = y => ({ x: 960 + 430 - 34 - 26 - 118, y: 540 - 280 + y + 56 });   // centro del botón de cada fila (mundo)
+const CURK = norm([
+  [T.base - .5, { x: 1500, y: 900, o: 0 }],
+  [T.base - .3, { o: 1 }, E.lin],
+  [T.clic - .06, { x: BOTON(150).x - 10, y: BOTON(150).y + 4 }, E.io3],
+  [T.instagram - .5, {}],
+  [T.instagram - .08, { x: BOTON(282).x - 10, y: BOTON(282).y + 4 }, E.io3],
+  [T.facebook - .42, {}],
+  [T.facebook - .06, { x: BOTON(414).x - 10, y: BOTON(414).y + 4 }, E.io3],
+  [T.ademas - .12, {}],
+  [T.ademas + .15, { o: 0 }, E.lin],
+]);
+const nube = mk('div', 'L z3', null, `<svg width="860" height="860" viewBox="0 0 24 24" style="display:block;overflow:visible">
+<path class="relleno" d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" fill="rgba(47,134,255,.07)" stroke="none"/>
+<path class="trazo" pathLength="1" d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" fill="none" stroke="#6aa8ff" stroke-width=".26" stroke-linecap="round" stroke-linejoin="round"/></svg>`);
+const nubeTrazo = nube.querySelector('.trazo'), nubeRelleno = nube.querySelector('.relleno');
+const vm = mk('div', 'L vm z5', null, `<div class="barra"><i></i><i></i><i></i></div><div class="dentro"><div class="mini mficha" style="width:96px;height:96px;border-radius:23px">${museSVG(62)}</div>
+<div class="estado"><b><i></i>en línea</b><span>servidor de Meta</span></div></div>`);
+const metaNube = mk('div', 'L z6', null, '<img src="assets/logos/meta-lockup.svg" alt="" style="height:48px;width:auto;display:block">');
+const chipNube = new ChipEscrito([{ t0: T.nube - .2, icono: 'cloud', textos: [[T.nube - .1, T.nube + .28, 'en la nube'], [T.meta2 - .03, T.meta2 + .26, ' de Meta']] }]);
+const portatil = mk('div', 'L portatil z5', null, icon('laptop', 190, 1.6));
+const bajar = mk('div', 'L z6', null, `<div style="width:86px;height:86px;border-radius:24px;background:#12151c;border:1.5px solid #3a4150;display:flex;align-items:center;justify-content:center;color:#cfd6e4">${icon('download', 46, 2.2)}</div>`);
+const tachon = mk('div', 'L tachon z7'); tachon.style.width = '300px';
+const chipSin = new ChipEscrito([{ t0: T.instalarlo - .05, icono: 'circleCheck', textos: [[T.instalarlo - .02, T.instalarlo + .45, 'nada que instalar']] }]);
+function escenaClic(t) {
+  if (!dentro(t, V.clic)) { [panel, cursor, nube, vm, metaNube, portatil, bajar, tachon].forEach(off); chipNube.pintar(t, { o: 0 }); chipSin.pintar(t, { o: 0 }); return; }
+  // panel de conectores: clic en WhatsApp → conectado; Instagram y Facebook, también disponibles
+  const ent = P(t, V.clic.a - .35, .5, E.out4), X = P(t, T.ademas - .12, .55, E.io3);
+  put(panel, { x: CX, y: lerp(540, 470, X) + (1 - ent) * 24, s: lerp(1, .34, X), o: ent * (1 - P(t, T.ademas + .15, .3)), b: X * 3 });
+  museDibujo(panel.querySelector('.mini'), 1);
+  const click = bump(t, T.clic, .18);
+  PF.forEach((f, i) => {
+    const conectado = i === 0 ? P(t, T.whatsapp - .06, .22) : 0;
+    const cargando = i === 0 ? (t > T.clic + .05 && t < T.whatsapp - .02 ? 1 : 0) : 0;
+    f.con.style.opacity = (1 - Math.max(conectado, cargando)).toFixed(3);
+    f.gira.style.opacity = cargando * (1 - conectado);
+    f.giraI.style.transform = `rotate(${(t * 540) % 360}deg)`;
+    f.ok.style.opacity = conectado.toFixed(3);
+    const quien = [T.whatsapp, T.instagram, T.facebook][i];
+    f.hi.style.opacity = (i === 0 ? .9 * conectado : .85 * P(t, quien - .08, .25) * (1 - .5 * P(t, quien + .7, .5))).toFixed(3);
+    f.boton.style.transform = `scale(${(1 - (i === 0 ? .06 * click : 0) + (i ? .05 * bump(t, quien - .02, .35) : 0)).toFixed(4)})`;
+  });
+  const c = KF(t, CURK);
+  put(cursor, { ...c, ax: 17, ay: 17, s: 1 - .16 * click });
+  // la nube de Meta
+  const dn = P(t, T.ademas - .05, .75, E.io3), lado = P(t, T.no - .1, .6, E.io4), nx = lerp(CX, 790, lado);
+  put(nube, { x: nx, y: 440, o: dn > 0 ? 1 : 0 });
+  drawStrokes(nube.querySelector('svg'), dn);
+  nubeRelleno.style.opacity = P(t, T.ademas + .5, .5).toFixed(3);
+  const pv = P(t, T.entorno - .1, .45, E.lin);
+  put(vm, { x: nx, y: 520, s: lerp(.8, 1, E.back(pv)), o: clamp(pv * 3) });
+  museDibujo(vm.querySelector('.mini'), 1);
+  const pm = P(t, T.meta2 - .06, .4, E.out4);
+  put(metaNube, { x: nx - 60, y: 322 - (1 - pm) * 12, o: pm });
+  chipNube.pintar(t, { x: nx, y: 800, s: 1.1, o: P(t, T.nube - .2, .25) });
+  // sin instalar nada
+  const pp = P(t, T.no - .06, .45, E.out4);
+  put(bajar, { x: 1520, y: 420 + (1 - pp) * 20 + 6 * Math.sin(t * 5), o: pp });
+  const tc = P(t, T.instalarlo - .08, .3, E.out3);
+  put(tachon, { x: 1520, y: 510, r: -28, sx: Math.max(.001, tc), o: tc > 0 ? 1 : 0 });
+  put(portatil, { x: 1520, y: 560 + (1 - pp) * 20, o: pp, g: .8 * tc, br: 1 - .3 * tc });
+  chipSin.pintar(t, { x: 1520, y: 800, s: 1.05, o: P(t, T.instalarlo - .05, .2) });
+}
+
+/* =====================================================================
+   6 · MODELOS Y MAPA — «ya se encuentra casi con la misma inteligencia que los más potentes» ·
+       «y aunque solo está disponible en Estados Unidos»
+   ===================================================================== */
+const MOD = { base: 880, top: 360, x: [660, 1060, 1260, 1460], alto: [480, 520, 520, 520] };
+const barras = MOD.x.map((x, i) => { const e = mk('div', `L barraM ${i ? '' : 'muse'} z3`, null, '<div class="brillo"></div>'); e._brillo = e.querySelector('.brillo'); return e; });
+const cabezas = [['meta', 'muse'], ['claude', ''], ['openai', ''], ['gemini', '']].map(([lg, cl]) => mk('div', `L cabeza ${cl} z4`, null, logo(lg, 64)));
+const etqs = ['Muse Spark', 'Claude', 'GPT', 'Gemini'].map((s, i) => mk('div', `L etq ${i ? '' : 'muse'} z4`, null, s));
+const lineaTop = mk('div', 'L lineaTop z2'); lineaTop.style.width = '1200px';
+const lblTop = mk('div', 'L lblTop z4');
+const casi = mk('div', 'L casi z6', null, `${icon('chevronsUp', 30, 2.4)}<span>casi</span>`);
+const baseM = mk('div', 'L baseline z2'); baseM.style.width = '1200px';
+const ejeM = mk('div', 'L etq z2', null, 'INTELIGENCIA'); ejeM.style.letterSpacing = '.2em'; ejeM.style.color = '#6b7488'; ejeM.style.fontSize = '22px';
+const hueco = new Wire([[0, 0], [0, 0]], { color: '#e9c46a', width: 2.5, dash: '5 6' });
+// mapa (el de la intro): EE. UU. en azul con el alfiler de Muse
+const MAPA_PUNTOS = {"usc": [544.1, 470.2], "pts": "571,210,0;585,210,0;612,210,0;625,210,0;679,210,0;693,210,0;706,210,0;720,210,0;733,210,0;747,210,0;760,210,0;774,210,0;787,210,0;801,210,0;814,210,0;828,210,0;841,210,0;855,210,0;868,210,0;1017,210,0;1030,210,0;1044,210,0;1368,210,0;1381,210,0;490,223,0;612,223,0;625,223,0;666,223,0;679,223,0;693,223,0;706,223,0;720,223,0;733,223,0;747,223,0;760,223,0;774,223,0;787,223,0;801,223,0;814,223,0;828,223,0;841,223,0;855,223,0;868,223,0;1030,223,0;1057,223,0;450,237,0;477,237,0;544,237,0;571,237,0;679,237,0;693,237,0;706,237,0;720,237,0;733,237,0;747,237,0;760,237,0;774,237,0;787,237,0;801,237,0;814,237,0;828,237,0;841,237,0;855,237,0;868,237,0;1233,237,0;1246,237,0;1381,237,0;1395,237,0;1408,237,0;1422,237,0;1435,237,0;490,250,0;558,250,0;585,250,0;598,250,0;612,250,0;720,250,0;733,250,0;747,250,0;760,250,0;774,250,0;787,250,0;801,250,0;814,250,0;828,250,0;841,250,0;855,250,0;868,250,0;1206,250,0;1327,250,0;1341,250,0;1354,250,0;1368,250,0;1381,250,0;1395,250,0;1408,250,0;1422,250,0;436,264,0;450,264,0;463,264,0;477,264,0;504,264,0;544,264,0;558,264,0;571,264,0;585,264,0;612,264,0;625,264,0;733,264,0;747,264,0;760,264,0;774,264,0;787,264,0;801,264,0;814,264,0;828,264,0;841,264,0;855,264,0;1192,264,0;1300,264,0;1314,264,0;1327,264,0;1341,264,0;1354,264,0;1368,264,0;1381,264,0;1395,264,0;1408,264,0;1422,264,0;1435,264,0;1449,264,0;1462,264,0;1489,264,0;207,277,0;450,277,0;463,277,0;477,277,0;490,277,0;504,277,0;517,277,0;544,277,0;558,277,0;585,277,0;598,277,0;612,277,0;625,277,0;639,277,0;652,277,0;747,277,0;760,277,0;774,277,0;787,277,0;801,277,0;814,277,0;828,277,0;841,277,0;855,277,0;1192,277,0;1246,277,0;1260,277,0;1273,277,0;1287,277,0;1300,277,0;1314,277,0;1327,277,0;1341,277,0;1354,277,0;1368,277,0;1381,277,0;1395,277,0;1408,277,0;1422,277,0;1435,277,0;1449,277,0;1462,277,0;1476,277,0;1489,277,0;1503,277,0;1530,277,0;1543,277,0;1557,277,0;1570,277,0;1584,277,0;1597,277,0;1719,277,0;274,291,1;288,291,1;301,291,1;315,291,1;328,291,1;342,291,1;355,291,1;409,291,0;423,291,0;450,291,0;477,291,0;490,291,0;504,291,0;517,291,0;531,291,0;544,291,0;571,291,0;639,291,0;652,291,0;666,291,0;733,291,0;747,291,0;760,291,0;774,291,0;787,291,0;801,291,0;814,291,0;828,291,0;841,291,0;855,291,0;1044,291,0;1057,291,0;1071,291,0;1084,291,0;1098,291,0;1219,291,0;1246,291,0;1260,291,0;1273,291,0;1287,291,0;1300,291,0;1314,291,0;1327,291,0;1341,291,0;1354,291,0;1368,291,0;1381,291,0;1395,291,0;1408,291,0;1422,291,0;1435,291,0;1449,291,0;1462,291,0;1476,291,0;1489,291,0;1503,291,0;1516,291,0;1530,291,0;1543,291,0;1557,291,0;1570,291,0;1584,291,0;1597,291,0;1611,291,0;1624,291,0;1651,291,0;1678,291,0;1692,291,0;1705,291,0;207,304,0;274,304,1;288,304,1;301,304,1;315,304,1;328,304,1;342,304,1;355,304,1;369,304,0;382,304,0;396,304,0;409,304,0;423,304,0;436,304,0;450,304,0;463,304,0;477,304,0;517,304,0;558,304,0;571,304,0;585,304,0;598,304,0;612,304,0;639,304,0;652,304,0;666,304,0;679,304,0;747,304,0;760,304,0;774,304,0;787,304,0;801,304,0;814,304,0;1030,304,0;1044,304,0;1057,304,0;1071,304,0;1084,304,0;1098,304,0;1111,304,0;1125,304,0;1152,304,0;1179,304,0;1192,304,0;1206,304,0;1219,304,0;1233,304,0;1246,304,0;1260,304,0;1287,304,0;1300,304,0;1314,304,0;1327,304,0;1341,304,0;1354,304,0;1368,304,0;1381,304,0;1395,304,0;1408,304,0;1422,304,0;1435,304,0;1449,304,0;1462,304,0;1476,304,0;1489,304,0;1503,304,0;1516,304,0;1530,304,0;1543,304,0;1557,304,0;1570,304,0;1584,304,0;1597,304,0;1611,304,0;1624,304,0;1638,304,0;1651,304,0;1665,304,0;1678,304,0;1692,304,0;1705,304,0;1719,304,0;207,318,0;220,318,0;234,318,0;261,318,1;274,318,1;288,318,1;301,318,1;315,318,1;328,318,1;342,318,1;355,318,1;369,318,0;382,318,0;396,318,0;409,318,0;423,318,0;436,318,0;450,318,0;463,318,0;477,318,0;490,318,0;504,318,0;517,318,0;531,318,0;544,318,0;558,318,0;571,318,0;585,318,0;652,318,0;666,318,0;693,318,0;747,318,0;760,318,0;774,318,0;787,318,0;801,318,0;868,318,0;882,318,0;895,318,0;1017,318,0;1030,318,0;1044,318,0;1057,318,0;1071,318,0;1084,318,0;1098,318,0;1138,318,0;1152,318,0;1165,318,0;1179,318,0;1192,318,0;1206,318,0;1219,318,0;1233,318,0;1246,318,0;1260,318,0;1273,318,0;1287,318,0;1300,318,0;1314,318,0;1327,318,0;1341,318,0;1354,318,0;1368,318,0;1381,318,0;1395,318,0;1408,318,0;1422,318,0;1435,318,0;1449,318,0;1462,318,0;1476,318,0;1489,318,0;1503,318,0;1516,318,0;1530,318,0;1543,318,0;1557,318,0;1570,318,0;1584,318,0;1597,318,0;1611,318,0;1624,318,0;1638,318,0;1651,318,0;1665,318,0;1678,318,0;1692,318,0;1705,318,0;1719,318,0;288,331,1;301,331,1;315,331,1;328,331,1;342,331,1;355,331,1;369,331,0;382,331,0;396,331,0;409,331,0;423,331,0;436,331,0;450,331,0;463,331,0;477,331,0;490,331,0;504,331,0;517,331,0;531,331,0;544,331,0;558,331,0;571,331,0;598,331,0;612,331,0;666,331,0;679,331,0;747,331,0;760,331,0;774,331,0;787,331,0;868,331,0;882,331,0;1003,331,0;1017,331,0;1030,331,0;1044,331,0;1057,331,0;1071,331,0;1084,331,0;1098,331,0;1111,331,0;1125,331,0;1138,331,0;1152,331,0;1165,331,0;1179,331,0;1192,331,0;1206,331,0;1219,331,0;1233,331,0;1246,331,0;1260,331,0;1273,331,0;1287,331,0;1300,331,0;1314,331,0;1327,331,0;1341,331,0;1354,331,0;1368,331,0;1381,331,0;1395,331,0;1408,331,0;1422,331,0;1435,331,0;1449,331,0;1462,331,0;1476,331,0;1489,331,0;1503,331,0;1516,331,0;1530,331,0;1543,331,0;1557,331,0;1570,331,0;1584,331,0;1597,331,0;1611,331,0;1624,331,0;1638,331,0;1651,331,0;1665,331,0;1678,331,0;1692,331,0;1705,331,0;261,345,1;274,345,1;288,345,1;301,345,1;315,345,1;328,345,1;342,345,1;355,345,1;369,345,0;382,345,0;396,345,0;409,345,0;423,345,0;436,345,0;450,345,0;463,345,0;477,345,0;490,345,0;504,345,0;517,345,0;531,345,0;544,345,0;558,345,0;639,345,0;652,345,0;760,345,0;774,345,0;990,345,0;1003,345,0;1017,345,0;1030,345,0;1057,345,0;1071,345,0;1084,345,0;1098,345,0;1111,345,0;1125,345,0;1138,345,0;1152,345,0;1165,345,0;1179,345,0;1192,345,0;1206,345,0;1219,345,0;1233,345,0;1246,345,0;1260,345,0;1273,345,0;1287,345,0;1300,345,0;1314,345,0;1327,345,0;1341,345,0;1354,345,0;1368,345,0;1381,345,0;1395,345,0;1408,345,0;1422,345,0;1435,345,0;1449,345,0;1462,345,0;1476,345,0;1489,345,0;1503,345,0;1516,345,0;1530,345,0;1543,345,0;1557,345,0;1570,345,0;1584,345,0;1597,345,0;1611,345,0;1624,345,0;1638,345,0;1665,345,0;1678,345,0;1692,345,0;288,358,1;301,358,1;328,358,1;369,358,1;382,358,0;396,358,0;409,358,0;423,358,0;436,358,0;450,358,0;463,358,0;477,358,0;490,358,0;504,358,0;517,358,0;531,358,0;544,358,0;558,358,0;639,358,0;652,358,0;666,358,0;990,358,0;1003,358,0;1017,358,0;1030,358,0;1084,358,0;1098,358,0;1111,358,0;1125,358,0;1138,358,0;1152,358,0;1165,358,0;1179,358,0;1192,358,0;1206,358,0;1219,358,0;1233,358,0;1246,358,0;1260,358,0;1273,358,0;1287,358,0;1300,358,0;1314,358,0;1327,358,0;1341,358,0;1354,358,0;1368,358,0;1381,358,0;1395,358,0;1408,358,0;1422,358,0;1435,358,0;1449,358,0;1462,358,0;1476,358,0;1489,358,0;1503,358,0;1516,358,0;1530,358,0;1543,358,0;1557,358,0;1570,358,0;1584,358,0;1597,358,0;1611,358,0;301,372,1;315,372,1;396,372,1;409,372,0;423,372,0;436,372,0;450,372,0;463,372,0;477,372,0;490,372,0;504,372,0;517,372,0;531,372,0;544,372,0;558,372,0;639,372,0;652,372,0;666,372,0;679,372,0;693,372,0;936,372,0;949,372,0;1003,372,0;1017,372,0;1071,372,0;1084,372,0;1098,372,0;1111,372,0;1125,372,0;1138,372,0;1152,372,0;1165,372,0;1179,372,0;1192,372,0;1206,372,0;1219,372,0;1233,372,0;1246,372,0;1260,372,0;1273,372,0;1287,372,0;1300,372,0;1314,372,0;1327,372,0;1341,372,0;1354,372,0;1368,372,0;1381,372,0;1395,372,0;1408,372,0;1422,372,0;1435,372,0;1449,372,0;1462,372,0;1476,372,0;1489,372,0;1503,372,0;1516,372,0;1530,372,0;1543,372,0;1624,372,0;1638,372,0;274,385,1;409,385,1;423,385,0;436,385,0;450,385,0;463,385,0;477,385,0;490,385,0;504,385,0;517,385,0;531,385,0;544,385,0;558,385,0;571,385,0;585,385,0;598,385,0;639,385,0;652,385,0;666,385,0;679,385,0;693,385,0;706,385,0;949,385,0;1057,385,0;1071,385,0;1084,385,0;1098,385,0;1111,385,0;1125,385,0;1138,385,0;1152,385,0;1165,385,0;1179,385,0;1192,385,0;1206,385,0;1219,385,0;1233,385,0;1246,385,0;1260,385,0;1273,385,0;1287,385,0;1300,385,0;1314,385,0;1327,385,0;1341,385,0;1354,385,0;1368,385,0;1381,385,0;1395,385,0;1408,385,0;1422,385,0;1435,385,0;1449,385,0;1462,385,0;1476,385,0;1489,385,0;1503,385,0;1516,385,0;1530,385,0;1624,385,0;1638,385,0;423,399,0;436,399,0;450,399,0;463,399,0;477,399,0;490,399,0;504,399,0;517,399,0;531,399,0;544,399,0;558,399,0;571,399,0;585,399,0;598,399,0;612,399,0;639,399,0;652,399,0;666,399,0;679,399,0;693,399,0;706,399,0;720,399,0;922,399,0;949,399,0;990,399,0;1003,399,0;1017,399,0;1030,399,0;1044,399,0;1057,399,0;1071,399,0;1084,399,0;1098,399,0;1111,399,0;1125,399,0;1138,399,0;1152,399,0;1165,399,0;1179,399,0;1192,399,0;1206,399,0;1219,399,0;1233,399,0;1246,399,0;1260,399,0;1273,399,0;1287,399,0;1300,399,0;1314,399,0;1327,399,0;1341,399,0;1354,399,0;1368,399,0;1381,399,0;1395,399,0;1408,399,0;1422,399,0;1435,399,0;1449,399,0;1462,399,0;1476,399,0;1489,399,0;1503,399,0;1516,399,0;1530,399,0;1543,399,0;1557,399,0;1624,399,0;436,412,0;450,412,0;463,412,0;477,412,0;490,412,0;504,412,0;517,412,0;531,412,0;544,412,0;558,412,0;571,412,0;585,412,0;598,412,0;612,412,0;625,412,0;639,412,0;652,412,0;666,412,0;679,412,0;693,412,0;706,412,0;720,412,0;949,412,0;976,412,0;990,412,0;1003,412,0;1017,412,0;1030,412,0;1044,412,0;1057,412,0;1071,412,0;1084,412,0;1098,412,0;1111,412,0;1125,412,0;1138,412,0;1152,412,0;1165,412,0;1179,412,0;1192,412,0;1206,412,0;1219,412,0;1233,412,0;1246,412,0;1260,412,0;1273,412,0;1287,412,0;1300,412,0;1314,412,0;1327,412,0;1341,412,0;1354,412,0;1368,412,0;1381,412,0;1395,412,0;1408,412,0;1422,412,0;1435,412,0;1449,412,0;1462,412,0;1476,412,0;1489,412,0;1503,412,0;1516,412,0;1530,412,0;1543,412,0;436,426,1;450,426,1;463,426,1;477,426,1;490,426,1;504,426,1;517,426,1;531,426,1;544,426,1;558,426,1;571,426,1;585,426,1;598,426,0;612,426,0;625,426,0;639,426,0;652,426,0;666,426,0;679,426,0;720,426,0;733,426,0;949,426,0;963,426,0;976,426,0;990,426,0;1003,426,0;1017,426,0;1030,426,0;1044,426,0;1057,426,0;1071,426,0;1084,426,0;1098,426,0;1111,426,0;1125,426,0;1138,426,0;1152,426,0;1165,426,0;1179,426,0;1192,426,0;1206,426,0;1219,426,0;1233,426,0;1246,426,0;1260,426,0;1273,426,0;1287,426,0;1300,426,0;1314,426,0;1327,426,0;1341,426,0;1354,426,0;1368,426,0;1381,426,0;1395,426,0;1408,426,0;1422,426,0;1435,426,0;1449,426,0;1462,426,0;1476,426,0;1489,426,0;1503,426,0;1516,426,0;1530,426,0;1543,426,0;450,439,1;463,439,1;477,439,1;490,439,1;504,439,1;517,439,1;531,439,1;544,439,1;558,439,1;571,439,1;585,439,1;598,439,1;612,439,0;625,439,0;639,439,0;652,439,0;666,439,1;679,439,0;693,439,0;963,439,0;976,439,0;990,439,0;1003,439,0;1030,439,0;1044,439,0;1057,439,0;1071,439,0;1084,439,0;1125,439,0;1138,439,0;1152,439,0;1192,439,0;1206,439,0;1219,439,0;1233,439,0;1246,439,0;1260,439,0;1273,439,0;1287,439,0;1300,439,0;1314,439,0;1327,439,0;1341,439,0;1354,439,0;1368,439,0;1381,439,0;1395,439,0;1408,439,0;1422,439,0;1435,439,0;1449,439,0;1462,439,0;1476,439,0;1489,439,0;1503,439,0;1516,439,0;1530,439,0;436,453,1;450,453,1;463,453,1;477,453,1;490,453,1;504,453,1;517,453,1;531,453,1;544,453,1;558,453,1;571,453,1;585,453,1;598,453,1;612,453,1;625,453,0;639,453,1;652,453,1;922,453,0;936,453,0;949,453,0;963,453,0;1017,453,0;1044,453,0;1057,453,0;1071,453,0;1138,453,0;1152,453,0;1192,453,0;1206,453,0;1219,453,0;1233,453,0;1246,453,0;1260,453,0;1273,453,0;1287,453,0;1300,453,0;1314,453,0;1327,453,0;1341,453,0;1354,453,0;1368,453,0;1381,453,0;1395,453,0;1408,453,0;1422,453,0;1435,453,0;1449,453,0;1462,453,0;1476,453,0;1489,453,0;1503,453,0;1516,453,0;1557,453,0;436,466,1;450,466,1;463,466,1;477,466,1;490,466,1;504,466,1;517,466,1;531,466,1;544,466,1;558,466,1;571,466,1;585,466,1;598,466,1;612,466,1;625,466,1;639,466,1;936,466,0;949,466,0;1030,466,0;1044,466,0;1057,466,0;1084,466,0;1098,466,0;1111,466,0;1125,466,0;1138,466,0;1152,466,0;1165,466,0;1192,466,0;1206,466,0;1219,466,0;1233,466,0;1246,466,0;1260,466,0;1273,466,0;1287,466,0;1300,466,0;1314,466,0;1327,466,0;1341,466,0;1354,466,0;1368,466,0;1381,466,0;1395,466,0;1408,466,0;1422,466,0;1435,466,0;1449,466,0;1462,466,0;1476,466,0;1489,466,0;1503,466,0;1557,466,0;450,480,1;463,480,1;477,480,1;490,480,1;504,480,1;517,480,1;531,480,1;544,480,1;558,480,1;571,480,1;585,480,1;598,480,1;612,480,1;625,480,1;936,480,0;949,480,0;1017,480,0;1057,480,0;1084,480,0;1098,480,0;1111,480,0;1125,480,0;1138,480,0;1152,480,0;1165,480,0;1192,480,0;1206,480,0;1219,480,0;1233,480,0;1246,480,0;1260,480,0;1273,480,0;1287,480,0;1300,480,0;1314,480,0;1327,480,0;1341,480,0;1354,480,0;1368,480,0;1381,480,0;1395,480,0;1408,480,0;1422,480,0;1435,480,0;1449,480,0;1503,480,0;463,493,1;477,493,1;490,493,1;504,493,1;517,493,1;531,493,1;544,493,1;558,493,1;571,493,1;585,493,1;598,493,1;612,493,1;625,493,1;936,493,0;949,493,0;963,493,0;976,493,0;990,493,0;1003,493,0;1098,493,0;1125,493,0;1138,493,0;1152,493,0;1165,493,0;1179,493,0;1192,493,0;1206,493,0;1219,493,0;1233,493,0;1246,493,0;1260,493,0;1273,493,0;1287,493,0;1300,493,0;1314,493,0;1327,493,0;1341,493,0;1354,493,0;1368,493,0;1381,493,0;1395,493,0;1408,493,0;1422,493,0;1435,493,0;1449,493,0;1462,493,0;1530,493,0;1543,493,0;477,507,0;490,507,1;504,507,1;517,507,1;531,507,1;544,507,1;558,507,1;571,507,1;585,507,1;598,507,1;612,507,1;922,507,0;936,507,0;949,507,0;963,507,0;976,507,0;990,507,0;1003,507,0;1017,507,0;1057,507,0;1111,507,0;1125,507,0;1138,507,0;1152,507,0;1165,507,0;1179,507,0;1192,507,0;1206,507,0;1219,507,0;1233,507,0;1246,507,0;1260,507,0;1273,507,0;1287,507,0;1300,507,0;1314,507,0;1327,507,0;1341,507,0;1354,507,0;1368,507,0;1381,507,0;1395,507,0;1408,507,0;1422,507,0;1435,507,0;1449,507,0;1462,507,0;477,520,0;490,520,0;504,520,0;517,520,0;531,520,0;544,520,1;558,520,1;612,520,1;922,520,0;936,520,0;949,520,0;963,520,0;976,520,0;990,520,0;1003,520,0;1017,520,0;1030,520,0;1044,520,0;1057,520,0;1071,520,0;1084,520,0;1111,520,0;1125,520,0;1138,520,0;1152,520,0;1179,520,0;1192,520,0;1206,520,0;1219,520,0;1233,520,0;1246,520,0;1260,520,0;1273,520,0;1287,520,0;1300,520,0;1314,520,0;1327,520,0;1341,520,0;1354,520,0;1368,520,0;1381,520,0;1395,520,0;1408,520,0;1422,520,0;1435,520,0;1449,520,0;1462,520,0;504,534,0;517,534,0;531,534,0;544,534,0;909,534,0;922,534,0;936,534,0;949,534,0;963,534,0;976,534,0;990,534,0;1003,534,0;1017,534,0;1030,534,0;1044,534,0;1057,534,0;1071,534,0;1084,534,0;1098,534,0;1125,534,0;1138,534,0;1152,534,0;1165,534,0;1206,534,0;1219,534,0;1233,534,0;1246,534,0;1260,534,0;1273,534,0;1287,534,0;1300,534,0;1314,534,0;1327,534,0;1341,534,0;1354,534,0;1368,534,0;1381,534,0;1395,534,0;1408,534,0;1422,534,0;1435,534,0;1449,534,0;1462,534,0;517,547,0;531,547,0;544,547,0;612,547,0;895,547,0;909,547,0;922,547,0;936,547,0;949,547,0;963,547,0;976,547,0;990,547,0;1003,547,0;1017,547,0;1030,547,0;1044,547,0;1057,547,0;1071,547,0;1084,547,0;1098,547,0;1125,547,0;1138,547,0;1152,547,0;1165,547,0;1179,547,0;1192,547,0;1206,547,0;1260,547,0;1273,547,0;1287,547,0;1300,547,0;1314,547,0;1327,547,0;1341,547,0;1354,547,0;1368,547,0;1381,547,0;1395,547,0;1408,547,0;1422,547,0;1435,547,0;1449,547,0;517,561,0;531,561,0;544,561,0;585,561,0;639,561,0;895,561,0;909,561,0;922,561,0;936,561,0;949,561,0;963,561,0;976,561,0;990,561,0;1003,561,0;1017,561,0;1030,561,0;1044,561,0;1057,561,0;1071,561,0;1084,561,0;1098,561,0;1111,561,0;1138,561,0;1152,561,0;1165,561,0;1179,561,0;1192,561,0;1273,561,0;1287,561,0;1300,561,0;1314,561,0;1354,561,0;1368,561,0;1381,561,0;1395,561,0;544,574,0;558,574,0;571,574,0;585,574,0;895,574,0;909,574,0;922,574,0;936,574,0;949,574,0;963,574,0;976,574,0;990,574,0;1003,574,0;1017,574,0;1030,574,0;1044,574,0;1057,574,0;1071,574,0;1084,574,0;1098,574,0;1111,574,0;1152,574,0;1165,574,0;1179,574,0;1273,574,0;1287,574,0;1300,574,0;1368,574,0;1381,574,0;1395,574,0;1408,574,0;1476,574,0;585,588,0;598,588,0;895,588,0;909,588,0;922,588,0;936,588,0;949,588,0;963,588,0;976,588,0;990,588,0;1003,588,0;1017,588,0;1030,588,0;1044,588,0;1057,588,0;1071,588,0;1084,588,0;1098,588,0;1111,588,0;1125,588,0;1152,588,0;1287,588,0;1381,588,0;1395,588,0;1408,588,0;1476,588,0;598,601,0;652,601,0;666,601,0;693,601,0;909,601,0;922,601,0;936,601,0;949,601,0;963,601,0;976,601,0;990,601,0;1003,601,0;1017,601,0;1030,601,0;1044,601,0;1057,601,0;1071,601,0;1084,601,0;1098,601,0;1111,601,0;1125,601,0;1138,601,0;1152,601,0;1165,601,0;1287,601,0;1408,601,0;1476,601,0;639,615,0;652,615,0;666,615,0;679,615,0;693,615,0;706,615,0;909,615,0;922,615,0;936,615,0;949,615,0;963,615,0;976,615,0;990,615,0;1003,615,0;1017,615,0;1030,615,0;1044,615,0;1057,615,0;1071,615,0;1084,615,0;1098,615,0;1111,615,0;1125,615,0;1138,615,0;1152,615,0;1165,615,0;1300,615,0;1381,615,0;1476,615,0;1489,615,0;639,628,0;652,628,0;666,628,0;679,628,0;693,628,0;706,628,0;720,628,0;733,628,0;1003,628,0;1017,628,0;1030,628,0;1044,628,0;1057,628,0;1071,628,0;1084,628,0;1098,628,0;1111,628,0;1125,628,0;1138,628,0;1152,628,0;1368,628,0;1395,628,0;1449,628,0;625,642,0;639,642,0;652,642,0;666,642,0;679,642,0;693,642,0;706,642,0;720,642,0;733,642,0;747,642,0;1003,642,0;1017,642,0;1030,642,0;1044,642,0;1057,642,0;1071,642,0;1084,642,0;1098,642,0;1111,642,0;1125,642,0;1138,642,0;1381,642,0;1422,642,0;1435,642,0;1449,642,0;1503,642,0;625,655,0;639,655,0;652,655,0;666,655,0;679,655,0;693,655,0;706,655,0;720,655,0;733,655,0;747,655,0;760,655,0;1003,655,0;1017,655,0;1030,655,0;1044,655,0;1057,655,0;1071,655,0;1084,655,0;1098,655,0;1111,655,0;1125,655,0;1395,655,0;1435,655,0;1449,655,0;1543,655,0;625,669,0;639,669,0;652,669,0;666,669,0;679,669,0;693,669,0;706,669,0;720,669,0;733,669,0;747,669,0;760,669,0;774,669,0;787,669,0;801,669,0;1017,669,0;1030,669,0;1044,669,0;1057,669,0;1071,669,0;1084,669,0;1098,669,0;1111,669,0;1543,669,0;1557,669,0;1570,669,0;1597,669,0;639,682,0;652,682,0;666,682,0;679,682,0;693,682,0;706,682,0;720,682,0;733,682,0;747,682,0;760,682,0;774,682,0;787,682,0;801,682,0;1017,682,0;1030,682,0;1044,682,0;1057,682,0;1071,682,0;1084,682,0;1098,682,0;1111,682,0;1125,682,0;1462,682,0;1476,682,0;1557,682,0;1584,682,0;639,696,0;652,696,0;666,696,0;679,696,0;693,696,0;706,696,0;720,696,0;733,696,0;747,696,0;760,696,0;774,696,0;787,696,0;801,696,0;1030,696,0;1044,696,0;1057,696,0;1071,696,0;1084,696,0;1098,696,0;1111,696,0;1125,696,0;652,709,0;666,709,0;679,709,0;693,709,0;706,709,0;720,709,0;733,709,0;747,709,0;760,709,0;774,709,0;787,709,0;1017,709,0;1030,709,0;1044,709,0;1057,709,0;1071,709,0;1084,709,0;1098,709,0;1111,709,0;1125,709,0;1165,709,0;1489,709,0;1516,709,0;1530,709,0;1570,709,0;666,723,0;679,723,0;693,723,0;706,723,0;720,723,0;733,723,0;747,723,0;760,723,0;774,723,0;787,723,0;1017,723,0;1030,723,0;1044,723,0;1057,723,0;1071,723,0;1084,723,0;1098,723,0;1111,723,0;1152,723,0;1165,723,0;1489,723,0;1503,723,0;1516,723,0;1530,723,0;1543,723,0;1557,723,0;1570,723,0;666,736,0;679,736,0;693,736,0;706,736,0;720,736,0;733,736,0;747,736,0;760,736,0;774,736,0;787,736,0;1017,736,0;1030,736,0;1044,736,0;1057,736,0;1071,736,0;1084,736,0;1098,736,0;1152,736,0;1462,736,0;1476,736,0;1489,736,0;1503,736,0;1516,736,0;1530,736,0;1543,736,0;1557,736,0;1570,736,0;1584,736,0;666,750,0;679,750,0;693,750,0;706,750,0;720,750,0;733,750,0;747,750,0;760,750,0;1030,750,0;1044,750,0;1057,750,0;1071,750,0;1084,750,0;1098,750,0;1152,750,0;1449,750,0;1462,750,0;1476,750,0;1489,750,0;1503,750,0;1516,750,0;1530,750,0;1543,750,0;1557,750,0;1570,750,0;1584,750,0;1597,750,0;666,763,0;679,763,0;693,763,0;706,763,0;720,763,0;733,763,0;747,763,0;1030,763,0;1044,763,0;1057,763,0;1071,763,0;1084,763,0;1098,763,0;1449,763,0;1462,763,0;1476,763,0;1489,763,0;1503,763,0;1516,763,0;1530,763,0;1543,763,0;1557,763,0;1570,763,0;1584,763,0;1597,763,0;666,777,0;679,777,0;693,777,0;706,777,0;720,777,0;733,777,0;747,777,0;1044,777,0;1057,777,0;1071,777,0;1084,777,0;1449,777,0;1462,777,0;1476,777,0;1489,777,0;1503,777,0;1516,777,0;1530,777,0;1543,777,0;1557,777,0;1570,777,0;1584,777,0;1597,777,0;666,790,0;679,790,0;693,790,0;706,790,0;720,790,0;733,790,0;1044,790,0;1057,790,0;1071,790,0;1449,790,0;1462,790,0;1476,790,0;1530,790,0;1543,790,0;1557,790,0;1570,790,0;1584,790,0;1597,790,0;666,804,0;679,804,0;693,804,0;706,804,0;1557,804,0;1570,804,0;1584,804,0;652,817,0;666,817,0;679,817,0;693,817,0;706,817,0;1705,817,0;652,831,0;666,831,0;679,831,0;1584,831,0;652,844,0;666,844,0;679,844,0;1678,844,0;652,858,0;666,858,0;652,871,0;666,871,0;652,885,0;666,885,0;706,885,0;652,898,0;666,898,0;"};
+const USC = { x: MAPA_PUNTOS.usc[0], y: MAPA_PUNTOS.usc[1] };
+const lienzo = mk('canvas', 'L z2');
+const pin = mk('div', 'L pin z6', null, `<div class="pf">${museSVG(60)}</div><div class="pico"></div>`);
+const chipPais = new ChipEscrito([{ t0: T.solo - .15, icono: 'lock', textos: [[T.solo - .03, T.solo + .2, 'solo'], [T.en - .03, T.en + .08, ' en'],
+  [T.estados - .03, T.estados + .28, ' Estados'], [T.unidos - .03, T.unidos + .26, ' Unidos']] }]);
+let MAPA = null;
+function prepararMapa() {
+  const dpr = window.devicePixelRatio || 1;
+  lienzo.width = Math.round(CONFIG.ancho * dpr); lienzo.height = Math.round(CONFIG.alto * dpr);
+  lienzo.style.width = CONFIG.ancho + 'px'; lienzo.style.height = CONFIG.alto + 'px';
+  const ctx = lienzo.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const pts = MAPA_PUNTOS.pts.split(';').filter(Boolean).map(s => s.split(',').map(Number));
+  MAPA = { ctx, pts: pts.map(([x, y, us]) => ({ x, y, us: !!us, d: Math.hypot(x - USC.x, y - USC.y) })) };
+}
+const GRIS = [58, 66, 82], AZUL = [47, 134, 255], BRILLO = [150, 200, 255];
+const mixA = (a, b, p) => a.map((v, i) => Math.round(lerp(v, b[i], p)));
+function pintarMapa(t, o) {
+  const { ctx, pts } = MAPA;
+  ctx.clearRect(0, 0, CONFIG.ancho, CONFIG.alto);
+  if (o <= .002) return;
+  const t0 = T.potentesFin + .16, apaga = P(t, T.estados, .6, E.io3);
+  for (const q of pts) {
+    const ap = P(t, t0 + q.d / 3400, .3, E.out3);
+    if (ap <= 0) continue;
+    let luz = 0, fl = 0;
+    if (q.us) { const k = T.estados - .06 + q.d / 900; luz = P(t, k, .3); fl = flash(t, k, .06, 4); }
+    const c = luz > 0 ? mixA(mixA(GRIS, AZUL, luz), BRILLO, clamp(fl * .8)) : GRIS;
+    const a = (q.us ? 1 : lerp(1, .6, apaga)) * o * clamp(ap * 1.5);
+    ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${a.toFixed(3)})`;
+    ctx.beginPath(); ctx.arc(q.x, q.y, 4.3 * ap * (1 + .35 * fl), 0, 6.2832); ctx.fill();
+  }
+}
+function escenaModelos(t) {
+  const todo = [...barras, ...cabezas, ...etqs, lineaTop, lblTop, casi, baseM, ejeM, lienzo, pin];
+  if (!dentro(t, V.modelos)) { todo.forEach(off); hueco.draw(0, 0, 0); chipPais.pintar(t, { o: 0 }); if (MAPA) pintarMapa(t, 0); return; }
+  const Y = P(t, T.potentesFin, .26, E.in3);                                // el gráfico se va y llega el mapa
+  const oc = 1 - Y, bl = Y * 8;
+  const pb = P(t, V.modelos.a - .45, .5, E.out3);
+  put(baseM, { x: 1060, y: MOD.base + 1, sx: Math.max(.001, pb), o: oc * (pb > 0 ? 1 : 0), b: bl });
+  put(ejeM, { x: 400, y: 620, r: -90, o: .9 * pb * oc, b: bl });
+  const pl = P(t, V.modelos.a - .25, .6, E.io3);
+  put(lineaTop, { x: 1060, y: MOD.top, sx: Math.max(.001, pl), o: oc * (pl > 0 ? 1 : 0), b: bl });
+  MOD.x.forEach((x, i) => {
+    const crece = P(t, V.modelos.a - .45 + i * .08, .6, E.out3);
+    const h = Math.max(2, MOD.alto[i] * crece * (i ? 1 : lerp(.34, 1, P(t, T.hoy - .05, 1.1, E.io3))));
+    barras[i].style.height = h.toFixed(1) + 'px';
+    put(barras[i], { x, y: MOD.base, ay: 100, o: oc * (crece > 0 ? 1 : 0), b: bl });
+    const golpe = i ? .08 * bump(t, T.mas + (i - 1) * .1, .3) : .06 * bump(t, T.misma, .35);
+    put(cabezas[i], { x, y: MOD.base - h - 66, s: lerp(.6, 1, E.back(clamp(crece * 1.4))) * (1 + golpe), o: oc * clamp(crece * 3), b: bl });
+    put(etqs[i], { x, y: MOD.base + 38, o: oc * clamp(crece * 3), b: bl });
+  });
+  barras[0]._brillo.style.opacity = (.8 * flash(t, T.misma, .1, 2.5)).toFixed(3);
+  const pc = clamp((t - (T.casi - .06)) / .4);
+  put(casi, { x: 852, y: 382, s: lerp(.5, 1, E.back(pc)), o: clamp(pc * 3) * oc, b: bl });
+  hueco.set([[742, MOD.top + 4], [742, MOD.base - MOD.alto[0] - 4]]);
+  hueco.draw(0, P(t, T.casi - .06, .3, E.io3), .95 * oc);
+  const nl = Math.floor(P(t, T.mas - .04, .5, E.lin) * 16);
+  lblTop.textContent = 'LOS MÁS POTENTES'.slice(0, nl);
+  put(lblTop, { x: 1260, y: 196, o: oc * (nl > 0 ? 1 : 0), b: bl });
+  // mapa
+  put(lienzo, { x: CX, y: CY, o: 1 });
+  pintarMapa(t, P(t, T.potentesFin + .16, .2));
+  const p = P(t, T.disponible - .1, .5, E.lin);
+  put(pin, { x: USC.x, y: USC.y - 4 - 80 * (1 - E.back(p)), ax: 50, ay: 100, o: clamp(p * 3.5) });
+  museDibujo(pin, 1);
+  chipPais.pintar(t, { ...fijo(t, CX, 112 + (1 - P(t, T.solo - .15, .35)) * 12, 1.28), o: P(t, T.solo - .15, .22) });
+}
+
+/* =====================================================================
+   CÁMARA (CAMK + asentamiento automático al entrar en cada plano) Y HALOS
+   ===================================================================== */
+const CAMK = norm([
+  [0, { x: CX, y: CY, s: 1 }],
+  [T.similar, { s: 1 }], [T.hermesFin, { s: 1.015 }, E.ioSine], [T.de + .2, { s: 1 }, E.io3], [T.semanalesFin, { s: 1.015 }, E.ioSine],
+  [T.un - .2, { s: 1 }], [T.tres, {}], [T.tres + .16, { s: 1.03 }, E.out3], [T.semanalFin, { s: 1.02 }, E.ioSine],
+  [T.claude - .2, { s: 1 }], [T.codexFin, { s: 1.015 }, E.ioSine], [T.masBien + .3, { s: 1 }, E.io3], [T.diaFin, { s: 1.02 }, E.ioSine],
+  [T.punto - .4, { s: 1 }], [T.metaFin, { s: 1.025 }, E.ioSine],
+  [T.base - .2, { x: CX, y: CY, s: 1 }], [T.clic - .35, { x: 1070, y: 500, s: 1.06 }, E.io3], [T.whatsapp + .35, {}],
+  [T.instagram - .25, { x: 1050, y: 580, s: 1.04 }, E.io3], [T.facebookFin, {}], [T.ademas + .2, { x: CX, y: CY, s: 1 }, E.io3], [T.instalarloFin, { s: 1.02 }, E.ioSine],
+  [T.hoy - .9, { x: CX, y: CY, s: 1 }], [T.casi - .35, { x: 840, y: 470, s: 1.05 }, E.io3], [T.mas - .25, {}], [T.mas + .35, { x: CX, y: CY, s: 1 }, E.io3],
+  [T.potentesFin + .1, {}], [T.unidosFin + .3, { x: 820, y: 500, s: 1.04 }, E.ioSine],
+]);
+function halos(t) {
+  const w = ventanaDe(t), r = { n: { x: CX, y: CY, o: 0 }, a: { x: CX, y: CY, o: 0 }, b: { x: CX, y: CY, o: 0 } };
+  if (!w) return r;
+  if (w === V.trio) {
+    const k = KF(t, TMK);
+    r.n = { x: k.x, y: k.y, o: .8 };
+    r.a = { x: 1300, y: 420, o: .6 * P(t, T.gratis, .5) };
+  } else if (w === V.uso) {
+    r.n = { x: CX, y: 560, o: .75 };
+  } else if (w === V.noes) {
+    r.b = { x: TRIO.x[0], y: 520, o: .55 * P(t, T.claude, .4) * (1 - P(t, T.codexFin, .4)) };
+    r.n = { x: CX, y: FN.y, o: .85 * P(t, T.asistente - .3, .5) };
+  } else if (w === V.eco) {
+    r.n = { x: CX, y: 560, o: .85 };
+  } else if (w === V.clic) {
+    r.a = { x: 1100, y: 470, o: .6 * P(t, T.whatsapp, .4) * (1 - P(t, T.ademas, .4)) };
+    r.n = { x: lerp(CX, 790, P(t, T.no - .1, .6)), y: 480, o: .5 + .35 * P(t, T.ademas, .6) };
+  } else if (w === V.modelos) {
+    const m = P(t, T.potentesFin + .1, .5);
+    r.n = { x: lerp(660, USC.x, m), y: lerp(560, USC.y, m), o: .75 };
+  }
+  return r;
+}
+
+/* =====================================================================
+   MAQUETACIÓN
+   ===================================================================== */
+function layout() {
+  prepararMapa();
+  gradLetters(titEco);
+  pulse(T.openclaw + .4, .8, TRIO.x[0], TRIO.y, 500 * TRIO.s, 300 * TRIO.s, 30 * TRIO.s, '229,72,77', 1.12);
+  pulse(T.hermes + .4, .8, TRIO.x[2], TRIO.y, 500 * TRIO.s, 300 * TRIO.s, 30 * TRIO.s, '201,209,224', 1.12);
+  pulse(T.gratis + .04, .8, 1300, 318, gratis.offsetWidth, 84, 42, RGB_VERDE, 1.22);
+  pulse(T.tres + .3, .8, M2.x + (-330 + 38 + 9) * M2.s, M2.y + 17 * M2.s, 40, 40, 20, RGB_MUSE, 4);
+  HERR.forEach(h => pulse(h.t + .05, .7, h.x, h.y, 132 * 1.22, 132 * 1.22, 38, '195,206,228', 1.25));
+  pulse(T.meta - .02, 1.1, FE.x, FE.y + 150, 760, 520, 260, '10,124,255', 1.12);
+  pulse(T.clic + .02, .6, BOTON(150).x, BOTON(150).y, 236, 64, 32, RGB_MUSE, 1.3);
+  pulse(T.whatsapp - .02, .8, BOTON(150).x, BOTON(150).y, 236, 64, 32, RGB_VERDE, 1.35);
+  pulse(T.casi, .8, 852, 382, 150, 58, 29, '233,196,106', 1.4);
+  pulse(T.estados - .02, 1.0, USC.x, USC.y, 50, 50, 25, RGB_MUSE, 6);
+  pulse(T.unidos - .02, 1.0, USC.x, USC.y, 50, 50, 25, RGB_MUSE, 6);
+}
+
+/* =====================================================================
+   RENDER
+   ===================================================================== */
+function render(t) {
+  const cam = camara(t), dx = -(cam.x - CX) * cam.s, dy = -(cam.y - CY) * cam.s;
+  WORLD.style.transform = `translate(${dx.toFixed(2)}px,${dy.toFixed(2)}px) scale(${cam.s.toFixed(5)})`;
+  grid.style.opacity = 1;
+  grid.style.backgroundPosition = `${(dx * .3 - t * 4).toFixed(2)}px ${(dy * .3 - t * 2).toFixed(2)}px`;
+  const breath = .9 + .1 * Math.sin(t * 1.7), h = halos(t);
+  const halo = (el, g, ph) => {
+    el.style.transform = `translate(${(g.x - 750 + dx).toFixed(1)}px,${(g.y - 750 + dy).toFixed(1)}px) scale(${(1 + .03 * Math.sin(t * 1.3 + ph)).toFixed(4)})`;
+    el.style.opacity = clamp(g.o * breath, 0, 1.3).toFixed(3);
+  };
+  halo(glowN, h.n, 0); halo(glowA, h.a, 1); halo(glowB, h.b, 2);
+
+  escenaTrio(t); escenaUso(t); escenaNoes(t); escenaEco(t); escenaClic(t); escenaModelos(t);
+
+  for (const p of PULSES) {
+    const k = (t - p.t0) / p.dur;
+    if (k <= 0 || k >= 1) off(p.e);
+    else put(p.e, { x: p.x, y: p.y, s: lerp(1, p.to, E.out3(k)), o: .8 * (1 - E.out2(k)) });
+  }
+}
+
+/* =========================== FIN DE LAS ESCENAS =========================== */
+
+/* =====================================================================
+   ARRANQUE: tamaño, fuentes, logos, ruido; luego layout() y render(0)
+   ===================================================================== */
+function makeNoise() {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const x = c.getContext('2d'), d = x.createImageData(256, 256);
+  let s = 1234567;
+  const rnd = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  for (let i = 0; i < d.data.length; i += 4) { const v = rnd() * 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; }
+  x.putImageData(d, 0, 0);
+  $('noise').style.backgroundImage = `url(${c.toDataURL()})`;
+}
+async function cargarLogos() {
+  let reg = {};
+  try { const r = await fetch('assets/logos/logos.json', { cache: 'no-store' }); if (r.ok) reg = await r.json(); } catch (e) { /* sin logos */ }
+  LOGOS = reg;
+  for (const img of document.querySelectorAll('img[data-logo]')) {
+    const k = img.dataset.logo, f = reg[k]?.file;
+    img.src = 'assets/logos/' + (f ? f.split('/').pop() : `${k}.svg`);
+  }
+  await Promise.all([...document.images].map(i => i.decode().catch(() => console.error('logo sin cargar: ' + (i.dataset.logo || i.src)))));
+}
+
+STAGE.style.width = WORLD.style.width = CONFIG.ancho + 'px';
+STAGE.style.height = WORLD.style.height = CONFIG.alto + 'px';
+WORLD.style.transformOrigin = `${CX}px ${CY}px`;
+$('wires').setAttribute('width', CONFIG.ancho); $('wires').setAttribute('height', CONFIG.alto);
+$('wires').setAttribute('viewBox', `0 0 ${CONFIG.ancho} ${CONFIG.alto}`);
+
+window.__CONFIG = CONFIG;
+window.__ready = (async () => {
+  const fonts = ['400 20px Outfit', '500 20px Outfit', '600 20px Outfit', '700 20px Outfit', '800 20px Outfit',
+    '400 20px "JetBrains Mono"', '500 20px "JetBrains Mono"', '600 20px "JetBrains Mono"'];
+  await Promise.all(fonts.map(f => document.fonts.load(f, 'Abc áéíóú ñ ½ $ ✓')));
+  await document.fonts.ready;
+  await cargarLogos();
+  await cargarMontaje();
+  makeNoise();
+  layout();
+  render(Q.has('t') ? +Q.get('t') : 0);
+  return true;
+})();
+window.__render = t => render(t);
+
+/* --- previsualización con audio: node server.mjs -> http://127.0.0.1:5178/ (espacio, flechas; ?t=12.5 salta) --- */
+if (!RENDER) {
+  // sin voz (proyecto creado con --dur) la previsualización corre con un reloj que imita al <audio>
+  const reloj = () => { let base = 0, t0 = 0, on = false; return {
+    get currentTime() { return on ? base + (performance.now() - t0) / 1000 : base; },
+    set currentTime(v) { base = v; t0 = performance.now(); },
+    play() { t0 = performance.now(); on = true; }, pause() { base = this.currentTime; on = false; },
+    get ended() { return this.currentTime >= CONFIG.dur; } }; };
+  const audio = CONFIG.audio ? $('audio') : reloj(), btn = $('play'), scrub = $('scrub'), lab = $('tlabel');
+  if (CONFIG.audio) audio.src = CONFIG.audio;
+  scrub.max = CONFIG.dur;
+  let playing = false;
+  // intro con cara: en los planos de cara se ve la grabación sin pausas (proxy 720p) con el encuadre del montaje
+  const cara = $('cara'), tag = $('planoTag');
+  let conCara = false, SALTOS = [], FW = 1920, FH = 1080;
+  window.__ready.then(() => {
+    conCara = PLANOS.some(p => p.tipo === 'cara');
+    if (!conCara) return;
+    cara.src = 'edicion/cara_proxy.mp4'; tag.style.display = 'block';
+    fetch('edicion/cortes.json').then(r => r.json()).then(c => { SALTOS = c.tramos.map(x => x.edit_f0); }).catch(() => {});
+    fetch('edicion/fuente.json').then(r => r.json()).then(f => { FW = f.ancho; FH = f.alto; }).catch(() => {});
+  });
+  const planoEn = t => { const f = Math.floor(t * FPS_M + 1e-6); return PLANOS.find(p => f >= p.f0 && f < p.f1) || PLANOS[PLANOS.length - 1]; };
+  const verCara = t => {
+    if (!conCara) return;
+    const p = planoEn(t);
+    if (!p || p.tipo !== 'cara') { cara.style.display = 'none'; if (!cara.paused) cara.pause(); tag.textContent = p ? 'ANIM · ' + p.id : ''; return; }
+    const f = Math.floor(t * FPS_M + 1e-6), k = SALTOS.filter(j => j > p.f0 && j <= f).length, zs = p.zooms || [1], z = zs[k % zs.length];
+    const x0 = clamp(CERCA.cx - FW / z / 2, 0, FW - FW / z) * CONFIG.ancho / FW, y0 = clamp(CERCA.y0, 0, FH - FH / z) * CONFIG.alto / FH;
+    cara.style.transformOrigin = '0 0';
+    cara.style.transform = z === 1 ? 'none' : `translate(${(-x0 * z).toFixed(1)}px,${(-y0 * z).toFixed(1)}px) scale(${z})`;
+    cara.style.display = 'block'; tag.textContent = `CARA · ${z}`;
+    if (Math.abs(cara.currentTime - t) > .12) cara.currentTime = t;
+    if (playing && cara.paused) cara.play().catch(() => {});
+    if (!playing && !cara.paused) cara.pause();
+  };
+  const show = t => { render(t); verCara(t); scrub.value = t; lab.textContent = `${t.toFixed(2)} / ${CONFIG.dur.toFixed(2)} s`; };
+  const fit = () => { const vp = $('viewport'); const s = Math.min(vp.clientWidth / CONFIG.ancho, vp.clientHeight / CONFIG.alto); STAGE.style.transform = `scale(${s})`; STAGE.style.margin = `${(CONFIG.alto * s - CONFIG.alto) / 2}px ${(CONFIG.ancho * s - CONFIG.ancho) / 2}px`; };
+  window.addEventListener('resize', fit); fit();
+  const loop = () => { if (!playing) return; show(Math.min(audio.currentTime, CONFIG.dur)); if (audio.ended) { playing = false; btn.textContent = '▶'; } else requestAnimationFrame(loop); };
+  const toggle = () => {
+    if (playing) { audio.pause(); playing = false; btn.textContent = '▶'; return; }
+    if (audio.currentTime >= CONFIG.dur - .05) audio.currentTime = 0;
+    audio.play(); playing = true; btn.textContent = '❚❚'; loop();
+  };
+  btn.onclick = toggle;
+  scrub.oninput = () => { audio.currentTime = +scrub.value; show(+scrub.value); };
+  window.addEventListener('keydown', e => {
+    if (e.code === 'Space') { e.preventDefault(); toggle(); }
+    if (e.code === 'ArrowRight' || e.code === 'ArrowLeft') { const d = (e.shiftKey ? .1 : 1) * (e.code === 'ArrowRight' ? 1 : -1); audio.currentTime = clamp(audio.currentTime + d, 0, CONFIG.dur); show(audio.currentTime); }
+  });
+  window.__ready.then(() => { if (Q.has('t')) audio.currentTime = +Q.get('t'); show(Q.has('t') ? +Q.get('t') : 0); });
+}
+</script>
+</body>
+</html>

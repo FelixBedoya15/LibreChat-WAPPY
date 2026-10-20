@@ -4209,7 +4209,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         top: `${top}px`,
         width: `${chatW}px`,
         height: `${chatH}px`,
-        zIndex: 10000,
+        zIndex: 1000002,
       };
     }
 
@@ -4247,7 +4247,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       top: `${top}px`,
       width: `${chatW}px`,
       height: `${chatH}px`,
-      zIndex: 10000,
+      zIndex: 1000002,
     };
   };
 
@@ -5460,33 +5460,50 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
   const handleOpenFileInCanvas = useCallback(
     (file: TenshiFileAttachment, fullScreen = true) => {
-      const isHtmlContent = typeof file.content === 'string' && (file.content.includes('<!DOCTYPE html') || file.content.includes('<html'));
-      const normFileType = (file.fileType === 'word' || file.fileType === 'doc' || file.fileType === 'documento')
+      const isHtmlContent = typeof file.content === 'string' && (file.content.includes('<!DOCTYPE html') || file.content.includes('<html') || file.content.includes('<section') || file.content.includes('<div class='));
+      const normFileType = isHtmlContent
+        ? 'html'
+        : (file.fileType === 'word' || file.fileType === 'doc' || file.fileType === 'documento')
         ? 'text'
-        : (file.fileType === 'html' || isHtmlContent)
+        : (file.fileType === 'html')
         ? 'html'
         : (file.fileType as any || 'text');
 
-      // 1. Asegurar que estamos en una vista compatible con el editor Canvas si no estamos en chat
-      if (!window.location.pathname.startsWith('/c/')) {
-        navigate('/c/new');
-      }
-
-      // 2. Cargar en Canvas y maximizar a pantalla completa en el editor
-      setStreamingCanvas({
+      const canvasPayload = {
         id: file.canvasId || `canvas-${Date.now()}`,
         title: file.title || 'Documento SG-SST',
         fileType: normFileType,
         content: file.content || '',
         messageId: '',
         isStreaming: false,
-      });
-      setIsCanvasActive(true);
-      if (fullScreen) {
-        setCanvasMaximized(true);
+      };
+
+      // Minimizar el panel de chat para que el usuario vea el Canvas a pantalla completa,
+      // pero manteniendo a Tenshi visible y flotando en la esquina superior de z-index.
+      setIsOpen(false);
+      setIsHeroChatOpen(false);
+      setIsMobileHeroMode(false);
+
+      const needsNavigation = !window.location.pathname.startsWith('/c/');
+      if (needsNavigation) {
+        navigate('/c/new');
+      }
+
+      const applyCanvasState = () => {
+        setStreamingCanvas(canvasPayload);
+        setIsCanvasActive(true);
+        if (fullScreen) {
+          setCanvasMaximized(true);
+        }
+      };
+
+      applyCanvasState();
+      if (needsNavigation) {
+        setTimeout(applyCanvasState, 150);
+        setTimeout(applyCanvasState, 380);
       }
     },
-    [navigate, setStreamingCanvas, setIsCanvasActive, setCanvasMaximized, conversation, newConversation],
+    [navigate, setStreamingCanvas, setIsCanvasActive, setCanvasMaximized],
   );
 
   const requestTechnicalReport = useCallback(() => {
@@ -6599,7 +6616,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             <>
               {/* Backdrop para cerrar al hacer clic o tap por fuera */}
               <div
-                className="fixed inset-0 z-[9999] bg-black/40 backdrop-blur-[2px] md:bg-transparent md:backdrop-blur-none transition-opacity"
+                className="fixed inset-0 z-[1000001] bg-black/40 backdrop-blur-[2px] md:bg-transparent md:backdrop-blur-none transition-opacity"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleClose();
@@ -6616,9 +6633,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 onClick={(e) => e.stopPropagation()}
                 onTouchEnd={(e) => e.stopPropagation()}
                 className={cn(
-                  'flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 shadow-2xl backdrop-blur-xl transition-all duration-300 animate-in fade-in zoom-in-95 z-[10000]',
+                  'flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 shadow-2xl backdrop-blur-xl transition-all duration-300 animate-in fade-in zoom-in-95 z-[1000002]',
                   isFullscreen
-                    ? 'fixed inset-3 sm:inset-6 z-[10000] w-auto h-auto'
+                    ? 'fixed inset-3 sm:inset-6 z-[1000002] w-auto h-auto'
                     : ''
                 )}
               >
@@ -7813,7 +7830,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           position: 'fixed',
           left: `${position ? position.x : (typeof window !== 'undefined' ? window.innerWidth - 88 : 0)}px`,
           top: `${position ? position.y : (typeof window !== 'undefined' ? window.innerHeight - (isMobileScreen ? 185 : 110) : 0)}px`,
-          zIndex: 10005,
+          zIndex: 1000005,
         }}
         className="group relative cursor-grab active:cursor-grabbing select-none transition-transform duration-200 md:hover:scale-105 md:active:scale-95"
       >
@@ -7973,7 +7990,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           <div
             onClick={(e) => e.stopPropagation()}
             onTouchEnd={(e) => e.stopPropagation()}
-            className="absolute bottom-28 right-0 w-80 sm:w-72 rounded-2xl border border-emerald-500/40 bg-zinc-900/95 backdrop-blur-xl p-3.5 text-zinc-100 shadow-2xl z-[10010] animate-in fade-in slide-in-from-bottom-2 duration-200 cursor-default"
+            className="absolute bottom-28 right-0 w-80 sm:w-72 rounded-2xl border border-emerald-500/40 bg-zinc-900/95 backdrop-blur-xl p-3.5 text-zinc-100 shadow-2xl z-[1000010] animate-in fade-in slide-in-from-bottom-2 duration-200 cursor-default"
           >
             <div className="flex items-center justify-between gap-2 mb-2">
               <div className="flex items-center gap-1.5 min-w-0">
@@ -8023,7 +8040,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           <div
             onClick={(e) => e.stopPropagation()}
             onTouchEnd={(e) => e.stopPropagation()}
-            className="absolute bottom-28 right-0 w-80 sm:w-72 rounded-2xl border border-emerald-500/40 bg-zinc-900/95 backdrop-blur-xl p-3.5 text-zinc-100 shadow-2xl z-[10010] animate-in fade-in slide-in-from-bottom-2 duration-200 cursor-default"
+            className="absolute bottom-28 right-0 w-80 sm:w-72 rounded-2xl border border-emerald-500/40 bg-zinc-900/95 backdrop-blur-xl p-3.5 text-zinc-100 shadow-2xl z-[1000010] animate-in fade-in slide-in-from-bottom-2 duration-200 cursor-default"
           >
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
@@ -8088,7 +8105,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           <div
             onClick={(e) => e.stopPropagation()}
             onTouchEnd={(e) => e.stopPropagation()}
-            className="absolute bottom-28 right-0 w-80 sm:w-72 rounded-2xl border border-emerald-500/40 bg-zinc-900/95 backdrop-blur-xl p-3.5 text-zinc-100 shadow-2xl z-[10010] animate-in fade-in slide-in-from-bottom-2 duration-200 cursor-default"
+            className="absolute bottom-28 right-0 w-80 sm:w-72 rounded-2xl border border-emerald-500/40 bg-zinc-900/95 backdrop-blur-xl p-3.5 text-zinc-100 shadow-2xl z-[1000010] animate-in fade-in slide-in-from-bottom-2 duration-200 cursor-default"
           >
             <div className="flex items-start justify-between gap-2">
               <p className="text-xs sm:text-[11px] font-semibold text-zinc-100 leading-relaxed">

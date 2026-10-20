@@ -7692,8 +7692,33 @@ router.get('/antigravity/ordenes', requireApiKeyOrJwt, async (req, res) => {
       query._id = targetQueryId;
     }
 
-    if (estado || status) {
-      query.status = estado || status;
+    const rawStatus = String(estado || status || '').toLowerCase().trim();
+    if (rawStatus) {
+      if (rawStatus === 'pendiente' || rawStatus === 'pendientes' || rawStatus === 'pending' || rawStatus === 'por_hacer') {
+        query.status = 'todo';
+      } else if (rawStatus === 'completada' || rawStatus === 'completado' || rawStatus === 'completed' || rawStatus === 'finalizada') {
+        query.status = 'done';
+      } else if (rawStatus === 'en_progreso' || rawStatus === 'procesando') {
+        query.status = 'in_progress';
+      } else {
+        query.status = rawStatus;
+      }
+    }
+
+    // Si se consultan órdenes pendientes ('todo') sin un ID específico, expirar tareas antiguas (> 2 horas)
+    // para que un cron en segundo plano nunca complete órdenes rezagadas de días anteriores.
+    if (query.status === 'todo' && !targetQueryId) {
+      const twoHoursAgo = new Date(Date.now() - 2 * 3600 * 1000);
+      await KanbanTask.updateMany(
+        {
+          user: targetUserId,
+          type: 'antigravity_delegation',
+          status: 'todo',
+          createdAt: { $lt: twoHoursAgo },
+        },
+        { $set: { status: 'dismissed' } }
+      ).catch(() => {});
+      query.createdAt = { $gte: twoHoursAgo };
     }
 
     const tasks = await KanbanTask.find(query)
@@ -7724,7 +7749,21 @@ router.get('/antigravity/ordenes', requireApiKeyOrJwt, async (req, res) => {
 router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
   try {
     const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
-    const { ordenId, id, resultado, result, contenido, content, formato, fileType, urlDescarga, fileUrl, resumen } = req.body;
+    const {
+      ordenId,
+      id,
+      resultado,
+      result,
+      contenido,
+      content,
+      formato,
+      fileType,
+      urlDescarga,
+      fileUrl,
+      resumen,
+      entregable,
+      deliverable,
+    } = req.body;
 
     const targetId = ordenId || id;
     if (!targetId) {
@@ -7736,21 +7775,44 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
       return res.status(404).json({ error: 'Orden no encontrada.' });
     }
 
-    const finalFormat = formato || fileType || 'documento';
-    const finalContent = contenido || content || resultado || result || '';
-    const finalUrl = urlDescarga || fileUrl || null;
-    const completionNotes = resultado || result || contenido || content || 'Tarea completada exitosamente por Antigravity.';
+    const nestedDeliverable = (entregable && typeof entregable === 'object')
+      ? entregable
+      : (deliverable && typeof deliverable === 'object' ? deliverable : {});
+
+    const rawFormat = String(
+      formato || fileType || nestedDeliverable.formato || nestedDeliverable.fileType || ''
+    ).toLowerCase().trim();
+    const rawExplicitContent =
+      contenido || content || nestedDeliverable.contenido || nestedDeliverable.content || '';
+    const finalContent = rawExplicitContent || resultado || result || '';
+    const finalUrl = urlDescarga || fileUrl || nestedDeliverable.urlDescarga || nestedDeliverable.fileUrl || null;
+    const completionNotes =
+      resultado || result || nestedDeliverable.resumen || rawExplicitContent || 'Tarea completada exitosamente por Antigravity.';
     const completionNotesStr = typeof completionNotes === 'string' ? completionNotes : JSON.stringify(completionNotes);
 
-    const isHtml = finalFormat === 'html' || 
-      completionNotesStr.includes('<html') || 
-      completionNotesStr.includes('<!DOCTYPE') || 
+    // Validación: evitar que una llamada sin 'contenido' real inyecte un documento vacío de 1 línea en Tenshi
+    const finalContentStr = typeof finalContent === 'string' ? finalContent.trim() : '';
+    if (!rawExplicitContent && !finalUrl && finalContentStr.length < 300) {
+      return res.status(400).json({
+        error: 'El parámetro "contenido" es obligatorio y debe incluir el entregable completo desarrollado (código HTML5 completo con <!DOCTYPE html> o documento extenso en Markdown/Word de mínimo 300 caracteres). No se permite cerrar la orden enviando únicamente una frase corta de resumen en "resultado".',
+      });
+    }
+
+    const isHtml =
+      rawFormat === 'html' ||
+      completionNotesStr.includes('<html') ||
+      completionNotesStr.includes('<!DOCTYPE') ||
       (typeof finalContent === 'string' && (finalContent.includes('<html') || finalContent.includes('<!DOCTYPE')));
 
-    let finalSummary = resumen;
+    const finalFormat = isHtml ? 'html' : (rawFormat || 'documento');
+
+    let finalSummary = resumen || nestedDeliverable.resumen;
     if (!finalSummary || finalSummary.includes('<!DOCTYPE') || finalSummary.includes('<html')) {
       if (isHtml) {
-        finalSummary = 'El informe técnico interactivo ha sido estructurado y generado con éxito. Puedes explorarlo y editarlo en pantalla con Canvas o descargarlo directamente.';
+        const cleanNotes = completionNotesStr.replace(/<[^>]*>?/gm, '').trim();
+        finalSummary = (cleanNotes && cleanNotes.length > 20 && cleanNotes.length < 600 && !cleanNotes.includes('<!DOCTYPE'))
+          ? cleanNotes
+          : 'El informe técnico interactivo ha sido estructurado y generado con éxito. Puedes explorarlo y editarlo en pantalla con Canvas o descargarlo directamente.';
       } else {
         finalSummary = typeof finalContent === 'string' ? finalContent.replace(/<[^>]*>?/gm, '').trim().slice(0, 500) : 'Orden completada con éxito.';
       }

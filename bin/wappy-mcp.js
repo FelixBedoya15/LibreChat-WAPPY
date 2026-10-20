@@ -2368,7 +2368,7 @@ server.tool(
 server.tool(
   'wappy_consultar_ordenes_delegadas_tenshi',
   {
-    estado: z.string().optional().describe('Filtrar por estado: todo, in_progress, done'),
+    estado: z.string().optional().describe('Filtrar por estado: todo (pendientes), in_progress, done'),
     limit: z.number().optional().describe('Cantidad máxima de órdenes a retornar'),
   },
   async ({ estado, limit }) => {
@@ -2389,16 +2389,38 @@ server.tool(
   'wappy_completar_orden_delegada_tenshi',
   {
     ordenId: z.string().describe('ID de la orden delegada que Antigravity completó'),
-    resultado: z.string().describe('Resumen técnico del resultado de la investigación o desarrollo'),
-    contenido: z.string().optional().describe('Contenido del informe o documento generado (HTML, Word, texto, Markdown)'),
-    formato: z.string().optional().describe('Formato del entregable: word, excel, pdf, html, presentacion'),
+    resultado: z.string().describe('Resumen ejecutivo técnico del resultado de la investigación o desarrollo'),
+    contenido: z.string().optional().describe('OBLIGATORIO (en la raíz o dentro de entregable.contenido): Código completo del informe o aplicativo generado (HTML5 completo con <!DOCTYPE html>, Tailwind CSS y desarrollo extenso, o documento Markdown/Word completo)'),
+    formato: z.string().optional().describe('Formato del entregable: html, word, excel, pdf, presentacion'),
+    resumen: z.string().optional().describe('Resumen ejecutivo breve para mostrar en la tarjeta del chat de Tenshi'),
     urlDescarga: z.string().optional().describe('URL o enlace de descarga del archivo si fue subido a la nube o Drive'),
+    entregable: z.object({
+      contenido: z.string().optional(),
+      content: z.string().optional(),
+      formato: z.string().optional(),
+      fileType: z.string().optional(),
+      resumen: z.string().optional(),
+      titulo: z.string().optional(),
+      urlDescarga: z.string().optional(),
+    }).passthrough().optional().describe('Objeto opcional de entregable (alternativa a pasar contenido y formato en la raíz)'),
   },
-  async ({ ordenId, resultado, contenido, formato, urlDescarga }) => {
+  async ({ ordenId, resultado, contenido, formato, resumen, urlDescarga, entregable }) => {
     try {
+      const mergedContenido = contenido || entregable?.contenido || entregable?.content;
+      const mergedFormato = formato || entregable?.formato || entregable?.fileType;
+      const mergedResumen = resumen || entregable?.resumen;
+      const mergedUrlDescarga = urlDescarga || entregable?.urlDescarga;
       const data = await wappyRequest('/antigravity/completar', {
         method: 'POST',
-        body: JSON.stringify({ ordenId, resultado, contenido, formato, urlDescarga }),
+        body: JSON.stringify({
+          ordenId,
+          resultado,
+          contenido: mergedContenido,
+          formato: mergedFormato,
+          resumen: mergedResumen,
+          urlDescarga: mergedUrlDescarga,
+          entregable,
+        }),
       });
       return formatMcpResponse(data);
     } catch (err) {

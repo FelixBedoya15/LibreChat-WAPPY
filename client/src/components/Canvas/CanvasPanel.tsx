@@ -262,13 +262,31 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
   // Ephemeral agent state to check which tools are active
   const isSubmitting = useRecoilValue(store.isSubmittingFamily(0));
+  const streamingCanvas = useRecoilValue(store.streamingCanvasState);
+  const streamingLoadedAtRef = useRef<number>(streamingCanvas?.content ? Date.now() : 0);
+
+  const initialStreamingType = React.useMemo(() => {
+    if (!streamingCanvas) return 'text';
+    const raw = String(streamingCanvas.content || '');
+    if (
+      streamingCanvas.fileType === 'html' ||
+      raw.includes('<!DOCTYPE html') ||
+      raw.includes('<html')
+    ) {
+      return 'html';
+    }
+    return (streamingCanvas.fileType as any) || 'text';
+  }, [streamingCanvas]);
+
+  const initialStreamingTitle = streamingCanvas?.title || 'Archivo sin título';
+  const initialStreamingContent = streamingCanvas?.content || '';
 
   // Main Canvas session state
   const [fileType, setFileType] = useState<
     'text' | 'excel' | 'presentation' | 'html' | 'animo' | 'actos_condiciones'
-  >('text');
-  const [content, setContent] = useState<string>('');
-  const [title, setTitle] = useState<string>('Archivo sin título');
+  >(initialStreamingType);
+  const [content, setContent] = useState<string>(initialStreamingContent);
+  const [title, setTitle] = useState<string>(initialStreamingTitle);
   const [version, setVersion] = useState<number>(1);
   const [history, setHistory] = useState<any[]>([]);
 
@@ -283,11 +301,11 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     fileType === 'animo';
 
   // References to handle syncing correctly without stale closures
-  const contentRef = useRef<string>('');
+  const contentRef = useRef<string>(initialStreamingContent);
   const fileTypeRef = useRef<
     'text' | 'excel' | 'presentation' | 'html' | 'animo' | 'actos_condiciones'
-  >('text');
-  const titleRef = useRef<string>('Archivo sin título');
+  >(initialStreamingType);
+  const titleRef = useRef<string>(initialStreamingTitle);
   const lastUpdatedAtRef = useRef<string | null>(null);
   const isSavingRef = useRef<boolean>(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -297,8 +315,8 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   // References to store the original document's type and title, avoiding temporary tool state overrides
   const dbFileTypeRef = useRef<
     'text' | 'excel' | 'presentation' | 'html' | 'animo' | 'actos_condiciones'
-  >('text');
-  const dbTitleRef = useRef<string>('Archivo sin título');
+  >(initialStreamingType);
+  const dbTitleRef = useRef<string>(initialStreamingTitle);
 
   useEffect(() => {
     if (fileType !== 'animo' && fileType !== 'actos_condiciones') {
@@ -354,8 +372,10 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
       setFileType('actos_condiciones');
       setTitle('Analítica de Actos y Condiciones');
     } else {
-      setFileType(dbFileTypeRef.current);
-      setTitle(dbTitleRef.current);
+      if (dbFileTypeRef.current) setFileType(dbFileTypeRef.current);
+      if (dbTitleRef.current && dbTitleRef.current !== 'Archivo sin título') {
+        setTitle(dbTitleRef.current);
+      }
     }
   }, [ephemeralAgent]);
 
@@ -640,25 +660,34 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   }, []);
 
   // ── Sync streaming content in real-time ───────────────────────────────────
-  const streamingCanvas = useRecoilValue(store.streamingCanvasState);
-
   useEffect(() => {
     if (streamingCanvas) {
-      const rawContent = streamingCanvas.content;
+      const rawContent = String(streamingCanvas.content || '');
+      const isHtml =
+        streamingCanvas.fileType === 'html' ||
+        rawContent.includes('<!DOCTYPE html') ||
+        rawContent.includes('<html');
+      const resolvedFileType = isHtml ? 'html' : ((streamingCanvas.fileType as any) || 'text');
+      const resolvedTitle = streamingCanvas.title || 'Documento SG-SST';
+
       // Convert markdown → HTML for text documents
       const htmlContent =
-        streamingCanvas.fileType === 'text'
+        resolvedFileType === 'text'
           ? markdownToHtml(rawContent)
           : rawContent;
+
+      streamingLoadedAtRef.current = Date.now();
 
       setContent(htmlContent);
       contentRef.current = htmlContent;
 
-      setFileType(streamingCanvas.fileType);
-      fileTypeRef.current = streamingCanvas.fileType;
+      setFileType(resolvedFileType);
+      fileTypeRef.current = resolvedFileType;
+      dbFileTypeRef.current = resolvedFileType;
 
-      setTitle(streamingCanvas.title);
-      titleRef.current = streamingCanvas.title;
+      setTitle(resolvedTitle);
+      titleRef.current = resolvedTitle;
+      dbTitleRef.current = resolvedTitle;
     }
   }, [streamingCanvas, markdownToHtml]);
 
@@ -679,13 +708,27 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
         }
         const data = await res.json();
 
-        console.log(
-          `[CanvasPanel] fetch ok | convoId=${conversationId} | updatedAt=${data.updatedAt} | prevRef=${lastUpdatedAtRef.current} | contentLen=${String(data.content || '').length}`,
-        );
+        // Si la conversación no tiene sesión guardada en DB (updatedAt vacío y content vacío)
+        // y ya tenemos un documento abierto (ej. desde Tenshi / Antigravity), NO sobreescribirlo.
+        const incomingUpdatedAt = data.updatedAt || null;
+        if (!incomingUpdatedAt && !data.content && (contentRef.current || streamingCanvas?.content)) {
+          return;
+        }
+
+        // Si el usuario acaba de abrir un entregable en streamingCanvas y la sesión en DB de esta conversación es más antigua,
+        // preservar el entregable recién abierto.
+        if (
+          streamingLoadedAtRef.current > 0 &&
+          incomingUpdatedAt &&
+          new Date(incomingUpdatedAt).getTime() < streamingLoadedAtRef.current &&
+          contentRef.current
+        ) {
+          return;
+        }
 
         // Force refresh on initial load (lastUpdatedAtRef is null) OR if timestamp changed
-        if (isInitial || data.updatedAt !== lastUpdatedAtRef.current) {
-          lastUpdatedAtRef.current = data.updatedAt || null;
+        if (isInitial || incomingUpdatedAt !== lastUpdatedAtRef.current) {
+          lastUpdatedAtRef.current = incomingUpdatedAt;
           const activeTools = (ephemeralAgent as any)?.tools ?? [];
           const isPsychologistActive = activeTools.includes('consultar_analitica_psicosocial');
           const isACIActive = activeTools.includes('consultar_analitica_actos_condiciones');
@@ -734,7 +777,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
         if (isInitial) setIsLoading(false);
       }
     },
-    [conversationId, token, markdownToHtml, ephemeralAgent],
+    [conversationId, token, markdownToHtml, ephemeralAgent, streamingCanvas],
   );
 
   // ── Polling implementation ───────────────────────────────────────────────

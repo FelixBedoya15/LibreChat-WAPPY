@@ -1,0 +1,939 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Opus 5.5 vs GPT-6 Astra · animación</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+@font-face{font-family:'Outfit';font-weight:400;font-display:block;src:url(assets/fonts/outfit-400.woff2) format('woff2')}
+@font-face{font-family:'Outfit';font-weight:500;font-display:block;src:url(assets/fonts/outfit-500.woff2) format('woff2')}
+@font-face{font-family:'Outfit';font-weight:600;font-display:block;src:url(assets/fonts/outfit-600.woff2) format('woff2')}
+@font-face{font-family:'Outfit';font-weight:700;font-display:block;src:url(assets/fonts/outfit-700.woff2) format('woff2')}
+@font-face{font-family:'Outfit';font-weight:800;font-display:block;src:url(assets/fonts/outfit-800.woff2) format('woff2')}
+@font-face{font-family:'JetBrains Mono';font-weight:400;font-display:block;src:url(assets/fonts/jbmono-400.woff2) format('woff2')}
+@font-face{font-family:'JetBrains Mono';font-weight:500;font-display:block;src:url(assets/fonts/jbmono-500.woff2) format('woff2')}
+@font-face{font-family:'JetBrains Mono';font-weight:600;font-display:block;src:url(assets/fonts/jbmono-600.woff2) format('woff2')}
+
+/* Paleta: base oscura del canal + un color por bando (Claude = coral de marca, OpenAI = azul frío) */
+:root{
+  --bg:#0a0c10; --text:#eef1f7; --text2:#d5dae4; --muted:#98a1b3; --label:#8d97ab;
+  --claude:#D97757; --claude2:#EE9A7A; --claude3:#F4B79E;
+  --oai:#7C9CFF; --oai2:#A5BAFF; --oai3:#C8D5FF;
+  --gold:#E9C46A;
+  --card-b:#252932; --chip-bg:#12151c; --chip-b:#2a2f3a;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --sans:'Outfit',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#050608;overflow:hidden}
+#viewport{position:absolute;left:0;right:0;top:0;bottom:56px;display:flex;align-items:center;justify-content:center}
+body.render #viewport{bottom:0;align-items:flex-start;justify-content:flex-start}
+#stage{position:relative;width:1920px;height:1080px;overflow:hidden;background:var(--bg);font-family:var(--sans);color:var(--text);flex:none}
+
+/* fondo */
+#grid{position:absolute;inset:0;background-image:radial-gradient(circle,rgba(160,176,214,.15) 1.3px,transparent 1.9px);background-size:36px 36px;
+  -webkit-mask-image:radial-gradient(ellipse 72% 72% at 50% 48%,#000 30%,transparent 100%);mask-image:radial-gradient(ellipse 72% 72% at 50% 48%,#000 30%,transparent 100%)}
+.glow{position:absolute;left:0;top:0;width:1500px;height:1500px;border-radius:50%}
+#glowN{background:radial-gradient(closest-side,rgba(78,108,220,.17),rgba(78,108,220,.05) 55%,transparent 100%)}
+#glowW{background:radial-gradient(closest-side,rgba(217,119,87,.22),rgba(217,119,87,.065) 52%,transparent 100%)}
+#glowC{background:radial-gradient(closest-side,rgba(104,136,255,.22),rgba(104,136,255,.065) 52%,transparent 100%)}
+#vignette{position:absolute;inset:0;background:radial-gradient(ellipse 85% 82% at 50% 50%,transparent 58%,rgba(0,0,0,.5) 100%);pointer-events:none}
+#noise{position:absolute;inset:0;opacity:.04;pointer-events:none}
+#world{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:960px 540px}
+#wires{position:absolute;left:0;top:0;z-index:2;overflow:visible}
+
+.L{position:absolute;left:0;top:0;visibility:hidden}
+.z1{z-index:1}.z2{z-index:2}.z3{z-index:3}.z4{z-index:4}.z5{z-index:5}.z6{z-index:6}.z7{z-index:7}.z8{z-index:8}
+
+/* título */
+.eyebrow{font-family:var(--mono);font-size:24px;font-weight:500;letter-spacing:.22em;color:var(--label);white-space:nowrap}
+.title{font-weight:800;font-size:106px;letter-spacing:-.03em;line-height:1.08;white-space:nowrap;color:var(--text)}
+.title .ch{display:inline-block}
+.title .ch.grad{color:transparent;-webkit-background-clip:text;background-clip:text;background-image:linear-gradient(90deg,#E8906F 0%,#F1B19A 38%,#B4C6FF 62%,#86A3FF 100%)}
+.uline{width:150px;height:7px;border-radius:4px;background:linear-gradient(90deg,var(--claude),var(--oai))}
+.caret-i{display:inline-block;width:.55em;height:1em;margin-left:3px;vertical-align:-4px;background:#aab6d3;opacity:.85}
+
+/* chip de cabecera */
+.chip{display:flex;align-items:center;gap:16px;height:72px;padding:0 32px 0 26px;border-radius:999px;background:var(--chip-bg);border:1.5px solid var(--chip-b);
+  font-family:var(--mono);font-size:30px;font-weight:500;color:#dfe4ee;white-space:nowrap;box-shadow:0 20px 50px -24px rgba(0,0,0,.8)}
+.chip .ic{width:32px;height:32px;color:#b7c1da;display:flex;flex:none}
+.chip .tx{position:relative;display:flex;align-items:center}
+.chip .strike{position:absolute;left:-6px;right:-6px;top:50%;height:3px;margin-top:-1px;border-radius:2px;background:#ec8a70;transform-origin:0 50%;transform:scaleX(0);box-shadow:0 0 10px rgba(236,138,112,.6)}
+
+/* tarjetas de modelo */
+.mcard{width:500px;height:300px;border-radius:30px;background:linear-gradient(180deg,#15171e,#0d0f14);border:1.5px solid var(--card-b);box-shadow:0 44px 90px -40px rgba(0,0,0,.9)}
+.mcard.claude{--c:#D97757;--rgb:217,119,87;--c2:#EE9A7A;--c3:#F4B79E}
+.mcard.oai{--c:#7C9CFF;--rgb:124,156,255;--c2:#A5BAFF;--c3:#C8D5FF}
+.mcard .hi{position:absolute;inset:-1.5px;border-radius:30px;border:1.5px solid rgba(var(--rgb),.85);
+  background:linear-gradient(160deg,rgba(var(--rgb),.17),rgba(var(--rgb),.035) 62%);
+  box-shadow:0 0 0 1px rgba(var(--rgb),.22),0 36px 100px -30px rgba(var(--rgb),.7);opacity:0}
+.mcard .ltile{position:absolute;left:36px;top:36px;width:88px;height:88px;border-radius:24px;background:#0b0c10;border:1.5px solid rgba(var(--rgb),.5);
+  display:flex;align-items:center;justify-content:center;box-shadow:0 14px 40px -16px rgba(var(--rgb),.7)}
+.mcard .co{position:absolute;right:38px;top:66px;font-family:var(--mono);font-size:19px;font-weight:500;letter-spacing:.16em;color:var(--c3)}
+.mcard .fam{position:absolute;left:38px;top:150px;font-size:34px;font-weight:500;color:#9aa3b5;white-space:nowrap}
+.mcard .name{position:absolute;left:35px;top:190px;font-size:84px;font-weight:800;letter-spacing:-.03em;line-height:1;color:#f3f5fa;white-space:nowrap;display:flex}
+.mcard .name span{display:inline-block}
+.mcard .ver{color:var(--c2);margin-left:.2em}
+
+/* tarjeta misteriosa */
+.qcard{width:500px;height:300px}
+.qcard svg{position:absolute;left:0;top:0;overflow:visible}
+.qcard .q{position:absolute;left:0;right:0;top:40px;text-align:center;font-size:190px;font-weight:800;line-height:1;color:#566179}
+
+/* balanza */
+#scale{width:440px;height:360px}
+
+/* insignias VS / = */
+.badge{width:74px;height:74px;border-radius:50%;background:#12151c;border:1.5px solid #343a47;box-shadow:0 16px 40px -14px rgba(0,0,0,.9)}
+.badge > *{position:absolute;left:0;top:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+.badge .vs{font-weight:800;font-size:28px;color:#f1f3f8;letter-spacing:.02em}
+.badge .eq{color:#c3cad8}
+
+/* escalera de gamas */
+.band{border-radius:28px}
+.band.top{background:linear-gradient(90deg,rgba(233,196,106,.075),rgba(233,196,106,.018) 45%,rgba(255,255,255,.012));border:1.5px solid rgba(233,196,106,.30)}
+.band.mid{background:rgba(255,255,255,.014);border:1.5px solid #262b36}
+.rowlbl{display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:24px;font-weight:500;letter-spacing:.14em;white-space:nowrap}
+.rowlbl.top{color:var(--gold)}
+.rowlbl.mid{color:var(--label)}
+.colhdr{display:flex;align-items:center;gap:14px;font-size:36px;font-weight:600;color:var(--text2);white-space:nowrap;letter-spacing:-.01em}
+
+/* coste */
+.track{width:250px;border-radius:22px 22px 6px 6px;border:1.5px dashed #394156;background:rgba(255,255,255,.012)}
+.bar{width:250px;border-radius:22px 22px 6px 6px;overflow:hidden}
+.bar.claude{background:linear-gradient(180deg,#E8906F,#B4543A);box-shadow:0 30px 80px -30px rgba(217,119,87,.8)}
+.bar.oai{background:linear-gradient(180deg,#93ADFF,#4866D6);box-shadow:0 30px 80px -30px rgba(124,156,255,.8)}
+.bar .price{position:absolute;left:0;right:0;top:24px;text-align:center;font-weight:800;font-size:52px;color:#fff;letter-spacing:-.01em;white-space:nowrap}
+.bar .pcap{position:absolute;left:0;right:0;top:88px;text-align:center;font-family:var(--mono);font-size:19px;color:rgba(255,255,255,.85);letter-spacing:.06em;white-space:nowrap}
+.bar .mark{position:absolute;left:0;right:0;bottom:235px;border-top:2.5px dashed rgba(255,255,255,.8);opacity:0}
+.bar .shine{position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,0) 60%);opacity:0}
+.baseline{width:1080px;height:2px;border-radius:1px;background:#2f3544}
+.halfchip{height:62px;padding:0 28px 0 24px;border-radius:999px;background:#0d0f14;border:1.5px solid #5a6276;display:flex;align-items:center;gap:12px;
+  font-family:var(--mono);font-size:29px;font-weight:500;color:#eef1f7;white-space:nowrap;box-shadow:0 14px 34px -14px rgba(0,0,0,.9)}
+.halfchip b{font-family:var(--sans);font-weight:800;font-size:40px;color:var(--claude2)}
+.pulse{border-style:solid}
+
+/* controles de previsualización */
+#controls{position:fixed;left:0;right:0;bottom:0;height:56px;display:flex;align-items:center;gap:14px;padding:0 18px;background:#0a0c10;border-top:1px solid #1e2129;
+  font-family:var(--mono);color:var(--muted);font-size:13px}
+#controls button{width:38px;height:34px;border-radius:8px;border:1px solid #2b303d;background:#141a2c;color:#cfdbff;font-size:15px;cursor:pointer}
+#controls input{flex:1;accent-color:#7C9CFF}
+#controls .t{min-width:110px;text-align:right}
+body.render #controls{display:none}
+</style>
+</head>
+<body>
+<div id="viewport">
+  <div id="stage">
+    <div id="grid"></div>
+    <div id="glowN" class="glow"></div>
+    <div id="glowW" class="glow"></div>
+    <div id="glowC" class="glow"></div>
+    <div id="world">
+      <svg id="wires" width="1920" height="1080" viewBox="0 0 1920 1080">
+        <g id="wiresG"></g>
+      </svg>
+    </div>
+    <div id="vignette"></div>
+    <div id="noise"></div>
+  </div>
+</div>
+<div id="controls">
+  <button id="play" title="Reproducir / pausa (espacio)">▶</button>
+  <input id="scrub" type="range" min="0" max="44.2" step="0.01" value="0">
+  <span class="t" id="tlabel">0.00 / 44.20 s</span>
+</div>
+<audio id="audio" src="assets/audio/astravsopus.mp3" preload="auto"></audio>
+
+<script>
+'use strict';
+/* =====================================================================
+   Motor de animación propio: cada fotograma es una función pura de t.
+   render(t) coloca todo; el renderizador captura t = frame / FPS.
+   ===================================================================== */
+const FPS = 60, DUR = 44.2;
+const Q = new URLSearchParams(location.search);
+const RENDER = Q.has('render');
+if (RENDER) document.body.classList.add('render');
+
+/* ---------- Guion: inicio de cada palabra clave (alineación forzada MMS sobre la voz, en s) ---------- */
+const C = {
+  lo: .40, las: 1.06, reglas: 1.24, de: 1.56, la: 1.68, comparacion: 1.86,
+  la2: 3.02, justa: 3.66, opus1: 4.64, v55a: 4.94, frente1: 5.90, gpt1: 6.56, sol: 7.46,
+  humillar: 9.79, openai1: 11.19, color: 12.73, porLoQue: 13.41, vamos: 13.79, algo: 14.87, aun: 15.53, interesante: 16.05,
+  las2: 17.11, opus2: 19.05, v55b: 19.33, frente2: 20.43, gpt2: 21.11, astra1: 22.03,
+  recordemos: 22.83, astra2: 24.25, tope: 25.17, modelos: 25.87, openai2: 26.53, equivalente: 27.35, fable: 28.23, v51: 28.63,
+  pero2: 29.86, opus3: 30.34, v55c: 30.59, bestia: 31.84, que: 32.42, podemos: 32.54, comparativa: 33.76,
+  ademas: 35.00, factor: 35.72, tener: 36.40, opus4: 37.90, tiene: 38.56, coste: 38.88, mitad: 39.84, astra3: 40.62, voiceEnd: 41.10,
+};
+
+/* ---------- utilidades ---------- */
+const clamp = (x, a = 0, b = 1) => x < a ? a : x > b ? b : x;
+const lerp = (a, b, p) => a + (b - a) * p;
+const E = {
+  lin: p => p,
+  out2: p => 1 - (1 - p) * (1 - p),
+  out3: p => 1 - Math.pow(1 - p, 3),
+  out4: p => 1 - Math.pow(1 - p, 4),
+  in2: p => p * p,
+  in3: p => p * p * p,
+  io3: p => p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2,
+  io4: p => p < .5 ? 8 * p * p * p * p : 1 - Math.pow(-2 * p + 2, 4) / 2,
+  ioSine: p => -(Math.cos(Math.PI * p) - 1) / 2,
+  outExpo: p => p >= 1 ? 1 : 1 - Math.pow(2, -10 * p),
+  back: p => { const s = 1.70158; return 1 + (s + 1) * Math.pow(p - 1, 3) + s * Math.pow(p - 1, 2); },
+  spring: p => p >= 1 ? 1 : 1 - Math.exp(-6.5 * p) * Math.cos(10.5 * p),
+};
+const P = (t, t0, d, e = E.out3) => e(clamp((t - t0) / d));
+const bump = (t, t0, d) => (t < t0 || t > t0 + d) ? 0 : Math.sin(Math.PI * (t - t0) / d);
+const flash = (t, t0, rise = .08, decay = 3.2) => t < t0 ? 0 : t < t0 + rise ? (t - t0) / rise : Math.exp(-(t - t0 - rise) * decay);
+const blink = (t, hz = 2.2) => (Math.floor(t * hz * 2) % 2 === 0) ? 1 : 0;
+/* respuesta de un muelle amortiguado a un escalón (0 -> 1) y a un golpe (0 -> ±1 -> 0) */
+function step(tau, w = 9, z = .35) {
+  if (tau <= 0) return 0;
+  const wd = w * Math.sqrt(1 - z * z);
+  return 1 - Math.exp(-z * w * tau) * (Math.cos(wd * tau) + (z * w / wd) * Math.sin(wd * tau));
+}
+function impulse(tau, w = 10, z = .3) {
+  if (tau <= 0) return 0;
+  const wd = w * Math.sqrt(1 - z * z);
+  return Math.exp(-z * w * tau) * Math.sin(wd * tau);
+}
+
+/* fotogramas clave: [[t, {props}, ease], ...]; norm() rellena lo que falte con el anterior */
+function norm(keys) {
+  let prev = {};
+  return keys.map(([t, v, e]) => { const full = { ...prev, ...v }; prev = full; return e ? [t, full, e] : [t, full]; });
+}
+function KF(t, keys) {
+  if (t <= keys[0][0]) return keys[0][1];
+  for (let i = 1; i < keys.length; i++) {
+    const [t1, v1, e = E.io3] = keys[i], [t0, v0] = keys[i - 1];
+    if (t < t1) {
+      const p = e(clamp((t - t0) / (t1 - t0))), o = {};
+      for (const k in v1) o[k] = lerp(v0[k] ?? v1[k], v1[k], p);
+      return o;
+    }
+  }
+  return keys[keys.length - 1][1];
+}
+const mix = (a, b, p) => `rgb(${a.map((v, i) => Math.round(lerp(v, b[i], p))).join(',')})`;
+
+const $ = id => document.getElementById(id);
+const STAGE = $('stage'), WORLD = $('world'), WIRES = $('wiresG');
+const SVGNS = 'http://www.w3.org/2000/svg';
+
+function mk(tag, cls, parent, html) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html != null) e.innerHTML = html;
+  (parent || WORLD).appendChild(e);
+  return e;
+}
+
+/* coloca un elemento de primer nivel: x,y = punto de anclaje (por defecto el centro)
+   o = opacidad, s/sx/sy = escala, r = giro, ry = giro 3D en Y, b = desenfoque, g = escala de grises, br = brillo */
+function put(e, o) {
+  const op = o.o ?? 1;
+  if (!(op > 0.002)) { if (e._v !== 0) { e.style.visibility = 'hidden'; e.style.opacity = 0; e._v = 0; } return; }
+  if (e._v !== 1) { e.style.visibility = 'visible'; e._v = 1; }
+  const ax = o.ax ?? 50, ay = o.ay ?? 50;
+  let tr = `translate(${o.x.toFixed(2)}px,${o.y.toFixed(2)}px) translate(${-ax}%,${-ay}%)`;
+  if (o.ry) tr += ` perspective(1600px) rotateY(${o.ry.toFixed(3)}deg)`;
+  if (o.r) tr += ` rotate(${o.r.toFixed(3)}deg)`;
+  const s = o.s ?? 1, sx = (o.sx ?? 1) * s, sy = (o.sy ?? 1) * s;
+  if (sx !== 1 || sy !== 1) tr += ` scale(${sx.toFixed(4)},${sy.toFixed(4)})`;
+  e.style.transform = tr;
+  e.style.transformOrigin = `${ax}% ${ay}%`;
+  e.style.opacity = op.toFixed(4);
+  const f = [], b = o.b ?? 0, g = o.g ?? 0, br = o.br ?? 1;
+  if (b > 0.05) f.push(`blur(${b.toFixed(2)}px)`);
+  if (g > 0.005) f.push(`grayscale(${g.toFixed(3)})`);
+  if (Math.abs(br - 1) > 0.005) f.push(`brightness(${br.toFixed(3)})`);
+  e.style.filter = f.length ? f.join(' ') : 'none';
+}
+const off = e => put(e, { o: 0 });
+
+/* ---------- logos (Claude: LobeHub icons, color de marca #D97757 · OpenAI y Anthropic: Simple Icons, CC0) ---------- */
+const LOGO = {
+  claude: 'M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.784l.055-.352.48-.321.686.06 1.52.103 2.278.158 1.652.097 2.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686 1.908 1.476 2.491 1.833.365.304.145-.103.019-.073-.164-.274-1.355-2.446-1.446-2.49-.644-1.032-.17-.619a2.97 2.97 0 01-.104-.729L6.283.134 6.696 0l.996.134.42.364.62 1.414 1.002 2.229 1.555 3.03.456.898.243.832.091.255h.158V9.01l.128-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.584.28.48.685-.067.444-.286 1.851-.559 2.903-.364 1.942h.212l.243-.242.985-1.306 1.652-2.064.73-.82.85-.904.547-.431h1.033l.76 1.129-.34 1.166-1.064 1.347-.881 1.142-1.264 1.7-.79 1.36.073.11.188-.02 2.856-.606 1.543-.28 1.841-.315.833.388.091.395-.328.807-1.969.486-2.309.462-3.439.813-.042.03.049.061 1.549.146.662.036h1.622l3.02.225.79.522.474.638-.079.485-1.215.62-1.64-.389-3.829-.91-1.312-.329h-.182v.11l1.093 1.068 2.006 1.81 2.509 2.33.127.578-.322.455-.34-.049-2.205-1.657-.851-.747-1.926-1.62h-.128v.17l.444.649 2.345 3.521.122 1.08-.17.353-.608.213-.668-.122-1.374-1.925-1.415-2.167-1.143-1.943-.14.08-.674 7.254-.316.37-.729.28-.607-.461-.322-.747.322-1.476.389-1.924.315-1.53.286-1.9.17-.632-.012-.042-.14.018-1.434 1.967-2.18 2.945-1.726 1.845-.414.164-.717-.37.067-.662.401-.589 2.388-3.036 1.44-1.882.93-1.086-.006-.158h-.055L4.132 18.56l-1.13.146-.487-.456.061-.746.231-.243 1.908-1.312-.006.006z',
+  openai: 'M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z',
+  anthropic: 'M17.3041 3.541h-3.6718l6.696 16.918H24Zm-10.6082 0L0 20.459h3.7442l1.3693-3.5527h7.0052l1.3693 3.5528h3.7442L10.5363 3.5409Zm-.3712 10.2232 2.2914-5.9456 2.2914 5.9456Z',
+};
+const logo = (name, size, color) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" style="display:block"><path d="${LOGO[name]}" fill="${color}"/></svg>`;
+
+/* ---------- iconos de línea (Lucide, ISC) ---------- */
+const ICON = {
+  scale: '<path d="M12 3v18"/><path d="m19 8 3 8a5 5 0 0 1-6 0zV7"/><path d="M3 7h1a17 17 0 0 0 8-2 17 17 0 0 0 8 2h1"/><path d="m5 8 3 8a5 5 0 0 1-6 0zV7"/><path d="M7 21h10"/>',
+  sparkles: '<path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/>',
+  flask: '<path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2"/><path d="M6.453 15h11.094"/><path d="M8.5 2h7"/>',
+  crown: '<path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/>',
+  coins: '<path d="M13.744 17.736a6 6 0 1 1-7.48-7.48"/><path d="M15 6h1v4"/><path d="m6.134 14.768.866-.5 2 3.464"/><circle cx="16" cy="8" r="6"/>',
+  equal: '<line x1="5" x2="19" y1="9" y2="9"/><line x1="5" x2="19" y1="15" y2="15"/>',
+  chevronsUp: '<path d="m17 11-5-5-5 5"/><path d="m17 18-5-5-5 5"/>',
+};
+function icon(name, size, sw = 2) {
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" style="display:block;overflow:visible">${ICON[name]}</svg>`;
+}
+
+/* ---------- conectores discontinuos ---------- */
+class Wire {
+  constructor(pts, o = {}) {
+    this.el = document.createElementNS(SVGNS, 'path');
+    this.el.setAttribute('fill', 'none');
+    this.el.setAttribute('stroke', o.color || '#4a5266');
+    this.el.setAttribute('stroke-width', o.width || 2);
+    this.el.setAttribute('stroke-linecap', 'round');
+    if (o.dash !== null) this.el.setAttribute('stroke-dasharray', o.dash || '7 9');
+    WIRES.appendChild(this.el);
+    this.set(pts);
+  }
+  set(pts) {
+    this.pts = pts; this.seg = []; this.L = 0;
+    for (let i = 1; i < pts.length; i++) {
+      const l = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+      this.seg.push(l); this.L += l;
+    }
+  }
+  sub(a, b) {
+    const A0 = a * this.L, B0 = b * this.L, out = [];
+    let acc = 0;
+    for (let i = 0; i < this.seg.length; i++) {
+      const s0 = acc, s1 = acc + this.seg[i]; acc = s1;
+      if (s1 < A0 || s0 > B0 || !this.seg[i]) continue;
+      const p0 = clamp((A0 - s0) / this.seg[i]), p1 = clamp((B0 - s0) / this.seg[i]);
+      const a0 = this.pts[i], b0 = this.pts[i + 1];
+      if (!out.length) out.push(`M${lerp(a0[0], b0[0], p0).toFixed(2)} ${lerp(a0[1], b0[1], p0).toFixed(2)}`);
+      out.push(`L${lerp(a0[0], b0[0], p1).toFixed(2)} ${lerp(a0[1], b0[1], p1).toFixed(2)}`);
+    }
+    return out.join('');
+  }
+  /* dibuja el tramo [a,b] (fracciones). flow = desplazamiento de las rayas en px */
+  draw(a, b, op = 1, flow = 0) {
+    if (b - a <= 0.0005 || op <= 0.002) { this.el.style.opacity = 0; this.el.setAttribute('d', ''); return; }
+    this.el.setAttribute('d', this.sub(a, b));
+    this.el.style.opacity = op.toFixed(3);
+    this.el.style.strokeDashoffset = (a * this.L - flow).toFixed(2);
+  }
+}
+
+/* anillos que se expanden (rect redondeado o círculo) */
+const PULSES = [];
+function pulse(t0, dur, x, y, w, h, r, rgb, to, bw = 2) {
+  const e = mk('div', 'L pulse z6');
+  e.style.width = w + 'px'; e.style.height = h + 'px'; e.style.borderRadius = r + 'px';
+  e.style.borderWidth = bw + 'px'; e.style.borderColor = `rgba(${rgb},.95)`;
+  PULSES.push({ e, t0, dur, x, y, to });
+}
+
+/* =====================================================================
+   ELEMENTOS
+   ===================================================================== */
+const grid = $('grid'), glowN = $('glowN'), glowW = $('glowW'), glowC = $('glowC');
+const RGB_C = '217,119,87', RGB_O = '124,156,255';
+
+/* --- Escena 1: título --- */
+const eyebrow = mk('div', 'L eyebrow z5');
+function letters(text, cls, gradFrom) {
+  const d = mk('div', cls);
+  d._ch = [...text].map((c, i) => {
+    const s = document.createElement('span');
+    s.className = 'ch' + (gradFrom != null && i >= gradFrom ? ' grad' : '');
+    s.textContent = c === ' ' ? ' ' : c;
+    d.appendChild(s); return s;
+  });
+  return d;
+}
+const TITLE = 'Las reglas de la comparación';
+const title = letters(TITLE, 'L title z5', TITLE.indexOf('comparación'));
+const uline = mk('div', 'L uline z5');
+// cada palabra entra con su sílaba en la voz
+const WSTART = [C.las, C.reglas, C.de, C.la, C.comparacion];
+const letterT = (() => {
+  const out = []; let w = 0, k = 0;
+  for (const c of TITLE) { if (c === ' ') { out.push(null); w++; k = 0; continue; } out.push(WSTART[w] - .05 + k * .024); k++; }
+  return out;
+})();
+
+/* --- balanza --- */
+function panSVG(s) {
+  const L = s === 'L';
+  return `<g class="pan${s}">
+    <path class="sst" d="M0 0 L-50 90" pathLength="1" stroke="#aeb6c6" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path class="sst" d="M0 0 L50 90" pathLength="1" stroke="#aeb6c6" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <g class="tok"><circle class="tokc" cx="0" cy="58" r="27" fill="#0b0c10" stroke-width="2.2"/>
+      <g transform="translate(-15 43) scale(1.25)"><path class="tokl" d="${L ? LOGO.claude : LOGO.openai}" fill="${L ? '#D97757' : '#ffffff'}"/></g></g>
+    <path class="sst bowl" d="M-68 90 H68 Q60 122 0 124 Q-60 122 -68 90 Z" pathLength="1" stroke-width="2.6" stroke-linejoin="round"/>
+    <circle r="5.5" fill="#cfd6e4"/>
+  </g>`;
+}
+const scaleEl = mk('div', 'L z4'); scaleEl.id = 'scale';
+scaleEl.innerHTML = `
+<svg viewBox="-220 -90 440 360" width="440" height="360" style="display:block;overflow:visible">
+  <path class="sst" d="M0 8 V198" pathLength="1" stroke="#cfd6e4" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <g class="plate">
+    <rect x="-70" y="198" width="140" height="54" rx="17" fill="#12151c" stroke="#343a47" stroke-width="1.5"/>
+    <text x="0" y="235" text-anchor="middle" font-family="Outfit" font-weight="800" font-size="28" fill="#eef1f7" letter-spacing="1">VS</text>
+  </g>
+  ${panSVG('L')}${panSVG('R')}
+  <g class="beam"><path class="sst" d="M-140 0 H140" pathLength="1" stroke="#cfd6e4" stroke-width="8" fill="none" stroke-linecap="round"/></g>
+  <circle class="pivot" r="13" fill="#eef1f7" stroke="#0a0c10" stroke-width="3"/>
+</svg>`;
+const SC = {
+  strokes: [...scaleEl.querySelectorAll('.sst')],
+  beam: scaleEl.querySelector('.beam'), pivot: scaleEl.querySelector('.pivot'), plate: scaleEl.querySelector('.plate'),
+  panL: scaleEl.querySelector('.panL'), panR: scaleEl.querySelector('.panR'),
+};
+SC.tokL = SC.panL.querySelector('.tok'); SC.tokR = SC.panR.querySelector('.tok');
+SC.bowlL = SC.panL.querySelector('.bowl'); SC.bowlR = SC.panR.querySelector('.bowl');
+SC.tokcL = SC.panL.querySelector('.tokc'); SC.tokcR = SC.panR.querySelector('.tokc');
+SC.toklR = SC.panR.querySelector('.tokl');
+const PIV = [960, 470];     // pivote de la balanza (escenas 2-4)
+
+/* --- chip de cabecera (texto que se escribe) --- */
+const hchip = mk('div', 'L chip z6', null, '<span class="ic"></span><span class="tx"><span class="t"></span><span class="caret-i"></span><span class="strike"></span></span>');
+const hIc = hchip.querySelector('.ic'), hTx = hchip.querySelector('.t'), hCaret = hchip.querySelector('.caret-i'), hStrike = hchip.querySelector('.strike');
+
+/* --- tarjetas de modelo --- */
+function mcard(side, co, fam, name, ver) {
+  const e = mk('div', `L mcard ${side} z3`);
+  e._hi = mk('div', 'hi', e);
+  e._tile = mk('div', 'ltile', e, side === 'claude' ? logo('claude', 54, '#D97757') : logo('openai', 52, '#ffffff'));
+  e._co = mk('div', 'co', e, co);
+  e._fam = mk('div', 'fam', e, fam);
+  e._name = mk('div', 'name', e, `<span class="nm">${name}</span>${ver ? `<span class="ver">${ver}</span>` : ''}`);
+  e._nm = e._name.querySelector('.nm'); e._ver = e._name.querySelector('.ver');
+  return e;
+}
+const cOpus = mcard('claude', 'ANTHROPIC', 'Claude', 'Opus', '5.5');
+const cSol = mcard('oai', 'OPENAI', 'GPT-6', 'Sol');
+const cAstra = mcard('oai', 'OPENAI', 'GPT-6', 'Astra');
+const cFable = mcard('claude', 'ANTHROPIC', 'Claude', 'Fable', '5.1');
+const cQ = mk('div', 'L qcard z3', null, `
+  <svg width="500" height="300" viewBox="0 0 500 300"><rect x="1" y="1" width="498" height="298" rx="30" fill="rgba(255,255,255,.015)" stroke="#3f485c" stroke-width="2.2" stroke-dasharray="14 11"/></svg>
+  <div class="q">?</div>`);
+const qRect = cQ.querySelector('rect'), qMark = cQ.querySelector('.q');
+
+/* textos de la tarjeta: aparecen con la voz */
+function rise(el, t, t0, d = .42, dy = 16) {
+  const p = P(t, t0, d, E.out4);
+  el.style.opacity = clamp((t - t0) / (d * .55)).toFixed(3);
+  el.style.transform = `translateY(${((1 - p) * dy).toFixed(2)}px)`;
+}
+function slam(el, t, t0, from = 1.4) {   // entrada con golpe
+  const r = clamp((t - t0) / .5), p = E.out4(r);
+  el.style.opacity = clamp(r * 3.5).toFixed(3);
+  el.style.transformOrigin = '0% 75%';
+  el.style.transform = `scale(${lerp(from, 1, p).toFixed(4)})`;
+  el.style.filter = r > 0 && r < 1 ? `blur(${((1 - p) * 7).toFixed(2)}px)` : 'none';
+}
+
+/* --- insignias --- */
+function badge() {
+  const e = mk('div', 'L badge z5', null, `<div class="eq">${icon('equal', 30, 2.4)}</div><div class="vs">VS</div>`);
+  e._eq = e.querySelector('.eq'); e._vs = e.querySelector('.vs');
+  return e;
+}
+const bTop = badge(), bMid = badge();
+
+/* --- escalera de gamas --- */
+const LAD = { xL: 820, xR: 1380, y1: 430, y2: 740, s: .8 };
+const bandTop = mk('div', 'L band top z1'), bandMid = mk('div', 'L band mid z1');
+for (const b of [bandTop, bandMid]) { b.style.width = '1030px'; b.style.height = '272px'; }
+const lblTop = mk('div', 'L rowlbl top z2', null, `${icon('crown', 28, 2)}<span>TOPE DE GAMA</span>`);
+const lblMid = mk('div', 'L rowlbl mid z2', null, `<span>GAMA ALTA</span>`);
+const hdrA = mk('div', 'L colhdr z2', null, `${logo('anthropic', 34, '#eef1f7')}<span>Anthropic</span>`);
+const hdrO = mk('div', 'L colhdr z2', null, `${logo('openai', 38, '#eef1f7')}<span>OpenAI</span>`);
+const EDGE = 500 * LAD.s / 2;
+const wTop = new Wire([[LAD.xR - EDGE, LAD.y1], [LAD.xL + EDGE, LAD.y1]]);
+const wMid = new Wire([[LAD.xR - EDGE, LAD.y2], [LAD.xL + EDGE, LAD.y2]]);
+const BX = (LAD.xL + LAD.xR) / 2;
+
+/* --- coste --- */
+const COST = { xL: 640, xR: 1280, y: 318, s: .66, base: 944, hMax: 470 };
+const PRICE = { opus: [4, 20], astra: [10, 50] };     // USD por millón de tokens (entrada / salida), tarifas oficiales
+const tracks = [0, 1].map(() => { const e = mk('div', 'L track z2'); e.style.height = COST.hMax + 'px'; return e; });
+function mkBar(side) {
+  const e = mk('div', `L bar ${side} z3`, null, '<div class="price"></div><div class="pcap">entrada / salida</div><div class="mark"></div><div class="shine"></div>');
+  e._price = e.querySelector('.price'); e._cap = e.querySelector('.pcap'); e._shine = e.querySelector('.shine'); e._mark = e.querySelector('.mark');
+  return e;
+}
+const barO = mkBar('claude'), barA = mkBar('oai');
+const baseline = mk('div', 'L baseline z2');
+const wHalf = new Wire([[440, COST.base - COST.hMax / 2], [1480, COST.base - COST.hMax / 2]], { color: '#c9d0de', width: 2, dash: '9 9' });
+const halfChip = mk('div', 'L halfchip z6', null, '<b>½</b><span>la mitad</span>');
+const wVs = new Wire([[COST.xL + 165, COST.y], [COST.xR - 165, COST.y]]);
+
+/* =====================================================================
+   FOTOGRAMAS CLAVE (posiciones de las piezas que viajan entre escenas)
+   ===================================================================== */
+const S1 = { x: 960, y: 570, s: 1 };
+const VSL = [480, 570], VSR = [1440, 570];
+
+const OPK = norm([
+  [4.58, { x: VSL[0] - 90, y: VSL[1], s: 1, o: 0, b: 10 }],
+  [5.14, { x: VSL[0], o: 1, b: 0 }, E.out4],
+  [9.72, {}],
+  [10.06, { s: 1.035 }, E.out3],
+  [14.1, {}],
+  [14.8, { s: 1 }, E.io3],
+  [22.86, {}],
+  [23.62, { x: LAD.xL, y: LAD.y2, s: LAD.s, o: .5 }, E.io4],
+  [30.22, {}],
+  [30.5, { o: 1 }, E.out3],
+  [32.52, {}],
+  [33.26, { y: LAD.y1 }, E.io4],
+  [35.0, {}],
+  [35.74, { x: COST.xL, y: COST.y, s: COST.s }, E.io4],
+]);
+const OPH = norm([   // resalte de la tarjeta de Opus
+  [4.6, { h: 0 }], [4.9, { h: 1 }], [5.9, { h: .3 }, E.io3], [9.74, {}], [9.96, { h: 1 }, E.out3],
+  [22.86, {}], [23.3, { h: 0 }], [30.3, {}], [30.55, { h: 1 }, E.out3], [35.2, {}], [35.8, { h: .8 }],
+]);
+const SOK = norm([
+  [6.50, { x: VSR[0] + 90, y: VSR[1], s: 1, o: 0, b: 10, g: 0, br: 1 }],
+  [7.06, { x: VSR[0], o: 1, b: 0 }, E.out4],
+  [9.74, {}],
+  [10.1, { y: VSR[1] + 8, s: .95, o: .85, br: .92 }, E.out3],
+  [12.68, {}],
+  [13.1, { o: .62, g: 1, br: .72 }, E.io3],
+  [13.74, {}],
+  [14.32, { y: VSR[1] + 90, s: .9, o: 0, b: 6 }, E.in3],
+  [25.84, { x: LAD.xR, y: LAD.y2 + 44, s: LAD.s, o: 0, b: 6, g: 0, br: 1 }],
+  [26.40, { y: LAD.y2, o: .62, b: 0 }, E.out4],
+  [29.86, {}],
+  [30.2, { o: .38 }],
+  [32.56, {}],
+  [33.06, { y: LAD.y2 + 34, o: 0, b: 5 }, E.in3],
+]);
+const SOH = norm([[6.55, { h: 0 }], [6.85, { h: 1 }], [7.9, { h: .3 }, E.io3], [9.74, {}], [9.96, { h: 0 }]]);
+const QK = norm([
+  [14.80, { x: VSR[0], y: VSR[1], s: .9, o: 0, ry: 0 }],
+  [15.30, { s: 1, o: 1 }, E.back],
+  [21.04, {}],
+  [21.26, { ry: 90 }, E.in2],
+  [21.27, { o: 0 }, E.lin],
+]);
+const AK = norm([
+  [21.26, { x: VSR[0], y: VSR[1], s: 1, o: 0, ry: -90 }],
+  [21.27, { o: 1 }, E.lin],
+  [21.62, { ry: 0 }, E.out3],
+  [22.86, {}],
+  [23.62, { x: LAD.xR, y: LAD.y1, s: LAD.s }, E.io4],
+  [35.0, {}],
+  [35.74, { x: COST.xR, y: COST.y, s: COST.s }, E.io4],
+]);
+const AH = norm([[21.3, { h: 0 }], [22.0, {}], [22.2, { h: 1 }, E.out3], [35.2, {}], [35.8, { h: .8 }]]);
+const FK = norm([
+  [28.18, { x: LAD.xL - 80, y: LAD.y1, s: LAD.s, o: 0, b: 8 }],
+  [28.72, { x: LAD.xL, o: 1, b: 0 }, E.out4],
+  [29.86, {}],
+  [30.2, { o: .42 }],
+  [32.28, {}],
+  [32.78, { s: LAD.s * .88, o: 0, b: 6 }, E.in3],
+]);
+const FH = norm([[28.2, { h: 0 }], [28.5, { h: 1 }], [29.86, {}], [30.2, { h: .1 }]]);
+
+/* insignia de la fila de arriba: "=" en la escalera, "VS" cuando Opus sube, y viaja a la escena de coste */
+const BTK = norm([
+  [27.5, { x: BX, y: LAD.y1, s: .4, o: 0 }],
+  [27.78, { s: 1, o: 1 }, E.back],
+  [29.86, {}],
+  [30.2, { o: .5 }],
+  [33.6, {}],
+  [33.9, { o: 1 }],
+  [35.0, {}],
+  [35.74, { x: 960, y: COST.y, s: .92 }, E.io4],
+]);
+
+/* cámara: punto al que mira (x,y) y zoom (s) */
+const CAMK = norm([
+  [0, { x: 960, y: 540, s: 1 }],
+  [2.62, { s: 1.022 }, E.ioSine],
+  [3.40, { s: 1 }, E.io3],
+  [9.72, { s: 1.008 }, E.ioSine],
+  [9.98, { s: 1.03 }, E.out3],          // golpe de "humillar"
+  [12.6, { s: 1.022 }, E.ioSine],
+  [15.3, { s: 1.02 }],
+  [16.95, { x: 1100, y: 560, s: 1.065 }, E.io3],     // acercarse al "?"
+  [17.12, {}],
+  [17.95, { x: 960, y: 540, s: 1 }, E.io3],
+  [21.98, {}],
+  [22.12, { s: 1.022 }, E.out3],        // golpe de "Astra"
+  [22.84, { s: 1.012 }, E.ioSine],
+  [23.62, { s: 1 }, E.io3],
+  [33.2, {}],
+  [34.4, { x: 990, y: 455, s: 1.06 }, E.io3],        // la fila de arriba: Opus frente a Astra
+  [35.0, {}],
+  [35.74, { x: 960, y: 540, s: 1 }, E.io4],
+  [DUR, { s: 1.022 }, E.ioSine],
+]);
+/* resplandores de fondo que siguen a cada bando */
+const GWK = norm([
+  [0, { x: 480, y: 570, o: 0 }], [4.6, {}], [5.3, { o: .8 }], [9.74, {}], [10.1, { o: 1.05 }],
+  [22.86, {}], [23.62, { x: LAD.xL, y: LAD.y2, o: .3 }, E.io4], [28.2, {}], [28.7, { y: LAD.y1, o: .75 }], [29.86, {}], [30.3, { y: LAD.y2, o: .95 }],
+  [32.52, {}], [33.26, { y: LAD.y1, o: 1.05 }, E.io4], [35.0, {}], [35.74, { x: COST.xL, y: 640, o: .85 }, E.io4],
+]);
+const GCK = norm([
+  [0, { x: 1440, y: 570, o: 0 }], [6.5, {}], [7.2, { o: .7 }], [9.74, {}], [10.1, { o: .35 }], [12.68, {}], [13.1, { o: 0 }],
+  [14.8, {}], [15.4, { o: .18 }], [21.1, {}], [21.6, { o: .7 }], [22.03, {}], [22.25, { o: 1.05 }],
+  [22.86, {}], [23.62, { x: LAD.xR, y: LAD.y1, o: .9 }, E.io4], [35.0, {}], [35.74, { x: COST.xR, y: 640, o: .85 }, E.io4],
+]);
+
+/* =====================================================================
+   MAQUETACIÓN (tras cargar fuentes)
+   ===================================================================== */
+function layout() {
+  // degradado continuo en "comparación" aunque cada letra sea una pieza
+  const g = title._ch.filter(c => c.classList.contains('grad'));
+  const x0 = g[0].offsetLeft, W = g[g.length - 1].offsetLeft + g[g.length - 1].offsetWidth - x0;
+  g.forEach(c => { c.style.backgroundSize = `${W}px 100%`; c.style.backgroundPosition = `${-(c.offsetLeft - x0)}px 0`; });
+
+  // anillos (instante, posición, tamaño)
+  const ring = (t0, keys, rgb, to = 1.16, dur = .8) => { const k = KF(t0, keys); pulse(t0, dur, k.x, k.y, 500 * k.s, 300 * k.s, 30 * k.s, rgb, to); };
+  ring(C.humillar, OPK, RGB_C, 1.14);
+  ring(C.opus2 - .02, OPK, RGB_C);
+  ring(C.astra1 - .02, AK, RGB_O, 1.22, .9);
+  ring(C.astra1 + .1, AK, RGB_O, 1.12, .7);
+  ring(C.astra2 - .02, AK, RGB_O, 1.18);
+  ring(C.v51, FK, RGB_C, 1.14, .7);
+  ring(C.opus3 - .02, OPK, RGB_C, 1.18);
+  ring(C.bestia - .04, OPK, RGB_C, 1.3, .9);
+  ring(C.bestia + .1, OPK, RGB_C, 1.2, .8);
+  ring(33.26, OPK, RGB_C, 1.16, .7);
+  ring(C.opus4 - .02, OPK, RGB_C, 1.2);
+  pulse(C.comparativa, .8, BX, LAD.y1, 74, 74, 37, '233,196,106', 2.2);
+  pulse(C.frente1 - .02, .7, PIV[0], PIV[1] + 225, 140, 54, 17, '238,241,247', 1.5);
+  pulse(C.frente2 - .02, .7, PIV[0], PIV[1] + 225, 140, 54, 17, '238,241,247', 1.5);
+}
+
+/* =====================================================================
+   RENDER
+   ===================================================================== */
+function render(t) {
+  // cámara y fondo
+  const cam = KF(t, CAMK), dx = -(cam.x - 960) * cam.s, dy = -(cam.y - 540) * cam.s;
+  WORLD.style.transform = `translate(${dx.toFixed(2)}px,${dy.toFixed(2)}px) scale(${cam.s.toFixed(5)})`;
+  grid.style.opacity = P(t, 0, .5, E.out2).toFixed(3);
+  grid.style.backgroundPosition = `${(dx * .3 - t * 4).toFixed(2)}px ${(dy * .3 - t * 2).toFixed(2)}px`;
+  const breath = .9 + .1 * Math.sin(t * 1.7);
+  const nO = P(t, 0, 1.2, E.out2) * lerp(1, .35, P(t, 2.7, 1.2)) * lerp(1, 1.6, P(t, 35.0, .8)) * breath;
+  glowN.style.transform = `translate(${(960 - 750 + dx * .6).toFixed(1)}px,${(470 - 750 + dy * .6).toFixed(1)}px)`;
+  glowN.style.opacity = clamp(nO * .9).toFixed(3);
+  const gw = KF(t, GWK), gc = KF(t, GCK);
+  const bestiaFlare = .6 * flash(t, C.bestia - .02, .1, 2.4);
+  glowW.style.transform = `translate(${(gw.x - 750 + dx).toFixed(1)}px,${(gw.y - 750 + dy).toFixed(1)}px) scale(${(1 + .03 * Math.sin(t * 1.3) + bestiaFlare * .25).toFixed(4)})`;
+  glowW.style.opacity = clamp((gw.o + bestiaFlare) * breath, 0, 1.3).toFixed(3);
+  glowC.style.transform = `translate(${(gc.x - 750 + dx).toFixed(1)}px,${(gc.y - 750 + dy).toFixed(1)}px) scale(${(1 + .03 * Math.sin(t * 1.1 + 1)).toFixed(4)})`;
+  glowC.style.opacity = clamp(gc.o * breath, 0, 1.3).toFixed(3);
+
+  scene1(t); balanza(t); chip(t); cards(t); ladder(t); cost(t);
+
+  for (const p of PULSES) {
+    const k = (t - p.t0) / p.dur;
+    if (k <= 0 || k >= 1) off(p.e);
+    else put(p.e, { x: p.x, y: p.y, s: lerp(1, p.to, E.out3(k)), o: .8 * (1 - E.out2(k)) });
+  }
+}
+
+/* --- ESCENA 1: "Lo primero, las reglas de la comparación" --- */
+function scene1(t) {
+  if (t > 3.3) { [eyebrow, title, uline].forEach(off); return; }
+  const q = P(t, 2.62, .36, E.in3);                        // salida
+  const n = Math.floor(P(t, C.lo - .02, .42, E.lin) * 10);
+  eyebrow.innerHTML = 'LO PRIMERO'.slice(0, n) + (t < 1.3 ? `<span class="caret-i" style="opacity:${t < C.lo + .4 ? 1 : blink(t, 2.4)}"></span>` : '');
+  put(eyebrow, { x: 960, y: 452 - q * 16, o: (t > C.lo - .04 ? 1 : 0) * (1 - q), b: q * 4 });
+
+  title._ch.forEach((c, i) => {
+    const t0 = letterT[i]; if (t0 == null) return;
+    const p = E.out4(clamp((t - t0) / .5));
+    c.style.transform = `translateY(${((1 - p) * .42).toFixed(3)}em)`;
+    c.style.opacity = clamp((t - t0) / .26).toFixed(3);
+  });
+  put(title, { x: 960, y: 548 - q * 22, o: (t > .9 ? 1 : 0) * (1 - q), b: q * 6 });
+  const u = P(t, 2.22, .5, E.out4);
+  put(uline, { x: 960, y: 634 - q * 22, sx: Math.max(.001, u), o: (t > 2.22 ? 1 : 0) * (1 - q) });
+}
+
+/* --- BALANZA (escenas 1 a 4) --- */
+function beamAngle(t) {
+  let a = 0;
+  a += -8 * step(t - 4.86, 9, .42);          // cae la ficha de Claude: se inclina
+  a += 8 * step(t - 6.82, 9, .42);           // cae la de OpenAI: equilibrio ("la comparación justa")
+  a += -17 * step(t - (C.humillar - .04), 9, .34);   // "humillar"
+  a += -4 * step(t - C.color, 10, .45);      // "no hay color"
+  a += -6 * step(t - 13.98, 9, .38);         // Sol se va: plato vacío
+  a += 27 * step(t - 21.99, 7.5, .38);       // llega Astra: vuelve el equilibrio
+  a += Math.sin(t * 1.9) * .5;               // respiración
+  return a;
+}
+function balanza(t) {
+  if (t > 23.4) { off(scaleEl); return; }
+  // posición: pequeña sobre el título -> centro de la comparación -> se va
+  const mv = P(t, 2.66, .78, E.io4);
+  const out = P(t, C.recordemos, .42, E.in3);
+  const x = 960, y = lerp(272, PIV[1], mv) - out * 20;
+  const s = lerp(.62, 1, mv) * (1 - .25 * out);
+  const tx = 220, ty = 90;   // pivote dentro del elemento (px)
+  put(scaleEl, { x, y, s, ax: tx / 440 * 100, ay: ty / 360 * 100, o: P(t, .4, .3, E.lin) * (1 - out), b: out * 5 });
+
+  // dibujado de los trazos (escena 1)
+  const dp = P(t, .46, 1.1, E.io3);
+  SC.strokes.forEach((p, i) => {
+    const q = clamp((dp - i * .045) / (1 - 7 * .045));
+    p.style.strokeDasharray = q >= 1 ? 'none' : '1 2';
+    p.style.strokeDashoffset = (1 - q).toFixed(4);
+    p.style.opacity = q > .002 ? 1 : 0;
+  });
+  const pv = clamp((t - 1.0) / .4);
+  SC.pivot.setAttribute('transform', `scale(${lerp(0, 1, E.back(pv)).toFixed(3)})`);
+
+  // placa "VS"
+  const pl = clamp((t - (C.frente1 - .08)) / .45);
+  const plb = 1 + .12 * bump(t, C.frente2 - .04, .32);
+  SC.plate.setAttribute('transform', `translate(0 225) scale(${(lerp(.5, 1, E.back(pl)) * plb).toFixed(4)}) translate(0 -225)`);
+  SC.plate.style.opacity = clamp(pl * 2.5).toFixed(3);
+
+  // brazo y platos (cuelgan siempre verticales, con un pequeño balanceo por la velocidad)
+  const a = beamAngle(t), rad = a * Math.PI / 180;
+  const w = (beamAngle(t + .012) - beamAngle(t - .012)) / .024;
+  const swing = clamp(-w * .05, -9, 9);
+  SC.beam.setAttribute('transform', `rotate(${a.toFixed(3)})`);
+  const hx = 140 * Math.cos(rad), hy = 140 * Math.sin(rad);
+  SC.panL.setAttribute('transform', `translate(${(-hx).toFixed(2)} ${(-hy).toFixed(2)}) rotate(${swing.toFixed(2)})`);
+  SC.panR.setAttribute('transform', `translate(${hx.toFixed(2)} ${hy.toFixed(2)}) rotate(${swing.toFixed(2)})`);
+
+  // color de los platos: Claude coral / OpenAI azul (el de OpenAI "pierde el color")
+  const grey = [128, 134, 148];
+  const lostR = P(t, C.color - .04, .4, E.io3) * (1 - P(t, 21.8, .3));
+  const colL = 'rgb(217,119,87)', colR = mix([124, 156, 255], grey, lostR);
+  SC.bowlL.setAttribute('stroke', colL); SC.bowlL.setAttribute('fill', 'rgba(217,119,87,.16)');
+  SC.bowlR.setAttribute('stroke', colR); SC.bowlR.setAttribute('fill', lostR > .5 ? 'rgba(128,134,148,.1)' : 'rgba(124,156,255,.16)');
+  const fillP = P(t, 1.2, .5);
+  SC.bowlL.style.fillOpacity = SC.bowlR.style.fillOpacity = fillP.toFixed(3);
+
+  // fichas con el logo sobre cada plato
+  const tokL = clamp((t - 4.66) / .2);
+  const dropL = (1 - E.in2(tokL)) * -70;
+  SC.tokL.setAttribute('transform', `translate(0 ${dropL.toFixed(2)})`);
+  SC.tokL.style.opacity = clamp(tokL * 3).toFixed(3);
+  SC.tokcL.setAttribute('stroke', colL);
+  // derecha: Sol (6.62 -> se va en 13.8) y luego Astra (cae en 21.99)
+  let tr = 0, to = 0;
+  if (t < 13.8) { const k = clamp((t - 6.62) / .2); tr = (1 - E.in2(k)) * -70; to = clamp(k * 3); }
+  else if (t < 21.7) { const k = P(t, 13.8, .3, E.in2); tr = -k * 60; to = 1 - k; }
+  else { const k = clamp((t - 21.79) / .2); tr = (1 - E.in2(k)) * -80; to = clamp(k * 3); }
+  SC.tokR.setAttribute('transform', `translate(0 ${tr.toFixed(2)})`);
+  SC.tokR.style.opacity = to.toFixed(3);
+  SC.tokcR.setAttribute('stroke', colR);
+  SC.toklR.setAttribute('fill', mix([255, 255, 255], [150, 156, 168], lostR));
+}
+
+/* --- CHIP DE CABECERA: se escribe al ritmo de la voz --- */
+const CHIP = [
+  { t0: 2.98, icon: 'scale', segs: [[C.la2, 3.56, 'la comparación'], [C.justa - .02, 3.92, ' justa']], strike: C.porLoQue - .02, del: [14.54, 14.84] },
+  { t0: 14.84, icon: 'sparkles', segs: [[C.algo, 16.25, 'algo aún más interesante']], del: [16.86, 17.08] },
+  { t0: 17.08, icon: 'flask', segs: [[C.las2, 17.56, 'las pruebas']] },
+  { t0: 35.66, icon: 'coins', segs: [[C.factor - .02, 36.55, 'coste por millón de tokens']] },
+];
+function typed(segs, t) {
+  let s = '', typing = false;
+  for (const [a, b, txt] of segs) {
+    const n = Math.floor(clamp((t - a) / (b - a)) * txt.length + (t >= a ? 1 : 0));
+    s += txt.slice(0, Math.min(n, txt.length));
+    if (t >= a && t < b) typing = true;
+  }
+  return { s, typing };
+}
+function chip(t) {
+  const inO = P(t, 2.98, .3) * (1 - P(t, C.recordemos, .3, E.in3)) + P(t, 35.66, .3);
+  if (inO <= .002) { off(hchip); return; }
+  let ph = CHIP[0];
+  for (const c of CHIP) if (t >= c.t0) ph = c;
+  if (hchip._ph !== ph) { hIc.innerHTML = icon(ph.icon, 32, 2); hchip._ph = ph; }
+  let { s, typing } = typed(ph.segs, t);
+  if (ph.del && t > ph.del[0]) s = s.slice(0, Math.floor(s.length * (1 - P(t, ph.del[0], ph.del[1] - ph.del[0], E.lin))));
+  hTx.textContent = s;
+  const last = ph.segs[ph.segs.length - 1][1];
+  hCaret.style.display = (typing || (t > ph.t0 && t < last + .7) || (ph.del && t > ph.del[0])) ? 'inline-block' : 'none';
+  hCaret.style.opacity = typing ? 1 : blink(t, 2.4);
+  hStrike.style.transform = `scaleX(${(ph.strike ? P(t, ph.strike, .36, E.io3) * (1 - P(t, ph.del[0] - .1, .1, E.lin)) : 0).toFixed(4)})`;
+  hIc.style.opacity = P(t, ph.t0, .25).toFixed(3);
+  const y = t < 30 ? 218 : 146;
+  put(hchip, { x: 960, y: y + (1 - P(t, t < 30 ? 2.98 : 35.66, .4, E.out3)) * 12, o: inO });
+}
+
+/* --- TARJETAS DE MODELO --- */
+function card(e, k, h) {
+  put(e, k);
+  e._hi.style.opacity = clamp(h).toFixed(3);
+}
+function cards(t) {
+  // Claude Opus 5.5
+  const op = KF(t, OPK), oh = KF(t, OPH).h;
+  const beast = .075 * bump(t, C.bestia - .02, .34);
+  card(cOpus, { ...op, s: op.s * (1 + beast), x: op.x + (t > C.bestia && t < C.bestia + .3 ? Math.sin(t * 90) * 2.5 * (1 - (t - C.bestia) / .3) : 0) }, oh);
+  rise(cOpus._fam, t, C.opus1 - .02); slam(cOpus._nm, t, C.opus1 - .02, 1.25); slam(cOpus._ver, t, C.v55a - .02, 1.5);
+  // destellos del número de versión cuando la voz lo repite
+  const vf = Math.max(flash(t, C.v55b, .06, 3), flash(t, C.v55c, .06, 3));
+  cOpus._ver.style.textShadow = vf > .01 ? `0 0 ${(22 * vf).toFixed(1)}px rgba(238,154,122,${(.9 * vf).toFixed(3)})` : 'none';
+
+  // GPT-6 Sol
+  if (t < 33.2) {
+    const so = KF(t, SOK);
+    card(cSol, so, KF(t, SOH).h * (t < 20 ? 1 : 0));
+    rise(cSol._fam, t, C.gpt1 - .02); slam(cSol._nm, t, C.sol - .03, 1.35);
+  } else off(cSol);
+
+  // tarjeta "?"
+  if (t > 14.7 && t < 21.4) {
+    const q = KF(t, QK);
+    put(cQ, q);
+    qRect.style.strokeDashoffset = (-t * 22).toFixed(1);
+    const glowQ = .5 + .5 * Math.sin(t * 5.2);
+    qMark.style.color = mix([86, 97, 121], [150, 162, 190], P(t, C.aun, .6) * glowQ);
+    qMark.style.transform = `scale(${(1 + .05 * P(t, C.aun, .5) * Math.sin(t * 5.2)).toFixed(4)})`;
+  } else off(cQ);
+
+  // GPT-6 Astra
+  if (t > 21.2) {
+    const a = KF(t, AK);
+    card(cAstra, a, KF(t, AH).h);
+    rise(cAstra._fam, t, 21.3, .3, 10); slam(cAstra._nm, t, C.astra1 - .04, 1.5);
+  } else off(cAstra);
+
+  // Claude Fable 5.1
+  if (t > 28.1 && t < 32.9) {
+    card(cFable, KF(t, FK), KF(t, FH).h);
+    rise(cFable._fam, t, C.fable - .02); slam(cFable._nm, t, C.fable - .02, 1.3); slam(cFable._ver, t, C.v51 - .02, 1.5);
+  } else off(cFable);
+}
+
+/* --- ESCALERA DE GAMAS (escenas 5-6) --- */
+function ladder(t) {
+  if (t < 24.9 || t > 35.8) {
+    [bandTop, bandMid, lblTop, lblMid, hdrA, hdrO, bMid].forEach(off); wTop.draw(0, 0, 0); wMid.draw(0, 0, 0);
+  }
+  if (t <= 27.4) off(bTop);
+  const X = P(t, C.ademas, .38, E.in3);                  // salida hacia el coste
+  if (t >= 24.9 && t <= 35.8) {
+    // franjas de gama
+    const b1 = clamp((t - (C.tope - .06)) / .5);
+    const gold = flash(t, C.comparativa, .1, 1.6);
+    put(bandTop, { x: BX, y: LAD.y1, sx: lerp(.94, 1, E.out4(b1)), o: E.out3(b1) * (1 - X) });
+    bandTop.style.boxShadow = gold > .01 ? `0 0 0 1px rgba(233,196,106,${(.5 * gold).toFixed(3)}),0 0 60px -10px rgba(233,196,106,${(.5 * gold).toFixed(3)})` : 'none';
+    const b2 = clamp((t - (C.modelos + .06)) / .5), b2o = 1 - P(t, 32.6, .4, E.in3);
+    put(bandMid, { x: BX, y: LAD.y2, sx: lerp(.94, 1, E.out4(b2)), o: E.out3(b2) * b2o * (1 - X) * lerp(1, .6, P(t, C.pero2, .3)) });
+    const l1 = P(t, C.tope, .42, E.out4), l2 = P(t, C.modelos + .12, .42, E.out4);
+    put(lblTop, { x: 556 - (1 - l1) * 16, y: LAD.y1, ax: 100, o: l1 * (1 - X) });
+    put(lblMid, { x: 556 - (1 - l2) * 16, y: LAD.y2, ax: 100, o: l2 * b2o * (1 - X) * lerp(1, .6, P(t, C.pero2, .3)) });
+    // cabeceras de columna
+    const hO = P(t, C.modelos - .04, .45, E.out4), hA = P(t, C.fable - .04, .45, E.out4);
+    put(hdrO, { x: LAD.xR, y: 236 + (1 - hO) * 14, s: 1 + .06 * bump(t, C.openai2, .35), o: hO * (1 - X) });
+    put(hdrA, { x: LAD.xL, y: 236 + (1 - hA) * 14, o: hA * (1 - X) });
+    // conectores "=" (misma gama)
+    const flow = Math.max(0, t - 27) * 14;
+    wTop.draw(0, P(t, C.equivalente - .02, .42, E.io3), lerp(1, .45, P(t, C.pero2, .3)) * (1 - X), flow);
+    const m1 = P(t, 28.86, .4, E.io3), m1o = P(t, 32.3, .3, E.in3);
+    wMid.draw(0, m1 * (1 - m1o), .6 * (1 - X), flow);
+    const bm = clamp((t - 29.0) / .35);
+    put(bMid, { x: BX, y: LAD.y2, s: lerp(.4, 1, E.back(bm)) * (1 - .4 * m1o), o: clamp(bm * 2) * .8 * (1 - m1o) });
+    bMid._eq.style.opacity = 1; bMid._vs.style.opacity = 0;
+  }
+  // insignia de la fila de arriba (sigue viva en la escena de coste)
+  if (t > 27.4) {
+    const k = KF(t, BTK), vsP = P(t, C.comparativa - .08, .3, E.io3);
+    const pop = 1 + .22 * bump(t, C.comparativa - .08, .36);
+    put(bTop, { ...k, s: k.s * pop });
+    bTop._eq.style.opacity = (1 - vsP).toFixed(3);
+    bTop._eq.style.transform = `rotate(${(vsP * 90).toFixed(1)}deg) scale(${(1 - .5 * vsP).toFixed(3)})`;
+    bTop._vs.style.opacity = vsP.toFixed(3);
+    bTop._vs.style.transform = `scale(${lerp(.4, 1, E.back(vsP)).toFixed(3)})`;
+    bTop.style.borderColor = vsP > .5 ? mix([52, 58, 71], [233, 196, 106], clamp(flash(t, C.comparativa, .1, 1.2) * .9)) : '#343a47';
+  }
+}
+
+/* --- COSTE (escena 7) --- */
+function cost(t) {
+  if (t < 35.3) { [...tracks, barO, barA, baseline, halfChip].forEach(off); wHalf.draw(0, 0, 0); wVs.draw(0, 0, 0); return; }
+  const base = COST.base, H = COST.hMax;
+  const bl = P(t, 35.9, .55, E.io3);
+  put(baseline, { x: 960, y: base + 1, sx: Math.max(.001, bl), o: bl > 0 ? 1 : 0 });
+  tracks.forEach((e, i) => {
+    const p = P(t, 36.0 + i * .08, .45);
+    put(e, { x: i ? COST.xR : COST.xL, y: base, ay: 100, o: p * .9, sy: lerp(.96, 1, p) });
+  });
+  wVs.draw(0, P(t, 35.62, .4, E.io3), .9, Math.max(0, t - 35.6) * 14);
+
+  // barras: Astra primero (referencia), luego Opus al decir "coste"
+  const grow = (e, x, frac, t0, dur, vals) => {
+    const p = P(t, t0, dur, E.out3);
+    const h = Math.max(1, H * frac * p);
+    e.style.height = h.toFixed(1) + 'px';
+    put(e, { x, y: base, ay: 100, o: p > 0 ? 1 : 0 });
+    if (!e._price.textContent) e._price.textContent = `$${vals[0]} / $${vals[1]}`;   // tarifa real, sin cifras intermedias
+    const tp = clamp((h - 120) / 50);
+    e._price.style.opacity = tp.toFixed(3); e._price.style.transform = `translateY(${((1 - tp) * 10).toFixed(2)}px)`;
+    e._cap.style.opacity = clamp((h - 150) / 30).toFixed(3);
+  };
+  grow(barA, COST.xR, 1, C.tener - .02, .95, PRICE.astra);
+  grow(barO, COST.xL, PRICE.opus[1] / PRICE.astra[1], C.tiene - .02, .8, PRICE.opus);
+  barA._shine.style.opacity = (.55 * flash(t, C.astra3 - .02, .08, 3)).toFixed(3);
+  barO._shine.style.opacity = (.5 * flash(t, C.mitad + .1, .08, 3)).toFixed(3);
+
+  // línea de "la mitad" (del coste de Astra)
+  wHalf.draw(0, P(t, C.mitad - .06, .5, E.io3), .75, Math.max(0, t - C.mitad) * 12);
+  barA._mark.style.opacity = P(t, C.mitad + .12, .3).toFixed(3);   // la mitad marcada también sobre la barra de Astra
+  const hc = clamp((t - (C.mitad - .02)) / .42);
+  put(halfChip, { x: 960, y: base - H / 2, s: lerp(.6, 1, E.back(hc)) * (1 + .06 * bump(t, C.astra3, .3)), o: clamp(hc * 2.2) });
+}
+
+/* =====================================================================
+   ARRANQUE: fuentes, imágenes, ruido, controles
+   ===================================================================== */
+function makeNoise() {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const x = c.getContext('2d'), d = x.createImageData(256, 256);
+  let s = 1234567;
+  const rnd = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  for (let i = 0; i < d.data.length; i += 4) { const v = rnd() * 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; }
+  x.putImageData(d, 0, 0);
+  $('noise').style.backgroundImage = `url(${c.toDataURL()})`;
+}
+
+window.__ready = (async () => {
+  const fonts = ['400 20px Outfit', '500 20px Outfit', '600 20px Outfit', '700 20px Outfit', '800 20px Outfit',
+    '400 20px "JetBrains Mono"', '500 20px "JetBrains Mono"', '600 20px "JetBrains Mono"'];
+  await Promise.all(fonts.map(f => document.fonts.load(f, 'Opus Astra comparación áéíóú ½$')));
+  await document.fonts.ready;
+  makeNoise();
+  layout();
+  render(Q.has('t') ? +Q.get('t') : 0);
+  return true;
+})();
+window.__render = t => render(t);
+
+/* --- previsualización con audio --- */
+if (!RENDER) {
+  const audio = $('audio'), btn = $('play'), scrub = $('scrub'), lab = $('tlabel');
+  let playing = false;
+  const show = t => { render(t); scrub.value = t; lab.textContent = `${t.toFixed(2)} / ${DUR.toFixed(2)} s`; };
+  const fit = () => { const vp = $('viewport'); const s = Math.min(vp.clientWidth / 1920, vp.clientHeight / 1080); STAGE.style.transform = `scale(${s})`; STAGE.style.margin = `${(1080 * s - 1080) / 2}px ${(1920 * s - 1920) / 2}px`; };
+  window.addEventListener('resize', fit); fit();
+  const loop = () => { if (!playing) return; show(Math.min(audio.currentTime, DUR)); if (audio.ended) { playing = false; btn.textContent = '▶'; } else requestAnimationFrame(loop); };
+  const toggle = () => {
+    if (playing) { audio.pause(); playing = false; btn.textContent = '▶'; return; }
+    if (audio.currentTime >= DUR - .05) audio.currentTime = 0;
+    audio.play(); playing = true; btn.textContent = '❚❚'; loop();
+  };
+  btn.onclick = toggle;
+  scrub.oninput = () => { audio.currentTime = +scrub.value; show(+scrub.value); };
+  window.addEventListener('keydown', e => {
+    if (e.code === 'Space') { e.preventDefault(); toggle(); }
+    if (e.code === 'ArrowRight' || e.code === 'ArrowLeft') { const d = (e.shiftKey ? .1 : 1) * (e.code === 'ArrowRight' ? 1 : -1); audio.currentTime = clamp(audio.currentTime + d, 0, DUR); show(audio.currentTime); }
+  });
+  window.__ready.then(() => show(Q.has('t') ? +Q.get('t') : 0));
+}
+</script>
+</body>
+</html>

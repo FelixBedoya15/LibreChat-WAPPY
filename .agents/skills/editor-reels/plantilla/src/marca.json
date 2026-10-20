@@ -1,0 +1,20 @@
+{
+ "nombre": "DominIA",
+ "colores": {
+  "fondo": "#06080d",
+  "texto": "#f3f5f9",
+  "suave": "#8a94a6",
+  "tenue": "#566072",
+  "acento": "#4b8cf7",
+  "acento2": "#2f6fe8",
+  "acento3": "#a9c6ff",
+  "ok": "#34d399",
+  "aviso": "#f5b64a",
+  "error": "#f26d6d",
+  "borde": "#1b2230",
+  "borde2": "#273142",
+  "tarjeta": ["#10151e", "#0c1118"]
+ },
+ "fuente": "Inter",
+ "logo": "logos/dominia.png"
+}
