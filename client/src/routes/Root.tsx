@@ -149,6 +149,18 @@ export default function Root() {
     if ((pathname === '/training' || pathname.startsWith('/training/')) && !pathname.startsWith('/training/admin')) {
       return true;
     }
+    if ((pathname === '/academia' || pathname.startsWith('/academia/')) && !pathname.startsWith('/academia/admin')) {
+      return true;
+    }
+    if ((pathname === '/events-meet' || pathname.startsWith('/events-meet/')) && !pathname.startsWith('/events-meet/admin')) {
+      return true;
+    }
+    if ((pathname === '/marketplace' || pathname.startsWith('/marketplace/')) && !pathname.startsWith('/marketplace/admin')) {
+      return true;
+    }
+    if ((pathname === '/tienda' || pathname.startsWith('/tienda/')) && !pathname.startsWith('/tienda/admin')) {
+      return true;
+    }
     return false;
   };
 
@@ -165,10 +177,14 @@ export default function Root() {
         </div>
       );
     }
-    return null;
+    return <Navigate to="/login" replace={true} />;
   }
 
-  if (user && (user.accountStatus === 'inactive' || !hasActivePlan(user))) {
+  if (
+    user &&
+    (user.accountStatus === 'inactive' || !hasActivePlan(user)) &&
+    !isPublicRoute(window.location.pathname)
+  ) {
     return <Navigate to="/planes" replace={true} />;
   }
 

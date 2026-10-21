@@ -36,7 +36,7 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 
 const MarketplaceCatalog: React.FC = () => {
   const { user } = useAuthContext();
-  const { catalogRefreshKey, openEditProduct, setActiveTab } = useMarketplace();
+  const { catalogRefreshKey, openEditProduct, setActiveTab, setSelectedProductDetail } = useMarketplace();
   const isAdmin =
     user?.role === 'ADMIN' ||
     user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com';
@@ -81,7 +81,20 @@ const MarketplaceCatalog: React.FC = () => {
           },
         });
         if (isMounted && data.success) {
-          setProducts(data.products || []);
+          const loaded: MarketplaceProduct[] = data.products || [];
+          setProducts(loaded);
+
+          // Support direct product link ?producto=slug or ?curso=slug
+          const params = new URLSearchParams(window.location.search);
+          const targetSlug = params.get('producto') || params.get('curso') || params.get('product');
+          if (targetSlug) {
+            const match = loaded.find(
+              (p) => p.slug?.toLowerCase() === targetSlug.toLowerCase() || p._id === targetSlug
+            );
+            if (match) {
+              setSelectedProductDetail(match);
+            }
+          }
         }
       } catch (err) {
         console.error('Error fetching products:', err);

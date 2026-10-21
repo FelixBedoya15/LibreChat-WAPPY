@@ -25,7 +25,7 @@ import MarketplaceCheckoutModal from './MarketplaceCheckoutModal';
 import MarketplaceOrderConfirmation from './MarketplaceOrderConfirmation';
 
 const MarketplaceContent: React.FC = () => {
-  const { user } = useAuthContext();
+  const { user, isAuthenticated } = useAuthContext();
   const outletContext = useOutletContext<ContextType>();
   const navVisible = outletContext?.navVisible ?? true;
   const setNavVisible = outletContext?.setNavVisible ?? (() => {});
@@ -61,7 +61,7 @@ const MarketplaceContent: React.FC = () => {
         {/* Top Header & Floating Capsule Toolbar (WAPPY SGSSTToolbar standard) */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            {!navVisible && (
+            {isAuthenticated && !navVisible && (
               <div className="hidden md:block mr-1">
                 <OpenSidebar setNavVisible={setNavVisible} />
               </div>
@@ -105,25 +105,27 @@ const MarketplaceContent: React.FC = () => {
                 </div>
               </button>
 
-              {/* Tab: Mis Pedidos */}
-              <button
-                type="button"
-                onClick={() => {
-                  setCompletedOrderNumber(null);
-                  setActiveTab('my-orders');
-                }}
-                className={`group flex h-9 min-w-[36px] items-center justify-center rounded-xl border px-2.5 transition-all duration-300 shadow-2xs active:scale-95 ${
-                  activeTab === 'my-orders' && !completedOrderNumber
-                    ? 'bg-teal-50 dark:bg-teal-950/50 border-teal-500 text-teal-600 dark:text-teal-300 font-bold'
-                    : 'border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700'
-                }`}
-                title="Mis Servicios Contratados"
-              >
-                <Clock className="h-4 w-4 shrink-0" />
-                <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[160px] group-hover:opacity-100">
-                  <span className="text-xs font-bold">Mis Pedidos</span>
-                </div>
-              </button>
+              {/* Tab: Mis Pedidos (Solo usuarios autenticados) */}
+              {isAuthenticated && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCompletedOrderNumber(null);
+                    setActiveTab('my-orders');
+                  }}
+                  className={`group flex h-9 min-w-[36px] items-center justify-center rounded-xl border px-2.5 transition-all duration-300 shadow-2xs active:scale-95 ${
+                    activeTab === 'my-orders' && !completedOrderNumber
+                      ? 'bg-teal-50 dark:bg-teal-950/50 border-teal-500 text-teal-600 dark:text-teal-300 font-bold'
+                      : 'border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700'
+                  }`}
+                  title="Mis Servicios Contratados"
+                >
+                  <Clock className="h-4 w-4 shrink-0" />
+                  <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[160px] group-hover:opacity-100">
+                    <span className="text-xs font-bold">Mis Pedidos</span>
+                  </div>
+                </button>
+              )}
 
               {/* Tab: Administración (Solo ADMIN) */}
               {isAdmin && (
@@ -185,6 +187,15 @@ const MarketplaceContent: React.FC = () => {
                 </div>
               </button>
             </div>
+
+            {!isAuthenticated && (
+              <a
+                href="/login"
+                className="flex h-9 items-center justify-center px-3.5 rounded-xl font-bold text-xs shadow-sm transition-all bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white"
+              >
+                Iniciar Sesión
+              </a>
+            )}
           </div>
         </div>
 

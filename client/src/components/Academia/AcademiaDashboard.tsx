@@ -24,22 +24,27 @@ export default function AcademiaDashboard() {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useAuthContext();
+  const { user, isAuthenticated } = useAuthContext();
   const ADMIN_EMAILS = ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com', 'felix.bedoya15@gmail.com'];
   const isAdmin = user?.role === 'ADMIN' || (!!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase()));
   const isProOrAdmin = isAdmin || user?.role === 'USER_PRO' || user?.role === 'USER_CUSTOM' || Boolean(user?.isSubUser);
+  const canAccessPlanEmpresa = Boolean(isAuthenticated && user);
   const outletContext = useOutletContext<ContextType>();
   const navVisible = outletContext?.navVisible ?? true;
   const setNavVisible = outletContext?.setNavVisible ?? (() => {});
 
   const getInitialTab = (): AcademiaTab => {
     const tabParam = searchParams.get('tab');
-    if (tabParam === 'rutas' || tabParam === 'empresa') return 'rutas';
+    if (tabParam === 'rutas' || tabParam === 'empresa') {
+      return canAccessPlanEmpresa ? 'rutas' : 'cursos';
+    }
     if (tabParam === 'meet' || tabParam === 'envivo' || tabParam === 'clases') return 'meet';
     if (tabParam === 'blog' || tabParam === 'articulos') return 'blog';
     if (tabParam === 'cursos' || tabParam === 'aula') return 'cursos';
 
-    if (location.pathname.startsWith('/ruta-aprendizaje')) return 'rutas';
+    if (location.pathname.startsWith('/ruta-aprendizaje')) {
+      return canAccessPlanEmpresa ? 'rutas' : 'cursos';
+    }
     if (location.pathname.startsWith('/events-meet')) return 'meet';
     if (location.pathname.startsWith('/blog')) return 'blog';
     if (location.pathname.startsWith('/training')) return 'cursos';
@@ -51,9 +56,13 @@ export default function AcademiaDashboard() {
 
   useEffect(() => {
     setActiveTab(getInitialTab());
-  }, [location.pathname, searchParams]);
+  }, [location.pathname, searchParams, canAccessPlanEmpresa]);
 
   const handleTabChange = (tab: AcademiaTab) => {
+    if (tab === 'rutas' && !canAccessPlanEmpresa) {
+      navigate('/login');
+      return;
+    }
     setActiveTab(tab);
     setSearchParams({ tab });
   };
@@ -82,7 +91,7 @@ export default function AcademiaDashboard() {
           {/* Header Left: Badge, Title & Subtitle con máxima transparencia */}
           <div>
             <div className="flex items-center gap-2 mb-1">
-              {!navVisible && (
+              {isAuthenticated && !navVisible && (
                 <div className="hidden md:block mr-1">
                   <OpenSidebar setNavVisible={setNavVisible} />
                 </div>
@@ -118,17 +127,19 @@ export default function AcademiaDashboard() {
                 <span>Cursos Abiertos</span>
               </button>
 
-              <button
-                onClick={() => handleTabChange('rutas')}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer whitespace-nowrap ${
-                  activeTab === 'rutas'
-                    ? 'bg-white/20 text-white shadow border border-white/25 backdrop-blur-md'
-                    : 'text-white/80 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <Building2 className="w-3.5 h-3.5 text-teal-300" />
-                <span>Plan Empresa</span>
-              </button>
+              {canAccessPlanEmpresa && (
+                <button
+                  onClick={() => handleTabChange('rutas')}
+                  className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer whitespace-nowrap ${
+                    activeTab === 'rutas'
+                      ? 'bg-white/20 text-white shadow border border-white/25 backdrop-blur-md'
+                      : 'text-white/80 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <Building2 className="w-3.5 h-3.5 text-teal-300" />
+                  <span>Plan Empresa</span>
+                </button>
+              )}
 
               <button
                 onClick={() => handleTabChange('meet')}
@@ -197,7 +208,7 @@ export default function AcademiaDashboard() {
             <TrainingDashboard hideFloatingHeader={true} />
           </div>
         )}
-        {activeTab === 'rutas' && (
+        {activeTab === 'rutas' && canAccessPlanEmpresa && (
           <div className="flex-1 animate-in fade-in duration-200">
             <RutaAprendizajeDashboard hideFloatingHeader={true} />
           </div>
