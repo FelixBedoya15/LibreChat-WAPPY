@@ -62,8 +62,9 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const inputAnalyserRef = useRef<AnalyserNode | null>(null);
     const isStartingAudioRef = useRef(false);
     const listeningStartTimeRef = useRef(0);
-    const noiseFloorRef = useRef<number>(0.003);
+    const noiseFloorRef = useRef<number>(0.004);
     const lastVoiceTimeRef = useRef<number>(0);
+    const speechStartTimeRef = useRef<number>(0);
     const preRollChunksRef = useRef<Float32Array[]>([]);
     // true mientras el noise gate está transmitiendo una locución; al cerrarse se emite speech_end una sola vez
     const isTransmittingSpeechRef = useRef(false);
@@ -220,35 +221,41 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 }
                 const rms = Math.sqrt(sumSquare / float32Array.length);
 
-                // Umbral de activación vocal dinámico (garantiza superar el piso de ruido)
-                const voiceThreshold = Math.max(0.010, noiseFloorRef.current * 2.2);
-                const isSpeechNow = rms >= voiceThreshold;
+                // Umbral de activación vocal dinámico (garantiza superar el piso de ruido de oficina/AGC)
+                const voiceThreshold = Math.max(0.016, noiseFloorRef.current * 2.5);
+                const now = Date.now();
+                const continuousSpeechMs = isTransmittingSpeechRef.current && speechStartTimeRef.current
+                    ? (now - speechStartTimeRef.current)
+                    : 0;
+
+                // Si lleva más de 10 segundos con la compuerta abierta por ruido ambiente estacionario (cercano al umbral),
+                // recalibrar rápido el piso de ruido para cerrar la compuerta y evitar alucinaciones de silencio en Gemini
+                const isSteadyBackgroundNoise = continuousSpeechMs > 10000 && rms < voiceThreshold * 1.65;
+                const isSpeechNow = rms >= voiceThreshold && !isSteadyBackgroundNoise;
 
                 // Adaptación asimétrica del piso de ruido (Lección 12):
-                // la fórmula anterior solo adaptaba si rms < 0.008 o < 1.5×piso, por lo que un ruido
-                // ambiente/AGC estable algo mayor nunca se aprendía y la compuerta quedaba abierta,
-                // bombeando audio continuo a Google (que entonces nunca cerraba el turno).
                 if (rms < noiseFloorRef.current) {
                     // Baja rápido hacia el silencio real
                     noiseFloorRef.current = noiseFloorRef.current * 0.85 + rms * 0.15;
                 } else if (!isSpeechNow) {
-                    // Ruido de fondo por debajo del umbral: sube moderadamente
-                    noiseFloorRef.current = noiseFloorRef.current * 0.97 + rms * 0.03;
+                    // Ruido de fondo por debajo del umbral (o ruido estacionario prolongado): sube moderadamente
+                    noiseFloorRef.current = noiseFloorRef.current * 0.92 + rms * 0.08;
                 } else {
-                    // Durante "voz": sube muy lento (~13s) para absorber zumbidos constantes sin cortar al hablante
-                    noiseFloorRef.current = noiseFloorRef.current * 0.99 + rms * 0.01;
+                    // Durante "voz": sube lento para absorber zumbidos constantes sin cortar al hablante
+                    noiseFloorRef.current = noiseFloorRef.current * 0.985 + rms * 0.015;
                 }
-                noiseFloorRef.current = Math.min(0.05, Math.max(0.001, noiseFloorRef.current));
+                noiseFloorRef.current = Math.min(0.06, Math.max(0.002, noiseFloorRef.current));
 
-                const now = Date.now();
                 if (isSpeechNow) {
                     lastVoiceTimeRef.current = now;
+                    if (!isTransmittingSpeechRef.current) {
+                        speechStartTimeRef.current = now;
+                    }
                 }
 
-                // Hangover de 700ms: mantiene el canal abierto durante pausas naturales entre palabras.
-                // Al expirar se emite speech_end → audioStreamEnd, que cierra el turno de inmediato,
-                // por lo que no debe ser tan corto que parta frases a la mitad.
-                const isInHangover = (now - lastVoiceTimeRef.current) < 700;
+                // Hangover de 650ms: mantiene el canal abierto durante pausas naturales entre palabras.
+                // Al expirar se emite speech_end → audioStreamEnd, que cierra el turno de inmediato.
+                const isInHangover = !isSteadyBackgroundNoise && (now - lastVoiceTimeRef.current) < 650;
                 const shouldTransmit = isSpeechNow || isInHangover;
 
                 // Si NO hay voz activa ni hangover (silencio / ventilador / ruido ambiental), guardar en pre-roll y NO enviar
@@ -256,6 +263,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     // Fin de locución: avisar al backend UNA sola vez para que Google cierre el turno ya
                     if (isTransmittingSpeechRef.current) {
                         isTransmittingSpeechRef.current = false;
+                        speechStartTimeRef.current = 0;
                         try {
                             wsRef.current.send(JSON.stringify({ type: 'speech_end' }));
                             console.log('[VoiceSession] Fin de voz detectado → speech_end enviado');
@@ -271,6 +279,9 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     return;
                 }
 
+                if (!isTransmittingSpeechRef.current) {
+                    speechStartTimeRef.current = now;
+                }
                 isTransmittingSpeechRef.current = true;
 
                 // Si acabamos de detectar voz tras silencio, vaciar primero el pre-roll buffer
@@ -883,14 +894,29 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         isPlayingAudioRef.current = isPlaying;
         console.log('[VoiceSession] setIsPlayingAudio:', isPlaying, 'serverFinished:', serverFinishedRef.current);
         if (!isPlaying) {
-            console.log('[VoiceSession] Playback finished - unmuting microphone immediately');
-            isAutoMutedRef.current = false;
-            statusRef.current = 'listening';
-            setStatus('listening');
-            optionsRef.current.onStatusChange?.('listening');
-            if (autoMuteTimeoutRef.current) {
-                clearTimeout(autoMuteTimeoutRef.current);
-                autoMuteTimeoutRef.current = null;
+            if (serverFinishedRef.current) {
+                console.log('[VoiceSession] Playback finished & server turn complete - unmuting microphone immediately');
+                isAutoMutedRef.current = false;
+                statusRef.current = 'listening';
+                setStatus('listening');
+                optionsRef.current.onStatusChange?.('listening');
+                if (autoMuteTimeoutRef.current) {
+                    clearTimeout(autoMuteTimeoutRef.current);
+                    autoMuteTimeoutRef.current = null;
+                }
+            } else {
+                // El servidor sigue procesando el resto del turno (ej: pausa breve tras "Comprendo perfectamente.")
+                // Mantener micrófono auto-muteado hasta recibir turn_complete (o máximo 3.5s) para que el ruido ambiente no corte a Tenshi
+                if (autoMuteTimeoutRef.current) {
+                    clearTimeout(autoMuteTimeoutRef.current);
+                }
+                autoMuteTimeoutRef.current = setTimeout(() => {
+                    isAutoMutedRef.current = false;
+                    statusRef.current = 'listening';
+                    setStatus('listening');
+                    optionsRef.current.onStatusChange?.('listening');
+                    autoMuteTimeoutRef.current = null;
+                }, 3500);
             }
         }
     }, []);

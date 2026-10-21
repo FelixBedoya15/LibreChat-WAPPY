@@ -92,34 +92,61 @@ async function findMatchingBlogPost(query) {
 
 /**
  * Sanitizes voice transcription for common Spanish/SST phonetic misrecognitions
+ * and blocks multilingual / silence / pretraining-corpus hallucinations from Gemini Live ASR.
  */
 function sanitizeTranscription(text) {
     if (!text || typeof text !== 'string') return '';
     let s = text.trim();
+    if (!s) return '';
 
-    // 1. REJECT AND DISCARD ANY DEVANAGARI / HINDI / ARABIC / CYRILLIC OR NON-LATIN HALLUCINATION
-    if (/[\u0900-\u097F\u0600-\u06FF\u4E00-\u9FFF\u0400-\u04FF]/u.test(s)) {
+    // 1. REJECT ANY NON-LATIN SCRIPT HALLUCINATION (Devanagari, Arabic, Cyrillic, CJK, Korean Hangul, Japanese Hiragana/Katakana, Hebrew, Thai, Greek)
+    if (/[\u0370-\u03FF\u0400-\u04FF\u0590-\u05FF\u0600-\u06FF\u0900-\u097F\u0E00-\u0E7F\u1100-\u11FF\u3040-\u30FF\u3130-\u318F\u4E00-\u9FFF\uAC00-\uD7AF]/u.test(s)) {
         logger.warn(`[VoiceSession] Discarding foreign script hallucination from STT: "${s}"`);
         return '';
     }
 
-    // 2. Reject known phantom silence hallucinations produced by STT on ambient noise or breathing
-    if (/^(yo juego a la bola|thank you for watching|suscr[ií]bete|bye|oh|ah|ciao|bonjour|hello|hi|por|el|la|de|un|una)\.?$/i.test(s)) {
+    // 2. STRIP OR REJECT ASR TIMESTAMP HALLUCINATIONS (e.g. "[ 0m39s409ms ]")
+    if (/\[\s*\d+m\d+s\d*ms\s*\]/i.test(s)) {
+        logger.warn(`[VoiceSession] Discarding ASR timestamp hallucination from STT: "${s}"`);
+        s = s.replace(/\[\s*\d+m\d+s\d*ms\s*\][\s\S]*$/i, '').trim();
+        if (!s) return '';
+    }
+
+    // 3. REJECT KNOWN SILENCE / PRETRAINING CORPUS HALLUCINATIONS (Spanish, English, German, Portuguese)
+    if (
+        /^(yo juego a la bola|yo me llamo juan(\s*,\s*mucho gusto)?|mucho gusto|yo soy de argentina|thank you(\s+for\s+watching)?|suscr[ií]bete(\s+al\s+canal)?|subt[ií]tulos(\s+realizados)?\s+por.*|amara\.org|bye|oh|ah|uh|um|hmm|ciao|bonjour|hello|hi|confused|six\s+times|right\s+now|you\s+know|so|por|el|la|de|un|una)\.?$/i.test(s) ||
+        /\b(yo me llamo juan|yo soy de argentina|se subieron a la tarima|a eso de la medianoche|subt[ií]tulos realizados por)\b/i.test(s)
+    ) {
         logger.warn(`[VoiceSession] Discarding phantom silence hallucination: "${s}"`);
         return '';
     }
 
-    // 2.1 Reject repetitive stutter/loop hallucinations (e.g. "¿Qué ¿Qué ¿Qué")
+    // 4. REJECT FOREIGN LANGUAGE DRIFT (German, Portuguese, Romanized Hindi/Urdu)
+    if (
+        /\b(händisch|erarbeitet|nicht|auch|wird|haben|einer|einem|diese[rmns]?)\b/i.test(s) ||
+        /\b(não|você|vocês|então|isso|tá\s+vendo|a\s+gente\s+tá|acontecer\s+agora|negócio|arrumar|depois\s+que)\b/i.test(s) ||
+        /\b(aur|ek\s+chhat|hai\s+na|jo\s+hamara|system\s+hai\s+na)\b/i.test(s)
+    ) {
+        logger.warn(`[VoiceSession] Discarding foreign language drift hallucination: "${s}"`);
+        return '';
+    }
+
+    // 5. REJECT OR COLLAPSE DEGENERATE WORD / PHRASE REPETITION LOOPS (e.g. "un un un un...", "¿Qué ¿Qué ¿Qué")
     if (/^(¿?\s*qu[eé]\s*\??\s*){2,}$/i.test(s)) {
         logger.warn(`[VoiceSession] Discarding repetitive STT loop hallucination: "${s}"`);
         return '';
     }
 
-    // 3. Filter out obvious romanized Hindi/Urdu hallucinated chunks if Gemini STT drifted
-    if (/\b(aur|ek\s+chhat|hai\s+na|jo\s+hamara|system\s+hai\s+na)\b/i.test(s)) {
-        logger.warn(`[VoiceSession] Discarding romanized Hindi hallucination: "${s}"`);
-        return '';
+    // If a word repeats 4+ times in a row (e.g. "un un un un..."), truncate from the stutter loop onward
+    const stutterMatch = s.match(/\b([a-záéíóúñü]{1,12})\b(?:\s+\1\b){3,}/i);
+    if (stutterMatch && stutterMatch.index !== undefined) {
+        logger.warn(`[VoiceSession] Truncating degenerate word-loop hallucination in STT: "${s.substring(0, 120)}..."`);
+        s = s.substring(0, stutterMatch.index).trim();
+        if (!s) return '';
     }
+
+    // Collapse any 3-word stutter (e.g. "el el el" -> "el")
+    s = s.replace(/\b([a-záéíóúñü]{1,12})\b(?:\s+\1\b){2,}/gi, '$1');
 
     // Fix affirmative false cognates (e.g. Google STT hearing "bistro" for "listo")
     s = s.replace(/\b(bistro|visto|misto|cristo|pisto|disto)\b/gi, (match) => {
@@ -130,6 +157,36 @@ function sanitizeTranscription(text) {
     s = s.replace(/\bgeneral\s+(el\s+|al\s+)?(informe|reporte)\b/gi, 'generar el informe');
     s = s.replace(/\b(has|hazme|as)\s+el\s+(informe|reporte)\b/gi, 'haz el informe');
     s = s.replace(/\b(quiero|dame)\s+el\s+(reporte|informe)\b/gi, 'genera el informe');
+
+    return s.trim();
+}
+
+/**
+ * Sanitizes the accumulated multi-chunk transcription buffer to eliminate cross-chunk loops,
+ * ASR timestamp leaks, and silence hallucinations.
+ */
+function sanitizeAccumulatedTranscription(fullText) {
+    if (!fullText || typeof fullText !== 'string') return '';
+    let s = fullText.trim();
+    if (!s) return '';
+
+    // 1. Cut off any ASR timestamp hallucination tail
+    s = s.replace(/\[\s*\d+m\d+s\d*ms\s*\][\s\S]*$/i, '').trim();
+
+    // 2. Cut off any known silence hallucination tail that got appended
+    s = s.replace(/(?:yo me llamo juan|yo soy de argentina|y se subieron a la tarima|a eso de la medianoche|händisch erarbeitet|é o que a gente tá vendo)[\s\S]*$/i, '').trim();
+
+    // 3. Cut off degenerate 4+ word repetition loops across chunk boundaries
+    const loopMatch = s.match(/\b([a-záéíóúñü]{1,12})\b(?:\s+\1\b){3,}/i);
+    if (loopMatch && loopMatch.index !== undefined) {
+        s = s.substring(0, loopMatch.index).trim();
+    }
+
+    // 4. Deduplicate consecutive repeated sentences/phrases (e.g. "Hola cómo estás. Hola cómo estás.")
+    s = s.replace(/([a-záéíóúñü0-9,\s]{8,80}?[.!?])\s*(?:\1\s*)+/gi, '$1 ');
+
+    // 5. Normalize whitespace
+    s = s.replace(/\s{2,}/g, ' ').trim();
 
     return s;
 }
@@ -2853,6 +2910,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
         // Listen for AUDIO from Gemini (AI voice response)
         this.geminiClient.on('audio', (audioData) => {
             this.isAiSpeaking = true;
+            this.turnHadAiOutput = true;
             this.suppressClientAudioUntil = null;
             // Forward audio to client for playback
             this.sendToClient({ type: 'audio', data: { audioData } });
@@ -2860,14 +2918,14 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
             // Count audio chunks to know AI responded with voice
             this.aiAudioChunkCount++;
 
-            // Safety timeout: Reset isAiSpeaking to false if silence for 1500ms (evita falsas interrupciones durante pausas naturales entre frases)
+            // Safety timeout: Reset isAiSpeaking to false if silence for 4500ms (evita falsas interrupciones durante pausas naturales entre frases o razonamiento de herramientas)
             if (this.aiSpeakingTimeout) clearTimeout(this.aiSpeakingTimeout);
             this.aiSpeakingTimeout = setTimeout(() => {
                 if (this.isAiSpeaking) {
                     logger.info('[VoiceSession] Safety reset isAiSpeaking to false after silence');
                     this.isAiSpeaking = false;
                 }
-            }, 1500);
+            }, 4500);
         });
 
         // Listen for USER transcription (what the user says)
@@ -2879,13 +2937,34 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
             }
             logger.info(`[VoiceSession] User transcription received: "${cleanText}" (raw: "${text}")`);
             this.toolCalledThisTurn = false;
-            // Accumulate user text for saving
+
+            const now = Date.now();
+            const silenceGapMs = this.lastUserTranscriptionAt ? (now - this.lastUserTranscriptionAt) : 0;
+
+            // Si la IA ya había empezado a responder en este turno (y fue interrumpida) o pasaron > 10s de silencio
+            // tras una consulta previa completa, reiniciar el acumulador para no pegar ruido nuevo a la pregunta anterior
+            if (this.turnHadAiOutput || (silenceGapMs > 10000 && (this.userTranscriptionText || '').trim().length > 35)) {
+                this.userTranscriptionText = '';
+                this.turnHadAiOutput = false;
+            }
+            this.lastUserTranscriptionAt = now;
+
+            // Concatenar con separación limpia entre fragmentos y sanitizar el acumulado completo
+            if (this.userTranscriptionText && !this.userTranscriptionText.endsWith(' ') && !/^[.,;!?]/.test(cleanText)) {
+                this.userTranscriptionText += ' ';
+            }
             this.userTranscriptionText += cleanText;
-            this.lastUserTranscription = (this.userTranscriptionText || cleanText).trim();
+            this.userTranscriptionText = sanitizeAccumulatedTranscription(this.userTranscriptionText);
+
+            if (!this.userTranscriptionText) {
+                return;
+            }
+
+            this.lastUserTranscription = this.userTranscriptionText.trim();
             // ✅ FIX: Send accumulated sanitized user transcription to client in real-time for HUD display & keyword matching
             this.sendToClient({
                 type: 'text',
-                data: { text: (this.userTranscriptionText || cleanText).trim(), isUserTranscription: true }
+                data: { text: this.lastUserTranscription, isUserTranscription: true }
             });
 
             // Detección en caliente de activación de Modo Fisioterapeuta / Ergonomía / Estudio de Puesto
@@ -5094,6 +5173,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
         this.geminiClient.on('turnComplete', () => {
             logger.info('[VoiceSession] ========== TURN COMPLETE ==========');
             this.isAiSpeaking = false;
+            this.turnHadAiOutput = false;
             this.suppressClientAudioUntil = null;
             if (this.aiSpeakingTimeout) {
                 clearTimeout(this.aiSpeakingTimeout);
@@ -8388,7 +8468,7 @@ ${workerSubHeaderHtml}
     }
 
     async saveCurrentTurn(source = 'Unknown') {
-        const currentUserText = this.userTranscriptionText;
+        const currentUserText = sanitizeAccumulatedTranscription(this.userTranscriptionText);
         const currentAiText = this.aiResponseText;
         const currentAudioCount = this.aiAudioChunkCount;
 
