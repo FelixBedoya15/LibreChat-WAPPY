@@ -70,17 +70,17 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
       )}
     >
       {/* Header Image */}
-      <div className="relative h-44 w-full overflow-hidden bg-slate-100 dark:bg-zinc-800">
-        <img
-          src={product.featuredImage || 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&auto=format&fit=crop&q=80'}
-          alt={product.title}
+      <div className="relative h-44 w-full overflow-hidden bg-slate-900 dark:bg-zinc-900">
+        <div
           style={{
-            objectPosition: `${cardImgPos.x}% ${cardImgPos.y}%`,
-            transform: `translate(${(cardImgPos.x - 50) * 0.8}%, ${(cardImgPos.y - 50) * 0.8}%) scale(${cardImgScale})`,
-            transformOrigin: 'center center',
+            backgroundImage: `url("${product.featuredImage || 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&auto=format&fit=crop&q=80'}")`,
+            backgroundPosition: `${cardImgPos.x}% ${cardImgPos.y}%`,
+            backgroundSize: `${Math.round((product.featuredImageScale || 100) * 1.15)}%`,
+            backgroundRepeat: 'no-repeat',
           }}
-          className="h-full w-full object-cover transition-transform duration-300"
-          loading="lazy"
+          className="h-full w-full transition-transform duration-300"
+          role="img"
+          aria-label={product.title}
         />
         <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5 items-center">
           {product.status === 'draft' ? (

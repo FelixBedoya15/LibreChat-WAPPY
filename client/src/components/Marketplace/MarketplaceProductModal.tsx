@@ -109,20 +109,21 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
           {/* Modal Header Grid */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-0 border-b border-slate-100 dark:border-zinc-800">
             {/* Image section */}
-            <div className="md:col-span-5 relative bg-slate-900 dark:bg-zinc-900 min-h-[260px] md:min-h-full overflow-hidden">
-              <img
-                src={
-                  product.modalImage ||
-                  product.featuredImage ||
-                  'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&auto=format&fit=crop&q=80'
-                }
-                alt={product.title}
+            <div className="md:col-span-5 relative bg-slate-950 dark:bg-zinc-950 min-h-[260px] md:min-h-full overflow-hidden">
+              <div
                 style={{
-                  objectPosition: `${modalImgPos.x}% ${modalImgPos.y}%`,
-                  transform: `translate(${(modalImgPos.x - 50) * 0.8}%, ${(modalImgPos.y - 50) * 0.8}%) scale(${modalImgScale})`,
-                  transformOrigin: 'center center',
+                  backgroundImage: `url("${
+                    product.modalImage ||
+                    product.featuredImage ||
+                    'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&auto=format&fit=crop&q=80'
+                  }")`,
+                  backgroundPosition: `${modalImgPos.x}% ${modalImgPos.y}%`,
+                  backgroundSize: `${Math.round((product.modalImageScale || 100) * 1.55)}%`,
+                  backgroundRepeat: 'no-repeat',
                 }}
-                className="w-full h-full object-cover transition-transform duration-200"
+                className="w-full h-full min-h-[260px]"
+                role="img"
+                aria-label={product.title}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent md:hidden" />
               <div className="absolute bottom-3 left-3 flex gap-2 md:hidden">

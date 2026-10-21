@@ -1460,7 +1460,7 @@ const MarketplaceAdminDashboard: React.FC = () => {
                         </div>
 
                         <div
-                          className="relative h-36 w-full rounded-xl overflow-hidden bg-slate-900 border border-slate-300 dark:border-zinc-700 cursor-grab active:cursor-grabbing select-none touch-none"
+                          className="relative aspect-[16/9] w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-300 dark:border-zinc-700 cursor-grab active:cursor-grabbing select-none touch-none"
                           onPointerDown={(e) => {
                             e.preventDefault();
                             e.currentTarget.setPointerCapture(e.pointerId);
@@ -1473,8 +1473,9 @@ const MarketplaceAdminDashboard: React.FC = () => {
                             const onMove = (moveEvent: PointerEvent) => {
                               const dx = moveEvent.clientX - startX;
                               const dy = moveEvent.clientY - startY;
-                              const newX = Math.max(0, Math.min(100, Math.round(initX + dx * 0.45)));
-                              const newY = Math.max(0, Math.min(100, Math.round(initY + dy * 0.45)));
+                              // Natural drag: dragging image right reveals left side (decreases backgroundPosition X%)
+                              const newX = Math.max(0, Math.min(100, Math.round(initX - dx * 0.4)));
+                              const newY = Math.max(0, Math.min(100, Math.round(initY - dy * 0.4)));
                               setEditingProduct((prev) =>
                                 prev ? { ...prev, featuredImagePosition: `${newX}% ${newY}%` } : prev
                               );
@@ -1491,18 +1492,15 @@ const MarketplaceAdminDashboard: React.FC = () => {
                             const parts = (editingProduct.featuredImagePosition || '50% 50%').split(' ');
                             const px = Number.isFinite(parseFloat(parts[0])) ? parseFloat(parts[0]) : 50;
                             const py = Number.isFinite(parseFloat(parts[1])) ? parseFloat(parts[1]) : 50;
-                            const pScale = (editingProduct.featuredImageScale || 100) / 100;
                             return (
-                              <img
-                                src={editingProduct.featuredImage}
-                                alt="Preview Tarjeta"
-                                draggable={false}
+                              <div
                                 style={{
-                                  objectPosition: `${px}% ${py}%`,
-                                  transform: `translate(${(px - 50) * 0.8}%, ${(py - 50) * 0.8}%) scale(${pScale})`,
-                                  transformOrigin: 'center center',
+                                  backgroundImage: `url("${editingProduct.featuredImage}")`,
+                                  backgroundPosition: `${px}% ${py}%`,
+                                  backgroundSize: `${Math.round((editingProduct.featuredImageScale || 100) * 1.15)}%`,
+                                  backgroundRepeat: 'no-repeat',
                                 }}
-                                className="w-full h-full object-cover pointer-events-none"
+                                className="w-full h-full pointer-events-none"
                               />
                             );
                           })()}
@@ -1559,8 +1557,8 @@ const MarketplaceAdminDashboard: React.FC = () => {
                             <label className="block text-slate-500 mb-0.5">Zoom ({editingProduct.featuredImageScale || 100}%)</label>
                             <input
                               type="range"
-                              min={50}
-                              max={220}
+                              min={60}
+                              max={260}
                               value={editingProduct.featuredImageScale || 100}
                               onChange={(e) =>
                                 setEditingProduct({
@@ -1635,7 +1633,7 @@ const MarketplaceAdminDashboard: React.FC = () => {
                         </div>
 
                         <div
-                          className="relative h-36 w-48 mx-auto rounded-xl overflow-hidden bg-slate-900 border border-slate-300 dark:border-zinc-700 cursor-grab active:cursor-grabbing select-none touch-none"
+                          className="relative aspect-[4/5] w-44 mx-auto rounded-xl overflow-hidden bg-slate-950 border border-slate-300 dark:border-zinc-700 cursor-grab active:cursor-grabbing select-none touch-none"
                           onPointerDown={(e) => {
                             e.preventDefault();
                             e.currentTarget.setPointerCapture(e.pointerId);
@@ -1648,8 +1646,9 @@ const MarketplaceAdminDashboard: React.FC = () => {
                             const onMove = (moveEvent: PointerEvent) => {
                               const dx = moveEvent.clientX - startX;
                               const dy = moveEvent.clientY - startY;
-                              const newX = Math.max(0, Math.min(100, Math.round(initX + dx * 0.45)));
-                              const newY = Math.max(0, Math.min(100, Math.round(initY + dy * 0.45)));
+                              // Natural drag: dragging image right reveals left side (decreases backgroundPosition X%)
+                              const newX = Math.max(0, Math.min(100, Math.round(initX - dx * 0.4)));
+                              const newY = Math.max(0, Math.min(100, Math.round(initY - dy * 0.4)));
                               setEditingProduct((prev) =>
                                 prev ? { ...prev, modalImagePosition: `${newX}% ${newY}%` } : prev
                               );
@@ -1666,18 +1665,15 @@ const MarketplaceAdminDashboard: React.FC = () => {
                             const parts = (editingProduct.modalImagePosition || '50% 50%').split(' ');
                             const px = Number.isFinite(parseFloat(parts[0])) ? parseFloat(parts[0]) : 50;
                             const py = Number.isFinite(parseFloat(parts[1])) ? parseFloat(parts[1]) : 50;
-                            const pScale = (editingProduct.modalImageScale || 100) / 100;
                             return (
-                              <img
-                                src={editingProduct.modalImage || editingProduct.featuredImage}
-                                alt="Preview Modal"
-                                draggable={false}
+                              <div
                                 style={{
-                                  objectPosition: `${px}% ${py}%`,
-                                  transform: `translate(${(px - 50) * 0.8}%, ${(py - 50) * 0.8}%) scale(${pScale})`,
-                                  transformOrigin: 'center center',
+                                  backgroundImage: `url("${editingProduct.modalImage || editingProduct.featuredImage}")`,
+                                  backgroundPosition: `${px}% ${py}%`,
+                                  backgroundSize: `${Math.round((editingProduct.modalImageScale || 100) * 1.55)}%`,
+                                  backgroundRepeat: 'no-repeat',
                                 }}
-                                className="w-full h-full object-cover pointer-events-none"
+                                className="w-full h-full pointer-events-none"
                               />
                             );
                           })()}
@@ -1734,8 +1730,8 @@ const MarketplaceAdminDashboard: React.FC = () => {
                             <label className="block text-slate-500 mb-0.5">Zoom ({editingProduct.modalImageScale || 100}%)</label>
                             <input
                               type="range"
-                              min={50}
-                              max={220}
+                              min={60}
+                              max={260}
                               value={editingProduct.modalImageScale || 100}
                               onChange={(e) =>
                                 setEditingProduct({
