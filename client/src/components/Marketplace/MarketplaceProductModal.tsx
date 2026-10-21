@@ -209,9 +209,9 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
                     </button>
                   )}
 
-                  {product.slug === 'curso-ecosistema-autonomo-sst' && (
+                  {(product.landingPageUrl?.trim() || (product.slug === 'curso-ecosistema-autonomo-sst' ? '/cursowappy01' : '')) && (
                     <a
-                      href="/cursowappy01"
+                      href={product.landingPageUrl?.trim() || '/cursowappy01'}
                       target="_blank"
                       rel="noopener noreferrer"
                       title="Ver Landing Page"

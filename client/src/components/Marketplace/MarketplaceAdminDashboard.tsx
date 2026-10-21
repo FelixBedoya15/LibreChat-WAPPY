@@ -1395,29 +1395,44 @@ const MarketplaceAdminDashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Image URL + Upload */}
-              <div>
-                <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">Imagen Destacada (URL o Subir Archivo)</label>
-                <div className="flex gap-2">
+              {/* Image URL + Upload & Landing Page Link */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">Imagen Destacada (URL o Subir Archivo)</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={editingProduct.featuredImage || ''}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, featuredImage: e.target.value })}
+                      placeholder="https://images.unsplash.com/..."
+                      className="flex-1 p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800"
+                    />
+                    <label className="px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 hover:bg-slate-100 cursor-pointer font-bold flex items-center gap-1.5 shrink-0">
+                      <span>Subir Imagen</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleUploadProductImage(file);
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">
+                    Link / URL de Landing Page (Opcional)
+                  </label>
                   <input
                     type="text"
-                    value={editingProduct.featuredImage || ''}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, featuredImage: e.target.value })}
-                    placeholder="https://images.unsplash.com/..."
-                    className="flex-1 p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800"
+                    value={editingProduct.landingPageUrl || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, landingPageUrl: e.target.value })}
+                    placeholder="Ej. /cursowappy01 o https://tu-landing.com"
+                    className="w-full p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800"
                   />
-                  <label className="px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 hover:bg-slate-100 cursor-pointer font-bold flex items-center gap-1.5 shrink-0">
-                    <span>Subir Imagen</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleUploadProductImage(file);
-                      }}
-                    />
-                  </label>
                 </div>
               </div>
 

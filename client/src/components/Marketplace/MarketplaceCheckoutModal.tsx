@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -31,7 +31,7 @@ const formatCOP = (amount: number) => {
 };
 
 const MarketplaceCheckoutModal: React.FC<Props> = ({ onSuccess }) => {
-  const { user } = useAuthContext();
+  const { user, token } = useAuthContext();
   const {
     cart,
     subtotal,
@@ -51,10 +51,92 @@ const MarketplaceCheckoutModal: React.FC<Props> = ({ onSuccess }) => {
     documentId: '',
     email: user?.email || '',
     phone: '',
-    city: 'Bogotá',
+    city: '',
     address: '',
     notes: '',
   });
+
+  // Auto-fill customer & company data from user profile and active SG-SST company profile
+  useEffect(() => {
+    if (!isCheckoutOpen) return;
+
+    // 1. Ensure user's name and email are populated
+    setCustomer((prev) => ({
+      ...prev,
+      fullName: prev.fullName || user?.name || '',
+      email: prev.email || user?.email || '',
+    }));
+
+    // 2. Fetch active company info from SG-SST profile & previous orders as fallback
+    const fetchUserAndCompanyData = async () => {
+      const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+      let companyInfo: any = null;
+      let lastOrderCustomer: any = null;
+
+      try {
+        const { data } = await axios.get('/api/sgsst/company-info', { headers });
+        if (data && typeof data === 'object') {
+          companyInfo = data;
+        }
+      } catch {
+        // Ignore if not available
+      }
+
+      try {
+        const { data: ordersRes } = await axios.get('/api/marketplace/my-orders', { headers });
+        if (ordersRes?.orders && Array.isArray(ordersRes.orders) && ordersRes.orders.length > 0) {
+          lastOrderCustomer = ordersRes.orders[0]?.customer;
+        }
+      } catch {
+        // Ignore if not available
+      }
+
+      setCustomer((prev) => ({
+        ...prev,
+        fullName:
+          prev.fullName ||
+          user?.name ||
+          companyInfo?.responsibleSST ||
+          companyInfo?.legalRepresentative ||
+          lastOrderCustomer?.fullName ||
+          '',
+        email:
+          prev.email ||
+          user?.email ||
+          companyInfo?.email ||
+          lastOrderCustomer?.email ||
+          '',
+        companyName:
+          prev.companyName ||
+          companyInfo?.companyName ||
+          lastOrderCustomer?.companyName ||
+          '',
+        documentId:
+          prev.documentId ||
+          companyInfo?.nit ||
+          companyInfo?.legalRepresentativeId ||
+          lastOrderCustomer?.documentId ||
+          '',
+        phone:
+          prev.phone ||
+          companyInfo?.phone ||
+          lastOrderCustomer?.phone ||
+          '',
+        city:
+          prev.city ||
+          companyInfo?.city ||
+          lastOrderCustomer?.city ||
+          'Bogotá',
+        address:
+          prev.address ||
+          companyInfo?.address ||
+          lastOrderCustomer?.address ||
+          '',
+      }));
+    };
+
+    fetchUserAndCompanyData();
+  }, [isCheckoutOpen, user, token]);
 
   const [paymentMethod, setPaymentMethod] = useState<'WOMPI' | 'MANUAL_TRANSFER'>('WOMPI');
   const [couponInput, setCouponInput] = useState('');

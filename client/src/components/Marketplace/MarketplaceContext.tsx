@@ -68,6 +68,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (product) {
       setEditingProduct({
         ...product,
+        landingPageUrl: product.landingPageUrl || (product.slug === 'curso-ecosistema-autonomo-sst' ? '/cursowappy01' : ''),
         paymentRecipient: product.paymentRecipient || 'WAPPY',
         providerName: product.providerName || '',
         providerWompi: {
@@ -82,6 +83,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         title: '',
         slug: '',
         sku: '',
+        landingPageUrl: '',
         category: 'capacitaciones',
         serviceType: 'service_virtual',
         regularPrice: 150000,

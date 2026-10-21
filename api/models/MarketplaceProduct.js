@@ -43,6 +43,7 @@ const marketplaceProductSchema = new mongoose.Schema({
   featuredImage: { type: String, default: '' },
   gallery: [{ type: String }],
   brochureUrl: { type: String },
+  landingPageUrl: { type: String, trim: true, default: '' },
   
   // Status and visibility
   status: { type: String, enum: ['published', 'draft', 'archived'], default: 'published' },

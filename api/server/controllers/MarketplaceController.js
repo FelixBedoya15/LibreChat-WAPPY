@@ -68,6 +68,7 @@ const OFFICIAL_COURSE_PRODUCT = {
     }
   ],
   featuredImage: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=800&auto=format&fit=crop&q=80',
+  landingPageUrl: '/cursowappy01',
   status: 'published',
   isFeatured: true,
   isTest: false,
@@ -451,6 +452,11 @@ const ensureSeedData = async (force = false) => {
       if (!course) {
         await MarketplaceProduct.create(OFFICIAL_COURSE_PRODUCT);
         logger.info('[Marketplace] Official Course seeded into database.');
+      } else if (!course.landingPageUrl) {
+        await MarketplaceProduct.updateOne(
+          { slug: 'curso-ecosistema-autonomo-sst' },
+          { $set: { landingPageUrl: '/cursowappy01' } }
+        );
       }
 
       // Ensure the partner course "Adelanto" exists with Mauricio Posada's test Wompi credentials

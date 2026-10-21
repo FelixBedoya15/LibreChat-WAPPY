@@ -54,6 +54,7 @@ export interface MarketplaceProduct {
   featuredImage?: string;
   gallery?: string[];
   brochureUrl?: string;
+  landingPageUrl?: string;
   status: ProductStatus;
   isFeatured?: boolean;
   isTest?: boolean; // true for test products (visible only to admin)

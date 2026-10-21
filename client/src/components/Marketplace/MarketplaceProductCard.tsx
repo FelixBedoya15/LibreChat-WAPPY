@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Star, CheckCircle2, Clock, Eye, ShoppingCart, Edit } from 'lucide-react';
+import { Star, CheckCircle2, Clock, Eye, ShoppingCart, Edit, ExternalLink } from 'lucide-react';
 import { cn } from '~/utils';
 import { useAuthContext } from '~/hooks/AuthContext';
 import type { MarketplaceProduct } from './types';
@@ -223,6 +223,22 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
                   <span className="text-[11px] font-bold">Editar</span>
                 </div>
               </button>
+            )}
+
+            {(product.landingPageUrl?.trim() || (product.slug === 'curso-ecosistema-autonomo-sst' ? '/cursowappy01' : '')) && (
+              <a
+                href={product.landingPageUrl?.trim() || '/cursowappy01'}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                title="Ver Landing Page"
+                className="group/landBtn flex h-8 min-w-[32px] items-center justify-center rounded-xl border border-slate-300 dark:border-zinc-700 bg-slate-900 text-white hover:bg-slate-800 px-2 shadow-2xs transition-colors duration-200"
+              >
+                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-[max-width,opacity,margin] duration-300 ease-out group-hover/landBtn:ml-1.5 group-hover/landBtn:max-w-[70px] group-hover/landBtn:opacity-100">
+                  <span className="text-[11px] font-bold">Landing</span>
+                </div>
+              </a>
             )}
 
             <button
