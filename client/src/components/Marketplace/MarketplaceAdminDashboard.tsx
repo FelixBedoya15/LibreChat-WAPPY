@@ -176,7 +176,7 @@ const MarketplaceAdminDashboard: React.FC = () => {
   };
 
   // Product actions
-  const handleUploadProductImage = async (file: File) => {
+  const handleUploadProductImage = async (file: File, targetField: 'featuredImage' | 'modalImage' = 'featuredImage') => {
     try {
       const formData = new FormData();
       formData.append('image', file);
@@ -184,8 +184,13 @@ const MarketplaceAdminDashboard: React.FC = () => {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       if (data.success && data.url) {
-        setEditingProduct((prev) => (prev ? { ...prev, featuredImage: data.url } : prev));
-        showNotification('Imagen subida correctamente.', 'success');
+        setEditingProduct((prev) => (prev ? { ...prev, [targetField]: data.url } : prev));
+        showNotification(
+          targetField === 'modalImage'
+            ? 'Imagen de detalle subida correctamente.'
+            : 'Imagen de tarjeta subida correctamente.',
+          'success'
+        );
       }
     } catch (err) {
       showNotification('Error al subir la imagen del producto.', 'error');
@@ -1395,36 +1400,326 @@ const MarketplaceAdminDashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Image URL + Upload & Landing Page Link */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Images (Card Banner + Modal Detail Vertical Image) with Interactive Drag & Zoom Framing */}
+              <div className="p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-800/40 space-y-4">
                 <div>
-                  <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">Imagen Destacada (URL o Subir Archivo)</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={editingProduct.featuredImage || ''}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, featuredImage: e.target.value })}
-                      placeholder="https://images.unsplash.com/..."
-                      className="flex-1 p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800"
-                    />
-                    <label className="px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 hover:bg-slate-100 cursor-pointer font-bold flex items-center gap-1.5 shrink-0">
-                      <span>Subir Imagen</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleUploadProductImage(file);
-                        }}
-                      />
+                  <span className="font-bold text-sm text-slate-900 dark:text-zinc-100 block">
+                    Imágenes y Encuadre Personalizado (Arrastra para acomodar)
+                  </span>
+                  <span className="text-[11px] text-slate-500 dark:text-zinc-400">
+                    Puedes usar una imagen horizontal para la tarjeta y otra imagen distinta (o la misma reencuadrada) para la ventana de detalle ("Ver / Examinar").
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* 1. Card Image (Horizontal Banner) */}
+                  <div className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 space-y-3">
+                    <label className="font-bold text-xs block text-slate-800 dark:text-zinc-100">
+                      1. Imagen de Tarjeta / Banner Principal (Horizontal)
                     </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={editingProduct.featuredImage || ''}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, featuredImage: e.target.value })}
+                        placeholder="https://images.unsplash.com/..."
+                        className="flex-1 p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-slate-50 dark:bg-zinc-800 text-[11px]"
+                      />
+                      <label className="px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 hover:bg-teal-100 cursor-pointer font-bold flex items-center gap-1.5 shrink-0 text-[11px]">
+                        <span>Subir</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleUploadProductImage(file, 'featuredImage');
+                          }}
+                        />
+                      </label>
+                    </div>
+
+                    {/* Interactive Preview Box for Card Image */}
+                    {editingProduct.featuredImage && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-[10px] text-slate-500">
+                          <span>🖱️ Arrastra la imagen o usa los controles para encuadrar:</span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEditingProduct({
+                                ...editingProduct,
+                                featuredImagePosition: '50% 50%',
+                                featuredImageScale: 100,
+                              })
+                            }
+                            className="text-teal-600 hover:underline font-bold"
+                          >
+                            Centrar (Reset)
+                          </button>
+                        </div>
+
+                        <div
+                          className="relative h-36 w-full rounded-xl overflow-hidden bg-slate-900 border border-slate-300 dark:border-zinc-700 cursor-grab active:cursor-grabbing select-none"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            const startX = e.clientX;
+                            const startY = e.clientY;
+                            const parts = (editingProduct.featuredImagePosition || '50% 50%').split(' ');
+                            const initX = parseFloat(parts[0]) || 50;
+                            const initY = parseFloat(parts[1]) || 50;
+
+                            const onMove = (moveEvent: MouseEvent) => {
+                              const dx = moveEvent.clientX - startX;
+                              const dy = moveEvent.clientY - startY;
+                              const newX = Math.max(0, Math.min(100, Math.round(initX - dx * 0.35)));
+                              const newY = Math.max(0, Math.min(100, Math.round(initY - dy * 0.35)));
+                              setEditingProduct((prev) =>
+                                prev ? { ...prev, featuredImagePosition: `${newX}% ${newY}%` } : prev
+                              );
+                            };
+                            const onUp = () => {
+                              window.removeEventListener('mousemove', onMove);
+                              window.removeEventListener('mouseup', onUp);
+                            };
+                            window.addEventListener('mousemove', onMove);
+                            window.addEventListener('mouseup', onUp);
+                          }}
+                        >
+                          <img
+                            src={editingProduct.featuredImage}
+                            alt="Preview Tarjeta"
+                            draggable={false}
+                            style={{
+                              objectPosition: editingProduct.featuredImagePosition || '50% 50%',
+                              transform: `scale(${(editingProduct.featuredImageScale || 100) / 100})`,
+                            }}
+                            className="w-full h-full object-cover pointer-events-none transition-transform duration-75"
+                          />
+                          <div className="absolute bottom-1.5 right-2 px-2 py-0.5 rounded-md bg-black/60 text-white text-[9px] font-mono">
+                            Pos: {editingProduct.featuredImagePosition || '50% 50%'} · Zoom: {editingProduct.featuredImageScale || 100}%
+                          </div>
+                        </div>
+
+                        {/* Sliders for fine control */}
+                        <div className="grid grid-cols-3 gap-2 pt-1 text-[10px]">
+                          <div>
+                            <label className="block text-slate-500 mb-0.5">Horizontal (X)</label>
+                            <input
+                              type="range"
+                              min={0}
+                              max={100}
+                              value={parseFloat((editingProduct.featuredImagePosition || '50% 50%').split(' ')[0]) || 50}
+                              onChange={(e) => {
+                                const y = (editingProduct.featuredImagePosition || '50% 50%').split(' ')[1] || '50%';
+                                setEditingProduct({
+                                  ...editingProduct,
+                                  featuredImagePosition: `${e.target.value}% ${y}`,
+                                });
+                              }}
+                              className="w-full accent-teal-600"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-slate-500 mb-0.5">Vertical (Y)</label>
+                            <input
+                              type="range"
+                              min={0}
+                              max={100}
+                              value={parseFloat((editingProduct.featuredImagePosition || '50% 50%').split(' ')[1]) || 50}
+                              onChange={(e) => {
+                                const x = (editingProduct.featuredImagePosition || '50% 50%').split(' ')[0] || '50%';
+                                setEditingProduct({
+                                  ...editingProduct,
+                                  featuredImagePosition: `${x} ${e.target.value}%`,
+                                });
+                              }}
+                              className="w-full accent-teal-600"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-slate-500 mb-0.5">Zoom ({editingProduct.featuredImageScale || 100}%)</label>
+                            <input
+                              type="range"
+                              min={60}
+                              max={200}
+                              value={editingProduct.featuredImageScale || 100}
+                              onChange={(e) =>
+                                setEditingProduct({
+                                  ...editingProduct,
+                                  featuredImageScale: Number(e.target.value),
+                                })
+                              }
+                              className="w-full accent-teal-600"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 2. Modal Detail Image (Vertical / Square) */}
+                  <div className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-xs block text-slate-800 dark:text-zinc-100">
+                        2. Imagen del Detalle al "Examinar / Ver" (Opcional)
+                      </label>
+                      {editingProduct.modalImage && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingProduct({ ...editingProduct, modalImage: '' })}
+                          className="text-[10px] text-red-500 hover:underline font-semibold"
+                        >
+                          Usar la de tarjeta
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={editingProduct.modalImage || ''}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, modalImage: e.target.value })}
+                        placeholder="Vacío = usa la misma imagen de tarjeta..."
+                        className="flex-1 p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-slate-50 dark:bg-zinc-800 text-[11px]"
+                      />
+                      <label className="px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 hover:bg-amber-100 cursor-pointer font-bold flex items-center gap-1.5 shrink-0 text-[11px]">
+                        <span>Subir Otra</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleUploadProductImage(file, 'modalImage');
+                          }}
+                        />
+                      </label>
+                    </div>
+
+                    {/* Interactive Preview Box for Modal Detail Image */}
+                    {(editingProduct.modalImage || editingProduct.featuredImage) && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-[10px] text-slate-500">
+                          <span>🖱️ Vista previa del panel izquierdo en "Examinar":</span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEditingProduct({
+                                ...editingProduct,
+                                modalImagePosition: '50% 50%',
+                                modalImageScale: 100,
+                              })
+                            }
+                            className="text-teal-600 hover:underline font-bold"
+                          >
+                            Centrar (Reset)
+                          </button>
+                        </div>
+
+                        <div
+                          className="relative h-36 w-48 mx-auto rounded-xl overflow-hidden bg-slate-900 border border-slate-300 dark:border-zinc-700 cursor-grab active:cursor-grabbing select-none"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            const startX = e.clientX;
+                            const startY = e.clientY;
+                            const parts = (editingProduct.modalImagePosition || '50% 50%').split(' ');
+                            const initX = parseFloat(parts[0]) || 50;
+                            const initY = parseFloat(parts[1]) || 50;
+
+                            const onMove = (moveEvent: MouseEvent) => {
+                              const dx = moveEvent.clientX - startX;
+                              const dy = moveEvent.clientY - startY;
+                              const newX = Math.max(0, Math.min(100, Math.round(initX - dx * 0.35)));
+                              const newY = Math.max(0, Math.min(100, Math.round(initY - dy * 0.35)));
+                              setEditingProduct((prev) =>
+                                prev ? { ...prev, modalImagePosition: `${newX}% ${newY}%` } : prev
+                              );
+                            };
+                            const onUp = () => {
+                              window.removeEventListener('mousemove', onMove);
+                              window.removeEventListener('mouseup', onUp);
+                            };
+                            window.addEventListener('mousemove', onMove);
+                            window.addEventListener('mouseup', onUp);
+                          }}
+                        >
+                          <img
+                            src={editingProduct.modalImage || editingProduct.featuredImage}
+                            alt="Preview Modal"
+                            draggable={false}
+                            style={{
+                              objectPosition: editingProduct.modalImagePosition || '50% 50%',
+                              transform: `scale(${(editingProduct.modalImageScale || 100) / 100})`,
+                            }}
+                            className="w-full h-full object-cover pointer-events-none transition-transform duration-75"
+                          />
+                          <div className="absolute bottom-1.5 right-2 px-2 py-0.5 rounded-md bg-black/60 text-white text-[9px] font-mono">
+                            Pos: {editingProduct.modalImagePosition || '50% 50%'} · Zoom: {editingProduct.modalImageScale || 100}%
+                          </div>
+                        </div>
+
+                        {/* Sliders for fine control */}
+                        <div className="grid grid-cols-3 gap-2 pt-1 text-[10px]">
+                          <div>
+                            <label className="block text-slate-500 mb-0.5">Horizontal (X)</label>
+                            <input
+                              type="range"
+                              min={0}
+                              max={100}
+                              value={parseFloat((editingProduct.modalImagePosition || '50% 50%').split(' ')[0]) || 50}
+                              onChange={(e) => {
+                                const y = (editingProduct.modalImagePosition || '50% 50%').split(' ')[1] || '50%';
+                                setEditingProduct({
+                                  ...editingProduct,
+                                  modalImagePosition: `${e.target.value}% ${y}`,
+                                });
+                              }}
+                              className="w-full accent-teal-600"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-slate-500 mb-0.5">Vertical (Y)</label>
+                            <input
+                              type="range"
+                              min={0}
+                              max={100}
+                              value={parseFloat((editingProduct.modalImagePosition || '50% 50%').split(' ')[1]) || 50}
+                              onChange={(e) => {
+                                const x = (editingProduct.modalImagePosition || '50% 50%').split(' ')[0] || '50%';
+                                setEditingProduct({
+                                  ...editingProduct,
+                                  modalImagePosition: `${x} ${e.target.value}%`,
+                                });
+                              }}
+                              className="w-full accent-teal-600"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-slate-500 mb-0.5">Zoom ({editingProduct.modalImageScale || 100}%)</label>
+                            <input
+                              type="range"
+                              min={60}
+                              max={200}
+                              value={editingProduct.modalImageScale || 100}
+                              onChange={(e) =>
+                                setEditingProduct({
+                                  ...editingProduct,
+                                  modalImageScale: Number(e.target.value),
+                                })
+                              }
+                              className="w-full accent-teal-600"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <div>
+                {/* Landing Page Link */}
+                <div className="pt-2 border-t border-slate-200/70 dark:border-zinc-800">
                   <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">
-                    Link / URL de Landing Page (Opcional)
+                    Link / URL de Landing Page (Opcional · habilita el botón "Ver Landing Page")
                   </label>
                   <input
                     type="text"

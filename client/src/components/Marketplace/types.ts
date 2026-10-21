@@ -52,6 +52,11 @@ export interface MarketplaceProduct {
   requirements?: string[];
   faqs?: ProductFAQ[];
   featuredImage?: string;
+  featuredImagePosition?: string;
+  featuredImageScale?: number;
+  modalImage?: string;
+  modalImagePosition?: string;
+  modalImageScale?: number;
   gallery?: string[];
   brochureUrl?: string;
   landingPageUrl?: string;

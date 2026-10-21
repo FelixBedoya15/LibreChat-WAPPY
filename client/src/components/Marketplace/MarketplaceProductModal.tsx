@@ -94,9 +94,22 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
             {/* Image section */}
             <div className="md:col-span-5 relative bg-slate-100 dark:bg-zinc-800/50 min-h-[260px] md:min-h-full overflow-hidden">
               <img
-                src={product.featuredImage || 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&auto=format&fit=crop&q=80'}
+                src={
+                  product.modalImage ||
+                  product.featuredImage ||
+                  'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&auto=format&fit=crop&q=80'
+                }
                 alt={product.title}
-                className="w-full h-full object-cover"
+                style={{
+                  objectPosition: product.modalImage
+                    ? product.modalImagePosition || '50% 50%'
+                    : product.modalImagePosition || product.featuredImagePosition || '50% 50%',
+                  transform:
+                    (product.modalImageScale || 100) !== 100
+                      ? `scale(${(product.modalImageScale || 100) / 100})`
+                      : undefined,
+                }}
+                className="w-full h-full object-cover transition-transform duration-200"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent md:hidden" />
               <div className="absolute bottom-3 left-3 flex gap-2 md:hidden">

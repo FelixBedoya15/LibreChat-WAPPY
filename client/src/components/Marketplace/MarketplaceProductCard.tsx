@@ -62,6 +62,13 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
         <img
           src={product.featuredImage || 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&auto=format&fit=crop&q=80'}
           alt={product.title}
+          style={{
+            objectPosition: product.featuredImagePosition || '50% 50%',
+            transform:
+              product.featuredImageScale && product.featuredImageScale !== 100
+                ? `scale(${product.featuredImageScale / 100})`
+                : undefined,
+          }}
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           loading="lazy"
         />

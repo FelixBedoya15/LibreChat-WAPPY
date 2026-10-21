@@ -41,6 +41,11 @@ const marketplaceProductSchema = new mongoose.Schema({
   
   // Media
   featuredImage: { type: String, default: '' },
+  featuredImagePosition: { type: String, default: '50% 50%' },
+  featuredImageScale: { type: Number, default: 100 },
+  modalImage: { type: String, default: '' },
+  modalImagePosition: { type: String, default: '50% 50%' },
+  modalImageScale: { type: Number, default: 100 },
   gallery: [{ type: String }],
   brochureUrl: { type: String },
   landingPageUrl: { type: String, trim: true, default: '' },
