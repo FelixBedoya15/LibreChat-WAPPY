@@ -51,7 +51,7 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
       transition={{ duration: 0.2 }}
       onClick={() => setSelectedProductDetail(product)}
       className={cn(
-        'group cursor-pointer rounded-2xl transition-all duration-200 overflow-hidden flex flex-col h-full',
+        'group cursor-pointer rounded-2xl transition-colors duration-200 overflow-hidden flex flex-col h-full',
         isDraftOrTest
           ? 'border-2 border-dashed border-amber-400 dark:border-amber-500/80 bg-gradient-to-b from-amber-50/70 via-white to-amber-50/30 dark:from-amber-950/40 dark:via-zinc-900 dark:to-amber-950/20 shadow-xs hover:shadow-md hover:border-amber-500 ring-2 ring-amber-400/20'
           : 'border border-slate-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs hover:shadow-md hover:border-teal-500/40 dark:hover:border-teal-500/40'
@@ -98,10 +98,10 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
               openEditProduct(product);
             }}
             title="Editar este producto o configurar pasarela Wompi"
-            className="group/topEdit absolute bottom-2.5 right-2.5 z-10 flex h-8 min-w-[32px] items-center justify-center px-2 rounded-xl bg-slate-900/90 hover:bg-amber-500 text-white hover:text-slate-950 font-bold text-[11px] shadow-md backdrop-blur-xs transition-all duration-300 active:scale-95"
+            className="group/topEdit absolute bottom-2.5 right-2.5 z-10 flex h-8 min-w-[32px] items-center justify-center px-2 rounded-xl bg-slate-900/90 hover:bg-amber-500 text-white hover:text-slate-950 font-bold text-[11px] shadow-md backdrop-blur-xs transition-colors duration-200"
           >
             <Edit className="h-3.5 w-3.5 shrink-0" />
-            <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover/topEdit:ml-1.5 group-hover/topEdit:max-w-[120px] group-hover/topEdit:opacity-100">
+            <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-[max-width,opacity,margin] duration-300 ease-out group-hover/topEdit:ml-1.5 group-hover/topEdit:max-w-[120px] group-hover/topEdit:opacity-100">
               <span>Editar</span>
             </div>
           </button>
@@ -190,12 +190,12 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
         ) : null}
 
         {/* Spacer */}
-        <div className="mt-auto pt-2 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between">
-          <div>
-            <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-zinc-500 block">
+        <div className="mt-auto pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between gap-2 min-h-[44px]">
+          <div className="shrink-0 min-w-0 pr-1">
+            <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-zinc-500 block truncate">
               {isDraftOrTest ? 'Inversión desde' : 'Contado (Opción Crédito)'}
             </span>
-            <div className="flex items-baseline gap-1.5">
+            <div className="flex items-baseline gap-1.5 whitespace-nowrap">
               <span className="text-base font-extrabold text-teal-700 dark:text-teal-300">
                 {formatCOP(currentPrice)}
               </span>
@@ -207,7 +207,7 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="shrink-0 flex items-center justify-end gap-1.5">
             {isAdmin && (
               <button
                 type="button"
@@ -216,10 +216,10 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
                   openEditProduct(product);
                 }}
                 title="Editar Producto / Configurar Wompi"
-                className="group/editBtn flex h-8 min-w-[32px] items-center justify-center rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 px-2 transition-all duration-300 shadow-2xs active:scale-95"
+                className="group/editBtn flex h-8 min-w-[32px] items-center justify-center rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 px-2 shadow-2xs transition-colors duration-200"
               >
                 <Edit className="h-3.5 w-3.5 shrink-0" />
-                <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover/editBtn:ml-1.5 group-hover/editBtn:max-w-[100px] group-hover/editBtn:opacity-100">
+                <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-[max-width,opacity,margin] duration-300 ease-out group-hover/editBtn:ml-1.5 group-hover/editBtn:max-w-[70px] group-hover/editBtn:opacity-100">
                   <span className="text-[11px] font-bold">Editar</span>
                 </div>
               </button>
@@ -232,10 +232,10 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
                 setSelectedProductDetail(product);
               }}
               title="Examinar detalles"
-              className="group/viewBtn flex h-8 min-w-[32px] items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 px-2 transition-all duration-300 shadow-2xs active:scale-95"
+              className="group/viewBtn flex h-8 min-w-[32px] items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 px-2 shadow-2xs transition-colors duration-200"
             >
               <Eye className="h-3.5 w-3.5 shrink-0" />
-              <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover/viewBtn:ml-1.5 group-hover/viewBtn:max-w-[100px] group-hover/viewBtn:opacity-100">
+              <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-[max-width,opacity,margin] duration-300 ease-out group-hover/viewBtn:ml-1.5 group-hover/viewBtn:max-w-[75px] group-hover/viewBtn:opacity-100">
                 <span className="text-[11px] font-bold">Examinar</span>
               </div>
             </button>
@@ -245,14 +245,14 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
               onClick={handleQuickAdd}
               title={isDraftOrTest ? 'Probar Compra' : 'Inscribirme / Añadir al Carrito'}
               className={cn(
-                'group/cartBtn flex h-8 min-w-[32px] items-center justify-center px-2.5 rounded-xl font-bold text-xs shadow-md transition-all duration-300 active:scale-95 text-white',
+                'group/cartBtn flex h-8 min-w-[32px] items-center justify-center px-2.5 rounded-xl font-bold text-xs shadow-md text-white transition-colors duration-200',
                 isDraftOrTest
                   ? 'bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600'
                   : 'bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600'
               )}
             >
               <ShoppingCart className="h-3.5 w-3.5 shrink-0" />
-              <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover/cartBtn:ml-1.5 group-hover/cartBtn:max-w-[120px] group-hover/cartBtn:opacity-100">
+              <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-[max-width,opacity,margin] duration-300 ease-out group-hover/cartBtn:ml-1.5 group-hover/cartBtn:max-w-[85px] group-hover/cartBtn:opacity-100">
                 <span className="text-[11px] font-bold">{isDraftOrTest ? 'Probar' : 'Inscribirme'}</span>
               </div>
             </button>

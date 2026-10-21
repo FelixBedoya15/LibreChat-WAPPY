@@ -552,16 +552,17 @@ const MarketplaceAdminDashboard: React.FC = () => {
                           </span>
                         </td>
 
-                        <td className="p-3 text-right">
+                        <td className="p-3 text-right whitespace-nowrap min-w-[140px]">
                           <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
                             {/* Ver Detalle Micro Button */}
                             <button
                               type="button"
                               onClick={() => setSelectedOrder(ord)}
-                              className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-xs active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100"
+                              title="Ver detalles del pedido"
+                              className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100"
                             >
-                              <Eye className="h-3.5 w-3.5" />
-                              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                              <Eye className="h-3.5 w-3.5 shrink-0" />
+                              <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100">
                                 <span className="text-[10px] font-bold">Ver</span>
                               </div>
                             </button>
@@ -570,10 +571,11 @@ const MarketplaceAdminDashboard: React.FC = () => {
                             <button
                               type="button"
                               onClick={handleWhatsAppClient}
-                              className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-xs active:scale-95 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100"
+                              title="Contactar al cliente por WhatsApp"
+                              className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100"
                             >
-                              <MessageCircle className="h-3.5 w-3.5" />
-                              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                              <MessageCircle className="h-3.5 w-3.5 shrink-0" />
+                              <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100">
                                 <span className="text-[10px] font-bold">WhatsApp</span>
                               </div>
                             </button>
@@ -700,7 +702,7 @@ const MarketplaceAdminDashboard: React.FC = () => {
                         </div>
                       </td>
 
-                      <td className="p-3 text-right">
+                      <td className="p-3 text-right whitespace-nowrap min-w-[130px]">
                         <div className="flex items-center justify-end gap-1.5">
                           {/* Editar Micro Button */}
                           <button
@@ -719,10 +721,11 @@ const MarketplaceAdminDashboard: React.FC = () => {
                               });
                               setIsProductModalOpen(true);
                             }}
-                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-xs active:scale-95 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-amber-100"
+                            title="Editar Servicio / Producto"
+                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-amber-100"
                           >
-                            <Edit className="h-3.5 w-3.5" />
-                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                            <Edit className="h-3.5 w-3.5 shrink-0" />
+                            <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100">
                               <span className="text-[10px] font-bold">Editar</span>
                             </div>
                           </button>
@@ -731,10 +734,11 @@ const MarketplaceAdminDashboard: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleDeleteProduct(prod._id)}
-                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-xs active:scale-95 text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600"
+                            title="Eliminar Servicio / Producto"
+                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300 hover:bg-red-100"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                            <Trash2 className="h-3.5 w-3.5 shrink-0" />
+                            <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100">
                               <span className="text-[10px] font-bold">Borrar</span>
                             </div>
                           </button>
@@ -829,9 +833,13 @@ const MarketplaceAdminDashboard: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => c._id && handleDeleteCoupon(c._id)}
-                      className="text-slate-400 hover:text-red-500 p-1"
+                      title="Eliminar Cupón"
+                      className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300 hover:bg-red-100"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-3.5 w-3.5 shrink-0" />
+                      <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100">
+                        <span className="text-[10px] font-bold">Borrar</span>
+                      </div>
                     </button>
                   </div>
                 </div>

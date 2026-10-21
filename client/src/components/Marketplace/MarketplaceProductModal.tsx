@@ -162,7 +162,7 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
               </div>
 
               {/* Price card within header */}
-              <div className="mt-5 p-4 rounded-2xl bg-teal-50/70 dark:bg-teal-950/40 border border-teal-200/80 dark:border-teal-900/50 flex flex-wrap items-center justify-between gap-3">
+              <div className="mt-5 p-4 rounded-2xl bg-teal-50/70 dark:bg-teal-950/40 border border-teal-200/80 dark:border-teal-900/50 flex flex-col gap-3.5">
                 <div>
                   <span className="text-[10px] font-bold text-teal-800 dark:text-teal-300 uppercase tracking-wider block">
                     {product.paymentRecipient === 'PROVIDER'
@@ -193,16 +193,17 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
                   )}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                {/* Stable Buttons Toolbar (No dynamic wrapping/jumping - Fixed Height & Smooth Expand) */}
+                <div className="flex items-center gap-2 pt-2 border-t border-teal-200/60 dark:border-teal-900/40 overflow-x-auto no-scrollbar">
                   {isAdmin && (
                     <button
                       type="button"
                       onClick={() => openEditProduct(product)}
                       title="Editar Producto / Configurar Wompi"
-                      className="group/editModal flex h-9 min-w-[36px] items-center justify-center px-2.5 rounded-xl font-bold text-xs shadow-md transition-all duration-300 active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
+                      className="group/editModal shrink-0 flex h-9 min-w-[36px] items-center justify-center px-2.5 rounded-xl font-bold text-xs shadow-md transition-colors duration-200 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
                     >
                       <Edit className="h-4 w-4 shrink-0" />
-                      <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover/editModal:ml-1.5 group-hover/editModal:max-w-[180px] group-hover/editModal:opacity-100">
+                      <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-[max-width,opacity,margin] duration-300 ease-out group-hover/editModal:ml-1.5 group-hover/editModal:max-w-[180px] group-hover/editModal:opacity-100">
                         <span>Editar Producto / Wompi</span>
                       </div>
                     </button>
@@ -214,10 +215,10 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
                       target="_blank"
                       rel="noopener noreferrer"
                       title="Ver Landing Page"
-                      className="group/landingBtn flex h-9 min-w-[36px] items-center justify-center px-2.5 rounded-xl font-bold text-xs bg-slate-900 hover:bg-slate-800 text-white shadow-sm transition-all duration-300 active:scale-95"
+                      className="group/landingBtn shrink-0 flex h-9 min-w-[36px] items-center justify-center px-2.5 rounded-xl font-bold text-xs bg-slate-900 hover:bg-slate-800 text-white shadow-sm transition-colors duration-200"
                     >
                       <ExternalLink className="h-4 w-4 shrink-0" />
-                      <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover/landingBtn:ml-1.5 group-hover/landingBtn:max-w-[160px] group-hover/landingBtn:opacity-100">
+                      <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-[max-width,opacity,margin] duration-300 ease-out group-hover/landingBtn:ml-1.5 group-hover/landingBtn:max-w-[160px] group-hover/landingBtn:opacity-100">
                         <span>Ver Landing Page</span>
                       </div>
                     </a>
@@ -227,10 +228,10 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
                     type="button"
                     onClick={handleAddToCart}
                     title="Añadir al Carrito"
-                    className="group/cartModal flex h-9 min-w-[36px] items-center justify-center px-2.5 rounded-xl font-bold text-xs shadow-md transition-all duration-300 active:scale-95 bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700"
+                    className="group/cartModal shrink-0 flex h-9 min-w-[36px] items-center justify-center px-2.5 rounded-xl font-bold text-xs shadow-md transition-colors duration-200 bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700"
                   >
                     <ShoppingCart className="h-4 w-4 shrink-0" />
-                    <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover/cartModal:ml-1.5 group-hover/cartModal:max-w-[140px] group-hover/cartModal:opacity-100">
+                    <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-[max-width,opacity,margin] duration-300 ease-out group-hover/cartModal:ml-1.5 group-hover/cartModal:max-w-[140px] group-hover/cartModal:opacity-100">
                       <span>Al Carrito</span>
                     </div>
                   </button>
@@ -239,10 +240,10 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
                     type="button"
                     onClick={handleBuyNow}
                     title={product.isTest ? 'Probar Compra' : 'Comprar Ahora'}
-                    className="group/buyModal flex h-9 min-w-[36px] items-center justify-center px-2.5 rounded-xl font-bold text-xs shadow-md transition-all duration-300 active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white"
+                    className="group/buyModal shrink-0 flex h-9 min-w-[36px] items-center justify-center px-2.5 rounded-xl font-bold text-xs shadow-md transition-colors duration-200 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white"
                   >
                     <Zap className="h-4 w-4 shrink-0" />
-                    <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover/buyModal:ml-1.5 group-hover/buyModal:max-w-[160px] group-hover/buyModal:opacity-100">
+                    <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-[max-width,opacity,margin] duration-300 ease-out group-hover/buyModal:ml-1.5 group-hover/buyModal:max-w-[160px] group-hover/buyModal:opacity-100">
                       <span>{product.isTest ? 'Probar Compra' : 'Comprar Ahora'}</span>
                     </div>
                   </button>
