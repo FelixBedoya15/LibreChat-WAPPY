@@ -1227,6 +1227,381 @@
     }
 
     /* ==========================================================================
+       3B. REPRODUCTOR CINEMATOGRÁFICO DE LA GRABACIÓN OFICIAL (MISMO ESTILO DECK)
+       ========================================================================== */
+    .recording-section {
+      padding: clamp(16px, 3vw, 32px) 0 20px;
+    }
+
+    .video-viewport-wrap {
+      position: relative;
+      z-index: 3;
+      padding: clamp(14px, 2.5vw, 28px) clamp(14px, 3vw, 38px);
+    }
+
+    .video-aspect-box {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #02060d;
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1.5px solid rgba(199, 243, 3, 0.38);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65), 0 0 32px rgba(13, 148, 136, 0.22);
+    }
+
+    .video-aspect-box iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+
+    .recording-chapters-strip {
+      position: relative;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px 0;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .recording-chapters-strip::-webkit-scrollbar { display: none; }
+
+    .rec-chapter-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #cbd5e1;
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .rec-chapter-pill strong {
+      color: var(--lime);
+    }
+
+    /* Botón Destacado debajo del Video para Abrir el Popup de Notas */
+    .notes-trigger-bar {
+      position: relative;
+      z-index: 5;
+      margin: 0 clamp(14px, 3vw, 38px) 22px;
+      background: linear-gradient(135deg, rgba(199, 243, 3, 0.14) 0%, rgba(13, 148, 136, 0.24) 100%);
+      border: 2px solid var(--lime);
+      border-radius: 22px;
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.4), 0 0 28px rgba(199, 243, 3, 0.18);
+    }
+
+    .notes-trigger-info h3 {
+      font-family: var(--font-display);
+      font-size: clamp(16px, 2vw, 20px);
+      font-weight: 900;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .notes-trigger-info p {
+      font-size: 13px;
+      color: #cbd5e1;
+    }
+
+    .btn-open-notes {
+      background: var(--lime);
+      color: var(--ink);
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 900;
+      padding: 13px 24px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 0 28px rgba(199, 243, 3, 0.5);
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .btn-open-notes:hover {
+      background: #d8ff29;
+      transform: translateY(-2px) scale(1.02);
+    }
+
+    /* ==========================================================================
+       MODAL / POPUP INTERACTIVO DE NOTAS Y MEMORIAS DE LA CLASE 1
+       ========================================================================== */
+    .notes-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(2, 8, 12, 0.82);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: clamp(10px, 2.5vw, 28px);
+      animation: fadeBackdrop 0.25s ease;
+    }
+
+    .notes-modal-backdrop.open {
+      display: flex;
+    }
+
+    @keyframes fadeBackdrop {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .notes-modal-window {
+      width: 100%;
+      max-width: 1080px;
+      max-height: 90vh;
+      background: radial-gradient(ellipse at 20% 10%, #102a2e 0%, #071318 60%, #040a0e 100%);
+      border: 2px solid rgba(199, 243, 3, 0.45);
+      border-radius: 28px;
+      box-shadow: 0 32px 90px rgba(0, 0, 0, 0.8), 0 0 50px rgba(199, 243, 3, 0.18);
+      color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: popModal 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes popModal {
+      from { opacity: 0; transform: translateY(20px) scale(0.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .notes-modal-header {
+      padding: 18px 24px;
+      background: rgba(2, 6, 23, 0.9);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .notes-modal-title-wrap h3 {
+      font-family: var(--font-display);
+      font-size: clamp(17px, 2.2vw, 22px);
+      font-weight: 900;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .notes-modal-title-wrap p {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+
+    .btn-close-modal {
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 12.5px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-close-modal:hover {
+      background: #ef4444;
+      border-color: #ef4444;
+    }
+
+    /* Pestañas del Modal de Notas */
+    .notes-tabs-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 24px;
+      background: rgba(15, 23, 42, 0.85);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      flex-wrap: wrap;
+    }
+
+    .notes-tab-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .notes-tab-btn {
+      background: rgba(255, 255, 255, 0.07);
+      color: #cbd5e1;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      padding: 8px 15px;
+      border-radius: 999px;
+      font-size: 12.5px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .notes-tab-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+    }
+
+    .notes-tab-btn.active {
+      background: var(--lime);
+      color: var(--ink);
+      border-color: var(--lime);
+      box-shadow: 0 0 16px rgba(199, 243, 3, 0.4);
+    }
+
+    .notes-modal-body {
+      padding: clamp(16px, 2.5vw, 26px);
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .notes-pane {
+      display: none;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .notes-pane.active {
+      display: flex;
+    }
+
+    .n-links-strip {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      background: rgba(13, 148, 136, 0.16);
+      border: 1px solid rgba(45, 212, 191, 0.35);
+      padding: 12px 16px;
+      border-radius: 16px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .n-doc-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      padding: 7px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      transition: all 0.2s;
+    }
+
+    .n-doc-btn:hover {
+      background: var(--lime);
+      color: var(--ink);
+      border-color: var(--lime);
+    }
+
+    .n-task-item {
+      background: rgba(15, 23, 42, 0.78);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-left: 4px solid var(--lime);
+      border-radius: 14px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #e2e8f0;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .n-task-owner {
+      background: rgba(199, 243, 3, 0.16);
+      color: var(--lime);
+      border: 1px solid rgba(199, 243, 3, 0.4);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 9px;
+      border-radius: 8px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .n-detail-card {
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.11);
+      border-radius: 16px;
+      padding: 15px 18px;
+    }
+
+    .n-detail-card h4 {
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 800;
+      color: #2dd4bf;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .n-detail-card p {
+      font-size: 13px;
+      color: #cbd5e1;
+      line-height: 1.55;
+    }
+
+    .ts-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(199, 243, 3, 0.16);
+      color: var(--lime);
+      border: 1px solid rgba(199, 243, 3, 0.4);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+      margin-left: 4px;
+      transition: all 0.2s;
+    }
+
+    .ts-link:hover {
+      background: var(--lime);
+      color: var(--ink);
+    }
+
+    /* ==========================================================================
        4. SECCIÓN DE PROMPTS CONVERSACIONALES PARA EL CHAT (CERO CÓDIGO)
        ========================================================================== */
     .prompts-section {
@@ -1543,6 +1918,7 @@
 
       <div class="nav-links">
         <a href="#presentacion" class="active-pill">🎬 Presentación</a>
+        <a href="#grabacion">🎥 Grabación</a>
         <a href="#prompts-chat">💬 Prompts Chat</a>
         <a href="#guia-paso-a-paso">📘 Guía</a>
         <a href="/assets/Clase_1_Antigravity_Syllabus_y_Reglas_WAPPY.pdf" download>📄 PDF</a>
@@ -1579,17 +1955,17 @@
         </p>
 
         <div class="hero-ctas">
-          <a href="#presentacion" class="btn btn-dark">
-            Ver Presentación Interactiva
+          <a href="#grabacion" class="btn btn-dark">
+            🎥 Ver Grabación Clase 1
+            <span class="arrow-pip">▶</span>
+          </a>
+          <a href="#presentacion" class="btn btn-lime">
+            Ver Presentación (15 Slides)
             <span class="arrow-pip">↓</span>
           </a>
-          <a href="#prompts-chat" class="btn btn-lime">
-            Copiar Prompts para el Chat
-            <span class="arrow-pip">💬</span>
-          </a>
-          <a href="/assets/Clase_1_Antigravity_Syllabus_y_Reglas_WAPPY.pdf" download class="btn btn-glass">
-            📄 Guía Oficial PDF
-          </a>
+          <button type="button" onclick="openNotesModal()" class="btn btn-glass">
+            📝 Notas y Compromisos
+          </button>
         </div>
 
         <div class="hero-pills-bar">
@@ -2383,17 +2759,376 @@
             <button class="btn-slide-ctrl primary-next" id="btn-next" onclick="nextSlide()">Siguiente Diapositiva →</button>
           </div>
           <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <a href="#grabacion" class="btn btn-lime" style="padding:9px 16px; font-size:12.5px;">
+              🎥 Ver Grabación de la Clase
+            </a>
             <a href="#prompts-chat" class="btn btn-glass" style="padding:9px 15px; font-size:12.5px;">
               💬 Ver Prompts para el Chat
-            </a>
-            <a href="https://meet.google.com/xvz-jmvv-iym" target="_blank" rel="noopener noreferrer" class="btn btn-lime" style="padding:9px 16px; font-size:12.5px;">
-              📹 Sala Google Meet (7:00 PM)
             </a>
           </div>
         </div>
       </div>
     </div>
   </section>
+
+  <!-- ========================================================================
+       3B. REPRODUCTOR DE LA GRABACIÓN OFICIAL + BOTÓN POPUP DE NOTAS Y MEMORIAS
+       ======================================================================== -->
+  <section class="recording-section" id="grabacion">
+    <div class="container">
+      <div class="sec-head-bar">
+        <div>
+          <span class="sec-kicker">🎥 Repetición Oficial Completa · Clase 1 (20 de Octubre)</span>
+          <h2 class="sec-big-title">Grabación de la Clase 1 &amp; Memorias Oficiales</h2>
+        </div>
+        <div style="font-size: 13px; color: var(--ink-muted); font-weight: 600;">
+          💡 Reproduce aquí mismo la clase completa o abre debajo el <strong>Popup de Notas y Compromisos</strong>
+        </div>
+      </div>
+
+      <!-- Escenario del Reproductor con el mismo estilo HUD que las Diapositivas -->
+      <div class="deck-stage" id="video-stage">
+        <div class="hud-corner tl"></div>
+        <div class="hud-corner tr"></div>
+        <div class="hud-corner bl"></div>
+        <div class="hud-corner br"></div>
+
+        <!-- Barra Superior de Telemetría del Reproductor -->
+        <div class="deck-topbar">
+          <div class="deck-telemetry">
+            <span class="telemetry-dot"></span>
+            <span>WAPPY.CLUB // GRABACIÓN_OFICIAL // CLASE_01_ANTIGRAVITY</span>
+          </div>
+          <div class="deck-controls-top">
+            <span class="deck-counter-badge">DURACIÓN: ~02:48 HRS · HD</span>
+            <button type="button" class="btn-fullscreen" onclick="toggleVideoFullscreen()">
+              ⛶ Pantalla Completa
+            </button>
+          </div>
+        </div>
+
+        <div class="deck-progress-track">
+          <div class="deck-progress-fill" style="width: 100%;"></div>
+        </div>
+
+        <!-- Capítulos Rápidos de la Grabación -->
+        <div class="recording-chapters-strip">
+          <span class="rec-chapter-pill"><strong>00:11</strong> Metodología y Página Web</span>
+          <span class="rec-chapter-pill"><strong>00:17</strong> Expectativas Alumnos</span>
+          <span class="rec-chapter-pill"><strong>00:46</strong> Triple Conexión, Triggers y Cron</span>
+          <span class="rec-chapter-pill"><strong>01:02</strong> Tokens, Markdown y 13 API Keys</span>
+          <span class="rec-chapter-pill"><strong>01:24</strong> Descarga e Instalación en Vivo</span>
+          <span class="rec-chapter-pill"><strong>01:41</strong> Proyectos en Carpetas</span>
+          <span class="rec-chapter-pill"><strong>02:05</strong> Regla «Sin Editar Nada»</span>
+          <span class="rec-chapter-pill"><strong>02:31</strong> Sinergia 80% Ahorro WAPPY + MCP</span>
+        </div>
+
+        <!-- Reproductor Embebido 16:9 de Google Drive -->
+        <div class="video-viewport-wrap">
+          <div class="video-aspect-box">
+            <iframe
+              src="https://drive.google.com/file/d/1Q0QK8gpwm5orbdPmOgkW-IHZdJhFcIk-/preview"
+              allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+              allowfullscreen
+              loading="lazy"
+              title="Grabación Oficial Clase 1 - WAPPY IA y Google Antigravity">
+            </iframe>
+          </div>
+        </div>
+
+        <!-- BARRA DEBAJO DEL VIDEO CON EL BOTÓN PARA ABRIR EL POPUP DE NOTAS -->
+        <div class="notes-trigger-bar">
+          <div class="notes-trigger-info">
+            <h3>📝 Bitácora, Resumen, Tareas y Minuto a Minuto de la Clase 1</h3>
+            <p>Consulta todas las notas tomadas por IA (20 de Octubre), los 13 compromisos del grupo y el desglose detallado con marcas de tiempo.</p>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button type="button" class="btn-open-notes" onclick="openNotesModal()">
+              📋 Abrir Notas y Memorias de la Clase (Popup)
+            </button>
+          </div>
+        </div>
+
+        <!-- Footer del Reproductor -->
+        <div class="deck-footer">
+          <div class="deck-telemetry">
+            <span>🔗 Si estás en el navegador interno de WhatsApp o celular, también puedes abrir el video directamente en Drive:</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <a href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?usp=drive_web&tab=t.b19woqymvai3" target="_blank" rel="noopener noreferrer" class="btn btn-glass" style="padding:9px 15px; font-size:12.5px;">
+              📄 Ver Transcripción Completa
+            </a>
+            <a href="https://drive.google.com/file/d/1Q0QK8gpwm5orbdPmOgkW-IHZdJhFcIk-/view" target="_blank" rel="noopener noreferrer" class="btn btn-lime" style="padding:9px 16px; font-size:12.5px;">
+              ▶️ Abrir Video en Google Drive ↗
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================
+       MODAL / POPUP INTERACTIVO CON TODAS LAS NOTAS DE LA CLASE 1 (OCT 20, 2026)
+       ======================================================================== -->
+  <div class="notes-modal-backdrop" id="notes-modal" onclick="handleBackdropClick(event)">
+    <div class="notes-modal-window" role="dialog" aria-modal="true" aria-labelledby="notes-modal-title">
+      <div class="notes-modal-header">
+        <div class="notes-modal-title-wrap">
+          <h3 id="notes-modal-title">📝 Notas Oficiales y Memorias · Clase I: Google Antigravity &amp; WAPPY</h3>
+          <p>Fecha: Martes 20 de Octubre de 2026 · Docente: Ing. Félix Bedoya · Registros Oficiales de la Sesión</p>
+        </div>
+        <button type="button" class="btn-close-modal" onclick="closeNotesModal()">✕ Cerrar Ventana</button>
+      </div>
+
+      <!-- Barra de Pestañas del Popup -->
+      <div class="notes-tabs-bar">
+        <div class="notes-tab-group">
+          <button type="button" class="notes-tab-btn active" id="ntab-all" onclick="switchNotesTab('all')">🌟 Ver Todo Completo</button>
+          <button type="button" class="notes-tab-btn" id="ntab-resumen" onclick="switchNotesTab('resumen')">📌 Resumen Ejecutivo</button>
+          <button type="button" class="notes-tab-btn" id="ntab-pasos" onclick="switchNotesTab('pasos')">✅ Próximos Pasos (13 Tareas)</button>
+          <button type="button" class="notes-tab-btn" id="ntab-detalles" onclick="switchNotesTab('detalles')">⏱️ Minuto a Minuto (00:11 – 02:48)</button>
+        </div>
+      </div>
+
+      <!-- Cuerpo Scrolleable del Popup -->
+      <div class="notes-modal-body">
+
+        <!-- Enlaces Oficiales Adjuntos -->
+        <div class="n-links-strip">
+          <div style="font-size:12.5px; font-weight:800; color:#5eead4;">
+            📎 Archivos Adjuntos y Registros Oficiales de la Reunión:
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <a href="https://calendar.google.com/calendar/event?eid=NWQyZTdxMTMxYmV0MzNsY2ZsaTJuYXB0aDUgd2FwcHlpbnRlcmFjdGl2b0Bt" target="_blank" rel="noopener noreferrer" class="n-doc-btn">📅 Evento Calendar</a>
+            <a href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?usp=drive_web&tab=t.b19woqymvai3" target="_blank" rel="noopener noreferrer" class="n-doc-btn">📄 Transcripción Oficial</a>
+            <a href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.f85ma553v5yb" target="_blank" rel="noopener noreferrer" class="n-doc-btn">📑 Documento de Notas</a>
+            <a href="https://drive.google.com/file/d/1Q0QK8gpwm5orbdPmOgkW-IHZdJhFcIk-/view?usp=drive_web" target="_blank" rel="noopener noreferrer" class="n-doc-btn">🎥 Grabación en Drive</a>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 1: RESUMEN EJECUTIVO -->
+        <div class="notes-pane active" data-npane="resumen">
+          <div style="font-size:14px; font-weight:900; color:var(--lime); text-transform:uppercase; letter-spacing:0.06em;">
+            📌 1. Resumen Ejecutivo de la Sesión
+          </div>
+          <div class="s-grid-2">
+            <div class="s-card glow-lime">
+              <h4>🚀 Presentación del Curso y Metodología</h4>
+              <p>Presentación del curso de automatización con herramientas de inteligencia artificial para optimizar procesos laborales en SST. Metodología de 6 clases prácticas más una sesión personalizada para automatizar tareas y optimizar tiempos sin necesidad de saber programar.</p>
+            </div>
+            <div class="s-card glow-teal">
+              <h4>🔌 Conectividad y Uso Eficiente de Tokens</h4>
+              <p>Explicación de la triple conexión (WAPPY + Antigravity + NotebookLM/Drive), triggers, scrolls/cron y estrategias para reducir drásticamente el consumo de tokens convirtiendo documentos pesados PDF a formato Markdown (<code>.md</code>).</p>
+            </div>
+            <div class="s-card">
+              <h4>📁 Configuración de Proyectos en Carpetas</h4>
+              <p>Demostración práctica en vivo de la plataforma Google Antigravity para vincular carpetas locales del computador por actividad puntual y recomendación de explorar las más de 60 herramientas de WAPPY.</p>
+            </div>
+            <div class="s-card">
+              <h4>🛡️ Regla de Oro: «Sin Editar Nada» y Ahorro del 80%</h4>
+              <p>Uso del comando de seguridad <em>"sin editar nada"</em> cuando solo se desea consultar o investigar, y cómo la arquitectura estructurada de WAPPY ahorra entre el 70% y 80% de tokens frente a trabajar en crudo.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 2: PRÓXIMOS PASOS Y TAREAS (13 COMPROMISOS) -->
+        <div class="notes-pane active" data-npane="pasos">
+          <div style="font-size:14px; font-weight:900; color:var(--lime); text-transform:uppercase; letter-spacing:0.06em;">
+            ✅ 2. Próximos Pasos y Compromisos de la Clase (13 Acciones)
+          </div>
+
+          <div class="n-task-item">
+            <span class="n-task-owner">Félix Bedoya</span>
+            <div><strong>Subir grabación de la clase:</strong> Cargar el video de la sesión y proporcionar el acceso directo a los estudiantes en la página oficial del curso.</div>
+          </div>
+          <div class="n-task-item">
+            <span class="n-task-owner">El Grupo</span>
+            <div><strong>Activar cámaras:</strong> Encender las cámaras al inicio de cada clase para fomentar la interacción, cercanía y relacionamiento entre los participantes.</div>
+          </div>
+          <div class="n-task-item">
+            <span class="n-task-owner">Mauricio Posada</span>
+            <div><strong>Compartir aplicativo simulacro:</strong> Enviar el archivo o link del aplicativo para la generación del informe del simulacro nacional a través del grupo de la comunidad WAPPY.</div>
+          </div>
+          <div class="n-task-item">
+            <span class="n-task-owner">El Grupo</span>
+            <div><strong>Descargar Antigravity:</strong> Ingresar al sitio web oficial <code>antigravity.google</code> y realizar la descarga e instalación de la aplicación en sus computadores (Windows / Mac).</div>
+          </div>
+          <div class="n-task-item">
+            <span class="n-task-owner">Félix Bedoya</span>
+            <div><strong>Presentar proveedor:</strong> Presentar a los participantes al contacto que suministra las cuentas anuales de Antigravity a bajo costo.</div>
+          </div>
+          <div class="n-task-item">
+            <span class="n-task-owner">El Grupo</span>
+            <div><strong>Configurar Proyectos Específicos:</strong> Configurar proyectos nuevos por cada actividad específica de auditoría o gestión documental en lugar de un proyecto general gigante, para optimizar el consumo de tokens.</div>
+          </div>
+          <div class="n-task-item">
+            <span class="n-task-owner">María Elena Obando</span>
+            <div><strong>Organizar Carpetas:</strong> Crear una estructura de subcarpetas organizada dentro de un proyecto principal de auditoría para gestionar la información de múltiples empresas.</div>
+          </div>
+          <div class="n-task-item">
+            <span class="n-task-owner">Jenny Ríos</span>
+            <div><strong>Realizar informe ejemplo:</strong> Crear un informe de muestra que sirva como estructura base para automatizar informes posteriores de diversas empresas asesoradas.</div>
+          </div>
+          <div class="n-task-item">
+            <span class="n-task-owner">Félix Bedoya</span>
+            <div><strong>Definir horario capacitación jueves:</strong> Coordinar con Mauricio Posada la hora exacta para la sesión de refuerzo del jueves sobre la conexión de Antigravity con WAPPY.</div>
+          </div>
+          <div class="n-task-item">
+            <span class="n-task-owner">Félix Bedoya</span>
+            <div><strong>Cargar memorias en la web:</strong> Elaborar los resúmenes de la sesión y publicar los archivos junto al video de la capacitación en <code>wappy.club/clase1</code>.</div>
+          </div>
+          <div class="n-task-item">
+            <span class="n-task-owner">El Grupo</span>
+            <div><strong>Explorar Antigravity:</strong> Crear un proyecto inicial, vincular carpetas y ejecutar tareas prácticas con la regla <em>"sin editar nada"</em> antes de la próxima sesión.</div>
+          </div>
+          <div class="n-task-item">
+            <span class="n-task-owner">El Grupo</span>
+            <div><strong>Explorar WAPPY:</strong> Revisar los proyectos y las más de 60 herramientas existentes en la plataforma WAPPY para definir la propuesta de automatización propia.</div>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 3: DETALLES MINUTO A MINUTO CON LINKS A LA TRANSCRIPCIÓN -->
+        <div class="notes-pane active" data-npane="detalles">
+          <div style="font-size:14px; font-weight:900; color:var(--lime); text-transform:uppercase; letter-spacing:0.06em;">
+            ⏱️ 3. Bitácora Detallada Minuto a Minuto (Con Enlaces al Documento Oficial)
+          </div>
+
+          <div class="n-detail-card">
+            <h4>
+              <span>1. Presentación del curso de automatización y metodología</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.bvou8vsslba1" target="_blank">00:11:26</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.u7ip6zg9rkb0" target="_blank">00:12:56</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.p52fe248pic5" target="_blank">00:14:04</a>
+              </span>
+            </h4>
+            <p>Félix Bedoya da inicio a la primera sesión del curso, el cual cuenta con seis clases programadas y una sesión personalizada, con posibilidad de extenderse si es necesario. Se inscribieron 18 personas divididas en dos grupos para facilitar la participación personalizada. Muestra la página web informativa creada con Antigravity y WAPPY, que contiene enlaces de acceso, PDF con instrucciones, guías, diccionario básico y los videos de las clases. El objetivo central es enseñar a los asistentes a ejecutar actividades avanzadas de automatización sin requerir conocimientos de programación.</p>
+          </div>
+
+          <div class="n-detail-card">
+            <h4>
+              <span>2. Expectativas del curso · Gloria Amparo Quintero Giraldo</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.ckpkiednzw9l" target="_blank">00:17:46</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.cwiarewlassw" target="_blank">00:19:20</a>
+              </span>
+            </h4>
+            <p>Gloria Amparo Quintero Giraldo, auxiliar de enfermería, especialista en SST y auditora de Medellín, expone su meta de consolidar sistemas de gestión sustentados y predictivos que trasciendan el formato de papel, optimizando recursos y presupuestos corporativos conforme a la Resolución 0312 y generando impacto positivo en la reducción de la accidentalidad.</p>
+          </div>
+
+          <div class="n-detail-card">
+            <h4>
+              <span>3. Expectativas del curso · Alexander García &amp; Carolina Colorado Cano</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.4t657li55c9f" target="_blank">00:20:29</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.wbcutto8g2j3" target="_blank">00:21:33</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.2dh8dnq6ebql" target="_blank">00:22:58</a>
+              </span>
+            </h4>
+            <p><strong>Alexander García</strong> (ingeniero de minas y especialista SST de Cúcuta) plantea su interés en conectar agentes de IA para automatizar tareas de manera autónoma, incluso cuando el computador esté apagado. <strong>Carolina Colorado Cano</strong> (ingeniera, especialista en gerencia de la salud ocupacional y auditora independiente) relata que la gestión manual genera retrasos a fin de mes al elaborar informes y cuentas de cobro para múltiples clientes; su objetivo es automatizar procesos para optimizar tiempos y expandir su alcance.</p>
+          </div>
+
+          <div class="n-detail-card">
+            <h4>
+              <span>4. Expectativas · Juvenal Nicolás Arrieta &amp; Opciones de Conectividad (APIs y MCP)</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.s6wyfs6fxcuj" target="_blank">00:24:10</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.i1812irql45x" target="_blank">00:27:14</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.vi06fc73xf7b" target="_blank">00:29:28</a>
+              </span>
+            </h4>
+            <p><strong>Juvenal Nicolás Arrieta Rodríguez</strong> (sociólogo y tecnólogo en salud ocupacional en Medellín) busca desarrollar aplicaciones que extraigan matrices de peligro a partir de registros fotográficos. Félix Bedoya explica que cada participante contará con un proyecto desplegable local o en la nube, y junto a Carolina Colorado analizan el uso de APIs, el protocolo de conectores MCP y diferencias de costos frente a web scraping.</p>
+          </div>
+
+          <div class="n-detail-card">
+            <h4>
+              <span>5. Expectativas · Xiomara Ardila, Jenny Ríos (P&amp;R) y Aplicativo de Simulacro</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.3298m5350qyy" target="_blank">00:30:29</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.ippi76190ags" target="_blank">00:31:58</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.nd6yr61mb6vv" target="_blank">00:34:09</a>
+              </span>
+            </h4>
+            <p><strong>Xiomara Ardila</strong> (profesional SST y derecho laboral de San José del Guaviare) busca facilitar la elaboración de procesos y manuales con IA. <strong>Jenny Ríos (P&amp;R Prevención de Riesgos)</strong>, especialista en alta gerencia de Manizales que asesora a ~20 empresas, expone la saturación por la documentación y registros del simulacro nacional. Mauricio Posada comparte un aplicativo para generar informes de simulacros y Félix Bedoya explica cómo automatizar estos entregables.</p>
+          </div>
+
+          <div class="n-detail-card">
+            <h4>
+              <span>6. Triple Conexión, Skills, Triggers y Scrolls/Cron</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.43385hx594to" target="_blank">00:46:00</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.h530l84trnsu" target="_blank">00:49:19</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.2umsyzxxyohd" target="_blank">00:50:24</a>
+              </span>
+            </h4>
+            <p>Félix Bedoya detalla la "triple conexión" mediante WAPPY, Antigravity y herramientas de investigación como NotebookLM. Define los <strong>Skills</strong> como habilidades asignadas a los agentes, los <strong>Triggers</strong> como automatizaciones programadas para activarse en horarios específicos (ej. lunes 9:00 AM), y los <strong>Scrolls/Cron</strong> como ejecuciones repetitivas basadas en intervalos cortos (cada 2 o 30 minutos) cuidando el consumo de recursos.</p>
+          </div>
+
+          <div class="n-detail-card">
+            <h4>
+              <span>7. Modelos de IA (Claude, Gemini, Grok) y Ahorro de Suscripciones con WAPPY</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.cl3c7kf7gbtg" target="_blank">00:52:37</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.1iqjik27fob5" target="_blank">00:57:21</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.4qef2i2cp6be" target="_blank">01:00:57</a>
+              </span>
+            </h4>
+            <p>Comparativa de fortalezas: Claude destaca en estructuración y código, modelos de visión en lectura de fotogramas, y Gemini integrado con búsqueda web para normatividad colombiana vigente. Gloria Amparo Quintero y María Elena Obando comentan el uso de planes pagos para infografías y videos de inducción en NotebookLM, mientras Félix Bedoya y Mauricio Posada explican cómo WAPPY permite ejecutar estas tareas sin pagar múltiples suscripciones costosas.</p>
+          </div>
+
+          <div class="n-detail-card">
+            <h4>
+              <span>8. Uso de Tokens, Imágenes en Base64, Conversión a Markdown y 13 Claves API</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.kvca0kvvr3s9" target="_blank">01:02:57</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.25tnrk8wb84n" target="_blank">01:07:52</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.bcnoo0fbrz7t" target="_blank">01:10:24</a>
+              </span>
+            </h4>
+            <p>Explicación de los límites de tokens y por qué las imágenes consumen más tokens al procesarse en código <code>base64</code> (~2,000 tokens vs 250 de texto). Mauricio Posada y Félix Bedoya recomiendan convertir decretos extensos (como el Decreto 1072) a formato <strong>Markdown</strong> o JSON para minimizar el consumo. Además, se explica la arquitectura de rotación de <strong>13 claves API</strong> en WAPPY para democratizar el acceso en Colombia.</p>
+          </div>
+
+          <div class="n-detail-card">
+            <h4>
+              <span>9. Protocolo MCP (USB-C de la IA), Google Drive vs. OneDrive y Carpetas Locales</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.h5glzyv6x78l" target="_blank">01:14:11</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.qx4nbgvu1grm" target="_blank">01:17:25</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.23ravrxf854d" target="_blank">01:19:45</a>
+              </span>
+            </h4>
+            <p>El protocolo MCP funciona como un puerto USB-C universal que conecta WAPPY, Antigravity, Google Drive y flujos de n8n. Ante la consulta de Carolina Colorado sobre OneDrive, Félix Bedoya aclara que Antigravity lee cualquier carpeta sincronizada localmente en el computador (ya venga de Google Drive, OneDrive, Mega o Dropbox) otorgando los permisos del sistema operativo.</p>
+          </div>
+
+          <div class="n-detail-card">
+            <h4>
+              <span>10. Descarga e Instalación en Vivo de Antigravity y Creación de Proyectos</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.hb5mcbfewmba" target="_blank">01:25:36</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.j2djtbilsukt" target="_blank">01:36:17</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.bcj8xt6swbnf" target="_blank">01:41:59</a>
+              </span>
+            </h4>
+            <p>Guía en vivo desde <code>antigravity.google</code> para Windows y Mac. María Elena Obando Colonia comparte pantalla instalando la versión de 64 bits, iniciando sesión con Google y vinculando su primera carpeta del SG-SST como proyecto. Se demuestra cómo organizar un proyecto principal "Auditorías" con subcarpetas por empresa para no gastar tokens leyendo archivos innecesarios.</p>
+          </div>
+
+          <div class="n-detail-card">
+            <h4>
+              <span>11. Comando de Seguridad «Sin Editar Nada», Auditoría Forense y Ahorro del 80% con WAPPY</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.rjr73yseeiln" target="_blank">02:05:48</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.d6slv1y7d4c1" target="_blank">02:18:40</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.i61carlrrlxt" target="_blank">02:31:26</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?tab=t.b19woqymvai3#heading=h.mll7974ayqz" target="_blank">02:48:02</a>
+              </span>
+            </h4>
+            <p>Félix Bedoya enseña el consejo clave de agregar <strong>"sin editar nada"</strong> cuando se desea investigar o analizar documentos sin alterar archivos base, así como usar niveles de pensamiento <em>low</em> en tareas sencillas. Finalmente, explica cómo WAPPY ahorra entre el <strong>70% y 80% de tokens</strong> gracias a sus matrices estructuradas (GTC 45, PESV, mapas de calor, compatibilidad química) mientras Antigravity actúa como el alimentador masivo desde el computador vía MCP.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
 
   <!-- ========================================================================
        4. SECCIÓN ESTRELLA: LOS 6 PROMPTS CONVERSACIONALES PARA EL CHAT (SIN CÓDIGO)
@@ -2850,6 +3585,60 @@ Configúralo para que cada mañana cuando yo llegue a la oficina, prenda mi comp
         if (document.exitFullscreen) document.exitFullscreen();
       }
     }
+
+    // Pantalla completa del Reproductor de Video
+    function toggleVideoFullscreen() {
+      const vStage = document.getElementById('video-stage');
+      if (!document.fullscreenElement) {
+        if (vStage && vStage.requestFullscreen) vStage.requestFullscreen();
+      } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+      }
+    }
+
+    // Controlador del Popup / Modal de Notas de la Clase 1
+    function openNotesModal() {
+      const modal = document.getElementById('notes-modal');
+      if (modal) {
+        modal.classList.add('open');
+        document.body.style.overflow = 'hidden';
+      }
+    }
+
+    function closeNotesModal() {
+      const modal = document.getElementById('notes-modal');
+      if (modal) {
+        modal.classList.remove('open');
+        document.body.style.overflow = '';
+      }
+    }
+
+    function handleBackdropClick(e) {
+      if (e.target && e.target.id === 'notes-modal') {
+        closeNotesModal();
+      }
+    }
+
+    function switchNotesTab(tabName) {
+      document.querySelectorAll('.notes-tab-btn').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById('ntab-' + tabName);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      const panes = document.querySelectorAll('.notes-pane');
+      panes.forEach(p => {
+        if (tabName === 'all' || p.getAttribute('data-npane') === tabName) {
+          p.classList.add('active');
+        } else {
+          p.classList.remove('active');
+        }
+      });
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeNotesModal();
+      }
+    });
 
     // 2. Simulador Interactivo de Tokens en Vivo (Slide 4)
     const tokenColors = [
