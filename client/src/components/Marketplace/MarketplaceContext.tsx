@@ -74,6 +74,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         modalImagePosition: product.modalImagePosition || '50% 50%',
         modalImageScale: product.modalImageScale || 100,
         landingPageUrl: product.landingPageUrl || (product.slug === 'curso-ecosistema-autonomo-sst' ? '/cursowappy01' : ''),
+        whatsappNumber: product.whatsappNumber || '',
         paymentRecipient: product.paymentRecipient || 'WAPPY',
         providerName: product.providerName || '',
         providerWompi: {
@@ -95,6 +96,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         modalImagePosition: '50% 50%',
         modalImageScale: 100,
         landingPageUrl: '',
+        whatsappNumber: '',
         category: 'capacitaciones',
         serviceType: 'service_virtual',
         regularPrice: 150000,

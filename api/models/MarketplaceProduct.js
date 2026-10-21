@@ -39,7 +39,7 @@ const marketplaceProductSchema = new mongoose.Schema({
     answer: { type: String, trim: true }
   }],
   
-  // Media
+  // Media & Contact
   featuredImage: { type: String, default: '' },
   featuredImagePosition: { type: String, default: '50% 50%' },
   featuredImageScale: { type: Number, default: 100 },
@@ -49,6 +49,7 @@ const marketplaceProductSchema = new mongoose.Schema({
   gallery: [{ type: String }],
   brochureUrl: { type: String },
   landingPageUrl: { type: String, trim: true, default: '' },
+  whatsappNumber: { type: String, trim: true, default: '' },
   
   // Status and visibility
   status: { type: String, enum: ['published', 'draft', 'archived'], default: 'published' },

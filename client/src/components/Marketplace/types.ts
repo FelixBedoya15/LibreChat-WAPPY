@@ -60,6 +60,7 @@ export interface MarketplaceProduct {
   gallery?: string[];
   brochureUrl?: string;
   landingPageUrl?: string;
+  whatsappNumber?: string;
   status: ProductStatus;
   isFeatured?: boolean;
   isTest?: boolean; // true for test products (visible only to admin)

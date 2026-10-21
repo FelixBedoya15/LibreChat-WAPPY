@@ -22,9 +22,21 @@ const formatCOP = (amount: number) => {
   return `$${Math.round(amount).toLocaleString('es-CO')} COP`;
 };
 
+const parsePos = (pos?: string) => {
+  const parts = (pos || '50% 50%').split(' ');
+  const x = parseFloat(parts[0]);
+  const y = parseFloat(parts[1]);
+  return {
+    x: Number.isFinite(x) ? x : 50,
+    y: Number.isFinite(y) ? y : 50,
+  };
+};
+
 const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
   const { user } = useAuthContext();
   const { addToCart, setSelectedProductDetail, openEditProduct } = useMarketplace();
+  const cardImgPos = parsePos(product.featuredImagePosition);
+  const cardImgScale = (product.featuredImageScale || 100) / 100;
 
   const isAdmin =
     user?.role === 'ADMIN' ||
@@ -63,13 +75,11 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
           src={product.featuredImage || 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&auto=format&fit=crop&q=80'}
           alt={product.title}
           style={{
-            objectPosition: product.featuredImagePosition || '50% 50%',
-            transform:
-              product.featuredImageScale && product.featuredImageScale !== 100
-                ? `scale(${product.featuredImageScale / 100})`
-                : undefined,
+            objectPosition: `${cardImgPos.x}% ${cardImgPos.y}%`,
+            transform: `translate(${(cardImgPos.x - 50) * 0.8}%, ${(cardImgPos.y - 50) * 0.8}%) scale(${cardImgScale})`,
+            transformOrigin: 'center center',
           }}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          className="h-full w-full object-cover transition-transform duration-300"
           loading="lazy"
         />
         <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5 items-center">
@@ -197,24 +207,26 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
         ) : null}
 
         {/* Spacer */}
-        <div className="mt-auto pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between gap-2 min-h-[44px]">
-          <div className="shrink-0 min-w-0 pr-1">
-            <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-zinc-500 block truncate">
-              {isDraftOrTest ? 'Inversión desde' : 'Contado (Opción Crédito)'}
-            </span>
-            <div className="flex items-baseline gap-1.5 whitespace-nowrap">
-              <span className="text-base font-extrabold text-teal-700 dark:text-teal-300">
-                {formatCOP(currentPrice)}
+        <div className="mt-auto pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between gap-1.5 min-h-[46px]">
+          <div className="min-w-0 pr-1 flex flex-col justify-center">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-[9px] uppercase font-bold text-slate-400 dark:text-zinc-500 truncate">
+                {isDraftOrTest ? 'Inversión desde' : 'Contado'}
               </span>
               {discountPercent > 0 && (
-                <span className="text-xs text-slate-400 line-through">
+                <span className="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 line-through shrink-0">
                   {formatCOP(product.regularPrice)}
                 </span>
               )}
             </div>
+            <div className="flex items-baseline gap-1 whitespace-nowrap">
+              <span className="text-sm sm:text-base font-extrabold text-teal-700 dark:text-teal-300 leading-tight">
+                {formatCOP(currentPrice)}
+              </span>
+            </div>
           </div>
 
-          <div className="shrink-0 flex items-center justify-end gap-1.5">
+          <div className="shrink-0 flex items-center justify-end gap-1">
             {isAdmin && (
               <button
                 type="button"

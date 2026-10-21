@@ -28,6 +28,16 @@ const formatCOP = (amount: number) => {
   return `$${Math.round(amount).toLocaleString('es-CO')} COP`;
 };
 
+const parsePos = (pos?: string) => {
+  const parts = (pos || '50% 50%').split(' ');
+  const x = parseFloat(parts[0]);
+  const y = parseFloat(parts[1]);
+  return {
+    x: Number.isFinite(x) ? x : 50,
+    y: Number.isFinite(y) ? y : 50,
+  };
+};
+
 const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
   const { user } = useAuthContext();
   const { addToCart, setIsCheckoutOpen, openEditProduct } = useMarketplace();
@@ -63,11 +73,18 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
   };
 
   const handleWhatsAppInquiry = () => {
+    const rawPhone = (product.whatsappNumber || '573102913651').replace(/\D/g, '');
+    const cleanPhone = rawPhone.length === 10 ? `57${rawPhone}` : rawPhone || '573102913651';
     const text = encodeURIComponent(
-      `Hola Félix, estoy interesado en "${product.title}" de la Tienda WAPPY ($${Math.round(currentPrice).toLocaleString('es-CO')} COP). Quisiera más información sobre los medios de pago de contado y a crédito.`
+      `Hola, estoy interesado en "${product.title}" de la Tienda WAPPY ($${Math.round(currentPrice).toLocaleString('es-CO')} COP). Quisiera recibir más información.`
     );
-    window.open(`https://wa.me/573102913651?text=${text}`, '_blank');
+    window.open(`https://wa.me/${cleanPhone}?text=${text}`, '_blank');
   };
+
+  const modalImgPos = parsePos(
+    product.modalImage ? product.modalImagePosition : product.modalImagePosition || product.featuredImagePosition
+  );
+  const modalImgScale = (product.modalImageScale || 100) / 100;
 
   return (
     <AnimatePresence>
@@ -92,7 +109,7 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
           {/* Modal Header Grid */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-0 border-b border-slate-100 dark:border-zinc-800">
             {/* Image section */}
-            <div className="md:col-span-5 relative bg-slate-100 dark:bg-zinc-800/50 min-h-[260px] md:min-h-full overflow-hidden">
+            <div className="md:col-span-5 relative bg-slate-900 dark:bg-zinc-900 min-h-[260px] md:min-h-full overflow-hidden">
               <img
                 src={
                   product.modalImage ||
@@ -101,13 +118,9 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
                 }
                 alt={product.title}
                 style={{
-                  objectPosition: product.modalImage
-                    ? product.modalImagePosition || '50% 50%'
-                    : product.modalImagePosition || product.featuredImagePosition || '50% 50%',
-                  transform:
-                    (product.modalImageScale || 100) !== 100
-                      ? `scale(${(product.modalImageScale || 100) / 100})`
-                      : undefined,
+                  objectPosition: `${modalImgPos.x}% ${modalImgPos.y}%`,
+                  transform: `translate(${(modalImgPos.x - 50) * 0.8}%, ${(modalImgPos.y - 50) * 0.8}%) scale(${modalImgScale})`,
+                  transformOrigin: 'center center',
                 }}
                 className="w-full h-full object-cover transition-transform duration-200"
               />
@@ -382,10 +395,10 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
               <button
                 type="button"
                 onClick={handleWhatsAppInquiry}
-                className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold hover:underline"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100 font-bold transition-colors shadow-2xs"
               >
                 <MessageCircle className="h-4 w-4" />
-                <span>Hablar con Especialista SST por WhatsApp</span>
+                <span>WhatsApp</span>
               </button>
             </div>
           </div>

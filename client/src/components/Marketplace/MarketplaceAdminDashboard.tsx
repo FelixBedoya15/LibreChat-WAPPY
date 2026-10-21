@@ -1460,42 +1460,52 @@ const MarketplaceAdminDashboard: React.FC = () => {
                         </div>
 
                         <div
-                          className="relative h-36 w-full rounded-xl overflow-hidden bg-slate-900 border border-slate-300 dark:border-zinc-700 cursor-grab active:cursor-grabbing select-none"
-                          onMouseDown={(e) => {
+                          className="relative h-36 w-full rounded-xl overflow-hidden bg-slate-900 border border-slate-300 dark:border-zinc-700 cursor-grab active:cursor-grabbing select-none touch-none"
+                          onPointerDown={(e) => {
                             e.preventDefault();
+                            e.currentTarget.setPointerCapture(e.pointerId);
                             const startX = e.clientX;
                             const startY = e.clientY;
                             const parts = (editingProduct.featuredImagePosition || '50% 50%').split(' ');
-                            const initX = parseFloat(parts[0]) || 50;
-                            const initY = parseFloat(parts[1]) || 50;
+                            const initX = Number.isFinite(parseFloat(parts[0])) ? parseFloat(parts[0]) : 50;
+                            const initY = Number.isFinite(parseFloat(parts[1])) ? parseFloat(parts[1]) : 50;
 
-                            const onMove = (moveEvent: MouseEvent) => {
+                            const onMove = (moveEvent: PointerEvent) => {
                               const dx = moveEvent.clientX - startX;
                               const dy = moveEvent.clientY - startY;
-                              const newX = Math.max(0, Math.min(100, Math.round(initX - dx * 0.35)));
-                              const newY = Math.max(0, Math.min(100, Math.round(initY - dy * 0.35)));
+                              const newX = Math.max(0, Math.min(100, Math.round(initX + dx * 0.45)));
+                              const newY = Math.max(0, Math.min(100, Math.round(initY + dy * 0.45)));
                               setEditingProduct((prev) =>
                                 prev ? { ...prev, featuredImagePosition: `${newX}% ${newY}%` } : prev
                               );
                             };
                             const onUp = () => {
-                              window.removeEventListener('mousemove', onMove);
-                              window.removeEventListener('mouseup', onUp);
+                              window.removeEventListener('pointermove', onMove);
+                              window.removeEventListener('pointerup', onUp);
                             };
-                            window.addEventListener('mousemove', onMove);
-                            window.addEventListener('mouseup', onUp);
+                            window.addEventListener('pointermove', onMove);
+                            window.addEventListener('pointerup', onUp);
                           }}
                         >
-                          <img
-                            src={editingProduct.featuredImage}
-                            alt="Preview Tarjeta"
-                            draggable={false}
-                            style={{
-                              objectPosition: editingProduct.featuredImagePosition || '50% 50%',
-                              transform: `scale(${(editingProduct.featuredImageScale || 100) / 100})`,
-                            }}
-                            className="w-full h-full object-cover pointer-events-none transition-transform duration-75"
-                          />
+                          {(() => {
+                            const parts = (editingProduct.featuredImagePosition || '50% 50%').split(' ');
+                            const px = Number.isFinite(parseFloat(parts[0])) ? parseFloat(parts[0]) : 50;
+                            const py = Number.isFinite(parseFloat(parts[1])) ? parseFloat(parts[1]) : 50;
+                            const pScale = (editingProduct.featuredImageScale || 100) / 100;
+                            return (
+                              <img
+                                src={editingProduct.featuredImage}
+                                alt="Preview Tarjeta"
+                                draggable={false}
+                                style={{
+                                  objectPosition: `${px}% ${py}%`,
+                                  transform: `translate(${(px - 50) * 0.8}%, ${(py - 50) * 0.8}%) scale(${pScale})`,
+                                  transformOrigin: 'center center',
+                                }}
+                                className="w-full h-full object-cover pointer-events-none"
+                              />
+                            );
+                          })()}
                           <div className="absolute bottom-1.5 right-2 px-2 py-0.5 rounded-md bg-black/60 text-white text-[9px] font-mono">
                             Pos: {editingProduct.featuredImagePosition || '50% 50%'} · Zoom: {editingProduct.featuredImageScale || 100}%
                           </div>
@@ -1509,7 +1519,11 @@ const MarketplaceAdminDashboard: React.FC = () => {
                               type="range"
                               min={0}
                               max={100}
-                              value={parseFloat((editingProduct.featuredImagePosition || '50% 50%').split(' ')[0]) || 50}
+                              value={
+                                Number.isFinite(parseFloat((editingProduct.featuredImagePosition || '50% 50%').split(' ')[0]))
+                                  ? parseFloat((editingProduct.featuredImagePosition || '50% 50%').split(' ')[0])
+                                  : 50
+                              }
                               onChange={(e) => {
                                 const y = (editingProduct.featuredImagePosition || '50% 50%').split(' ')[1] || '50%';
                                 setEditingProduct({
@@ -1526,7 +1540,11 @@ const MarketplaceAdminDashboard: React.FC = () => {
                               type="range"
                               min={0}
                               max={100}
-                              value={parseFloat((editingProduct.featuredImagePosition || '50% 50%').split(' ')[1]) || 50}
+                              value={
+                                Number.isFinite(parseFloat((editingProduct.featuredImagePosition || '50% 50%').split(' ')[1]))
+                                  ? parseFloat((editingProduct.featuredImagePosition || '50% 50%').split(' ')[1])
+                                  : 50
+                              }
                               onChange={(e) => {
                                 const x = (editingProduct.featuredImagePosition || '50% 50%').split(' ')[0] || '50%';
                                 setEditingProduct({
@@ -1541,8 +1559,8 @@ const MarketplaceAdminDashboard: React.FC = () => {
                             <label className="block text-slate-500 mb-0.5">Zoom ({editingProduct.featuredImageScale || 100}%)</label>
                             <input
                               type="range"
-                              min={60}
-                              max={200}
+                              min={50}
+                              max={220}
                               value={editingProduct.featuredImageScale || 100}
                               onChange={(e) =>
                                 setEditingProduct({
@@ -1617,42 +1635,52 @@ const MarketplaceAdminDashboard: React.FC = () => {
                         </div>
 
                         <div
-                          className="relative h-36 w-48 mx-auto rounded-xl overflow-hidden bg-slate-900 border border-slate-300 dark:border-zinc-700 cursor-grab active:cursor-grabbing select-none"
-                          onMouseDown={(e) => {
+                          className="relative h-36 w-48 mx-auto rounded-xl overflow-hidden bg-slate-900 border border-slate-300 dark:border-zinc-700 cursor-grab active:cursor-grabbing select-none touch-none"
+                          onPointerDown={(e) => {
                             e.preventDefault();
+                            e.currentTarget.setPointerCapture(e.pointerId);
                             const startX = e.clientX;
                             const startY = e.clientY;
                             const parts = (editingProduct.modalImagePosition || '50% 50%').split(' ');
-                            const initX = parseFloat(parts[0]) || 50;
-                            const initY = parseFloat(parts[1]) || 50;
+                            const initX = Number.isFinite(parseFloat(parts[0])) ? parseFloat(parts[0]) : 50;
+                            const initY = Number.isFinite(parseFloat(parts[1])) ? parseFloat(parts[1]) : 50;
 
-                            const onMove = (moveEvent: MouseEvent) => {
+                            const onMove = (moveEvent: PointerEvent) => {
                               const dx = moveEvent.clientX - startX;
                               const dy = moveEvent.clientY - startY;
-                              const newX = Math.max(0, Math.min(100, Math.round(initX - dx * 0.35)));
-                              const newY = Math.max(0, Math.min(100, Math.round(initY - dy * 0.35)));
+                              const newX = Math.max(0, Math.min(100, Math.round(initX + dx * 0.45)));
+                              const newY = Math.max(0, Math.min(100, Math.round(initY + dy * 0.45)));
                               setEditingProduct((prev) =>
                                 prev ? { ...prev, modalImagePosition: `${newX}% ${newY}%` } : prev
                               );
                             };
                             const onUp = () => {
-                              window.removeEventListener('mousemove', onMove);
-                              window.removeEventListener('mouseup', onUp);
+                              window.removeEventListener('pointermove', onMove);
+                              window.removeEventListener('pointerup', onUp);
                             };
-                            window.addEventListener('mousemove', onMove);
-                            window.addEventListener('mouseup', onUp);
+                            window.addEventListener('pointermove', onMove);
+                            window.addEventListener('pointerup', onUp);
                           }}
                         >
-                          <img
-                            src={editingProduct.modalImage || editingProduct.featuredImage}
-                            alt="Preview Modal"
-                            draggable={false}
-                            style={{
-                              objectPosition: editingProduct.modalImagePosition || '50% 50%',
-                              transform: `scale(${(editingProduct.modalImageScale || 100) / 100})`,
-                            }}
-                            className="w-full h-full object-cover pointer-events-none transition-transform duration-75"
-                          />
+                          {(() => {
+                            const parts = (editingProduct.modalImagePosition || '50% 50%').split(' ');
+                            const px = Number.isFinite(parseFloat(parts[0])) ? parseFloat(parts[0]) : 50;
+                            const py = Number.isFinite(parseFloat(parts[1])) ? parseFloat(parts[1]) : 50;
+                            const pScale = (editingProduct.modalImageScale || 100) / 100;
+                            return (
+                              <img
+                                src={editingProduct.modalImage || editingProduct.featuredImage}
+                                alt="Preview Modal"
+                                draggable={false}
+                                style={{
+                                  objectPosition: `${px}% ${py}%`,
+                                  transform: `translate(${(px - 50) * 0.8}%, ${(py - 50) * 0.8}%) scale(${pScale})`,
+                                  transformOrigin: 'center center',
+                                }}
+                                className="w-full h-full object-cover pointer-events-none"
+                              />
+                            );
+                          })()}
                           <div className="absolute bottom-1.5 right-2 px-2 py-0.5 rounded-md bg-black/60 text-white text-[9px] font-mono">
                             Pos: {editingProduct.modalImagePosition || '50% 50%'} · Zoom: {editingProduct.modalImageScale || 100}%
                           </div>
@@ -1666,7 +1694,11 @@ const MarketplaceAdminDashboard: React.FC = () => {
                               type="range"
                               min={0}
                               max={100}
-                              value={parseFloat((editingProduct.modalImagePosition || '50% 50%').split(' ')[0]) || 50}
+                              value={
+                                Number.isFinite(parseFloat((editingProduct.modalImagePosition || '50% 50%').split(' ')[0]))
+                                  ? parseFloat((editingProduct.modalImagePosition || '50% 50%').split(' ')[0])
+                                  : 50
+                              }
                               onChange={(e) => {
                                 const y = (editingProduct.modalImagePosition || '50% 50%').split(' ')[1] || '50%';
                                 setEditingProduct({
@@ -1683,7 +1715,11 @@ const MarketplaceAdminDashboard: React.FC = () => {
                               type="range"
                               min={0}
                               max={100}
-                              value={parseFloat((editingProduct.modalImagePosition || '50% 50%').split(' ')[1]) || 50}
+                              value={
+                                Number.isFinite(parseFloat((editingProduct.modalImagePosition || '50% 50%').split(' ')[1]))
+                                  ? parseFloat((editingProduct.modalImagePosition || '50% 50%').split(' ')[1])
+                                  : 50
+                              }
                               onChange={(e) => {
                                 const x = (editingProduct.modalImagePosition || '50% 50%').split(' ')[0] || '50%';
                                 setEditingProduct({
@@ -1698,8 +1734,8 @@ const MarketplaceAdminDashboard: React.FC = () => {
                             <label className="block text-slate-500 mb-0.5">Zoom ({editingProduct.modalImageScale || 100}%)</label>
                             <input
                               type="range"
-                              min={60}
-                              max={200}
+                              min={50}
+                              max={220}
                               value={editingProduct.modalImageScale || 100}
                               onChange={(e) =>
                                 setEditingProduct({
@@ -1716,18 +1752,33 @@ const MarketplaceAdminDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Landing Page Link */}
-                <div className="pt-2 border-t border-slate-200/70 dark:border-zinc-800">
-                  <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">
-                    Link / URL de Landing Page (Opcional · habilita el botón "Ver Landing Page")
-                  </label>
-                  <input
-                    type="text"
-                    value={editingProduct.landingPageUrl || ''}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, landingPageUrl: e.target.value })}
-                    placeholder="Ej. /cursowappy01 o https://tu-landing.com"
-                    className="w-full p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800"
-                  />
+                {/* Landing Page Link & WhatsApp Number */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200/70 dark:border-zinc-800">
+                  <div>
+                    <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">
+                      Link / URL de Landing Page (Opcional · botón "Ver Landing Page")
+                    </label>
+                    <input
+                      type="text"
+                      value={editingProduct.landingPageUrl || ''}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, landingPageUrl: e.target.value })}
+                      placeholder="Ej. /cursowappy01 o https://tu-landing.com"
+                      className="w-full p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-semibold block mb-1 text-slate-700 dark:text-zinc-200">
+                      Número de WhatsApp de Contacto (Para este curso/servicio)
+                    </label>
+                    <input
+                      type="text"
+                      value={editingProduct.whatsappNumber || ''}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, whatsappNumber: e.target.value })}
+                      placeholder="Ej. 573102913651 o 3102913651"
+                      className="w-full p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800"
+                    />
+                  </div>
                 </div>
               </div>
 
