@@ -14,6 +14,9 @@ def get_base64_img(rel_path):
 cat_logo = get_base64_img('client/public/marketing/wappy-cat-logo.png')
 logo_wappy = get_base64_img('client/public/assets/Logos WAPPY/logo.png')
 tenshi_img = get_base64_img('client/public/assets/tenshi.png')
+felix_avatar = get_base64_img('client/public/assets/felix_avatar_3d.png')
+wappy_horiz_logo = get_base64_img('client/public/assets/wappy_horizontal_black_logo.png')
+agy_logo = get_base64_img('client/public/assets/antigravity_logo.png')
 
 if not cat_logo:
     cat_logo = logo_wappy
@@ -1276,6 +1279,200 @@ html_content = f'''<!DOCTYPE html>
       width: 100%;
       height: 100%;
       border: 0;
+    }}
+
+    /* Miniatura Personalizada (Poster Overlay) sobre el Reproductor */
+    .video-thumb-cover {{
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      background:
+        radial-gradient(circle at 18% 55%, rgba(199, 243, 3, 0.22) 0%, transparent 45%),
+        radial-gradient(circle at 82% 55%, rgba(45, 212, 191, 0.26) 0%, transparent 48%),
+        linear-gradient(135deg, #06151a 0%, #0b262e 50%, #040d11 100%);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: clamp(16px, 3.5vw, 44px);
+      cursor: pointer;
+      transition: opacity 0.4s ease, visibility 0.4s ease;
+      overflow: hidden;
+    }}
+
+    .video-thumb-cover.hidden {{
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }}
+
+    .video-thumb-grid-bg {{
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(199, 243, 3, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(45, 212, 191, 0.06) 1px, transparent 1px);
+      background-size: 44px 44px;
+      pointer-events: none;
+    }}
+
+    .thumb-char-col {{
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      width: 26%;
+      height: 100%;
+    }}
+
+    .thumb-char-col img {{
+      height: 82%;
+      max-height: 88%;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 18px 32px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 24px rgba(199, 243, 3, 0.28));
+      transition: transform 0.35s ease;
+    }}
+
+    .thumb-halo-svg {{
+      width: clamp(64px, 8vw, 130px);
+      height: auto;
+      margin-bottom: -14px;
+      filter: drop-shadow(0 0 14px rgba(250, 204, 21, 0.95));
+      z-index: 3;
+    }}
+
+    .video-thumb-cover:hover .thumb-char-col img {{
+      transform: scale(1.04) translateY(-4px);
+    }}
+
+    .thumb-char-tag {{
+      margin-top: -10px;
+      background: rgba(6, 20, 25, 0.92);
+      border: 1.5px solid var(--lime);
+      color: var(--lime);
+      font-family: var(--font-mono);
+      font-size: clamp(9px, 1.05vw, 13px);
+      font-weight: 800;
+      padding: 5px 14px;
+      border-radius: 999px;
+      white-space: nowrap;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+    }}
+
+    .thumb-center-col {{
+      position: relative;
+      z-index: 3;
+      width: 48%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: clamp(8px, 1.5vw, 16px);
+    }}
+
+    .thumb-logos-pill {{
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      background: rgba(255, 255, 255, 0.96);
+      padding: 8px 22px;
+      border-radius: 999px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 24px rgba(45, 212, 191, 0.35);
+      border: 2px solid #2dd4bf;
+    }}
+
+    .thumb-logos-pill img.wappy-h {{
+      height: clamp(22px, 3vw, 40px);
+      width: auto;
+      object-fit: contain;
+    }}
+
+    .thumb-logos-pill .plus-sep {{
+      font-weight: 900;
+      font-size: clamp(14px, 1.8vw, 22px);
+      color: #0d9488;
+    }}
+
+    .thumb-logos-pill img.agy-i {{
+      height: clamp(22px, 3vw, 38px);
+      width: auto;
+      object-fit: contain;
+    }}
+
+    .thumb-clase-giant {{
+      font-family: var(--font-display);
+      font-size: clamp(32px, 5.8vw, 76px);
+      font-weight: 900;
+      line-height: 0.98;
+      letter-spacing: -0.04em;
+      color: var(--ink);
+      background: var(--lime);
+      padding: 6px 26px;
+      border-radius: 20px;
+      box-shadow: 0 12px 40px rgba(199, 243, 3, 0.45);
+      text-transform: uppercase;
+    }}
+
+    .thumb-sub-title {{
+      font-family: var(--font-display);
+      font-size: clamp(14px, 2.2vw, 28px);
+      font-weight: 900;
+      color: #ffffff;
+      line-height: 1.15;
+      text-shadow: 0 6px 20px rgba(0, 0, 0, 0.7);
+    }}
+
+    .thumb-sub-title span {{
+      color: #2dd4bf;
+    }}
+
+    .thumb-play-cta {{
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: #ffffff;
+      font-family: var(--font-display);
+      font-size: clamp(12px, 1.4vw, 17px);
+      font-weight: 900;
+      padding: clamp(9px, 1.2vw, 14px) clamp(18px, 2.4vw, 30px);
+      border-radius: 999px;
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      box-shadow: 0 14px 36px rgba(239, 68, 68, 0.55);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }}
+
+    .video-thumb-cover:hover .thumb-play-cta {{
+      transform: scale(1.06);
+      box-shadow: 0 18px 44px rgba(239, 68, 68, 0.75);
+    }}
+
+    .thumb-play-icon {{
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: #ffffff;
+      color: #dc2626;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      padding-left: 2px;
+    }}
+
+    @media (max-width: 680px) {{
+      .thumb-char-col {{
+        width: 24%;
+      }}
+      .thumb-center-col {{
+        width: 52%;
+        gap: 6px;
+      }}
+      .thumb-char-tag {{
+        display: none;
+      }}
     }}
 
     .recording-chapters-strip {{
@@ -2843,10 +3040,52 @@ html_content = f'''<!DOCTYPE html>
           <span class="rec-chapter-pill"><strong>02:31</strong> Sinergia 80% Ahorro WAPPY + MCP</span>
         </div>
 
-        <!-- Reproductor Embebido 16:9 de Google Drive -->
+        <!-- Reproductor Embebido 16:9 de Google Drive con Miniatura Oficial -->
         <div class="video-viewport-wrap">
           <div class="video-aspect-box">
+            <!-- Miniatura Oficial Personalizada (Félix Avatar + WAPPY + Tenshi + CLASE 1) -->
+            <div class="video-thumb-cover" id="video-thumb-cover" onclick="playRecordingVideo()">
+              <div class="video-thumb-grid-bg"></div>
+
+              <!-- Columna Izquierda: Avatar 3D de Félix Bedoya -->
+              <div class="thumb-char-col">
+                <img src="{felix_avatar}" alt="Ing. Félix Bedoya">
+                <span class="thumb-char-tag">👨‍🏫 Ing. Félix Bedoya</span>
+              </div>
+
+              <!-- Columna Central: Logos WAPPY + Antigravity + CLASE 1 + Botón Play -->
+              <div class="thumb-center-col">
+                <div class="thumb-logos-pill">
+                  <img src="{wappy_horiz_logo}" alt="WAPPY Logo" class="wappy-h">
+                  <span class="plus-sep">+</span>
+                  <img src="{agy_logo}" alt="Google Antigravity" class="agy-i">
+                </div>
+
+                <div class="thumb-clase-giant">CLASE 1</div>
+
+                <div class="thumb-sub-title">
+                  Fundamentos de IA, <span>WAPPY</span> &amp; <span>Google Antigravity</span>
+                </div>
+
+                <div class="thumb-play-cta">
+                  <span class="thumb-play-icon">▶</span>
+                  <span>VER GRABACIÓN COMPLETA</span>
+                </div>
+              </div>
+
+              <!-- Columna Derecha: Avatar 3D de Tenshi / WAPPY con Aureola -->
+              <div class="thumb-char-col">
+                <svg class="thumb-halo-svg" viewBox="0 0 200 60">
+                  <ellipse cx="100" cy="30" rx="82" ry="18" fill="none" stroke="#fde047" stroke-width="10"/>
+                  <ellipse cx="100" cy="30" rx="82" ry="18" fill="none" stroke="#ffffff" stroke-width="3.5" opacity="0.9"/>
+                </svg>
+                <img src="{tenshi_img}" alt="Tenshi WAPPY IA">
+                <span class="thumb-char-tag" style="border-color:#2dd4bf; color:#2dd4bf;">✨ Tenshi IA · WAPPY</span>
+              </div>
+            </div>
+
             <iframe
+              id="drive-video-iframe"
               src="https://drive.google.com/file/d/1Q0QK8gpwm5orbdPmOgkW-IHZdJhFcIk-/preview"
               allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
               allowfullscreen
@@ -3613,6 +3852,14 @@ Configúralo para que cada mañana cuando yo llegue a la oficina, prenda mi comp
         if (vStage && vStage.requestFullscreen) vStage.requestFullscreen();
       }} else {{
         if (document.exitFullscreen) document.exitFullscreen();
+      }}
+    }}
+
+    // Ocultar la Miniatura Personalizada y dar paso al Reproductor de Video
+    function playRecordingVideo() {{
+      const cover = document.getElementById('video-thumb-cover');
+      if (cover) {{
+        cover.classList.add('hidden');
       }}
     }}
 
