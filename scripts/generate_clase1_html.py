@@ -28,6 +28,11 @@ html_content = f'''<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
   <title>WAPPY IA · Clase 1: Fundamentos de IA, WAPPY & Google Antigravity | SOMOS SST</title>
   <meta name="description" content="Presentación interactiva oficial y guía paso a paso para no programadores. Conceptos básicos de IA (LLMs, Tokens, MCP, API Keys), instalación de Antigravity, proyectos en carpetas, conexión a WAPPY, Google Drive, NotebookLM y creación de Triggers y Skills desde el chat.">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png?v=wappy" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png?v=wappy" />
+  <link rel="shortcut icon" href="/assets/favicon-32x32.png?v=wappy" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon-180x180.png?v=wappy" />
+  <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@600;700;800;900&family=Space+Grotesk:wght@600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
