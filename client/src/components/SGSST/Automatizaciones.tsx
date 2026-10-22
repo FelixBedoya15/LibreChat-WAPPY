@@ -581,9 +581,6 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
               <Cpu className="w-7 h-7 text-purple-500" />
               Tareas
             </h1>
-            <p className="text-xs text-text-secondary mt-1">
-              Programación y control de tareas autónomas para tus agentes expertos de seguridad y salud en el trabajo (antes «Automatizaciones IA»).
-            </p>
           </div>
         ) : (
           <div>
@@ -591,35 +588,31 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
               <Cpu className="w-5 h-5 text-purple-500" />
               Vigilancia y Tareas Autónomas de Agentes IA
             </h2>
-            <p className="text-xs text-text-secondary mt-0.5">
-              Programación de tareas periódicas, triggers automáticos y generación de reportes.
-            </p>
           </div>
         )}
 
         <div className="flex items-center gap-2.5 shrink-0 w-full sm:w-auto justify-end">
           <button
             onClick={() => setShowDashboard(!showDashboard)}
-            className={`group flex items-center justify-center h-9 px-3.5 sm:h-10 sm:px-4 rounded-xl border border-border-medium/40 text-xs font-bold transition-all duration-300 gap-2 cursor-pointer shadow-sm ${
+            className={`group flex items-center justify-center h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] rounded-xl border border-border-medium/40 text-xs font-bold transition-all duration-300 cursor-pointer shadow-sm active:scale-95 ${
               showDashboard 
                 ? 'bg-purple-500/10 text-purple-600 border-purple-500/20 hover:bg-purple-500/20 dark:bg-purple-950/20 dark:text-purple-400' 
                 : 'bg-white dark:bg-gray-900 text-text-secondary hover:bg-surface-hover hover:text-text-primary'
             }`}
             title={showDashboard ? "Ocultar Analíticas" : "Mostrar Analíticas"}
           >
-            {showDashboard ? (
-              <>
-                <EyeOff className="w-4.5 h-4.5 text-current" />
-                <span className="hidden sm:inline">Ocultar Analíticas</span>
-                <span className="sm:hidden">Ocultar</span>
-              </>
-            ) : (
-              <>
-                <Eye className="w-4.5 h-4.5 text-current" />
-                <span className="hidden sm:inline">Ver Analíticas</span>
-                <span className="sm:hidden">Analíticas</span>
-              </>
-            )}
+            <div className="relative flex-shrink-0 flex items-center justify-center">
+              {showDashboard ? (
+                <EyeOff className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />
+              ) : (
+                <Eye className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />
+              )}
+            </div>
+            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+              <span className="text-xs sm:text-sm font-bold tracking-wide">
+                {showDashboard ? "Ocultar Analíticas" : "Ver Analíticas"}
+              </span>
+            </div>
           </button>
 
           <button

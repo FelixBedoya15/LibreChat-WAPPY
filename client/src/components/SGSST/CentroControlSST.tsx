@@ -71,22 +71,13 @@ export default function CentroControlSST() {
   return (
     <div className="flex-1 flex flex-col bg-surface-secondary/30 min-h-screen h-auto overflow-y-auto pb-12">
       {/* Master Top Header */}
-      <div className="bg-white dark:bg-gray-900 border-b border-border-medium/40 px-6 pt-6 pb-4 shadow-sm">
+      <div className="bg-white dark:bg-gray-900 border-b border-border-medium/40 px-6 py-5 shadow-sm">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-400 border border-teal-200/50 dark:border-teal-800/40 uppercase tracking-wider">
-                <Layers className="w-3 h-3" />
-                Módulo Operacional SG-SST
-              </span>
-            </div>
             <h1 className="text-2xl font-extrabold flex items-center gap-2.5 bg-clip-text text-transparent bg-gradient-to-r from-teal-600 via-emerald-600 to-purple-600 dark:from-teal-400 dark:via-emerald-400 dark:to-purple-400">
               <LayoutDashboard className="w-7 h-7 text-teal-500" />
               Centro de Control SST
             </h1>
-            <p className="text-xs text-text-secondary mt-1">
-              Gestión unificada de acciones correctivas (ACPM), control predictivo de vencimientos y memoria procedural de agentes IA. Las tareas programadas de agentes ahora están en «Tareas».
-            </p>
           </div>
 
           {/* Master Tabs Selector */}
