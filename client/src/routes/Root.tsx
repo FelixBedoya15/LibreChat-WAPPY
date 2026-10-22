@@ -23,6 +23,7 @@ import { useHealthCheck } from '~/data-provider';
 import { Banner } from '~/components/Banners';
 import InactiveAccount from '~/components/Auth/InactiveAccount';
 import { hasActivePlan } from '~/utils/planAccess';
+import TenshiAvatar from '~/components/Tenshi/TenshiAvatar';
 
 const TenshiChat = lazy(() => import('~/components/Tenshi/TenshiChat'));
 
@@ -74,6 +75,18 @@ export default function Root() {
   });
 
   const { isAuthenticated, logout, user } = useAuthContext();
+  const [isCheckingSession, setIsCheckingSession] = useState(() => !isAuthenticated);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      setIsCheckingSession(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setIsCheckingSession(false);
+    }, 2200);
+    return () => clearTimeout(timer);
+  }, [isAuthenticated]);
 
   // Global health check - runs once per authenticated session
   useHealthCheck(isAuthenticated);
@@ -173,6 +186,32 @@ export default function Root() {
         <div className="flex h-screen w-screen bg-surface-primary text-text-primary">
           <div className="relative flex h-full max-w-full flex-1 flex-col overflow-hidden">
             <Outlet context={{ navVisible: false, setNavVisible: () => {} } satisfies ContextType} />
+          </div>
+        </div>
+      );
+    }
+    if (isCheckingSession) {
+      return (
+        <div
+          className="flex h-screen flex-col items-center justify-center gap-4 bg-gradient-to-b from-teal-50/40 via-white to-amber-50/30 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 px-4 text-center"
+          aria-live="polite"
+          role="status"
+        >
+          <TenshiAvatar
+            size={128}
+            mood="working"
+            showHaloEffect={true}
+            showHUD={true}
+            interactive={true}
+            statusText="Sincronizando Ecosistema WAPPY IA..."
+          />
+          <div className="mt-4 max-w-md">
+            <h2 className="bg-gradient-to-r from-teal-600 via-emerald-500 to-amber-500 bg-clip-text text-xl font-black tracking-tight text-transparent">
+              WAPPY IA
+            </h2>
+            <p className="mt-1 text-xs font-medium text-slate-600 dark:text-zinc-400">
+              Ecosistema de Inteligencia Artificial para Productividad Empresarial y Gestión SG-SST.
+            </p>
           </div>
         </div>
       );
