@@ -269,6 +269,62 @@ export default function PrivacyPolicyPage() {
                     </Section>
                 </div>
 
+                {/* Google API Services User Data Policy & Limited Use Section (Required for Google OAuth Verification) */}
+                <div className="mt-6 rounded-2xl border border-teal-500/40 bg-white/90 dark:bg-zinc-900/90 p-6 sm:p-8 backdrop-blur-md shadow-xl">
+                    <div className="mb-4 flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400">
+                            <LockSVG />
+                        </div>
+                        <div>
+                            <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
+                                Integración con Google Workspace y Uso Limitado (Google API Services User Data Policy)
+                            </h2>
+                            <p className="text-xs text-teal-600 dark:text-teal-400 font-semibold">
+                                Cumplimiento oficial con los requisitos de Uso Limitado (Limited Use) de Google OAuth 2.0
+                            </p>
+                        </div>
+                    </div>
+                    <div className="space-y-3 text-sm leading-relaxed text-slate-600 dark:text-zinc-300">
+                        <p>
+                            Cuando usted vincula voluntariamente su cuenta de <strong>Google Workspace (Google Drive, Google Calendar y Gmail)</strong> con WAPPY, nuestra plataforma accede únicamente a los datos autorizados por usted para ejecutar las funciones del Sistema de Gestión de Seguridad y Salud en el Trabajo (SG-SST) que usted solicite:
+                        </p>
+                        <ul className="ml-4 list-disc space-y-1.5 marker:text-teal-500">
+                            <li>
+                                <strong>Google Drive (<code>drive</code>):</strong> Lectura de documentos corporativos (matrices, perfiles sociodemográficos, soportes SST) seleccionados por el usuario y creación/exportación de reportes e informes del SG-SST dentro de su propio Google Drive.
+                            </li>
+                            <li>
+                                <strong>Google Calendar (<code>calendar.events</code>):</strong> Consulta de disponibilidad, programación, reprogramación y recordatorios de actividades del cronograma SST, inspecciones, auditorías y reuniones laborales.
+                            </li>
+                            <li>
+                                <strong>Gmail (<code>gmail.send</code> / <code>gmail.compose</code> / <code>gmail.readonly</code>):</strong> Envío de notificaciones, actas, reportes preventivos y borradores de correo solicitados expresamente por el usuario dentro de su gestión SST.
+                            </li>
+                        </ul>
+                        <div className="mt-4 rounded-xl border border-teal-500/30 bg-teal-500/10 p-4 text-xs sm:text-sm text-slate-700 dark:text-zinc-200 space-y-2">
+                            <p className="font-bold text-teal-800 dark:text-teal-300">
+                                Compromiso de Uso Limitado (Google Limited Use Disclosure):
+                            </p>
+                            <p>
+                                El uso y la transferencia por parte de WAPPY a cualquier otra aplicación de la información recibida de las APIs de Google se adherirá estrictamente a la{' '}
+                                <a
+                                    href="https://developers.google.com/terms/api-services-user-data-policy"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="font-semibold text-teal-600 dark:text-teal-400 underline"
+                                >
+                                    Política de Datos de Usuario de los Servicios API de Google (Google API Services User Data Policy)
+                                </a>
+                                , incluidos los requisitos de <strong>Uso Limitado (Limited Use)</strong>.
+                            </p>
+                            <p className="italic text-slate-600 dark:text-zinc-300">
+                                &ldquo;WAPPY&apos;s use and transfer to any other app of information received from Google APIs will adhere to the Google API Services User Data Policy, including the Limited Use requirements.&rdquo;
+                            </p>
+                            <p>
+                                <strong>Protección frente a entrenamiento de IA y publicidad:</strong> Los datos obtenidos a través de Google Workspace (archivos de Drive, eventos de Calendar y correos de Gmail) <strong>NUNCA</strong> se utilizan para entrenar modelos fundacionales o generalizados de Inteligencia Artificial de terceros, ni se venden, transfieren o utilizan para fines publicitarios o de perfilamiento comercial. Las credenciales OAuth se almacenan cifradas y el usuario puede revocar el acceso en cualquier momento desde <em>Mi Cuenta y Perfil → Google Workspace</em> o desde la configuración de seguridad de su cuenta de Google.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Contact Footer */}
                 <div className="mt-12 rounded-3xl border border-teal-500/30 bg-white/85 dark:bg-zinc-900/85 p-8 text-center shadow-xl backdrop-blur-md">
                     <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">¿Preguntas sobre privacidad y tus datos?</h3>

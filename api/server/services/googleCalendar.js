@@ -55,6 +55,32 @@ const getCalendarClient = async (userId, companyId = null) => {
         logger.info(`[GoogleCalendarService] Token refreshed successfully for user: ${userId}`);
       } catch (refreshErr) {
         logger.error(`[GoogleCalendarService] Failed to refresh token for user ${userId}:`, refreshErr.message);
+        // Fallback: check if another company of the same user has a valid refreshed token
+        try {
+          const CompanyInfo = require('~/models/CompanyInfo');
+          const allCompanies = await CompanyInfo.find({ user: userId }).lean();
+          for (const comp of allCompanies) {
+            const altCid = String(comp._id);
+            const altRt = await getUserPluginAuthValue(userId, `GOOGLE_DRIVE_REFRESH_TOKEN_${altCid}`, false, 'google_drive');
+            const altAt = await getUserPluginAuthValue(userId, `GOOGLE_DRIVE_ACCESS_TOKEN_${altCid}`, false, 'google_drive');
+            if (!altRt || altRt === refreshToken) continue;
+            const altClient = getOAuth2Client();
+            altClient.setCredentials({ access_token: altAt, refresh_token: altRt });
+            const { credentials: altCreds } = await altClient.refreshAccessToken();
+            altClient.setCredentials(altCreds);
+            if (altCreds.access_token) {
+              await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_ACCESS_TOKEN', altCreds.access_token);
+              await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_REFRESH_TOKEN', altRt);
+            }
+            if (altCreds.expiry_date) {
+              await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EXPIRY', String(altCreds.expiry_date));
+            }
+            logger.info(`[GoogleCalendarService] Recovered valid token from sibling company ${altCid} for user ${userId}`);
+            return google.calendar({ version: 'v3', auth: altClient });
+          }
+        } catch (_) {
+          // Ignore fallback errors
+        }
         return null; // Token revoked or invalid
       }
     }

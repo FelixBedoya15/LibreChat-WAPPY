@@ -207,18 +207,25 @@ router.get('/status', requireJwtAuth, async (req, res) => {
 
     let connected = false;
     let email = null;
+    let tokenExpired = false;
 
     try {
       const refreshToken = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_REFRESH_TOKEN', false);
       if (refreshToken) {
-        connected = true;
-        email = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EMAIL', false);
+        const validClient = await getUserOAuth2Client(userId);
+        if (validClient) {
+          connected = true;
+          email = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EMAIL', false);
+        } else {
+          connected = false;
+          tokenExpired = true;
+        }
       }
     } catch (authErr) {
       // User doesn't have the token stored yet
     }
 
-    res.json({ connected, email, companyName });
+    res.json({ connected, email, companyName, tokenExpired });
   } catch (err) {
     logger.error('[GoogleDriveStatus] Error checking connection status:', err);
     res.status(500).json({ error: 'Fallo al verificar el estado de Google Drive' });

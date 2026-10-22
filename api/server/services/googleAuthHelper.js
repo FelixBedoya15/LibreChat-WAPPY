@@ -34,7 +34,21 @@ const getScopedAuthValue = async (userId, companyId, baseKey, throwError = false
     if (value !== null && value !== undefined) {
       return value;
     }
-    return null; // Do not fallback to base key if we have an active company
+    // Fallback: si el usuario tiene varias empresas y conectó Google Workspace en otra de sus empresas,
+    // reutilizar esa credencial antes de dar por desconectada la cuenta.
+    try {
+      const allCompanies = await CompanyInfo.find({ user: userId }).lean();
+      for (const comp of allCompanies) {
+        const compId = String(comp._id);
+        if (compId === targetCompanyId) continue;
+        const altValue = await getUserPluginAuthValue(userId, `${baseKey}_${compId}`, false, 'google_drive');
+        if (altValue !== null && altValue !== undefined) {
+          return altValue;
+        }
+      }
+    } catch (_) {
+      // Ignore fallback lookup errors
+    }
   }
 
   return await getUserPluginAuthValue(userId, baseKey, throwError, 'google_drive');
