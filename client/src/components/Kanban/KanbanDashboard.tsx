@@ -39,6 +39,7 @@ import UniversalColumnMapperModal from '~/components/SGSST/UniversalColumnMapper
 import { KANBAN_ACPM_FIELDS } from '~/components/SGSST/moduleFieldDefinitions';
 import { exportModuleDataToExcel } from '~/components/SGSST/columnMapperEngine';
 import SGSSTLegalBadge from '~/components/SGSST/SGSSTLegalBadge';
+import ExpandableButton from '~/components/Common/ExpandableButton';
 
 interface KanbanTask {
   _id: string;
@@ -887,58 +888,39 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
           </div>
         )}
         <div className="flex items-center gap-2.5 shrink-0 w-full sm:w-auto justify-end">
-          <button
+          <ExpandableButton
             onClick={toggleDashboard}
-            className={`group flex items-center justify-center h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] rounded-xl border border-border-medium/40 text-xs font-bold transition-all duration-300 cursor-pointer shadow-sm active:scale-95 ${
-              showDashboard 
-                ? 'bg-teal-500/10 text-teal-600 border-teal-500/20 hover:bg-teal-500/20 dark:bg-teal-950/20 dark:text-teal-400' 
-                : 'bg-white dark:bg-gray-900 text-text-secondary hover:bg-surface-hover hover:text-text-primary'
-            }`}
-            title={showDashboard ? "Ocultar Analíticas" : "Mostrar Analíticas"}
-          >
-            <div className="relative flex-shrink-0 flex items-center justify-center">
-              {showDashboard ? (
+            variant="teal"
+            isActive={showDashboard}
+            icon={
+              showDashboard ? (
                 <EyeOff className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />
               ) : (
                 <Eye className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />
-              )}
-            </div>
-            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-              <span className="text-xs sm:text-sm font-bold tracking-wide">
-                {showDashboard ? "Ocultar Analíticas" : "Ver Analíticas"}
-              </span>
-            </div>
-          </button>
+              )
+            }
+            label={showDashboard ? "Ocultar Analíticas" : "Ver Analíticas"}
+          />
 
-          <button
+          <ExpandableButton
             onClick={() => {
               setIsLoading(true);
               fetchTasks(true);
             }}
             disabled={isLoading}
-            className="group flex items-center justify-center h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 shadow-sm hover:shadow-md shrink-0 cursor-pointer border border-border-medium/40 outline-none rounded-xl bg-white dark:bg-gray-900 text-text-secondary hover:text-text-primary hover:bg-surface-hover active:scale-95 disabled:opacity-50"
-            title="Sincronizar Actividades y Fuentes"
-          >
-            <div className="relative flex-shrink-0 flex items-center justify-center">
+            variant="teal"
+            icon={
               <RefreshCw className={`w-4 h-4 sm:w-4.5 sm:h-4.5 text-teal-600 dark:text-teal-400 ${isLoading ? 'animate-spin' : ''}`} />
-            </div>
-            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-              <span className="text-xs sm:text-sm font-bold tracking-wide">Sincronizar</span>
-            </div>
-          </button>
+            }
+            label="Sincronizar"
+          />
 
-          <button
+          <ExpandableButton
             onClick={triggerFileInput}
-            className="group flex items-center justify-center h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white sm:hover:rotate-3 sm:hover:scale-105 active:scale-95"
-            title="Importar Actividades (Excel, Word, PDF, Texto)"
-          >
-            <div className="relative flex-shrink-0 flex items-center justify-center">
-              <Upload className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-              <span className="text-xs sm:text-sm font-bold tracking-wide">Importar Archivo</span>
-            </div>
-          </button>
+            variant="emerald"
+            icon={<Upload className="w-4 h-4 sm:w-5 sm:h-5 text-current" />}
+            label="Importar Archivo"
+          />
           <input
             type="file"
             ref={fileInputRef}

@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { useListAgentsQuery } from '~/data-provider';
 import { useToastContext } from '@librechat/client';
+import ExpandableButton from '~/components/Common/ExpandableButton';
 
 interface ScheduleConfig {
   hour: number;
@@ -592,41 +593,26 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
         )}
 
         <div className="flex items-center gap-2.5 shrink-0 w-full sm:w-auto justify-end">
-          <button
+          <ExpandableButton
             onClick={() => setShowDashboard(!showDashboard)}
-            className={`group flex items-center justify-center h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] rounded-xl border border-border-medium/40 text-xs font-bold transition-all duration-300 cursor-pointer shadow-sm active:scale-95 ${
-              showDashboard 
-                ? 'bg-purple-500/10 text-purple-600 border-purple-500/20 hover:bg-purple-500/20 dark:bg-purple-950/20 dark:text-purple-400' 
-                : 'bg-white dark:bg-gray-900 text-text-secondary hover:bg-surface-hover hover:text-text-primary'
-            }`}
-            title={showDashboard ? "Ocultar Analíticas" : "Mostrar Analíticas"}
-          >
-            <div className="relative flex-shrink-0 flex items-center justify-center">
-              {showDashboard ? (
+            variant="purple"
+            isActive={showDashboard}
+            icon={
+              showDashboard ? (
                 <EyeOff className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />
               ) : (
                 <Eye className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />
-              )}
-            </div>
-            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-              <span className="text-xs sm:text-sm font-bold tracking-wide">
-                {showDashboard ? "Ocultar Analíticas" : "Ver Analíticas"}
-              </span>
-            </div>
-          </button>
+              )
+            }
+            label={showDashboard ? "Ocultar Analíticas" : "Ver Analíticas"}
+          />
 
-          <button
+          <ExpandableButton
             onClick={handleCreateOpen}
-            className="group flex items-center justify-center h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 shadow-lg shadow-purple-500/10 hover:shadow-purple-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
-            title="Nueva Tarea"
-          >
-            <div className="relative flex-shrink-0 flex items-center justify-center">
-              <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-              <span className="text-xs sm:text-sm font-bold tracking-wide">Nueva Tarea</span>
-            </div>
-          </button>
+            variant="purple"
+            icon={<Plus className="w-4 h-4 sm:w-5 sm:h-5 text-current" />}
+            label="Nueva Tarea"
+          />
         </div>
       </div>
 
