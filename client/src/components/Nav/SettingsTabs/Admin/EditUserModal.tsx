@@ -182,6 +182,30 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
         } else if (name === 'role') {
             const mappedPlan = ROLE_TO_PLAN[value] || 'free';
             setFormData(prev => ({ ...prev, role: value, plan: mappedPlan }));
+        } else if (name === 'planInterval') {
+            let daysToAdd = 0;
+            let shouldClear = false;
+
+            if (value === 'monthly') daysToAdd = 30;
+            else if (value === 'quarterly') daysToAdd = 90;
+            else if (value === 'semiannual') daysToAdd = 180;
+            else if (value === 'annual') daysToAdd = 365;
+            else if (value === 'lifetime') shouldClear = true;
+            else if (value === 'referral') daysToAdd = 15;
+
+            if (shouldClear) {
+                setFormData(prev => ({ ...prev, planInterval: value, inactiveAt: '' }));
+            } else if (daysToAdd > 0) {
+                const target = new Date();
+                target.setDate(target.getDate() + daysToAdd);
+                setFormData(prev => ({ 
+                    ...prev, 
+                    planInterval: value, 
+                    inactiveAt: formatDateForInput(target) 
+                }));
+            } else {
+                setFormData(prev => ({ ...prev, planInterval: value }));
+            }
         } else {
             setFormData(prev => ({ ...prev, [name]: value }));
         }
@@ -536,14 +560,32 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
                                                         <button
                                                             type="button"
                                                             onClick={() => addDaysToExpiration(30, 'monthly')}
-                                                            className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 transition-colors cursor-pointer"
+                                                            className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 transition-colors cursor-pointer border border-teal-200 dark:border-teal-800/40"
+                                                            title="Asignar 30 días (Plan Mensual)"
                                                         >
                                                             +30 días
                                                         </button>
                                                         <button
                                                             type="button"
+                                                            onClick={() => addDaysToExpiration(90, 'quarterly')}
+                                                            className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 transition-colors cursor-pointer border border-sky-200 dark:border-sky-800/40"
+                                                            title="Asignar 90 días (Plan Trimestral)"
+                                                        >
+                                                            +90 días
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => addDaysToExpiration(180, 'semiannual')}
+                                                            className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 transition-colors cursor-pointer border border-purple-200 dark:border-purple-800/40"
+                                                            title="Asignar 180 días (Plan Semestral)"
+                                                        >
+                                                            +180 días
+                                                        </button>
+                                                        <button
+                                                            type="button"
                                                             onClick={() => addDaysToExpiration(365, 'annual')}
-                                                            className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 transition-colors cursor-pointer"
+                                                            className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 transition-colors cursor-pointer border border-amber-200 dark:border-amber-800/40"
+                                                            title="Asignar 1 año (Plan Anual)"
                                                         >
                                                             +1 año
                                                         </button>
@@ -551,6 +593,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
                                                             type="button"
                                                             onClick={clearExpiration}
                                                             className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 dark:bg-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
+                                                            title="Sin fecha de vencimiento (Plan Vitalicio)"
                                                         >
                                                             Sin Vencimiento (Vitalicio)
                                                         </button>
