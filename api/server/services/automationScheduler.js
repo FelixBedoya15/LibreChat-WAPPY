@@ -8,7 +8,24 @@ const CompanyInfo = require('~/models/CompanyInfo');
 const sendEmail = require('~/server/utils/sendEmail');
 
 let schedulerInterval = null;
+let isCheckingAutomations = false; // Evita que dos ticks del intervalo se solapen
 const runningAutomations = new Map(); // automationId -> { abortController, timeoutId, startedAt, automationName, logId }
+
+/**
+ * Límite GLOBAL de agentes ejecutándose a la vez en este proceso Node (protege la RAM del VPS).
+ * Cada corrida inicializa un cliente de agente completo (herramientas, MCP, historial), por lo que
+ * es lo que más memoria consume. Configurable con AUTOMATION_MAX_CONCURRENCY (por defecto 2).
+ * Las tareas que no alcancen cupo quedan pendientes y se toman en el siguiente tick (1 min).
+ */
+const MAX_CONCURRENT_AUTOMATIONS = Math.max(
+  1,
+  parseInt(process.env.AUTOMATION_MAX_CONCURRENCY || '2', 10) || 2,
+);
+const STAGGER_MS = 500;
+
+/** Campos mínimos necesarios para ejecutar una tarea (evita cargar documentos completos en memoria). */
+const AUTOMATION_RUN_FIELDS =
+  '_id name user companyId agentId agentName prompt scheduleType scheduleConfig status emails lastRunAt nextRunAt';
 
 const BOGOTA_OFFSET_HOURS = -5; // America/Bogota is UTC-5 (no DST)
 
@@ -658,6 +675,8 @@ async function stopAutomation(automationId) {
 }
 
 async function checkAndRunAutomations() {
+  if (isCheckingAutomations) return;
+  isCheckingAutomations = true;
   try {
     const now = new Date();
 
@@ -690,7 +709,11 @@ async function checkAndRunAutomations() {
       )
     ]);
 
-    // 2. Query pending active automations
+    // 2. Respect the GLOBAL concurrency cap: only take as many tasks as free slots
+    const availableSlots = MAX_CONCURRENT_AUTOMATIONS - runningAutomations.size;
+    if (availableSlots <= 0) return;
+
+    // Query pending active automations (lean + projection + limit => mínimo uso de RAM)
     const pendingAutomations = await Automation.find({
       status: 'active',
       lastRunStatus: { $ne: 'running' },
@@ -698,7 +721,11 @@ async function checkAndRunAutomations() {
         { nextRunAt: { $lte: now } },
         { nextRunAt: null }
       ]
-    });
+    })
+      .select(AUTOMATION_RUN_FIELDS)
+      .sort({ nextRunAt: 1 })
+      .limit(availableSlots)
+      .lean();
 
     if (pendingAutomations.length === 0) return;
 
@@ -736,9 +763,7 @@ async function checkAndRunAutomations() {
 
     if (toExecute.length === 0) return;
 
-    // 5. Execute with concurrency pool (max 4 concurrent) and 500ms stagger to protect RAM and API rate limits
-    const MAX_CONCURRENT_AUTOMATIONS = 4;
-    const STAGGER_MS = 500;
+    // 5. Execute (bounded by the global cap above) with 500ms stagger to protect RAM and API rate limits
     const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     (async () => {
@@ -767,13 +792,15 @@ async function checkAndRunAutomations() {
     });
   } catch (err) {
     console.error('[AutomationScheduler] Error in checkAndRunAutomations interval:', err);
+  } finally {
+    isCheckingAutomations = false;
   }
 }
 
 function startAutomationScheduler() {
   if (schedulerInterval) return; // Ya está corriendo
 
-  console.log('[AutomationScheduler] Starting automation background scheduler (interval: 1 minute, America/Bogota timezone aware)...');
+  console.log(`[AutomationScheduler] Starting automation background scheduler (interval: 1 minute, max concurrency: ${MAX_CONCURRENT_AUTOMATIONS}, America/Bogota timezone aware)...`);
   
   // Limpiar cualquier tarea zombie previa que haya quedado en 'running' por reinicio del contenedor
   setTimeout(async () => {

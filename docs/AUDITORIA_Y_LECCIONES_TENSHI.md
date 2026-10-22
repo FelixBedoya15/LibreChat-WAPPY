@@ -766,3 +766,13 @@ Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el 
 
 
 
+
+### LECCIÓN 29 (2026-10-22): "Automatizaciones IA" ahora se llama "Tareas" y sale del Centro de Control
+
+- **Nuevo nombre:** *Tareas* (alias aceptados: "automatizaciones", "automatizaciones IA", "tareas programadas", "tareas automáticas").
+- **Nueva ubicación:** botón propio en el menú lateral, justo **debajo de "Centro de Control SST"**. Ruta `/tareas` (lista) y `/tareas?tab=historial` (historial de corridas). El Centro de Control queda con *Acciones ACPM*, *Memoria Procedural* y *Sub-Usuarios*.
+- **Acceso:** EXCLUSIVO para Administradores y cuentas principales Wappy Pro (`canAccessTareas` en `planAccess.ts` + middleware 403 en `routes/sgsst/automatizaciones.js`). Vital, sub-usuarios y otros planes no ven el botón ni pueden usar la API.
+- **Compatibilidad:** `/sgsst/automatizaciones`, `/sgsst/control?tab=automatizaciones|ia|agentes|historial|logs` y `/sgsst?tab=automatizaciones` redirigen a `/tareas`.
+- **Tenshi:** el nombre técnico de la herramienta **NO cambia** (`gestor_automatizaciones`). Se actualizaron descripciones en `tenshi.js`, `voiceSession.js` (herramienta, lista de módulos de `wappy_navegar`, descripción del módulo actual y failsafe de voz "abre tareas/automatizaciones"), `GestorAutomatizaciones.js`, `manifest.json`, `syncAgents.js`, `restore-and-sync-all.js` y la skill `skill-automatizaciones-agentes.md`. Frontend: `WAPPY_NAV_MAP` con claves `tareas`, `tareas_programadas`, `automatizaciones`, `historial_tareas`, etc.
+- **Failsafe de voz:** "tareas" solo navega a `/tareas` si la frase NO menciona cronograma, ACPM, Kanban, control o tareas críticas (esas siguen yendo al Centro de Control).
+- **RAM del VPS:** `automationScheduler.js` ahora aplica un tope GLOBAL de agentes simultáneos (`AUTOMATION_MAX_CONCURRENCY`, por defecto 2) — antes cada tick de 1 min podía abrir un nuevo pool de 4 sin contar los que seguían corriendo —, evita ticks solapados y usa consultas `.lean()` con proyección.

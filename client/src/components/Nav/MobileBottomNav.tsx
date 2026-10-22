@@ -123,8 +123,7 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
 
   const isSSTActive =
     (location.pathname.startsWith('/sgsst') || location.pathname.startsWith('/huella-biocentrica')) &&
-    !location.pathname.startsWith('/sgsst/control') &&
-    !location.pathname.startsWith('/sgsst/automatizaciones');
+    !location.pathname.startsWith('/sgsst/control');
 
   const handleNewChat = () => {
     window.dispatchEvent(new CustomEvent('tenshi-exit-mobile-hero'));

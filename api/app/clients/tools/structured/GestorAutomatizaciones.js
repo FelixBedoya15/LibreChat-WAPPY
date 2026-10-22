@@ -10,7 +10,7 @@ class GestorAutomatizaciones extends Tool {
     super();
     this.name = 'gestor_automatizaciones';
     this.description =
-      'Permite al agente crear, listar, consultar, actualizar, activar/pausar, ejecutar de inmediato o eliminar automatizaciones de tareas periódicas en el sistema de WAPPY (/sgsst/automatizaciones). Úsala cuando el usuario te pida programar recordatorios, inspecciones, auditorías o tareas autónomas periódicas que deban ejecutarse en segundo plano.';
+      'Permite al agente crear, listar, consultar, actualizar, activar/pausar, ejecutar de inmediato o eliminar TAREAS programadas (antes llamadas "Automatizaciones IA") en WAPPY. Se ven en la sección "Tareas" del menú lateral, justo debajo de "Centro de Control SST" (ruta /tareas; historial en /tareas?tab=historial). Úsala cuando el usuario te pida programar recordatorios, inspecciones, auditorías o tareas autónomas periódicas que deban ejecutarse en segundo plano.';
     this.req = fields.req;
     this.schema = z.object({
       accion: z.enum(['crear', 'listar', 'actualizar', 'eliminar', 'ejecutar_ahora', 'ver_logs']).describe('Acción a realizar: "crear" para nueva tarea, "listar" para ver las tareas actuales, "actualizar" para modificar o pausar/activar, "eliminar" para borrar, "ejecutar_ahora" para forzar ejecución manual en segundo plano, "ver_logs" para ver historial de ejecuciones.'),

@@ -18,6 +18,26 @@ router.use((req, res, next) => {
   next();
 });
 
+// Tareas (antes "Automatizaciones IA"): EXCLUSIVO para Administradores y cuentas Wappy Pro
+router.use(async (req, res, next) => {
+  try {
+    const role = req.user?.role;
+    if (role === 'ADMIN' || role === 'USER_PRO' || role === 'PRO') {
+      return next();
+    }
+    const userPlanDoc = await UserPlan.findOne({ userId: req.user?.id }).select('plan').lean();
+    if (['pro', 'admin'].includes(userPlanDoc?.plan)) {
+      return next();
+    }
+    return res.status(403).json({
+      error: 'La sección Tareas (automatizaciones de agentes IA) es exclusiva para Administradores y cuentas Wappy Pro.',
+    });
+  } catch (err) {
+    console.error('[API Automatizaciones] Error verificando plan:', err);
+    return res.status(500).json({ error: 'No fue posible verificar el plan del usuario.' });
+  }
+});
+
 // Auxiliar para obtener el ID de la empresa activa del usuario
 async function getActiveCompanyId(userId) {
   let active = await CompanyInfo.findOne({ user: userId, isActive: true });
@@ -64,14 +84,15 @@ router.get('/', async (req, res) => {
       return res.json([]);
     }
 
-    // Auto-recuperar tareas bloqueadas en 'running' por más de 3 minutos
-    const threeMinAgo = new Date(Date.now() - 3 * 60 * 1000);
+    // Auto-recuperar tareas bloqueadas en 'running' por más de 10 minutos
+    // (alineado con el timeout de 8-10 min del scheduler; antes 3 min marcaba como fallidas corridas aún activas)
+    const staleRunningCutoff = new Date(Date.now() - 10 * 60 * 1000);
     await Automation.updateMany(
-      { companyId, lastRunStatus: 'running', updatedAt: { $lt: threeMinAgo } },
+      { companyId, lastRunStatus: 'running', updatedAt: { $lt: staleRunningCutoff } },
       { $set: { lastRunStatus: 'failed', lastRunResult: 'Tiempo de ejecución límite agotado.' } }
     );
 
-    const automations = await Automation.find({ companyId }).sort({ createdAt: -1 });
+    const automations = await Automation.find({ companyId }).sort({ createdAt: -1 }).lean();
     res.json(automations);
   } catch (error) {
     console.error('[API Automatizaciones] Error listing:', error);
@@ -283,15 +304,16 @@ router.get('/logs', async (req, res) => {
     }
 
     // Auto-recuperar logs bloqueados en 'running' por más de 3 minutos
-    const threeMinAgo = new Date(Date.now() - 3 * 60 * 1000);
+    const staleRunningCutoff = new Date(Date.now() - 10 * 60 * 1000);
     await AutomationLog.updateMany(
-      { companyId, status: 'running', createdAt: { $lt: threeMinAgo } },
+      { companyId, status: 'running', createdAt: { $lt: staleRunningCutoff } },
       { $set: { status: 'failed', error: 'Tiempo de ejecución límite superado.' } }
     );
 
     const logs = await AutomationLog.find({ companyId })
       .sort({ runAt: -1 })
-      .limit(50); // Capped a las últimas 50 corridas
+      .limit(50) // Capped a las últimas 50 corridas
+      .lean();
     res.json(logs);
   } catch (error) {
     console.error('[API Automatizaciones Logs] Error listing logs:', error);

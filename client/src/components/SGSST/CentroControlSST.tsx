@@ -1,22 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams, Navigate } from 'react-router-dom';
 import { 
   Trello, 
-  Clock, 
   LayoutDashboard,
-  Cpu,
   Layers,
   Users,
   Brain
 } from 'lucide-react';
 import KanbanDashboard from '~/components/Kanban/KanbanDashboard';
-import Automatizaciones from '~/components/SGSST/Automatizaciones';
 import MemoriaProceduralPanel from '~/components/SGSST/MemoriaProceduralPanel';
 import SubUserManagerModal from '~/components/SGSST/SubUserManagerModal';
 import { useAuthContext } from '~/hooks';
 import { isVitalUser } from '~/utils/planAccess';
 
-export type CentroControlTab = 'acpm' | 'automatizaciones' | 'historial' | 'memoria';
+// Nota: 'Automatizaciones IA' e 'Historial & Reportes' se movieron a la sección independiente
+// "Tareas" (/tareas), ubicada en el menú lateral debajo de "Centro de Control SST".
+export type CentroControlTab = 'acpm' | 'memoria';
 
 export default function CentroControlSST() {
   const { user } = useAuthContext();
@@ -31,23 +30,25 @@ export default function CentroControlSST() {
       return 'acpm';
     }
     const tabParam = searchParams.get('tab');
-    if (tabParam === 'automatizaciones' || tabParam === 'ia' || tabParam === 'agentes') {
-      return 'automatizaciones';
-    }
-    if (tabParam === 'historial' || tabParam === 'logs') {
-      return 'historial';
-    }
     if (tabParam === 'memoria' || tabParam === 'procedural') {
       return 'memoria';
     }
     if (tabParam === 'acpm' || tabParam === 'kanban') {
       return 'acpm';
     }
-    if (location.pathname.includes('/automatizaciones')) {
-      return 'automatizaciones';
-    }
     return 'acpm';
   };
+
+  // Enlaces antiguos a Automatizaciones / Historial ahora viven en /tareas
+  const legacyTab = searchParams.get('tab');
+  const legacyTareasRoute =
+    legacyTab === 'automatizaciones' || legacyTab === 'ia' || legacyTab === 'agentes'
+      ? '/tareas'
+      : legacyTab === 'historial' || legacyTab === 'logs'
+        ? '/tareas?tab=historial'
+        : location.pathname.includes('/automatizaciones')
+          ? '/tareas'
+          : null;
 
   const [activeTab, setActiveTab] = useState<CentroControlTab>(getInitialTab);
 
@@ -62,6 +63,10 @@ export default function CentroControlSST() {
     setActiveTab(tab);
     setSearchParams({ tab });
   };
+
+  if (legacyTareasRoute && !isVital) {
+    return <Navigate to={legacyTareasRoute} replace={true} />;
+  }
 
   return (
     <div className="flex-1 flex flex-col bg-surface-secondary/30 min-h-screen h-auto overflow-y-auto pb-12">
@@ -80,7 +85,7 @@ export default function CentroControlSST() {
               Centro de Control SST
             </h1>
             <p className="text-xs text-text-secondary mt-1">
-              Gestión unificada de acciones correctivas (ACPM), control predictivo de vencimientos y vigilancia autónoma con agentes de IA.
+              Gestión unificada de acciones correctivas (ACPM), control predictivo de vencimientos y memoria procedural de agentes IA. Las tareas programadas de agentes ahora están en «Tareas».
             </p>
           </div>
 
@@ -100,30 +105,6 @@ export default function CentroControlSST() {
 
             {!isVital && (
               <>
-                <button
-                  onClick={() => handleTabChange('automatizaciones')}
-                  className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
-                    activeTab === 'automatizaciones'
-                      ? 'bg-white dark:bg-gray-900 text-purple-600 dark:text-purple-400 shadow-sm border border-border-medium/40'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-white/40 dark:hover:bg-gray-700/40'
-                  }`}
-                >
-                  <Cpu className="w-4 h-4 text-purple-500" />
-                  <span>Automatizaciones IA</span>
-                </button>
-
-                <button
-                  onClick={() => handleTabChange('historial')}
-                  className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
-                    activeTab === 'historial'
-                      ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm border border-border-medium/40'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-white/40 dark:hover:bg-gray-700/40'
-                  }`}
-                >
-                  <Clock className="w-4 h-4 text-indigo-500" />
-                  <span>Historial & Reportes</span>
-                </button>
-
                 <button
                   onClick={() => handleTabChange('memoria')}
                   className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
@@ -156,18 +137,6 @@ export default function CentroControlSST() {
         {activeTab === 'acpm' && (
           <div className="flex-1 flex flex-col animate-in fade-in duration-200">
             <KanbanDashboard inline={false} hideMainHeader={true} />
-          </div>
-        )}
-
-        {!isVital && activeTab === 'automatizaciones' && (
-          <div className="flex-1 flex flex-col animate-in fade-in duration-200">
-            <Automatizaciones hideMainHeader={true} defaultTab="list" />
-          </div>
-        )}
-
-        {!isVital && activeTab === 'historial' && (
-          <div className="flex-1 flex flex-col animate-in fade-in duration-200">
-            <Automatizaciones hideMainHeader={true} defaultTab="logs" />
           </div>
         )}
 

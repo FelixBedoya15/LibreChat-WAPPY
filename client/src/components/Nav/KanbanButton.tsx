@@ -20,7 +20,7 @@ const KanbanButton = ({
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuthContext();
-  const isActive = location.pathname.startsWith('/kanban') || location.pathname.startsWith('/control') || location.pathname.startsWith('/sgsst/automatizaciones');
+  const isActive = location.pathname.startsWith('/kanban') || location.pathname.startsWith('/control') || location.pathname.startsWith('/sgsst/control');
   const isProOrAdmin = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || user?.role === 'USER_IPEVAR' || user?.role === 'IPEVAR' || Boolean(user?.isSubUser);
   const isLocked = !isProOrAdmin;
 

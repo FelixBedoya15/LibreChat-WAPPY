@@ -34,6 +34,8 @@ import BlogButton from './BlogButton';
 import AuditoriaButton from './AuditoriaButton';
 import BookmarkNav from './Bookmarks/BookmarkNav';
 import KanbanButton from './KanbanButton';
+import TareasButton from './TareasButton';
+import { canAccessTareas } from '~/utils/planAccess';
 import ChatSSTButton from './ChatSSTButton';
 import EventsMeetButton from './EventsMeetButton';
 import AmbassadorsButton from './AmbassadorsButton';
@@ -114,6 +116,9 @@ const Nav = memo(
 
     // Centro de Control / Kanban
     const hasAccessToKanban = !isSubUser || subPerms.includes('kanban:acpm') || subPerms.includes('audit:checklist') || subPerms.includes('events:calendar');
+
+    // Tareas (antes "Automatizaciones IA" del Centro de Control): SOLO Admin y Wappy Pro
+    const hasAccessToTareas = canAccessTareas(user);
 
     // LMS / Academia WAPPY (disponible para usuarios regulares y subusuarios operativos con LMS o SST)
     const hasAccessToLMS = !isSubUser || subPerms.includes('lms:aula_estudio') || subPerms.includes('lms:ruta_aprendizaje') || subPerms.includes('community:blog') || subPerms.some(p => p.startsWith('sgsst:'));
@@ -323,6 +328,12 @@ const Nav = memo(
                             <KanbanButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
                         )}
+                        {/* Tareas (antes Automatizaciones IA) */}
+                        {hasAccessToTareas && (
+                          <Suspense fallback={null}>
+                            <TareasButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                          </Suspense>
+                        )}
                         {/* Aula Estudio / Academia WAPPY */}
                         {hasAccessToLMS && (
                           <Suspense fallback={null}>
@@ -394,6 +405,13 @@ const Nav = memo(
                                 {hasAccessToKanban && (
                                   <Suspense fallback={null}>
                                     <KanbanButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                  </Suspense>
+                                )}
+
+                                {/* 3. Tareas (antes Automatizaciones IA del Centro de Control) */}
+                                {hasAccessToTareas && (
+                                  <Suspense fallback={null}>
+                                    <TareasButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>
                                 )}
 

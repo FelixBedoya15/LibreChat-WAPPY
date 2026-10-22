@@ -72,6 +72,7 @@ const ChatSSTView = lazy(() => import('~/components/ChatSST/ChatSSTView'));
 const EventsMeetAdminDashboard = lazy(() => import('~/components/EventsMeet/EventsMeetAdminDashboard'));
 const AuditoriaDashboard = lazy(() => import('~/components/Auditoria/AuditoriaDashboard'));
 const CentroControlSST = lazy(() => import('~/components/SGSST/CentroControlSST'));
+const TareasPage = lazy(() => import('~/components/SGSST/TareasPage'));
 const AcademiaDashboard = lazy(() => import('~/components/Academia/AcademiaDashboard'));
 const MarketplaceDashboard = lazy(() => import('~/components/Marketplace/MarketplaceDashboard'));
 const PlansPage = lazy(() => import('~/components/Plans/PlansPage'));
@@ -683,8 +684,9 @@ export const router = createBrowserRouter(
               element: withSuspense(<MoodAnalyticsDashboard />),
             },
             {
+              /* Antigua ruta de Automatizaciones: ahora es la sección "Tareas" */
               path: 'sgsst/automatizaciones',
-              element: withSuspense(<CentroControlSST />),
+              element: <Navigate to="/tareas" replace={true} />,
             },
             {
               /* Redirect old GTC-45 workspace URLs to the equivalent native chat */
@@ -799,6 +801,11 @@ export const router = createBrowserRouter(
             {
               path: 'sgsst/control',
               element: withSuspense(<CentroControlSST />),
+            },
+            {
+              /* Tareas (antes "Automatizaciones IA" del Centro de Control) */
+              path: 'tareas',
+              element: withSuspense(<TareasPage />),
             },
             {
               path: 'embajadores/dashboard',

@@ -351,7 +351,7 @@
   {
     "name": "Gestor de Automatizaciones",
     "pluginKey": "gestor_automatizaciones",
-    "description": "Permite al agente programar, listar, editar, pausar, activar y ejecutar tareas autónomas periódicas en el sistema de Automatizaciones de Wappy (/sgsst/automatizaciones).",
+    "description": "Permite al agente programar, listar, editar, pausar, activar y ejecutar tareas autónomas periódicas en la sección Tareas de Wappy (antes Automatizaciones), ubicada debajo de Centro de Control SST (/tareas).",
     "icon": "https://cdn-icons-png.flaticon.com/512/2040/2040946.png",
     "authConfig": []
   },

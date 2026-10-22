@@ -1,6 +1,6 @@
 ---
 name: skill-automatizaciones-agentes
-description: Guía experta para que los agentes utilicen la herramienta gestor_automatizaciones cuando el usuario solicite crear, programar, listar, pausar o ejecutar tareas autónomas periódicas en WAPPY (/sgsst/automatizaciones).
+description: Guía experta para que los agentes utilicen la herramienta gestor_automatizaciones cuando el usuario solicite crear, programar, listar, pausar o ejecutar tareas autónomas periódicas en WAPPY (sección "Tareas", antes "Automatizaciones"; ruta /tareas).
 scope: all
 tools:
   - gestor_automatizaciones
@@ -21,11 +21,18 @@ triggers:
   - automatizar inspección
   - automatizaciones
   - tareas programadas
+  - tareas
+  - seccion tareas
+  - sección tareas
 ---
 
 # Skill: Gestor de Automatizaciones de Agentes (`gestor_automatizaciones`)
 
-Esta skill instruye a los agentes de WAPPY sobre cómo utilizar la herramienta `gestor_automatizaciones` para programar y ejecutar tareas 100% autónomas en segundo plano en el aplicativo `/sgsst/automatizaciones`.
+Esta skill instruye a los agentes de WAPPY sobre cómo utilizar la herramienta `gestor_automatizaciones` para programar y ejecutar tareas 100% autónomas en segundo plano en el aplicativo **Tareas** (`/tareas`).
+
+> **Nuevo nombre y ubicación:** lo que antes se llamaba *Automatizaciones* / *Automatizaciones IA* (pestaña dentro del Centro de Control) ahora se llama **Tareas** y tiene su propio botón en el menú lateral, justo **debajo de "Centro de Control SST"**. El historial de corridas está en `/tareas?tab=historial`. La herramienta conserva su nombre técnico `gestor_automatizaciones`. Cuando hables con el usuario, llámalas "Tareas" (puedes aclarar "antes Automatizaciones").
+>
+> **Acceso:** exclusivo para **Administradores** y cuentas **Wappy Pro**. Wappy Vital, sub-usuarios y otros planes no tienen esta sección; invítalos a `/planes`.
 
 ---
 

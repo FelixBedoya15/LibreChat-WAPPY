@@ -5,7 +5,7 @@ description: Guía de uso, acciones y estructura de la herramienta gestor_automa
 
 # Skill: Herramienta Gestor de Automatizaciones (`gestor_automatizaciones`)
 
-Esta herramienta permite a los agentes de WAPPY interactuar con el módulo de automatizaciones del sistema (`/sgsst/automatizaciones`).
+Esta herramienta permite a los agentes de WAPPY interactuar con el módulo **Tareas** del sistema (antes "Automatizaciones IA"; ruta `/tareas`, historial en `/tareas?tab=historial`). Ya no es una pestaña del Centro de Control: tiene botón propio en el menú lateral debajo de "Centro de Control SST". Las rutas viejas (`/sgsst/automatizaciones`, `/sgsst/control?tab=automatizaciones`) redirigen a `/tareas`. **Acceso exclusivo: Administradores y cuentas Wappy Pro** (frontend `canAccessTareas` en `client/src/utils/planAccess.ts` y middleware en `api/server/routes/sgsst/automatizaciones.js`).
 
 ## Acciones Soportadas
 

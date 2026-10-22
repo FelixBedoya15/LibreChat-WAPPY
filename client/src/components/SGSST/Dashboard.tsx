@@ -336,7 +336,7 @@ export default function SGSSTDashboard() {
             return;
         }
         if (tabParam === 'automatizaciones' || tabParam === 'ia' || tabParam === 'agentes') {
-            navigate('/sgsst/control?tab=automatizaciones', { replace: true });
+            navigate('/tareas', { replace: true });
             return;
         }
 

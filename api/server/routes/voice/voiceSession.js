@@ -372,6 +372,9 @@ function formatScreenRouteHuman(route, agent) {
     if (r.includes('estadisticas')) {
         return 'Módulo: Indicadores y Estadísticas de Siniestralidad y Ausentismo (Hito 7)';
     }
+    if (r.includes('/tareas') || r.includes('automatizaciones')) {
+        return 'Módulo: Tareas (tareas programadas de agentes IA, antes Automatizaciones IA)';
+    }
     if (r.includes('control_acpm') || r.includes('/control')) {
         return 'Módulo: Centro de Control de Acciones Correctivas y Preventivas ACPM (Kanban)';
     }
@@ -507,7 +510,7 @@ class VoiceSession {
                                 properties: {
                                     modulo: {
                                         type: "string",
-                                        description: "Nombre clave del módulo, hito o aplicativo. Hitos 1 al 8: 'contexto_organizacion' (DOFA y partes interesadas), 'diagnostico' (0312), 'responsable', 'politica', 'objetivos', 'legal', 'rhs', 'rit', 'participacion_ipevar', 'matriz_ipevar_oficial', 'matriz_pesv_oficial', 'matriz_compatibilidad_oficial', 'oportunidades_sst', 'vulnerabilidad', 'plan_emergencias', 'perfil_cargo', 'perfil_socio', 'condiciones_salud', 'oraculo_predictivo', 'copasst', 'cocolab', 'comite_pesv', 'brigada_emergencias', 'peligros', 'metodo_owas', 'estudio_puesto', 'animo', 'compras_sst', 'contratistas_proveedores', 'gestion_cambio', 'analisis_trabajo_seguro', 'permiso_alturas', 'heights_lifecycle', 'epp_delivery', 'chemical_registry', 'vehicles_pesv', 'equipos_emergencia', 'comunicaciones_sst', 'capacitaciones', 'ruta_aprendizaje', 'reporte_actos', 'simulacros_emergencia', 'app_builder', 'estadisticas', 'investigacion_atel', 'control_acpm', 'auditoria', 'alta_direccion', 'investigacion_profunda', 'predictivo'. Aplicativos y Dashboards: 'sgsst', 'planes' (/planes planes de suscripción), 'academia' (/academia?tab=cursos), 'training_admin', 'rutas' (/academia?tab=rutas), 'ruta_admin', 'blog' (/academia?tab=blog), 'blog_admin', 'clases_en_vivo' (/academia?tab=meet clases en vivo de la academia), 'events_meet', 'events_meet_admin', 'marketplace' (/marketplace o /tienda tienda productos SST), 'tienda', 'marketplace_admin', 'agents' (/agents catálogo agentes IA), 'control' (/sgsst/control Centro de Control / Kanban de actividades), 'animo_dashboard', 'empresas' (/sgsst?modal=empresas donde van las empresas registradas), 'empresas_registradas', 'configuracion' (sección de configuración y ajustes del usuario), 'settings', 'live' (/c/new), 'chat_sst', 'regresar' (para volver al chat desde planes/términos/privacidad/about), 'volver', 'roadmap', 'contactanos', 'comunidad', 'matriz', 'embajadores', 'embajadores_dashboard', 'tenshi_admin', 'search', 'privacy' (/privacy política de privacidad), 'terms' (/terms términos de servicio), 'about' (/about acerca de nosotros). Portales públicos: 'public_reportar', 'public_animo', 'public_estudio_puesto', 'public_ipevar', 'public_alta_direccion', 'public_atel', 'public_colaborador', 'public_comites', 'public_convivencia', 'public_votaciones', 'public_inspecciones', 'public_brigadistas'."
+                                        description: "Nombre clave del módulo, hito o aplicativo. Hitos 1 al 8: 'contexto_organizacion' (DOFA y partes interesadas), 'diagnostico' (0312), 'responsable', 'politica', 'objetivos', 'legal', 'rhs', 'rit', 'participacion_ipevar', 'matriz_ipevar_oficial', 'matriz_pesv_oficial', 'matriz_compatibilidad_oficial', 'oportunidades_sst', 'vulnerabilidad', 'plan_emergencias', 'perfil_cargo', 'perfil_socio', 'condiciones_salud', 'oraculo_predictivo', 'copasst', 'cocolab', 'comite_pesv', 'brigada_emergencias', 'peligros', 'metodo_owas', 'estudio_puesto', 'animo', 'compras_sst', 'contratistas_proveedores', 'gestion_cambio', 'analisis_trabajo_seguro', 'permiso_alturas', 'heights_lifecycle', 'epp_delivery', 'chemical_registry', 'vehicles_pesv', 'equipos_emergencia', 'comunicaciones_sst', 'capacitaciones', 'ruta_aprendizaje', 'reporte_actos', 'simulacros_emergencia', 'app_builder', 'estadisticas', 'investigacion_atel', 'control_acpm', 'auditoria', 'alta_direccion', 'investigacion_profunda', 'predictivo'. Aplicativos y Dashboards: 'sgsst', 'planes' (/planes planes de suscripción), 'academia' (/academia?tab=cursos), 'training_admin', 'rutas' (/academia?tab=rutas), 'ruta_admin', 'blog' (/academia?tab=blog), 'blog_admin', 'clases_en_vivo' (/academia?tab=meet clases en vivo de la academia), 'events_meet', 'events_meet_admin', 'marketplace' (/marketplace o /tienda tienda productos SST), 'tienda', 'marketplace_admin', 'agents' (/agents catálogo agentes IA), 'control' (/sgsst/control Centro de Control / Kanban de actividades ACPM), 'tareas' (/tareas: sección 'Tareas' debajo de Centro de Control; tareas programadas de agentes IA, antes 'Automatizaciones'; alias 'automatizaciones'), 'historial_tareas' (/tareas?tab=historial), 'animo_dashboard', 'empresas' (/sgsst?modal=empresas donde van las empresas registradas), 'empresas_registradas', 'configuracion' (sección de configuración y ajustes del usuario), 'settings', 'live' (/c/new), 'chat_sst', 'regresar' (para volver al chat desde planes/términos/privacidad/about), 'volver', 'roadmap', 'contactanos', 'comunidad', 'matriz', 'embajadores', 'embajadores_dashboard', 'tenshi_admin', 'search', 'privacy' (/privacy política de privacidad), 'terms' (/terms términos de servicio), 'about' (/about acerca de nosotros). Portales públicos: 'public_reportar', 'public_animo', 'public_estudio_puesto', 'public_ipevar', 'public_alta_direccion', 'public_atel', 'public_colaborador', 'public_comites', 'public_convivencia', 'public_votaciones', 'public_inspecciones', 'public_brigadistas'."
                                     },
                                     ruta: {
                                         type: "string",
@@ -1290,7 +1293,7 @@ class VoiceSession {
                         },
                         {
                             name: "gestor_automatizaciones",
-                            description: "Crea, lista, actualiza, ejecuta o elimina automatizaciones de tareas periódicas en segundo plano (/sgsst/automatizaciones).",
+                            description: "Crea, lista, actualiza, ejecuta o elimina TAREAS programadas (antes llamadas 'Automatizaciones IA'): tareas periódicas autónomas de agentes en segundo plano. Se visualizan en la sección 'Tareas' del menú lateral, justo debajo de 'Centro de Control SST' (ruta /tareas; historial de corridas en /tareas?tab=historial).",
                             parameters: {
                                 type: "object",
                                 properties: {
@@ -2291,7 +2294,7 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
    - Hito 6 (Cultura, Escuela e Innovación): 'comunicaciones_sst' (plan y matriz de comunicaciones), 'capacitaciones' (PAC), 'ruta_aprendizaje' (LMS), 'reporte_actos', 'simulacros_emergencia', 'app_builder'.
    - Hito 7 (Auditoría, Causalidad y Mejora Continua): 'estadisticas' (ATEL / ausentismo), 'investigacion_atel', 'control_acpm' (Kanban), 'auditoria', 'alta_direccion' (revisión gerencial), 'investigacion_profunda'.
    - Hito 8 (Inteligencia Artificial & Oráculo Predictivo): 'predictivo' (oráculo estocástico, siniestralidad predictiva).
-   - Aplicativos y Dashboards: 'academia' (/academia?tab=cursos), 'training_admin', 'rutas' (/academia?tab=rutas), 'ruta_admin', 'events_meet', 'events_meet_admin', 'blog', 'blog_admin', 'marketplace' (/marketplace tienda productos SST), 'marketplace_admin', 'agents' (/agents catálogo especialistas IA), 'control' (Centro de Control / Kanban), 'animo_dashboard' (/sgsst/animo), 'planes', 'auditoria' (/auditoria), 'live' (/c/new), 'chat_sst', 'roadmap' (/hoja-de-ruta), 'contactanos', 'comunidad', 'matriz', 'embajadores', 'embajadores_dashboard', 'tenshi_admin', 'search', 'privacy', 'terms', 'about'.
+   - Aplicativos y Dashboards: 'academia' (/academia?tab=cursos), 'training_admin', 'rutas' (/academia?tab=rutas), 'ruta_admin', 'events_meet', 'events_meet_admin', 'blog', 'blog_admin', 'marketplace' (/marketplace tienda productos SST), 'marketplace_admin', 'agents' (/agents catálogo especialistas IA), 'control' (Centro de Control / Kanban ACPM), 'tareas' (/tareas — sección 'Tareas' del menú lateral, debajo de Centro de Control; antes 'Automatizaciones IA'; alias 'automatizaciones'), 'historial_tareas' (/tareas?tab=historial), 'animo_dashboard' (/sgsst/animo), 'planes', 'auditoria' (/auditoria), 'live' (/c/new), 'chat_sst', 'roadmap' (/hoja-de-ruta), 'contactanos', 'comunidad', 'matriz', 'embajadores', 'embajadores_dashboard', 'tenshi_admin', 'search', 'privacy', 'terms', 'about'.
    - Portales públicos del trabajador: 'public_reportar', 'public_animo', 'public_estudio_puesto', 'public_ipevar', 'public_alta_direccion', 'public_atel', 'public_colaborador', 'public_comites', 'public_convivencia', 'public_votaciones', 'public_inspecciones', 'public_brigadistas'.
    - INVÓCALA DE INMEDIATO siempre que el usuario mencione ir, abrir, consultar o ver cualquier hito, módulo o sección.
 4. **ORQUESTACIÓN TOTAL DESDE TENSHI (INFORMES DEL HISTORIAL, CORREOS, AGENDAS Y ESPECIALISTAS)**:
@@ -2403,7 +2406,8 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
    - 'matriz_pesv': Evalúa y gestiona riesgos viales del Plan Estratégico de Seguridad Vial (Res. 20223040040595).
    - 'matriz_compatibilidad': Gestiona el inventario químico, fichas FDS y reglas de almacenamiento seguro SGA.
 11. **gestor_automatizaciones**:
-   - Programa, lista, pausa o ejecuta tareas periódicas autónomas en segundo plano (/sgsst/automatizaciones).
+   - Programa, lista, pausa o ejecuta tareas periódicas autónomas en segundo plano.
+   - NUEVO NOMBRE Y UBICACIÓN: lo que antes se llamaba 'Automatizaciones' / 'Automatizaciones IA' ahora se llama **'Tareas'** y ya NO está dentro del Centro de Control: tiene su propio botón en el menú lateral, justo debajo de 'Centro de Control SST' (ruta /tareas, historial en /tareas?tab=historial). Si el usuario dice 'automatizaciones', 'tareas programadas' o 'tareas', se refiere a lo mismo. Para abrirla usa wappy_navegar con modulo 'tareas'. ACCESO: exclusivo para Administradores y cuentas Wappy Pro (no Vital ni sub-usuarios); si el usuario no tiene ese plan, explícale con amabilidad que debe adquirir Wappy Pro (/planes).
 12. **OFIMÁTICA EN LA NUBE (Google Workspace & Microsoft 365)**:
    - 'google_sheets': Crea, lee y formatea hojas de cálculo.
    - 'google_docs': Redacta y lee documentos Google Docs.
@@ -8446,7 +8450,11 @@ ${workerSubHeaderHtml}
             let targetModulo = null;
             let targetRuta = null;
 
-            if (/admin.*curso|gesti[oó]n.*curso|administrar curso/i.test(userLower)) {
+            if (/automatizaci[oó]n|automatizaciones/i.test(userLower) || (/\btareas\b/i.test(userLower) && !/cronograma|acpm|kanban|cr[ií]ticas?|control/i.test(userLower))) {
+                // Sección 'Tareas' (antes 'Automatizaciones IA'), debajo de Centro de Control
+                targetModulo = 'tareas';
+                targetRuta = /historial|reportes|corridas|logs/i.test(userLower) ? '/tareas?tab=historial' : '/tareas';
+            } else if (/admin.*curso|gesti[oó]n.*curso|administrar curso/i.test(userLower)) {
                 targetModulo = 'training_admin';
                 targetRuta = '/training/admin';
             } else if (/admin.*ruta|administrar ruta/i.test(userLower)) {

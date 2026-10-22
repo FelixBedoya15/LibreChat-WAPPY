@@ -58,7 +58,7 @@ export const hasActivePlan = (user: any): boolean => {
  *  - Acceso a toda la plataforma excepto "Somos SST" (los 8 hitos).
  *  - En su lugar ve "Huella Biocéntrica" (Hito 2 + Matriz Bio-IPEVR del Hito 4).
  *  - Sin pestaña "Plan Empresa" en la Academia.
- *  - Sin Automatizaciones IA ni su Historial & Reportes en el Centro de Control.
+ *  - Sin la sección Tareas (antes Automatizaciones IA y su Historial & Reportes).
  *  - Portal público del trabajador: solo formulario QR de Perfil Sociodemográfico.
  */
 export const isVitalUser = (user: any): boolean => {
@@ -78,4 +78,17 @@ export const isProUser = (user: any): boolean => {
   if (!user) return false;
   if (user.role === 'ADMIN') return false;
   return user.role === 'USER_PRO' || user.role === 'PRO';
+};
+
+/**
+ * Sección "Tareas" (antes "Automatizaciones IA"): EXCLUSIVA para Administradores (ADMIN)
+ * y cuentas principales Wappy Pro (USER_PRO / PRO / plan 'pro').
+ * No disponible para Wappy Vital, sub-usuarios ni otros planes.
+ */
+export const canAccessTareas = (user: any): boolean => {
+  if (!user) return false;
+  if (user.role === 'ADMIN') return true;
+  if (user.isSubUser) return false;
+  if (isVitalUser(user)) return false;
+  return isProUser(user) || user.plan === 'pro';
 };

@@ -232,6 +232,10 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     if (!hasRunning) return;
 
     const interval = setInterval(async () => {
+      // No consultar el servidor si la pestaña del navegador no está visible
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        return;
+      }
       try {
         const res = await axios.get('/api/sgsst/automatizaciones');
         setAutomations(res.data || []);
@@ -240,7 +244,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
           setLogs(logsRes.data || []);
         }
       } catch (err) {}
-    }, 3000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [automations, logs, activeTab]);
@@ -575,10 +579,10 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
           <div>
             <h1 className="text-2xl font-extrabold flex items-center gap-2.5 bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400">
               <Cpu className="w-7 h-7 text-purple-500" />
-              Automatizaciones de Agentes
+              Tareas
             </h1>
             <p className="text-xs text-text-secondary mt-1">
-              Programación y control de tareas autónomas para tus agentes expertos de seguridad y salud en el trabajo.
+              Programación y control de tareas autónomas para tus agentes expertos de seguridad y salud en el trabajo (antes «Automatizaciones IA»).
             </p>
           </div>
         ) : (
@@ -621,13 +625,13 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
           <button
             onClick={handleCreateOpen}
             className="group flex items-center justify-center h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 shadow-lg shadow-purple-500/10 hover:shadow-purple-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
-            title="Nueva Automatización"
+            title="Nueva Tarea"
           >
             <div className="relative flex-shrink-0 flex items-center justify-center">
               <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-              <span className="text-xs sm:text-sm font-bold tracking-wide">Nueva Automatización</span>
+              <span className="text-xs sm:text-sm font-bold tracking-wide">Nueva Tarea</span>
             </div>
           </button>
         </div>
@@ -837,7 +841,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
               : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
           }`}
         >
-          Mis Automatizaciones
+          Mis Tareas
         </button>
         <button
           onClick={() => setActiveTab('logs')}
@@ -866,14 +870,14 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
           loading ? (
             <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-gray-900 border border-border-medium/30 rounded-3xl shadow-sm">
               <Loader2 className="w-10 h-10 text-purple-600 animate-spin mb-4" />
-              <p className="text-gray-500 dark:text-gray-400 text-sm">Cargando automatizaciones...</p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">Cargando tareas...</p>
             </div>
           ) : automations.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center bg-white dark:bg-gray-900 border border-border-medium/30 rounded-3xl shadow-sm p-8">
               <div className="p-4 bg-purple-50 dark:bg-purple-950/20 rounded-full text-purple-500 mb-4">
                 <Cpu className="w-10 h-10" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">No hay automatizaciones activas</h3>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">No hay tareas programadas</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm mb-6">
                 Las automatizaciones permiten que tus agentes ejecuten tareas de forma 100% autónoma en base a un calendario.
               </p>
@@ -881,7 +885,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                 onClick={handleCreateOpen}
                 className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-md transition duration-200 text-xs uppercase tracking-wider"
               >
-                Crear mi primera automatización
+                Crear mi primera tarea
               </button>
             </div>
           ) : (
@@ -1177,7 +1181,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
             {/* Header */}
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 px-6 py-4">
               <h2 className="text-sm font-extrabold text-gray-900 dark:text-white uppercase tracking-wider">
-                {editingAutomation ? 'Editar Automatización' : 'Nueva Automatización'}
+                {editingAutomation ? 'Editar Tarea' : 'Nueva Tarea'}
               </h2>
               <button 
                 onClick={() => setIsModalOpen(false)}
