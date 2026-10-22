@@ -575,7 +575,7 @@ const ParticipacionIPEVAR = () => {
     }, [token]);
 
     // Load previously saved data
-    React.useEffect(() => {
+    const loadParticipacionData = useCallback(() => {
         if (!token) return;
         fetch('/api/sgsst/participacion-ipevar/data', {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -585,11 +585,8 @@ const ParticipacionIPEVAR = () => {
                 if (data.inboxPublico) setInboxPublico(data.inboxPublico);
                 if (data.participacionesList?.length > 0) {
                     setParticipacionesList(data.participacionesList);
-                    setActiveId(data.participacionesList[0].id);
-                    setActiveParticipacion(data.participacionesList[0]);
-                    setGeneratedReport(data.participacionesList[0].report || null);
-                    editorContentRef.current = data.participacionesList[0].report || '';
-                    if (liveEditorRef.current) liveEditorRef.current.setHTML(data.participacionesList[0].report || '');
+                    setActiveId((prevId) => prevId || data.participacionesList[0].id);
+                    setActiveParticipacion((prevPart) => prevPart?.id ? prevPart : data.participacionesList[0]);
                 } else {
                     const initial = createInitialParticipacion();
                     setParticipacionesList([]);
@@ -599,6 +596,16 @@ const ParticipacionIPEVAR = () => {
             })
             .catch(err => console.error('Error fetching participacion ipevar data', err));
     }, [token]);
+
+    React.useEffect(() => {
+        loadParticipacionData();
+        window.addEventListener('wappy-reload-sgsst-data', loadParticipacionData);
+        window.addEventListener('ipevar-official-updated', loadParticipacionData);
+        return () => {
+            window.removeEventListener('wappy-reload-sgsst-data', loadParticipacionData);
+            window.removeEventListener('ipevar-official-updated', loadParticipacionData);
+        };
+    }, [loadParticipacionData]);
 
     const handleAddParticipacion = () => {
         const initial = createInitialParticipacion();

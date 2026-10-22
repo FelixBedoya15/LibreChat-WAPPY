@@ -467,11 +467,18 @@ router.post('/governance/:id/reject', requireJwtAuth, async (req, res) => {
 router.get('/procedural-memory', requireJwtAuth, async (req, res) => {
     try {
         const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
-        const habits = await TenshiProceduralMemory.find({ user: targetUserId })
+        const habits = await TenshiProceduralMemory.find({ user: targetUserId, isActive: true })
             .sort({ updatedAt: -1 })
             .limit(30)
             .lean();
-        res.json(habits);
+        res.json(habits.map((h) => ({
+            id: String(h._id),
+            _id: String(h._id),
+            category: h.category,
+            trigger: h.trigger,
+            rule: h.rule,
+            isActive: h.isActive,
+        })));
     } catch (error) {
         logger.error('[Tenshi Procedural Memory] Error listing habits:', error);
         res.status(500).json({ error: 'Error consultando memoria procedimental' });
@@ -491,7 +498,13 @@ router.post('/procedural-memory', requireJwtAuth, async (req, res) => {
             companyId,
             companyName
         );
-        res.json(out.result);
+        if (out.widget?.data?.items) {
+            await TenshiMessage.updateMany(
+                { user: { $in: [req.user.id, targetUserId].filter(Boolean) }, 'widget.widgetType': 'procedural_memory' },
+                { $set: { 'widget.data.items': out.widget.data.items, 'widget.data.habits': out.widget.data.items } }
+            ).catch(() => {});
+        }
+        res.json({ ...out.result, widget: out.widget });
     } catch (error) {
         logger.error('[Tenshi Procedural Memory] Error creating habit:', error);
         res.status(500).json({ error: error.message });
@@ -505,10 +518,272 @@ router.delete('/procedural-memory/:id', requireJwtAuth, async (req, res) => {
             _id: req.params.id,
             user: targetUserId,
         });
-        res.json({ success: Boolean(deleted), deleted });
+        const remaining = await TenshiProceduralMemory.find({ user: targetUserId, isActive: true })
+            .sort({ updatedAt: -1 })
+            .limit(30)
+            .lean();
+        const mappedRemaining = remaining.map((h) => ({
+            id: String(h._id),
+            _id: String(h._id),
+            category: h.category,
+            trigger: h.trigger,
+            rule: h.rule,
+            isActive: h.isActive,
+        }));
+        await TenshiMessage.updateMany(
+            { user: { $in: [req.user.id, targetUserId].filter(Boolean) }, 'widget.widgetType': 'procedural_memory' },
+            { $set: { 'widget.data.items': mappedRemaining, 'widget.data.habits': mappedRemaining } }
+        ).catch(() => {});
+        res.json({ success: Boolean(deleted), deleted, items: mappedRemaining });
     } catch (error) {
         logger.error('[Tenshi Procedural Memory] Error deleting habit:', error);
         res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * Helper unificado para guardar riesgos evaluados en:
+ * 1) La Matriz IPEVR Comunitaria del Hito 1 (ParticipacionIpevarData.participacionesList)
+ * 2) La Matriz IPEVR Oficial GTC-45 del Hito 1 (GTC45WorkspaceSession isOfficial: true)
+ */
+async function saveRisksToHito1Matrices(userId, companyInfo, rawRiesgos = []) {
+    const GTC45WorkspaceSession = mongoose.models.GTC45WorkspaceSession || require('../../models/GTC45WorkspaceSession');
+    let ParticipacionIpevarData = mongoose.models.ParticipacionIpevarData;
+    if (!ParticipacionIpevarData) {
+        try {
+            require('./sgsst/participacionIpevar');
+            ParticipacionIpevarData = mongoose.models.ParticipacionIpevarData;
+        } catch (_) {}
+    }
+
+    const companyId = companyInfo?._id || null;
+    const officialConvoId = `official-${companyId || userId}`;
+
+    // Buscar todas las sesiones oficiales activas de esta empresa para mantenerlas 100% sincronizadas
+    let officialSessions = await GTC45WorkspaceSession.find(
+        companyId
+            ? { $or: [{ user: userId, companyId, isOfficial: true }, { conversationId: officialConvoId }] }
+            : { $or: [{ user: userId, isOfficial: true }, { conversationId: officialConvoId }] }
+    );
+
+    if (!officialSessions || officialSessions.length === 0) {
+        const created = new GTC45WorkspaceSession({
+            conversationId: officialConvoId,
+            user: userId,
+            companyId: companyId || undefined,
+            isOfficial: true,
+            officialTitle: 'Matriz IPEVR SG-SST',
+            matrixRows: [],
+        });
+        officialSessions = [created];
+    }
+
+    let partDoc = null;
+    if (ParticipacionIpevarData) {
+        partDoc = await ParticipacionIpevarData.findOne({ user: userId, companyId });
+        if (!partDoc) {
+            partDoc = new ParticipacionIpevarData({
+                user: userId,
+                companyId,
+                participacionesList: [],
+                inboxPublico: [],
+            });
+        }
+    }
+
+    const nowIso = new Date().toISOString();
+    const todayStr = nowIso.split('T')[0];
+    let insertedCount = 0;
+
+    for (const r of rawRiesgos) {
+        const nd = Number(r.nd) >= 0 ? Number(r.nd) : 6;
+        const ne = Number(r.ne) >= 1 ? Number(r.ne) : 3;
+        const np = nd * ne;
+        const nc = Number(r.nc) >= 10 ? Number(r.nc) : 25;
+        const nr = np * nc;
+
+        const interpretacion_np = np >= 24 ? 'Muy Alto (MA)' : np >= 10 ? 'Alto (A)' : np >= 6 ? 'Medio (M)' : 'Bajo (B)';
+        const interpretacion_nr = nr >= 600 ? 'I' : nr >= 150 ? 'II' : nr >= 40 ? 'III' : 'IV';
+        const aceptabilidad =
+            interpretacion_nr === 'I'
+                ? 'No Aceptable'
+                : interpretacion_nr === 'II'
+                ? 'No Aceptable o Aceptable con control específico'
+                : interpretacion_nr === 'III'
+                ? 'Mejorable'
+                : 'Aceptable';
+        const severidadPercibida = nr >= 600 ? 'Crítica' : nr >= 150 ? 'Alta' : nr >= 40 ? 'Media' : 'Baja';
+
+        const rowId = r.id || `gtc45_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        const peligroDesc = String(r.peligro_descripcion || r.peligro || 'Peligro identificado').trim();
+        const procesoVal = String(r.proceso || r.cargo || 'Operaciones Generales').trim();
+        const cargoVal = String(r.cargo || r.proceso || 'Personal Operativo').trim();
+        const zonaVal = String(r.zona || 'Instalaciones Principales').trim();
+        const actividadVal = String(r.actividad || r.tareas || procesoVal || 'Labor operativa').trim();
+        const clasificacionVal = String(
+            r.peligro_clasificacion ||
+                (/soldadura|humo|qu[ií]mico|gas|vapor/i.test(peligroDesc)
+                    ? 'Físico / Químico'
+                    : /postura|carga|ergon|repetitiv/i.test(peligroDesc)
+                    ? 'Biomecánico'
+                    : /ruido|iluminaci|vibraci|radiaci|temperat/i.test(peligroDesc)
+                    ? 'Físico'
+                    : 'Condiciones de Seguridad')
+        ).trim();
+
+        const newRow = {
+            id: rowId,
+            proceso: procesoVal,
+            zona: zonaVal,
+            actividad: actividadVal,
+            tareas: r.tareas || actividadVal,
+            rutinaria: r.rutinaria || 'Sí',
+            cargo: cargoVal,
+            peligro_descripcion: peligroDesc,
+            peligro_clasificacion: clasificacionVal,
+            efectos_posibles: r.efectos_posibles || 'Afecciones ocupacionales, fatiga o lesiones asociadas a la exposición',
+            controles_fuente: r.controles_fuente || 'Mantenimiento preventivo e inspección de equipos',
+            controles_medio: r.controles_medio || 'Señalización, ventilación y demarcación del área',
+            controles_individuo: r.controles_individuo || 'Capacitación en estándares seguros y uso de EPP certificado',
+            nd,
+            ne,
+            np,
+            interpretacion_np,
+            nc,
+            nr,
+            interpretacion_nr,
+            aceptabilidad,
+            peor_consecuencia: r.peor_consecuencia || 'Accidente de trabajo o enfermedad laboral',
+            requisito_legal: r.requisito_legal || 'Decreto 1072 de 2015 / GTC-45',
+            nro_expuestos: Number(r.nro_expuestos) || 1,
+            medida_eliminacion: r.medida_eliminacion || 'N/A',
+            medida_sustitucion: r.medida_sustitucion || 'N/A',
+            medida_ingenieria: r.medida_ingenieria || 'Control técnico en fuente y ventilación/extracción',
+            medida_administrativa: r.medida_administrativa || 'Procedimiento de trabajo seguro, inspecciones y pausas activas',
+            medida_eppu: r.medida_eppu || 'Dotación y uso obligatorio de EPP certificado según matriz',
+            factores_reduccion:
+                r.factores_reduccion ||
+                'Técnicamente viable y altamente costo-efectiva según Anexo E de la GTC-45. La implementación de controles en fuente/medio reduce el nivel de deficiencia y la probabilidad del riesgo.',
+            origen_reporte: `Registrado desde Simulador GTC-45 de Tenshi IA (ND=${nd}, NE=${ne}, NC=${nc} → NR=${nr} Nivel ${interpretacion_nr}).`,
+            creadoPor: 'Tenshi IA • Simulador GTC-45',
+            fechaRegistro: nowIso,
+        };
+
+        for (const sess of officialSessions) {
+            if (!Array.isArray(sess.matrixRows)) sess.matrixRows = [];
+            const existsIdx = sess.matrixRows.findIndex(
+                (existing) =>
+                    String(existing.peligro_descripcion || '').toLowerCase() === peligroDesc.toLowerCase() &&
+                    String(existing.proceso || '').toLowerCase() === procesoVal.toLowerCase()
+            );
+            if (existsIdx >= 0) {
+                sess.matrixRows[existsIdx] = { ...sess.matrixRows[existsIdx], ...newRow, id: sess.matrixRows[existsIdx].id || rowId };
+            } else {
+                sess.matrixRows.push(newRow);
+            }
+            sess.markModified('matrixRows');
+        }
+
+        if (partDoc) {
+            if (!Array.isArray(partDoc.participacionesList)) partDoc.participacionesList = [];
+            const partId = `part-tenshi-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+            const newPartEntry = {
+                id: partId,
+                title: `${procesoVal} - ${peligroDesc.substring(0, 45)}`,
+                updatedAt: nowIso,
+                status: 'applied_to_matrix',
+                matrixAction: 'create_new',
+                matrixRowId: rowId,
+                appliedAt: new Date(),
+                formData: {
+                    fecha: todayStr,
+                    area: procesoVal,
+                    proceso: procesoVal,
+                    zona: zonaVal,
+                    actividad: actividadVal,
+                    tarea: r.tareas || actividadVal,
+                    rutinaria: 'Sí',
+                    peligroClasificacion: clasificacionVal,
+                    peligros: peligroDesc,
+                    efectosPosibles: newRow.efectos_posibles,
+                    severidadPercibida,
+                    controlesExistentes: newRow.controles_individuo,
+                    suficientes: nr < 150,
+                    sugeridoEliminacion: newRow.medida_eliminacion,
+                    sugeridoIngenieria: newRow.medida_ingenieria,
+                    sugeridoAdministrativo: newRow.medida_administrativa,
+                    sugeridoEPP: newRow.medida_eppu,
+                    actividadGlobal: actividadVal,
+                },
+                images: { foto1: null, foto2: null, foto3: null },
+                video: null,
+                trabajadoresList: [{ nombre: 'Simulador GTC-45 (Tenshi IA)', cedula: 'SG-SST', cargo: cargoVal }],
+                responsablesList: [{ nombre: companyInfo?.responsibleSST || 'Responsable SG-SST', cedula: '', rol: 'Responsable SST' }],
+            };
+
+            const existsPartIdx = partDoc.participacionesList.findIndex(
+                (p) =>
+                    String(p?.formData?.peligros || '').toLowerCase() === peligroDesc.toLowerCase() &&
+                    String(p?.formData?.proceso || '').toLowerCase() === procesoVal.toLowerCase()
+            );
+            if (existsPartIdx >= 0) {
+                partDoc.participacionesList[existsPartIdx] = {
+                    ...partDoc.participacionesList[existsPartIdx],
+                    ...newPartEntry,
+                    id: partDoc.participacionesList[existsPartIdx].id || partId,
+                };
+            } else {
+                partDoc.participacionesList.unshift(newPartEntry);
+            }
+            partDoc.markModified('participacionesList');
+        }
+
+        insertedCount++;
+    }
+
+    for (const sess of officialSessions) {
+        await sess.save();
+    }
+    if (partDoc) {
+        partDoc.updatedAt = new Date();
+        await partDoc.save();
+    }
+
+    return {
+        exito: true,
+        insertedCount,
+        totalRiesgosEnMatriz: officialSessions[0]?.matrixRows?.length || 0,
+        totalParticipacionesComunitarias: partDoc?.participacionesList?.length || 0,
+        mensaje: `Se guardaron ${insertedCount} peligro(s) exitosamente en la Matriz IPEVR Comunitaria y en la Matriz Oficial GTC-45 del Hito 1.`,
+    };
+}
+
+router.post('/gtc45/save-to-hito1', requireJwtAuth, async (req, res) => {
+    try {
+        const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
+        let companyInfo = await CompanyInfo.findOne({ user: targetUserId, isActive: true }).lean();
+        if (!companyInfo) {
+            companyInfo = await CompanyInfo.findOne({ user: targetUserId }).lean();
+        }
+        const payload = req.body || {};
+        const riesgos = Array.isArray(payload.riesgos)
+            ? payload.riesgos
+            : [
+                  {
+                      peligro_descripcion: payload.peligro || payload.peligro_descripcion || 'Peligro evaluado',
+                      proceso: payload.proceso || 'Operaciones Generales',
+                      cargo: payload.cargo || payload.proceso || 'Operativo',
+                      zona: payload.zona || 'Taller / Instalaciones',
+                      nd: payload.nd,
+                      ne: payload.ne,
+                      nc: payload.nc,
+                  },
+              ];
+        const result = await saveRisksToHito1Matrices(targetUserId, companyInfo, riesgos);
+        res.json({ success: true, ...result });
+    } catch (error) {
+        logger.error('[Tenshi GTC45 Save Hito 1] Error:', error);
+        res.status(500).json({ error: error.message || 'Error guardando en la Matriz IPEVR del Hito 1' });
     }
 });
 
@@ -781,8 +1056,12 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
             recentConvosBlock += `\n*REGLA DE MEMORIA DE INFORMES PROPIOS*: Estos informes están publicados directamente en TU propio chat de Tenshi. Si el usuario te dice "revisa nuestro chat", "el último informe que hiciste", "envíame el último informe del chat a mi correo" o te pregunta por el informe en vuestro chat, se refiere SIEMPRE al 🔥 [ÚLTIMO INFORME EN CHAT DE TENSHI] listado arriba. NUNCA inventes que no tienes informes ni menciones chats viejos de otros agentes.\n\n`;
         }
 
-        const skillsList = (config.skills && config.skills.length > 0) ? config.skills : ['*'];
-        const { instructions: skillInstructions, activeTools, activeSkillNames } = getActiveSkillsData(userQuery, skillsList);
+        const rawSkillsList = (config.skills && config.skills.length > 0) ? config.skills : ['*'];
+        const skillsList = rawSkillsList.filter(s => s !== 'wappy-cards');
+        const rawSkillData = getActiveSkillsData(userQuery, skillsList);
+        const skillInstructions = (rawSkillData.instructions || '').replace(/```wappy-card[\s\S]*?```/gi, '');
+        const activeTools = rawSkillData.activeTools || [];
+        const activeSkillNames = (rawSkillData.activeSkillNames || []).filter(s => s !== 'wappy-cards');
         logger.info(`[Tenshi Skill Router] Skills activadas por trigger: ${activeSkillNames.join(', ') || 'ninguna'}, herramientas dinámicas: ${activeTools.join(', ') || 'ninguna'}`);
 
         const nowColombiaStr = new Date().toLocaleString('es-CO', {
@@ -2407,11 +2686,17 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             const lastMsgObj = messages[messages.length - 1];
             const lastUserMsg = lastMsgObj?.content || 'Hola';
             const lastUserLower = String(lastUserMsg || '').toLowerCase();
+            const isGuiResultTurn = String(lastUserMsg || '').trim().startsWith('[RESULTADO_GUI]');
             const isInlineWidgetIntent =
-                ((lastUserLower.includes('calculadora') || lastUserLower.includes('simulador')) &&
+                !isGuiResultTurn &&
+                (((lastUserLower.includes('calculadora') || lastUserLower.includes('simulador')) &&
                     (lastUserLower.includes('gtc') || lastUserLower.includes('riesgo') || lastUserLower.includes('deficiencia') || lastUserLower.includes('peligro'))) ||
                 lastUserLower.includes('checklist interactivo') ||
-                lastUserLower.includes('lista de chequeo interactiva');
+                lastUserLower.includes('lista de chequeo interactiva'));
+            const isWorkerListIntent =
+                !isGuiResultTurn &&
+                (/\b(lista|listado|censo|nomina|nómina|ver|mostrar|muestrame|muéstrame|dame|cuales\s+son|cuáles\s+son|quienes\s+son|quiénes\s+son|consultar|consulta)\b[\s\S]{0,40}\b(trabajadores|colaboradores|empleados|personal)\b/i.test(lastUserLower) ||
+                /\b(trabajadores|colaboradores|empleados)\b[\s\S]{0,30}\b(activos|retirados|registrados|lista|censo|todos|empresa)\b/i.test(lastUserLower));
 
             let toolsToAttach = [...baseFunctionDeclarations];
             if (isInlineWidgetIntent && !lastUserLower.includes('canvas') && !lastUserLower.includes('lienzo')) {
@@ -2545,8 +2830,16 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                         }
                                     } catch (_) {}
                                 } else if (call.name === 'matriz_ipevar') {
-                                    const MatrizIPEVAR = require('../../app/clients/tools/structured/MatrizIPEVAR');
-                                    toolOutput = await new MatrizIPEVAR({ req })._call(call.args);
+                                    if (call.args?.accion === 'escribir' && Array.isArray(call.args?.riesgos) && call.args.riesgos.length > 0) {
+                                        const savedRes = await saveRisksToHito1Matrices(targetUserId, companyInfo, call.args.riesgos);
+                                        toolOutput = JSON.stringify(savedRes);
+                                    } else if (call.args?.accion === 'leer') {
+                                        const gtcRes = await executeTenshiMcpTool('wappy_consultar_matriz_gtc45', call.args || {}, targetUserId);
+                                        toolOutput = JSON.stringify(gtcRes);
+                                    } else {
+                                        const MatrizIPEVAR = require('../../app/clients/tools/structured/MatrizIPEVAR');
+                                        toolOutput = await new MatrizIPEVAR({ req })._call(call.args);
+                                    }
                                 } else if (call.name === 'matriz_pesv') {
                                     const MatrizPESV = require('../../app/clients/tools/structured/MatrizPESV');
                                     toolOutput = await new MatrizPESV({ req })._call(call.args);
@@ -3100,6 +3393,15 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             }
                         }
 
+                        if (!capturedWidget && isWorkerListIntent) {
+                            try {
+                                const workersRes = await executeTenshiMcpTool('wappy_consultar_trabajadores', { filtro: 'todos' }, targetUserId);
+                                capturedWidget = buildGenerativeWidgetForTool('wappy_consultar_trabajadores', { filtro: 'todos' }, workersRes);
+                            } catch (wErr) {
+                                logger.warn('[Tenshi Worker Widget Fallback] Error consultando trabajadores:', wErr.message);
+                            }
+                        }
+
                         if (!capturedWidget && isInlineWidgetIntent) {
                             const ndMatch = lastUserMsg.match(/deficiencia\s*(?:de\s*|:\s*)?(\d+)/i);
                             const neMatch = lastUserMsg.match(/exposici[oó]n\s*(?:de\s*|:\s*)?(\d+)/i);
@@ -3127,12 +3429,17 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             responseText = '';
                         }
 
-                        if (responseText && capturedWidget) {
-                            // Eliminar tarjetas wappy-card duplicadas cuando ya existe un widget nativo adjunto
+                        if (responseText) {
+                            // SIEMPRE eliminar bloques wappy-card de Tenshi (Tenshi usa exclusivamente TenshiGenerativeWidget)
                             responseText = responseText
                                 .replace(/```(?:wappy-card|card)[\s\S]*?```/gi, '')
                                 .replace(/en el panel de la derecha|en el panel lateral/gi, 'aquí mismo dentro de nuestro chat')
                                 .trim();
+                        }
+
+                        if (!responseText && capturedWidget?.widgetType === 'worker_census') {
+                            const d = capturedWidget.data || {};
+                            responseText = `¡Listo! Aquí tienes el censo actualizado de colaboradores de la empresa (**${d.totalRegistrados || 0} registrados**: **${d.totalActivos || 0} activos** y **${d.totalRetirados || 0} retirados**). Puedes filtrarlos por las pestañas **Todos**, **Activos** y **Retirados** o buscar por nombre, cédula y cargo directamente en la tarjeta interactiva:`;
                         }
 
                         if (responseText) {

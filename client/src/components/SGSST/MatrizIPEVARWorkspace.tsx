@@ -103,7 +103,11 @@ export default function MatrizIPEVARWorkspace() {
       setRefreshKey((k) => k + 1);
     };
     window.addEventListener('ipevar-official-updated', handleSync);
-    return () => window.removeEventListener('ipevar-official-updated', handleSync);
+    window.addEventListener('wappy-reload-sgsst-data', handleSync);
+    return () => {
+      window.removeEventListener('ipevar-official-updated', handleSync);
+      window.removeEventListener('wappy-reload-sgsst-data', handleSync);
+    };
   }, [fetchOfficialStatus]);
 
   // Abrir selector y cargar matrices creadas en los chats

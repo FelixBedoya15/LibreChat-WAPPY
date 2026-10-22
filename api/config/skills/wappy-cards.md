@@ -1,7 +1,7 @@
 ---
 name: wappy-cards
 description: Instrucciones y estructura JSON estricta para generar tarjetas interactivas de vidrio (glassmorphism) wappy-card para planes de acción, listas de verificación o resúmenes de riesgos.
-scope: all
+scope: agents
 triggers:
   - tarjeta
   - wappy-card

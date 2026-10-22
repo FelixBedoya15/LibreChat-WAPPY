@@ -5386,12 +5386,12 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     return null;
   };
 
-  const cleanRenderContent = (content: string, hasWidget = false) => {
+  const cleanRenderContent = (content: string, _hasWidget = false) => {
     if (!content) return '';
-    let result = content;
-    if (hasWidget) {
-      // Si el mensaje ya adjunta un Widget Interactivo Nativo, eliminar tarjetas wappy-card duplicadas
-      result = result.replace(/```(?:wappy-card|card)[\s\S]*?```/gi, '').trim();
+    // En el chat de Tenshi (380px) SIEMPRE eliminar bloques wappy-card (Tenshi usa exclusivamente TenshiGenerativeWidget)
+    let result = content.replace(/```(?:wappy-card|card)[\s\S]*?```/gi, '').trim();
+    if (!result && content.includes('wappy-card')) {
+      result = 'Aquí tienes la información actualizada de la empresa:';
     }
     // Limpiar sintaxis LaTeX cruda ($6 \times 3 = 18$, \mathbf{450})
     result = result
