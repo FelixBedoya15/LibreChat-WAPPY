@@ -1134,10 +1134,10 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
                 />
                 <button
                   onClick={copyReferralLink}
-                  className="px-4 py-2 bg-white text-teal-800 hover:bg-teal-50 font-bold rounded-xl text-xs transition-colors shrink-0 flex items-center justify-center gap-1.5 shadow-sm"
+                  className="px-3.5 py-2 bg-white text-teal-800 hover:bg-teal-50 font-bold rounded-xl text-xs transition-all shrink-0 flex items-center justify-center gap-1.5 shadow-sm border border-slate-200/80 active:scale-95"
                 >
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>Copiar</span>
+                  <Copy className="w-3.5 h-3.5 text-teal-700" />
+                  <span>{copied ? '¡Copiado!' : 'Copiar'}</span>
                 </button>
               </div>
             </div>
