@@ -779,10 +779,12 @@ const handleWebhook = async (req, res) => {
             else if (wompiTx.planId === 'plus') newRole = 'USER_PLUS';
             else if (wompiTx.planId === 'pro') newRole = 'USER_PRO';
 
+            const isRenewalBeforeExpiry = user?.activeAt && user?.inactiveAt && new Date(user.inactiveAt) > new Date();
+
             const updateFields = {
                 role: newRole,
                 accountStatus: 'active',
-                activeAt: new Date(),
+                activeAt: isRenewalBeforeExpiry ? user.activeAt : new Date(),
                 inactiveAt: expiryDate
             };
 
@@ -915,9 +917,19 @@ const verifyTransaction = async (req, res) => {
                 else if (wompiTx.planId === 'plus') newRole = 'USER_PLUS';
                 else if (wompiTx.planId === 'pro') newRole = 'USER_PRO';
 
+                const userDoc = await User.findById(wompiTx.userId, 'activeAt inactiveAt');
+                const isRenewalBeforeExpiry = userDoc?.activeAt && userDoc?.inactiveAt && new Date(userDoc.inactiveAt) > new Date();
+
                 await User.updateOne(
                     { _id: wompiTx.userId },
-                    { $set: { role: newRole, accountStatus: 'active', activeAt: new Date(), inactiveAt: expiryDate } }
+                    { 
+                        $set: { 
+                            role: newRole, 
+                            accountStatus: 'active', 
+                            activeAt: isRenewalBeforeExpiry ? userDoc.activeAt : new Date(), 
+                            inactiveAt: expiryDate 
+                        } 
+                    }
                 );
 
                 // If custom plan, also store custom tools in UserPlan

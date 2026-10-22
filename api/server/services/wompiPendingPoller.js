@@ -187,9 +187,18 @@ const runPollCycle = async () => {
                     else if (tx.planId === 'plus') newRole = 'USER_PLUS';
                     else if (tx.planId === 'pro') newRole = 'USER_PRO';
 
+                    const userDoc = await User.findById(userId, 'activeAt inactiveAt');
+                    const isRenewalBeforeExpiry = userDoc?.activeAt && userDoc?.inactiveAt && new Date(userDoc.inactiveAt) > new Date();
+
                     await User.updateOne(
                         { _id: userId },
-                        { $set: { role: newRole, activeAt: new Date(), inactiveAt: expiryDate } }
+                        { 
+                            $set: { 
+                                role: newRole, 
+                                activeAt: isRenewalBeforeExpiry ? userDoc.activeAt : new Date(), 
+                                inactiveAt: expiryDate 
+                            } 
+                        }
                     );
 
                     // If custom plan, store tools

@@ -7,7 +7,7 @@ import axios from 'axios';
 import { 
     Award, Users, DollarSign, Landmark, Shield, 
     Mail, Phone, Lock, Calendar, Clock, Loader, AlertTriangle, MessageSquare,
-    Building2, MapPin, Cpu, Crown, Sparkles, Zap, CheckCircle2, X
+    Building2, MapPin, Cpu, Crown, Sparkles, Zap, CheckCircle2, X, RotateCcw
 } from 'lucide-react';
 import { DEPARTAMENTOS_LIST, getCitiesForDepartment } from '~/utils/colombiaLocations';
 import { cn } from '~/utils';
@@ -172,6 +172,40 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
         }
     }, [user]);
 
+    const parseLocalDate = (s?: string | null): Date | null => {
+        if (!s) return null;
+        const parts = s.split('-');
+        if (parts.length !== 3) return null;
+        const [y, m, d] = parts.map(Number);
+        if (!y || !m || !d) return null;
+        return new Date(y, m - 1, d);
+    };
+
+    const formatLocalDate = (d: Date): string => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const getIntervalDays = (interval?: string): number => {
+        if (interval === 'monthly') return 30;
+        if (interval === 'quarterly') return 90;
+        if (interval === 'semiannual') return 180;
+        if (interval === 'annual') return 365;
+        if (interval === 'referral') return 15;
+        return 0;
+    };
+
+    // Obtener la fecha base para los cálculos: SIEMPRE prioriza la Fecha de Activación configurada
+    const getBaseDate = (): Date => {
+        const parsedActive = parseLocalDate(formData.activeAt);
+        if (parsedActive) {
+            return parsedActive;
+        }
+        return new Date();
+    };
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         
@@ -183,28 +217,40 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
             const mappedPlan = ROLE_TO_PLAN[value] || 'free';
             setFormData(prev => ({ ...prev, role: value, plan: mappedPlan }));
         } else if (name === 'planInterval') {
-            let daysToAdd = 0;
-            let shouldClear = false;
-
-            if (value === 'monthly') daysToAdd = 30;
-            else if (value === 'quarterly') daysToAdd = 90;
-            else if (value === 'semiannual') daysToAdd = 180;
-            else if (value === 'annual') daysToAdd = 365;
-            else if (value === 'lifetime') shouldClear = true;
-            else if (value === 'referral') daysToAdd = 15;
+            const daysToAdd = getIntervalDays(value);
+            const shouldClear = value === 'lifetime';
 
             if (shouldClear) {
                 setFormData(prev => ({ ...prev, planInterval: value, inactiveAt: '' }));
             } else if (daysToAdd > 0) {
-                const target = new Date();
+                const base = getBaseDate();
+                const target = new Date(base.getFullYear(), base.getMonth(), base.getDate());
                 target.setDate(target.getDate() + daysToAdd);
+
                 setFormData(prev => ({ 
                     ...prev, 
                     planInterval: value, 
-                    inactiveAt: formatDateForInput(target) 
+                    activeAt: prev.activeAt || formatLocalDate(base),
+                    inactiveAt: formatLocalDate(target) 
                 }));
             } else {
                 setFormData(prev => ({ ...prev, planInterval: value }));
+            }
+        } else if (name === 'activeAt') {
+            // Si el admin modifica la fecha de activación, sincroniza la fecha de vencimiento según la temporalidad del plan
+            const parsedNewActive = parseLocalDate(value);
+            const days = getIntervalDays(formData.planInterval);
+
+            if (parsedNewActive && days > 0) {
+                const target = new Date(parsedNewActive.getFullYear(), parsedNewActive.getMonth(), parsedNewActive.getDate());
+                target.setDate(target.getDate() + days);
+                setFormData(prev => ({
+                    ...prev,
+                    activeAt: value,
+                    inactiveAt: formatLocalDate(target)
+                }));
+            } else {
+                setFormData(prev => ({ ...prev, activeAt: value }));
             }
         } else {
             setFormData(prev => ({ ...prev, [name]: value }));
@@ -212,11 +258,15 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
     };
 
     const addDaysToExpiration = (days: number, intervalType?: string) => {
-        const target = new Date();
+        // Base de cálculo siempre a partir de la Fecha de Activación
+        const base = getBaseDate();
+        const target = new Date(base.getFullYear(), base.getMonth(), base.getDate());
         target.setDate(target.getDate() + days);
+
         setFormData(prev => ({ 
             ...prev, 
-            inactiveAt: formatDateForInput(target),
+            activeAt: prev.activeAt || formatLocalDate(base),
+            inactiveAt: formatLocalDate(target),
             ...(intervalType ? { planInterval: intervalType } : {})
         }));
     };
@@ -227,6 +277,53 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
             inactiveAt: '',
             planInterval: 'lifetime'
         }));
+    };
+
+    const setActivationToToday = () => {
+        const today = new Date();
+        const days = getIntervalDays(formData.planInterval);
+        const updates: any = { activeAt: formatLocalDate(today) };
+        if (days > 0) {
+            const target = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            target.setDate(target.getDate() + days);
+            updates.inactiveAt = formatLocalDate(target);
+        }
+        setFormData(prev => ({ ...prev, ...updates }));
+    };
+
+    const renewPlanCycle = () => {
+        const interval = formData.planInterval || 'monthly';
+        const days = getIntervalDays(interval) || 30;
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        const parsedInactive = parseLocalDate(formData.inactiveAt);
+
+        // Si ya tenía una fecha de vencimiento y todavía está vigente (o es hoy):
+        if (parsedInactive && parsedInactive.getTime() >= now.getTime()) {
+            // Continuidad de ciclo: la nueva fecha de vencimiento se calcula sumando a la previa
+            const newExpiry = new Date(parsedInactive.getFullYear(), parsedInactive.getMonth(), parsedInactive.getDate());
+            newExpiry.setDate(newExpiry.getDate() + days);
+
+            setFormData(prev => ({
+                ...prev,
+                accountStatus: 'active',
+                inactiveAt: formatLocalDate(newExpiry),
+                planInterval: interval
+            }));
+        } else {
+            // Si no tenía fecha o ya estaba vencido: la nueva activación comienza hoy
+            const today = new Date();
+            const newExpiry = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            newExpiry.setDate(newExpiry.getDate() + days);
+
+            setFormData(prev => ({
+                ...prev,
+                accountStatus: 'active',
+                activeAt: formatLocalDate(today),
+                inactiveAt: formatLocalDate(newExpiry),
+                planInterval: interval
+            }));
+        }
     };
 
     useEffect(() => {
@@ -522,9 +619,19 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
 
                                             {/* FECHA DE ACTIVACIÓN */}
                                             <div className="flex flex-col gap-1.5">
-                                                <label className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1">
-                                                    <Calendar className="w-3.5 h-3.5 text-emerald-500" /> Fecha de Activación
-                                                </label>
+                                                <div className="flex items-center justify-between">
+                                                    <label className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1">
+                                                        <Calendar className="w-3.5 h-3.5 text-emerald-500" /> Fecha de Activación
+                                                    </label>
+                                                    <button
+                                                        type="button"
+                                                        onClick={setActivationToToday}
+                                                        className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 transition-colors cursor-pointer border border-emerald-200 dark:border-emerald-800/40"
+                                                        title="Fijar activación en la fecha de hoy y recalcular vencimiento"
+                                                    >
+                                                        Fijar Hoy
+                                                    </button>
+                                                </div>
                                                 <input
                                                     type="date"
                                                     name="activeAt"
@@ -536,16 +643,24 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
 
                                             {/* FECHA DE VENCIMIENTO / INACTIVACIÓN */}
                                             <div className="flex flex-col gap-1.5 col-span-1 md:col-span-2 p-3.5 rounded-2xl bg-slate-50 dark:bg-zinc-800/40 border border-slate-200 dark:border-zinc-700">
-                                                <div className="flex items-center justify-between">
+                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                                     <label className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1">
                                                         <Calendar className="w-3.5 h-3.5 text-amber-500" /> Fecha de Vencimiento / Inactivación
                                                     </label>
                                                     <div className="flex flex-wrap items-center gap-1.5">
                                                         <button
                                                             type="button"
+                                                            onClick={renewPlanCycle}
+                                                            className="text-[10px] font-bold px-2.5 py-0.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white transition-all shadow-xs cursor-pointer flex items-center gap-1 active:scale-95"
+                                                            title="Renovar plan: extiende el vencimiento a partir de la fecha actual o reactiva desde hoy si ya expiró"
+                                                        >
+                                                            <RotateCcw className="w-3 h-3" /> Renovar Ciclo
+                                                        </button>
+                                                        <button
+                                                            type="button"
                                                             onClick={() => addDaysToExpiration(7, 'referral')}
                                                             className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 transition-colors cursor-pointer border border-emerald-200 dark:border-emerald-800/40"
-                                                            title="Asignar 7 días de prueba gratuita"
+                                                            title="Asignar 7 días desde fecha de activación"
                                                         >
                                                             +7d Prueba
                                                         </button>
@@ -553,7 +668,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
                                                             type="button"
                                                             onClick={() => addDaysToExpiration(15, 'referral')}
                                                             className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 transition-colors cursor-pointer border border-emerald-200 dark:border-emerald-800/40"
-                                                            title="Asignar 15 días de prueba gratuita"
+                                                            title="Asignar 15 días desde fecha de activación"
                                                         >
                                                             +15d Prueba
                                                         </button>
@@ -561,7 +676,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
                                                             type="button"
                                                             onClick={() => addDaysToExpiration(30, 'monthly')}
                                                             className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 transition-colors cursor-pointer border border-teal-200 dark:border-teal-800/40"
-                                                            title="Asignar 30 días (Plan Mensual)"
+                                                            title="Asignar 30 días desde fecha de activación"
                                                         >
                                                             +30 días
                                                         </button>
@@ -569,7 +684,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
                                                             type="button"
                                                             onClick={() => addDaysToExpiration(90, 'quarterly')}
                                                             className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 transition-colors cursor-pointer border border-sky-200 dark:border-sky-800/40"
-                                                            title="Asignar 90 días (Plan Trimestral)"
+                                                            title="Asignar 90 días desde fecha de activación"
                                                         >
                                                             +90 días
                                                         </button>
@@ -577,7 +692,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
                                                             type="button"
                                                             onClick={() => addDaysToExpiration(180, 'semiannual')}
                                                             className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 transition-colors cursor-pointer border border-purple-200 dark:border-purple-800/40"
-                                                            title="Asignar 180 días (Plan Semestral)"
+                                                            title="Asignar 180 días desde fecha de activación"
                                                         >
                                                             +180 días
                                                         </button>
@@ -585,7 +700,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
                                                             type="button"
                                                             onClick={() => addDaysToExpiration(365, 'annual')}
                                                             className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 transition-colors cursor-pointer border border-amber-200 dark:border-amber-800/40"
-                                                            title="Asignar 1 año (Plan Anual)"
+                                                            title="Asignar 1 año desde fecha de activación"
                                                         >
                                                             +1 año
                                                         </button>
@@ -607,7 +722,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
                                                     className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3.5 py-2 text-xs text-slate-800 dark:text-zinc-100 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none mt-1"
                                                 />
                                                 <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-1">
-                                                    Si se deja vacío, la suscripción se considera continua (o vitalicia). Si se define una fecha de vencimiento, la cuenta pasará a plan gratuito al vencer.
+                                                    Calculada a partir de la Fecha de Activación según la temporalidad del plan. Si se deja vacío, la suscripción se considera continua (o vitalicia).
                                                 </p>
                                             </div>
 
