@@ -132,14 +132,8 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const activeProtocolRef = useRef(activeProtocol);
     activeProtocolRef.current = activeProtocol;
 
-    const handleTemplateClick = (templateId: string, templateName: string) => {
-        if (isVital && templateId !== 'general') {
-            setUpgradeModalTitle("Módulo Exclusivo Pro");
-            setUpgradeModalDesc(`El análisis en vivo de ${templateName} es una herramienta avanzada de inspección exclusiva del Plan Wappy Pro.`);
-            setShowUpgradeModal(true);
-        } else {
-            setSelectedTemplate(templateId);
-        }
+    const handleTemplateClick = (templateId: string, _templateName: string) => {
+        setSelectedTemplate(templateId);
     };
 
     const videoRef = useRef<HTMLVideoElement | null>(null);

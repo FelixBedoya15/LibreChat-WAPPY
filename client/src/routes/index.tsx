@@ -28,6 +28,8 @@ import TenshiAvatar from '~/components/Tenshi/TenshiAvatar';
 
 // Lazy-loaded secondary dashboards and public pages for fast initial bundle load
 const SGSSTDashboard = lazy(() => import('~/components/SGSST/Dashboard'));
+const HuellaBiocentricaDashboard = lazy(() => import('~/components/SGSST/HuellaBiocentricaDashboard'));
+const VitalPublicPortalGuard = lazy(() => import('~/components/SGSST/VitalPublicPortalGuard'));
 const PublicReportView = lazy(() => import('~/components/SGSST/PublicReportView'));
 const PublicReporteActos = lazy(() => import('~/components/SGSST/PublicReporteActos'));
 const PublicParticipacionIPEVAR = lazy(() => import('~/components/SGSST/PublicParticipacionIPEVAR'));
@@ -211,32 +213,56 @@ export const router = createBrowserRouter(
     },
     {
       path: 'sgsst-public/reportar/:companyId',
-      element: withSuspense(<PublicReporteActos />),
+      element: withSuspense(
+        <VitalPublicPortalGuard>
+          <PublicReporteActos />
+        </VitalPublicPortalGuard>
+      ),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'sgsst-public/animo/:companyId',
-      element: withSuspense(<PublicMoodTracker />),
+      element: withSuspense(
+        <VitalPublicPortalGuard>
+          <PublicMoodTracker />
+        </VitalPublicPortalGuard>
+      ),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'sgsst-public/estudio-puesto/:companyId',
-      element: withSuspense(<PublicEstudioPuesto />),
+      element: withSuspense(
+        <VitalPublicPortalGuard>
+          <PublicEstudioPuesto />
+        </VitalPublicPortalGuard>
+      ),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'sgsst-public/ipevar/:companyId',
-      element: withSuspense(<PublicParticipacionIPEVAR />),
+      element: withSuspense(
+        <VitalPublicPortalGuard>
+          <PublicParticipacionIPEVAR />
+        </VitalPublicPortalGuard>
+      ),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'sgsst-public/alta-direccion/:companyId',
-      element: withSuspense(<PublicAltaDireccion />),
+      element: withSuspense(
+        <VitalPublicPortalGuard>
+          <PublicAltaDireccion />
+        </VitalPublicPortalGuard>
+      ),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'sgsst-public/atel-testimonio/:companyId',
-      element: withSuspense(<PublicAtelTestimonio />),
+      element: withSuspense(
+        <VitalPublicPortalGuard>
+          <PublicAtelTestimonio />
+        </VitalPublicPortalGuard>
+      ),
       errorElement: <RouteErrorBoundary />,
     },
     {
@@ -246,12 +272,20 @@ export const router = createBrowserRouter(
     },
     {
       path: 'sgsst-public/ruta-aprendizaje/:companyId',
-      element: withSuspense(<PublicRutaAprendizaje />),
+      element: withSuspense(
+        <VitalPublicPortalGuard>
+          <PublicRutaAprendizaje />
+        </VitalPublicPortalGuard>
+      ),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'sgsst-public/ruta-aprendizaje/:companyId/course/:courseId',
-      element: withSuspense(<PublicRutaCourseViewer />),
+      element: withSuspense(
+        <VitalPublicPortalGuard>
+          <PublicRutaCourseViewer />
+        </VitalPublicPortalGuard>
+      ),
       errorElement: <RouteErrorBoundary />,
     },
     {
@@ -261,37 +295,65 @@ export const router = createBrowserRouter(
     },
     {
       path: 'sgsst-public/comites/:companyId',
-      element: withSuspense(<PublicComites />),
+      element: withSuspense(
+        <VitalPublicPortalGuard>
+          <PublicComites />
+        </VitalPublicPortalGuard>
+      ),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'sgsst-public/convivencia/:companyId',
-      element: withSuspense(<PublicConvivencia />),
+      element: withSuspense(
+        <VitalPublicPortalGuard>
+          <PublicConvivencia />
+        </VitalPublicPortalGuard>
+      ),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'sgsst-public/votaciones/:companyId',
-      element: withSuspense(<PublicVotaciones />),
+      element: withSuspense(
+        <VitalPublicPortalGuard>
+          <PublicVotaciones />
+        </VitalPublicPortalGuard>
+      ),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'sgsst-public/copasst-inspecciones/:companyId/:cedula?',
-      element: withSuspense(<PublicInspeccionesCopasst />),
+      element: withSuspense(
+        <VitalPublicPortalGuard>
+          <PublicInspeccionesCopasst />
+        </VitalPublicPortalGuard>
+      ),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'sgsst-public/brigadista/:companyId/:cedula?',
-      element: withSuspense(<PublicBrigadistas />),
+      element: withSuspense(
+        <VitalPublicPortalGuard>
+          <PublicBrigadistas />
+        </VitalPublicPortalGuard>
+      ),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'sgsst-public/solicitud-epp/:companyId',
-      element: withSuspense(<PublicSolicitudEpp />),
+      element: withSuspense(
+        <VitalPublicPortalGuard>
+          <PublicSolicitudEpp />
+        </VitalPublicPortalGuard>
+      ),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'sgsst-public/inspeccion-vehicular/:companyId',
-      element: withSuspense(<PublicInspeccionVehicular />),
+      element: withSuspense(
+        <VitalPublicPortalGuard>
+          <PublicInspeccionVehicular />
+        </VitalPublicPortalGuard>
+      ),
       errorElement: <RouteErrorBoundary />,
     },
     {
@@ -611,6 +673,10 @@ export const router = createBrowserRouter(
             {
               path: 'sgsst',
               element: withSuspense(<SGSSTDashboard />),
+            },
+            {
+              path: 'huella-biocentrica',
+              element: withSuspense(<HuellaBiocentricaDashboard />),
             },
             {
               path: 'sgsst/animo',

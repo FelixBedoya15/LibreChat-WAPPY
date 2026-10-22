@@ -222,10 +222,50 @@ router.get('/company/:companyId', async (req, res) => {
       logo: resolvedLogo,
       logoUrl: resolvedLogo,
       cargos,
+      planTier: await resolveCompanyPlanTier(company),
     });
   } catch (error) {
     logger.error('[Public SGSST] Company fetch error:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ─── Helper: Nivel de plan del dueño de la empresa (para el portal del trabajador) ──
+// Devuelve 'vital' cuando el dueño de la empresa tiene Wappy Vital (USER_IPEVAR / IPEVAR / plan ipevar).
+// En ese caso el portal público del trabajador solo expone el formulario de Perfil Sociodemográfico.
+async function resolveCompanyPlanTier(company) {
+  try {
+    if (!company?.user) return 'pro';
+    const User = mongoose.models.User;
+    if (!User) return 'pro';
+    const owner = await User.findById(company.user).select('role').lean();
+    if (!owner) return 'pro';
+    if (owner.role === 'ADMIN') return 'pro';
+    if (['USER_IPEVAR', 'IPEVAR'].includes(owner.role)) return 'vital';
+    const UserPlan = mongoose.models.UserPlan;
+    if (UserPlan) {
+      const up = await UserPlan.findOne({ userId: company.user }).select('plan').lean();
+      if (up?.plan === 'ipevar' && !['USER_PRO', 'USER_CUSTOM'].includes(owner.role)) return 'vital';
+    }
+    return 'pro';
+  } catch (e) {
+    logger.warn('[Public SGSST] resolveCompanyPlanTier error:', e?.message);
+    return 'pro';
+  }
+}
+
+// ─── GET /api/public-sgsst/company-plan/:companyId ─────────────────────────
+router.get('/company-plan/:companyId', async (req, res) => {
+  try {
+    const company = await resolveActiveCompany(req.params.companyId);
+    if (!company) {
+      return res.json({ planTier: 'pro' });
+    }
+    const planTier = await resolveCompanyPlanTier(company);
+    return res.json({ planTier });
+  } catch (error) {
+    logger.error('[Public SGSST] company-plan error:', error);
+    return res.json({ planTier: 'pro' });
   }
 });
 
@@ -871,11 +911,14 @@ router.get('/perfil-update/:companyId/:workerId?', async (req, res) => {
         .json({ error: 'Trabajador no encontrado o identificación incorrecta.' });
     }
 
+    const planTier = await resolveCompanyPlanTier(company);
+
     return res.json({
       _id: company._id,
       companyName: company.companyName || 'Empresa',
       logo: company.logoBase64 || null,
       arl: company.arl || '',
+      planTier,
       worker: {
         id: worker.id || worker._id?.toString() || worker.identificacion,
         nombre: worker.nombre,
@@ -2564,6 +2607,7 @@ router.get('/colaborador-info/:companyId/:cedula', async (req, res) => {
       : hist.filter(h => h.modulo === 'termometro_animo');
 
     const resolvedLogo = company.logoBase64 || company.logoUrl || company.logo || null;
+    const planTier = await resolveCompanyPlanTier(company);
 
     res.json({
       success: true,
@@ -2573,6 +2617,7 @@ router.get('/colaborador-info/:companyId/:cedula', async (req, res) => {
         logo: resolvedLogo,
         logoUrl: resolvedLogo,
         arl: company.arl || '',
+        planTier,
       },
       worker: {
         nombre: effectiveNombre,

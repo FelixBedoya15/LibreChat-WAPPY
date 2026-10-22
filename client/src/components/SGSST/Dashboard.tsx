@@ -33,6 +33,7 @@ import { PHASE_CATEGORIES, SGSST_MODULE_PHASE_MAP } from './constants';
 import PhaseDetail from './PhaseDetail';
 import CompanyInfoModal from './CompanyInfoModal';
 import DashboardPredictivo from './DashboardPredictivo';
+import { isVitalUser } from '~/utils/planAccess';
 
 const REQUIRED_FIELDS = [
     'companyName', 'nit', 'legalRepresentative', 'workerCount',
@@ -176,6 +177,19 @@ export default function SGSSTDashboard() {
     const [companyInfo, setCompanyInfo] = useState<any>(null);
     const hasCheckedRef = React.useRef(false);
     const unifiedHitos = UNIFIED_HITOS;
+
+    // Redirigir usuarios Wappy Vital a su módulo exclusivo Huella Biocéntrica
+    useEffect(() => {
+        if (user && isVitalUser(user)) {
+            const nextParams = new URLSearchParams();
+            const mod = searchParams.get('module');
+            const modal = searchParams.get('modal');
+            if (mod) nextParams.set('module', mod);
+            if (modal) nextParams.set('modal', modal);
+            const qs = nextParams.toString();
+            navigate(qs ? `/huella-biocentrica?${qs}` : '/huella-biocentrica', { replace: true });
+        }
+    }, [user, navigate, searchParams]);
 
     useEffect(() => {
         if (!token) return;

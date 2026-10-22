@@ -107,6 +107,35 @@ export const PHASE_CATEGORIES = {
         }
     ],
 
+    // ─── MÓDULO HUELLA BIOCÉNTRICA (WAPPY VITAL & ADMIN) ───
+    huella_biocentrica: [
+        { 
+            id: 'perfil_cargo', title: 'Perfiles de Cargo (Roles)', icon: 'UserCircle',
+            bioRationale: 'Identifica las exigencias biomecánicas, cognitivas y psicosociales reales a las que será expuesto el individuo.', 
+            normativity: 'Huella Biocéntrica' 
+        },
+        { 
+            id: 'perfil_socio', title: 'Perfil Sociodemográfico', icon: 'Users',
+            bioRationale: 'Crea la huella antropológica de la comunidad trabajadora (vulnerabilidades, demografía, contexto social) para personalizar la protección.', 
+            normativity: 'Huella Biocéntrica' 
+        },
+        { 
+            id: 'condiciones_salud', title: 'Informe Condiciones de Salud', icon: 'Activity',
+            bioRationale: 'Establece la línea base fisiológica y psíquica del individuo mediante exámenes médicos ocupacionales y aptitudes.', 
+            normativity: 'Huella Biocéntrica' 
+        },
+        { 
+            id: 'oraculo_predictivo', title: 'Dictamen de Compatibilidad Cargo-Persona', icon: 'Sparkles',
+            bioRationale: 'Consolidación analítica que cruza el diseño del trabajo con la salud humana para certificar la compatibilidad y prevenir enfermedades laborales.', 
+            normativity: 'Huella Biocéntrica' 
+        },
+        { 
+            id: 'peligros', title: 'Matriz Bio-IPEVR', icon: 'AlertTriangle',
+            bioRationale: 'Hub centralizado de consciencia bio-individual. Síntesis y culminación evaluativa: cruza los peligros del puesto con la anatomía y percepción del trabajador.', 
+            normativity: 'Huella Biocéntrica' 
+        }
+    ],
+
     // ─── HITO 03: COMITÉS, BRIGADAS Y ÓRGANOS DE GOBERNANZA ───
     hito3: [
         { 

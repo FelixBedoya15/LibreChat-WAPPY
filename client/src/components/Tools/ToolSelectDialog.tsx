@@ -35,7 +35,7 @@ function ToolSelectDialog({
   const { regularTools } = useAgentPanelContext();
   const { user } = useAuthContext();
   const isAdmin = user?.role === SystemRoles.ADMIN;
-  const isProOrAdmin = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+  const isProOrAdmin = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || user?.role === 'USER_IPEVAR' || user?.role === 'IPEVAR';
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
   const {

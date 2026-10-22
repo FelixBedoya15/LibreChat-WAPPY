@@ -3,7 +3,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useSetRecoilState, useRecoilValue } from 'recoil';
 import type { Dispatch, SetStateAction } from 'react';
 import { motion } from 'framer-motion';
-import { GraduationCap, Plus, ShieldCheck } from 'lucide-react';
+import { GraduationCap, Plus, ShieldCheck, Fingerprint } from 'lucide-react';
+import { useAuthContext } from '~/hooks';
+import { isVitalUser } from '~/utils/planAccess';
 import store from '~/store';
 import { cn } from '~/utils';
 
@@ -59,6 +61,8 @@ const RightPanelIcon = ({ active }: { active: boolean }) => (
 function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuthContext();
+  const isVital = isVitalUser(user);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
   const setIsCollapsed = useSetRecoilState(store.sidePanelCollapsed);
@@ -118,7 +122,7 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
     location.pathname.startsWith('/events-meet');
 
   const isSSTActive =
-    location.pathname.startsWith('/sgsst') &&
+    (location.pathname.startsWith('/sgsst') || location.pathname.startsWith('/huella-biocentrica')) &&
     !location.pathname.startsWith('/sgsst/control') &&
     !location.pathname.startsWith('/sgsst/automatizaciones');
 
@@ -245,11 +249,11 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
           </span>
         </div>
 
-        {/* 4. MANO DERECHA: SOMOS SST */}
+        {/* 4. MANO DERECHA: SOMOS SST / HUELLA BIOCÉNTRICA */}
         <motion.button
           whileTap={{ scale: 0.88 }}
-          onClick={() => handleNavClick('/sgsst')}
-          aria-label="Ir a Somos SST"
+          onClick={() => handleNavClick(isVital ? '/huella-biocentrica' : '/sgsst')}
+          aria-label={isVital ? 'Ir a Huella Biocéntrica' : 'Ir a Somos SST'}
           className={cn(
             'flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all',
             isSSTActive
@@ -258,18 +262,27 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
           )}
         >
           <div className="relative flex items-center justify-center h-5 w-5">
-            <ShieldCheck
-              className={cn(
-                'h-5 w-5 transition-transform duration-150',
-                isSSTActive && 'scale-110 text-teal-600 dark:text-teal-400',
-              )}
-            />
+            {isVital ? (
+              <Fingerprint
+                className={cn(
+                  'h-5 w-5 transition-transform duration-150',
+                  isSSTActive && 'scale-110 text-teal-600 dark:text-teal-400',
+                )}
+              />
+            ) : (
+              <ShieldCheck
+                className={cn(
+                  'h-5 w-5 transition-transform duration-150',
+                  isSSTActive && 'scale-110 text-teal-600 dark:text-teal-400',
+                )}
+              />
+            )}
             {isSSTActive && (
               <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-teal-500 rounded-full" />
             )}
           </div>
           <span className="text-[10px] mt-0.5 tracking-tight truncate max-w-[62px] font-medium">
-            Somos SST
+            {isVital ? 'Huella Bio' : 'Somos SST'}
           </span>
         </motion.button>
 

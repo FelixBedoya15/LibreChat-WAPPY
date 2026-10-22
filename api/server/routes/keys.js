@@ -27,7 +27,7 @@ router.put('/', requireJwtAuth, async (req, res) => {
 
     if (req.user.isSubUser) maxKeys = 5;
     else if (role === 'USER_GO') maxKeys = 4;
-    else if (role === 'USER_PLUS' || role === 'USER_PRO' || role === 'ADMIN') maxKeys = 10;
+    else if (role === 'USER_PLUS' || role === 'USER_PRO' || role === 'USER_IPEVAR' || role === 'IPEVAR' || role === 'ADMIN') maxKeys = 10;
 
     if (keysCount > maxKeys) {
       return res.status(403).json({ error: `Tu plan actual solo permite registrar hasta ${maxKeys} claves API.` });

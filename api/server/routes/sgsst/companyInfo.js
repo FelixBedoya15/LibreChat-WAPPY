@@ -220,7 +220,14 @@ router.post('/', requireJwtAuth, async (req, res) => {
 
         // Consultar el plan del usuario
         const userPlanDoc = await UserPlan.findOne({ userId }).lean();
-        const planKey = userPlanDoc?.plan || 'free';
+        let planKey = userPlanDoc?.plan || 'free';
+        if (planKey === 'free') {
+            const roleUpper = (req.user.role || '').toUpperCase();
+            if (roleUpper === 'ADMIN') planKey = 'admin';
+            else if (roleUpper === 'USER_PRO') planKey = 'pro';
+            else if (roleUpper === 'USER_IPEVAR' || roleUpper === 'IPEVAR') planKey = 'ipevar';
+            else if (roleUpper === 'USER_CUSTOM') planKey = 'custom';
+        }
 
         // Calcular el límite dinámico
         let limit = 1;

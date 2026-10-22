@@ -289,7 +289,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
 
   const [history, setHistory] = useState<any[]>([]);
   const [version, setVersion] = useState<number>(1);
-  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || Boolean(user?.isSubUser);
+  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || user?.role === 'USER_IPEVAR' || user?.role === 'IPEVAR' || Boolean(user?.isSubUser);
   
   const navigate = useNavigate();
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);

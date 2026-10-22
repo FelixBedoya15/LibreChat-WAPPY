@@ -815,7 +815,7 @@ class CanvasTool extends Tool {
 
       const userId = this.req?.user?.id;
       const userRole = this.req?.user?.role;
-      const isPro = userRole === 'ADMIN' || userRole === 'USER_PRO';
+      const isPro = ['ADMIN', 'USER_PRO', 'PRO', 'USER_IPEVAR', 'IPEVAR'].includes(userRole);
       let companyInfo = null;
       if (userId) {
         companyInfo =

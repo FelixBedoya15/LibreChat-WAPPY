@@ -38,6 +38,8 @@ const GoogleConfig = ({ userKey, setUserKey }: Pick<TConfigProps, 'userKey' | 's
       case 'USER_GO': return 4;
       case 'USER_PLUS': return 10;
       case 'USER_PRO': return 10;
+      case 'USER_IPEVAR': return 10;
+      case 'IPEVAR': return 10;
       case 'ADMIN': return 10;
       default: return 1;
     }

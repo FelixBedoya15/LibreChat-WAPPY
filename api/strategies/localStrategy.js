@@ -102,7 +102,7 @@ async function passportLogin(req, email, password, done) {
 
     // Check for Inactivation/Activation Dates
     const now = new Date();
-    const freeRoles = ['USER', 'ADMIN', 'USER_IPEVAR', 'IPEVAR'];
+    const freeRoles = ['USER', 'ADMIN'];
     if (!freeRoles.includes(user.role) && user.inactiveAt && now >= new Date(user.inactiveAt)) {
       logger.info(`[Login] Auto-downgrading expired user ${identifier} (expired on ${user.inactiveAt}) to free tier.`);
       const { downgradeUserIfExpired } = require('../server/services/planExpirationJob');

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Shield,
@@ -33,6 +33,7 @@ interface PublicWorkerHeaderProps {
   title?: string;
   subtitle?: string;
   workerCedula?: string;
+  planTier?: string;
 }
 
 export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
@@ -44,9 +45,23 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
   title,
   subtitle,
   workerCedula,
+  planTier,
 }) => {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [fetchedPlanTier, setFetchedPlanTier] = useState<string>('');
+
+  useEffect(() => {
+    if (planTier || !companyId) return;
+    fetch(`/api/public-sgsst/company-plan/${companyId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.planTier) setFetchedPlanTier(d.planTier);
+      })
+      .catch(() => {});
+  }, [companyId, planTier]);
+
+  const isVitalPlan = (planTier || fetchedPlanTier) === 'vital';
 
   // Compute resolvedCedula from prop, query parameter, or localStorage
   const resolvedCedula = workerCedula || (() => {
@@ -260,6 +275,15 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
     },
   ];
 
+  const visibleModuleGroups = isVitalPlan
+    ? moduleGroups
+        .map((group) => ({
+          ...group,
+          items: group.items.filter((item) => item.id === 'colaborador' || item.id === 'perfil_update'),
+        }))
+        .filter((group) => group.items.length > 0)
+    : moduleGroups;
+
   const isHub = typeof window !== 'undefined' && window.location.pathname.includes('/sgsst-public/colaborador');
 
   return (
@@ -291,7 +315,7 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
               {companyName}
             </span>
             <span className="text-[10px] text-text-secondary flex items-center gap-1 font-medium">
-              Somos SST <Sparkles className="w-2.5 h-2.5 text-teal-500" />
+              {isVitalPlan ? 'Huella Biocéntrica' : 'Somos SST'} <Sparkles className="w-2.5 h-2.5 text-teal-500" />
             </span>
           </div>
         </div>
@@ -366,7 +390,7 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
                   )}
 
                   <div className="space-y-2.5 pt-1">
-                    {moduleGroups.map((group) => (
+                    {visibleModuleGroups.map((group) => (
                       <div key={group.groupTitle} className="space-y-1">
                         <p className="px-2.5 text-[9px] font-black uppercase tracking-wider text-text-secondary/80">
                           {group.groupTitle}

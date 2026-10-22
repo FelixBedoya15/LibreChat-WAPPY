@@ -97,9 +97,21 @@ interface PhaseDetailProps {
     navVisible: boolean;
     setNavVisible: React.Dispatch<React.SetStateAction<boolean>>;
     autoOpenModule?: string;
+    hideBackButton?: boolean;
+    headerRightWidget?: React.ReactNode;
+    topBanner?: React.ReactNode;
 }
 
-const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule }: PhaseDetailProps) => {
+const PhaseDetail = ({
+    phase,
+    onBack,
+    navVisible,
+    setNavVisible,
+    autoOpenModule,
+    hideBackButton = false,
+    headerRightWidget,
+    topBanner,
+}: PhaseDetailProps) => {
     const localize = useLocalize();
     const navigate = useNavigate();
     const { showToast } = useToastContext();
@@ -211,12 +223,16 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
 
     const { hasPermission } = useRolePermissions();
     const isSubUserWithAccess = Boolean(user?.isSubUser);
-    const hasAccessToSGSST = isSubUserWithAccess || (
-        useHasAccess({
-            permissionType: PermissionTypes.SGSST,
-            permission: Permissions.USE,
-        }) && hasPermission(PermissionTypes.SGSST) && user?.role !== 'USER_IPEVAR' && user?.role !== 'IPEVAR'
-    );
+    const baseSgsstHookAccess = useHasAccess({
+        permissionType: PermissionTypes.SGSST,
+        permission: Permissions.USE,
+    });
+    const isHuellaBiocentricaPhase = phase.id === 'huella_biocentrica';
+    const isVitalRole = user?.role === 'USER_IPEVAR' || user?.role === 'IPEVAR';
+    const hasAccessToSGSST =
+        isSubUserWithAccess ||
+        (isHuellaBiocentricaPhase && (isVitalRole || user?.role === 'ADMIN' || user?.role === 'USER_PRO' || user?.role === 'PRO')) ||
+        (baseSgsstHookAccess && hasPermission(PermissionTypes.SGSST) && !isVitalRole);
 
     const lockTitle = "Somos SST Pro Exclusivo";
     const lockDesc = "El acceso a la suite completa de aplicativos de Somos SST es exclusivo del Plan Wappy Pro. Evoluciona hoy tu plan para comenzar a implementarlo en tu organización.";
@@ -341,25 +357,36 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
             <div className={`flex-1 flex flex-col min-h-0 w-full overflow-y-auto z-10 ${!hasAccessToSGSST ? 'filter blur-[8px] pointer-events-none select-none' : ''}`}>
 
             {/* Header Section */}
-            <div className="relative z-10 px-6 pt-10 pb-6 w-full flex flex-col md:flex-row items-start md:items-center gap-6">
-                <div className="flex items-center gap-4">
+            <div className="relative z-10 px-6 pt-10 pb-6 w-full flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                <div className="flex items-center gap-4 flex-1 w-full md:w-auto">
                     {!navVisible && (
                         <div className="hidden md:block shrink-0">
                             <OpenSidebar setNavVisible={setNavVisible} />
                         </div>
                     )}
-                    <button
-                        onClick={onBack}
-                        className="rounded-2xl p-3 bg-surface-secondary border border-border-light dark:border-white/5 hover:bg-surface-tertiary transition-all shadow-sm hover:shadow-md hover:-translate-x-1"
-                        aria-label="Back"
-                    >
-                        <ArrowLeft className="h-6 w-6 text-text-primary" />
-                    </button>
+                    {hideBackButton ? (
+                        <div className="bg-[#10b981]/10 p-3.5 rounded-2xl dark:bg-[#10b981]/20 shrink-0">
+                            <UserCircle className="h-8 w-8 text-[#10b981]" strokeWidth={2.2} />
+                        </div>
+                    ) : (
+                        <button
+                            onClick={onBack}
+                            className="rounded-2xl p-3 bg-surface-secondary border border-border-light dark:border-white/5 hover:bg-surface-tertiary transition-all shadow-sm hover:shadow-md hover:-translate-x-1 shrink-0"
+                            aria-label="Back"
+                        >
+                            <ArrowLeft className="h-6 w-6 text-text-primary" />
+                        </button>
+                    )}
+                    <div className="flex-1 min-w-0">
+                        <h2 className="text-3xl sm:text-5xl font-black text-text-primary tracking-tighter drop-shadow-sm truncate">{phase.title}</h2>
+                    </div>
                 </div>
-                
-                <div className="flex-1 w-full md:w-auto">
-                    <h2 className="text-4xl sm:text-5xl font-black text-text-primary tracking-tighter drop-shadow-sm">{phase.title}</h2>
-                </div>
+
+                {headerRightWidget && (
+                    <div className="w-full md:w-auto shrink-0">
+                        {headerRightWidget}
+                    </div>
+                )}
 
                 {/* Hidden global input */}
                 <input
@@ -372,6 +399,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
             </div>
 
             <div className="flex-1 w-full overflow-y-auto space-y-8 px-6 pb-20 relative z-10 scroll-smooth">
+                {topBanner && <div className="w-full">{topBanner}</div>}
                 {/* Context & Description (Scrolls with the page) */}
                 <div className="flex flex-col gap-4 mb-2 max-w-4xl">
                     <p className="text-base sm:text-lg text-text-secondary leading-relaxed font-medium">{phase.description}</p>

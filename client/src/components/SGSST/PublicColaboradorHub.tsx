@@ -270,6 +270,19 @@ export default function PublicColaboradorHub() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<any>(null);
   const [llamadosAtel, setLlamadosAtel] = useState<any[]>([]);
+  const [fetchedPlanTier, setFetchedPlanTier] = useState<string>('');
+
+  useEffect(() => {
+    if (!companyId) return;
+    fetch(`/api/public-sgsst/company-plan/${companyId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.planTier) setFetchedPlanTier(d.planTier);
+      })
+      .catch(() => {});
+  }, [companyId]);
+
+  const isVitalPlan = (data?.company?.planTier || fetchedPlanTier) === 'vital';
 
   const fetchLlamadosAtel = async (ced: string) => {
     if (!ced.trim() || !companyId) return;
@@ -622,15 +635,27 @@ export default function PublicColaboradorHub() {
     },
   ];
 
+  const visibleAppCategories = isVitalPlan
+    ? appCategories
+        .filter((cat) => cat.id === 'salud')
+        .map((cat) => ({
+          ...cat,
+          title: 'Perfil Sociodemográfico y Condiciones de Salud',
+          subtitle: 'Actualización de ficha médica, datos sociodemográficos y contactos de emergencia',
+          apps: cat.apps.filter((app) => app.path.includes('/sgsst-public/perfil-update/')),
+        }))
+    : appCategories;
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-text-primary flex flex-col font-sans transition-colors">
       {/* Header Universal */}
       <PublicWorkerHeader 
         companyId={companyId || ''} 
-        companyName={data?.company?.companyName || 'Somos SST'}
+        companyName={data?.company?.companyName || (isVitalPlan ? 'Huella Biocéntrica' : 'Somos SST')}
         companyLogo={data?.company?.logoUrl}
         currentModule="colaborador"
         workerCedula={activeCedula || undefined}
+        planTier={data?.company?.planTier || fetchedPlanTier}
       />
 
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6 space-y-6">
@@ -688,7 +713,7 @@ export default function PublicColaboradorHub() {
         {data && (
           <div className="space-y-6 animate-in fade-in duration-300">
             {/* Banner Alerta de Citación a Testigo en Investigación ATEL */}
-            {llamadosAtel.length > 0 && (
+            {!isVitalPlan && llamadosAtel.length > 0 && (
               <div className="bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 rounded-3xl p-5 text-white shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-white/20 animate-in slide-in-from-top-3">
                 <div className="flex items-center gap-3.5">
                   <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0 shadow-inner">
@@ -950,20 +975,31 @@ export default function PublicColaboradorHub() {
                 </span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {[
-                  { title: 'ATEL', subtitle: 'Accidentes / Enfermedades', icon: '🚨', items: data.worker.atel || [], emptyMsg: 'Sin eventos ATEL' },
-                  { title: 'Actos / Condiciones', subtitle: 'Reportes en terreno', icon: '⚠️', items: data.worker.actos_inseguros || [], emptyMsg: 'Sin reportes' },
-                  { title: 'IPEVR', subtitle: 'Participación activa', icon: '🎯', items: data.worker.participaciones_ipevar || [], emptyMsg: 'Sin registros' },
-                  { title: 'Capacitaciones', subtitle: 'Formación SST / LMS', icon: '📚', items: data.worker.capacitaciones || [], emptyMsg: 'Sin cursos' },
-                  { title: 'Termómetro Psicosocial', subtitle: 'Bienestar & Clima', icon: '❤️', items: termometroAnimo, emptyMsg: 'Sin check-ins' },
-                  { title: 'Comités & Inspecciones', subtitle: 'COPASST, CCL, PESV', icon: '🏛️', items: data.worker.comites || [], emptyMsg: 'Sin actas/rondas' },
-                  { title: 'Votaciones Paritarias', subtitle: 'Elecciones SST', icon: '🗳️', items: data.worker.votaciones || [], emptyMsg: 'Sin votos' },
-                  { title: 'EPP y Dotación', subtitle: 'Solicitudes y entregas', icon: '🦺', items: data.worker.solicitud_epp || [], emptyMsg: 'Sin solicitudes' },
-                  { title: 'Seguridad Vial PESV', subtitle: 'Preoperacionales', icon: '🚗', items: data.worker.inspeccion_vehicular_pesv || [], emptyMsg: 'Sin inspecciones' },
-                  { title: 'Ergonomía & Puesto', subtitle: 'Evaluación postural IA', icon: '🪑', items: data.worker.estudio_puesto || [], emptyMsg: 'Sin mediciones' },
-                  { title: 'Brigada & SCI', subtitle: 'Hoja de vida emergencias', icon: '🚒', items: data.worker.brigada || [], emptyMsg: 'Sin registros' },
-                  { title: 'ATS & Perfil Anual', subtitle: 'Permisos y ficha médica', icon: '📋', items: [...(data.worker.ats || []), ...(data.worker.actualizaciones_perfil || [])], emptyMsg: 'Sin actualizaciones' },
-                ].map(({ title, subtitle, icon, items, emptyMsg }) => {
+                {(isVitalPlan
+                  ? [
+                      {
+                        title: 'Perfil Sociodemográfico',
+                        subtitle: 'Ficha médica y datos sociodemográficos',
+                        icon: '📋',
+                        items: data.worker.actualizaciones_perfil || [],
+                        emptyMsg: 'Sin actualizaciones',
+                      },
+                    ]
+                  : [
+                      { title: 'ATEL', subtitle: 'Accidentes / Enfermedades', icon: '🚨', items: data.worker.atel || [], emptyMsg: 'Sin eventos ATEL' },
+                      { title: 'Actos / Condiciones', subtitle: 'Reportes en terreno', icon: '⚠️', items: data.worker.actos_inseguros || [], emptyMsg: 'Sin reportes' },
+                      { title: 'IPEVR', subtitle: 'Participación activa', icon: '🎯', items: data.worker.participaciones_ipevar || [], emptyMsg: 'Sin registros' },
+                      { title: 'Capacitaciones', subtitle: 'Formación SST / LMS', icon: '📚', items: data.worker.capacitaciones || [], emptyMsg: 'Sin cursos' },
+                      { title: 'Termómetro Psicosocial', subtitle: 'Bienestar & Clima', icon: '❤️', items: termometroAnimo, emptyMsg: 'Sin check-ins' },
+                      { title: 'Comités & Inspecciones', subtitle: 'COPASST, CCL, PESV', icon: '🏛️', items: data.worker.comites || [], emptyMsg: 'Sin actas/rondas' },
+                      { title: 'Votaciones Paritarias', subtitle: 'Elecciones SST', icon: '🗳️', items: data.worker.votaciones || [], emptyMsg: 'Sin votos' },
+                      { title: 'EPP y Dotación', subtitle: 'Solicitudes y entregas', icon: '🦺', items: data.worker.solicitud_epp || [], emptyMsg: 'Sin solicitudes' },
+                      { title: 'Seguridad Vial PESV', subtitle: 'Preoperacionales', icon: '🚗', items: data.worker.inspeccion_vehicular_pesv || [], emptyMsg: 'Sin inspecciones' },
+                      { title: 'Ergonomía & Puesto', subtitle: 'Evaluación postural IA', icon: '🪑', items: data.worker.estudio_puesto || [], emptyMsg: 'Sin mediciones' },
+                      { title: 'Brigada & SCI', subtitle: 'Hoja de vida emergencias', icon: '🚒', items: data.worker.brigada || [], emptyMsg: 'Sin registros' },
+                      { title: 'ATS & Perfil Anual', subtitle: 'Permisos y ficha médica', icon: '📋', items: [...(data.worker.ats || []), ...(data.worker.actualizaciones_perfil || [])], emptyMsg: 'Sin actualizaciones' },
+                    ]
+                ).map(({ title, subtitle, icon, items, emptyMsg }) => {
                   const hasItems = items.length > 0;
                   return (
                     <div
@@ -1028,7 +1064,7 @@ export default function PublicColaboradorHub() {
               </div>
 
               <div className="space-y-6">
-                {appCategories.map((cat) => {
+                {visibleAppCategories.map((cat) => {
                   const CatIcon = cat.icon;
                   return (
                     <div

@@ -11,6 +11,7 @@ import {
   Plus
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
+import { isVitalUser } from '~/utils/planAccess';
 import { OpenSidebar } from '~/components/Chat/Menus';
 import type { ContextType } from '~/common';
 import TrainingDashboard from '~/components/Training/TrainingDashboard';
@@ -27,8 +28,9 @@ export default function AcademiaDashboard() {
   const { user, isAuthenticated } = useAuthContext();
   const ADMIN_EMAILS = ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com', 'felix.bedoya15@gmail.com'];
   const isAdmin = user?.role === 'ADMIN' || (!!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase()));
-  const isProOrAdmin = isAdmin || user?.role === 'USER_PRO' || user?.role === 'USER_CUSTOM' || Boolean(user?.isSubUser);
-  const canAccessPlanEmpresa = Boolean(isAuthenticated && user);
+  const isVital = isVitalUser(user);
+  const isProOrAdmin = isAdmin || user?.role === 'USER_PRO' || user?.role === 'USER_CUSTOM' || Boolean(user?.isSubUser && !isVital);
+  const canAccessPlanEmpresa = Boolean(isAuthenticated && user && !isVital);
   const outletContext = useOutletContext<ContextType>();
   const navVisible = outletContext?.navVisible ?? true;
   const setNavVisible = outletContext?.setNavVisible ?? (() => {});

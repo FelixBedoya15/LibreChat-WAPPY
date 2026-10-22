@@ -95,9 +95,14 @@ const seedDatabase = async () => {
     const permKeys = ipevar ? Object.keys(ipevar.permissions || {}) : [];
 
     if (!ipevar || permKeys.length <= 2) {
-      // Permissions were wiped — restore from defaults, then force AGENTS.USE = true
+      // Permissions were wiped — restore from defaults, then force AGENTS.USE/CREATE, LIVE_ANALYSIS.USE, ARTIFACTS.USE = true
       const defaultPerms = roleDefaults[SystemRoles.USER_IPEVAR]?.permissions || {};
-      const restored = { ...defaultPerms, AGENTS: { ...(defaultPerms.AGENTS || {}), USE: true, CREATE: false } };
+      const restored = {
+        ...defaultPerms,
+        AGENTS: { ...(defaultPerms.AGENTS || {}), USE: true, CREATE: true },
+        LIVE_ANALYSIS: { ...(defaultPerms.LIVE_ANALYSIS || {}), USE: true },
+        ARTIFACTS: { ...(defaultPerms.ARTIFACTS || {}), USE: true },
+      };
       await Role.findOneAndUpdate(
         { name: 'USER_IPEVAR' },
         { $set: { permissions: restored } },
@@ -105,12 +110,19 @@ const seedDatabase = async () => {
       );
       console.log('Restored USER_IPEVAR permissions from defaults');
     } else {
-      // Permissions look OK — only fix AGENTS.USE surgically
+      // Permissions look OK — ensure AGENTS.USE/CREATE, LIVE_ANALYSIS.USE, ARTIFACTS.USE are enabled for Vital
       await Role.findOneAndUpdate(
         { name: 'USER_IPEVAR' },
-        { $set: { 'permissions.AGENTS.USE': true, 'permissions.AGENTS.CREATE': false } }
+        {
+          $set: {
+            'permissions.AGENTS.USE': true,
+            'permissions.AGENTS.CREATE': true,
+            'permissions.LIVE_ANALYSIS.USE': true,
+            'permissions.ARTIFACTS.USE': true,
+          },
+        }
       );
-      console.log('Patched USER_IPEVAR AGENTS.USE = true');
+      console.log('Patched USER_IPEVAR permissions (AGENTS.USE/CREATE, LIVE_ANALYSIS.USE, ARTIFACTS.USE = true)');
     }
     // Clear role cache so clients see updated value immediately
     await cache.delete('USER_IPEVAR');

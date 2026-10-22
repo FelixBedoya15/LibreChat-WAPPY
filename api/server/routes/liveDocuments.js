@@ -16,9 +16,11 @@ const upload = multer({
 
 router.use(requireJwtAuth);
 
-// Middleware para restringir endpoints a planes PRO o ADMIN
+// Middleware para restringir endpoints a planes PRO, VITAL o ADMIN
+const isPaidOrAdmin = (role) => ['ADMIN', 'USER_PRO', 'PRO', 'USER_IPEVAR', 'IPEVAR'].includes(role);
+
 const requireProAuth = (req, res, next) => {
-  if (req.user?.role !== 'ADMIN' && req.user?.role !== 'USER_PRO') {
+  if (!isPaidOrAdmin(req.user?.role)) {
     return res.status(403).json({ error: 'Esta funcionalidad es exclusiva para cuentas Premium.' });
   }
   next();
@@ -52,7 +54,7 @@ router.get('/:id', async (req, res) => {
 // POST: Crear un nuevo documento guardado
 router.post('/', async (req, res) => {
   try {
-    if (req.user?.role !== 'ADMIN' && req.user?.role !== 'USER_PRO') {
+    if (!isPaidOrAdmin(req.user?.role)) {
       const count = await LiveDocument.countDocuments({ user: req.user.id });
       if (count >= 1) {
         return res.status(403).json({ error: 'Has alcanzado el límite gratuito de documentos.' });
@@ -106,7 +108,7 @@ router.delete('/:id', async (req, res) => {
 // POST: Endpoint para extraer texto/html de un archivo subido
 router.post('/extract', upload.single('file'), async (req, res) => {
   try {
-    if (req.user?.role !== 'ADMIN' && req.user?.role !== 'USER_PRO') {
+    if (!isPaidOrAdmin(req.user?.role)) {
       const count = await LiveDocument.countDocuments({ user: req.user.id });
       if (count >= 1) {
         return res.status(403).json({ error: 'Has alcanzado el límite gratuito de importación.' });

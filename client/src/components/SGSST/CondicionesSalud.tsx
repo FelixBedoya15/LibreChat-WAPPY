@@ -197,7 +197,7 @@ const EMPTY_WORKER: Omit<WorkerEntry, 'id'> = {
 const CondicionesSalud = () => {
     const { token, user } = useAuthContext();
     const { showToast } = useToastContext();
-    const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || Boolean(user?.isSubUser);
+    const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || user?.role === 'USER_IPEVAR' || user?.role === 'IPEVAR' || Boolean(user?.isSubUser);
     const [trabajadores, setTrabajadores] = useState<WorkerEntry[]>([]);
     const [workerTabs, setWorkerTabs] = useState<Record<string, string>>({});
     const [activeSignatureWorkerId, setActiveSignatureWorkerId] = useState<string | null>(null);

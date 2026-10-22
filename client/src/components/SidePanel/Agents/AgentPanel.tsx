@@ -303,7 +303,7 @@ export default function AgentPanel() {
   }, [showToast]);
 
   const isCreationBlocked = useMemo(() => {
-    if (user?.role === SystemRoles.ADMIN || user?.role === 'USER_PRO') {
+    if (user?.role === SystemRoles.ADMIN || user?.role === 'USER_PRO' || user?.role === 'USER_IPEVAR' || user?.role === 'IPEVAR') {
       return false;
     }
     return !current_agent_id || isEphemeralAgent(current_agent_id);

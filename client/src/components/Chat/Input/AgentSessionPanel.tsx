@@ -179,7 +179,7 @@ const getToolIcon = (toolId: string) => {
 export default function AgentSessionPanel({ agentId, conversationId }: AgentSessionPanelProps) {
     const localize = useLocalize();
     const { user } = useAuthContext();
-    const isProOrAdmin = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+    const isProOrAdmin = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || user?.role === 'USER_IPEVAR' || user?.role === 'IPEVAR';
     const [isGeneralOpen, setIsGeneralOpen] = useState(false);
     const [isGoogleOpen, setIsGoogleOpen] = useState(false);
     const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);

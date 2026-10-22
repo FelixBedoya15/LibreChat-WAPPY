@@ -10,7 +10,7 @@ import { WappyExpandButton } from '../WappyExpandButton';
 export default function OneDriveConnect() {
   const { showToast } = useToastContext();
   const { user } = useAuthContext();
-  const isProOrAdmin = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+  const isProOrAdmin = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || user?.role === 'USER_IPEVAR' || user?.role === 'IPEVAR';
   const [connected, setConnected] = useState<boolean>(false);
   const [email, setEmail] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState<string | null>(null);

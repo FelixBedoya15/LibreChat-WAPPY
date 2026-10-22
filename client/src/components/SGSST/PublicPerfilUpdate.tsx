@@ -158,7 +158,8 @@ export default function PublicPerfilUpdate() {
                 setCompany({
                     _id: res.data._id || company?._id || companyId,
                     companyName: res.data.companyName,
-                    logo: res.data.logo
+                    logo: res.data.logo,
+                    planTier: res.data.planTier || company?.planTier,
                 });
             }
             const w: WorkerData = res.data.worker;
@@ -316,6 +317,7 @@ export default function PublicPerfilUpdate() {
                 title="Actualización Sociodemográfica"
                 subtitle="Ficha médica, laboral y sociodemográfica anual"
                 workerCedula={cedula || workerId || sessionWorker?.cedula || sessionWorker?.identificacion}
+                planTier={company.planTier}
             />
 
             <main className="flex-1 p-4 sm:p-6 w-full max-w-lg mx-auto flex flex-col justify-center">

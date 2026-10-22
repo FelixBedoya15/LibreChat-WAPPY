@@ -219,7 +219,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
         const nowStartOfDay = new Date();
         nowStartOfDay.setHours(0, 0, 0, 0);
 
-        const freeRoles = ['USER', 'ADMIN', 'USER_IPEVAR', 'IPEVAR'];
+        const freeRoles = ['USER', 'ADMIN'];
         if (!freeRoles.includes(formData.role) && inactiveAt && nowStartOfDay >= inactiveAt && formData.accountStatus !== 'inactive') {
             setFormData(prev => ({ ...prev, accountStatus: 'inactive' }));
         }
@@ -516,7 +516,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
                                                     className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3.5 py-2 text-xs text-slate-800 dark:text-zinc-100 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none mt-1"
                                                 />
                                                 <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-1">
-                                                    Si se deja vacío, la suscripción se considera continua. Los roles libres (USER, ADMIN, Wappy Vital) nunca se bloquearán automáticamente por vencimiento.
+                                                    Si se deja vacío, la suscripción se considera continua (o vitalicia). Si se define una fecha de vencimiento, la cuenta pasará a plan gratuito al vencer.
                                                 </p>
                                             </div>
 
@@ -614,7 +614,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
                                                         name="subUserLimit"
                                                         value={formData.subUserLimit}
                                                         onChange={handleChange}
-                                                        placeholder="Por defecto (Pro: 1)"
+                                                        placeholder="Por defecto (Pro/Vital: 1)"
                                                         min={0}
                                                         className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-xs text-slate-800 dark:text-zinc-100 focus:border-teal-500 outline-none"
                                                     />

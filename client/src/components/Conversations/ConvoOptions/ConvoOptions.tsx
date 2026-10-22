@@ -44,7 +44,7 @@ function ConvoOptions({
   const { conversationId: currentConvoId } = useParams();
   const { newConversation } = useNewConvo();
   const { user } = useAuthContext();
-  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || user?.role === 'USER_IPEVAR' || user?.role === 'IPEVAR';
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [upgradeModalTitle, setUpgradeModalTitle] = useState('');
   const [upgradeModalDesc, setUpgradeModalDesc] = useState('');

@@ -485,7 +485,7 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
     const effectiveLimit = useMemo(() => {
         if (['admin', 'custom'].includes(userPlanName)) return 999;
         if (subUserLimit !== null && subUserLimit !== undefined) return subUserLimit;
-        if (userPlanName === 'pro') return 1;
+        if (userPlanName === 'pro' || userPlanName === 'ipevar') return 1;
         return 0;
     }, [userPlanName, subUserLimit]);
 

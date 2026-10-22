@@ -365,46 +365,46 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
         if (companies.length < effectiveLimit) {
             handleNewCompany();
         } else {
-            if (userPlanName === 'pro') {
+            if (userPlanName === 'pro' || userPlanName === 'ipevar') {
                 setUpgradeAlert({
                     isOpen: true,
                     title: 'Límite de Empresas Alcanzado',
-                    message: `Has alcanzado el límite de ${effectiveLimit} empresa(s) de tu plan Wappy Pro. Para activar empresas adicionales en tu cuenta, comunícate con nuestro soporte técnico para habilitarlas en tu suscripción.`,
+                    message: `Has alcanzado el límite de ${effectiveLimit} empresa(s) de tu suscripción actual. Para activar empresas adicionales en tu cuenta, puedes adquirirlas en Planes o comunicarte con soporte técnico.`,
                     actionText: 'Contactar Soporte',
-                    actionUrl: 'https://wa.me/573102913651?text=Hola,%20tengo%20el%20Plan%20Wappy%20Pro%20y%20deseo%20adquirir%20empresas%20adicionales%20en%20mi%20cuenta.',
+                    actionUrl: 'https://wa.me/573102913651?text=Hola,%20deseo%20adquirir%20empresas%20adicionales%20en%20mi%20cuenta%20Wappy.',
                     badge: 'Adquirir Empresas'
                 });
             } else {
                 setUpgradeAlert({
                     isOpen: true,
                     title: 'Amplía tu Plan',
-                    message: `Tu plan actual permite gestionar hasta ${effectiveLimit} empresa(s). Para poder crear y gestionar nuevas empresas de forma aislada, te invitamos a adquirir el plan Wappy Pro con empresas adicionales.`,
-                    actionText: 'Ver Planes y Adquirir Wappy Pro',
+                    message: `Tu plan actual permite gestionar hasta ${effectiveLimit} empresa(s). Para poder crear y gestionar nuevas empresas de forma aislada, te invitamos a adquirir un plan con empresas adicionales.`,
+                    actionText: 'Ver Planes',
                     actionUrl: '/planes',
-                    badge: 'Adquirir Wappy Pro'
+                    badge: 'Ampliar Plan'
                 });
             }
         }
     };
 
     const handleLockedCompanyClick = (c: CompanyInfoData) => {
-        if (userPlanName === 'pro') {
+        if (userPlanName === 'pro' || userPlanName === 'ipevar') {
             setUpgradeAlert({
                 isOpen: true,
                 title: 'Empresa Bloqueada',
-                message: `La empresa "${c.companyName}" está bloqueada. Tu plan Wappy Pro actual permite gestionar hasta ${effectiveLimit} empresa(s). Comunícate con soporte técnico para activar perfiles adicionales en tu suscripción y desbloquearla.`,
+                message: `La empresa "${c.companyName}" está bloqueada. Tu plan actual permite gestionar hasta ${effectiveLimit} empresa(s). Comunícate con soporte técnico para activar perfiles adicionales en tu suscripción y desbloquearla.`,
                 actionText: 'Contactar Soporte',
-                actionUrl: `https://wa.me/573102913651?text=Hola,%20tengo%20el%20Plan%20Wappy%20Pro%20y%20deseo%20desbloquear%20la%20empresa%20${encodeURIComponent(c.companyName || '')}%20en%20mi%20cuenta.`,
+                actionUrl: `https://wa.me/573102913651?text=Hola,%20deseo%20desbloquear%20la%20empresa%20${encodeURIComponent(c.companyName || '')}%20en%20mi%20cuenta%20Wappy.`,
                 badge: 'Desbloquear Empresa'
             });
         } else {
             setUpgradeAlert({
                 isOpen: true,
                 title: 'Empresa Bloqueada',
-                message: `La empresa "${c.companyName}" está bloqueada. Tu plan actual permite gestionar hasta ${effectiveLimit} empresa(s). Adquiere el plan Wappy Pro para desbloquearla y gestionar múltiples perfiles.`,
-                actionText: 'Ver Planes y Adquirir Wappy Pro',
+                message: `La empresa "${c.companyName}" está bloqueada. Tu plan actual permite gestionar hasta ${effectiveLimit} empresa(s). Adquiere un plan con empresas adicionales para desbloquearla.`,
+                actionText: 'Ver Planes',
                 actionUrl: '/planes',
-                badge: 'Adquirir Wappy Pro'
+                badge: 'Ampliar Plan'
             });
         }
     };

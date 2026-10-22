@@ -28,7 +28,7 @@ interface VisibilitySettings {
 
 const VISIBILITY_ITEMS: Array<{ key: keyof VisibilitySettings; label: string; description: string; color: string }> = [
     { key: 'showPlanPro',           label: 'Plan Wappy Pro ⭐',        description: 'Muestra el plan Wappy Pro — Recomendado',            color: 'text-amber-500' },
-    { key: 'showSectionAppPlans',   label: 'Plan Wappy Vital (Anual)', description: 'Muestra el plan Wappy Vital Anual',                 color: 'text-emerald-500' },
+    { key: 'showSectionAppPlans',   label: 'Plan Wappy Vital',         description: 'Muestra el plan Wappy Vital por temporalidades',     color: 'text-emerald-500' },
     { key: 'showSectionCustomPlan', label: 'Sección: Plan a la Medida',description: 'Muestra el constructor de plan personalizado',     color: 'text-fuchsia-500' },
     { key: 'showSectionEnterprise', label: 'Sección: Planes Corporativos', description: 'Muestra los planes empresariales y asesores', color: 'text-violet-500' },
 ];
@@ -247,10 +247,23 @@ export default function SubscriptionPlansTable() {
             </div>
 
             {/* ── PLAN PRICING CARDS ──────────────────────────────────── */}
-            {plans.filter((p) => !['free', 'go', 'plus'].includes(p.planId)).map((plan) => (
+            {plans
+                .filter((p) => !['free', 'go', 'plus'].includes(p.planId))
+                .sort((a, b) => {
+                    const order: Record<string, number> = { pro: 1, ipevar: 2 };
+                    return (order[a.planId] || 99) - (order[b.planId] || 99);
+                })
+                .map((plan) => (
                 <div key={plan.planId} className="border border-slate-200/80 dark:border-zinc-800 rounded-2xl overflow-hidden bg-white dark:bg-zinc-900 shadow-2xs">
                     <div className="bg-slate-50/90 dark:bg-zinc-800/80 px-6 py-4 flex justify-between items-center border-b border-slate-200/80 dark:border-zinc-800">
-                        <h3 className="text-base font-bold capitalize text-slate-800 dark:text-zinc-100">Plan {plan.planId === 'ipevar' ? 'Wappy Vital (Anual)' : plan.name}</h3>
+                        <div>
+                            <h3 className="text-base font-bold capitalize text-slate-800 dark:text-zinc-100">
+                                Plan {plan.planId === 'ipevar' ? 'Wappy Vital' : plan.name}
+                            </h3>
+                            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                                Configura precios y descuentos por temporalidad (Mensual, Trimestral, Semestral y Anual). Si dejas un precio en 0, esa temporalidad no estará habilitada para compra.
+                            </p>
+                        </div>
                         <WappyExpandButton
                             onClick={() => handleSave(plan)}
                             variant="teal"
@@ -260,7 +273,7 @@ export default function SubscriptionPlansTable() {
                     </div>
 
                     <div className="p-6 flex flex-row overflow-x-auto gap-6 bg-surface-primary pb-8 custom-admin-scrollbar">
-                        {(plan.planId === 'ipevar' ? ['annual'] : ['monthly', 'quarterly', 'semiannual', 'annual']).map(interval => (
+                        {['monthly', 'quarterly', 'semiannual', 'annual'].map(interval => (
                             <div key={interval} className="min-w-[260px] flex-1 border border-border-medium/60 bg-surface-secondary rounded-xl p-4 shadow-sm flex flex-col gap-5">
                                 <h4 className="font-bold text-lg capitalize text-primary text-center pb-3 border-b border-border-light">
                                     {interval === 'monthly' ? 'Mensual' : interval === 'quarterly' ? 'Trimestral' : interval === 'semiannual' ? 'Semestral' : 'Anual (1 Año)'}

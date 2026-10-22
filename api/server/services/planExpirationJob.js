@@ -80,7 +80,12 @@ const downgradeUserIfExpired = async (userId) => {
         const isPlanExpired = userPlan && userPlan.planExpiresAt && new Date(userPlan.planExpiresAt) <= now && userPlan.plan !== 'free';
 
         if (isUserExpired || isPlanExpired) {
-            const { plan, role } = getDowngradeTarget(userPlan?.planInterval || null);
+            // Un plan Wappy Vital con vencimiento (suscripción por temporalidad) que expira
+            // pasa a Invitado; nunca debe "degradarse" a Vital de nuevo (quedaría vitalicio).
+            const wasVital = userPlan?.plan === 'ipevar' || ['USER_IPEVAR', 'IPEVAR'].includes(user.role);
+            const { plan, role } = wasVital
+                ? { plan: 'free', role: 'USER' }
+                : getDowngradeTarget(userPlan?.planInterval || null);
 
             await Promise.all([
                 UserPlan.updateOne(

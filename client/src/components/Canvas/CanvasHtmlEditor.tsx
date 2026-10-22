@@ -826,7 +826,7 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
   onRegisterDownload 
 }) => {
   const { user } = useAuthContext();
-  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || user?.role === 'USER_IPEVAR' || user?.role === 'IPEVAR';
   const [code, setCode] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'split' | 'code' | 'preview'>(isMaximized ? 'split' : 'preview');
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);

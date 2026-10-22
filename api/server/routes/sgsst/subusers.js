@@ -77,7 +77,7 @@ async function getEffectiveSubUserLimit(userId, userRole, userEmail) {
     if (['admin', 'custom'].includes(plan)) {
         return { limit: 999, plan };
     }
-    if (plan === 'pro') {
+    if (plan === 'pro' || plan === 'ipevar') {
         return { limit: 1, plan };
     }
     return { limit: 0, plan };
@@ -339,7 +339,7 @@ router.post('/', requireJwtAuth, async (req, res) => {
         const { limit: effectiveLimit, plan: userPlanName } = await getEffectiveSubUserLimit(parentUserId, req.user.role, req.user.email);
         if (effectiveLimit <= 0) {
             return res.status(403).json({
-                error: 'La creación de sub-usuarios es una función exclusiva del Plan Wappy Pro. Actualiza tu suscripción a Wappy Pro o solicita cupos al administrador.'
+                error: 'La creación de sub-usuarios es una función exclusiva de los planes Wappy Pro y Wappy Vital. Actualiza tu suscripción o solicita cupos al administrador.'
             });
         }
 
@@ -422,7 +422,7 @@ router.post('/', requireJwtAuth, async (req, res) => {
             departamento: 'Antioquia',
             ciudad: 'Medellín',
             provider: 'local',
-            role: 'USER',
+            role: (req.user.role === 'USER_IPEVAR' || req.user.role === 'IPEVAR') ? 'USER_IPEVAR' : 'USER',
             isSubUser: true,
             parentUser: parentUserId,
             assignedCompany: company._id,

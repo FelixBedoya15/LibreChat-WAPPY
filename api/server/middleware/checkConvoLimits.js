@@ -6,7 +6,7 @@ const checkConvoLimits = async (req, res, next) => {
         return next();
     }
     try {
-        if (!req.user || !['USER', 'USER_GO', 'USER_PLUS', 'USER_IPEVAR'].includes(req.user.role)) {
+        if (!req.user || !['USER', 'USER_GO', 'USER_PLUS'].includes(req.user.role)) {
             return next();
         }
 

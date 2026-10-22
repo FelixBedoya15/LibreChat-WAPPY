@@ -235,7 +235,7 @@ const DEBOUNCE_SAVE_MS = 10000;
 const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const { showToast } = useToastContext();
   const { token, user } = useAuthContext();
-  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || user?.role === 'USER_IPEVAR' || user?.role === 'IPEVAR';
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [upgradeModalTitle, setUpgradeModalTitle] = useState('');
   const [upgradeModalDesc, setUpgradeModalDesc] = useState('');
@@ -1399,11 +1399,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                     return;
                   }
 
-                  if (
-                    user?.role === 'USER' ||
-                    user?.role === 'USER_IPEVAR' ||
-                    user?.role === 'IPEVAR'
-                  ) {
+                  if (user?.role === 'USER') {
                     try {
                       const res = await fetch('/api/files/register-download', {
                         method: 'POST',
@@ -1415,14 +1411,11 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
                       if (res.status === 403) {
                         const data = await res.json();
-                        const isVital = user.role === 'USER_IPEVAR' || user.role === 'IPEVAR';
                         showToast({
                           status: 'error',
                           message:
                             data.message ||
-                            (isVital
-                              ? 'Límite de 6 descargas diarias alcanzado en el plan Wappy Vital. Adquiere Wappy Pro.'
-                              : 'Límite de descarga diaria alcanzado en el plan Gratis. Adquiere Wappy Vital.'),
+                            'Límite de descarga diaria alcanzado en el plan Gratis. Adquiere Wappy Pro o Wappy Vital.',
                         });
                         return;
                       }

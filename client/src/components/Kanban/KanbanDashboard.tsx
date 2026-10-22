@@ -377,7 +377,7 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
   };
 
   const isAdmin = user?.role === 'ADMIN';
-  const isProOrAdmin = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || Boolean(user?.isSubUser);
+  const isProOrAdmin = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || user?.role === 'USER_IPEVAR' || user?.role === 'IPEVAR' || Boolean(user?.isSubUser);
   const isLocked = !isProOrAdmin;
 
   // Fetch tasks

@@ -18,7 +18,7 @@ const LivePage = () => {
     const queryClient = useQueryClient();
     const localize = useLocalize();
     const { token, user } = useAuthContext();
-    const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+    const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || user?.role === 'USER_IPEVAR' || user?.role === 'IPEVAR';
     const { showToast } = useToastContext();
     const { navVisible, setNavVisible } = useOutletContext<ContextType>();
     const [editorContent, setEditorContent] = useState('');
@@ -810,13 +810,7 @@ const LivePage = () => {
                                         <div
                                             key={tmpl.id}
                                             onClick={() => {
-                                                if (isVital && tmpl.id !== 'general') {
-                                                    setUpgradeModalTitle("Módulo Exclusivo Pro");
-                                                    setUpgradeModalDesc(`El análisis offline de ${tmpl.title} es una herramienta avanzada de inspección exclusiva del Plan Wappy Pro.`);
-                                                    setShowUpgradeModal(true);
-                                                } else {
-                                                    setOfflineTemplate(tmpl.id);
-                                                }
+                                                setOfflineTemplate(tmpl.id);
                                             }}
                                             className={`p-4 rounded-xl border-2 cursor-pointer transition-all duration-300 flex flex-col justify-between h-32 hover:-translate-y-1 hover:shadow-md ${
                                                 offlineTemplate === tmpl.id ? tmpl.activeBg : `bg-surface-primary ${tmpl.color}`

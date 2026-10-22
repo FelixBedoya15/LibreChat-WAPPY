@@ -26,6 +26,7 @@ import { Search } from 'lucide-react';
 import PlansButton from './PlansButton';
 import AccountSettings from './AccountSettings';
 import SGSSTButton from './SGSSTButton';
+import HuellaBiocentricaButton from './HuellaBiocentricaButton';
 import AulaEstudioButton from './AulaEstudioButton';
 import MarketplaceNavButton from './MarketplaceNavButton';
 import RutaAprendizajeButton from './RutaAprendizajeButton';
@@ -97,9 +98,18 @@ const Nav = memo(
 
     const hasAccessToAgents = hasPermission(PermissionTypes.AGENTS);
     const { hasAmbassadorAccess } = useAmbassadorAccess();
+    const isAdmin = user?.role === 'ADMIN' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com';
+    const isPro = user?.role === 'USER_PRO' || user?.role === 'PRO';
+    const isVital = user?.role === 'USER_IPEVAR' || user?.role === 'IPEVAR';
     
-    // SG-SST button: visible for regular users or subusers with sgsst/audit/events permissions
-    const hasAccessToSGSST = !isSubUser || subPerms.some(p => p.startsWith('sgsst:') || p.startsWith('audit:') || p.startsWith('events:'));
+    // Base permission for SG-SST / Huella Biocéntrica (regular users or subusers with sgsst/audit/events permissions)
+    const hasSubUserSgsstPerm = !isSubUser || subPerms.some(p => p.startsWith('sgsst:') || p.startsWith('audit:') || p.startsWith('events:'));
+
+    // Somos SST: visible solo para Wappy Pro, Admin y sub-usuarios de cuentas Pro
+    const hasAccessToSGSST = hasSubUserSgsstPerm && (isAdmin || isPro || (isSubUser && !isVital));
+
+    // Huella Biocéntrica: visible solo para Wappy Vital, Admin y sub-usuarios de cuentas Vital
+    const hasAccessToHuellaBiocentrica = hasSubUserSgsstPerm && (isAdmin || isVital);
 
     // Centro de Control / Kanban
     const hasAccessToKanban = !isSubUser || subPerms.includes('kanban:acpm') || subPerms.includes('audit:checklist') || subPerms.includes('events:calendar');
@@ -109,7 +119,6 @@ const Nav = memo(
 
     // Subscription Plans: only for regular account owners
     const hasAccessToPlans = !isSubUser;
-    const isAdmin = user?.role === 'ADMIN' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com';
 
     const search = useRecoilValue(store.search);
 
@@ -301,6 +310,12 @@ const Nav = memo(
                             <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
                         )}
+                        {/* Huella Biocéntrica icon */}
+                        {hasAccessToHuellaBiocentrica && (
+                          <Suspense fallback={null}>
+                            <HuellaBiocentricaButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                          </Suspense>
+                        )}
                         {/* Centro de Control SST */}
                         {hasAccessToKanban && (
                           <Suspense fallback={null}>
@@ -360,10 +375,17 @@ const Nav = memo(
                               <div className="flex flex-col gap-1.5 mt-1 mb-3">
                                 {hasAccessToChat && search.enabled && <SearchBar isSmallScreen={isSmallScreen} isCollapsed={false} />}
                                 
-                                {/* 1. Somos SST */}
+                                {/* 1. Somos SST (Wappy Pro y Admin) */}
                                 {hasAccessToSGSST && (
                                   <Suspense fallback={null}>
                                     <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                  </Suspense>
+                                )}
+
+                                {/* 1B. Huella Biocéntrica (Wappy Vital y Admin) */}
+                                {hasAccessToHuellaBiocentrica && (
+                                  <Suspense fallback={null}>
+                                    <HuellaBiocentricaButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>
                                 )}
                                 

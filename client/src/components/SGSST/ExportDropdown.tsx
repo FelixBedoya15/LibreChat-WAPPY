@@ -38,13 +38,13 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
   const { showToast } = useToastContext();
   const { token, user } = useAuthContext();
   const { conversationId, id: docId } = useParams();
-  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || Boolean(user?.isSubUser);
+  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || user?.role === 'USER_IPEVAR' || user?.role === 'IPEVAR' || Boolean(user?.isSubUser);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [upgradeModalTitle, setUpgradeModalTitle] = useState('');
   const [upgradeModalDesc, setUpgradeModalDesc] = useState('');
 
   const handleDownloadGuard = async (downloadFn: () => void) => {
-    if (!user || (user.role !== 'USER' && user.role !== 'USER_IPEVAR' && user.role !== 'IPEVAR')) {
+    if (!user || user.role !== 'USER') {
       downloadFn();
       return;
     }

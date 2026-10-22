@@ -123,6 +123,35 @@ const calculateProratedExpiry = async (planId, interval, userPlan) => {
 const getPublicPlansConfig = async (req, res) => {
     try {
         const plans = await Plan.find({ planId: { $ne: '__visibility__' } }).lean();
+        const ipevarDoc = plans.find(p => p.planId === 'ipevar');
+        if (
+            ipevarDoc &&
+            !ipevarDoc.prices?.monthly &&
+            !ipevarDoc.prices?.quarterly &&
+            !ipevarDoc.prices?.semiannual &&
+            ipevarDoc.stripePriceIds?.lifetime !== 'vital_multi_interval_v1'
+        ) {
+            const annualBase = ipevarDoc.prices?.annual || 350000;
+            const seededPrices = {
+                monthly: 35000,
+                quarterly: 99000,
+                semiannual: 185000,
+                annual: annualBase,
+                lifetime: ipevarDoc.prices?.lifetime || 100000,
+            };
+            await Plan.updateOne(
+                { planId: 'ipevar' },
+                {
+                    $set: {
+                        name: 'Wappy Vital',
+                        prices: seededPrices,
+                        'stripePriceIds.lifetime': 'vital_multi_interval_v1',
+                    },
+                }
+            );
+            ipevarDoc.name = 'Wappy Vital';
+            ipevarDoc.prices = seededPrices;
+        }
         return res.json(plans);
     } catch (error) {
         console.error('[Wompi] getPublicPlansConfig error:', error);
@@ -226,7 +255,7 @@ const getUserPlan = async (req, res) => {
         // Determine storageLimit
         let storageLimit = userPlan?.storageLimit;
         if (storageLimit === undefined || storageLimit === null) {
-            if (['pro', 'plus'].includes(plan)) {
+            if (['pro', 'plus', 'ipevar'].includes(plan)) {
                 storageLimit = 3 * 1024 * 1024 * 1024;
             } else if (['admin', 'custom'].includes(plan)) {
                 storageLimit = 200 * 1024 * 1024 * 1024; // 200 GB
@@ -252,12 +281,12 @@ const getUserPlan = async (req, res) => {
             }
         }
 
-        // Determine subUserLimit (Pro: 1 by default, admin/custom: 999, free/ipevar/plus/go: 0)
+        // Determine subUserLimit (Pro/Vital: 1 by default, admin/custom: 999, free/plus/go: 0)
         let subUserLimit = userPlan?.subUserLimit;
         if (subUserLimit === undefined || subUserLimit === null) {
             if (['admin', 'custom'].includes(plan)) {
                 subUserLimit = 999;
-            } else if (plan === 'pro') {
+            } else if (plan === 'pro' || plan === 'ipevar') {
                 subUserLimit = 1;
             } else {
                 subUserLimit = 0;
@@ -415,7 +444,7 @@ const createTransaction = async (req, res) => {
 
         // Add additional companies cost
         const extraCompaniesCount = extraCompanies ? Math.min(9, Math.max(0, parseInt(extraCompanies, 10))) : 0;
-        const canAddExtraCompanies = ['pro', 'plus', 'go'].includes(planId);
+        const canAddExtraCompanies = ['pro', 'plus', 'go', 'ipevar'].includes(planId);
         const extraCompanyCost = (canAddExtraCompanies && extraCompaniesCount > 0)
             ? extraCompaniesCount * getExtraCompanyPrice(interval)
             : 0;
@@ -698,7 +727,7 @@ const handleWebhook = async (req, res) => {
             userPlan.companyLimit = 1 + extraCount;
 
             // Set storage limits (pro/plus get 3GB, others 1GB base, plus 1GB per extra company)
-            const baseStorageGB = ['pro', 'plus'].includes(wompiTx.planId) ? 3 : 1;
+            const baseStorageGB = ['pro', 'plus', 'ipevar'].includes(wompiTx.planId) ? 3 : 1;
             const totalStorageBytes = (baseStorageGB + extraCount) * 1024 * 1024 * 1024;
             userPlan.storageLimit = totalStorageBytes;
 
@@ -827,7 +856,7 @@ const verifyTransaction = async (req, res) => {
                 userPlan.companyLimit = 1 + extraCount;
 
                 // Set storage limits (pro/plus get 3GB, others 1GB base, plus 1GB per extra company)
-                const baseStorageGB = ['pro', 'plus'].includes(wompiTx.planId) ? 3 : 1;
+                const baseStorageGB = ['pro', 'plus', 'ipevar'].includes(wompiTx.planId) ? 3 : 1;
                 const totalStorageBytes = (baseStorageGB + extraCount) * 1024 * 1024 * 1024;
                 userPlan.storageLimit = totalStorageBytes;
 
@@ -978,7 +1007,7 @@ const createManualTransaction = async (req, res) => {
 
         // Add additional companies cost before the Nequi discount
         const extraCompaniesCount = extraCompanies ? Math.min(9, Math.max(0, parseInt(extraCompanies, 10))) : 0;
-        const canAddExtraCompanies = ['pro', 'plus', 'go'].includes(planId);
+        const canAddExtraCompanies = ['pro', 'plus', 'go', 'ipevar'].includes(planId);
         const extraCompanyCost = (canAddExtraCompanies && extraCompaniesCount > 0)
             ? extraCompaniesCount * getExtraCompanyPrice(interval)
             : 0;
@@ -1142,7 +1171,7 @@ const guestCheckout = async (req, res) => {
 
         // Add additional companies cost
         const extraCompaniesCount = extraCompanies ? Math.min(9, Math.max(0, parseInt(extraCompanies, 10))) : 0;
-        const canAddExtraCompanies = ['pro', 'plus', 'go'].includes(planId);
+        const canAddExtraCompanies = ['pro', 'plus', 'go', 'ipevar'].includes(planId);
         const extraCompanyCost = (canAddExtraCompanies && extraCompaniesCount > 0)
             ? extraCompaniesCount * getExtraCompanyPrice(interval)
             : 0;

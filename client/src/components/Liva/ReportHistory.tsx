@@ -141,7 +141,7 @@ const ReportHistory = ({
   historyEndpoint,
 }: ReportHistoryProps) => {
   const { isAuthenticated, user, token: authToken } = useAuthContext();
-  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || user?.role === 'USER_IPEVAR' || user?.role === 'IPEVAR';
   const localize = useLocalize();
 
   const [conversations, setConversations] = useState<ConvoItem[]>([]);

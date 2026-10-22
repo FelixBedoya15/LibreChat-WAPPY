@@ -49,3 +49,30 @@ export const hasActivePlan = (user: any): boolean => {
   // Cualquier otro rol o plan eliminado (USER, USER_GO, USER_PLUS, free, go, plus)
   return false;
 };
+
+/**
+ * Indica si el usuario pertenece al plan Wappy Vital (USER_IPEVAR / IPEVAR / plan 'ipevar').
+ * Los administradores NUNCA se consideran Vital (ven todo: Somos SST y Huella Biocéntrica).
+ *
+ * Alcance del plan Wappy Vital:
+ *  - Acceso a toda la plataforma excepto "Somos SST" (los 8 hitos).
+ *  - En su lugar ve "Huella Biocéntrica" (Hito 2 + Matriz Bio-IPEVR del Hito 4).
+ *  - Sin pestaña "Plan Empresa" en la Academia.
+ *  - Sin Automatizaciones IA ni su Historial & Reportes en el Centro de Control.
+ *  - Portal público del trabajador: solo formulario QR de Perfil Sociodemográfico.
+ */
+export const isVitalUser = (user: any): boolean => {
+  if (!user) return false;
+  if (user.role === 'ADMIN') return false;
+  return ['USER_IPEVAR', 'IPEVAR', 'USER_VITAL', 'VITAL'].includes(user.role);
+};
+
+/** Admin de la plataforma (rol ADMIN). */
+export const isPlatformAdmin = (user: any): boolean => user?.role === 'ADMIN';
+
+/** Indica si el usuario pertenece al plan Wappy Pro (no Admin ni Vital). */
+export const isProUser = (user: any): boolean => {
+  if (!user) return false;
+  if (user.role === 'ADMIN') return false;
+  return user.role === 'USER_PRO' || user.role === 'PRO';
+};

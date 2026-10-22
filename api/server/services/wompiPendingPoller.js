@@ -165,6 +165,10 @@ const runPollCycle = async () => {
                     userPlan.plan = tx.planId;
                     userPlan.planExpiresAt = expiryDate;
                     userPlan.planInterval = tx.interval; // Track interval for downgrade-on-expiry rules
+                    const extraCount = Math.min(9, tx.extraCompanies || 0);
+                    userPlan.companyLimit = 1 + extraCount;
+                    const baseStorageGB = ['pro', 'plus', 'ipevar'].includes(tx.planId) ? 3 : 1;
+                    userPlan.storageLimit = (baseStorageGB + extraCount) * 1024 * 1024 * 1024;
                     await userPlan.save();
 
                     let newRole = 'USER';
