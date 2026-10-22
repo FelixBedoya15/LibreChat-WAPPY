@@ -835,6 +835,207 @@ Formato (texto plano, 3 viñetas):
     console.error('⚠️ Error sincronizando perfiles de NotebookLM:', err.message);
   }
 
+  // ── 7. Sincronizar Servicios Oficiales del Marketplace (Empresa, Automatizaciones, Subusuarios y Curso Adelanto) ──
+  try {
+    const MarketplaceCategory = require('../models/MarketplaceCategory');
+    const MarketplaceProduct = require('../models/MarketplaceProduct');
+
+    await MarketplaceCategory.findOneAndUpdate(
+      { slug: 'complementos_wappy' },
+      {
+        $set: {
+          name: 'Complementos WAPPY',
+          slug: 'complementos_wappy',
+          description: 'Empresas adicionales, automatizaciones 24/7 y cupos de subusuarios para tu cuenta',
+          icon: 'Sparkles',
+          order: 0,
+          active: true
+        }
+      },
+      { upsert: true, new: true }
+    );
+
+    const addonProducts = [
+      {
+        title: 'Adquirir Empresa Adicional (+2 GB Cloud)',
+        slug: 'cupo-empresa-adicional-wappy',
+        sku: 'WAPPY-ADDON-EMPRESA',
+        shortDescription: 'Amplía tu capacidad multi-empresa en WAPPY (Somos SST o Huella Biocéntrica). Incluye +1 empresa gestionable y +2 GB de almacenamiento en la nube.',
+        description: 'Agrega empresas adicionales a tu cuenta de WAPPY Pro o WAPPY Vital para gestionar múltiples clientes, razones sociales o sedes independientes con separación total de trabajadores, matrices, indicadores y documentos. Cada cupo de empresa adicional incluye +2 GB extra de almacenamiento seguro en la nube.',
+        category: 'complementos_wappy',
+        tags: ['Empresa Adicional', 'Multi-empresa', 'Almacenamiento Cloud', 'Complemento WAPPY'],
+        serviceType: 'service_virtual',
+        regularPrice: 33350,
+        salePrice: 0,
+        hasDiscount: false,
+        hasVariants: true,
+        variants: [
+          {
+            name: 'Periodicidad del Cupo',
+            options: [
+              { label: 'Mensual ($33.350 COP / empresa)', priceDelta: 0, isDefault: true },
+              { label: 'Trimestral ($96.620 COP / empresa)', priceDelta: 63270, isDefault: false },
+              { label: 'Semestral ($187.240 COP / empresa)', priceDelta: 153890, isDefault: false },
+              { label: 'Anual ($350.000 COP / empresa)', priceDelta: 316650, isDefault: false }
+            ]
+          }
+        ],
+        estimatedDeliveryDays: 'Activación automática e inmediata al aprobarse el pago',
+        deliverables: [
+          'Habilitación inmediata de +1 cupo de empresa adicional en tu cuenta WAPPY',
+          'Ampliación automática de +2 GB de almacenamiento en la nube por cada empresa adquirida',
+          'Gestión independiente de trabajadores, matrices, documentos y reportes por NIT'
+        ],
+        requirements: [
+          'Contar con una cuenta activa en WAPPY (Plan Wappy Pro o Wappy Vital)'
+        ],
+        faqs: [
+          {
+            question: '¿Cómo se activa el cupo en mi cuenta?',
+            answer: 'Una vez aprobado el pago en Wompi (o validada la transferencia), el sistema incrementa automáticamente el límite de empresas y el almacenamiento (+2 GB) en tu cuenta.'
+          },
+          {
+            question: '¿Puedo comprar varias empresas a la vez?',
+            answer: 'Sí. Puedes ajustar la cantidad en el carrito de compras (1, 2, 5 o más empresas) y seleccionar la periodicidad que prefieras (Mensual, Trimestral, Semestral o Anual).'
+          }
+        ],
+        featuredImage: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&auto=format&fit=crop&q=80',
+        status: 'published',
+        isFeatured: true,
+        isTest: false,
+        stockType: 'unlimited',
+        availableSlots: 0,
+        rating: 5.0,
+        reviewsCount: 19,
+        paymentRecipient: 'WAPPY'
+      },
+      {
+        title: 'Adquirir Automatización 24/7 con Agentes IA',
+        slug: 'cupo-automatizacion-ia-wappy',
+        sku: 'WAPPY-ADDON-AUTOMATIZACION',
+        shortDescription: 'Añade tareas programadas y agentes autónomos 24/7 adicionales en el Centro de Control para monitorear cronogramas, matrices, vencimientos y reportes.',
+        description: 'Expande la capacidad de automatización autónoma de tu cuenta WAPPY. Cada cupo adicional te permite programar un nuevo flujo automático 24/7 con cualquiera de los 12 Agentes Especialistas SST (auditoría de vencimientos, seguimiento al Plan Anual de Trabajo, alertas de matriz legal, boletines preventivos y reportes ejecutivos en el Centro de Control).',
+        category: 'complementos_wappy',
+        tags: ['Automatizaciones', 'Agentes IA 24/7', 'Centro de Control', 'Complemento WAPPY'],
+        serviceType: 'service_virtual',
+        regularPrice: 25000,
+        salePrice: 0,
+        hasDiscount: false,
+        hasVariants: true,
+        variants: [
+          {
+            name: 'Periodicidad del Cupo',
+            options: [
+              { label: 'Mensual ($25.000 COP / automatización)', priceDelta: 0, isDefault: true },
+              { label: 'Trimestral ($67.500 COP / automatización)', priceDelta: 42500, isDefault: false },
+              { label: 'Semestral ($120.000 COP / automatización)', priceDelta: 95000, isDefault: false },
+              { label: 'Anual ($210.000 COP / automatización)', priceDelta: 185000, isDefault: false }
+            ]
+          }
+        ],
+        estimatedDeliveryDays: 'Activación automática e inmediata al aprobarse el pago',
+        deliverables: [
+          'Habilitación inmediata de +1 cupo de Automatización 24/7 en el Centro de Control',
+          'Ejecución programada (diaria, semanal o mensual) con cualquiera de los 12 especialistas IA',
+          'Historial completo de ejecuciones y reportes automáticos en tu cuenta'
+        ],
+        requirements: [
+          'Contar con una cuenta activa en WAPPY'
+        ],
+        faqs: [
+          {
+            question: '¿Para qué sirve un cupo de automatización adicional?',
+            answer: 'Te permite tener múltiples agentes trabajando en segundo plano 24/7 para distintas empresas o procesos (por ejemplo, un agente vigilando el cronograma de capacitación y otro auditando vencimientos de equipos o exámenes médicos).'
+          },
+          {
+            question: '¿Se activa automáticamente tras el pago?',
+            answer: 'Sí, al aprobarse la transacción el cupo se suma de inmediato a tu límite de automatizaciones en el Centro de Control.'
+          }
+        ],
+        featuredImage: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&auto=format&fit=crop&q=80',
+        status: 'published',
+        isFeatured: true,
+        isTest: false,
+        stockType: 'unlimited',
+        availableSlots: 0,
+        rating: 5.0,
+        reviewsCount: 15,
+        paymentRecipient: 'WAPPY'
+      },
+      {
+        title: 'Adquirir Subusuario Adicional (Colaborador / Asistente SST)',
+        slug: 'cupo-subusuario-adicional-wappy',
+        sku: 'WAPPY-ADDON-SUBUSUARIO',
+        shortDescription: 'Delega la operación SST en tu equipo de trabajo, inspectores de campo o miembros del COPASST con cuentas de subusuario y permisos granulares por empresa.',
+        description: 'Agrega cupos de subusuarios operativos a tu cuenta principal de WAPPY sin compartir tus credenciales de administrador. Ideal para auxiliares SST, inspectores de campo, coordinadores de sede o líderes del COPASST. Tú decides exactamente a qué empresa y a qué módulos tiene acceso cada subusuario.',
+        category: 'complementos_wappy',
+        tags: ['Subusuarios', 'Equipo SST', 'COPASST', 'Inspectores', 'Complemento WAPPY'],
+        serviceType: 'service_virtual',
+        regularPrice: 25000,
+        salePrice: 0,
+        hasDiscount: false,
+        hasVariants: true,
+        variants: [
+          {
+            name: 'Periodicidad del Cupo',
+            options: [
+              { label: 'Mensual ($25.000 COP / subusuario)', priceDelta: 0, isDefault: true },
+              { label: 'Trimestral ($67.500 COP / subusuario)', priceDelta: 42500, isDefault: false },
+              { label: 'Semestral ($120.000 COP / subusuario)', priceDelta: 95000, isDefault: false },
+              { label: 'Anual ($210.000 COP / subusuario)', priceDelta: 185000, isDefault: false }
+            ]
+          }
+        ],
+        estimatedDeliveryDays: 'Activación automática e inmediata al aprobarse el pago',
+        deliverables: [
+          'Habilitación inmediata de +1 cupo de Subusuario operativo en tu cuenta',
+          'Panel de control de permisos granulares por módulo y asignación por empresa',
+          'Acceso independiente con correo y contraseña propios para tu colaborador'
+        ],
+        requirements: [
+          'Contar con una cuenta titular activa en WAPPY'
+        ],
+        faqs: [
+          {
+            question: '¿Qué permisos puedo asignarle a un subusuario?',
+            answer: 'Desde el gestor de subusuarios puedes elegir qué empresa gestionará y a qué aplicativos tendrá acceso (inspecciones, entrega de EPP, matriz de peligros, perfil sociodemográfico, capacitaciones, etc.).'
+          },
+          {
+            question: '¿Cuándo queda disponible el cupo?',
+            answer: 'Inmediatamente después de que el pago es aprobado por la pasarela Wompi o confirmado por administración.'
+          }
+        ],
+        featuredImage: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&auto=format&fit=crop&q=80',
+        status: 'published',
+        isFeatured: true,
+        isTest: false,
+        stockType: 'unlimited',
+        availableSlots: 0,
+        rating: 5.0,
+        reviewsCount: 14,
+        paymentRecipient: 'WAPPY'
+      }
+    ];
+
+    for (const addon of addonProducts) {
+      await MarketplaceProduct.findOneAndUpdate(
+        { slug: addon.slug },
+        { $setOnInsert: addon },
+        { upsert: true, new: true }
+      );
+    }
+
+    // Restaurar Curso Adelanto (Mauricio Posada) como publicado
+    await MarketplaceProduct.updateOne(
+      { slug: 'curso-adelanto' },
+      { $set: { status: 'published', isTest: false } }
+    );
+
+    console.log('🛒 Servicios de Complementos WAPPY (Empresa, Automatizaciones, Subusuarios) y Curso de Mauricio sincronizados en Marketplace.');
+  } catch (err) {
+    console.error('⚠️ Error sincronizando Marketplace:', err.message);
+  }
+
   console.log('🎉 PROCESO COMPLETADO CON ÉXITO.');
   process.exit(0);
 }

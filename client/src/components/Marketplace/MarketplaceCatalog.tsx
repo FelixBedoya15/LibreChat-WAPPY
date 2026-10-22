@@ -25,6 +25,7 @@ import MarketplaceProductCard from './MarketplaceProductCard';
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   all: <Layers className="h-3.5 w-3.5" />,
+  complementos_wappy: <Sparkles className="h-3.5 w-3.5" />,
   medicina_laboral: <Stethoscope className="h-3.5 w-3.5" />,
   gtc45_ipevar: <FileSpreadsheet className="h-3.5 w-3.5" />,
   pesv: <Car className="h-3.5 w-3.5" />,

@@ -12,6 +12,7 @@ const { logger } = require('~/config');
 
 // Default initial categories for Occupational Health & SG-SST
 const DEFAULT_CATEGORIES = [
+  { name: 'Complementos WAPPY', slug: 'complementos_wappy', description: 'Empresas adicionales, automatizaciones 24/7 y cupos de subusuarios para tu cuenta', icon: 'Sparkles', order: 0 },
   { name: 'Medicina Laboral', slug: 'medicina_laboral', description: 'Exámenes médicos ocupacionales de ingreso, periódicos y retiro', icon: 'Stethoscope', order: 1 },
   { name: 'Matrices & Peligros', slug: 'gtc45_ipevar', description: 'Matrices IPEVAR, GTC-45 y evaluación técnica de riesgos', icon: 'FileSpreadsheet', order: 2 },
   { name: 'Seguridad Vial PESV', slug: 'pesv', description: 'Diseño e implementación del Plan Estratégico de Seguridad Vial', icon: 'Car', order: 3 },
@@ -110,9 +111,9 @@ const ADELANTO_COURSE_PRODUCT = {
     }
   ],
   featuredImage: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80',
-  status: 'draft',
+  status: 'published',
   isFeatured: true,
-  isTest: true,
+  isTest: false,
   stockType: 'unlimited',
   availableSlots: 0,
   rating: 5.0,
@@ -127,6 +128,169 @@ const ADELANTO_COURSE_PRODUCT = {
   }
 };
 
+// Official WAPPY Add-on Services (Extra Company, Automations 24/7, Sub-users)
+const WAPPY_ADDON_PRODUCTS = [
+  {
+    title: 'Adquirir Empresa Adicional (+2 GB Cloud)',
+    slug: 'cupo-empresa-adicional-wappy',
+    sku: 'WAPPY-ADDON-EMPRESA',
+    shortDescription: 'Amplía tu capacidad multi-empresa en WAPPY (Somos SST o Huella Biocéntrica). Incluye +1 empresa gestionable y +2 GB de almacenamiento en la nube.',
+    description: 'Agrega empresas adicionales a tu cuenta de WAPPY Pro o WAPPY Vital para gestionar múltiples clientes, razones sociales o sedes independientes con separación total de trabajadores, matrices, indicadores y documentos. Cada cupo de empresa adicional incluye +2 GB extra de almacenamiento seguro en la nube.',
+    category: 'complementos_wappy',
+    tags: ['Empresa Adicional', 'Multi-empresa', 'Almacenamiento Cloud', 'Complemento WAPPY'],
+    serviceType: 'service_virtual',
+    regularPrice: 33350,
+    salePrice: 0,
+    hasDiscount: false,
+    hasVariants: true,
+    variants: [
+      {
+        name: 'Periodicidad del Cupo',
+        options: [
+          { label: 'Mensual ($33.350 COP / empresa)', priceDelta: 0, isDefault: true },
+          { label: 'Trimestral ($96.620 COP / empresa)', priceDelta: 63270, isDefault: false },
+          { label: 'Semestral ($187.240 COP / empresa)', priceDelta: 153890, isDefault: false },
+          { label: 'Anual ($350.000 COP / empresa)', priceDelta: 316650, isDefault: false }
+        ]
+      }
+    ],
+    estimatedDeliveryDays: 'Activación automática e inmediata al aprobarse el pago',
+    deliverables: [
+      'Habilitación inmediata de +1 cupo de empresa adicional en tu cuenta WAPPY',
+      'Ampliación automática de +2 GB de almacenamiento en la nube por cada empresa adquirida',
+      'Gestión independiente de trabajadores, matrices, documentos y reportes por NIT'
+    ],
+    requirements: [
+      'Contar con una cuenta activa en WAPPY (Plan Wappy Pro o Wappy Vital)'
+    ],
+    faqs: [
+      {
+        question: '¿Cómo se activa el cupo en mi cuenta?',
+        answer: 'Una vez aprobado el pago en Wompi (o validada la transferencia), el sistema incrementa automáticamente el límite de empresas y el almacenamiento (+2 GB) en tu cuenta.'
+      },
+      {
+        question: '¿Puedo comprar varias empresas a la vez?',
+        answer: 'Sí. Puedes ajustar la cantidad en el carrito de compras (1, 2, 5 o más empresas) y seleccionar la periodicidad que prefieras (Mensual, Trimestral, Semestral o Anual).'
+      }
+    ],
+    featuredImage: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&auto=format&fit=crop&q=80',
+    status: 'published',
+    isFeatured: true,
+    isTest: false,
+    stockType: 'unlimited',
+    availableSlots: 0,
+    rating: 5.0,
+    reviewsCount: 19,
+    paymentRecipient: 'WAPPY'
+  },
+  {
+    title: 'Adquirir Automatización 24/7 con Agentes IA',
+    slug: 'cupo-automatizacion-ia-wappy',
+    sku: 'WAPPY-ADDON-AUTOMATIZACION',
+    shortDescription: 'Añade tareas programadas y agentes autónomos 24/7 adicionales en el Centro de Control para monitorear cronogramas, matrices, vencimientos y reportes.',
+    description: 'Expande la capacidad de automatización autónoma de tu cuenta WAPPY. Cada cupo adicional te permite programar un nuevo flujo automático 24/7 con cualquiera de los 12 Agentes Especialistas SST (auditoría de vencimientos, seguimiento al Plan Anual de Trabajo, alertas de matriz legal, boletines preventivos y reportes ejecutivos en el Centro de Control).',
+    category: 'complementos_wappy',
+    tags: ['Automatizaciones', 'Agentes IA 24/7', 'Centro de Control', 'Complemento WAPPY'],
+    serviceType: 'service_virtual',
+    regularPrice: 25000,
+    salePrice: 0,
+    hasDiscount: false,
+    hasVariants: true,
+    variants: [
+      {
+        name: 'Periodicidad del Cupo',
+        options: [
+          { label: 'Mensual ($25.000 COP / automatización)', priceDelta: 0, isDefault: true },
+          { label: 'Trimestral ($67.500 COP / automatización)', priceDelta: 42500, isDefault: false },
+          { label: 'Semestral ($120.000 COP / automatización)', priceDelta: 95000, isDefault: false },
+          { label: 'Anual ($210.000 COP / automatización)', priceDelta: 185000, isDefault: false }
+        ]
+      }
+    ],
+    estimatedDeliveryDays: 'Activación automática e inmediata al aprobarse el pago',
+    deliverables: [
+      'Habilitación inmediata de +1 cupo de Automatización 24/7 en el Centro de Control',
+      'Ejecución programada (diaria, semanal o mensual) con cualquiera de los 12 especialistas IA',
+      'Historial completo de ejecuciones y reportes automáticos en tu cuenta'
+    ],
+    requirements: [
+      'Contar con una cuenta activa en WAPPY'
+    ],
+    faqs: [
+      {
+        question: '¿Para qué sirve un cupo de automatización adicional?',
+        answer: 'Te permite tener múltiples agentes trabajando en segundo plano 24/7 para distintas empresas o procesos (por ejemplo, un agente vigilando el cronograma de capacitación y otro auditando vencimientos de equipos o exámenes médicos).'
+      },
+      {
+        question: '¿Se activa automáticamente tras el pago?',
+        answer: 'Sí, al aprobarse la transacción el cupo se suma de inmediato a tu límite de automatizaciones en el Centro de Control.'
+      }
+    ],
+    featuredImage: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&auto=format&fit=crop&q=80',
+    status: 'published',
+    isFeatured: true,
+    isTest: false,
+    stockType: 'unlimited',
+    availableSlots: 0,
+    rating: 5.0,
+    reviewsCount: 15,
+    paymentRecipient: 'WAPPY'
+  },
+  {
+    title: 'Adquirir Subusuario Adicional (Colaborador / Asistente SST)',
+    slug: 'cupo-subusuario-adicional-wappy',
+    sku: 'WAPPY-ADDON-SUBUSUARIO',
+    shortDescription: 'Delega la operación SST en tu equipo de trabajo, inspectores de campo o miembros del COPASST con cuentas de subusuario y permisos granulares por empresa.',
+    description: 'Agrega cupos de subusuarios operativos a tu cuenta principal de WAPPY sin compartir tus credenciales de administrador. Ideal para auxiliares SST, inspectores de campo, coordinadores de sede o líderes del COPASST. Tú decides exactamente a qué empresa y a qué módulos tiene acceso cada subusuario.',
+    category: 'complementos_wappy',
+    tags: ['Subusuarios', 'Equipo SST', 'COPASST', 'Inspectores', 'Complemento WAPPY'],
+    serviceType: 'service_virtual',
+    regularPrice: 25000,
+    salePrice: 0,
+    hasDiscount: false,
+    hasVariants: true,
+    variants: [
+      {
+        name: 'Periodicidad del Cupo',
+        options: [
+          { label: 'Mensual ($25.000 COP / subusuario)', priceDelta: 0, isDefault: true },
+          { label: 'Trimestral ($67.500 COP / subusuario)', priceDelta: 42500, isDefault: false },
+          { label: 'Semestral ($120.000 COP / subusuario)', priceDelta: 95000, isDefault: false },
+          { label: 'Anual ($210.000 COP / subusuario)', priceDelta: 185000, isDefault: false }
+        ]
+      }
+    ],
+    estimatedDeliveryDays: 'Activación automática e inmediata al aprobarse el pago',
+    deliverables: [
+      'Habilitación inmediata de +1 cupo de Subusuario operativo en tu cuenta',
+      'Panel de control de permisos granulares por módulo y asignación por empresa',
+      'Acceso independiente con correo y contraseña propios para tu colaborador'
+    ],
+    requirements: [
+      'Contar con una cuenta titular activa en WAPPY'
+    ],
+    faqs: [
+      {
+        question: '¿Qué permisos puedo asignarle a un subusuario?',
+        answer: 'Desde el gestor de subusuarios puedes elegir qué empresa gestionará y a qué aplicativos tendrá acceso (inspecciones, entrega de EPP, matriz de peligros, perfil sociodemográfico, capacitaciones, etc.).'
+      },
+      {
+        question: '¿Cuándo queda disponible el cupo?',
+        answer: 'Inmediatamente después de que el pago es aprobado por la pasarela Wompi o confirmado por administración.'
+      }
+    ],
+    featuredImage: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&auto=format&fit=crop&q=80',
+    status: 'published',
+    isFeatured: true,
+    isTest: false,
+    stockType: 'unlimited',
+    availableSlots: 0,
+    rating: 5.0,
+    reviewsCount: 14,
+    paymentRecipient: 'WAPPY'
+  }
+];
+
 const DEFAULT_TEST_SLUGS = [
   'bateria-riesgo-psicosocial-completa',
   'matriz-ipevar-gtc45-asistida',
@@ -140,6 +304,7 @@ const DEFAULT_TEST_SLUGS = [
 // Default initial catalog products
 const DEFAULT_PRODUCTS = [
   OFFICIAL_COURSE_PRODUCT,
+  ...WAPPY_ADDON_PRODUCTS,
   ADELANTO_COURSE_PRODUCT,
   {
     title: 'Batería de Riesgo Psicosocial Completa (Res. 2764 / 2022)',
@@ -428,6 +593,73 @@ const sanitizeProductForClient = (product, isAdmin) => {
   return copy;
 };
 
+// Helper: Automatically provision WAPPY add-on quotas (Extra Company, Automations, Sub-users) upon order approval
+const provisionMarketplaceAddons = async (order) => {
+  try {
+    if (!order || !Array.isArray(order.items) || order.items.length === 0) return;
+    const alreadyProvisioned = (order.serviceTimeline || []).some(t => t.status === 'CUPOS_ACTIVADOS');
+    if (alreadyProvisioned) return;
+
+    const addonItems = order.items.filter(item =>
+      ['WAPPY-ADDON-EMPRESA', 'WAPPY-ADDON-AUTOMATIZACION', 'WAPPY-ADDON-SUBUSUARIO'].includes(item.sku)
+    );
+    if (addonItems.length === 0) return;
+
+    const User = mongoose.models.User || mongoose.model('User');
+    const UserPlan = mongoose.models.UserPlan || require('~/db/models/UserPlan');
+
+    let targetUser = null;
+    if (order.userId) {
+      targetUser = await User.findById(order.userId).lean();
+    }
+    if (!targetUser && order.customer?.email) {
+      targetUser = await User.findOne({ email: order.customer.email.toLowerCase().trim() }).lean();
+    }
+    if (!targetUser) return;
+
+    const userId = targetUser._id;
+    let userPlan = await UserPlan.findOne({ userId });
+    if (!userPlan) {
+      userPlan = new UserPlan({ userId, plan: targetUser.role === 'USER_PRO' ? 'pro' : (targetUser.role === 'USER_IPEVAR' ? 'ipevar' : 'free') });
+    }
+
+    const isProRole = targetUser.role === 'USER_PRO' || userPlan.plan === 'pro';
+    const activatedSummary = [];
+
+    for (const item of addonItems) {
+      const qty = Math.max(1, parseInt(item.quantity, 10) || 1);
+      if (item.sku === 'WAPPY-ADDON-EMPRESA') {
+        const baseCompanies = userPlan.companyLimit ?? 1;
+        const baseStorage = userPlan.storageLimit ?? (3 * 1024 * 1024 * 1024);
+        userPlan.companyLimit = baseCompanies + qty;
+        userPlan.storageLimit = baseStorage + (qty * 2 * 1024 * 1024 * 1024);
+        activatedSummary.push(`+${qty} Empresa(s) (+${qty * 2} GB Cloud)`);
+      } else if (item.sku === 'WAPPY-ADDON-AUTOMATIZACION') {
+        const baseAuto = userPlan.automationLimit ?? (isProRole ? 1 : 0);
+        userPlan.automationLimit = baseAuto + qty;
+        activatedSummary.push(`+${qty} Automatización(es) 24/7`);
+      } else if (item.sku === 'WAPPY-ADDON-SUBUSUARIO') {
+        const baseSub = userPlan.subUserLimit ?? (isProRole ? 1 : 0);
+        userPlan.subUserLimit = baseSub + qty;
+        activatedSummary.push(`+${qty} Subusuario(s)`);
+      }
+    }
+
+    await userPlan.save();
+
+    order.fulfillmentStatus = 'COMPLETADO';
+    order.serviceTimeline.push({
+      status: 'CUPOS_ACTIVADOS',
+      comment: `Activación automática en cuenta (${targetUser.email}): ${activatedSummary.join(', ')}.`,
+      updatedAt: new Date(),
+      updatedBy: 'Sistema WAPPY'
+    });
+    logger.info(`[Marketplace Add-ons] Provisioned for ${targetUser.email}: ${activatedSummary.join(', ')}`);
+  } catch (err) {
+    logger.error('[Marketplace Add-ons] Error provisioning add-on quotas:', err);
+  }
+};
+
 // Helper: Ensure default data on boot/first request
 const ensureSeedData = async (force = false) => {
   if (mongoose.connection.readyState !== 1) {
@@ -441,6 +673,11 @@ const ensureSeedData = async (force = false) => {
     if (catCount === 0) {
       await MarketplaceCategory.insertMany(DEFAULT_CATEGORIES);
       logger.info('[Marketplace] Default categories seeded successfully.');
+    } else {
+      const addonCat = await MarketplaceCategory.findOne({ slug: 'complementos_wappy' });
+      if (!addonCat) {
+        await MarketplaceCategory.create(DEFAULT_CATEGORIES[0]);
+      }
     }
     const prodCount = await MarketplaceProduct.countDocuments();
     if (prodCount === 0) {
@@ -459,18 +696,27 @@ const ensureSeedData = async (force = false) => {
         );
       }
 
-      // Ensure the partner course "Adelanto" exists with Mauricio Posada's test Wompi credentials
+      // Ensure the 3 official WAPPY Add-on products exist and are published
+      for (const addonProd of WAPPY_ADDON_PRODUCTS) {
+        const existingAddon = await MarketplaceProduct.findOne({ slug: addonProd.slug });
+        if (!existingAddon) {
+          await MarketplaceProduct.create(addonProd);
+          logger.info(`[Marketplace] Add-on "${addonProd.title}" seeded into database.`);
+        }
+      }
+
+      // Ensure the partner course "Adelanto" (Mauricio Posada) is published and visible
       const adelantoCourse = await MarketplaceProduct.findOne({ slug: 'curso-adelanto' });
       if (!adelantoCourse) {
         await MarketplaceProduct.create(ADELANTO_COURSE_PRODUCT);
         logger.info('[Marketplace] Partner Course "Adelanto" seeded into database.');
-      } else if (!adelantoCourse.providerWompi?.publicKey || !adelantoCourse.isTest) {
+      } else if (!adelantoCourse.providerWompi?.publicKey || adelantoCourse.isTest || adelantoCourse.status === 'draft') {
         await MarketplaceProduct.updateOne(
           { slug: 'curso-adelanto' },
           {
             $set: {
-              status: 'draft',
-              isTest: true,
+              status: 'published',
+              isTest: false,
               paymentRecipient: 'PROVIDER',
               providerName: ADELANTO_COURSE_PRODUCT.providerName,
               providerWompi: ADELANTO_COURSE_PRODUCT.providerWompi
@@ -532,10 +778,12 @@ const getProducts = async (req, res) => {
     const isAdmin = !!(req.user && req.user.role === 'ADMIN');
 
     const query = {};
-    if (!isAdmin || includeAll !== 'true') {
-      // In public catalog view (or non-admin), ONLY official published products are shown (never drafts or test products)
+    if (!isAdmin) {
+      // Non-admin users ONLY see official published products (never drafts or test products)
       query.status = 'published';
       query.isTest = { $ne: true };
+    } else if (includeAll !== 'true') {
+      query.status = { $ne: 'archived' };
     }
 
     if (category && category !== 'all') {
@@ -960,6 +1208,8 @@ const verifyPayment = async (req, res) => {
           await MarketplaceProduct.findByIdAndUpdate(item.productId, { $inc: { salesCount: item.quantity } });
         }
       }
+
+      await provisionMarketplaceAddons(order);
     }
 
     await order.save();
@@ -1030,6 +1280,8 @@ const handleWebhook = async (req, res) => {
                 await MarketplaceProduct.findByIdAndUpdate(item.productId, { $inc: { salesCount: item.quantity } });
               }
             }
+
+            await provisionMarketplaceAddons(order);
           } else if (status === 'DECLINED' && order.paymentStatus === 'PENDING') {
             order.paymentStatus = 'DECLINED';
           }
@@ -1150,6 +1402,9 @@ const adminUpdateOrderStatus = async (req, res) => {
         updatedAt: new Date(),
         updatedBy: req.user?.name || req.user?.email || 'Administrador'
       });
+      if (paymentStatus === 'APPROVED') {
+        await provisionMarketplaceAddons(order);
+      }
       updated = true;
     }
 

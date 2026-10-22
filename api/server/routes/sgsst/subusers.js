@@ -71,12 +71,12 @@ async function getEffectiveSubUserLimit(userId, userRole, userEmail) {
         else plan = 'free';
     }
 
-    if (plan === 'ipevar') {
-        return { limit: 0, plan };
-    }
-
     if (userPlanDoc?.subUserLimit !== undefined && userPlanDoc?.subUserLimit !== null) {
         return { limit: userPlanDoc.subUserLimit, plan };
+    }
+
+    if (plan === 'ipevar') {
+        return { limit: 0, plan };
     }
 
     if (['admin', 'custom'].includes(plan)) {
