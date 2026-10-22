@@ -6,15 +6,17 @@ import {
   LayoutDashboard,
   Cpu,
   Layers,
-  Users
+  Users,
+  Brain
 } from 'lucide-react';
 import KanbanDashboard from '~/components/Kanban/KanbanDashboard';
 import Automatizaciones from '~/components/SGSST/Automatizaciones';
+import MemoriaProceduralPanel from '~/components/SGSST/MemoriaProceduralPanel';
 import SubUserManagerModal from '~/components/SGSST/SubUserManagerModal';
 import { useAuthContext } from '~/hooks';
 import { isVitalUser } from '~/utils/planAccess';
 
-export type CentroControlTab = 'acpm' | 'automatizaciones' | 'historial';
+export type CentroControlTab = 'acpm' | 'automatizaciones' | 'historial' | 'memoria';
 
 export default function CentroControlSST() {
   const { user } = useAuthContext();
@@ -34,6 +36,9 @@ export default function CentroControlSST() {
     }
     if (tabParam === 'historial' || tabParam === 'logs') {
       return 'historial';
+    }
+    if (tabParam === 'memoria' || tabParam === 'procedural') {
+      return 'memoria';
     }
     if (tabParam === 'acpm' || tabParam === 'kanban') {
       return 'acpm';
@@ -118,6 +123,18 @@ export default function CentroControlSST() {
                   <Clock className="w-4 h-4 text-indigo-500" />
                   <span>Historial & Reportes</span>
                 </button>
+
+                <button
+                  onClick={() => handleTabChange('memoria')}
+                  className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
+                    activeTab === 'memoria'
+                      ? 'bg-white dark:bg-gray-900 text-amber-600 dark:text-amber-400 shadow-sm border border-border-medium/40'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-white/40 dark:hover:bg-gray-700/40'
+                  }`}
+                >
+                  <Brain className="w-4 h-4 text-amber-500" />
+                  <span>Memoria Procedural</span>
+                </button>
               </>
             )}
 
@@ -151,6 +168,12 @@ export default function CentroControlSST() {
         {!isVital && activeTab === 'historial' && (
           <div className="flex-1 flex flex-col animate-in fade-in duration-200">
             <Automatizaciones hideMainHeader={true} defaultTab="logs" />
+          </div>
+        )}
+
+        {!isVital && activeTab === 'memoria' && (
+          <div className="flex-1 flex flex-col animate-in fade-in duration-200">
+            <MemoriaProceduralPanel />
           </div>
         )}
       </div>

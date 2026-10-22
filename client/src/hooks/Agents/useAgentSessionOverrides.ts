@@ -13,6 +13,12 @@ const BUILTIN_TOOLS = new Set([
     Tools.memory,
 ]);
 
+/** System tools that are always active in the background and hidden from the session toggle menu */
+const ALWAYS_ON_HIDDEN_TOOLS = new Set([
+    'wappy_renderizar_widget_interactivo',
+    'wappy_memoria_procedimental',
+]);
+
 /** Extended version while data-provider package is being rebuilt */
 type TEphemeralAgentExtended = TEphemeralAgent & {
     model?: string;
@@ -65,7 +71,9 @@ export default function useAgentSessionOverrides({
         const combinedTools = Array.from(new Set([...tools, ...activeOverrides]));
         
         const toolSet = new Set(combinedTools);
-        const external = combinedTools.filter((t) => !BUILTIN_TOOLS.has(t as Tools));
+        const external = combinedTools.filter(
+            (t) => !BUILTIN_TOOLS.has(t as Tools) && !ALWAYS_ON_HIDDEN_TOOLS.has(t),
+        );
         return {
             hasWebSearch: toolSet.has(Tools.web_search),
             hasFileSearch: toolSet.has(Tools.file_search),

@@ -890,14 +890,24 @@ export const TenshiGenerativeWidget: React.FC<TenshiGenerativeWidgetProps> = ({
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setShowNewHabit((v) => !v)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Nuevo Hábito</span>
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => onNavigate && onNavigate('/kanban?tab=memoria')}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold text-xs shadow-sm transition-all active:scale-95 bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700"
+            >
+              <ExternalLink className="h-3.5 w-3.5 text-purple-500" />
+              <span>Centro de Control</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowNewHabit((v) => !v)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Nuevo Hábito</span>
+            </button>
+          </div>
         </div>
 
         {showNewHabit && (

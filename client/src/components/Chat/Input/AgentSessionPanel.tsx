@@ -212,11 +212,14 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
 
     const sessionModel = (overrides as TEphemeralAgentExtended | null)?.model ?? agentModel ?? '';
 
-    // Filter tools into Google and General categories
+    // Filter tools into Google and General categories (excluding always-on background system tools)
+    const alwaysOnHiddenTools = ['wappy_renderizar_widget_interactivo', 'wappy_memoria_procedimental', 'memory'];
     const googleToolIds = ['google_drive', 'google_calendar', 'google_gmail', 'google_sheets', 'google_docs', 'google_slides'];
     const googleTools = externalTools.filter(id => googleToolIds.includes(id));
     const notebookLmTools = externalTools.filter(id => id.includes('_mcp_notebooklm'));
-    const generalExternalTools = externalTools.filter(id => !googleToolIds.includes(id) && !id.includes('_mcp_notebooklm'));
+    const generalExternalTools = externalTools.filter(
+        id => !googleToolIds.includes(id) && !id.includes('_mcp_notebooklm') && !alwaysOnHiddenTools.includes(id)
+    );
     
     const isNotebookLmActive = notebookLmTools.length > 0 && notebookLmTools.some(id => (overrides as TEphemeralAgentExtended | null)?.tools?.includes(id));
     

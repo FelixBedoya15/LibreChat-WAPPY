@@ -467,9 +467,11 @@ router.post('/governance/:id/reject', requireJwtAuth, async (req, res) => {
 router.get('/procedural-memory', requireJwtAuth, async (req, res) => {
     try {
         const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
-        const habits = await TenshiProceduralMemory.find({ user: targetUserId, isActive: true })
+        const includeInactive = req.query.includeInactive === 'true' || req.query.all === 'true';
+        const filter = includeInactive ? { user: targetUserId } : { user: targetUserId, isActive: true };
+        const habits = await TenshiProceduralMemory.find(filter)
             .sort({ updatedAt: -1 })
-            .limit(30)
+            .limit(50)
             .lean();
         res.json(habits.map((h) => ({
             id: String(h._id),
@@ -477,7 +479,11 @@ router.get('/procedural-memory', requireJwtAuth, async (req, res) => {
             category: h.category,
             trigger: h.trigger,
             rule: h.rule,
-            isActive: h.isActive,
+            isActive: h.isActive !== false,
+            usageCount: h.usageCount || 0,
+            companyName: h.companyName || '',
+            updatedAt: h.updatedAt,
+            createdAt: h.createdAt,
         })));
     } catch (error) {
         logger.error('[Tenshi Procedural Memory] Error listing habits:', error);
@@ -507,6 +513,63 @@ router.post('/procedural-memory', requireJwtAuth, async (req, res) => {
         res.json({ ...out.result, widget: out.widget });
     } catch (error) {
         logger.error('[Tenshi Procedural Memory] Error creating habit:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.put('/procedural-memory/:id', requireJwtAuth, async (req, res) => {
+    try {
+        const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
+        const { trigger, rule, category, isActive } = req.body;
+        const updateDoc = {};
+        if (typeof trigger === 'string' && trigger.trim()) updateDoc.trigger = trigger.trim();
+        if (typeof rule === 'string' && rule.trim()) updateDoc.rule = rule.trim();
+        if (typeof category === 'string' && category.trim()) updateDoc.category = category.trim();
+        if (typeof isActive === 'boolean') updateDoc.isActive = isActive;
+
+        const updated = await TenshiProceduralMemory.findOneAndUpdate(
+            { _id: req.params.id, user: targetUserId },
+            { $set: updateDoc },
+            { new: true }
+        ).lean();
+
+        if (!updated) {
+            return res.status(404).json({ error: 'Regla no encontrada.' });
+        }
+
+        const activeHabits = await TenshiProceduralMemory.find({ user: targetUserId, isActive: true })
+            .sort({ updatedAt: -1 })
+            .limit(30)
+            .lean();
+        const mappedActive = activeHabits.map((h) => ({
+            id: String(h._id),
+            _id: String(h._id),
+            category: h.category,
+            trigger: h.trigger,
+            rule: h.rule,
+            isActive: h.isActive,
+        }));
+        await TenshiMessage.updateMany(
+            { user: { $in: [req.user.id, targetUserId].filter(Boolean) }, 'widget.widgetType': 'procedural_memory' },
+            { $set: { 'widget.data.items': mappedActive, 'widget.data.habits': mappedActive } }
+        ).catch(() => {});
+
+        res.json({
+            success: true,
+            item: {
+                id: String(updated._id),
+                _id: String(updated._id),
+                category: updated.category,
+                trigger: updated.trigger,
+                rule: updated.rule,
+                isActive: updated.isActive !== false,
+                usageCount: updated.usageCount || 0,
+                updatedAt: updated.updatedAt,
+            },
+            items: mappedActive,
+        });
+    } catch (error) {
+        logger.error('[Tenshi Procedural Memory] Error updating habit:', error);
         res.status(500).json({ error: error.message });
     }
 });
