@@ -69,7 +69,7 @@ export const WorkerSessionBadge: React.FC<WorkerSessionBadgeProps> = ({
           type="button"
           onClick={onClear}
           title="Cambiar de colaborador"
-          className="group flex items-center justify-center h-8 min-w-[30px] px-2 rounded-xl border border-teal-300/70 dark:border-teal-700/70 bg-teal-100/60 dark:bg-teal-900/40 text-teal-800 dark:text-teal-200 hover:bg-teal-200/70 dark:hover:bg-teal-800/60 transition-all duration-300 shadow-2xs cursor-pointer active:scale-95 shrink-0"
+          className="group flex items-center justify-center h-8 min-w-[30px] px-2 rounded-xl border border-teal-300/70 dark:border-teal-700/70 bg-teal-100/60 dark:bg-teal-900/40 text-teal-800 dark:text-teal-200 hover:bg-teal-200/70 dark:hover:bg-teal-800/60 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-2xs cursor-pointer active:scale-95 shrink-0"
         >
           <ArrowRight className="w-3.5 h-3.5 shrink-0 rotate-180" />
           <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 whitespace-nowrap text-[11px] font-bold">

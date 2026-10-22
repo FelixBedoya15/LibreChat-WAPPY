@@ -342,12 +342,12 @@ export default function CourseViewer() {
                                 <div className="mt-12 pt-6 border-t border-gray-200 dark:border-gray-800 flex items-center justify-end">
                                     <button
                                         onClick={markCurrentComplete}
-                                        className={`group flex items-center px-4 py-3 rounded-xl transition-all duration-300 shadow-sm font-medium text-sm
+                                        className={`group flex items-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm font-medium text-xs
                                             ${!user
-                                                ? 'bg-white dark:bg-gray-900 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 border border-border-medium/40 text-blue-600 dark:text-blue-400'
+                                                ? 'border rounded-xl bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs'
                                                 : isCurrentCompleted
                                                     ? 'bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-default shadow-none'
-                                                    : 'bg-white dark:bg-gray-900 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 border border-border-medium/40 text-emerald-600 dark:text-emerald-400'}
+                                                    : 'border rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs'}
                                         `}
                                         disabled={!!user && isCurrentCompleted}
                                     >
@@ -359,15 +359,15 @@ export default function CourseViewer() {
                                             </>
                                         ) : isCurrentCompleted ? (
                                             <>
-                                                <CheckCircle className="w-5 h-5 flex-shrink-0" />
+                                                <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                                                 <span className="ml-2 whitespace-nowrap">
                                                     Lección Completada
                                                 </span>
                                             </>
                                         ) : (
                                             <>
-                                                <CheckCircle className="w-5 h-5 flex-shrink-0" />
-                                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                                <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 whitespace-nowrap">
                                                     Marcar como Completado
                                                 </span>
                                             </>

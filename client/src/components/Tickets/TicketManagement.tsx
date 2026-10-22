@@ -342,14 +342,14 @@ export default function TicketManagement({ initialTicketId }: { initialTicketId?
                                     <button
                                         onClick={() => handleSuggestAi(selectedTicket._id)}
                                         disabled={isAiLoading}
-                                        className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-xl transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="group flex items-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         {isAiLoading ? (
-                                            <Loader2 className="h-5 w-5 animate-spin" />
+                                            <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
                                         ) : (
-                                            <Sparkles className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                                            <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-600 dark:text-blue-400" />
                                         )}
-                                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 whitespace-nowrap">
                                             {isAiLoading ? 'Pensando...' : 'Generar Respuesta IA'}
                                         </span>
                                     </button>

@@ -699,16 +699,16 @@ export default function VehiclesWorkspace() {
                 {/* Total Vehículos Registrados */}
                 <div
                   title={`${vehicles.length} Vehículos en Flota PESV`}
-                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-surface-primary text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                  className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
                 >
                   <div className="relative flex flex-shrink-0 items-center justify-center">
-                    <Car className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 dark:text-teal-400 shrink-0" />
+                    <Car className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
                     <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
                       {vehicles.length}
                     </span>
                   </div>
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                    <span className="text-sm font-bold tracking-wide">
+                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                    <span className="text-xs font-bold tracking-wide">
                       {vehicles.length} {vehicles.length === 1 ? 'Vehículo en Flota' : 'Vehículos en Flota'}
                     </span>
                   </div>
@@ -1134,7 +1134,7 @@ export default function VehiclesWorkspace() {
                                 <div className="flex items-center justify-end gap-1.5">
                                   <button
                                     onClick={() => handlePrintInspection(insp)}
-                                    className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 transition-all duration-300 px-1.5 shadow-sm active:scale-95 cursor-pointer"
+                                    className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95 cursor-pointer"
                                     title="Imprimir acta de inspección en PDF"
                                   >
                                     <Printer className="w-3.5 h-3.5 shrink-0" />
@@ -1144,7 +1144,7 @@ export default function VehiclesWorkspace() {
                                   </button>
                                   <button
                                     onClick={() => handleDownloadInspectionHtml(insp)}
-                                    className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300 hover:bg-blue-100 transition-all duration-300 px-1.5 shadow-sm active:scale-95 cursor-pointer"
+                                    className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300 hover:bg-blue-100 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95 cursor-pointer"
                                     title="Descargar acta en HTML"
                                   >
                                     <Download className="w-3.5 h-3.5 shrink-0" />

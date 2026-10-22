@@ -891,16 +891,16 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({
             disabled={isScanning}
             title={isScanning ? 'Escaneando aplicativos...' : 'Re-escanear Aplicativos'}
             aria-label="Re-escanear Aplicativos"
-            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium/40 bg-white dark:bg-gray-900 px-2.5 text-teal-600 dark:text-teal-400 shadow-sm outline-none transition-all duration-300 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-2.5 "
+            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium/40 border rounded-xl bg-cyan-500/10 border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 shadow-xs "
           >
             <div className="relative flex flex-shrink-0 items-center justify-center">
               {isScanning ? (
                 <Loader2 className="h-4 w-4 animate-spin sm:h-5 sm:w-5" />
               ) : (
-                <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
+                <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               )}
             </div>
-            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
               <span className="text-xs font-bold tracking-wide sm:text-sm">
                 {isScanning ? 'Escaneando...' : 'Re-escanear Aplicativos'}
               </span>
@@ -930,16 +930,16 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({
                 {/* Ítems Auditados */}
                 <div
                   title={`${completedCount} de ${totalItems} Ítems Evaluados`}
-                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-surface-primary text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                  className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
                 >
                   <div className="relative flex flex-shrink-0 items-center justify-center">
-                    <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 dark:text-teal-400 shrink-0" />
+                    <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
                     <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
                       {completedCount}
                     </span>
                   </div>
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                    <span className="text-sm font-bold tracking-wide">
+                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                    <span className="text-xs font-bold tracking-wide">
                       {completedCount} de {totalItems} Ítems Evaluados
                     </span>
                   </div>
@@ -1111,7 +1111,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({
             disabled={isSyncingKanban}
             title="Sincronizar hallazgos con Centro de Control"
             aria-label="Sincronizar con Centro de Control"
-            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium/40 bg-white dark:bg-gray-900 px-2.5 text-purple-600 dark:text-purple-400 shadow-sm outline-none transition-all duration-300 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:min-w-[36px] sm:px-2.5"
+            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium/40 border rounded-xl bg-cyan-500/10 border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 shadow-xs "
           >
             <div className="relative flex shrink-0 items-center justify-center">
               {isSyncingKanban ? (
@@ -1120,7 +1120,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({
                 <Trello className="h-4 w-4 " />
               )}
             </div>
-            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
+            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
               <span className="text-xs font-bold tracking-wide">
                 {isSyncingKanban ? 'Sincronizando...' : 'Sincronizar con Centro de Control'}
               </span>
@@ -1136,7 +1136,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({
             <div className="relative flex shrink-0 items-center justify-center">
               <ExternalLink className="h-4 w-4" />
             </div>
-            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[160px] group-hover:opacity-100 sm:flex">
+            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[160px] group-hover:opacity-100 sm:flex">
               <span className="text-xs font-bold tracking-wide">Ver Plan ACPM</span>
             </div>
           </Link>
@@ -1247,7 +1247,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({
                                       title={opt.label}
                                       aria-label={opt.label}
                                       className={cn(
-                                        'group flex h-8 min-w-[32px] items-center justify-center rounded-xl border transition-all duration-300 px-2 shadow-2xs active:scale-95',
+                                        'group flex h-8 min-w-[32px] items-center justify-center rounded-xl border transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-2 shadow-2xs active:scale-95',
                                         isSelected
                                           ? opt.color
                                           : cn(

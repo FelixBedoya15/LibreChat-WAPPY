@@ -1,6 +1,11 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '~/utils';
+import {
+  WAPPY_SEMANTIC_BUTTON_STYLES,
+  resolveSemanticVariant,
+  ExpandableButtonVariant,
+} from '~/components/Common/ExpandableButton';
 
 export interface ExpandingButtonProps {
   id?: string;
@@ -17,6 +22,16 @@ export interface ExpandingButtonProps {
   alwaysShowLabel?: boolean;
 }
 
+const legacyMap: Record<string, ExpandableButtonVariant> = {
+  teal: 'teal',
+  orange: 'amber',
+  ai: 'purple',
+  secondary: 'neutral',
+  'outline-teal': 'cyan',
+  rose: 'danger',
+  save: 'teal',
+};
+
 export const ExpandingButton: React.FC<ExpandingButtonProps> = ({
   id,
   onClick,
@@ -31,21 +46,17 @@ export const ExpandingButton: React.FC<ExpandingButtonProps> = ({
   size = 'md',
   alwaysShowLabel = false,
 }) => {
-  const variantClass = {
-    teal: 'bg-white dark:bg-gray-900 border-border-medium/40 text-teal-600 dark:text-teal-400 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 shadow-sm',
-    orange: 'bg-white dark:bg-gray-900 border-border-medium/40 text-amber-600 dark:text-amber-400 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 shadow-sm',
-    ai: 'bg-white dark:bg-gray-900 border-border-medium/40 text-teal-600 dark:text-teal-400 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 shadow-sm',
-    secondary: 'bg-white dark:bg-gray-900 border-border-medium/40 text-text-secondary hover:text-text-primary hover:bg-surface-hover shadow-sm',
-    'outline-teal': 'bg-teal-500/10 text-teal-600 border-teal-500/20 hover:bg-teal-500/20 dark:bg-teal-950/20 dark:text-teal-400 shadow-sm',
-    rose: 'bg-white dark:bg-gray-900 border-border-medium/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50/50 dark:hover:bg-rose-950/20 shadow-sm',
-    save: 'bg-white dark:bg-gray-900 border-border-medium/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 shadow-sm',
-  }[variant] || 'bg-white dark:bg-gray-900 border-border-medium/40 text-teal-600 dark:text-teal-400 hover:bg-teal-50/50 shadow-sm';
+  const mappedDefault = legacyMap[variant] || 'neutral';
+  const semanticKey = resolveSemanticVariant(`${label} ${title || ''}`, mappedDefault);
+  const variantClass =
+    (WAPPY_SEMANTIC_BUTTON_STYLES[semanticKey] || WAPPY_SEMANTIC_BUTTON_STYLES.neutral).idle;
 
-  const sizeClass = size === 'sm'
-    ? 'h-8 min-w-[32px] px-2.5 text-[11px]'
-    : 'h-9 min-w-[36px] px-3.5 sm:h-10 sm:px-3 sm:min-w-[40px] text-xs sm:text-sm';
+  const sizeClass =
+    size === 'sm'
+      ? 'h-6.5 min-w-[26px] px-1.5 sm:h-7 sm:min-w-[28px] sm:px-2 text-[10px]'
+      : 'h-7 min-w-[28px] px-2 sm:h-8 sm:px-2.5 sm:min-w-[32px] text-xs';
 
-  const iconSizeClass = size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4 sm:h-4.5 sm:w-4.5';
+  const iconSizeClass = size === 'sm' ? 'h-3 w-3 sm:h-3.5 sm:w-3.5' : 'h-3.5 w-3.5 sm:h-4 sm:w-4';
 
   const renderIcon = () => {
     if (isLoading) {
@@ -68,20 +79,20 @@ export const ExpandingButton: React.FC<ExpandingButtonProps> = ({
       title={title || label}
       aria-label={title || label}
       className={cn(
-        'group relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-xl border font-bold shadow-sm outline-none transition-all duration-300 ease-in-out active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 overflow-hidden',
+        'group relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-xl border font-bold outline-none transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 overflow-hidden',
         sizeClass,
         variantClass,
         className,
       )}
     >
-      <div className="relative flex shrink-0 items-center justify-center">
+      <div className="relative flex shrink-0 items-center justify-center [&>svg]:h-3.5 [&>svg]:w-3.5 sm:[&>svg]:h-4 sm:[&>svg]:w-4">
         {renderIcon()}
       </div>
 
       {alwaysShowLabel ? (
-        <span className="ml-2 whitespace-nowrap">{label}</span>
+        <span className="ml-1.5 whitespace-nowrap">{label}</span>
       ) : (
-        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[320px] group-hover:opacity-100 sm:flex">
+        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[300px] group-hover:opacity-100 sm:flex">
           <span className="tracking-wide">{label}</span>
         </div>
       )}

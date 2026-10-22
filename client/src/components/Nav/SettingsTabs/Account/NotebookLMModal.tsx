@@ -235,7 +235,7 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
                     type="button"
                     onClick={handleTestConnection}
                     disabled={isTesting}
-                    className="group flex h-8 min-w-[32px] items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 border border-teal-200/60 dark:border-teal-800/60 px-2 shadow-xs transition-all duration-300 active:scale-95 disabled:opacity-50"
+                    className="group flex h-8 min-w-[32px] items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 border border-teal-200/60 dark:border-teal-800/60 px-2 shadow-xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 active:scale-95 disabled:opacity-50"
                     title="Probar sesión con Google"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${isTesting ? 'animate-spin' : ''}`} />
@@ -249,7 +249,7 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
                     type="button"
                     onClick={handleDeleteSession}
                     disabled={isDeleting}
-                    className="group flex h-8 min-w-[32px] items-center justify-center rounded-xl bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-100 border border-red-200/60 dark:border-red-900/40 px-2 shadow-xs transition-all duration-300 active:scale-95 disabled:opacity-50"
+                    className="group flex h-8 min-w-[32px] items-center justify-center rounded-xl bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-100 border border-red-200/60 dark:border-red-900/40 px-2 shadow-xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 active:scale-95 disabled:opacity-50"
                     title="Desvincular sesión"
                   >
                     <Trash2 className="w-3.5 h-3.5 shrink-0" />
@@ -362,10 +362,10 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
                     onClick={handleSaveManual}
                     disabled={isSaving}
                     title="Guardar y Vincular"
-                    className="group flex h-9 min-w-[36px] items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/60 border border-teal-200/80 dark:border-teal-800/80 px-2.5 shadow-2xs transition-all duration-300 active:scale-95 disabled:opacity-50 cursor-pointer shrink-0"
+                    className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/60 border border-teal-200/80 dark:border-teal-800/80 px-2.5 shadow-2xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 active:scale-95 disabled:opacity-50 cursor-pointer shrink-0"
                   >
                     {isSaving ? <RefreshCw className="w-4 h-4 animate-spin shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0" />}
-                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
+                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
                       <span className="text-xs font-bold tracking-wide">{isSaving ? 'Guardando...' : 'Guardar y Vincular'}</span>
                     </div>
                     <span className="sm:hidden text-xs font-bold ml-1.5">{isSaving ? 'Guardando...' : 'Guardar y Vincular'}</span>
@@ -392,10 +392,10 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
             type="button"
             onClick={onClose}
             title="Cerrar"
-            className="group flex h-9 min-w-[36px] items-center justify-center rounded-xl bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 px-2.5 shadow-2xs transition-all duration-300 active:scale-95 cursor-pointer shrink-0"
+            className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 px-2.5 shadow-2xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 active:scale-95 cursor-pointer shrink-0"
           >
             <X className="w-4 h-4 shrink-0" />
-            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
               <span className="text-xs font-bold tracking-wide">Cerrar</span>
             </div>
             <span className="sm:hidden text-xs font-bold ml-1.5">Cerrar</span>

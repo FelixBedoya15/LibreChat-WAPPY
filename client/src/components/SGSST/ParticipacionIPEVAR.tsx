@@ -1503,7 +1503,7 @@ const ParticipacionIPEVAR = () => {
                                             <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
                                         </span>
                                     </div>
-                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
                                         <span className="text-xs font-black uppercase tracking-wider">Matriz Oficial Conectada</span>
                                     </div>
                                 </div>
@@ -1514,16 +1514,16 @@ const ParticipacionIPEVAR = () => {
                                 {/* Población Evaluada */}
                                 <div
                                     title={`${bannerStats.totalWorkers} ${bannerStats.totalWorkers === 1 ? 'Colaborador Participante' : 'Colaboradores Participantes'}`}
-                                    className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-surface-primary text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                                    className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
                                 >
                                     <div className="relative flex flex-shrink-0 items-center justify-center">
-                                        <Users className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 dark:text-teal-400 shrink-0" />
+                                        <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
                                         <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
                                             {bannerStats.totalWorkers}
                                         </span>
                                     </div>
-                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                                        <span className="text-sm font-bold tracking-wide">
+                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                                        <span className="text-xs font-bold tracking-wide">
                                             {bannerStats.totalWorkers} {bannerStats.totalWorkers === 1 ? 'Colaborador Participante' : 'Colaboradores Participantes'}
                                         </span>
                                     </div>
@@ -1532,16 +1532,16 @@ const ParticipacionIPEVAR = () => {
                                 {/* Reportes Registrados */}
                                 <div
                                     title={`${bannerStats.totalParticipaciones} Reportes Registrados`}
-                                    className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                                    className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
                                 >
                                     <div className="relative flex flex-shrink-0 items-center justify-center">
-                                        <FileSpreadsheet className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400 shrink-0" />
+                                        <FileSpreadsheet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-600 dark:text-blue-400 shrink-0" />
                                         <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-blue-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
                                             {bannerStats.totalParticipaciones}
                                         </span>
                                     </div>
-                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
-                                        <span className="text-sm font-bold tracking-wide">
+                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
+                                        <span className="text-xs font-bold tracking-wide">
                                             {bannerStats.totalParticipaciones} {bannerStats.totalParticipaciones === 1 ? 'Reporte Registrado' : 'Reportes Registrados'}
                                         </span>
                                     </div>
@@ -1550,13 +1550,13 @@ const ParticipacionIPEVAR = () => {
                                 {/* Ponderación Estadística GTC-45 Activa */}
                                 <div
                                     title="Ponderación Estadística GTC-45 Activa"
-                                    className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                                    className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
                                 >
                                     <div className="relative flex flex-shrink-0 items-center justify-center">
-                                        <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 dark:text-purple-400 shrink-0" />
+                                        <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-600 dark:text-purple-400 shrink-0" />
                                     </div>
-                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                                        <span className="text-sm font-bold tracking-wide">
+                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                                        <span className="text-xs font-bold tracking-wide">
                                             Ponderación GTC-45 Activa
                                         </span>
                                     </div>
@@ -1580,13 +1580,13 @@ const ParticipacionIPEVAR = () => {
                             onClick={() => setShowQrModal(true)}
                             title="Portal Público QR"
                             aria-label="Portal Público QR"
-                            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/40 bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 dark:text-teal-300 px-2 shadow-sm outline-none transition-all duration-300 sm:h-10 sm:min-w-[40px] sm:px-2.5  "
+                            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-fuchsia-500/10 border-fuchsia-500/30 text-fuchsia-700 dark:text-fuchsia-300 hover:bg-fuchsia-500/20 shadow-xs "
                         >
                             <div className="relative flex flex-shrink-0 items-center justify-center">
-                                <QrCode className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 dark:text-teal-400 shrink-0" />
+                                <QrCode className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
                             </div>
-                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
-                                <span className="text-sm font-bold tracking-wide">Portal Público QR</span>
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
+                                <span className="text-xs font-bold tracking-wide">Portal Público QR</span>
                             </div>
                         </button>
                     </div>
@@ -1847,7 +1847,7 @@ const ParticipacionIPEVAR = () => {
                             <button
                                 onClick={handleReloadData}
                                 disabled={isReloading}
-                                className="group flex h-8 min-w-[32px] items-center justify-center rounded-xl text-slate-500 hover:text-teal-600 dark:hover:text-teal-400 transition-all duration-300 hover:bg-slate-100 dark:hover:bg-zinc-800 px-2 border border-slate-200 dark:border-zinc-700 cursor-pointer"
+                                className="group flex h-8 min-w-[32px] items-center justify-center rounded-xl text-slate-500 hover:text-teal-600 dark:hover:text-teal-400 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 hover:bg-slate-100 dark:hover:bg-zinc-800 px-2 border border-slate-200 dark:border-zinc-700 cursor-pointer"
                                 title="Recargar y sincronizar reportes"
                             >
                                 <RefreshCw className={cn("w-3.5 h-3.5 shrink-0", isReloading && "animate-spin text-teal-600")} />
@@ -1865,11 +1865,11 @@ const ParticipacionIPEVAR = () => {
                                         formBoxRef.current?.scrollIntoView({ behavior: 'smooth' });
                                     }, 100);
                                 }}
-                                className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] shrink-0 cursor-pointer items-center justify-center rounded-xl bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 border border-border-medium/40 text-teal-600 dark:text-teal-400 px-3 shadow-md shadow-teal-700/20 outline-none transition-all duration-300  active:scale-95"
+                                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 shrink-0 cursor-pointer items-center justify-center rounded-xl border rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs "
                                 title="Registrar nueva participación"
                             >
                                 <Plus className="h-4 w-4 shrink-0" />
-                                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[180px] group-hover:opacity-100 sm:flex">
+                                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[180px] group-hover:opacity-100 sm:flex">
                                     <span className="text-xs font-bold tracking-wide">
                                         Nueva Participación
                                     </span>
@@ -1997,7 +1997,7 @@ const ParticipacionIPEVAR = () => {
                                                         {/* Ver Informe */}
                                                         <button
                                                             onClick={() => handleViewReport(r)}
-                                                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 transition-all duration-300 px-1.5 shadow-sm active:scale-95 cursor-pointer"
+                                                            className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95 cursor-pointer"
                                                             title="Ver y editar informe técnico en Live Editor"
                                                         >
                                                             <Eye className="w-3.5 h-3.5 shrink-0" />
@@ -2010,7 +2010,7 @@ const ParticipacionIPEVAR = () => {
                                                         <button
                                                             onClick={() => handleOpenApplyModal(r.rawItem, r.source === 'inbox')}
                                                             className={cn(
-                                                                "group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 cursor-pointer",
+                                                                "group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95 cursor-pointer",
                                                                 isApplied
                                                                     ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100"
                                                                     : "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100"
@@ -2026,7 +2026,7 @@ const ParticipacionIPEVAR = () => {
                                                         {/* Editar */}
                                                         <button
                                                             onClick={() => handleEditReport(r)}
-                                                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-amber-100 transition-all duration-300 px-1.5 shadow-sm active:scale-95 cursor-pointer"
+                                                            className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-amber-100 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95 cursor-pointer"
                                                             title="Editar datos del reporte en el formulario"
                                                         >
                                                             <Pencil className="w-3.5 h-3.5 shrink-0" />
@@ -2038,7 +2038,7 @@ const ParticipacionIPEVAR = () => {
                                                         {/* Eliminar */}
                                                         <button
                                                             onClick={() => handleDeleteReport(r)}
-                                                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-400 hover:text-red-600 transition-all duration-300 px-1.5 shadow-sm active:scale-95 cursor-pointer"
+                                                            className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-400 hover:text-red-600 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95 cursor-pointer"
                                                             title="Eliminar reporte"
                                                         >
                                                             <Trash2 className="w-3.5 h-3.5 shrink-0" />
@@ -2080,10 +2080,10 @@ const ParticipacionIPEVAR = () => {
                                     setShowAnalyticsModal(true);
                                 }}
                                 title="Base Estadística y Ponderación GTC-45"
-                                className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] items-center justify-center rounded-xl bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 border border-border-medium/40 text-teal-600 dark:text-teal-400 shadow-sm transition-all duration-300 px-2 sm:px-2.5 active:scale-95 cursor-pointer"
+                                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs "
                             >
                                 <BarChart3 className="w-4 h-4 shrink-0" />
-                                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[280px] group-hover:opacity-100 sm:flex">
+                                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[280px] group-hover:opacity-100 sm:flex">
                                     <span className="text-xs font-bold">Base Estadística y Ponderación GTC-45</span>
                                 </div>
                                 <span className="text-xs font-bold ml-1.5 sm:hidden">Base Estadística</span>
@@ -2092,7 +2092,7 @@ const ParticipacionIPEVAR = () => {
                         <button
                             onClick={() => setIsInboxOpen(false)}
                             title="Cerrar Bandeja"
-                            className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-300 px-2 shadow-2xs active:scale-95 cursor-pointer"
+                            className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-2 shadow-2xs active:scale-95 cursor-pointer"
                         >
                             <X className="w-4 h-4 shrink-0" />
                             <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[60px] group-hover:opacity-100 sm:flex">
@@ -2526,7 +2526,7 @@ const ParticipacionIPEVAR = () => {
                                             <div className="relative flex shrink-0 items-center justify-center">
                                                 {isVideoUploading ? <Loader2 className="h-4 w-4 animate-spin text-white" /> : <Video className="h-4 w-4 text-white" />}
                                             </div>
-                                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[180px] group-hover:opacity-100 sm:flex">
+                                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[180px] group-hover:opacity-100 sm:flex">
                                                 <span className="text-xs font-bold tracking-wide">
                                                     {isVideoUploading ? 'Procesando...' : 'Seleccionar Video'}
                                                 </span>
@@ -2561,7 +2561,7 @@ const ParticipacionIPEVAR = () => {
                                     onClick={handleVoiceInput}
                                     title={isListening ? 'Escuchando dictado...' : 'Activar Micrófono'}
                                     aria-label={isListening ? 'Escuchando dictado...' : 'Activar Micrófono'}
-                                    className={`group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border px-2 shadow-sm outline-none transition-all duration-300  active:scale-95 sm:h-9 sm:min-w-[36px] sm:px-2.5 ${
+                                    className={`group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border px-2 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95  active:scale-95 sm:h-9 sm:min-w-[36px] sm:px-2.5 ${
                                         isListening
                                             ? 'bg-red-50 text-red-600 border-red-200 animate-pulse'
                                             : 'bg-surface-secondary hover:bg-surface-hover text-text-primary border-border-light'
@@ -2571,7 +2571,7 @@ const ParticipacionIPEVAR = () => {
                                         {isListening && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>}
                                         <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isListening ? 'bg-red-500' : 'bg-teal-600'}`}></span>
                                     </span>
-                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[160px] group-hover:opacity-100 sm:flex">
+                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[160px] group-hover:opacity-100 sm:flex">
                                         <span className="text-xs font-bold tracking-wide">
                                             {isListening ? 'Escuchando...' : 'Activar Micrófono'}
                                         </span>
@@ -2599,7 +2599,7 @@ const ParticipacionIPEVAR = () => {
                                 disabled={isGenerating}
                                 title="Generar Análisis IA"
                                 aria-label="Generar Análisis IA"
-                                className="group flex h-9 min-w-[36px] shrink-0 cursor-pointer items-center justify-center rounded-xl bg-white dark:bg-gray-900 hover:bg-orange-50/50 dark:hover:bg-orange-950/20 border border-border-medium/40 text-orange-600 dark:text-orange-400 px-3 shadow-md shadow-orange-500/20 outline-none transition-all duration-300  active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 shrink-0 cursor-pointer items-center justify-center rounded-xl border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
                             >
                                 <div className="relative flex shrink-0 items-center justify-center">
                                     {isGenerating ? (
@@ -2608,7 +2608,7 @@ const ParticipacionIPEVAR = () => {
                                         <Sparkles className="h-4 w-4 " />
                                     )}
                                 </div>
-                                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
                                     <span className="text-xs font-bold tracking-wide">
                                         {isGenerating ? 'Generando...' : 'Generar Análisis IA'}
                                     </span>
@@ -3057,7 +3057,7 @@ const ParticipacionIPEVAR = () => {
                                 onClick={() => setShowApplyModal(false)}
                                 disabled={isApplyingToMatrix}
                                 title="Cancelar"
-                                className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] items-center justify-center rounded-xl border border-border-medium bg-surface-primary text-text-secondary hover:bg-surface-hover transition-all duration-300 px-2 sm:px-3 shadow-2xs active:scale-95 cursor-pointer disabled:opacity-50"
+                                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl border border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs "
                             >
                                 <X className="w-4 h-4 shrink-0" />
                                 <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[80px] group-hover:opacity-100 sm:flex">
@@ -3070,7 +3070,7 @@ const ParticipacionIPEVAR = () => {
                                 onClick={handleConfirmApplyToMatrix}
                                 disabled={isApplyingToMatrix || (applyAction === 'update_existing' && !applyTargetRowId)}
                                 title="Aprobar e Integrar a Matriz IPEVR"
-                                className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] items-center justify-center rounded-xl bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 border border-border-medium/40 text-teal-600 dark:text-teal-400 shadow-md active:scale-95 transition-all duration-300 px-2.5 sm:px-3.5 disabled:opacity-50 cursor-pointer"
+                                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl border rounded-xl bg-fuchsia-500/10 border-fuchsia-500/30 text-fuchsia-700 dark:text-fuchsia-300 hover:bg-fuchsia-500/20 shadow-xs "
                             >
                                 {isApplyingToMatrix ? (
                                     <>
@@ -3080,7 +3080,7 @@ const ParticipacionIPEVAR = () => {
                                 ) : (
                                     <>
                                         <CheckCircle className="w-4 h-4 shrink-0" />
-                                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[280px] group-hover:opacity-100 sm:flex">
+                                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[280px] group-hover:opacity-100 sm:flex">
                                             <span className="text-xs font-black">Aprobar e Integrar a Matriz IPEVR</span>
                                         </div>
                                         <span className="text-xs font-black ml-1.5 sm:hidden">Integrar a Matriz</span>

@@ -335,7 +335,7 @@ const MarketplaceAdminDashboard: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('products')}
-            className={`group flex h-9 min-w-[36px] items-center justify-center rounded-xl border px-2.5 text-xs transition-all duration-300 shadow-2xs active:scale-95 ${
+            className={`group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl border px-2.5 text-xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-2xs active:scale-95 ${
               activeTab === 'products'
                 ? 'bg-teal-50 dark:bg-teal-950/50 border-teal-500 text-teal-600 dark:text-teal-300 font-bold'
                 : 'border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 font-semibold'
@@ -352,7 +352,7 @@ const MarketplaceAdminDashboard: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('orders')}
-            className={`group flex h-9 min-w-[36px] items-center justify-center rounded-xl border px-2.5 text-xs transition-all duration-300 shadow-2xs active:scale-95 relative ${
+            className={`group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl border px-2.5 text-xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-2xs active:scale-95 relative ${
               activeTab === 'orders'
                 ? 'bg-teal-50 dark:bg-teal-950/50 border-teal-500 text-teal-600 dark:text-teal-300 font-bold'
                 : 'border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 font-semibold'
@@ -376,7 +376,7 @@ const MarketplaceAdminDashboard: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('coupons')}
-            className={`group flex h-9 min-w-[36px] items-center justify-center rounded-xl border px-2.5 text-xs transition-all duration-300 shadow-2xs active:scale-95 ${
+            className={`group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl border px-2.5 text-xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-2xs active:scale-95 ${
               activeTab === 'coupons'
                 ? 'bg-teal-50 dark:bg-teal-950/50 border-teal-500 text-teal-600 dark:text-teal-300 font-bold'
                 : 'border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 font-semibold'
@@ -396,7 +396,7 @@ const MarketplaceAdminDashboard: React.FC = () => {
             <button
               type="button"
               onClick={handleReseedCatalog}
-              className="group flex h-9 min-w-[36px] items-center justify-center px-2.5 rounded-xl text-xs font-bold bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700 shadow-2xs transition-all duration-300 active:scale-95"
+              className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center px-2.5 rounded-xl text-xs font-bold bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700 shadow-2xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 active:scale-95"
               title="Restablecer servicios iniciales"
             >
               <RotateCcw className="h-4 w-4 shrink-0" />
@@ -409,7 +409,7 @@ const MarketplaceAdminDashboard: React.FC = () => {
               type="button"
               onClick={() => openEditProduct()}
               title="Nuevo Producto / Servicio"
-              className="group flex h-9 min-w-[36px] items-center justify-center px-2.5 rounded-xl font-bold text-xs shadow-sm transition-all duration-300 active:scale-95 bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 border border-border-medium/40 text-teal-600 dark:text-teal-400"
+              className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center px-2.5 rounded-xl font-bold text-xs shadow-sm transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 active:scale-95 border rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs "
             >
               <Plus className="h-4 w-4 shrink-0" />
               <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
@@ -597,7 +597,7 @@ const MarketplaceAdminDashboard: React.FC = () => {
                               type="button"
                               onClick={() => setSelectedOrder(ord)}
                               title="Ver detalles del pedido"
-                              className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100"
+                              className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100"
                             >
                               <Eye className="h-3.5 w-3.5 shrink-0" />
                               <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100">
@@ -610,7 +610,7 @@ const MarketplaceAdminDashboard: React.FC = () => {
                               type="button"
                               onClick={handleWhatsAppClient}
                               title="Contactar al cliente por WhatsApp"
-                              className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100"
+                              className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100"
                             >
                               <MessageCircle className="h-3.5 w-3.5 shrink-0" />
                               <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100">
@@ -757,7 +757,7 @@ const MarketplaceAdminDashboard: React.FC = () => {
                                 ? 'Quitar de Destacados'
                                 : 'Marcar como Destacado (Aparecer de primero)'
                             }
-                            className={`group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 ${
+                            className={`group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95 ${
                               prod.isFeatured
                                 ? 'bg-orange-100 dark:bg-orange-950/60 text-orange-600 dark:text-orange-300 border border-orange-300 dark:border-orange-700 hover:bg-orange-200'
                                 : 'bg-slate-50 dark:bg-zinc-800 text-slate-400 hover:bg-orange-50 dark:hover:bg-orange-950/40 hover:text-orange-600'
@@ -793,7 +793,7 @@ const MarketplaceAdminDashboard: React.FC = () => {
                               setIsProductModalOpen(true);
                             }}
                             title="Editar Servicio / Producto"
-                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-amber-100"
+                            className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-amber-100"
                           >
                             <Edit className="h-3.5 w-3.5 shrink-0" />
                             <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100">
@@ -806,7 +806,7 @@ const MarketplaceAdminDashboard: React.FC = () => {
                             type="button"
                             onClick={() => handleDeleteProduct(prod._id)}
                             title="Eliminar Servicio / Producto"
-                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300 hover:bg-red-100"
+                            className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300 hover:bg-red-100"
                           >
                             <Trash2 className="h-3.5 w-3.5 shrink-0" />
                             <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100">
@@ -905,7 +905,7 @@ const MarketplaceAdminDashboard: React.FC = () => {
                       type="button"
                       onClick={() => c._id && handleDeleteCoupon(c._id)}
                       title="Eliminar Cupón"
-                      className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300 hover:bg-red-100"
+                      className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300 hover:bg-red-100"
                     >
                       <Trash2 className="h-3.5 w-3.5 shrink-0" />
                       <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100">

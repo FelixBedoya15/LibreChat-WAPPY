@@ -162,14 +162,14 @@ export default function RutaExamEditorModal({ isOpen, onClose, onSave, initialEx
                         <button
                             onClick={handleGenerateExam}
                             disabled={isGeneratingExam || (!contextTopic?.trim() && !exam.title.trim() && !exam.description.trim())}
-                            className="group flex items-center px-4 py-2 bg-white dark:bg-gray-900 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 border border-border-medium/40 text-purple-600 dark:text-purple-400 rounded-xl transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="group flex items-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
                         >
                             {isGeneratingExam ? (
-                                <Loader2 className="w-5 h-5 flex-shrink-0 animate-spin" />
+                                <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 animate-spin" />
                             ) : (
-                                <Sparkles className="w-5 h-5 flex-shrink-0" />
+                                <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                             )}
-                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 whitespace-nowrap">
                                 Generar Examen
                             </span>
                         </button>

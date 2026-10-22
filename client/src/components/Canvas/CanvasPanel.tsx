@@ -1361,18 +1361,18 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                 await saveSession(undefined, true);
               }}
               disabled={isSaving}
-              className="group flex h-9 sm:h-10 min-w-[36px] sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2 sm:px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300   hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
+              className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Guardar cambios"
             >
-              <div className="relative flex flex-shrink-0 items-center justify-center text-text-primary">
+              <div className="relative flex flex-shrink-0 items-center justify-center">
                 {isSaving ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-t-2 border-text-primary" />
+                  <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin rounded-full border-b-2 border-t-2 border-current" />
                 ) : (
-                  <Save className="h-4 w-4 text-text-primary" />
+                  <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 )}
               </div>
-              <div className="hidden sm:flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
-                <span className="text-sm font-bold tracking-wide text-text-primary">
+              <div className="hidden sm:flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
+                <span className="text-xs font-bold tracking-wide">
                   {isSaving ? 'Guardando...' : 'Guardar'}
                 </span>
               </div>
@@ -1445,14 +1445,14 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                     console.warn('[CanvasPanel] No download function registered and no content available');
                   }
                 }}
-                className="group flex h-9 sm:h-10 min-w-[36px] sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2 sm:px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
+                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-300 hover:bg-green-500/20 shadow-xs outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Descargar archivo"
               >
-                <div className="relative flex flex-shrink-0 items-center justify-center text-text-primary">
-                  <Download className="h-4 w-4 text-text-primary" />
+                <div className="relative flex flex-shrink-0 items-center justify-center">
+                  <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </div>
-                <div className="hidden sm:flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
-                  <span className="text-sm font-bold tracking-wide text-text-primary">
+                <div className="hidden sm:flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
+                  <span className="text-xs font-bold tracking-wide">
                     Descargar
                   </span>
                 </div>
@@ -1462,18 +1462,18 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           {hasActiveSession && fileType !== 'animo' && fileType !== 'actos_condiciones' && (
             <button
               onClick={() => setIsReportHistoryOpen(!isReportHistoryOpen)}
-              className={`hidden sm:flex group h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border px-3 shadow-sm outline-none transition-all duration-300   ${
+              className={`hidden sm:flex group h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border shadow-xs outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 ${
                 isReportHistoryOpen
-                  ? 'border-teal-500/30 bg-teal-500/10 text-teal-600'
-                  : 'border-border-medium bg-surface-primary text-text-primary hover:bg-surface-hover'
+                  ? 'bg-orange-500/20 border-orange-500/50 text-orange-700 dark:text-orange-300 ring-1 ring-orange-500/30'
+                  : 'bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20'
               }`}
               aria-label="Historial de reportes"
             >
               <div className="relative flex flex-shrink-0 items-center justify-center">
-                <History className="h-4 w-4" />
+                <History className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </div>
-              <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
-                <span className="text-sm font-bold tracking-wide">Historial</span>
+              <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
+                <span className="text-xs font-bold tracking-wide">Historial</span>
               </div>
             </button>
           )}
@@ -1481,32 +1481,32 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           {hasActiveSession && fileType !== 'animo' && fileType !== 'actos_condiciones' && (
             <button
               onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-              className={`hidden sm:flex group h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border px-3 shadow-sm outline-none transition-all duration-300   ${
+              className={`hidden sm:flex group h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border shadow-xs outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 ${
                 isHistoryOpen
-                  ? 'border-teal-500/30 bg-teal-500/10 text-teal-600'
-                  : 'border-border-medium bg-surface-primary text-text-primary hover:bg-surface-hover'
+                  ? 'bg-orange-500/20 border-orange-500/50 text-orange-700 dark:text-orange-300 ring-1 ring-orange-500/30'
+                  : 'bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20'
               }`}
               aria-label="Versiones de documento"
             >
               <div className="relative flex flex-shrink-0 items-center justify-center">
-                <RotateCcw className="h-4 w-4" />
+                <RotateCcw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </div>
-              <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
-                <span className="text-sm font-bold tracking-wide">Versiones</span>
+              <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
+                <span className="text-xs font-bold tracking-wide">Versiones</span>
               </div>
             </button>
           )}
 
           <button
             onClick={() => setIsMaximized((m) => !m)}
-            className="hidden sm:flex group h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-3 text-text-primary shadow-sm outline-none transition-all duration-300   hover:bg-surface-hover"
+            className="hidden sm:flex group h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-slate-500/10 dark:bg-zinc-800/80 border-slate-300/60 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-500/20 shadow-xs outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
             aria-label={isMaximized ? 'Reducir panel' : 'Expandir panel'}
           >
             <div className="relative flex flex-shrink-0 items-center justify-center">
-              {isMaximized ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              {isMaximized ? <Minimize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Maximize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
             </div>
-            <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
-              <span className="text-sm font-bold tracking-wide">
+            <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
+              <span className="text-xs font-bold tracking-wide">
                 {isMaximized ? 'Contraer' : 'Expandir'}
               </span>
             </div>
@@ -1514,15 +1514,15 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
           <button
             onClick={handleCloseCanvas}
-            className="hidden sm:flex group h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-3 text-text-primary shadow-sm outline-none transition-all duration-300  hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30"
+            className="hidden sm:flex group h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-slate-500/10 dark:bg-zinc-800/80 border-slate-300/60 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-rose-500/15 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-500/30 shadow-xs outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
             aria-label="Cerrar lienzo"
             title="Cerrar lienzo"
           >
             <div className="relative flex flex-shrink-0 items-center justify-center">
-              <X className="h-4 w-4" />
+              <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </div>
-            <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
-              <span className="text-sm font-bold tracking-wide">
+            <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
+              <span className="text-xs font-bold tracking-wide">
                 Cerrar
               </span>
             </div>

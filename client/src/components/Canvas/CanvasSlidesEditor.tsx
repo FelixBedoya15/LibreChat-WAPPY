@@ -1547,14 +1547,14 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
             {/* New Present button in maximized sidebar actions */}
             <button
               onClick={() => setIsPresenting(true)}
-              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-md shrink-0 cursor-pointer border outline-none rounded-xl   bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 text-teal-600 dark:text-teal-400 border-border-medium/40 w-full border-teal-500/20 shadow-teal-500/10"
+              className="group flex flex-shrink-0 items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-md shrink-0 cursor-pointer border outline-none rounded-xl   border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
               aria-label="Iniciar Presentación"
             >
               <div className="relative flex-shrink-0 flex items-center justify-center ">
                 <MonitorPlay className="h-4 w-4 " />
               </div>
-              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                <span className="text-sm font-bold tracking-wide ">
+              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <span className="text-xs font-bold tracking-wide ">
                   Iniciar Presentación
                 </span>
               </div>
@@ -1562,14 +1562,14 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
 
             <button
               onClick={() => setIsBridgeOpen(true)}
-              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   bg-surface-primary border-teal-500/30 hover:bg-teal-50/10 text-teal-600 w-full"
+              className="group flex flex-shrink-0 items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   bg-surface-primary border-teal-500/30 hover:bg-teal-50/10 text-teal-600 w-full"
               aria-label="Conectar Lienzos"
             >
               <div className="relative flex-shrink-0 flex items-center justify-center text-teal-600">
                 <Link2 className="h-4 w-4 text-teal-600" />
               </div>
-              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                <span className="text-sm font-bold tracking-wide text-teal-600">
+              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <span className="text-xs font-bold tracking-wide text-teal-600">
                   Conectar Lienzos
                 </span>
               </div>
@@ -1577,14 +1577,14 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
 
             <button
               onClick={addSlide}
-              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary w-full"
+              className="group flex flex-shrink-0 items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs  w-full"
               aria-label="Nueva Diapositiva"
             >
               <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
                 <Plus className="h-4 w-4 text-text-primary" />
               </div>
-              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                <span className="text-sm font-bold tracking-wide text-text-primary">
+              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <span className="text-xs font-bold tracking-wide text-text-primary">
                   Nueva Diapositiva
                 </span>
               </div>
@@ -1599,8 +1599,8 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
               <div className="relative flex-shrink-0 flex items-center justify-center">
                 <Trash2 className="h-4 w-4 text-red-500" />
               </div>
-              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                <span className="text-sm font-bold tracking-wide">
+              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <span className="text-xs font-bold tracking-wide">
                   Eliminar Activa
                 </span>
               </div>
@@ -1795,14 +1795,14 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                 <div className="flex justify-center">
                   <button
                     onClick={() => setShowSettings(!showSettings)}
-                    className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+                    className="group flex flex-shrink-0 items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
                     aria-label={showSettings ? 'Ocultar Opciones' : 'Mostrar Opciones'}
                   >
                     <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
                       <Layout className="h-4 w-4 text-text-primary" />
                     </div>
-                    <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[250px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                      <span className="text-sm font-bold tracking-wide text-text-primary">
+                    <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[250px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
+                      <span className="text-xs font-bold tracking-wide text-text-primary">
                         {showSettings ? 'Ocultar Opciones' : 'Mostrar Opciones'}
                       </span>
                     </div>
@@ -1911,14 +1911,14 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                         <span className="text-xs text-text-tertiary flex items-center gap-1"><Sparkles className="h-3.5 w-3.5 text-yellow-500" /> Formato de Impresión Landscape</span>
                         <button
                           onClick={handleDownloadPdf}
-                          className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+                          className="group flex flex-shrink-0 items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   border rounded-xl bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 shadow-xs "
                           aria-label="Descargar Diapositivas"
                         >
                           <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
                             <Download className="h-4 w-4 text-text-primary" />
                           </div>
-                          <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                            <span className="text-sm font-bold tracking-wide text-text-primary">
+                          <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
+                            <span className="text-xs font-bold tracking-wide text-text-primary">
                               Descargar Diapositivas
                             </span>
                           </div>

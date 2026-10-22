@@ -937,7 +937,7 @@ const AnalisisVulnerabilidad = () => {
                         <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
                       </span>
                     </div>
-                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
                       <span className="text-xs font-black uppercase tracking-wider">Matriz Activa</span>
                     </div>
                   </div>
@@ -949,7 +949,7 @@ const AnalisisVulnerabilidad = () => {
                     <div className="relative flex flex-shrink-0 items-center justify-center">
                       <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
                     </div>
-                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
                       <span className="text-xs font-black uppercase tracking-wider">Sin Amenazas Definidas</span>
                     </div>
                   </div>
@@ -961,16 +961,16 @@ const AnalisisVulnerabilidad = () => {
                 {/* Amenazas Evaluadas */}
                 <div
                   title={`${summaryStats.totalThreats} Amenazas en Sesión`}
-                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-surface-primary text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                  className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
                 >
                   <div className="relative flex flex-shrink-0 items-center justify-center">
-                    <Layers className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 dark:text-teal-400 shrink-0" />
+                    <Layers className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
                     <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
                       {summaryStats.totalThreats}
                     </span>
                   </div>
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
-                    <span className="text-sm font-bold tracking-wide">
+                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
+                    <span className="text-xs font-bold tracking-wide">
                       {summaryStats.totalThreats}{' '}
                       {summaryStats.totalThreats === 1 ? 'Amenaza Evaluada' : 'Amenazas Evaluadas'}
                     </span>
@@ -981,16 +981,16 @@ const AnalisisVulnerabilidad = () => {
                 {summaryStats.highRiskCount > 0 && (
                   <div
                     title={`${summaryStats.highRiskCount} Amenazas en Riesgo ALTO`}
-                    className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                    className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
                   >
                     <div className="relative flex flex-shrink-0 items-center justify-center">
-                      <Flame className="h-4 w-4 sm:h-5 sm:w-5 fill-rose-500 text-rose-500 shrink-0" />
+                      <Flame className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-rose-500 text-rose-500 shrink-0" />
                       <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
                         {summaryStats.highRiskCount}
                       </span>
                     </div>
-                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
-                      <span className="text-sm font-bold tracking-wide">
+                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
+                      <span className="text-xs font-bold tracking-wide">
                         {summaryStats.highRiskCount} en Riesgo ALTO
                       </span>
                     </div>
@@ -1000,16 +1000,16 @@ const AnalisisVulnerabilidad = () => {
                 {/* Evaluadores / Comité */}
                 <div
                   title={`${summaryStats.activeEvaluators} Evaluadores del Comité`}
-                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                  className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
                 >
                   <div className="relative flex flex-shrink-0 items-center justify-center">
-                    <Users className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                     <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
                       {summaryStats.activeEvaluators}
                     </span>
                   </div>
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
-                    <span className="text-sm font-bold tracking-wide">
+                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
+                    <span className="text-xs font-bold tracking-wide">
                       {summaryStats.activeEvaluators} Integrantes Comité
                     </span>
                   </div>
@@ -1018,13 +1018,13 @@ const AnalisisVulnerabilidad = () => {
                 {/* Conectada al Plan de Emergencias & Oráculo Predictivo */}
                 <div
                   title="Conectada al Plan de Emergencias y Oráculo Predictivo"
-                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                  className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
                 >
                   <div className="relative flex flex-shrink-0 items-center justify-center">
-                    <BrainCircuit className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 dark:text-purple-400 shrink-0" />
+                    <BrainCircuit className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-600 dark:text-purple-400 shrink-0" />
                   </div>
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
-                    <span className="text-sm font-bold tracking-wide">
+                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
+                    <span className="text-xs font-bold tracking-wide">
                       Conectada al Plan de Emergencias
                     </span>
                   </div>
@@ -1250,7 +1250,7 @@ const AnalisisVulnerabilidad = () => {
                         }
                         disabled={evaluadoresList.length === 1}
                         title="Eliminar Evaluador"
-                        className="group flex h-8 min-w-[32px] items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 hover:border-rose-300 transition-all duration-300 px-2 shadow-2xs active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="group flex h-8 min-w-[32px] items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 hover:border-rose-300 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-2 shadow-2xs active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
                       >
                         <Trash2 className="h-3.5 w-3.5 shrink-0" />
                         <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[80px] group-hover:opacity-100 sm:flex">
@@ -1398,7 +1398,7 @@ const AnalisisVulnerabilidad = () => {
                             }}
                             disabled={amenazasList.length === 1}
                             title="Eliminar Amenaza"
-                            className="group flex h-8 min-w-[32px] items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 hover:border-rose-300 transition-all duration-300 px-2 shadow-2xs active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+                            className="group flex h-8 min-w-[32px] items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 hover:border-rose-300 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-2 shadow-2xs active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
                           >
                             <Trash2 className="h-4 w-4 shrink-0" />
                             <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[90px] group-hover:opacity-100 sm:flex">
@@ -1547,7 +1547,7 @@ const AnalisisVulnerabilidad = () => {
                                                         handleAnswer(am.id, sectionTitle, q.id, opt.value)
                                                       }
                                                       title={opt.label}
-                                                      className={`group flex h-8 min-w-[32px] items-center justify-center rounded-xl border px-2 transition-all duration-300 active:scale-95 cursor-pointer ${
+                                                      className={`group flex h-8 min-w-[32px] items-center justify-center rounded-xl border px-2 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 active:scale-95 cursor-pointer ${
                                                         isSelected
                                                           ? opt.activeClass
                                                           : `border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 ${opt.hoverClass}`

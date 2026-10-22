@@ -78,12 +78,12 @@ const CollapsibleReportBox = ({
                             disabled={saveDisabled || isSaving}
                             aria-label="Guardar Informe"
                             className={cn(
-                                "group flex items-center justify-center h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] px-2 sm:px-2.5 transition-all duration-300 shadow-sm shrink-0 border outline-none rounded-xl",
+                                "group flex items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 border outline-none rounded-xl",
                                 saveDisabled || isSaving ? "opacity-50 cursor-not-allowed bg-surface-primary border-border-medium text-text-tertiary" : "cursor-pointer bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-purple-400 text-purple-600  "
                             )}
                         >
                             {isSaving ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <Save className="h-4 w-4 shrink-0" />}
-                            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
                                 <span className="text-xs font-bold tracking-wide">Guardar Informe</span>
                             </div>
                         </button>
@@ -95,14 +95,14 @@ const CollapsibleReportBox = ({
                             onClick={(e) => { e.stopPropagation(); onHistory(); }}
                             aria-label="Historial de informes"
                             className={cn(
-                                "group flex items-center justify-center h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] px-2 sm:px-2.5 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl  ",
+                                "group flex items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl  ",
                                 isHistoryOpen
                                     ? "bg-teal-100 text-teal-700 dark:bg-teal-900/10 border-teal-400"
                                     : "bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400 border-border-medium"
                             )}
                         >
                             <History className="h-4 w-4 shrink-0" />
-                            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
                                 <span className="text-xs font-bold tracking-wide">Historial</span>
                             </div>
                         </button>

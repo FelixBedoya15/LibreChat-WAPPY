@@ -3146,16 +3146,16 @@ export default function MatrizIPEVARTable({
               {/* Peligros Evaluados */}
               <div
                 title={`${matrixRows.length} ${matrixRows.length === 1 ? 'Peligro Evaluado' : 'Peligros Evaluados'}`}
-                className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
               >
                 <div className="relative flex flex-shrink-0 items-center justify-center">
-                  <FileSpreadsheet className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 dark:text-teal-400 shrink-0" />
+                  <FileSpreadsheet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
                   <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
                     {matrixRows.length}
                   </span>
                 </div>
-                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
-                  <span className="text-sm font-bold tracking-wide">
+                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                  <span className="text-xs font-bold tracking-wide">
                     {matrixRows.length} {matrixRows.length === 1 ? 'Peligro Evaluado' : 'Peligros Evaluados'}
                   </span>
                 </div>
@@ -3167,13 +3167,13 @@ export default function MatrizIPEVARTable({
                 onClick={addRow}
                 title="Añadir Riesgo"
                 aria-label="Añadir Riesgo"
-                className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/40 bg-surface-primary px-2 text-teal-600 shadow-sm outline-none transition-all duration-300 hover:bg-teal-50 hover:border-teal-500 dark:text-teal-400 dark:hover:bg-teal-900/20 sm:h-10 sm:min-w-[40px] sm:px-2.5  "
+                className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
               >
                 <div className="relative flex flex-shrink-0 items-center justify-center">
-                  <Plus className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                  <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                 </div>
-                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
-                  <span className="text-sm font-bold tracking-wide">Añadir Riesgo</span>
+                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                  <span className="text-xs font-bold tracking-wide">Añadir Riesgo</span>
                 </div>
               </button>
 
@@ -3183,13 +3183,13 @@ export default function MatrizIPEVARTable({
                 onClick={() => fileInputRef.current?.click()}
                 title="Importar Excel"
                 aria-label="Importar Excel"
-                className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium/40 bg-white dark:bg-gray-900 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 px-2 shadow-sm outline-none transition-all duration-300 sm:h-10 sm:min-w-[40px] sm:px-2.5  "
+                className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium/40 border rounded-xl bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 shadow-xs "
               >
                 <div className="relative flex flex-shrink-0 items-center justify-center">
-                  <Upload className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                  <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                 </div>
-                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
-                  <span className="text-sm font-bold tracking-wide">Importar Excel</span>
+                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                  <span className="text-xs font-bold tracking-wide">Importar Excel</span>
                 </div>
               </button>
 
@@ -3201,17 +3201,17 @@ export default function MatrizIPEVARTable({
                   disabled={isAutoAssigningCargos}
                   title="Auto-asignar cargos con IA según los perfiles de la empresa (la actividad se compara con la descripción de cada perfil)"
                   aria-label="Asignar Cargos con IA"
-                  className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/40 bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 dark:text-teal-300 px-2 shadow-sm outline-none transition-all duration-300 disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-2.5  "
+                  className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
                 >
                   <div className="relative flex flex-shrink-0 items-center justify-center">
                     {isAutoAssigningCargos ? (
-                      <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 animate-spin text-teal-600 dark:text-teal-400" />
+                      <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 animate-spin text-teal-600 dark:text-teal-400" />
                     ) : (
-                      <Briefcase className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-teal-600 dark:text-teal-400" />
+                      <Briefcase className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 text-teal-600 dark:text-teal-400" />
                     )}
                   </div>
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
-                    <span className="text-sm font-bold tracking-wide">
+                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                    <span className="text-xs font-bold tracking-wide">
                       {isAutoAssigningCargos ? 'Asignando Cargos…' : 'Asignar Cargos IA'}
                     </span>
                   </div>
@@ -3224,13 +3224,13 @@ export default function MatrizIPEVARTable({
                 onClick={() => setIsMaximized(true)}
                 title="Pantalla Completa"
                 aria-label="Pantalla Completa"
-                className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary hover:bg-surface-hover text-text-primary px-2 shadow-sm outline-none transition-all duration-300 sm:h-10 sm:min-w-[40px] sm:px-2.5  "
+                className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
               >
                 <div className="relative flex flex-shrink-0 items-center justify-center">
-                  <Maximize2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                  <Maximize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                 </div>
-                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
-                  <span className="text-sm font-bold tracking-wide">Pantalla Completa</span>
+                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                  <span className="text-xs font-bold tracking-wide">Pantalla Completa</span>
                 </div>
               </button>
             </div>
@@ -3272,10 +3272,10 @@ export default function MatrizIPEVARTable({
                 onClick={addRow}
                 title="Añadir Riesgo"
                 aria-label="Añadir Riesgo"
-                className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/40 bg-surface-primary px-2 sm:px-2.5 text-teal-600 shadow-sm outline-none transition-all duration-300 hover:bg-teal-50 hover:border-teal-500 dark:text-teal-400 dark:hover:bg-teal-900/20  "
+                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
               >
-                <Plus className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
-                <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+                <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
                   Añadir Riesgo
                 </span>
               </button>
@@ -3288,14 +3288,14 @@ export default function MatrizIPEVARTable({
                   disabled={isAnalyzing || matrixRows.length === 0}
                   title="Análisis IPEVR con IA"
                   aria-label="Análisis IPEVR con IA"
-                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-purple-500/40 bg-surface-primary px-2 sm:px-2.5 text-purple-600 shadow-sm outline-none transition-all duration-300 hover:bg-purple-50 hover:border-purple-500 disabled:cursor-not-allowed disabled:opacity-50 dark:text-purple-400 dark:hover:bg-purple-900/20  "
+                  className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
                 >
                   {isAnalyzing ? (
-                    <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 animate-spin" />
+                    <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 animate-spin" />
                   ) : (
-                    <FileTextIcon className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                    <FileTextIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                   )}
-                  <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+                  <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
                     {isAnalyzing ? 'Generando…' : 'Análisis IPEVR'}
                   </span>
                 </button>
@@ -3307,10 +3307,10 @@ export default function MatrizIPEVARTable({
                 onClick={() => fileInputRef.current?.click()}
                 title="Importar Excel"
                 aria-label="Importar Excel"
-                className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2 sm:px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:bg-surface-hover  "
+                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 shadow-xs "
               >
-                <Upload className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
-                <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+                <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
                   Importar
                 </span>
               </button>
@@ -3331,14 +3331,14 @@ export default function MatrizIPEVARTable({
                   disabled={isAutoAssigningCargos}
                   title="Auto-asignar cargos con IA a todas las filas según los perfiles de la empresa (sin editar fila por fila)"
                   aria-label="Auto-asignar cargos con IA"
-                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/40 bg-teal-500/10 hover:bg-teal-500/20 px-2 sm:px-2.5 text-teal-700 dark:text-teal-300 shadow-sm outline-none transition-all duration-300 disabled:opacity-50  "
+                  className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
                 >
                   {isAutoAssigningCargos ? (
-                    <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 animate-spin text-teal-600 dark:text-teal-400" />
+                    <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 animate-spin text-teal-600 dark:text-teal-400" />
                   ) : (
-                    <Briefcase className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-teal-600 dark:text-teal-400" />
+                    <Briefcase className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 text-teal-600 dark:text-teal-400" />
                   )}
-                  <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100">
+                  <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100">
                     {isAutoAssigningCargos ? 'Asignando Cargos…' : '⚡ Auto-Asignar Cargos IA'}
                   </span>
                 </button>
@@ -3352,14 +3352,14 @@ export default function MatrizIPEVARTable({
                   disabled={isSyncingControles}
                   title="Analizar Factores de Reducción (Anexo E Costo/Beneficio) y enviar controles propuestos al Centro de Control (Kanban)"
                   aria-label="Sincronizar Controles y Anexo E con Centro de Control"
-                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/20 px-2 sm:px-2.5 text-indigo-700 dark:text-indigo-300 shadow-sm outline-none transition-all duration-300 disabled:opacity-50  "
+                  className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-cyan-500/10 border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 shadow-xs "
                 >
                   {isSyncingControles ? (
-                    <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 animate-spin text-indigo-600 dark:text-indigo-400" />
+                    <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 animate-spin text-indigo-600 dark:text-indigo-400" />
                   ) : (
-                    <CheckSquare className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                    <CheckSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
                   )}
-                  <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[340px] group-hover:opacity-100">
+                  <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[340px] group-hover:opacity-100">
                     {isSyncingControles ? 'Sincronizando…' : 'Sincronizar Anexo E con Centro de Control'}
                   </span>
                 </button>
@@ -3371,10 +3371,10 @@ export default function MatrizIPEVARTable({
                 onClick={() => saveMatrixData(matrixRows)}
                 title="Guardar Matriz"
                 aria-label="Guardar Matriz"
-                className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-green-500/40 bg-surface-primary px-2 sm:px-2.5 text-green-600 shadow-sm outline-none transition-all duration-300 hover:bg-green-50 hover:border-green-500 disabled:opacity-50 dark:text-green-400 dark:hover:bg-green-900/20  "
+                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
               >
-                <Save className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
-                <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+                <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
                   {isSaving ? 'Guardando…' : 'Guardar'}
                 </span>
               </button>
@@ -3384,17 +3384,17 @@ export default function MatrizIPEVARTable({
                 isCurrentConvoOfficial ? (
                   <div
                     title="Esta matriz está activa en el Sistema SG-SST"
-                    className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-default items-center justify-center rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-2 sm:px-2.5 text-emerald-600 dark:text-emerald-400 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                    className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] flex-shrink-0 shrink-0 cursor-default items-center justify-center rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-2 sm:px-2.5 text-emerald-600 dark:text-emerald-400 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
                   >
                     <div className="relative flex flex-shrink-0 items-center justify-center">
-                      <Star className="h-4 w-4 sm:h-5 sm:w-5 fill-emerald-500 text-emerald-500 shrink-0" />
+                      <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-emerald-500 text-emerald-500 shrink-0" />
                       <span className="absolute -right-1 -top-1 flex h-2 w-2">
                         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
                         <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
                       </span>
                     </div>
-                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
-                      <span className="text-sm font-bold tracking-wide">Matriz Activa</span>
+                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                      <span className="text-xs font-bold tracking-wide">Matriz Activa</span>
                     </div>
                   </div>
                 ) : (
@@ -3404,14 +3404,14 @@ export default function MatrizIPEVARTable({
                     disabled={isSettingOfficial}
                     title="Fijar en el Aplicativo SG-SST (Hito 1)"
                     aria-label="Fijar en Aplicativo"
-                    className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium/40 bg-white dark:bg-gray-900 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 px-2 sm:px-2.5 text-amber-700 dark:text-amber-300 shadow-sm outline-none transition-all duration-300 disabled:opacity-50  "
+                    className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium/40 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
                   >
                     {isSettingOfficial ? (
-                      <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 animate-spin text-amber-500" />
+                      <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 animate-spin text-amber-500" />
                     ) : (
-                      <Star className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 fill-amber-500/30 text-amber-500" />
+                      <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 fill-amber-500/30 text-amber-500" />
                     )}
-                    <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100">
+                    <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100">
                       {isSettingOfficial ? 'Guardando…' : 'Fijar en Aplicativo'}
                     </span>
                   </button>
@@ -3432,10 +3432,10 @@ export default function MatrizIPEVARTable({
                   }}
                   title="Limpiar / Vaciar Matriz"
                   aria-label="Limpiar / Vaciar Matriz"
-                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-red-500/30 bg-surface-primary px-2 sm:px-2.5 text-red-600 shadow-sm outline-none transition-all duration-300 hover:bg-red-50 hover:border-red-400 dark:text-red-400 dark:hover:bg-red-900/20  "
+                  className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 shadow-xs "
                 >
-                  <Trash2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
-                  <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+                  <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                  <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
                     Limpiar Matriz
                   </span>
                 </button>
@@ -3447,14 +3447,14 @@ export default function MatrizIPEVARTable({
                 onClick={() => setIsMaximized((m) => !m)}
                 title={isMaximized ? 'Restaurar pantalla' : 'Pantalla completa'}
                 aria-label={isMaximized ? 'Restaurar pantalla' : 'Pantalla completa'}
-                className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2 sm:px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:bg-surface-hover  "
+                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
               >
                 {isMaximized ? (
-                  <Minimize2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                  <Minimize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                 ) : (
-                  <Maximize2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                  <Maximize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                 )}
-                <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+                <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
                   {isMaximized ? 'Restaurar' : 'Expandir'}
                 </span>
               </button>
@@ -4549,12 +4549,12 @@ export default function MatrizIPEVARTable({
           >
             <div className="flex items-center gap-2.5">
               {isDashboardExpanded ? (
-                <ChevronDown className="h-5 w-5 text-text-secondary" />
+                <ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-text-secondary" />
               ) : (
-                <ChevronRight className="h-5 w-5 text-text-secondary" />
+                <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-text-secondary" />
               )}
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
-                <BarChart3 className="h-5 w-5" />
+                <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </div>
               <div className="text-left">
                 <span className="text-base font-bold text-text-primary">
@@ -4567,13 +4567,13 @@ export default function MatrizIPEVARTable({
             </div>
             <div
               title="Visualización Gráfica GTC 45"
-              className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+              className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
             >
               <div className="relative flex flex-shrink-0 items-center justify-center">
-                <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 dark:text-purple-400 shrink-0" />
+                <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-600 dark:text-purple-400 shrink-0" />
               </div>
-              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
-                <span className="text-sm font-bold tracking-wide">Visualización Gráfica</span>
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">Visualización Gráfica</span>
               </div>
             </div>
           </button>

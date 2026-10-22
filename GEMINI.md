@@ -35,29 +35,35 @@ docker exec -it LibreChat node scripts/restore-and-sync-all.js
 
 ---
 
-## 4. Estilo Obligatorio de Botones y Botoneras (WAPPY Design System)
+## 4. Estilo Obligatorio de Botones, Insignias y Botoneras (WAPPY 14-Group Design System)
 > [!IMPORTANT]
-> **REGLA ESTRICTA DE DISEÑO DE BOTONES Y BOTONERAS (ESTILO "OCULTAR ANALÍTICAS / SINCRONIZAR"):**
-> Todos los botones auto-expansibles, botones de barra de herramientas (toolbars), botones de copiar, exportar, generar con IA, sincronizar, guardar o acciones principales/secundarias en WAPPY deben seguir **ESTRICTAMENTE** el estilo sobrio, limpio y auto-expansible de `ExpandableButton`:
+> **REGLA ESTRICTA DE DISEÑO DE BOTONES E INSIGNIAS EXPANSIBLES:**
+> Todos los botones auto-expansibles, insignias de conexión de Hitos, botones de barra de herramientas (toolbars), copiar, exportar, importar, generar con IA, modelo de IA, sincronizar, guardar o eliminar en WAPPY deben seguir **ESTRICTAMENTE** la geometría compacta con inclinación (`sm:hover:-rotate-3 sm:hover:scale-105`) y los **14 Grupos Semánticos de Color** definidos en `client/src/components/Common/ExpandableButton.tsx`:
 >
-> 1. **Componente Maestro Auto-Expansible (`ExpandableButton` / `ExpandingButton` / `WappyExpandButton` / `ToolbarButton`):**
->    - **Ubicación principal:** `client/src/components/Common/ExpandableButton.tsx`.
->    - **Regla:** SIEMPRE que se cree o modifique cualquier botón de acción, barra de herramientas (toolbar), filtros, analíticas, sincronización, copiar, exportar, generar con IA o acciones en filas de tabla que requieran contraer/expandir al posar el cursor (`hover`), **DEBE USARSE `ExpandableButton` (o su estilo exacto)**.
->    - **Dimensiones estándar:**
->      - Tamaño normal (`size="md"`): Cuadrado inicial `h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px]`, esquinas `rounded-xl`.
->      - Tamaño compacto para tablas (`size="sm"`): Cuadrado inicial `h-8 px-2.5 min-w-[32px] sm:h-8.5 sm:px-2.5 sm:min-w-[34px]`, esquinas `rounded-xl`.
->    - **Superficie en reposo (Idle):** Fondo limpio `bg-white dark:bg-gray-900`, borde sutil `border border-border-medium/40 shadow-sm`, con el **ícono y texto coloreados** según la variante (`text-teal-600 dark:text-teal-400`, `text-emerald-600`, `text-purple-600`, `text-amber-600`, `text-rose-600`, `text-blue-600`, o neutro `text-text-secondary hover:text-text-primary`) y hover con tinte ultra-suave (`hover:bg-teal-50/50 dark:hover:bg-teal-950/20`).
->    - **Superficie activa (Active / Toggle abierto):** Tinte suave `bg-teal-500/10 text-teal-600 border-teal-500/20 hover:bg-teal-500/20 dark:bg-teal-950/20 dark:text-teal-400` (o su equivalente en el color de la variante).
->    - **Animación de expansión al hover:**
->      `<div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[220px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap"><span className="text-xs font-bold tracking-wide">{label}</span></div>`
->    - **TERMINANTEMENTE PROHIBIDO:**
->      - Prohibido usar `rounded-full` (tipo píldora redonda) en botones. Todas las esquinas deben ser `rounded-xl`.
->      - Prohibido usar rellenos sólidos pesados o degradados saturados (`bg-teal-600 text-white`, `bg-gradient-to-r from-orange-500...`, `bg-indigo-600`, `bg-emerald-600`) en botones expansibles o de barra de herramientas.
->      - Prohibido usar rotaciones o inclinaciones al pasar el cursor (`hover:-rotate-3`, `sm:hover:-rotate-3`, `hover:scale-105`). Solo se permite `active:scale-95`.
+> 1. **Geometría y Física Común (Todos los Botones e Insignias Expansibles):**
+>    - **Componente Maestro:** `client/src/components/Common/ExpandableButton.tsx` (y sus adaptadores `ExpandingButton`, `ToolbarButton`, `WappyExpandButton`, `SGSSTLegalBadge`, `DummyGenerateButton`, `ModelSelector`, `ExportDropdown`).
+>    - **Dimensiones compactas estándar (`size="md"`):** `h-7 px-2 min-w-[28px] sm:h-8 sm:px-2.5 sm:min-w-[32px] rounded-xl`, ícono `h-3.5 w-3.5 sm:h-4 sm:w-4`, texto `text-xs font-bold tracking-wide`.
+>    - **Dimensiones micro para tablas (`size="sm"`):** `h-6.5 px-1.5 min-w-[26px] sm:h-7 sm:px-2 sm:min-w-[28px] rounded-xl`, ícono `h-3 w-3 sm:h-3.5 sm:w-3.5`, texto `text-[10px] font-bold tracking-wide`.
+>    - **Animación y Física al Hover (Ladeado + Expansión):**
+>      - Clase del botón: `transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95`
+>      - Contenedor del texto: `hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap`
+>    - **Prohibido:** Usar `rounded-full` (tipo píldora redonda) o rellenos sólidos pesados (`bg-teal-600 text-white`). Todos usan fondo translúcido (`/10`) y borde (`/30`) de su grupo semántico.
 >
-> 2. **Botonera Flotante Cápsula / Toolbar (`SGSSTToolbar`):**
->    - **Contenedor Cápsula:** `inline-flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-lg shadow-slate-200/40 dark:shadow-none`.
->    - Todos los botones dentro de `SGSSTToolbar`, `ExportDropdown` y `ModelSelector` deben mantener exactamente el estilo limpio `bg-white dark:bg-gray-900 border-border-medium/40 rounded-xl` sin rotaciones.
+> 2. **Los 14 Grupos Semánticos de Color (Obligatorios en todos los aplicativos):**
+>    - **Grupo 1 — Normatividad CUMPLIDA (`compliance-ok` / `SGSSTLegalBadge`):** `border-emerald-500/70 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30` (con punto esmeralda pulsante).
+>    - **Grupo 2 — Normatividad PENDIENTE (`compliance-warn` / `SGSSTLegalBadge`):** `bg-sky-500/10 border-sky-500/30 text-sky-700 dark:text-sky-300 hover:bg-sky-500/20`.
+>    - **Grupo 3 — Confirmar / Guardar / Aprobar / Fijar (`teal`):** `bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20`.
+>    - **Grupo 4 — Crear / Añadir / Nuevo (`+`) (`emerald`):** `bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20`.
+>    - **Grupo 5 — Actualizar / Sincronizar / Recargar / Despachar (`cyan`):** `bg-cyan-500/10 border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20`.
+>    - **Grupo 6 — Generar / Analizar / Auditar con IA (`Sparkles`) (`purple`):** `bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20`.
+>    - **Grupo 7 — Selector de Modelo IA (Cerebro `Brain`) / Oráculo ML (`indigo`):** `bg-indigo-500/10 border-indigo-500/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/20`.
+>    - **Grupo 8 — Datos de Prueba (`Dummy` / Robot) / Alertas (`amber`):** `bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20`.
+>    - **Grupo 9 — Importar / Subir / Cargar Base / Plantilla (`blue`):** `bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20`.
+>    - **Grupo 10 — Exportar / Descargar / Imprimir / Reportes (`green`):** `bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-300 hover:bg-green-500/20`.
+>    - **Grupo 11 — Códigos QR / Portal Público / Copiar / Compartir (`fuchsia`):** `bg-fuchsia-500/10 border-fuchsia-500/30 text-fuchsia-700 dark:text-fuchsia-300 hover:bg-fuchsia-500/20`.
+>    - **Grupo 12 — Analíticas / Historial / Versiones / Ver / Editar (`orange`):** `bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20`.
+>    - **Grupo 13 — Eliminar / Borrar / Limpiar / Peligro (`danger` / `rose`):** `bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20`.
+>    - **Grupo 14 — Cerrar / Volver / Cancelar / Pantalla Completa / Default (`neutral` / `slate`):** Todo botón que pertenezca a acciones de cierre o que no esté en los grupos anteriores usa un único color unificado: `bg-slate-500/10 dark:bg-zinc-800/80 border-slate-300/60 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-500/20`.
 
 ---
 

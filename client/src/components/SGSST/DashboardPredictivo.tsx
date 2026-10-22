@@ -1307,7 +1307,7 @@ const DashboardPredictivo = () => {
                                             referenceName: `${conf.workerName} (${conf.cargo})`
                                         }])}
                                         title="Crear compromiso ACPM en Tablero Kanban"
-                                        className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-amber-100 shrink-0"
+                                        className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-amber-100 shrink-0"
                                     >
                                         {dispatchingKanbanKey === confKey ? (
                                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1836,7 +1836,7 @@ const DashboardPredictivo = () => {
                                                         referenceName: forecast.criticalArea || 'Centro Predictivo H8'
                                                     }])}
                                                     title="Enviar acción al Tablero Kanban ACPM"
-                                                    className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 shrink-0"
+                                                    className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 shrink-0"
                                                 >
                                                     {dispatchingKanbanKey === actKey ? (
                                                         <Loader2 className="w-3.5 h-3.5 animate-spin" />

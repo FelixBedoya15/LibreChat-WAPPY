@@ -250,7 +250,7 @@ export default function SharedLinks() {
               onClick={() => {
                 window.open(`/c/${row.original.conversationId}`, '_blank');
               }}
-              className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg px-1.5 shadow-2xs transition-all duration-300 active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 cursor-pointer"
+              className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg px-1.5 shadow-2xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 cursor-pointer"
               aria-label={`${localize('com_ui_view_source')} - ${row.original.title || localize('com_ui_untitled')}`}
               title={localize('com_ui_view_source') || 'Ver chat'}
             >
@@ -264,7 +264,7 @@ export default function SharedLinks() {
                 setDeleteRow(row.original);
                 setIsDeleteOpen(true);
               }}
-              className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg px-1.5 shadow-2xs transition-all duration-300 active:scale-95 text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 cursor-pointer"
+              className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg px-1.5 shadow-2xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 active:scale-95 text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 cursor-pointer"
               aria-label={`${localize('com_ui_delete')} - ${row.original.title || localize('com_ui_untitled')}`}
               title={localize('com_ui_delete') || 'Eliminar'}
             >

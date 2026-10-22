@@ -393,13 +393,13 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
                     type="button"
                     onClick={() => setIsAdding(!isAdding)}
                     title={isAdding ? 'Cerrar Formulario' : 'Registrar Novedad'}
-                    className="group flex h-8 sm:h-10 min-w-[32px] sm:min-w-[40px] px-2 sm:px-2.5 items-center justify-center rounded-xl bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 border border-border-medium/40 text-teal-600 dark:text-teal-400 shadow-md transition-all duration-300 active:scale-95 border border-teal-500/30"
+                    className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 px-2 sm:px-2.5 items-center justify-center rounded-xl border rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs "
                 >
                     <div className="relative flex flex-shrink-0 items-center justify-center">
-                        <Plus className={cn("h-4 w-4 sm:h-5 sm:w-5 transition-transform duration-300", isAdding && "rotate-45")} />
+                        <Plus className={cn("h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform duration-300", isAdding && "rotate-45")} />
                     </div>
-                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-xs group-hover:opacity-100 sm:flex">
-                        <span className="text-xs sm:text-sm font-bold tracking-wide">
+                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100 sm:flex">
+                        <span className="text-xs sm:text-xs font-bold tracking-wide">
                             {isAdding ? 'Cerrar Formulario' : 'Registrar Novedad'}
                         </span>
                     </div>
@@ -713,7 +713,7 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
                                                         type="button"
                                                         onClick={() => setSelectedEventForDetail(event)}
                                                         title="Ver desglose financiero"
-                                                        className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 transition-all duration-300 px-1.5 shadow-xs active:scale-95"
+                                                        className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-xs active:scale-95"
                                                     >
                                                         <Eye className="w-3.5 h-3.5" />
                                                         <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">

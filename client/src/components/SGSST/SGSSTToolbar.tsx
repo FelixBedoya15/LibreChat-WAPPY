@@ -200,12 +200,12 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
         ) : !exportContent && !onExportExcel && !onDownloadTemplate && (onSave || effectivePersistence.length > 0) ? (
           <button
             disabled
-            className="group flex h-9 min-w-[36px] shrink-0 cursor-not-allowed items-center justify-center rounded-xl border border-border-medium/40 bg-white dark:bg-gray-900 px-3.5 text-text-tertiary opacity-40 shadow-sm sm:h-10 sm:min-w-[40px] sm:px-3"
+            className="group flex h-7 min-w-[28px] shrink-0 cursor-not-allowed items-center justify-center rounded-xl border border-green-500/30 bg-green-500/10 px-2 text-green-700 dark:text-green-300 opacity-40 shadow-xs sm:h-8 sm:min-w-[32px] sm:px-2.5"
           >
-            <Download className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
-            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 group-hover:ml-2 group-hover:max-w-xs group-hover:opacity-100 sm:flex">
+            <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100 sm:flex">
               {/* eslint-disable-next-line i18next/no-literal-string */}
-              <span className="text-xs sm:text-sm font-bold tracking-wide">Exportar</span>
+              <span className="text-xs font-bold tracking-wide">Exportar</span>
             </div>
           </button>
         ) : null,
@@ -296,21 +296,45 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
   loading,
   badge,
 }) => {
-  const variantStyles = {
-    ai: active
-      ? 'bg-teal-500/10 text-teal-600 border-teal-500/20 hover:bg-teal-500/20 dark:bg-teal-950/20 dark:text-teal-400'
-      : 'bg-white dark:bg-gray-900 border-border-medium/40 text-teal-600 dark:text-teal-400 hover:bg-teal-50/50 dark:hover:bg-teal-950/20',
-    history: active
-      ? 'bg-teal-500/10 text-teal-600 border-teal-500/20 hover:bg-teal-500/20 dark:bg-teal-950/20 dark:text-teal-400'
-      : 'bg-white dark:bg-gray-900 border-border-medium/40 text-text-secondary hover:text-text-primary hover:bg-surface-hover',
-    database:
-      'bg-white dark:bg-gray-900 border-border-medium/40 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 text-blue-600 dark:text-blue-400',
-    save: 'bg-white dark:bg-gray-900 border-border-medium/40 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 text-purple-600 dark:text-purple-400',
-    dummy: 'bg-white dark:bg-gray-900 border-border-medium/40 text-amber-600 dark:text-amber-400 hover:bg-amber-50/50 dark:hover:bg-amber-950/20',
-    excel: 'bg-white dark:bg-gray-900 border-border-medium/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20',
-    default: active
-      ? 'bg-teal-500/10 text-teal-600 border-teal-500/20 hover:bg-teal-500/20 dark:bg-teal-950/20 dark:text-teal-400'
-      : 'bg-white dark:bg-gray-900 border-border-medium/40 text-text-secondary hover:text-text-primary hover:bg-surface-hover',
+  const getDynamicStyle = () => {
+    const text = `${label || ''} ${title || ''}`.toLowerCase();
+    if (variant === 'ai' || /(ia\b|con ia|inteligencia|dictamen|auditar|analizar)/.test(text)) {
+      return active
+        ? 'bg-purple-500/20 border-purple-500/50 text-purple-700 dark:text-purple-300 ring-1 ring-purple-500/30'
+        : 'bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20';
+    }
+    if (variant === 'dummy' || /(datos de prueba|dummy|prueba)/.test(text)) {
+      return 'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20';
+    }
+    if (/(qr|copiar|compartir|link|portal)/.test(text)) {
+      return 'bg-fuchsia-500/10 border-fuchsia-500/30 text-fuchsia-700 dark:text-fuchsia-300 hover:bg-fuchsia-500/20';
+    }
+    if (/(importar|subir|cargar|plantilla)/.test(text)) {
+      return 'bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20';
+    }
+    if (variant === 'excel' || /(exportar|descargar|imprimir|excel|pdf|word|html|informe oficial)/.test(text)) {
+      return 'bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-300 hover:bg-green-500/20';
+    }
+    if (/(sincronizar|actualizar|refrescar|recargar|reintentar)/.test(text)) {
+      return 'bg-cyan-500/10 border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20';
+    }
+    if (variant === 'database' || variant === 'save' || /(guardar|confirmar|aprobar|fijar)/.test(text)) {
+      return 'bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20';
+    }
+    if (/(nuevo|nueva|añadir|agregar|crear|convocar)/.test(text)) {
+      return 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20';
+    }
+    if (/(eliminar|borrar|quitar|limpiar)/.test(text)) {
+      return 'bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20';
+    }
+    if (variant === 'history' || /(historial|analítica|ver|editar|reportes)/.test(text)) {
+      return active
+        ? 'bg-orange-500/20 border-orange-500/50 text-orange-700 dark:text-orange-300 ring-1 ring-orange-500/30'
+        : 'bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20';
+    }
+    return active
+      ? 'bg-teal-500/20 border-teal-500/50 text-teal-700 dark:text-teal-300 ring-1 ring-teal-500/30'
+      : 'bg-slate-500/10 dark:bg-zinc-800/80 border-slate-300/60 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-500/20';
   };
 
   return (
@@ -329,24 +353,24 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
       title={title}
       aria-label={title || label}
       className={cn(
-        'group flex h-9 min-w-[36px] shrink-0 cursor-pointer items-center justify-center rounded-xl border px-3.5 shadow-sm outline-none transition-all duration-300 ease-in-out active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-3',
-        variantStyles[variant],
+        'group flex h-7 min-w-[28px] shrink-0 cursor-pointer items-center justify-center rounded-xl border px-2 shadow-xs outline-none transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:min-w-[32px] sm:px-2.5',
+        getDynamicStyle(),
       )}
     >
       <div className="relative flex flex-shrink-0 items-center justify-center">
         {isLoading || loading ? (
-          <Loader2 className="h-4 w-4 animate-spin sm:h-4.5 sm:w-4.5" />
+          <Loader2 className="h-3.5 w-3.5 animate-spin sm:h-4 sm:w-4" />
         ) : (
           <>
             {React.isValidElement(icon) ? (
               icon
             ) : typeof icon === 'string' ? (
-              <AnimatedIcon name={icon as IconName} size={18} className="sm:h-4.5 sm:w-4.5" />
+              <AnimatedIcon name={icon as IconName} size={16} className="sm:h-4 sm:w-4" />
             ) : typeof icon === 'function' || (typeof icon === 'object' && icon !== null && '$$typeof' in icon) ? (
-              React.createElement(icon as any, { className: 'w-4 h-4 sm:w-4.5 sm:h-4.5' })
+              React.createElement(icon as any, { className: 'w-3.5 h-3.5 sm:w-4 sm:h-4' })
             ) : null}
             {badge !== undefined && (
-              <span className="absolute -right-3 -top-3 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
+              <span className="absolute -right-2.5 -top-2 z-10 flex h-3.5 min-w-[14px] px-0.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm ring-1 ring-white">
                 {badge}
               </span>
             )}
@@ -355,8 +379,8 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
       </div>
 
       {label && (
-        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[340px] group-hover:opacity-100 sm:flex">
-          <span className="text-xs sm:text-sm font-bold tracking-wide">{label}</span>
+        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[300px] group-hover:opacity-100 sm:flex">
+          <span className="text-xs font-bold tracking-wide">{label}</span>
         </div>
       )}
     </motion.button>

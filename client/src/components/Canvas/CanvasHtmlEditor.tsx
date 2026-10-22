@@ -1186,14 +1186,14 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
               <>
                 <button
                   onClick={() => setIframeKey((prev) => prev + 1)}
-                  className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+                  className="group flex flex-shrink-0 items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   border rounded-xl bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 shadow-xs "
                   title="Recargar vista previa"
                 >
                   <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
                     <RotateCw className="h-4 w-4 text-text-primary" />
                   </div>
-                  <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                    <span className="text-sm font-bold tracking-wide text-text-primary">
+                  <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
+                    <span className="text-xs font-bold tracking-wide text-text-primary">
                       Recargar
                     </span>
                   </div>
@@ -1201,14 +1201,14 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
 
                 <button
                   onClick={handleOpenInNewTab}
-                  className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+                  className="group flex flex-shrink-0 items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   border rounded-xl bg-fuchsia-500/10 border-fuchsia-500/30 text-fuchsia-700 dark:text-fuchsia-300 hover:bg-fuchsia-500/20 shadow-xs "
                   title="Abrir en pestaña nueva (presentación completa)"
                 >
                   <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
                     <ExternalLink className="h-4 w-4 text-text-primary" />
                   </div>
-                  <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                    <span className="text-sm font-bold tracking-wide text-text-primary">
+                  <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
+                    <span className="text-xs font-bold tracking-wide text-text-primary">
                       Abrir en pestaña
                     </span>
                   </div>
@@ -1216,14 +1216,14 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
 
                 <button
                   onClick={toggleFullscreen}
-                  className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+                  className="group flex flex-shrink-0 items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs "
                   title={isFullscreen ? 'Salir Pantalla Completa' : 'Pantalla Completa'}
                 >
                   <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
                     {isFullscreen ? <Minimize className="h-4 w-4 text-text-primary" /> : <Maximize className="h-4 w-4 text-text-primary" />}
                   </div>
-                  <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                    <span className="text-sm font-bold tracking-wide text-text-primary">
+                  <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
+                    <span className="text-xs font-bold tracking-wide text-text-primary">
                       {isFullscreen ? 'Salir Pantalla Completa' : 'Pantalla Completa'}
                     </span>
                   </div>
@@ -1233,14 +1233,14 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
 
             <button
               onClick={handleDownloadHtml}
-              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl   bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+              className="group flex flex-shrink-0 items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl   border rounded-xl bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 shadow-xs "
               aria-label="Descargar HTML"
             >
               <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
                 <Download className="h-4 w-4 text-text-primary" />
               </div>
-              <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                <span className="text-sm font-bold tracking-wide text-text-primary">
+              <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <span className="text-xs font-bold tracking-wide text-text-primary">
                   Descargar HTML
                 </span>
               </div>

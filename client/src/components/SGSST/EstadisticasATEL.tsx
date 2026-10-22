@@ -2115,17 +2115,17 @@ const EstadisticasATEL = () => {
                                         onClick={() => handleGenerate('MONTH')}
                                         disabled={isGenerating || !currentData.numTrabajadores}
                                         title={`Generar Informe Mensual (${MONTHS[currentMonthIndex]} ${year})`}
-                                        className="group flex h-8 sm:h-10 min-w-[32px] sm:min-w-[40px] px-2 sm:px-2.5 items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all duration-300 shadow-2xs active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 px-2 sm:px-2.5 items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-2xs active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <div className="relative flex flex-shrink-0 items-center justify-center">
                                             {isGenerating ? (
-                                                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-teal-600 dark:text-teal-400" />
+                                                <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin text-teal-600 dark:text-teal-400" />
                                             ) : (
-                                                <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 dark:text-teal-400" />
+                                                <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400" />
                                             )}
                                         </div>
-                                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-xs group-hover:opacity-100 sm:flex">
-                                            <span className="text-xs sm:text-sm font-bold tracking-wide">
+                                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100 sm:flex">
+                                            <span className="text-xs sm:text-xs font-bold tracking-wide">
                                                 Informe Mensual ({MONTHS[currentMonthIndex]})
                                             </span>
                                         </div>
@@ -2137,17 +2137,17 @@ const EstadisticasATEL = () => {
                                         onClick={() => handleGenerate('ANNUAL')}
                                         disabled={isGenerating || !currentData.numTrabajadores}
                                         title={`Generar Informe Anual Consolidado ${year}`}
-                                        className="group flex h-8 sm:h-10 min-w-[32px] sm:min-w-[40px] px-2 sm:px-2.5 items-center justify-center rounded-xl bg-white dark:bg-gray-900 hover:bg-orange-50/50 dark:hover:bg-orange-950/20 border border-border-medium/40 text-orange-600 dark:text-orange-400 shadow-md transition-all duration-300 active:scale-95 border border-orange-400/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 px-2 sm:px-2.5 items-center justify-center rounded-xl border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
                                     >
                                         <div className="relative flex flex-shrink-0 items-center justify-center">
                                             {isGenerating ? (
-                                                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin " />
+                                                <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin " />
                                             ) : (
-                                                <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 " />
+                                                <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 " />
                                             )}
                                         </div>
-                                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-xs group-hover:opacity-100 sm:flex">
-                                            <span className="text-xs sm:text-sm font-bold tracking-wide">
+                                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100 sm:flex">
+                                            <span className="text-xs sm:text-xs font-bold tracking-wide">
                                                 Informe Anual {year}
                                             </span>
                                         </div>
@@ -2160,17 +2160,17 @@ const EstadisticasATEL = () => {
                                             onClick={handleGenerateComparative}
                                             disabled={isGenerating}
                                             title="Generar Dictamen Comparativo IA"
-                                            className="group flex h-8 sm:h-10 min-w-[32px] sm:min-w-[40px] px-2 sm:px-2.5 items-center justify-center rounded-xl bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 border border-border-medium/40 text-teal-600 dark:text-teal-400 shadow-md transition-all duration-300 active:scale-95 border border-teal-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 px-2 sm:px-2.5 items-center justify-center rounded-xl border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
                                         >
                                             <div className="relative flex flex-shrink-0 items-center justify-center">
                                                 {isGenerating ? (
-                                                    <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin " />
+                                                    <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin " />
                                                 ) : (
-                                                    <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 " />
+                                                    <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 " />
                                                 )}
                                             </div>
-                                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-xs group-hover:opacity-100 sm:flex">
-                                                <span className="text-xs sm:text-sm font-bold tracking-wide">
+                                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100 sm:flex">
+                                                <span className="text-xs sm:text-xs font-bold tracking-wide">
                                                     Informe Comparativo IA
                                                 </span>
                                             </div>

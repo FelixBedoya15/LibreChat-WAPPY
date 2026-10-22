@@ -721,11 +721,11 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
           {/* Upload */}
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary  "
+            className="group flex flex-shrink-0 items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm cursor-pointer border outline-none rounded-xl border rounded-xl bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 shadow-xs   "
             aria-label="Subir DOCX o PDF"
           >
             <Upload className="h-4 w-4 shrink-0" />
-            <span className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-bold tracking-wide">
+            <span className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap text-xs font-bold tracking-wide">
               Subir Archivo
             </span>
           </button>
@@ -748,10 +748,10 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
           {/* Report History */}
           <button
             onClick={() => setIsReportHistoryOpen(h => !h)}
-            className={`group relative flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl ${
+            className={`group relative flex flex-shrink-0 items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm cursor-pointer border outline-none rounded-xl ${
               isReportHistoryOpen
                 ? 'bg-teal-500/10 border-teal-500/20 text-teal-600 dark:text-teal-400'
-                : 'bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary'
+                : 'border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs '
             }  `}
             aria-label="Historial de documentos"
           >
@@ -764,10 +764,10 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
           {/* Versions (formerly History) */}
           <button
             onClick={() => setIsHistoryOpen(h => !h)}
-            className={`group relative flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl ${
+            className={`group relative flex flex-shrink-0 items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm cursor-pointer border outline-none rounded-xl ${
               isHistoryOpen
                 ? 'bg-teal-500/10 border-teal-500/20 text-teal-600 dark:text-teal-400'
-                : 'bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary'
+                : 'border rounded-xl bg-cyan-500/10 border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 shadow-xs '
             }  `}
             aria-label="Versiones de documento"
           >
@@ -781,7 +781,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
           {content && (
             <button
               onClick={handleClear}
-              className="group relative flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl bg-surface-primary border-red-500/30 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500  "
+              className="group relative flex flex-shrink-0 items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm cursor-pointer border outline-none rounded-xl bg-surface-primary border-red-500/30 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500  "
               aria-label="Eliminar documento"
             >
               <Trash2 className="h-4 w-4 shrink-0" />
@@ -794,7 +794,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
           {/* Maximize */}
           <button
             onClick={() => setIsMaximized((m) => !m)}
-            className="group relative flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary  "
+            className="group relative flex flex-shrink-0 items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm cursor-pointer border outline-none rounded-xl border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs   "
             aria-label={isMaximized ? 'Reducir panel' : 'Expandir panel'}
           >
             {isMaximized ? (

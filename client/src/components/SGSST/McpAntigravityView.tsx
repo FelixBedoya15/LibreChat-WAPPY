@@ -891,7 +891,7 @@ Una vez agregues el servidor MCP 'wappy', realiza estas dos acciones:
                         <button
                           onClick={() => handleDeleteKey(k.id)}
                           disabled={deletingId === k.id}
-                          className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 ml-auto"
+                          className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95 text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 ml-auto"
                           title="Revocar clave"
                         >
                           <Trash2 className="w-3.5 h-3.5" />

@@ -42,7 +42,7 @@ const SettingsButton = ({
         handleOpenKeyDialog(endpoint.value as EModelEndpoint, e);
       }}
       className={cn(
-        'flex items-center overflow-visible text-text-primary transition-all duration-300 ease-in-out',
+        'flex items-center overflow-visible text-text-primary transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 ease-in-out',
         'group/button rounded-md px-1 hover:bg-surface-secondary focus:bg-surface-secondary',
         className,
       )}

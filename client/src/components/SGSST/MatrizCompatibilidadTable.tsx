@@ -1446,7 +1446,7 @@ export default function MatrizCompatibilidadTable({
                         <button
                           type="button"
                           onClick={() => setSelectedProductCardIdx(idx)}
-                          className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 transition-all duration-300 px-1.5 shadow-sm active:scale-95"
+                          className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95"
                           title="Crear / Ver Tarjeta del Producto Químico y Rótulo SGA (Decreto 1496/2018)"
                         >
                           <Tag className="h-3.5 w-3.5 shrink-0" />
@@ -1458,7 +1458,7 @@ export default function MatrizCompatibilidadTable({
                           type="button"
                           onClick={() => handleAiUpdateRow(idx)}
                           disabled={aiRowLoading === idx}
-                          className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-amber-100 transition-all duration-300 px-1.5 shadow-sm active:scale-95 disabled:opacity-50"
+                          className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-amber-100 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95 disabled:opacity-50"
                           title="Autocompletar producto químico con API PubChem + IA (ONU, Pictogramas SGA, Frases H/P)"
                         >
                           {aiRowLoading === idx ? (
@@ -1473,7 +1473,7 @@ export default function MatrizCompatibilidadTable({
                         <button
                           type="button"
                           onClick={() => deleteRow(idx)}
-                          className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 transition-all duration-300 px-1.5 shadow-sm active:scale-95"
+                          className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95"
                           title="Eliminar producto"
                         >
                           <Trash2 className="h-3.5 w-3.5 shrink-0" />
@@ -2409,7 +2409,7 @@ export default function MatrizCompatibilidadTable({
             <button
               onClick={handlePromoteToOfficial}
               disabled={isPromoting || matrixRows.length === 0}
-              className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-amber-500/40 bg-surface-primary px-2.5 text-amber-600 shadow-sm outline-none transition-all duration-300   hover:bg-amber-50 disabled:opacity-50 dark:text-amber-400 dark:hover:bg-amber-900/20"
+              className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs "
               title="Fijar esta matriz como la Matriz Oficial de Compatibilidad Química en el Hito 1"
             >
               {isPromoting ? (
@@ -2417,7 +2417,7 @@ export default function MatrizCompatibilidadTable({
               ) : (
                 <Pin className="h-4 w-4 shrink-0" />
               )}
-              <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+              <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
                 Fijar en Aplicativo
               </span>
             </button>
@@ -2427,7 +2427,7 @@ export default function MatrizCompatibilidadTable({
           <button
             onClick={handleSyncControlesQuimicos}
             disabled={isSyncingKanban || matrixRows.length === 0}
-            className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-orange-500/40 bg-surface-primary px-2.5 text-orange-600 shadow-sm outline-none transition-all duration-300   hover:bg-orange-50 disabled:opacity-50 dark:text-orange-400 dark:hover:bg-orange-900/20"
+            className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-cyan-500/10 border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 shadow-xs "
             title="Sincronizar controles de almacenamiento y brechas FDS/Rótulo con el Centro de Control"
           >
             {isSyncingKanban ? (
@@ -2435,7 +2435,7 @@ export default function MatrizCompatibilidadTable({
             ) : (
               <CheckSquare className="h-4 w-4 shrink-0" />
             )}
-            <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+            <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
               Enviar Controles
             </span>
           </button>
@@ -2443,10 +2443,10 @@ export default function MatrizCompatibilidadTable({
           {/* Añadir Producto */}
           <button
             onClick={addRow}
-            className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/40 bg-surface-primary px-2.5 text-teal-600 shadow-sm outline-none transition-all duration-300   hover:bg-teal-50 dark:text-teal-400 dark:hover:bg-teal-900/20"
+            className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs "
           >
             <Plus className="h-4 w-4 shrink-0" />
-            <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+            <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
               Añadir Producto
             </span>
           </button>
@@ -2455,14 +2455,14 @@ export default function MatrizCompatibilidadTable({
           <button
             onClick={handleAnalyzeMatrix}
             disabled={isAnalyzing || matrixRows.length === 0}
-            className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-purple-500/40 bg-surface-primary px-2.5 text-purple-600 shadow-sm outline-none transition-all duration-300   hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-purple-400 dark:hover:bg-purple-900/20"
+            className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
           >
             {isAnalyzing ? (
               <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
             ) : (
               <Sparkles className="h-4 w-4 shrink-0 text-purple-600 dark:text-purple-400" />
             )}
-            <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+            <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
               {isAnalyzing ? 'Generando…' : 'Auditar con IA'}
             </span>
           </button>
@@ -2471,14 +2471,14 @@ export default function MatrizCompatibilidadTable({
           <button
             onClick={triggerExcelImport}
             disabled={isAiImportLoading}
-            className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300   hover:bg-surface-hover"
+            className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 shadow-xs "
           >
             {isAiImportLoading ? (
               <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
             ) : (
               <Upload className="h-4 w-4 shrink-0" />
             )}
-            <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+            <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
               Importar
             </span>
           </button>
@@ -2503,14 +2503,14 @@ export default function MatrizCompatibilidadTable({
           <button
             onClick={() => saveMatrix()}
             disabled={isSaving}
-            className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-green-500/40 bg-surface-primary px-2.5 text-green-600 shadow-sm outline-none transition-all duration-300   hover:bg-green-50 disabled:opacity-50 dark:text-green-400 dark:hover:bg-green-900/20"
+            className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs "
           >
             {isSaving ? (
               <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
             ) : (
               <Save className="h-4 w-4 shrink-0" />
             )}
-            <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+            <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
               {isSaving ? 'Guardando…' : 'Guardar'}
             </span>
           </button>
@@ -2518,14 +2518,14 @@ export default function MatrizCompatibilidadTable({
           {/* Maximizar */}
           <button
             onClick={() => setIsMaximized(!isMaximized)}
-            className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300   hover:bg-surface-hover"
+            className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs "
           >
             {isMaximized ? (
               <Minimize2 className="h-4 w-4 shrink-0" />
             ) : (
               <Maximize2 className="h-4 w-4 shrink-0" />
             )}
-            <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+            <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
               {isMaximized ? 'Restaurar' : 'Expandir'}
             </span>
           </button>

@@ -219,7 +219,7 @@ export default function PromoCodesTable() {
                                     <div className="flex justify-end">
                                         <button
                                             onClick={() => handleDelete(codeItem._id)}
-                                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg px-1.5 shadow-2xs transition-all duration-300 active:scale-95 text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 cursor-pointer"
+                                            className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg px-1.5 shadow-2xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 active:scale-95 text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 cursor-pointer"
                                             title="Eliminar Código"
                                         >
                                             <Trash2 className="h-3.5 w-3.5" />

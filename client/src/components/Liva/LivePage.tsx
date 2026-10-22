@@ -698,15 +698,15 @@ const LivePage = () => {
                         {/* History Button — same style as ModelSelector */}
                         <button
                             onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                            className={`group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   ${
+                            className={`group flex flex-shrink-0 items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   ${
                                 isHistoryOpen
                                     ? 'bg-surface-hover ring-2 ring-blue-500/20 border-blue-500/50 text-blue-600 dark:text-blue-400'
-                                    : 'bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary'
+                                    : 'border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs '
                              }`}
                         >
-                            <History className="h-5 w-5 flex-shrink-0" />
-                            <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                                <span className="text-sm font-bold tracking-wide">{localize('com_ui_history')}</span>
+                            <History className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                            <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
+                                <span className="text-xs font-bold tracking-wide">{localize('com_ui_history')}</span>
                             </div>
                         </button>
                         
@@ -724,11 +724,11 @@ const LivePage = () => {
                         ) : (
                             <button
                                 onClick={handleStartAnalysis}
-                                className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary hover:text-teal-600 hover:border-teal-500/50"
+                                className="group flex flex-shrink-0 items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs "
                             >
-                                <Video className="h-5 w-5 flex-shrink-0" />
-                                <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                                    <span className="text-sm font-bold tracking-wide">{localize('com_ui_start_live_analysis')}</span>
+                                <Video className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                                <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
+                                    <span className="text-xs font-bold tracking-wide">{localize('com_ui_start_live_analysis')}</span>
                                 </div>
                             </button>
                         )}
@@ -736,11 +736,11 @@ const LivePage = () => {
                         {/* Save Report Button — same style as ModelSelector */}
                         <button
                             onClick={handleSave}
-                            className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary hover:text-emerald-600 hover:border-emerald-500/50"
+                            className="group flex flex-shrink-0 items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   border rounded-xl bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs "
                         >
-                            <Save className="h-5 w-5 flex-shrink-0" />
-                            <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                                <span className="text-sm font-bold tracking-wide">{localize('com_ui_save_report')}</span>
+                            <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                            <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
+                                <span className="text-xs font-bold tracking-wide">{localize('com_ui_save_report')}</span>
                             </div>
                         </button>
                         <div onClickCapture={(e) => {

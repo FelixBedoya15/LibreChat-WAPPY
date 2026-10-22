@@ -930,16 +930,16 @@ export default function EstudioPuestoTrabajo() {
                 {/* Total Estudios */}
                 <div
                   title={`${studies.length} Estudios Registrados`}
-                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-surface-primary text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                  className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
                 >
                   <div className="relative flex flex-shrink-0 items-center justify-center">
-                    <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 dark:text-teal-400 shrink-0" />
+                    <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
                     <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
                       {studies.length}
                     </span>
                   </div>
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
-                    <span className="text-sm font-bold tracking-wide">
+                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                    <span className="text-xs font-bold tracking-wide">
                       {studies.length} {studies.length === 1 ? 'Expediente' : 'Expedientes'}
                     </span>
                   </div>
@@ -1181,7 +1181,7 @@ export default function EstudioPuestoTrabajo() {
 
             <button
               onClick={() => loadStudies(activeCompanyId)}
-              className="group flex h-8 min-w-[32px] items-center justify-center rounded-xl text-slate-500 hover:text-teal-600 dark:hover:text-teal-400 transition-all duration-300 hover:bg-slate-100 dark:hover:bg-zinc-800 px-2 border border-slate-200 dark:border-zinc-700"
+              className="group flex h-8 min-w-[32px] items-center justify-center rounded-xl text-slate-500 hover:text-teal-600 dark:hover:text-teal-400 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 hover:bg-slate-100 dark:hover:bg-zinc-800 px-2 border border-slate-200 dark:border-zinc-700"
               title="Recargar estudios"
             >
               <RefreshCw className="w-3.5 h-3.5 shrink-0" />
@@ -1303,7 +1303,7 @@ export default function EstudioPuestoTrabajo() {
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => handleSelectStudyToView(s)}
-                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 transition-all duration-300 px-1.5 shadow-sm active:scale-95"
+                            className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95"
                             title="Ver y editar informe en Live Editor"
                           >
                             <Eye className="w-3.5 h-3.5 shrink-0" />
@@ -1313,7 +1313,7 @@ export default function EstudioPuestoTrabajo() {
                           </button>
                           <button
                             onClick={() => handleOpenEditAppointment(s)}
-                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-amber-100 transition-all duration-300 px-1.5 shadow-sm active:scale-95"
+                            className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-amber-100 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95"
                             title="Editar datos o reprogramar autoevaluación con la fisioterapeuta"
                           >
                             <Pencil className="w-3.5 h-3.5 shrink-0" />
@@ -1323,7 +1323,7 @@ export default function EstudioPuestoTrabajo() {
                           </button>
                           <button
                             onClick={() => handleDeleteStudy(s._id!)}
-                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-400 hover:text-red-600 transition-all duration-300 px-1.5 shadow-sm active:scale-95"
+                            className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-400 hover:text-red-600 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95"
                             title="Eliminar estudio"
                           >
                             <Trash2 className="w-3.5 h-3.5 shrink-0" />
@@ -1650,7 +1650,7 @@ export default function EstudioPuestoTrabajo() {
                               {/* Botón WhatsApp */}
                               <button
                                 onClick={() => handleCopyWhatsAppInvite(apt)}
-                                className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100 transition-all duration-300 px-1.5 shadow-sm active:scale-95"
+                                className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95"
                                 title="Copiar invitación formal para WhatsApp"
                               >
                                 <MessageCircle className="w-3.5 h-3.5 shrink-0" />
@@ -1662,7 +1662,7 @@ export default function EstudioPuestoTrabajo() {
                               {/* Botón Editar / Reprogramar */}
                               <button
                                 onClick={() => handleOpenEditAppointment(apt)}
-                                className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-amber-100 transition-all duration-300 px-1.5 shadow-sm active:scale-95"
+                                className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-amber-100 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95"
                                 title="Editar datos o reprogramar autoevaluación"
                               >
                                 <Pencil className="w-3.5 h-3.5 shrink-0" />
@@ -1675,7 +1675,7 @@ export default function EstudioPuestoTrabajo() {
                               {apt.status === 'programado' && (
                                 <button
                                   onClick={() => handleCancelAppointment(apt._id)}
-                                  className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-400 hover:text-red-600 transition-all duration-300 px-1.5 shadow-sm active:scale-95"
+                                  className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-400 hover:text-red-600 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95"
                                   title="Cancelar turno programado"
                                 >
                                   <Trash2 className="w-3.5 h-3.5 shrink-0" />

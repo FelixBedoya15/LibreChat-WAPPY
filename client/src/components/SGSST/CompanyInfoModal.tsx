@@ -1093,7 +1093,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                             <div key={idx} className="relative rounded-xl border border-border-medium bg-surface-primary p-4 shadow-sm">
                                                 <button
                                                     onClick={() => handleRemoveSede(idx)}
-                                                    className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 absolute right-3 top-3"
+                                                    className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95 text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 absolute right-3 top-3"
                                                     title="Eliminar Sede"
                                                 >
                                                     <Trash2 className="w-3.5 h-3.5" />

@@ -733,7 +733,7 @@ export default function UsersActivityMetricsTab({
                             onClick={() => handleOpenWhatsApp(u)}
                             disabled={!u.phone}
                             className={cn(
-                              "group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95",
+                              "group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95",
                               u.phone
                                 ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100 cursor-pointer"
                                 : "opacity-40 cursor-not-allowed bg-slate-100 text-slate-400"
@@ -749,7 +749,7 @@ export default function UsersActivityMetricsTab({
                           {/* Micro-botón Ver Hitos (Teal expandible) */}
                           <button
                             onClick={() => setSelectedUserDetail(u)}
-                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 cursor-pointer"
+                            className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 cursor-pointer"
                             title="Ver desglose completo de hitos y métricas"
                           >
                             <Eye className="w-3.5 h-3.5 shrink-0" />
@@ -779,7 +779,7 @@ export default function UsersActivityMetricsTab({
                                   daysInactive: u.daysInactive,
                                 });
                               }}
-                              className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300 hover:bg-blue-100 cursor-pointer"
+                              className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300 hover:bg-blue-100 cursor-pointer"
                               title="Redactar Email con IA o registrar CRM"
                             >
                               <Mail className="w-3.5 h-3.5 shrink-0" />

@@ -108,10 +108,10 @@ const ConclusionField = ({ chartType, chartStats, matrixRows, conversationId, to
         rows={3}
       />
       <button onClick={generate} disabled={loading || !conversationId}
-        className="group flex items-center justify-center p-2 h-[34px] bg-surface-secondary border border-border-medium rounded-xl text-sky-600 transition-all duration-300 hover:bg-sky-50 dark:hover:bg-sky-900/20 cursor-pointer disabled:opacity-50">
+        className="group flex items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs ">
         {loading ? <Loader2 className="h-4 w-4 animate-spin shrink-0" />
           : <Sparkles className="h-4 w-4 shrink-0" />}
-        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 text-xs font-bold">
+        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-1.5 text-xs font-bold">
           {loading ? 'Generando…' : 'Generar Conclusión Vial'}
         </span>
       </button>

@@ -716,33 +716,33 @@ export default function OraculoPredictivoH1() {
                                                     setIsHistoryOpen(true);
                                                 }}
                                                 aria-label="Historial de Dictámenes"
-                                                className="group flex items-center justify-center h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] px-2 sm:px-2.5 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border rounded-xl bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400 border-border-medium  "
+                                                className="group flex items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border rounded-xl bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400 border-border-medium  "
                                                 title="Historial de Dictámenes"
                                             >
-                                                <History className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
-                                                <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                                                    <span className="text-sm font-bold tracking-wide">Historial</span>
+                                                <History className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                                                <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
+                                                    <span className="text-xs font-bold tracking-wide">Historial</span>
                                                 </div>
                                             </button>
                                             <button
                                                 onClick={() => handleConsultOracle(worker, profile, fit)}
                                                 disabled={generatingId === worker.id}
                                                 aria-label="Generar Dictamen con IA"
-                                                className="group flex items-center justify-center h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] px-2 sm:px-2.5 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border border-border-medium/40 rounded-xl bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 text-teal-600 dark:text-teal-400 font-bold text-xs disabled:opacity-50  "
+                                                className="group flex items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border border-border-medium/40 rounded-xl border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
                                                 title="Generar Dictamen con IA"
                                             >
                                                 {generatingId === worker.id ? (
                                                     <>
-                                                        <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 animate-spin" />
+                                                        <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 animate-spin" />
                                                         <div className="flex items-center max-w-[200px] opacity-100 ml-2 whitespace-nowrap">
-                                                            <span className="text-sm font-bold tracking-wide">Generando...</span>
+                                                            <span className="text-xs font-bold tracking-wide">Generando...</span>
                                                         </div>
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
-                                                        <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                                                            <span className="text-sm font-bold tracking-wide">Generar Dictamen IA</span>
+                                                        <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                                                        <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
+                                                            <span className="text-xs font-bold tracking-wide">Generar Dictamen IA</span>
                                                         </div>
                                                     </>
                                                 )}
@@ -768,15 +768,15 @@ export default function OraculoPredictivoH1() {
                                                     onClick={() => handleConsultOracle(worker, profile, fit)}
                                                     disabled={generatingId === worker.id}
                                                     title="Re-evaluar y generar nuevo dictamen con IA"
-                                                    className="group flex items-center justify-center h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] px-2 sm:px-2.5 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border rounded-xl bg-surface-primary hover:bg-teal-50 dark:hover:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-border-medium hover:border-teal-400  "
+                                                    className="group flex items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border rounded-xl bg-surface-primary hover:bg-teal-50 dark:hover:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-border-medium hover:border-teal-400  "
                                                 >
                                                     {generatingId === worker.id ? (
-                                                        <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 animate-spin" />
+                                                        <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 animate-spin" />
                                                     ) : (
-                                                        <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-teal-600 dark:text-teal-400" />
+                                                        <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 text-teal-600 dark:text-teal-400" />
                                                     )}
-                                                    <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                                                        <span className="text-sm font-bold tracking-wide">Re-evaluar IA</span>
+                                                    <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
+                                                        <span className="text-xs font-bold tracking-wide">Re-evaluar IA</span>
                                                     </div>
                                                 </button>
                                                 <ExportDropdown

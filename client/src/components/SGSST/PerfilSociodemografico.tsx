@@ -1278,16 +1278,16 @@ const PerfilSociodemografico = () => {
                                 {/* Trabajadores Registrados */}
                                 <div
                                     title={`${trabajadores.length} Trabajadores Registrados`}
-                                    className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-surface-primary text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                                    className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
                                 >
                                     <div className="relative flex flex-shrink-0 items-center justify-center">
-                                        <UserCheck className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 dark:text-teal-400 shrink-0" />
+                                        <UserCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
                                         <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
                                             {trabajadores.length}
                                         </span>
                                     </div>
-                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                                        <span className="text-sm font-bold tracking-wide">
+                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                                        <span className="text-xs font-bold tracking-wide">
                                             {trabajadores.length} {trabajadores.length === 1 ? 'Trabajador Registrado' : 'Trabajadores Registrados'}
                                         </span>
                                     </div>
@@ -1651,7 +1651,7 @@ const PerfilSociodemografico = () => {
                                                     handleToggleEstadoLaboral(w.id);
                                                 }}
                                                 title="Reactivar colaborador en la empresa"
-                                                className="group flex h-9 min-w-[36px] items-center justify-center rounded-xl transition-all duration-300 px-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200/80 dark:border-emerald-800 shadow-2xs active:scale-95"
+                                                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200/80 dark:border-emerald-800 shadow-2xs active:scale-95"
                                             >
                                                 <RotateCcw className="w-[18px] h-[18px]" />
                                                 <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
@@ -1665,7 +1665,7 @@ const PerfilSociodemografico = () => {
                                                     handleToggleEstadoLaboral(w.id);
                                                 }}
                                                 title="Marcar como retirado (preserva trazabilidad histórica sin eliminar)"
-                                                className="group flex h-9 min-w-[36px] items-center justify-center rounded-xl transition-all duration-300 px-2 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-300 border border-amber-200/80 dark:border-amber-800 shadow-2xs active:scale-95"
+                                                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-2 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-300 border border-amber-200/80 dark:border-amber-800 shadow-2xs active:scale-95"
                                             >
                                                 <UserX className="w-[18px] h-[18px]" />
                                                 <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">

@@ -1007,7 +1007,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             disabled={isScanning}
             title="Re-escanear evidencias en aplicativos de WAPPY"
             aria-label="Re-escanear Aplicativos"
-            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium/40 bg-white dark:bg-gray-900 px-2.5 text-teal-600 dark:text-teal-400 shadow-sm outline-none transition-all duration-300 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:min-w-[36px] sm:px-2.5"
+            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium/40 border rounded-xl bg-cyan-500/10 border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 shadow-xs "
           >
             <div className="relative flex shrink-0 items-center justify-center">
               {isScanning ? (
@@ -1016,7 +1016,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 <Sparkles className="h-4 w-4 " />
               )}
             </div>
-            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
               <span className="text-xs font-bold tracking-wide">
                 {isScanning ? 'Escaneando...' : 'Re-escanear Aplicativos'}
               </span>
@@ -1186,7 +1186,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             disabled={isSyncingKanban}
             title="Sincronizar estándares no conformes con Centro de Control"
             aria-label="Sincronizar con Centro de Control"
-            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium/40 bg-white dark:bg-gray-900 px-2.5 text-teal-600 dark:text-teal-400 shadow-sm outline-none transition-all duration-300 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:min-w-[36px] sm:px-2.5"
+            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium/40 border rounded-xl bg-cyan-500/10 border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 shadow-xs "
           >
             <div className="relative flex shrink-0 items-center justify-center">
               {isSyncingKanban ? (
@@ -1195,7 +1195,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 <Trello className="h-4 w-4 " />
               )}
             </div>
-            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
+            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
               <span className="text-xs font-bold tracking-wide">
                 {isSyncingKanban ? 'Sincronizando...' : 'Sincronizar con Centro de Control'}
               </span>
@@ -1342,7 +1342,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                                       title={opt.label}
                                       aria-label={opt.label}
                                       className={cn(
-                                        'group flex h-8 min-w-[32px] items-center justify-center rounded-xl border transition-all duration-300 px-2 shadow-2xs active:scale-95',
+                                        'group flex h-8 min-w-[32px] items-center justify-center rounded-xl border transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-2 shadow-2xs active:scale-95',
                                         isSelected
                                           ? opt.color
                                           : cn(
@@ -1424,14 +1424,14 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
         <button
           onClick={handleAnalyze}
           disabled={isAnalyzing || completedCount === 0}
-          className="group flex h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] items-center justify-center rounded-xl border border-border-medium/40 bg-white dark:bg-gray-900 text-xs font-bold text-teal-600 dark:text-teal-400 shadow-sm transition-all duration-300 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+          className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl border border-border-medium/40 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
         >
           {isAnalyzing ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
+            <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
           ) : (
             <AnimatedIcon name="sparkles" size={20} />
           )}
-          <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 group-hover:ml-2 group-hover:max-w-xs group-hover:opacity-100">
+          <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100">
             Generar Análisis con IA
           </span>
         </button>

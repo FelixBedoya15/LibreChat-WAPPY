@@ -341,7 +341,7 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
               type="button"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               title="Ecosistema de Aplicativos SST"
-              className="group flex items-center justify-center h-8 sm:h-9 min-w-[34px] px-2.5 rounded-xl text-xs font-bold bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 border border-border-medium/40 text-teal-600 dark:text-teal-400 shadow-sm active:scale-95 transition-all duration-300 cursor-pointer"
+              className="group flex items-center justify-center h-8 sm:h-9 min-w-[34px] px-2.5 rounded-xl text-xs font-bold border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs "
             >
               <LayoutGrid className="w-3.5 h-3.5 shrink-0" />
               <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 whitespace-nowrap">
