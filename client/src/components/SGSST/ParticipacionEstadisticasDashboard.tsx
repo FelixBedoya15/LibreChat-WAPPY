@@ -1226,7 +1226,7 @@ export default function ParticipacionEstadisticasDashboard({
                                                                     "group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] items-center justify-center rounded-xl transition-all duration-300 px-2 sm:px-3 shadow-sm active:scale-95 cursor-pointer shrink-0",
                                                                     cluster.isFullyApplied
                                                                         ? "bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700 hover:bg-slate-200"
-                                                                        : "bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-teal-600/20"
+                                                                        : "bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 border border-border-medium/40 text-teal-600 dark:text-teal-400 shadow-teal-600/20"
                                                                 )}
                                                             >
                                                                 <Sparkles className="w-4 h-4 shrink-0" />
@@ -1651,7 +1651,7 @@ export default function ParticipacionEstadisticasDashboard({
                             type="button"
                             onClick={() => handleApplyCluster(weightedClusters[0])}
                             title="Integrar Peligro #1 Más Crítico a la Matriz"
-                            className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] items-center justify-center rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-md shadow-teal-600/25 transition-all duration-300 px-2.5 sm:px-3.5 active:scale-95 cursor-pointer ml-auto"
+                            className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] items-center justify-center rounded-xl bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 border border-border-medium/40 text-teal-600 dark:text-teal-400 shadow-md shadow-teal-600/25 transition-all duration-300 px-2.5 sm:px-3.5 active:scale-95 cursor-pointer ml-auto"
                         >
                             <Sparkles className="w-4 h-4 shrink-0" />
                             <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[280px] group-hover:opacity-100 sm:flex">

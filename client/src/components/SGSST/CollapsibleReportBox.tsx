@@ -79,7 +79,7 @@ const CollapsibleReportBox = ({
                             aria-label="Guardar Informe"
                             className={cn(
                                 "group flex items-center justify-center h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] px-2 sm:px-2.5 transition-all duration-300 shadow-sm shrink-0 border outline-none rounded-xl",
-                                saveDisabled || isSaving ? "opacity-50 cursor-not-allowed bg-surface-primary border-border-medium text-text-tertiary" : "cursor-pointer bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-purple-400 text-purple-600 sm:hover:-rotate-3 sm:hover:scale-105"
+                                saveDisabled || isSaving ? "opacity-50 cursor-not-allowed bg-surface-primary border-border-medium text-text-tertiary" : "cursor-pointer bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-purple-400 text-purple-600  "
                             )}
                         >
                             {isSaving ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <Save className="h-4 w-4 shrink-0" />}
@@ -95,7 +95,7 @@ const CollapsibleReportBox = ({
                             onClick={(e) => { e.stopPropagation(); onHistory(); }}
                             aria-label="Historial de informes"
                             className={cn(
-                                "group flex items-center justify-center h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] px-2 sm:px-2.5 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl sm:hover:-rotate-3 sm:hover:scale-105",
+                                "group flex items-center justify-center h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] px-2 sm:px-2.5 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl  ",
                                 isHistoryOpen
                                     ? "bg-teal-100 text-teal-700 dark:bg-teal-900/10 border-teal-400"
                                     : "bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400 border-border-medium"

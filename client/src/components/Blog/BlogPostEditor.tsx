@@ -212,7 +212,7 @@ export default function BlogPostEditor({ postId, onClose, onSaved }: { postId?: 
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => onClose ? onClose() : navigate('/blog/admin')}
-                        className="group flex items-center p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-all duration-300"
+                        className="group flex items-center p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all duration-300"
                         aria-label="Volver"
                     >
                         <ArrowLeft className="w-5 h-5 flex-shrink-0 text-gray-600 dark:text-gray-300" />
@@ -229,7 +229,7 @@ export default function BlogPostEditor({ postId, onClose, onSaved }: { postId?: 
                     <button
                         onClick={() => handleSave(false)}
                         disabled={saving}
-                        className="group flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-full transition-all duration-300 text-sm font-medium disabled:opacity-50"
+                        className="group flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-xl transition-all duration-300 text-sm font-medium disabled:opacity-50"
                     >
                         {saving && !isPublished ? <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" /> : <Save className="w-4 h-4 flex-shrink-0" />}
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
@@ -239,7 +239,7 @@ export default function BlogPostEditor({ postId, onClose, onSaved }: { postId?: 
                     <button
                         onClick={() => handleSave(true)}
                         disabled={saving}
-                        className="group flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full transition-all duration-300 shadow-sm text-sm font-medium disabled:opacity-50"
+                        className="group flex items-center px-4 py-2 bg-white dark:bg-gray-900 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 border border-border-medium/40 text-purple-600 dark:text-purple-400 rounded-xl transition-all duration-300 shadow-sm text-sm font-medium disabled:opacity-50"
                     >
                         {saving && isPublished ? <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" /> : <Sparkles className="w-4 h-4 flex-shrink-0" />}
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
@@ -418,7 +418,7 @@ export default function BlogPostEditor({ postId, onClose, onSaved }: { postId?: 
                             <button
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
-                                className="group flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50"
+                                className="group flex items-center px-4 py-2 bg-white dark:bg-gray-900 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 border border-border-medium/40 text-purple-600 dark:text-purple-400 rounded-xl transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50"
                             >
                                 {isGenerating ? <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" /> : <Sparkles className="w-4 h-4 flex-shrink-0" />}
                                 <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">

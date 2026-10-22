@@ -611,7 +611,7 @@ export default function RutaAprendizajeCourseEditor() {
                                             <div className="flex items-center gap-1">
                                                 <button
                                                     onClick={() => openLessonEditor(lesson)}
-                                                    className="group flex items-center p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-all duration-300"
+                                                    className="group flex items-center p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all duration-300"
                                                 >
                                                     <Edit className="w-4 h-4 flex-shrink-0" />
                                                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">
@@ -620,7 +620,7 @@ export default function RutaAprendizajeCourseEditor() {
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteLesson(lesson._id)}
-                                                    className="group flex items-center p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all duration-300"
+                                                    className="group flex items-center p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all duration-300"
                                                 >
                                                     <Trash2 className="w-4 h-4 flex-shrink-0" />
                                                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">

@@ -12,13 +12,15 @@ export function DummyGenerateButton({ onClick, hideText = false, text = "Cargar 
     <button
       onClick={onClick}
       title={text}
-      className={`group flex items-center px-4 py-2 bg-amber-500 hover:bg-amber-600 border border-amber-600 text-white rounded-full transition-all duration-300 shadow-sm shrink-0 cursor-pointer ${hideText ? 'justify-center w-10 h-10 px-0' : ''}`}
+      className="group flex items-center justify-center h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] bg-white dark:bg-gray-900 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 border border-border-medium/40 text-amber-600 dark:text-amber-400 rounded-xl transition-all duration-300 ease-in-out shadow-sm shrink-0 cursor-pointer active:scale-95 outline-none"
     >
-      <Bot className="h-[18px] w-[18px]" />
+      <div className="relative flex-shrink-0 flex items-center justify-center">
+        <Bot className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
+      </div>
       {!hideText && (
-        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">
-          {text}
-        </span>
+        <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap group-hover:ml-2">
+          <span className="text-xs sm:text-sm font-bold tracking-wide">{text}</span>
+        </div>
       )}
     </button>
   );

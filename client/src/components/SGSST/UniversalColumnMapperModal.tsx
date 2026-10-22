@@ -666,7 +666,7 @@ export default function UniversalColumnMapperModal({
             <button
               type="button"
               onClick={handleAutoMatch}
-              className="group flex h-9 min-w-[36px] items-center justify-center rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-sm active:scale-95 transition-all duration-300 px-2.5 cursor-pointer"
+              className="group flex h-9 min-w-[36px] items-center justify-center rounded-xl bg-white dark:bg-gray-900 hover:bg-orange-50/50 dark:hover:bg-orange-950/20 border border-border-medium/40 text-orange-600 dark:text-orange-400 shadow-sm active:scale-95 transition-all duration-300 px-2.5 cursor-pointer"
               title="Detectar automáticamente coincidencias según los nombres de las columnas"
             >
               <Sparkles size={14} className="shrink-0" />
@@ -1067,15 +1067,15 @@ export default function UniversalColumnMapperModal({
               type="button"
               onClick={handleConfirm}
               disabled={isProcessing || !stats.isAllRequiredMapped}
-              className={`group flex h-9 sm:h-10 min-w-[40px] items-center justify-center rounded-xl font-bold text-xs shadow-md transition-all duration-300 active:scale-95 cursor-pointer px-3 text-white ${
+              className={`group flex h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] items-center justify-center rounded-xl font-bold text-xs shadow-sm transition-all duration-300 active:scale-95 cursor-pointer border ${
                 stats.isAllRequiredMapped && !isProcessing
-                  ? 'bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 shadow-teal-600/25 sm:hover:scale-105'
-                  : 'bg-slate-300 dark:bg-zinc-800 cursor-not-allowed opacity-60 text-slate-500'
+                  ? 'bg-white dark:bg-gray-900 border-border-medium/40 text-teal-600 dark:text-teal-400 hover:bg-teal-50/50 dark:hover:bg-teal-950/20'
+                  : 'bg-slate-100 dark:bg-zinc-800 border-border-medium/40 cursor-not-allowed opacity-60 text-slate-400'
               }`}
               title={stats.isAllRequiredMapped ? `Importar ${currentSheet?.totalRows.toLocaleString() || 0} registros` : 'Faltan campos obligatorios por asociar'}
             >
               {isProcessing ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
+                <div className="w-4 h-4 border-2 border-teal-500/30 border-t-teal-600 rounded-full animate-spin shrink-0" />
               ) : (
                 <CheckCircle2 size={16} className="shrink-0" />
               )}

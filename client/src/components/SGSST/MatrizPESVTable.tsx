@@ -2662,7 +2662,7 @@ export default function MatrizPESVTable({
                 onClick={addRow}
                 title="Añadir Riesgo Vial"
                 aria-label="Añadir Riesgo Vial"
-                className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/40 bg-surface-primary px-2 text-teal-600 shadow-sm outline-none transition-all duration-300 hover:bg-teal-50 hover:border-teal-500 dark:text-teal-400 dark:hover:bg-teal-900/20 sm:h-10 sm:min-w-[40px] sm:px-2.5 sm:hover:-rotate-3 sm:hover:scale-105"
+                className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/40 bg-surface-primary px-2 text-teal-600 shadow-sm outline-none transition-all duration-300 hover:bg-teal-50 hover:border-teal-500 dark:text-teal-400 dark:hover:bg-teal-900/20 sm:h-10 sm:min-w-[40px] sm:px-2.5  "
               >
                 <div className="relative flex flex-shrink-0 items-center justify-center">
                   <Plus className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
@@ -2678,7 +2678,7 @@ export default function MatrizPESVTable({
                 onClick={() => fileInputRef.current?.click()}
                 title="Importar Excel"
                 aria-label="Importar Excel"
-                className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-emerald-600 bg-emerald-600 hover:bg-emerald-700 text-white px-2 shadow-sm outline-none transition-all duration-300 sm:h-10 sm:min-w-[40px] sm:px-2.5 sm:hover:-rotate-3 sm:hover:scale-105"
+                className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium/40 bg-white dark:bg-gray-900 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 px-2 shadow-sm outline-none transition-all duration-300 sm:h-10 sm:min-w-[40px] sm:px-2.5  "
               >
                 <div className="relative flex flex-shrink-0 items-center justify-center">
                   <Upload className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
@@ -2705,7 +2705,7 @@ export default function MatrizPESVTable({
                   disabled={isAutoAssigningCargos}
                   title="Auto-asignar cargos con IA según los perfiles de la empresa"
                   aria-label="Asignar Cargos con IA"
-                  className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/40 bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 dark:text-teal-300 px-2 shadow-sm outline-none transition-all duration-300 disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-2.5 sm:hover:-rotate-3 sm:hover:scale-105"
+                  className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/40 bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 dark:text-teal-300 px-2 shadow-sm outline-none transition-all duration-300 disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-2.5  "
                 >
                   <div className="relative flex flex-shrink-0 items-center justify-center">
                     {isAutoAssigningCargos ? (
@@ -2728,7 +2728,7 @@ export default function MatrizPESVTable({
                 onClick={() => setIsMaximized(true)}
                 title="Pantalla Completa"
                 aria-label="Pantalla Completa"
-                className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary hover:bg-surface-hover text-text-primary px-2 shadow-sm outline-none transition-all duration-300 sm:h-10 sm:min-w-[40px] sm:px-2.5 sm:hover:-rotate-3 sm:hover:scale-105"
+                className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary hover:bg-surface-hover text-text-primary px-2 shadow-sm outline-none transition-all duration-300 sm:h-10 sm:min-w-[40px] sm:px-2.5  "
               >
                 <div className="relative flex flex-shrink-0 items-center justify-center">
                   <Maximize2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
@@ -2777,7 +2777,7 @@ export default function MatrizPESVTable({
                 type="button"
                 onClick={addRow}
                 title="Añadir Riesgo Vial"
-                className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/40 bg-surface-primary px-2 sm:px-2.5 text-teal-600 shadow-sm outline-none transition-all duration-300 hover:bg-teal-50 hover:border-teal-500 dark:text-teal-400 dark:hover:bg-teal-900/20 sm:hover:-rotate-3 sm:hover:scale-105"
+                className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/40 bg-surface-primary px-2 sm:px-2.5 text-teal-600 shadow-sm outline-none transition-all duration-300 hover:bg-teal-50 hover:border-teal-500 dark:text-teal-400 dark:hover:bg-teal-900/20  "
               >
                 <Plus className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                 <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
@@ -2791,7 +2791,7 @@ export default function MatrizPESVTable({
                 onClick={handleAnalyzeMatrix}
                 disabled={isAnalyzing || matrixRows.length === 0}
                 title="Análisis PESV con IA"
-                className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-purple-500/40 bg-surface-primary px-2 sm:px-2.5 text-purple-600 shadow-sm outline-none transition-all duration-300 hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-purple-400 dark:hover:bg-purple-900/20 sm:hover:-rotate-3 sm:hover:scale-105"
+                className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-purple-500/40 bg-surface-primary px-2 sm:px-2.5 text-purple-600 shadow-sm outline-none transition-all duration-300 hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-purple-400 dark:hover:bg-purple-900/20  "
               >
                 {isAnalyzing ? (
                   <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 animate-spin" />
@@ -2808,7 +2808,7 @@ export default function MatrizPESVTable({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 title="Importar Excel"
-                className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2 sm:px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:bg-surface-hover sm:hover:-rotate-3 sm:hover:scale-105"
+                className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2 sm:px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:bg-surface-hover  "
               >
                 <Upload className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                 <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
@@ -2832,7 +2832,7 @@ export default function MatrizPESVTable({
                   onClick={() => handleAutoAssignCargos()}
                   disabled={isAutoAssigningCargos}
                   title="Auto-asignar cargos con IA a todas las filas según los perfiles de la empresa"
-                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/40 bg-teal-500/10 hover:bg-teal-500/20 px-2 sm:px-2.5 text-teal-700 dark:text-teal-300 shadow-sm outline-none transition-all duration-300 disabled:opacity-50 sm:hover:-rotate-3 sm:hover:scale-105"
+                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/40 bg-teal-500/10 hover:bg-teal-500/20 px-2 sm:px-2.5 text-teal-700 dark:text-teal-300 shadow-sm outline-none transition-all duration-300 disabled:opacity-50  "
                 >
                   {isAutoAssigningCargos ? (
                     <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 animate-spin text-teal-600 dark:text-teal-400" />
@@ -2852,7 +2852,7 @@ export default function MatrizPESVTable({
                   onClick={handleSyncControlesPESV}
                   disabled={isSyncingControles}
                   title="Sincronizar Planes de Acción PESV con el Centro de Control (Kanban ACPM)"
-                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/20 px-2 sm:px-2.5 text-indigo-700 dark:text-indigo-300 shadow-sm outline-none transition-all duration-300 disabled:opacity-50 sm:hover:-rotate-3 sm:hover:scale-105"
+                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/20 px-2 sm:px-2.5 text-indigo-700 dark:text-indigo-300 shadow-sm outline-none transition-all duration-300 disabled:opacity-50  "
                 >
                   {isSyncingControles ? (
                     <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 animate-spin text-indigo-600 dark:text-indigo-400" />
@@ -2872,7 +2872,7 @@ export default function MatrizPESVTable({
                 type="button"
                 onClick={() => saveMatrixData(matrixRows)}
                 title="Guardar Matriz PESV"
-                className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-green-500/40 bg-surface-primary px-2 sm:px-2.5 text-green-600 shadow-sm outline-none transition-all duration-300 hover:bg-green-50 disabled:opacity-50 dark:text-green-400 dark:hover:bg-green-900/20 sm:hover:-rotate-3 sm:hover:scale-105"
+                className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-green-500/40 bg-surface-primary px-2 sm:px-2.5 text-green-600 shadow-sm outline-none transition-all duration-300 hover:bg-green-50 disabled:opacity-50 dark:text-green-400 dark:hover:bg-green-900/20  "
               >
                 <Save className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                 <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
@@ -2906,7 +2906,7 @@ export default function MatrizPESVTable({
                     onClick={handleSetAsOfficial}
                     disabled={isSettingOfficial}
                     title="Fijar en el Aplicativo SG-SST (Hito 1)"
-                    className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 px-2 sm:px-2.5 text-amber-700 dark:text-amber-300 shadow-sm outline-none transition-all duration-300 disabled:opacity-50 sm:hover:-rotate-3 sm:hover:scale-105"
+                    className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium/40 bg-white dark:bg-gray-900 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 px-2 sm:px-2.5 text-amber-700 dark:text-amber-300 shadow-sm outline-none transition-all duration-300 disabled:opacity-50  "
                   >
                     {isSettingOfficial ? (
                       <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 animate-spin text-amber-500" />
@@ -2924,7 +2924,7 @@ export default function MatrizPESVTable({
                 type="button"
                 onClick={() => setIsMaximized((m) => !m)}
                 title={isMaximized ? 'Restaurar pantalla' : 'Pantalla completa'}
-                className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2 sm:px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:bg-surface-hover sm:hover:-rotate-3 sm:hover:scale-105"
+                className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2 sm:px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:bg-surface-hover  "
               >
                 {isMaximized ? (
                   <Minimize2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
@@ -3765,7 +3765,7 @@ export default function MatrizPESVTable({
                         type="button"
                         onClick={handleAnalyzeMatrix}
                         disabled={isAnalyzing || matrixRows.length === 0}
-                        className="group flex h-10 items-center justify-center gap-2 rounded-xl border border-teal-600 bg-teal-600 px-4 py-2 text-sm font-bold text-white shadow-md transition-all duration-300 hover:bg-teal-700 disabled:opacity-50 sm:hover:-rotate-3 sm:hover:scale-105 cursor-pointer"
+                        className="group flex h-10 items-center justify-center gap-2 rounded-xl border border-border-medium/40 bg-white dark:bg-gray-900 px-3.5 py-2 text-xs font-bold text-teal-600 dark:text-teal-400 shadow-sm transition-all duration-300 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 disabled:opacity-50   cursor-pointer"
                       >
                         {isAnalyzing ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -3777,7 +3777,7 @@ export default function MatrizPESVTable({
                       <button
                         type="button"
                         onClick={() => setIsHistoryOpen(true)}
-                        className="group flex h-10 items-center justify-center gap-2 rounded-xl border border-border-medium bg-surface-primary px-4 py-2 text-sm font-bold text-text-primary shadow-sm transition-all duration-300 hover:bg-surface-hover sm:hover:-rotate-3 sm:hover:scale-105 cursor-pointer"
+                        className="group flex h-10 items-center justify-center gap-2 rounded-xl border border-border-medium bg-surface-primary px-4 py-2 text-sm font-bold text-text-primary shadow-sm transition-all duration-300 hover:bg-surface-hover   cursor-pointer"
                       >
                         <History className="h-4 w-4" />
                         <span>Cargar desde Historial</span>
@@ -3849,7 +3849,7 @@ export default function MatrizPESVTable({
                       onClick={handleAnalyzeMatrix}
                       disabled={isAnalyzing || matrixRows.length === 0}
                       title="Generar Informe con IA"
-                      className="group flex h-10 items-center justify-center gap-2 rounded-xl border border-teal-600 bg-teal-600 px-4 py-2 text-sm font-bold text-white shadow-md transition-all duration-300 hover:bg-teal-700 disabled:opacity-50 sm:hover:-rotate-3 sm:hover:scale-105 cursor-pointer"
+                      className="group flex h-10 items-center justify-center gap-2 rounded-xl border border-border-medium/40 bg-white dark:bg-gray-900 px-3.5 py-2 text-xs font-bold text-teal-600 dark:text-teal-400 shadow-sm transition-all duration-300 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 disabled:opacity-50   cursor-pointer"
                     >
                       {isAnalyzing ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -3862,7 +3862,7 @@ export default function MatrizPESVTable({
                       type="button"
                       onClick={() => setIsHistoryOpen(true)}
                       title="Cargar desde Historial"
-                      className="group flex h-10 items-center justify-center gap-2 rounded-xl border border-border-medium bg-surface-primary px-4 py-2 text-sm font-bold text-text-primary shadow-sm transition-all duration-300 hover:bg-surface-hover sm:hover:-rotate-3 sm:hover:scale-105 cursor-pointer"
+                      className="group flex h-10 items-center justify-center gap-2 rounded-xl border border-border-medium bg-surface-primary px-4 py-2 text-sm font-bold text-text-primary shadow-sm transition-all duration-300 hover:bg-surface-hover   cursor-pointer"
                     >
                       <History className="h-4 w-4" />
                       <span>Cargar desde Historial</span>

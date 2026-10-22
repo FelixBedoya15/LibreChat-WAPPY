@@ -284,7 +284,7 @@ export default function MatrizCompatibilidadWorkspace() {
               onClick={() => setShowMatrixSelector(true)}
               title="Cambiar / Vincular desde Chats"
               aria-label="Cambiar / Vincular desde Chats"
-              className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/40 bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 dark:text-teal-300 px-2 shadow-sm outline-none transition-all duration-300 sm:h-10 sm:min-w-[40px] sm:px-2.5 sm:hover:-rotate-3 sm:hover:scale-105"
+              className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/40 bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 dark:text-teal-300 px-2 shadow-sm outline-none transition-all duration-300 sm:h-10 sm:min-w-[40px] sm:px-2.5  "
             >
               <div className="relative flex flex-shrink-0 items-center justify-center">
                 <RefreshCw className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 dark:text-teal-400 shrink-0" />
@@ -413,13 +413,13 @@ export default function MatrizCompatibilidadWorkspace() {
                             disabled={isPromoting}
                             title="Fijar en Aplicativo"
                             aria-label="Fijar en Aplicativo"
-                            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-600 bg-teal-600 hover:bg-teal-700 text-white px-2 shadow-sm outline-none transition-all duration-300 disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-2.5 sm:hover:-rotate-3 sm:hover:scale-105"
+                            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium/40 bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 text-teal-600 dark:text-teal-400 px-2 shadow-sm outline-none transition-all duration-300 disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-2.5  "
                           >
                             <div className="relative flex flex-shrink-0 items-center justify-center">
                               {isPromoting ? (
                                 <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
                               ) : (
-                                <Star className="h-4 w-4 sm:h-5 sm:w-5 fill-white/20" />
+                                <Star className="h-4 w-4 sm:h-5 sm:w-5 " />
                               )}
                             </div>
                             <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">

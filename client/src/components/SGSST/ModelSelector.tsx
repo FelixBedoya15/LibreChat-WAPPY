@@ -195,22 +195,22 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
         onClick={openDropdown}
         disabled={disabled}
         className={cn(
-          'group flex h-8 min-w-[32px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border px-2 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:min-w-[36px] sm:px-2.5',
+          'group flex h-9 min-w-[36px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border px-3.5 shadow-sm outline-none transition-all duration-300 ease-in-out active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-3',
           isOpen
-            ? 'border-teal-500/50 bg-surface-hover text-text-primary ring-2 ring-teal-500/20'
-            : 'border-border-medium bg-surface-primary text-text-primary hover:bg-surface-hover',
+            ? 'bg-teal-500/10 text-teal-600 border-teal-500/20 hover:bg-teal-500/20 dark:bg-teal-950/20 dark:text-teal-400'
+            : 'border-border-medium/40 bg-white dark:bg-gray-900 text-text-secondary hover:text-text-primary hover:bg-surface-hover',
         )}
       >
         <div className="relative flex flex-shrink-0 items-center justify-center">
-          <Brain className="h-4 w-4 sm:h-5 sm:w-5" />
+          <Brain className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
         </div>
         <div
           className={cn(
-            'flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100',
-            isOpen && 'ml-2 max-w-[200px] opacity-100',
+            'hidden sm:flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100',
+            isOpen && 'sm:ml-2 sm:max-w-[200px] sm:opacity-100',
           )}
         >
-          <span className="mr-1 text-xs font-bold tracking-wide">
+          <span className="mr-1 text-xs sm:text-sm font-bold tracking-wide">
             {currentModelName.replace('Gemini ', '')}
           </span>
           <ChevronDown

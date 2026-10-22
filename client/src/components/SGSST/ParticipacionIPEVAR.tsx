@@ -1580,7 +1580,7 @@ const ParticipacionIPEVAR = () => {
                             onClick={() => setShowQrModal(true)}
                             title="Portal Público QR"
                             aria-label="Portal Público QR"
-                            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/40 bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 dark:text-teal-300 px-2 shadow-sm outline-none transition-all duration-300 sm:h-10 sm:min-w-[40px] sm:px-2.5 sm:hover:-rotate-3 sm:hover:scale-105"
+                            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/40 bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 dark:text-teal-300 px-2 shadow-sm outline-none transition-all duration-300 sm:h-10 sm:min-w-[40px] sm:px-2.5  "
                         >
                             <div className="relative flex flex-shrink-0 items-center justify-center">
                                 <QrCode className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 dark:text-teal-400 shrink-0" />
@@ -1865,7 +1865,7 @@ const ParticipacionIPEVAR = () => {
                                         formBoxRef.current?.scrollIntoView({ behavior: 'smooth' });
                                     }, 100);
                                 }}
-                                className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] shrink-0 cursor-pointer items-center justify-center rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white px-3 shadow-md shadow-teal-700/20 outline-none transition-all duration-300 hover:scale-105 active:scale-95"
+                                className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] shrink-0 cursor-pointer items-center justify-center rounded-xl bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 border border-border-medium/40 text-teal-600 dark:text-teal-400 px-3 shadow-md shadow-teal-700/20 outline-none transition-all duration-300  active:scale-95"
                                 title="Registrar nueva participación"
                             >
                                 <Plus className="h-4 w-4 shrink-0" />
@@ -2080,7 +2080,7 @@ const ParticipacionIPEVAR = () => {
                                     setShowAnalyticsModal(true);
                                 }}
                                 title="Base Estadística y Ponderación GTC-45"
-                                className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] items-center justify-center rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-sm transition-all duration-300 px-2 sm:px-2.5 active:scale-95 cursor-pointer"
+                                className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] items-center justify-center rounded-xl bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 border border-border-medium/40 text-teal-600 dark:text-teal-400 shadow-sm transition-all duration-300 px-2 sm:px-2.5 active:scale-95 cursor-pointer"
                             >
                                 <BarChart3 className="w-4 h-4 shrink-0" />
                                 <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[280px] group-hover:opacity-100 sm:flex">
@@ -2561,7 +2561,7 @@ const ParticipacionIPEVAR = () => {
                                     onClick={handleVoiceInput}
                                     title={isListening ? 'Escuchando dictado...' : 'Activar Micrófono'}
                                     aria-label={isListening ? 'Escuchando dictado...' : 'Activar Micrófono'}
-                                    className={`group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border px-2 shadow-sm outline-none transition-all duration-300 hover:scale-105 active:scale-95 sm:h-9 sm:min-w-[36px] sm:px-2.5 ${
+                                    className={`group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border px-2 shadow-sm outline-none transition-all duration-300  active:scale-95 sm:h-9 sm:min-w-[36px] sm:px-2.5 ${
                                         isListening
                                             ? 'bg-red-50 text-red-600 border-red-200 animate-pulse'
                                             : 'bg-surface-secondary hover:bg-surface-hover text-text-primary border-border-light'
@@ -2599,13 +2599,13 @@ const ParticipacionIPEVAR = () => {
                                 disabled={isGenerating}
                                 title="Generar Análisis IA"
                                 aria-label="Generar Análisis IA"
-                                className="group flex h-9 min-w-[36px] shrink-0 cursor-pointer items-center justify-center rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-3 shadow-md shadow-orange-500/20 outline-none transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="group flex h-9 min-w-[36px] shrink-0 cursor-pointer items-center justify-center rounded-xl bg-white dark:bg-gray-900 hover:bg-orange-50/50 dark:hover:bg-orange-950/20 border border-border-medium/40 text-orange-600 dark:text-orange-400 px-3 shadow-md shadow-orange-500/20 outline-none transition-all duration-300  active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <div className="relative flex shrink-0 items-center justify-center">
                                     {isGenerating ? (
-                                        <Loader2 className="h-4 w-4 animate-spin text-white" />
+                                        <Loader2 className="h-4 w-4 animate-spin " />
                                     ) : (
-                                        <Sparkles className="h-4 w-4 text-white" />
+                                        <Sparkles className="h-4 w-4 " />
                                     )}
                                 </div>
                                 <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
@@ -3070,7 +3070,7 @@ const ParticipacionIPEVAR = () => {
                                 onClick={handleConfirmApplyToMatrix}
                                 disabled={isApplyingToMatrix || (applyAction === 'update_existing' && !applyTargetRowId)}
                                 title="Aprobar e Integrar a Matriz IPEVR"
-                                className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] items-center justify-center rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-md active:scale-95 transition-all duration-300 px-2.5 sm:px-3.5 disabled:opacity-50 cursor-pointer"
+                                className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] items-center justify-center rounded-xl bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 border border-border-medium/40 text-teal-600 dark:text-teal-400 shadow-md active:scale-95 transition-all duration-300 px-2.5 sm:px-3.5 disabled:opacity-50 cursor-pointer"
                             >
                                 {isApplyingToMatrix ? (
                                     <>

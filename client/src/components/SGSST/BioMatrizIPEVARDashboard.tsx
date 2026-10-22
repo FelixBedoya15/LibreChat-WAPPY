@@ -118,7 +118,7 @@ const ConclusionField = ({
         <button
           onClick={generate}
           disabled={loading}
-          className="group flex items-center justify-center p-2 h-[36px] bg-surface-secondary border border-border-medium rounded-[16px] text-teal-600 transition-all duration-300 hover:bg-teal-50 dark:hover:bg-teal-900/20 cursor-pointer disabled:opacity-50"
+          className="group flex items-center justify-center p-2 h-[36px] bg-surface-secondary border border-border-medium rounded-xl text-teal-600 transition-all duration-300 hover:bg-teal-50 dark:hover:bg-teal-900/20 cursor-pointer disabled:opacity-50"
         >
           {loading
             ? <Loader2 className="h-4 w-4 animate-spin shrink-0" />

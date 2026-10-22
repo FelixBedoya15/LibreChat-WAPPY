@@ -272,7 +272,7 @@ export default function CourseEditor({ courseId, onClose, onSaved }: { courseId?
                         <button
                             onClick={handleSaveCourse}
                             disabled={saving}
-                            className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50"
+                            className="group flex items-center px-3 py-2 bg-white dark:bg-gray-900 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 border border-border-medium/40 text-blue-600 dark:text-blue-400 rounded-xl transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50"
                         >
                             <Save className="w-5 h-5 flex-shrink-0" />
                             <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
@@ -434,7 +434,7 @@ export default function CourseEditor({ courseId, onClose, onSaved }: { courseId?
                                 <button
                                     onClick={handleGenerateCourse}
                                     disabled={isGeneratingCourse || !title.trim()}
-                                    className="group flex items-center px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="group flex items-center px-4 py-2 bg-white dark:bg-gray-900 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 border border-border-medium/40 text-purple-600 dark:text-purple-400 rounded-xl transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                     title="Generar Info del Curso con IA (Basado en el Título)"
                                 >
                                     {isGeneratingCourse ? (
@@ -584,7 +584,7 @@ export default function CourseEditor({ courseId, onClose, onSaved }: { courseId?
                                 </h2>
                                 <button
                                     onClick={() => openLessonEditor(null)}
-                                    className="group flex items-center px-3 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                                    className="group flex items-center px-3 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-xl transition-all duration-300 shadow-sm font-medium text-sm"
                                 >
                                     <Plus className="w-5 h-5 flex-shrink-0" />
                                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
@@ -616,7 +616,7 @@ export default function CourseEditor({ courseId, onClose, onSaved }: { courseId?
                                             <div className="flex items-center gap-1">
                                                 <button
                                                     onClick={() => openLessonEditor(lesson)}
-                                                    className="group flex items-center p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-all duration-300"
+                                                    className="group flex items-center p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all duration-300"
                                                 >
                                                     <Edit className="w-4 h-4 flex-shrink-0" />
                                                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">
@@ -625,7 +625,7 @@ export default function CourseEditor({ courseId, onClose, onSaved }: { courseId?
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteLesson(lesson._id)}
-                                                    className="group flex items-center p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all duration-300"
+                                                    className="group flex items-center p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all duration-300"
                                                 >
                                                     <Trash2 className="w-4 h-4 flex-shrink-0" />
                                                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">
@@ -654,7 +654,7 @@ export default function CourseEditor({ courseId, onClose, onSaved }: { courseId?
                                 <button
                                     onClick={handleGenerateLesson}
                                     disabled={isGeneratingLesson || !lessonForm.title.trim()}
-                                    className="group flex items-center px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="group flex items-center px-4 py-2 bg-white dark:bg-gray-900 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 border border-border-medium/40 text-purple-600 dark:text-purple-400 rounded-xl transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {isGeneratingLesson ? (
                                         <Loader2 className="w-5 h-5 flex-shrink-0 animate-spin" />
@@ -751,7 +751,7 @@ export default function CourseEditor({ courseId, onClose, onSaved }: { courseId?
                             </button>
                             <button
                                 onClick={handleSaveLesson}
-                                className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                                className="group flex items-center px-3 py-2 bg-white dark:bg-gray-900 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 border border-border-medium/40 text-blue-600 dark:text-blue-400 rounded-xl transition-all duration-300 shadow-sm font-medium text-sm"
                             >
                                 <Save className="w-5 h-5 flex-shrink-0" />
                                 <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">

@@ -716,7 +716,7 @@ export default function OraculoPredictivoH1() {
                                                     setIsHistoryOpen(true);
                                                 }}
                                                 aria-label="Historial de Dictámenes"
-                                                className="group flex items-center justify-center h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] px-2 sm:px-2.5 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border rounded-xl bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400 border-border-medium sm:hover:-rotate-3 sm:hover:scale-105"
+                                                className="group flex items-center justify-center h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] px-2 sm:px-2.5 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border rounded-xl bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400 border-border-medium  "
                                                 title="Historial de Dictámenes"
                                             >
                                                 <History className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
@@ -728,7 +728,7 @@ export default function OraculoPredictivoH1() {
                                                 onClick={() => handleConsultOracle(worker, profile, fit)}
                                                 disabled={generatingId === worker.id}
                                                 aria-label="Generar Dictamen con IA"
-                                                className="group flex items-center justify-center h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] px-2 sm:px-2.5 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border border-teal-600 hover:border-teal-700 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs disabled:opacity-50 sm:hover:-rotate-3 sm:hover:scale-105"
+                                                className="group flex items-center justify-center h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] px-2 sm:px-2.5 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border border-border-medium/40 rounded-xl bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 text-teal-600 dark:text-teal-400 font-bold text-xs disabled:opacity-50  "
                                                 title="Generar Dictamen con IA"
                                             >
                                                 {generatingId === worker.id ? (
@@ -768,7 +768,7 @@ export default function OraculoPredictivoH1() {
                                                     onClick={() => handleConsultOracle(worker, profile, fit)}
                                                     disabled={generatingId === worker.id}
                                                     title="Re-evaluar y generar nuevo dictamen con IA"
-                                                    className="group flex items-center justify-center h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] px-2 sm:px-2.5 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border rounded-xl bg-surface-primary hover:bg-teal-50 dark:hover:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-border-medium hover:border-teal-400 sm:hover:-rotate-3 sm:hover:scale-105"
+                                                    className="group flex items-center justify-center h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] px-2 sm:px-2.5 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border rounded-xl bg-surface-primary hover:bg-teal-50 dark:hover:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-border-medium hover:border-teal-400  "
                                                 >
                                                     {generatingId === worker.id ? (
                                                         <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 animate-spin" />

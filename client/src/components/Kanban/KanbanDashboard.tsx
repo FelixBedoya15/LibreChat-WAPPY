@@ -929,44 +929,29 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
             accept=".xlsx, .xls, .pdf, .docx, .doc, .txt"
           />
 
-          <button
+          <ExpandableButton
             onClick={handleDownloadTemplate}
-            className="group flex items-center justify-center h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 shadow-md hover:shadow-lg shrink-0 cursor-pointer border border-border-medium outline-none rounded-xl bg-surface-primary hover:bg-surface-hover text-text-primary sm:hover:-rotate-2 sm:hover:scale-105 active:scale-95"
+            variant="teal"
+            icon={<Download className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
+            label="Descargar Formato"
             title="Descargar Formato / Plantilla Oficial (.xlsx)"
-          >
-            <div className="relative flex-shrink-0 flex items-center justify-center">
-              <Download className="w-4 h-4 sm:w-5 sm:h-5 text-teal-600" />
-            </div>
-            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-              <span className="text-xs sm:text-sm font-bold tracking-wide">Descargar Formato</span>
-            </div>
-          </button>
+          />
 
-          <button
+          <ExpandableButton
             onClick={handleExportExcel}
-            className="group flex items-center justify-center h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 shadow-md hover:shadow-lg shrink-0 cursor-pointer border border-border-medium outline-none rounded-xl bg-surface-primary hover:bg-surface-hover text-text-primary sm:hover:rotate-2 sm:hover:scale-105 active:scale-95"
+            variant="emerald"
+            icon={<FileSpreadsheet className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
+            label="Exportar Excel"
             title="Exportar Actividades a Excel (.xlsx)"
-          >
-            <div className="relative flex-shrink-0 flex items-center justify-center">
-              <FileSpreadsheet className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
-            </div>
-            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-              <span className="text-xs sm:text-sm font-bold tracking-wide">Exportar Excel</span>
-            </div>
-          </button>
+          />
 
-          <button
+          <ExpandableButton
             onClick={openCreateModal}
-            className="group flex items-center justify-center h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 shadow-lg shadow-teal-500/10 hover:shadow-teal-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
+            variant="teal"
+            icon={<Plus className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
+            label="Nueva Actividad"
             title="Nueva Actividad"
-          >
-            <div className="relative flex-shrink-0 flex items-center justify-center">
-              <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-              <span className="text-xs sm:text-sm font-bold tracking-wide">Nueva Actividad</span>
-            </div>
-          </button>
+          />
         </div>
       </div>
 

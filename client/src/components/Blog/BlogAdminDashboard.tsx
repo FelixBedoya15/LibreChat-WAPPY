@@ -89,7 +89,7 @@ export default function BlogAdminDashboard() {
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => navigate('/academia?tab=blog')}
-                            className="group flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-all duration-300"
+                            className="group flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition-all duration-300"
                             aria-label="Volver a Academia"
                         >
                             <ArrowLeft className="w-6 h-6 flex-shrink-0" />
@@ -113,7 +113,7 @@ export default function BlogAdminDashboard() {
                             setEditingPostId('new');
                             setIsEditorOpen(true);
                         }}
-                        className="group flex items-center px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full transition-all duration-300 shadow-md font-medium text-sm self-start md:self-auto"
+                        className="group flex items-center px-3 py-2 bg-white dark:bg-gray-900 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 border border-border-medium/40 text-purple-600 dark:text-purple-400 rounded-xl transition-all duration-300 shadow-md font-medium text-sm self-start md:self-auto"
                     >
                         <Plus className="w-5 h-5 flex-shrink-0" />
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">

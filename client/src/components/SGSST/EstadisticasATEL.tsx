@@ -2137,13 +2137,13 @@ const EstadisticasATEL = () => {
                                         onClick={() => handleGenerate('ANNUAL')}
                                         disabled={isGenerating || !currentData.numTrabajadores}
                                         title={`Generar Informe Anual Consolidado ${year}`}
-                                        className="group flex h-8 sm:h-10 min-w-[32px] sm:min-w-[40px] px-2 sm:px-2.5 items-center justify-center rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md transition-all duration-300 active:scale-95 border border-orange-400/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="group flex h-8 sm:h-10 min-w-[32px] sm:min-w-[40px] px-2 sm:px-2.5 items-center justify-center rounded-xl bg-white dark:bg-gray-900 hover:bg-orange-50/50 dark:hover:bg-orange-950/20 border border-border-medium/40 text-orange-600 dark:text-orange-400 shadow-md transition-all duration-300 active:scale-95 border border-orange-400/40 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <div className="relative flex flex-shrink-0 items-center justify-center">
                                             {isGenerating ? (
-                                                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-white" />
+                                                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin " />
                                             ) : (
-                                                <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                                                <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 " />
                                             )}
                                         </div>
                                         <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-xs group-hover:opacity-100 sm:flex">
@@ -2160,13 +2160,13 @@ const EstadisticasATEL = () => {
                                             onClick={handleGenerateComparative}
                                             disabled={isGenerating}
                                             title="Generar Dictamen Comparativo IA"
-                                            className="group flex h-8 sm:h-10 min-w-[32px] sm:min-w-[40px] px-2 sm:px-2.5 items-center justify-center rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shadow-md transition-all duration-300 active:scale-95 border border-teal-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="group flex h-8 sm:h-10 min-w-[32px] sm:min-w-[40px] px-2 sm:px-2.5 items-center justify-center rounded-xl bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 border border-border-medium/40 text-teal-600 dark:text-teal-400 shadow-md transition-all duration-300 active:scale-95 border border-teal-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             <div className="relative flex flex-shrink-0 items-center justify-center">
                                                 {isGenerating ? (
-                                                    <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-white" />
+                                                    <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin " />
                                                 ) : (
-                                                    <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                                                    <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 " />
                                                 )}
                                             </div>
                                             <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-xs group-hover:opacity-100 sm:flex">

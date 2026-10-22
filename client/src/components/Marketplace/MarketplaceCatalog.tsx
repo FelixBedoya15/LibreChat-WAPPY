@@ -183,7 +183,7 @@ const MarketplaceCatalog: React.FC = () => {
               type="button"
               onClick={() => openEditProduct()}
               title="Crear Nuevo Producto o Curso"
-              className="group flex h-9 min-w-[36px] items-center justify-center rounded-xl px-2.5 font-bold text-xs bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-sm transition-all duration-300 active:scale-95"
+              className="group flex h-9 min-w-[36px] items-center justify-center rounded-xl px-2.5 font-bold text-xs bg-white dark:bg-gray-900 hover:bg-orange-50/50 dark:hover:bg-orange-950/20 border border-border-medium/40 text-orange-600 dark:text-orange-400 shadow-sm transition-all duration-300 active:scale-95"
             >
               <Plus className="h-4 w-4 shrink-0" />
               <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[180px] group-hover:opacity-100">
@@ -233,7 +233,7 @@ const MarketplaceCatalog: React.FC = () => {
           title="Todos los Servicios"
           className={`group flex h-9 min-w-[36px] items-center justify-center px-2.5 rounded-xl text-xs font-bold transition-all duration-300 shrink-0 active:scale-95 shadow-2xs ${
             selectedCategory === 'all'
-              ? 'bg-teal-600 text-white shadow-md shadow-teal-600/20'
+              ? 'bg-teal-500/10 text-teal-600 dark:bg-teal-950/20 dark:text-teal-400 border border-teal-500/20 shadow-xs'
               : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800'
           }`}
         >
@@ -259,7 +259,7 @@ const MarketplaceCatalog: React.FC = () => {
               title={cat.name}
               className={`group flex h-9 min-w-[36px] items-center justify-center px-2.5 rounded-xl text-xs font-bold transition-all duration-300 shrink-0 active:scale-95 shadow-2xs ${
                 isSelected
-                  ? 'bg-teal-600 text-white shadow-md shadow-teal-600/20'
+                  ? 'bg-teal-500/10 text-teal-600 dark:bg-teal-950/20 dark:text-teal-400 border border-teal-500/20 shadow-xs'
                   : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800'
               }`}
             >

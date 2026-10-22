@@ -43,6 +43,7 @@ import {
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
 import { cn } from '~/utils';
+import { ExpandableButton } from '~/components/Common/ExpandableButton';
 import AmbassadorContactModal, { TargetFollowUpUser, formatPlanBadge } from './AmbassadorContactModal';
 import CommercialProposalGenerator from './CommercialProposalGenerator';
 import AmbassadorKanbanBoard, { KanbanUser, CRM_STAGES } from './AmbassadorKanbanBoard';
@@ -793,71 +794,52 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
         </div>
 
         {/* Button bar matching Centro de Control ACPM expanding button effect */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 w-full sm:w-auto justify-start sm:justify-end flex-wrap sm:flex-nowrap">
-          <button
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 w-full sm:w-auto justify-start sm:justify-end flex-wrap sm:flex-nowrap">
+          <ExpandableButton
             onClick={toggleDashboard}
-            className={`group flex items-center justify-center h-9 px-3 sm:h-10 sm:px-3.5 rounded-xl border border-border-medium/40 text-xs font-bold transition-all duration-300 gap-1.5 sm:gap-2 cursor-pointer shadow-sm ${
-              showDashboard 
-                ? 'bg-teal-500/10 text-teal-600 border-teal-500/20 hover:bg-teal-500/20 dark:bg-teal-950/20 dark:text-teal-400' 
-                : 'bg-white dark:bg-gray-900 text-text-secondary hover:bg-surface-hover hover:text-text-primary'
-            }`}
-            title={showDashboard ? "Ocultar Dashboard" : "Mostrar Dashboard"}
-          >
-            {showDashboard ? (
-              <>
+            variant="teal"
+            isActive={showDashboard}
+            icon={
+              showDashboard ? (
                 <EyeOff className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current shrink-0" />
-                <span className="hidden sm:inline">Ocultar Analíticas</span>
-                <span className="sm:hidden">Ocultar</span>
-              </>
-            ) : (
-              <>
+              ) : (
                 <Eye className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current shrink-0" />
-                <span className="hidden sm:inline">Ver Analíticas</span>
-                <span className="sm:hidden">Analíticas</span>
-              </>
-            )}
-          </button>
+              )
+            }
+            label={showDashboard ? 'Ocultar Analíticas' : 'Ver Analíticas'}
+            title={showDashboard ? 'Ocultar Dashboard' : 'Mostrar Dashboard'}
+          />
 
-          <button
+          <ExpandableButton
             onClick={exportToCSV}
-            className="group flex items-center justify-center h-9 px-3 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white sm:hover:scale-105 active:scale-95"
+            variant="emerald"
+            icon={<Download className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
+            label="Exportar Reporte"
             title="Exportar Reporte Comercial (Excel / CSV)"
-          >
-            <div className="relative flex-shrink-0 flex items-center justify-center">
-              <Download className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-              <span className="text-xs sm:text-sm font-bold tracking-wide">Exportar Reporte</span>
-            </div>
-          </button>
+          />
 
           <a
             href={`/portafolio?ref=${(networkStats.find(p => p.email === user?.email)?.slug) || user?.username || ''}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="group flex items-center justify-center h-9 px-3 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 shadow-lg shadow-teal-500/10 hover:shadow-teal-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-teal-600/15 hover:bg-teal-600/25 text-teal-700 dark:text-teal-300 border-teal-500/30 sm:hover:scale-105 active:scale-95"
+            className="group flex items-center justify-center h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 ease-in-out shadow-sm shrink-0 cursor-pointer border border-border-medium/40 outline-none rounded-xl bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 text-teal-600 dark:text-teal-400 active:scale-95"
             title="Abrir Mi Landing Page de Portafolio"
           >
             <div className="relative flex-shrink-0 flex items-center justify-center">
-              <ExternalLink className="w-4 h-4 sm:w-5 sm:h-5" />
+              <ExternalLink className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
             </div>
             <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
               <span className="text-xs sm:text-sm font-bold tracking-wide">Ver Mi Landing</span>
             </div>
           </a>
 
-          <button
+          <ExpandableButton
             onClick={copyReferralLink}
-            className="group flex items-center justify-center h-9 px-3 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 shadow-lg shadow-teal-500/10 hover:shadow-teal-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white sm:hover:scale-105 active:scale-95"
+            variant="teal"
+            icon={<Copy className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
+            label="Copiar Mi Link"
             title="Copiar mi Link de Referido"
-          >
-            <div className="relative flex-shrink-0 flex items-center justify-center">
-              <Copy className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-              <span className="text-xs sm:text-sm font-bold tracking-wide">Copiar Mi Link</span>
-            </div>
-          </button>
+          />
         </div>
       </div>
 
@@ -1132,13 +1114,13 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
                   value={myReferralLink}
                   className="bg-white/10 text-white px-3 py-2 rounded-xl text-xs font-mono border border-white/20 outline-none w-full lg:w-72 xl:w-80 truncate"
                 />
-                <button
+                <ExpandableButton
                   onClick={copyReferralLink}
-                  className="px-3.5 py-2 bg-white text-teal-800 hover:bg-teal-50 font-bold rounded-xl text-xs transition-all shrink-0 flex items-center justify-center gap-1.5 shadow-sm border border-slate-200/80 active:scale-95"
-                >
-                  <Copy className="w-3.5 h-3.5 text-teal-700" />
-                  <span>{copied ? '¡Copiado!' : 'Copiar'}</span>
-                </button>
+                  variant="white"
+                  icon={<Copy className="w-4 h-4 text-teal-700" />}
+                  label={copied ? '¡Copiado!' : 'Copiar'}
+                  title="Copiar mi Link de Referido"
+                />
               </div>
             </div>
           </div>
@@ -1444,46 +1426,34 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
                               <div className="flex items-center justify-end gap-1.5 shrink-0">
                                 {isAdmin && (
                                   <>
-                                    <button
+                                    <ExpandableButton
+                                      size="sm"
+                                      variant="emerald"
                                       onClick={() => openRenewalFromUser(u)}
-                                      className="group flex items-center justify-center h-8 px-2.5 min-w-[32px] sm:h-8.5 sm:px-2.5 sm:min-w-[34px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white sm:hover:scale-105 active:scale-95"
+                                      icon={<RefreshCw className="w-3.5 h-3.5 text-current" />}
+                                      label="Renovar"
                                       title="Registrar pago recurrente y renovar periodo"
-                                    >
-                                      <div className="relative flex-shrink-0 flex items-center justify-center">
-                                        <RefreshCw className="w-3.5 h-3.5" />
-                                      </div>
-                                      <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[140px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                                        <span className="text-[11px] font-bold tracking-wide">Renovar</span>
-                                      </div>
-                                    </button>
+                                    />
 
-                                    <button
+                                    <ExpandableButton
+                                      size="sm"
+                                      variant="teal"
                                       onClick={() => openAttributionModal(u)}
-                                      className="group flex items-center justify-center h-8 px-2.5 min-w-[32px] sm:h-8.5 sm:px-2.5 sm:min-w-[34px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white sm:hover:scale-105 active:scale-95"
+                                      icon={<Edit3 className="w-3.5 h-3.5 text-current" />}
+                                      label="Editar Cobro & Atribución"
                                       title="Editar Cobro, Plan, Add-ons y Comisión de este usuario"
-                                    >
-                                      <div className="relative flex-shrink-0 flex items-center justify-center">
-                                        <Edit3 className="w-3.5 h-3.5" />
-                                      </div>
-                                      <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[180px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                                        <span className="text-[11px] font-bold tracking-wide">Editar Cobro & Atribución</span>
-                                      </div>
-                                    </button>
+                                    />
                                   </>
                                 )}
 
-                                <button
+                                <ExpandableButton
+                                  size="sm"
+                                  variant="teal"
                                   onClick={() => setContactUser(u as any)}
-                                  className="group flex items-center justify-center h-8 px-2.5 min-w-[32px] sm:h-8.5 sm:px-2.5 sm:min-w-[34px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer rounded-xl bg-teal-600 hover:bg-teal-700 text-white sm:hover:scale-105 active:scale-95"
+                                  icon={<FileText className="w-3.5 h-3.5 text-current" />}
+                                  label="Seguimiento CRM"
                                   title="Seguimiento CRM, WhatsApp o Campaña de Correo"
-                                >
-                                  <div className="relative flex-shrink-0 flex items-center justify-center">
-                                    <FileText className="w-3.5 h-3.5" />
-                                  </div>
-                                  <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[160px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                                    <span className="text-[11px] font-bold tracking-wide">Seguimiento CRM</span>
-                                  </div>
-                                </button>
+                                />
                               </div>
                             </td>
                           </tr>
@@ -1641,48 +1611,38 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
                               <div className="flex items-center justify-end gap-1.5 shrink-0">
                                 {isAdmin && (
                                   <>
-                                    <button
+                                    <ExpandableButton
+                                      size="sm"
+                                      variant="emerald"
                                       onClick={() => openRenewalFromCommission(c)}
-                                      className="group flex items-center justify-center h-8 px-2.5 min-w-[32px] sm:h-8.5 sm:px-2.5 sm:min-w-[34px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white sm:hover:scale-105 active:scale-95"
+                                      icon={<RefreshCw className="w-3.5 h-3.5 text-current" />}
+                                      label="Renovar"
                                       title="Registrar pago recurrente y renovar periodo"
-                                    >
-                                      <div className="relative flex-shrink-0 flex items-center justify-center">
-                                        <RefreshCw className="w-3.5 h-3.5" />
-                                      </div>
-                                      <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[140px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                                        <span className="text-[11px] font-bold tracking-wide">Renovar</span>
-                                      </div>
-                                    </button>
+                                    />
 
-                                    <button
+                                    <ExpandableButton
+                                      size="sm"
+                                      variant="teal"
                                       onClick={() => openCommissionEditModal(c)}
-                                      className="group flex items-center justify-center h-8 px-2.5 min-w-[32px] sm:h-8.5 sm:px-2.5 sm:min-w-[34px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer rounded-xl bg-teal-600 hover:bg-teal-700 text-white sm:hover:scale-105 active:scale-95"
+                                      icon={<Edit3 className="w-3.5 h-3.5 text-current" />}
+                                      label="Editar"
                                       title="Editar monto o estado de esta comisión"
-                                    >
-                                      <div className="relative flex-shrink-0 flex items-center justify-center">
-                                        <Edit3 className="w-3.5 h-3.5" />
-                                      </div>
-                                      <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[140px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                                        <span className="text-[11px] font-bold tracking-wide">Editar</span>
-                                      </div>
-                                    </button>
+                                    />
 
-                                    <button
+                                    <ExpandableButton
+                                      size="sm"
+                                      variant="danger"
                                       onClick={() => handleDeleteCommission(c.id, c.referredUserName)}
-                                      className="group flex items-center justify-center h-8 px-2.5 min-w-[32px] sm:h-8.5 sm:px-2.5 sm:min-w-[34px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer rounded-xl bg-rose-600 hover:bg-rose-700 text-white sm:hover:scale-105 active:scale-95"
+                                      icon={<Trash2 className="w-3.5 h-3.5 text-current" />}
+                                      label="Eliminar"
                                       title="Eliminar comisión duplicada o incorrecta"
-                                    >
-                                      <div className="relative flex-shrink-0 flex items-center justify-center">
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </div>
-                                      <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[140px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                                        <span className="text-[11px] font-bold tracking-wide">Eliminar</span>
-                                      </div>
-                                    </button>
+                                    />
                                   </>
                                 )}
 
-                                <button
+                                <ExpandableButton
+                                  size="sm"
+                                  variant="neutral"
                                   onClick={() => setContactUser({
                                     id: c.userId || c.id,
                                     userId: c.userId,
@@ -1697,16 +1657,10 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
                                     daysInactive: c.daysInactive,
                                     accountStatus: c.accountStatus || 'active',
                                   })}
-                                  className="group flex items-center justify-center h-8 px-2.5 min-w-[32px] sm:h-8.5 sm:px-2.5 sm:min-w-[34px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer rounded-xl bg-slate-700 hover:bg-slate-800 text-white sm:hover:scale-105 active:scale-95"
+                                  icon={<Mail className="w-3.5 h-3.5 text-current" />}
+                                  label="Contactar"
                                   title="Enviar Correo de Campaña o Mensaje WhatsApp"
-                                >
-                                  <div className="relative flex-shrink-0 flex items-center justify-center">
-                                    <Mail className="w-3.5 h-3.5" />
-                                  </div>
-                                  <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[140px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                                    <span className="text-[11px] font-bold tracking-wide">Contactar</span>
-                                  </div>
-                                </button>
+                                />
                               </div>
                             </td>
                         </tr>

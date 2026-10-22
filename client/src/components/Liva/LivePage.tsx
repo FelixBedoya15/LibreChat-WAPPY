@@ -698,7 +698,7 @@ const LivePage = () => {
                         {/* History Button — same style as ModelSelector */}
                         <button
                             onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                            className={`group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 ${
+                            className={`group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   ${
                                 isHistoryOpen
                                     ? 'bg-surface-hover ring-2 ring-blue-500/20 border-blue-500/50 text-blue-600 dark:text-blue-400'
                                     : 'bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary'
@@ -715,7 +715,7 @@ const LivePage = () => {
                             offlineReportGenerated && (
                                 <button
                                     onClick={() => setOfflineReportGenerated(false)}
-                                    className="group flex flex-shrink-0 items-center justify-center h-10 px-3 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary hover:text-teal-600 hover:border-teal-500/50"
+                                    className="group flex flex-shrink-0 items-center justify-center h-10 px-3 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary hover:text-teal-600 hover:border-teal-500/50"
                                 >
                                     <Upload className="h-5 w-5 flex-shrink-0 animate-bounce" />
                                     <span className="text-sm font-bold tracking-wide ml-2">Nueva Carga Offline</span>
@@ -724,7 +724,7 @@ const LivePage = () => {
                         ) : (
                             <button
                                 onClick={handleStartAnalysis}
-                                className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary hover:text-teal-600 hover:border-teal-500/50"
+                                className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary hover:text-teal-600 hover:border-teal-500/50"
                             >
                                 <Video className="h-5 w-5 flex-shrink-0" />
                                 <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
@@ -736,7 +736,7 @@ const LivePage = () => {
                         {/* Save Report Button — same style as ModelSelector */}
                         <button
                             onClick={handleSave}
-                            className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary hover:text-emerald-600 hover:border-emerald-500/50"
+                            className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary hover:text-emerald-600 hover:border-emerald-500/50"
                         >
                             <Save className="h-5 w-5 flex-shrink-0" />
                             <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">

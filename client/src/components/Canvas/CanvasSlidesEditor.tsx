@@ -1547,14 +1547,14 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
             {/* New Present button in maximized sidebar actions */}
             <button
               onClick={() => setIsPresenting(true)}
-              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-md shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-teal-600 hover:bg-teal-700 text-white w-full border-teal-500/20 shadow-teal-500/10"
+              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-md shrink-0 cursor-pointer border outline-none rounded-xl   bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 text-teal-600 dark:text-teal-400 border-border-medium/40 w-full border-teal-500/20 shadow-teal-500/10"
               aria-label="Iniciar Presentación"
             >
-              <div className="relative flex-shrink-0 flex items-center justify-center text-white">
-                <MonitorPlay className="h-4 w-4 text-white" />
+              <div className="relative flex-shrink-0 flex items-center justify-center ">
+                <MonitorPlay className="h-4 w-4 " />
               </div>
               <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                <span className="text-sm font-bold tracking-wide text-white">
+                <span className="text-sm font-bold tracking-wide ">
                   Iniciar Presentación
                 </span>
               </div>
@@ -1562,7 +1562,7 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
 
             <button
               onClick={() => setIsBridgeOpen(true)}
-              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-teal-500/30 hover:bg-teal-50/10 text-teal-600 w-full"
+              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   bg-surface-primary border-teal-500/30 hover:bg-teal-50/10 text-teal-600 w-full"
               aria-label="Conectar Lienzos"
             >
               <div className="relative flex-shrink-0 flex items-center justify-center text-teal-600">
@@ -1577,7 +1577,7 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
 
             <button
               onClick={addSlide}
-              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary w-full"
+              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary w-full"
               aria-label="Nueva Diapositiva"
             >
               <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
@@ -1795,7 +1795,7 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                 <div className="flex justify-center">
                   <button
                     onClick={() => setShowSettings(!showSettings)}
-                    className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+                    className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
                     aria-label={showSettings ? 'Ocultar Opciones' : 'Mostrar Opciones'}
                   >
                     <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
@@ -1911,7 +1911,7 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
                         <span className="text-xs text-text-tertiary flex items-center gap-1"><Sparkles className="h-3.5 w-3.5 text-yellow-500" /> Formato de Impresión Landscape</span>
                         <button
                           onClick={handleDownloadPdf}
-                          className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+                          className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
                           aria-label="Descargar Diapositivas"
                         >
                           <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">

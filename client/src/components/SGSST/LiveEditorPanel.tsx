@@ -721,7 +721,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
           {/* Upload */}
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary hover:-rotate-3 hover:scale-105"
+            className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary  "
             aria-label="Subir DOCX o PDF"
           >
             <Upload className="h-4 w-4 shrink-0" />
@@ -750,9 +750,9 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
             onClick={() => setIsReportHistoryOpen(h => !h)}
             className={`group relative flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl ${
               isReportHistoryOpen
-                ? 'bg-blue-500/10 border-blue-500/30 text-blue-600'
+                ? 'bg-teal-500/10 border-teal-500/20 text-teal-600 dark:text-teal-400'
                 : 'bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary'
-            } hover:-rotate-3 hover:scale-105`}
+            }  `}
             aria-label="Historial de documentos"
           >
             <History className="h-4 w-4 shrink-0" />
@@ -766,9 +766,9 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
             onClick={() => setIsHistoryOpen(h => !h)}
             className={`group relative flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl ${
               isHistoryOpen
-                ? 'bg-blue-500/10 border-blue-500/30 text-blue-600'
+                ? 'bg-teal-500/10 border-teal-500/20 text-teal-600 dark:text-teal-400'
                 : 'bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary'
-            } hover:-rotate-3 hover:scale-105`}
+            }  `}
             aria-label="Versiones de documento"
           >
             <RefreshCw className="h-4 w-4 shrink-0" />
@@ -781,7 +781,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
           {content && (
             <button
               onClick={handleClear}
-              className="group relative flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl bg-surface-primary border-red-500/30 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 hover:-rotate-3 hover:scale-105"
+              className="group relative flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl bg-surface-primary border-red-500/30 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500  "
               aria-label="Eliminar documento"
             >
               <Trash2 className="h-4 w-4 shrink-0" />
@@ -794,7 +794,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
           {/* Maximize */}
           <button
             onClick={() => setIsMaximized((m) => !m)}
-            className="group relative flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary hover:-rotate-3 hover:scale-105"
+            className="group relative flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary  "
             aria-label={isMaximized ? 'Reducir panel' : 'Expandir panel'}
           >
             {isMaximized ? (

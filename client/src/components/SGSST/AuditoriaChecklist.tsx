@@ -891,7 +891,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({
             disabled={isScanning}
             title={isScanning ? 'Escaneando aplicativos...' : 'Re-escanear Aplicativos'}
             aria-label="Re-escanear Aplicativos"
-            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500 bg-teal-600 px-2 text-white shadow-sm outline-none transition-all duration-300 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-2.5 sm:hover:scale-105"
+            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium/40 bg-white dark:bg-gray-900 px-2.5 text-teal-600 dark:text-teal-400 shadow-sm outline-none transition-all duration-300 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-2.5 "
           >
             <div className="relative flex flex-shrink-0 items-center justify-center">
               {isScanning ? (
@@ -1111,13 +1111,13 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({
             disabled={isSyncingKanban}
             title="Sincronizar hallazgos con Centro de Control"
             aria-label="Sincronizar con Centro de Control"
-            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-purple-500/30 bg-purple-600 px-2 text-white shadow-sm outline-none transition-all duration-300 hover:scale-105 hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:min-w-[36px] sm:px-2.5"
+            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium/40 bg-white dark:bg-gray-900 px-2.5 text-purple-600 dark:text-purple-400 shadow-sm outline-none transition-all duration-300 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:min-w-[36px] sm:px-2.5"
           >
             <div className="relative flex shrink-0 items-center justify-center">
               {isSyncingKanban ? (
-                <Loader2 className="h-4 w-4 animate-spin text-white" />
+                <Loader2 className="h-4 w-4 animate-spin " />
               ) : (
-                <Trello className="h-4 w-4 text-white" />
+                <Trello className="h-4 w-4 " />
               )}
             </div>
             <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">

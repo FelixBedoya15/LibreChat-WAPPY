@@ -1361,7 +1361,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                 await saveSession(undefined, true);
               }}
               disabled={isSaving}
-              className="group flex h-9 sm:h-10 min-w-[36px] sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2 sm:px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
+              className="group flex h-9 sm:h-10 min-w-[36px] sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2 sm:px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300   hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Guardar cambios"
             >
               <div className="relative flex flex-shrink-0 items-center justify-center text-text-primary">
@@ -1462,7 +1462,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           {hasActiveSession && fileType !== 'animo' && fileType !== 'actos_condiciones' && (
             <button
               onClick={() => setIsReportHistoryOpen(!isReportHistoryOpen)}
-              className={`hidden sm:flex group h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border px-3 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 ${
+              className={`hidden sm:flex group h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border px-3 shadow-sm outline-none transition-all duration-300   ${
                 isReportHistoryOpen
                   ? 'border-teal-500/30 bg-teal-500/10 text-teal-600'
                   : 'border-border-medium bg-surface-primary text-text-primary hover:bg-surface-hover'
@@ -1481,7 +1481,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           {hasActiveSession && fileType !== 'animo' && fileType !== 'actos_condiciones' && (
             <button
               onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-              className={`hidden sm:flex group h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border px-3 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 ${
+              className={`hidden sm:flex group h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border px-3 shadow-sm outline-none transition-all duration-300   ${
                 isHistoryOpen
                   ? 'border-teal-500/30 bg-teal-500/10 text-teal-600'
                   : 'border-border-medium bg-surface-primary text-text-primary hover:bg-surface-hover'
@@ -1499,7 +1499,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
           <button
             onClick={() => setIsMaximized((m) => !m)}
-            className="hidden sm:flex group h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-3 text-text-primary shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-surface-hover"
+            className="hidden sm:flex group h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-3 text-text-primary shadow-sm outline-none transition-all duration-300   hover:bg-surface-hover"
             aria-label={isMaximized ? 'Reducir panel' : 'Expandir panel'}
           >
             <div className="relative flex flex-shrink-0 items-center justify-center">
@@ -1514,7 +1514,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
           <button
             onClick={handleCloseCanvas}
-            className="hidden sm:flex group h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-3 text-text-primary shadow-sm outline-none transition-all duration-300 hover:scale-105 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30"
+            className="hidden sm:flex group h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-3 text-text-primary shadow-sm outline-none transition-all duration-300  hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30"
             aria-label="Cerrar lienzo"
             title="Cerrar lienzo"
           >

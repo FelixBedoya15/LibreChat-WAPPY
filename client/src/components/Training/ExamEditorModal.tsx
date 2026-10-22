@@ -163,7 +163,7 @@ export default function ExamEditorModal({ isOpen, onClose, onSave, initialExam, 
                         <button
                             onClick={handleGenerateExam}
                             disabled={isGeneratingExam || (!contextTopic?.trim() && !exam.title.trim() && !exam.description.trim())}
-                            className="group flex items-center px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="group flex items-center px-4 py-2 bg-white dark:bg-gray-900 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 border border-border-medium/40 text-purple-600 dark:text-purple-400 rounded-xl transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isGeneratingExam ? (
                                 <Loader2 className="w-5 h-5 flex-shrink-0 animate-spin" />

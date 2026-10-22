@@ -32,20 +32,20 @@ export const ExpandingButton: React.FC<ExpandingButtonProps> = ({
   alwaysShowLabel = false,
 }) => {
   const variantClass = {
-    teal: 'bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white border-teal-600/80 shadow-md shadow-teal-600/20',
-    orange: 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white border-orange-500/80 shadow-md shadow-orange-500/20',
-    ai: 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white border-orange-500/80 shadow-md shadow-orange-500/20',
-    secondary: 'bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-700 shadow-sm',
-    'outline-teal': 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-800/80 hover:bg-teal-100 dark:hover:bg-teal-900/40 shadow-sm',
-    rose: 'bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white border-rose-600/80 shadow-md shadow-rose-600/20',
-    save: 'bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white border-teal-600/80 shadow-md shadow-teal-600/20',
-  }[variant] || 'bg-teal-600 text-white';
+    teal: 'bg-white dark:bg-gray-900 border-border-medium/40 text-teal-600 dark:text-teal-400 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 shadow-sm',
+    orange: 'bg-white dark:bg-gray-900 border-border-medium/40 text-amber-600 dark:text-amber-400 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 shadow-sm',
+    ai: 'bg-white dark:bg-gray-900 border-border-medium/40 text-teal-600 dark:text-teal-400 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 shadow-sm',
+    secondary: 'bg-white dark:bg-gray-900 border-border-medium/40 text-text-secondary hover:text-text-primary hover:bg-surface-hover shadow-sm',
+    'outline-teal': 'bg-teal-500/10 text-teal-600 border-teal-500/20 hover:bg-teal-500/20 dark:bg-teal-950/20 dark:text-teal-400 shadow-sm',
+    rose: 'bg-white dark:bg-gray-900 border-border-medium/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50/50 dark:hover:bg-rose-950/20 shadow-sm',
+    save: 'bg-white dark:bg-gray-900 border-border-medium/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 shadow-sm',
+  }[variant] || 'bg-white dark:bg-gray-900 border-border-medium/40 text-teal-600 dark:text-teal-400 hover:bg-teal-50/50 shadow-sm';
 
   const sizeClass = size === 'sm'
-    ? 'h-7 min-w-[28px] px-2 text-[11px]'
-    : 'h-9 min-w-[36px] px-2.5 text-xs';
+    ? 'h-8 min-w-[32px] px-2.5 text-[11px]'
+    : 'h-9 min-w-[36px] px-3.5 sm:h-10 sm:px-3 sm:min-w-[40px] text-xs sm:text-sm';
 
-  const iconSizeClass = size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4';
+  const iconSizeClass = size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4 sm:h-4.5 sm:w-4.5';
 
   const renderIcon = () => {
     if (isLoading) {
@@ -68,7 +68,7 @@ export const ExpandingButton: React.FC<ExpandingButtonProps> = ({
       title={title || label}
       aria-label={title || label}
       className={cn(
-        'group relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-xl border font-bold shadow-sm outline-none transition-all duration-300 hover:scale-[1.03] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 overflow-hidden',
+        'group relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-xl border font-bold shadow-sm outline-none transition-all duration-300 ease-in-out active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 overflow-hidden',
         sizeClass,
         variantClass,
         className,

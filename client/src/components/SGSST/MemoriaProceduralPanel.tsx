@@ -18,6 +18,7 @@ import {
   PauseCircle,
   Zap,
 } from 'lucide-react';
+import { ExpandableButton } from '~/components/Common/ExpandableButton';
 
 export interface ProceduralMemoryRule {
   id: string;
@@ -307,24 +308,21 @@ export default function MemoriaProceduralPanel() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <ExpandableButton
             onClick={() => setShowPresets((v) => !v)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-sm transition-all active:scale-95 bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            <span>{showPresets ? 'Ocultar Plantillas WAPPY' : 'Ver Plantillas WAPPY'}</span>
-          </button>
+            variant="amber"
+            isActive={showPresets}
+            icon={<Sparkles className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
+            label={showPresets ? 'Ocultar Plantillas WAPPY' : 'Ver Plantillas WAPPY'}
+          />
 
-          <button
-            type="button"
+          <ExpandableButton
             onClick={() => openCreateForm()}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Nueva Regla para Tenshi</span>
-          </button>
+            variant="teal"
+            icon={<Plus className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
+            label="Nueva Regla para Tenshi"
+          />
         </div>
       </div>
 

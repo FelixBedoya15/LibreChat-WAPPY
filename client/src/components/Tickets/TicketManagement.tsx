@@ -342,7 +342,7 @@ export default function TicketManagement({ initialTicketId }: { initialTicketId?
                                     <button
                                         onClick={() => handleSuggestAi(selectedTicket._id)}
                                         disabled={isAiLoading}
-                                        className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-xl transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         {isAiLoading ? (
                                             <Loader2 className="h-5 w-5 animate-spin" />

@@ -1164,7 +1164,7 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
             type="button"
             onClick={handleGenerate}
             disabled={isGenerating}
-            className="group flex items-center px-4 py-2.5 bg-teal-600 hover:bg-teal-700 border border-teal-600 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
+            className="group flex items-center px-4 py-2.5 bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 border border-border-medium/40 text-teal-600 dark:text-teal-400 h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] justify-center active:scale-95 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed "
           >
             {isGenerating ? (
               <Loader2 className="h-5 w-5 animate-spin" />

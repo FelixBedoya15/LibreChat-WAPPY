@@ -221,13 +221,13 @@ export default function AcpmActionPlanBox({
               disabled={isDispatching}
               title="Despachar acciones a Kanban"
               aria-label="Despachar a Kanban"
-              className="group hidden sm:flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-600/30 bg-gradient-to-r from-teal-600 to-emerald-600 px-2 text-white shadow-sm outline-none transition-all duration-300 hover:scale-105 hover:from-teal-500 hover:to-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="group hidden sm:flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-600/30 bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 px-2.5 text-teal-600 dark:text-teal-400 shadow-sm outline-none transition-all duration-300   disabled:cursor-not-allowed disabled:opacity-50"
             >
               <div className="relative flex shrink-0 items-center justify-center">
                 {isDispatching ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin " />
                 ) : (
-                  <Send className="w-3.5 h-3.5 text-white" />
+                  <Send className="w-3.5 h-3.5 " />
                 )}
               </div>
               <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[160px] group-hover:opacity-100 sm:flex">
@@ -257,7 +257,7 @@ export default function AcpmActionPlanBox({
                 onClick={() => setShowAddForm(true)}
                 title="Agregar Primera Acción"
                 aria-label="Agregar Primera Acción"
-                className="group mt-1 flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/30 bg-surface-primary px-2 text-teal-600 shadow-xs outline-none transition-all duration-300 hover:scale-105 hover:bg-teal-50/50 hover:border-teal-500/50 dark:text-teal-400 dark:hover:bg-teal-950/30 sm:h-9 sm:min-w-[36px] sm:px-2.5"
+                className="group mt-1 flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/30 bg-surface-primary px-2 text-teal-600 shadow-xs outline-none transition-all duration-300  hover:bg-teal-50/50 hover:border-teal-500/50 dark:text-teal-400 dark:hover:bg-teal-950/30 sm:h-9 sm:min-w-[36px] sm:px-2.5"
               >
                 <div className="relative flex shrink-0 items-center justify-center">
                   <Plus className="h-4 w-4" />
@@ -437,10 +437,10 @@ export default function AcpmActionPlanBox({
                   type="submit"
                   title="Confirmar y Guardar Acción"
                   aria-label="Confirmar y Guardar Acción"
-                  className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-600/30 bg-gradient-to-r from-teal-600 to-teal-700 px-2 text-white shadow-sm outline-none transition-all duration-300 hover:scale-105 hover:from-teal-500 hover:to-teal-600 active:scale-95 sm:h-9 sm:min-w-[36px] sm:px-2.5"
+                  className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-600/30 bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 px-2.5 text-teal-600 dark:text-teal-400 shadow-sm outline-none transition-all duration-300   active:scale-95 sm:h-9 sm:min-w-[36px] sm:px-2.5"
                 >
                   <div className="relative flex shrink-0 items-center justify-center">
-                    <CheckCircle2 className="h-4 w-4 text-white" />
+                    <CheckCircle2 className="h-4 w-4 " />
                   </div>
                   <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
                     <span className="text-xs font-bold tracking-wide">Confirmar y Guardar Acción</span>
@@ -455,7 +455,7 @@ export default function AcpmActionPlanBox({
                 onClick={() => setShowAddForm(true)}
                 title="Agregar Acción al Plan"
                 aria-label="Agregar Acción al Plan"
-                className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-surface-secondary px-2 text-text-primary shadow-xs outline-none transition-all duration-300 hover:scale-105 hover:bg-surface-tertiary dark:border-zinc-700 sm:h-9 sm:min-w-[36px] sm:px-2.5"
+                className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-surface-secondary px-2 text-text-primary shadow-xs outline-none transition-all duration-300  hover:bg-surface-tertiary dark:border-zinc-700 sm:h-9 sm:min-w-[36px] sm:px-2.5"
               >
                 <div className="relative flex shrink-0 items-center justify-center">
                   <Plus className="h-4 w-4 text-teal-600 dark:text-teal-400" />
@@ -472,13 +472,13 @@ export default function AcpmActionPlanBox({
                   disabled={isDispatching || actions.length === 0}
                   title={`Despachar ${actions.length} ${actions.length === 1 ? 'Acción' : 'Acciones'} al Centro de Control`}
                   aria-label={`Despachar ${actions.length} ${actions.length === 1 ? 'Acción' : 'Acciones'} al Centro de Control`}
-                  className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-600/30 bg-gradient-to-r from-teal-600 to-emerald-600 px-2 text-white shadow-sm outline-none transition-all duration-300 hover:scale-105 hover:from-teal-500 hover:to-emerald-500 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:min-w-[36px] sm:px-2.5"
+                  className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-600/30 bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 px-2.5 text-teal-600 dark:text-teal-400 shadow-sm outline-none transition-all duration-300   disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:min-w-[36px] sm:px-2.5"
                 >
                   <div className="relative flex shrink-0 items-center justify-center">
                     {isDispatching ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-white" />
+                      <Loader2 className="h-4 w-4 animate-spin " />
                     ) : (
-                      <Send className="h-4 w-4 text-white" />
+                      <Send className="h-4 w-4 " />
                     )}
                   </div>
                   <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[280px] group-hover:opacity-100 sm:flex">

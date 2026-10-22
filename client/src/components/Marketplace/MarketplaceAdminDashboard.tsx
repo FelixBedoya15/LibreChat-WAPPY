@@ -409,7 +409,7 @@ const MarketplaceAdminDashboard: React.FC = () => {
               type="button"
               onClick={() => openEditProduct()}
               title="Nuevo Producto / Servicio"
-              className="group flex h-9 min-w-[36px] items-center justify-center px-2.5 rounded-xl font-bold text-xs shadow-sm transition-all duration-300 active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white"
+              className="group flex h-9 min-w-[36px] items-center justify-center px-2.5 rounded-xl font-bold text-xs shadow-sm transition-all duration-300 active:scale-95 bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 border border-border-medium/40 text-teal-600 dark:text-teal-400"
             >
               <Plus className="h-4 w-4 shrink-0" />
               <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">

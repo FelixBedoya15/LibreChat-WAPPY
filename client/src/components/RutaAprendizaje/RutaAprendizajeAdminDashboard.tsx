@@ -289,7 +289,7 @@ export default function RutaAprendizajeAdminDashboard() {
                                                     <div className="flex items-center justify-end gap-2">
                                                         <button 
                                                             onClick={() => setSelectedShareCourse(course)}
-                                                            className="group flex items-center p-2 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-full transition-all duration-300"
+                                                            className="group flex items-center p-2 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-xl transition-all duration-300"
                                                             title="Compartir curso / QR"
                                                         >
                                                             <QrCode className="w-4 h-4 flex-shrink-0" />
@@ -299,7 +299,7 @@ export default function RutaAprendizajeAdminDashboard() {
                                                         </button>
                                                         <button 
                                                             onClick={() => navigate(`/ruta-aprendizaje/${course._id}/${sanitizeSlug(course.title)}`)}
-                                                            className="group flex items-center p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-full transition-all duration-300"
+                                                            className="group flex items-center p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-xl transition-all duration-300"
                                                         >
                                                             <Eye className="w-4 h-4 flex-shrink-0" />
                                                             <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">
@@ -308,7 +308,7 @@ export default function RutaAprendizajeAdminDashboard() {
                                                         </button>
                                                         <button
                                                             onClick={() => navigate(`/ruta-aprendizaje/admin/courses/${course._id}`)}
-                                                            className="group flex items-center p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-all duration-300"
+                                                            className="group flex items-center p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all duration-300"
                                                         >
                                                             <Edit className="w-4 h-4 flex-shrink-0" />
                                                             <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">
@@ -317,7 +317,7 @@ export default function RutaAprendizajeAdminDashboard() {
                                                         </button>
                                                         <button
                                                             onClick={() => handleDeleteCourse(course._id, course.title)}
-                                                            className="group flex items-center p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all duration-300"
+                                                            className="group flex items-center p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all duration-300"
                                                         >
                                                             <Trash2 className="w-4 h-4 flex-shrink-0" />
                                                             <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">

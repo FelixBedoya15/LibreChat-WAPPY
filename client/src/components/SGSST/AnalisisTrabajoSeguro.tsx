@@ -865,7 +865,7 @@ const AnalisisTrabajoSeguro = () => {
                             <button
                                 onClick={() => handleGenerate()}
                                 disabled={isGenerating}
-                                className="group flex items-center px-5 py-3 bg-teal-700 hover:bg-teal-800 border border-teal-700 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
+                                className="group flex items-center px-5 py-3 bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 border border-border-medium/40 text-teal-600 dark:text-teal-400 h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] justify-center active:scale-95 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed "
                             >
                                 {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
                                 <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar ATS con IA</span>

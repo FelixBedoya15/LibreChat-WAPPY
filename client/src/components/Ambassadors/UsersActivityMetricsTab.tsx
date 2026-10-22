@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { cn } from '~/utils';
+import { ExpandableButton } from '~/components/Common/ExpandableButton';
 import { TargetFollowUpUser, formatPlanBadge } from './AmbassadorContactModal';
 
 export interface UserActivityMetric {
@@ -393,15 +394,14 @@ export default function UsersActivityMetricsTab({
           </div>
 
           {/* Action Refresh Button */}
-          <button
+          <ExpandableButton
             onClick={fetchMetrics}
             disabled={isLoading}
-            className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-text-secondary hover:text-text-primary bg-surface-secondary/40 border border-border-medium/40 hover:bg-surface-hover transition-all active:scale-95 shrink-0"
+            variant="teal"
+            icon={<RefreshCw className={cn("w-4 h-4 sm:w-4.5 sm:h-4.5", isLoading && "animate-spin")} />}
+            label="Sincronizar"
             title="Refrescar métricas"
-          >
-            <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin text-teal-500")} />
-            <span className="hidden sm:inline">Actualizar</span>
-          </button>
+          />
         </div>
 
         {/* Filter Pills */}

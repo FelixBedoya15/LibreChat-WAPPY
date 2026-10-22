@@ -1007,13 +1007,13 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             disabled={isScanning}
             title="Re-escanear evidencias en aplicativos de WAPPY"
             aria-label="Re-escanear Aplicativos"
-            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/30 bg-teal-600 px-2 text-white shadow-sm outline-none transition-all duration-300 hover:scale-105 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:min-w-[36px] sm:px-2.5"
+            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium/40 bg-white dark:bg-gray-900 px-2.5 text-teal-600 dark:text-teal-400 shadow-sm outline-none transition-all duration-300 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:min-w-[36px] sm:px-2.5"
           >
             <div className="relative flex shrink-0 items-center justify-center">
               {isScanning ? (
-                <Loader2 className="h-4 w-4 animate-spin text-white" />
+                <Loader2 className="h-4 w-4 animate-spin " />
               ) : (
-                <Sparkles className="h-4 w-4 text-white" />
+                <Sparkles className="h-4 w-4 " />
               )}
             </div>
             <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
@@ -1186,13 +1186,13 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             disabled={isSyncingKanban}
             title="Sincronizar estándares no conformes con Centro de Control"
             aria-label="Sincronizar con Centro de Control"
-            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-cyan-500/30 bg-cyan-600 px-2 text-white shadow-sm outline-none transition-all duration-300 hover:scale-105 hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:min-w-[36px] sm:px-2.5"
+            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium/40 bg-white dark:bg-gray-900 px-2.5 text-teal-600 dark:text-teal-400 shadow-sm outline-none transition-all duration-300 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:min-w-[36px] sm:px-2.5"
           >
             <div className="relative flex shrink-0 items-center justify-center">
               {isSyncingKanban ? (
-                <Loader2 className="h-4 w-4 animate-spin text-white" />
+                <Loader2 className="h-4 w-4 animate-spin " />
               ) : (
-                <Trello className="h-4 w-4 text-white" />
+                <Trello className="h-4 w-4 " />
               )}
             </div>
             <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
@@ -1424,7 +1424,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
         <button
           onClick={handleAnalyze}
           disabled={isAnalyzing || completedCount === 0}
-          className="group flex transform items-center rounded-full border border-teal-600 bg-teal-600 px-3 py-2 text-base font-bold text-white shadow-lg transition-all duration-300 hover:-translate-y-0.5 hover:border-teal-700 hover:bg-teal-700 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
+          className="group flex h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] items-center justify-center rounded-xl border border-border-medium/40 bg-white dark:bg-gray-900 text-xs font-bold text-teal-600 dark:text-teal-400 shadow-sm transition-all duration-300 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isAnalyzing ? (
             <Loader2 className="h-5 w-5 animate-spin" />

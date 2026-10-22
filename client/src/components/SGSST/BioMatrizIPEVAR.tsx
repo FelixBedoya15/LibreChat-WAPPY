@@ -778,7 +778,7 @@ export default function BioMatrizIPEVAR({ workerId, initialWorker }: BioMatrizIP
                           title="Ver Jerarquía de Controles Propuestos (Dec. 1072)"
                           className={`group inline-flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 ${
                             isExpanded
-                              ? 'bg-teal-600 text-white shadow-teal-500/20'
+                              ? 'bg-teal-500/10 text-teal-600 dark:bg-teal-950/20 dark:text-teal-400 border border-teal-500/20'
                               : 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/60'
                           }`}
                         >
@@ -795,7 +795,7 @@ export default function BioMatrizIPEVAR({ workerId, initialWorker }: BioMatrizIP
                             onClick={() => handleAiUpdateRow(row.id)}
                             disabled={isUpdating}
                             title="Optimizar fila con Inteligencia Artificial"
-                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white disabled:opacity-50"
+                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-white dark:bg-gray-900 hover:bg-orange-50/50 dark:hover:bg-orange-950/20 border border-border-medium/40 text-orange-600 dark:text-orange-400 disabled:opacity-50"
                           >
                             {isUpdating ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />

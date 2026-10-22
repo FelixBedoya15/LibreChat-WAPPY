@@ -632,7 +632,7 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
           <div className="flex items-center gap-1.5">
             <button
               onClick={addRow}
-              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl   bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
               aria-label="Agregar Fila"
             >
               <div className="relative flex-shrink-0 flex items-center justify-center">
@@ -658,7 +658,7 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
             <div className="h-6 w-px bg-border-medium" />
             <button
               onClick={addColumn}
-              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl   bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
               aria-label="Agregar Columna"
             >
               <div className="relative flex-shrink-0 flex items-center justify-center">
@@ -686,7 +686,7 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setIsChartPanelOpen(!isChartPanelOpen)}
-              className={`group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 ${
+              className={`group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   ${
                 isChartPanelOpen
                   ? 'bg-teal-500/10 border-teal-500/30 text-teal-600'
                   : 'bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary'
@@ -706,7 +706,7 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
             {isMaximized && (
               <button
                 onClick={toggleFullscreen}
-                className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+                className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
                 title={isFullscreen ? 'Salir Pantalla Completa' : 'Pantalla Completa'}
               >
                 <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
@@ -722,7 +722,7 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
 
             <button
               onClick={handleExportExcel}
-              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl   bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
               aria-label="Descargar Excel"
             >
               <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">

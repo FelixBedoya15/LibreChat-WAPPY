@@ -200,12 +200,12 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
         ) : !exportContent && !onExportExcel && !onDownloadTemplate && (onSave || effectivePersistence.length > 0) ? (
           <button
             disabled
-            className="group flex h-8 min-w-[32px] shrink-0 cursor-not-allowed items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2 text-text-tertiary opacity-30 shadow-sm sm:h-9 sm:min-w-[36px] sm:px-2"
+            className="group flex h-9 min-w-[36px] shrink-0 cursor-not-allowed items-center justify-center rounded-xl border border-border-medium/40 bg-white dark:bg-gray-900 px-3.5 text-text-tertiary opacity-40 shadow-sm sm:h-10 sm:min-w-[40px] sm:px-3"
           >
-            <Download className="h-4 w-4 sm:h-5 sm:w-5" />
+            <Download className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
             <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 group-hover:ml-2 group-hover:max-w-xs group-hover:opacity-100 sm:flex">
               {/* eslint-disable-next-line i18next/no-literal-string */}
-              <span className="text-xs font-bold uppercase tracking-wider">Exportar</span>
+              <span className="text-xs sm:text-sm font-bold tracking-wide">Exportar</span>
             </div>
           </button>
         ) : null,
@@ -297,18 +297,20 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
   badge,
 }) => {
   const variantStyles = {
-    ai: 'bg-teal-600 hover:bg-teal-700 text-white shadow-md',
+    ai: active
+      ? 'bg-teal-500/10 text-teal-600 border-teal-500/20 hover:bg-teal-500/20 dark:bg-teal-950/20 dark:text-teal-400'
+      : 'bg-white dark:bg-gray-900 border-border-medium/40 text-teal-600 dark:text-teal-400 hover:bg-teal-50/50 dark:hover:bg-teal-950/20',
     history: active
-      ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/10 border-teal-400'
-      : 'bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400 border-border-medium',
+      ? 'bg-teal-500/10 text-teal-600 border-teal-500/20 hover:bg-teal-500/20 dark:bg-teal-950/20 dark:text-teal-400'
+      : 'bg-white dark:bg-gray-900 border-border-medium/40 text-text-secondary hover:text-text-primary hover:bg-surface-hover',
     database:
-      'bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-blue-400 text-blue-600',
-    save: 'bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-purple-400 text-purple-600',
-    dummy: 'bg-orange-500 hover:bg-orange-600 text-white shadow-md',
-    excel: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md',
+      'bg-white dark:bg-gray-900 border-border-medium/40 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 text-blue-600 dark:text-blue-400',
+    save: 'bg-white dark:bg-gray-900 border-border-medium/40 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 text-purple-600 dark:text-purple-400',
+    dummy: 'bg-white dark:bg-gray-900 border-border-medium/40 text-amber-600 dark:text-amber-400 hover:bg-amber-50/50 dark:hover:bg-amber-950/20',
+    excel: 'bg-white dark:bg-gray-900 border-border-medium/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20',
     default: active
-      ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/10 border-blue-400'
-      : 'bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary',
+      ? 'bg-teal-500/10 text-teal-600 border-teal-500/20 hover:bg-teal-500/20 dark:bg-teal-950/20 dark:text-teal-400'
+      : 'bg-white dark:bg-gray-900 border-border-medium/40 text-text-secondary hover:text-text-primary hover:bg-surface-hover',
   };
 
   return (
@@ -327,21 +329,21 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
       title={title}
       aria-label={title || label}
       className={cn(
-        'group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border px-2 shadow-sm outline-none transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:min-w-[36px] sm:px-2.5 sm:hover:-rotate-3 sm:hover:scale-105',
+        'group flex h-9 min-w-[36px] shrink-0 cursor-pointer items-center justify-center rounded-xl border px-3.5 shadow-sm outline-none transition-all duration-300 ease-in-out active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-3',
         variantStyles[variant],
       )}
     >
       <div className="relative flex flex-shrink-0 items-center justify-center">
         {isLoading || loading ? (
-          <Loader2 className="h-4 w-4 animate-spin sm:h-5 sm:w-5" />
+          <Loader2 className="h-4 w-4 animate-spin sm:h-4.5 sm:w-4.5" />
         ) : (
           <>
             {React.isValidElement(icon) ? (
               icon
             ) : typeof icon === 'string' ? (
-              <AnimatedIcon name={icon as IconName} size={18} className="sm:h-5 sm:w-5" />
+              <AnimatedIcon name={icon as IconName} size={18} className="sm:h-4.5 sm:w-4.5" />
             ) : typeof icon === 'function' || (typeof icon === 'object' && icon !== null && '$$typeof' in icon) ? (
-              React.createElement(icon as any, { className: 'w-4 h-4 sm:w-5 sm:h-5' })
+              React.createElement(icon as any, { className: 'w-4 h-4 sm:w-4.5 sm:h-4.5' })
             ) : null}
             {badge !== undefined && (
               <span className="absolute -right-3 -top-3 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
@@ -354,7 +356,7 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
 
       {label && (
         <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[340px] group-hover:opacity-100 sm:flex">
-          <span className="text-xs font-bold tracking-wide">{label}</span>
+          <span className="text-xs sm:text-sm font-bold tracking-wide">{label}</span>
         </div>
       )}
     </motion.button>

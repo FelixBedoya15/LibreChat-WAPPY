@@ -102,7 +102,7 @@ export default function TrainingAdminDashboard() {
                             setEditingCourseId('new');
                             setIsCourseEditorOpen(true);
                         }}
-                        className="group flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm self-start sm:self-auto"
+                        className="group flex items-center px-4 py-2 bg-white dark:bg-gray-900 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 border border-border-medium/40 text-blue-600 dark:text-blue-400 rounded-xl transition-all duration-300 shadow-sm font-medium text-sm self-start sm:self-auto"
                     >
                         <Plus className="w-5 h-5 flex-shrink-0" />
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
@@ -209,7 +209,7 @@ export default function TrainingAdminDashboard() {
                                                     <div className="flex items-center justify-end gap-2">
                                                         <button 
                                                             onClick={() => navigate(`/training/${course._id}/${sanitizeSlug(course.title)}`)}
-                                                            className="group flex items-center p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-full transition-all duration-300"
+                                                            className="group flex items-center p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-xl transition-all duration-300"
                                                         >
                                                             <Eye className="w-4 h-4 flex-shrink-0" />
                                                             <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">
@@ -221,7 +221,7 @@ export default function TrainingAdminDashboard() {
                                                                 setEditingCourseId(course._id);
                                                                 setIsCourseEditorOpen(true);
                                                             }}
-                                                            className="group flex items-center p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-all duration-300"
+                                                            className="group flex items-center p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all duration-300"
                                                         >
                                                             <Edit className="w-4 h-4 flex-shrink-0" />
                                                             <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">
@@ -230,7 +230,7 @@ export default function TrainingAdminDashboard() {
                                                         </button>
                                                         <button
                                                             onClick={() => handleDeleteCourse(course._id, course.title)}
-                                                            className="group flex items-center p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all duration-300"
+                                                            className="group flex items-center p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all duration-300"
                                                         >
                                                             <Trash2 className="w-4 h-4 flex-shrink-0" />
                                                             <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">

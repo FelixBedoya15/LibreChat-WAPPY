@@ -1186,7 +1186,7 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
               <>
                 <button
                   onClick={() => setIframeKey((prev) => prev + 1)}
-                  className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+                  className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
                   title="Recargar vista previa"
                 >
                   <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
@@ -1201,7 +1201,7 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
 
                 <button
                   onClick={handleOpenInNewTab}
-                  className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+                  className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
                   title="Abrir en pestaña nueva (presentación completa)"
                 >
                   <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
@@ -1216,7 +1216,7 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
 
                 <button
                   onClick={toggleFullscreen}
-                  className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+                  className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
                   title={isFullscreen ? 'Salir Pantalla Completa' : 'Pantalla Completa'}
                 >
                   <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
@@ -1233,7 +1233,7 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
 
             <button
               onClick={handleDownloadHtml}
-              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl   bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
               aria-label="Descargar HTML"
             >
               <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">

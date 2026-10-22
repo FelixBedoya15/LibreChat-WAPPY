@@ -156,7 +156,7 @@ const MarketplaceContent: React.FC = () => {
                     openEditProduct();
                   }}
                   title="Crear Nuevo Producto / Servicio"
-                  className="group flex h-9 min-w-[36px] items-center justify-center rounded-xl px-2.5 font-bold text-xs shadow-sm transition-all duration-300 active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
+                  className="group flex h-9 min-w-[36px] items-center justify-center rounded-xl px-2.5 font-bold text-xs shadow-sm transition-all duration-300 active:scale-95 bg-white dark:bg-gray-900 hover:bg-orange-50/50 dark:hover:bg-orange-950/20 border border-border-medium/40 text-orange-600 dark:text-orange-400"
                 >
                   <Plus className="h-4 w-4 shrink-0" />
                   <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[180px] group-hover:opacity-100">

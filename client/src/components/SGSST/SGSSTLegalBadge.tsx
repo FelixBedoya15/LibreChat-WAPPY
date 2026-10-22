@@ -265,7 +265,7 @@ export const SGSSTLegalBadge: React.FC<SGSSTLegalBadgeProps> = ({
           type="button"
           onClick={handleClick}
           aria-label={`${displayLabel} - ${isCompliant ? 'Cumplido en Diagnóstico' : 'Hacer clic para marcar cumplido'}`}
-          className={`group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-pointer items-center justify-center rounded-xl border px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 ${activeStyles} ${className}`}
+          className={`group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-pointer items-center justify-center rounded-xl border px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300   active:scale-95 ${activeStyles} ${className}`}
         >
           <div className="relative flex flex-shrink-0 items-center justify-center">
             {isLoading ? (
