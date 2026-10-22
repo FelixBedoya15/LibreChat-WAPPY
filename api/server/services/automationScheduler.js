@@ -1,3 +1,4 @@
+const { monitorEventLoopDelay } = require('perf_hooks');
 const { getAppConfig } = require('~/server/services/Config');
 const { getAgent } = require('~/models/Agent');
 const { initializeClient } = require('~/server/services/Endpoints/agents/initialize');
@@ -9,19 +10,83 @@ const sendEmail = require('~/server/utils/sendEmail');
 
 let schedulerInterval = null;
 let isCheckingAutomations = false; // Evita que dos ticks del intervalo se solapen
+let drainTimer = null; // Re-disparo inmediato de drenaje continuo al liberarse ventanilla
 const runningAutomations = new Map(); // automationId -> { abortController, timeoutId, startedAt, automationName, logId }
 
 /**
- * Límite GLOBAL de agentes ejecutándose a la vez en este proceso Node (protege la RAM del VPS).
- * Cada corrida inicializa un cliente de agente completo (herramientas, MCP, historial), por lo que
- * es lo que más memoria consume. Configurable con AUTOMATION_MAX_CONCURRENCY (por defecto 2).
- * Las tareas que no alcancen cupo quedan pendientes y se toman en el siguiente tick (1 min).
+ * Monitor de atraso del Event Loop (detecta si hay muchos usuarios chateando o en Tenshi Voice).
+ */
+let loopDelayMonitor = null;
+try {
+  loopDelayMonitor = monitorEventLoopDelay({ resolution: 20 });
+  loopDelayMonitor.enable();
+} catch (_) {
+  loopDelayMonitor = null;
+}
+
+/**
+ * Drenaje Continuo Adaptativo (Smart Throttle):
+ * - En calma (pocos usuarios en vivo): abre hasta MAX_CONCURRENT_AUTOMATIONS (por defecto 8).
+ * - Con tráfico moderado en el chat/voz: baja a 4 ventanillas simultáneas.
+ * - En hora pico (80-100 usuarios chateando o RAM/EventLoop exigidos): baja a MIN_CONCURRENT_AUTOMATIONS (2)
+ *   para garantizar prioridad absoluta a los humanos en vivo.
+ * - Apenas termina una tarea, jala la siguiente de la fila en 400ms sin esperar el minuto entero.
  */
 const MAX_CONCURRENT_AUTOMATIONS = Math.max(
+  2,
+  parseInt(process.env.AUTOMATION_MAX_CONCURRENCY || '8', 10) || 8,
+);
+const MIN_CONCURRENT_AUTOMATIONS = Math.max(
   1,
-  parseInt(process.env.AUTOMATION_MAX_CONCURRENCY || '2', 10) || 2,
+  parseInt(process.env.AUTOMATION_MIN_CONCURRENCY || '2', 10) || 2,
 );
 const STAGGER_MS = 500;
+
+/**
+ * Calcula cuántas ventanillas simultáneas puede abrir el scheduler en este preciso segundo
+ * según la presión de RAM (heapUsed / rss) y el atraso del Event Loop de Node.js.
+ */
+function getAdaptiveConcurrencyLimit() {
+  try {
+    const mem = process.memoryUsage();
+    const heapUsedMB = mem.heapUsed / (1024 * 1024);
+    const rssMB = mem.rss / (1024 * 1024);
+    const eventLoopLagMs = loopDelayMonitor ? loopDelayMonitor.mean / 1e6 : 0;
+
+    // Resetear estadísticas acumuladas del histograma periódicamente para medir carga fresca
+    if (loopDelayMonitor && Math.random() < 0.25) {
+      loopDelayMonitor.reset();
+    }
+
+    // Hora pico fuerte (80-100 usuarios en vivo, alto uso de heap o lag > 80ms en Event Loop)
+    if (heapUsedMB > 2400 || rssMB > 4200 || eventLoopLagMs > 80) {
+      return MIN_CONCURRENT_AUTOMATIONS; // 2 ventanillas: prioridad total al chat en vivo
+    }
+
+    // Tráfico moderado (20-50 usuarios chateando o lag entre 35ms y 80ms)
+    if (heapUsedMB > 1500 || rssMB > 2800 || eventLoopLagMs > 35) {
+      return Math.max(MIN_CONCURRENT_AUTOMATIONS, Math.min(4, MAX_CONCURRENT_AUTOMATIONS));
+    }
+
+    // Servidor holgado: velocidad máxima de drenaje (8 ventanillas)
+    return MAX_CONCURRENT_AUTOMATIONS;
+  } catch (_) {
+    return 4;
+  }
+}
+
+/**
+ * Dispara el drenaje continuo en cuanto una tarea termina y deja un cupo libre.
+ */
+function scheduleImmediateDrain(delayMs = 400) {
+  if (drainTimer) return;
+  drainTimer = setTimeout(() => {
+    drainTimer = null;
+    checkAndRunAutomations().catch((err) => {
+      console.error('[AutomationScheduler] Continuous drain error:', err);
+    });
+  }, delayMs);
+}
 
 /** Campos mínimos necesarios para ejecutar una tarea (evita cargar documentos completos en memoria). */
 const AUTOMATION_RUN_FIELDS =
@@ -621,6 +686,8 @@ async function runAutomation(automation, isManual = false) {
   } finally {
     clearTimeout(timeoutId);
     runningAutomations.delete(automationIdStr);
+    // Drenaje continuo: apenas se libera una ventanilla, revisar si hay más tareas en la fila
+    scheduleImmediateDrain(400);
   }
 }
 
@@ -709,8 +776,9 @@ async function checkAndRunAutomations() {
       )
     ]);
 
-    // 2. Respect the GLOBAL concurrency cap: only take as many tasks as free slots
-    const availableSlots = MAX_CONCURRENT_AUTOMATIONS - runningAutomations.size;
+    // 2. Respect the ADAPTIVE concurrency cap: adjusts between MIN (2) and MAX (8) based on live chat load
+    const adaptiveCap = getAdaptiveConcurrencyLimit();
+    const availableSlots = adaptiveCap - runningAutomations.size;
     if (availableSlots <= 0) return;
 
     // Query pending active automations (lean + projection + limit => mínimo uso de RAM)
@@ -729,7 +797,7 @@ async function checkAndRunAutomations() {
 
     if (pendingAutomations.length === 0) return;
 
-    console.log(`[AutomationScheduler] Found ${pendingAutomations.length} pending automations to execute.`);
+    console.log(`[AutomationScheduler] Found ${pendingAutomations.length} pending automations to execute (adaptive cap: ${adaptiveCap}, active: ${runningAutomations.size}).`);
 
     const toExecute = [];
 
@@ -826,6 +894,10 @@ function startAutomationScheduler() {
 }
 
 function stopAutomationScheduler() {
+  if (drainTimer) {
+    clearTimeout(drainTimer);
+    drainTimer = null;
+  }
   if (schedulerInterval) {
     clearInterval(schedulerInterval);
     schedulerInterval = null;
