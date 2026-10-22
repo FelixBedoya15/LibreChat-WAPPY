@@ -4923,7 +4923,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           browserState: domState,
           tenshiKey: typeof window !== 'undefined' ? localStorage.getItem('librechat_user_key_tenshi_google') || undefined : undefined,
         },
-        { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          timeout: 35000,
+        },
       );
 
       const responseData = response.data;
@@ -5198,6 +5201,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       ]);
       setIsTyping(false);
       setTenshiStatus('');
+    } finally {
+      setIsTyping(false);
+      setTenshiStatus('');
     }
   };
 
@@ -5380,15 +5386,29 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     return null;
   };
 
-  const cleanRenderContent = (content: string) => {
+  const cleanRenderContent = (content: string, hasWidget = false) => {
     if (!content) return '';
+    let result = content;
+    if (hasWidget) {
+      // Si el mensaje ya adjunta un Widget Interactivo Nativo, eliminar tarjetas wappy-card duplicadas
+      result = result.replace(/```(?:wappy-card|card)[\s\S]*?```/gi, '').trim();
+    }
+    // Limpiar sintaxis LaTeX cruda ($6 \times 3 = 18$, \mathbf{450})
+    result = result
+      .replace(/\\mathbf\{([^}]+)\}/g, '**$1**')
+      .replace(/\\textbf\{([^}]+)\}/g, '**$1**')
+      .replace(/\\times/g, '×')
+      .replace(/\\div/g, '÷')
+      .replace(/\\rightarrow|\\to/g, '→')
+      .replace(/\$([^$\n]+)\$/g, '$1');
+
     if (
-      content.includes('<!DOCTYPE html') ||
-      content.includes('<html') ||
-      content.includes('<head') ||
-      content.includes('<body')
+      result.includes('<!DOCTYPE html') ||
+      result.includes('<html') ||
+      result.includes('<head') ||
+      result.includes('<body')
     ) {
-      let cleaned = content
+      let cleaned = result
         .replace(/<!DOCTYPE html[\s\S]*?<\/html>/gi, '')
         .replace(/<html[\s\S]*?<\/html>/gi, '')
         .replace(/<!DOCTYPE[\s\S]*/gi, '')
@@ -5400,7 +5420,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         .trim();
       return cleaned || '✨ El informe técnico ha sido estructurado y generado con éxito. Puedes abrirlo directamente con los botones oficiales abajo.';
     }
-    return content;
+    return result;
   };
 
   const safeTriggerDownload = (blob: Blob, filename: string) => {
@@ -6395,7 +6415,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                             : 'rounded-tl-none border border-slate-200/80 bg-white dark:border-zinc-800 dark:bg-zinc-800/90 text-slate-800 dark:text-zinc-100'
                         )}
                       >
-                        {msg.content && <Markdown content={cleanRenderContent(msg.content)} />}
+                        {msg.content && <Markdown content={cleanRenderContent(msg.content, Boolean(msg.widget))} />}
                         {/* Miniatura / Render de Imagen adjunta */}
                         {(msg.image || (msg.media?.type === 'image' && msg.media.dataUrl)) && (
                           <div className="mt-2 overflow-hidden rounded-xl border border-slate-200/80 dark:border-zinc-700 bg-black/10">
@@ -7317,7 +7337,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                           </div>
                         ) : (
                           <>
-                            {msg.content && <Markdown content={cleanRenderContent(msg.content)} />}
+                            {msg.content && <Markdown content={cleanRenderContent(msg.content, Boolean(msg.widget))} />}
                             {/* Miniatura / Render de Imagen adjunta */}
                             {(msg.image || (msg.media?.type === 'image' && msg.media.dataUrl)) && (
                               <div className="mt-2.5 overflow-hidden rounded-xl border border-slate-200/80 dark:border-zinc-700 bg-black/5 shadow-sm max-w-sm">

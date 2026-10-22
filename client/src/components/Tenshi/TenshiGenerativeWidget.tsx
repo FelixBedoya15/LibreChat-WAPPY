@@ -109,6 +109,7 @@ export const TenshiGenerativeWidget: React.FC<TenshiGenerativeWidgetProps> = ({
 
   // ── 2. Worker Census State ──
   const [workerFilter, setWorkerFilter] = useState<'all' | 'active' | 'retired'>('all');
+  const [workerSearch, setWorkerSearch] = useState<string>('');
 
   // ── 3. GTC-45 Calculator State ──
   const [peligroDesc, setPeligroDesc] = useState<string>(
@@ -440,14 +441,31 @@ export const TenshiGenerativeWidget: React.FC<TenshiGenerativeWidgetProps> = ({
   // ============================================================================
   if (widget.widgetType === 'worker_census') {
     const allWorkers: Array<any> = Array.isArray(widget.data?.workers) ? widget.data.workers : [];
+    const q = workerSearch.trim().toLowerCase();
     const filtered = allWorkers.filter((w) => {
-      if (workerFilter === 'active') return w.status !== 'Retirado';
-      if (workerFilter === 'retired') return w.status === 'Retirado';
+      const statusStr = String(w.status || w.estado || 'Activo');
+      if (workerFilter === 'active' && /retirad/i.test(statusStr)) return false;
+      if (workerFilter === 'retired' && !/retirad/i.test(statusStr)) return false;
+      if (q) {
+        const fullName = String(w.nombre_completo || w.nombre || w.name || '').toLowerCase();
+        const docId = String(w.documentId || w.cedula || '').toLowerCase();
+        const pos = String(w.position || w.cargo || w.area || '').toLowerCase();
+        const eps = String(w.eps || '').toLowerCase();
+        return fullName.includes(q) || docId.includes(q) || pos.includes(q) || eps.includes(q);
+      }
       return true;
     });
 
+    const totalCount = widget.data?.totalRegistrados ?? allWorkers.length;
+    const activeCount =
+      widget.data?.totalActivos ??
+      allWorkers.filter((w) => !/retirad/i.test(String(w.status || w.estado || ''))).length;
+    const retiredCount =
+      widget.data?.totalRetirados ??
+      allWorkers.filter((w) => /retirad/i.test(String(w.status || w.estado || ''))).length;
+
     return (
-      <div className="mt-2.5 overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 p-3.5 shadow-md dark:border-zinc-800 dark:bg-zinc-900/95">
+      <div className="mt-2.5 overflow-hidden rounded-2xl border border-teal-500/30 bg-white/95 p-3.5 shadow-md dark:border-teal-500/25 dark:bg-zinc-900/95">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal-500/15 text-teal-600 dark:text-teal-300">
@@ -455,9 +473,11 @@ export const TenshiGenerativeWidget: React.FC<TenshiGenerativeWidgetProps> = ({
             </div>
             <div>
               <h4 className="text-xs font-bold text-slate-900 dark:text-white">
-                {widget.title || 'Censo de Trabajadores'}
+                {widget.title || 'Nómina y Censo de Colaboradores'}
               </h4>
-              <p className="text-[11px] text-slate-500 dark:text-zinc-400">{widget.subtitle}</p>
+              <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+                {widget.subtitle || `${totalCount} colaboradores registrados`}
+              </p>
             </div>
           </div>
 
@@ -473,36 +493,90 @@ export const TenshiGenerativeWidget: React.FC<TenshiGenerativeWidgetProps> = ({
                     : 'text-slate-600 dark:text-zinc-400'
                 }`}
               >
-                {tab === 'all' ? 'Todos' : tab === 'active' ? 'Activos' : 'Retirados'}
+                {tab === 'all'
+                  ? `Todos (${totalCount})`
+                  : tab === 'active'
+                  ? `Activos (${activeCount})`
+                  : `Retirados (${retiredCount})`}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="mt-2.5 max-h-48 space-y-1.5 overflow-y-auto pr-1">
-          {filtered.map((w) => (
-            <div
-              key={w.id}
-              className="flex items-center justify-between gap-2 rounded-xl border border-slate-200/70 bg-slate-50/60 px-2.5 py-1.5 text-xs dark:border-zinc-800 dark:bg-zinc-800/40"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-bold text-slate-800 dark:text-zinc-100">{w.name}</div>
-                <div className="truncate text-[10px] text-slate-500 dark:text-zinc-400">
-                  {w.position} · CC {w.documentId}
-                </div>
-              </div>
-              <span
-                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                  w.status === 'Retirado'
-                    ? 'bg-slate-200 text-slate-600 dark:bg-zinc-700 dark:text-zinc-300'
-                    : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300'
-                }`}
-              >
-                {w.status}
-              </span>
-            </div>
-          ))}
+        {/* Buscador interactivo en tiempo real */}
+        <div className="mt-2.5">
+          <input
+            type="text"
+            value={workerSearch}
+            onChange={(e) => setWorkerSearch(e.target.value)}
+            placeholder="🔍 Buscar por nombre, cédula, cargo o EPS..."
+            className="w-full rounded-xl border border-slate-200 bg-slate-50/90 px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-teal-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-100"
+          />
         </div>
+
+        <div className="mt-2.5 max-h-60 space-y-1.5 overflow-y-auto pr-1">
+          {filtered.length === 0 ? (
+            <div className="py-4 text-center text-xs text-slate-400 dark:text-zinc-500">
+              No se encontraron colaboradores con ese criterio.
+            </div>
+          ) : (
+            filtered.map((w, idx) => {
+              const displayName =
+                w.nombre_completo ||
+                w.nombreCompleto ||
+                (w.name && w.name !== 'Colaborador' ? w.name : '') ||
+                w.nombre ||
+                `Colaborador ${idx + 1}`;
+              const docId = w.documentId || w.cedula || 'S/N';
+              const areaOrPos = w.area || w.position || w.cargo || 'Operaciones';
+              const epsText = w.eps ? ` · EPS: ${w.eps}` : '';
+              const statusStr = String(w.status || w.estado || 'Activo');
+              const isRetired = /retirad/i.test(statusStr);
+
+              return (
+                <div
+                  key={w.id || idx}
+                  className="flex items-center justify-between gap-2 rounded-xl border border-slate-200/70 bg-slate-50/60 px-2.5 py-2 text-xs transition-colors hover:border-teal-500/40 dark:border-zinc-800 dark:bg-zinc-800/40"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-bold text-slate-800 dark:text-zinc-100">
+                      {w.index ?? idx + 1}. {displayName}
+                    </div>
+                    <div className="truncate text-[10px] text-slate-500 dark:text-zinc-400">
+                      CC: {docId} · Área: {areaOrPos}
+                      {epsText}
+                    </div>
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                      isRetired
+                        ? 'bg-slate-200 text-slate-600 dark:bg-zinc-700 dark:text-zinc-300'
+                        : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300'
+                    }`}
+                  >
+                    {isRetired ? 'Retirado' : '✅ Activo'}
+                  </span>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {onNavigate && (
+          <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5 dark:border-zinc-800">
+            <span className="text-[10px] font-semibold text-slate-400 dark:text-zinc-500">
+              Mostrando {filtered.length} de {allWorkers.length} colaboradores
+            </span>
+            <button
+              type="button"
+              onClick={() => onNavigate('/sgsst')}
+              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm transition-all hover:from-teal-500 hover:to-teal-600 active:scale-95"
+            >
+              <ExternalLink className="h-3 w-3" />
+              <span>Ver en Panel</span>
+            </button>
+          </div>
+        )}
       </div>
     );
   }

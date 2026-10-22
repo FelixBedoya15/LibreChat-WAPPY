@@ -9,6 +9,7 @@ import { useNewConvo, useAppStartup, useAssistantListMap, useIdChangeEffect } fr
 import { getDefaultModelSpec, getModelSpecPreset, logger } from '~/utils';
 import { ToolCallsMapProvider } from '~/Providers';
 import ChatView from '~/components/Chat/ChatView';
+import TenshiAvatar from '~/components/Tenshi/TenshiAvatar';
 import useAuthRedirect from './useAuthRedirect';
 import temporaryStore from '~/store/temporary';
 import { useRecoilCallback } from 'recoil';
@@ -160,8 +161,27 @@ export default function ChatRoute() {
 
   if (endpointsQuery.isLoading || modelsQuery.isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center" aria-live="polite" role="status">
-        <Spinner className="text-text-primary" />
+      <div
+        className="flex h-screen flex-col items-center justify-center gap-4 bg-gradient-to-b from-teal-50/40 via-white to-amber-50/30 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 px-4 text-center"
+        aria-live="polite"
+        role="status"
+      >
+        <TenshiAvatar
+          size={128}
+          mood="working"
+          showHaloEffect={true}
+          showHUD={true}
+          interactive={true}
+          statusText="Sincronizando Ecosistema WAPPY IA..."
+        />
+        <div className="mt-4 max-w-md">
+          <h2 className="bg-gradient-to-r from-teal-600 via-emerald-500 to-amber-500 bg-clip-text text-xl font-black tracking-tight text-transparent">
+            WAPPY IA
+          </h2>
+          <p className="mt-1 text-xs font-medium text-slate-600 dark:text-zinc-400">
+            Ecosistema de Inteligencia Artificial para Productividad Empresarial y Gestión SG-SST.
+          </p>
+        </div>
       </div>
     );
   }

@@ -24,6 +24,7 @@ import Root from './Root';
 import RoadmapNotifier from '~/components/Roadmap/RoadmapNotifier';
 import { hasActivePlan } from '~/utils/planAccess';
 import TenshiStandaloneHost from '~/components/Tenshi/TenshiStandaloneHost';
+import TenshiAvatar from '~/components/Tenshi/TenshiAvatar';
 
 // Lazy-loaded secondary dashboards and public pages for fast initial bundle load
 const SGSSTDashboard = lazy(() => import('~/components/SGSST/Dashboard'));
@@ -79,8 +80,23 @@ const CursoWappy01Page = lazy(() => import('~/components/Courses/CursoWappy01Pag
 const Clase1Page = lazy(() => import('~/components/Courses/Clase1Page'));
 
 const PageLoader = () => (
-  <div className="flex h-full w-full items-center justify-center p-8 min-h-[50vh]">
-    <Spinner className="h-8 w-8 text-teal-600 dark:text-teal-400" />
+  <div className="flex h-full min-h-[60vh] w-full flex-col items-center justify-center gap-4 p-8 text-center">
+    <TenshiAvatar
+      size={118}
+      mood="working"
+      showHaloEffect={true}
+      showHUD={true}
+      interactive={true}
+      statusText="Cargando módulo del Ecosistema..."
+    />
+    <div className="mt-4 max-w-md">
+      <h2 className="bg-gradient-to-r from-teal-600 via-emerald-500 to-amber-500 bg-clip-text text-lg font-black tracking-tight text-transparent">
+        WAPPY IA
+      </h2>
+      <p className="mt-1 text-xs font-medium text-slate-500 dark:text-zinc-400">
+        Ecosistema de Inteligencia Artificial para Productividad Empresarial y Gestión SG-SST.
+      </p>
+    </div>
   </div>
 );
 

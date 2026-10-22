@@ -199,9 +199,9 @@ function buildGenerativeWidgetForTool(toolName, args = {}, rawResult = null) {
     const ncVal = typeof args.nc === 'number' ? args.nc : Number(args.nc) || 25;
 
     return {
-      widgetType: args.tipo_widget || 'risk_calculator',
-      title: args.titulo || 'Simulador Técnico Interactivo SG-SST',
-      subtitle: args.subtitulo || 'Ajusta los parámetros en tiempo real directamente en el chat',
+      widgetType: args.tipo_widget || args.widget_type || 'risk_calculator',
+      title: args.titulo || args.title || 'Simulador Técnico Interactivo SG-SST',
+      subtitle: args.subtitulo || args.subtitle || 'Ajusta los parámetros en tiempo real directamente en el chat',
       status: 'ready',
       data: {
         ...(args.datos || {}),
@@ -289,21 +289,36 @@ function buildGenerativeWidgetForTool(toolName, args = {}, rawResult = null) {
       : Array.isArray(parsed.workers)
       ? parsed.workers
       : [];
-    const compactWorkers = workers.slice(0, 8).map((w, idx) => ({
-      id: String(w._id || w.id || w.numeroIdentificacion || w.cedula || idx),
-      name: w.nombreCompleto || w.nombre || w.name || 'Colaborador',
-      nombre: w.nombreCompleto || w.nombre || w.name || 'Colaborador',
-      documentId: w.numeroIdentificacion || w.cedula || w.documento || 'S/N',
-      cedula: w.numeroIdentificacion || w.cedula || w.documento || 'S/N',
-      position: w.cargo || w.position || 'Sin cargo',
-      cargo: w.cargo || w.position || 'Sin cargo',
-      area: w.area || w.proceso || 'General',
-      status: w.estadoLaboral || w.estado || w.status || 'Activo',
-      estado: w.estadoLaboral || w.estado || w.status || 'Activo',
-    }));
+    const compactWorkers = workers.slice(0, 100).map((w, idx) => {
+      const fullName =
+        w.nombre_completo ||
+        w.nombreCompleto ||
+        w.nombre ||
+        w.name ||
+        `Colaborador ${idx + 1}`;
+      const docId = w.cedula || w.numeroIdentificacion || w.identificacion || w.documento || 'S/N';
+      const cargo = w.cargo || w.position || 'Operativo';
+      const area = w.area || w.areaTrabajo || w.proceso || 'Operaciones';
+      const eps = w.eps || '';
+      const status = w.estadoLaboral || w.estado || w.status || 'Activo';
+      return {
+        id: String(w._id || w.id || docId || idx),
+        index: idx + 1,
+        name: fullName,
+        nombre: fullName,
+        documentId: docId,
+        cedula: docId,
+        position: cargo,
+        cargo,
+        area,
+        eps,
+        status,
+        estado: status,
+      };
+    });
     return {
       widgetType: 'worker_census',
-      title: 'Censo Interactivo de Colaboradores (Huella Biocéntrica)',
+      title: 'Nómina y Censo de Colaboradores (Huella Biocéntrica)',
       subtitle: parsed.resumenCenso || `Total registrados: ${parsed.totalRegistrados ?? workers.length}`,
       status: 'ready',
       data: {

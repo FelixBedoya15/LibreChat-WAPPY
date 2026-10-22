@@ -834,9 +834,15 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
 3. **GENERACIÓN Y ENTREGA DE INFORMES EN EL CHAT DE TENSHI ('wappy_crear_informe' y 'canvas_tool')**:
    - Cuando el usuario te pida crear, redactar o entregar un informe técnico, INVOCA 'wappy_crear_informe' o 'canvas_tool' con formato HTML, Word o Excel y contenido técnico formal (citando Decreto 1072 de 2015, Res. 0312 de 2019, hallazgos y plan de mejora).
    - El informe se entrega directamente en el chat de Tenshi con visualizador y botones de descarga.
-4. **DOCUMENTOS EN WORD Y APLICATIVOS INTERACTIVOS EN CANVAS ('canvas_tool')**:
-   - Si el usuario te pide: "créame un documento en Word", "hazme un documento en Word", INVOCA 'canvas_tool' con fileType: 'text' redactando el documento formal completo en el lienzo.
-   - Si el usuario te pide: "créame un aplicativo", "hazme un aplicativo", "crea un dashboard", "calculadora interactiva", "simulador", INVOCA 'canvas_tool' con fileType: 'html'.
+4. **WIDGETS INTERACTIVOS NATIVOS EN EL CHAT ('wappy_renderizar_widget_interactivo') vs APLICATIVOS EN CANVAS ('canvas_tool')**:
+   - ⚠️ **PRIORIDAD ABSOLUTA DE GENERATIVE UI EN EL CHAT ('wappy_renderizar_widget_interactivo')**:
+     * Siempre que el usuario pida una "calculadora interactiva GTC-45", "calculadora de riesgo", "simulador GTC-45", "evaluar un peligro con nivel de deficiencia / exposición / consecuencia", o una "lista de chequeo / checklist interactivo" (alturas, extintores, botiquín, preoperacional, orden y aseo), DEBES INVOCAR SIEMPRE 'wappy_renderizar_widget_interactivo' (con tipo_widget: 'risk_calculator' o 'inspection_checklist').
+     * ESTÁ TERMINANTEMENTE PROHIBIDO usar 'canvas_tool' para calculadoras GTC-45 o listas de chequeo interactivas, y PROHIBIDO decir "te abrí en el panel de la derecha". El widget nativo de React se proyecta directamente dentro de tu burbuja de chat con sliders interactivos en tiempo real.
+   - ⚠️ **PROHIBICIÓN DE DUPLICAR TARJETAS ('wappy-card') Y FÓRMULAS LATEX CRUDAS**:
+     * Cuando invoques herramientas que ya proyectan su propio Widget Interactivo Nativo ('wappy_consultar_trabajadores', 'wappy_resumen_general_360', 'wappy_renderizar_widget_interactivo', 'wappy_memoria_procedimental', 'wappy_retirar_trabajador', 'wappy_eliminar_trabajador'), ESTÁ TERMINANTEMENTE PROHIBIDO incluir bloques \`\`\`wappy-card\`\`\` o listas largas en tu respuesta de texto, porque el sistema ya adjunta automáticamente la tarjeta interactiva oficial con buscador debajo de tu mensaje. Escribe únicamente un resumen ejecutivo breve y cálido de 2 a 3 líneas.
+     * NUNCA escribas fórmulas matemáticas con signos de dólar LaTeX como \`$6 \\times 3 = 18$\` ni \`\\mathbf{450}\`; escribe siempre texto limpio y legible: \`6 × 3 = 18\` y \`**450**\`.
+   - Si el usuario te pide explícitamente: "créame un documento en Word", "hazme un documento en Word", INVOCA 'canvas_tool' con fileType: 'text' redactando el documento formal completo en el lienzo.
+   - Si el usuario te pide explícitamente: "créame un aplicativo en el lienzo", "hazme un dashboard de página completa", INVOCA 'canvas_tool' con fileType: 'html'.
    - **REGLAS OBLIGATORIAS DE DISEÑO VISUAL PARA APLICATIVOS HTML (SISTEMA DE DISEÑO WAPPY)**:
      * ESTÁ TERMINANTEMENTE PROHIBIDO crear páginas blancas planas, simplonas o hechas a la carrera. Todos los aplicativos deben tener el mismo estándar visual premium que los agentes especialistas de WAPPY:
      * 1. **Tema Dark Corporativo**: Fondo 'bg-[#0b0f19] text-slate-100', fuentes modernas (Plus Jakarta Sans o Inter), tarjetas 'bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-2xl p-6 shadow-xl'.
@@ -2398,7 +2404,20 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 consultar_analitica_actos_condiciones: analiticaActosCondicionesDeclaration,
             };
 
-            const toolsToAttach = [...baseFunctionDeclarations];
+            const lastMsgObj = messages[messages.length - 1];
+            const lastUserMsg = lastMsgObj?.content || 'Hola';
+            const lastUserLower = String(lastUserMsg || '').toLowerCase();
+            const isInlineWidgetIntent =
+                ((lastUserLower.includes('calculadora') || lastUserLower.includes('simulador')) &&
+                    (lastUserLower.includes('gtc') || lastUserLower.includes('riesgo') || lastUserLower.includes('deficiencia') || lastUserLower.includes('peligro'))) ||
+                lastUserLower.includes('checklist interactivo') ||
+                lastUserLower.includes('lista de chequeo interactiva');
+
+            let toolsToAttach = [...baseFunctionDeclarations];
+            if (isInlineWidgetIntent && !lastUserLower.includes('canvas') && !lastUserLower.includes('lienzo')) {
+                // Evitar que Gemini gaste 15s generando HTML en canvas_tool cuando el usuario pide el widget nativo en el chat
+                toolsToAttach = toolsToAttach.filter(t => t.name !== 'canvas_tool');
+            }
             for (const toolName of activeTools) {
                 const decl = dynamicToolsMap[toolName];
                 if (decl && !toolsToAttach.some(d => d.name === decl.name)) {
@@ -2410,9 +2429,6 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             // Rotation loop: outer = models, inner = api keys
             let lastError = null;
             let succeeded = false;
-
-            const lastMsgObj = messages[messages.length - 1];
-            const lastUserMsg = lastMsgObj?.content || 'Hola';
             const mediaObj = lastMsgObj?.media;
             const mediaDataUrl = lastMsgObj?.image || mediaObj?.dataUrl;
             let extractedFileText = '';
@@ -3020,6 +3036,20 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                     .substring(0, 3500) + '...';
                             }
 
+                            if (capturedWidget) {
+                                // Evitar que el LLM gaste 9s repitiendo 41 trabajadores en una segunda lista (wappy-card)
+                                if (Array.isArray(lightResponse.trabajadores) && lightResponse.trabajadores.length > 4) {
+                                    lightResponse.trabajadoresMuestra = lightResponse.trabajadores.slice(0, 3).map(w => ({
+                                        nombre: w.nombre_completo || w.nombreCompleto || w.nombre,
+                                        cedula: w.cedula,
+                                        cargo: w.cargo,
+                                        estado: w.estadoLaboral
+                                    }));
+                                    delete lightResponse.trabajadores;
+                                }
+                                lightResponse.instruccionCriticaWidget = 'IMPORTANTE: El widget interactivo oficial de React YA FUE ADJUNTADO automáticamente debajo de tu burbuja de chat con el listado completo, buscador y controles. PROHIBIDO generar bloques ```wappy-card``` o repetir toda la lista en texto. Responde únicamente con un resumen ejecutivo cálido de 2 a 3 líneas.';
+                            }
+
                             currentContents.push({
                                 role: 'user',
                                 parts: [
@@ -3070,10 +3100,50 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             }
                         }
 
+                        if (!capturedWidget && isInlineWidgetIntent) {
+                            const ndMatch = lastUserMsg.match(/deficiencia\s*(?:de\s*|:\s*)?(\d+)/i);
+                            const neMatch = lastUserMsg.match(/exposici[oó]n\s*(?:de\s*|:\s*)?(\d+)/i);
+                            const ncMatch = lastUserMsg.match(/consecuencia\s*(?:de\s*|:\s*)?(\d+)/i);
+                            const isChecklist = lastUserLower.includes('checklist') || lastUserLower.includes('lista de chequeo');
+                            capturedWidget = buildGenerativeWidgetForTool(
+                                'wappy_renderizar_widget_interactivo',
+                                isChecklist
+                                    ? { tipo_widget: 'inspection_checklist', titulo: 'Lista de Chequeo Interactiva SG-SST' }
+                                    : {
+                                          tipo_widget: 'risk_calculator',
+                                          titulo: 'Calculadora Interactiva GTC-45',
+                                          peligro: lastUserMsg,
+                                          nd: ndMatch ? Number(ndMatch[1]) : 6,
+                                          ne: neMatch ? Number(neMatch[1]) : 3,
+                                          nc: ncMatch ? Number(ncMatch[1]) : 25,
+                                      },
+                                { ok: true }
+                            );
+                        }
+
                         try {
                             responseText = responseResult.response.text();
                         } catch (textErr) {
                             responseText = '';
+                        }
+
+                        if (responseText && capturedWidget) {
+                            // Eliminar tarjetas wappy-card duplicadas cuando ya existe un widget nativo adjunto
+                            responseText = responseText
+                                .replace(/```(?:wappy-card|card)[\s\S]*?```/gi, '')
+                                .replace(/en el panel de la derecha|en el panel lateral/gi, 'aquí mismo dentro de nuestro chat')
+                                .trim();
+                        }
+
+                        if (responseText) {
+                            // Limpiar LaTeX crudo ($6 \times 3 = 18$, \mathbf{450}) para que el texto sea 100% legible
+                            responseText = responseText
+                                .replace(/\\mathbf\{([^}]+)\}/g, '**$1**')
+                                .replace(/\\textbf\{([^}]+)\}/g, '**$1**')
+                                .replace(/\\times/g, '×')
+                                .replace(/\\div/g, '÷')
+                                .replace(/\\rightarrow|\\to/g, '→')
+                                .replace(/\$([^$\n]+)\$/g, '$1');
                         }
 
                         if (!responseText || !responseText.trim()) {
