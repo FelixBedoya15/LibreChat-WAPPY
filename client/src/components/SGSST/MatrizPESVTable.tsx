@@ -2900,7 +2900,7 @@ export default function MatrizPESVTable({
                       <span className="text-sm font-bold tracking-wide">Matriz Activa</span>
                     </div>
                   </div>
-                ) : (
+                ) : !isVital ? (
                   <button
                     type="button"
                     onClick={handleSetAsOfficial}
@@ -2917,7 +2917,7 @@ export default function MatrizPESVTable({
                       {isSettingOfficial ? 'Guardando…' : 'Fijar en Aplicativo'}
                     </span>
                   </button>
-                ))}
+                ) : null)}
 
               {/* Maximizar */}
               <button

@@ -15,37 +15,112 @@ const getPlans = async (req, res) => {
     try {
         const plans = await Plan.find().lean();
 
-        // Si no existen, podríamos inicializarlos
+        // Si no existen, inicializarlos con los valores oficiales
         if (!plans || plans.length === 0) {
             const defaultPlans = [
-                { planId: 'go', name: 'Go', prices: { monthly: 49200, quarterly: 147500, semiannual: 295000, annual: 590000 } },
-                { planId: 'plus', name: 'Plus', prices: { monthly: 57800, quarterly: 173500, semiannual: 347000, annual: 694000 } },
-                { planId: 'pro', name: 'Pro', prices: { monthly: 66300, quarterly: 199000, semiannual: 399000, annual: 796000 } },
-                { planId: 'ipevar', name: 'Wappy Vital', prices: { monthly: 35000, quarterly: 99000, semiannual: 185000, annual: 350000, lifetime: 100000 } },
+                {
+                    planId: 'pro',
+                    name: 'Pro',
+                    prices: { monthly: 179000, quarterly: 518600, semiannual: 1005000, annual: 1790000 },
+                    promotions: {
+                        monthly: { active: false, text: '', discountPercentage: 0 },
+                        quarterly: { active: true, text: 'Ahorra 10%', discountPercentage: 10 },
+                        semiannual: { active: true, text: 'Ahorra 20%', discountPercentage: 20 },
+                        annual: { active: true, text: 'Ahorra 30%', discountPercentage: 30 },
+                    },
+                },
+                {
+                    planId: 'ipevar',
+                    name: 'Wappy Vital',
+                    prices: { monthly: 119000, quarterly: 345000, semiannual: 669000, annual: 1190000, lifetime: 100000 },
+                    promotions: {
+                        monthly: { active: false, text: '', discountPercentage: 0 },
+                        quarterly: { active: true, text: 'Ahorra 10%', discountPercentage: 10 },
+                        semiannual: { active: true, text: 'Ahorra 20%', discountPercentage: 20 },
+                        annual: { active: true, text: 'Ahorra 30%', discountPercentage: 30 },
+                        lifetime: { active: false, text: '', discountPercentage: 0 },
+                    },
+                    stripePriceIds: { lifetime: 'vital_multi_interval_v2' },
+                },
             ];
             await Plan.insertMany(defaultPlans);
             const newPlans = await Plan.find().lean();
             return res.status(200).json(newPlans);
         }
 
-        const ipevarDoc = plans.find(p => p.planId === 'ipevar');
+        // Verificar y actualizar Plan Pro si tiene valores desactualizados o incompletos
+        const proDoc = plans.find((p) => p.planId === 'pro');
+        if (proDoc) {
+            const needsProUpdate =
+                !proDoc.prices?.monthly ||
+                proDoc.prices?.monthly === 66300 ||
+                !proDoc.prices?.quarterly ||
+                !proDoc.promotions?.quarterly?.active;
+
+            if (needsProUpdate) {
+                const updatedProPrices = {
+                    monthly: proDoc.prices?.monthly && proDoc.prices?.monthly !== 66300 ? proDoc.prices.monthly : 179000,
+                    quarterly: proDoc.prices?.quarterly && proDoc.prices?.quarterly !== 199000 ? proDoc.prices.quarterly : 518600,
+                    semiannual: proDoc.prices?.semiannual && proDoc.prices?.semiannual !== 399000 ? proDoc.prices.semiannual : 1005000,
+                    annual: proDoc.prices?.annual && proDoc.prices?.annual !== 796000 ? proDoc.prices.annual : 1790000,
+                };
+                const updatedProPromotions = {
+                    monthly: proDoc.promotions?.monthly ?? { active: false, text: '', discountPercentage: 0 },
+                    quarterly: proDoc.promotions?.quarterly ?? { active: true, text: 'Ahorra 10%', discountPercentage: 10 },
+                    semiannual: proDoc.promotions?.semiannual ?? { active: true, text: 'Ahorra 20%', discountPercentage: 20 },
+                    annual: proDoc.promotions?.annual ?? { active: true, text: 'Ahorra 30%', discountPercentage: 30 },
+                };
+                await Plan.updateOne(
+                    { planId: 'pro' },
+                    {
+                        $set: {
+                            prices: updatedProPrices,
+                            promotions: updatedProPromotions,
+                        },
+                    }
+                );
+                proDoc.prices = updatedProPrices;
+                proDoc.promotions = updatedProPromotions;
+            }
+        }
+
+        // Verificar y actualizar Wappy Vital
+        const ipevarDoc = plans.find((p) => p.planId === 'ipevar');
         if (!ipevarDoc) {
-            await Plan.create({ planId: 'ipevar', name: 'Wappy Vital', prices: { monthly: 35000, quarterly: 99000, semiannual: 185000, annual: 350000, lifetime: 100000 }, stripePriceIds: { lifetime: 'vital_multi_interval_v1' } });
+            await Plan.create({
+                planId: 'ipevar',
+                name: 'Wappy Vital',
+                prices: { monthly: 119000, quarterly: 345000, semiannual: 669000, annual: 1190000, lifetime: 100000 },
+                promotions: {
+                    monthly: { active: false, text: '', discountPercentage: 0 },
+                    quarterly: { active: true, text: 'Ahorra 10%', discountPercentage: 10 },
+                    semiannual: { active: true, text: 'Ahorra 20%', discountPercentage: 20 },
+                    annual: { active: true, text: 'Ahorra 30%', discountPercentage: 30 },
+                    lifetime: { active: false, text: '', discountPercentage: 0 },
+                },
+                stripePriceIds: { lifetime: 'vital_multi_interval_v2' },
+            });
             const newPlans = await Plan.find().lean();
             return res.status(200).json(newPlans);
         } else if (
-            !ipevarDoc.prices?.monthly &&
-            !ipevarDoc.prices?.quarterly &&
-            !ipevarDoc.prices?.semiannual &&
-            ipevarDoc.stripePriceIds?.lifetime !== 'vital_multi_interval_v1'
+            ipevarDoc.prices?.monthly === 35000 ||
+            ipevarDoc.prices?.annual === 350000 ||
+            !ipevarDoc.prices?.monthly ||
+            ipevarDoc.stripePriceIds?.lifetime !== 'vital_multi_interval_v2'
         ) {
-            const annualBase = ipevarDoc.prices?.annual || 350000;
             const seededPrices = {
-                monthly: 35000,
-                quarterly: 99000,
-                semiannual: 185000,
-                annual: annualBase,
+                monthly: ipevarDoc.prices?.monthly && ipevarDoc.prices?.monthly !== 35000 ? ipevarDoc.prices.monthly : 119000,
+                quarterly: ipevarDoc.prices?.quarterly && ipevarDoc.prices?.quarterly !== 99000 ? ipevarDoc.prices.quarterly : 345000,
+                semiannual: ipevarDoc.prices?.semiannual && ipevarDoc.prices?.semiannual !== 185000 ? ipevarDoc.prices.semiannual : 669000,
+                annual: ipevarDoc.prices?.annual && ipevarDoc.prices?.annual !== 350000 ? ipevarDoc.prices.annual : 1190000,
                 lifetime: ipevarDoc.prices?.lifetime || 100000,
+            };
+            const seededPromotions = {
+                monthly: ipevarDoc.promotions?.monthly ?? { active: false, text: '', discountPercentage: 0 },
+                quarterly: ipevarDoc.promotions?.quarterly ?? { active: true, text: 'Ahorra 10%', discountPercentage: 10 },
+                semiannual: ipevarDoc.promotions?.semiannual ?? { active: true, text: 'Ahorra 20%', discountPercentage: 20 },
+                annual: ipevarDoc.promotions?.annual ?? { active: true, text: 'Ahorra 30%', discountPercentage: 30 },
+                lifetime: ipevarDoc.promotions?.lifetime ?? { active: false, text: '', discountPercentage: 0 },
             };
             await Plan.updateOne(
                 { planId: 'ipevar' },
@@ -53,24 +128,27 @@ const getPlans = async (req, res) => {
                     $set: {
                         name: 'Wappy Vital',
                         prices: seededPrices,
-                        'stripePriceIds.lifetime': 'vital_multi_interval_v1',
+                        promotions: seededPromotions,
+                        'stripePriceIds.lifetime': 'vital_multi_interval_v2',
                     },
                 }
             );
             ipevarDoc.name = 'Wappy Vital';
             ipevarDoc.prices = seededPrices;
+            ipevarDoc.promotions = seededPromotions;
         }
 
-        // Ensure all plans (especially ipevar) have normalized interval structures for admin & /planes
+        // Ensure all plans (especially ipevar and pro) have normalized interval structures for admin & /planes
         const normalizedPlans = plans.map((p) => {
             if (p.planId === 'ipevar') {
                 return {
                     ...p,
+                    name: 'Wappy Vital',
                     prices: {
-                        monthly: p.prices?.monthly ?? 0,
-                        quarterly: p.prices?.quarterly ?? 0,
-                        semiannual: p.prices?.semiannual ?? 0,
-                        annual: p.prices?.annual ?? p.prices?.lifetime ?? 350000,
+                        monthly: p.prices?.monthly ?? 119000,
+                        quarterly: p.prices?.quarterly ?? 345000,
+                        semiannual: p.prices?.semiannual ?? 669000,
+                        annual: p.prices?.annual ?? 1190000,
                         lifetime: p.prices?.lifetime ?? 100000,
                     },
                     stripePriceIds: {
@@ -82,10 +160,27 @@ const getPlans = async (req, res) => {
                     },
                     promotions: {
                         monthly: p.promotions?.monthly ?? { active: false, text: '', discountPercentage: 0 },
-                        quarterly: p.promotions?.quarterly ?? { active: false, text: '', discountPercentage: 0 },
-                        semiannual: p.promotions?.semiannual ?? { active: false, text: '', discountPercentage: 0 },
-                        annual: p.promotions?.annual ?? { active: false, text: '', discountPercentage: 0 },
+                        quarterly: p.promotions?.quarterly ?? { active: true, text: 'Ahorra 10%', discountPercentage: 10 },
+                        semiannual: p.promotions?.semiannual ?? { active: true, text: 'Ahorra 20%', discountPercentage: 20 },
+                        annual: p.promotions?.annual ?? { active: true, text: 'Ahorra 30%', discountPercentage: 30 },
                         lifetime: p.promotions?.lifetime ?? { active: false, text: '', discountPercentage: 0 },
+                    },
+                };
+            }
+            if (p.planId === 'pro') {
+                return {
+                    ...p,
+                    prices: {
+                        monthly: p.prices?.monthly ?? 179000,
+                        quarterly: p.prices?.quarterly ?? 518600,
+                        semiannual: p.prices?.semiannual ?? 1005000,
+                        annual: p.prices?.annual ?? 1790000,
+                    },
+                    promotions: {
+                        monthly: p.promotions?.monthly ?? { active: false, text: '', discountPercentage: 0 },
+                        quarterly: p.promotions?.quarterly ?? { active: true, text: 'Ahorra 10%', discountPercentage: 10 },
+                        semiannual: p.promotions?.semiannual ?? { active: true, text: 'Ahorra 20%', discountPercentage: 20 },
+                        annual: p.promotions?.annual ?? { active: true, text: 'Ahorra 30%', discountPercentage: 30 },
                     },
                 };
             }

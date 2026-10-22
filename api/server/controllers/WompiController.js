@@ -142,18 +142,24 @@ const getPublicPlansConfig = async (req, res) => {
         const ipevarDoc = plans.find(p => p.planId === 'ipevar');
         if (
             ipevarDoc &&
-            !ipevarDoc.prices?.monthly &&
-            !ipevarDoc.prices?.quarterly &&
-            !ipevarDoc.prices?.semiannual &&
-            ipevarDoc.stripePriceIds?.lifetime !== 'vital_multi_interval_v1'
+            (ipevarDoc.prices?.monthly === 35000 ||
+             ipevarDoc.prices?.annual === 350000 ||
+             !ipevarDoc.prices?.monthly ||
+             ipevarDoc.stripePriceIds?.lifetime !== 'vital_multi_interval_v2')
         ) {
-            const annualBase = ipevarDoc.prices?.annual || 350000;
             const seededPrices = {
-                monthly: 35000,
-                quarterly: 99000,
-                semiannual: 185000,
-                annual: annualBase,
+                monthly: ipevarDoc.prices?.monthly && ipevarDoc.prices?.monthly !== 35000 ? ipevarDoc.prices.monthly : 119000,
+                quarterly: ipevarDoc.prices?.quarterly && ipevarDoc.prices?.quarterly !== 99000 ? ipevarDoc.prices.quarterly : 345000,
+                semiannual: ipevarDoc.prices?.semiannual && ipevarDoc.prices?.semiannual !== 185000 ? ipevarDoc.prices.semiannual : 669000,
+                annual: ipevarDoc.prices?.annual && ipevarDoc.prices?.annual !== 350000 ? ipevarDoc.prices.annual : 1190000,
                 lifetime: ipevarDoc.prices?.lifetime || 100000,
+            };
+            const seededPromotions = {
+                monthly: ipevarDoc.promotions?.monthly ?? { active: false, text: '', discountPercentage: 0 },
+                quarterly: ipevarDoc.promotions?.quarterly ?? { active: true, text: 'Ahorra 10%', discountPercentage: 10 },
+                semiannual: ipevarDoc.promotions?.semiannual ?? { active: true, text: 'Ahorra 20%', discountPercentage: 20 },
+                annual: ipevarDoc.promotions?.annual ?? { active: true, text: 'Ahorra 30%', discountPercentage: 30 },
+                lifetime: ipevarDoc.promotions?.lifetime ?? { active: false, text: '', discountPercentage: 0 },
             };
             await Plan.updateOne(
                 { planId: 'ipevar' },
@@ -161,12 +167,14 @@ const getPublicPlansConfig = async (req, res) => {
                     $set: {
                         name: 'Wappy Vital',
                         prices: seededPrices,
-                        'stripePriceIds.lifetime': 'vital_multi_interval_v1',
+                        promotions: seededPromotions,
+                        'stripePriceIds.lifetime': 'vital_multi_interval_v2',
                     },
                 }
             );
             ipevarDoc.name = 'Wappy Vital';
             ipevarDoc.prices = seededPrices;
+            ipevarDoc.promotions = seededPromotions;
         }
         return res.json(plans);
     } catch (error) {
@@ -411,7 +419,7 @@ const createTransaction = async (req, res) => {
         
         if (!planDoc && planId === 'ipevar') {
             // Auto-seed ipevar if missing
-            await Plan.create({ planId: 'ipevar', name: 'IPEVAR', prices: { monthly: 0, quarterly: 0, semiannual: 0, annual: 350000 } });
+            await Plan.create({ planId: 'ipevar', name: 'Wappy Vital', prices: { monthly: 119000, quarterly: 345000, semiannual: 669000, annual: 1190000, lifetime: 100000 } });
             planDoc = await Plan.findOne({ planId }).lean();
         }
 
@@ -1023,7 +1031,7 @@ const createManualTransaction = async (req, res) => {
         
         if (!planDoc && planId === 'ipevar') {
             // Auto-seed ipevar if missing
-            await Plan.create({ planId: 'ipevar', name: 'IPEVAR', prices: { monthly: 0, quarterly: 0, semiannual: 0, annual: 350000 } });
+            await Plan.create({ planId: 'ipevar', name: 'Wappy Vital', prices: { monthly: 119000, quarterly: 345000, semiannual: 669000, annual: 1190000, lifetime: 100000 } });
             planDoc = await Plan.findOne({ planId }).lean();
         }
 
@@ -1193,7 +1201,7 @@ const guestCheckout = async (req, res) => {
         // ── 2. Calculate price (same logic as createTransaction) ──────────
         let planDoc = await Plan.findOne({ planId }).lean();
         if (!planDoc && planId === 'ipevar') {
-            await Plan.create({ planId: 'ipevar', name: 'IPEVAR', prices: { monthly: 0, quarterly: 0, semiannual: 0, annual: 350000 } });
+            await Plan.create({ planId: 'ipevar', name: 'Wappy Vital', prices: { monthly: 119000, quarterly: 345000, semiannual: 669000, annual: 1190000, lifetime: 100000 } });
             planDoc = await Plan.findOne({ planId }).lean();
         }
         if (!planDoc) return res.status(500).json({ error: `Plan ${planId} no configurado en DB` });

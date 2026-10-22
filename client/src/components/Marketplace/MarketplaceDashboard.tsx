@@ -42,9 +42,7 @@ const MarketplaceContent: React.FC = () => {
 
   const [completedOrderNumber, setCompletedOrderNumber] = useState<string | null>(null);
 
-  const isAdmin =
-    user?.role === 'ADMIN' ||
-    user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com';
+  const isAdmin = user?.role === 'ADMIN';
 
   const handleCheckoutSuccess = (orderNumber: string) => {
     setCompletedOrderNumber(orderNumber);

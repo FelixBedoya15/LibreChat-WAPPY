@@ -42,9 +42,7 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
   const { user } = useAuthContext();
   const { addToCart, setIsCheckoutOpen, openEditProduct } = useMarketplace();
 
-  const isAdmin =
-    user?.role === 'ADMIN' ||
-    user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com';
+  const isAdmin = user?.role === 'ADMIN';
 
   // Find first variant group
   const variantGroup = product?.variants?.[0];

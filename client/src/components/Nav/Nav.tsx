@@ -98,18 +98,22 @@ const Nav = memo(
 
     const hasAccessToAgents = hasPermission(PermissionTypes.AGENTS);
     const { hasAmbassadorAccess } = useAmbassadorAccess();
-    const isAdmin = user?.role === 'ADMIN' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com';
+    const isAdmin = user?.role === 'ADMIN';
     const isPro = user?.role === 'USER_PRO' || user?.role === 'PRO';
-    const isVital = user?.role === 'USER_IPEVAR' || user?.role === 'IPEVAR';
+    const isVital =
+      ['USER_IPEVAR', 'IPEVAR', 'USER_VITAL', 'VITAL'].includes(user?.role) ||
+      ['ipevar', 'vital'].includes(user?.plan);
     
     // Base permission for SG-SST / Huella Biocéntrica (regular users or subusers with sgsst/audit/events permissions)
     const hasSubUserSgsstPerm = !isSubUser || subPerms.some(p => p.startsWith('sgsst:') || p.startsWith('audit:') || p.startsWith('events:'));
 
-    // Somos SST: visible solo para Wappy Pro, Admin y sub-usuarios de cuentas Pro
-    const hasAccessToSGSST = hasSubUserSgsstPerm && (isAdmin || isPro || (isSubUser && !isVital));
+    // Somos SST: visible solo para Wappy Pro, Admin y sub-usuarios de cuentas Pro.
+    // ESTRICTAMENTE OCULTA para cuentas Wappy Vital.
+    const hasAccessToSGSST = !isVital && hasSubUserSgsstPerm && (isAdmin || isPro || (isSubUser && !isVital));
 
-    // Huella Biocéntrica: visible solo para Wappy Vital, Admin y sub-usuarios de cuentas Vital
-    const hasAccessToHuellaBiocentrica = hasSubUserSgsstPerm && (isAdmin || isVital);
+    // Huella Biocéntrica: visible EXCLUSIVAMENTE para Wappy Vital (y sub-usuarios de cuentas Vital).
+    // ESTRICTAMENTE OCULTA para cuentas Wappy Pro y para Admin (en Pro y Admin la gestión es en Hito 2 de Somos SST).
+    const hasAccessToHuellaBiocentrica = isVital && hasSubUserSgsstPerm;
 
     // Centro de Control / Kanban
     const hasAccessToKanban = !isSubUser || subPerms.includes('kanban:acpm') || subPerms.includes('audit:checklist') || subPerms.includes('events:calendar');
@@ -339,7 +343,7 @@ const Nav = memo(
                           </Suspense>
                         )}
                         {/* Comunidad (Solo ADMIN) */}
-                        {(user?.role === 'ADMIN' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
+                        {user?.role === 'ADMIN' && (
                           <Suspense fallback={null}>
                             <ChatSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
@@ -416,7 +420,7 @@ const Nav = memo(
                                 )}
 
                                 {/* 7. Comunidad (Solo ADMIN) */}
-                                {(user?.role === 'ADMIN' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
+                                {user?.role === 'ADMIN' && (
                                   <Suspense fallback={null}>
                                     <ChatSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>

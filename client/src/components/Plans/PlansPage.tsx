@@ -2414,9 +2414,15 @@ export default function PlansPage() {
                       if (fetchedConfig.promotions?.[billingInterval]?.active) {
                         promotion = fetchedConfig.promotions[billingInterval];
                       }
-                    } else if (billingInterval === 'annual') {
-                      rawPrice = 350000;
-                      displayPrice = '$350.000';
+                    } else {
+                      const vitalDefaults: Record<string, number> = {
+                        monthly: 119000,
+                        quarterly: 345000,
+                        semiannual: 669000,
+                        annual: 1190000,
+                      };
+                      rawPrice = vitalDefaults[billingInterval] || 1190000;
+                      displayPrice = '$' + rawPrice.toLocaleString('es-CO');
                     }
 
                     // Smart discount: discounts only apply to first-time purchases

@@ -37,9 +37,7 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 const MarketplaceCatalog: React.FC = () => {
   const { user } = useAuthContext();
   const { catalogRefreshKey, openEditProduct, setActiveTab, setSelectedProductDetail } = useMarketplace();
-  const isAdmin =
-    user?.role === 'ADMIN' ||
-    user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com';
+  const isAdmin = user?.role === 'ADMIN';
 
   const [products, setProducts] = useState<MarketplaceProduct[]>([]);
   const [categories, setCategories] = useState<MarketplaceCategory[]>([]);

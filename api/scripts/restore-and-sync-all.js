@@ -650,15 +650,51 @@ Formato (texto plano, 3 viñetas):
       { planId: 'ipevar' },
       {
         $set: {
-          'prices.annual': 350000,
-          name: 'IPEVAR',
+          name: 'Wappy Vital',
+          prices: {
+            monthly: 119000,
+            quarterly: 345000,
+            semiannual: 669000,
+            annual: 1190000,
+            lifetime: 100000,
+          },
+          promotions: {
+            monthly: { active: false, text: '', discountPercentage: 0 },
+            quarterly: { active: true, text: 'Ahorra 10%', discountPercentage: 10 },
+            semiannual: { active: true, text: 'Ahorra 20%', discountPercentage: 20 },
+            annual: { active: true, text: 'Ahorra 30%', discountPercentage: 30 },
+            lifetime: { active: false, text: '', discountPercentage: 0 },
+          },
           featuresText: [
-            'Acceso total a la Matriz IPEVAR',
-            'Valoraciones automáticas con IA',
+            'Acceso a Huella Biocéntrica',
+            'Matriz Bio-IPEVR (GTC 45) con IA',
+            'Perfiles de Cargo y Trabajadores',
+            'Evaluaciones Médicas Ocupacionales',
             'Generación de reportes PDF',
-            'Licencia por 1 año'
-          ]
-        }
+          ],
+        },
+      },
+      { upsert: true }
+    );
+
+    await Plan.updateOne(
+      { planId: 'pro' },
+      {
+        $set: {
+          name: 'Pro',
+          prices: {
+            monthly: 179000,
+            quarterly: 518600,
+            semiannual: 1005000,
+            annual: 1790000,
+          },
+          promotions: {
+            monthly: { active: false, text: '', discountPercentage: 0 },
+            quarterly: { active: true, text: 'Ahorra 10%', discountPercentage: 10 },
+            semiannual: { active: true, text: 'Ahorra 20%', discountPercentage: 20 },
+            annual: { active: true, text: 'Ahorra 30%', discountPercentage: 30 },
+          },
+        },
       },
       { upsert: true }
     );
@@ -674,13 +710,13 @@ Formato (texto plano, 3 viñetas):
           'visibility.showSectionAppPlans': true,
           'visibility.showSectionCustomPlan': false,
           'visibility.showSectionEnterprise': false,
-        }
+        },
       },
       { upsert: true }
     );
-    console.log('✅ Plan Wappy Vital (ipevar) actualizado a $350.000 COP anual y visibilidad sincronizada en MongoDB.');
+    console.log('✅ Planes Wappy Pro y Wappy Vital sincronizados con precios oficiales y promociones en MongoDB.');
   } catch (err) {
-    console.error('⚠️ Error sincronizando Plan Wappy Vital en MongoDB:', err.message);
+    console.error('⚠️ Error sincronizando Planes WAPPY en MongoDB:', err.message);
   }
 
   await mongoose.disconnect();

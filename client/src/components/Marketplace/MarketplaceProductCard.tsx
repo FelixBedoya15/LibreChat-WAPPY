@@ -38,9 +38,7 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
   const cardImgPos = parsePos(product.featuredImagePosition);
   const cardImgScale = (product.featuredImageScale || 100) / 100;
 
-  const isAdmin =
-    user?.role === 'ADMIN' ||
-    user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com';
+  const isAdmin = user?.role === 'ADMIN';
   const isDraftOrTest = product.status === 'draft' || product.isTest;
 
   const serviceBadge = SERVICE_TYPE_LABELS[product.serviceType] || SERVICE_TYPE_LABELS.service_virtual;

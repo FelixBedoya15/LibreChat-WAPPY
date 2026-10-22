@@ -529,19 +529,13 @@ const getProducts = async (req, res) => {
     await ensureSeedData();
     const { category, search, tag, sort, featured, includeAll } = req.query;
 
-    const isAdmin = !!(req.user && (
-      req.user.role === 'ADMIN' ||
-      req.user.email?.toLowerCase() === 'felix.bedoya15@gmail.com'
-    ));
+    const isAdmin = !!(req.user && req.user.role === 'ADMIN');
 
     const query = {};
-    if (!isAdmin) {
-      // Non-admin users and visitors ONLY see official published products (never draft or test products)
+    if (!isAdmin || includeAll !== 'true') {
+      // In public catalog view (or non-admin), ONLY official published products are shown (never drafts or test products)
       query.status = 'published';
       query.isTest = { $ne: true };
-    } else if (includeAll !== 'true') {
-      // Admin in catalog view sees both published and draft products
-      query.status = { $in: ['published', 'draft'] };
     }
 
     if (category && category !== 'all') {
@@ -595,10 +589,7 @@ const getProductBySlugOrId = async (req, res) => {
       return res.status(404).json({ error: 'Servicio no encontrado.' });
     }
 
-    const isAdmin = !!(req.user && (
-      req.user.role === 'ADMIN' ||
-      req.user.email?.toLowerCase() === 'felix.bedoya15@gmail.com'
-    ));
+    const isAdmin = !!(req.user && req.user.role === 'ADMIN');
 
     // If it is a test or draft product, only admins can view it
     if ((product.isTest || product.status === 'draft') && !isAdmin) {
