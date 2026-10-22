@@ -189,8 +189,9 @@ router.get('/all', requireJwtAuth, async (req, res) => {
                 companies = await CompanyInfo.find({ user: targetUserId }).sort({ createdAt: 1 }).lean();
             }
             
-            if (companies && companies.length > 0) {
-                // Background migration: assign any null companyId data to the oldest company
+            if (companies && companies.length === 1) {
+                // Background migration: only auto-assign null companyId data if the user has a single company.
+                // For multi-company users, blindly assigning null companyId docs to companies[0] causes cross-company contamination!
                 migrateLegacyData(targetUserId, companies[0]._id).catch(e => logger.error('[SGSST] Migration error:', e));
             }
         }

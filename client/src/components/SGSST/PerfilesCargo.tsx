@@ -684,9 +684,14 @@ const PerfilesCargo = () => {
     const [isListening, setIsListening] = useState(false);
     const [interimText, setInterimText] = useState('');
     const recognitionRef = useRef<any>(null);
+    const loadedCompanyIdRef = useRef<string | null>(null);
 
-    // ─── Load saved profiles ────────────────────────────────────────────────
-    useEffect(() => {
+    // ─── Matriz IPEVAR Oficial Integration ────────────────────────────────────
+    const [officialMatrixRows, setOfficialMatrixRows] = useState<any[]>([]);
+    const [isIpevarHazardsExpanded, setIsIpevarHazardsExpanded] = useState(false);
+
+    // ─── Load saved profiles & Official Matrix (with strict company tracking) ─
+    const loadPerfilesAndMatrix = useCallback(() => {
         if (!token) return;
         setIsLoadingPerfiles(true);
         fetch('/api/sgsst/perfiles-cargo/data', {
@@ -694,6 +699,7 @@ const PerfilesCargo = () => {
         })
             .then(res => res.json())
             .then(data => {
+                loadedCompanyIdRef.current = data?.companyId ? String(data.companyId) : null;
                 if (data.perfilesList?.length) {
                     const sorted = data.perfilesList.map((p: any) => ({
                         ...p,
@@ -715,18 +721,14 @@ const PerfilesCargo = () => {
                     setPerfiles([initial]);
                     setActivePerfilId(initial.id);
                     setFormData(initial);
+                    setGeneratedReport(null);
+                    editorContentRef.current = '';
+                    liveEditorRef.current?.setHTML('');
                 }
             })
             .catch(err => console.error('[PerfilesCargo] Error loading data:', err))
             .finally(() => setIsLoadingPerfiles(false));
-    }, [token]);
 
-    // ─── Matriz IPEVAR Oficial Integration ────────────────────────────────────
-    const [officialMatrixRows, setOfficialMatrixRows] = useState<any[]>([]);
-    const [isIpevarHazardsExpanded, setIsIpevarHazardsExpanded] = useState(false);
-
-    useEffect(() => {
-        if (!token) return;
         fetch('/api/sgsst/gtc45-workspace/official', {
             headers: { Authorization: `Bearer ${token}` },
         })
@@ -734,10 +736,45 @@ const PerfilesCargo = () => {
             .then(data => {
                 if (data?.matrixRows && Array.isArray(data.matrixRows)) {
                     setOfficialMatrixRows(data.matrixRows);
+                } else {
+                    setOfficialMatrixRows([]);
                 }
             })
             .catch(err => console.error('[PerfilesCargo] Error loading official matrix:', err));
     }, [token]);
+
+    useEffect(() => {
+        loadPerfilesAndMatrix();
+    }, [loadPerfilesAndMatrix]);
+
+    useEffect(() => {
+        const handleCompanyChange = () => {
+            loadPerfilesAndMatrix();
+        };
+        window.addEventListener('wappy-empresa-cambiada', handleCompanyChange);
+        window.addEventListener('wappy-reload-sgsst-data', handleCompanyChange);
+        return () => {
+            window.removeEventListener('wappy-empresa-cambiada', handleCompanyChange);
+            window.removeEventListener('wappy-reload-sgsst-data', handleCompanyChange);
+        };
+    }, [loadPerfilesAndMatrix]);
+
+    const persistPerfilesList = useCallback(async (list: PerfilCargoData[]) => {
+        if (!token) return { ok: false, mismatch: false };
+        const res = await fetch('/api/sgsst/perfiles-cargo/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+                perfilesList: list,
+                companyId: loadedCompanyIdRef.current,
+            }),
+        });
+        if (res.status === 409) {
+            loadPerfilesAndMatrix();
+            return { ok: false, mismatch: true };
+        }
+        return { ok: res.ok, mismatch: false };
+    }, [token, loadPerfilesAndMatrix]);
 
     // ─── Sincronizar cargos de la Matriz IPEVAR manualmente a través del botón ──
 
@@ -786,6 +823,7 @@ const PerfilesCargo = () => {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                         body: JSON.stringify({
+                            companyId: loadedCompanyIdRef.current,
                             nombreCargo: r.cargo,
                             proceso: r.proceso,
                             actividad: r.actividad,
@@ -943,13 +981,16 @@ const PerfilesCargo = () => {
         showToast({ message: 'Nuevo perfil de cargo creado', severity: NotificationSeverity.INFO });
     };
 
-    const handleDeletePerfil = (id: string) => {
+    const handleDeletePerfil = async (id: string) => {
         const updated = perfiles.filter(p => p.id !== id);
         if (updated.length === 0) {
             const initial = createInitialPerfil();
             setPerfiles([initial]);
             setActivePerfilId(initial.id);
             setFormData(initial);
+            setGeneratedReport(null);
+            editorContentRef.current = '';
+            liveEditorRef.current?.setHTML('');
         } else {
             setPerfiles(updated);
             if (activePerfilId === id) {
@@ -959,6 +1000,14 @@ const PerfilesCargo = () => {
                 editorContentRef.current = updated[0].report || '';
                 liveEditorRef.current?.setHTML(updated[0].report || '');
             }
+        }
+        try {
+            const result = await persistPerfilesList(updated.filter(p => (p.nombreCargo || '').trim()));
+            if (result.ok) {
+                showToast({ message: 'Perfil de cargo eliminado', severity: NotificationSeverity.INFO });
+            }
+        } catch (err) {
+            console.error('[PerfilesCargo] Error al eliminar perfil:', err);
         }
     };
 
@@ -1022,15 +1071,13 @@ const PerfilesCargo = () => {
         // Persist new ordering directly to MongoDB
         if (token) {
             try {
-                await fetch('/api/sgsst/perfiles-cargo/save', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                    body: JSON.stringify({ perfilesList: updated }),
-                });
-                showToast({
-                    message: `Cargo "${movedItem.nombreCargo || 'Cargo'}" reordenado exitosamente`,
-                    severity: NotificationSeverity.SUCCESS,
-                });
+                const result = await persistPerfilesList(updated);
+                if (result.ok) {
+                    showToast({
+                        message: `Cargo "${movedItem.nombreCargo || 'Cargo'}" reordenado exitosamente`,
+                        severity: NotificationSeverity.SUCCESS,
+                    });
+                }
             } catch (err) {
                 console.error('[PerfilesCargo] Error al guardar orden de perfiles:', err);
                 showToast({
@@ -1154,11 +1201,7 @@ const PerfilesCargo = () => {
     const saveImportedPerfiles = async (list: PerfilCargoData[]) => {
         if (!token) return;
         try {
-            await fetch('/api/sgsst/perfiles-cargo/save', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ perfilesList: list }),
-            });
+            await persistPerfilesList(list);
         } catch (e) {
             console.error('Error saving imported profiles:', e);
         }
@@ -1394,12 +1437,8 @@ const PerfilesCargo = () => {
         const updatedPerfiles = perfiles.map(p => (p.id === activePerfilId ? { ...formData, report: editedReport || p.report } : p));
         setPerfiles(updatedPerfiles);
         try {
-            const res = await fetch('/api/sgsst/perfiles-cargo/save', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ perfilesList: updatedPerfiles }),
-            });
-            if (res.ok && !silent) showToast({ message: 'Guardado exitosamente', severity: NotificationSeverity.SUCCESS });
+            const result = await persistPerfilesList(updatedPerfiles);
+            if (result.ok && !silent) showToast({ message: 'Guardado exitosamente', severity: NotificationSeverity.SUCCESS });
         } catch {
             if (!silent) showToast({ message: 'Error al guardar', severity: NotificationSeverity.ERROR });
         }
@@ -1461,11 +1500,7 @@ const PerfilesCargo = () => {
                     p.id === activePerfilId ? { ...p, report: content } : p
                 );
                 setPerfiles(updatedPerfiles);
-                await fetch('/api/sgsst/perfiles-cargo/save', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                    body: JSON.stringify({ perfilesList: updatedPerfiles }),
-                });
+                await persistPerfilesList(updatedPerfiles);
                 setRefreshTrigger(prev => prev + 1);
                 showToast({ message: 'Guardado exitosamente', severity: NotificationSeverity.SUCCESS });
             }
@@ -1474,7 +1509,7 @@ const PerfilesCargo = () => {
         } finally {
             setIsSaving(false);
         }
-    }, [generatedReport, token, activePerfilId, formData.nombreCargo, showToast]);
+    }, [generatedReport, token, activePerfilId, formData.nombreCargo, showToast, perfiles, persistPerfilesList]);
 
     const handleSelectReport = useCallback(
         async (selectedConvoId: string) => {
@@ -1515,12 +1550,8 @@ const PerfilesCargo = () => {
             editorContentRef.current = '';
             liveEditorRef.current?.setHTML('');
 
-            const res = await fetch('/api/sgsst/perfiles-cargo/save', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ perfilesList: dummyProfiles }),
-            });
-            if (res.ok) {
+            const result = await persistPerfilesList(dummyProfiles);
+            if (result.ok) {
                 window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
                 showToast({ message: 'Base de datos completada con 20 perfiles de construcción con fotos y videos', severity: NotificationSeverity.SUCCESS });
             } else {

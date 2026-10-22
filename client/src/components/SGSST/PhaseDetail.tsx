@@ -125,6 +125,20 @@ const PhaseDetail = ({
     const [disabledApps, setDisabledApps] = useState<string[]>(DEFAULT_CONSTRUCTION_APPS);
     const isAdmin = user?.role === 'ADMIN';
     const [isEditorFullscreen, setIsEditorFullscreen] = useState(false);
+    const [activeCompanyId, setActiveCompanyId] = useState<string>(() => localStorage.getItem('wappy_active_company_id') || 'default');
+
+    useEffect(() => {
+        const syncActiveCompany = (e?: any) => {
+            const nextId = e?.detail?.companyId || localStorage.getItem('wappy_active_company_id') || 'default';
+            setActiveCompanyId(String(nextId));
+        };
+        window.addEventListener('wappy-empresa-cambiada', syncActiveCompany);
+        window.addEventListener('storage', syncActiveCompany);
+        return () => {
+            window.removeEventListener('wappy-empresa-cambiada', syncActiveCompany);
+            window.removeEventListener('storage', syncActiveCompany);
+        };
+    }, []);
 
     // Listen for LiveEditor fullscreen events to neutralize clipping ancestors
     useEffect(() => {
@@ -485,7 +499,7 @@ const PhaseDetail = ({
 
                                 {/* Category Content */}
                                 {isExpanded && (
-                                    <div className="px-5 md:px-7 pb-7 pt-5 border-t border-border-light dark:border-white/5 bg-gradient-to-b from-surface-secondary/10 to-transparent">
+                                    <div key={`${category.id}-${activeCompanyId}`} className="px-5 md:px-7 pb-7 pt-5 border-t border-border-light dark:border-white/5 bg-gradient-to-b from-surface-secondary/10 to-transparent">
                                         {/* Bio Rationale y Normatividad */}
                                         {(category as any).bioRationale && (
                                             <div className="mb-6 bg-surface-primary/60 dark:bg-black/20 rounded-2xl p-5 border border-border-light dark:border-white/5 shadow-inner">

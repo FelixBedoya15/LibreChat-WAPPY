@@ -476,12 +476,14 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
             });
             
             if (res.ok) {
+                const savedCompany = await res.json().catch(() => null);
+                const resolvedId = savedCompany?._id || data._id;
                 showToast({ message: 'Información de la empresa guardada', status: 'success', severity: 'success' });
                 const draftKey = `wappy_company_draft_${data._id || 'new'}`;
                 localStorage.removeItem(draftKey);
 
-                if (data.isActive || companies.length === 0 || companies.find(c => c._id === data._id)?.isActive) {
-                    if (data._id) localStorage.setItem('wappy_active_company_id', data._id);
+                if (isNew || savedCompany?.isActive || data.isActive || companies.length === 0 || companies.find(c => c._id === data._id)?.isActive) {
+                    if (resolvedId) localStorage.setItem('wappy_active_company_id', resolvedId);
                     if (data.companyName) localStorage.setItem('wappy_active_company_name', data.companyName);
                     if (data.nit) localStorage.setItem('wappy_active_company_nit', data.nit);
                     if (data.arl) localStorage.setItem('wappy_active_company_arl', data.arl);
@@ -493,7 +495,28 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                     } else {
                         localStorage.removeItem('wappy_sst_global_logo');
                     }
+
+                    if (isNew) {
+                        const keysToRemove = [
+                            'sgsst_diagnostico_form',
+                            'sgsst_auditoria_form',
+                            'sgsst_politica_form',
+                            'sgsst_objetivos_form',
+                            'sgsst_responsable_form',
+                            'wappy_brigada_emergencias_draft',
+                            'wappy_simulacros_emergencia_draft',
+                            'wappy_matriz_legal_custom_items',
+                            'wappy_company_draft_new',
+                        ];
+                        keysToRemove.forEach(k => {
+                            try { localStorage.removeItem(k); } catch (e) {}
+                        });
+                        try { sessionStorage.clear(); } catch {}
+                    }
+
                     window.dispatchEvent(new Event('storage'));
+                    window.dispatchEvent(new CustomEvent('wappy-empresa-cambiada', { detail: { companyId: resolvedId, companyName: data.companyName } }));
+                    window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
                 }
 
                 await loadCompanies();

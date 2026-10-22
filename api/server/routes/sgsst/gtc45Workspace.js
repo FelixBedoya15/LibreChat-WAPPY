@@ -33,29 +33,28 @@ router.get('/official', requireJwtAuth, async (req, res) => {
     const companyId = await getActiveCompanyId(userId);
     const officialConvoId = `official-${companyId || userId}`;
 
-    // 1. Buscar sesión marcada explícitamente como oficial
+    // 1. Buscar sesión marcada explícitamente como oficial con filas
     let session = await GTC45WorkspaceSession.findOne({
       user: userId,
-      ...(companyId ? { companyId } : {}),
+      ...(companyId ? { companyId } : { $or: [{ companyId: null }, { companyId: { $exists: false } }] }),
       isOfficial: true,
+      'matrixRows.0': { $exists: true },
     });
 
-    // 2. Fallback a la sesión maestra 'official-*'
-    if (!session) {
-      session = await GTC45WorkspaceSession.findOne({ conversationId: officialConvoId });
-    }
-
-    // 3. Fallback a la última sesión del usuario o empresa que tenga filas de matriz
+    // 2. Fallback a la sesión maestra 'official-*' con filas
     if (!session) {
       session = await GTC45WorkspaceSession.findOne({
-        user: userId,
+        conversationId: officialConvoId,
         ...(companyId ? { companyId } : {}),
         'matrixRows.0': { $exists: true },
-      }).sort({ updatedAt: -1 });
+      });
     }
-    if (!session && !companyId) {
+
+    // 3. Fallback a la última sesión de la empresa activa que tenga filas de matriz
+    if (!session) {
       session = await GTC45WorkspaceSession.findOne({
         user: userId,
+        ...(companyId ? { companyId } : { $or: [{ companyId: null }, { companyId: { $exists: false } }] }),
         'matrixRows.0': { $exists: true },
       }).sort({ updatedAt: -1 });
     }
@@ -334,29 +333,40 @@ router.get('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
     logger.debug(`[GTC45Workspace GET] primary lookup result: ${session ? `found (rows=${session.matrixRows?.length})` : 'NOT FOUND'}`);
 
     if (!session) {
-      session = await GTC45WorkspaceSession.findOne({ conversationId });
-      logger.debug(`[GTC45Workspace GET] fallback lookup result: ${session ? `found (user=${session.user}, rows=${session.matrixRows?.length})` : 'NOT FOUND'}`);
-      if (session) {
+      const anySession = await GTC45WorkspaceSession.findOne({ conversationId });
+      logger.debug(`[GTC45Workspace GET] fallback lookup result: ${anySession ? `found (user=${anySession.user}, companyId=${anySession.companyId}, rows=${anySession.matrixRows?.length})` : 'NOT FOUND'}`);
+      if (anySession) {
+        // Si la sesión ya tiene un companyId distinto a la empresa activa actual, pertenece a OTRA empresa.
+        // No adoptarla ni devolver sus filas para evitar mezclar datos entre empresas.
+        if (anySession.companyId && companyId && String(anySession.companyId) !== String(companyId)) {
+          logger.info(`[GTC45Workspace GET] Session ${conversationId} belongs to company ${anySession.companyId}, not active company ${companyId}. Returning empty to prevent cross-company mix.`);
+          return res.json({ matrixRows: [], chartConclusions: {}, companyMismatch: true });
+        }
         let modified = false;
-        if (!session.user) {
-          session.user = userId;
+        if (!anySession.user) {
+          anySession.user = userId;
           modified = true;
         }
-        if (!session.companyId && companyId) {
-          session.companyId = companyId;
+        if (!anySession.companyId && companyId) {
+          anySession.companyId = companyId;
           modified = true;
         }
         if (modified) {
-          await session.save();
+          await anySession.save();
           logger.info(`[GTC45Workspace GET] Adopted and populated user/companyId for legacy session ${conversationId}`);
         }
+        session = anySession;
       }
     }
 
-    // Fallback: si es una conversación real y no encontramos sesión, buscamos la temporal
+    // Fallback: si es una conversación real y no encontramos sesión, buscamos la temporal de la misma empresa
     if (!session && conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
       const tempId = `temp-${userId}`;
-      const tempSession = await GTC45WorkspaceSession.findOne({ conversationId: tempId, user: userId });
+      const tempSession = await GTC45WorkspaceSession.findOne({
+        conversationId: tempId,
+        user: userId,
+        ...(companyId ? { $or: [{ companyId }, { companyId: null }, { companyId: { $exists: false } }] } : {}),
+      });
       if (tempSession && tempSession.matrixRows && tempSession.matrixRows.length > 0) {
         tempSession.conversationId = conversationId;
         tempSession.companyId = companyId;
@@ -411,10 +421,13 @@ router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
       zona: toSentenceCase(row.zona)
     }));
 
+    const existingSession = await GTC45WorkspaceSession.findOne({ conversationId }).select('companyId').lean();
+    const effectiveCompanyId = existingSession?.companyId || companyId;
+
     let session = await GTC45WorkspaceSession.findOneAndUpdate(
-      { conversationId, companyId: companyId },
+      { conversationId },
       {
-        $set: { matrixRows: normalizedRows, companyId },
+        $set: { matrixRows: normalizedRows, companyId: effectiveCompanyId },
         $setOnInsert: { user: userId },
       },
       { upsert: true, new: true },
@@ -426,8 +439,8 @@ router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
       logger.info(`[GTC45Workspace PUT] Deleted temporary session for user ${userId} since real session was created.`);
     }
 
-    // Sincronización en paralelo con Somos SST (Matriz Oficial)
-    const officialConvoId = `official-${companyId || userId}`;
+    // Sincronización en paralelo con Somos SST (Matriz Oficial de esa misma empresa)
+    const officialConvoId = `official-${effectiveCompanyId || userId}`;
     const isOfficialSource = session.isOfficial || (await GTC45WorkspaceSession.exists({ conversationId: officialConvoId, sourceConversationId: conversationId }));
     if (isOfficialSource && conversationId !== officialConvoId) {
       await GTC45WorkspaceSession.findOneAndUpdate(
@@ -507,23 +520,32 @@ router.delete('/clear-temp-sessions', requireJwtAuth, async (req, res) => {
 // ─── IA: Actualizar una fila con IA (contexto = solo esa fila) ─────────────────
 router.post('/ai-update-row', requireJwtAuth, async (req, res) => {
   try {
-    const { row, workerId } = req.body;
+    const { row, workerId, conversationId } = req.body;
     const userId = req.user?.id;
 
     if (!row) return res.status(400).json({ error: 'Se requiere el objeto row.' });
 
-    const companyId = await getActiveCompanyId(userId);
+    const activeCompanyId = await getActiveCompanyId(userId);
+    let companyId = activeCompanyId;
+    if (conversationId && conversationId !== 'new' && !conversationId.startsWith('official')) {
+      const existingSession = await GTC45WorkspaceSession.findOne({ conversationId }).select('companyId').lean();
+      if (existingSession?.companyId) {
+        companyId = existingSession.companyId;
+      }
+    }
 
     // Obtener perfiles de cargo de la empresa para sugerir con prioridad
     let companyCargos = Array.isArray(req.body.availableCargos) ? req.body.availableCargos : [];
-    if (companyCargos.length === 0) {
+    if (companyCargos.length === 0 || (activeCompanyId && companyId && String(activeCompanyId) !== String(companyId))) {
+      companyCargos = [];
       const PerfilCargoModel = mongoose.models.PerfilCargoData;
       if (PerfilCargoModel) {
         try {
-          const cargoDoc = await PerfilCargoModel.findOne({
-            user: userId,
-            ...(companyId ? { companyId } : {}),
-          }).lean();
+          const cargoDoc = await PerfilCargoModel.findOne(
+            companyId
+              ? { user: userId, companyId }
+              : { user: userId, $or: [{ companyId: null }, { companyId: { $exists: false } }] }
+          ).lean();
           if (cargoDoc && Array.isArray(cargoDoc.perfilesList)) {
             companyCargos = cargoDoc.perfilesList
               .map(p => p.nombreCargo)
@@ -1307,9 +1329,15 @@ Escribe en español técnico, sin encabezados, sin bullets, como párrafo fluido
     const conclusion = result.response.text().trim();
 
     // Persist the conclusion in MongoDB
+    const companyId = await getActiveCompanyId(userId);
+    const existingSession = await GTC45WorkspaceSession.findOne({ conversationId }).select('companyId').lean();
+    const effectiveCompanyId = existingSession?.companyId || companyId;
     await GTC45WorkspaceSession.findOneAndUpdate(
       { conversationId },
-      { $set: { [`chartConclusions.${chartType}`]: conclusion } },
+      {
+        $set: { [`chartConclusions.${chartType}`]: conclusion, companyId: effectiveCompanyId },
+        $setOnInsert: { user: userId },
+      },
       { upsert: true, new: true }
     );
 
@@ -1568,12 +1596,21 @@ ${JSON.stringify(chunk, null, 2)}
 router.post('/auto-assign-cargos', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const companyId = await getActiveCompanyId(userId);
+    const activeCompanyId = await getActiveCompanyId(userId);
     const modelName = req.body.modelName || SGSST_FALLBACK_MODELS[0];
     const { matrixRows, conversationId } = req.body;
 
     if (!matrixRows || !Array.isArray(matrixRows) || matrixRows.length === 0) {
       return res.status(400).json({ error: 'No se enviaron filas de la matriz para procesar.' });
+    }
+
+    // Determinar a qué empresa pertenece realmente esta sesión para jamás cruzar perfiles entre empresas
+    let companyId = activeCompanyId;
+    if (conversationId && conversationId !== 'official' && !conversationId.startsWith('official-') && conversationId !== 'new') {
+      const existingSession = await GTC45WorkspaceSession.findOne({ conversationId }).select('companyId').lean();
+      if (existingSession?.companyId) {
+        companyId = existingSession.companyId;
+      }
     }
 
     // 1. Obtener los perfiles de cargo existentes de la empresa con descripción completa
@@ -1582,10 +1619,11 @@ router.post('/auto-assign-cargos', requireJwtAuth, async (req, res) => {
     let perfilesDetallados = [];
     if (PerfilCargoModel) {
       try {
-        const cargoDoc = await PerfilCargoModel.findOne({
-          user: userId,
-          ...(companyId ? { companyId } : {}),
-        }).lean();
+        const cargoDoc = await PerfilCargoModel.findOne(
+          companyId
+            ? { user: userId, companyId }
+            : { user: userId, $or: [{ companyId: null }, { companyId: { $exists: false } }] }
+        ).lean();
         if (cargoDoc && Array.isArray(cargoDoc.perfilesList)) {
           perfilesDetallados = cargoDoc.perfilesList
             .filter((p) => p && p.nombreCargo)

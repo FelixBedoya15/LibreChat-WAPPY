@@ -85,15 +85,16 @@ async function ensurePerfilExists(userId, companyId, cargoName, contextInfo = {}
   }
 
   const formattedName = toSentenceCase(cleanName);
-  let doc = await PerfilCargoData.findOne({
-    user: userId,
-    ...(companyId ? { companyId } : {}),
-  });
+  const resolvedCompanyId = companyId || (await getActiveCompanyId(userId));
+  const filter = resolvedCompanyId
+    ? { user: userId, companyId: resolvedCompanyId }
+    : { user: userId, $or: [{ companyId: null }, { companyId: { $exists: false } }] };
+  let doc = await PerfilCargoData.findOne(filter);
 
   if (!doc) {
     doc = new PerfilCargoData({
       user: userId,
-      companyId: companyId || undefined,
+      companyId: resolvedCompanyId || undefined,
       perfilesList: [],
     });
   }
@@ -282,58 +283,21 @@ async function ensurePerfilExists(userId, companyId, cargoName, contextInfo = {}
 router.get('/data', requireJwtAuth, async (req, res) => {
   try {
     const companyId = await getActiveCompanyId(req.user.id);
-    let data = await PerfilCargoData.findOne({ user: req.user.id, companyId: companyId }).lean();
+    const filter = companyId
+      ? { user: req.user.id, companyId }
+      : { user: req.user.id, $or: [{ companyId: null }, { companyId: { $exists: false } }] };
+    const data = await PerfilCargoData.findOne(filter).lean();
 
-    // Si ya existen perfiles registrados, responder de inmediato sin bloquear con escaneo de matriz
-    if (data && Array.isArray(data.perfilesList) && data.perfilesList.length > 0) {
-      return res.json({ perfilesList: data.perfilesList });
+    if (data && Array.isArray(data.perfilesList)) {
+      return res.json({
+        companyId: companyId ? String(companyId) : null,
+        perfilesList: data.perfilesList.filter((p) => p && typeof p.nombreCargo === 'string'),
+      });
     }
-
-    // Sincronizar automáticamente sólo si la lista está vacía (primera inicialización)
-    const GTC45Session = mongoose.models.GTC45WorkspaceSession;
-    if (GTC45Session) {
-      try {
-        const officialConvoId = `official-${companyId || req.user.id}`;
-        let session =
-          (await GTC45Session.findOne({
-            user: req.user.id,
-            ...(companyId ? { companyId } : {}),
-            isOfficial: true,
-          }).lean()) || (await GTC45Session.findOne({ conversationId: officialConvoId }).lean());
-        if (!session) {
-          session = await GTC45Session.findOne({
-            user: req.user.id,
-            ...(companyId ? { companyId } : {}),
-            'matrixRows.0': { $exists: true },
-          }).sort({ updatedAt: -1 }).lean();
-        }
-        if (!session && !companyId) {
-          session = await GTC45Session.findOne({
-            user: req.user.id,
-            'matrixRows.0': { $exists: true },
-          }).sort({ updatedAt: -1 }).lean();
-        }
-        if (session && Array.isArray(session.matrixRows)) {
-          let hasNew = false;
-          for (const r of session.matrixRows) {
-            if (r && r.cargo && r.cargo.trim()) {
-              const resEnsure = await ensurePerfilExists(req.user.id, companyId, r.cargo, r);
-              if (resEnsure.created || resEnsure.updated) hasNew = true;
-            }
-          }
-          if (hasNew) {
-            data = await PerfilCargoData.findOne({ user: req.user.id, companyId: companyId }).lean();
-          }
-        }
-      } catch (syncErr) {
-        logger.debug('[SGSST PerfilesCargo] Matrix sync in GET /data:', syncErr.message);
-      }
-    }
-
-    if (data) {
-      return res.json({ perfilesList: data.perfilesList || [] });
-    }
-    res.json({ perfilesList: [] });
+    res.json({
+      companyId: companyId ? String(companyId) : null,
+      perfilesList: [],
+    });
   } catch (error) {
     logger.error('[SGSST PerfilesCargo] Load error:', error);
     res.status(500).json({ error: 'Error al cargar datos' });
@@ -343,17 +307,28 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 // ─── POST /ensure ───────────────────────────────────────────────────────────
 router.post('/ensure', requireJwtAuth, express.json(), async (req, res) => {
   try {
-    const { nombreCargo, ...contextInfo } = req.body;
+    const { nombreCargo, companyId: clientCompanyId, ...contextInfo } = req.body;
     if (!nombreCargo || !nombreCargo.trim()) {
       return res.status(400).json({ error: 'Se requiere nombreCargo.' });
     }
     const companyId = await getActiveCompanyId(req.user.id);
+    if (clientCompanyId && companyId && String(clientCompanyId) !== String(companyId)) {
+      logger.warn(
+        `[SGSST PerfilesCargo] Blocked cross-company /ensure for user ${req.user.id}: clientCompanyId=${clientCompanyId} vs activeCompanyId=${companyId}`
+      );
+      return res.status(409).json({
+        error: 'La empresa activa cambió. Recargando perfiles de la empresa actual para evitar mezcla de empresas.',
+        companyMismatch: true,
+        activeCompanyId: String(companyId),
+      });
+    }
     const result = await ensurePerfilExists(req.user.id, companyId, nombreCargo, contextInfo);
     res.json({
       success: true,
       created: result.created,
       perfil: result.perfil,
       perfilesList: result.perfilesList,
+      companyId: companyId ? String(companyId) : null,
     });
   } catch (error) {
     logger.error('[SGSST PerfilesCargo] Ensure error:', error);
@@ -364,14 +339,30 @@ router.post('/ensure', requireJwtAuth, express.json(), async (req, res) => {
 // ─── POST /save ────────────────────────────────────────────────────────────
 router.post('/save', requireJwtAuth, express.json({ limit: '100mb' }), async (req, res) => {
   try {
-    const { perfilesList } = req.body;
+    const { perfilesList, companyId: clientCompanyId } = req.body;
     const companyId = await getActiveCompanyId(req.user.id);
+    if (clientCompanyId && companyId && String(clientCompanyId) !== String(companyId)) {
+      logger.warn(
+        `[SGSST PerfilesCargo] Blocked cross-company /save for user ${req.user.id}: clientCompanyId=${clientCompanyId} vs activeCompanyId=${companyId}`
+      );
+      return res.status(409).json({
+        error: 'La empresa activa cambió. Recargando perfiles de la empresa actual para evitar mezcla de empresas.',
+        companyMismatch: true,
+        activeCompanyId: String(companyId),
+      });
+    }
+    const sanitizedList = Array.isArray(perfilesList)
+      ? perfilesList.filter((p) => p && typeof p.nombreCargo === 'string')
+      : [];
+    const filter = companyId
+      ? { user: req.user.id, companyId }
+      : { user: req.user.id, $or: [{ companyId: null }, { companyId: { $exists: false } }] };
     await PerfilCargoData.findOneAndUpdate(
-      { user: req.user.id, companyId: companyId },
-      { $set: { perfilesList, companyId, updatedAt: Date.now() } },
+      filter,
+      { $set: { perfilesList: sanitizedList, companyId, updatedAt: Date.now() } },
       { upsert: true, new: true },
     );
-    res.json({ success: true });
+    res.json({ success: true, companyId: companyId ? String(companyId) : null });
   } catch (error) {
     logger.error('[SGSST PerfilesCargo] Save error:', error);
     res.status(500).json({ error: 'Error al guardar datos' });

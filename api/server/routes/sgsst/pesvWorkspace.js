@@ -77,26 +77,25 @@ router.get('/official', requireJwtAuth, async (req, res) => {
     // 1. Buscar sesión marcada explícitamente como oficial
     let session = await PESVWorkspaceSession.findOne({
       user: userId,
-      ...(companyId ? { companyId } : {}),
+      ...(companyId ? { companyId } : { $or: [{ companyId: null }, { companyId: { $exists: false } }] }),
       isOfficial: true,
+      'matrixRows.0': { $exists: true },
     });
 
     // 2. Fallback a la sesión maestra 'official-pesv-*'
     if (!session) {
-      session = await PESVWorkspaceSession.findOne({ conversationId: officialConvoId });
+      session = await PESVWorkspaceSession.findOne({
+        conversationId: officialConvoId,
+        ...(companyId ? { companyId } : {}),
+        'matrixRows.0': { $exists: true },
+      });
     }
 
-    // 3. Fallback a la última sesión del usuario o empresa que tenga filas de matriz PESV
+    // 3. Fallback a la última sesión de la empresa activa que tenga filas de matriz PESV
     if (!session) {
       session = await PESVWorkspaceSession.findOne({
         user: userId,
-        ...(companyId ? { companyId } : {}),
-        'matrixRows.0': { $exists: true },
-      }).sort({ updatedAt: -1 });
-    }
-    if (!session && !companyId) {
-      session = await PESVWorkspaceSession.findOne({
-        user: userId,
+        ...(companyId ? { companyId } : { $or: [{ companyId: null }, { companyId: { $exists: false } }] }),
         'matrixRows.0': { $exists: true },
       }).sort({ updatedAt: -1 });
     }
@@ -356,24 +355,32 @@ router.get('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
     let session = await PESVWorkspaceSession.findOne({ conversationId, user: userId, companyId: companyId });
 
     if (!session) {
-      session = await PESVWorkspaceSession.findOne({ conversationId });
-      if (session) {
+      const anySession = await PESVWorkspaceSession.findOne({ conversationId });
+      if (anySession) {
+        if (anySession.companyId && companyId && String(anySession.companyId) !== String(companyId)) {
+          return res.json({ matrixRows: [], chartConclusions: {}, reportHtml: '', companyMismatch: true });
+        }
         let modified = false;
-        if (!session.user) {
-          session.user = userId;
+        if (!anySession.user) {
+          anySession.user = userId;
           modified = true;
         }
-        if (!session.companyId && companyId) {
-          session.companyId = companyId;
+        if (!anySession.companyId && companyId) {
+          anySession.companyId = companyId;
           modified = true;
         }
-        if (modified) await session.save();
+        if (modified) await anySession.save();
+        session = anySession;
       }
     }
 
     if (!session && conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
       const tempId = `temp-${userId}`;
-      const tempSession = await PESVWorkspaceSession.findOne({ conversationId: tempId, user: userId });
+      const tempSession = await PESVWorkspaceSession.findOne({
+        conversationId: tempId,
+        user: userId,
+        ...(companyId ? { $or: [{ companyId }, { companyId: null }, { companyId: { $exists: false } }] } : {}),
+      });
       if (tempSession && tempSession.matrixRows && tempSession.matrixRows.length > 0) {
         tempSession.conversationId = conversationId;
         tempSession.companyId = companyId;
@@ -960,7 +967,7 @@ ${JSON.stringify(chunk, null, 2)}`;
 router.post('/auto-assign-cargos', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const companyId = await getActiveCompanyId(userId);
+    const activeCompanyId = await getActiveCompanyId(userId);
     const modelName = req.body.modelName || SGSST_FALLBACK_MODELS[0];
     const { matrixRows, conversationId } = req.body;
 
@@ -968,15 +975,24 @@ router.post('/auto-assign-cargos', requireJwtAuth, async (req, res) => {
       return res.status(400).json({ error: 'No se enviaron filas de la matriz PESV para procesar.' });
     }
 
+    let companyId = activeCompanyId;
+    if (conversationId && conversationId !== 'official' && !conversationId.startsWith('official-') && conversationId !== 'new') {
+      const existingSession = await PESVWorkspaceSession.findOne({ conversationId }).select('companyId').lean();
+      if (existingSession?.companyId) {
+        companyId = existingSession.companyId;
+      }
+    }
+
     const PerfilCargoModel = mongoose.models.PerfilCargoData;
     let availableCargos = [];
     let perfilesDetallados = [];
     if (PerfilCargoModel) {
       try {
-        const cargoDoc = await PerfilCargoModel.findOne({
-          user: userId,
-          ...(companyId ? { companyId } : {}),
-        }).lean();
+        const cargoDoc = await PerfilCargoModel.findOne(
+          companyId
+            ? { user: userId, companyId }
+            : { user: userId, $or: [{ companyId: null }, { companyId: { $exists: false } }] }
+        ).lean();
         if (cargoDoc && Array.isArray(cargoDoc.perfilesList)) {
           perfilesDetallados = cargoDoc.perfilesList
             .filter((p) => p && p.nombreCargo)
