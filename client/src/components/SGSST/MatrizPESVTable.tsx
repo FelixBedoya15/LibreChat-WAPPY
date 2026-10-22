@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useAuthContext } from '~/hooks';
+import { isVitalUser } from '~/utils/planAccess';
 import { useToastContext } from '@librechat/client';
 import {
   MatrixRow,
@@ -533,6 +534,7 @@ export default function MatrizPESVTable({
   onRefreshOfficialList?: () => void;
 }) {
   const { token, user } = useAuthContext();
+  const isVital = isVitalUser(user);
   const userId = user?.id;
   const { showToast } = useToastContext();
   const isSubmitting = useRecoilValue(store.isSubmittingFamily(0));
@@ -2878,9 +2880,10 @@ export default function MatrizPESVTable({
                 </span>
               </button>
 
-              {/* Botón Establecer como Matriz Oficial (cuando se visualiza dentro de un chat) */}
+              {/* Botón Establecer como Matriz Oficial (cuando se visualiza dentro de un chat, oculto para Plan Vital) */}
               {!isOfficialApp &&
                 matrixRows.length > 0 &&
+                !isVital &&
                 (isCurrentConvoOfficial ? (
                   <div
                     title="Esta matriz PESV está activa en el Aplicativo Institucional (Hito 1)"

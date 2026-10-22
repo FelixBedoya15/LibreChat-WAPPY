@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useAuthContext } from '~/hooks';
+import { isVitalUser } from '~/utils/planAccess';
 import { useToastContext } from '@librechat/client';
 import {
   MatrixRow,
@@ -1940,6 +1941,7 @@ export default function MatrizIPEVARTable({
   }, [calculateMaxDashboardPct]);
 
   const { token, user } = useAuthContext();
+  const isVital = isVitalUser(user);
   const userId = user?.id;
   const conversation = useRecoilValue(store.conversationByIndex(0));
   const actualConvoId =
@@ -3377,8 +3379,8 @@ export default function MatrizIPEVARTable({
                 </span>
               </button>
 
-              {/* Botón Establecer como Matriz Oficial (cuando se visualiza dentro de un chat) */}
-              {!isOfficialApp && matrixRows.length > 0 && (
+              {/* Botón Establecer como Matriz Oficial (cuando se visualiza dentro de un chat, oculto para Plan Vital) */}
+              {!isOfficialApp && matrixRows.length > 0 && !isVital && (
                 isCurrentConvoOfficial ? (
                   <div
                     title="Esta matriz está activa en el Sistema SG-SST"

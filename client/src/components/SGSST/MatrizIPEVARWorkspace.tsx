@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuthContext } from '~/hooks';
+import { isVitalUser } from '~/utils/planAccess';
 import { useToastContext } from '@librechat/client';
 import {
   AlertTriangle,
@@ -35,6 +36,7 @@ interface ChatMatrixItem {
 
 export default function MatrizIPEVARWorkspace() {
   const { token, user } = useAuthContext();
+  const isVital = isVitalUser(user);
   const { showToast } = useToastContext();
 
   const [officialInfo, setOfficialInfo] = useState<{
@@ -398,33 +400,35 @@ export default function MatrizIPEVARWorkspace() {
                       </div>
                     </div>
 
-                    <div>
-                      {mat.isOfficial ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 px-3 py-1.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
-                          <CheckCircle2 className="h-4 w-4" /> Seleccionada
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => handleSelectOfficial(mat)}
-                          disabled={isSettingOfficial}
-                          title="Fijar en Aplicativo"
-                          aria-label="Fijar en Aplicativo"
-                          className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-600 bg-teal-600 hover:bg-teal-700 text-white px-2 shadow-sm outline-none transition-all duration-300 disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-2.5 sm:hover:-rotate-3 sm:hover:scale-105"
-                        >
-                          <div className="relative flex flex-shrink-0 items-center justify-center">
-                            {isSettingOfficial ? (
-                              <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
-                            ) : (
-                              <Star className="h-4 w-4 sm:h-5 sm:w-5 fill-white/20" />
-                            )}
-                          </div>
-                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
-                            <span className="text-sm font-bold tracking-wide">Fijar en Aplicativo</span>
-                          </div>
-                        </button>
-                      )}
-                    </div>
+                    {!isVital && (
+                      <div>
+                        {mat.isOfficial ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 px-3 py-1.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                            <CheckCircle2 className="h-4 w-4" /> Seleccionada
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleSelectOfficial(mat)}
+                            disabled={isSettingOfficial}
+                            title="Fijar en Aplicativo"
+                            aria-label="Fijar en Aplicativo"
+                            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-600 bg-teal-600 hover:bg-teal-700 text-white px-2 shadow-sm outline-none transition-all duration-300 disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-2.5 sm:hover:-rotate-3 sm:hover:scale-105"
+                          >
+                            <div className="relative flex flex-shrink-0 items-center justify-center">
+                              {isSettingOfficial ? (
+                                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+                              ) : (
+                                <Star className="h-4 w-4 sm:h-5 sm:w-5 fill-white/20" />
+                              )}
+                            </div>
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                              <span className="text-sm font-bold tracking-wide">Fijar en Aplicativo</span>
+                            </div>
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))
               )}

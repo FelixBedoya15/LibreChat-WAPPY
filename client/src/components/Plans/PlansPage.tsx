@@ -10,6 +10,7 @@ import {
   AlertCircle,
   ShieldCheck,
   Building2,
+  Cpu,
   Users,
   Eye,
   EyeOff,
@@ -500,12 +501,28 @@ export default function PlansPage() {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptUploading, setReceiptUploading] = useState(false);
   const [extraCompanies, setExtraCompanies] = useState(0);
+  const [extraAutomations, setExtraAutomations] = useState(0);
+  const [extraSubUsers, setExtraSubUsers] = useState(0);
 
   const extraCompanyPrice = useMemo(() => {
     if (billingInterval === 'monthly') return 33350;
     if (billingInterval === 'quarterly') return 96620;
     if (billingInterval === 'semiannual') return 187240;
     return 350000; // annual
+  }, [billingInterval]);
+
+  const extraAutomationPrice = useMemo(() => {
+    if (billingInterval === 'monthly') return 25000;
+    if (billingInterval === 'quarterly') return 67500;
+    if (billingInterval === 'semiannual') return 120000;
+    return 210000; // annual
+  }, [billingInterval]);
+
+  const extraSubUserPrice = useMemo(() => {
+    if (billingInterval === 'monthly') return 25000;
+    if (billingInterval === 'quarterly') return 67500;
+    if (billingInterval === 'semiannual') return 120000;
+    return 210000; // annual
   }, [billingInterval]);
 
   // Derived: final price considering promo code on top of any existing promotion
@@ -524,11 +541,27 @@ export default function PlansPage() {
       price += extraCompanies * extraCompanyPrice;
     }
 
+    // Sumamos automatizaciones y subusuarios adicionales en plan Pro
+    if (checkoutPlan.planKey === 'pro') {
+      price += extraAutomations * extraAutomationPrice;
+      price += extraSubUsers * extraSubUserPrice;
+    }
+
     if (paymentMethod === 'nequi') {
       price = price * 0.95;
     }
     return Math.round(price);
-  }, [checkoutPlan, promoValidated, paymentMethod, extraCompanies, extraCompanyPrice]);
+  }, [
+    checkoutPlan,
+    promoValidated,
+    paymentMethod,
+    extraCompanies,
+    extraCompanyPrice,
+    extraAutomations,
+    extraAutomationPrice,
+    extraSubUsers,
+    extraSubUserPrice,
+  ]);
 
   const activeSubscriptionPlans = useMemo(() => {
     return PLANS.filter((plan) => {
@@ -703,6 +736,8 @@ export default function PlansPage() {
       setTermsAccepted(false);
       setReceiptFile(null);
       setExtraCompanies(0);
+      setExtraAutomations(0);
+      setExtraSubUsers(0);
       setCheckoutPlan(subObj);
     },
     [billingInterval, trackCheckoutEvent],
@@ -807,6 +842,12 @@ export default function PlansPage() {
       if (extraCompanies > 0) {
         formData.append('extraCompanies', String(extraCompanies));
       }
+      if (extraAutomations > 0) {
+        formData.append('extraAutomations', String(extraAutomations));
+      }
+      if (extraSubUsers > 0) {
+        formData.append('extraSubUsers', String(extraSubUsers));
+      }
       let finalFile = receiptFile;
       if (receiptFile.type.startsWith('image/') && receiptFile.type !== 'image/gif') {
         try {
@@ -850,6 +891,8 @@ export default function PlansPage() {
         plan: checkoutPlan.planKey + '|' + billingInterval,
         promoCode: promoValidated?.code || undefined,
         extraCompanies: extraCompanies || undefined,
+        extraAutomations: extraAutomations || undefined,
+        extraSubUsers: extraSubUsers || undefined,
       });
 
       const script = document.createElement('script');
@@ -967,6 +1010,8 @@ export default function PlansPage() {
           plan: checkoutPlan.planKey + '|' + billingInterval,
           promoCode: promoValidated?.code || undefined,
           extraCompanies: extraCompanies || undefined,
+          extraAutomations: extraAutomations || undefined,
+          extraSubUsers: extraSubUsers || undefined,
         });
 
         const { guestToken, ...wompiData } = data;
@@ -1341,6 +1386,102 @@ export default function PlansPage() {
                   </div>
                 )}
 
+                {/* Additional automations selector (Exclusive for Pro) */}
+                {checkoutPlan.planKey === 'pro' && (
+                  <div className="mt-4 rounded-2xl border border-border-light bg-surface-primary p-5 shadow-sm">
+                    <h4 className="mb-1 text-sm font-bold text-text-primary flex items-center gap-2">
+                      <Cpu className="h-4.5 w-4.5 text-purple-500" />
+                      ¿Deseas automatizaciones 24/7 adicionales?
+                    </h4>
+                    <p className="mb-4 text-xs text-text-secondary leading-relaxed">
+                      Cada automatización adicional te permite habilitar un agente autónomo de IA ejecutando tareas y vigilancia 24/7.
+                    </p>
+                    <div className="flex items-center justify-between rounded-xl bg-surface-secondary p-3 border border-border-light/50">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-text-primary">Automatizaciones adicionales</span>
+                        <span className="text-[11px] font-semibold text-text-tertiary">
+                          +${extraAutomationPrice.toLocaleString('es-CO')}{' '}
+                          {billingInterval === 'monthly'
+                            ? '/mes'
+                            : billingInterval === 'quarterly'
+                              ? '/trim.'
+                              : billingInterval === 'semiannual'
+                                ? '/sem.'
+                                : '/año'}{' '}
+                          por agente
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setExtraAutomations((prev) => Math.max(0, prev - 1))}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-medium bg-surface-primary text-text-primary hover:bg-surface-hover transition-colors font-bold disabled:opacity-50"
+                          disabled={extraAutomations === 0}
+                        >
+                          -
+                        </button>
+                        <span className="text-sm font-black text-text-primary w-4 text-center">{extraAutomations}</span>
+                        <button
+                          type="button"
+                          onClick={() => setExtraAutomations((prev) => Math.min(20, prev + 1))}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-medium bg-surface-primary text-text-primary hover:bg-surface-hover transition-colors font-bold disabled:opacity-50"
+                          disabled={extraAutomations >= 20}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Additional subusers selector (Exclusive for Pro) */}
+                {checkoutPlan.planKey === 'pro' && (
+                  <div className="mt-4 rounded-2xl border border-border-light bg-surface-primary p-5 shadow-sm">
+                    <h4 className="mb-1 text-sm font-bold text-text-primary flex items-center gap-2">
+                      <Users className="h-4.5 w-4.5 text-teal-500" />
+                      ¿Deseas subusuarios adicionales para tu equipo?
+                    </h4>
+                    <p className="mb-4 text-xs text-text-secondary leading-relaxed">
+                      Permite a tus colaboradores, inspectores o asistentes ingresar a la plataforma con su propio acceso subordinado.
+                    </p>
+                    <div className="flex items-center justify-between rounded-xl bg-surface-secondary p-3 border border-border-light/50">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-text-primary">Subusuarios adicionales</span>
+                        <span className="text-[11px] font-semibold text-text-tertiary">
+                          +${extraSubUserPrice.toLocaleString('es-CO')}{' '}
+                          {billingInterval === 'monthly'
+                            ? '/mes'
+                            : billingInterval === 'quarterly'
+                              ? '/trim.'
+                              : billingInterval === 'semiannual'
+                                ? '/sem.'
+                                : '/año'}{' '}
+                          por subusuario
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setExtraSubUsers((prev) => Math.max(0, prev - 1))}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-medium bg-surface-primary text-text-primary hover:bg-surface-hover transition-colors font-bold disabled:opacity-50"
+                          disabled={extraSubUsers === 0}
+                        >
+                          -
+                        </button>
+                        <span className="text-sm font-black text-text-primary w-4 text-center">{extraSubUsers}</span>
+                        <button
+                          type="button"
+                          onClick={() => setExtraSubUsers((prev) => Math.min(20, prev + 1))}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-medium bg-surface-primary text-text-primary hover:bg-surface-hover transition-colors font-bold disabled:opacity-50"
+                          disabled={extraSubUsers >= 20}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Promo code box */}
                 <div className="mt-6 rounded-2xl border border-border-light bg-surface-primary p-5 shadow-sm">
                   <h4 className="mb-3 flex items-center gap-2 text-sm font-bold text-text-primary">
@@ -1459,6 +1600,22 @@ export default function PlansPage() {
                         <span className="text-text-secondary">Empresas adicionales ({extraCompanies})</span>
                         <span className="font-medium">
                           +${(extraCompanies * extraCompanyPrice).toLocaleString('es-CO')}
+                        </span>
+                      </div>
+                    )}
+                    {checkoutPlan.planKey === 'pro' && extraAutomations > 0 && (
+                      <div className="flex justify-between text-text-primary">
+                        <span className="text-text-secondary">Automatizaciones adicionales ({extraAutomations})</span>
+                        <span className="font-medium text-purple-600 dark:text-purple-400">
+                          +${(extraAutomations * extraAutomationPrice).toLocaleString('es-CO')}
+                        </span>
+                      </div>
+                    )}
+                    {checkoutPlan.planKey === 'pro' && extraSubUsers > 0 && (
+                      <div className="flex justify-between text-text-primary">
+                        <span className="text-text-secondary">Subusuarios adicionales ({extraSubUsers})</span>
+                        <span className="font-medium text-teal-600 dark:text-teal-400">
+                          +${(extraSubUsers * extraSubUserPrice).toLocaleString('es-CO')}
                         </span>
                       </div>
                     )}
@@ -2133,45 +2290,59 @@ export default function PlansPage() {
                           </div>
                         </div>
 
-                        <div className="mb-6 flex flex-col items-start gap-1 min-h-[105px]">
-                          {!isRenewal && promotion && promotion.discountPercentage > 0 && (
-                            <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2">
-                              {displayPrice}
-                            </span>
-                          )}
+                        <div className="mb-6 flex flex-col items-start justify-between min-h-[148px] sm:min-h-[152px]">
+                          <div>
+                            {!isRenewal && promotion && promotion.discountPercentage > 0 ? (
+                              <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2 block">
+                                {displayPrice}
+                              </span>
+                            ) : (
+                              <span className="text-sm font-semibold invisible select-none block">
+                                &nbsp;
+                              </span>
+                            )}
 
-                          <div className="flex items-baseline gap-1">
-                            <span className="text-5xl font-black tracking-tight text-amber-500">
-                              ${Math.round(totalToBill).toLocaleString('es-CO')}
-                            </span>
-                            <span className="text-sm font-bold text-text-secondary">
-                              /
-                              {billingInterval === 'monthly'
-                                ? 'mes'
-                                : billingInterval === 'quarterly'
-                                  ? 'trim.'
-                                  : billingInterval === 'semiannual'
-                                    ? 'sem.'
-                                    : 'año'}
-                            </span>
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-5xl font-black tracking-tight text-amber-500">
+                                ${Math.round(totalToBill).toLocaleString('es-CO')}
+                              </span>
+                              <span className="text-sm font-bold text-text-secondary">
+                                /
+                                {billingInterval === 'monthly'
+                                  ? 'mes'
+                                  : billingInterval === 'quarterly'
+                                    ? 'trim.'
+                                    : billingInterval === 'semiannual'
+                                      ? 'sem.'
+                                      : 'año'}
+                              </span>
+                            </div>
                           </div>
 
-                          {!isRenewal && promotion && promotion.discountPercentage > 0 ? (
-                            <p className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold mt-1">
-                              🎁 Precio especial primera compra · Renovación posterior a valor regular ({displayPrice})
-                            </p>
-                          ) : (
-                            <p className="text-[11px] text-text-secondary font-semibold mt-1">
-                              {isRenewal ? '🔄 Precio de renovación regular' : 'Acceso ilimitado a todo el ecosistema WAPPY'}
-                            </p>
-                          )}
-
-                          {isNotMonthly && (
-                            <div className="mt-0.5 text-sm font-bold text-text-primary">
-                              ${Math.round(pricePerMonth).toLocaleString('es-CO')}{' '}
-                              <span className="text-xs font-semibold text-text-secondary">/mes (facturado en total)</span>
+                          <div className="w-full">
+                            <div className="min-h-[34px] flex items-center">
+                              {!isRenewal && promotion && promotion.discountPercentage > 0 ? (
+                                <p className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold leading-tight">
+                                  🎁 Precio especial primera compra · Renovación posterior a valor regular ({displayPrice})
+                                </p>
+                              ) : (
+                                <p className="text-[11px] text-text-secondary font-semibold leading-tight">
+                                  {isRenewal ? '🔄 Precio de renovación regular' : 'Acceso ilimitado a todo el ecosistema WAPPY'}
+                                </p>
+                              )}
                             </div>
-                          )}
+
+                            {isNotMonthly ? (
+                              <div className="mt-0.5 text-sm font-bold text-text-primary">
+                                ${Math.round(pricePerMonth).toLocaleString('es-CO')}{' '}
+                                <span className="text-xs font-semibold text-text-secondary">/mes (facturado en total)</span>
+                              </div>
+                            ) : (
+                              <div className="mt-0.5 text-sm font-bold invisible select-none">
+                                &nbsp;
+                              </div>
+                            )}
+                          </div>
                         </div>
 
                         <div className="pt-2 mb-6">
@@ -2297,47 +2468,61 @@ export default function PlansPage() {
                           </div>
                         </div>
 
-                        <div className="mb-6 flex flex-col items-start gap-1 min-h-[105px]">
+                        <div className="mb-6 flex flex-col items-start justify-between min-h-[148px] sm:min-h-[152px]">
                           {isAvailableInInterval ? (
                             <>
-                              {!isRenewal && promotion && promotion.discountPercentage > 0 && (
-                                <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2">
-                                  {displayPrice}
-                                </span>
-                              )}
+                              <div>
+                                {!isRenewal && promotion && promotion.discountPercentage > 0 ? (
+                                  <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2 block">
+                                    {displayPrice}
+                                  </span>
+                                ) : (
+                                  <span className="text-sm font-semibold invisible select-none block">
+                                    &nbsp;
+                                  </span>
+                                )}
 
-                              <div className="flex items-baseline gap-1">
-                                <span className="text-5xl font-black tracking-tight text-emerald-500">
-                                  ${Math.round(totalToBill).toLocaleString('es-CO')}
-                                </span>
-                                <span className="text-sm font-bold text-text-secondary">
-                                  /
-                                  {billingInterval === 'monthly'
-                                    ? 'mes'
-                                    : billingInterval === 'quarterly'
-                                      ? 'trim.'
-                                      : billingInterval === 'semiannual'
-                                        ? 'sem.'
-                                        : 'año'}
-                                </span>
+                                <div className="flex items-baseline gap-1">
+                                  <span className="text-5xl font-black tracking-tight text-emerald-500">
+                                    ${Math.round(totalToBill).toLocaleString('es-CO')}
+                                  </span>
+                                  <span className="text-sm font-bold text-text-secondary">
+                                    /
+                                    {billingInterval === 'monthly'
+                                      ? 'mes'
+                                      : billingInterval === 'quarterly'
+                                        ? 'trim.'
+                                        : billingInterval === 'semiannual'
+                                          ? 'sem.'
+                                          : 'año'}
+                                  </span>
+                                </div>
                               </div>
 
-                              {!isRenewal && promotion && promotion.discountPercentage > 0 ? (
-                                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
-                                  🎁 Precio especial primera compra · Renovación posterior a valor regular ({displayPrice})
-                                </p>
-                              ) : (
-                                <p className="text-[11px] text-text-secondary font-semibold mt-1">
-                                  {isRenewal ? '🔄 Precio de renovación regular' : 'Acceso a IA de WAPPY y módulo Huella Biocéntrica'}
-                                </p>
-                              )}
-
-                              {isNotMonthly && (
-                                <div className="mt-0.5 text-sm font-bold text-text-primary">
-                                  ${Math.round(pricePerMonth).toLocaleString('es-CO')}{' '}
-                                  <span className="text-xs font-semibold text-text-secondary">/mes (facturado en total)</span>
+                              <div className="w-full">
+                                <div className="min-h-[34px] flex items-center">
+                                  {!isRenewal && promotion && promotion.discountPercentage > 0 ? (
+                                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold leading-tight">
+                                      🎁 Precio especial primera compra · Renovación posterior a valor regular ({displayPrice})
+                                    </p>
+                                  ) : (
+                                    <p className="text-[11px] text-text-secondary font-semibold leading-tight">
+                                      {isRenewal ? '🔄 Precio de renovación regular' : 'Acceso a IA de WAPPY y módulo Huella Biocéntrica'}
+                                    </p>
+                                  )}
                                 </div>
-                              )}
+
+                                {isNotMonthly ? (
+                                  <div className="mt-0.5 text-sm font-bold text-text-primary">
+                                    ${Math.round(pricePerMonth).toLocaleString('es-CO')}{' '}
+                                    <span className="text-xs font-semibold text-text-secondary">/mes (facturado en total)</span>
+                                  </div>
+                                ) : (
+                                  <div className="mt-0.5 text-sm font-bold invisible select-none">
+                                    &nbsp;
+                                  </div>
+                                )}
+                              </div>
                             </>
                           ) : (
                             <div className="flex flex-col justify-center h-full">

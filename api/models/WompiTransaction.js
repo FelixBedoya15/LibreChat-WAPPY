@@ -12,6 +12,8 @@ const wompiTransactionSchema = new mongoose.Schema({
     receiptUrl: { type: String }, // URL array or string for manual payment receipts
     customTools: { type: [String], default: [] }, // Tools selected for custom plan
     extraCompanies: { type: Number, default: 0 }, // Cantidad de empresas adicionales compradas
+    extraAutomations: { type: Number, default: 0 }, // Cantidad de automatizaciones adicionales compradas
+    extraSubUsers: { type: Number, default: 0 }, // Cantidad de subusuarios adicionales comprados
     guestName: { type: String },
     guestEmail: { type: String },
     guestPassword: { type: String },

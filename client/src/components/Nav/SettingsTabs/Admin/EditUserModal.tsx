@@ -53,6 +53,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
         email: '',
         role: 'USER',
         plan: 'free',
+        planInterval: '' as string,
         accountStatus: 'active',
         password: '',
         inactiveAt: '',
@@ -102,6 +103,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
                 email: user.email || '',
                 role: user.role || PLAN_TO_ROLE[initialPlan] || 'USER',
                 plan: initialPlan,
+                planInterval: user.planInterval || '',
                 accountStatus: user.accountStatus || 'active',
                 password: '',
                 inactiveAt: initialInactiveAt,
@@ -131,6 +133,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
                     setFormData(prev => ({
                         ...prev,
                         plan: prev.plan === 'free' && response.data.plan ? response.data.plan : prev.plan,
+                        planInterval: prev.planInterval || response.data.planInterval || '',
                         activeAt: prev.activeAt || formatDateForInput(response.data.activeAt),
                         inactiveAt: prev.inactiveAt || formatDateForInput(response.data.inactiveAt || response.data.planExpiresAt),
                         companyLimit: response.data.companyLimit !== null && response.data.companyLimit !== undefined 
@@ -184,14 +187,22 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
         }
     };
 
-    const addDaysToExpiration = (days: number) => {
+    const addDaysToExpiration = (days: number, intervalType?: string) => {
         const target = new Date();
         target.setDate(target.getDate() + days);
-        setFormData(prev => ({ ...prev, inactiveAt: formatDateForInput(target) }));
+        setFormData(prev => ({ 
+            ...prev, 
+            inactiveAt: formatDateForInput(target),
+            ...(intervalType ? { planInterval: intervalType } : {})
+        }));
     };
 
     const clearExpiration = () => {
-        setFormData(prev => ({ ...prev, inactiveAt: '' }));
+        setFormData(prev => ({ 
+            ...prev, 
+            inactiveAt: '',
+            planInterval: 'lifetime'
+        }));
     };
 
     useEffect(() => {
@@ -464,10 +475,31 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
                                                 </select>
                                             </div>
 
+                                            {/* TEMPORALIDAD / FRECUENCIA DE PAGO */}
+                                            <div className="flex flex-col gap-1.5">
+                                                <label className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1">
+                                                    <Clock className="w-3.5 h-3.5 text-teal-500" /> Temporalidad / Intervalo
+                                                </label>
+                                                <select
+                                                    name="planInterval"
+                                                    value={formData.planInterval}
+                                                    onChange={handleChange}
+                                                    className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-800/50 px-3.5 py-2.5 text-xs text-slate-800 dark:text-zinc-100 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none cursor-pointer font-medium"
+                                                >
+                                                    <option value="">-- Sin Asignar / Estándar --</option>
+                                                    <option value="monthly">🟢 Mensual (30 días)</option>
+                                                    <option value="quarterly">🔵 Trimestral (90 días)</option>
+                                                    <option value="semiannual">🟣 Semestral (180 días)</option>
+                                                    <option value="annual">🟠 Anual (365 días)</option>
+                                                    <option value="lifetime">💎 Vitalicio (Sin vencimiento)</option>
+                                                    <option value="referral">🎁 Prueba Gratuita / Cortesía</option>
+                                                </select>
+                                            </div>
+
                                             {/* FECHA DE ACTIVACIÓN */}
                                             <div className="flex flex-col gap-1.5">
                                                 <label className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1">
-                                                    <Clock className="w-3.5 h-3.5 text-emerald-500" /> Fecha de Activación
+                                                    <Calendar className="w-3.5 h-3.5 text-emerald-500" /> Fecha de Activación
                                                 </label>
                                                 <input
                                                     type="date"
@@ -484,17 +516,33 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
                                                     <label className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1">
                                                         <Calendar className="w-3.5 h-3.5 text-amber-500" /> Fecha de Vencimiento / Inactivación
                                                     </label>
-                                                    <div className="flex items-center gap-1.5">
+                                                    <div className="flex flex-wrap items-center gap-1.5">
                                                         <button
                                                             type="button"
-                                                            onClick={() => addDaysToExpiration(30)}
+                                                            onClick={() => addDaysToExpiration(7, 'referral')}
+                                                            className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 transition-colors cursor-pointer border border-emerald-200 dark:border-emerald-800/40"
+                                                            title="Asignar 7 días de prueba gratuita"
+                                                        >
+                                                            +7d Prueba
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => addDaysToExpiration(15, 'referral')}
+                                                            className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 transition-colors cursor-pointer border border-emerald-200 dark:border-emerald-800/40"
+                                                            title="Asignar 15 días de prueba gratuita"
+                                                        >
+                                                            +15d Prueba
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => addDaysToExpiration(30, 'monthly')}
                                                             className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 transition-colors cursor-pointer"
                                                         >
                                                             +30 días
                                                         </button>
                                                         <button
                                                             type="button"
-                                                            onClick={() => addDaysToExpiration(365)}
+                                                            onClick={() => addDaysToExpiration(365, 'annual')}
                                                             className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 transition-colors cursor-pointer"
                                                         >
                                                             +1 año
@@ -504,7 +552,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
                                                             onClick={clearExpiration}
                                                             className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 dark:bg-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
                                                         >
-                                                            Sin Vencimiento
+                                                            Sin Vencimiento (Vitalicio)
                                                         </button>
                                                     </div>
                                                 </div>

@@ -167,6 +167,15 @@ const runPollCycle = async () => {
                     userPlan.planInterval = tx.interval; // Track interval for downgrade-on-expiry rules
                     const extraCount = Math.min(9, tx.extraCompanies || 0);
                     userPlan.companyLimit = 1 + extraCount;
+
+                    const extraAutos = Math.max(0, tx.extraAutomations || 0);
+                    const baseAutos = tx.planId === 'pro' ? 1 : 0;
+                    userPlan.automationLimit = baseAutos + extraAutos;
+
+                    const extraSubs = Math.max(0, tx.extraSubUsers || 0);
+                    const baseSubs = ['pro', 'ipevar'].includes(tx.planId) ? 1 : 0;
+                    userPlan.subUserLimit = baseSubs + extraSubs;
+
                     const baseStorageGB = ['pro', 'plus', 'ipevar'].includes(tx.planId) ? 3 : 1;
                     userPlan.storageLimit = (baseStorageGB + extraCount) * 1024 * 1024 * 1024;
                     await userPlan.save();

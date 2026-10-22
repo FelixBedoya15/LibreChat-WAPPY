@@ -64,7 +64,10 @@ export const hasActivePlan = (user: any): boolean => {
 export const isVitalUser = (user: any): boolean => {
   if (!user) return false;
   if (user.role === 'ADMIN') return false;
-  return ['USER_IPEVAR', 'IPEVAR', 'USER_VITAL', 'VITAL'].includes(user.role);
+  return (
+    ['USER_IPEVAR', 'IPEVAR', 'USER_VITAL', 'VITAL'].includes(user.role) ||
+    ['ipevar', 'vital'].includes(user.plan)
+  );
 };
 
 /** Admin de la plataforma (rol ADMIN). */

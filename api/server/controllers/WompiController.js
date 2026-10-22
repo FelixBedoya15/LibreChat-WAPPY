@@ -59,6 +59,22 @@ const getExtraCompanyPrice = (interval) => {
     return 0; // for free or lifetime if not applicable
 };
 
+const getExtraAutomationPrice = (interval) => {
+    if (interval === 'monthly') return 25000;
+    if (interval === 'quarterly') return 67500;
+    if (interval === 'semiannual') return 120000;
+    if (interval === 'annual') return 210000;
+    return 0;
+};
+
+const getExtraSubUserPrice = (interval) => {
+    if (interval === 'monthly') return 25000;
+    if (interval === 'quarterly') return 67500;
+    if (interval === 'semiannual') return 120000;
+    if (interval === 'annual') return 210000;
+    return 0;
+};
+
 
 /**
  * Calculates the expiry date using the "Time Compensation" algorithm (Option 2):
@@ -380,7 +396,7 @@ const notifyAdminsOfPayment = async (wompiTx, user, isManual) => {
  */
 const createTransaction = async (req, res) => {
     try {
-        const { plan: planString, promoCode, extraCompanies } = req.body;
+        const { plan: planString, promoCode, extraCompanies, extraAutomations, extraSubUsers } = req.body;
         if (!planString) return res.status(400).json({ error: 'Faltan parámetros' });
 
         const [planId, interval] = planString.split('|');
@@ -449,7 +465,18 @@ const createTransaction = async (req, res) => {
             ? extraCompaniesCount * getExtraCompanyPrice(interval)
             : 0;
 
-        finalPrice += extraCompanyCost;
+        // Add additional automations & subusers cost (exclusive for Pro)
+        const extraAutomationsCount = extraAutomations ? Math.min(99, Math.max(0, parseInt(extraAutomations, 10))) : 0;
+        const extraSubUsersCount = extraSubUsers ? Math.min(99, Math.max(0, parseInt(extraSubUsers, 10))) : 0;
+        const canAddProExtras = ['pro'].includes(planId);
+        const extraAutomationCost = (canAddProExtras && extraAutomationsCount > 0)
+            ? extraAutomationsCount * getExtraAutomationPrice(interval)
+            : 0;
+        const extraSubUserCost = (canAddProExtras && extraSubUsersCount > 0)
+            ? extraSubUsersCount * getExtraSubUserPrice(interval)
+            : 0;
+
+        finalPrice += extraCompanyCost + extraAutomationCost + extraSubUserCost;
 
         // Generate a 15-char unique reference (needed by Wompi)
         const reference = `WAPPY-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${Date.now().toString().slice(-6)}`;
@@ -463,7 +490,9 @@ const createTransaction = async (req, res) => {
             reference,
             amountInCents,
             status: 'PENDING',
-            extraCompanies: extraCompaniesCount
+            extraCompanies: extraCompaniesCount,
+            extraAutomations: extraAutomationsCount,
+            extraSubUsers: extraSubUsersCount
         });
 
         // Wompi keys
@@ -722,9 +751,17 @@ const handleWebhook = async (req, res) => {
             userPlan.planExpiresAt = expiryDate;
             userPlan.planInterval = wompiTx.interval; // Track interval for downgrade-on-expiry rules
 
-            // Set limits based on transaction extraCompanies
+            // Set limits based on transaction extras
             const extraCount = Math.min(9, wompiTx.extraCompanies || 0);
             userPlan.companyLimit = 1 + extraCount;
+
+            const extraAutos = Math.max(0, wompiTx.extraAutomations || 0);
+            const baseAutos = wompiTx.planId === 'pro' ? 1 : 0;
+            userPlan.automationLimit = baseAutos + extraAutos;
+
+            const extraSubs = Math.max(0, wompiTx.extraSubUsers || 0);
+            const baseSubs = ['pro', 'ipevar'].includes(wompiTx.planId) ? 1 : 0;
+            userPlan.subUserLimit = baseSubs + extraSubs;
 
             // Set storage limits (pro/plus get 3GB, others 1GB base, plus 1GB per extra company)
             const baseStorageGB = ['pro', 'plus', 'ipevar'].includes(wompiTx.planId) ? 3 : 1;
@@ -851,9 +888,17 @@ const verifyTransaction = async (req, res) => {
                 userPlan.planExpiresAt = expiryDate;
                 userPlan.planInterval = wompiTx.interval; // Track interval for downgrade-on-expiry rules
 
-                // Set limits based on transaction extraCompanies
+                // Set limits based on transaction extras
                 const extraCount = Math.min(9, wompiTx.extraCompanies || 0);
                 userPlan.companyLimit = 1 + extraCount;
+
+                const extraAutos = Math.max(0, wompiTx.extraAutomations || 0);
+                const baseAutos = wompiTx.planId === 'pro' ? 1 : 0;
+                userPlan.automationLimit = baseAutos + extraAutos;
+
+                const extraSubs = Math.max(0, wompiTx.extraSubUsers || 0);
+                const baseSubs = ['pro', 'ipevar'].includes(wompiTx.planId) ? 1 : 0;
+                userPlan.subUserLimit = baseSubs + extraSubs;
 
                 // Set storage limits (pro/plus get 3GB, others 1GB base, plus 1GB per extra company)
                 const baseStorageGB = ['pro', 'plus', 'ipevar'].includes(wompiTx.planId) ? 3 : 1;
@@ -951,7 +996,7 @@ const registerPendingTransaction = async (req, res) => {
  */
 const createManualTransaction = async (req, res) => {
     try {
-        const { plan: planString, promoCode, extraCompanies } = req.body;
+        const { plan: planString, promoCode, extraCompanies, extraAutomations, extraSubUsers } = req.body;
         if (!planString || !req.file) {
             return res.status(400).json({ error: 'Faltan parámetros o el comprobante de pago' });
         }
@@ -1012,7 +1057,18 @@ const createManualTransaction = async (req, res) => {
             ? extraCompaniesCount * getExtraCompanyPrice(interval)
             : 0;
 
-        finalPrice += extraCompanyCost;
+        // Add additional automations & subusers cost (exclusive for Pro)
+        const extraAutomationsCount = extraAutomations ? Math.min(99, Math.max(0, parseInt(extraAutomations, 10))) : 0;
+        const extraSubUsersCount = extraSubUsers ? Math.min(99, Math.max(0, parseInt(extraSubUsers, 10))) : 0;
+        const canAddProExtras = ['pro'].includes(planId);
+        const extraAutomationCost = (canAddProExtras && extraAutomationsCount > 0)
+            ? extraAutomationsCount * getExtraAutomationPrice(interval)
+            : 0;
+        const extraSubUserCost = (canAddProExtras && extraSubUsersCount > 0)
+            ? extraSubUsersCount * getExtraSubUserPrice(interval)
+            : 0;
+
+        finalPrice += extraCompanyCost + extraAutomationCost + extraSubUserCost;
 
         // Apply 5% discount for Nequi QR
         finalPrice = finalPrice * 0.95;
@@ -1059,7 +1115,9 @@ const createManualTransaction = async (req, res) => {
             status: 'PENDING_MANUAL_REVIEW',
             paymentMethod: 'NEQUI_QR',
             receiptUrl,
-            extraCompanies: extraCompaniesCount
+            extraCompanies: extraCompaniesCount,
+            extraAutomations: extraAutomationsCount,
+            extraSubUsers: extraSubUsersCount
         });
 
         // Notify admins about the manual payment so they can review
@@ -1083,7 +1141,7 @@ const guestCheckout = async (req, res) => {
     try {
         const jwt = require('jsonwebtoken');
         const bcrypt = require('bcryptjs');
-        const { name, email, password, plan: planString, promoCode, phone, extraCompanies } = req.body;
+        const { name, email, password, plan: planString, promoCode, phone, extraCompanies, extraAutomations, extraSubUsers } = req.body;
 
         if (!name || !email || !password || !planString) {
             return res.status(400).json({ error: 'Faltan campos: name, email, password, plan' });
@@ -1176,7 +1234,18 @@ const guestCheckout = async (req, res) => {
             ? extraCompaniesCount * getExtraCompanyPrice(interval)
             : 0;
 
-        finalPrice += extraCompanyCost;
+        // Add additional automations & subusers cost (exclusive for Pro)
+        const extraAutomationsCount = extraAutomations ? Math.min(99, Math.max(0, parseInt(extraAutomations, 10))) : 0;
+        const extraSubUsersCount = extraSubUsers ? Math.min(99, Math.max(0, parseInt(extraSubUsers, 10))) : 0;
+        const canAddProExtras = ['pro'].includes(planId);
+        const extraAutomationCost = (canAddProExtras && extraAutomationsCount > 0)
+            ? extraAutomationsCount * getExtraAutomationPrice(interval)
+            : 0;
+        const extraSubUserCost = (canAddProExtras && extraSubUsersCount > 0)
+            ? extraSubUsersCount * getExtraSubUserPrice(interval)
+            : 0;
+
+        finalPrice += extraCompanyCost + extraAutomationCost + extraSubUserCost;
 
         // ── 3. Create transaction record ──────────────────────────────────
         const reference = `WAPPY-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${Date.now().toString().slice(-6)}`;
@@ -1193,7 +1262,9 @@ const guestCheckout = async (req, res) => {
             guestEmail,
             guestPassword,
             guestPhone,
-            extraCompanies: extraCompaniesCount
+            extraCompanies: extraCompaniesCount,
+            extraAutomations: extraAutomationsCount,
+            extraSubUsers: extraSubUsersCount
         });
 
         // ── 4. Wompi integrity signature ──────────────────────────────────

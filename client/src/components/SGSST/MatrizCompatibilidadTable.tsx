@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuthContext } from '~/hooks';
+import { isVitalUser } from '~/utils/planAccess';
 import { useRecoilValue, useRecoilState } from 'recoil';
 import { useToastContext } from '@librechat/client';
 import store from '~/store';
@@ -366,7 +367,8 @@ export default function MatrizCompatibilidadTable({
   isOfficialApp?: boolean;
   onRefreshOfficialList?: () => void;
 }) {
-  const { token } = useAuthContext();
+  const { token, user } = useAuthContext();
+  const isVital = isVitalUser(user);
   const isSubmitting = useRecoilValue(store.isSubmittingFamily(0));
   const { showToast } = useToastContext();
 
@@ -2402,22 +2404,24 @@ export default function MatrizCompatibilidadTable({
             hideTooltip={true}
           />
 
-          {/* Fijar como Matriz Oficial en Hito 1 */}
-          <button
-            onClick={handlePromoteToOfficial}
-            disabled={isPromoting || matrixRows.length === 0}
-            className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-amber-500/40 bg-surface-primary px-2.5 text-amber-600 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-amber-50 disabled:opacity-50 dark:text-amber-400 dark:hover:bg-amber-900/20"
-            title="Fijar esta matriz como la Matriz Oficial de Compatibilidad Química en el Hito 1"
-          >
-            {isPromoting ? (
-              <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-            ) : (
-              <Pin className="h-4 w-4 shrink-0" />
-            )}
-            <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
-              Fijar en Aplicativo
-            </span>
-          </button>
+          {/* Fijar como Matriz Oficial en Hito 1 (Oculto para Plan Vital) */}
+          {!isVital && (
+            <button
+              onClick={handlePromoteToOfficial}
+              disabled={isPromoting || matrixRows.length === 0}
+              className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-amber-500/40 bg-surface-primary px-2.5 text-amber-600 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-amber-50 disabled:opacity-50 dark:text-amber-400 dark:hover:bg-amber-900/20"
+              title="Fijar esta matriz como la Matriz Oficial de Compatibilidad Química en el Hito 1"
+            >
+              {isPromoting ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+              ) : (
+                <Pin className="h-4 w-4 shrink-0" />
+              )}
+              <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+                Fijar en Aplicativo
+              </span>
+            </button>
+          )}
 
           {/* Sincronizar Controles con Centro de Control */}
           <button

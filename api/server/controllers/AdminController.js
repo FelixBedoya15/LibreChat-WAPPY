@@ -136,11 +136,11 @@ const updateUser = async (req, res) => {
             departamento, ciudad, department, city,
             commercialTier, partnerSlug, partnerPaymentDetails, partnerSupportContact, pointsAdjustment,
             companyLimit, automationLimit, subUserLimit, referredByPartner,
-            plan
+            plan, planInterval
         } = req.body;
         
         logger.info(`[AdminController] Updating user ${userId}:`, { 
-            role, plan, accountStatus, inactiveAt, activeAt, commercialTier, partnerSlug, pointsAdjustment, companyLimit, automationLimit, subUserLimit, referredByPartner
+            role, plan, planInterval, accountStatus, inactiveAt, activeAt, commercialTier, partnerSlug, pointsAdjustment, companyLimit, automationLimit, subUserLimit, referredByPartner
         });
 
         const updateData = {};
@@ -267,6 +267,9 @@ const updateUser = async (req, res) => {
         }
         if (inactiveAt !== undefined) {
             planUpdates.planExpiresAt = inactiveAt ? new Date(inactiveAt) : null;
+        }
+        if (planInterval !== undefined) {
+            planUpdates.planInterval = planInterval === '' || planInterval === 'none' ? null : planInterval;
         }
         if (plan) {
             planUpdates.plan = plan;

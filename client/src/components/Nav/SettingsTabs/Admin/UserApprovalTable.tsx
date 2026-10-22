@@ -167,7 +167,7 @@ export default function UserManagementTable() {
     const handleEdit = (user: any) => { setSelectedUser(user); setIsEditModalOpen(true); };
 
     const handleExportUsers = () => {
-        const header = ['Nombre', 'Correo', 'Número Telefónico', 'Departamento', 'Ciudad', 'Usuario', 'Rol', 'Plan', 'Estado', 'Fecha de Registro', 'Fecha de Activación', 'Fecha de Vencimiento', 'Última Actividad'];
+        const header = ['Nombre', 'Correo', 'Número Telefónico', 'Departamento', 'Ciudad', 'Usuario', 'Rol', 'Plan', 'Temporalidad', 'Estado', 'Fecha de Registro', 'Fecha de Activación', 'Fecha de Vencimiento', 'Última Actividad'];
         const rows = users.map((u: any) => [
             u.name || u.username || '',
             u.email || '',
@@ -177,6 +177,7 @@ export default function UserManagementTable() {
             u.username || '',
             u.role || '',
             u.plan || '',
+            u.planInterval || '',
             u.accountStatus || '',
             u.createdAt ? new Date(u.createdAt).toISOString() : '',
             u.activeAt ? new Date(u.activeAt).toISOString() : '',
@@ -413,6 +414,29 @@ export default function UserManagementTable() {
                     </span>
                 );
         }
+    };
+
+    const renderIntervalBadge = (interval?: string, inactiveAt?: any) => {
+        const norm = (interval || '').toLowerCase();
+        if (norm === 'monthly') {
+            return <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border border-teal-200 dark:border-teal-800">Mensual</span>;
+        }
+        if (norm === 'quarterly') {
+            return <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">Trimestral</span>;
+        }
+        if (norm === 'semiannual') {
+            return <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800">Semestral</span>;
+        }
+        if (norm === 'annual') {
+            return <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Anual</span>;
+        }
+        if (norm === 'lifetime' || (!inactiveAt && norm === '')) {
+            return <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">Vitalicio</span>;
+        }
+        if (norm === 'referral') {
+            return <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950/40 dark:text-fuchsia-300 border border-fuchsia-200 dark:border-fuchsia-800">🎁 Prueba</span>;
+        }
+        return null;
     };
 
     const renderExpiryInfo = (expiryDate: string | null, plan: string) => {
@@ -799,7 +823,10 @@ export default function UserManagementTable() {
                                     {/* Plan & Rol */}
                                     <td className="px-4 py-3.5 whitespace-nowrap">
                                         <div className="flex flex-col gap-1 items-start">
-                                            {renderPlanBadge(user.plan, user.role)}
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                {renderPlanBadge(user.plan, user.role)}
+                                                {renderIntervalBadge(user.planInterval, user.inactiveAt || user.planExpiresAt)}
+                                            </div>
                                             <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-mono">
                                                 {user.role}
                                             </span>
