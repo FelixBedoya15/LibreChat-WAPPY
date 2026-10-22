@@ -64,6 +64,10 @@ import {
 } from './TenshiAvatar';
 import { tenshiAudio } from './tenshiAudio';
 import {
+  TenshiGenerativeWidget,
+  type TenshiWidgetPayload,
+} from './TenshiGenerativeWidget';
+import {
   loadTasksVision,
   loadClassicPoseScripts,
   initPoseLandmarker,
@@ -109,6 +113,7 @@ export interface TenshiChatMessage {
   qrCode?: TenshiQrAttachment;
   image?: string;
   media?: TenshiAttachedMedia;
+  widget?: TenshiWidgetPayload;
   delegatedOrderId?: string;
   delegatedStatus?: 'todo' | 'done' | 'failed';
 }
@@ -3042,6 +3047,31 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               }
             }
           }
+
+          // Si la acción de voz incluye un Widget Interactivo o de Gobernanza HITL (OpenBot AG-UI), mostrarlo de inmediato en el chat
+          const actionWidget = (action as any).widget as TenshiWidgetPayload | undefined;
+          if (actionWidget && actionWidget.widgetType) {
+            const widgetText =
+              actionWidget.widgetType === 'hitl_approval'
+                ? `🛡️ **Control de Gobernanza SG-SST (Aprobación Requerida)**\nHe preparado la solicitud **${actionWidget.title}**: _${actionWidget.subtitle || ''}_.\nPor seguridad, autoriza la operación haciendo clic en **"Autorizar y Ejecutar"** en la tarjeta inferior.`
+                : `✨ **${actionWidget.title || 'Widget Interactivo'}** — _${actionWidget.subtitle || 'Interactúa directamente en la tarjeta inferior.'}_`;
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: 'assistant',
+                content: widgetText,
+                widget: actionWidget,
+              },
+            ]);
+            if (
+              actionWidget.widgetType === 'hitl_approval' ||
+              actionWidget.widgetType === 'risk_calculator' ||
+              actionWidget.widgetType === 'inspection_checklist' ||
+              actionWidget.widgetType === 'procedural_memory'
+            ) {
+              setIsOpen(true);
+            }
+          }
         } catch (e: any) {
           resultMsg = `Error ejecutando acción: ${e.message}`;
         }
@@ -4402,13 +4432,15 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     if (historyData) {
       if (historyData.length > 0) {
         setMessages((prev) => {
-          // Extraer mensajes locales que contengan archivos (file o htmlReport) o medios (media o image)
-          const localExtras = prev.filter((m) => m.file || m.htmlReport || m.media || m.image);
+          // Extraer mensajes locales que contengan archivos (file o htmlReport), medios (media o image) o widgets interactivos (widget)
+          const localExtras = prev.filter((m) => m.file || m.htmlReport || m.media || m.image || m.widget);
 
           // 1. Mapa de archivos locales por contenido o por título
           const localFileMap = new Map<string, any>();
           // Mapa de medios locales por contenido o por ID para evitar que se pierdan al sincronizar
           const localMediaMap = new Map<string, { media?: any; image?: string }>();
+          // Mapa de widgets locales (OpenBot AG-UI / HITL) para evitar que se pierdan al sincronizar
+          const localWidgetMap = new Map<string, TenshiWidgetPayload>();
 
           prev.forEach((m) => {
             if (m.file) {
@@ -4418,6 +4450,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             if (m.media || m.image) {
               if (m.content) localMediaMap.set(m.content.trim(), { media: m.media, image: m.image });
               if (m._id) localMediaMap.set(String(m._id), { media: m.media, image: m.image });
+            }
+            if (m.widget) {
+              if (m.content) localWidgetMap.set(m.content.trim(), m.widget);
+              if (m._id) localWidgetMap.set(String(m._id), m.widget);
+              if (m.widget.actionId) localWidgetMap.set(String(m.widget.actionId), m.widget);
             }
           });
 
@@ -4466,6 +4503,12 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 }
               }
             }
+            if (!item.widget) {
+              const matchedWidget =
+                (item.content ? localWidgetMap.get(item.content.trim()) : undefined) ||
+                (item._id ? localWidgetMap.get(String(item._id)) : undefined);
+              if (matchedWidget) item.widget = matchedWidget;
+            }
             return item;
           });
 
@@ -4479,7 +4522,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             if (h._id) historySignatures.add(String(h._id));
             if (h.content) historySignatures.add(h.content.trim());
             if (h.file?.canvasId) historySignatures.add(String(h.file.canvasId));
-            const sig = `${(h.content || '').trim()}-${(h.file?.title || h.media?.name || '').trim()}`;
+            if (h.widget?.actionId) historySignatures.add(String(h.widget.actionId));
+            const sig = `${(h.content || '').trim()}-${(h.file?.title || h.media?.name || h.widget?.widgetType || '').trim()}`;
             if (sig !== '-') historySignatures.add(sig);
           });
 
@@ -4487,10 +4531,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           const unpersistedExtras = localExtras.filter((lf: any) => {
             if (lf._id && historySignatures.has(String(lf._id))) return false;
             if (lf.file?.canvasId && historySignatures.has(String(lf.file.canvasId))) return false;
+            if (lf.widget?.actionId && historySignatures.has(String(lf.widget.actionId))) return false;
             if (lf.content && historySignatures.has(lf.content.trim())) {
               return false;
             }
-            const sig = `${(lf.content || '').trim()}-${(lf.file?.title || lf.media?.name || '').trim()}`;
+            const sig = `${(lf.content || '').trim()}-${(lf.file?.title || lf.media?.name || lf.widget?.widgetType || '').trim()}`;
             return !historySignatures.has(sig);
           });
 
@@ -4900,6 +4945,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         htmlReport: responseData.htmlReport,
         qrCode: responseData.qrCode,
         file: responseData.file,
+        widget: responseData.widget,
         ...(delegatedOrder?.ordenId
           ? {
               delegatedOrderId: delegatedOrder.ordenId,
@@ -6472,6 +6518,14 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                             Ver Informe Oficial
                           </button>
                         )}
+                        {msg.widget && (
+                          <TenshiGenerativeWidget
+                            widget={msg.widget}
+                            token={token}
+                            onNavigate={(route) => navigate(route)}
+                            onSendPrompt={(promptText) => handleSend(promptText)}
+                          />
+                        )}
                       </div>
                     </div>
                   ))}
@@ -7502,6 +7556,16 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                                   </a>
                                 </div>
                               </div>
+                            )}
+
+                            {/* Tarjetas y Widgets Interactivos OpenBot AG-UI & Gobernanza HITL */}
+                            {msg.widget && (
+                              <TenshiGenerativeWidget
+                                widget={msg.widget}
+                                token={token}
+                                onNavigate={(route) => navigate(route)}
+                                onSendPrompt={(promptText) => handleSend(promptText)}
+                              />
                             )}
                           </>
                         )}

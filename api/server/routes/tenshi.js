@@ -22,6 +22,15 @@ const CanvasTool = require('../../app/clients/tools/structured/CanvasTool');
 const { getActiveSkillInstructions, getActiveSkillsData } = require('~/server/services/skillRouter');
 const { resolveApiKeys } = require('./sgsst/sgsstGemini');
 const { executeTenshiMcpTool, TOOL_ROUTES } = require('./voice/tenshiMcpDispatcher');
+const TenshiPendingAction = require('../../models/TenshiPendingAction');
+const TenshiProceduralMemory = require('../../models/TenshiProceduralMemory');
+const {
+    isGovernedTool,
+    stageGovernedAction,
+    buildGenerativeWidgetForTool,
+    manageProceduralMemory,
+    getProceduralMemoryPromptBlock,
+} = require('./voice/tenshiOpenBotEngine');
 
 function sanitizeSlug(title) {
     if (!title || typeof title !== 'string') return '';
@@ -294,6 +303,7 @@ router.get('/history', requireJwtAuth, async (req, res) => {
             htmlReport: m.htmlReport,
             file: m.file,
             qrCode: m.qrCode,
+            widget: m.widget,
             createdAt: m.createdAt,
         })));
     } catch (error) {
@@ -304,7 +314,7 @@ router.get('/history', requireJwtAuth, async (req, res) => {
 
 router.post('/message', requireJwtAuth, async (req, res) => {
     try {
-        const { role = 'assistant', content, htmlReport, file, qrCode, image, media } = req.body;
+        const { role = 'assistant', content, htmlReport, file, qrCode, widget, image, media } = req.body;
         if (!content || !content.trim()) {
             return res.status(400).json({ error: 'Content is required' });
         }
@@ -317,11 +327,188 @@ router.post('/message', requireJwtAuth, async (req, res) => {
             htmlReport,
             file,
             qrCode,
+            widget,
         });
         res.json(newMsg);
     } catch (error) {
         console.error('Error creating Tenshi message:', error);
         res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// =========================================================================
+// GOBERNANZA HUMAN-IN-THE-LOOP (HITL) & MEMORIA PROCEDURAL (OPENBOT ENGINE)
+// =========================================================================
+
+router.get('/governance/pending', requireJwtAuth, async (req, res) => {
+    try {
+        const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
+        const userIds = [req.user.id, targetUserId].filter(Boolean);
+        const pending = await TenshiPendingAction.find({
+            user: { $in: userIds },
+            status: 'pendiente_aprobacion',
+        }).sort({ createdAt: -1 }).limit(20).lean();
+        res.json(pending);
+    } catch (error) {
+        logger.error('[Tenshi Governance] Error fetching pending actions:', error);
+        res.status(500).json({ error: 'Error consultando acciones pendientes' });
+    }
+});
+
+router.post('/governance/:id/approve', requireJwtAuth, async (req, res) => {
+    try {
+        const actionId = req.params.id;
+        const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
+        const userIds = [req.user.id, targetUserId].filter(Boolean);
+
+        const pendingAction = await TenshiPendingAction.findOne({
+            _id: actionId,
+            user: { $in: userIds },
+        });
+
+        if (!pendingAction) {
+            return res.status(404).json({ error: 'Solicitud de aprobación no encontrada.' });
+        }
+
+        if (pendingAction.status !== 'pendiente_aprobacion') {
+            return res.json({
+                success: true,
+                alreadyProcessed: true,
+                status: pendingAction.status,
+                action: pendingAction,
+            });
+        }
+
+        const customArgs = req.body?.args ? { ...pendingAction.args, ...req.body.args } : { ...pendingAction.args };
+        const execResult = await executeTenshiMcpTool(
+            pendingAction.toolName,
+            { ...customArgs, _hitlApproved: true },
+            targetUserId
+        );
+
+        pendingAction.status = execResult?.error ? 'error' : 'aprobada';
+        pendingAction.decidedAt = new Date();
+        pendingAction.decidedBy = req.user.name || req.user.username || 'Responsable SST';
+        pendingAction.executionResult = execResult;
+        if (execResult?.error) {
+            pendingAction.errorMessage = String(execResult.error);
+        }
+        await pendingAction.save();
+
+        // Actualizar el estado del widget dentro de TenshiMessage para persistencia en recargas
+        await TenshiMessage.updateMany(
+            { 'widget.actionId': String(actionId) },
+            {
+                $set: {
+                    'widget.status': pendingAction.status,
+                    'widget.data.status': pendingAction.status,
+                    'widget.data.decidedBy': pendingAction.decidedBy,
+                    'widget.data.decidedAt': pendingAction.decidedAt,
+                    'widget.data.executionResult': execResult,
+                },
+            }
+        ).catch(() => {});
+
+        res.json({
+            success: !execResult?.error,
+            status: pendingAction.status,
+            action: pendingAction,
+            result: execResult,
+        });
+    } catch (error) {
+        logger.error('[Tenshi Governance] Error approving action:', error);
+        res.status(500).json({ error: error.message || 'Error ejecutando la acción autorizada' });
+    }
+});
+
+router.post('/governance/:id/reject', requireJwtAuth, async (req, res) => {
+    try {
+        const actionId = req.params.id;
+        const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
+        const userIds = [req.user.id, targetUserId].filter(Boolean);
+
+        const pendingAction = await TenshiPendingAction.findOne({
+            _id: actionId,
+            user: { $in: userIds },
+        });
+
+        if (!pendingAction) {
+            return res.status(404).json({ error: 'Solicitud no encontrada.' });
+        }
+
+        pendingAction.status = 'rechazada';
+        pendingAction.decidedAt = new Date();
+        pendingAction.decidedBy = req.user.name || req.user.username || 'Responsable SST';
+        await pendingAction.save();
+
+        await TenshiMessage.updateMany(
+            { 'widget.actionId': String(actionId) },
+            {
+                $set: {
+                    'widget.status': 'rechazada',
+                    'widget.data.status': 'rechazada',
+                    'widget.data.decidedBy': pendingAction.decidedBy,
+                    'widget.data.decidedAt': pendingAction.decidedAt,
+                },
+            }
+        ).catch(() => {});
+
+        res.json({
+            success: true,
+            status: 'rechazada',
+            action: pendingAction,
+        });
+    } catch (error) {
+        logger.error('[Tenshi Governance] Error rejecting action:', error);
+        res.status(500).json({ error: error.message || 'Error rechazando la acción' });
+    }
+});
+
+router.get('/procedural-memory', requireJwtAuth, async (req, res) => {
+    try {
+        const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
+        const habits = await TenshiProceduralMemory.find({ user: targetUserId })
+            .sort({ updatedAt: -1 })
+            .limit(30)
+            .lean();
+        res.json(habits);
+    } catch (error) {
+        logger.error('[Tenshi Procedural Memory] Error listing habits:', error);
+        res.status(500).json({ error: 'Error consultando memoria procedimental' });
+    }
+});
+
+router.post('/procedural-memory', requireJwtAuth, async (req, res) => {
+    try {
+        const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
+        const { trigger, rule, category = 'habito_operativo', companyId, companyName } = req.body;
+        if (!trigger || !rule) {
+            return res.status(400).json({ error: 'Se requiere trigger y rule.' });
+        }
+        const out = await manageProceduralMemory(
+            { accion: 'guardar', trigger, regla: rule, categoria: category },
+            targetUserId,
+            companyId,
+            companyName
+        );
+        res.json(out.result);
+    } catch (error) {
+        logger.error('[Tenshi Procedural Memory] Error creating habit:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.delete('/procedural-memory/:id', requireJwtAuth, async (req, res) => {
+    try {
+        const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
+        const deleted = await TenshiProceduralMemory.findOneAndDelete({
+            _id: req.params.id,
+            user: targetUserId,
+        });
+        res.json({ success: Boolean(deleted), deleted });
+    } catch (error) {
+        logger.error('[Tenshi Procedural Memory] Error deleting habit:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 
@@ -396,6 +583,7 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         let capturedHtmlReport = null;
         let capturedQrCode = null;
         let capturedFile = null;
+        let capturedWidget = null;
         let capturedDelegatedOrder = null;
         let requestedGuiAction = null;
         let requestedGuiActions = null;
@@ -561,6 +749,11 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
                 for (const [k, v] of uniqueMemMap.entries()) {
                     fullCompanyAndMemoryBlock += `📌 [${k}]:\n${v}\n\n`;
                 }
+            }
+
+            const proceduralBlock = await getProceduralMemoryPromptBlock(targetUserId, companyInfo?._id, 12);
+            if (proceduralBlock) {
+                fullCompanyAndMemoryBlock += `${proceduralBlock}\n`;
             }
 
             fullCompanyAndMemoryBlock += `### ⚡ REGLA DE ORO DE CONOCIMIENTO CORPORATIVO Y MEMORIA:
@@ -2048,6 +2241,85 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 }
             };
 
+            const wappyMemoriaProcedimentalDeclaration = {
+                name: 'wappy_memoria_procedimental',
+                description: 'Gestiona la Memoria Procedural y de Hábitos Operativos de la empresa (estilo OpenBot). Permite guardar, listar o eliminar costumbres, flujos de aprobación, criterios técnicos o reglas operativas específicas de la organización para aplicarlas automáticamente en sesiones futuras.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        accion: {
+                            type: 'STRING',
+                            description: "Acción a realizar: 'guardar', 'listar' o 'eliminar'."
+                        },
+                        trigger: {
+                            type: 'STRING',
+                            description: "Situación o disparador en que aplica el hábito (ej: 'Al cerrar investigación ATEL', 'En informes mensuales', 'Al registrar químicos')."
+                        },
+                        regla: {
+                            type: 'STRING',
+                            description: "Regla operativa o hábito a cumplir (ej: 'Notificar siempre primero a la Dra. María antes de archivar')."
+                        },
+                        categoria: {
+                            type: 'STRING',
+                            description: "Categoría: 'habito_operativo', 'flujo_aprobacion', 'notificacion', 'criterio_tecnico' o 'preferencia_formato'."
+                        },
+                        id: {
+                            type: 'STRING',
+                            description: "ID o palabra clave del hábito a eliminar cuando accion='eliminar'."
+                        }
+                    },
+                    required: ['accion']
+                }
+            };
+
+            const wappyRenderizarWidgetDeclaration = {
+                name: 'wappy_renderizar_widget_interactivo',
+                description: 'Generative UI (AG-UI): Proyecta y renderiza una tarjeta o widget interactivo directamente en el chat del usuario (ej: Simulador/Calculadora de Riesgo GTC-45 NDxNExNC con sliders en vivo, o Checklist Interactivo de Inspección SST). Úsala cuando el usuario pida una calculadora interactiva en el chat, simular el nivel de riesgo GTC-45 o una lista de chequeo interactiva.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        tipo_widget: {
+                            type: 'STRING',
+                            description: "Tipo de widget interactivo: 'risk_calculator' (Simulador GTC-45 NDxNExNC) o 'inspection_checklist' (Lista de verificación interactiva)."
+                        },
+                        titulo: {
+                            type: 'STRING',
+                            description: 'Título del widget interactivo.'
+                        },
+                        subtitulo: {
+                            type: 'STRING',
+                            description: 'Subtítulo o contexto normativo.'
+                        },
+                        peligro: {
+                            type: 'STRING',
+                            description: 'Descripción del peligro a simular (para risk_calculator).'
+                        },
+                        proceso: {
+                            type: 'STRING',
+                            description: 'Proceso o cargo evaluado.'
+                        },
+                        nd: {
+                            type: 'NUMBER',
+                            description: 'Nivel de Deficiencia inicial (0, 2, 6 o 10).'
+                        },
+                        ne: {
+                            type: 'NUMBER',
+                            description: 'Nivel de Exposición inicial (1, 2, 3 o 4).'
+                        },
+                        nc: {
+                            type: 'NUMBER',
+                            description: 'Nivel de Consecuencia inicial (10, 25, 60 o 100).'
+                        },
+                        items: {
+                            type: 'ARRAY',
+                            items: { type: 'STRING' },
+                            description: 'Ítems de verificación para inspection_checklist.'
+                        }
+                    },
+                    required: ['tipo_widget']
+                }
+            };
+
             // Assemble base tools and dynamically triggered tools (strictly excluding Group 7)
             const baseFunctionDeclarations = [
                 wappyNavegarDeclaration,
@@ -2103,6 +2375,8 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 wappyActivarEmpresaDeclaration,
                 wappyActualizarEmpresaDeclaration,
                 gestionarMemoriaDeclaration,
+                wappyMemoriaProcedimentalDeclaration,
+                wappyRenderizarWidgetDeclaration,
                 leerPantallaDeclaration
             ];
 
@@ -2515,6 +2789,27 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                         message: `Acción visual programada: ${requestedGuiAction.accion}`
                                     });
                                     break;
+                                } else if (call.name === 'wappy_memoria_procedimental') {
+                                    const memOut = await manageProceduralMemory(
+                                        call.args || {},
+                                        targetUserId,
+                                        companyInfo?._id,
+                                        companyInfo?.companyName || ''
+                                    );
+                                    if (memOut.widget) {
+                                        capturedWidget = memOut.widget;
+                                    }
+                                    toolOutput = JSON.stringify(memOut.result);
+                                } else if (call.name === 'wappy_renderizar_widget_interactivo') {
+                                    capturedWidget = buildGenerativeWidgetForTool(
+                                        'wappy_renderizar_widget_interactivo',
+                                        call.args || {},
+                                        { ok: true }
+                                    );
+                                    toolOutput = JSON.stringify({
+                                        success: true,
+                                        mensaje: `Widget interactivo "${capturedWidget?.title || 'Simulador SST'}" proyectado exitosamente en el chat del usuario.`,
+                                    });
                                 } else if (call.name === 'wappy_reintegrar_trabajador' || call.name === 'wappy_reactivar_trabajador') {
                                     const rawArgs = call.args || {};
                                     const target = rawArgs.idOrCedula || rawArgs.id || rawArgs.cedula || rawArgs.nombre || rawArgs.identificacion || rawArgs.target || '';
@@ -2535,8 +2830,14 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                         id: target,
                                         nombre: rawArgs.nombre || target
                                     };
-                                    const res = await executeTenshiMcpTool('wappy_retirar_trabajador', argsToSend, targetUserId);
-                                    toolOutput = JSON.stringify(res);
+                                    if (isGovernedTool('wappy_retirar_trabajador', argsToSend)) {
+                                        const staged = await stageGovernedAction('wappy_retirar_trabajador', argsToSend, targetUserId, companyInfo?._id);
+                                        capturedWidget = staged.widget;
+                                        toolOutput = JSON.stringify(staged.toolResponse);
+                                    } else {
+                                        const res = await executeTenshiMcpTool('wappy_retirar_trabajador', argsToSend, targetUserId);
+                                        toolOutput = JSON.stringify(res);
+                                    }
                                 } else if (call.name === 'wappy_actualizar_trabajador') {
                                     const rawArgs = call.args || {};
                                     const target = rawArgs.idOrCedula || rawArgs.id || rawArgs.cedula || rawArgs.nombre || rawArgs.identificacion || rawArgs.target || '';
@@ -2545,6 +2846,9 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                     toolOutput = JSON.stringify(res);
                                 } else if (call.name === 'wappy_consultar_trabajadores') {
                                     const res = await executeTenshiMcpTool('wappy_consultar_trabajadores', call.args || {}, targetUserId);
+                                    if (!capturedWidget) {
+                                        capturedWidget = buildGenerativeWidgetForTool('wappy_consultar_trabajadores', call.args || {}, res);
+                                    }
                                     toolOutput = JSON.stringify(res);
                                 } else if (call.name === 'wappy_registrar_trabajador') {
                                     const res = await executeTenshiMcpTool('wappy_registrar_trabajador', call.args || {}, targetUserId);
@@ -2557,6 +2861,9 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                     toolOutput = JSON.stringify(res);
                                 } else if (call.name === 'wappy_resumen_general_360') {
                                     const res = await executeTenshiMcpTool('wappy_resumen_general_360', call.args || {}, targetUserId);
+                                    if (!capturedWidget) {
+                                        capturedWidget = buildGenerativeWidgetForTool('wappy_resumen_general_360', call.args || {}, res);
+                                    }
                                     toolOutput = JSON.stringify(res);
                                 } else if (call.name === 'notebooklm_listar_cuadernos' || call.name === 'notebooklm_consultar' || call.name === 'notebooklm_generar_studio') {
                                      let mappedTool = 'notebook_list';
@@ -2573,16 +2880,25 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                  } else if (call.name === 'wappy_mcp_sst' || call.name in TOOL_ROUTES || (call.name.startsWith('wappy_') && !['wappy_navegar', 'wappy_diligenciar_formulario', 'wappy_seleccionar_empresa', 'wappy_activar_empresa'].includes(call.name))) {
                                     const targetTool = call.name === 'wappy_mcp_sst' ? (call.args?.herramienta || call.args?.tool || 'wappy_resumen_general_360') : call.name;
                                     const targetArgs = call.name === 'wappy_mcp_sst' ? (call.args?.parametros || call.args?.args || call.args || {}) : (call.args || {});
-                                    const res = await executeTenshiMcpTool(targetTool, targetArgs, targetUserId);
-                                    if ((targetTool === 'wappy_delegar_orden_antigravity' || targetTool === 'delegar_orden_antigravity') && res?.ordenId) {
-                                        capturedDelegatedOrder = {
-                                            ordenId: res.ordenId,
-                                            titulo: res.detalles?.titulo || targetArgs?.titulo || 'Orden Antigravity',
-                                            formato: res.detalles?.formatoEntregable || targetArgs?.tipo_entregable || 'html',
-                                            estado: res.estado || 'todo',
-                                        };
+                                    if (isGovernedTool(targetTool, targetArgs)) {
+                                        const staged = await stageGovernedAction(targetTool, targetArgs, targetUserId, companyInfo?._id);
+                                        capturedWidget = staged.widget;
+                                        toolOutput = JSON.stringify(staged.toolResponse);
+                                    } else {
+                                        const res = await executeTenshiMcpTool(targetTool, targetArgs, targetUserId);
+                                        if ((targetTool === 'wappy_delegar_orden_antigravity' || targetTool === 'delegar_orden_antigravity') && res?.ordenId) {
+                                            capturedDelegatedOrder = {
+                                                ordenId: res.ordenId,
+                                                titulo: res.detalles?.titulo || targetArgs?.titulo || 'Orden Antigravity',
+                                                formato: res.detalles?.formatoEntregable || targetArgs?.tipo_entregable || 'html',
+                                                estado: res.estado || 'todo',
+                                            };
+                                        }
+                                        if (!capturedWidget) {
+                                            capturedWidget = buildGenerativeWidgetForTool(targetTool, targetArgs, res);
+                                        }
+                                        toolOutput = JSON.stringify(res);
                                     }
-                                    toolOutput = JSON.stringify(res);
                                 } else {
                                     break;
                                 }
@@ -2762,7 +3078,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
                         if (!responseText || !responseText.trim()) {
                             const hasGuiAction = Boolean(requestedGuiAction || (requestedGuiActions && requestedGuiActions.length > 0));
-                            const hasGeneratedArtifact = Boolean(capturedFile || capturedHtmlReport || capturedQrCode);
+                            const hasGeneratedArtifact = Boolean(capturedFile || capturedHtmlReport || capturedQrCode || capturedWidget);
                             if (hasGuiAction) {
                                 responseText = "Entendido, procedo a realizar una acción en la pantalla...";
                             } else if (hasGeneratedArtifact) {
@@ -2876,6 +3192,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 htmlReport: capturedHtmlReport || undefined,
                 qrCode: capturedQrCode || undefined,
                 file: capturedFile || undefined,
+                widget: capturedWidget || undefined,
             }).catch(e => console.error('Error saving assistant TenshiMessage:', e));
         }
 
@@ -2952,6 +3269,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             htmlReport: capturedHtmlReport,
             qrCode: capturedQrCode,
             file: capturedFile,
+            widget: capturedWidget,
             delegatedOrder: capturedDelegatedOrder,
             guiAction: requestedGuiAction,
             guiActions: requestedGuiActions

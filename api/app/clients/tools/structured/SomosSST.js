@@ -308,9 +308,16 @@ class SomosSST extends Tool {
           return JSON.stringify({ mensaje: 'No hay trabajadores registrados en la base de datos (Huella Biocéntrica).' });
         }
 
+        let censusWidget = null;
+        try {
+          const { buildGenerativeWidgetForTool } = require('~/server/routes/voice/tenshiOpenBotEngine');
+          censusWidget = buildGenerativeWidgetForTool('wappy_consultar_trabajadores', {}, { trabajadores });
+        } catch (_) {}
+
         return JSON.stringify({
           mensaje: `Se encontraron ${trabajadores.length} trabajadores registrados en el Motor Bio-Individual.`,
-          trabajadores: trabajadores
+          trabajadores: trabajadores,
+          ...(censusWidget ? { widget: censusWidget } : {}),
         });
       }
 

@@ -124,7 +124,9 @@ const DEFAULT_TOOLS = [
   'canvas',
   'web_search',
   'consultar_agente_especializado',
-  'gestor_automatizaciones'
+  'gestor_automatizaciones',
+  'wappy_renderizar_widget_interactivo',
+  'wappy_memoria_procedimental'
 ];
 
 async function main() {

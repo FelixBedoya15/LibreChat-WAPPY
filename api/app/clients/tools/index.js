@@ -37,11 +37,17 @@ const GestorAutomatizaciones = require('./structured/GestorAutomatizaciones');
 const WebSearch = require('./structured/WebSearch');
 const GenerarImagenSST = require('./structured/GenerarImagenSST');
 const PubChem = require('./structured/PubChem');
+const {
+  WidgetInteractivoSST,
+  MemoriaProcedimentalSST,
+} = require('./structured/OpenBotHabilidades');
 
 module.exports = {
   ...manifest,
   // Structured Tools
   PubChem,
+  WidgetInteractivoSST,
+  MemoriaProcedimentalSST,
   DALLE3,
   FluxAPI,
   OpenWeather,

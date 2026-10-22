@@ -51,6 +51,14 @@ const tenshiMessageSchema = mongoose.Schema(
             formato: { type: String },
             contenido: { type: String },
         },
+        widget: {
+            widgetType: { type: String },
+            title: { type: String },
+            subtitle: { type: String },
+            status: { type: String },
+            actionId: { type: String },
+            data: { type: mongoose.Schema.Types.Mixed },
+        },
     },
     { timestamps: true }
 );

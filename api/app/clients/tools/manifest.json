@@ -354,5 +354,19 @@
     "description": "Permite al agente programar, listar, editar, pausar, activar y ejecutar tareas autónomas periódicas en el sistema de Automatizaciones de Wappy (/sgsst/automatizaciones).",
     "icon": "https://cdn-icons-png.flaticon.com/512/2040/2040946.png",
     "authConfig": []
+  },
+  {
+    "name": "Widgets Interactivos SG-SST (Generative UI)",
+    "pluginKey": "wappy_renderizar_widget_interactivo",
+    "description": "Despliega tarjetas interactivas en vivo en el chat (Simulador GTC-45 NDxNExNC y Listas de Chequeo interactivas).",
+    "icon": "https://cdn-icons-png.flaticon.com/512/2040/2040946.png",
+    "authConfig": []
+  },
+  {
+    "name": "Memoria Procedural y Hábitos de Empresa",
+    "pluginKey": "wappy_memoria_procedimental",
+    "description": "Guarda, lista y gestiona hábitos operativos y reglas personalizadas de la empresa compartidas entre Tenshi y todos los especialistas.",
+    "icon": "https://cdn-icons-png.flaticon.com/512/2040/2040946.png",
+    "authConfig": []
   }
 ]

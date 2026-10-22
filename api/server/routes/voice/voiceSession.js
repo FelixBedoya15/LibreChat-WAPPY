@@ -20,6 +20,13 @@ const path = require('path');
 const SKILLS_DIR = path.resolve(__dirname, '../../../config/skills');
 const { resolveInspectionProtocol, INSPECTION_PROTOCOLS } = require('./inspectionProtocols');
 const { executeTenshiMcpTool, TOOL_ROUTES } = require('./tenshiMcpDispatcher');
+const {
+    isGovernedTool,
+    stageGovernedAction,
+    buildGenerativeWidgetForTool,
+    manageProceduralMemory,
+    getProceduralMemoryPromptBlock,
+} = require('./tenshiOpenBotEngine');
 
 function sanitizeSlug(title) {
     if (!title || typeof title !== 'string') return '';
@@ -827,6 +834,80 @@ class VoiceSession {
                                     }
                                 },
                                 required: ["accion"]
+                            }
+                        },
+                        {
+                            name: "wappy_memoria_procedimental",
+                            description: "Gestiona la Memoria Procedural y de Hábitos Operativos de la empresa (estilo OpenBot). Permite guardar, listar o eliminar costumbres, flujos de aprobación o reglas operativas de la organización para aplicarlas automáticamente en sesiones futuras.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    accion: {
+                                        type: "string",
+                                        enum: ["guardar", "listar", "eliminar"],
+                                        description: "Acción a realizar: 'guardar', 'listar' o 'eliminar'."
+                                    },
+                                    trigger: {
+                                        type: "string",
+                                        description: "Situación o disparador en que aplica el hábito (ej: 'Al cerrar investigación ATEL', 'En informes mensuales')."
+                                    },
+                                    regla: {
+                                        type: "string",
+                                        description: "Regla operativa o hábito a cumplir (ej: 'Notificar siempre primero a la Dra. María')."
+                                    },
+                                    categoria: {
+                                        type: "string",
+                                        description: "Categoría: 'habito_operativo', 'flujo_aprobacion', 'notificacion', 'criterio_tecnico' o 'preferencia_formato'."
+                                    },
+                                    id: {
+                                        type: "string",
+                                        description: "ID o palabra clave del hábito a eliminar."
+                                    }
+                                },
+                                required: ["accion"]
+                            }
+                        },
+                        {
+                            name: "wappy_renderizar_widget_interactivo",
+                            description: "Generative UI (AG-UI): Proyecta y renderiza una tarjeta o widget interactivo directamente en el chat del usuario (ej: Simulador/Calculadora de Riesgo GTC-45 NDxNExNC con sliders en vivo, o Checklist Interactivo de Inspección SST).",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    tipo_widget: {
+                                        type: "string",
+                                        enum: ["risk_calculator", "inspection_checklist"],
+                                        description: "Tipo de widget: 'risk_calculator' (Simulador GTC-45) o 'inspection_checklist' (Lista de verificación interactiva)."
+                                    },
+                                    titulo: {
+                                        type: "string",
+                                        description: "Título del widget interactivo."
+                                    },
+                                    subtitulo: {
+                                        type: "string",
+                                        description: "Subtítulo o contexto normativo."
+                                    },
+                                    peligro: {
+                                        type: "string",
+                                        description: "Descripción del peligro a simular."
+                                    },
+                                    proceso: {
+                                        type: "string",
+                                        description: "Proceso o cargo evaluado."
+                                    },
+                                    nd: {
+                                        type: "number",
+                                        description: "Nivel de Deficiencia inicial (0, 2, 6 o 10)."
+                                    },
+                                    ne: {
+                                        type: "number",
+                                        description: "Nivel de Exposición inicial (1, 2, 3 o 4)."
+                                    },
+                                    nc: {
+                                        type: "number",
+                                        description: "Nivel de Consecuencia inicial (10, 25, 60 o 100)."
+                                    }
+                                },
+                                required: ["tipo_widget"]
                             }
                         },
                         {
@@ -2625,6 +2706,20 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                         }
                     }
 
+                    // Inyectar Memoria Procedural y de Hábitos de la Empresa (Estilo OpenBot)
+                    try {
+                        const procMemBlock = await getProceduralMemoryPromptBlock(targetUserId, companyInfo?._id, 8);
+                        if (procMemBlock) {
+                            companyAndMemoryPrompt += procMemBlock;
+                        }
+                    } catch (procErr) {
+                        logger.warn('[VoiceSession] Failed loading procedural memory block:', procErr.message);
+                    }
+                    companyAndMemoryPrompt += `\n\n[CAPACIDADES INTERACTIVAS OPENBOT (WIDGETS, HÁBITOS Y GOBERNANZA HITL)]:
+- Si el usuario te enseña una regla operativa o hábito de su empresa ("siempre que...", "recuerda que para..."), usa \`wappy_memoria_procedimental\` (accion="guardar"). Si pregunta qué hábitos o reglas recuerdas, usa accion="listar".
+- Si el usuario pide una calculadora interactiva de riesgos GTC-45 o una lista de chequeo interactiva en el chat, usa \`wappy_renderizar_widget_interactivo\`.
+- Las acciones destructivas o críticas (retirar/eliminar trabajador, eliminar riesgos GTC-45/PESV, eliminar requisitos legales, químicos, vehículos, ATEL, tareas, capacitaciones o hallazgos) están protegidas por Gobernanza Human-in-the-Loop: al invocar la herramienta, el sistema generará una Tarjeta de Aprobación en el chat para que el usuario autorice con un clic.`;
+
                     // Inyectar Historial reciente de Tenshi (TenshiMessage) - UNIFICADO Y VIVO (Últimos 12 turnos completos)
                     if (recentTenshiMessages && recentTenshiMessages.length > 0) {
                         const validMessages = [];
@@ -3826,6 +3921,94 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         continue;
                     }
 
+                    // Manejo de Memoria Procedural y de Hábitos de Empresa (OpenBot)
+                    if (fc.name === 'wappy_memoria_procedimental') {
+                        try {
+                            const companyInfo = await getActiveCompanyForUser(this.userId);
+                            const memRes = await manageProceduralMemory(
+                                fc.args || {},
+                                this.userId,
+                                companyInfo?._id || null,
+                                companyInfo?.companyName || '',
+                            );
+                            if (memRes.widget) {
+                                try {
+                                    await TenshiMessage.create({
+                                        user: this.userId,
+                                        role: 'tenshi',
+                                        content: `🧠 **Memoria Procedural de Hábitos Operativos**\n${memRes.mensaje || 'Hábitos actualizados.'}`,
+                                        source: 'voice',
+                                        widget: memRes.widget,
+                                    });
+                                } catch (saveErr) {
+                                    logger.warn('[VoiceSession] Failed saving procedural memory widget message:', saveErr.message);
+                                }
+                            }
+                            this.sendToClient({
+                                type: 'wappy_action',
+                                data: { id: fc.id, name: fc.name, args: fc.args, result: memRes, widget: memRes.widget }
+                            });
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: JSON.stringify({ exito: memRes.exito, mensaje: memRes.mensaje }) }
+                                }]);
+                            }
+                        } catch (procErr) {
+                            logger.error('[VoiceSession] Error in wappy_memoria_procedimental:', procErr);
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error en memoria procedimental: ${procErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo de Widgets Interactivos Generative UI (OpenBot AG-UI)
+                    if (fc.name === 'wappy_renderizar_widget_interactivo') {
+                        try {
+                            const widget = buildGenerativeWidgetForTool(fc.name, fc.args || {}, null);
+                            if (widget) {
+                                try {
+                                    await TenshiMessage.create({
+                                        user: this.userId,
+                                        role: 'tenshi',
+                                        content: `✨ **${widget.title || 'Widget Interactivo'}**\n_${widget.subtitle || 'Interactúa directamente en la tarjeta inferior.'}_`,
+                                        source: 'voice',
+                                        widget,
+                                    });
+                                } catch (saveErr) {
+                                    logger.warn('[VoiceSession] Failed saving interactive widget message:', saveErr.message);
+                                }
+                            }
+                            this.sendToClient({
+                                type: 'wappy_action',
+                                data: { id: fc.id, name: fc.name, args: fc.args, result: { exito: true }, widget }
+                            });
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: `Widget interactivo "${widget?.title || fc.args?.tipo_widget}" desplegado en el chat del usuario. Invita al usuario a interactuar con él en pantalla.` }
+                                }]);
+                            }
+                        } catch (widErr) {
+                            logger.error('[VoiceSession] Error in wappy_renderizar_widget_interactivo:', widErr);
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error renderizando widget: ${widErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
                     // Manejo directo de Creación y Entrega de Informes en el chat de Tenshi
                     if (fc.name === 'wappy_crear_informe' || fc.name === 'wappy_generar_informe') {
                         const userRequestText = (this.userTranscriptionText || '').trim() || this.lastUserRequest || fc.args?.titulo || '';
@@ -4790,6 +4973,37 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         });
 
                         try {
+                            // Gobernanza Human-in-the-Loop (HITL) — Acciones críticas requieren autorización humana en tarjeta interactiva
+                            if (isGovernedTool(targetTool, targetArgs)) {
+                                const companyInfo = await getActiveCompanyForUser(this.userId);
+                                const staged = await stageGovernedAction(targetTool, targetArgs, this.userId, companyInfo?._id || null);
+                                if (staged.widget) {
+                                    try {
+                                        await TenshiMessage.create({
+                                            user: this.userId,
+                                            role: 'tenshi',
+                                            content: `🛡️ **Control de Gobernanza SG-SST (Aprobación Requerida)**\nHe preparado la solicitud **${staged.widget.title}**: _${staged.widget.subtitle}_.\nPor seguridad, autoriza la operación haciendo clic en **"Autorizar y Ejecutar"** en la tarjeta inferior.`,
+                                            source: 'voice',
+                                            widget: staged.widget,
+                                        });
+                                    } catch (saveErr) {
+                                        logger.warn('[VoiceSession] Failed saving HITL widget message:', saveErr.message);
+                                    }
+                                }
+                                this.sendToClient({
+                                    type: 'wappy_action',
+                                    data: { id: fc.id, name: targetTool, args: targetArgs, result: staged, widget: staged.widget }
+                                });
+                                if (this.geminiClient) {
+                                    this.sendGeminiToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: { result: staged.instruccion_ia || staged.mensaje }
+                                    }]);
+                                }
+                                continue;
+                            }
+
                             const result = await executeTenshiMcpTool(targetTool, targetArgs, this.userId);
 
                             let rawHtml = '';
@@ -4809,9 +5023,25 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                 }
                             }
 
+                            // Construir Widget Generative UI si aplica (ej. Resumen 360° o Censo de Trabajadores)
+                            const autoWidget = buildGenerativeWidgetForTool(targetTool, targetArgs, result);
+                            if (autoWidget) {
+                                try {
+                                    await TenshiMessage.create({
+                                        user: this.userId,
+                                        role: 'tenshi',
+                                        content: `📊 **${autoWidget.title}** — _${autoWidget.subtitle || 'Vista interactiva en tiempo real'}_`,
+                                        source: 'voice',
+                                        widget: autoWidget,
+                                    });
+                                } catch (saveWidErr) {
+                                    logger.warn('[VoiceSession] Failed saving autoWidget message:', saveWidErr.message);
+                                }
+                            }
+
                             this.sendToClient({
                                 type: 'wappy_action',
-                                data: { id: fc.id, name: targetTool, args: targetArgs, result }
+                                data: { id: fc.id, name: targetTool, args: targetArgs, result, widget: autoWidget || undefined }
                             });
 
                             // Si la herramienta fue wappy_leer_informe_aplicativo y el usuario en este turno pidió enviarlo por correo con dirección o "mi correo", despachar el correo de inmediato

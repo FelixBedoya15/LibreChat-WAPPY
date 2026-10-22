@@ -143,6 +143,17 @@ IMPORTANTE:
   });
 
   const provider = agent.provider;
+  if (!isPublicChat) {
+    if (!Array.isArray(agent.tools)) {
+      agent.tools = [];
+    }
+    if (!agent.tools.includes('wappy_renderizar_widget_interactivo')) {
+      agent.tools.push('wappy_renderizar_widget_interactivo');
+    }
+    if (!agent.tools.includes('wappy_memoria_procedimental')) {
+      agent.tools.push('wappy_memoria_procedimental');
+    }
+  }
   const {
     tools: structuredTools,
     toolContextMap,
@@ -334,6 +345,33 @@ Cuando el usuario pida EXPLÍCITAMENTE crear un archivo o lienzo nuevo (aplicati
   * \`insertar\`: Para añadir contenido en una posición específica (inicio, fin o después de un texto).
 - Esto protege el resto del documento y garantiza que no se alteren secciones que el usuario no solicitó modificar.`;
     agent.additional_instructions = (agent.additional_instructions ?? '') + '\n' + canvasStatusPrompt + '\n' + canvasPrompt;
+  }
+
+  // Inject Shared Procedural Memory & Generative UI Capabilities across all Specialist Agents (OpenBot Colmena)
+  if (!isPublicChat && req?.user?.id) {
+    try {
+      const CompanyInfo = require('~/models/CompanyInfo');
+      const { getProceduralMemoryPromptBlock } = require('~/server/routes/voice/tenshiOpenBotEngine');
+      let activeComp = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean();
+      if (!activeComp) {
+        activeComp = await CompanyInfo.findOne({ user: req.user.id }).sort({ updatedAt: -1 }).lean();
+      }
+      const procMemBlock = await getProceduralMemoryPromptBlock(req.user.id, activeComp?._id, 10);
+      const openBotAgentInstructions = `
+# CAPACIDADES INTERACTIVAS OPENBOT (GENERATIVE UI & MEMORIA PROCEDURAL COMPARTIDA):
+1. **Widgets Interactivos en el Chat (\`wappy_renderizar_widget_interactivo\`)**:
+   - Cuando el usuario te pida simular o calcular un riesgo GTC-45 (ND x NE x NC) o cuando convenga acompañarlo de un simulador vivo en el chat, invoca \`wappy_renderizar_widget_interactivo\` con \`tipo_widget: "risk_calculator"\`.
+   - Cuando el usuario te pida una lista de chequeo o verificación preoperacional (Trabajo en Alturas, PESV, Químicos SGA, Extintores, Botiquín, etc.), invoca \`wappy_renderizar_widget_interactivo\` con \`tipo_widget: "inspection_checklist"\` y los ítems correspondientes.
+2. **Memoria Procedural y Hábitos de Empresa (\`wappy_memoria_procedimental\`)**:
+   - Compartes una misma memoria procedimental corporativa con Tenshi y con los otros 21 especialistas.
+   - Si el usuario te enseña una regla operativa, flujo de aprobación o costumbre de su empresa ("recuerda que siempre que...", "en esta empresa cuando..."), guárdala de inmediato usando \`wappy_memoria_procedimental\` con \`accion: "guardar"\`.
+   - Si el usuario pregunta qué reglas o hábitos recuerdas de la empresa, usa \`wappy_memoria_procedimental\` con \`accion: "listar"\`.${procMemBlock ? '\n' + procMemBlock : ''}`;
+      agent.additional_instructions = (agent.additional_instructions ?? '') + '\n' + openBotAgentInstructions;
+    } catch (openBotErr) {
+      if (req?.log) {
+        req.log.warn('[OpenBot Agent Context Injection Error]', openBotErr.message);
+      }
+    }
   }
 
   return {

@@ -1,12 +1,17 @@
 import { useMemo, useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@librechat/client';
 import { TriangleAlert } from 'lucide-react';
 import { actionDelimiter, actionDomainSeparator, Constants } from 'librechat-data-provider';
 import type { TAttachment } from 'librechat-data-provider';
-import { useLocalize, useProgress } from '~/hooks';
+import { useLocalize, useProgress, useAuthContext } from '~/hooks';
 import { AttachmentGroup } from './Parts';
 import ToolCallInfo from './ToolCallInfo';
 import ProgressText from './ProgressText';
+import {
+  TenshiGenerativeWidget,
+  type TenshiWidgetPayload,
+} from '~/components/Tenshi/TenshiGenerativeWidget';
 import { logger, cn } from '~/utils';
 
 export default function ToolCall({
@@ -28,6 +33,8 @@ export default function ToolCall({
   expires_at?: number;
 }) {
   const localize = useLocalize();
+  const navigate = useNavigate();
+  const { token } = useAuthContext();
   const [showInfo, setShowInfo] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState<number | undefined>(0);
@@ -78,6 +85,53 @@ export default function ToolCall({
     () => (args?.length ?? 0) > 0 || (output?.length ?? 0) > 0,
     [args, output],
   );
+
+  const detectedWidget = useMemo<TenshiWidgetPayload | null>(() => {
+    if (typeof output === 'string' && output.trim().startsWith('{')) {
+      try {
+        const parsed = JSON.parse(output);
+        if (parsed?.widget?.widgetType) {
+          return parsed.widget as TenshiWidgetPayload;
+        }
+      } catch {
+        // ignore non-json output
+      }
+    }
+    if (function_name === 'wappy_renderizar_widget_interactivo' && args) {
+      try {
+        const parsedArgs = typeof _args === 'string' ? JSON.parse(_args) : (_args as any);
+        if (parsedArgs?.tipo_widget) {
+          const rawItems = Array.isArray(parsedArgs.items) ? parsedArgs.items : [];
+          return {
+            widgetType: parsedArgs.tipo_widget,
+            title: parsedArgs.titulo || 'Simulador Técnico Interactivo SG-SST',
+            subtitle:
+              parsedArgs.subtitulo || 'Ajusta los parámetros en tiempo real directamente en el chat',
+            status: 'ready',
+            data: {
+              peligro: parsedArgs.peligro || 'Peligro Biomecánico / Operativo',
+              proceso: parsedArgs.proceso || 'Operaciones Generales',
+              nd: Number(parsedArgs.nd) || 6,
+              ne: Number(parsedArgs.ne) || 3,
+              nc: Number(parsedArgs.nc) || 25,
+              items: rawItems.map((it: any, idx: number) =>
+                typeof it === 'string'
+                  ? { id: `chk-${idx + 1}`, label: it, checked: false }
+                  : {
+                      id: String(it?.id || `chk-${idx + 1}`),
+                      label: String(it?.label || ''),
+                      checked: Boolean(it?.checked),
+                    },
+              ),
+            },
+          };
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return null;
+  }, [output, function_name, args, _args]);
 
   const authDomain = useMemo(() => {
     const authURL = auth ?? '';
@@ -236,6 +290,22 @@ export default function ToolCall({
         </div>
       )}
       {attachments && attachments.length > 0 && <AttachmentGroup attachments={attachments} />}
+      {detectedWidget && (
+        <div className="my-2 max-w-2xl">
+          <TenshiGenerativeWidget
+            widget={detectedWidget}
+            token={token}
+            onNavigate={(route) => navigate(route)}
+            onSendPrompt={(promptText) => {
+              window.dispatchEvent(
+                new CustomEvent('tenshi-submit-agent-prompt', {
+                  detail: { prompt: promptText },
+                }),
+              );
+            }}
+          />
+        </div>
+      )}
     </>
   );
 }
