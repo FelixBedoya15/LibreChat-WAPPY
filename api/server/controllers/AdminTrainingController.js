@@ -7,8 +7,7 @@ const { ADMIN_EMAILS } = require('../middleware/roles/admin');
 
 const isUserAdmin = (user) => {
     if (!user) return false;
-    const email = user.email?.toLowerCase();
-    return user.role === 'ADMIN' || (email && ADMIN_EMAILS.includes(email));
+    return user.role === 'ADMIN';
 };
 
 // --- Courses ---

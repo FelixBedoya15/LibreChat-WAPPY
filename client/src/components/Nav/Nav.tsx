@@ -90,11 +90,8 @@ const Nav = memo(
     // Chat access: subusers require explicit chat permission
     const hasAccessToChat = !isSubUser || subPerms.includes('chat:wappy_general') || subPerms.includes('chat:sst_specialist');
 
-    // Marcadores: solo para cuentas regulares con acceso a chat (oculto para sub-usuarios operativos)
-    const hasAccessToBookmarks = (!isSubUser && hasAccessToChat) && useHasAccess({
-      permissionType: PermissionTypes.BOOKMARKS,
-      permission: Permissions.USE,
-    }) && hasPermission(PermissionTypes.BOOKMARKS);
+    // Marcadores: disponible para todas las cuentas titulares con acceso a chat (oculto para sub-usuarios operativos)
+    const hasAccessToBookmarks = !isSubUser && hasAccessToChat;
 
     const hasAccessToAgents = hasPermission(PermissionTypes.AGENTS);
     const { hasAmbassadorAccess } = useAmbassadorAccess();

@@ -31,6 +31,9 @@ const getRoleByName = async function (roleName, fieldsToSelect = null) {
           READ: true,
           OPT_OUT: true,
         };
+        cachedRole.permissions.BOOKMARKS = {
+          USE: true,
+        };
       }
       return cachedRole;
     }
@@ -52,6 +55,9 @@ const getRoleByName = async function (roleName, fieldsToSelect = null) {
           READ: true,
           OPT_OUT: true,
         };
+        plainRole.permissions.BOOKMARKS = {
+          USE: true,
+        };
       }
       return plainRole;
     }
@@ -63,6 +69,9 @@ const getRoleByName = async function (roleName, fieldsToSelect = null) {
         UPDATE: true,
         READ: true,
         OPT_OUT: true,
+      };
+      role.permissions.BOOKMARKS = {
+        USE: true,
       };
     }
     await cache.set(roleName, role);
@@ -90,6 +99,9 @@ const getRoles = async function () {
           UPDATE: true,
           READ: true,
           OPT_OUT: true,
+        };
+        role.permissions.BOOKMARKS = {
+          USE: true,
         };
       }
       return role;

@@ -247,9 +247,9 @@ export default function RutaAprendizajeDashboard({ hideFloatingHeader = false }:
     const { showToast } = useToastContext();
     const navigate = useNavigate();
     const { user } = useAuthContext();
-    const ADMIN_EMAILS = ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com', 'felix.bedoya15@gmail.com'];
-    const isAdmin = user?.role === 'ADMIN' || (!!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase()));
-    const isProOrAdmin = isAdmin || user?.role === 'USER_PRO' || user?.role === 'USER_CUSTOM' || Boolean(user?.isSubUser);
+    const isAdmin = user?.role === 'ADMIN';
+    const isVital = ['USER_IPEVAR', 'IPEVAR', 'USER_VITAL', 'VITAL'].includes(user?.role || '') || ['ipevar', 'vital'].includes((user as any)?.plan || '');
+    const isProOrAdmin = isAdmin || (!isVital && (user?.role === 'USER_PRO' || user?.role === 'USER_CUSTOM' || Boolean(user?.isSubUser)));
     const outletContext = useOutletContext<ContextType>();
     const navVisible = outletContext?.navVisible ?? true;
     const setNavVisible = outletContext?.setNavVisible ?? (() => {});

@@ -423,12 +423,8 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
     const [canCreateSubUser, setCanCreateSubUser] = useState<boolean>(true);
 
     const isAdmin = useMemo(() => {
-        return (
-            user?.role === 'ADMIN' ||
-            userPlanName === 'admin' ||
-            (!!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase()))
-        );
-    }, [user?.role, user?.email, userPlanName, ADMIN_EMAILS]);
+        return user?.role === 'ADMIN' || userPlanName === 'admin';
+    }, [user?.role, userPlanName]);
 
     // Load initial data
     const loadData = useCallback(async () => {

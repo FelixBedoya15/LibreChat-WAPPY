@@ -282,8 +282,7 @@ export default function BlogDashboard({ hideFloatingHeader = false }: { hideFloa
     const { showToast } = useToastContext();
     const navigate = useNavigate();
     const { user } = useAuthContext();
-    const ADMIN_EMAILS = ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com'];
-    const isAdmin = user?.role === 'ADMIN' || (!!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase()));
+    const isAdmin = user?.role === 'ADMIN';
     const outletContext = useOutletContext<ContextType>();
     const navVisible = outletContext?.navVisible ?? true;
     const setNavVisible = outletContext?.setNavVisible ?? (() => {});

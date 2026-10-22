@@ -21,7 +21,6 @@ const checkBookmarkAccess = generateCheckAccess({
 });
 
 router.use(requireJwtAuth);
-router.use(checkBookmarkAccess);
 
 /**
  * GET /

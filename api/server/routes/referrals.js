@@ -107,15 +107,7 @@ router.use(requireJwtAuth);
 const checkIsAdmin = (user) => {
     if (!user) return false;
     const role = (user.role || '').toUpperCase();
-    const email = (user.email || '').toLowerCase();
-    const username = (user.username || '').toLowerCase();
-    return role === 'ADMIN' || 
-           role === 'ADMINISTRADOR' || 
-           email === 'felix.bedoya15@gmail.com' || 
-           email === 'wappyinteractivo@gmail.com' || 
-           email === 'wappysst@gmail.com' || 
-           email.includes('felix') || 
-           username.includes('felix');
+    return role === 'ADMIN' || role === 'ADMINISTRADOR';
 };
 
 /**

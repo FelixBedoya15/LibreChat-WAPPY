@@ -26,11 +26,10 @@ export default function AcademiaDashboard() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, isAuthenticated } = useAuthContext();
-  const ADMIN_EMAILS = ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com', 'felix.bedoya15@gmail.com'];
-  const isAdmin = user?.role === 'ADMIN' || (!!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase()));
+  const isAdmin = user?.role === 'ADMIN';
   const isVital = isVitalUser(user);
-  const isProOrAdmin = isAdmin || user?.role === 'USER_PRO' || user?.role === 'USER_CUSTOM' || Boolean(user?.isSubUser && !isVital);
-  const canAccessPlanEmpresa = Boolean(isAuthenticated && user && !isVital);
+  const isProOrAdmin = isAdmin || (!isVital && (user?.role === 'USER_PRO' || user?.role === 'USER_CUSTOM' || Boolean(user?.isSubUser)));
+  const canAccessPlanEmpresa = Boolean(isAuthenticated && user && !isVital && isProOrAdmin);
   const outletContext = useOutletContext<ContextType>();
   const navVisible = outletContext?.navVisible ?? true;
   const setNavVisible = outletContext?.setNavVisible ?? (() => {});

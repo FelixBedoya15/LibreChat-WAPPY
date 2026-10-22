@@ -47,7 +47,7 @@ const ALL_SGSST_OPERATIONAL_PERMS = [
     'community:blog'
 ];
 
-const ADMIN_EMAILS = ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com', 'felix.bedoya15@gmail.com'];
+const ADMIN_EMAILS = [];
 
 /**
  * Resolves the effective sub-user limit for a given user.
@@ -58,16 +58,21 @@ async function getEffectiveSubUserLimit(userId, userRole, userEmail) {
     const UserPlan = mongoose.models.UserPlan || require('~/db/models/UserPlan');
     const userPlanDoc = await UserPlan.findOne({ userId }).lean();
     let plan = userPlanDoc?.plan;
-    const isEmailAdmin = userEmail && ADMIN_EMAILS.includes(userEmail.toLowerCase());
-    if (userRole === 'ADMIN' || isEmailAdmin) {
+    if (userRole === 'ADMIN') {
         plan = 'admin';
+    } else if (userRole === 'USER_IPEVAR' || userRole === 'IPEVAR') {
+        plan = 'ipevar';
+    } else if (userRole === 'USER_PRO') {
+        plan = 'pro';
     } else if (!plan || plan === 'free') {
-        if (userRole === 'USER_PRO') plan = 'pro';
-        else if (userRole === 'USER_PLUS') plan = 'plus';
+        if (userRole === 'USER_PLUS') plan = 'plus';
         else if (userRole === 'USER_GO') plan = 'go';
         else if (userRole === 'USER_CUSTOM') plan = 'custom';
-        else if (userRole === 'USER_IPEVAR') plan = 'ipevar';
         else plan = 'free';
+    }
+
+    if (plan === 'ipevar') {
+        return { limit: 0, plan };
     }
 
     if (userPlanDoc?.subUserLimit !== undefined && userPlanDoc?.subUserLimit !== null) {
@@ -77,7 +82,7 @@ async function getEffectiveSubUserLimit(userId, userRole, userEmail) {
     if (['admin', 'custom'].includes(plan)) {
         return { limit: 999, plan };
     }
-    if (plan === 'pro' || plan === 'ipevar') {
+    if (plan === 'pro') {
         return { limit: 1, plan };
     }
     return { limit: 0, plan };

@@ -185,14 +185,25 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
               </span>
             )}
           </Select.SelectItem>
-          <Select.SelectItem
-            value=""
-            onClick={() => navigate('/sgsst')}
-            className="select-item text-sm"
-          >
-            <Shield className="icon-md" aria-hidden="true" />
-            Somos SST
-          </Select.SelectItem>
+          {(['USER_IPEVAR', 'IPEVAR', 'USER_VITAL', 'VITAL'].includes(user?.role || '') || ['ipevar', 'vital'].includes((user as any)?.plan || '')) ? (
+            <Select.SelectItem
+              value=""
+              onClick={() => navigate('/huella-biocentrica')}
+              className="select-item text-sm"
+            >
+              <Shield className="icon-md text-teal-600" aria-hidden="true" />
+              Huella Biocéntrica
+            </Select.SelectItem>
+          ) : (
+            <Select.SelectItem
+              value=""
+              onClick={() => navigate('/sgsst')}
+              className="select-item text-sm"
+            >
+              <Shield className="icon-md" aria-hidden="true" />
+              Somos SST
+            </Select.SelectItem>
+          )}
           <Select.SelectItem
             value=""
             onClick={() => navigate('/training')}

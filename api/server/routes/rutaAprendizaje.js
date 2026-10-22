@@ -123,13 +123,9 @@ async function getSisterCompanyIds(companyId) {
 // --- Admin Endpoints (Require JWT Authentication & Admin/PRO role) ---
 // -------------------------------------------------------------
 
-const ADMIN_EMAILS = ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com', 'felix.bedoya15@gmail.com'];
-
 const isSuperAdminUser = (user) => {
     if (!user) return false;
-    const userRole = user.role;
-    const userEmail = user.email?.toLowerCase();
-    return userRole === 'ADMIN' || (!!userEmail && ADMIN_EMAILS.includes(userEmail));
+    return user.role === 'ADMIN';
 };
 
 const checkAdminOrProRole = (req, res, next) => {
@@ -139,7 +135,7 @@ const checkAdminOrProRole = (req, res, next) => {
     }
 
     const isAdmin = isSuperAdminUser(user);
-    const isPro = user.role === 'USER_PRO' || user.role === 'USER_CUSTOM' || user.role === 'USER_IPEVAR' || user.role === 'IPEVAR';
+    const isPro = user.role === 'USER_PRO' || user.role === 'USER_CUSTOM';
     const isSubUserWithPerm = !!user.isSubUser && (
         !user.subUserPermissions ||
         user.subUserPermissions.length === 0 ||

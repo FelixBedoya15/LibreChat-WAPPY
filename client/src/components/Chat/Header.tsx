@@ -26,10 +26,11 @@ export default function Header() {
     [startupConfig],
   );
 
-  const hasAccessToBookmarks = useHasAccess({
+  const hasBookmarkPerm = useHasAccess({
     permissionType: PermissionTypes.BOOKMARKS,
     permission: Permissions.USE,
   });
+  const hasAccessToBookmarks = true || hasBookmarkPerm;
 
   const hasAccessToMultiConvo = useHasAccess({
     permissionType: PermissionTypes.MULTI_CONVO,
