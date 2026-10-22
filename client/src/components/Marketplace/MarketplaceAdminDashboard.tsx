@@ -232,22 +232,33 @@ const MarketplaceAdminDashboard: React.FC = () => {
   };
 
   const handleToggleFeatured = async (prod: MarketplaceProduct) => {
+    const nextFeatured = !prod.isFeatured;
+    // Optimistic in-place update so the row does not jump away under the cursor
+    setProducts((prev) =>
+      prev.map((p) => (p._id === prod._id ? { ...p, isFeatured: nextFeatured } : p))
+    );
     try {
-      const nextFeatured = !prod.isFeatured;
       const { data } = await axios.put(`/api/marketplace/admin/products/${prod._id}`, {
         isFeatured: nextFeatured,
       });
       if (data.success) {
         showNotification(
           nextFeatured
-            ? `"${prod.title}" marcado como Destacado (aparecerá de primero).`
+            ? `"${prod.title}" marcado como Destacado (aparecerá de primero en el catálogo).`
             : `"${prod.title}" removido de Destacados.`,
           'success'
         );
-        fetchProducts();
         triggerCatalogRefresh();
+      } else {
+        // Revert on unexpected response
+        setProducts((prev) =>
+          prev.map((p) => (p._id === prod._id ? { ...p, isFeatured: !nextFeatured } : p))
+        );
       }
     } catch (err) {
+      setProducts((prev) =>
+        prev.map((p) => (p._id === prod._id ? { ...p, isFeatured: !nextFeatured } : p))
+      );
       showNotification('Error al actualizar estado destacado.', 'error');
     }
   };

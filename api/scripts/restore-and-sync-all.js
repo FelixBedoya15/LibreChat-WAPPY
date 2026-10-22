@@ -901,7 +901,7 @@ Formato (texto plano, 3 viñetas):
         ],
         featuredImage: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&auto=format&fit=crop&q=80',
         status: 'published',
-        isFeatured: true,
+        isFeatured: false,
         isTest: false,
         stockType: 'unlimited',
         availableSlots: 0,
@@ -954,7 +954,7 @@ Formato (texto plano, 3 viñetas):
         ],
         featuredImage: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&auto=format&fit=crop&q=80',
         status: 'published',
-        isFeatured: true,
+        isFeatured: false,
         isTest: false,
         stockType: 'unlimited',
         availableSlots: 0,
@@ -1007,7 +1007,7 @@ Formato (texto plano, 3 viñetas):
         ],
         featuredImage: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&auto=format&fit=crop&q=80',
         status: 'published',
-        isFeatured: true,
+        isFeatured: false,
         isTest: false,
         stockType: 'unlimited',
         availableSlots: 0,
@@ -1024,6 +1024,27 @@ Formato (texto plano, 3 viñetas):
         { upsert: true, new: true }
       );
     }
+
+    // Limpiar el destacado automático de los productos de prueba y complementos para que solo queden destacados los que el Admin elija
+    await MarketplaceProduct.updateMany(
+      {
+        slug: {
+          $in: [
+            'cupo-empresa-adicional-wappy',
+            'cupo-automatizacion-ia-wappy',
+            'cupo-subusuario-adicional-wappy',
+            'bateria-riesgo-psicosocial-completa',
+            'matriz-ipevar-gtc45-asistida',
+            'diseno-implementacion-pesv',
+            'paquete-examenes-medicos-ocupacionales-10',
+            'estudio-puesto-trabajo-ergonomico',
+            'auditoria-externa-estandares-minimos-0312',
+            'investigacion-tecnica-accidente-trabajo-atel'
+          ]
+        }
+      },
+      { $set: { isFeatured: false } }
+    );
 
     // Restaurar Curso Adelanto (Mauricio Posada) como publicado
     await MarketplaceProduct.updateOne(

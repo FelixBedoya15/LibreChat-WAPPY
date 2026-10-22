@@ -107,10 +107,19 @@ const MarketplaceCatalog: React.FC = () => {
     };
   }, [selectedCategory, searchQuery, sortBy, catalogRefreshKey]);
 
-  // Non-admins strictly only see public non-test published products
-  const visibleProducts = isAdmin
+  // Non-admins strictly only see public non-test published products; featured products always appear first when sortBy === 'featured'
+  const baseProducts = isAdmin
     ? products
     : products.filter((p) => !p.isTest && p.status === 'published');
+
+  const visibleProducts =
+    sortBy === 'featured'
+      ? [...baseProducts].sort((a, b) => {
+          const featDiff = Number(Boolean(b.isFeatured)) - Number(Boolean(a.isFeatured));
+          if (featDiff !== 0) return featDiff;
+          return Number(Boolean(a.isTest)) - Number(Boolean(b.isTest));
+        })
+      : baseProducts;
 
   return (
     <div className="space-y-6">
