@@ -806,7 +806,7 @@ const getProducts = async (req, res) => {
       ];
     }
 
-    let sortOption = { isFeatured: -1, isTest: 1, createdAt: -1 };
+    let sortOption = { isFeatured: -1, isTest: 1, updatedAt: -1, createdAt: -1 };
     if (sort === 'price_asc') sortOption = { salePrice: 1, regularPrice: 1 };
     if (sort === 'price_desc') sortOption = { salePrice: -1, regularPrice: -1 };
     if (sort === 'rating') sortOption = { rating: -1 };

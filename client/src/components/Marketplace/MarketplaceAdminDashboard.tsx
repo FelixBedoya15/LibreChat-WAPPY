@@ -23,6 +23,7 @@ import {
   ExternalLink,
   Save,
   X,
+  Star,
 } from 'lucide-react';
 import axios from 'axios';
 import type { MarketplaceProduct, MarketplaceOrder, MarketplaceCoupon } from './types';
@@ -227,6 +228,27 @@ const MarketplaceAdminDashboard: React.FC = () => {
       showNotification(err.response?.data?.error || 'Error al guardar servicio.', 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleToggleFeatured = async (prod: MarketplaceProduct) => {
+    try {
+      const nextFeatured = !prod.isFeatured;
+      const { data } = await axios.put(`/api/marketplace/admin/products/${prod._id}`, {
+        isFeatured: nextFeatured,
+      });
+      if (data.success) {
+        showNotification(
+          nextFeatured
+            ? `"${prod.title}" marcado como Destacado (aparecerá de primero).`
+            : `"${prod.title}" removido de Destacados.`,
+          'success'
+        );
+        fetchProducts();
+        triggerCatalogRefresh();
+      }
+    } catch (err) {
+      showNotification('Error al actualizar estado destacado.', 'error');
     }
   };
 
@@ -704,11 +726,44 @@ const MarketplaceAdminDashboard: React.FC = () => {
                               🌟 Público
                             </span>
                           )}
+                          {prod.isFeatured && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-orange-100 text-orange-800 border border-orange-200 flex items-center gap-1">
+                              <Star className="h-2.5 w-2.5 fill-orange-500 text-orange-500" />
+                              Destacado
+                            </span>
+                          )}
                         </div>
                       </td>
 
-                      <td className="p-3 text-right whitespace-nowrap min-w-[130px]">
+                      <td className="p-3 text-right whitespace-nowrap min-w-[160px]">
                         <div className="flex items-center justify-end gap-1.5">
+                          {/* Destacar Micro Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleFeatured(prod)}
+                            title={
+                              prod.isFeatured
+                                ? 'Quitar de Destacados'
+                                : 'Marcar como Destacado (Aparecer de primero)'
+                            }
+                            className={`group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 ${
+                              prod.isFeatured
+                                ? 'bg-orange-100 dark:bg-orange-950/60 text-orange-600 dark:text-orange-300 border border-orange-300 dark:border-orange-700 hover:bg-orange-200'
+                                : 'bg-slate-50 dark:bg-zinc-800 text-slate-400 hover:bg-orange-50 dark:hover:bg-orange-950/40 hover:text-orange-600'
+                            }`}
+                          >
+                            <Star
+                              className={`h-3.5 w-3.5 shrink-0 ${
+                                prod.isFeatured ? 'fill-orange-500 text-orange-500' : ''
+                              }`}
+                            />
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                              <span className="text-[10px] font-bold">
+                                {prod.isFeatured ? 'Destacado' : 'Destacar'}
+                              </span>
+                            </div>
+                          </button>
+
                           {/* Editar Micro Button */}
                           <button
                             type="button"
@@ -1062,6 +1117,7 @@ const MarketplaceAdminDashboard: React.FC = () => {
                     onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value })}
                     className="w-full p-2 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800"
                   >
+                    <option value="complementos_wappy">Complementos WAPPY (Empresa, Automatizaciones, Subusuarios)</option>
                     <option value="capacitaciones">Capacitación Certificada / Cursos</option>
                     <option value="medicina_laboral">Medicina Laboral</option>
                     <option value="gtc45_ipevar">Matrices & Peligros GTC-45</option>
