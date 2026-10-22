@@ -2788,6 +2788,10 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes gen
                     }
 
                     // ─── BRIEFING EJECUTIVO DIARIO Y MEMORIA AUTOBIOGRÁFICA (ESTILO DOT) ───
+                    let lastTitle = null;
+                    let todayList = 'Sin actividades programadas para hoy';
+                    let tomorrowList = 'Ninguna actividad vence mañana';
+                    let overdueList = '';
                     try {
                         const KanbanTask = mongoose.models.KanbanTask || require('~/models/KanbanTask');
                         const { Conversation } = require('~/db/models');
@@ -2840,10 +2844,10 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes gen
                         ]);
 
                         const fmtTime = (d) => d ? new Date(d).toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: true }) : '';
-                        const lastTitle = latestSgsstReport?.title ? latestSgsstReport.title.replace(/^\[.*?\]\s*/, '') : null;
-                        const todayList = (todayTasks || []).map(t => `${t.title} (${fmtTime(t.dueDate)})`).join(', ') || 'Sin actividades programadas para hoy';
-                        const tomorrowList = (tomorrowTasks || []).map(t => `${t.title} (${fmtTime(t.dueDate)})`).join(', ') || 'Ninguna actividad vence mañana';
-                        const overdueList = (overdueTasks || []).map(t => t.title).join(', ');
+                        lastTitle = latestSgsstReport?.title ? latestSgsstReport.title.replace(/^\[.*?\]\s*/, '') : null;
+                        todayList = (todayTasks || []).map(t => `${t.title} (${fmtTime(t.dueDate)})`).join(', ') || 'Sin actividades programadas para hoy';
+                        tomorrowList = (tomorrowTasks || []).map(t => `${t.title} (${fmtTime(t.dueDate)})`).join(', ') || 'Ninguna actividad vence mañana';
+                        overdueList = (overdueTasks || []).map(t => t.title).join(', ');
 
                         companyAndMemoryPrompt += `\n\n[MEMORIA AUTOBIOGRÁFICA Y BRIEFING EJECUTIVO DEL DÍA (ESTILO DOT - PRIORIDAD MÁXIMA EN EL PRIMER SALUDO)]:
 - Empresa activa actual: ${companyInfo?.companyName || 'Tu Empresa'}.
@@ -2873,10 +2877,11 @@ Responde con rigor normativo estricto, citando artículos exactos del Decreto 10
 Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomendaciones prácticas para la empresa.`;
                     }
 
-                    companyAndMemoryPrompt += `\n\n[DIRECTIVA ABSOLUTA DE ENFOQUE TEMÁTICO Y CONTINUIDAD]:
+                    companyAndMemoryPrompt += `\n\n[DIRECTIVA ABSOLUTA DE ENFOQUE TEMÁTICO, ESCUCHA ACTIVA Y CONTINUIDAD]:
 1. EN EL PRIMER TURNO DE LA LLAMADA: Entrega SIEMPRE el Briefing Ejecutivo del Día (empresa activa, pregunta cómo le fue con la última gestión "${lastTitle || 'reciente'}", menciona la agenda de hoy y los vencimientos de mañana).
 2. EN LOS TURNOS SIGUIENTES: Tu tema de trabajo está delimitado por la pantalla visible actual (${humanScreen}) y por lo que el usuario te pida en ese turno.
-3. Ya conoces de memoria todos los datos de la empresa activa del usuario (Razón Social, NIT, ARL, trabajadores, sedes, macroprocesos, etc.). NUNCA digas que no tienes acceso a su empresa.`;
+3. ESCUCHA PACIENTE SIN CORTAR AL USUARIO: Si la frase del usuario quedó claramente inconclusa o termina en conector/preposición (ej: "Tengo una tarea, perdón, una tarea...", "tengo pendiente una actividad que es asistir a...", "quiero que..."), NO dispares navegaciones precipitadas ni cambies de pantalla antes de escuchar la idea completa; si ya estás en el módulo mencionado en pantalla, NO vuelvas a invocar \`wappy_navegar\` hacia ese mismo módulo. Si el usuario menciona una tarea o actividad del Centro de Control/Cronograma, consulta directamente sus tareas (\`wappy_consultar_cronograma_sst\` o \`somos_sst\`) en lugar de solo navegar.
+4. Ya conoces de memoria todos los datos de la empresa activa del usuario (Razón Social, NIT, ARL, trabajadores, sedes, macroprocesos, etc.). NUNCA digas que no tienes acceso a su empresa.`;
 
                     this.liveConfig.systemInstruction = (this.liveConfig.systemInstruction || '') + companyAndMemoryPrompt;
                     this.initialBriefingSummary = {
@@ -2886,7 +2891,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         tomorrowList,
                         overdueList,
                     };
-                    logger.info(`[VoiceSession] Injected active company, briefing, personality (${initialPersonality}), ${rawMemories?.length || 0} memories, ${recentTenshiMessages?.length || 0} Tenshi turns & ${recentConvos?.length || 0} specialist convos into Tenshi Voice instructions`);
+                    logger.info(`[VoiceSession] Injected active company, briefing, personality (${initialPersonality}), ${rawMemories?.length || 0} memories, ${recentTenshiMessages?.length || 0} Tenshi turns & ${recentTenshiReports?.length || 0} reports into Tenshi Voice instructions`);
 
                     // Guía Maestra de la Plataforma y Metodologías SST ya están incorporadas en systemInstruction base (máxima fluidez y baja latencia)
                 } catch (memErr) {

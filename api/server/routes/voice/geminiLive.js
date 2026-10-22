@@ -290,13 +290,13 @@ ${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.c
                 inputAudioTranscription: {},
                 outputAudioTranscription: {},
                 // VAD del servidor (spec oficial RealtimeInputConfig.AutomaticActivityDetection):
-                // cerrar el turno tras ~600ms de silencio real en vez del default conservador.
-                // NO desactivar (disabled:true) porque audioStreamEnd exige detección automática.
+                // END_SENSITIVITY_LOW + 1800ms de silencio real permite pausas naturales al pensar o respirar
+                // sin cortar al usuario a las 6 o 7 palabras.
                 realtimeInputConfig: {
                     automaticActivityDetection: {
-                        endOfSpeechSensitivity: 'END_SENSITIVITY_HIGH',
-                        silenceDurationMs: 600,
-                        prefixPaddingMs: 100,
+                        endOfSpeechSensitivity: 'END_SENSITIVITY_LOW',
+                        silenceDurationMs: 1800,
+                        prefixPaddingMs: 250,
                     },
                 },
                 // Standard Tools support

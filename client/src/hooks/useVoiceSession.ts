@@ -221,30 +221,29 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 }
                 const rms = Math.sqrt(sumSquare / float32Array.length);
 
-                // Umbral de activación vocal dinámico (garantiza superar el piso de ruido de oficina/AGC)
-                const voiceThreshold = Math.max(0.016, noiseFloorRef.current * 2.5);
+                // Umbral de activación vocal dinámico (sensible a sílabas suaves sin cortar frases)
+                const voiceThreshold = Math.max(0.009, noiseFloorRef.current * 2.0);
                 const now = Date.now();
                 const continuousSpeechMs = isTransmittingSpeechRef.current && speechStartTimeRef.current
                     ? (now - speechStartTimeRef.current)
                     : 0;
 
-                // Si lleva más de 10 segundos con la compuerta abierta por ruido ambiente estacionario (cercano al umbral),
-                // recalibrar rápido el piso de ruido para cerrar la compuerta y evitar alucinaciones de silencio en Gemini
-                const isSteadyBackgroundNoise = continuousSpeechMs > 10000 && rms < voiceThreshold * 1.65;
+                // Solo considerar ruido estacionario si el canal lleva > 25s abierto de forma ininterrumpida con energía muy baja casi idéntica al umbral
+                const isSteadyBackgroundNoise = continuousSpeechMs > 25000 && rms < voiceThreshold * 1.25;
                 const isSpeechNow = rms >= voiceThreshold && !isSteadyBackgroundNoise;
 
-                // Adaptación asimétrica del piso de ruido (Lección 12):
+                // Adaptación asimétrica del piso de ruido:
                 if (rms < noiseFloorRef.current) {
                     // Baja rápido hacia el silencio real
                     noiseFloorRef.current = noiseFloorRef.current * 0.85 + rms * 0.15;
                 } else if (!isSpeechNow) {
-                    // Ruido de fondo por debajo del umbral (o ruido estacionario prolongado): sube moderadamente
-                    noiseFloorRef.current = noiseFloorRef.current * 0.92 + rms * 0.08;
+                    // Ruido de fondo por debajo del umbral: sube suavemente
+                    noiseFloorRef.current = noiseFloorRef.current * 0.96 + rms * 0.04;
                 } else {
-                    // Durante "voz": sube lento para absorber zumbidos constantes sin cortar al hablante
-                    noiseFloorRef.current = noiseFloorRef.current * 0.985 + rms * 0.015;
+                    // Durante voz activa: casi fijo (0.995) para NO elevar el umbral mientras el usuario habla frases largas
+                    noiseFloorRef.current = noiseFloorRef.current * 0.995 + rms * 0.005;
                 }
-                noiseFloorRef.current = Math.min(0.06, Math.max(0.002, noiseFloorRef.current));
+                noiseFloorRef.current = Math.min(0.035, Math.max(0.001, noiseFloorRef.current));
 
                 if (isSpeechNow) {
                     lastVoiceTimeRef.current = now;
@@ -253,9 +252,9 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     }
                 }
 
-                // Hangover de 650ms: mantiene el canal abierto durante pausas naturales entre palabras.
-                // Al expirar se emite speech_end → audioStreamEnd, que cierra el turno de inmediato.
-                const isInHangover = !isSteadyBackgroundNoise && (now - lastVoiceTimeRef.current) < 650;
+                // Hangover amplio de 2200ms (2.2s): permite pausas naturales al pensar, respirar o reformular ("perdón, una tarea...")
+                // sin enviar speech_end (audioStreamEnd) prematuramente a mitad de la frase del usuario.
+                const isInHangover = !isSteadyBackgroundNoise && (now - lastVoiceTimeRef.current) < 2200;
                 const shouldTransmit = isSpeechNow || isInHangover;
 
                 // Si NO hay voz activa ni hangover (silencio / ventilador / ruido ambiental), guardar en pre-roll y NO enviar
