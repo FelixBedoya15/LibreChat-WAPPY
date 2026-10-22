@@ -2115,7 +2115,7 @@ const EstadisticasATEL = () => {
                                         onClick={() => handleGenerate('MONTH')}
                                         disabled={isGenerating || !currentData.numTrabajadores}
                                         title={`Generar Informe Mensual (${MONTHS[currentMonthIndex]} ${year})`}
-                                        className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 px-2 sm:px-2.5 items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-2xs active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 px-2 sm:px-2.5 items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-2xs active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <div className="relative flex flex-shrink-0 items-center justify-center">
                                             {isGenerating ? (
@@ -2137,7 +2137,7 @@ const EstadisticasATEL = () => {
                                         onClick={() => handleGenerate('ANNUAL')}
                                         disabled={isGenerating || !currentData.numTrabajadores}
                                         title={`Generar Informe Anual Consolidado ${year}`}
-                                        className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 px-2 sm:px-2.5 items-center justify-center rounded-xl border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
+                                        className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 px-2 sm:px-2.5 items-center justify-center rounded-xl border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
                                     >
                                         <div className="relative flex flex-shrink-0 items-center justify-center">
                                             {isGenerating ? (
@@ -2160,7 +2160,7 @@ const EstadisticasATEL = () => {
                                             onClick={handleGenerateComparative}
                                             disabled={isGenerating}
                                             title="Generar Dictamen Comparativo IA"
-                                            className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 px-2 sm:px-2.5 items-center justify-center rounded-xl border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
+                                            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 px-2 sm:px-2.5 items-center justify-center rounded-xl border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
                                         >
                                             <div className="relative flex flex-shrink-0 items-center justify-center">
                                                 {isGenerating ? (

@@ -393,7 +393,7 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
                     type="button"
                     onClick={() => setIsAdding(!isAdding)}
                     title={isAdding ? 'Cerrar Formulario' : 'Registrar Novedad'}
-                    className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 px-2 sm:px-2.5 items-center justify-center rounded-xl border rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs "
+                    className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 px-2 sm:px-2.5 items-center justify-center rounded-xl border rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs "
                 >
                     <div className="relative flex flex-shrink-0 items-center justify-center">
                         <Plus className={cn("h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform duration-300", isAdding && "rotate-45")} />

@@ -102,7 +102,7 @@ export default function TrainingAdminDashboard() {
                             setEditingCourseId('new');
                             setIsCourseEditorOpen(true);
                         }}
-                        className="group flex items-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 border rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs "
+                        className="group flex items-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs "
                     >
                         <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 whitespace-nowrap">
@@ -209,7 +209,7 @@ export default function TrainingAdminDashboard() {
                                                     <div className="flex items-center justify-end gap-2">
                                                         <button 
                                                             onClick={() => navigate(`/training/${course._id}/${sanitizeSlug(course.title)}`)}
-                                                            className="group flex items-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs  rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
+                                                            className="group flex items-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs  rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
                                                         >
                                                             <Eye className="w-4 h-4 flex-shrink-0" />
                                                             <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">
@@ -221,7 +221,7 @@ export default function TrainingAdminDashboard() {
                                                                 setEditingCourseId(course._id);
                                                                 setIsCourseEditorOpen(true);
                                                             }}
-                                                            className="group flex items-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs  rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
+                                                            className="group flex items-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs  rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
                                                         >
                                                             <Edit className="w-4 h-4 flex-shrink-0" />
                                                             <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">
@@ -230,7 +230,7 @@ export default function TrainingAdminDashboard() {
                                                         </button>
                                                         <button
                                                             onClick={() => handleDeleteCourse(course._id, course.title)}
-                                                            className="group flex items-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 border rounded-xl bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 shadow-xs  rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
+                                                            className="group flex items-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 shadow-xs  rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
                                                         >
                                                             <Trash2 className="w-4 h-4 flex-shrink-0" />
                                                             <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">

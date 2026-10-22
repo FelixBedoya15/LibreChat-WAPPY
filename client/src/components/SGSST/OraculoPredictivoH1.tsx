@@ -716,7 +716,7 @@ export default function OraculoPredictivoH1() {
                                                     setIsHistoryOpen(true);
                                                 }}
                                                 aria-label="Historial de Dictámenes"
-                                                className="group flex items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border rounded-xl bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400 border-border-medium  "
+                                                className="group flex items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border rounded-xl bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400 border-border-medium  "
                                                 title="Historial de Dictámenes"
                                             >
                                                 <History className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
@@ -728,7 +728,7 @@ export default function OraculoPredictivoH1() {
                                                 onClick={() => handleConsultOracle(worker, profile, fit)}
                                                 disabled={generatingId === worker.id}
                                                 aria-label="Generar Dictamen con IA"
-                                                className="group flex items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border border-border-medium/40 rounded-xl border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
+                                                className="group flex items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border border-border-medium/40 rounded-xl border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
                                                 title="Generar Dictamen con IA"
                                             >
                                                 {generatingId === worker.id ? (
@@ -768,7 +768,7 @@ export default function OraculoPredictivoH1() {
                                                     onClick={() => handleConsultOracle(worker, profile, fit)}
                                                     disabled={generatingId === worker.id}
                                                     title="Re-evaluar y generar nuevo dictamen con IA"
-                                                    className="group flex items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border rounded-xl bg-surface-primary hover:bg-teal-50 dark:hover:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-border-medium hover:border-teal-400  "
+                                                    className="group flex items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border rounded-xl bg-surface-primary hover:bg-teal-50 dark:hover:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-border-medium hover:border-teal-400  "
                                                 >
                                                     {generatingId === worker.id ? (
                                                         <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 animate-spin" />

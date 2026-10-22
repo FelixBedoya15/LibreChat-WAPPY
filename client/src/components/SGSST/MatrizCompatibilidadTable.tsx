@@ -2409,7 +2409,7 @@ export default function MatrizCompatibilidadTable({
             <button
               onClick={handlePromoteToOfficial}
               disabled={isPromoting || matrixRows.length === 0}
-              className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs "
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs "
               title="Fijar esta matriz como la Matriz Oficial de Compatibilidad Química en el Hito 1"
             >
               {isPromoting ? (
@@ -2427,7 +2427,7 @@ export default function MatrizCompatibilidadTable({
           <button
             onClick={handleSyncControlesQuimicos}
             disabled={isSyncingKanban || matrixRows.length === 0}
-            className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-cyan-500/10 border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 shadow-xs "
+            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-cyan-500/10 border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 shadow-xs "
             title="Sincronizar controles de almacenamiento y brechas FDS/Rótulo con el Centro de Control"
           >
             {isSyncingKanban ? (
@@ -2443,7 +2443,7 @@ export default function MatrizCompatibilidadTable({
           {/* Añadir Producto */}
           <button
             onClick={addRow}
-            className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs "
+            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs "
           >
             <Plus className="h-4 w-4 shrink-0" />
             <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
@@ -2455,7 +2455,7 @@ export default function MatrizCompatibilidadTable({
           <button
             onClick={handleAnalyzeMatrix}
             disabled={isAnalyzing || matrixRows.length === 0}
-            className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
+            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
           >
             {isAnalyzing ? (
               <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
@@ -2471,7 +2471,7 @@ export default function MatrizCompatibilidadTable({
           <button
             onClick={triggerExcelImport}
             disabled={isAiImportLoading}
-            className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 shadow-xs "
+            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 shadow-xs "
           >
             {isAiImportLoading ? (
               <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
@@ -2503,7 +2503,7 @@ export default function MatrizCompatibilidadTable({
           <button
             onClick={() => saveMatrix()}
             disabled={isSaving}
-            className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs "
+            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs "
           >
             {isSaving ? (
               <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
@@ -2518,7 +2518,7 @@ export default function MatrizCompatibilidadTable({
           {/* Maximizar */}
           <button
             onClick={() => setIsMaximized(!isMaximized)}
-            className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs "
+            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs "
           >
             {isMaximized ? (
               <Minimize2 className="h-4 w-4 shrink-0" />

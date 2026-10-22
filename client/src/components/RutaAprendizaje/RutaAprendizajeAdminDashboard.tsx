@@ -289,7 +289,7 @@ export default function RutaAprendizajeAdminDashboard() {
                                                     <div className="flex items-center justify-end gap-2">
                                                         <button 
                                                             onClick={() => setSelectedShareCourse(course)}
-                                                            className="group flex items-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 border rounded-xl bg-fuchsia-500/10 border-fuchsia-500/30 text-fuchsia-700 dark:text-fuchsia-300 hover:bg-fuchsia-500/20 shadow-xs  rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
+                                                            className="group flex items-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-fuchsia-500/10 border-fuchsia-500/30 text-fuchsia-700 dark:text-fuchsia-300 hover:bg-fuchsia-500/20 shadow-xs  rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
                                                             title="Compartir curso / QR"
                                                         >
                                                             <QrCode className="w-4 h-4 flex-shrink-0" />
@@ -299,7 +299,7 @@ export default function RutaAprendizajeAdminDashboard() {
                                                         </button>
                                                         <button 
                                                             onClick={() => navigate(`/ruta-aprendizaje/${course._id}/${sanitizeSlug(course.title)}`)}
-                                                            className="group flex items-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs  rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
+                                                            className="group flex items-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs  rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
                                                         >
                                                             <Eye className="w-4 h-4 flex-shrink-0" />
                                                             <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">
@@ -308,7 +308,7 @@ export default function RutaAprendizajeAdminDashboard() {
                                                         </button>
                                                         <button
                                                             onClick={() => navigate(`/ruta-aprendizaje/admin/courses/${course._id}`)}
-                                                            className="group flex items-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs  rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
+                                                            className="group flex items-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs  rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
                                                         >
                                                             <Edit className="w-4 h-4 flex-shrink-0" />
                                                             <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">
@@ -317,7 +317,7 @@ export default function RutaAprendizajeAdminDashboard() {
                                                         </button>
                                                         <button
                                                             onClick={() => handleDeleteCourse(course._id, course.title)}
-                                                            className="group flex items-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 border rounded-xl bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 shadow-xs  rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
+                                                            className="group flex items-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 shadow-xs  rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
                                                         >
                                                             <Trash2 className="w-4 h-4 flex-shrink-0" />
                                                             <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">

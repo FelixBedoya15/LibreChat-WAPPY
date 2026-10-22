@@ -3146,7 +3146,7 @@ export default function MatrizIPEVARTable({
               {/* Peligros Evaluados */}
               <div
                 title={`${matrixRows.length} ${matrixRows.length === 1 ? 'Peligro Evaluado' : 'Peligros Evaluados'}`}
-                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
               >
                 <div className="relative flex flex-shrink-0 items-center justify-center">
                   <FileSpreadsheet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
@@ -3272,7 +3272,7 @@ export default function MatrizIPEVARTable({
                 onClick={addRow}
                 title="Añadir Riesgo"
                 aria-label="Añadir Riesgo"
-                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
+                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
               >
                 <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                 <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
@@ -3288,7 +3288,7 @@ export default function MatrizIPEVARTable({
                   disabled={isAnalyzing || matrixRows.length === 0}
                   title="Análisis IPEVR con IA"
                   aria-label="Análisis IPEVR con IA"
-                  className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
+                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
                 >
                   {isAnalyzing ? (
                     <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 animate-spin" />
@@ -3307,7 +3307,7 @@ export default function MatrizIPEVARTable({
                 onClick={() => fileInputRef.current?.click()}
                 title="Importar Excel"
                 aria-label="Importar Excel"
-                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 shadow-xs "
+                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 shadow-xs "
               >
                 <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                 <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
@@ -3331,7 +3331,7 @@ export default function MatrizIPEVARTable({
                   disabled={isAutoAssigningCargos}
                   title="Auto-asignar cargos con IA a todas las filas según los perfiles de la empresa (sin editar fila por fila)"
                   aria-label="Auto-asignar cargos con IA"
-                  className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
+                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
                 >
                   {isAutoAssigningCargos ? (
                     <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 animate-spin text-teal-600 dark:text-teal-400" />
@@ -3352,7 +3352,7 @@ export default function MatrizIPEVARTable({
                   disabled={isSyncingControles}
                   title="Analizar Factores de Reducción (Anexo E Costo/Beneficio) y enviar controles propuestos al Centro de Control (Kanban)"
                   aria-label="Sincronizar Controles y Anexo E con Centro de Control"
-                  className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-cyan-500/10 border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 shadow-xs "
+                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-cyan-500/10 border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 shadow-xs "
                 >
                   {isSyncingControles ? (
                     <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 animate-spin text-indigo-600 dark:text-indigo-400" />
@@ -3371,7 +3371,7 @@ export default function MatrizIPEVARTable({
                 onClick={() => saveMatrixData(matrixRows)}
                 title="Guardar Matriz"
                 aria-label="Guardar Matriz"
-                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
+                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
               >
                 <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                 <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
@@ -3384,7 +3384,7 @@ export default function MatrizIPEVARTable({
                 isCurrentConvoOfficial ? (
                   <div
                     title="Esta matriz está activa en el Sistema SG-SST"
-                    className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] flex-shrink-0 shrink-0 cursor-default items-center justify-center rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-2 sm:px-2.5 text-emerald-600 dark:text-emerald-400 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                    className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-default items-center justify-center rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-2 sm:px-2.5 text-emerald-600 dark:text-emerald-400 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
                   >
                     <div className="relative flex flex-shrink-0 items-center justify-center">
                       <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-emerald-500 text-emerald-500 shrink-0" />
@@ -3404,7 +3404,7 @@ export default function MatrizIPEVARTable({
                     disabled={isSettingOfficial}
                     title="Fijar en el Aplicativo SG-SST (Hito 1)"
                     aria-label="Fijar en Aplicativo"
-                    className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium/40 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
+                    className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium/40 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
                   >
                     {isSettingOfficial ? (
                       <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 animate-spin text-amber-500" />
@@ -3432,7 +3432,7 @@ export default function MatrizIPEVARTable({
                   }}
                   title="Limpiar / Vaciar Matriz"
                   aria-label="Limpiar / Vaciar Matriz"
-                  className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 shadow-xs "
+                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 shadow-xs "
                 >
                   <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                   <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
@@ -3447,7 +3447,7 @@ export default function MatrizIPEVARTable({
                 onClick={() => setIsMaximized((m) => !m)}
                 title={isMaximized ? 'Restaurar pantalla' : 'Pantalla completa'}
                 aria-label={isMaximized ? 'Restaurar pantalla' : 'Pantalla completa'}
-                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
+                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
               >
                 {isMaximized ? (
                   <Minimize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
@@ -4567,7 +4567,7 @@ export default function MatrizIPEVARTable({
             </div>
             <div
               title="Visualización Gráfica GTC 45"
-              className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
             >
               <div className="relative flex flex-shrink-0 items-center justify-center">
                 <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-600 dark:text-purple-400 shrink-0" />

@@ -1494,7 +1494,7 @@ const ParticipacionIPEVAR = () => {
                                 </h2>
                                 <div
                                     title="Sincronización Oficial Activa"
-                                    className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                                    className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
                                 >
                                     <div className="relative flex flex-shrink-0 items-center justify-center">
                                         <Star className="h-3.5 w-3.5 fill-emerald-500 text-emerald-500 shrink-0" />
@@ -1514,7 +1514,7 @@ const ParticipacionIPEVAR = () => {
                                 {/* Población Evaluada */}
                                 <div
                                     title={`${bannerStats.totalWorkers} ${bannerStats.totalWorkers === 1 ? 'Colaborador Participante' : 'Colaboradores Participantes'}`}
-                                    className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                                    className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
                                 >
                                     <div className="relative flex flex-shrink-0 items-center justify-center">
                                         <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
@@ -1532,7 +1532,7 @@ const ParticipacionIPEVAR = () => {
                                 {/* Reportes Registrados */}
                                 <div
                                     title={`${bannerStats.totalParticipaciones} Reportes Registrados`}
-                                    className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                                    className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
                                 >
                                     <div className="relative flex flex-shrink-0 items-center justify-center">
                                         <FileSpreadsheet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-600 dark:text-blue-400 shrink-0" />
@@ -1550,7 +1550,7 @@ const ParticipacionIPEVAR = () => {
                                 {/* Ponderación Estadística GTC-45 Activa */}
                                 <div
                                     title="Ponderación Estadística GTC-45 Activa"
-                                    className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                                    className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
                                 >
                                     <div className="relative flex flex-shrink-0 items-center justify-center">
                                         <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-600 dark:text-purple-400 shrink-0" />
@@ -1865,7 +1865,7 @@ const ParticipacionIPEVAR = () => {
                                         formBoxRef.current?.scrollIntoView({ behavior: 'smooth' });
                                     }, 100);
                                 }}
-                                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 shrink-0 cursor-pointer items-center justify-center rounded-xl border rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs "
+                                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 shrink-0 cursor-pointer items-center justify-center rounded-xl border rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs "
                                 title="Registrar nueva participación"
                             >
                                 <Plus className="h-4 w-4 shrink-0" />
@@ -2080,7 +2080,7 @@ const ParticipacionIPEVAR = () => {
                                     setShowAnalyticsModal(true);
                                 }}
                                 title="Base Estadística y Ponderación GTC-45"
-                                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs "
+                                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center rounded-xl border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs "
                             >
                                 <BarChart3 className="w-4 h-4 shrink-0" />
                                 <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[280px] group-hover:opacity-100 sm:flex">
@@ -2092,7 +2092,7 @@ const ParticipacionIPEVAR = () => {
                         <button
                             onClick={() => setIsInboxOpen(false)}
                             title="Cerrar Bandeja"
-                            className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-2 shadow-2xs active:scale-95 cursor-pointer"
+                            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-2 shadow-2xs active:scale-95 cursor-pointer"
                         >
                             <X className="w-4 h-4 shrink-0" />
                             <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[60px] group-hover:opacity-100 sm:flex">
@@ -2599,7 +2599,7 @@ const ParticipacionIPEVAR = () => {
                                 disabled={isGenerating}
                                 title="Generar Análisis IA"
                                 aria-label="Generar Análisis IA"
-                                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 shrink-0 cursor-pointer items-center justify-center rounded-xl border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
+                                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 shrink-0 cursor-pointer items-center justify-center rounded-xl border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
                             >
                                 <div className="relative flex shrink-0 items-center justify-center">
                                     {isGenerating ? (
@@ -3057,7 +3057,7 @@ const ParticipacionIPEVAR = () => {
                                 onClick={() => setShowApplyModal(false)}
                                 disabled={isApplyingToMatrix}
                                 title="Cancelar"
-                                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl border border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs "
+                                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center rounded-xl border border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs "
                             >
                                 <X className="w-4 h-4 shrink-0" />
                                 <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[80px] group-hover:opacity-100 sm:flex">
@@ -3070,7 +3070,7 @@ const ParticipacionIPEVAR = () => {
                                 onClick={handleConfirmApplyToMatrix}
                                 disabled={isApplyingToMatrix || (applyAction === 'update_existing' && !applyTargetRowId)}
                                 title="Aprobar e Integrar a Matriz IPEVR"
-                                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl border rounded-xl bg-fuchsia-500/10 border-fuchsia-500/30 text-fuchsia-700 dark:text-fuchsia-300 hover:bg-fuchsia-500/20 shadow-xs "
+                                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center rounded-xl border rounded-xl bg-fuchsia-500/10 border-fuchsia-500/30 text-fuchsia-700 dark:text-fuchsia-300 hover:bg-fuchsia-500/20 shadow-xs "
                             >
                                 {isApplyingToMatrix ? (
                                     <>

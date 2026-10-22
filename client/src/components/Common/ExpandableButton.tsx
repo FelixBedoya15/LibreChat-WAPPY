@@ -165,12 +165,12 @@ export const ExpandableButton = React.forwardRef<HTMLButtonElement, ExpandableBu
 
     const sizeClasses =
       size === 'sm'
-        ? 'h-6.5 px-1.5 min-w-[26px] sm:h-7 sm:px-2 sm:min-w-[28px]'
-        : 'h-7 px-2 min-w-[28px] sm:h-8 sm:px-2.5 sm:min-w-[32px]';
+        ? 'h-8 px-2 min-w-[32px] sm:h-9 sm:px-2.5 sm:min-w-[36px]'
+        : 'h-9 px-2.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px]';
     const textClasses =
       size === 'sm'
-        ? 'text-[10px] font-bold tracking-wide'
-        : 'text-xs font-bold tracking-wide';
+        ? 'text-xs font-bold tracking-wide'
+        : 'text-sm font-bold tracking-wide';
 
     return (
       <button
@@ -188,10 +188,10 @@ export const ExpandableButton = React.forwardRef<HTMLButtonElement, ExpandableBu
         )}
         {...rest}
       >
-        <div className="relative flex-shrink-0 flex items-center justify-center [&>svg]:h-3.5 [&>svg]:w-3.5 sm:[&>svg]:h-4 sm:[&>svg]:w-4">
+        <div className="relative flex-shrink-0 flex items-center justify-center [&>svg]:h-4 [&>svg]:w-4">
           {icon}
         </div>
-        <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
+        <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
           <span className={textClasses}>{label}</span>
         </div>
       </button>

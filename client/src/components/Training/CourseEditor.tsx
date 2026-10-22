@@ -272,7 +272,7 @@ export default function CourseEditor({ courseId, onClose, onSaved }: { courseId?
                         <button
                             onClick={handleSaveCourse}
                             disabled={saving}
-                            className="group flex items-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 border rounded-xl bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs "
+                            className="group flex items-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs "
                         >
                             <Save className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                             <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 whitespace-nowrap">
@@ -434,7 +434,7 @@ export default function CourseEditor({ courseId, onClose, onSaved }: { courseId?
                                 <button
                                     onClick={handleGenerateCourse}
                                     disabled={isGeneratingCourse || !title.trim()}
-                                    className="group flex items-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
+                                    className="group flex items-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
                                     title="Generar Info del Curso con IA (Basado en el Título)"
                                 >
                                     {isGeneratingCourse ? (
@@ -584,7 +584,7 @@ export default function CourseEditor({ courseId, onClose, onSaved }: { courseId?
                                 </h2>
                                 <button
                                     onClick={() => openLessonEditor(null)}
-                                    className="group flex items-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 border rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs  rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm font-medium text-sm"
+                                    className="group flex items-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs  rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm font-medium text-sm"
                                 >
                                     <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 whitespace-nowrap">
@@ -616,7 +616,7 @@ export default function CourseEditor({ courseId, onClose, onSaved }: { courseId?
                                             <div className="flex items-center gap-1">
                                                 <button
                                                     onClick={() => openLessonEditor(lesson)}
-                                                    className="group flex items-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs  rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
+                                                    className="group flex items-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs  rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
                                                 >
                                                     <Edit className="w-4 h-4 flex-shrink-0" />
                                                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">
@@ -625,7 +625,7 @@ export default function CourseEditor({ courseId, onClose, onSaved }: { courseId?
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteLesson(lesson._id)}
-                                                    className="group flex items-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 border rounded-xl bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 shadow-xs  rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
+                                                    className="group flex items-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 shadow-xs  rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
                                                 >
                                                     <Trash2 className="w-4 h-4 flex-shrink-0" />
                                                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">
@@ -654,7 +654,7 @@ export default function CourseEditor({ courseId, onClose, onSaved }: { courseId?
                                 <button
                                     onClick={handleGenerateLesson}
                                     disabled={isGeneratingLesson || !lessonForm.title.trim()}
-                                    className="group flex items-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
+                                    className="group flex items-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
                                 >
                                     {isGeneratingLesson ? (
                                         <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 animate-spin" />
@@ -751,7 +751,7 @@ export default function CourseEditor({ courseId, onClose, onSaved }: { courseId?
                             </button>
                             <button
                                 onClick={handleSaveLesson}
-                                className="group flex items-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 border rounded-xl bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs "
+                                className="group flex items-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs "
                             >
                                 <Save className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                                 <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 whitespace-nowrap">

@@ -342,7 +342,7 @@ export default function CourseViewer() {
                                 <div className="mt-12 pt-6 border-t border-gray-200 dark:border-gray-800 flex items-center justify-end">
                                     <button
                                         onClick={markCurrentComplete}
-                                        className={`group flex items-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm font-medium text-xs
+                                        className={`group flex items-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm font-medium text-xs
                                             ${!user
                                                 ? 'border rounded-xl bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs'
                                                 : isCurrentCompleted

@@ -353,24 +353,24 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
       title={title}
       aria-label={title || label}
       className={cn(
-        'group flex h-7 min-w-[28px] shrink-0 cursor-pointer items-center justify-center rounded-xl border px-2 shadow-xs outline-none transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:min-w-[32px] sm:px-2.5',
+        'group flex h-9 min-w-[36px] shrink-0 cursor-pointer items-center justify-center rounded-xl border px-2.5 shadow-xs outline-none transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-3',
         getDynamicStyle(),
       )}
     >
       <div className="relative flex flex-shrink-0 items-center justify-center">
         {isLoading || loading ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin sm:h-4 sm:w-4" />
+          <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
           <>
             {React.isValidElement(icon) ? (
               icon
             ) : typeof icon === 'string' ? (
-              <AnimatedIcon name={icon as IconName} size={16} className="sm:h-4 sm:w-4" />
+              <AnimatedIcon name={icon as IconName} size={18} />
             ) : typeof icon === 'function' || (typeof icon === 'object' && icon !== null && '$$typeof' in icon) ? (
-              React.createElement(icon as any, { className: 'w-3.5 h-3.5 sm:w-4 sm:h-4' })
+              React.createElement(icon as any, { className: 'w-4 h-4' })
             ) : null}
             {badge !== undefined && (
-              <span className="absolute -right-2.5 -top-2 z-10 flex h-3.5 min-w-[14px] px-0.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm ring-1 ring-white">
+              <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-1 ring-white">
                 {badge}
               </span>
             )}
@@ -379,8 +379,8 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
       </div>
 
       {label && (
-        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[300px] group-hover:opacity-100 sm:flex">
-          <span className="text-xs font-bold tracking-wide">{label}</span>
+        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[300px] group-hover:opacity-100 sm:flex">
+          <span className="text-sm font-bold tracking-wide">{label}</span>
         </div>
       )}
     </motion.button>

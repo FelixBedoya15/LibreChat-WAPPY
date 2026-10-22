@@ -53,10 +53,10 @@ export const ExpandingButton: React.FC<ExpandingButtonProps> = ({
 
   const sizeClass =
     size === 'sm'
-      ? 'h-6.5 min-w-[26px] px-1.5 sm:h-7 sm:min-w-[28px] sm:px-2 text-[10px]'
-      : 'h-7 min-w-[28px] px-2 sm:h-8 sm:px-2.5 sm:min-w-[32px] text-xs';
+      ? 'h-8 min-w-[32px] px-2 sm:h-9 sm:min-w-[36px] sm:px-2.5 text-xs'
+      : 'h-9 min-w-[36px] px-2.5 sm:h-10 sm:px-3 sm:min-w-[40px] text-sm';
 
-  const iconSizeClass = size === 'sm' ? 'h-3 w-3 sm:h-3.5 sm:w-3.5' : 'h-3.5 w-3.5 sm:h-4 sm:w-4';
+  const iconSizeClass = size === 'sm' ? 'h-3.5 w-3.5 sm:h-4 sm:w-4' : 'h-4 w-4';
 
   const renderIcon = () => {
     if (isLoading) {
@@ -85,14 +85,14 @@ export const ExpandingButton: React.FC<ExpandingButtonProps> = ({
         className,
       )}
     >
-      <div className="relative flex shrink-0 items-center justify-center [&>svg]:h-3.5 [&>svg]:w-3.5 sm:[&>svg]:h-4 sm:[&>svg]:w-4">
+      <div className="relative flex shrink-0 items-center justify-center [&>svg]:h-4 [&>svg]:w-4">
         {renderIcon()}
       </div>
 
       {alwaysShowLabel ? (
-        <span className="ml-1.5 whitespace-nowrap">{label}</span>
+        <span className="ml-2 whitespace-nowrap">{label}</span>
       ) : (
-        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[300px] group-hover:opacity-100 sm:flex">
+        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[300px] group-hover:opacity-100 sm:flex">
           <span className="tracking-wide">{label}</span>
         </div>
       )}

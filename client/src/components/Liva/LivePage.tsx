@@ -698,7 +698,7 @@ const LivePage = () => {
                         {/* History Button — same style as ModelSelector */}
                         <button
                             onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                            className={`group flex flex-shrink-0 items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   ${
+                            className={`group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   ${
                                 isHistoryOpen
                                     ? 'bg-surface-hover ring-2 ring-blue-500/20 border-blue-500/50 text-blue-600 dark:text-blue-400'
                                     : 'border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs '
@@ -724,7 +724,7 @@ const LivePage = () => {
                         ) : (
                             <button
                                 onClick={handleStartAnalysis}
-                                className="group flex flex-shrink-0 items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs "
+                                className="group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs "
                             >
                                 <Video className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
                                 <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
@@ -736,7 +736,7 @@ const LivePage = () => {
                         {/* Save Report Button — same style as ModelSelector */}
                         <button
                             onClick={handleSave}
-                            className="group flex flex-shrink-0 items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   border rounded-xl bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs "
+                            className="group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   border rounded-xl bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs "
                         >
                             <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
                             <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">

@@ -47,7 +47,7 @@ export const WappyExpandButton = forwardRef<HTMLButtonElement, WappyExpandButton
 
     const renderIcon = () => {
       if (isLoading) {
-        return <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin shrink-0" />;
+        return <Loader2 className="w-4 h-4 animate-spin shrink-0" />;
       }
       if (!icon) {
         return null;
@@ -57,7 +57,7 @@ export const WappyExpandButton = forwardRef<HTMLButtonElement, WappyExpandButton
       }
       if (typeof icon === 'function' || (typeof icon === 'object' && icon !== null && '$$typeof' in icon)) {
         const IconComponent = icon as React.ComponentType<{ className?: string }>;
-        return <IconComponent className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />;
+        return <IconComponent className="w-4 h-4 shrink-0" />;
       }
       return null;
     };
@@ -69,19 +69,19 @@ export const WappyExpandButton = forwardRef<HTMLButtonElement, WappyExpandButton
         disabled={disabled || isLoading}
         title={props.title || label}
         className={cn(
-          'group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] items-center justify-center rounded-xl border px-2 sm:px-2.5 transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shrink-0',
+          'group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] items-center justify-center rounded-xl border px-2.5 sm:px-3 transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shrink-0',
           variantClass,
           className,
         )}
         {...props}
       >
-        <div className="relative flex shrink-0 items-center justify-center [&>svg]:h-3.5 [&>svg]:w-3.5 sm:[&>svg]:h-4 sm:[&>svg]:w-4">
+        <div className="relative flex shrink-0 items-center justify-center [&>svg]:h-4 [&>svg]:w-4">
           {renderIcon()}
         </div>
-        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
-          <span className="text-xs font-bold tracking-wide">{label}</span>
+        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
+          <span className="text-sm font-bold tracking-wide">{label}</span>
         </div>
-        <span className="sm:hidden text-[11px] font-bold ml-1.5">{label}</span>
+        <span className="sm:hidden text-xs font-bold ml-1.5">{label}</span>
       </button>
     );
   },

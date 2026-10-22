@@ -385,7 +385,7 @@ const ReglamentoInterno = () => {
                                 {/* Estado Documento */}
                                 <div
                                     title={generatedDocument ? "RIT Generado" : "Pendiente de Generar"}
-                                    className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                                    className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
                                 >
                                     <div className="relative flex flex-shrink-0 items-center justify-center">
                                         <ScrollText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
@@ -487,7 +487,7 @@ const ReglamentoInterno = () => {
                             <button
                                 onClick={() => handleGenerate()}
                                 disabled={isGenerating}
-                                className="group flex items-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
+                                className="group flex items-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
                             >
                                 {isGenerating ? (
                                     <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />

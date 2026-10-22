@@ -118,7 +118,7 @@ const ConclusionField = ({
         <button
           onClick={generate}
           disabled={loading}
-          className="group flex items-center justify-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
+          className="group flex items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
         >
           {loading
             ? <Loader2 className="h-4 w-4 animate-spin shrink-0" />

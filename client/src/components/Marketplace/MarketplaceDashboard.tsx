@@ -90,7 +90,7 @@ const MarketplaceContent: React.FC = () => {
                   setCompletedOrderNumber(null);
                   setActiveTab('catalog');
                 }}
-                className={`group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl border px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-2xs active:scale-95 ${
+                className={`group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center rounded-xl border px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-2xs active:scale-95 ${
                   activeTab === 'catalog' && !completedOrderNumber
                     ? 'bg-teal-50 dark:bg-teal-950/50 border-teal-500 text-teal-600 dark:text-teal-300 font-bold'
                     : 'border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700'
@@ -111,7 +111,7 @@ const MarketplaceContent: React.FC = () => {
                     setCompletedOrderNumber(null);
                     setActiveTab('my-orders');
                   }}
-                  className={`group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl border px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-2xs active:scale-95 ${
+                  className={`group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center rounded-xl border px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-2xs active:scale-95 ${
                     activeTab === 'my-orders' && !completedOrderNumber
                       ? 'bg-teal-50 dark:bg-teal-950/50 border-teal-500 text-teal-600 dark:text-teal-300 font-bold'
                       : 'border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700'
@@ -133,7 +133,7 @@ const MarketplaceContent: React.FC = () => {
                     setCompletedOrderNumber(null);
                     setActiveTab('admin');
                   }}
-                  className={`group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl border px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-2xs active:scale-95 ${
+                  className={`group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center rounded-xl border px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-2xs active:scale-95 ${
                     activeTab === 'admin' && !completedOrderNumber
                       ? 'bg-teal-50 dark:bg-teal-950/50 border-teal-500 text-teal-600 dark:text-teal-300 font-bold'
                       : 'border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700'
@@ -156,7 +156,7 @@ const MarketplaceContent: React.FC = () => {
                     openEditProduct();
                   }}
                   title="Crear Nuevo Producto / Servicio"
-                  className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl px-2.5 font-bold text-xs shadow-sm transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 active:scale-95 border rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs "
+                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center rounded-xl px-2.5 font-bold text-xs shadow-sm transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 active:scale-95 border rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs "
                 >
                   <Plus className="h-4 w-4 shrink-0" />
                   <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[180px] group-hover:opacity-100">
@@ -170,7 +170,7 @@ const MarketplaceContent: React.FC = () => {
                 type="button"
                 onClick={() => setIsCartOpen(true)}
                 title="Abrir Carrito de Compras"
-                className="group relative flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 px-2.5 shadow-2xs hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 active:scale-95 text-slate-700 dark:text-zinc-200"
+                className="group relative flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 px-2.5 shadow-2xs hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 active:scale-95 text-slate-700 dark:text-zinc-200"
               >
                 <div className="relative flex items-center justify-center shrink-0">
                   <ShoppingCart className="h-4 w-4 text-teal-600 dark:text-teal-400 shrink-0" />

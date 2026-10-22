@@ -541,7 +541,7 @@ export default function UserManagementTable() {
                     <button 
                         onClick={handleExportUsers} 
                         title={localize('com_ui_export_users') || 'Exportar Usuarios'}
-                        className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 px-2.5 shadow-2xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 active:scale-95 cursor-pointer"
+                        className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center rounded-xl bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 px-2.5 shadow-2xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 active:scale-95 cursor-pointer"
                     >
                         <Download className="w-4 h-4 text-slate-600 dark:text-zinc-300 shrink-0" />
                         <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[160px] group-hover:opacity-100 sm:flex">
@@ -553,7 +553,7 @@ export default function UserManagementTable() {
                     <button 
                         onClick={handleExportCompanyInfo} 
                         title="Exportar Info Empresarial"
-                        className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/50 border border-orange-200/80 dark:border-orange-800/80 px-2.5 shadow-2xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 active:scale-95 cursor-pointer"
+                        className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center rounded-xl bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/50 border border-orange-200/80 dark:border-orange-800/80 px-2.5 shadow-2xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 active:scale-95 cursor-pointer"
                     >
                         <FileSpreadsheet className="w-4 h-4 shrink-0" />
                         <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
@@ -565,7 +565,7 @@ export default function UserManagementTable() {
                     <button 
                         onClick={() => setIsCreateModalOpen(true)} 
                         title={localize('com_ui_create_user') || 'Crear Usuario'}
-                        className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/60 border border-teal-200/80 dark:border-teal-800/80 px-2.5 shadow-2xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 active:scale-95 cursor-pointer"
+                        className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/60 border border-teal-200/80 dark:border-teal-800/80 px-2.5 shadow-2xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 active:scale-95 cursor-pointer"
                     >
                         <Plus className="w-4 h-4 shrink-0" />
                         <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[160px] group-hover:opacity-100 sm:flex">

@@ -666,7 +666,7 @@ export default function UniversalColumnMapperModal({
             <button
               type="button"
               onClick={handleAutoMatch}
-              className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center rounded-xl border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
               title="Detectar automáticamente coincidencias según los nombres de las columnas"
             >
               <Sparkles size={14} className="shrink-0" />
@@ -687,7 +687,7 @@ export default function UniversalColumnMapperModal({
                   isTemplate: true,
                 });
               }}
-              className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-2.5 shadow-2xs active:scale-95 cursor-pointer"
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-2.5 shadow-2xs active:scale-95 cursor-pointer"
               title="Descargar archivo Excel en blanco con las columnas oficiales listas para diligenciar"
             >
               <Download size={14} className="shrink-0 text-teal-600 dark:text-teal-400" />
@@ -793,7 +793,7 @@ export default function UniversalColumnMapperModal({
               <button
                 type="button"
                 onClick={() => setIsSavingTemplate(true)}
-                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-2.5 shadow-2xs active:scale-95 cursor-pointer"
+                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-2.5 shadow-2xs active:scale-95 cursor-pointer"
                 title="Guardar este mapeo de columnas para reutilizarlo el próximo mes"
               >
                 <Save size={14} className="shrink-0 text-slate-500 dark:text-zinc-400 group-hover:text-teal-600 dark:group-hover:text-teal-400" />
@@ -807,7 +807,7 @@ export default function UniversalColumnMapperModal({
             <button
               type="button"
               onClick={handleClearMapping}
-              className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-2.5 shadow-2xs active:scale-95 cursor-pointer"
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-2.5 shadow-2xs active:scale-95 cursor-pointer"
               title="Limpiar todas las asociaciones"
             >
               <RotateCcw size={14} className="shrink-0" />
@@ -1052,7 +1052,7 @@ export default function UniversalColumnMapperModal({
             <button
               type="button"
               onClick={onClose}
-              className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl border border-slate-200/90 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 shadow-sm active:scale-95 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-2.5 cursor-pointer"
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center rounded-xl border border-slate-200/90 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 shadow-sm active:scale-95 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-2.5 cursor-pointer"
               title="Cancelar importación"
             >
               <X size={15} className="shrink-0 transition-transform duration-300 group-hover:rotate-90 text-slate-500 group-hover:text-red-600" />
@@ -1067,7 +1067,7 @@ export default function UniversalColumnMapperModal({
               type="button"
               onClick={handleConfirm}
               disabled={isProcessing || !stats.isAllRequiredMapped}
-              className={`group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl font-bold text-xs shadow-sm transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 cursor-pointer border ${
+              className={`group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center rounded-xl font-bold text-xs shadow-sm transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 cursor-pointer border ${
                 stats.isAllRequiredMapped && !isProcessing
                   ? 'bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 shadow-xs'
                   : 'bg-slate-100 dark:bg-zinc-800 border-border-medium/40 cursor-not-allowed opacity-60 text-slate-400'

@@ -42,11 +42,11 @@ docker exec -it LibreChat node scripts/restore-and-sync-all.js
 >
 > 1. **Geometría y Física Común (Todos los Botones e Insignias Expansibles):**
 >    - **Componente Maestro:** `client/src/components/Common/ExpandableButton.tsx` (y sus adaptadores `ExpandingButton`, `ToolbarButton`, `WappyExpandButton`, `SGSSTLegalBadge`, `DummyGenerateButton`, `ModelSelector`, `ExportDropdown`).
->    - **Dimensiones compactas estándar (`size="md"`):** `h-7 px-2 min-w-[28px] sm:h-8 sm:px-2.5 sm:min-w-[32px] rounded-xl`, ícono `h-3.5 w-3.5 sm:h-4 sm:w-4`, texto `text-xs font-bold tracking-wide`.
->    - **Dimensiones micro para tablas (`size="sm"`):** `h-6.5 px-1.5 min-w-[26px] sm:h-7 sm:px-2 sm:min-w-[28px] rounded-xl`, ícono `h-3 w-3 sm:h-3.5 sm:w-3.5`, texto `text-[10px] font-bold tracking-wide`.
+>    - **Dimensiones estándar responsive (`size="md"`):** `h-9 px-2.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] rounded-xl`, ícono `h-4 w-4`, texto `text-sm font-bold tracking-wide`.
+>    - **Dimensiones para tablas (`size="sm"`):** `h-8 px-2 min-w-[32px] sm:h-9 sm:px-2.5 sm:min-w-[36px] rounded-xl`, ícono `h-3.5 w-3.5 sm:h-4 sm:w-4`, texto `text-xs font-bold tracking-wide`.
 >    - **Animación y Física al Hover (Ladeado + Expansión):**
 >      - Clase del botón: `transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95`
->      - Contenedor del texto: `hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap`
+>      - Contenedor del texto: `hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap`
 >    - **Prohibido:** Usar `rounded-full` (tipo píldora redonda) o rellenos sólidos pesados (`bg-teal-600 text-white`). Todos usan fondo translúcido (`/10`) y borde (`/30`) de su grupo semántico.
 >
 > 2. **Los 14 Grupos Semánticos de Color (Obligatorios en todos los aplicativos):**

@@ -1164,7 +1164,7 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
             type="button"
             onClick={handleGenerate}
             disabled={isGenerating}
-            className="group flex items-center h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
+            className="group flex items-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
           >
             {isGenerating ? (
               <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />

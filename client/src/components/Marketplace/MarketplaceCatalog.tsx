@@ -172,7 +172,7 @@ const MarketplaceCatalog: React.FC = () => {
               type="button"
               onClick={() => setActiveTab('admin')}
               title="Abrir Tabla de Productos y Cursos"
-              className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl px-2.5 font-bold text-xs bg-white dark:bg-zinc-800 hover:bg-amber-100 dark:hover:bg-zinc-700 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700 shadow-2xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 active:scale-95"
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center rounded-xl px-2.5 font-bold text-xs bg-white dark:bg-zinc-800 hover:bg-amber-100 dark:hover:bg-zinc-700 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700 shadow-2xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 active:scale-95"
             >
               <Edit className="h-4 w-4 shrink-0" />
               <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[180px] group-hover:opacity-100">
@@ -183,7 +183,7 @@ const MarketplaceCatalog: React.FC = () => {
               type="button"
               onClick={() => openEditProduct()}
               title="Crear Nuevo Producto o Curso"
-              className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl px-2.5 font-bold text-xs border rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs "
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center rounded-xl px-2.5 font-bold text-xs border rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs "
             >
               <Plus className="h-4 w-4 shrink-0" />
               <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[180px] group-hover:opacity-100">
@@ -231,7 +231,7 @@ const MarketplaceCatalog: React.FC = () => {
           type="button"
           onClick={() => setSelectedCategory('all')}
           title="Todos los Servicios"
-          className={`group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center px-2.5 rounded-xl text-xs font-bold transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shrink-0 active:scale-95 shadow-2xs ${
+          className={`group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center px-2.5 rounded-xl text-xs font-bold transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shrink-0 active:scale-95 shadow-2xs ${
             selectedCategory === 'all'
               ? 'bg-teal-500/10 text-teal-600 dark:bg-teal-950/20 dark:text-teal-400 border border-teal-500/20 shadow-xs'
               : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800'
@@ -257,7 +257,7 @@ const MarketplaceCatalog: React.FC = () => {
               type="button"
               onClick={() => setSelectedCategory(cat.slug)}
               title={cat.name}
-              className={`group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center px-2.5 rounded-xl text-xs font-bold transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shrink-0 active:scale-95 shadow-2xs ${
+              className={`group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center px-2.5 rounded-xl text-xs font-bold transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shrink-0 active:scale-95 shadow-2xs ${
                 isSelected
                   ? 'bg-teal-500/10 text-teal-600 dark:bg-teal-950/20 dark:text-teal-400 border border-teal-500/20 shadow-xs'
                   : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800'

@@ -195,22 +195,22 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
         onClick={openDropdown}
         disabled={disabled}
         className={cn(
-          'group flex h-7 min-w-[28px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border px-2 shadow-xs outline-none transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:min-w-[32px] sm:px-2.5',
+          'group flex h-9 min-w-[36px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border px-2.5 shadow-xs outline-none transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-3',
           isOpen
             ? 'bg-indigo-500/20 text-indigo-700 border-indigo-500/50 hover:bg-indigo-500/25 dark:text-indigo-300 ring-1 ring-indigo-500/30'
             : 'border-indigo-500/30 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/20',
         )}
       >
         <div className="relative flex flex-shrink-0 items-center justify-center">
-          <Brain className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+          <Brain className="h-4 w-4" />
         </div>
         <div
           className={cn(
-            'hidden sm:flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100',
-            isOpen && 'sm:ml-1.5 sm:max-w-[200px] sm:opacity-100',
+            'hidden sm:flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100',
+            isOpen && 'sm:ml-2 sm:max-w-[200px] sm:opacity-100',
           )}
         >
-          <span className="mr-1 text-xs font-bold tracking-wide">
+          <span className="mr-1 text-sm font-bold tracking-wide">
             {currentModelName.replace('Gemini ', '')}
           </span>
           <ChevronDown

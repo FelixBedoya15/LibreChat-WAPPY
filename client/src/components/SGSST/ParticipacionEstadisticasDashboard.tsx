@@ -1223,7 +1223,7 @@ export default function ParticipacionEstadisticasDashboard({
                                                                 onClick={() => handleApplyCluster(cluster)}
                                                                 title={cluster.isFullyApplied ? 'Re-integrar a Matriz' : 'Aprobar e Integrar a Matriz'}
                                                                 className={cn(
-                                                                    "group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-2 sm:px-3 shadow-sm active:scale-95 cursor-pointer shrink-0",
+                                                                    "group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-2 sm:px-3 shadow-sm active:scale-95 cursor-pointer shrink-0",
                                                                     cluster.isFullyApplied
                                                                         ? "bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700 hover:bg-slate-200"
                                                                         : "border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
@@ -1636,7 +1636,7 @@ export default function ParticipacionEstadisticasDashboard({
                             type="button"
                             onClick={onClose}
                             title="Cerrar Analítica"
-                            className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-2 sm:px-3 shadow-2xs active:scale-95 cursor-pointer"
+                            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-2 sm:px-3 shadow-2xs active:scale-95 cursor-pointer"
                         >
                             <X className="w-4 h-4 shrink-0" />
                             <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[120px] group-hover:opacity-100 sm:flex">
@@ -1651,7 +1651,7 @@ export default function ParticipacionEstadisticasDashboard({
                             type="button"
                             onClick={() => handleApplyCluster(weightedClusters[0])}
                             title="Integrar Peligro #1 Más Crítico a la Matriz"
-                            className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 sm:px-2.5 items-center justify-center rounded-xl border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
+                            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center rounded-xl border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
                         >
                             <Sparkles className="w-4 h-4 shrink-0" />
                             <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[280px] group-hover:opacity-100 sm:flex">
