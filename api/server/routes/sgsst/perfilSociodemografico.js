@@ -1137,15 +1137,10 @@ router.get('/data', requireJwtAuth, async (req, res) => {
     const companyId = await getActiveCompanyId(targetUserId, isSub ? req.user.assignedCompany : null);
     let data = companyId
       ? await PerfilSociodemograficoData.findOne({ user: targetUserId, companyId: companyId }).lean()
-      : null;
-    if (!data) {
-      // ⚠️ AISLAMIENTO MULTIEMPRESA: solo se permite caer a un documento LEGADO sin companyId.
-      // Nunca cargar el documento de OTRA empresa del mismo usuario.
-      data = await PerfilSociodemograficoData.findOne({
-        user: targetUserId,
-        $or: [{ companyId: null }, { companyId: { $exists: false } }],
-      }).lean();
-    }
+      : await PerfilSociodemograficoData.findOne({
+          user: targetUserId,
+          $or: [{ companyId: null }, { companyId: { $exists: false } }],
+        }).lean();
     let finalWorkers = data?.trabajadores ? [...data.trabajadores] : [];
 
     // ─── SELF-HEALING RECONCILIATION: SgsstWorker & PerfilesCargo (estrictamente por empresa) ───
@@ -1158,7 +1153,9 @@ router.get('/data', requireJwtAuth, async (req, res) => {
       let perfilesList = [];
       try {
         const cargoDoc = PerfilesCargo ? (
-          await PerfilesCargo.findOne({ user: targetUserId, ...(companyId ? { companyId } : {}) }).lean()
+          companyId
+            ? await PerfilesCargo.findOne({ user: targetUserId, companyId }).lean()
+            : await PerfilesCargo.findOne({ user: targetUserId, $or: [{ companyId: null }, { companyId: { $exists: false } }] }).lean()
         ) : null;
         perfilesList = cargoDoc?.perfilesList || [];
         for (const p of perfilesList) {
@@ -1479,10 +1476,9 @@ Responde ÚNICAMENTE con JSON válido (sin markdown, sin texto extra):
 async function triggerIAEvaluation(userId, workerId, apiKey, perfilesList) {
   try {
     const companyId = await getActiveCompanyId(userId);
-    let doc = await PerfilSociodemograficoData.findOne({ user: userId, ...(companyId ? { companyId } : {}) });
-    if (!doc) {
-      doc = await PerfilSociodemograficoData.findOne({ user: userId, $or: [{ companyId: null }, { companyId: { $exists: false } }] });
-    }
+    let doc = companyId
+      ? await PerfilSociodemograficoData.findOne({ user: userId, companyId })
+      : await PerfilSociodemograficoData.findOne({ user: userId, $or: [{ companyId: null }, { companyId: { $exists: false } }] });
     if (!doc || !Array.isArray(doc.trabajadores)) return;
 
     const cleanWId = String(workerId || '').trim();
@@ -1862,13 +1858,9 @@ router.post('/dictamen/generate', express.json({ limit: '10mb' }), requireJwtAut
     const companyId = await getActiveCompanyId(targetUserId, isSub ? req.user.assignedCompany : null);
 
     // 1. Cargar el trabajador desde la BD o usar fallback
-    let doc = await PerfilSociodemograficoData.findOne({
-      user: targetUserId,
-      ...(companyId ? { companyId } : {})
-    });
-    if (!doc) {
-      doc = await PerfilSociodemograficoData.findOne({ user: targetUserId, $or: [{ companyId: null }, { companyId: { $exists: false } }] });
-    }
+    let doc = companyId
+      ? await PerfilSociodemograficoData.findOne({ user: targetUserId, companyId })
+      : await PerfilSociodemograficoData.findOne({ user: targetUserId, $or: [{ companyId: null }, { companyId: { $exists: false } }] });
     
     let currentWorker = null;
     let workerIndex = -1;
@@ -2124,13 +2116,9 @@ router.post('/worker/:workerId/dictamen', express.json({ limit: '10mb' }), requi
 
     // 2. Fallback de seguridad si no modificó por discrepancia de companyId o formato
     if (!result || result.modifiedCount === 0) {
-      let doc = await PerfilSociodemograficoData.findOne({
-        user: targetUserId,
-        ...(companyId ? { companyId } : {})
-      });
-      if (!doc) {
-        doc = await PerfilSociodemograficoData.findOne({ user: targetUserId, $or: [{ companyId: null }, { companyId: { $exists: false } }] });
-      }
+      let doc = companyId
+        ? await PerfilSociodemograficoData.findOne({ user: targetUserId, companyId })
+        : await PerfilSociodemograficoData.findOne({ user: targetUserId, $or: [{ companyId: null }, { companyId: { $exists: false } }] });
 
       if (doc && Array.isArray(doc.trabajadores)) {
         const idx = doc.trabajadores.findIndex(
@@ -2169,10 +2157,9 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
     const companyId = await getActiveCompanyId(targetUserId, isSub ? req.user.assignedCompany : null);
 
     // Fetch existing document to prevent ANY loss of workers or cargos
-    let existingDoc = await PerfilSociodemograficoData.findOne({ user: targetUserId, ...(companyId ? { companyId } : {}) }).lean();
-    if (!existingDoc && !companyId) {
-      existingDoc = await PerfilSociodemograficoData.findOne({ user: targetUserId, $or: [{ companyId: null }, { companyId: { $exists: false } }] }).lean();
-    }
+    let existingDoc = companyId
+      ? await PerfilSociodemograficoData.findOne({ user: targetUserId, companyId }).lean()
+      : await PerfilSociodemograficoData.findOne({ user: targetUserId, $or: [{ companyId: null }, { companyId: { $exists: false } }] }).lean();
     const existingWorkers = existingDoc?.trabajadores || [];
 
     let workersToSave = [];

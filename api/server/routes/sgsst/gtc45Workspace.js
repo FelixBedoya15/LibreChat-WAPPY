@@ -365,7 +365,7 @@ router.get('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
       const tempSession = await GTC45WorkspaceSession.findOne({
         conversationId: tempId,
         user: userId,
-        ...(companyId ? { $or: [{ companyId }, { companyId: null }, { companyId: { $exists: false } }] } : {}),
+        ...(companyId ? { companyId } : { $or: [{ companyId: null }, { companyId: { $exists: false } }] }),
       });
       if (tempSession && tempSession.matrixRows && tempSession.matrixRows.length > 0) {
         tempSession.conversationId = conversationId;

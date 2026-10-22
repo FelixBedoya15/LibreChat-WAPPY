@@ -179,7 +179,14 @@ router.get('/all', requireJwtAuth, async (req, res) => {
         // Auto-fix: Ensure at most one company is active to prevent duplicates
         if (!req.user.isSubUser) {
             const activeCompanies = companies.filter(c => c.isActive);
-            if (activeCompanies.length > 1) {
+            if (activeCompanies.length === 0 && companies.length > 0) {
+                const activateId = companies[0]._id;
+                await CompanyInfo.updateOne(
+                    { _id: activateId },
+                    { $set: { isActive: true } }
+                );
+                companies = await CompanyInfo.find({ user: targetUserId }).sort({ createdAt: 1 }).lean();
+            } else if (activeCompanies.length > 1) {
                 const keepActiveId = activeCompanies[0]._id;
                 await CompanyInfo.updateMany(
                     { user: targetUserId, _id: { $ne: keepActiveId } },
