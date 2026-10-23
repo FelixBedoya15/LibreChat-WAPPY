@@ -223,6 +223,7 @@ const startServer = async () => {
     ['rutaAprendizaje', routes.rutaAprendizaje],
     ['googleDrive', routes.googleDrive],
     ['oneDrive', routes.oneDrive],
+    ['studio', routes.studio],
   ];
 
 
@@ -341,6 +342,7 @@ const startServer = async () => {
   app.use('/api/user-api-keys', routes.userApiKeys);
   app.use('/api/mcp-bridge', routes.mcpBridge);
   app.use('/api/notebooklm', routes.notebooklm);
+  app.use('/api/studio', routes.studio);
 
 
 

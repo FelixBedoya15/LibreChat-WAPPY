@@ -35,6 +35,7 @@ import AuditoriaButton from './AuditoriaButton';
 import BookmarkNav from './Bookmarks/BookmarkNav';
 import KanbanButton from './KanbanButton';
 import TareasButton from './TareasButton';
+import WappyStudioButton from './WappyStudioButton';
 import { canAccessTareas } from '~/utils/planAccess';
 import ChatSSTButton from './ChatSSTButton';
 import EventsMeetButton from './EventsMeetButton';
@@ -334,6 +335,12 @@ const Nav = memo(
                             <TareasButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
                         )}
+                        {/* WAPPY Studio (TTS 60m & Video HTML con Capas) */}
+                        {hasAccessToLMS && (
+                          <Suspense fallback={null}>
+                            <WappyStudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                          </Suspense>
+                        )}
                         {/* Aula Estudio / Academia WAPPY */}
                         {hasAccessToLMS && (
                           <Suspense fallback={null}>
@@ -412,6 +419,13 @@ const Nav = memo(
                                 {hasAccessToTareas && (
                                   <Suspense fallback={null}>
                                     <TareasButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                  </Suspense>
+                                )}
+
+                                {/* 3.5. WAPPY Studio (TTS 60m & Video HTML con Capas - Justo por encima de Academia WAPPY) */}
+                                {hasAccessToLMS && (
+                                  <Suspense fallback={null}>
+                                    <WappyStudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>
                                 )}
 

@@ -73,6 +73,7 @@ const EventsMeetAdminDashboard = lazy(() => import('~/components/EventsMeet/Even
 const AuditoriaDashboard = lazy(() => import('~/components/Auditoria/AuditoriaDashboard'));
 const CentroControlSST = lazy(() => import('~/components/SGSST/CentroControlSST'));
 const TareasPage = lazy(() => import('~/components/SGSST/TareasPage'));
+const WappyStudioDashboard = lazy(() => import('~/components/Studio/WappyStudioDashboard'));
 const AcademiaDashboard = lazy(() => import('~/components/Academia/AcademiaDashboard'));
 const MarketplaceDashboard = lazy(() => import('~/components/Marketplace/MarketplaceDashboard'));
 const PlansPage = lazy(() => import('~/components/Plans/PlansPage'));
@@ -706,6 +707,14 @@ export const router = createBrowserRouter(
               element: <Navigate to="/sgsst?hito=hito4&module=estudio_puesto" replace={true} />,
             },
 
+            {
+              path: 'studio',
+              element: withSuspense(<WappyStudioDashboard />),
+            },
+            {
+              path: 'wappy-studio',
+              element: withSuspense(<WappyStudioDashboard />),
+            },
             {
               path: 'academia',
               element: withSuspense(<AcademiaDashboard />),

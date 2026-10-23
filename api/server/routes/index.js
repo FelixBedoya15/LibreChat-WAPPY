@@ -54,6 +54,7 @@ const marketplace = require('./marketplace');
 const userApiKeys = require('./userApiKeys');
 const mcpBridge = require('./mcpBridge');
 const notebooklm = require('./notebooklm');
+const studio = require('./studio');
 
 module.exports = {
   auth,
@@ -113,5 +114,6 @@ module.exports = {
   userApiKeys,
   mcpBridge,
   notebooklm,
+  studio,
 };
 
