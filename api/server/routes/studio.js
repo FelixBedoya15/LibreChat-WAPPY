@@ -473,10 +473,32 @@ async function getCombinedKeysForRequest(req, bodyCustomKeys) {
 }
 
 /**
+ * Limpia cualquier directriz o metadato de estilo residual que el usuario o el sistema
+ * haya podido pegar o arrastrar dentro del texto del guión, garantizando que Gemini TTS
+ * NUNCA lea instrucciones en voz alta como parte de la locución.
+ */
+function sanitizeScriptText(rawText) {
+  if (!rawText) return '';
+  let clean = String(rawText).trim();
+
+  // 1. Eliminar formato con paréntesis: "Lee en voz alta con el siguiente estilo (...):\n\nTexto"
+  clean = clean.replace(/^(?:(?:por\s+favor\s+)?(?:lee|habla|locuta|interpreta|recita|say|read|speak)\s+(?:esto\s+)?(?:en\s+voz\s+alta\s+)?(?:con\s+el\s+siguiente\s+estilo|con\s+estilo)?\s*\([^)]*\)[\s:—–-]*)/i, '');
+
+  // 2. Eliminar directivas en su propia línea: "Lee en voz alta con el siguiente estilo: ...\n\nTexto"
+  clean = clean.replace(/^(?:(?:por\s+favor\s+)?(?:lee|habla|locuta|interpreta|recita|say|read|speak)\s+(?:esto\s+)?(?:en\s+voz\s+alta\s+)?(?:con\s+el\s+siguiente\s+estilo|con\s+estilo)?[^:\n]*:[^\n]*(?:\n+|$))/i, '');
+
+  // 3. Eliminar etiquetas de estilo o directrices de director
+  clean = clean.replace(/^(?:directrices?\s+de\s+estilo|estilo|style|tono|tone|director['’]?s\s*notes?)[\s:—–-]+(?:[^\n]+(?:\n+|$))/i, '');
+  clean = clean.replace(/^\[(?:estilo|style|instrucciones|director|notas?):[^\]]+\]\s*/i, '');
+
+  return clean.trim();
+}
+
+/**
  * Divide un texto largo en fragmentos (chunks) respetando saltos de párrafo y oraciones
  */
 function splitTextIntoChunks(text, maxWordsPerChunk = 150) {
-  const clean = (text || '').trim();
+  const clean = sanitizeScriptText(text);
   if (!clean) return [];
 
   const safeLimit = Math.max(40, Math.min(300, Number(maxWordsPerChunk) || 150));
@@ -555,9 +577,10 @@ function createWavHeader(pcmByteLength, sampleRate = 24000, numChannels = 1, bit
 }
 
 /**
- * Garantiza que un buffer de audio tenga cabecera WAV y devuelve { wavBuffer, pcmBuffer, durationSeconds }
+ * Extrae limpiamente el flujo PCM y parámetros del formato de un buffer WAV/RIFF
+ * navegando la estructura de subchunks ('fmt ', 'data') en lugar de asumir 44 bytes ciegos.
  */
-function normalizeAudioBufferToWav(rawBuffer, sampleRate = 24000) {
+function extractPcmFromBuffer(rawBuffer, fallbackSampleRate = 24000) {
   if (!rawBuffer || rawBuffer.length === 0) {
     throw new Error('Buffer de audio vacío devuelto por Gemini TTS.');
   }
@@ -568,21 +591,142 @@ function normalizeAudioBufferToWav(rawBuffer, sampleRate = 24000) {
     rawBuffer.slice(8, 12).toString('ascii') === 'WAVE';
 
   let pcmBuffer;
-  let wavBuffer;
+  let sampleRate = fallbackSampleRate;
+  let numChannels = 1;
+  let bitsPerSample = 16;
 
   if (isRiffWav) {
-    wavBuffer = rawBuffer;
-    pcmBuffer = rawBuffer.slice(44);
+    let offset = 12;
+    let dataOffset = -1;
+    let dataSize = -1;
+
+    while (offset + 8 <= rawBuffer.length) {
+      const chunkId = rawBuffer.slice(offset, offset + 4).toString('ascii');
+      const chunkSize = rawBuffer.readUInt32LE(offset + 4);
+
+      if (chunkId === 'fmt ') {
+        if (chunkSize >= 16 && offset + 8 + 16 <= rawBuffer.length) {
+          numChannels = rawBuffer.readUInt16LE(offset + 8 + 2) || 1;
+          sampleRate = rawBuffer.readUInt32LE(offset + 8 + 4) || fallbackSampleRate;
+          bitsPerSample = rawBuffer.readUInt16LE(offset + 8 + 14) || 16;
+        }
+      } else if (chunkId === 'data') {
+        dataOffset = offset + 8;
+        dataSize = Math.min(chunkSize, rawBuffer.length - dataOffset);
+        break;
+      }
+
+      offset += 8 + chunkSize + (chunkSize % 2);
+    }
+
+    if (dataOffset !== -1 && dataSize > 0) {
+      pcmBuffer = rawBuffer.slice(dataOffset, dataOffset + dataSize);
+    } else {
+      pcmBuffer = rawBuffer.slice(44);
+    }
   } else {
     pcmBuffer = rawBuffer;
-    const header = createWavHeader(pcmBuffer.length, sampleRate, 1, 16);
-    wavBuffer = Buffer.concat([header, pcmBuffer]);
   }
 
-  // 24000 muestras/seg * 2 bytes (16-bit) = 48000 bytes/seg
-  const durationSeconds = Math.max(1, Math.round((pcmBuffer.length / (sampleRate * 2)) * 10) / 10);
+  // Asegurar alineación par de 16 bits (2 bytes por muestra)
+  if (pcmBuffer.length % 2 !== 0) {
+    pcmBuffer = pcmBuffer.slice(0, pcmBuffer.length - 1);
+  }
 
-  return { wavBuffer, pcmBuffer, durationSeconds };
+  return { pcmBuffer, sampleRate, numChannels, bitsPerSample };
+}
+
+/**
+ * Aplica micro-fade in y micro-fade out (15-20ms) a un buffer PCM 16-bit LE
+ * garantizando cruce por cero en los extremos y eliminando cualquier clic/pop en los cortes.
+ */
+function applyMicroFadeToPcm(pcmBuffer, sampleRate = 24000, fadeDurationMs = 20) {
+  if (!pcmBuffer || pcmBuffer.length < 4) return pcmBuffer;
+
+  const bytesPerSample = 2; // 16-bit LE
+  const totalSamples = Math.floor(pcmBuffer.length / bytesPerSample);
+  const fadeSamples = Math.min(Math.floor((sampleRate * fadeDurationMs) / 1000), Math.floor(totalSamples / 4));
+
+  if (fadeSamples <= 0) return pcmBuffer;
+
+  const result = Buffer.from(pcmBuffer);
+
+  // Fade-in lineal
+  for (let i = 0; i < fadeSamples; i++) {
+    const factor = i / fadeSamples;
+    const sample = result.readInt16LE(i * bytesPerSample);
+    const smoothed = Math.round(sample * factor);
+    result.writeInt16LE(Math.max(-32768, Math.min(32767, smoothed)), i * bytesPerSample);
+  }
+
+  // Fade-out lineal
+  for (let i = 0; i < fadeSamples; i++) {
+    const factor = (fadeSamples - 1 - i) / fadeSamples;
+    const sampleIndex = totalSamples - fadeSamples + i;
+    const sample = result.readInt16LE(sampleIndex * bytesPerSample);
+    const smoothed = Math.round(sample * factor);
+    result.writeInt16LE(Math.max(-32768, Math.min(32767, smoothed)), sampleIndex * bytesPerSample);
+  }
+
+  return result;
+}
+
+/**
+ * Aplica una rampa de desvanecimiento suave (fade out) a los últimos milisegundos de un buffer PCM
+ */
+function applyFinalTailFade(pcmBuffer, sampleRate = 24000, fadeDurationMs = 35) {
+  if (!pcmBuffer || pcmBuffer.length < 4) return pcmBuffer;
+
+  const bytesPerSample = 2;
+  const totalSamples = Math.floor(pcmBuffer.length / bytesPerSample);
+  const fadeSamples = Math.min(Math.floor((sampleRate * fadeDurationMs) / 1000), Math.floor(totalSamples / 2));
+
+  if (fadeSamples <= 0) return pcmBuffer;
+
+  const result = Buffer.from(pcmBuffer);
+
+  for (let i = 0; i < fadeSamples; i++) {
+    const factor = (fadeSamples - 1 - i) / fadeSamples;
+    const sampleIndex = totalSamples - fadeSamples + i;
+    const sample = result.readInt16LE(sampleIndex * bytesPerSample);
+    const smoothed = Math.round(sample * factor);
+    result.writeInt16LE(Math.max(-32768, Math.min(32767, smoothed)), sampleIndex * bytesPerSample);
+  }
+
+  return result;
+}
+
+/**
+ * Genera un buffer de silencio digital PCM 16-bit (ceros) para pausas naturales entre fragmentos
+ */
+function createPcmSilence(durationMs = 220, sampleRate = 24000) {
+  const bytesPerSample = 2;
+  const sampleCount = Math.floor((sampleRate * durationMs) / 1000);
+  return Buffer.alloc(sampleCount * bytesPerSample);
+}
+
+/**
+ * Garantiza que un buffer de audio tenga cabecera WAV estándar, muestras alineadas y micro-fade anti-pop
+ */
+function normalizeAudioBufferToWav(rawBuffer, fallbackSampleRate = 24000) {
+  const { pcmBuffer: rawPcm, sampleRate, numChannels, bitsPerSample } = extractPcmFromBuffer(
+    rawBuffer,
+    fallbackSampleRate,
+  );
+
+  // Aplicar micro-fade para garantizar que no haya clics en bordes
+  const pcmBuffer = applyMicroFadeToPcm(rawPcm, sampleRate, 18);
+
+  const header = createWavHeader(pcmBuffer.length, sampleRate, numChannels, bitsPerSample);
+  const wavBuffer = Buffer.concat([header, pcmBuffer]);
+
+  const bytesPerSecond = (sampleRate * numChannels * bitsPerSample) / 8;
+  const durationSeconds = Math.max(
+    1,
+    Math.round((pcmBuffer.length / bytesPerSecond) * 10) / 10,
+  );
+
+  return { wavBuffer, pcmBuffer, durationSeconds, sampleRate };
 }
 
 /**
@@ -626,6 +770,11 @@ async function synthesizeChunkWithFailover({
     );
   }
 
+  const cleanText = sanitizeScriptText(text);
+  if (!cleanText) {
+    throw new Error('El texto a sintetizar no contiene palabras válidas.');
+  }
+
   const envTtsModelIds = getTtsFallbackModelIds();
   const preferredModel = (model || envTtsModelIds[0] || 'gemini-3.8-flash-tts')
     .replace('models/', '')
@@ -643,10 +792,6 @@ async function synthesizeChunkWithFailover({
     for (let kIdx = 0; kIdx < keys.length; kIdx++) {
       const apiKey = keys[kIdx];
       try {
-        const promptText = stylePrompt && stylePrompt.trim()
-          ? `Lee en voz alta con el siguiente estilo (${stylePrompt.trim()}):\n\n${text.trim()}`
-          : text.trim();
-
         let speechConfig;
         if (multiSpeaker && !currentModel.includes('lite')) {
           speechConfig = {
@@ -682,26 +827,71 @@ async function synthesizeChunkWithFailover({
         }
 
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent`;
-        const payload = {
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: promptText }],
-            },
-          ],
-          generationConfig: {
-            responseModalities: ['AUDIO'],
-            speechConfig,
-          },
-        };
 
-        const response = await axios.post(url, payload, {
-          headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': apiKey,
-          },
-          timeout: 65000,
-        });
+        // Construir la parte de texto sin contaminar el guión con frases de estilo leídas en voz alta
+        const part = { text: cleanText };
+        if (stylePrompt && stylePrompt.trim()) {
+          part.speech_metadata = {
+            type: 'speech_metadata',
+            style: stylePrompt.trim(),
+          };
+        }
+
+        let response;
+        try {
+          response = await axios.post(
+            url,
+            {
+              contents: [{ role: 'user', parts: [part] }],
+              generationConfig: {
+                responseModalities: ['AUDIO'],
+                speechConfig,
+              },
+            },
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': apiKey,
+              },
+              timeout: 65000,
+            },
+          );
+        } catch (apiErr) {
+          const apiStatus = apiErr.response?.status || apiErr.status || 0;
+          const apiMsg = apiErr.response?.data?.error?.message || apiErr.message || '';
+          const msgLow = apiMsg.toLowerCase();
+
+          // Si el modelo rechaza speech_metadata por esquema estricto antiguo, reintentar con el texto limpio sin metadata
+          if (
+            apiStatus === 400 &&
+            part.speech_metadata &&
+            (msgLow.includes('speech_metadata') || msgLow.includes('unknown') || msgLow.includes('invalid json'))
+          ) {
+            logger.warn(
+              `[WappyStudio TTS] Modelo ${currentModel} no aceptó speech_metadata en REST. Reintentando con texto limpio...`,
+            );
+            delete part.speech_metadata;
+            response = await axios.post(
+              url,
+              {
+                contents: [{ role: 'user', parts: [part] }],
+                generationConfig: {
+                  responseModalities: ['AUDIO'],
+                  speechConfig,
+                },
+              },
+              {
+                headers: {
+                  'Content-Type': 'application/json',
+                  'x-goog-api-key': apiKey,
+                },
+                timeout: 65000,
+              },
+            );
+          } else {
+            throw apiErr;
+          }
+        }
 
         const parts = response.data?.candidates?.[0]?.content?.parts || [];
         const audioPart = parts.find(
@@ -1123,12 +1313,54 @@ async function processJobAsync(job) {
     }
   }
 
-  // Todos los fragmentos completados: ensamblar archivo WAV maestro continuo
+  // Todos los fragmentos completados: ensamblar archivo WAV maestro continuo y libre de chasquidos
   try {
-    const pcmBuffers = job.chunks.map((c) => c.pcmBuffer).filter(Boolean);
-    const totalPcmLength = pcmBuffers.reduce((acc, b) => acc + b.length, 0);
-    const masterHeader = createWavHeader(totalPcmLength, 24000, 1, 16);
-    job.masterWavBuffer = Buffer.concat([masterHeader, ...pcmBuffers]);
+    const rawChunks = job.chunks.map((c) => c.pcmBuffer).filter(Boolean);
+    const sampleRate = 24000;
+    const interChunkSilence = createPcmSilence(220, sampleRate); // 220 ms de pausa natural entre oraciones/párrafos
+
+    const processedBuffers = [];
+
+    for (let cIdx = 0; cIdx < rawChunks.length; cIdx++) {
+      let chunkPcm = rawChunks[cIdx];
+      // Asegurar paridad exacta de 16-bit
+      if (chunkPcm.length % 2 !== 0) {
+        chunkPcm = chunkPcm.slice(0, chunkPcm.length - 1);
+      }
+
+      // Aplicar micro-fade in y fade out para garantizar cruce por cero absoluto
+      const smoothedChunk = applyMicroFadeToPcm(chunkPcm, sampleRate, 20);
+      processedBuffers.push(smoothedChunk);
+
+      // Si no es el último fragmento, insertar una breve pausa natural de respiración/frase
+      if (cIdx < rawChunks.length - 1) {
+        processedBuffers.push(interChunkSilence);
+      }
+    }
+
+    let combinedPcm = Buffer.concat(processedBuffers);
+
+    // Fade out final suave de 35ms al cierre absoluto del archivo para evitar el 'pop' final
+    combinedPcm = applyFinalTailFade(combinedPcm, sampleRate, 35);
+
+    if (combinedPcm.length % 2 !== 0) {
+      combinedPcm = combinedPcm.slice(0, combinedPcm.length - 1);
+    }
+
+    const masterHeader = createWavHeader(combinedPcm.length, sampleRate, 1, 16);
+    job.masterWavBuffer = Buffer.concat([masterHeader, combinedPcm]);
+
+    // Recalcular duración total exacta incluyendo silencios naturales
+    const totalSilenceSeconds = Math.max(0, rawChunks.length - 1) * 0.22;
+    job.generatedTotalSeconds =
+      Math.round(
+        (job.chunks
+          .filter((c) => c.status === 'completed')
+          .reduce((sum, c) => sum + (c.durationSeconds || 0), 0) +
+          totalSilenceSeconds) *
+          10,
+      ) / 10;
+
     job.status = 'completed';
     job.progressPercent = 100;
 

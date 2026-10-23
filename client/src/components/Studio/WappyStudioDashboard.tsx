@@ -480,6 +480,40 @@ Tu bienestar mental y físico es la base de un entorno laboral saludable y segur
   },
 ];
 
+export type StudioSceneTemplateId = 'golden-rules' | 'kpi-hud' | 'alert-sst' | 'camera-overlay';
+
+const STUDIO_SCENE_TEMPLATES: {
+  id: StudioSceneTemplateId;
+  name: string;
+  badge: string;
+  description: string;
+}[] = [
+  {
+    id: 'golden-rules',
+    name: '⚡ Reglas de Oro Glass',
+    badge: 'Estilo Claude',
+    description: 'Tarjeta hero con barra de progreso e indicadores clave en cristal.',
+  },
+  {
+    id: 'kpi-hud',
+    name: '📊 Dashboard KPIs & HUD',
+    badge: 'Ejecutivo',
+    description: 'Métricas ejecutivas animadas con barras comparativas y telemetría.',
+  },
+  {
+    id: 'alert-sst',
+    name: '🚨 Alerta & Checklist 1-2-3',
+    badge: 'Prevención',
+    description: 'Pasos numerados de seguridad con entrada secuencial elástica.',
+  },
+  {
+    id: 'camera-overlay',
+    name: '🎬 Lower-Third (Video Propio)',
+    badge: 'Transparente',
+    description: 'Capas limpias en tercio superior e inferior para dejar libre tu rostro.',
+  },
+];
+
 function buildDefaultHtmlComposition({
   aspectRatio = '9:16',
   hasBaseVideo = false,
@@ -487,6 +521,7 @@ function buildDefaultHtmlComposition({
   headline = '5 Reglas de Oro en Seguridad',
   subheadline = 'Prevención inteligente en tiempo real con WAPPY Studio',
   accentColor = '#14b8a6',
+  templateId = 'golden-rules',
 }: {
   aspectRatio?: '9:16' | '16:9';
   hasBaseVideo?: boolean;
@@ -494,11 +529,110 @@ function buildDefaultHtmlComposition({
   headline?: string;
   subheadline?: string;
   accentColor?: string;
+  templateId?: StudioSceneTemplateId;
 }) {
   const isVertical = aspectRatio === '9:16';
   const safeBadge = badgeText.replace(/</g, '&lt;');
   const safeHeadline = headline.replace(/</g, '&lt;');
   const safeSubheadline = subheadline.replace(/</g, '&lt;');
+  const useTransparentBg = hasBaseVideo || templateId === 'camera-overlay';
+
+  let centerMarkup = '';
+  if (templateId === 'kpi-hud') {
+    centerMarkup = `
+      <div id="hero-card" data-editable="true" class="glass-card rounded-3xl ${isVertical ? 'p-5' : 'p-4'} border-t-2" style="border-top-color: ${accentColor};">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-[11px] font-mono uppercase tracking-wider text-teal-400">📊 TELEMETRÍA PREVENTIVA</span>
+          <span class="text-[11px] font-mono font-bold text-emerald-400">▲ +98.4% EFECTIVIDAD</span>
+        </div>
+        <h1 class="${isVertical ? 'text-xl sm:text-2xl' : 'text-lg sm:text-xl'} font-black leading-tight text-white">
+          ${safeHeadline}
+        </h1>
+        <p class="text-xs text-slate-300 mt-1">${safeSubheadline}</p>
+        <div class="mt-4 space-y-2.5">
+          <div>
+            <div class="flex justify-between text-[11px] font-bold mb-1">
+              <span class="text-slate-300">Controles Operativos Verificados</span>
+              <span class="text-teal-300 font-mono">96%</span>
+            </div>
+            <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+              <div id="accent-bar" class="h-full rounded-full" style="width: 96%; background: linear-gradient(90deg, ${accentColor}, #34d399);"></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between text-[11px] font-bold mb-1">
+              <span class="text-slate-300">Reducción de Incidentes Críticos</span>
+              <span class="text-amber-300 font-mono">100%</span>
+            </div>
+            <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+              <div class="h-full rounded-full" style="width: 100%; background: linear-gradient(90deg, #f59e0b, #10b981);"></div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  } else if (templateId === 'alert-sst') {
+    centerMarkup = `
+      <div id="hero-card" data-editable="true" class="glass-card rounded-3xl ${isVertical ? 'p-5' : 'p-4'} border-l-4" style="border-left-color: #f59e0b;">
+        <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] font-black uppercase tracking-wider mb-2">
+          ⚠️ PROTOCOLO OBLIGATORIO EN PLANTA
+        </div>
+        <h1 class="${isVertical ? 'text-xl sm:text-2xl' : 'text-lg sm:text-xl'} font-black leading-tight text-white">
+          ${safeHeadline}
+        </h1>
+        <p class="text-xs text-slate-300 mt-1">${safeSubheadline}</p>
+      </div>
+      <div class="grid grid-cols-1 gap-2" id="metrics-row">
+        <div data-editable="true" class="metric-item glass-card rounded-2xl p-3 flex items-center gap-3">
+          <span class="w-7 h-7 rounded-xl bg-teal-500/20 border border-teal-400/40 text-teal-300 font-mono font-black text-xs flex items-center justify-center shrink-0">01</span>
+          <span class="text-xs font-bold text-white">Aislar y bloquear todas las fuentes de energía (LOTO)</span>
+        </div>
+        <div data-editable="true" class="metric-item glass-card rounded-2xl p-3 flex items-center gap-3">
+          <span class="w-7 h-7 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-300 font-mono font-black text-xs flex items-center justify-center shrink-0">02</span>
+          <span class="text-xs font-bold text-white">Verificar ausencia de tensión con equipo calibrado</span>
+        </div>
+        <div data-editable="true" class="metric-item glass-card rounded-2xl p-3 flex items-center gap-3">
+          <span class="w-7 h-7 rounded-xl bg-indigo-500/20 border border-indigo-400/40 text-indigo-300 font-mono font-black text-xs flex items-center justify-center shrink-0">03</span>
+          <span class="text-xs font-bold text-white">Delimitar, señalizar y autorizar permiso de trabajo</span>
+        </div>
+      </div>`;
+  } else if (templateId === 'camera-overlay') {
+    centerMarkup = `
+      <div class="my-auto"></div>
+      <div id="hero-card" data-editable="true" class="glass-card rounded-2xl p-4 border-l-4 max-w-md" style="border-left-color: ${accentColor};">
+        <div class="text-[10px] font-mono uppercase tracking-widest text-teal-300 font-extrabold">${safeBadge}</div>
+        <h1 class="text-lg sm:text-xl font-black text-white leading-snug mt-0.5">${safeHeadline}</h1>
+        <p class="text-xs text-slate-300 mt-0.5">${safeSubheadline}</p>
+      </div>`;
+  } else {
+    centerMarkup = `
+      <div id="hero-card" data-editable="true" class="glass-card rounded-3xl ${isVertical ? 'p-5 sm:p-6' : 'p-4 sm:p-5'} border-l-4" style="border-left-color: ${accentColor};">
+        <div class="text-xs font-mono uppercase tracking-wider text-teal-400 mb-1">⚡ PUNTO CLAVE EN VIVO</div>
+        <h1 class="${isVertical ? 'text-xl sm:text-2xl' : 'text-lg sm:text-xl'} font-black leading-tight tracking-tight text-white">
+          ${safeHeadline}
+        </h1>
+        <p class="text-xs sm:text-sm text-slate-300 mt-1.5 leading-relaxed font-medium">
+          ${safeSubheadline}
+        </p>
+        <div class="mt-3.5 h-1.5 w-full bg-slate-800/90 rounded-full overflow-hidden">
+          <div id="accent-bar" class="h-full rounded-full" style="width: 100%; background: linear-gradient(90deg, ${accentColor}, #fbbf24);"></div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-2.5" id="metrics-row">
+        <div data-editable="true" class="metric-item glass-card rounded-2xl ${isVertical ? 'p-3' : 'p-2.5'} text-center">
+          <div class="${isVertical ? 'text-base sm:text-lg' : 'text-sm sm:text-base'} font-black text-emerald-400">100%</div>
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-300 mt-0.5">Cumplimiento</div>
+        </div>
+        <div data-editable="true" class="metric-item glass-card rounded-2xl ${isVertical ? 'p-3' : 'p-2.5'} text-center">
+          <div class="${isVertical ? 'text-base sm:text-lg' : 'text-sm sm:text-base'} font-black text-amber-400">60 FPS</div>
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-300 mt-0.5">Motion HTML</div>
+        </div>
+        <div data-editable="true" class="metric-item glass-card rounded-2xl ${isVertical ? 'p-3' : 'p-2.5'} text-center">
+          <div class="${isVertical ? 'text-base sm:text-lg' : 'text-sm sm:text-base'} font-black text-indigo-400">IA 3.8</div>
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-300 mt-0.5">Voz Neural</div>
+        </div>
+      </div>`;
+  }
 
   return `<!DOCTYPE html>
 <html lang="es">
@@ -515,7 +649,7 @@ function buildDefaultHtmlComposition({
       height: 100%;
       overflow: hidden;
       font-family: 'Plus Jakarta Sans', sans-serif;
-      background: ${hasBaseVideo ? 'transparent' : '#060d14'};
+      background: ${useTransparentBg ? 'transparent' : '#060d14'};
       color: #ffffff;
     }
     .grid-bg {
@@ -523,7 +657,7 @@ function buildDefaultHtmlComposition({
       background-size: 28px 28px;
     }
     .glass-card {
-      background: rgba(10, 18, 30, 0.78);
+      background: rgba(10, 18, 30, 0.82);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border: 1px solid rgba(255, 255, 255, 0.14);
@@ -531,17 +665,19 @@ function buildDefaultHtmlComposition({
     }
   </style>
 </head>
-<body class="relative flex flex-col justify-between ${isVertical ? 'p-6 sm:p-7' : 'p-5 sm:p-6'} select-none">
+<body class="relative w-full h-full flex flex-col justify-between ${isVertical ? 'p-5 sm:p-6' : 'p-4 sm:p-6'} select-none overflow-hidden">
   ${
-    hasBaseVideo
+    useTransparentBg
       ? '<!-- Fondo transparente para dejar ver el video base del usuario -->'
-      : `<div class="absolute inset-0 grid-bg pointer-events-none"></div>
-         <div id="orb-1" class="absolute -top-20 -left-20 w-72 h-72 rounded-full blur-3xl opacity-35 pointer-events-none" style="background: ${accentColor};"></div>
-         <div id="orb-2" class="absolute bottom-10 -right-20 w-80 h-80 rounded-full blur-3xl opacity-25 pointer-events-none" style="background: #6366f1;"></div>`
+      : `<div class="absolute inset-0 overflow-hidden pointer-events-none">
+           <div class="absolute inset-0 grid-bg"></div>
+           <div id="orb-1" class="absolute -top-16 -left-16 w-64 h-64 rounded-full blur-3xl opacity-35" style="background: ${accentColor};"></div>
+           <div id="orb-2" class="absolute bottom-8 -right-16 w-72 h-72 rounded-full blur-3xl opacity-25" style="background: #6366f1;"></div>
+         </div>`
   }
 
   <!-- TOP HUD BAR -->
-  <div id="top-bar" class="relative z-10 flex items-center justify-between gap-2">
+  <div id="top-bar" data-editable="true" class="relative z-10 flex items-center justify-between gap-2">
     <div class="glass-card px-3.5 py-1.5 rounded-full inline-flex items-center gap-2 whitespace-nowrap">
       <span class="w-2.5 h-2.5 rounded-full animate-ping shrink-0" style="background: ${accentColor};"></span>
       <span class="text-[11px] font-extrabold tracking-widest uppercase text-teal-300">${safeBadge}</span>
@@ -552,59 +688,21 @@ function buildDefaultHtmlComposition({
   </div>
 
   <!-- ESCENA CENTRAL: TARJETAS ANIMADAS -->
-  <div class="relative z-10 my-auto flex flex-col ${isVertical ? 'gap-4' : 'gap-3 max-w-2xl'}">
-    <div id="hero-card" class="glass-card rounded-3xl ${isVertical ? 'p-6' : 'p-4 sm:p-5'} border-l-4" style="border-left-color: ${accentColor};">
-      <div class="text-xs font-mono uppercase tracking-wider text-teal-400 mb-1">⚡ PUNTO CLAVE EN VIVO</div>
-      <h1 class="${isVertical ? 'text-2xl sm:text-3xl' : 'text-xl sm:text-2xl'} font-black leading-tight tracking-tight text-white">
-        ${safeHeadline}
-      </h1>
-      <p class="text-xs sm:text-sm text-slate-300 mt-1.5 leading-relaxed font-medium">
-        ${safeSubheadline}
-      </p>
-      <div class="mt-3.5 h-1.5 w-full bg-slate-800/90 rounded-full overflow-hidden">
-        <div id="accent-bar" class="h-full rounded-full" style="width: 0%; background: linear-gradient(90deg, ${accentColor}, #fbbf24);"></div>
-      </div>
-    </div>
-
-    <div class="grid grid-cols-3 gap-2.5" id="metrics-row">
-      <div class="metric-item glass-card rounded-2xl ${isVertical ? 'p-3.5' : 'p-2.5'} text-center">
-        <div class="${isVertical ? 'text-lg' : 'text-base'} font-black text-emerald-400">100%</div>
-        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-300 mt-0.5">Cumplimiento</div>
-      </div>
-      <div class="metric-item glass-card rounded-2xl ${isVertical ? 'p-3.5' : 'p-2.5'} text-center">
-        <div class="${isVertical ? 'text-lg' : 'text-base'} font-black text-amber-400">60 FPS</div>
-        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-300 mt-0.5">Motion HTML</div>
-      </div>
-      <div class="metric-item glass-card rounded-2xl ${isVertical ? 'p-3.5' : 'p-2.5'} text-center">
-        <div class="${isVertical ? 'text-lg' : 'text-base'} font-black text-indigo-400">IA 3.8</div>
-        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-300 mt-0.5">Voz Neural</div>
-      </div>
-    </div>
+  <div class="relative z-10 my-auto flex flex-col ${isVertical ? 'gap-3.5' : 'gap-3 max-w-2xl w-full mx-auto'}">
+    ${centerMarkup}
   </div>
 
   <!-- ESPACIO INFERIOR RESERVADO PARA SUBTÍTULOS DINÁMICOS -->
-  <div class="relative z-10 ${isVertical ? 'h-14' : 'h-12'}"></div>
+  <div class="relative z-10 ${isVertical ? 'h-14' : 'h-12'} shrink-0"></div>
 
   <script>
-    const tl = gsap.timeline({ repeat: -1, repeatDelay: 1.2 });
+    const tl = gsap.timeline({ repeat: -1, repeatDelay: 1.5 });
     window.mainTimeline = tl;
 
-    tl.from("#top-bar", { y: -35, opacity: 0, duration: 0.65, ease: "back.out(1.7)" })
-      .from("#hero-card", { scale: 0.88, y: 30, opacity: 0, duration: 0.75, ease: "back.out(1.5)" }, "-=0.3")
-      .to("#accent-bar", { width: "100%", duration: 1.4, ease: "power2.out" }, "-=0.2")
-      .from(".metric-item", { y: 25, opacity: 0, stagger: 0.15, duration: 0.55, ease: "back.out(1.7)" }, "-=0.8")
+    tl.from("#top-bar", { y: -25, opacity: 0, duration: 0.55, ease: "back.out(1.7)" })
+      .from("#hero-card", { scale: 0.92, y: 24, opacity: 0, duration: 0.65, ease: "back.out(1.5)" }, "-=0.25")
+      .from(".metric-item", { y: 20, opacity: 0, stagger: 0.12, duration: 0.5, ease: "back.out(1.7)" }, "-=0.35")
       .to("#hero-card", { y: -4, duration: 2.2, ease: "sine.inOut", yoyo: true, repeat: 3 });
-
-    window.addEventListener("message", (event) => {
-      const data = event.data || {};
-      if (!window.mainTimeline) return;
-      if (data.type === "STUDIO_PLAY") window.mainTimeline.play();
-      if (data.type === "STUDIO_PAUSE") window.mainTimeline.pause();
-      if (data.type === "STUDIO_RESTART") window.mainTimeline.restart();
-      if (data.type === "STUDIO_SEEK" && typeof data.progress === "number") {
-        window.mainTimeline.progress(Math.max(0, Math.min(1, data.progress)));
-      }
-    });
   </script>
 </body>
 </html>`;
@@ -623,10 +721,9 @@ interface SelectedCanvasElementInfo {
 
 /**
  * Inyecta el puente interactivo de WAPPY Studio dentro de cualquier HTML (por defecto o generado por IA):
- * 1) Auto-ajuste proporcional (Zero-Overflow) tanto en vista normal como en Pantalla Completa (evita que salga corrido).
+ * 1) Auto-ajuste limpio únicamente para contenedores con píxeles fijos grandes (1920px/1080px), sin deformar nunca el body.
  * 2) Control universal de GSAP (Play, Pause, Restart, Seek) interceptando timelines.
- * 3) Editor Visual en Vivo: arrastrar cajas con el mouse, editar textos con doble clic o desde el inspector,
- *    cambiar colores/tamaños, duplicar, agregar textos/cajas y eliminar elementos.
+ * 3) Editor Visual en Vivo: arrastrar cajas con el mouse, editar textos con doble clic o desde el inspector.
  */
 function injectStudioRuntimeBridge(rawHtml: string): string {
   if (!rawHtml) return '';
@@ -653,8 +750,11 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
 
   const runtimeScript = `<style id="wappy-studio-bridge-styles">
   html, body {
+    width: 100% !important;
+    height: 100% !important;
     max-width: 100vw !important;
     max-height: 100vh !important;
+    margin: 0 !important;
     overflow: hidden !important;
     box-sizing: border-box !important;
   }
@@ -700,56 +800,35 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
     try {
       var vw = window.innerWidth || 540;
       var vh = window.innerHeight || 540;
-      document.body.style.translate = '';
-      document.body.style.scale = '';
-      document.body.style.transformOrigin = 'top left';
-
       var children = Array.prototype.slice.call(document.body.children).filter(function(el) {
         return el.tagName !== 'SCRIPT' && el.tagName !== 'STYLE';
       });
+      for (var i = 0; i < children.length; i++) {
+        var el = children[i];
+        var inlineW = parseFloat(el.style.width || '0') || 0;
+        var inlineH = parseFloat(el.style.height || '0') || 0;
+        var cls = el.className && typeof el.className === 'string' ? el.className : '';
+        if (!inlineW && cls.indexOf('1920px') !== -1) inlineW = 1920;
+        if (!inlineW && cls.indexOf('1080px') !== -1) inlineW = 1080;
+        if (!inlineH && cls.indexOf('1920px') !== -1 && inlineW === 1080) inlineH = 1920;
+        if (!inlineH && cls.indexOf('1080px') !== -1 && inlineW === 1920) inlineH = 1080;
 
-      if (children.length === 1) {
-        var rootEl = children[0];
-        rootEl.style.scale = '';
-        rootEl.style.translate = '';
-        var naturalW = Math.max(rootEl.scrollWidth || 0, rootEl.offsetWidth || 0, parseFloat(rootEl.style.width || '0') || 0);
-        var naturalH = Math.max(rootEl.scrollHeight || 0, rootEl.offsetHeight || 0, parseFloat(rootEl.style.height || '0') || 0);
-        if (naturalW > vw + 12 || naturalH > vh + 12) {
-          var s = Math.min(vw / naturalW, vh / naturalH);
+        if (inlineW >= 720 && (inlineW > vw + 12 || inlineH > vh + 12)) {
+          var targetH = inlineH >= 480 ? inlineH : vh;
+          var s = Math.min(vw / inlineW, vh / targetH);
           document.body.style.display = 'flex';
           document.body.style.alignItems = 'center';
           document.body.style.justifyContent = 'center';
-          document.body.style.width = '100vw';
-          document.body.style.height = '100vh';
-          rootEl.style.transformOrigin = 'center center';
-          rootEl.style.scale = String(Number(s.toFixed(4)));
-          rootEl.style.flexShrink = '0';
-          return;
+          el.style.transformOrigin = 'center center';
+          el.style.scale = String(Number(s.toFixed(4)));
+          el.style.flexShrink = '0';
         }
-      }
-
-      var scrollW = Math.max(document.body.scrollWidth || 0, document.documentElement.scrollWidth || 0);
-      var scrollH = Math.max(document.body.scrollHeight || 0, document.documentElement.scrollHeight || 0);
-      if (scrollW > vw + 12 || scrollH > vh + 12) {
-        var scaleRatio = Math.min(vw / scrollW, vh / scrollH);
-        var offsetX = Math.max(0, (vw - scrollW * scaleRatio) / 2);
-        var offsetY = Math.max(0, (vh - scrollH * scaleRatio) / 2);
-        document.body.style.width = scrollW + 'px';
-        document.body.style.height = scrollH + 'px';
-        document.body.style.transformOrigin = 'top left';
-        document.body.style.translate = offsetX + 'px ' + offsetY + 'px';
-        document.body.style.scale = String(Number(scaleRatio.toFixed(4)));
       }
     } catch (e) {}
   }
 
   window.addEventListener('resize', fitStageToViewport);
-  window.addEventListener('load', function() {
-    fitStageToViewport();
-    setTimeout(fitStageToViewport, 350);
-    setTimeout(fitStageToViewport, 1000);
-  });
-  setTimeout(fitStageToViewport, 120);
+  window.addEventListener('load', fitStageToViewport);
 
   function notifySelected(el) {
     if (!el) {
@@ -1116,6 +1195,10 @@ export default function WappyStudioDashboard() {
   // ESTADO DEL COMPOSITOR DE VIDEO HTML & CAPAS
   // ============================================================================
   const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9'>('9:16');
+  const [selectedSceneTemplate, setSelectedSceneTemplate] =
+    useState<StudioSceneTemplateId>('golden-rules');
+  const [subtitlePosition, setSubtitlePosition] = useState<'bottom' | 'center' | 'top'>('bottom');
+  const [isSyncingVoiceToVideo, setIsSyncingVoiceToVideo] = useState<boolean>(false);
   const [baseVideoUrl, setBaseVideoUrl] = useState<string | null>(null);
   const [baseVideoName, setBaseVideoName] = useState<string>('');
   const [muteBaseVideo, setMuteBaseVideo] = useState<boolean>(false);
@@ -1143,6 +1226,7 @@ export default function WappyStudioDashboard() {
       headline: '5 Reglas de Oro en Riesgo Eléctrico',
       subheadline: 'Prevención inteligente y locución neural sincronizada',
       accentColor: '#14b8a6',
+      templateId: 'golden-rules',
     }),
   );
 
@@ -1678,6 +1762,7 @@ export default function WappyStudioDashboard() {
   const handleRebuildDefaultTemplate = (
     nextRatio = aspectRatio,
     nextHasVideo = Boolean(baseVideoUrl),
+    nextTemplateId = selectedSceneTemplate,
   ) => {
     setHtmlCode(
       buildDefaultHtmlComposition({
@@ -1687,8 +1772,63 @@ export default function WappyStudioDashboard() {
         headline: headlineOverlayText,
         subheadline: subheadlineOverlayText,
         accentColor,
+        templateId: nextTemplateId,
       }),
     );
+  };
+
+  const handleSyncVoiceToVideo = async () => {
+    const textToRead = (scriptText || headlineOverlayText || '').trim().slice(0, 750);
+    if (!textToRead) return;
+    try {
+      setIsSyncingVoiceToVideo(true);
+      setStatusBanner(null);
+      const resp = await fetch('/api/studio/tts/synthesize', {
+        method: 'POST',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify({
+          text: textToRead,
+          voiceName: selectedVoice,
+          stylePrompt,
+          model: selectedModel,
+          multiSpeaker,
+          speaker1: { name: 'Alex', voiceName: speaker1Voice },
+          speaker2: { name: 'Sam', voiceName: speaker2Voice },
+        }),
+      });
+      const data = await parseStudioJson(resp);
+      if (!resp.ok || !data.success) {
+        throw new Error(data.error || 'No se pudo sintetizar la voz para el video.');
+      }
+      setCurrentAudio({
+        base64: data.audioBase64,
+        title: `Locución de Video (${selectedVoice})`,
+        durationSeconds: data.durationSeconds,
+        voiceName: selectedVoice,
+        scriptText: textToRead,
+      });
+      if (data.durationSeconds && data.durationSeconds > 1) {
+        setVideoDuration(data.durationSeconds);
+      }
+      setVideoCurrentTime(0);
+      setIsVideoPlaying(true);
+      setTimeout(() => {
+        iframeRef.current?.contentWindow?.postMessage({ type: 'STUDIO_RESTART' }, '*');
+        stageAudioRef.current?.play().catch(() => {});
+        baseVideoRef.current?.play().catch(() => {});
+      }, 120);
+      setStatusBanner({
+        type: 'success',
+        text: `¡Locución neural (${selectedVoice}) sincronizada automáticamente con el lienzo de video!`,
+      });
+    } catch (err: any) {
+      setStatusBanner({
+        type: 'error',
+        text: err.message || 'Error sincronizando voz con el video.',
+      });
+    } finally {
+      setIsSyncingVoiceToVideo(false);
+    }
   };
 
   const handleGenerateHtmlWithAi = async () => {
@@ -1754,8 +1894,8 @@ export default function WappyStudioDashboard() {
     return '';
   }, [customAudioUrl, currentAudio]);
 
-  // Reloj maestro de reproducción para que el botón Play/Pause y los subtítulos palabra a palabra
-  // avancen fluidamente en tiempo real incluso cuando no hay pista de audio o video externa
+  // Reloj maestro de reproducción a 250ms (4 Hz) para que el botón Play/Pause y los subtítulos
+  // palabra a palabra avancen fluidamente sin provocar re-renderizados excesivos ni titileo en botones
   useEffect(() => {
     if (activeTab !== 'video' || !isVideoPlaying || isVisualEditMode) return;
     let lastTick = performance.now();
@@ -1785,7 +1925,7 @@ export default function WappyStudioDashboard() {
         }
         return next;
       });
-    }, 80);
+    }, 250);
 
     return () => clearInterval(interval);
   }, [activeTab, isVideoPlaying, isVisualEditMode, videoDuration, activeStageAudioSrc, baseVideoUrl]);
@@ -1998,9 +2138,9 @@ export default function WappyStudioDashboard() {
           </div>
 
           {/* Derecha: Cápsula de Pestañas (SGSSTToolbar style) + Botones Expandibles (14 Grupos) */}
-          <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto justify-between lg:justify-end">
+          <div className="flex items-center gap-2 w-full lg:w-auto justify-between lg:justify-end flex-nowrap">
             {/* Botonera Flotante Cápsula / Isla */}
-            <div className="inline-flex items-center gap-1 p-1.5 rounded-2xl bg-slate-100/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-xs overflow-x-auto no-scrollbar">
+            <div className="inline-flex items-center gap-1 p-1.5 rounded-2xl bg-slate-100/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-xs overflow-x-auto no-scrollbar min-w-0">
               <button
                 type="button"
                 onClick={() => handleTabChange('tts')}
@@ -2058,8 +2198,8 @@ export default function WappyStudioDashboard() {
               </button>
             </div>
 
-            {/* Botones Auto-Expansibles WAPPY (14 Grupos Semánticos) */}
-            <div className="flex items-center gap-1.5">
+            {/* Botones Auto-Expansibles WAPPY (14 Grupos Semánticos, sin flex-wrap para evitar titileo) */}
+            <div className="flex items-center gap-1.5 shrink-0 flex-nowrap">
               <ModelSelector
                 selectedModel={selectedAiModel}
                 onSelectModel={setSelectedAiModel}
@@ -2582,13 +2722,13 @@ export default function WappyStudioDashboard() {
               {/* COLUMNA DERECHA (7 cols): Editor de Guion, Vocal Bursts y Despacho */}
               <div className="lg:col-span-7 space-y-5 bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-xs">
                 {/* Cabecera del Editor + Selector de Plantilla */}
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h2 className="text-sm font-extrabold text-text-primary flex items-center gap-2">
+                <div className="flex items-center justify-between gap-3 flex-nowrap">
+                  <h2 className="text-sm font-extrabold text-text-primary flex items-center gap-2 shrink-0">
                     <MicVocal className="w-4 h-4 text-teal-500" />
                     Texto a Sintetizar
                   </h2>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0 flex-nowrap">
                     <span className="text-xs text-text-secondary hidden sm:inline">
                       Cargar ejemplo:
                     </span>
@@ -2766,8 +2906,8 @@ export default function WappyStudioDashboard() {
         {activeTab === 'video' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start animate-in fade-in duration-200">
             {/* COLUMNA IZQUIERDA (6 cols): Capas de Video, Audio, Subtítulos e IA HTML */}
-            <div className="lg:col-span-6 space-y-5 bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-xs">
-              <div className="flex items-center justify-between">
+            <div className="lg:col-span-6 space-y-5 bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-xs [content-visibility:auto] [contain-intrinsic-size:auto_500px_auto_780px] [contain:layout_style_paint]">
+              <div className="flex items-center justify-between gap-2">
                 <div>
                   <h2 className="text-base font-extrabold text-text-primary flex items-center gap-2">
                     <Film className="w-5 h-5 text-purple-500" />
@@ -2785,7 +2925,7 @@ export default function WappyStudioDashboard() {
                   type="button"
                   onClick={() => {
                     setAspectRatio('9:16');
-                    handleRebuildDefaultTemplate('9:16', Boolean(baseVideoUrl));
+                    handleRebuildDefaultTemplate('9:16', Boolean(baseVideoUrl), selectedSceneTemplate);
                   }}
                   className={cn(
                     'p-3 rounded-xl border text-left transition cursor-pointer',
@@ -2806,7 +2946,7 @@ export default function WappyStudioDashboard() {
                   type="button"
                   onClick={() => {
                     setAspectRatio('16:9');
-                    handleRebuildDefaultTemplate('16:9', Boolean(baseVideoUrl));
+                    handleRebuildDefaultTemplate('16:9', Boolean(baseVideoUrl), selectedSceneTemplate);
                   }}
                   className={cn(
                     'p-3 rounded-xl border text-left transition cursor-pointer',
@@ -2822,6 +2962,50 @@ export default function WappyStudioDashboard() {
                     1920 × 1080 px • Ideal para cursos Academia WAPPY
                   </div>
                 </button>
+              </div>
+
+              {/* Selector Rápido de Plantillas de Escena Motion Graphics */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-text-primary flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-teal-500" />
+                    Plantillas Visuales Instantáneas (HyperFrames)
+                  </span>
+                  <span className="text-[10px] text-text-secondary">Clic para aplicar</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {STUDIO_SCENE_TEMPLATES.map((tpl) => {
+                    const isSelected = selectedSceneTemplate === tpl.id;
+                    return (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedSceneTemplate(tpl.id);
+                          handleRebuildDefaultTemplate(aspectRatio, Boolean(baseVideoUrl), tpl.id);
+                        }}
+                        className={cn(
+                          'p-2.5 rounded-xl border text-left transition cursor-pointer',
+                          isSelected
+                            ? 'bg-teal-50/80 dark:bg-teal-950/40 border-teal-500 ring-1 ring-teal-500/30'
+                            : 'bg-slate-50/70 dark:bg-zinc-900/70 border-slate-200 dark:border-zinc-800 hover:border-teal-400',
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-xs font-extrabold text-text-primary truncate">
+                            {tpl.name}
+                          </span>
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20 shrink-0">
+                            {tpl.badge}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-text-secondary mt-0.5 line-clamp-1">
+                          {tpl.description}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* 2. CAPA 1 y 2: Subir Video Propio y/o Audio Propio */}
@@ -2917,19 +3101,46 @@ export default function WappyStudioDashboard() {
 
               {/* 3. Textos Rápidos de Superposición y Subtítulos Estilo Hormozi/Claude */}
               <div className="p-4 bg-slate-50 dark:bg-zinc-900/80 rounded-2xl border border-slate-200/80 dark:border-zinc-800 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-xs font-extrabold uppercase tracking-wider text-text-primary">
                     3. Textos de Capa y Subtítulos Dinámicos
                   </span>
-                  <label className="inline-flex items-center gap-2 text-xs font-bold text-teal-600 dark:text-teal-400 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={showDynamicSubtitles}
-                      onChange={(e) => setShowDynamicSubtitles(e.target.checked)}
-                      className="rounded accent-teal-600"
-                    />
-                    Subtítulos Palabra a Palabra
-                  </label>
+                  <div className="flex items-center gap-2">
+                    <label className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-600 dark:text-teal-400 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={showDynamicSubtitles}
+                        onChange={(e) => setShowDynamicSubtitles(e.target.checked)}
+                        className="rounded accent-teal-600"
+                      />
+                      Subtítulos
+                    </label>
+                    {showDynamicSubtitles && (
+                      <div className="inline-flex items-center gap-0.5 bg-white dark:bg-zinc-800 p-0.5 rounded-lg border border-slate-200 dark:border-zinc-700 text-[10px]">
+                        {(
+                          [
+                            { id: 'bottom', label: 'Abajo' },
+                            { id: 'center', label: 'Centro' },
+                            { id: 'top', label: 'Arriba' },
+                          ] as const
+                        ).map((pos) => (
+                          <button
+                            key={pos.id}
+                            type="button"
+                            onClick={() => setSubtitlePosition(pos.id)}
+                            className={cn(
+                              'px-1.5 py-0.5 rounded transition cursor-pointer',
+                              subtitlePosition === pos.id
+                                ? 'bg-teal-600 text-white font-bold'
+                                : 'text-text-secondary hover:text-text-primary',
+                            )}
+                          >
+                            {pos.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -3060,13 +3271,13 @@ export default function WappyStudioDashboard() {
             </div>
 
             {/* COLUMNA DERECHA (6 cols): Reproductor en Vivo Multi-Capa + Editor Visual + Exportación */}
-            <div className="lg:col-span-6 space-y-4 bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-xs">
-              {/* Barra Superior del Lienzo */}
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
+            <div className="lg:col-span-6 space-y-4 bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-xs [content-visibility:auto] [contain-intrinsic-size:auto_500px_auto_780px] [contain:layout_style_paint]">
+              {/* Barra Superior del Lienzo (sin flex-wrap para evitar salto de línea y titileo al expandir botones) */}
+              <div className="flex items-center justify-between gap-2 flex-nowrap">
+                <div className="flex items-center gap-2 min-w-0">
                   <span
                     className={cn(
-                      'w-2.5 h-2.5 rounded-full',
+                      'w-2.5 h-2.5 rounded-full shrink-0',
                       isVisualEditMode
                         ? 'bg-amber-500 animate-ping'
                         : isVideoPlaying
@@ -3074,28 +3285,38 @@ export default function WappyStudioDashboard() {
                           : 'bg-slate-400',
                     )}
                   />
-                  <h3 className="text-sm font-extrabold text-text-primary">
+                  <h3 className="text-sm font-extrabold text-text-primary truncate">
                     {isVisualEditMode
-                      ? 'Editor Visual en Vivo (Arrastra Cajas / Edita Textos)'
-                      : `Lienzo Interactivo en Tiempo Real (${aspectRatio})`}
+                      ? `Editor Visual (${aspectRatio})`
+                      : `Lienzo Interactivo (${aspectRatio})`}
                   </h3>
                 </div>
 
-                {/* Botonera WAPPY (ExpandableButton) */}
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <button
-                    type="button"
+                {/* Botonera WAPPY (100% ExpandableButton 14-Group Design System, flex-nowrap) */}
+                <div className="flex items-center gap-1.5 shrink-0 flex-nowrap">
+                  <ExpandableButton
+                    size="sm"
+                    icon={
+                      isSyncingVoiceToVideo ? (
+                        <Loader2 className="animate-spin" />
+                      ) : (
+                        <MicVocal />
+                      )
+                    }
+                    label="Sincronizar Voz IA"
+                    variant="purple"
+                    disabled={isSyncingVoiceToVideo}
+                    onClick={handleSyncVoiceToVideo}
+                  />
+
+                  <ExpandableButton
+                    size="sm"
+                    icon={<Edit3 />}
+                    label={isVisualEditMode ? 'Salir de Edición' : 'Editar Lienzo'}
+                    variant="orange"
+                    isActive={isVisualEditMode}
                     onClick={toggleVisualEditMode}
-                    className={cn(
-                      'h-8 px-2.5 sm:h-9 sm:px-3 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer',
-                      isVisualEditMode
-                        ? 'bg-amber-500/20 border-amber-500 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/30 shadow-xs'
-                        : 'bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20',
-                    )}
-                  >
-                    <Edit3 className="w-3.5 h-3.5" />
-                    <span>{isVisualEditMode ? 'Salir de Edición' : 'Editar Textos / Cajas'}</span>
-                  </button>
+                  />
 
                   <ExpandableButton
                     size="sm"
@@ -3104,6 +3325,7 @@ export default function WappyStudioDashboard() {
                     variant="green"
                     onClick={handleDownloadHtmlBundle}
                   />
+
                   <ExpandableButton
                     size="sm"
                     icon={<Maximize2 />}
@@ -3315,7 +3537,16 @@ export default function WappyStudioDashboard() {
 
                     {/* CAPA 3: Subtítulos Dinámicos Sincronizados Palabra a Palabra (Estilo Hormozi / Claude) */}
                     {showDynamicSubtitles && currentSubtitleWindow && (
-                      <div className="absolute bottom-5 inset-x-3 z-20 flex justify-center pointer-events-none">
+                      <div
+                        className={cn(
+                          'absolute inset-x-3 z-20 flex justify-center pointer-events-none',
+                          subtitlePosition === 'top'
+                            ? 'top-16'
+                            : subtitlePosition === 'center'
+                              ? 'top-1/2 -translate-y-1/2'
+                              : 'bottom-5',
+                        )}
+                      >
                         <div className="bg-black/85 backdrop-blur-md border border-white/20 px-4 py-2.5 rounded-2xl shadow-2xl text-center max-w-[94%]">
                           <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1">
                             {currentSubtitleWindow.words.map((word, idx) => {
