@@ -1057,58 +1057,60 @@ Formato (texto plano, 3 viñetas):
     console.error('⚠️ Error sincronizando Marketplace:', err.message);
   }
 
-  // Sembrar 2 ejemplos de automatizaciones exclusivamente para cuentas ADMIN
+  // Sembrar 2 ejemplos de automatizaciones Drive -> Somos SST exclusivamente para cuentas ADMIN
   try {
     const Automation = require('../models/Automation');
     const AutomationLog = require('../models/AutomationLog');
     const CompanyInfo = require('../models/CompanyInfo');
 
     const adminUsers = await User.find({ role: 'ADMIN' }).lean();
-    const auditorAgent = await Agent.findOne({ name: /Auditor SG-SST/i }).lean();
+    const medicoAgent = await Agent.findOne({ name: /Médico Laboral|Consultor SG-SST/i }).lean();
     const consultorAgent = await Agent.findOne({ name: /Consultor SG-SST/i }).lean();
 
-    const agent1Id = auditorAgent?.id || 'agent_auditor_sg_sst';
-    const agent1Name = auditorAgent?.name || 'Auditor SG-SST';
+    const agent1Id = medicoAgent?.id || 'agent_medico_laboral';
+    const agent1Name = medicoAgent?.name || 'Médico Laboral';
     const agent2Id = consultorAgent?.id || 'agent_consultor_sg_sst';
     const agent2Name = consultorAgent?.name || 'Consultor SG-SST';
 
-    const sample1RunAt = new Date(Date.now() - 3 * 3600 * 1000);
-    const sample2RunAt = new Date(Date.now() - 26 * 3600 * 1000);
-    const nextRunTomorrow = new Date(Date.now() + 18 * 3600 * 1000);
-    const nextRunMonday = new Date(Date.now() + 72 * 3600 * 1000);
+    const sample1RunAt = new Date(Date.now() - 2 * 3600 * 1000);
+    const sample2RunAt = new Date(Date.now() - 14 * 3600 * 1000);
+    const nextRunEvening = new Date(Date.now() + 16 * 3600 * 1000);
+    const nextRunMorning = new Date(Date.now() + 8 * 3600 * 1000);
 
-    const sample1Result = `### 📊 Dictamen Ejecutivo Semanal — Estándares Mínimos (Resolución 0312 de 2019)
+    const sample1Result = `### 📂 Sincronización Google Drive → Perfil Sociodemográfico y Exámenes Médicos (Somos SST)
 
-**Estado General del Sistema:** Cumplimiento **Aceptable (88.5%)** — Ciclo PHVA Activo.
+**Carpeta vigilada en Google Drive:** \`SG-SST / Perfil Sociodemográfico y EMO\`
+**Herramientas ejecutadas:** \`google_drive\` (\`list_files_and_folders\`, \`read_document_content\`) → \`somos_sst\` (\`alimentar_sociodemografico_masivo\`, \`actualizar_examen_medico\`)
 
-| Dimensión PHVA | Avance Actual | Hallazgos / Pendientes Críticos | Acción Preventiva Recomendada |
-| :--- | :---: | :--- | :--- |
-| **I. Planear** | 92% | Matriz Legal requiere actualización del trimestre | Ejecutar barrido normativo en Hito 1 |
-| **II. Hacer** | 85% | 3 exámenes médicos periódicos próximos a vencer | Notificar a Medicina Laboral (Hito 2) |
-| **III. Verificar** | 90% | Acta mensual del COPASST pendiente de firma digital | Convocar cierre de sesión en Hito 3 |
-| **IV. Actuar** | 87% | 2 acciones ACPM en seguimiento de eficacia | Validar cierre de evidencias en Centro de Control |
+| Archivo Detectado en Drive | Novedad Identificada | Aplicativo Alimentado en WAPPY | Estado de Sincronización |
+| :--- | :--- | :--- | :---: |
+| \`Actualizacion_Sociodemografica_Octubre.xlsx\` | 4 colaboradores actualizaron dirección, EPS, turno de trabajo y contacto de emergencia | **Hito 2: Perfil Sociodemográfico y Condiciones de Salud** | ✅ Sincronizado (4 perfiles actualizados) |
+| \`Concepto_Aptitud_Carlos_Ramirez.pdf\` | Examen médico periódico con recomendación ergonómica postural | **Hito 2: Seguimiento de Exámenes Médicos Ocupacionales** | ✅ Registrado + Alerta en Centro de Control |
 
-> **Conclusión del Auditor IA:** No se detectan desviaciones críticas sancionables. Se recomienda priorizar la renovación de los certificados de trabajo seguro en alturas que vencen en los próximos 15 días.`;
+> **Dictamen del Agente:** Se compararon las marcas de tiempo y cédulas contra la base de datos de **Somos SST**. Los 4 expedientes modificados en el archivo de Drive y el concepto médico ocupacional ya quedaron asentados automáticamente en los aplicativos correspondientes sin duplicar registros.`;
 
-    const sample2Result = `### 🛡️ Vigilancia Diaria de Controles Operacionales, EPP y Tareas Críticas
+    const sample2Result = `### 🚨 Vigilancia de Carpeta Drive → Aplicativos de Accidentes (ATEL), Inspecciones y Actos Inseguros
 
-**Resumen de Inspección Autónoma (24h):**
-* **Matriz de Peligros IPEVAR (GTC 45):** 0 riesgos críticos sin control asignado.
-* **Control de Entregas de EPP:** 100% de cobertura en cargos operativos; 2 reposiciones de protección auditiva programadas para esta semana.
-* **Permisos de Tareas de Alto Riesgo (Alturas / Energías Peligrosas):** Todos los permisos emitidos cuentan con ATS validado y lista de chequeo preoperacional firmada.
+**Carpeta vigilada en Google Drive:** \`SG-SST / Reportes de Campo, Inspecciones y ATEL\`
+**Herramientas ejecutadas:** \`google_drive\` (\`list_files_and_folders\`, \`read_document_content\`) → \`somos_sst\` (\`registrar_accidente_atel\`, \`editar_cualquier_aplicativo\`, \`crear_actividad_acpm\`)
+
+* **1. Reporte de Accidente / Incidente detectado:** \`FURAT_Preliminar_Bodega_Norte.pdf\`
+  * **Acción ejecutada en WAPPY:** Se extrajo la información del suceso (lesión leve en mano derecha por manipulación de estiba, 2 días de incapacidad) y se alimentó automáticamente el **Aplicativo de Investigación de Accidentes e Incidentes (ATEL — Hito 7)** mediante \`registrar_accidente_atel\`.
+* **2. Reporte de Actos y Condiciones Inseguras:** \`Inspeccion_Locativa_y_Actos_Semana42.xlsx\`
+  * **Acción ejecutada en WAPPY:** Se identificaron 2 condiciones locativas (cableado expuesto en pasillo 3 y extintor multipropósito despresurizado) y se inyectaron en el **Aplicativo de Reporte de Actos y Condiciones Inseguras (Hito 4)** y **Plan de Acción ACPM (Centro de Control)**.
 
 \`\`\`wappy-card
 {
-  "title": "Alerta Preventiva de Vencimientos (Próximos 7 días)",
-  "subtitle": "Seguimiento proactivo generado por Consultor SG-SST",
+  "title": "Automatización Drive → Aplicativos WAPPY Completada",
+  "subtitle": "2 archivos nuevos procesados e inyectados en Somos SST",
   "items": [
     {
-      "title": "Inspección de Botiquines y Extintores",
-      "description": "Programada para el viernes a las 10:00 AM en Bodega Central."
+      "title": "Aplicativo ATEL (Hito 7)",
+      "description": "1 nuevo caso de accidente de trabajo registrado desde FURAT_Preliminar_Bodega_Norte.pdf."
     },
     {
-      "title": "Capacitación de Pausas Activas y Ergonomía",
-      "description": "Pendiente de confirmación de asistencia del área administrativa."
+      "title": "Aplicativo Actos y Condiciones + ACPM (Hito 4)",
+      "description": "2 hallazgos locativos cargados desde Inspeccion_Locativa_y_Actos_Semana42.xlsx con tarea correctiva asignada."
     }
   ]
 }
@@ -1123,37 +1125,46 @@ Formato (texto plano, 3 viñetas):
       if (!company) continue;
 
       const companyId = company._id.toString();
-      const existingCount = await Automation.countDocuments({ companyId });
-      if (existingCount > 0) continue;
+
+      // Reemplazar los ejemplos anteriores [Ejemplo Admin] para que queden los nuevos orientados a Drive -> Somos SST
+      const oldSamples = await Automation.find({
+        companyId,
+        name: /^\[Ejemplo Admin\]/i,
+      }).select('_id').lean();
+      if (oldSamples.length > 0) {
+        const oldIds = oldSamples.map((s) => s._id);
+        await AutomationLog.deleteMany({ automation: { $in: oldIds } });
+        await Automation.deleteMany({ _id: { $in: oldIds } });
+      }
 
       const adminEmail = admin.email ? [admin.email] : ['admin@wappy.club'];
 
       const auto1 = await Automation.create({
         user: admin._id,
         companyId,
-        name: '[Ejemplo Admin] Auditoría Semanal de Cumplimiento Res. 0312 y Ciclo PHVA',
+        name: '[Ejemplo Admin] Vigilar Drive y Alimentar Perfil Sociodemográfico y Exámenes en Somos SST',
         agentId: agent1Id,
         agentName: agent1Name,
         prompt:
-          'Realiza una auditoría ejecutiva semanal del estado de cumplimiento de los Estándares Mínimos de la Resolución 0312 de 2019 y Decreto 1072 de 2015 de la empresa activa. Revisa el avance del diagnóstico, tareas vencidas del Plan Anual de Trabajo, estado de actas de comités (COPASST/CCL) y genera una tabla ejecutiva con hallazgos prioritarios y recomendaciones preventivas para la Alta Dirección.',
-        scheduleType: 'weekly',
-        scheduleConfig: { hour: 8, minute: 0, dayOfWeek: [1] },
+          'Conéctate a mi Google Drive usando la herramienta google_drive (list_files_and_folders y read_document_content) y revisa la carpeta o archivos recientes de "Perfil Sociodemográfico" y "Condiciones de Salud / Exámenes Médicos". Lee los documentos nuevos o actualizados (Excel, Google Sheets o PDF), identifica qué trabajadores tienen información nueva o modificada (datos sociodemográficos, condiciones de salud o conceptos de aptitud médica) y, con esa información extraída, ejecuta inmediatamente la herramienta somos_sst (acciones alimentar_sociodemografico_masivo, importar_sociodemografico_drive o actualizar_examen_medico) para actualizar directamente el aplicativo de Perfil Sociodemográfico y Condiciones de Salud en Somos SST. Al finalizar, entrégame un resumen detallado de los archivos leídos y los trabajadores actualizados.',
+        scheduleType: 'daily',
+        scheduleConfig: { hour: 18, minute: 0 },
         emails: adminEmail,
         status: 'active',
         lastRunAt: sample1RunAt,
         lastRunStatus: 'success',
         lastRunResult: sample1Result,
-        nextRunAt: nextRunMonday,
+        nextRunAt: nextRunEvening,
       });
 
       const auto2 = await Automation.create({
         user: admin._id,
         companyId,
-        name: '[Ejemplo Admin] Vigilancia Diaria de Vencimientos, EPP y Controles IPEVAR',
+        name: '[Ejemplo Admin] Vigilar Drive y Registrar Accidentes ATEL, Inspecciones y Actos Inseguros',
         agentId: agent2Id,
         agentName: agent2Name,
         prompt:
-          'Analiza diariamente la Matriz de Peligros (GTC 45), el cronograma de capacitaciones, las entregas de Elementos de Protección Personal (EPP) y los controles operacionales pendientes de la empresa. Identifica cualquier alerta temprana de vencimiento en los próximos 7 días y emite un boletín preventivo conciso con acciones recomendadas.',
+          'Vigila en Google Drive (usando google_drive: list_files_and_folders y read_document_content) los archivos o carpetas donde se suban reportes de Accidentes/Incidentes de Trabajo (FURAT/ATEL), Inspecciones de Seguridad o Reportes de Actos y Condiciones Inseguras. Cuando detectes un archivo nuevo o actualizado: 1) Si contiene un accidente o incidente laboral nuevo, extrae todos los datos del evento (trabajador, fecha, gravedad, parte del cuerpo, días de incapacidad y descripción) y regístralo en el aplicativo de Accidentes ATEL de Somos SST usando somos_sst (acción registrar_accidente_atel). 2) Si contiene actos/condiciones inseguras o hallazgos de inspecciones, aliméntalos en el aplicativo correspondiente de Somos SST usando somos_sst (acción editar_cualquier_aplicativo con nombre_aplicativo="actos" o "auditoria" y crear_actividad_acpm en el Centro de Control). Genera un informe con cada registro inyectado en los aplicativos.',
         scheduleType: 'daily',
         scheduleConfig: { hour: 7, minute: 30 },
         emails: adminEmail,
@@ -1161,7 +1172,7 @@ Formato (texto plano, 3 viñetas):
         lastRunAt: sample2RunAt,
         lastRunStatus: 'success',
         lastRunResult: sample2Result,
-        nextRunAt: nextRunTomorrow,
+        nextRunAt: nextRunMorning,
       });
 
       await AutomationLog.insertMany([
@@ -1190,7 +1201,7 @@ Formato (texto plano, 3 viñetas):
       ]);
       seededCompanies++;
     }
-    console.log(`🤖 Automatizaciones de ejemplo para ADMIN verificadas/sembradas (${seededCompanies} empresa(s) inicializada(s)).`);
+    console.log(`🤖 Automatizaciones Drive -> Somos SST para ADMIN sincronizadas (${seededCompanies} empresa(s)).`);
   } catch (err) {
     console.error('⚠️ Error sembrando automatizaciones de ejemplo para ADMIN:', err.message);
   }
