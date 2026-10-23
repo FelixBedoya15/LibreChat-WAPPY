@@ -3,11 +3,28 @@
 const express = require('express');
 const crypto = require('crypto');
 const axios = require('axios');
+const passport = require('passport');
 const router = express.Router();
-const { requireJwtAuth } = require('~/server/middleware');
 const { logger } = require('~/config');
 const { resolveApiKeys, generateWithKeyRotation } = require('./sgsst/sgsstGemini');
 const geminiPoolManager = require('~/server/services/GeminiPoolManager');
+
+/**
+ * Middleware de autenticación flexible para WAPPY Studio:
+ * - Acepta token en header Authorization o query ?token= (para EventSource SSE)
+ * - Si el token es válido hidrata req.user; si aún se está refrescando, permite usar las claves del sistema (resolveApiKeys) y nunca devuelve texto plano "Unauthorized".
+ */
+const studioAuth = (req, res, next) => {
+  if (!req.headers.authorization && req.query && req.query.token) {
+    req.headers.authorization = `Bearer ${req.query.token}`;
+  }
+  passport.authenticate('jwt', { session: false }, (err, user) => {
+    if (!err && user) {
+      req.user = user;
+    }
+    return next();
+  })(req, res, next);
+};
 
 /**
  * Catálogo oficial de metadatos de Modelos Gemini TTS (cargados dinámicamente desde GOOGLE_MODELS en .env)
@@ -429,22 +446,28 @@ async function getCombinedKeysForRequest(req, bodyCustomKeys) {
 
   let systemOrUserKeys = [];
   try {
-    if (req.user) {
-      systemOrUserKeys = await resolveApiKeys(req.user);
-    }
+    systemOrUserKeys = await resolveApiKeys(req.user);
   } catch (err) {
     logger.debug(`[WappyStudio] No user/system keys resolved: ${err.message}`);
   }
 
+  const envFallbackRaw = [process.env.GOOGLE_KEY, process.env.GEMINI_API_KEY]
+    .filter(Boolean)
+    .join(',');
+  const envFallbackKeys = envFallbackRaw
+    .split(',')
+    .map((k) => k.trim())
+    .filter((k) => k.length > 8 && k !== 'user_provided');
+
   const combined = [...customList];
-  for (const k of systemOrUserKeys) {
+  for (const k of [...systemOrUserKeys, ...envFallbackKeys]) {
     if (k && !combined.includes(k)) {
       combined.push(k);
     }
   }
   return {
     customKeysCount: customList.length,
-    systemKeysCount: systemOrUserKeys.length,
+    systemKeysCount: combined.length - customList.length,
     allKeys: combined,
   };
 }
@@ -764,7 +787,7 @@ async function synthesizeChunkWithFailover({
  * GET /api/studio/catalog
  * Devuelve los modelos TTS y de texto leídos dinámicamente desde GOOGLE_MODELS en .env
  */
-router.get('/catalog', requireJwtAuth, (req, res) => {
+router.get('/catalog', studioAuth, (req, res) => {
   res.json({
     models: getStudioTtsModelsFromEnv(),
     textModels: getStudioTextModelsFromEnv(),
@@ -778,7 +801,7 @@ router.get('/catalog', requireJwtAuth, (req, res) => {
 /**
  * GET /api/studio/keys-status
  */
-router.get('/keys-status', requireJwtAuth, async (req, res) => {
+router.get('/keys-status', studioAuth, async (req, res) => {
   try {
     const { customKeysCount, systemKeysCount, allKeys } = await getCombinedKeysForRequest(req, []);
     const keysInfo = allKeys.map((k, idx) => ({
@@ -804,7 +827,7 @@ router.get('/keys-status', requireJwtAuth, async (req, res) => {
 /**
  * POST /api/studio/keys-validate
  */
-router.post('/keys-validate', requireJwtAuth, async (req, res) => {
+router.post('/keys-validate', studioAuth, async (req, res) => {
   try {
     const { customKeys = [] } = req.body;
     const cleanKeys = Array.isArray(customKeys)
@@ -846,7 +869,7 @@ router.post('/keys-validate', requireJwtAuth, async (req, res) => {
 /**
  * POST /api/studio/tts/estimate
  */
-router.post('/tts/estimate', requireJwtAuth, (req, res) => {
+router.post('/tts/estimate', studioAuth, (req, res) => {
   try {
     const { text = '', maxWordsPerChunk = 150 } = req.body;
     const clean = String(text || '').trim();
@@ -888,7 +911,7 @@ router.post('/tts/estimate', requireJwtAuth, (req, res) => {
  * POST /api/studio/tts/synthesize
  * Síntesis directa de muestra, audición de voz o primer fragmento
  */
-router.post('/tts/synthesize', requireJwtAuth, async (req, res) => {
+router.post('/tts/synthesize', studioAuth, async (req, res) => {
   try {
     const {
       text,
@@ -938,7 +961,7 @@ router.post('/tts/synthesize', requireJwtAuth, async (req, res) => {
  * POST /api/studio/tts/jobs
  * Inicia un trabajo asíncrono para textos largos (hasta 1 hora de duración)
  */
-router.post('/tts/jobs', requireJwtAuth, async (req, res) => {
+router.post('/tts/jobs', studioAuth, async (req, res) => {
   try {
     const {
       text,
@@ -974,7 +997,7 @@ router.post('/tts/jobs', requireJwtAuth, async (req, res) => {
     const jobId = `tts_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
     const job = {
       id: jobId,
-      userId: String(req.user.id || req.user._id),
+      userId: String(req.user?.id || req.user?._id || 'studio_user'),
       createdAt: Date.now(),
       status: 'processing', // 'processing' | 'paused' | 'completed' | 'failed' | 'cancelled'
       voiceName,
@@ -1130,7 +1153,7 @@ async function processJobAsync(job) {
  * GET /api/studio/tts/jobs/:jobId/stream
  * Stream SSE de eventos de progreso en tiempo real
  */
-router.get('/tts/jobs/:jobId/stream', requireJwtAuth, (req, res) => {
+router.get('/tts/jobs/:jobId/stream', studioAuth, (req, res) => {
   const job = activeJobs.get(req.params.jobId);
   if (!job) {
     return res.status(404).json({ error: 'Trabajo no encontrado.' });
@@ -1173,7 +1196,7 @@ router.get('/tts/jobs/:jobId/stream', requireJwtAuth, (req, res) => {
  * POST /api/studio/tts/jobs/:jobId/control
  * Pausar, reanudar o cancelar un trabajo en curso
  */
-router.post('/tts/jobs/:jobId/control', requireJwtAuth, (req, res) => {
+router.post('/tts/jobs/:jobId/control', studioAuth, (req, res) => {
   const job = activeJobs.get(req.params.jobId);
   if (!job) {
     return res.status(404).json({ error: 'Trabajo no encontrado.' });
@@ -1217,7 +1240,7 @@ router.get('/tts/jobs/:jobId/download', async (req, res) => {
  * Genera una composición animada en HTML5 + Tailwind + GSAP que puede superponerse
  * sobre un video propio del usuario o reproducirse de forma autónoma con subtítulos sincronizados.
  */
-router.post('/video/generate-html', requireJwtAuth, async (req, res) => {
+router.post('/video/generate-html', studioAuth, async (req, res) => {
   try {
     const {
       prompt = '',
@@ -1316,7 +1339,7 @@ Recuerda devolver SOLO el código HTML puro empezando por <!DOCTYPE html>.`;
  * POST /api/studio/video/render-serverless
  * Despacha el paquete (HTML + Audio + Video Base) al Worker GPU Serverless (Modal.com / RunPod)
  */
-router.post('/video/render-serverless', requireJwtAuth, async (req, res) => {
+router.post('/video/render-serverless', studioAuth, async (req, res) => {
   try {
     const {
       htmlCode,

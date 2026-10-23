@@ -611,12 +611,24 @@ function buildDefaultHtmlComposition({
 
 const LOCAL_LIBRARY_STORAGE = 'wappy_studio_audio_library';
 
-function getAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem('token') || '';
+function getAuthHeaders(authToken?: string): Record<string, string> {
+  const token = authToken || localStorage.getItem('token') || '';
   return {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
+}
+
+async function parseStudioJson(resp: Response): Promise<any> {
+  const rawText = await resp.text();
+  try {
+    return JSON.parse(rawText);
+  } catch {
+    if (resp.status === 401 || rawText.trim() === 'Unauthorized') {
+      throw new Error('Tu sesión está actualizándose. Intenta nuevamente en un segundo.');
+    }
+    throw new Error(rawText.slice(0, 180) || `Error del servidor (${resp.status})`);
+  }
 }
 
 function formatDurationBadge(seconds: number): string {
@@ -644,7 +656,7 @@ function formatLibraryDate(timestamp: number): string {
 // ============================================================================
 
 export default function WappyStudioDashboard() {
-  const { user, isAuthenticated } = useAuthContext();
+  const { user, token, isAuthenticated } = useAuthContext();
   const { data: endpointsConfig } = useGetEndpointsQuery();
   const outletContext = useOutletContext<ContextType>();
   const navVisible = outletContext?.navVisible ?? true;
@@ -826,7 +838,7 @@ export default function WappyStudioDashboard() {
   }, [endpointsConfig]);
 
   useEffect(() => {
-    fetch('/api/studio/catalog', { headers: getAuthHeaders() })
+    fetch('/api/studio/catalog', { headers: getAuthHeaders(token) })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!data) return;
@@ -840,7 +852,7 @@ export default function WappyStudioDashboard() {
       .catch(() => {
         /* Fallback al catálogo precargado en cliente */
       });
-  }, []);
+  }, [token]);
 
   // Recalcular palabras, fragmentos y duración estimada
   useEffect(() => {
@@ -857,7 +869,7 @@ export default function WappyStudioDashboard() {
     const timer = setTimeout(() => {
       fetch('/api/studio/tts/estimate', {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: getAuthHeaders(token),
         body: JSON.stringify({ text: clean, maxWordsPerChunk: wordsPerChunk }),
       })
         .then((r) => (r.ok ? r.json() : null))
@@ -880,7 +892,7 @@ export default function WappyStudioDashboard() {
     }, 250);
 
     return () => clearTimeout(timer);
-  }, [scriptText, wordsPerChunk]);
+  }, [scriptText, wordsPerChunk, token]);
 
   const handleTabChange = (tab: StudioTab) => {
     setActiveTab(tab);
@@ -923,14 +935,14 @@ export default function WappyStudioDashboard() {
       setAuditioningVoiceId(voiceId);
       const resp = await fetch('/api/studio/tts/synthesize', {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: getAuthHeaders(token),
         body: JSON.stringify({
           voiceName: voiceId,
           model: isVoiceSupported(voiceId) ? selectedModel : 'gemini-3.8-flash-tts',
           text: `Hola, soy ${voiceId}. Esta es una muestra de voz neural en WAPPY Studio para tus cápsulas y cursos.`,
         }),
       });
-      const data = await resp.json();
+      const data = await parseStudioJson(resp);
       if (!resp.ok || !data.success) {
         throw new Error(data.error || 'No se pudo sintetizar la muestra.');
       }
@@ -953,14 +965,14 @@ export default function WappyStudioDashboard() {
       setStatusBanner(null);
       const resp = await fetch('/api/studio/tts/synthesize', {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: getAuthHeaders(token),
         body: JSON.stringify({
           voiceName: selectedVoice,
           model: selectedModel,
           text: '¡Conexión verificada con éxito! El motor de voz Gemini 3.8 Flash TTS en WAPPY Studio está listo.',
         }),
       });
-      const data = await resp.json();
+      const data = await parseStudioJson(resp);
       if (!resp.ok || !data.success) {
         throw new Error(data.error || 'Error probando conexión.');
       }
@@ -989,7 +1001,7 @@ export default function WappyStudioDashboard() {
       const snippet = scriptText.trim().slice(0, 750);
       const resp = await fetch('/api/studio/tts/synthesize', {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: getAuthHeaders(token),
         body: JSON.stringify({
           text: snippet,
           voiceName: selectedVoice,
@@ -1000,7 +1012,7 @@ export default function WappyStudioDashboard() {
           speaker2: { name: 'Sam', voiceName: speaker2Voice },
         }),
       });
-      const data = await resp.json();
+      const data = await parseStudioJson(resp);
       if (!resp.ok || !data.success) {
         throw new Error(data.error || 'Error al sintetizar vista previa.');
       }
@@ -1042,7 +1054,7 @@ export default function WappyStudioDashboard() {
       setStatusBanner(null);
       const resp = await fetch('/api/studio/tts/synthesize', {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: getAuthHeaders(token),
         body: JSON.stringify({
           text: labTestText.trim(),
           voiceName: selectedVoice,
@@ -1050,7 +1062,7 @@ export default function WappyStudioDashboard() {
           model: selectedModel,
         }),
       });
-      const data = await resp.json();
+      const data = await parseStudioJson(resp);
       if (!resp.ok || !data.success) {
         throw new Error(data.error || 'Error al sintetizar en el laboratorio.');
       }
@@ -1093,7 +1105,7 @@ export default function WappyStudioDashboard() {
       }
       const resp = await fetch('/api/studio/tts/jobs', {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: getAuthHeaders(token),
         body: JSON.stringify({
           text: scriptText,
           voiceName: selectedVoice,
@@ -1105,7 +1117,7 @@ export default function WappyStudioDashboard() {
           maxWordsPerChunk: wordsPerChunk,
         }),
       });
-      const data = await resp.json();
+      const data = await parseStudioJson(resp);
       if (!resp.ok) {
         throw new Error(data.error || 'No se pudo iniciar el trabajo de larga duración.');
       }
@@ -1127,7 +1139,9 @@ export default function WappyStudioDashboard() {
       };
       setActiveJob(initialJob);
 
-      const es = new EventSource(`/api/studio/tts/jobs/${data.jobId}/stream`);
+      const es = new EventSource(
+        `/api/studio/tts/jobs/${data.jobId}/stream${token ? `?token=${encodeURIComponent(token)}` : ''}`,
+      );
       sseRef.current = es;
 
       es.addEventListener('snapshot', (ev: MessageEvent) => {
@@ -1223,7 +1237,7 @@ export default function WappyStudioDashboard() {
     }
     await fetch(`/api/studio/tts/jobs/${activeJob.id}/control`, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: getAuthHeaders(token),
       body: JSON.stringify({ action }),
     });
     setActiveJob((prev) =>
@@ -1279,7 +1293,7 @@ export default function WappyStudioDashboard() {
       setStatusBanner(null);
       const resp = await fetch('/api/studio/video/generate-html', {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: getAuthHeaders(token),
         body: JSON.stringify({
           prompt: aiScenePrompt,
           scriptText,
@@ -1291,7 +1305,7 @@ export default function WappyStudioDashboard() {
           modelName: selectedAiModel,
         }),
       });
-      const data = await resp.json();
+      const data = await parseStudioJson(resp);
       if (!resp.ok || !data.success) {
         throw new Error(data.error || 'Error generando composición HTML con IA.');
       }
@@ -2783,7 +2797,7 @@ export default function WappyStudioDashboard() {
                             setPlayingBurstTag(b.tag);
                             const resp = await fetch('/api/studio/tts/synthesize', {
                               method: 'POST',
-                              headers: getAuthHeaders(),
+                              headers: getAuthHeaders(token),
                               body: JSON.stringify({
                                 voiceName: selectedVoice,
                                 model: 'gemini-3.8-flash-tts',
@@ -2791,7 +2805,7 @@ export default function WappyStudioDashboard() {
                                 text: `Escucha cómo suena este efecto natural en medio de una frase: ${b.tag} ¡Suena totalmente humano!`,
                               }),
                             });
-                            const data = await resp.json();
+                            const data = await parseStudioJson(resp);
                             if (data.audioBase64) {
                               setCurrentAudio({
                                 base64: data.audioBase64,

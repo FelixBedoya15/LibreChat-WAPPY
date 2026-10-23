@@ -222,6 +222,10 @@ endpoints:
         - "gemini-3.5-transcribe"
         - "gemini-3.5-transcribe-live"
         - "gemini-2.5-flash-native-audio-preview-12-2025"
+        - "gemini-3.8-flash-tts"
+        - "gemini-3.1-flash-tts-preview"
+        - "gemini-2.5-flash-preview-tts"
+        - "gemini-3.8-flash-lite-tts"
       fetch: false
     titleModel: "gemini-3.5-flash-lite"
   # assistants:
@@ -519,11 +523,10 @@ endpoints:
 #     quality: 0.92  # JPEG quality for compression (0.0-1.0, default: 0.92)
 # # https://www.librechat.ai/docs/configuration/librechat_yaml/object_structure/assistants_endpoint
 
-# Web Search Configuration with Reranker (Semantic Relevance Filter)
+# Web Search Configuration (rerankerType omitted so Zod schema passes and handleTools defaults to 'none')
 webSearch:
   searchProvider: "searxng"
   searxngInstanceUrl: "${SEARXNG_INSTANCE_URL}"
-  rerankerType: "none"
 
 
 # Memory configuration for user memories

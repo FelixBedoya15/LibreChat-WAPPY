@@ -69,7 +69,6 @@ const marketplaceOrderSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 marketplaceOrderSchema.index({ 'customer.email': 1 });
-marketplaceOrderSchema.index({ orderNumber: 1 });
 marketplaceOrderSchema.index({ paymentStatus: 1, fulfillmentStatus: 1 });
 
 const MarketplaceOrder = mongoose.models.MarketplaceOrder || mongoose.model('MarketplaceOrder', marketplaceOrderSchema);
