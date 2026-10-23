@@ -234,8 +234,8 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
         });
     };
 
-    const hasGoogleTools = googleTools.length > 0;
-    const hasGeneralTools = hasWebSearch || hasFileSearch || hasCodeInterpreter || generalExternalTools.length > 0 || notebookLmTools.length > 0;
+    const hasGoogleTools = googleTools.length > 0 || notebookLmTools.length > 0;
+    const hasGeneralTools = hasWebSearch || hasFileSearch || hasCodeInterpreter || generalExternalTools.length > 0;
 
     const toolTranslations: Record<string, string> = {
         context: 'Contexto',
@@ -458,20 +458,6 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                     />
                                 )}
                                 
-                                {notebookLmTools.length > 0 && (
-                                    <Ariakit.MenuItem
-                                        hideOnClick={false}
-                                        render={
-                                            <ToolRow
-                                                id="agent-session-notebooklm"
-                                                icon={<NotebookIcon className="h-4 w-4 text-emerald-600" />}
-                                                label="Cuadernos de Estudio (MCP)"
-                                                checked={isNotebookLmActive}
-                                                onChange={toggleNotebookLm}
-                                            />
-                                        }
-                                    />
-                                )}
                                 {generalExternalTools.map((toolId) => {
                                     const isActive = (overrides as TEphemeralAgentExtended | null)?.tools?.includes(toolId) ?? false;
                                     let displayName = toolTranslations[toolId];
@@ -530,6 +516,20 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                             )}
                         >
                             <div className="py-1.5 max-h-[340px] overflow-y-auto pr-1">
+                                {notebookLmTools.length > 0 && (
+                                    <Ariakit.MenuItem
+                                        hideOnClick={false}
+                                        render={
+                                            <ToolRow
+                                                id="agent-session-notebooklm"
+                                                icon={<NotebookIcon className="h-4 w-4 text-emerald-600" />}
+                                                label="Google NotebookLM"
+                                                checked={isNotebookLmActive}
+                                                onChange={toggleNotebookLm}
+                                            />
+                                        }
+                                    />
+                                )}
                                 {googleTools.map((toolId) => {
                                     const isActive = (overrides as TEphemeralAgentExtended | null)?.tools?.includes(toolId) ?? false;
                                     const displayName = toolTranslations[toolId] ?? toolId

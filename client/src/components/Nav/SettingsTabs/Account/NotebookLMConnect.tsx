@@ -36,7 +36,7 @@ export default function NotebookLMConnect() {
         <div>
           <div className="flex items-center gap-2">
             <h4 className="text-xs font-bold text-slate-900 dark:text-zinc-100">
-              Cuadernos de Estudio SST (Notebook MCP)
+              Google NotebookLM & Gemini Notebook
             </h4>
             {isConnected ? (
               <span className="flex items-center gap-1 text-[10px] font-extrabold text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full">
