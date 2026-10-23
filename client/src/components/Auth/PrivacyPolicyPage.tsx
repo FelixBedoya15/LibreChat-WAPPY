@@ -286,17 +286,26 @@ export default function PrivacyPolicyPage() {
                     </div>
                     <div className="space-y-3 text-sm leading-relaxed text-slate-600 dark:text-zinc-300">
                         <p>
-                            Cuando usted vincula voluntariamente su cuenta de <strong>Google Workspace (Google Drive, Google Calendar y Gmail)</strong> con WAPPY, nuestra plataforma accede únicamente a los datos autorizados por usted para ejecutar las funciones del Sistema de Gestión de Seguridad y Salud en el Trabajo (SG-SST) que usted solicite:
+                            Cuando usted vincula voluntariamente su cuenta de <strong>Google Workspace (Google Drive, Google Sheets, Google Docs, Google Slides, Google Calendar y Google Gmail)</strong> con WAPPY, nuestra plataforma accede únicamente a los datos autorizados por usted para ejecutar las funciones del Sistema de Gestión de Seguridad y Salud en el Trabajo (SG-SST) que usted solicite:
                         </p>
                         <ul className="ml-4 list-disc space-y-1.5 marker:text-teal-500">
                             <li>
-                                <strong>Google Drive (<code>drive</code>):</strong> Lectura de documentos corporativos (matrices, perfiles sociodemográficos, soportes SST) seleccionados por el usuario y creación/exportación de reportes e informes del SG-SST dentro de su propio Google Drive.
+                                <strong>Google Drive (<code>drive</code>):</strong> Lectura de documentos corporativos (matrices, perfiles sociodemográficos, soportes SST) seleccionados por el usuario y almacenamiento/exportación de carpetas, reportes e informes del SG-SST dentro de su propio Google Drive.
                             </li>
                             <li>
-                                <strong>Google Calendar (<code>calendar.events</code>):</strong> Consulta de disponibilidad, programación, reprogramación y recordatorios de actividades del cronograma SST, inspecciones, auditorías y reuniones laborales.
+                                <strong>Google Sheets (<code>drive</code>):</strong> Creación, lectura y actualización de hojas de cálculo para matrices de riesgos laborales (GTC-45 / IPEVR), matrices viales (PESV), inventarios químicos (SGA), indicadores de accidentalidad y seguimiento del cronograma SST.
                             </li>
                             <li>
-                                <strong>Gmail (<code>gmail.send</code> / <code>gmail.compose</code> / <code>gmail.readonly</code>):</strong> Envío de notificaciones, actas, reportes preventivos y borradores de correo solicitados expresamente por el usuario dentro de su gestión SST.
+                                <strong>Google Docs (<code>drive</code>):</strong> Creación y edición de documentos corporativos, políticas de Seguridad y Salud en el Trabajo, reglamentos (RIT / Higiene y Seguridad), actas de comités (COPASST, Convivencia) e informes técnicos de auditoría en formato editable.
+                            </li>
+                            <li>
+                                <strong>Google Slides (<code>drive</code>):</strong> Creación y estructuración automática de presentaciones y material visual para capacitaciones, inducciones y reinducciones del SG-SST en la cuenta del usuario.
+                            </li>
+                            <li>
+                                <strong>Google Calendar (<code>calendar.events</code>):</strong> Consulta de disponibilidad, programación, reprogramación y recordatorios de actividades del cronograma SST, inspecciones, exámenes médicos, auditorías y reuniones laborales.
+                            </li>
+                            <li>
+                                <strong>Google Gmail (<code>gmail.send</code> / <code>gmail.compose</code> / <code>gmail.readonly</code>):</strong> Redacción de borradores, envío de notificaciones, actas y reportes preventivos con soportes adjuntos, y consulta de correos solicitados expresamente por el usuario dentro de su gestión SST.
                             </li>
                         </ul>
                         <div className="mt-4 rounded-xl border border-teal-500/30 bg-teal-500/10 p-4 text-xs sm:text-sm text-slate-700 dark:text-zinc-200 space-y-2">
