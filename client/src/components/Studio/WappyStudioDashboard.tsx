@@ -540,7 +540,7 @@ function buildDefaultHtmlComposition({
   let centerMarkup = '';
   if (templateId === 'kpi-hud') {
     centerMarkup = `
-      <div id="hero-card" data-editable="true" class="glass-card rounded-3xl ${isVertical ? 'p-5' : 'p-4'} border-t-2" style="border-top-color: ${accentColor};">
+      <div id="hero-card" data-editable="true" class="w-full glass-card rounded-3xl ${isVertical ? 'p-5' : 'p-4'} border-t-2" style="border-top-color: ${accentColor};">
         <div class="flex items-center justify-between mb-2">
           <span class="text-[11px] font-mono uppercase tracking-wider text-teal-400">📊 TELEMETRÍA PREVENTIVA</span>
           <span class="text-[11px] font-mono font-bold text-emerald-400">▲ +98.4% EFECTIVIDAD</span>
@@ -572,7 +572,7 @@ function buildDefaultHtmlComposition({
       </div>`;
   } else if (templateId === 'alert-sst') {
     centerMarkup = `
-      <div id="hero-card" data-editable="true" class="glass-card rounded-3xl ${isVertical ? 'p-5' : 'p-4'} border-l-4" style="border-left-color: #f59e0b;">
+      <div id="hero-card" data-editable="true" class="w-full glass-card rounded-3xl ${isVertical ? 'p-5' : 'p-4'} border-l-4" style="border-left-color: #f59e0b;">
         <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] font-black uppercase tracking-wider mb-2">
           ⚠️ PROTOCOLO OBLIGATORIO EN PLANTA
         </div>
@@ -581,7 +581,7 @@ function buildDefaultHtmlComposition({
         </h1>
         <p class="text-xs text-slate-300 mt-1">${safeSubheadline}</p>
       </div>
-      <div class="grid grid-cols-1 gap-2" id="metrics-row">
+      <div class="w-full grid grid-cols-1 gap-2" id="metrics-row">
         <div data-editable="true" class="metric-item glass-card rounded-2xl p-3 flex items-center gap-3">
           <span class="w-7 h-7 rounded-xl bg-teal-500/20 border border-teal-400/40 text-teal-300 font-mono font-black text-xs flex items-center justify-center shrink-0">01</span>
           <span class="text-xs font-bold text-white">Aislar y bloquear todas las fuentes de energía (LOTO)</span>
@@ -598,14 +598,14 @@ function buildDefaultHtmlComposition({
   } else if (templateId === 'camera-overlay') {
     centerMarkup = `
       <div class="my-auto"></div>
-      <div id="hero-card" data-editable="true" class="glass-card rounded-2xl p-4 border-l-4 max-w-md" style="border-left-color: ${accentColor};">
+      <div id="hero-card" data-editable="true" class="w-full glass-card rounded-2xl p-4 border-l-4" style="border-left-color: ${accentColor};">
         <div class="text-[10px] font-mono uppercase tracking-widest text-teal-300 font-extrabold">${safeBadge}</div>
         <h1 class="text-lg sm:text-xl font-black text-white leading-snug mt-0.5">${safeHeadline}</h1>
         <p class="text-xs text-slate-300 mt-0.5">${safeSubheadline}</p>
       </div>`;
   } else {
     centerMarkup = `
-      <div id="hero-card" data-editable="true" class="glass-card rounded-3xl ${isVertical ? 'p-5 sm:p-6' : 'p-4 sm:p-5'} border-l-4" style="border-left-color: ${accentColor};">
+      <div id="hero-card" data-editable="true" class="w-full glass-card rounded-3xl ${isVertical ? 'p-5 sm:p-6' : 'p-4 sm:p-5'} border-l-4" style="border-left-color: ${accentColor};">
         <div class="text-xs font-mono uppercase tracking-wider text-teal-400 mb-1">⚡ PUNTO CLAVE EN VIVO</div>
         <h1 class="${isVertical ? 'text-xl sm:text-2xl' : 'text-lg sm:text-xl'} font-black leading-tight tracking-tight text-white">
           ${safeHeadline}
@@ -618,16 +618,16 @@ function buildDefaultHtmlComposition({
         </div>
       </div>
 
-      <div class="grid grid-cols-3 gap-2.5" id="metrics-row">
-        <div data-editable="true" class="metric-item glass-card rounded-2xl ${isVertical ? 'p-3' : 'p-2.5'} text-center">
+      <div class="w-full grid grid-cols-3 gap-2 sm:gap-2.5" id="metrics-row">
+        <div data-editable="true" class="metric-item glass-card rounded-2xl ${isVertical ? 'p-2.5 sm:p-3' : 'p-2.5'} text-center">
           <div class="${isVertical ? 'text-base sm:text-lg' : 'text-sm sm:text-base'} font-black text-emerald-400">100%</div>
           <div class="text-[10px] font-bold uppercase tracking-wider text-slate-300 mt-0.5">Cumplimiento</div>
         </div>
-        <div data-editable="true" class="metric-item glass-card rounded-2xl ${isVertical ? 'p-3' : 'p-2.5'} text-center">
+        <div data-editable="true" class="metric-item glass-card rounded-2xl ${isVertical ? 'p-2.5 sm:p-3' : 'p-2.5'} text-center">
           <div class="${isVertical ? 'text-base sm:text-lg' : 'text-sm sm:text-base'} font-black text-amber-400">60 FPS</div>
           <div class="text-[10px] font-bold uppercase tracking-wider text-slate-300 mt-0.5">Motion HTML</div>
         </div>
-        <div data-editable="true" class="metric-item glass-card rounded-2xl ${isVertical ? 'p-3' : 'p-2.5'} text-center">
+        <div data-editable="true" class="metric-item glass-card rounded-2xl ${isVertical ? 'p-2.5 sm:p-3' : 'p-2.5'} text-center">
           <div class="${isVertical ? 'text-base sm:text-lg' : 'text-sm sm:text-base'} font-black text-indigo-400">IA 3.8</div>
           <div class="text-[10px] font-bold uppercase tracking-wider text-slate-300 mt-0.5">Voz Neural</div>
         </div>
@@ -665,7 +665,7 @@ function buildDefaultHtmlComposition({
     }
   </style>
 </head>
-<body class="relative w-full h-full flex flex-col justify-between ${isVertical ? 'p-5 sm:p-6' : 'p-4 sm:p-6'} select-none overflow-hidden">
+<body class="relative w-full h-full flex flex-col justify-between items-center ${isVertical ? 'p-4 sm:p-5' : 'p-4 sm:p-6'} select-none overflow-hidden">
   ${
     useTransparentBg
       ? '<!-- Fondo transparente para dejar ver el video base del usuario -->'
@@ -676,8 +676,8 @@ function buildDefaultHtmlComposition({
          </div>`
   }
 
-  <!-- TOP HUD BAR -->
-  <div id="top-bar" data-editable="true" class="relative z-10 flex items-center justify-between gap-2">
+  <!-- TOP HUD BAR (100% centrado con ancho completo de contenedor) -->
+  <div id="top-bar" data-editable="true" class="relative z-10 w-full ${isVertical ? 'max-w-md' : 'max-w-2xl'} mx-auto flex items-center justify-between gap-2 shrink-0">
     <div class="glass-card px-3.5 py-1.5 rounded-full inline-flex items-center gap-2 whitespace-nowrap">
       <span class="w-2.5 h-2.5 rounded-full animate-ping shrink-0" style="background: ${accentColor};"></span>
       <span class="text-[11px] font-extrabold tracking-widest uppercase text-teal-300">${safeBadge}</span>
@@ -687,20 +687,20 @@ function buildDefaultHtmlComposition({
     </div>
   </div>
 
-  <!-- ESCENA CENTRAL: TARJETAS ANIMADAS -->
-  <div class="relative z-10 my-auto flex flex-col ${isVertical ? 'gap-3.5' : 'gap-3 max-w-2xl w-full mx-auto'}">
+  <!-- ESCENA CENTRAL: TARJETAS ANIMADAS (100% centrado matemáticamente con max-w y mx-auto) -->
+  <div class="relative z-10 my-auto w-full ${isVertical ? 'max-w-md' : 'max-w-2xl'} mx-auto flex flex-col gap-3 sm:gap-3.5 items-stretch">
     ${centerMarkup}
   </div>
 
   <!-- ESPACIO INFERIOR RESERVADO PARA SUBTÍTULOS DINÁMICOS -->
-  <div class="relative z-10 ${isVertical ? 'h-14' : 'h-12'} shrink-0"></div>
+  <div class="relative z-10 ${isVertical ? 'h-14' : 'h-12'} shrink-0 w-full"></div>
 
   <script>
     const tl = gsap.timeline({ repeat: -1, repeatDelay: 1.5 });
     window.mainTimeline = tl;
 
     tl.from("#top-bar", { y: -25, opacity: 0, duration: 0.55, ease: "back.out(1.7)" })
-      .from("#hero-card", { scale: 0.92, y: 24, opacity: 0, duration: 0.65, ease: "back.out(1.5)" }, "-=0.25")
+      .from("#hero-card", { scale: 0.94, y: 24, opacity: 0, duration: 0.65, ease: "back.out(1.5)" }, "-=0.25")
       .from(".metric-item", { y: 20, opacity: 0, stagger: 0.12, duration: 0.5, ease: "back.out(1.7)" }, "-=0.35")
       .to("#hero-card", { y: -4, duration: 2.2, ease: "sine.inOut", yoyo: true, repeat: 3 });
   </script>
@@ -3433,18 +3433,18 @@ export default function WappyStudioDashboard() {
               )}
 
               {/* ESCENARIO MULTI-CAPA (VIDEO BASE + IFRAME HTML/GSAP + SUBTÍTULOS + CONTROLES FULLSCREEN) */}
-              <div className="flex justify-center bg-slate-950 rounded-2xl p-2.5 border border-slate-800 shadow-inner">
+              <div className="flex justify-center items-center bg-slate-950 rounded-2xl p-2.5 sm:p-4 border border-slate-800 shadow-inner overflow-hidden min-h-[460px]">
                 <div
                   ref={stageContainerRef}
                   className={cn(
-                    'relative overflow-hidden bg-slate-950 shadow-2xl border border-white/10',
+                    'relative overflow-hidden bg-slate-950 shadow-2xl border border-white/10 transition-all duration-300',
                     isStageFullscreen
                       ? 'w-screen h-screen rounded-none border-0 flex flex-col items-center justify-between p-4 sm:p-6'
                       : cn(
-                          'w-full rounded-xl',
+                          'rounded-2xl mx-auto flex items-center justify-center',
                           aspectRatio === '9:16'
-                            ? 'aspect-[9/12] sm:aspect-[9/13] max-h-[680px]'
-                            : 'aspect-[16/10] sm:aspect-[16/9] min-h-[360px]',
+                            ? 'w-full max-w-[390px] aspect-[9/16] max-h-[660px]'
+                            : 'w-full aspect-[16/9] max-h-[660px] min-h-[340px]',
                         ),
                   )}
                 >
