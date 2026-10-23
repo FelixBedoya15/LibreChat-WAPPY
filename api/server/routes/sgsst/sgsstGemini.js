@@ -30,6 +30,7 @@ const geminiPoolManager = require('~/server/services/GeminiPoolManager');
 const SGSST_FALLBACK_MODELS = [
   'gemini-3.5-flash-lite',
   'gemini-3.6-flash',
+  'gemini-3.8-flash',
 ];
 
 // Live-only models for VoiceSession / LiveAnalysis rotation
@@ -268,7 +269,7 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
   const envModels = (process.env.GOOGLE_MODELS || '')
     .split(',')
     .map(m => m.trim().replace('models/', ''))
-    .filter(m => m && !m.includes('live') && !m.includes('native-audio'));
+    .filter(m => m && !m.includes('live') && !m.includes('native-audio') && !m.includes('tts'));
 
   const candidateFallbacks = [...new Set([...envModels, ...SGSST_FALLBACK_MODELS])];
   const fallbacks = candidateFallbacks.filter(m => m !== preferredModel);

@@ -238,14 +238,14 @@ class GoogleClient extends BaseClient {
   rotateModel() {
     if (!this._modelFallbacks) {
       let currentModel = this.modelOptions.modelName ?? this.modelOptions.model ?? '';
-      if (!currentModel || currentModel.includes('live') || currentModel.includes('native-audio') || currentModel.includes('transcribe')) {
+      if (!currentModel || currentModel.includes('live') || currentModel.includes('native-audio') || currentModel.includes('transcribe') || currentModel.includes('tts')) {
         currentModel = 'gemini-3.6-flash';
       }
-      const envModels = (process.env.GOOGLE_MODELS || 'gemini-3.6-flash,gemini-3.5-flash-lite')
+      const envModels = (process.env.GOOGLE_MODELS || 'gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.8-flash')
         .split(',')
         .map((m) => m.trim())
         .filter(Boolean)
-        .filter((m) => !m.includes('native-audio') && !m.includes('live') && !m.includes('transcribe'));
+        .filter((m) => !m.includes('native-audio') && !m.includes('live') && !m.includes('transcribe') && !m.includes('tts'));
       // Put current model first, then the rest as fallbacks (excluding current)
       this._modelFallbacks = [currentModel, ...envModels.filter((m) => m !== currentModel)];
       this._modelFallbackIndex = 0;

@@ -10,17 +10,18 @@ const { resolveApiKeys, generateWithKeyRotation } = require('./sgsst/sgsstGemini
 const geminiPoolManager = require('~/server/services/GeminiPoolManager');
 
 /**
- * Catálogo oficial verificado de Modelos Gemini TTS, Voces, Presets y Vocal Bursts
+ * Catálogo oficial de metadatos de Modelos Gemini TTS (cargados dinámicamente desde GOOGLE_MODELS en .env)
  */
-const STUDIO_MODELS = [
-  {
+const STUDIO_MODELS_METADATA = {
+  'gemini-3.8-flash-tts': {
     id: 'gemini-3.8-flash-tts',
     name: 'Gemini 3.8 Flash TTS',
-    badge: 'Recomendado / Estable',
-    badgeColor: 'bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30',
-    quotaLabel: 'Alta Fidelidad • 14 Voces',
+    badge: 'Recomendado / Cuota Activa',
+    badgeColor: 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border-indigo-500/30',
+    rateLimitLabel: '3 RPM • 10 RPD',
+    quotaLabel: '✓ Activo (14 voces)',
     description:
-      'Modelo insignia de síntesis de voz con máxima fluidez natural, diseño de voz, diálogo dual (2 hablantes) y efectos vocales (<breath>, <laugh>).',
+      'Máxima fluidez natural, diseño de voz, vocal bursts (<breath>, <laugh>) y soporte para las 14 voces.',
     supportsMultiSpeaker: true,
     supportsVocalBursts: true,
     supportedVoices: [
@@ -40,58 +41,122 @@ const STUDIO_MODELS = [
       'Prometheus',
     ],
   },
-  {
+  'gemini-3.1-flash-tts-preview': {
+    id: 'gemini-3.1-flash-tts-preview',
+    name: 'Gemini 3.1 Flash TTS Preview',
+    badge: 'Preview 3.1 / Cuota Activa',
+    badgeColor: 'bg-purple-500/15 text-purple-600 dark:text-purple-300 border-purple-500/30',
+    rateLimitLabel: '3 RPM • 10 RPD',
+    quotaLabel: '14 voces',
+    description:
+      'Arquitectura Gemini 3.1 con prosodia refinada, tono expresivo y respuesta ágil (14 voces).',
+    supportsMultiSpeaker: true,
+    supportsVocalBursts: true,
+    supportedVoices: [
+      'Kore',
+      'Puck',
+      'Charon',
+      'Fenrir',
+      'Zephyr',
+      'Orus',
+      'Aoede',
+      'Leda',
+      'Callisto',
+      'Europa',
+      'Ganymede',
+      'Io',
+      'Titan',
+      'Prometheus',
+    ],
+  },
+  'gemini-2.5-flash-preview-tts': {
+    id: 'gemini-2.5-flash-preview-tts',
+    name: 'Gemini 2.5 Flash TTS',
+    badge: 'Reemplazo de 2.5 Pro',
+    badgeColor: 'bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/30',
+    rateLimitLabel: '3 RPM • 10 RPD (2.5 Pro: 0/0)',
+    quotaLabel: '5 voces',
+    description:
+      'Reemplazo oficial y funcional de 2.5 Pro (no disponible en API). Activa únicamente las 5 voces fundamentales.',
+    supportsMultiSpeaker: true,
+    supportsVocalBursts: false,
+    supportedVoices: ['Kore', 'Puck', 'Charon', 'Fenrir', 'Aoede'],
+  },
+  'gemini-3.8-flash-lite-tts': {
     id: 'gemini-3.8-flash-lite-tts',
     name: 'Gemini 3.8 Flash-Lite TTS',
     badge: 'Ultra Rápido',
-    badgeColor: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
-    quotaLabel: 'Baja Latencia • 6 Voces',
+    badgeColor: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/30',
+    rateLimitLabel: 'Baja Latencia',
+    quotaLabel: '6 voces',
     description:
-      'Optimizado para lecturas extensas, cápsulas SST masivas y doblaje rápido con mínima latencia continua.',
+      'Optimizado para lecturas masivas con mínima latencia continua (6 voces rápidas).',
     supportsMultiSpeaker: false,
     supportsVocalBursts: true,
     supportedVoices: ['Kore', 'Puck', 'Charon', 'Fenrir', 'Zephyr', 'Aoede'],
   },
-  {
-    id: 'gemini-3.1-flash-tts-preview',
-    name: 'Gemini 3.1 Flash TTS Preview',
-    badge: 'Preview 3.1',
-    badgeColor: 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30',
-    quotaLabel: 'Prosodia Refinada • 14 Voces',
-    description:
-      'Arquitectura Gemini 3.1 con prosodia expresiva, pausas orgánicas y soporte completo para las 14 voces.',
-    supportsMultiSpeaker: true,
-    supportsVocalBursts: true,
-    supportedVoices: [
-      'Kore',
-      'Puck',
-      'Charon',
-      'Fenrir',
-      'Zephyr',
-      'Orus',
-      'Aoede',
-      'Leda',
-      'Callisto',
-      'Europa',
-      'Ganymede',
-      'Io',
-      'Titan',
-      'Prometheus',
-    ],
-  },
-  {
-    id: 'gemini-2.5-flash-preview-tts',
-    name: 'Gemini 2.5 Flash TTS',
-    badge: 'Respaldo Estable',
-    badgeColor: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
-    quotaLabel: 'Respaldo • 8 Voces Base',
-    description:
-      'Motor clásico de respaldo funcional para síntesis de voz controlada y diálogos.',
-    supportsMultiSpeaker: true,
-    supportsVocalBursts: false,
-    supportedVoices: ['Kore', 'Puck', 'Charon', 'Fenrir', 'Zephyr', 'Orus', 'Aoede', 'Leda'],
-  },
-];
+};
+
+function getEnvGoogleModelsList() {
+  const defaultEnv =
+    'gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.8-flash,gemini-3.8-live,gemini-3.1-flash-live-preview,gemini-2.5-flash-native-audio-preview-12-2025,gemini-3.8-flash-tts,gemini-3.1-flash-tts-preview,gemini-2.5-flash-preview-tts,gemini-3.8-flash-lite-tts';
+  return (process.env.GOOGLE_MODELS || defaultEnv)
+    .split(',')
+    .map((m) => m.trim().replace('models/', ''))
+    .filter(Boolean);
+}
+
+function getStudioTtsModelsFromEnv() {
+  const envTtsIds = getEnvGoogleModelsList().filter((m) => m.includes('tts'));
+  const orderedIds =
+    envTtsIds.length > 0
+      ? envTtsIds
+      : [
+          'gemini-3.8-flash-tts',
+          'gemini-3.1-flash-tts-preview',
+          'gemini-2.5-flash-preview-tts',
+          'gemini-3.8-flash-lite-tts',
+        ];
+  return orderedIds.map(
+    (id) =>
+      STUDIO_MODELS_METADATA[id] || {
+        id,
+        name: id,
+        badge: 'GOOGLE_MODELS',
+        badgeColor: 'bg-teal-500/15 text-teal-600 dark:text-teal-300 border-teal-500/30',
+        rateLimitLabel: '3 RPM • 10 RPD',
+        quotaLabel: '14 voces',
+        description: `Modelo TTS configurado en GOOGLE_MODELS (${id}).`,
+        supportsMultiSpeaker: !id.includes('lite'),
+        supportsVocalBursts: !id.includes('2.5'),
+        supportedVoices: [
+          'Kore',
+          'Puck',
+          'Charon',
+          'Fenrir',
+          'Zephyr',
+          'Orus',
+          'Aoede',
+          'Leda',
+          'Callisto',
+          'Europa',
+          'Ganymede',
+          'Io',
+          'Titan',
+          'Prometheus',
+        ],
+      },
+  );
+}
+
+function getStudioTextModelsFromEnv() {
+  const envTextIds = getEnvGoogleModelsList().filter(
+    (m) => !m.includes('live') && !m.includes('native-audio') && !m.includes('tts') && !m.includes('transcribe'),
+  );
+  return envTextIds.length > 0
+    ? envTextIds
+    : ['gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash'];
+}
 
 const STUDIO_VOICES = [
   {
@@ -99,7 +164,7 @@ const STUDIO_VOICES = [
     name: 'Kore',
     gender: 'Femenino',
     tone: 'Cálida, Serena y Profesional',
-    recommendedFor: 'Inducciones SST, Cursos LMS, Audiolibros, Tutoriales',
+    recommendedFor: 'Audiolibros, Narración, Tutoriales, Inducción SST',
     tag: 'Más popular',
   },
   {
@@ -107,7 +172,7 @@ const STUDIO_VOICES = [
     name: 'Puck',
     gender: 'Masculino',
     tone: 'Enérgico, Dinámico y Joven',
-    recommendedFor: 'Reels Virales, Podcasts, Cápsulas de Seguridad, Diálogos',
+    recommendedFor: 'Podcasts, Reels, Contenido Creativo, Diálogos',
     tag: 'Muy expresivo',
   },
   {
@@ -115,7 +180,7 @@ const STUDIO_VOICES = [
     name: 'Charon',
     gender: 'Masculino',
     tone: 'Barítono, Grave, Maduro y Solemne',
-    recommendedFor: 'Normativa Legal, Documentales, Investigación ATEL, Directivos',
+    recommendedFor: 'Documentales, Historia, Suspenso, Directivos',
     tag: 'Voz profunda',
   },
   {
@@ -123,7 +188,7 @@ const STUDIO_VOICES = [
     name: 'Fenrir',
     gender: 'Masculino',
     tone: 'Claro, Elocuente y Periodístico',
-    recommendedFor: 'Boletines SST, Informes Gerenciales, Presentaciones, Noticias',
+    recommendedFor: 'Noticias, Informes, Presentaciones, Boletines',
     tag: 'Profesional',
   },
   {
@@ -131,23 +196,23 @@ const STUDIO_VOICES = [
     name: 'Zephyr',
     gender: 'Femenino',
     tone: 'Dulce, Aterciopelada y Relajante',
-    recommendedFor: 'Pausas Activas, Bienestar Psicosocial, Mindfulness, Meditación',
-    tag: 'Calma / Bienestar',
+    recommendedFor: 'Meditación, ASMR, Cuentos, Bienestar',
+    tag: 'Calma',
   },
   {
     id: 'Orus',
     name: 'Orus',
     gender: 'Masculino',
     tone: 'Firme, Imperial, Épico y Reflexivo',
-    recommendedFor: 'Liderazgo en Seguridad, Relatos Épicos, Cultura Preventiva',
-    tag: 'Imperial / Firme',
+    recommendedFor: 'Ficción Épica, Liderazgo, Ensayos, Cultura Vial',
+    tag: 'Imperial',
   },
   {
     id: 'Aoede',
     name: 'Aoede',
     gender: 'Femenino',
     tone: 'Melódica, Expresiva, Artística y Cálida',
-    recommendedFor: 'Sensibilización, Storytelling, Lecciones Interactivas',
+    recommendedFor: 'Poesía, Literatura, Storytelling, Sensibilización',
     tag: 'Melódica',
   },
   {
@@ -155,7 +220,7 @@ const STUDIO_VOICES = [
     name: 'Leda',
     gender: 'Femenino',
     tone: 'Cercana, Maternal, Madura y Envolvente',
-    recommendedFor: 'Bienvenida Corporativa, Relatos, Guía Paso a Paso',
+    recommendedFor: 'Audiolibros Largos, Relatos, Bienvenida',
     tag: 'Narradora',
   },
   {
@@ -163,7 +228,7 @@ const STUDIO_VOICES = [
     name: 'Callisto',
     gender: 'Femenino',
     tone: 'Elegante, Sofisticada y Articulada',
-    recommendedFor: 'Divulgación Científica, Auditorías, Alta Dirección',
+    recommendedFor: 'Divulgación Científica, Conferencias, Auditorías',
     tag: 'Sofisticada',
   },
   {
@@ -171,7 +236,7 @@ const STUDIO_VOICES = [
     name: 'Europa',
     gender: 'Femenino',
     tone: 'Brillante, Luminosa, Alegre y Asertiva',
-    recommendedFor: 'Marketing, Campañas de Autocuidado, Anuncios Internos',
+    recommendedFor: 'Marketing, Anuncios, E-Learning, Campañas',
     tag: 'Enérgica',
   },
   {
@@ -179,7 +244,7 @@ const STUDIO_VOICES = [
     name: 'Ganymede',
     gender: 'Masculino',
     tone: 'Resonante, Equilibrado, Sabio y Seguro',
-    recommendedFor: 'Educación Superior, Conferencias Magistrales, Capacitación Técnica',
+    recommendedFor: 'Educación Superior, Cursos, Capacitación Técnica',
     tag: 'Resonante',
   },
   {
@@ -187,15 +252,15 @@ const STUDIO_VOICES = [
     name: 'Io',
     gender: 'Femenino',
     tone: 'Vivaz, Espontánea, Fresca y Amigable',
-    recommendedFor: 'TikTok / Reels, Redes Sociales, Tips Rápidos de Prevención',
-    tag: 'Fresca / Reels',
+    recommendedFor: 'Redes Sociales, Vlogs, Asistentes, Reels',
+    tag: 'Fresca',
   },
   {
     id: 'Titan',
     name: 'Titan',
     gender: 'Masculino',
     tone: 'Imponente, Cinematográfico y Potente',
-    recommendedFor: 'Tráilers de Campaña, Alertas Críticas, Impacto Visual',
+    recommendedFor: 'Tráilers, Introducciones, Impacto, Alertas',
     tag: 'Cinematográfica',
   },
   {
@@ -203,63 +268,79 @@ const STUDIO_VOICES = [
     name: 'Prometheus',
     gender: 'Masculino',
     tone: 'Noble, Pensativo, Filosófico y Clásico',
-    recommendedFor: 'Análisis Profundo, Crónicas, Ética del Cuidado',
+    recommendedFor: 'Filosofía, Análisis Profundo, Crónicas',
     tag: 'Sabio',
   },
 ];
 
 const STUDIO_PRESETS = [
   {
-    id: 'sst-induccion',
-    name: 'Inducción Corporativa SST (Kore)',
-    voiceName: 'Kore',
-    style:
-      'Instructora experta en Seguridad y Salud en el Trabajo en Colombia, voz cálida, clara, empática y profesional, con pausas didácticas.',
-    speed: '1.0x',
-  },
-  {
-    id: 'reel-viral',
-    name: 'Reel Dinámico Estilo Claude (Puck)',
-    voiceName: 'Puck',
-    style:
-      'Creador de contenido tecnológico dinámico, ritmo ágil, entusiasta, persuasivo y con énfasis claro en los datos clave.',
-    speed: '1.05x',
-  },
-  {
     id: 'orus-solemn',
-    name: 'Narración Épica / Cultura Vial (Orus)',
+    name: 'Narración Solemne (Orus)',
     voiceName: 'Orus',
     style:
-      'Voz firme, templada, reflexiva y madura de narrador de documental épico, dicción solemne, pausas medidas y respiraciones naturales.',
+      'Voz firme, templada, reflexiva y madura de narrador de crónica histórica, dicción solemne, pausas medidas y respiraciones naturales.',
     speed: '0.95x',
   },
   {
-    id: 'news-boletin',
-    name: 'Boletín Legal / Normativo (Fenrir)',
+    id: 'aoede-poetic',
+    name: 'Cuento Poético (Aoede)',
+    voiceName: 'Aoede',
+    style:
+      'Voz melódica, cálida, expresiva y artística para relato literario y sensibilización, con matices emocionales suaves.',
+    speed: '0.95x',
+  },
+  {
+    id: 'titan-trailer',
+    name: 'Tráiler Cinematográfico (Titan)',
+    voiceName: 'Titan',
+    style:
+      'Voz imponente, profunda, cinematográfica y épica de tráiler de película, con pausas dramáticas e impacto.',
+    speed: '0.95x',
+  },
+  {
+    id: 'kore-audiobook',
+    name: 'Narrador de Audiolibro (Kore)',
+    voiceName: 'Kore',
+    style:
+      'Voz cálida, serena, clara y envolvente de narradora profesional de audiolibros y cursos formativos, con ritmo fluido.',
+    speed: '1.0x',
+  },
+  {
+    id: 'puck-podcast',
+    name: 'Host de Podcast Dinámico (Puck)',
+    voiceName: 'Puck',
+    style:
+      'Host de podcast carismático, enérgico, cercano y espontáneo, con entonación conversacional moderna.',
+    speed: '1.05x',
+  },
+  {
+    id: 'charon-documentary',
+    name: 'Documental Profundo (Charon)',
+    voiceName: 'Charon',
+    style:
+      'Tono barítono, solemne, reflexivo y cinematográfico de narrador de documental, con pausas medidas.',
+    speed: '0.95x',
+  },
+  {
+    id: 'fenrir-news',
+    name: 'Noticiero Profesional (Fenrir)',
     voiceName: 'Fenrir',
     style:
       'Periodista claro, objetivo, seguro y elocuente de noticiero central, dicción neutral y fluida.',
     speed: '1.05x',
   },
   {
-    id: 'pausa-mental',
-    name: 'Pausa Activa & Bienestar (Zephyr)',
+    id: 'zephyr-asmr',
+    name: 'Meditación y ASMR (Zephyr)',
     voiceName: 'Zephyr',
     style:
-      'Voz suave, serena, dulce y sumamente relajante para regulación emocional y respiración consciente, ritmo pausado.',
+      'Voz suave, serena, dulce y sumamente relajante para meditación guiada, mindfulness y bienestar.',
     speed: '0.9x',
   },
   {
-    id: 'documentary',
-    name: 'Investigación / Documental (Charon)',
-    voiceName: 'Charon',
-    style:
-      'Tono solemne, reflexivo y cinematográfico de narrador de documental técnico, pausas medidas.',
-    speed: '0.95x',
-  },
-  {
-    id: 'screenplay',
-    name: 'Podcast / Diálogo Alex & Sam (2 Voces)',
+    id: 'screenplay-dialogue',
+    name: 'Guion / Diálogo Alex & Sam',
     voiceName: 'Kore',
     multiSpeaker: true,
     speaker1: { name: 'Alex', voiceName: 'Puck', style: 'Entusiasta y curioso' },
@@ -277,13 +358,13 @@ const STUDIO_VOCAL_BURSTS = [
   },
   {
     tag: '<laugh>',
-    label: 'Risa suave',
-    description: 'Añade una risa espontánea y natural',
+    label: 'Risa / Carcajada',
+    description: 'Añade una risa espontánea o carcajada suave',
   },
   {
     tag: '<gasp>',
-    label: 'Sorpresa / Asombro',
-    description: 'Efecto de inhalación rápida de sorpresa',
+    label: 'Sorpresa / Jadear',
+    description: 'Efecto de inhalación rápida de asombro',
   },
   {
     tag: '|mhm|',
@@ -482,21 +563,18 @@ function normalizeAudioBufferToWav(rawBuffer, sampleRate = 24000) {
 }
 
 /**
- * Modelos TTS en orden de respaldo ante error 404 o 503
+ * Obtiene los modelos TTS en orden de respaldo desde GOOGLE_MODELS en .env
  */
-const TTS_FALLBACK_MODELS = [
-  'gemini-3.8-flash-tts',
-  'gemini-3.8-flash-lite-tts',
-  'gemini-3.1-flash-tts-preview',
-  'gemini-2.5-flash-preview-tts',
-];
+function getTtsFallbackModelIds() {
+  return getStudioTtsModelsFromEnv().map((m) => m.id);
+}
 
-const FUNDAMENTAL_VOICES = ['Kore', 'Puck', 'Charon', 'Fenrir', 'Zephyr', 'Orus', 'Aoede', 'Leda'];
+const FUNDAMENTAL_VOICES_2_5 = ['Kore', 'Puck', 'Charon', 'Fenrir', 'Aoede'];
 
 function resolveCompatibleVoice(voiceName, modelId) {
   const cleanVoice = (voiceName || 'Kore').trim();
   if (modelId.includes('2.5')) {
-    return FUNDAMENTAL_VOICES.includes(cleanVoice) ? cleanVoice : 'Kore';
+    return FUNDAMENTAL_VOICES_2_5.includes(cleanVoice) ? cleanVoice : 'Kore';
   }
   if (modelId.includes('lite')) {
     const liteVoices = ['Kore', 'Puck', 'Charon', 'Fenrir', 'Zephyr', 'Aoede'];
@@ -506,7 +584,7 @@ function resolveCompatibleVoice(voiceName, modelId) {
 }
 
 /**
- * Sintetiza un fragmento de texto en Gemini TTS con rotación automática de claves y modelos
+ * Sintetiza un fragmento de texto en Gemini TTS con rotación automática de claves y modelos (desde GOOGLE_MODELS)
  */
 async function synthesizeChunkWithFailover({
   text,
@@ -525,10 +603,13 @@ async function synthesizeChunkWithFailover({
     );
   }
 
-  const preferredModel = (model || 'gemini-3.8-flash-tts').replace('models/', '').trim();
+  const envTtsModelIds = getTtsFallbackModelIds();
+  const preferredModel = (model || envTtsModelIds[0] || 'gemini-3.8-flash-tts')
+    .replace('models/', '')
+    .trim();
   const modelsToTry = [
     preferredModel,
-    ...TTS_FALLBACK_MODELS.filter((m) => m !== preferredModel),
+    ...envTtsModelIds.filter((m) => m !== preferredModel),
   ];
 
   let lastError = null;
@@ -681,10 +762,13 @@ async function synthesizeChunkWithFailover({
 
 /**
  * GET /api/studio/catalog
+ * Devuelve los modelos TTS y de texto leídos dinámicamente desde GOOGLE_MODELS en .env
  */
 router.get('/catalog', requireJwtAuth, (req, res) => {
   res.json({
-    models: STUDIO_MODELS,
+    models: getStudioTtsModelsFromEnv(),
+    textModels: getStudioTextModelsFromEnv(),
+    googleModelsEnv: getEnvGoogleModelsList(),
     voices: STUDIO_VOICES,
     presets: STUDIO_PRESETS,
     vocalBursts: STUDIO_VOCAL_BURSTS,
@@ -1144,7 +1228,15 @@ router.post('/video/generate-html', requireJwtAuth, async (req, res) => {
       showSubtitles = true,
       durationSeconds = 30,
       companyName = 'WAPPY IA',
+      modelName,
     } = req.body;
+
+    const envTextModels = getStudioTextModelsFromEnv();
+    const preferredTextModel =
+      (modelName || '').replace('models/', '').trim() ||
+      req.user?.personalization?.geminiModels?.sstManagement ||
+      envTextModels[0] ||
+      'gemini-3.8-flash';
 
     const isVertical = aspectRatio === '9:16';
     const width = isVertical ? 1080 : 1920;
@@ -1190,7 +1282,7 @@ ${scriptText || prompt || 'La prevención y la inteligencia artificial transform
 Recuerda devolver SOLO el código HTML puro empezando por <!DOCTYPE html>.`;
 
     const aiResult = await generateWithKeyRotation(
-      { model: 'gemini-3.6-flash', generationConfig: { temperature: 0.4 } },
+      { model: preferredTextModel, generationConfig: { temperature: 0.4 } },
       req.user,
       userPrompt,
       { systemInstruction },

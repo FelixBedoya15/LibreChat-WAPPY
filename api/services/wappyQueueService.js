@@ -9,6 +9,7 @@ const { getUserKey } = require('../server/services/UserService');
 const SYSTEM_GOOGLE_MODELS = [
   'gemini-3.5-flash-lite',
   'gemini-3.6-flash',
+  'gemini-3.8-flash',
 ];
 
 class WappyQueueService {
@@ -133,7 +134,7 @@ class WappyQueueService {
       const envModels = (process.env.GOOGLE_MODELS || '')
         .split(',')
         .map((m) => m.trim())
-        .filter(Boolean);
+        .filter((m) => m && !m.includes('live') && !m.includes('native-audio') && !m.includes('tts'));
 
       const modelFallbacks = envModels.length > 0 ? envModels : SYSTEM_GOOGLE_MODELS;
 

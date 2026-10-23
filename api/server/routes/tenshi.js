@@ -1361,10 +1361,10 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             const envModels = (process.env.GOOGLE_MODELS || '')
                 .split(',')
                 .map(m => m.trim().replace('models/', ''))
-                .filter(m => m && !m.includes('live') && !m.includes('native-audio') && !m.includes('transcribe'));
+                .filter(m => m && !m.includes('live') && !m.includes('native-audio') && !m.includes('transcribe') && !m.includes('tts'));
 
-            // Modelos de texto permitidos y vigentes en WAPPY: gemini-3.5-flash-lite (ultra-rápido prioritario) y gemini-3.6-flash (fallback)
-            const allowedTextModels = ['gemini-3.5-flash-lite', 'gemini-3.6-flash'];
+            // Modelos de texto permitidos y vigentes en WAPPY: gemini-3.5-flash-lite (ultra-rápido prioritario), gemini-3.6-flash y gemini-3.8-flash (fallback)
+            const allowedTextModels = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash'];
             const validEnvModels = envModels.filter(m => allowedTextModels.includes(m));
 
             // Tenshi siempre prioriza gemini-3.5-flash-lite para máxima velocidad de respuesta

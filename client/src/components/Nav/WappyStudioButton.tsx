@@ -83,9 +83,6 @@ const WappyStudioButton = ({
       >
         WAPPY Studio
       </span>
-      <span className="px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider rounded-md bg-teal-500/10 text-teal-600 dark:text-teal-300 border border-teal-500/20">
-        TTS & Video
-      </span>
     </motion.button>
   );
 };

@@ -8,12 +8,10 @@ import {
   Play,
   Pause,
   RotateCcw,
-  RotateCw,
   Volume2,
   VolumeX,
   Download,
   Trash2,
-  Key,
   Check,
   AlertCircle,
   CheckCircle2,
@@ -23,25 +21,22 @@ import {
   Search,
   Layers,
   Upload,
-  Video,
   Code2,
   Cpu,
   Wand2,
   Copy,
-  ExternalLink,
-  Eye,
-  EyeOff,
   Zap,
-  ShieldCheck,
   Film,
   Maximize2,
   X,
-  Plus,
   RefreshCw,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
+import { useGetEndpointsQuery } from '~/data-provider';
+import { EModelEndpoint } from 'librechat-data-provider';
 import { OpenSidebar } from '~/components/Chat/Menus';
 import ExpandableButton from '~/components/Common/ExpandableButton';
+import ModelSelector from '~/components/SGSST/ModelSelector';
 import type { ContextType } from '~/common';
 import { cn } from '~/utils';
 
@@ -56,6 +51,7 @@ interface StudioModel {
   name: string;
   badge: string;
   badgeColor: string;
+  rateLimitLabel?: string;
   quotaLabel: string;
   description: string;
   supportsMultiSpeaker: boolean;
@@ -109,13 +105,6 @@ interface TtsJobState {
   chunks: JobChunk[];
   downloadUrl?: string;
   error?: string;
-  failoverNotice?: {
-    fromIndex: number;
-    toIndex: number;
-    label: string;
-    reason: string;
-    timestamp: number;
-  };
 }
 
 interface LibraryItem {
@@ -132,13 +121,314 @@ interface LibraryItem {
   scriptText?: string;
 }
 
-interface LocalApiKeyItem {
-  id: string;
-  key: string;
-  label: string;
-  addedAt: number;
-  isValidated: boolean;
-}
+// ============================================================================
+// CATÁLOGO PRECARGADO POR DEFECTO (14 VOCES, 4 MODELOS, 9 PRESETS, 5 BURSTS)
+// ============================================================================
+
+const DEFAULT_STUDIO_TTS_MODELS: Record<string, StudioModel> = {
+  'gemini-3.8-flash-tts': {
+    id: 'gemini-3.8-flash-tts',
+    name: 'Gemini 3.8 Flash TTS',
+    badge: 'Recomendado / Cuota Activa',
+    badgeColor: 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border-indigo-500/30',
+    rateLimitLabel: '3 RPM • 10 RPD',
+    quotaLabel: '✓ Activo (14 voces)',
+    description:
+      'Máxima fluidez natural, diseño de voz, vocal bursts (<breath>, <laugh>) y soporte para las 14 voces.',
+    supportsMultiSpeaker: true,
+    supportsVocalBursts: true,
+    supportedVoices: [
+      'Kore',
+      'Puck',
+      'Charon',
+      'Fenrir',
+      'Zephyr',
+      'Orus',
+      'Aoede',
+      'Leda',
+      'Callisto',
+      'Europa',
+      'Ganymede',
+      'Io',
+      'Titan',
+      'Prometheus',
+    ],
+  },
+  'gemini-3.1-flash-tts-preview': {
+    id: 'gemini-3.1-flash-tts-preview',
+    name: 'Gemini 3.1 Flash TTS Preview',
+    badge: 'Preview 3.1 / Cuota Activa',
+    badgeColor: 'bg-purple-500/15 text-purple-600 dark:text-purple-300 border-purple-500/30',
+    rateLimitLabel: '3 RPM • 10 RPD',
+    quotaLabel: '14 voces',
+    description:
+      'Arquitectura Gemini 3.1 con prosodia refinada, tono expresivo y respuesta ágil (14 voces).',
+    supportsMultiSpeaker: true,
+    supportsVocalBursts: true,
+    supportedVoices: [
+      'Kore',
+      'Puck',
+      'Charon',
+      'Fenrir',
+      'Zephyr',
+      'Orus',
+      'Aoede',
+      'Leda',
+      'Callisto',
+      'Europa',
+      'Ganymede',
+      'Io',
+      'Titan',
+      'Prometheus',
+    ],
+  },
+  'gemini-2.5-flash-preview-tts': {
+    id: 'gemini-2.5-flash-preview-tts',
+    name: 'Gemini 2.5 Flash TTS',
+    badge: 'Reemplazo de 2.5 Pro',
+    badgeColor: 'bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/30',
+    rateLimitLabel: '3 RPM • 10 RPD (2.5 Pro: 0/0)',
+    quotaLabel: '5 voces',
+    description:
+      'Reemplazo oficial y funcional de 2.5 Pro (no disponible en API). Activa únicamente las 5 voces fundamentales.',
+    supportsMultiSpeaker: true,
+    supportsVocalBursts: false,
+    supportedVoices: ['Kore', 'Puck', 'Charon', 'Fenrir', 'Aoede'],
+  },
+  'gemini-3.8-flash-lite-tts': {
+    id: 'gemini-3.8-flash-lite-tts',
+    name: 'Gemini 3.8 Flash-Lite TTS',
+    badge: 'Ultra Rápido',
+    badgeColor: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/30',
+    rateLimitLabel: 'Baja Latencia',
+    quotaLabel: '6 voces',
+    description:
+      'Optimizado para lecturas masivas con mínima latencia continua (6 voces rápidas).',
+    supportsMultiSpeaker: false,
+    supportsVocalBursts: true,
+    supportedVoices: ['Kore', 'Puck', 'Charon', 'Fenrir', 'Zephyr', 'Aoede'],
+  },
+};
+
+const DEFAULT_STUDIO_VOICES: StudioVoice[] = [
+  {
+    id: 'Kore',
+    name: 'Kore',
+    gender: 'Femenino',
+    tone: 'Cálida, Serena y Profesional',
+    recommendedFor: 'Audiolibros, Narración, Tutoriales, Inducción SST',
+    tag: 'Más popular',
+  },
+  {
+    id: 'Puck',
+    name: 'Puck',
+    gender: 'Masculino',
+    tone: 'Enérgico, Dinámico y Joven',
+    recommendedFor: 'Podcasts, Reels, Contenido Creativo, Diálogos',
+    tag: 'Muy expresivo',
+  },
+  {
+    id: 'Charon',
+    name: 'Charon',
+    gender: 'Masculino',
+    tone: 'Barítono, Grave, Maduro y Solemne',
+    recommendedFor: 'Documentales, Historia, Suspenso, Directivos',
+    tag: 'Voz profunda',
+  },
+  {
+    id: 'Fenrir',
+    name: 'Fenrir',
+    gender: 'Masculino',
+    tone: 'Claro, Elocuente y Periodístico',
+    recommendedFor: 'Noticias, Informes, Presentaciones, Boletines',
+    tag: 'Profesional',
+  },
+  {
+    id: 'Zephyr',
+    name: 'Zephyr',
+    gender: 'Femenino',
+    tone: 'Dulce, Aterciopelada y Relajante',
+    recommendedFor: 'Meditación, ASMR, Cuentos, Bienestar',
+    tag: 'Calma',
+  },
+  {
+    id: 'Orus',
+    name: 'Orus',
+    gender: 'Masculino',
+    tone: 'Firme, Imperial, Épico y Reflexivo',
+    recommendedFor: 'Ficción Épica, Liderazgo, Ensayos, Cultura Vial',
+    tag: 'Imperial',
+  },
+  {
+    id: 'Aoede',
+    name: 'Aoede',
+    gender: 'Femenino',
+    tone: 'Melódica, Expresiva, Artística y Cálida',
+    recommendedFor: 'Poesía, Literatura, Storytelling, Sensibilización',
+    tag: 'Melódica',
+  },
+  {
+    id: 'Leda',
+    name: 'Leda',
+    gender: 'Femenino',
+    tone: 'Cercana, Maternal, Madura y Envolvente',
+    recommendedFor: 'Audiolibros Largos, Relatos, Bienvenida',
+    tag: 'Narradora',
+  },
+  {
+    id: 'Callisto',
+    name: 'Callisto',
+    gender: 'Femenino',
+    tone: 'Elegante, Sofisticada y Articulada',
+    recommendedFor: 'Divulgación Científica, Conferencias, Auditorías',
+    tag: 'Sofisticada',
+  },
+  {
+    id: 'Europa',
+    name: 'Europa',
+    gender: 'Femenino',
+    tone: 'Brillante, Luminosa, Alegre y Asertiva',
+    recommendedFor: 'Marketing, Anuncios, E-Learning, Campañas',
+    tag: 'Enérgica',
+  },
+  {
+    id: 'Ganymede',
+    name: 'Ganymede',
+    gender: 'Masculino',
+    tone: 'Resonante, Equilibrado, Sabio y Seguro',
+    recommendedFor: 'Educación Superior, Cursos, Capacitación Técnica',
+    tag: 'Resonante',
+  },
+  {
+    id: 'Io',
+    name: 'Io',
+    gender: 'Femenino',
+    tone: 'Vivaz, Espontánea, Fresca y Amigable',
+    recommendedFor: 'Redes Sociales, Vlogs, Asistentes, Reels',
+    tag: 'Fresca',
+  },
+  {
+    id: 'Titan',
+    name: 'Titan',
+    gender: 'Masculino',
+    tone: 'Imponente, Cinematográfico y Potente',
+    recommendedFor: 'Tráilers, Introducciones, Impacto, Alertas',
+    tag: 'Cinematográfica',
+  },
+  {
+    id: 'Prometheus',
+    name: 'Prometheus',
+    gender: 'Masculino',
+    tone: 'Noble, Pensativo, Filosófico y Clásico',
+    recommendedFor: 'Filosofía, Análisis Profundo, Crónicas',
+    tag: 'Sabio',
+  },
+];
+
+const DEFAULT_STUDIO_PRESETS: StudioPreset[] = [
+  {
+    id: 'orus-solemn',
+    name: 'Narración Solemne (Orus)',
+    voiceName: 'Orus',
+    style:
+      'Voz firme, templada, reflexiva y madura de narrador de crónica histórica, dicción solemne, pausas medidas y respiraciones naturales.',
+    speed: '0.95x',
+  },
+  {
+    id: 'aoede-poetic',
+    name: 'Cuento Poético (Aoede)',
+    voiceName: 'Aoede',
+    style:
+      'Voz melódica, cálida, expresiva y artística para relato literario y sensibilización, con matices emocionales suaves.',
+    speed: '0.95x',
+  },
+  {
+    id: 'titan-trailer',
+    name: 'Tráiler Cinematográfico (Titan)',
+    voiceName: 'Titan',
+    style:
+      'Voz imponente, profunda, cinematográfica y épica de tráiler de película, con pausas dramáticas e impacto.',
+    speed: '0.95x',
+  },
+  {
+    id: 'kore-audiobook',
+    name: 'Narrador de Audiolibro (Kore)',
+    voiceName: 'Kore',
+    style:
+      'Voz cálida, serena, clara y envolvente de narradora profesional de audiolibros y cursos formativos, con ritmo fluido.',
+    speed: '1.0x',
+  },
+  {
+    id: 'puck-podcast',
+    name: 'Host de Podcast Dinámico (Puck)',
+    voiceName: 'Puck',
+    style:
+      'Host de podcast carismático, enérgico, cercano y espontáneo, con entonación conversacional moderna.',
+    speed: '1.05x',
+  },
+  {
+    id: 'charon-documentary',
+    name: 'Documental Profundo (Charon)',
+    voiceName: 'Charon',
+    style:
+      'Tono barítono, solemne, reflexivo y cinematográfico de narrador de documental, con pausas medidas.',
+    speed: '0.95x',
+  },
+  {
+    id: 'fenrir-news',
+    name: 'Noticiero Profesional (Fenrir)',
+    voiceName: 'Fenrir',
+    style:
+      'Periodista claro, objetivo, seguro y elocuente de noticiero central, dicción neutral y fluida.',
+    speed: '1.05x',
+  },
+  {
+    id: 'zephyr-asmr',
+    name: 'Meditación y ASMR (Zephyr)',
+    voiceName: 'Zephyr',
+    style:
+      'Voz suave, serena, dulce y sumamente relajante para meditación guiada, mindfulness y bienestar.',
+    speed: '0.9x',
+  },
+  {
+    id: 'screenplay-dialogue',
+    name: 'Guion / Diálogo Alex & Sam',
+    voiceName: 'Kore',
+    multiSpeaker: true,
+    speaker1: { name: 'Alex', voiceName: 'Puck', style: 'Entusiasta y curioso' },
+    speaker2: { name: 'Sam', voiceName: 'Kore', style: 'Experta, clara y cercana' },
+    style: 'Diálogo interactivo de podcast entre dos especialistas con alternancia natural.',
+    speed: '1.0x',
+  },
+];
+
+const DEFAULT_STUDIO_VOCAL_BURSTS: VocalBurst[] = [
+  {
+    tag: '<breath>',
+    label: 'Respiración natural',
+    description: 'Inserta una toma de aire orgánica entre frases',
+  },
+  {
+    tag: '<laugh>',
+    label: 'Risa / Carcajada',
+    description: 'Añade una risa espontánea o carcajada suave',
+  },
+  {
+    tag: '<gasp>',
+    label: 'Sorpresa / Jadear',
+    description: 'Efecto de inhalación rápida de asombro',
+  },
+  {
+    tag: '|mhm|',
+    label: 'Asentimiento (|mhm|)',
+    description: 'Confirmación conversacional natural',
+  },
+  {
+    tag: '|yeah|',
+    label: 'Aceptación (|yeah|)',
+    description: 'Interjección de acuerdo en diálogos',
+  },
+];
 
 // ============================================================================
 // PLANTILLAS DE EJEMPLO PARA GUIONES Y COMPOSICIÓN HTML
@@ -316,38 +606,37 @@ function buildDefaultHtmlComposition({
 }
 
 // ============================================================================
-// UTILIDADES DE ALMACENAMIENTO LOCAL DE CLAVES Y BIBLIOTECA
+// UTILIDADES DE AUTENTICACIÓN Y ALMACENAMIENTO DE BIBLIOTECA
 // ============================================================================
 
-const LOCAL_KEYS_STORAGE = 'wappy_studio_gemini_keys';
 const LOCAL_LIBRARY_STORAGE = 'wappy_studio_audio_library';
-const LOCAL_WORKER_URL_STORAGE = 'wappy_studio_gpu_worker_url';
 
-function getStoredCustomKeys(): LocalApiKeyItem[] {
-  try {
-    const raw = localStorage.getItem(LOCAL_KEYS_STORAGE);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function getCustomKeyStrings(): string[] {
-  return getStoredCustomKeys()
-    .map((k) => k.key?.trim())
-    .filter(Boolean);
-}
-
-function getAuthHeaders(extraKeys?: string[]): Record<string, string> {
-  const keys = extraKeys ?? getCustomKeyStrings();
+function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem('token') || '';
   return {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(keys.length > 0 ? { 'x-gemini-api-keys': JSON.stringify(keys) } : {}),
   };
+}
+
+function formatDurationBadge(seconds: number): string {
+  const total = Math.max(1, Math.round(seconds || 0));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}m ${s}s`;
+}
+
+function formatLibraryDate(timestamp: number): string {
+  try {
+    return new Date(timestamp).toLocaleDateString('es-CO', {
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return '';
+  }
 }
 
 // ============================================================================
@@ -356,6 +645,7 @@ function getAuthHeaders(extraKeys?: string[]): Record<string, string> {
 
 export default function WappyStudioDashboard() {
   const { user, isAuthenticated } = useAuthContext();
+  const { data: endpointsConfig } = useGetEndpointsQuery();
   const outletContext = useOutletContext<ContextType>();
   const navVisible = outletContext?.navVisible ?? true;
   const setNavVisible = outletContext?.setNavVisible ?? (() => {});
@@ -366,34 +656,41 @@ export default function WappyStudioDashboard() {
     ['tts', 'video', 'lab', 'library'].includes(initialTab) ? initialTab : 'tts',
   );
 
-  // Catálogo del Backend
-  const [models, setModels] = useState<StudioModel[]>([]);
-  const [voices, setVoices] = useState<StudioVoice[]>([]);
-  const [presets, setPresets] = useState<StudioPreset[]>([]);
-  const [vocalBursts, setVocalBursts] = useState<VocalBurst[]>([]);
+  // Modelo de IA para generación de escenas HTML/GSAP (leído desde GOOGLE_MODELS igual que los demás módulos de WAPPY)
+  const [selectedAiModel, setSelectedAiModel] = useState<string>(() =>
+    user?.personalization?.geminiModels?.sstManagement ||
+    (process.env.GOOGLE_MODELS || 'gemini-3.6-flash').split(',')[0].trim(),
+  );
 
-  // Estado de Claves API y Pool
-  const [poolStatus, setPoolStatus] = useState<{
-    totalKeys: number;
-    customKeysCount: number;
-    systemKeysCount: number;
-    autoRotationEnabled: boolean;
-    keys: Array<{ index: number; label: string; maskedKey: string; status: string }>;
-  } | null>(null);
-  const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
-  const [isGpuModalOpen, setIsGpuModalOpen] = useState(false);
+  // Catálogo precargado inmediatamente (14 voces, 4 modelos, 9 presets y 5 vocal bursts siempre visibles)
+  const [models, setModels] = useState<StudioModel[]>(() =>
+    Object.values(DEFAULT_STUDIO_TTS_MODELS),
+  );
+  const [voices, setVoices] = useState<StudioVoice[]>(() => DEFAULT_STUDIO_VOICES);
+  const [presets, setPresets] = useState<StudioPreset[]>(() => DEFAULT_STUDIO_PRESETS);
+  const [vocalBursts, setVocalBursts] = useState<VocalBurst[]>(() => DEFAULT_STUDIO_VOCAL_BURSTS);
 
   // Estado del Estudio TTS
   const [selectedModel, setSelectedModel] = useState<string>('gemini-3.8-flash-tts');
   const [selectedVoice, setSelectedVoice] = useState<string>('Kore');
   const [stylePrompt, setStylePrompt] = useState<string>(
-    'Instructora experta en Seguridad y Salud en el Trabajo, voz cálida, clara, empática y profesional.',
+    'Voz cálida, serena, clara y envolvente de narradora profesional de audiolibros y cursos formativos, con ritmo fluido.',
   );
   const [multiSpeaker, setMultiSpeaker] = useState<boolean>(false);
   const [speaker1Voice, setSpeaker1Voice] = useState<string>('Puck');
   const [speaker2Voice, setSpeaker2Voice] = useState<string>('Kore');
   const [wordsPerChunk, setWordsPerChunk] = useState<number>(150);
   const [scriptText, setScriptText] = useState<string>(SCRIPT_TEMPLATES[0].text);
+
+  // Estado del Laboratorio de Expresividad & Prosodia (Pestaña 3)
+  const [labStylePrompt, setLabStylePrompt] = useState<string>(
+    'Voz expresiva, tono conversacional y alegre.',
+  );
+  const [labTestText, setLabTestText] = useState<string>(
+    'Hola. Hoy quiero demostrarte cómo suena una respiración natural <breath> y cómo reacciono con una pequeña risa <laugh> cuando algo resulta verdaderamente sorprendente.',
+  );
+  const [isSynthesizingLab, setIsSynthesizingLab] = useState<boolean>(false);
+  const [playingBurstTag, setPlayingBurstTag] = useState<string | null>(null);
 
   // Estadísticas de Texto y Estimación
   const [wordCount, setWordCount] = useState<number>(0);
@@ -409,7 +706,9 @@ export default function WappyStudioDashboard() {
   const sseRef = useRef<EventSource | null>(null);
 
   // Filtros de Voces
-  const [voiceGenderFilter, setVoiceGenderFilter] = useState<'all' | 'Femenino' | 'Masculino'>('all');
+  const [voiceGenderFilter, setVoiceGenderFilter] = useState<'all' | 'Femenino' | 'Masculino'>(
+    'all',
+  );
   const [voiceActiveFilter, setVoiceActiveFilter] = useState<'only_active' | 'all'>('only_active');
   const [voiceSearchQuery, setVoiceSearchQuery] = useState<string>('');
   const [showAdvancedChunking, setShowAdvancedChunking] = useState<boolean>(false);
@@ -472,10 +771,6 @@ export default function WappyStudioDashboard() {
   const [isVideoPlaying, setIsVideoPlaying] = useState<boolean>(true);
   const [videoCurrentTime, setVideoCurrentTime] = useState<number>(0);
   const [videoDuration, setVideoDuration] = useState<number>(20);
-  const [isRenderingGpu, setIsRenderingGpu] = useState<boolean>(false);
-  const [gpuWorkerUrl, setGpuWorkerUrl] = useState<string>(
-    () => localStorage.getItem(LOCAL_WORKER_URL_STORAGE) || '',
-  );
   const [statusBanner, setStatusBanner] = useState<{
     type: 'success' | 'error' | 'info';
     text: string;
@@ -489,38 +784,62 @@ export default function WappyStudioDashboard() {
   // Guardar biblioteca cuando cambie
   useEffect(() => {
     try {
-      // Limitar a los últimos 15 elementos para no exceder cuota de localStorage
       localStorage.setItem(LOCAL_LIBRARY_STORAGE, JSON.stringify(libraryItems.slice(0, 15)));
     } catch {
       /* ignore quota */
     }
   }, [libraryItems]);
 
-  // Cargar catálogo y estado de claves al montar
-  const fetchPoolStatus = async () => {
-    try {
-      const resp = await fetch('/api/studio/keys-status', { headers: getAuthHeaders() });
-      if (resp.ok) {
-        const data = await resp.json();
-        setPoolStatus(data);
+  // Sincronizar modelos TTS desde endpointsConfig (GOOGLE_MODELS en .env) y catálogo del backend
+  useEffect(() => {
+    const googleEnvModels = endpointsConfig?.[EModelEndpoint.google]?.models;
+    if (Array.isArray(googleEnvModels) && googleEnvModels.length > 0) {
+      const envTtsIds = googleEnvModels
+        .map((m: any) =>
+          (typeof m === 'string' ? m : m?.id || m?.value || '').replace('models/', '').trim(),
+        )
+        .filter((id: string) => id && id.includes('tts'));
+
+      if (envTtsIds.length > 0) {
+        setModels((prev) => {
+          const prevMap = new Map(prev.map((item) => [item.id, item]));
+          return envTtsIds.map(
+            (id: string) =>
+              DEFAULT_STUDIO_TTS_MODELS[id] ||
+              prevMap.get(id) || {
+                id,
+                name: id,
+                badge: 'GOOGLE_MODELS',
+                badgeColor:
+                  'bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border-indigo-500/30',
+                rateLimitLabel: '3 RPM • 10 RPD',
+                quotaLabel: '14 voces',
+                description: `Modelo TTS cargado desde GOOGLE_MODELS (${id}).`,
+                supportsMultiSpeaker: !id.includes('lite'),
+                supportsVocalBursts: !id.includes('2.5'),
+                supportedVoices: DEFAULT_STUDIO_TTS_MODELS['gemini-3.8-flash-tts'].supportedVoices,
+              },
+          );
+        });
       }
-    } catch (err) {
-      console.error('Error consultando estado de claves:', err);
     }
-  };
+  }, [endpointsConfig]);
 
   useEffect(() => {
     fetch('/api/studio/catalog', { headers: getAuthHeaders() })
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data.models) setModels(data.models);
-        if (data.voices) setVoices(data.voices);
-        if (data.presets) setPresets(data.presets);
-        if (data.vocalBursts) setVocalBursts(data.vocalBursts);
+        if (!data) return;
+        if (Array.isArray(data.models) && data.models.length > 0) setModels(data.models);
+        if (Array.isArray(data.voices) && data.voices.length > 0) setVoices(data.voices);
+        if (Array.isArray(data.presets) && data.presets.length > 0) setPresets(data.presets);
+        if (Array.isArray(data.vocalBursts) && data.vocalBursts.length > 0) {
+          setVocalBursts(data.vocalBursts);
+        }
       })
-      .catch((err) => console.error('Error cargando catálogo de WAPPY Studio:', err));
-
-    fetchPoolStatus();
+      .catch(() => {
+        /* Fallback al catálogo precargado en cliente */
+      });
   }, []);
 
   // Recalcular palabras, fragmentos y duración estimada
@@ -541,10 +860,18 @@ export default function WappyStudioDashboard() {
         headers: getAuthHeaders(),
         body: JSON.stringify({ text: clean, maxWordsPerChunk: wordsPerChunk }),
       })
-        .then((r) => r.json())
+        .then((r) => (r.ok ? r.json() : null))
         .then((data) => {
-          if (typeof data.estimatedMinutes === 'number') setEstimatedMinutes(data.estimatedMinutes);
-          if (typeof data.chunkCount === 'number') setChunkCount(data.chunkCount);
+          if (data && typeof data.estimatedMinutes === 'number') {
+            setEstimatedMinutes(data.estimatedMinutes);
+          } else {
+            setEstimatedMinutes(Math.round((words / 145) * 10) / 10);
+          }
+          if (data && typeof data.chunkCount === 'number') {
+            setChunkCount(data.chunkCount);
+          } else {
+            setChunkCount(Math.max(1, Math.ceil(words / wordsPerChunk)));
+          }
         })
         .catch(() => {
           setEstimatedMinutes(Math.round((words / 145) * 10) / 10);
@@ -679,14 +1006,14 @@ export default function WappyStudioDashboard() {
       }
       setCurrentAudio({
         base64: data.audioBase64,
-        title: `Locución: ${snippet.slice(0, 38)}...`,
+        title: `Vista Previa: ${snippet.slice(0, 38)}...`,
         durationSeconds: data.durationSeconds,
         voiceName: selectedVoice,
         scriptText: snippet,
       });
       const newItem: LibraryItem = {
         id: Date.now().toString(),
-        title: `${snippet.slice(0, 42)}...`,
+        title: `Vista Previa: ${snippet.slice(0, 42)}...`,
         createdAt: Date.now(),
         voiceName: selectedVoice,
         model: data.usedModel || selectedModel,
@@ -705,6 +1032,55 @@ export default function WappyStudioDashboard() {
       setStatusBanner({ type: 'error', text: err.message || 'Error sintetizando fragmento.' });
     } finally {
       setIsPreviewing(false);
+    }
+  };
+
+  const handleSynthesizeInLab = async () => {
+    if (!labTestText.trim()) return;
+    try {
+      setIsSynthesizingLab(true);
+      setStatusBanner(null);
+      const resp = await fetch('/api/studio/tts/synthesize', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          text: labTestText.trim(),
+          voiceName: selectedVoice,
+          stylePrompt: labStylePrompt,
+          model: selectedModel,
+        }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.success) {
+        throw new Error(data.error || 'Error al sintetizar en el laboratorio.');
+      }
+      setCurrentAudio({
+        base64: data.audioBase64,
+        title: `Laboratorio (${selectedVoice}): ${labTestText.trim().slice(0, 34)}...`,
+        durationSeconds: data.durationSeconds,
+        voiceName: selectedVoice,
+        scriptText: labTestText.trim(),
+      });
+      const newItem: LibraryItem = {
+        id: Date.now().toString(),
+        title: `Laboratorio: ${labTestText.trim().slice(0, 42)}...`,
+        createdAt: Date.now(),
+        voiceName: selectedVoice,
+        model: data.usedModel || selectedModel,
+        durationSeconds: data.durationSeconds,
+        wordCount: labTestText.trim().split(/\s+/).filter(Boolean).length,
+        audioBase64: data.audioBase64,
+        stylePrompt: labStylePrompt,
+        scriptText: labTestText.trim(),
+      };
+      setLibraryItems((prev) => [newItem, ...prev]);
+    } catch (err: any) {
+      setStatusBanner({
+        type: 'error',
+        text: err.message || 'Error sintetizando prueba en el laboratorio.',
+      });
+    } finally {
+      setIsSynthesizingLab(false);
     }
   };
 
@@ -795,12 +1171,6 @@ export default function WappyStudioDashboard() {
         });
       });
 
-      es.addEventListener('api_key_failover', (ev: MessageEvent) => {
-        const d = JSON.parse(ev.data);
-        setActiveJob((prev) => (prev ? { ...prev, failoverNotice: d } : null));
-        fetchPoolStatus();
-      });
-
       es.addEventListener('job_completed', (ev: MessageEvent) => {
         const d = JSON.parse(ev.data);
         es.close();
@@ -811,14 +1181,14 @@ export default function WappyStudioDashboard() {
         );
         setCurrentAudio({
           url: d.downloadUrl,
-          title: `Master Completo: ${scriptText.trim().slice(0, 35)}...`,
+          title: `Audio Completo: ${scriptText.trim().slice(0, 35)}...`,
           durationSeconds: d.totalDurationSeconds,
           voiceName: selectedVoice,
           scriptText,
         });
         const newItem: LibraryItem = {
           id: d.id,
-          title: `Master: ${scriptText.trim().slice(0, 42)}...`,
+          title: `Audio Completo: ${scriptText.trim().slice(0, 42)}...`,
           createdAt: Date.now(),
           voiceName: selectedVoice,
           model: selectedModel,
@@ -918,6 +1288,7 @@ export default function WappyStudioDashboard() {
           showSubtitles: showDynamicSubtitles,
           durationSeconds: Math.round(currentAudio?.durationSeconds || videoDuration || 25),
           companyName: user?.name || 'WAPPY IA',
+          modelName: selectedAiModel,
         }),
       });
       const data = await resp.json();
@@ -1047,56 +1418,7 @@ export default function WappyStudioDashboard() {
     URL.revokeObjectURL(url);
   };
 
-  const handleRenderGpuServerless = async () => {
-    if (!gpuWorkerUrl.trim()) {
-      setIsGpuModalOpen(true);
-      return;
-    }
-    try {
-      setIsRenderingGpu(true);
-      setStatusBanner({
-        type: 'info',
-        text: 'Enviando composición HTML + Audio al Worker GPU Serverless (NVIDIA L4)...',
-      });
-      const resp = await fetch('/api/studio/video/render-serverless', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          htmlCode,
-          audioBase64: currentAudio?.base64 || null,
-          aspectRatio,
-          durationSeconds: Math.round(videoDuration || 15),
-          fps: 30,
-          workerUrl: gpuWorkerUrl.trim(),
-        }),
-      });
-      const data = await resp.json();
-      if (!resp.ok || !data.success) {
-        throw new Error(data.error || 'Error en el Worker GPU.');
-      }
-      if (data.mp4Base64) {
-        const a = document.createElement('a');
-        a.href = `data:video/mp4;base64,${data.mp4Base64}`;
-        a.download = `wappy-studio-render-${Date.now()}.mp4`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setStatusBanner({
-          type: 'success',
-          text: '¡Video MP4 1080p renderizado por GPU Serverless y descargado exitosamente!',
-        });
-      }
-    } catch (err: any) {
-      setStatusBanner({
-        type: 'error',
-        text: err.message || 'No se pudo completar el renderizado en el Worker GPU.',
-      });
-    } finally {
-      setIsRenderingGpu(false);
-    }
-  };
-
-  const totalAvailableKeys = poolStatus?.totalKeys || getCustomKeyStrings().length;
+  const activeVoicesCount = activeModelObj?.supportedVoices?.length || 14;
 
   return (
     <div className="flex-1 flex flex-col bg-surface-secondary/30 min-h-screen h-auto overflow-y-auto pb-16">
@@ -1192,17 +1514,10 @@ export default function WappyStudioDashboard() {
 
             {/* Botones Auto-Expansibles WAPPY (14 Grupos Semánticos) */}
             <div className="flex items-center gap-1.5">
-              <ExpandableButton
-                icon={<Key />}
-                label={
-                  totalAvailableKeys > 1
-                    ? `Claves API (${totalAvailableKeys} • Failover Activo)`
-                    : totalAvailableKeys === 1
-                      ? 'Claves API (1 Activa)'
-                      : 'Configurar Claves API'
-                }
-                variant={totalAvailableKeys > 0 ? 'indigo' : 'amber'}
-                onClick={() => setIsKeyModalOpen(true)}
+              <ModelSelector
+                selectedModel={selectedAiModel}
+                onSelectModel={setSelectedAiModel}
+                disabled={isGeneratingHtmlAi}
               />
 
               <ExpandableButton
@@ -1211,13 +1526,6 @@ export default function WappyStudioDashboard() {
                 variant="purple"
                 disabled={isTestingConnection}
                 onClick={handleTestConnection}
-              />
-
-              <ExpandableButton
-                icon={<Cpu />}
-                label="Worker GPU Serverless"
-                variant="cyan"
-                onClick={() => setIsGpuModalOpen(true)}
               />
             </div>
           </div>
@@ -1367,11 +1675,11 @@ export default function WappyStudioDashboard() {
                           </div>
                           <div className="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-zinc-800 flex items-center justify-between text-[10px]">
                             <span className="text-amber-600 dark:text-amber-400 font-bold">
-                              {m.quotaLabel}
+                              {m.rateLimitLabel || m.quotaLabel}
                             </span>
                             {isSelected ? (
-                              <span className="text-teal-600 dark:text-teal-400 font-bold flex items-center gap-0.5">
-                                <Check className="w-3 h-3" /> Activo
+                              <span className="text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-0.5">
+                                <Check className="w-3 h-3" /> Activo ({m.supportedVoices.length} voces)
                               </span>
                             ) : (
                               <span className="text-text-secondary">
@@ -1382,6 +1690,31 @@ export default function WappyStudioDashboard() {
                         </button>
                       );
                     })}
+                  </div>
+
+                  {/* Barra de voces activas para el modelo seleccionado */}
+                  <div className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-zinc-900/90 border border-slate-200/80 dark:border-zinc-800 flex items-center justify-between gap-2 text-[11px]">
+                    <span className="text-text-secondary flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-teal-500 shrink-0" />
+                      <span>
+                        Voces activas para{' '}
+                        <strong className="text-text-primary">{activeModelObj?.name}</strong>:
+                      </span>
+                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
+                        {activeVoicesCount} de {voices.length} disponibles
+                      </span>
+                      {activeVoicesCount < voices.length && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedModel('gemini-3.8-flash-tts')}
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/20 cursor-pointer"
+                        >
+                          Mostrar todas ({voices.length})
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -1496,13 +1829,18 @@ export default function WappyStudioDashboard() {
                     </div>
                   </div>
                 ) : (
-                  /* 4. Catálogo de 14 Voces con Audición en Vivo */
+                  /* 4. Catálogo de 14 Voces en Rejilla de 3 Columnas con Audición en Vivo */
                   <div className="space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <label className="text-xs font-extrabold uppercase tracking-wider text-text-primary flex items-center gap-1.5">
-                        <MicVocal className="w-3.5 h-3.5 text-teal-500" />
-                        Catálogo de Voces ({activeModelObj?.supportedVoices.length || 14} activas)
-                      </label>
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <label className="text-xs font-extrabold uppercase tracking-wider text-text-primary flex items-center gap-1.5">
+                          <MicVocal className="w-3.5 h-3.5 text-teal-500" />
+                          Catálogo de Voces ({activeVoicesCount} activas / {voices.length} totales)
+                        </label>
+                        <p className="text-[10px] text-text-secondary mt-0.5">
+                          Las voces no compatibles con la versión seleccionada quedan desactivadas.
+                        </p>
+                      </div>
 
                       <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-800 p-0.5 rounded-lg border border-slate-200 dark:border-zinc-700 text-[11px]">
                         <button
@@ -1515,7 +1853,7 @@ export default function WappyStudioDashboard() {
                               : 'text-text-secondary hover:text-text-primary',
                           )}
                         >
-                          Activas
+                          Solo Activas ({activeVoicesCount})
                         </button>
                         <button
                           type="button"
@@ -1539,7 +1877,7 @@ export default function WappyStudioDashboard() {
                           type="text"
                           value={voiceSearchQuery}
                           onChange={(e) => setVoiceSearchQuery(e.target.value)}
-                          placeholder="Buscar voz por nombre, tono o uso..."
+                          placeholder="Buscar voz (Kore, Orus, profunda, podcast...)"
                           className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-text-primary placeholder-slate-400 focus:outline-none focus:border-teal-500"
                         />
                       </div>
@@ -1562,7 +1900,7 @@ export default function WappyStudioDashboard() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[340px] overflow-y-auto pr-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 max-h-[380px] overflow-y-auto pr-1">
                       {filteredVoices.map((v) => {
                         const isSelected = selectedVoice === v.id;
                         const isAuditioning = auditioningVoiceId === v.id;
@@ -1575,28 +1913,18 @@ export default function WappyStudioDashboard() {
                               setSelectedVoice(v.id);
                             }}
                             className={cn(
-                              'p-3 rounded-xl border transition-all flex flex-col justify-between cursor-pointer',
+                              'p-2.5 rounded-xl border transition-all flex flex-col justify-between cursor-pointer',
                               isSelected
                                 ? 'bg-teal-50/80 dark:bg-teal-950/40 border-teal-500 ring-1 ring-teal-500/30 shadow-xs'
                                 : 'bg-slate-50/50 dark:bg-zinc-900/50 border-slate-200/80 dark:border-zinc-800 hover:border-teal-400',
-                              !supported && 'opacity-65',
+                              !supported && 'opacity-60',
                             )}
                           >
                             <div>
-                              <div className="flex items-start justify-between gap-1.5">
-                                <div>
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className="text-sm font-extrabold text-text-primary">
-                                      {v.name}
-                                    </span>
-                                    <span className="text-[10px] font-semibold text-text-secondary bg-slate-200/70 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
-                                      {v.gender}
-                                    </span>
-                                  </div>
-                                  <p className="text-xs text-teal-700 dark:text-teal-300 font-semibold mt-0.5">
-                                    {v.tone}
-                                  </p>
-                                </div>
+                              <div className="flex items-start justify-between gap-1">
+                                <span className="text-sm font-extrabold text-text-primary">
+                                  {v.name}
+                                </span>
                                 <button
                                   type="button"
                                   onClick={(e) => handleAuditionVoice(v.id, e)}
@@ -1605,19 +1933,40 @@ export default function WappyStudioDashboard() {
                                   className="p-1.5 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 dark:text-teal-300 border border-teal-500/30 transition shrink-0 cursor-pointer"
                                 >
                                   {isAuditioning ? (
-                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    <Loader2 className="w-3 h-3 animate-spin" />
                                   ) : (
-                                    <Play className="w-3.5 h-3.5 fill-current" />
+                                    <Play className="w-3 h-3 fill-current" />
                                   )}
                                 </button>
                               </div>
+
+                              <div className="flex items-center gap-1 flex-wrap mt-1">
+                                <span className="text-[9px] font-semibold text-text-secondary bg-slate-200/70 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
+                                  {v.gender}
+                                </span>
+                                {supported ? (
+                                  <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded">
+                                    ✓ Activa
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] font-bold text-amber-700 dark:text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 rounded">
+                                    Solo 3.8/3.1
+                                  </span>
+                                )}
+                              </div>
+
+                              <p className="text-[11px] text-teal-700 dark:text-teal-300 font-semibold mt-1 leading-tight">
+                                {v.tone}
+                              </p>
+
                               {v.tag && (
                                 <span className="inline-block mt-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20">
                                   {v.tag}
                                 </span>
                               )}
                             </div>
-                            <p className="text-[10px] text-text-secondary mt-2 pt-1.5 border-t border-slate-200/60 dark:border-zinc-800 line-clamp-2">
+
+                            <p className="text-[10px] text-text-secondary mt-2 pt-1.5 border-t border-slate-200/60 dark:border-zinc-800 line-clamp-2 leading-tight">
                               {v.recommendedFor}
                             </p>
                           </div>
@@ -1655,7 +2004,7 @@ export default function WappyStudioDashboard() {
                   >
                     <span className="flex items-center gap-1.5">
                       <Sliders className="w-3.5 h-3.5 text-teal-500" />
-                      Segmentación para Audios de hasta 1 Hora ({wordsPerChunk} palabras/chunk)
+                      Configuración Avanzada de Segmentación (Chunking)
                     </span>
                     <span>{showAdvancedChunking ? '▲' : '▼'}</span>
                   </button>
@@ -1677,7 +2026,7 @@ export default function WappyStudioDashboard() {
                         className="w-full h-1.5 bg-slate-200 dark:bg-zinc-700 rounded appearance-none cursor-pointer accent-teal-600"
                       />
                       <p className="text-[10px] text-text-secondary">
-                        Fragmentos de ~150 palabras (~55s de audio) garantizan fluidez continua y rotación limpia ante límites de cuota (429).
+                        Fragmentos de ~150 palabras (~55s de audio) garantizan fluidez continua para audiolibros de hasta 60 minutos.
                       </p>
                     </div>
                   )}
@@ -1686,34 +2035,17 @@ export default function WappyStudioDashboard() {
 
               {/* COLUMNA DERECHA (7 cols): Editor de Guion, Vocal Bursts y Despacho */}
               <div className="lg:col-span-7 space-y-5 bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-xs">
-                {/* Barra de Estado de Claves Activas */}
-                <div className="p-3 bg-teal-500/5 border border-teal-500/20 rounded-xl flex flex-wrap items-center justify-between gap-2 text-xs">
-                  <div className="flex items-center gap-2 text-text-primary">
-                    <ShieldCheck className="w-4 h-4 text-teal-500 shrink-0" />
-                    <span>
-                      <strong>{totalAvailableKeys} clave(s) API</strong> listas para síntesis
-                      {totalAvailableKeys > 1
-                        ? ' • Rotación y Failover Automático (429) activo para audios de 1 hora.'
-                        : ' • Puedes agregar claves de respaldo para audios largos.'}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsKeyModalOpen(true)}
-                    className="text-xs font-bold text-teal-600 dark:text-teal-400 hover:underline cursor-pointer"
-                  >
-                    Administrar claves
-                  </button>
-                </div>
-
                 {/* Cabecera del Editor + Selector de Plantilla */}
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h2 className="text-sm font-extrabold text-text-primary flex items-center gap-2">
                     <MicVocal className="w-4 h-4 text-teal-500" />
-                    Guion o Texto a Sintetizar
+                    Texto a Sintetizar
                   </h2>
 
                   <div className="flex items-center gap-2">
+                    <span className="text-xs text-text-secondary hidden sm:inline">
+                      Cargar ejemplo:
+                    </span>
                     <select
                       defaultValue=""
                       onChange={(e) => {
@@ -1724,7 +2056,7 @@ export default function WappyStudioDashboard() {
                       className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-text-primary text-xs font-semibold rounded-xl px-3 py-1.5 focus:outline-none focus:border-teal-500"
                     >
                       <option value="" disabled>
-                        Cargar guion de ejemplo...
+                        Seleccionar texto de muestra...
                       </option>
                       {SCRIPT_TEMPLATES.map((tpl) => (
                         <option key={tpl.title} value={tpl.title}>
@@ -1750,7 +2082,7 @@ export default function WappyStudioDashboard() {
                   <div className="flex items-center justify-between text-[11px]">
                     <span className="font-bold text-text-secondary flex items-center gap-1">
                       <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                      Efectos Vocales y Pausas Orgánicas (Clic para insertar en el cursor):
+                      Insertar Efectos Vocales (Vocal Bursts) en el cursor:
                     </span>
                     <span className="font-mono text-[10px] text-teal-600 dark:text-teal-400 font-bold">
                       {selectedModel}
@@ -1765,7 +2097,9 @@ export default function WappyStudioDashboard() {
                         title={b.description}
                         className="px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-800 hover:bg-teal-500/10 border border-slate-200 dark:border-zinc-700 text-xs font-mono transition flex items-center gap-1 cursor-pointer"
                       >
-                        <span className="text-amber-600 dark:text-amber-400 font-bold">{b.tag}</span>
+                        <span className="text-amber-600 dark:text-amber-400 font-bold">
+                          {b.tag}
+                        </span>
                         <span className="text-text-secondary text-[10px] font-sans">
                           ({b.label})
                         </span>
@@ -1791,11 +2125,11 @@ export default function WappyStudioDashboard() {
                 {/* Área de Texto Principal */}
                 <textarea
                   id="wappy-studio-tts-editor"
-                  rows={11}
+                  rows={12}
                   value={scriptText}
                   onChange={(e) => setScriptText(e.target.value)}
                   placeholder="Escribe o pega aquí el guion para tu cápsula SST, curso de Academia WAPPY, podcast o audiolibro de hasta 1 hora..."
-                  className="w-full bg-slate-50/70 dark:bg-zinc-950/70 border border-slate-200 dark:border-zinc-800 rounded-2xl p-4 text-sm text-text-primary placeholder-slate-400 focus:outline-none focus:border-teal-500 leading-relaxed resize-y min-h-[240px]"
+                  className="w-full bg-slate-50/70 dark:bg-zinc-950/70 border border-slate-200 dark:border-zinc-800 rounded-2xl p-4 text-sm text-text-primary placeholder-slate-400 focus:outline-none focus:border-teal-500 leading-relaxed resize-y min-h-[260px]"
                 />
 
                 {/* Barra de Métricas y Estimación */}
@@ -1803,15 +2137,17 @@ export default function WappyStudioDashboard() {
                   <div className="flex flex-wrap items-center justify-between text-xs gap-2">
                     <div className="flex items-center gap-3 text-text-secondary">
                       <span>
-                        Palabras: <strong className="text-text-primary font-mono">{wordCount}</strong>
+                        Palabras:{' '}
+                        <strong className="text-text-primary font-mono">{wordCount}</strong>
                       </span>
                       <span>•</span>
                       <span>
-                        Caracteres: <strong className="text-text-primary font-mono">{charCount}</strong>
+                        Caracteres:{' '}
+                        <strong className="text-text-primary font-mono">{charCount}</strong>
                       </span>
                       <span>•</span>
                       <span>
-                        Fragmentos:{' '}
+                        Fragmentos estimados:{' '}
                         <strong className="text-teal-600 dark:text-teal-400 font-mono">
                           {chunkCount}
                         </strong>
@@ -1840,7 +2176,9 @@ export default function WappyStudioDashboard() {
                   <button
                     type="button"
                     onClick={handleSynthesizePreview}
-                    disabled={isPreviewing || activeJob?.status === 'processing' || !scriptText.trim()}
+                    disabled={
+                      isPreviewing || activeJob?.status === 'processing' || !scriptText.trim()
+                    }
                     className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
                   >
                     {isPreviewing ? (
@@ -1848,13 +2186,15 @@ export default function WappyStudioDashboard() {
                     ) : (
                       <Zap className="w-4 h-4 text-amber-500" />
                     )}
-                    <span>Probar Primer Fragmento (~40s)</span>
+                    <span>Vista Previa Rápida (~1er fragmento)</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={handleStartFullJob}
-                    disabled={activeJob?.status === 'processing' || isPreviewing || !scriptText.trim()}
+                    disabled={
+                      activeJob?.status === 'processing' || isPreviewing || !scriptText.trim()
+                    }
                     className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
                   >
                     {activeJob?.status === 'processing' ? (
@@ -2105,7 +2445,9 @@ export default function WappyStudioDashboard() {
                     icon={<RefreshCw />}
                     label="Aplicar al Lienzo"
                     variant="cyan"
-                    onClick={() => handleRebuildDefaultTemplate(aspectRatio, Boolean(baseVideoUrl))}
+                    onClick={() =>
+                      handleRebuildDefaultTemplate(aspectRatio, Boolean(baseVideoUrl))
+                    }
                   />
                 </div>
               </div>
@@ -2190,14 +2532,6 @@ export default function WappyStudioDashboard() {
                     label="Exportar HTML"
                     variant="green"
                     onClick={handleDownloadHtmlBundle}
-                  />
-                  <ExpandableButton
-                    size="sm"
-                    icon={isRenderingGpu ? <Loader2 className="animate-spin" /> : <Sparkles />}
-                    label="Renderizar MP4 (GPU Serverless)"
-                    variant="purple"
-                    disabled={isRenderingGpu}
-                    onClick={handleRenderGpuServerless}
                   />
                   <ExpandableButton
                     size="sm"
@@ -2373,70 +2707,202 @@ export default function WappyStudioDashboard() {
         {/* ==================================================================== */}
         {activeTab === 'lab' && (
           <div className="space-y-6 animate-in fade-in duration-200">
+            {/* Tarjeta de Cabecera del Laboratorio */}
+            <div className="bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-5 flex items-center gap-4 shadow-xs">
+              <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-300 shrink-0">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-base font-extrabold text-text-primary">
+                  Laboratorio de Expresividad y Vocal Bursts
+                </h2>
+                <p className="text-xs text-text-secondary">
+                  Explora las capacidades de Gemini TTS: respiraciones orgánicas, risas, susurros y dirección de estilo en tiempo real
+                </p>
+              </div>
+            </div>
+
+            {/* Selector de Modelo en el Laboratorio */}
+            <div className="bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-text-secondary">
+                Modelo en el Laboratorio:
+              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                {models.map((m) => {
+                  const isSelected = selectedModel === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedModel(m.id);
+                        if (!m.supportedVoices.includes(selectedVoice)) {
+                          setSelectedVoice(m.supportedVoices[0] || 'Kore');
+                        }
+                      }}
+                      className={cn(
+                        'px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer',
+                        isSelected
+                          ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
+                          : 'bg-slate-50 dark:bg-zinc-900 text-text-secondary border-slate-200 dark:border-zinc-800 hover:border-teal-400',
+                      )}
+                    >
+                      {m.name} ({m.supportedVoices.length} voces)
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* SECCIÓN 1: Efectos Vocales Orgánicos Integrados */}
             <div className="bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-5 space-y-4 shadow-xs">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div>
-                  <h2 className="text-base font-extrabold text-text-primary flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-amber-500" />
-                    Laboratorio de Efectos Vocales Orgánicos (Vocal Bursts)
-                  </h2>
-                  <p className="text-xs text-text-secondary">
-                    Haz clic en cualquier etiqueta para escuchar cómo reacciona la voz seleccionada ({selectedVoice}) en tiempo real.
-                  </p>
+              <h3 className="text-sm font-extrabold text-text-primary">
+                Efectos Vocales Orgánicos Integrados
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {vocalBursts.map((b) => {
+                  const isPlayingThis = playingBurstTag === b.tag;
+                  return (
+                    <div
+                      key={b.tag}
+                      className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/90 border border-slate-200/80 dark:border-zinc-800 flex items-center justify-between gap-3"
+                    >
+                      <div>
+                        <span className="font-mono text-sm font-extrabold text-amber-600 dark:text-amber-400">
+                          {b.tag}
+                        </span>
+                        <p className="text-xs font-bold text-text-primary mt-0.5">{b.label}</p>
+                        <p className="text-[11px] text-text-secondary">{b.description}</p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={isPlayingThis}
+                        onClick={async () => {
+                          try {
+                            setPlayingBurstTag(b.tag);
+                            const resp = await fetch('/api/studio/tts/synthesize', {
+                              method: 'POST',
+                              headers: getAuthHeaders(),
+                              body: JSON.stringify({
+                                voiceName: selectedVoice,
+                                model: 'gemini-3.8-flash-tts',
+                                stylePrompt: 'Voz muy expresiva y natural.',
+                                text: `Escucha cómo suena este efecto natural en medio de una frase: ${b.tag} ¡Suena totalmente humano!`,
+                              }),
+                            });
+                            const data = await resp.json();
+                            if (data.audioBase64) {
+                              setCurrentAudio({
+                                base64: data.audioBase64,
+                                title: `Efecto ${b.tag} (${selectedVoice})`,
+                                durationSeconds: data.durationSeconds,
+                                voiceName: selectedVoice,
+                              });
+                            }
+                          } catch (err: any) {
+                            setStatusBanner({ type: 'error', text: err.message });
+                          } finally {
+                            setPlayingBurstTag(null);
+                          }
+                        }}
+                        className="w-9 h-9 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 border border-indigo-500/30 flex items-center justify-center shrink-0 transition cursor-pointer"
+                      >
+                        {isPlayingThis ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Play className="w-4 h-4 fill-current" />
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* SECCIÓN 2: Probador Libre de Prosodia y Dirección de Voz */}
+            <div className="bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-5 space-y-4 shadow-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-extrabold text-text-primary">
+                  Probador Libre de Prosodia y Dirección de Voz
+                </h3>
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                  Voces activas: {activeVoicesCount} de {voices.length}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">
+                  Selecciona la Voz ({activeVoicesCount} activas para {activeModelObj?.name})
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {voices.map((v) => {
+                    const isSelected = selectedVoice === v.id;
+                    const supported = isVoiceSupported(v.id);
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => {
+                          if (!supported) setSelectedModel('gemini-3.8-flash-tts');
+                          setSelectedVoice(v.id);
+                        }}
+                        className={cn(
+                          'px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center gap-1',
+                          isSelected
+                            ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
+                            : 'bg-slate-50 dark:bg-zinc-900 text-text-primary border-slate-200 dark:border-zinc-800 hover:border-teal-400',
+                          !supported && 'opacity-55',
+                        )}
+                      >
+                        <span>
+                          {v.name} ({v.gender})
+                        </span>
+                        {supported && <Check className="w-3 h-3 text-emerald-400" />}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {vocalBursts.map((b) => (
-                  <div
-                    key={b.tag}
-                    className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 flex items-center justify-between gap-3"
-                  >
-                    <div>
-                      <span className="font-mono text-sm font-extrabold text-amber-600 dark:text-amber-400">
-                        {b.tag}
-                      </span>
-                      <p className="text-xs font-bold text-text-primary mt-0.5">{b.label}</p>
-                      <p className="text-[11px] text-text-secondary">{b.description}</p>
-                    </div>
-                    <ExpandableButton
-                      size="sm"
-                      icon={<Play />}
-                      label="Probar"
-                      variant="purple"
-                      onClick={async () => {
-                        try {
-                          setStatusBanner({
-                            type: 'info',
-                            text: `Sintetizando efecto ${b.tag} con la voz ${selectedVoice}...`,
-                          });
-                          const resp = await fetch('/api/studio/tts/synthesize', {
-                            method: 'POST',
-                            headers: getAuthHeaders(),
-                            body: JSON.stringify({
-                              voiceName: selectedVoice,
-                              model: 'gemini-3.8-flash-tts',
-                              stylePrompt: 'Voz muy expresiva y natural.',
-                              text: `Escucha cómo suena este efecto natural en medio de una frase: ${b.tag} ¡Suena totalmente humano!`,
-                            }),
-                          });
-                          const data = await resp.json();
-                          if (data.audioBase64) {
-                            setCurrentAudio({
-                              base64: data.audioBase64,
-                              title: `Efecto ${b.tag} (${selectedVoice})`,
-                              durationSeconds: data.durationSeconds,
-                              voiceName: selectedVoice,
-                            });
-                            setStatusBanner(null);
-                          }
-                        } catch (err: any) {
-                          setStatusBanner({ type: 'error', text: err.message });
-                        }
-                      }}
-                    />
-                  </div>
-                ))}
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary mb-1.5">
+                  Prompt de Dirección (speechMetadata.style)
+                </label>
+                <input
+                  type="text"
+                  value={labStylePrompt}
+                  onChange={(e) => setLabStylePrompt(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-text-primary focus:outline-none focus:border-teal-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary mb-1.5">
+                  Texto de Prueba
+                </label>
+                <textarea
+                  rows={3}
+                  value={labTestText}
+                  onChange={(e) => setLabTestText(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl p-3.5 text-xs text-text-primary focus:outline-none focus:border-teal-500 resize-none"
+                />
+              </div>
+
+              <div>
+                <button
+                  type="button"
+                  onClick={handleSynthesizeInLab}
+                  disabled={isSynthesizingLab || !labTestText.trim()}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                >
+                  {isSynthesizingLab ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )}
+                  <span>Sintetizar en el Laboratorio</span>
+                </button>
               </div>
             </div>
           </div>
@@ -2451,10 +2917,10 @@ export default function WappyStudioDashboard() {
               <div>
                 <h2 className="text-base font-extrabold text-text-primary flex items-center gap-2">
                   <BookOpen className="w-5 h-5 text-indigo-500" />
-                  Biblioteca de Locuciones y Masters WAV
+                  Biblioteca de Audios Generados
                 </h2>
                 <p className="text-xs text-text-secondary">
-                  Tus pistas generadas quedan guardadas para escucharlas, descargarlas en WAV o enviarlas al Compositor de Video.
+                  Tus locuciones y audiolibros quedan guardados localmente para reproducir, descargar en WAV o usar en el Compositor de Video.
                 </p>
               </div>
               {libraryItems.length > 0 && (
@@ -2474,7 +2940,7 @@ export default function WappyStudioDashboard() {
                   Aún no hay audios en tu biblioteca
                 </p>
                 <p className="text-xs text-text-secondary max-w-md mx-auto">
-                  Genera una locución en la pestaña "Estudio de Voz (TTS)" y aparecerá aquí automáticamente.
+                  Genera una locución en la pestaña "Estudio de Voz (TTS)" o en "Voces & Bursts" y aparecerá aquí automáticamente.
                 </p>
               </div>
             ) : (
@@ -2484,22 +2950,27 @@ export default function WappyStudioDashboard() {
                     key={item.id}
                     className="bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-xs"
                   >
-                    <div>
+                    <div className="space-y-2">
                       <div className="flex items-start justify-between gap-2">
                         <h4 className="text-sm font-extrabold text-text-primary line-clamp-1">
                           {item.title}
                         </h4>
-                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20 shrink-0">
+                        <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border border-indigo-500/30 shrink-0">
                           {item.voiceName}
                         </span>
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-text-secondary mt-1">
-                        <span>~{item.durationSeconds}s</span>
+                      <div className="flex items-center gap-2.5 text-xs text-text-secondary">
+                        <span>⏱ {formatDurationBadge(item.durationSeconds)}</span>
                         <span>•</span>
                         <span>{item.wordCount} palabras</span>
                         <span>•</span>
-                        <span>{new Date(item.createdAt).toLocaleTimeString()}</span>
+                        <span>{formatLibraryDate(item.createdAt)}</span>
                       </div>
+                      {item.stylePrompt && (
+                        <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-950 border border-slate-200/70 dark:border-zinc-800 text-[11px] italic text-text-secondary line-clamp-2">
+                          "{item.stylePrompt}"
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center justify-between pt-3 border-t border-slate-200/60 dark:border-zinc-800">
@@ -2576,28 +3047,6 @@ export default function WappyStudioDashboard() {
           </div>
         )}
       </main>
-
-      {/* MODAL 1: GESTOR DE CLAVES API DE GEMINI & FAILOVER */}
-      {isKeyModalOpen && (
-        <ApiKeyPoolModal
-          poolStatus={poolStatus}
-          onClose={() => setIsKeyModalOpen(false)}
-          onUpdated={() => fetchPoolStatus()}
-        />
-      )}
-
-      {/* MODAL 2: CONFIGURACIÓN DEL WORKER GPU SERVERLESS (OPCIÓN C - MODAL.COM) */}
-      {isGpuModalOpen && (
-        <GpuWorkerConfigModal
-          workerUrl={gpuWorkerUrl}
-          onSaveUrl={(url) => {
-            setGpuWorkerUrl(url);
-            localStorage.setItem(LOCAL_WORKER_URL_STORAGE, url);
-            setIsGpuModalOpen(false);
-          }}
-          onClose={() => setIsGpuModalOpen(false)}
-        />
-      )}
     </div>
   );
 }
@@ -2843,13 +3292,31 @@ function AsyncJobMonitorCard({
 
         <div className="flex items-center gap-2">
           {isProcessing && (
-            <ExpandableButton size="sm" icon={<Pause />} label="Pausar" variant="amber" onClick={onPause} />
+            <ExpandableButton
+              size="sm"
+              icon={<Pause />}
+              label="Pausar"
+              variant="amber"
+              onClick={onPause}
+            />
           )}
           {isPaused && (
-            <ExpandableButton size="sm" icon={<Play />} label="Reanudar" variant="teal" onClick={onResume} />
+            <ExpandableButton
+              size="sm"
+              icon={<Play />}
+              label="Reanudar"
+              variant="teal"
+              onClick={onResume}
+            />
           )}
           {!isCompleted && !isFailed && (
-            <ExpandableButton size="sm" icon={<X />} label="Cancelar" variant="danger" onClick={onCancel} />
+            <ExpandableButton
+              size="sm"
+              icon={<X />}
+              label="Cancelar"
+              variant="danger"
+              onClick={onCancel}
+            />
           )}
           {isCompleted && (
             <>
@@ -2902,316 +3369,16 @@ function AsyncJobMonitorCard({
                     : 'bg-slate-200/50 dark:bg-zinc-900 text-text-secondary border-transparent opacity-60',
               )}
             >
-              {done ? <Volume2 className="w-3 h-3" /> : busy ? <Loader2 className="w-3 h-3 animate-spin" /> : c.index + 1}
+              {done ? (
+                <Volume2 className="w-3 h-3" />
+              ) : busy ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                c.index + 1
+              )}
             </button>
           );
         })}
-      </div>
-
-      {job.failoverNotice && (
-        <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-800 dark:text-amber-200 flex items-center gap-2">
-          <Key className="w-4 h-4 text-amber-500 shrink-0" />
-          <span>
-            <strong>Failover Automático Activado:</strong> La Clave #{job.failoverNotice.fromIndex + 1} alcanzó el límite 429; continuando con {job.failoverNotice.label} sin cortar tu audio.
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ============================================================================
-// MODAL 1: GESTOR DE CLAVES API Y MONITOR DE FAILOVER
-// ============================================================================
-
-function ApiKeyPoolModal({
-  poolStatus,
-  onClose,
-  onUpdated,
-}: {
-  poolStatus: any;
-  onClose: () => void;
-  onUpdated: () => void;
-}) {
-  const [localKeys, setLocalKeys] = useState<LocalApiKeyItem[]>(() => getStoredCustomKeys());
-  const [newKeyInput, setNewKeyInput] = useState('');
-  const [newKeyLabel, setNewKeyLabel] = useState('');
-  const [showKey, setShowKey] = useState(false);
-  const [validating, setValidating] = useState(false);
-  const [feedback, setFeedback] = useState<{ valid: boolean; text: string } | null>(null);
-
-  const saveKeys = (next: LocalApiKeyItem[]) => {
-    setLocalKeys(next);
-    localStorage.setItem(LOCAL_KEYS_STORAGE, JSON.stringify(next));
-    onUpdated();
-  };
-
-  const handleAddKeys = async (skipValidation = false) => {
-    const raw = newKeyInput.trim();
-    if (!raw) return;
-    const candidates = Array.from(
-      new Set(
-        raw
-          .split(/[,;\n\r]+/)
-          .map((s) => s.trim())
-          .filter((s) => s.length > 8),
-      ),
-    );
-    if (candidates.length === 0) return;
-
-    if (!skipValidation) {
-      setValidating(true);
-      setFeedback(null);
-      try {
-        const resp = await fetch('/api/studio/keys-validate', {
-          method: 'POST',
-          headers: getAuthHeaders(candidates),
-          body: JSON.stringify({ customKeys: candidates }),
-        });
-        const data = await resp.json();
-        const invalid = (data.results || []).find((r: any) => !r.valid);
-        if (invalid) {
-          setFeedback({ valid: false, text: invalid.error || 'Una de las claves no es válida.' });
-          setValidating(false);
-          return;
-        }
-      } catch (err: any) {
-        setFeedback({ valid: false, text: err.message || 'Error al validar clave.' });
-        setValidating(false);
-        return;
-      }
-      setValidating(false);
-    }
-
-    const added: LocalApiKeyItem[] = candidates.map((k, idx) => ({
-      id: `k_${Date.now()}_${idx}`,
-      key: k,
-      label:
-        candidates.length === 1 && newKeyLabel.trim()
-          ? newKeyLabel.trim()
-          : `Clave Local #${localKeys.length + idx + 1}`,
-      addedAt: Date.now(),
-      isValidated: true,
-    }));
-
-    saveKeys([...localKeys, ...added]);
-    setNewKeyInput('');
-    setNewKeyLabel('');
-    setFeedback({
-      valid: true,
-      text: `¡${added.length} clave(s) agregada(s) al pool de rotación automática!`,
-    });
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in">
-      <div className="bg-white dark:bg-gray-900 border border-slate-200 dark:border-zinc-800 rounded-2xl max-w-xl w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/30">
-              <Key className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-extrabold text-text-primary">
-                Pool de Claves API Gemini & Failover Automático
-              </h3>
-              <p className="text-xs text-text-secondary">
-                WAPPY utiliza tus claves de cuenta automáticamente y te permite sumar claves adicionales para audios de 1 hora sin cortes por error 429.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-text-secondary hover:bg-slate-100 dark:hover:bg-zinc-800"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="p-3.5 bg-slate-50 dark:bg-zinc-950 rounded-xl border border-slate-200 dark:border-zinc-800 space-y-3">
-          <label className="block text-xs font-extrabold uppercase tracking-wider text-text-primary">
-            Agregar Clave(s) de Respaldo (AIzaSy...)
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <div className="sm:col-span-2 relative">
-              <input
-                type={showKey ? 'text' : 'password'}
-                value={newKeyInput}
-                onChange={(e) => setNewKeyInput(e.target.value)}
-                placeholder="Pega una o varias claves separadas por coma"
-                className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 pr-8 text-xs text-text-primary font-mono"
-              />
-              <button
-                type="button"
-                onClick={() => setShowKey(!showKey)}
-                className="absolute right-2.5 top-2.5 text-slate-400 hover:text-text-primary"
-              >
-                {showKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-            <input
-              type="text"
-              value={newKeyLabel}
-              onChange={(e) => setNewKeyLabel(e.target.value)}
-              placeholder="Etiqueta (ej. Cuenta 2)"
-              className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs text-text-primary"
-            />
-          </div>
-
-          {feedback && (
-            <div
-              className={cn(
-                'p-2.5 rounded-xl text-xs font-semibold',
-                feedback.valid
-                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
-                  : 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/30',
-              )}
-            >
-              {feedback.text}
-            </div>
-          )}
-
-          <div className="flex items-center justify-between pt-1">
-            <a
-              href="https://aistudio.google.com/app/apikey"
-              target="_blank"
-              rel="noreferrer"
-              className="text-xs font-bold text-teal-600 dark:text-teal-400 hover:underline inline-flex items-center gap-1"
-            >
-              <span>Obtener clave en Google AI Studio</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-            <div className="flex items-center gap-2">
-              <ExpandableButton
-                size="sm"
-                icon={<Plus />}
-                label="Guardar Directo"
-                variant="neutral"
-                disabled={!newKeyInput.trim() || validating}
-                onClick={() => handleAddKeys(true)}
-              />
-              <ExpandableButton
-                size="sm"
-                icon={validating ? <Loader2 className="animate-spin" /> : <Check />}
-                label={validating ? 'Validando...' : 'Validar y Guardar'}
-                variant="teal"
-                disabled={!newKeyInput.trim() || validating}
-                onClick={() => handleAddKeys(false)}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Lista de claves del pool */}
-        <div className="space-y-2">
-          <div className="text-xs font-extrabold uppercase tracking-wider text-text-secondary">
-            Claves Activas en el Pool ({poolStatus?.totalKeys || localKeys.length})
-          </div>
-          {localKeys.map((item, idx) => (
-            <div
-              key={item.id}
-              className="p-3 bg-slate-50 dark:bg-zinc-950 rounded-xl border border-slate-200 dark:border-zinc-800 flex items-center justify-between"
-            >
-              <div>
-                <div className="text-xs font-bold text-text-primary">
-                  #{idx + 1} • {item.label}
-                </div>
-                <div className="text-[11px] font-mono text-text-secondary">
-                  {item.key.slice(0, 6)}••••••••{item.key.slice(-4)}
-                </div>
-              </div>
-              <ExpandableButton
-                size="sm"
-                icon={<Trash2 />}
-                label="Quitar"
-                variant="danger"
-                onClick={() => saveKeys(localKeys.filter((k) => k.id !== item.id))}
-              />
-            </div>
-          ))}
-        </div>
-
-        <div className="flex justify-end pt-2 border-t border-slate-200 dark:border-zinc-800">
-          <ExpandableButton icon={<Check />} label="Listo / Cerrar" variant="teal" onClick={onClose} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================================
-// MODAL 2: CONFIGURACIÓN DEL WORKER GPU SERVERLESS (MODAL.COM / RUNPOD)
-// ============================================================================
-
-function GpuWorkerConfigModal({
-  workerUrl,
-  onSaveUrl,
-  onClose,
-}: {
-  workerUrl: string;
-  onSaveUrl: (url: string) => void;
-  onClose: () => void;
-}) {
-  const [urlInput, setUrlInput] = useState(workerUrl);
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in">
-      <div className="bg-white dark:bg-gray-900 border border-slate-200 dark:border-zinc-800 rounded-2xl max-w-xl w-full p-5 sm:p-6 shadow-2xl space-y-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30">
-              <Cpu className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-extrabold text-text-primary">
-                Worker GPU Serverless (Opción C • Modal.com / RunPod)
-              </h3>
-              <p className="text-xs text-text-secondary">
-                Renderiza videos MP4 a 1080p en una tarjeta NVIDIA L4 en ~10 segundos sin usar ni un 1% de CPU de tu VPS principal (`srv999875`).
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-text-secondary hover:bg-slate-100 dark:hover:bg-zinc-800"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="p-3.5 bg-slate-950 text-slate-200 rounded-xl border border-slate-800 space-y-2 text-xs font-mono">
-          <div className="text-teal-400 font-sans font-bold">
-            🚀 Despliega tu Worker incluido en el repositorio en 3 comandos:
-          </div>
-          <div>1. pip install modal</div>
-          <div>2. modal setup</div>
-          <div>3. modal deploy scripts/modal_gpu_video_worker.py</div>
-        </div>
-
-        <div>
-          <label className="block text-xs font-extrabold uppercase tracking-wider text-text-primary mb-1.5">
-            URL del Endpoint Serverless (Modal.com / RunPod)
-          </label>
-          <input
-            type="url"
-            value={urlInput}
-            onChange={(e) => setUrlInput(e.target.value)}
-            placeholder="https://tu-usuario--wappy-studio-gpu-renderer-render-html-video.modal.run"
-            className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-text-primary font-mono focus:outline-none focus:border-teal-500"
-          />
-        </div>
-
-        <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-zinc-800">
-          <ExpandableButton icon={<X />} label="Cancelar" variant="neutral" onClick={onClose} />
-          <ExpandableButton
-            icon={<Check />}
-            label="Guardar Endpoint GPU"
-            variant="teal"
-            onClick={() => onSaveUrl(urlInput)}
-          />
-        </div>
       </div>
     </div>
   );

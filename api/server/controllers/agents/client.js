@@ -1049,14 +1049,14 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       let primaryMemModel = this.options.req.config?.memory?.agent?.model
         ?? this.options.req.config?.memory?.agent?.model_parameters?.model
         ?? '';
-      if (primaryMemModel.includes('live') || primaryMemModel.includes('native-audio') || primaryMemModel.includes('transcribe')) {
+      if (primaryMemModel.includes('live') || primaryMemModel.includes('native-audio') || primaryMemModel.includes('transcribe') || primaryMemModel.includes('tts')) {
         primaryMemModel = 'gemini-3.5-flash-lite';
       }
       const envMemModels = (process.env.GOOGLE_MODELS || '')
         .split(',')
         .map((m) => m.trim())
         .filter(Boolean)
-        .filter((m) => !m.includes('native-audio') && !m.includes('live') && !m.includes('transcribe'));
+        .filter((m) => !m.includes('native-audio') && !m.includes('live') && !m.includes('transcribe') && !m.includes('tts'));
       const memModelFallbacks = [
         primaryMemModel,
         ...envMemModels.filter((m) => m !== primaryMemModel),
@@ -1614,7 +1614,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         .split(',')
         .map((m) => m.trim())
         .filter(Boolean)
-        .filter((m) => !m.includes('native-audio') && !m.includes('live') && !m.includes('transcribe') && !m.includes('gemini-2.5') && !m.includes('gemini-3.7'));
+        .filter((m) => !m.includes('native-audio') && !m.includes('live') && !m.includes('transcribe') && !m.includes('tts') && !m.includes('gemini-2.5') && !m.includes('gemini-3.7'));
       
       // WAPPY Brain Router: Caracterización y selección táctica de modelo según complejidad de herramientas y tarea
       let userQuery = (this.options.req?.body?.text || '').toLowerCase();

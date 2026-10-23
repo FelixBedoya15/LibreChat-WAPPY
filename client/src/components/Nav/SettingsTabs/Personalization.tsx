@@ -109,6 +109,7 @@ export default function Personalization({
       googleModels = [
         'gemini-3.6-flash',
         'gemini-3.5-flash-lite',
+        'gemini-3.8-flash',
       ];
     }
 
@@ -119,8 +120,9 @@ export default function Personalization({
     googleModels.forEach((model) => {
       const modelId = typeof model === 'string' ? model : (model as any).id || (model as any).value;
       let modelLabel = typeof model === 'string' ? model : (model as any).name || (model as any).label || modelId;
-      if (modelId && !modelId.includes('live') && !modelId.includes('native-audio') && !modelId.includes('3.1') && !modelId.includes('3.7') && !modelId.includes('3.8')) {
-        if (modelId === 'gemini-3.6-flash') modelLabel = 'Gemini 3.6 Flash';
+      if (modelId && !modelId.includes('live') && !modelId.includes('native-audio') && !modelId.includes('tts') && !modelId.includes('3.1') && !modelId.includes('3.7')) {
+        if (modelId === 'gemini-3.8-flash') modelLabel = 'Gemini 3.8 Flash';
+        else if (modelId === 'gemini-3.6-flash') modelLabel = 'Gemini 3.6 Flash';
         else if (modelId === 'gemini-3.5-flash-lite') modelLabel = 'Gemini 3.5 Flash Lite';
         options.push({ value: modelId, label: modelLabel });
       }
