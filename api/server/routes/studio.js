@@ -1573,6 +1573,254 @@ Recuerda devolver SOLO el código HTML puro empezando por <!DOCTYPE html>.`;
 });
 
 /**
+ * POST /api/studio/video/render-mp4
+ * Opción B: Renderizado MP4 (H.264 + AAC) en servidor mediante Headless Chromium (Puppeteer) + FFmpeg.
+ * Une la composición HTML/GSAP + Subtítulos Dinámicos Palabra a Palabra + Pista de Voz WAV en un archivo .mp4 universal.
+ */
+router.post('/video/render-mp4', studioAuth, async (req, res) => {
+  const { spawn } = require('child_process');
+  let browser = null;
+  let tempDir = null;
+  try {
+    const {
+      htmlCode,
+      audioBase64,
+      scriptText = '',
+      showSubtitles = true,
+      subtitlePosition = 'bottom',
+      aspectRatio = '9:16',
+      durationSeconds = 12,
+      fps = 15,
+    } = req.body || {};
+
+    if (!htmlCode || typeof htmlCode !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'Se requiere el código HTML de la composición para renderizar el MP4.',
+      });
+    }
+
+    // Resolver binario de FFmpeg (soporta entorno local macOS y contenedor Alpine/Docker)
+    const ffmpegCandidates = [
+      process.env.FFMPEG_PATH,
+      '/usr/bin/ffmpeg',
+      '/usr/local/bin/ffmpeg',
+      path.join(os.homedir(), '.local', 'bin', 'ffmpeg'),
+      'ffmpeg',
+    ].filter(Boolean);
+
+    let ffmpegBin = 'ffmpeg';
+    for (const candidate of ffmpegCandidates) {
+      if (candidate !== 'ffmpeg' && fs.existsSync(candidate)) {
+        ffmpegBin = candidate;
+        break;
+      }
+    }
+
+    const isVertical = aspectRatio === '9:16';
+    const width = isVertical ? 540 : 960;
+    const height = isVertical ? 960 : 540;
+    const targetFps = Math.min(24, Math.max(10, Number(fps) || 15));
+    const safeDuration = Math.min(45, Math.max(3, Number(durationSeconds) || 12));
+    const totalFrames = Math.max(1, Math.round(safeDuration * targetFps));
+
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wappy-studio-mp4-'));
+    const outputMp4Path = path.join(tempDir, 'output.mp4');
+    let audioFilePath = null;
+
+    if (audioBase64 && typeof audioBase64 === 'string') {
+      const cleanBase64 = audioBase64.replace(/^data:audio\/[^;]+;base64,/, '');
+      audioFilePath = path.join(tempDir, 'voiceover.wav');
+      fs.writeFileSync(audioFilePath, Buffer.from(cleanBase64, 'base64'));
+    }
+
+    // Inyectar controlador determinista de fotogramas y subtítulos dinámicos palabra a palabra
+    const cleanWords = String(scriptText || '')
+      .replace(/<[^>]+>/g, '')
+      .replace(/\|[^|]+\|/g, '')
+      .replace(/^(Alex|Sam):\s*/gim, '')
+      .split(/\s+/)
+      .filter(Boolean);
+
+    const renderHarnessScript = `
+<script id="wappy-mp4-render-harness">
+  window.__wappyWords = ${JSON.stringify(cleanWords)};
+  window.__wappyShowSubs = ${Boolean(showSubtitles && cleanWords.length > 0)};
+  window.__wappySubPos = ${JSON.stringify(subtitlePosition || 'bottom')};
+  window.__wappyDuration = ${safeDuration};
+
+  window.addEventListener('DOMContentLoaded', () => {
+    if (window.__wappyShowSubs && !document.getElementById('wappy-mp4-sub-overlay')) {
+      const posStyle = window.__wappySubPos === 'top'
+        ? 'top: 56px;'
+        : window.__wappySubPos === 'center'
+          ? 'top: 50%; transform: translateY(-50%);'
+          : 'bottom: 20px;';
+      const subWrap = document.createElement('div');
+      subWrap.id = 'wappy-mp4-sub-overlay';
+      subWrap.style.cssText = 'position:fixed;left:12px;right:12px;z-index:9999;display:flex;justify-content:center;pointer-events:none;' + posStyle;
+      subWrap.innerHTML = '<div id="wappy-mp4-sub-box" style="background:rgba(0,0,0,0.86);border:1px solid rgba(255,255,255,0.22);padding:8px 14px;border-radius:14px;text-align:center;max-width:94%;display:flex;flex-wrap:wrap;justify-content:center;gap:5px;font-family:Plus Jakarta Sans,sans-serif;"></div>';
+      document.body.appendChild(subWrap);
+    }
+  });
+
+  window.__wappySeekTo = function(timeSec) {
+    try {
+      if (window.mainTimeline && typeof window.mainTimeline.pause === 'function') {
+        window.mainTimeline.pause();
+        const tlDur = window.mainTimeline.duration() || 8;
+        window.mainTimeline.time(timeSec % tlDur);
+      } else if (window.gsap && window.gsap.globalTimeline) {
+        window.gsap.globalTimeline.pause();
+        window.gsap.globalTimeline.time(timeSec);
+      }
+    } catch (e) {}
+
+    if (window.__wappyShowSubs && window.__wappyWords.length > 0) {
+      const box = document.getElementById('wappy-mp4-sub-box');
+      if (box) {
+        const progress = Math.max(0, Math.min(0.999, timeSec / Math.max(1, window.__wappyDuration)));
+        const activeIdx = Math.floor(progress * window.__wappyWords.length);
+        const winSize = 5;
+        const winStart = Math.floor(activeIdx / winSize) * winSize;
+        const slice = window.__wappyWords.slice(winStart, winStart + winSize);
+        const activeOffset = activeIdx - winStart;
+        box.innerHTML = slice.map((w, i) => {
+          if (i === activeOffset) {
+            return '<span style="font-size:13px;font-weight:900;text-transform:uppercase;color:#fcd34d;background:rgba(20,184,166,0.32);padding:2px 6px;border-radius:6px;border:1px solid rgba(45,212,191,0.5);">' + w + '</span>';
+          }
+          return '<span style="font-size:13px;font-weight:800;text-transform:uppercase;color:rgba(255,255,255,0.92);">' + w + '</span>';
+        }).join(' ');
+      }
+    }
+  };
+</script>`;
+
+    const instrumentedHtml = htmlCode.includes('</body>')
+      ? htmlCode.replace('</body>', `${renderHarnessScript}\n</body>`)
+      : `${htmlCode}\n${renderHarnessScript}`;
+
+    const puppeteer = require('puppeteer');
+    const launchOptions = {
+      headless: 'new',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--no-first-run',
+      ],
+    };
+    if (process.env.PUPPETEER_EXECUTABLE_PATH && fs.existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
+      launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    }
+
+    browser = await puppeteer.launch(launchOptions);
+    const page = await browser.newPage();
+    await page.setViewport({ width, height, deviceScaleFactor: 1.5 });
+    await page.setContent(instrumentedHtml, { waitUntil: 'networkidle2', timeout: 25000 });
+    await new Promise((r) => setTimeout(r, 350));
+
+    const ffmpegArgs = [
+      '-y',
+      '-f',
+      'image2pipe',
+      '-vcodec',
+      'mjpeg',
+      '-framerate',
+      String(targetFps),
+      '-i',
+      '-',
+    ];
+
+    if (audioFilePath) {
+      ffmpegArgs.push('-i', audioFilePath, '-c:a', 'aac', '-b:a', '160k', '-shortest');
+    }
+
+    ffmpegArgs.push(
+      '-c:v',
+      'libx264',
+      '-preset',
+      'ultrafast',
+      '-crf',
+      '22',
+      '-pix_fmt',
+      'yuv420p',
+      '-movflags',
+      '+faststart',
+      outputMp4Path,
+    );
+
+    const ffmpegProc = spawn(ffmpegBin, ffmpegArgs);
+    let ffmpegStderr = '';
+    ffmpegProc.stderr.on('data', (chunk) => {
+      ffmpegStderr += chunk.toString();
+    });
+
+    const ffmpegExitPromise = new Promise((resolve, reject) => {
+      ffmpegProc.on('error', reject);
+      ffmpegProc.on('close', (code) => {
+        if (code === 0) resolve();
+        else reject(new Error(`FFmpeg finalizó con código ${code}: ${ffmpegStderr.slice(-300)}`));
+      });
+    });
+
+    for (let f = 0; f < totalFrames; f++) {
+      const currentTime = f / targetFps;
+      await page.evaluate((t) => {
+        if (typeof window.__wappySeekTo === 'function') {
+          window.__wappySeekTo(t);
+        }
+      }, currentTime);
+
+      const frameBuffer = await page.screenshot({ type: 'jpeg', quality: 88 });
+      const canContinue = ffmpegProc.stdin.write(frameBuffer);
+      if (!canContinue) {
+        await new Promise((r) => ffmpegProc.stdin.once('drain', r));
+      }
+    }
+
+    ffmpegProc.stdin.end();
+    await ffmpegExitPromise;
+    await browser.close();
+    browser = null;
+
+    const mp4Buffer = fs.readFileSync(outputMp4Path);
+    const videoBase64 = mp4Buffer.toString('base64');
+
+    try {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    } catch (_) {}
+
+    return res.json({
+      success: true,
+      videoBase64,
+      mimeType: 'video/mp4',
+      durationSeconds: safeDuration,
+      fps: targetFps,
+      width,
+      height,
+    });
+  } catch (error) {
+    if (browser) {
+      try {
+        await browser.close();
+      } catch (_) {}
+    }
+    if (tempDir) {
+      try {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      } catch (_) {}
+    }
+    logger.error('[WappyStudio Render MP4] Error rendering MP4:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Error renderizando el video MP4 en el servidor.',
+    });
+  }
+});
+
+/**
  * POST /api/studio/video/render-serverless
  * Despacha el paquete (HTML + Audio + Video Base) al Worker GPU Serverless (Modal.com / RunPod)
  */

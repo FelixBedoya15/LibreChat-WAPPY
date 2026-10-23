@@ -1239,6 +1239,11 @@ export default function WappyStudioDashboard() {
   const [selectedCanvasElement, setSelectedCanvasElement] =
     useState<SelectedCanvasElementInfo | null>(null);
   const latestEditedHtmlRef = useRef<string>('');
+  const [isRecordingClientVideo, setIsRecordingClientVideo] = useState<boolean>(false);
+  const [isRenderingServerMp4, setIsRenderingServerMp4] = useState<boolean>(false);
+  const [isBuildingAcademyHtml, setIsBuildingAcademyHtml] = useState<boolean>(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [statusBanner, setStatusBanner] = useState<{
     type: 'success' | 'error' | 'info';
     text: string;
@@ -1248,6 +1253,7 @@ export default function WappyStudioDashboard() {
   const baseVideoRef = useRef<HTMLVideoElement | null>(null);
   const stageAudioRef = useRef<HTMLAudioElement | null>(null);
   const stageContainerRef = useRef<HTMLDivElement | null>(null);
+  const stageCropTargetRef = useRef<HTMLDivElement | null>(null);
 
   const bridgedHtmlCode = useMemo(() => injectStudioRuntimeBridge(htmlCode), [htmlCode]);
 
@@ -2067,17 +2073,498 @@ export default function WappyStudioDashboard() {
     };
   }, [showDynamicSubtitles, cleanSubtitleWords, videoCurrentTime, videoDuration]);
 
-  const handleDownloadHtmlBundle = () => {
-    const finalHtml = latestEditedHtmlRef.current || htmlCode;
-    const blob = new Blob([finalHtml], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `wappy-studio-video-${Date.now()}.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  // Auxiliar: Obtiene la pista de locución activa en Base64 (desde síntesis directa, trabajo largo o archivo subido)
+  const resolveCurrentAudioBase64 = async (): Promise<string | null> => {
+    if (currentAudio?.base64) return currentAudio.base64;
+    if (!activeStageAudioSrc) return null;
+    try {
+      const resp = await fetch(activeStageAudioSrc);
+      if (!resp.ok) return null;
+      const buf = await resp.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let binary = '';
+      const chunkSize = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
+      }
+      return window.btoa(binary);
+    } catch {
+      return null;
+    }
+  };
+
+  // ============================================================================
+  // OPCIÓN A: GRABACIÓN DIRECTA CON GPU DEL NAVEGADOR DEL USUARIO (COSTO $0)
+  // ============================================================================
+  const handleRecordClientVideo = async () => {
+    if (isRecordingClientVideo && mediaRecorderRef.current) {
+      if (recordingTimerRef.current) clearTimeout(recordingTimerRef.current);
+      mediaRecorderRef.current.stop();
+      return;
+    }
+
+    try {
+      setStatusBanner({
+        type: 'info',
+        text: 'Opción A (GPU Local): Selecciona "Esta pestaña" en el diálogo del navegador para grabar el lienzo a 60 FPS + Audio...',
+      });
+
+      const displayStream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          displaySurface: 'browser',
+          frameRate: { ideal: 60, max: 60 },
+        } as any,
+        audio: false,
+        preferCurrentTab: true,
+        selfBrowserSurface: 'include',
+      } as any);
+
+      const videoTrack = displayStream.getVideoTracks()[0];
+
+      // Recorte automático al lienzo 9:16 o 16:9 mediante Region Capture API (Chrome/Edge)
+      const CropTargetApi = (window as any).CropTarget;
+      if (
+        CropTargetApi &&
+        stageCropTargetRef.current &&
+        typeof (videoTrack as any).cropTo === 'function'
+      ) {
+        try {
+          const cropTarget = await CropTargetApi.fromElement(stageCropTargetRef.current);
+          await (videoTrack as any).cropTo(cropTarget);
+        } catch {
+          /* Si el navegador no soporta Region Capture, graba la vista normalmente */
+        }
+      }
+
+      const combinedTracks: MediaStreamTrack[] = [videoTrack];
+      let audioCtx: AudioContext | null = null;
+      let audioSourceNode: AudioBufferSourceNode | null = null;
+
+      // Mezclar pista de locución digital directamente en el archivo de video (sin ruido de micrófono)
+      if (activeStageAudioSrc) {
+        try {
+          const resp = await fetch(activeStageAudioSrc);
+          const arrayBuf = await resp.arrayBuffer();
+          const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+          audioCtx = new AudioCtxClass();
+          const decodedBuffer = await audioCtx.decodeAudioData(arrayBuf);
+          const destNode = audioCtx.createMediaStreamDestination();
+          audioSourceNode = audioCtx.createBufferSource();
+          audioSourceNode.buffer = decodedBuffer;
+          audioSourceNode.connect(destNode);
+          audioSourceNode.connect(audioCtx.destination);
+          audioSourceNode.start(0);
+          const mixedAudioTrack = destNode.stream.getAudioTracks()[0];
+          if (mixedAudioTrack) {
+            combinedTracks.push(mixedAudioTrack);
+          }
+        } catch {
+          /* Continúa con solo video si falla decodificación de audio */
+        }
+      }
+
+      const combinedStream = new MediaStream(combinedTracks);
+      const mimeCandidates = [
+        'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+        'video/mp4;codecs=avc1,mp4a.40.2',
+        'video/mp4',
+        'video/webm;codecs=vp9,opus',
+        'video/webm;codecs=vp8,opus',
+        'video/webm',
+      ];
+      const supportedMime =
+        mimeCandidates.find((m) => MediaRecorder.isTypeSupported(m)) || 'video/webm';
+      const isMp4 = supportedMime.includes('mp4');
+
+      const recorder = new MediaRecorder(combinedStream, {
+        mimeType: supportedMime,
+        videoBitsPerSecond: 6_000_000,
+      });
+      mediaRecorderRef.current = recorder;
+
+      const chunks: BlobPart[] = [];
+      recorder.ondataavailable = (ev) => {
+        if (ev.data && ev.data.size > 0) chunks.push(ev.data);
+      };
+
+      recorder.onstop = () => {
+        if (recordingTimerRef.current) clearTimeout(recordingTimerRef.current);
+        try {
+          audioSourceNode?.stop();
+          audioCtx?.close();
+        } catch {}
+        displayStream.getTracks().forEach((t) => t.stop());
+        setIsRecordingClientVideo(false);
+
+        const blob = new Blob(chunks, { type: supportedMime });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `wappy-studio-gpu-local-${Date.now()}.${isMp4 ? 'mp4' : 'webm'}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        setStatusBanner({
+          type: 'success',
+          text: `¡Video grabado con la GPU de tu navegador (${isMp4 ? 'MP4' : 'WebM'} a 60 FPS) y descargado con éxito!`,
+        });
+      };
+
+      videoTrack.onended = () => {
+        if (recorder.state !== 'inactive') recorder.stop();
+      };
+
+      // Reiniciar la escena GSAP y subtítulos desde 0.0s para grabar la toma completa
+      if (isVisualEditMode) {
+        setIsVisualEditMode(false);
+        iframeRef.current?.contentWindow?.postMessage(
+          { type: 'STUDIO_SET_EDIT_MODE', enabled: false },
+          '*',
+        );
+      }
+      setVideoCurrentTime(0);
+      setIsVideoPlaying(true);
+      iframeRef.current?.contentWindow?.postMessage({ type: 'STUDIO_RESTART' }, '*');
+      if (baseVideoRef.current) {
+        baseVideoRef.current.currentTime = 0;
+        baseVideoRef.current.play().catch(() => {});
+      }
+      if (stageAudioRef.current) {
+        stageAudioRef.current.pause();
+        stageAudioRef.current.currentTime = 0;
+      }
+
+      setIsRecordingClientVideo(true);
+      recorder.start(200);
+
+      const recDurationMs = Math.min(120, Math.max(4, videoDuration || 15)) * 1000 + 400;
+      setStatusBanner({
+        type: 'info',
+        text: `Grabando lienzo con GPU local (${Math.round(recDurationMs / 1000)}s)... Haz clic de nuevo en el botón si deseas detener antes.`,
+      });
+
+      recordingTimerRef.current = setTimeout(() => {
+        if (recorder.state !== 'inactive') {
+          recorder.stop();
+        }
+      }, recDurationMs);
+    } catch (err: any) {
+      setIsRecordingClientVideo(false);
+      setStatusBanner({
+        type: 'error',
+        text:
+          err?.name === 'NotAllowedError'
+            ? 'Grabación cancelada: debes elegir la pestaña actual para capturar el lienzo.'
+            : err?.message || 'No se pudo iniciar la grabación con la GPU del navegador.',
+      });
+    }
+  };
+
+  // ============================================================================
+  // OPCIÓN B: RENDERIZADO MP4 EN SERVIDOR (PUPPETEER + FFMPEG H.264 + AAC)
+  // ============================================================================
+  const handleRenderServerMp4 = async () => {
+    try {
+      setIsRenderingServerMp4(true);
+      const targetDuration = Math.min(45, Math.max(4, Math.round(videoDuration || 12)));
+      setStatusBanner({
+        type: 'info',
+        text: `Opción B (Servidor MP4): Renderizando fotogramas HTML/GSAP + Subtítulos + Voz en FFmpeg (${targetDuration}s)... Esto toma ~15-30 segundos.`,
+      });
+
+      const finalHtml = latestEditedHtmlRef.current || htmlCode;
+      const audioBase64 = await resolveCurrentAudioBase64();
+
+      const resp = await fetch('/api/studio/video/render-mp4', {
+        method: 'POST',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify({
+          htmlCode: finalHtml,
+          audioBase64,
+          scriptText: currentAudio?.scriptText || scriptText,
+          showSubtitles: showDynamicSubtitles,
+          subtitlePosition,
+          aspectRatio,
+          durationSeconds: targetDuration,
+          fps: 15,
+        }),
+      });
+
+      const data = await parseStudioJson(resp);
+      if (!resp.ok || !data.success || !data.videoBase64) {
+        throw new Error(data.error || 'No se pudo renderizar el archivo MP4 en el servidor.');
+      }
+
+      const byteChars = window.atob(data.videoBase64);
+      const byteNumbers = new Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) {
+        byteNumbers[i] = byteChars.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'video/mp4' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `wappy-studio-reel-${Date.now()}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setStatusBanner({
+        type: 'success',
+        text: `¡Video MP4 Universal (H.264 + AAC • ${data.width}x${data.height}) renderizado y descargado con éxito! Listo para WhatsApp, TikTok o Reels.`,
+      });
+    } catch (err: any) {
+      setStatusBanner({
+        type: 'error',
+        text: err.message || 'Error renderizando MP4 en el servidor.',
+      });
+    } finally {
+      setIsRenderingServerMp4(false);
+    }
+  };
+
+  // ============================================================================
+  // OPCIÓN C: CÁPSULA INTERACTIVA HTML5 AUTOCONTENIDA PARA ACADEMIA WAPPY (LMS)
+  // ============================================================================
+  const buildStandaloneAcademyCapsuleHtml = async (): Promise<string> => {
+    const baseHtml = latestEditedHtmlRef.current || htmlCode;
+    const audioBase64 = await resolveCurrentAudioBase64();
+    const audioDataUri = audioBase64 ? `data:audio/wav;base64,${audioBase64}` : '';
+    const dur = Math.max(4, Math.round((videoDuration || 20) * 10) / 10);
+
+    const capsulePlayerInjection = `
+<!-- WAPPY ACADEMIA (LMS) CAPSULE PLAYER: AUDIO + SUBTÍTULOS PALABRA A PALABRA + CONTROLES 60 FPS -->
+<style id="wappy-academy-capsule-styles">
+  #wappy-capsule-subtitles {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    z-index: 9990;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+    ${
+      subtitlePosition === 'top'
+        ? 'top: 58px;'
+        : subtitlePosition === 'center'
+          ? 'top: 50%; transform: translateY(-50%);'
+          : 'bottom: 62px;'
+    }
+  }
+  #wappy-capsule-controls {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 10px;
+    z-index: 9995;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-radius: 14px;
+    background: rgba(8, 15, 26, 0.88);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    color: #fff;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  }
+  #wappy-capsule-controls button {
+    background: #0d9488;
+    color: #fff;
+    border: none;
+    border-radius: 9px;
+    padding: 5px 10px;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  #wappy-capsule-controls button.secondary {
+    background: rgba(255,255,255,0.1);
+  }
+  #wappy-capsule-controls input[type="range"] {
+    flex: 1;
+    accent-color: #14b8a6;
+    cursor: pointer;
+    height: 5px;
+  }
+</style>
+${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload="auto"></audio>` : ''}
+<div id="wappy-capsule-subtitles" style="display:${showDynamicSubtitles && cleanSubtitleWords.length > 0 ? 'flex' : 'none'};">
+  <div id="wappy-capsule-sub-box" style="background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.2);padding:8px 14px;border-radius:14px;text-align:center;max-width:94%;display:flex;flex-wrap:wrap;justify-content:center;gap:6px;"></div>
+</div>
+<div id="wappy-capsule-controls">
+  <button type="button" id="wappy-btn-play">⏸ Pausar</button>
+  <button type="button" id="wappy-btn-restart" class="secondary" title="Reiniciar">↺</button>
+  <input type="range" id="wappy-seek" min="0" max="${dur}" step="0.1" value="0" />
+  <span id="wappy-time-label" style="font-size:11px;font-family:monospace;font-weight:700;color:#cbd5e1;">0.0s / ${dur}s</span>
+</div>
+<script id="wappy-academy-capsule-runtime">
+(function() {
+  var words = ${JSON.stringify(cleanSubtitleWords)};
+  var showSubs = ${Boolean(showDynamicSubtitles && cleanSubtitleWords.length > 0)};
+  var duration = ${dur};
+  var currentTime = 0;
+  var playing = true;
+  var audioEl = document.getElementById('wappy-capsule-audio');
+  var btnPlay = document.getElementById('wappy-btn-play');
+  var btnRestart = document.getElementById('wappy-btn-restart');
+  var seekEl = document.getElementById('wappy-seek');
+  var timeLabel = document.getElementById('wappy-time-label');
+  var subBox = document.getElementById('wappy-capsule-sub-box');
+
+  function renderSubtitles(t) {
+    if (!showSubs || !subBox || !words.length) return;
+    var p = Math.max(0, Math.min(0.999, t / Math.max(1, duration)));
+    var activeIdx = Math.floor(p * words.length);
+    var winSize = 5;
+    var winStart = Math.floor(activeIdx / winSize) * winSize;
+    var slice = words.slice(winStart, winStart + winSize);
+    var activeOffset = activeIdx - winStart;
+    subBox.innerHTML = slice.map(function(w, i) {
+      if (i === activeOffset) {
+        return '<span style="font-size:14px;font-weight:900;text-transform:uppercase;color:#fcd34d;background:rgba(20,184,166,0.32);padding:2px 6px;border-radius:7px;border:1px solid rgba(45,212,191,0.55);">' + w + '</span>';
+      }
+      return '<span style="font-size:14px;font-weight:800;text-transform:uppercase;color:rgba(255,255,255,0.92);">' + w + '</span>';
+    }).join(' ');
+  }
+
+  function updateUi(t) {
+    currentTime = t;
+    if (seekEl) seekEl.value = String(t);
+    if (timeLabel) timeLabel.textContent = t.toFixed(1) + 's / ' + duration.toFixed(1) + 's';
+    renderSubtitles(t);
+  }
+
+  if (audioEl) {
+    audioEl.addEventListener('loadedmetadata', function() {
+      if (audioEl.duration && !isNaN(audioEl.duration)) {
+        duration = audioEl.duration;
+        if (seekEl) seekEl.max = String(duration);
+      }
+    });
+    audioEl.addEventListener('timeupdate', function() {
+      updateUi(audioEl.currentTime);
+    });
+    audioEl.addEventListener('ended', function() {
+      playing = false;
+      if (btnPlay) btnPlay.textContent = '▶ Reproducir (Con Voz)';
+    });
+    audioEl.play().catch(function() {
+      playing = false;
+      if (btnPlay) btnPlay.textContent = '▶ Activar Voz y Play';
+    });
+  }
+
+  setInterval(function() {
+    if (!playing) return;
+    if (audioEl && !audioEl.paused) return;
+    var next = currentTime + 0.2;
+    if (next >= duration) {
+      next = 0;
+      if (window.mainTimeline) window.mainTimeline.restart();
+    }
+    updateUi(next);
+  }, 200);
+
+  if (btnPlay) {
+    btnPlay.addEventListener('click', function() {
+      playing = !playing;
+      btnPlay.textContent = playing ? '⏸ Pausar' : '▶ Play';
+      if (window.mainTimeline) {
+        if (playing) window.mainTimeline.play();
+        else window.mainTimeline.pause();
+      }
+      if (audioEl) {
+        if (playing) audioEl.play().catch(function(){});
+        else audioEl.pause();
+      }
+    });
+  }
+
+  if (btnRestart) {
+    btnRestart.addEventListener('click', function() {
+      playing = true;
+      if (btnPlay) btnPlay.textContent = '⏸ Pausar';
+      if (window.mainTimeline) window.mainTimeline.restart();
+      if (audioEl) {
+        audioEl.currentTime = 0;
+        audioEl.play().catch(function(){});
+      }
+      updateUi(0);
+    });
+  }
+
+  if (seekEl) {
+    seekEl.addEventListener('input', function(e) {
+      var val = parseFloat(e.target.value) || 0;
+      updateUi(val);
+      if (audioEl) audioEl.currentTime = val;
+      if (window.mainTimeline) {
+        var tlDur = window.mainTimeline.duration() || duration;
+        window.mainTimeline.time(val % tlDur);
+      }
+    });
+  }
+
+  renderSubtitles(0);
+})();
+</script>`;
+
+    return baseHtml.includes('</body>')
+      ? baseHtml.replace('</body>', `${capsulePlayerInjection}\n</body>`)
+      : `${baseHtml}\n${capsulePlayerInjection}`;
+  };
+
+  const handleDownloadHtmlBundle = async () => {
+    try {
+      setIsBuildingAcademyHtml(true);
+      const standaloneHtml = await buildStandaloneAcademyCapsuleHtml();
+      const blob = new Blob([standaloneHtml], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `wappy-academia-capsula-${Date.now()}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setStatusBanner({
+        type: 'success',
+        text: '¡Opción C (Cápsula Interactiva HTML5 para Academia WAPPY con Voz IA + Subtítulos + Controles integrados) descargada con éxito!',
+      });
+    } finally {
+      setIsBuildingAcademyHtml(false);
+    }
+  };
+
+  const handleCopyLmsEmbed = async () => {
+    try {
+      setIsBuildingAcademyHtml(true);
+      const standaloneHtml = await buildStandaloneAcademyCapsuleHtml();
+      const escapedSrcDoc = standaloneHtml
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;');
+      const iframeSnippet = `<iframe srcdoc="${escapedSrcDoc}" style="width:100%;max-width:${aspectRatio === '9:16' ? '400px' : '860px'};aspect-ratio:${aspectRatio === '9:16' ? '9/16' : '16/9'};border:0;border-radius:16px;overflow:hidden;display:block;margin:0 auto;box-shadow:0 20px 50px rgba(0,0,0,0.35);" allow="autoplay; fullscreen"></iframe>`;
+      await navigator.clipboard.writeText(iframeSnippet);
+      setStatusBanner({
+        type: 'success',
+        text: '¡Código <iframe srcdoc> copiado al portapapeles! Pégalo directamente en cualquier lección de la Academia WAPPY (LMS).',
+      });
+    } catch {
+      setStatusBanner({
+        type: 'error',
+        text: 'No se pudo copiar el código embebido al portapapeles.',
+      });
+    } finally {
+      setIsBuildingAcademyHtml(false);
+    }
   };
 
   const activeVoicesCount = activeModelObj?.supportedVoices?.length || 14;
@@ -3320,9 +3807,27 @@ export default function WappyStudioDashboard() {
 
                   <ExpandableButton
                     size="sm"
-                    icon={<Download />}
-                    label="Exportar HTML"
+                    icon={isRecordingClientVideo ? <Loader2 className="animate-spin" /> : <Film />}
+                    label={isRecordingClientVideo ? 'Detener Grabación GPU' : 'Grabar Video (Opción A)'}
+                    variant={isRecordingClientVideo ? 'danger' : 'cyan'}
+                    onClick={handleRecordClientVideo}
+                  />
+
+                  <ExpandableButton
+                    size="sm"
+                    icon={isRenderingServerMp4 ? <Loader2 className="animate-spin" /> : <Cpu />}
+                    label="Exportar MP4 (Opción B)"
+                    variant="teal"
+                    disabled={isRenderingServerMp4}
+                    onClick={handleRenderServerMp4}
+                  />
+
+                  <ExpandableButton
+                    size="sm"
+                    icon={isBuildingAcademyHtml ? <Loader2 className="animate-spin" /> : <Download />}
+                    label="Cápsula Academia (Opción C)"
                     variant="green"
+                    disabled={isBuildingAcademyHtml}
                     onClick={handleDownloadHtmlBundle}
                   />
 
@@ -3450,6 +3955,7 @@ export default function WappyStudioDashboard() {
                 >
                   {/* Marco interno centrado que mantiene la proporción exacta en Pantalla Completa sin correrse */}
                   <div
+                    ref={stageCropTargetRef}
                     className={cn(
                       'relative overflow-hidden bg-slate-950',
                       isStageFullscreen
@@ -3706,6 +4212,99 @@ export default function WappyStudioDashboard() {
                       )}
                     </button>
                   )}
+                </div>
+
+                {/* ============================================================== */}
+                {/* PANEL DE EXPORTACIÓN MULTIMODAL (OPCIONES A, B Y C)            */}
+                {/* ============================================================== */}
+                <div className="pt-2 border-t border-slate-200/80 dark:border-zinc-800 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {/* OPCIÓN A: GRABACIÓN GPU DEL NAVEGADOR (USUARIOS • COSTO $0) */}
+                  <button
+                    type="button"
+                    onClick={handleRecordClientVideo}
+                    className={cn(
+                      'p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1',
+                      isRecordingClientVideo
+                        ? 'bg-rose-500/15 border-rose-500 text-rose-700 dark:text-rose-300 animate-pulse'
+                        : 'bg-cyan-500/10 border-cyan-500/30 hover:bg-cyan-500/20 text-cyan-800 dark:text-cyan-200',
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-cyan-500/20">
+                        Opción A • Usuarios
+                      </span>
+                      {isRecordingClientVideo ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                      ) : (
+                        <Film className="w-3.5 h-3.5 shrink-0" />
+                      )}
+                    </div>
+                    <div className="text-xs font-extrabold leading-tight mt-0.5">
+                      {isRecordingClientVideo ? 'Detener y Guardar' : 'Grabar con GPU Local'}
+                    </div>
+                    <div className="text-[10px] opacity-80 leading-snug">
+                      Usa la GPU de tu navegador a 60 FPS + Voz (Costo $0)
+                    </div>
+                  </button>
+
+                  {/* OPCIÓN B: RENDERIZADO MP4 EN SERVIDOR (WHATSAPP / REELS / TIKTOK) */}
+                  <button
+                    type="button"
+                    disabled={isRenderingServerMp4}
+                    onClick={handleRenderServerMp4}
+                    className="p-2.5 rounded-xl border bg-teal-500/10 border-teal-500/30 hover:bg-teal-500/20 text-teal-800 dark:text-teal-200 text-left transition-all cursor-pointer disabled:opacity-50 flex flex-col justify-between gap-1"
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-teal-500/20">
+                        Opción B • Redes
+                      </span>
+                      {isRenderingServerMp4 ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                      ) : (
+                        <Cpu className="w-3.5 h-3.5 shrink-0" />
+                      )}
+                    </div>
+                    <div className="text-xs font-extrabold leading-tight mt-0.5">
+                      {isRenderingServerMp4 ? 'Renderizando MP4...' : 'Exportar MP4 (FFmpeg)'}
+                    </div>
+                    <div className="text-[10px] opacity-80 leading-snug">
+                      Une HTML + Subtítulos + Voz en archivo .MP4 universal
+                    </div>
+                  </button>
+
+                  {/* OPCIÓN C: CÁPSULA INTERACTIVA HTML5 PARA ACADEMIA WAPPY (LMS) */}
+                  <div className="p-2.5 rounded-xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-200 flex flex-col justify-between gap-1.5">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/20">
+                        Opción C • Academia
+                      </span>
+                      <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                    </div>
+                    <div className="text-xs font-extrabold leading-tight">
+                      Cápsula HTML5 (LMS)
+                    </div>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <button
+                        type="button"
+                        disabled={isBuildingAcademyHtml}
+                        onClick={handleDownloadHtmlBundle}
+                        className="flex-1 py-1 px-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-extrabold flex items-center justify-center gap-1 cursor-pointer transition"
+                      >
+                        <Download className="w-3 h-3" />
+                        <span>.HTML</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isBuildingAcademyHtml}
+                        onClick={handleCopyLmsEmbed}
+                        title="Copiar código <iframe srcdoc> para lección de Academia WAPPY"
+                        className="py-1 px-2 rounded-lg bg-white/80 dark:bg-zinc-800 hover:bg-white text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-[10px] font-extrabold flex items-center justify-center gap-1 cursor-pointer transition"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>LMS</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
