@@ -28,8 +28,10 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useListAgentsQuery } from '~/data-provider';
+import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import ExpandableButton from '~/components/Common/ExpandableButton';
+import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 
 interface ScheduleConfig {
   hour: number;
@@ -76,6 +78,8 @@ interface AutomatizacionesProps {
 
 export default function Automatizaciones({ hideMainHeader = false, defaultTab = 'list' }: AutomatizacionesProps = {}) {
   const { showToast } = useToastContext();
+  const { user } = useAuthContext();
+  const isAdmin = user?.role === 'ADMIN';
   const { data: agentsData } = useListAgentsQuery({ requiredPermission: 1, limit: 100 });
   const agents = agentsData?.data || [];
 
@@ -593,6 +597,31 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
         )}
 
         <div className="flex items-center gap-2.5 shrink-0 w-full sm:w-auto justify-end">
+          {isAdmin && (
+            <DummyGenerateButton
+              onClick={async () => {
+                try {
+                  setLoading(true);
+                  await axios.post('/api/sgsst/automatizaciones/seed-admin-examples');
+                  await fetchAutomations();
+                  await fetchLogs();
+                  showToast({
+                    message: '2 automatizaciones de ejemplo para Administrador cargadas correctamente.',
+                    status: 'success',
+                  });
+                } catch (err) {
+                  showToast({
+                    message: 'No se pudieron cargar las automatizaciones de ejemplo.',
+                    status: 'error',
+                  });
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              text="Cargar 2 Ejemplos Admin"
+            />
+          )}
+
           <ExpandableButton
             onClick={() => setShowDashboard(!showDashboard)}
             variant="purple"

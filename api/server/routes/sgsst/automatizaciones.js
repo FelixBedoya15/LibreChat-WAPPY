@@ -4,6 +4,7 @@ const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const CompanyInfo = require('~/models/CompanyInfo');
 const Automation = require('~/models/Automation');
 const AutomationLog = require('~/models/AutomationLog');
+const { Agent } = require('~/db/models');
 const { runAutomation, calculateNextRun, stopAutomation } = require('~/server/services/automationScheduler');
 
 const UserPlan = require('~/db/models/UserPlan');
@@ -45,6 +46,138 @@ async function getActiveCompanyId(userId) {
   return active ? active._id.toString() : null;
 }
 
+/**
+ * Si el usuario es ADMIN y su empresa activa no tiene automatizaciones configuradas,
+ * siembra automáticamente 2 ejemplos profesionales de automatizaciones SST junto con su historial.
+ */
+async function ensureAdminSampleAutomations(user, companyId, force = false) {
+  if (!user || user.role !== 'ADMIN' || !companyId) return;
+  if (!force) {
+    const existingCount = await Automation.countDocuments({ companyId });
+    if (existingCount > 0) return;
+  } else {
+    const existingSamples = await Automation.countDocuments({
+      companyId,
+      name: /^\[Ejemplo Admin\]/i,
+    });
+    if (existingSamples >= 2) return;
+  }
+
+  try {
+    const auditorAgent = await Agent.findOne({ name: /Auditor SG-SST/i }).select('id name').lean();
+    const consultorAgent = await Agent.findOne({ name: /Consultor SG-SST/i }).select('id name').lean();
+
+    const agent1Id = auditorAgent?.id || 'agent_auditor_sg_sst';
+    const agent1Name = auditorAgent?.name || 'Auditor SG-SST';
+    const agent2Id = consultorAgent?.id || 'agent_consultor_sg_sst';
+    const agent2Name = consultorAgent?.name || 'Consultor SG-SST';
+    const adminEmail = user.email ? [user.email] : ['admin@wappy.club'];
+
+    const sample1RunAt = new Date(Date.now() - 3 * 3600 * 1000);
+    const sample2RunAt = new Date(Date.now() - 26 * 3600 * 1000);
+
+    const sample1Result = `### 📊 Dictamen Ejecutivo Semanal — Estándares Mínimos (Resolución 0312 de 2019)
+
+**Estado General del Sistema:** Cumplimiento **Aceptable (88.5%)** — Ciclo PHVA Activo.
+
+| Dimensión PHVA | Avance Actual | Hallazgos / Pendientes Críticos | Acción Preventiva Recomendada |
+| :--- | :---: | :--- | :--- |
+| **I. Planear** | 92% | Matriz Legal requiere actualización del trimestre | Ejecutar barrido normativo en Hito 1 |
+| **II. Hacer** | 85% | 3 exámenes médicos periódicos próximos a vencer | Notificar a Medicina Laboral (Hito 2) |
+| **III. Verificar** | 90% | Acta mensual del COPASST pendiente de firma digital | Convocar cierre de sesión en Hito 3 |
+| **IV. Actuar** | 87% | 2 acciones ACPM en seguimiento de eficacia | Validar cierre de evidencias en Centro de Control |
+
+> **Conclusión del Auditor IA:** No se detectan desviaciones críticas sancionables. Se recomienda priorizar la renovación de los certificados de trabajo seguro en alturas que vencen en los próximos 15 días.`;
+
+    const sample2Result = `### 🛡️ Vigilancia Diaria de Controles Operacionales, EPP y Tareas Críticas
+
+**Resumen de Inspección Autónoma (24h):**
+* **Matriz de Peligros IPEVAR (GTC 45):** 0 riesgos críticos sin control asignado.
+* **Control de Entregas de EPP:** 100% de cobertura en cargos operativos; 2 reposiciones de protección auditiva programadas para esta semana.
+* **Permisos de Tareas de Alto Riesgo (Alturas / Energías Peligrosas):** Todos los permisos emitidos cuentan con ATS validado y lista de chequeo preoperacional firmada.
+
+\`\`\`wappy-card
+{
+  "title": "Alerta Preventiva de Vencimientos (Próximos 7 días)",
+  "subtitle": "Seguimiento proactivo generado por Consultor SG-SST",
+  "items": [
+    {
+      "title": "Inspección de Botiquines y Extintores",
+      "description": "Programada para el viernes a las 10:00 AM en Bodega Central."
+    },
+    {
+      "title": "Capacitación de Pausas Activas y Ergonomía",
+      "description": "Pendiente de confirmación de asistencia del área administrativa."
+    }
+  ]
+}
+\`\`\``;
+
+    const auto1 = await Automation.create({
+      user: user.id,
+      companyId,
+      name: '[Ejemplo Admin] Auditoría Semanal de Cumplimiento Res. 0312 y Ciclo PHVA',
+      agentId: agent1Id,
+      agentName: agent1Name,
+      prompt:
+        'Realiza una auditoría ejecutiva semanal del estado de cumplimiento de los Estándares Mínimos de la Resolución 0312 de 2019 y Decreto 1072 de 2015 de la empresa activa. Revisa el avance del diagnóstico, tareas vencidas del Plan Anual de Trabajo, estado de actas de comités (COPASST/CCL) y genera una tabla ejecutiva con hallazgos prioritarios y recomendaciones preventivas para la Alta Dirección.',
+      scheduleType: 'weekly',
+      scheduleConfig: { hour: 8, minute: 0, dayOfWeek: [1] },
+      emails: adminEmail,
+      status: 'active',
+      lastRunAt: sample1RunAt,
+      lastRunStatus: 'success',
+      lastRunResult: sample1Result,
+      nextRunAt: calculateNextRun('weekly', { hour: 8, minute: 0, dayOfWeek: [1] }),
+    });
+
+    const auto2 = await Automation.create({
+      user: user.id,
+      companyId,
+      name: '[Ejemplo Admin] Vigilancia Diaria de Vencimientos, EPP y Controles IPEVAR',
+      agentId: agent2Id,
+      agentName: agent2Name,
+      prompt:
+        'Analiza diariamente la Matriz de Peligros (GTC 45), el cronograma de capacitaciones, las entregas de Elementos de Protección Personal (EPP) y los controles operacionales pendientes de la empresa. Identifica cualquier alerta temprana de vencimiento en los próximos 7 días y emite un boletín preventivo conciso con acciones recomendadas.',
+      scheduleType: 'daily',
+      scheduleConfig: { hour: 7, minute: 30 },
+      emails: adminEmail,
+      status: 'active',
+      lastRunAt: sample2RunAt,
+      lastRunStatus: 'success',
+      lastRunResult: sample2Result,
+      nextRunAt: calculateNextRun('daily', { hour: 7, minute: 30 }),
+    });
+
+    await AutomationLog.insertMany([
+      {
+        automation: auto1._id,
+        user: user.id,
+        companyId,
+        agentId: agent1Id,
+        agentName: agent1Name,
+        prompt: auto1.prompt,
+        runAt: sample1RunAt,
+        status: 'success',
+        result: sample1Result,
+      },
+      {
+        automation: auto2._id,
+        user: user.id,
+        companyId,
+        agentId: agent2Id,
+        agentName: agent2Name,
+        prompt: auto2.prompt,
+        runAt: sample2RunAt,
+        status: 'success',
+        result: sample2Result,
+      },
+    ]);
+  } catch (seedErr) {
+    console.error('[API Automatizaciones] Error sembrando ejemplos para ADMIN:', seedErr);
+  }
+}
+
 // Auxiliar para obtener el límite efectivo de automatizaciones del usuario
 async function getEffectiveAutomationLimit(userId, userRole) {
   if (!userId) return { limit: 0, plan: 'free' };
@@ -82,6 +215,10 @@ router.get('/', async (req, res) => {
     const companyId = await getActiveCompanyId(req.user.id);
     if (!companyId) {
       return res.json([]);
+    }
+
+    if (req.user?.role === 'ADMIN') {
+      await ensureAdminSampleAutomations(req.user, companyId);
     }
 
     // Auto-recuperar tareas bloqueadas en 'running' por más de 10 minutos
@@ -293,6 +430,28 @@ router.post('/:id/stop', async (req, res) => {
 });
 
 /**
+ * POST /api/sgsst/automatizaciones/seed-admin-examples
+ * Permite a un usuario ADMIN generar/restaurar las 2 automatizaciones de ejemplo en su empresa activa.
+ */
+router.post('/seed-admin-examples', async (req, res) => {
+  try {
+    if (req.user?.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Acción exclusiva para administradores.' });
+    }
+    const companyId = await getActiveCompanyId(req.user.id);
+    if (!companyId) {
+      return res.status(400).json({ error: 'No se encontró una empresa asociada para su usuario.' });
+    }
+    await ensureAdminSampleAutomations(req.user, companyId, true);
+    const automations = await Automation.find({ companyId }).sort({ createdAt: -1 }).lean();
+    res.json({ success: true, automations });
+  } catch (error) {
+    console.error('[API Automatizaciones] Error seeding admin examples:', error);
+    res.status(500).json({ error: 'Error al generar las automatizaciones de ejemplo.' });
+  }
+});
+
+/**
  * GET /api/sgsst/automatizaciones/logs
  * Obtiene el historial completo de ejecuciones para la empresa activa.
  */
@@ -301,6 +460,10 @@ router.get('/logs', async (req, res) => {
     const companyId = await getActiveCompanyId(req.user.id);
     if (!companyId) {
       return res.json([]);
+    }
+
+    if (req.user?.role === 'ADMIN') {
+      await ensureAdminSampleAutomations(req.user, companyId);
     }
 
     // Auto-recuperar logs bloqueados en 'running' por más de 3 minutos
