@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Clapperboard } from 'lucide-react';
 import { TooltipAnchor } from '@librechat/client';
+import { useAuthContext } from '~/hooks';
 import { cn } from '~/utils';
 
 interface Props {
@@ -13,17 +14,21 @@ interface Props {
 
 /**
  * Botón "WAPPY Studio" del menú lateral, ubicado justo por encima de "Academia WAPPY".
- * Permite acceder al Estudio de Voz (Gemini 3.8 Flash TTS de hasta 60 min) y al
- * Compositor de Video HTML/GSAP con Capas y Render GPU Serverless.
+ * Visible únicamente para usuarios con rol ADMIN por el momento.
  */
 const WappyStudioButton = ({
   isSmallScreen = false,
   isCollapsed = false,
   toggleNav,
 }: Props) => {
+  const { user } = useAuthContext();
   const navigate = useNavigate();
   const location = useLocation();
   const isActive = location.pathname.startsWith('/studio') || location.pathname.startsWith('/wappy-studio');
+
+  if (user?.role !== 'ADMIN') {
+    return null;
+  }
 
   const handleClick = () => {
     navigate('/studio');

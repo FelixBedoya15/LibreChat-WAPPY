@@ -28,6 +28,11 @@ import {
   Zap,
   Film,
   Maximize2,
+  Minimize2,
+  Move,
+  Type,
+  Plus,
+  Edit3,
   X,
   RefreshCw,
 } from 'lucide-react';
@@ -526,7 +531,7 @@ function buildDefaultHtmlComposition({
     }
   </style>
 </head>
-<body class="relative flex flex-col justify-between ${isVertical ? 'p-7' : 'p-10'} select-none">
+<body class="relative flex flex-col justify-between ${isVertical ? 'p-6 sm:p-7' : 'p-5 sm:p-6'} select-none">
   ${
     hasBaseVideo
       ? '<!-- Fondo transparente para dejar ver el video base del usuario -->'
@@ -536,49 +541,49 @@ function buildDefaultHtmlComposition({
   }
 
   <!-- TOP HUD BAR -->
-  <div id="top-bar" class="relative z-10 flex items-center justify-between gap-3">
-    <div class="glass-card px-3.5 py-1.5 rounded-full inline-flex items-center gap-2">
-      <span class="w-2.5 h-2.5 rounded-full animate-ping" style="background: ${accentColor};"></span>
+  <div id="top-bar" class="relative z-10 flex items-center justify-between gap-2">
+    <div class="glass-card px-3.5 py-1.5 rounded-full inline-flex items-center gap-2 whitespace-nowrap">
+      <span class="w-2.5 h-2.5 rounded-full animate-ping shrink-0" style="background: ${accentColor};"></span>
       <span class="text-[11px] font-extrabold tracking-widest uppercase text-teal-300">${safeBadge}</span>
     </div>
-    <div class="glass-card px-3 py-1 rounded-full text-[11px] font-mono font-bold text-slate-300">
+    <div class="glass-card px-3 py-1.5 rounded-full text-[11px] font-mono font-bold text-slate-300 whitespace-nowrap shrink-0">
       WAPPY STUDIO • IA
     </div>
   </div>
 
   <!-- ESCENA CENTRAL: TARJETAS ANIMADAS -->
-  <div class="relative z-10 my-auto flex flex-col ${isVertical ? 'gap-4' : 'gap-5 max-w-2xl'}">
-    <div id="hero-card" class="glass-card rounded-3xl p-6 border-l-4" style="border-left-color: ${accentColor};">
-      <div class="text-xs font-mono uppercase tracking-wider text-teal-400 mb-1.5">⚡ PUNTO CLAVE EN VIVO</div>
-      <h1 class="${isVertical ? 'text-2xl' : 'text-4xl'} font-black leading-tight tracking-tight text-white">
+  <div class="relative z-10 my-auto flex flex-col ${isVertical ? 'gap-4' : 'gap-3 max-w-2xl'}">
+    <div id="hero-card" class="glass-card rounded-3xl ${isVertical ? 'p-6' : 'p-4 sm:p-5'} border-l-4" style="border-left-color: ${accentColor};">
+      <div class="text-xs font-mono uppercase tracking-wider text-teal-400 mb-1">⚡ PUNTO CLAVE EN VIVO</div>
+      <h1 class="${isVertical ? 'text-2xl sm:text-3xl' : 'text-xl sm:text-2xl'} font-black leading-tight tracking-tight text-white">
         ${safeHeadline}
       </h1>
-      <p class="text-xs sm:text-sm text-slate-300 mt-2 leading-relaxed font-medium">
+      <p class="text-xs sm:text-sm text-slate-300 mt-1.5 leading-relaxed font-medium">
         ${safeSubheadline}
       </p>
-      <div class="mt-4 h-1.5 w-full bg-slate-800/90 rounded-full overflow-hidden">
+      <div class="mt-3.5 h-1.5 w-full bg-slate-800/90 rounded-full overflow-hidden">
         <div id="accent-bar" class="h-full rounded-full" style="width: 0%; background: linear-gradient(90deg, ${accentColor}, #fbbf24);"></div>
       </div>
     </div>
 
     <div class="grid grid-cols-3 gap-2.5" id="metrics-row">
-      <div class="metric-item glass-card rounded-2xl p-3.5 text-center">
-        <div class="text-lg font-black text-emerald-400">100%</div>
+      <div class="metric-item glass-card rounded-2xl ${isVertical ? 'p-3.5' : 'p-2.5'} text-center">
+        <div class="${isVertical ? 'text-lg' : 'text-base'} font-black text-emerald-400">100%</div>
         <div class="text-[10px] font-bold uppercase tracking-wider text-slate-300 mt-0.5">Cumplimiento</div>
       </div>
-      <div class="metric-item glass-card rounded-2xl p-3.5 text-center">
-        <div class="text-lg font-black text-amber-400">60 FPS</div>
+      <div class="metric-item glass-card rounded-2xl ${isVertical ? 'p-3.5' : 'p-2.5'} text-center">
+        <div class="${isVertical ? 'text-lg' : 'text-base'} font-black text-amber-400">60 FPS</div>
         <div class="text-[10px] font-bold uppercase tracking-wider text-slate-300 mt-0.5">Motion HTML</div>
       </div>
-      <div class="metric-item glass-card rounded-2xl p-3.5 text-center">
-        <div class="text-lg font-black text-indigo-400">IA 3.8</div>
+      <div class="metric-item glass-card rounded-2xl ${isVertical ? 'p-3.5' : 'p-2.5'} text-center">
+        <div class="${isVertical ? 'text-lg' : 'text-base'} font-black text-indigo-400">IA 3.8</div>
         <div class="text-[10px] font-bold uppercase tracking-wider text-slate-300 mt-0.5">Voz Neural</div>
       </div>
     </div>
   </div>
 
   <!-- ESPACIO INFERIOR RESERVADO PARA SUBTÍTULOS DINÁMICOS -->
-  <div class="relative z-10 h-16"></div>
+  <div class="relative z-10 ${isVertical ? 'h-14' : 'h-12'}"></div>
 
   <script>
     const tl = gsap.timeline({ repeat: -1, repeatDelay: 1.2 });
@@ -603,6 +608,368 @@ function buildDefaultHtmlComposition({
   </script>
 </body>
 </html>`;
+}
+
+interface SelectedCanvasElementInfo {
+  tagName: string;
+  text: string;
+  color: string;
+  backgroundColor: string;
+  fontSize: number;
+  dx: number;
+  dy: number;
+  scale: number;
+}
+
+/**
+ * Inyecta el puente interactivo de WAPPY Studio dentro de cualquier HTML (por defecto o generado por IA):
+ * 1) Auto-ajuste proporcional (Zero-Overflow) tanto en vista normal como en Pantalla Completa (evita que salga corrido).
+ * 2) Control universal de GSAP (Play, Pause, Restart, Seek) interceptando timelines.
+ * 3) Editor Visual en Vivo: arrastrar cajas con el mouse, editar textos con doble clic o desde el inspector,
+ *    cambiar colores/tamaños, duplicar, agregar textos/cajas y eliminar elementos.
+ */
+function injectStudioRuntimeBridge(rawHtml: string): string {
+  if (!rawHtml) return '';
+  if (rawHtml.includes('id="wappy-studio-runtime-bridge"')) return rawHtml;
+
+  const headHook = `<script id="wappy-studio-gsap-hook">
+  (function() {
+    function patchGsap() {
+      if (window.gsap && !window.gsap.__wappyPatched) {
+        window.gsap.__wappyPatched = true;
+        var origTl = window.gsap.timeline.bind(window.gsap);
+        window.gsap.timeline = function() {
+          var tl = origTl.apply(window.gsap, arguments);
+          if (!window.mainTimeline) window.mainTimeline = tl;
+          return tl;
+        };
+      }
+    }
+    patchGsap();
+    document.addEventListener("DOMContentLoaded", patchGsap);
+    window.addEventListener("load", patchGsap);
+  })();
+</script>`;
+
+  const runtimeScript = `<style id="wappy-studio-bridge-styles">
+  html, body {
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+  body.wappy-visual-edit-active * {
+    cursor: grab;
+  }
+  body.wappy-visual-edit-active *:hover {
+    outline: 1.5px dashed rgba(20, 184, 166, 0.65);
+    outline-offset: 2px;
+  }
+  body.wappy-visual-edit-active [data-wappy-selected="true"] {
+    outline: 2.5px solid #14b8a6 !important;
+    outline-offset: 3px !important;
+    box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.22) !important;
+  }
+  body.wappy-visual-edit-active [contenteditable="true"] {
+    cursor: text !important;
+    outline: 2.5px solid #f59e0b !important;
+  }
+</style>
+<script id="wappy-studio-runtime-bridge">
+(function() {
+  var editMode = false;
+  var selectedEl = null;
+  var isDragging = false;
+  var dragStartX = 0;
+  var dragStartY = 0;
+  var initialDx = 0;
+  var initialDy = 0;
+
+  function rgbToHex(rgb) {
+    if (!rgb || rgb === 'transparent' || rgb === 'rgba(0, 0, 0, 0)') return '#14b8a6';
+    if (rgb.indexOf('#') === 0) return rgb;
+    var m = rgb.match(/\\d+/g);
+    if (!m || m.length < 3) return '#ffffff';
+    return '#' + [0,1,2].map(function(i) {
+      var h = parseInt(m[i], 10).toString(16);
+      return h.length === 1 ? '0' + h : h;
+    }).join('');
+  }
+
+  function fitStageToViewport() {
+    try {
+      var vw = window.innerWidth || 540;
+      var vh = window.innerHeight || 540;
+      document.body.style.translate = '';
+      document.body.style.scale = '';
+      document.body.style.transformOrigin = 'top left';
+
+      var children = Array.prototype.slice.call(document.body.children).filter(function(el) {
+        return el.tagName !== 'SCRIPT' && el.tagName !== 'STYLE';
+      });
+
+      if (children.length === 1) {
+        var rootEl = children[0];
+        rootEl.style.scale = '';
+        rootEl.style.translate = '';
+        var naturalW = Math.max(rootEl.scrollWidth || 0, rootEl.offsetWidth || 0, parseFloat(rootEl.style.width || '0') || 0);
+        var naturalH = Math.max(rootEl.scrollHeight || 0, rootEl.offsetHeight || 0, parseFloat(rootEl.style.height || '0') || 0);
+        if (naturalW > vw + 12 || naturalH > vh + 12) {
+          var s = Math.min(vw / naturalW, vh / naturalH);
+          document.body.style.display = 'flex';
+          document.body.style.alignItems = 'center';
+          document.body.style.justifyContent = 'center';
+          document.body.style.width = '100vw';
+          document.body.style.height = '100vh';
+          rootEl.style.transformOrigin = 'center center';
+          rootEl.style.scale = String(Number(s.toFixed(4)));
+          rootEl.style.flexShrink = '0';
+          return;
+        }
+      }
+
+      var scrollW = Math.max(document.body.scrollWidth || 0, document.documentElement.scrollWidth || 0);
+      var scrollH = Math.max(document.body.scrollHeight || 0, document.documentElement.scrollHeight || 0);
+      if (scrollW > vw + 12 || scrollH > vh + 12) {
+        var scaleRatio = Math.min(vw / scrollW, vh / scrollH);
+        var offsetX = Math.max(0, (vw - scrollW * scaleRatio) / 2);
+        var offsetY = Math.max(0, (vh - scrollH * scaleRatio) / 2);
+        document.body.style.width = scrollW + 'px';
+        document.body.style.height = scrollH + 'px';
+        document.body.style.transformOrigin = 'top left';
+        document.body.style.translate = offsetX + 'px ' + offsetY + 'px';
+        document.body.style.scale = String(Number(scaleRatio.toFixed(4)));
+      }
+    } catch (e) {}
+  }
+
+  window.addEventListener('resize', fitStageToViewport);
+  window.addEventListener('load', function() {
+    fitStageToViewport();
+    setTimeout(fitStageToViewport, 350);
+    setTimeout(fitStageToViewport, 1000);
+  });
+  setTimeout(fitStageToViewport, 120);
+
+  function notifySelected(el) {
+    if (!el) {
+      window.parent.postMessage({ type: 'STUDIO_ELEMENT_SELECTED', payload: null }, '*');
+      return;
+    }
+    var cs = window.getComputedStyle(el);
+    var dx = parseFloat(el.getAttribute('data-dx') || '0') || 0;
+    var dy = parseFloat(el.getAttribute('data-dy') || '0') || 0;
+    var sc = parseFloat(el.getAttribute('data-scale') || '1') || 1;
+    window.parent.postMessage({
+      type: 'STUDIO_ELEMENT_SELECTED',
+      payload: {
+        tagName: el.tagName.toLowerCase(),
+        text: el.innerText || '',
+        color: rgbToHex(cs.color),
+        backgroundColor: rgbToHex(cs.backgroundColor),
+        fontSize: Math.round(parseFloat(cs.fontSize || '16') || 16),
+        dx: Math.round(dx),
+        dy: Math.round(dy),
+        scale: Number(sc.toFixed(2))
+      }
+    }, '*');
+  }
+
+  function emitCleanHtml() {
+    try {
+      var clone = document.documentElement.cloneNode(true);
+      var bStyles = clone.querySelector('#wappy-studio-bridge-styles');
+      if (bStyles) bStyles.remove();
+      var bScript = clone.querySelector('#wappy-studio-runtime-bridge');
+      if (bScript) bScript.remove();
+      var gHook = clone.querySelector('#wappy-studio-gsap-hook');
+      if (gHook) gHook.remove();
+      var bodyClone = clone.querySelector('body');
+      if (bodyClone) {
+        bodyClone.classList.remove('wappy-visual-edit-active');
+        var sel = bodyClone.querySelectorAll('[data-wappy-selected]');
+        for (var i = 0; i < sel.length; i++) {
+          sel[i].removeAttribute('data-wappy-selected');
+          sel[i].removeAttribute('contenteditable');
+        }
+      }
+      window.parent.postMessage({
+        type: 'STUDIO_HTML_UPDATED',
+        htmlCode: '<!DOCTYPE html>\\n' + clone.outerHTML
+      }, '*');
+    } catch (e) {}
+  }
+
+  function selectElement(el) {
+    if (selectedEl && selectedEl !== el) {
+      selectedEl.removeAttribute('data-wappy-selected');
+      selectedEl.removeAttribute('contenteditable');
+    }
+    selectedEl = el;
+    if (selectedEl) {
+      selectedEl.setAttribute('data-wappy-selected', 'true');
+    }
+    notifySelected(selectedEl);
+  }
+
+  document.addEventListener('mousedown', function(e) {
+    if (!editMode) return;
+    var target = e.target;
+    if (!target || target === document.body || target === document.documentElement) {
+      selectElement(null);
+      return;
+    }
+    if (target.getAttribute('contenteditable') === 'true') return;
+    e.preventDefault();
+    e.stopPropagation();
+    selectElement(target);
+    isDragging = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    initialDx = parseFloat(target.getAttribute('data-dx') || '0') || 0;
+    initialDy = parseFloat(target.getAttribute('data-dy') || '0') || 0;
+  }, true);
+
+  document.addEventListener('mousemove', function(e) {
+    if (!editMode || !isDragging || !selectedEl) return;
+    var nextDx = initialDx + (e.clientX - dragStartX);
+    var nextDy = initialDy + (e.clientY - dragStartY);
+    selectedEl.setAttribute('data-dx', String(nextDx));
+    selectedEl.setAttribute('data-dy', String(nextDy));
+    selectedEl.style.translate = nextDx + 'px ' + nextDy + 'px';
+  }, true);
+
+  document.addEventListener('mouseup', function() {
+    if (isDragging) {
+      isDragging = false;
+      if (selectedEl) {
+        notifySelected(selectedEl);
+        emitCleanHtml();
+      }
+    }
+  }, true);
+
+  document.addEventListener('dblclick', function(e) {
+    if (!editMode) return;
+    var target = e.target;
+    if (!target || target === document.body || target === document.documentElement) return;
+    e.preventDefault();
+    e.stopPropagation();
+    selectElement(target);
+    target.setAttribute('contenteditable', 'true');
+    target.focus();
+  }, true);
+
+  document.addEventListener('input', function() {
+    if (!editMode || !selectedEl) return;
+    notifySelected(selectedEl);
+    emitCleanHtml();
+  }, true);
+
+  window.addEventListener('message', function(event) {
+    var data = event.data || {};
+    var tl = window.mainTimeline || (window.gsap && window.gsap.globalTimeline);
+
+    if (data.type === 'STUDIO_PLAY') {
+      if (window.mainTimeline) window.mainTimeline.play();
+      if (window.gsap && window.gsap.globalTimeline) window.gsap.globalTimeline.play();
+    } else if (data.type === 'STUDIO_PAUSE') {
+      if (window.mainTimeline) window.mainTimeline.pause();
+      if (window.gsap && window.gsap.globalTimeline) window.gsap.globalTimeline.pause();
+    } else if (data.type === 'STUDIO_RESTART') {
+      if (window.mainTimeline) window.mainTimeline.restart();
+      else if (window.gsap && window.gsap.globalTimeline) window.gsap.globalTimeline.restart();
+    } else if (data.type === 'STUDIO_SEEK') {
+      var p = Math.max(0, Math.min(1, Number(data.progress || 0)));
+      if (window.mainTimeline && typeof window.mainTimeline.progress === 'function') {
+        window.mainTimeline.progress(p);
+      } else if (window.gsap && window.gsap.globalTimeline && typeof data.time === 'number') {
+        window.gsap.globalTimeline.time(data.time);
+      }
+    } else if (data.type === 'STUDIO_SET_EDIT_MODE') {
+      editMode = Boolean(data.enabled);
+      if (editMode) {
+        document.body.classList.add('wappy-visual-edit-active');
+        if (window.mainTimeline) window.mainTimeline.pause();
+        if (window.gsap && window.gsap.globalTimeline) window.gsap.globalTimeline.pause();
+      } else {
+        document.body.classList.remove('wappy-visual-edit-active');
+        selectElement(null);
+      }
+    } else if (data.type === 'STUDIO_UPDATE_SELECTED' && selectedEl) {
+      var upd = data.updates || {};
+      if (typeof upd.text === 'string') selectedEl.innerText = upd.text;
+      if (typeof upd.color === 'string') selectedEl.style.color = upd.color;
+      if (typeof upd.backgroundColor === 'string') selectedEl.style.backgroundColor = upd.backgroundColor;
+      if (typeof upd.fontSize === 'number') selectedEl.style.fontSize = upd.fontSize + 'px';
+      if (typeof upd.dx === 'number' || typeof upd.dy === 'number') {
+        var nx = typeof upd.dx === 'number' ? upd.dx : (parseFloat(selectedEl.getAttribute('data-dx') || '0') || 0);
+        var ny = typeof upd.dy === 'number' ? upd.dy : (parseFloat(selectedEl.getAttribute('data-dy') || '0') || 0);
+        selectedEl.setAttribute('data-dx', String(nx));
+        selectedEl.setAttribute('data-dy', String(ny));
+        selectedEl.style.translate = nx + 'px ' + ny + 'px';
+      }
+      if (typeof upd.scale === 'number') {
+        selectedEl.setAttribute('data-scale', String(upd.scale));
+        selectedEl.style.scale = String(upd.scale);
+      }
+      notifySelected(selectedEl);
+      emitCleanHtml();
+    } else if (data.type === 'STUDIO_SELECT_PARENT' && selectedEl) {
+      if (selectedEl.parentElement && selectedEl.parentElement !== document.body) {
+        selectElement(selectedEl.parentElement);
+      }
+    } else if (data.type === 'STUDIO_DELETE_SELECTED' && selectedEl) {
+      var toRemove = selectedEl;
+      selectElement(null);
+      toRemove.remove();
+      emitCleanHtml();
+    } else if (data.type === 'STUDIO_DUPLICATE_SELECTED' && selectedEl) {
+      var dup = selectedEl.cloneNode(true);
+      var curX = (parseFloat(selectedEl.getAttribute('data-dx') || '0') || 0) + 18;
+      var curY = (parseFloat(selectedEl.getAttribute('data-dy') || '0') || 0) + 18;
+      dup.setAttribute('data-dx', String(curX));
+      dup.setAttribute('data-dy', String(curY));
+      dup.style.translate = curX + 'px ' + curY + 'px';
+      if (selectedEl.parentElement) {
+        selectedEl.parentElement.appendChild(dup);
+        selectElement(dup);
+        emitCleanHtml();
+      }
+    } else if (data.type === 'STUDIO_ADD_ELEMENT') {
+      var kind = data.kind || 'text';
+      var newEl = document.createElement('div');
+      if (kind === 'card') {
+        newEl.className = 'glass-card rounded-2xl p-4 border border-teal-500/40 text-white shadow-xl';
+        newEl.style.cssText = 'position:absolute; top:35%; left:12%; right:12%; z-index:40; background:rgba(10,18,30,0.86); backdrop-filter:blur(14px); border:1px solid rgba(20,184,166,0.45); border-radius:16px; padding:16px;';
+        newEl.innerHTML = '<div style="font-size:11px;font-weight:800;color:#2dd4bf;letter-spacing:0.08em;text-transform:uppercase;">NUEVA TARJETA</div><div style="font-size:18px;font-weight:900;color:#ffffff;margin-top:4px;">Haz doble clic o usa el editor para cambiar este texto</div>';
+      } else {
+        newEl.style.cssText = 'position:absolute; top:25%; left:15%; z-index:45; font-size:22px; font-weight:900; color:#ffffff; background:rgba(20,184,166,0.22); border:1px solid rgba(20,184,166,0.5); padding:8px 16px; border-radius:12px;';
+        newEl.innerText = 'Nuevo Texto Editable';
+      }
+      document.body.appendChild(newEl);
+      selectElement(newEl);
+      emitCleanHtml();
+    } else if (data.type === 'STUDIO_FIT_VIEWPORT') {
+      fitStageToViewport();
+    }
+  });
+})();
+</script>`;
+
+  let output = rawHtml;
+  if (output.includes('<head>')) {
+    output = output.replace('<head>', `<head>\n${headHook}`);
+  } else {
+    output = `${headHook}\n${output}`;
+  }
+
+  if (output.includes('</body>')) {
+    output = output.replace('</body>', `${runtimeScript}\n</body>`);
+  } else {
+    output = `${output}\n${runtimeScript}`;
+  }
+  return output;
 }
 
 // ============================================================================
@@ -779,10 +1146,15 @@ export default function WappyStudioDashboard() {
     }),
   );
 
-  // Estado del Reproductor de Video Compuesto
+  // Estado del Reproductor de Video Compuesto y Editor Visual en Vivo
   const [isVideoPlaying, setIsVideoPlaying] = useState<boolean>(true);
   const [videoCurrentTime, setVideoCurrentTime] = useState<number>(0);
   const [videoDuration, setVideoDuration] = useState<number>(20);
+  const [isStageFullscreen, setIsStageFullscreen] = useState<boolean>(false);
+  const [isVisualEditMode, setIsVisualEditMode] = useState<boolean>(false);
+  const [selectedCanvasElement, setSelectedCanvasElement] =
+    useState<SelectedCanvasElementInfo | null>(null);
+  const latestEditedHtmlRef = useRef<string>('');
   const [statusBanner, setStatusBanner] = useState<{
     type: 'success' | 'error' | 'info';
     text: string;
@@ -792,6 +1164,38 @@ export default function WappyStudioDashboard() {
   const baseVideoRef = useRef<HTMLVideoElement | null>(null);
   const stageAudioRef = useRef<HTMLAudioElement | null>(null);
   const stageContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const bridgedHtmlCode = useMemo(() => injectStudioRuntimeBridge(htmlCode), [htmlCode]);
+
+  // Escuchar cambios de Pantalla Completa y ajustar automáticamente el lienzo
+  useEffect(() => {
+    const onFsChange = () => {
+      const isFs = Boolean(document.fullscreenElement);
+      setIsStageFullscreen(isFs);
+      setTimeout(() => {
+        iframeRef.current?.contentWindow?.postMessage({ type: 'STUDIO_FIT_VIEWPORT' }, '*');
+      }, 80);
+      setTimeout(() => {
+        iframeRef.current?.contentWindow?.postMessage({ type: 'STUDIO_FIT_VIEWPORT' }, '*');
+      }, 300);
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
+
+  // Escuchar eventos del Editor Visual (selección de elementos y cambios en el DOM del iframe)
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data || {};
+      if (data.type === 'STUDIO_ELEMENT_SELECTED') {
+        setSelectedCanvasElement(data.payload || null);
+      } else if (data.type === 'STUDIO_HTML_UPDATED' && typeof data.htmlCode === 'string') {
+        latestEditedHtmlRef.current = data.htmlCode;
+      }
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
 
   // Guardar biblioteca cuando cambie
   useEffect(() => {
@@ -1350,9 +1754,52 @@ export default function WappyStudioDashboard() {
     return '';
   }, [customAudioUrl, currentAudio]);
 
+  // Reloj maestro de reproducción para que el botón Play/Pause y los subtítulos palabra a palabra
+  // avancen fluidamente en tiempo real incluso cuando no hay pista de audio o video externa
+  useEffect(() => {
+    if (activeTab !== 'video' || !isVideoPlaying || isVisualEditMode) return;
+    let lastTick = performance.now();
+    const interval = setInterval(() => {
+      const now = performance.now();
+      const dt = (now - lastTick) / 1000;
+      lastTick = now;
+
+      const audioEl = stageAudioRef.current;
+      const videoEl = baseVideoRef.current;
+
+      if (audioEl && activeStageAudioSrc && !audioEl.paused && !audioEl.ended) {
+        setVideoCurrentTime(audioEl.currentTime);
+        return;
+      }
+      if (videoEl && baseVideoUrl && !videoEl.paused && !videoEl.ended) {
+        setVideoCurrentTime(videoEl.currentTime);
+        return;
+      }
+
+      setVideoCurrentTime((prev) => {
+        const dur = Math.max(1, videoDuration || 20);
+        const next = prev + dt;
+        if (next >= dur) {
+          iframeRef.current?.contentWindow?.postMessage({ type: 'STUDIO_RESTART' }, '*');
+          return 0;
+        }
+        return next;
+      });
+    }, 80);
+
+    return () => clearInterval(interval);
+  }, [activeTab, isVideoPlaying, isVisualEditMode, videoDuration, activeStageAudioSrc, baseVideoUrl]);
+
   // Sincronización de Play / Pause / Seek entre Video Base, Audio Locución e iframe GSAP
   const toggleStagePlayback = () => {
     const nextPlaying = !isVideoPlaying;
+    if (nextPlaying && isVisualEditMode) {
+      setIsVisualEditMode(false);
+      iframeRef.current?.contentWindow?.postMessage(
+        { type: 'STUDIO_SET_EDIT_MODE', enabled: false },
+        '*',
+      );
+    }
     setIsVideoPlaying(nextPlaying);
 
     iframeRef.current?.contentWindow?.postMessage(
@@ -1371,6 +1818,13 @@ export default function WappyStudioDashboard() {
   };
 
   const restartStagePlayback = () => {
+    if (isVisualEditMode) {
+      setIsVisualEditMode(false);
+      iframeRef.current?.contentWindow?.postMessage(
+        { type: 'STUDIO_SET_EDIT_MODE', enabled: false },
+        '*',
+      );
+    }
     setVideoCurrentTime(0);
     setIsVideoPlaying(true);
     iframeRef.current?.contentWindow?.postMessage({ type: 'STUDIO_RESTART' }, '*');
@@ -1387,12 +1841,65 @@ export default function WappyStudioDashboard() {
   const handleStageSeek = (newTime: number) => {
     setVideoCurrentTime(newTime);
     const progress = videoDuration > 0 ? newTime / videoDuration : 0;
-    iframeRef.current?.contentWindow?.postMessage({ type: 'STUDIO_SEEK', progress }, '*');
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: 'STUDIO_SEEK', progress, time: newTime },
+      '*',
+    );
     if (baseVideoRef.current) {
       baseVideoRef.current.currentTime = newTime;
     }
     if (stageAudioRef.current && activeStageAudioSrc) {
       stageAudioRef.current.currentTime = newTime;
+    }
+  };
+
+  const toggleVisualEditMode = () => {
+    const next = !isVisualEditMode;
+    setIsVisualEditMode(next);
+    if (next) {
+      setIsVideoPlaying(false);
+      baseVideoRef.current?.pause();
+      stageAudioRef.current?.pause();
+    } else if (latestEditedHtmlRef.current) {
+      setHtmlCode(latestEditedHtmlRef.current);
+      latestEditedHtmlRef.current = '';
+    }
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: 'STUDIO_SET_EDIT_MODE', enabled: next },
+      '*',
+    );
+  };
+
+  const updateSelectedCanvasElement = (updates: Partial<SelectedCanvasElementInfo>) => {
+    setSelectedCanvasElement((prev) => (prev ? { ...prev, ...updates } : prev));
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: 'STUDIO_UPDATE_SELECTED', updates },
+      '*',
+    );
+  };
+
+  const handleSaveVisualEdits = () => {
+    if (latestEditedHtmlRef.current) {
+      setHtmlCode(latestEditedHtmlRef.current);
+      latestEditedHtmlRef.current = '';
+    }
+    setIsVisualEditMode(false);
+    setSelectedCanvasElement(null);
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: 'STUDIO_SET_EDIT_MODE', enabled: false },
+      '*',
+    );
+    setStatusBanner({
+      type: 'success',
+      text: '¡Cambios de textos y posición de cajas guardados en la composición HTML!',
+    });
+  };
+
+  const toggleStageFullscreen = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.().catch(() => {});
+    } else {
+      stageContainerRef.current?.requestFullscreen?.().catch(() => {});
     }
   };
 
@@ -1421,7 +1928,8 @@ export default function WappyStudioDashboard() {
   }, [showDynamicSubtitles, cleanSubtitleWords, videoCurrentTime, videoDuration]);
 
   const handleDownloadHtmlBundle = () => {
-    const blob = new Blob([htmlCode], { type: 'text/html;charset=utf-8' });
+    const finalHtml = latestEditedHtmlRef.current || htmlCode;
+    const blob = new Blob([finalHtml], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -1433,6 +1941,30 @@ export default function WappyStudioDashboard() {
   };
 
   const activeVoicesCount = activeModelObj?.supportedVoices?.length || 14;
+
+  if (user && user.role !== 'ADMIN') {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-surface-secondary/30 min-h-screen p-6">
+        <div className="bg-white dark:bg-gray-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-8 max-w-md w-full text-center space-y-4 shadow-md">
+          <div className="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-600 dark:text-teal-300 mx-auto">
+            <Clapperboard className="w-6 h-6" />
+          </div>
+          <h2 className="text-lg font-extrabold text-text-primary">
+            WAPPY Studio (Acceso Administrador)
+          </h2>
+          <p className="text-xs text-text-secondary">
+            Por el momento este módulo está habilitado exclusivamente para cuentas de Administración de WAPPY.
+          </p>
+          <a
+            href="/c/new"
+            className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition"
+          >
+            Volver al inicio
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col bg-surface-secondary/30 min-h-screen h-auto overflow-y-auto pb-16">
@@ -2527,19 +3059,44 @@ export default function WappyStudioDashboard() {
               </div>
             </div>
 
-            {/* COLUMNA DERECHA (6 cols): Reproductor en Vivo Multi-Capa + Exportación */}
+            {/* COLUMNA DERECHA (6 cols): Reproductor en Vivo Multi-Capa + Editor Visual + Exportación */}
             <div className="lg:col-span-6 space-y-4 bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-xs">
               {/* Barra Superior del Lienzo */}
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span
+                    className={cn(
+                      'w-2.5 h-2.5 rounded-full',
+                      isVisualEditMode
+                        ? 'bg-amber-500 animate-ping'
+                        : isVideoPlaying
+                          ? 'bg-emerald-500 animate-pulse'
+                          : 'bg-slate-400',
+                    )}
+                  />
                   <h3 className="text-sm font-extrabold text-text-primary">
-                    Lienzo Interactivo en Tiempo Real ({aspectRatio})
+                    {isVisualEditMode
+                      ? 'Editor Visual en Vivo (Arrastra Cajas / Edita Textos)'
+                      : `Lienzo Interactivo en Tiempo Real (${aspectRatio})`}
                   </h3>
                 </div>
 
-                {/* Botonera de Exportación WAPPY (ExpandableButton) */}
-                <div className="flex items-center gap-1.5">
+                {/* Botonera WAPPY (ExpandableButton) */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={toggleVisualEditMode}
+                    className={cn(
+                      'h-8 px-2.5 sm:h-9 sm:px-3 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer',
+                      isVisualEditMode
+                        ? 'bg-amber-500/20 border-amber-500 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/30 shadow-xs'
+                        : 'bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20',
+                    )}
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>{isVisualEditMode ? 'Salir de Edición' : 'Editar Textos / Cajas'}</span>
+                  </button>
+
                   <ExpandableButton
                     size="sm"
                     icon={<Download />}
@@ -2552,120 +3109,328 @@ export default function WappyStudioDashboard() {
                     icon={<Maximize2 />}
                     label="Pantalla Completa"
                     variant="neutral"
-                    onClick={() => {
-                      stageContainerRef.current?.requestFullscreen?.().catch(() => {});
-                    }}
+                    onClick={toggleStageFullscreen}
                   />
                 </div>
               </div>
 
-              {/* ESCENARIO MULTI-CAPA (VIDEO BASE + IFRAME HTML/GSAP + SUBTÍTULOS HORMOZI) */}
-              <div className="flex justify-center bg-slate-950 rounded-2xl p-3 border border-slate-800 shadow-inner">
+              {/* Barra de Herramientas Rápidas del Modo Editor Visual */}
+              {isVisualEditMode && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2.5 animate-in fade-in duration-150">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                    <span className="font-bold text-amber-800 dark:text-amber-200 flex items-center gap-1.5">
+                      <Move className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      Arrastra cualquier caja o título con el mouse para moverlo • Doble clic para escribir
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleSaveVisualEdits}
+                      className="px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-500 text-white font-bold text-[11px] flex items-center gap-1 cursor-pointer shadow-2xs"
+                    >
+                      <Check className="w-3 h-3" />
+                      Guardar Cambios
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        iframeRef.current?.contentWindow?.postMessage(
+                          { type: 'STUDIO_ADD_ELEMENT', kind: 'text' },
+                          '*',
+                        )
+                      }
+                      className="px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-[11px] font-bold text-text-primary hover:border-teal-500 flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3 text-teal-500" />
+                      <Type className="w-3 h-3 text-teal-500" />
+                      <span>+ Texto</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        iframeRef.current?.contentWindow?.postMessage(
+                          { type: 'STUDIO_ADD_ELEMENT', kind: 'card' },
+                          '*',
+                        )
+                      }
+                      className="px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-[11px] font-bold text-text-primary hover:border-teal-500 flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3 text-purple-500" />
+                      <Layers className="w-3 h-3 text-purple-500" />
+                      <span>+ Caja / Tarjeta</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        iframeRef.current?.contentWindow?.postMessage(
+                          { type: 'STUDIO_SELECT_PARENT' },
+                          '*',
+                        )
+                      }
+                      disabled={!selectedCanvasElement}
+                      className="px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-[11px] font-bold text-text-primary hover:border-teal-500 disabled:opacity-40 cursor-pointer"
+                    >
+                      Seleccionar Caja Contenedora
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        iframeRef.current?.contentWindow?.postMessage(
+                          { type: 'STUDIO_DUPLICATE_SELECTED' },
+                          '*',
+                        )
+                      }
+                      disabled={!selectedCanvasElement}
+                      className="px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-[11px] font-bold text-text-primary hover:border-teal-500 disabled:opacity-40 cursor-pointer flex items-center gap-1"
+                    >
+                      <Copy className="w-3 h-3 text-indigo-500" />
+                      <span>Duplicar</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        iframeRef.current?.contentWindow?.postMessage(
+                          { type: 'STUDIO_DELETE_SELECTED' },
+                          '*',
+                        )
+                      }
+                      disabled={!selectedCanvasElement}
+                      className="px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/30 text-[11px] font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 disabled:opacity-40 cursor-pointer flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Eliminar</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ESCENARIO MULTI-CAPA (VIDEO BASE + IFRAME HTML/GSAP + SUBTÍTULOS + CONTROLES FULLSCREEN) */}
+              <div className="flex justify-center bg-slate-950 rounded-2xl p-2.5 border border-slate-800 shadow-inner">
                 <div
                   ref={stageContainerRef}
                   className={cn(
-                    'relative overflow-hidden rounded-xl bg-slate-950 shadow-2xl border border-white/10',
-                    aspectRatio === '9:16'
-                      ? 'w-full max-w-[330px] aspect-[9/16]'
-                      : 'w-full aspect-[16/9]',
+                    'relative overflow-hidden bg-slate-950 shadow-2xl border border-white/10',
+                    isStageFullscreen
+                      ? 'w-screen h-screen rounded-none border-0 flex flex-col items-center justify-between p-4 sm:p-6'
+                      : cn(
+                          'w-full rounded-xl',
+                          aspectRatio === '9:16'
+                            ? 'aspect-[9/12] sm:aspect-[9/13] max-h-[680px]'
+                            : 'aspect-[16/10] sm:aspect-[16/9] min-h-[360px]',
+                        ),
                   )}
                 >
-                  {/* Pista de Audio Oculta para Locución */}
-                  {activeStageAudioSrc && (
-                    <audio
-                      ref={stageAudioRef}
-                      src={activeStageAudioSrc}
-                      preload="metadata"
-                      onTimeUpdate={(e) => {
-                        setVideoCurrentTime(e.currentTarget.currentTime);
-                      }}
-                      onLoadedMetadata={(e) => {
-                        if (e.currentTarget.duration && !isNaN(e.currentTarget.duration)) {
-                          setVideoDuration(e.currentTarget.duration);
-                        }
-                      }}
-                      onEnded={() => setIsVideoPlaying(false)}
-                    />
-                  )}
-
-                  {/* CAPA 1: Video Base Subido por el Usuario (con dimensiones explícitas según modern-web-guidance) */}
-                  {baseVideoUrl && (
-                    <video
-                      ref={baseVideoRef}
-                      src={baseVideoUrl}
-                      width={aspectRatio === '9:16' ? 1080 : 1920}
-                      height={aspectRatio === '9:16' ? 1920 : 1080}
-                      muted={muteBaseVideo}
-                      playsInline
-                      loop
-                      preload="metadata"
-                      onTimeUpdate={(e) => {
-                        if (!activeStageAudioSrc) {
+                  {/* Marco interno centrado que mantiene la proporción exacta en Pantalla Completa sin correrse */}
+                  <div
+                    className={cn(
+                      'relative overflow-hidden bg-slate-950',
+                      isStageFullscreen
+                        ? aspectRatio === '9:16'
+                          ? 'h-[calc(100vh-100px)] aspect-[9/16] max-w-[95vw] rounded-2xl border border-white/15 shadow-2xl mx-auto my-auto'
+                          : 'w-[min(94vw,calc((100vh-100px)*1.7778))] aspect-[16/9] max-h-[calc(100vh-100px)] rounded-2xl border border-white/15 shadow-2xl mx-auto my-auto'
+                        : 'w-full h-full',
+                    )}
+                  >
+                    {/* Pista de Audio Oculta para Locución */}
+                    {activeStageAudioSrc && (
+                      <audio
+                        ref={stageAudioRef}
+                        src={activeStageAudioSrc}
+                        preload="metadata"
+                        onTimeUpdate={(e) => {
                           setVideoCurrentTime(e.currentTarget.currentTime);
+                        }}
+                        onLoadedMetadata={(e) => {
+                          if (e.currentTarget.duration && !isNaN(e.currentTarget.duration)) {
+                            setVideoDuration(e.currentTarget.duration);
+                          }
+                        }}
+                        onEnded={() => setIsVideoPlaying(false)}
+                      />
+                    )}
+
+                    {/* CAPA 1: Video Base Subido por el Usuario (con dimensiones explícitas según modern-web-guidance) */}
+                    {baseVideoUrl && (
+                      <video
+                        ref={baseVideoRef}
+                        src={baseVideoUrl}
+                        width={aspectRatio === '9:16' ? 1080 : 1920}
+                        height={aspectRatio === '9:16' ? 1920 : 1080}
+                        muted={muteBaseVideo}
+                        playsInline
+                        loop
+                        preload="metadata"
+                        onTimeUpdate={(e) => {
+                          if (!activeStageAudioSrc) {
+                            setVideoCurrentTime(e.currentTarget.currentTime);
+                          }
+                        }}
+                        onLoadedMetadata={(e) => {
+                          if (
+                            !activeStageAudioSrc &&
+                            e.currentTarget.duration &&
+                            !isNaN(e.currentTarget.duration)
+                          ) {
+                            setVideoDuration(e.currentTarget.duration);
+                          }
+                        }}
+                        className="absolute inset-0 w-full h-full object-cover z-0"
+                      />
+                    )}
+
+                    {/* CAPA 2: Composición Animada HTML5 + GSAP con Puente Interactivo */}
+                    <iframe
+                      ref={iframeRef}
+                      title="WAPPY Studio HTML Canvas"
+                      srcDoc={bridgedHtmlCode}
+                      sandbox="allow-scripts allow-same-origin"
+                      onLoad={() => {
+                        iframeRef.current?.contentWindow?.postMessage(
+                          { type: 'STUDIO_FIT_VIEWPORT' },
+                          '*',
+                        );
+                        if (isVisualEditMode) {
+                          iframeRef.current?.contentWindow?.postMessage(
+                            { type: 'STUDIO_SET_EDIT_MODE', enabled: true },
+                            '*',
+                          );
+                        } else if (!isVideoPlaying) {
+                          iframeRef.current?.contentWindow?.postMessage(
+                            { type: 'STUDIO_PAUSE' },
+                            '*',
+                          );
                         }
                       }}
-                      onLoadedMetadata={(e) => {
-                        if (
-                          !activeStageAudioSrc &&
-                          e.currentTarget.duration &&
-                          !isNaN(e.currentTarget.duration)
-                        ) {
-                          setVideoDuration(e.currentTarget.duration);
-                        }
-                      }}
-                      className="absolute inset-0 w-full h-full object-cover z-0"
+                      className={cn(
+                        'absolute inset-0 w-full h-full border-0 z-10',
+                        isVisualEditMode ? 'pointer-events-auto' : 'pointer-events-none',
+                      )}
                     />
-                  )}
 
-                  {/* CAPA 2: Composición Animada HTML5 + GSAP (Fondo transparente si hay video base) */}
-                  <iframe
-                    ref={iframeRef}
-                    title="WAPPY Studio HTML Canvas"
-                    srcDoc={htmlCode}
-                    sandbox="allow-scripts"
-                    className="absolute inset-0 w-full h-full border-0 z-10 pointer-events-none"
-                  />
-
-                  {/* CAPA 3: Subtítulos Dinámicos Sincronizados Palabra a Palabra (Estilo Hormozi / Claude) */}
-                  {showDynamicSubtitles && currentSubtitleWindow && (
-                    <div className="absolute bottom-5 inset-x-3 z-20 flex justify-center pointer-events-none">
-                      <div className="bg-black/80 backdrop-blur-md border border-white/20 px-4 py-2.5 rounded-2xl shadow-2xl text-center max-w-[94%]">
-                        <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1">
-                          {currentSubtitleWindow.words.map((word, idx) => {
-                            const isActiveWord = idx === currentSubtitleWindow.activeOffset;
-                            return (
-                              <span
-                                key={`${word}-${idx}`}
-                                className={cn(
-                                  'text-sm sm:text-base font-black uppercase tracking-wide transition-all duration-150',
-                                  isActiveWord
-                                    ? 'text-amber-300 scale-110 bg-teal-500/30 px-1.5 py-0.5 rounded-lg border border-teal-400/50'
-                                    : 'text-white/90',
-                                )}
-                              >
-                                {word}
-                              </span>
-                            );
-                          })}
+                    {/* CAPA 3: Subtítulos Dinámicos Sincronizados Palabra a Palabra (Estilo Hormozi / Claude) */}
+                    {showDynamicSubtitles && currentSubtitleWindow && (
+                      <div className="absolute bottom-5 inset-x-3 z-20 flex justify-center pointer-events-none">
+                        <div className="bg-black/85 backdrop-blur-md border border-white/20 px-4 py-2.5 rounded-2xl shadow-2xl text-center max-w-[94%]">
+                          <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1">
+                            {currentSubtitleWindow.words.map((word, idx) => {
+                              const isActiveWord = idx === currentSubtitleWindow.activeOffset;
+                              return (
+                                <span
+                                  key={`${word}-${idx}`}
+                                  className={cn(
+                                    'text-sm sm:text-base font-black uppercase tracking-wide transition-all duration-150',
+                                    isActiveWord
+                                      ? 'text-amber-300 scale-110 bg-teal-500/30 px-1.5 py-0.5 rounded-lg border border-teal-400/50'
+                                      : 'text-white/90',
+                                  )}
+                                >
+                                  {word}
+                                </span>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
+                    )}
+                  </div>
+
+                  {/* BARRA DE CONTROL FLOTANTE EN PANTALLA COMPLETA (PLAY / PAUSE / SEEK / SALIR) */}
+                  {isStageFullscreen && (
+                    <div className="w-full max-w-3xl mx-auto mt-3 px-4 py-2.5 rounded-2xl bg-slate-900/95 backdrop-blur-md border border-white/15 flex items-center gap-3 z-30 shadow-2xl">
+                      <button
+                        type="button"
+                        onClick={toggleStagePlayback}
+                        title={isVideoPlaying ? 'Pausar / Parar' : 'Reproducir'}
+                        className="px-3.5 h-9 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer shrink-0"
+                      >
+                        {isVideoPlaying ? (
+                          <>
+                            <Pause className="w-4 h-4 fill-white" />
+                            <span>Pausar</span>
+                          </>
+                        ) : (
+                          <>
+                            <Play className="w-4 h-4 fill-white" />
+                            <span>Play</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={restartStagePlayback}
+                        title="Reiniciar animación"
+                        className="p-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 hover:text-white transition cursor-pointer shrink-0"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                      </button>
+
+                      <input
+                        type="range"
+                        min={0}
+                        max={videoDuration || 20}
+                        step={0.1}
+                        value={videoCurrentTime}
+                        onChange={(e) => handleStageSeek(parseFloat(e.target.value))}
+                        className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-teal-500"
+                      />
+
+                      <span className="text-xs font-mono font-bold text-slate-200 shrink-0">
+                        {videoCurrentTime.toFixed(1)}s / {(videoDuration || 20).toFixed(1)}s
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={toggleVisualEditMode}
+                        className={cn(
+                          'px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1 cursor-pointer transition shrink-0',
+                          isVisualEditMode
+                            ? 'bg-amber-500/20 border-amber-400 text-amber-300'
+                            : 'bg-slate-800 border-slate-700 text-slate-200 hover:text-white',
+                        )}
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>{isVisualEditMode ? 'Editando' : 'Editar'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={toggleStageFullscreen}
+                        className="px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-200 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shrink-0"
+                      >
+                        <Minimize2 className="w-3.5 h-3.5" />
+                        <span>Salir</span>
+                      </button>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Controles de Línea de Tiempo del Escenario */}
+              {/* Controles de Línea de Tiempo del Escenario (Vista Normal) */}
               <div className="p-3.5 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200/80 dark:border-zinc-800 space-y-2.5">
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
                     onClick={toggleStagePlayback}
-                    className="w-9 h-9 rounded-xl bg-teal-600 hover:bg-teal-500 text-white flex items-center justify-center shadow-xs transition cursor-pointer shrink-0"
+                    title={isVideoPlaying ? 'Pausar animación y subtítulos' : 'Reproducir animación y subtítulos'}
+                    className="px-3 h-9 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition cursor-pointer shrink-0"
                   >
                     {isVideoPlaying ? (
-                      <Pause className="w-4 h-4 fill-white" />
+                      <>
+                        <Pause className="w-4 h-4 fill-white" />
+                        <span>Pausar</span>
+                      </>
                     ) : (
-                      <Play className="w-4 h-4 fill-white ml-0.5" />
+                      <>
+                        <Play className="w-4 h-4 fill-white ml-0.5" />
+                        <span>Play</span>
+                      </>
                     )}
                   </button>
 
@@ -2712,6 +3477,131 @@ export default function WappyStudioDashboard() {
                   )}
                 </div>
               </div>
+
+              {/* INSPECTOR VISUAL DEL ELEMENTO SELECCIONADO EN EL LIENZO */}
+              {isVisualEditMode && selectedCanvasElement && (
+                <div className="p-4 bg-slate-50 dark:bg-zinc-900/90 rounded-2xl border border-teal-500/40 space-y-3 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-teal-700 dark:text-teal-300 flex items-center gap-1.5">
+                      <Edit3 className="w-3.5 h-3.5" />
+                      Propiedades del Elemento Seleccionado (&lt;{selectedCanvasElement.tagName}&gt;)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => updateSelectedCanvasElement({ dx: 0, dy: 0, scale: 1 })}
+                      className="text-[11px] font-bold text-teal-600 dark:text-teal-400 hover:underline cursor-pointer"
+                    >
+                      Restablecer posición
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-text-secondary mb-1">
+                      Texto del elemento (edita aquí o con doble clic en el video):
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={selectedCanvasElement.text}
+                      onChange={(e) => updateSelectedCanvasElement({ text: e.target.value })}
+                      className="w-full bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-700 rounded-xl p-2.5 text-xs text-text-primary font-semibold focus:outline-none focus:border-teal-500 resize-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 items-center">
+                    <div>
+                      <label className="block text-[10px] font-bold text-text-secondary mb-1">
+                        Tamaño Letra ({selectedCanvasElement.fontSize}px)
+                      </label>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateSelectedCanvasElement({
+                              fontSize: Math.max(10, selectedCanvasElement.fontSize - 2),
+                            })
+                          }
+                          className="flex-1 py-1 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-xs font-bold cursor-pointer"
+                        >
+                          A-
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateSelectedCanvasElement({
+                              fontSize: Math.min(96, selectedCanvasElement.fontSize + 2),
+                            })
+                          }
+                          className="flex-1 py-1 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-xs font-bold cursor-pointer"
+                        >
+                          A+
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-text-secondary mb-1">
+                        Escala Caja ({selectedCanvasElement.scale}x)
+                      </label>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateSelectedCanvasElement({
+                              scale: Math.max(
+                                0.5,
+                                Number((selectedCanvasElement.scale - 0.1).toFixed(2)),
+                              ),
+                            })
+                          }
+                          className="flex-1 py-1 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-xs font-bold cursor-pointer"
+                        >
+                          -
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateSelectedCanvasElement({
+                              scale: Math.min(
+                                2.5,
+                                Number((selectedCanvasElement.scale + 0.1).toFixed(2)),
+                              ),
+                            })
+                          }
+                          className="flex-1 py-1 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-xs font-bold cursor-pointer"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-text-secondary mb-1">
+                        Color de Texto
+                      </label>
+                      <input
+                        type="color"
+                        value={selectedCanvasElement.color}
+                        onChange={(e) => updateSelectedCanvasElement({ color: e.target.value })}
+                        className="w-full h-7 rounded-lg cursor-pointer bg-transparent border border-slate-200 dark:border-zinc-700"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-text-secondary mb-1">
+                        Color de Fondo
+                      </label>
+                      <input
+                        type="color"
+                        value={selectedCanvasElement.backgroundColor}
+                        onChange={(e) =>
+                          updateSelectedCanvasElement({ backgroundColor: e.target.value })
+                        }
+                        className="w-full h-7 rounded-lg cursor-pointer bg-transparent border border-slate-200 dark:border-zinc-700"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

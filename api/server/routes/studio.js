@@ -1265,29 +1265,34 @@ router.post('/video/generate-html', studioAuth, async (req, res) => {
     const width = isVertical ? 1080 : 1920;
     const height = isVertical ? 1920 : 1080;
 
-    const systemInstruction = `Eres un Director de Motion Graphics Senior experto en HyperFrames, GSAP 3, Tailwind CSS y animaciones virales estilo Claude / HeyGen.
-Tu objetivo es crear una página HTML5 autocontenida, fluida y cinematográfica (${width}x${height}px) lista para reproducirse en un reproductor interactivo y grabarse con FFmpeg/Chromium.
+    const systemInstruction = `Eres un Director de Motion Graphics Senior experto en el sistema de diseño cinematográfico HyperFrames (SKILL hyperframes-motion-design), GSAP 3, Tailwind CSS y animaciones virales estilo Claude / HeyGen.
+Tu objetivo es crear una página HTML5 autocontenida, fluida, editable y cinematográfica con relación de aspecto ${aspectRatio} (${width}x${height}) lista para reproducirse en cualquier tamaño de pantalla (normal o pantalla completa) sin desbordarse jamás.
 
-REGLAS ESTRICTAS DE ARQUITECTURA VISUAL:
+REGLAS ESTRICTAS DE ARQUITECTURA VISUAL Y RESPONSIVIDAD (PROHIBIDO DESBORDAR EL LIENZO):
 1. Devuelve ÚNICAMENTE el código HTML completo (desde <!DOCTYPE html> hasta </html>), sin bloques markdown (\`\`\`html).
 2. Incluye en el <head>:
    - <script src="https://cdn.tailwindcss.com"></script>
    - <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-   - Google Fonts: 'Plus Jakarta Sans' y 'JetBrains Mono'.
-3. TRANSPARENCIA PARA CAPA DE VIDEO BASE:
-   - Si hasBaseVideo es true (${hasBaseVideo}), el <body> DEBE tener background: transparent; para que el video grabado a cámara del usuario que está en la capa inferior se vea nítidamente, y tus gráficos/tarjetas/badges/subtítulos se superpongan con glassmorphism (backdrop-filter: blur(12px), bg-slate-950/75, bordes luminosos).
-   - Si hasBaseVideo es false, crea un fondo oscuro animado de alto impacto con orbes de luz flotantes, rejilla sutil (grid) y partículas suaves.
-4. ANIMACIÓN GSAP TIMELINE GLOBAL (window.mainTimeline):
-   - Crea una línea de tiempo maestra en GSAP: \`window.mainTimeline = gsap.timeline({ repeat: -1, yoyo: false });\`
-   - Divide la animación en escenas dinámicas a lo largo de ${durationSeconds} segundos.
-   - Usa curvas orgánicas: \`back.out(1.7)\`, \`elastic.out(1, 0.5)\`, \`power3.out\`.
-   - Añade tarjetas flotantes con métricas, badges con iconos SVG, resaltadores fluorescentes y llamadas a la acción.
-5. API DE CONTROL EXTERNO (OBLIGATORIA):
+   - Google Fonts: 'Plus Jakarta Sans', 'Syne' y 'JetBrains Mono'.
+3. GEOMETRÍA AUTO-AJUSTABLE Y CENTRADA (CERO CORRIMIENTO EN PANTALLA COMPLETA O NORMAL):
+   - PROHIBIDO usar \`width: 1920px\` o \`width: 1080px\` fijos en \`body\` o contenedores que causen recorte o corrimiento horizontal.
+   - \`html, body\` DEBEN tener: \`width: 100vw; height: 100vh; max-width: 100%; max-height: 100%; margin: 0; padding: 0; overflow: hidden; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;\`
+   - Envuelve el contenido visual dentro de un contenedor maestro \`<div id="stage" class="relative w-full h-full flex flex-col justify-between p-5 sm:p-8 overflow-hidden box-border">\` con unidades relativas (\`w-full\`, \`max-w-4xl mx-auto\`, \`clamp()\`, \`grid\`, \`flex\`) para que se vea 100% centrado tanto en vista previa pequeña como en Pantalla Completa.
+4. TRANSPARENCIA PARA CAPA DE VIDEO BASE:
+   - Si hasBaseVideo es true (${hasBaseVideo}), el <body> DEBE tener \`background: transparent;\` para que el video grabado a cámara del usuario en la capa inferior se vea nítidamente, y tus gráficos/tarjetas/badges se superpongan con glassmorphism (\`backdrop-filter: blur(16px)\`, \`background: rgba(10, 18, 30, 0.78)\`, bordes luminosos).
+   - Si hasBaseVideo es false, crea un fondo oscuro animado de alto impacto (\`#060d14\`) con orbes de luz flotantes, rejilla técnica sutil (grid) y viñeta cinematográfica.
+5. SISTEMA DE DISEÑO HYPERFRAMES MOTION DESIGN (GSAP TIMELINE MAESTRO):
+   - Crea SIEMPRE la línea de tiempo maestra asignada a \`window.mainTimeline = gsap.timeline({ repeat: -1, repeatDelay: 1.5 });\`.
+   - Desarrolla una coreografía multicapa de ${durationSeconds} segundos dividida en beats visuales claros (Entrada con impacto, Desarrollo de tarjetas/reglas numeradas, Métricas/HUD y Cierre).
+   - Usa curvas elásticas y expresivas: \`back.out(1.7)\`, \`expo.out\`, \`elastic.out(1, 0.5)\`, \`power3.out\`.
+   - Añade atributos \`data-editable="true"\` en todas las tarjetas, insignias y textos importantes para que el editor visual de WAPPY Studio pueda moverlos y editarlos con el mouse.
+   - Deja libre la franja inferior (\`padding-bottom: 64px\`) para que los subtítulos dinámicos palabra a palabra no tapen las tarjetas.
+6. API DE CONTROL EXTERNO (OBLIGATORIA):
    - Escucha mensajes \`window.addEventListener('message', (e) => { ... })\` para soportar:
-     - \`{ type: 'STUDIO_PLAY' }\` -> \`window.mainTimeline?.play()\`
-     - \`{ type: 'STUDIO_PAUSE' }\` -> \`window.mainTimeline?.pause()\`
-     - \`{ type: 'STUDIO_RESTART' }\` -> \`window.mainTimeline?.restart()\`
-     - \`{ type: 'STUDIO_SEEK', progress: 0..1 }\` -> \`window.mainTimeline?.progress(e.data.progress)\``;
+     - \`{ type: 'STUDIO_PLAY' }\` -> \`window.mainTimeline?.play(); gsap.globalTimeline.play();\`
+     - \`{ type: 'STUDIO_PAUSE' }\` -> \`window.mainTimeline?.pause(); gsap.globalTimeline.pause();\`
+     - \`{ type: 'STUDIO_RESTART' }\` -> \`window.mainTimeline?.restart(); gsap.globalTimeline.restart();\`
+     - \`{ type: 'STUDIO_SEEK', progress: 0..1 }\` -> \`window.mainTimeline?.progress(e.data.progress);\``;
 
     const userPrompt = `Diseña una composición animada en HTML + GSAP con estas especificaciones:
 - Formato: ${aspectRatio} (${width}x${height})

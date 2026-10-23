@@ -335,8 +335,8 @@ const Nav = memo(
                             <TareasButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
                         )}
-                        {/* WAPPY Studio (TTS 60m & Video HTML con Capas) */}
-                        {hasAccessToLMS && (
+                        {/* WAPPY Studio (Solo ADMIN por el momento) */}
+                        {isAdmin && (
                           <Suspense fallback={null}>
                             <WappyStudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
@@ -422,8 +422,8 @@ const Nav = memo(
                                   </Suspense>
                                 )}
 
-                                {/* 3.5. WAPPY Studio (TTS 60m & Video HTML con Capas - Justo por encima de Academia WAPPY) */}
-                                {hasAccessToLMS && (
+                                {/* 3.5. WAPPY Studio (Solo ADMIN por el momento - Justo por encima de Academia WAPPY) */}
+                                {isAdmin && (
                                   <Suspense fallback={null}>
                                     <WappyStudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>
