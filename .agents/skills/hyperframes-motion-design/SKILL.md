@@ -91,3 +91,23 @@ Para disparar comentarios en Reels / TikTok:
 3. **Optimización de Rendimiento:**
    Usar `will-change: transform, opacity;` en capas complejas.
    Usar resoluciones 9:16 balanceadas (como 720x1280) que ofrecen máxima nitidez en pantallas de celular y tiempos de renderizado mucho más ágiles.
+
+
+---
+
+## 8. Las 5 Leyes Cinéticas Obligatorias (Rebotes, Stagger, Parallax 3 Capas, Micro-Movimientos y Sable Láser en Manos)
+
+> [!IMPORTANT]
+> **DIRECTRIZ ESTRICTA DE DINAMISMO VISUAL:**
+> Ninguna animación, reel o vídeo puede tener elementos estáticos o movimientos planos. Siempre debes aplicar estas 5 leyes cinéticas en todas las escenas:
+
+1. **Curvas con Rebote Elástico (`elastic.out(1, 0.4)`, `back.out(1.7)`, `E.spring`, `E.back`):**
+   - Prohibido usar entradas lineales para tarjetas, insignias, iconos o botones. Usa siempre curvas con rebote físico y sobreimpulso para dar peso orgánico.
+2. **Entradas Escalonadas Uno Después de Otro (`Stagger`):**
+   - Nunca hagas aparecer un grupo de tarjetas, botones, ítems de lista o nodos al mismo tiempo. Escalónalos con `stagger: 0.1` a `0.15` segundos uno detrás de otro en cascada.
+3. **Separación de Profundidad en 3 Planos con Diferentes Velocidades (`Parallax Multicapa`):**
+   - Separa explícitamente **Fondo** (velocidad `0.25x`), **Plano Medio** (velocidad `1.0x`) y **Frente / Primer Plano** (velocidad `1.45x`), moviéndolos a distintas velocidades durante cada paneo o zoom de cámara.
+4. **Micro-Movimientos Constantes (`Living UI`):**
+   - Ningún elemento en pantalla puede quedarse quieto tras su entrada. Todos los contenedores, iconos, avatares y badges deben mantener flotación sinusoidal continua (`sine.inOut`), oscilación angular sutil (`±1°`) y pulso de luz.
+5. **Efecto Sable Láser / Haz de Energía cuando Aparecen Manos:**
+   - Siempre que en el vídeo aparezcan manos (del presentador en cámara, recortadas o del avatar) señalando, gesticulando o sosteniendo algo, añade un efecto de **Sable Láser / Rayo de Plasma Neón** (núcleo blanco `#ffffff` + hoja de energía `#c7f303` o `#2dd4bf` + doble `feGaussianBlur` + `flicker` de alta frecuencia + chispas en la empuñadura/mano) sincronizado con el movimiento de la mano.

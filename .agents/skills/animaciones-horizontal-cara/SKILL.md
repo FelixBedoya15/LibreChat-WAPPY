@@ -181,3 +181,14 @@ logos correctos, cada cosa con su palabra, nada cortado ni superpuesto, cifras i
 - `references/motor.md`: el motor de la plantilla, sus piezas, las ventanas del montaje y los errores conocidos.
 - `references/datos-y-logos.md`: verificación de datos, buscador de logos, recursos ya preparados y colores de marca.
 - `ejemplos/README.md`: las entregas aprobadas, escena por escena, con dónde está cada pieza en su código.
+
+
+---
+
+## Directrices Cinéticas Obligatorias en Todas las Escenas (Las 5 Leyes de Movimiento)
+
+1. **Curvas con Rebote (`E.spring`, `E.back`, `step(tau, w, z)`):** Toda entrada de tarjetas, chips, nodos, insignias y botones debe usar curvas con rebote elástico y sobreimpulso físico. Nunca uses interpolación lineal para colocar elementos.
+2. **Entradas Escalonadas (`Stagger`):** Cuando entren varios elementos (tarjetas, barras, nodos de flujo, listas o botones), haz que entren **uno después de otro** con un desfase de `0.08 s` a `0.15 s` (`t0 + i * 0.12`).
+3. **Parallax de 3 Planos (Fondo, Medio y Frente a Distintas Velocidades):** Separa siempre los elementos en 3 capas de profundidad y muévelos a distinta velocidad respecto a la cámara: **Fondo (`0.25x`)**, **Medio (`1.0x`)** y **Frente (`1.45x`)**.
+4. **Micro-Movimientos Constantes:** Una vez que una pieza entra en escena, nunca la dejes congelada. Aplícale flotación continua suave (`Math.sin(t * 2.2 + i)`), ligera rotación orgánica y respiración de brillo/escala.
+5. **Efecto Sable Láser cuando Haya Manos:** Siempre que en la grabación aparezcan las manos del presentador gesticulando o señalando, traza un efecto de **Sable Láser / Haz de Plasma** (núcleo blanco incandescente `#ffffff` + halo neón con `feGaussianBlur`, vibración rápida `flicker` y chispas en la mano) siguiendo la mano fotograma a fotograma.

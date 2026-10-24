@@ -1,0 +1,42 @@
+{
+ "intro-scifi": {
+  "archivo": "intro-scifi.mp3",
+  "titulo": "Sci-Fi Score",
+  "autor": "Arulo",
+  "dur": 97.5,
+  "uso": "Electrónica cinematográfica oscura que crece en los primeros 15 s. Para Josema se quedó corta en una intro («añade música épica»): úsala solo si la quiere más sobria o con fondo tecnológico.",
+  "desde": 0.0,
+  "nivel_db": -16,
+  "fuente": "https://mixkit.co/free-stock-music/tag/technology/ (https://assets.mixkit.co/music/464/464.mp3)"
+ },
+ "intro-tambores": {
+  "archivo": "intro-tambores.mp3",
+  "titulo": "Epical Drums 01",
+  "autor": "Grigoriy Nuzhny",
+  "dur": 105.9,
+  "uso": "Intros (por defecto desde el 30/09/2026): tambores épicos cinematográficos. Josema la pidió «épica, pero que pegue» y la aprobó en «editado por IA»: a −15 dB de la voz, ducking 3, y con anim.py golpe para que el final de un redoble caiga en el revelado (allí, desde 22.665 → golpe en «Claude»).",
+  "desde": 0.8,
+  "nivel_db": -15,
+  "fuente": "https://mixkit.co/free-stock-music/tag/cinematic/ (https://assets.mixkit.co/music/676/676.mp3)"
+ },
+ "explicacion-jazz": {
+  "archivo": "explicacion-jazz.mp3",
+  "titulo": "Smooth Like Jazz",
+  "autor": "Ahjay Stelino",
+  "dur": 158.3,
+  "uso": "Jazz tranquilo y constante para la parte que explica, un disclaimer o el cierre (el estilo del vídeo de referencia).",
+  "desde": 0.6,
+  "nivel_db": -19,
+  "fuente": "https://mixkit.co/free-stock-music/tag/jazz/ (https://assets.mixkit.co/music/24/24.mp3)"
+ },
+ "explicacion-tech": {
+  "archivo": "explicacion-tech.mp3",
+  "titulo": "Cyberpunk City",
+  "autor": "Alejandro Magaña (A. M.)",
+  "dur": 99.7,
+  "uso": "Ambiente tecnológico neutro y sin percusión marcada: explicaciones largas donde el jazz no pega.",
+  "desde": 2.0,
+  "nivel_db": -18,
+  "fuente": "https://mixkit.co/free-stock-music/tag/cinematic/ (https://assets.mixkit.co/music/140/140.mp3)"
+ }
+}

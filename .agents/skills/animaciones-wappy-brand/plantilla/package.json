@@ -1,0 +1,10 @@
+{
+  "name": "animacion-con-voz",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Animación HTML sincronizada con una locución, renderizada a MP4",
+  "dependencies": {
+    "playwright-core": "^1.63.0"
+  }
+}

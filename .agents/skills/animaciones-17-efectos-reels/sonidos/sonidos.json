@@ -1,0 +1,282 @@
+{
+ "golpe": {
+  "archivo": "golpe.wav",
+  "familia": "golpe",
+  "dur": 1.6,
+  "pico": 0.014,
+  "ancla": "pico",
+  "gain_db": -12.1,
+  "descripcion": "Golpe grave limpio (sub-hit): un nombre, un logo o una cifra que entra con fuerza; titular gigante.",
+  "origen": "sintetizado (animaciones-horizontal-combinadas, sin derechos)"
+ },
+ "golpe-corto": {
+  "archivo": "golpe-corto.wav",
+  "familia": "golpe",
+  "dur": 0.7,
+  "pico": 0.012,
+  "ancla": "pico",
+  "gain_db": -12.3,
+  "descripcion": "Golpe grave corto: acentos pequeños (una tarjeta que aterriza, un número).",
+  "origen": "sintetizado (animaciones-horizontal-combinadas, sin derechos)"
+ },
+ "aire": {
+  "archivo": "aire.wav",
+  "familia": "aire",
+  "dur": 0.52,
+  "pico": 0.206,
+  "ancla": "pico",
+  "gain_db": -9.9,
+  "descripcion": "Whoosh suave: una pieza entra o se desplaza (tarjeta, panel, ficha de vídeo). Ancla: el pico cuando la pieza llega.",
+  "origen": "sintetizado (animaciones-horizontal-combinadas, sin derechos)"
+ },
+ "aire-salida": {
+  "archivo": "aire-salida.wav",
+  "familia": "aire",
+  "dur": 0.445,
+  "pico": 0.124,
+  "ancla": "pico",
+  "gain_db": -10.2,
+  "descripcion": "Whoosh descendente y corto: una pieza o una escena sale. Más bajo que el de entrada.",
+  "origen": "sintetizado (animaciones-horizontal-combinadas, sin derechos)"
+ },
+ "tick": {
+  "archivo": "tick.wav",
+  "familia": "tick",
+  "dur": 0.051,
+  "pico": 0.005,
+  "ancla": "pico",
+  "gain_db": -18.0,
+  "descripcion": "Tick seco: aparece un chip, una etiqueta, un icono de una lista, una palabra de un titular.",
+  "origen": "sintetizado (animaciones-horizontal-combinadas, sin derechos)"
+ },
+ "tick-suave": {
+  "archivo": "tick-suave.wav",
+  "familia": "tick",
+  "dur": 0.06,
+  "pico": 0.005,
+  "ancla": "pico",
+  "gain_db": -18.5,
+  "descripcion": "Tick grave y suave: elementos pequeños en serie (iconos que orbitan, casillas que se llenan).",
+  "origen": "sintetizado (animaciones-horizontal-combinadas, sin derechos)"
+ },
+ "nota": {
+  "archivo": "nota.wav",
+  "familia": "nota",
+  "dur": 2.0,
+  "pico": 0.012,
+  "ancla": "pico",
+  "gain_db": -15.8,
+  "descripcion": "Nota de campana suave: un acierto, un check, algo positivo o «gratis».",
+  "origen": "sintetizado (animaciones-horizontal-combinadas, sin derechos)"
+ },
+ "nota-doble": {
+  "archivo": "nota-doble.wav",
+  "familia": "nota",
+  "dur": 2.0,
+  "pico": 0.099,
+  "ancla": "pico",
+  "gain_db": -14.7,
+  "descripcion": "Dos notas que suben: confirmación, «listo», publicado.",
+  "origen": "sintetizado (animaciones-horizontal-combinadas, sin derechos)"
+ },
+ "swell": {
+  "archivo": "swell.wav",
+  "familia": "subida",
+  "dur": 1.068,
+  "pico": 1.068,
+  "ancla": "fin",
+  "gain_db": -11.3,
+  "descripcion": "Swell corto que sube y corta en seco: anticipa un revelado. Ancla: el final (pico) en el instante del golpe.",
+  "origen": "sintetizado (animaciones-horizontal-combinadas, sin derechos)"
+ },
+ "descarte": {
+  "archivo": "descarte.wav",
+  "familia": "tick",
+  "dur": 0.5,
+  "pico": 0.015,
+  "ancla": "pico",
+  "gain_db": -18.9,
+  "descripcion": "Barrido que baja: algo se descarta, se tacha o pierde el color.",
+  "origen": "sintetizado (animaciones-horizontal-combinadas, sin derechos)"
+ },
+ "corte": {
+  "archivo": "corte.wav",
+  "familia": "corte",
+  "dur": 0.5,
+  "pico": 0.006,
+  "ancla": "pico",
+  "gain_db": -8.5,
+  "descripcion": "Tajo: transición de cuchilla (una línea corta la imagen).",
+  "origen": "sintetizado (animaciones-horizontal-combinadas, sin derechos)"
+ },
+ "bip": {
+  "archivo": "bip.wav",
+  "familia": "tick",
+  "dur": 0.16,
+  "pico": 0.007,
+  "ancla": "pico",
+  "gain_db": -19.3,
+  "descripcion": "Bip corto: un contador, un temporizador, un aviso pequeño.",
+  "origen": "sintetizado (animaciones-horizontal-combinadas, sin derechos)"
+ },
+ "golpe-grave": {
+  "archivo": "golpe-grave.wav",
+  "familia": "golpe",
+  "dur": 2.083,
+  "pico": 0.047,
+  "ancla": "pico",
+  "gain_db": -17.7,
+  "descripcion": "Impacto grave con cola (Pixabay): el golpe grande de un revelado de marca o del titular principal.",
+  "origen": "Pixabay Content License (uso comercial sin atribución)"
+ },
+ "impacto": {
+  "archivo": "impacto.wav",
+  "familia": "golpe",
+  "dur": 2.587,
+  "pico": 2.061,
+  "ancla": "pico",
+  "gain_db": -19.2,
+  "descripcion": "Impacto con una pequeña anticipación (Pixabay): el pico cae en el revelado.",
+  "origen": "Pixabay Content License (uso comercial sin atribución)"
+ },
+ "barrido": {
+  "archivo": "barrido.wav",
+  "familia": "aire",
+  "dur": 0.52,
+  "pico": 0.11,
+  "ancla": "pico",
+  "gain_db": -13.9,
+  "descripcion": "Whoosh corto (Pixabay): movimiento rápido, una ficha que cruza la pantalla.",
+  "origen": "Pixabay Content License (uso comercial sin atribución)"
+ },
+ "transicion": {
+  "archivo": "transicion.wav",
+  "familia": "aire",
+  "dur": 4.765,
+  "pico": 2.332,
+  "ancla": "pico",
+  "gain_db": -12.9,
+  "descripcion": "Whoosh cinematográfico largo (Pixabay, 5,5 s): el vídeo que se convierte en ficha, un viaje de cámara.",
+  "origen": "Pixabay Content License (uso comercial sin atribución)"
+ },
+ "click": {
+  "archivo": "click.wav",
+  "familia": "tick",
+  "dur": 0.2,
+  "pico": 0.015,
+  "ancla": "pico",
+  "gain_db": -10.5,
+  "descripcion": "Clic suave (Pixabay): un cursor que pulsa un botón.",
+  "origen": "Pixabay Content License (uso comercial sin atribución)"
+ },
+ "tecla": {
+  "archivo": "tecla.wav",
+  "familia": "tecla",
+  "dur": 0.134,
+  "pico": 0.011,
+  "ancla": "pico",
+  "gain_db": -8.0,
+  "descripcion": "Una tecla (Pixabay).",
+  "origen": "Pixabay Content License (uso comercial sin atribución)"
+ },
+ "tecleo": {
+  "archivo": "tecleo.wav",
+  "familia": "tecla",
+  "dur": 1.453,
+  "pico": 0.413,
+  "ancla": "pico",
+  "gain_db": -8.6,
+  "descripcion": "Tecleo de 1,5 s (Pixabay): un buscador o un prompt que se escribe.",
+  "origen": "Pixabay Content License (uso comercial sin atribución)"
+ },
+ "campana": {
+  "archivo": "campana.wav",
+  "familia": "nota",
+  "dur": 2.48,
+  "pico": 0.401,
+  "ancla": "pico",
+  "gain_db": -8.0,
+  "descripcion": "Campanita melódica (Pixabay): éxito, confirmación.",
+  "origen": "Pixabay Content License (uso comercial sin atribución)"
+ },
+ "ping": {
+  "archivo": "ping.wav",
+  "familia": "nota",
+  "dur": 0.902,
+  "pico": 0.022,
+  "ancla": "pico",
+  "gain_db": -8.0,
+  "descripcion": "Ping electrónico (Pixabay): un dato clave.",
+  "origen": "Pixabay Content License (uso comercial sin atribución)"
+ },
+ "brillo": {
+  "archivo": "brillo.wav",
+  "familia": "nota",
+  "dur": 1.796,
+  "pico": 0.024,
+  "ancla": "pico",
+  "gain_db": -11.5,
+  "descripcion": "Destello brillante (Pixabay): algo se ilumina, un mapa que se enciende.",
+  "origen": "Pixabay Content License (uso comercial sin atribución)"
+ },
+ "notificacion": {
+  "archivo": "notificacion.wav",
+  "familia": "aviso",
+  "dur": 1.663,
+  "pico": 0.149,
+  "ancla": "pico",
+  "gain_db": -8.0,
+  "descripcion": "Aviso de notificación (Pixabay): una notificación o un mensaje que entra.",
+  "origen": "Pixabay Content License (uso comercial sin atribución)"
+ },
+ "subida": {
+  "archivo": "subida.wav",
+  "familia": "subida",
+  "dur": 4.811,
+  "pico": 2.32,
+  "ancla": "pico",
+  "gain_db": -16.6,
+  "descripcion": "Riser largo de 10 s (Pixabay): subida de tensión; el pico al final.",
+  "origen": "Pixabay Content License (uso comercial sin atribución)"
+ },
+ "fallo": {
+  "archivo": "fallo.wav",
+  "familia": "error",
+  "dur": 0.348,
+  "pico": 0.143,
+  "ancla": "pico",
+  "gain_db": -19.8,
+  "descripcion": "Tono de error (Pixabay): algo falla, «no».",
+  "origen": "Pixabay Content License (uso comercial sin atribución)"
+ },
+ "glitch": {
+  "archivo": "glitch.wav",
+  "familia": "glitch",
+  "dur": 1.864,
+  "pico": 1.612,
+  "ancla": "pico",
+  "gain_db": -8.0,
+  "descripcion": "Glitch discreto (Pixabay): cambio digital sutil.",
+  "origen": "Pixabay Content License (uso comercial sin atribución)"
+ },
+ "glitch-fuerte": {
+  "archivo": "glitch-fuerte.wav",
+  "familia": "glitch",
+  "dur": 2.559,
+  "pico": 0.739,
+  "ancla": "pico",
+  "gain_db": -12.4,
+  "descripcion": "Glitch con pegada (Pixabay): corte brusco. Úsalo poco.",
+  "origen": "Pixabay Content License (uso comercial sin atribución)"
+ },
+ "pop": {
+  "archivo": "pop.wav",
+  "familia": "tick",
+  "dur": 0.7,
+  "pico": 0.102,
+  "ancla": "pico",
+  "gain_db": -18.6,
+  "descripcion": "Pop (Pixabay). Evítalo en el estilo sobrio: suena a dibujos animados.",
+  "origen": "Pixabay Content License (uso comercial sin atribución)"
+ }
+}

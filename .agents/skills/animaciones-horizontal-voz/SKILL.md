@@ -199,3 +199,14 @@ Otros formatos: `anim.py render --noaudio` (sin la voz), `--scale=2 --fps=30` (4
 - `references/datos-y-logos.md`: verificación de datos, buscador de logos, colores de marca.
 - `registro.md`: animaciones ya hechas (para no repetirse).
 - `ejemplos/README.md`: las animaciones entregadas, escena por escena, con cómo se adaptó cada una a su audio.
+
+
+---
+
+## Directrices Cinéticas Obligatorias en Todas las Escenas (Las 5 Leyes de Movimiento)
+
+1. **Curvas con Rebote (`E.spring`, `E.back`, `step(tau, w, z)`):** Toda entrada de tarjetas, chips, nodos, insignias y botones debe usar curvas con rebote elástico y sobreimpulso físico. Nunca uses interpolación lineal para colocar elementos.
+2. **Entradas Escalonadas (`Stagger`):** Cuando entren varios elementos (tarjetas, barras, nodos de flujo, listas o botones), haz que entren **uno después de otro** con un desfase de `0.08 s` a `0.15 s` (`t0 + i * 0.12`).
+3. **Parallax de 3 Planos (Fondo, Medio y Frente a Distintas Velocidades):** Separa siempre los elementos en 3 capas de profundidad y muévelos a distinta velocidad respecto a la cámara: **Fondo (`0.25x`)**, **Medio (`1.0x`)** y **Frente (`1.45x`)**.
+4. **Micro-Movimientos Constantes:** Una vez que una pieza entra en escena, nunca la dejes congelada. Aplícale flotación continua suave (`Math.sin(t * 2.2 + i)`), ligera rotación orgánica y respiración de brillo/escala.
+5. **Efecto Sable Láser cuando Haya Manos:** Siempre que en la escena o avatar aparezcan manos señalando o accionando una idea, traza un efecto de **Sable Láser / Haz de Plasma** (núcleo blanco incandescente `#ffffff` + halo neón con `feGaussianBlur`, vibración rápida `flicker` y chispas en la mano) que acompañe su gesto.

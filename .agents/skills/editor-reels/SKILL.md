@@ -183,3 +183,14 @@ Pasos: `cortar <reel> --tramos "…" --clasico` (crea `guion.json`), logos, escr
 - `references/estilo.md`: sistema visual (zonas de la pantalla, colores, tipografía, movimiento), marca y preferencias ya decididas.
 - `references/problemas.md`: errores frecuentes y cómo resolverlos (instalación, GPU, fotogramas repetidos, ffmpeg, Remotion, Whisper, logos).
 - `references/referencias.md`: cómo analizar un reel de referencia de Instagram sin descargarlo, para entender un estilo sin copiarlo.
+
+
+---
+
+## Directrices Cinéticas Obligatorias en Todos los Reels (Las 5 Leyes de Movimiento en Remotion)
+
+1. **Curvas con Rebote (`spring({ damping: 12, stiffness: 180 })`):** Toda entrada de piezas, insignias, iconos y tarjetas debe usar muelles con rebote físico (`spring` con sobreimpulso).
+2. **Entradas Escalonadas (`Stagger`):** Los elementos de una pieza o lista entran **uno después de otro** separados por `3 a 5 fotogramas` (`0.08 s – 0.15 s`), nunca todos de golpe.
+3. **Parallax de 3 Planos (Fondo, Medio y Frente a Distintas Velocidades):** Separa siempre el **Fondo** (`0.25x`), el **Plano Medio / Persona** (`1.0x`) y el **Primer Plano / Pieza** (`1.45x`) moviéndolos a velocidades distintas durante los zooms y cambios de encuadre.
+4. **Micro-Movimientos Constantes:** Ninguna pieza ni icono queda congelado tras entrar; añade flotación sinusoidal continua (`Math.sin(frame / 12 + i)`), rotación sutil y pulsos de luz.
+5. **Efecto Sable Láser cuando Haya Manos (`WappyLightsaberHand`):** Cuando el presentador levante o mueva las manos en el plano de cara, activa el efecto de **Sable Láser / Haz de Energía Neón** (núcleo blanco `#ffffff` + hoja de plasma `#c7f303` o acento de marca + doble `feGaussianBlur` + `flicker` y chispas) siguiendo la mano.

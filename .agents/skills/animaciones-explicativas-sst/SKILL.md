@@ -1,6 +1,6 @@
 ---
 name: animaciones-explicativas-sst
-description: Crea vídeos explicativos y análisis normativos de Seguridad y Salud en el Trabajo (SST) estilo "SST para Dummies" (1920x1080 o 1080x1920 a 60 fps, sin subtítulos por defecto) sincronizados palabra a palabra con la voz. Incluye visor de sentencias/decretos reales en papel blanco con subrayado fluorescente amarillo y datos personales censurados, pantalla dividida de rumores de WhatsApp vs verificación técnica, abanico de formatos/procedimientos con metáforas visuales ("extintor normativo"), índice de capítulos numerados, intro editorial y generador de portadas/miniaturas con expediente legal y gancho gigante. Úsala SIEMPRE que el usuario pida explicar una norma, resolución, decreto, sentencia del Consejo de Estado/Corte, cambio legal en SST o quiera un vídeo estilo "SST para Dummies" / explicativo documental.
+description: "Crea vídeos explicativos y análisis normativos de Seguridad y Salud en el Trabajo (SST) estilo SST para Dummies (1920x1080 o 1080x1920 a 60 fps, sin subtítulos por defecto) sincronizados palabra a palabra con la voz. Incluye visor de sentencias/decretos reales en papel blanco con subrayado fluorescente amarillo y datos personales censurados, pantalla dividida de rumores de WhatsApp vs verificación técnica, abanico de formatos/procedimientos con metáforas visuales (extintor normativo), índice de capítulos numerados, intro editorial y generador de portadas/miniaturas con expediente legal y gancho gigante. Úsala SIEMPRE que el usuario pida explicar una norma, resolución, decreto, sentencia del Consejo de Estado/Corte, cambio legal en SST o quiera un vídeo estilo SST para Dummies / explicativo documental."
 ---
 
 # Animaciones Explicativas y Normativas SST (`animaciones-explicativas-sst`)
@@ -167,3 +167,27 @@ indice.pintar(t, { x: CX, y: CY, o: 1 });
    ```bash
    python3 "/Users/venta/Documents/GitHub/LibreChat-WAPPY/.agents/skills/animaciones-explicativas-sst/scripts/anim.py" render <carpeta-proyecto>
    ```
+
+
+---
+
+## 4. Las 5 Leyes Cinéticas Obligatorias (Rebotes, Stagger, Parallax 3 Capas, Micro-Movimientos y Sable Láser en Manos)
+
+> [!IMPORTANT]
+> **DIRECTRIZ ESTRICTA DE DINAMISMO VISUAL:**
+> Ninguna animación, reel o vídeo puede tener elementos estáticos o movimientos planos. Siempre debes aplicar estas 5 leyes cinéticas en todas las escenas:
+
+1. **Curvas con Rebote Elástico (`E.spring`, `E.back`, `E.bounce` / GSAP `elastic.out`, `back.out`):**
+   - Prohibido usar entradas lineales (`E.lin`) para tarjetas, insignias, iconos o botones.
+   - Usa siempre curvas con sobreimpulso y rebote físico (`E.spring`, `E.back`, `step(tau, w, z)` o `spring({ damping: 12, stiffness: 180 })` en Remotion) para que cada elemento sienta peso y elasticidad al aterrizar.
+2. **Entradas Escalonadas Uno Después de Otro (`Stagger`):**
+   - Nunca hagas aparecer un grupo de tarjetas, botones, ítems de lista o nodos al mismo milisegundo.
+   - Escalónalos secuencialmente con un desfase de `0.08 s` a `0.15 s` entre cada elemento (`t0 + i * 0.12`), guiando la vista del espectador en cascada.
+3. **Separación de Profundidad en 3 Planos con Diferentes Velocidades (`Parallax Multicapa`):**
+   - Divide siempre la escena en **Fondo** (`z1–z2`), **Plano Medio** (`z3–z5`, contenido principal / persona) y **Primer Plano / Frente** (`z6–z8`, badges flotantes, destellos, partículas o HUD).
+   - Al mover la cámara (`camara(t)`), desplaza el **Fondo a `0.25x`**, el **Plano Medio a `1.0x`** y el **Frente a `1.45x`** para crear sensación real de volumen 3D.
+4. **Micro-Movimientos Constantes (`Living UI` / `microFloat`):**
+   - Una vez que un elemento terminó de entrar, **jamás debe quedarse congelado como una foto fija**.
+   - Aplícale flotación sinusoidal continua (`Math.sin(t * 2.2 + i)`), rotación sutil (`±0.5° a ±2°`) y respiración de escala (`1 ± 0.012`), además de iconos internos activos.
+5. **Efecto Sable Láser / Haz de Energía cuando Aparecen Manos (`SableLaserMano` / `WappyLightsaberHand`):**
+   - Siempre que en el vídeo (grabación a cámara, recorte de persona o avatar) **aparezcan las manos gesticulando, señalando o sosteniendo algo**, activa el efecto de **Sable Láser / Haz de Plasma Neón** con núcleo blanco incandescente (`#ffffff`), hoja de plasma de color de acento (`#c7f303` o `#14B8A6`), doble resplandor Gaussiano (`feGaussianBlur`), vibración de alta frecuencia (`flicker`) y chispas de ignición siguiendo la mano fotograma a fotograma.
