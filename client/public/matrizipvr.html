@@ -200,6 +200,51 @@
       Matriz interactiva portable de Identificación de Peligros, Evaluación y Valoración de Riesgos (IPEVR – GTC 45). La <strong>gestión manual es 100% offline</strong> en tu navegador (sin necesidad de internet ni servidores), y cuenta con <strong>asistente opcional de IA (Google Gemini)</strong> para sugerencias automáticas cuando dispones de conexión a internet y tus claves API.
     </p>
 
+    <!-- ========================================================= -->
+    <!-- 2.1 CÓMO USAR LA HERRAMIENTA (VIDEO TUTORIAL CON ADMIN)    -->
+    <!-- ========================================================= -->
+    <div id="tutorialSectionWrapper" class="max-w-4xl mx-auto mb-5 text-left">
+      <div class="bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm transition-all hover:shadow-md">
+        
+        <!-- Header de la sección de Video -->
+        <div class="flex items-center justify-between gap-3 pb-3 border-b border-slate-100 mb-3">
+          <div class="flex items-center gap-2.5">
+            <span class="w-8 h-8 rounded-xl bg-[#c7f303]/30 border border-[#c7f303]/60 text-slate-900 font-black text-sm flex items-center justify-center shrink-0">
+              ▶
+            </span>
+            <div>
+              <h2 id="tutorialVideoTitleDisplay" class="font-display font-black text-sm sm:text-base text-slate-900 tracking-tight leading-none">
+                ¿Cómo usar la herramienta?
+              </h2>
+              <p class="text-[11px] text-slate-500 font-semibold mt-0.5">
+                Video tutorial guiado para aprovechar la Matriz IPEVR GTC 45 al 100%
+              </p>
+            </div>
+          </div>
+
+          <!-- Botón de Configuración de Video (Visible solo para administradores) -->
+          <div class="flex items-center gap-2">
+            <button 
+              id="btnAdminEditVideo" 
+              type="button"
+              onclick="openVideoConfigModal()" 
+              class="hidden items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-800 text-xs font-black shadow-2xs cursor-pointer transition-all active:scale-95"
+              title="Configurar enlace de video (Solo administradores de WAPPY)"
+            >
+              <span>⚙️</span>
+              <span>Configurar Video (Admin)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Contenedor del Reproductor / Poster de Video -->
+        <div id="tutorialVideoContainer" class="relative w-full rounded-xl sm:rounded-2xl overflow-hidden bg-slate-950 border border-slate-200/60 shadow-inner">
+          <!-- Renderizado dinámicamente por renderTutorialVideo() -->
+        </div>
+
+      </div>
+    </div>
+
     <!-- Active Company Hero Banner -->
     <div onclick="openCompanyModal()" class="cursor-pointer group inline-flex flex-wrap items-center justify-between gap-3 bg-white/95 backdrop-blur-md border border-teal-500/30 hover:border-teal-500 shadow-sm rounded-2xl px-4 py-2.5 max-w-4xl w-full mx-auto mb-4 transition-all hover:shadow-md text-left">
       <div class="flex items-center gap-3">
@@ -1071,7 +1116,96 @@
     </div>
   </div>
 
-    <!-- ========================================== -->
+  <!-- ========================================================= -->
+  <!-- MODAL: CONFIGURAR VIDEO TUTORIAL "¿CÓMO USAR LA HERRAMIENTA?" -->
+  <!-- ========================================================= -->
+  <div id="videoConfigModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm items-center justify-center p-3 sm:p-5">
+    <div class="relative bg-white rounded-2xl sm:rounded-3xl max-w-xl w-full p-4 sm:p-6 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200 text-left">
+      
+      <!-- Encabezado Modal -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 flex items-center justify-center text-lg shrink-0">
+            🎬
+          </div>
+          <div>
+            <h3 class="font-display font-black text-base sm:text-lg text-slate-900 tracking-tight leading-none">
+              Configurar Video Tutorial
+            </h3>
+            <p class="text-[11px] text-slate-500 font-semibold mt-0.5">
+              ¿Cómo usar la herramienta? (Modo Administrador)
+            </p>
+          </div>
+        </div>
+        <button onclick="closeVideoConfigModal()" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center text-sm font-bold cursor-pointer transition-colors" title="Cerrar modal">
+          ✕
+        </button>
+      </div>
+
+      <!-- Formulario -->
+      <form onsubmit="handleSaveVideoConfig(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-bold text-slate-800 mb-1">
+            Título del encabezado del video:
+          </label>
+          <input 
+            type="text" 
+            id="videoConfigTitleInput" 
+            placeholder="Ej: ¿Cómo usar la herramienta? Tutorial Paso a Paso Matriz IPEVR" 
+            class="w-full text-xs p-2.5 border border-slate-200 rounded-xl outline-none focus:border-teal-500 bg-white font-medium text-slate-800"
+            required
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-800 mb-1">
+            Enlace del video (YouTube o Google Meet / Drive):
+          </label>
+          <input 
+            type="text" 
+            id="videoConfigUrlInput" 
+            placeholder="https://www.youtube.com/watch?v=... o https://meet.google.com/... o https://drive.google.com/..." 
+            class="w-full text-xs font-mono p-2.5 border border-slate-200 rounded-xl outline-none focus:border-teal-500 bg-white text-slate-800"
+            oninput="handleVideoUrlPreview(this.value)"
+            required
+          />
+          <p class="text-[11px] text-slate-500 mt-1 leading-snug">
+            Formatos soportados: <strong>YouTube</strong> (enlace completo, corto <code>youtu.be</code>, <code>shorts</code> o <code>live</code>), grabaciones de <strong>Google Meet / Google Drive</strong> (enlace <code>drive.google.com/file/d/...</code>) o video directo MP4.
+          </p>
+        </div>
+
+        <!-- Vista previa en tiempo real -->
+        <div>
+          <span class="block text-[11px] font-bold text-slate-600 mb-1">Vista Previa:</span>
+          <div id="videoConfigPreviewBox" class="w-full aspect-video rounded-xl border border-slate-200 bg-slate-100 flex items-center justify-center text-slate-400 text-xs overflow-hidden">
+            <span>Pega un enlace para previsualizar</span>
+          </div>
+        </div>
+
+        <!-- Botones de Acción -->
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+          <button 
+            type="button" 
+            onclick="closeVideoConfigModal()" 
+            class="h-9 px-3.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold cursor-pointer transition-all active:scale-95"
+          >
+            Cancelar
+          </button>
+          <button 
+            type="submit" 
+            id="btnSaveVideoConfigSubmit"
+            class="h-9 px-4 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black shadow-sm cursor-pointer transition-all active:scale-95 flex items-center gap-1.5"
+          >
+            <span>💾</span>
+            <span>Guardar y Publicar</span>
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- ========================================== -->
   <!-- 11. MODAL 4: INFORMACIÓN DE LA EMPRESA (WAPPY MULTI-EMPRESA 1:1) -->
   <!-- ========================================== -->
   <div id="companyModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm items-center justify-center p-3 sm:p-4">
@@ -2067,8 +2201,421 @@ function getCatColor(cat) {
   return { hex: '#64748b', bg: 'bg-slate-500', text: 'text-slate-600' };
 }
 
+// ─── GESTIÓN DE VIDEO TUTORIAL "¿CÓMO USAR LA HERRAMIENTA?" ────────
+let tutorialVideoState = {
+  url: '',
+  title: '¿Cómo usar la herramienta? Tutorial Paso a Paso Matriz IPEVR',
+  isPlaying: false
+};
+let isPlatformAdmin = false;
+
+function parseVideoEmbed(rawUrl) {
+  if (!rawUrl || typeof rawUrl !== 'string') return null;
+  const url = rawUrl.trim();
+
+  // 1. YouTube (watch, embed, shorts, live, youtu.be)
+  const ytRegExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts|live)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
+  const ytMatch = url.match(ytRegExp);
+  if (ytMatch && ytMatch[1]) {
+    const id = ytMatch[1];
+    return {
+      type: 'youtube',
+      id: id,
+      embedUrl: `https://www.youtube.com/embed/${id}?autoplay=1&rel=0&playsinline=1`,
+      thumbnailUrl: `https://img.youtube.com/vi/${id}/maxresdefault.jpg`,
+      fallbackThumb: `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
+      isShort: url.includes('/shorts/')
+    };
+  }
+
+  // 2. Google Drive / Meet Recording
+  const driveMatch = url.match(/drive\.google\.com\/(?:file\/d\/([a-zA-Z0-9_-]+)|open\?id=([a-zA-Z0-9_-]+))/i);
+  if (driveMatch) {
+    const fileId = driveMatch[1] || driveMatch[2];
+    return {
+      type: 'drive',
+      id: fileId,
+      embedUrl: `https://drive.google.com/file/d/${fileId}/preview`,
+      thumbnailUrl: '',
+      isShort: false
+    };
+  }
+
+  // 3. Google Meet Link
+  if (url.includes('meet.google.com/')) {
+    return {
+      type: 'meet',
+      id: url,
+      embedUrl: url,
+      thumbnailUrl: '',
+      isShort: false
+    };
+  }
+
+  // 4. Direct video file
+  if (/\.(mp4|webm|ogg)($|\?)/i.test(url)) {
+    return {
+      type: 'video',
+      id: url,
+      embedUrl: url,
+      thumbnailUrl: '',
+      isShort: false
+    };
+  }
+
+  // 5. Generic embed / iframe
+  return {
+    type: 'generic',
+    id: url,
+    embedUrl: url,
+    thumbnailUrl: '',
+    isShort: false
+  };
+}
+
+function handleVideoUrlPreview(val) {
+  const box = document.getElementById('videoConfigPreviewBox');
+  if (!box) return;
+  const parsed = parseVideoEmbed(val);
+  if (!parsed) {
+    box.innerHTML = `<span class="text-slate-400 text-xs">Pega un enlace válido para previsualizar</span>`;
+    return;
+  }
+  if (parsed.type === 'youtube') {
+    box.innerHTML = `
+      <div class="relative w-full h-full bg-black">
+        <img src="${parsed.thumbnailUrl}" onerror="this.src='${parsed.fallbackThumb}'" class="w-full h-full object-cover opacity-80" />
+        <div class="absolute inset-0 flex items-center justify-center">
+          <div class="w-12 h-12 rounded-full bg-[#c7f303] text-black flex items-center justify-center font-bold text-lg shadow-lg">▶</div>
+        </div>
+      </div>
+    `;
+  } else if (parsed.type === 'drive') {
+    box.innerHTML = `
+      <div class="flex flex-col items-center justify-center p-4 text-center">
+        <span class="text-3xl mb-1">📁</span>
+        <span class="font-bold text-slate-800 text-xs">Grabación de Google Meet / Drive</span>
+        <span class="text-[10px] text-slate-500 font-mono mt-0.5">Vista previa interactiva al guardar</span>
+      </div>
+    `;
+  } else if (parsed.type === 'meet') {
+    box.innerHTML = `
+      <div class="flex flex-col items-center justify-center p-4 text-center">
+        <span class="text-3xl mb-1">🎥</span>
+        <span class="font-bold text-slate-800 text-xs">Sesión de Google Meet</span>
+        <span class="text-[10px] text-slate-500 font-mono mt-0.5">${parsed.embedUrl}</span>
+      </div>
+    `;
+  } else if (parsed.type === 'video') {
+    box.innerHTML = `<video src="${parsed.embedUrl}" controls class="w-full h-full object-cover"></video>`;
+  } else {
+    box.innerHTML = `<iframe src="${parsed.embedUrl}" class="w-full h-full border-0"></iframe>`;
+  }
+}
+
+function renderTutorialVideo() {
+  const container = document.getElementById('tutorialVideoContainer');
+  const titleDisplay = document.getElementById('tutorialVideoTitleDisplay');
+  if (!container) return;
+
+  if (titleDisplay && tutorialVideoState.title) {
+    titleDisplay.textContent = tutorialVideoState.title;
+  }
+
+  const parsed = parseVideoEmbed(tutorialVideoState.url);
+
+  // Caso 1: Hay video y está en modo reproducción
+  if (parsed && tutorialVideoState.isPlaying) {
+    if (parsed.type === 'youtube' || parsed.type === 'drive' || parsed.type === 'generic') {
+      container.innerHTML = `
+        <div class="relative w-full aspect-video bg-black">
+          <iframe 
+            src="${parsed.embedUrl}" 
+            title="${tutorialVideoState.title}"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+            allowfullscreen 
+            class="w-full h-full border-0 block"
+          ></iframe>
+          <button 
+            type="button"
+            onclick="stopTutorialVideo(event)" 
+            class="absolute top-3 right-3 z-10 px-2.5 py-1 rounded-lg bg-black/70 hover:bg-black text-white text-xs font-bold backdrop-blur-md cursor-pointer transition-colors shadow-md flex items-center gap-1"
+            title="Cerrar reproductor"
+          >
+            <span>✕</span>
+            <span>Cerrar</span>
+          </button>
+        </div>
+      `;
+    } else if (parsed.type === 'meet') {
+      container.innerHTML = `
+        <div class="relative w-full aspect-video bg-gradient-to-br from-slate-900 to-slate-950 flex flex-col items-center justify-center p-6 text-center text-white">
+          <div class="w-16 h-16 rounded-2xl bg-teal-500/20 text-teal-400 border border-teal-500/30 flex items-center justify-center text-3xl mb-3 shadow-lg">
+            🎥
+          </div>
+          <h3 class="font-display font-black text-base sm:text-lg mb-1">${tutorialVideoState.title}</h3>
+          <p class="text-xs text-slate-300 max-w-md mb-4">Video o sala oficial de Google Meet para la inducción de la herramienta.</p>
+          <a href="${parsed.embedUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#c7f303] text-black font-black text-xs uppercase tracking-wider hover:brightness-105 active:scale-95 transition-all shadow-md">
+            <span>Abrir Google Meet</span>
+            <span>↗</span>
+          </a>
+          <button 
+            type="button"
+            onclick="stopTutorialVideo(event)" 
+            class="mt-3 text-xs text-slate-400 hover:text-white underline cursor-pointer"
+          >
+            Volver a la portada
+          </button>
+        </div>
+      `;
+    } else if (parsed.type === 'video') {
+      container.innerHTML = `
+        <div class="relative w-full aspect-video bg-black">
+          <video src="${parsed.embedUrl}" controls autoplay class="w-full h-full object-contain block"></video>
+          <button 
+            type="button"
+            onclick="stopTutorialVideo(event)" 
+            class="absolute top-3 right-3 z-10 px-2.5 py-1 rounded-lg bg-black/70 hover:bg-black text-white text-xs font-bold backdrop-blur-md cursor-pointer transition-colors shadow-md flex items-center gap-1"
+          >
+            <span>✕</span>
+            <span>Cerrar</span>
+          </button>
+        </div>
+      `;
+    }
+    return;
+  }
+
+  // Caso 2: Hay video pero aún no se le da clic (Poster Mode)
+  if (parsed && !tutorialVideoState.isPlaying) {
+    const posterSrc = parsed.type === 'youtube' ? parsed.thumbnailUrl : '';
+    const fallbackSrc = parsed.type === 'youtube' ? parsed.fallbackThumb : '';
+
+    container.innerHTML = `
+      <div 
+        onclick="playTutorialVideo()" 
+        class="relative w-full aspect-video sm:h-[360px] cursor-pointer overflow-hidden group select-none bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900"
+      >
+        ${posterSrc ? `
+          <img 
+            src="${posterSrc}" 
+            onerror="this.src='${fallbackSrc}'" 
+            alt="${tutorialVideoState.title}" 
+            class="w-full h-full object-cover opacity-65 group-hover:opacity-80 group-hover:scale-102 transition-all duration-500" 
+          />
+        ` : `
+          <div class="absolute inset-0 bg-radial from-teal-900/40 via-slate-950 to-slate-950 opacity-90"></div>
+        `}
+
+        <!-- Overlay con Botón de Play Glow -->
+        <div class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center z-10 gap-3">
+          <div class="w-18 h-18 sm:w-22 sm:h-22 rounded-full bg-[#c7f303] text-black flex items-center justify-center text-3xl font-black shadow-2xl shadow-[#c7f303]/50 ring-8 ring-[#c7f303]/25 group-hover:scale-110 group-hover:shadow-[#c7f303]/70 transition-all duration-300">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="#0E1300" class="ml-1">
+              <polygon points="6 4 20 12 6 20 6 4"></polygon>
+            </svg>
+          </div>
+
+          <div class="inline-flex items-center gap-2 bg-slate-950/85 backdrop-blur-md text-white border border-white/20 px-4 py-2 rounded-full text-xs sm:text-sm font-bold shadow-lg group-hover:border-[#c7f303]/60 transition-colors max-w-[90%] truncate">
+            <span class="text-[#c7f303]">▶</span>
+            <span class="truncate">Reproducir: ${tutorialVideoState.title}</span>
+          </div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // Caso 3: NO hay video aún
+  if (isPlatformAdmin) {
+    container.innerHTML = `
+      <div 
+        onclick="openVideoConfigModal()" 
+        class="cursor-pointer p-6 sm:p-10 border-2 border-dashed border-amber-500/40 hover:border-amber-500 bg-amber-500/5 hover:bg-amber-500/10 text-center transition-all group"
+      >
+        <div class="w-14 h-14 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-600 flex items-center justify-center text-2xl mb-2.5 group-hover:scale-110 transition-transform">
+          🎬
+        </div>
+        <h3 class="font-display font-black text-slate-900 text-sm sm:text-base mb-1">
+          ¿Cómo usar la herramienta? (Modo Administrador)
+        </h3>
+        <p class="text-xs text-slate-600 max-w-md mx-auto mb-3">
+          No hay video asignado aún. Haz clic aquí para pegar el link de YouTube o Google Meet que verán los usuarios.
+        </p>
+        <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-sm">
+          <span>➕ Vincular Video Tutorial</span>
+        </span>
+      </div>
+    `;
+  } else {
+    container.innerHTML = `
+      <div class="p-6 sm:p-8 bg-gradient-to-br from-slate-900 to-slate-950 text-center text-white flex flex-col items-center justify-center">
+        <div class="w-12 h-12 rounded-2xl bg-teal-500/20 text-teal-400 border border-teal-500/30 flex items-center justify-center text-2xl mb-2">
+          🎬
+        </div>
+        <h4 class="font-display font-black text-sm text-white mb-0.5">Video Tutorial en Preparación</h4>
+        <p class="text-xs text-slate-400 max-w-sm">Pronto estará disponible la inducción completa de la Matriz IPEVR GTC 45.</p>
+      </div>
+    `;
+  }
+}
+
+function playTutorialVideo() {
+  tutorialVideoState.isPlaying = true;
+  renderTutorialVideo();
+}
+
+function stopTutorialVideo(e) {
+  if (e) e.stopPropagation();
+  tutorialVideoState.isPlaying = false;
+  renderTutorialVideo();
+}
+
+function openVideoConfigModal() {
+  const modal = document.getElementById('videoConfigModal');
+  const titleInput = document.getElementById('videoConfigTitleInput');
+  const urlInput = document.getElementById('videoConfigUrlInput');
+  if (!modal) return;
+
+  if (titleInput) titleInput.value = tutorialVideoState.title || '';
+  if (urlInput) urlInput.value = tutorialVideoState.url || '';
+  handleVideoUrlPreview(tutorialVideoState.url || '');
+
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+
+function closeVideoConfigModal() {
+  const modal = document.getElementById('videoConfigModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+}
+
+async function handleSaveVideoConfig(e) {
+  if (e) e.preventDefault();
+  const titleInput = document.getElementById('videoConfigTitleInput');
+  const urlInput = document.getElementById('videoConfigUrlInput');
+  const submitBtn = document.getElementById('btnSaveVideoConfigSubmit');
+
+  const newTitle = titleInput ? titleInput.value.trim() : '';
+  const newUrl = urlInput ? urlInput.value.trim() : '';
+
+  if (!newUrl) {
+    showToast('Ingresa un enlace de video válido.', 'warning');
+    return;
+  }
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = `<span>⏳</span><span>Guardando...</span>`;
+  }
+
+  tutorialVideoState.url = newUrl;
+  tutorialVideoState.title = newTitle || '¿Cómo usar la herramienta? Tutorial Paso a Paso Matriz IPEVR';
+  tutorialVideoState.isPlaying = false;
+
+  // Guardar en localStorage
+  localStorage.setItem('wappy_matrizipvr_tutorial_video', JSON.stringify({
+    url: tutorialVideoState.url,
+    title: tutorialVideoState.title
+  }));
+
+  renderTutorialVideo();
+  closeVideoConfigModal();
+
+  // Guardar en base de datos vía API de Comunidad Config (funnelKey = 'matrizipvr')
+  try {
+    const res = await fetch('/api/comunidad/config', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        funnelKey: 'matrizipvr',
+        videoUrl: tutorialVideoState.url,
+        extraVideoTitle1: tutorialVideoState.title
+      })
+    });
+
+    if (res.ok) {
+      showToast('✅ Video tutorial guardado y publicado para todos los visitantes.', 'success');
+    } else {
+      showToast('⚠️ Video guardado en este navegador. Inicia sesión como Admin para sincronizarlo globalmente.', 'warning');
+    }
+  } catch (err) {
+    showToast('⚠️ Video guardado en este navegador.', 'info');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = `<span>💾</span><span>Guardar y Publicar</span>`;
+    }
+  }
+}
+
+async function initTutorialVideo() {
+  // 1. Cargar desde LocalStorage primero
+  const cached = localStorage.getItem('wappy_matrizipvr_tutorial_video');
+  if (cached) {
+    try {
+      const parsedCached = JSON.parse(cached);
+      if (parsedCached.url) tutorialVideoState.url = parsedCached.url;
+      if (parsedCached.title) tutorialVideoState.title = parsedCached.title;
+    } catch(e){}
+  }
+
+  // 2. Detectar Rol de Administrador
+  try {
+    const userRes = await fetch('/api/user', { credentials: 'include' });
+    if (userRes.ok) {
+      const u = await userRes.json();
+      if (u && (u.role === 'ADMIN' || u.role === 'admin')) {
+        isPlatformAdmin = true;
+      }
+    }
+  } catch(e){}
+
+  if (new URLSearchParams(window.location.search).get('admin') === '1' || localStorage.getItem('wappy_is_admin') === 'true') {
+    isPlatformAdmin = true;
+  }
+
+  const btn = document.getElementById('btnAdminEditVideo');
+  if (btn) {
+    if (isPlatformAdmin) {
+      btn.classList.remove('hidden');
+      btn.classList.add('inline-flex');
+    } else {
+      btn.classList.add('hidden');
+      btn.classList.remove('inline-flex');
+    }
+  }
+
+  renderTutorialVideo();
+
+  // 3. Consultar configuración global de MongoDB
+  try {
+    const configRes = await fetch('/api/comunidad/config?funnelKey=matrizipvr');
+    if (configRes.ok) {
+      const data = await configRes.json();
+      if (data && data.videoUrl && !data.videoUrl.includes('w3schools.com')) {
+        tutorialVideoState.url = data.videoUrl;
+        if (data.extraVideoTitle1 && data.extraVideoTitle1 !== 'Clase Extra 1') {
+          tutorialVideoState.title = data.extraVideoTitle1;
+        }
+        localStorage.setItem('wappy_matrizipvr_tutorial_video', JSON.stringify({
+          url: tutorialVideoState.url,
+          title: tutorialVideoState.title
+        }));
+        renderTutorialVideo();
+      }
+    }
+  } catch(err){}
+}
+
 // ─── INICIALIZACIÓN DE LA APLICACIÓN ────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
+  initTutorialVideo();
   loadSavedKeys();
   loadCompanyInfo();
   loadSavedMatrix(activeCompanyId);
