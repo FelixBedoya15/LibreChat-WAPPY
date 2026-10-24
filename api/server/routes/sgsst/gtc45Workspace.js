@@ -731,116 +731,217 @@ function getHexNRColor(nr) {
 function buildIpevarChartsHtml(matrixRows) {
   if (!matrixRows || matrixRows.length === 0) return '';
   
+  const total = matrixRows.length;
+  let countI = 0, countII = 0, countIII = 0, countIV = 0;
+  
+  // Matriz Térmica 4x4
+  const heatmap = {
+    '100_MA': 0, '100_A': 0, '100_M': 0, '100_B': 0,
+    '60_MA': 0, '60_A': 0, '60_M': 0, '60_B': 0,
+    '25_MA': 0, '25_A': 0, '25_M': 0, '25_B': 0,
+    '10_MA': 0, '10_A': 0, '10_M': 0, '10_B': 0,
+  };
+
+  const empty = (v) => !v || ['ninguno', 'ninguna', 'none', 'no aplica', 'n/a', ''].includes(String(v).toLowerCase().trim());
+  let countElim = 0, countSust = 0, countIng = 0, countAdm = 0, countEpp = 0;
+  let fuente = 0, medio = 0, individuo = 0;
+
+  matrixRows.forEach(r => {
+    const nr = Number(r.nr) || 0;
+    if (nr >= 600) countI++;
+    else if (nr >= 150) countII++;
+    else if (nr >= 40) countIII++;
+    else countIV++;
+
+    // Jerarquía
+    if (!empty(r.medida_eliminacion)) { countElim++; fuente++; }
+    if (!empty(r.medida_sustitucion)) { countSust++; fuente++; }
+    if (!empty(r.medida_ingenieria) || !empty(r.controles_medio)) { countIng++; medio++; }
+    if (!empty(r.medida_administrativa)) countAdm++;
+    if (!empty(r.medida_eppu) || !empty(r.controles_individuo)) { countEpp++; individuo++; }
+
+    // Mapeo Térmico
+    const ncVal = Number(r.nc) || 25;
+    const npVal = Number(r.np) || 6;
+    let rowKey = '25';
+    if (ncVal >= 100) rowKey = '100';
+    else if (ncVal >= 60) rowKey = '60';
+    else if (ncVal >= 25) rowKey = '25';
+    else rowKey = '10';
+
+    let colKey = 'M';
+    if (npVal >= 24) colKey = 'MA';
+    else if (npVal >= 10) colKey = 'A';
+    else if (npVal >= 6) colKey = 'M';
+    else colKey = 'B';
+
+    heatmap[`${rowKey}_${colKey}`] = (heatmap[`${rowKey}_${colKey}`] || 0) + 1;
+  });
+
+  const pctI = Math.round((countI / total) * 100);
+  const pctII = Math.round((countII / total) * 100);
+  const pctIII = Math.round((countIII / total) * 100);
+  const pctIV = Math.round((countIV / total) * 100);
+
+  const pctFuente = Math.round((fuente / total) * 100);
+  const pctMedio = Math.round((medio / total) * 100);
+  const pctIndividuo = Math.round((individuo / total) * 100);
+
+  // Clasificaciones y Procesos
   const mapA = {};
   matrixRows.forEach(r => {
-    const k = (r.peligro_clasificacion || r.dominio_bio || 'Sin clasificar').trim();
+    const k = (r.peligro_clasificacion || 'General').trim();
     if (!mapA[k]) mapA[k] = { count: 0, totalNR: 0 };
     mapA[k].count++;
-    mapA[k].totalNR += Number(r.nr || r.indice_bio_riesgo_efectivo) || 0;
+    mapA[k].totalNR += Number(r.nr) || 0;
   });
-  const chartA = Object.entries(mapA).map(([clas, d]) => ({ clas, count: d.count, avg: Math.round(d.totalNR / d.count) })).sort((a,b) => b.avg - a.avg).slice(0, 8);
+  const chartA = Object.entries(mapA).map(([clas, d]) => ({ clas, count: d.count, avg: Math.round(d.totalNR / d.count) })).sort((a,b) => b.avg - a.avg).slice(0, 6);
   const maxA = Math.max(...chartA.map(d => d.avg), 1);
 
-  const mapD = {};
-  matrixRows.forEach(r => {
-    const k = (r.proceso || r.dominio_bio || 'Bio-Individual').trim();
-    if (!mapD[k]) mapD[k] = { count: 0, totalNR: 0 };
-    mapD[k].count++;
-    mapD[k].totalNR += Number(r.nr || r.indice_bio_riesgo_efectivo) || 0;
-  });
-  const chartD = Object.entries(mapD).map(([proc, d]) => ({ proc, count: d.count, avg: Math.round(d.totalNR / d.count) })).sort((a,b) => b.avg - a.avg).slice(0, 8);
-  const maxD = Math.max(...chartD.map(d => d.avg), 1);
-
-  const empty = (v) => !v || ['ninguno', 'ninguna', 'none', 'no aplica', ''].includes(String(v).toLowerCase().trim());
-  let fuente = 0, medio = 0, individuo = 0;
-  matrixRows.forEach(r => {
-    if (!empty(r.controles_fuente || r.medida_eliminacion)) fuente++;
-    if (!empty(r.controles_medio || r.medida_ingenieria)) medio++;
-    if (!empty(r.controles_individuo || r.medida_eppu)) individuo++;
-  });
-  const total = matrixRows.length || 1;
-  const chartB = [
-    { label: 'En la Fuente', value: fuente, pct: Math.round((fuente/total)*100) },
-    { label: 'En el Medio', value: medio, pct: Math.round((medio/total)*100) },
-    { label: 'En el Individuo', value: individuo, pct: Math.round((individuo/total)*100) },
-  ];
-
-  const DISEASE_KEYWORDS = [
-    { name: 'Lumbalgia/Dorsopatía', keywords: ['lumbalgia', 'lumbar', 'dorsopatía', 'espalda'] },
-    { name: 'S. Túnel Carpiano', keywords: ['túnel carpiano', 'stc', 'muñeca', 'nervio mediano'] },
-    { name: 'Estrés/Burnout', keywords: ['estrés', 'burnout', 'agotamiento', 'ansiedad', 'sobrecarga'] },
-    { name: 'Hipoacusia', keywords: ['hipoacusia', 'pérdida auditiva', 'sordera'] },
-    { name: 'Dermatitis', keywords: ['dermatitis', 'irritación piel', 'alergia dérmica'] },
-    { name: 'Epicondilitis', keywords: ['epicondilitis', 'codo', 'tendinitis'] },
-    { name: 'Fatiga Visual', keywords: ['fatiga visual', 'ojo seco', 'trastorno visual'] },
-    { name: 'Enf. Respiratorias', keywords: ['neumoconiosis', 'asma', 'epoc', 'polvo', 'bronquitis'] },
-    { name: 'Enf. Infecciosas', keywords: ['infección', 'virus', 'bacteria', 'contagio'] },
-    { name: 'VBM/Raynaud', keywords: ['vibración', 'vbm', 'raynaud', 'mano-brazo'] }
-  ];
-
-  let chartC = DISEASE_KEYWORDS.map(d => {
-    const matches = matrixRows.filter(r => {
-      const haystack = `${r.efectos_posibles || ''} ${r.peligro_descripcion || ''}`.toLowerCase();
-      return d.keywords.some(kw => haystack.includes(kw));
-    });
-    if (matches.length === 0) return null;
-    const noControl = matches.filter(r =>
-      empty(r.medida_eliminacion) && empty(r.medida_sustitucion) &&
-      empty(r.medida_ingenieria) && empty(r.medida_administrativa) && empty(r.medida_eppu)
-    ).length;
-    let nivel = 'Bajo'; let col = '#22c55e';
-    if (noControl === matches.length) { nivel = 'Alto'; col = '#dc2626'; }
-    else if (noControl > 0) { nivel = 'Medio'; col = '#f97316'; }
-    return { name: d.name, count: matches.length, nivel, col };
-  }).filter(Boolean);
-
-  function renderBar(label, value, max, color) {
+  function renderBar(label, value, max, color, suffix = '') {
     const pct = Math.max(0, Math.min(100, (value / max) * 100));
     return `
       <div style="display:flex; align-items:center; margin-bottom:8px;">
-        <div style="width:140px; font-size:11px; color:#475569; font-weight:600; text-align:right; padding-right:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${label}">${label}</div>
-        <div style="flex:1; background-color:#f1f5f9; border-radius:10px; height:16px; position:relative; overflow:hidden;">
-          <div style="background-color:${color}; width:${Math.max(5, pct)}%; height:100%; border-radius:10px; display:flex; align-items:center; justify-content:flex-end; padding-right:8px; color:white; font-size:10px; font-weight:bold;">
-            ${value}
+        <div style="width:160px; font-size:11px; color:#475569; font-weight:600; text-align:right; padding-right:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${label}">${label}</div>
+        <div style="flex:1; background-color:#f1f5f9; border-radius:10px; height:18px; position:relative; overflow:hidden;">
+          <div style="background-color:${color}; width:${Math.max(6, pct)}%; height:100%; border-radius:10px; display:flex; align-items:center; justify-content:flex-end; padding-right:8px; color:white; font-size:10px; font-weight:bold;">
+            ${value}${suffix}
           </div>
         </div>
       </div>
     `;
   }
 
-  let html = `
-    <div style="margin: 25px 0; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; background-color: #f8fafc; page-break-inside: avoid;">
-      <h3 style="color:#0f766e; font-size:16px; margin-top:0; border-bottom:2px solid #0f766e; padding-bottom:8px; margin-bottom:20px; text-transform:uppercase;">
-          ANALÍTICA IPEVR — RESUMEN EJECUTIVO (Gráficas)
-      </h3>
-      <div style="display:flex; flex-direction:column; gap:20px;">
-        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:15px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-          <h4 style="margin-top:0; color:#334155; font-size:12px; text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:5px;">Riesgos por Clasificación (NR Promedio)</h4>
-          ${chartA.map(d => renderBar(d.clas.length > 20 ? d.clas.substring(0,18)+'...' : d.clas, d.avg, maxA, getHexNRColor(d.avg))).join('')}
+  return `
+    <div style="margin: 24px 0; border: 1px solid #ccfbf1; border-radius: 14px; padding: 22px; background-color: #ffffff; page-break-inside: avoid; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      
+      <!-- 1. RESUMEN EJECUTIVO 360° -->
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #0f766e; padding-bottom:10px; margin-bottom:18px;">
+        <h3 style="color:#0f766e; font-size:15px; margin:0; font-weight:900; text-transform:uppercase; letter-spacing:0.5px;">
+          TABLERO EJECUTIVO 360° — DIAGNÓSTICO IPEVR GTC 45:2012
+        </h3>
+        <span style="background-color:#0f766e; color:#fff; font-size:10px; font-weight:800; padding:4px 12px; border-radius:12px; text-transform:uppercase;">
+          Auditoría SG-SST
+        </span>
+      </div>
+
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:12px; margin-bottom:22px;">
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px; text-align:center;">
+          <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Total Peligros</div>
+          <div style="font-size:24px; font-weight:900; color:#0f766e; margin-top:2px;">${total}</div>
+          <div style="font-size:9px; color:#94a3b8;">100% Identificados</div>
         </div>
-        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:15px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-          <h4 style="margin-top:0; color:#334155; font-size:12px; text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:5px;">Jerarquía de Controles</h4>
-          ${chartB.map(d => renderBar(d.label, d.pct, 100, '#0ea5e9') + `<div style="font-size:9px; color:#64748b; text-align:right; margin-bottom:5px; margin-top:-3px;">Cobertura: ${d.pct}% riesgos</div>`).join('')}
+        <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:12px; text-align:center;">
+          <div style="font-size:10px; font-weight:700; color:#991b1b; text-transform:uppercase;">Nivel I (Crítico)</div>
+          <div style="font-size:24px; font-weight:900; color:#dc2626; margin-top:2px;">${countI}</div>
+          <div style="font-size:9px; color:#ef4444; font-weight:bold;">${pctI}% No Aceptable</div>
         </div>
-        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:15px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-          <h4 style="margin-top:0; color:#334155; font-size:12px; text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:5px;">Enfermedades Potenciales Detectadas</h4>
-          ${chartC.length === 0 ? '<p style="font-size:11px; color:#94a3b8; font-style:italic;">No se identificaron enfermedades según los efectos documentados.</p>' : 
-            chartC.map(d => `
-            <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border:1px solid #f1f5f9; padding:6px 10px; border-radius:6px; margin-bottom:6px;">
-              <span style="font-size:11px; font-weight:600; color:#475569;">${d.name} (${d.count})</span>
-              <span style="font-size:10px; font-weight:700; color:${d.col};">${d.nivel === 'Alto' ? 'Sin control' : d.nivel === 'Medio' ? 'Control Parcial' : 'Controlada'}</span>
-            </div>
-            `).join('')
-          }
+        <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:12px; text-align:center;">
+          <div style="font-size:10px; font-weight:700; color:#9a3412; text-transform:uppercase;">Nivel II (Alto)</div>
+          <div style="font-size:24px; font-weight:900; color:#ea580c; margin-top:2px;">${countII}</div>
+          <div style="font-size:9px; color:#f97316; font-weight:bold;">${pctII}% Control Específico</div>
         </div>
-        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:15px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-          <h4 style="margin-top:0; color:#334155; font-size:12px; text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:5px;">Promedio de Nivel de Riesgo (NR) x Proceso</h4>
-          ${chartD.map(d => renderBar(d.proc.length > 20 ? d.proc.substring(0,18)+'...' : d.proc, d.avg, maxD, getHexNRColor(d.avg))).join('')}
+        <div style="background:#fefce8; border:1px solid #fef08a; border-radius:10px; padding:12px; text-align:center;">
+          <div style="font-size:10px; font-weight:700; color:#854d0e; text-transform:uppercase;">Nivel III (Medio)</div>
+          <div style="font-size:24px; font-weight:900; color:#ca8a04; margin-top:2px;">${countIII}</div>
+          <div style="font-size:9px; color:#eab308; font-weight:bold;">${pctIII}% Mejorable</div>
+        </div>
+        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:12px; text-align:center;">
+          <div style="font-size:10px; font-weight:700; color:#166534; text-transform:uppercase;">Nivel IV (Bajo)</div>
+          <div style="font-size:24px; font-weight:900; color:#16a34a; margin-top:2px;">${countIV}</div>
+          <div style="font-size:9px; color:#22c55e; font-weight:bold;">${pctIV}% Aceptable</div>
         </div>
       </div>
+
+      <!-- 2. MATRIZ TÉRMICA 4X4 Y SEVERIDAD -->
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:18px; margin-bottom:22px;">
+        
+        <!-- Matriz Térmica -->
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px;">
+          <h4 style="margin:0 0 10px 0; color:#0f766e; font-size:12px; text-transform:uppercase; font-weight:800;">
+            🔥 Matriz Térmica GTC 45 (Probabilidad NP × Consecuencia NC)
+          </h4>
+          <table style="width:100%; border-collapse:collapse; text-align:center; font-size:9px;">
+            <thead>
+              <tr style="background:#e2e8f0; color:#334155;">
+                <th style="padding:4px; border:1px solid #cbd5e1;">NC</th>
+                <th style="padding:4px; border:1px solid #cbd5e1;">MA (40-24)</th>
+                <th style="padding:4px; border:1px solid #cbd5e1;">A (20-10)</th>
+                <th style="padding:4px; border:1px solid #cbd5e1;">M (8-6)</th>
+                <th style="padding:4px; border:1px solid #cbd5e1;">B (4-2)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding:4px; border:1px solid #cbd5e1; font-weight:bold; background:#fff;">100</td>
+                <td style="padding:4px; border:1px solid #cbd5e1; background:#fca5a5; font-weight:bold; color:#7f1d1d;">I [${heatmap['100_MA']}]</td>
+                <td style="padding:4px; border:1px solid #cbd5e1; background:#fca5a5; font-weight:bold; color:#7f1d1d;">I [${heatmap['100_A']}]</td>
+                <td style="padding:4px; border:1px solid #cbd5e1; background:#fca5a5; font-weight:bold; color:#7f1d1d;">I [${heatmap['100_M']}]</td>
+                <td style="padding:4px; border:1px solid #cbd5e1; background:#fed7aa; font-weight:bold; color:#7c2d12;">II [${heatmap['100_B']}]</td>
+              </tr>
+              <tr>
+                <td style="padding:4px; border:1px solid #cbd5e1; font-weight:bold; background:#fff;">60</td>
+                <td style="padding:4px; border:1px solid #cbd5e1; background:#fca5a5; font-weight:bold; color:#7f1d1d;">I [${heatmap['60_MA']}]</td>
+                <td style="padding:4px; border:1px solid #cbd5e1; background:#fca5a5; font-weight:bold; color:#7f1d1d;">I [${heatmap['60_A']}]</td>
+                <td style="padding:4px; border:1px solid #cbd5e1; background:#fed7aa; font-weight:bold; color:#7c2d12;">II [${heatmap['60_M']}]</td>
+                <td style="padding:4px; border:1px solid #cbd5e1; background:#fed7aa; font-weight:bold; color:#7c2d12;">II [${heatmap['60_B']}]</td>
+              </tr>
+              <tr>
+                <td style="padding:4px; border:1px solid #cbd5e1; font-weight:bold; background:#fff;">25</td>
+                <td style="padding:4px; border:1px solid #cbd5e1; background:#fca5a5; font-weight:bold; color:#7f1d1d;">I [${heatmap['25_MA']}]</td>
+                <td style="padding:4px; border:1px solid #cbd5e1; background:#fed7aa; font-weight:bold; color:#7c2d12;">II [${heatmap['25_A']}]</td>
+                <td style="padding:4px; border:1px solid #cbd5e1; background:#fed7aa; font-weight:bold; color:#7c2d12;">II [${heatmap['25_M']}]</td>
+                <td style="padding:4px; border:1px solid #cbd5e1; background:#fef08a; font-weight:bold; color:#713f12;">III [${heatmap['25_B']}]</td>
+              </tr>
+              <tr>
+                <td style="padding:4px; border:1px solid #cbd5e1; font-weight:bold; background:#fff;">10</td>
+                <td style="padding:4px; border:1px solid #cbd5e1; background:#fed7aa; font-weight:bold; color:#7c2d12;">II [${heatmap['10_MA']}]</td>
+                <td style="padding:4px; border:1px solid #cbd5e1; background:#fef08a; font-weight:bold; color:#713f12;">III [${heatmap['10_A']}]</td>
+                <td style="padding:4px; border:1px solid #cbd5e1; background:#fef08a; font-weight:bold; color:#713f12;">III [${heatmap['10_M']}]</td>
+                <td style="padding:4px; border:1px solid #cbd5e1; background:#bbf7d0; font-weight:bold; color:#14532d;">IV [${heatmap['10_B']}]</td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="font-size:8.5px; color:#64748b; margin-top:4px; text-align:center;">
+            [n] = Cantidad de riesgos en cuadrante térmico.
+          </div>
+        </div>
+
+        <!-- Perfil por Clasificación -->
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px;">
+          <h4 style="margin:0 0 10px 0; color:#0f766e; font-size:12px; text-transform:uppercase; font-weight:800;">
+            📊 Nivel de Riesgo Promedio (NR) por Tipo de Peligro
+          </h4>
+          ${chartA.map(d => renderBar(d.clas, d.avg, maxA, getHexNRColor(d.avg))).join('')}
+        </div>
+
+      </div>
+
+      <!-- 3. METODOLOGÍA GTC 45 ANEXO E (FACTOR DE REDUCCIÓN Y JUSTIFICACIÓN COSTO/BENEFICIO) -->
+      <div style="background:#f0fdfa; border:1px solid #99f6e4; border-radius:10px; padding:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <h4 style="margin:0; color:#0f766e; font-size:12.5px; text-transform:uppercase; font-weight:800;">
+            🔬 Factores de Reducción y Justificación Costo/Beneficio (GTC 45 Anexo E)
+          </h4>
+          <span style="font-size:10px; font-weight:bold; color:#0f766e; background:#ccfbf1; padding:2px 8px; border-radius:6px;">
+            Fórmula Posipedia / GTC 45
+          </span>
+        </div>
+        <p style="font-size:11px; color:#334155; line-height:1.4; margin:0 0 8px 0;">
+          Para ampliar y analizar los criterios de selección de las medidas de intervención, se aplica la formulación matemática del <strong>Factor de Reducción (F)</strong> y el <strong>Factor de Justificación Costo/Beneficio (J)</strong> según GTC 45 Anexo E:
+        </p>
+        <div style="background:#ffffff; border:1px dashed #0d9488; border-radius:8px; padding:8px 12px; font-family:monospace; font-size:11px; color:#0f766e; text-align:center; font-weight:bold; margin-bottom:10px;">
+          F = ((NRi - NRf) / NRi) × 100 &nbsp;&nbsp;|&nbsp;&nbsp; J = (NRi × F) / (d × 10)
+        </div>
+        <div style="font-size:10px; color:#475569; display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:8px;">
+          <div><strong>• Cobertura en la Fuente:</strong> ${pctFuente}% (${fuente}/${total})</div>
+          <div><strong>• Cobertura en el Medio:</strong> ${pctMedio}% (${medio}/${total})</div>
+          <div><strong>• Cobertura en el Individuo:</strong> ${pctIndividuo}% (${individuo}/${total})</div>
+        </div>
+      </div>
+
     </div>
   `;
-  return html;
 }
 
 function calculateAge(birthDate) {
@@ -1225,7 +1326,8 @@ router.post('/ai-analyze-matrix', requireJwtAuth, async (req, res) => {
         return `[${i+1}] Proceso: ${proc} | Actividad: ${act} | Clasificación: ${clas} | Peligro: ${desc} | Nivel de Riesgo: ${nr} (${interp}) | Efectos: ${ef}`;
       }).join('\n');
 
-      prompt = `Eres un auditor experto en Seguridad y Salud en el Trabajo bajo la metodología GTC-45:2012 en Colombia.
+      prompt = `Eres un auditor senior y consultor estratégico en Seguridad y Salud en el Trabajo bajo la metodología GTC-45:2012 y Decreto 1072 de 2015 en Colombia.
+Analiza esta Matriz IPEVR completa y emite un Informe Técnico y Ejecutivo integral MUY EXTENSO, sumamente detallado, pericial y con sustentación analítica de Costo/Beneficio (Anexo E GTC 45).
 Analiza esta Matriz IPEVR completa y emite un Informe Técnico y Ejecutivo integral MUY EXTENSO, sumamente detallado y analítico.
 
 **INSTRUCCIONES DE FORMATO HTML:**
@@ -1244,7 +1346,9 @@ Analiza esta Matriz IPEVR completa y emite un Informe Técnico y Ejecutivo integ
     - d. Desglose detallado del Promedio de NR por cada área y Proceso evaluado, buscando responsabilidades orgánicas en las áreas críticas.
 3. **Hallazgos Críticos Detallados:** Menciona los riesgos con Mayor NR (Rojos / No Aceptables) y sus consecuencias a nivel de la salud, lo financiero, legal y productivo. Crea una tabla resumen detallada con: Proceso, Actividad, Peligro y NR.
 4. **Brechas en Controles Evaluadas:** Un diagnóstico minucioso y extenso que argumente científicamente la debilidad de las medidas de intervención presentes.
-5. **Plan de Acción Gerencial y Operativo:** Propuesta super extensa de controles de eliminación, sustitución, ingeniería y administrativos recomendados (Tabla de 3 columnas: Proceso, Recomendaciones de clase mundial, Tipo de Control recomendado) abarcando la mejora continua.
+5. **Análisis de Factores de Reducción y Justificación Costo/Beneficio (GTC 45 Anexo E):**
+   Aplica rigurosamente la fórmula F = ((NRi - NRf)/NRi) * 100 y J = (NRi * F) / (d * 10). Para cada peligro crítico (Nivel I y II), SUSTENTA Y DICTAMINA EXPLÍCITAMENTE CUÁL DE LOS CONTROLES PROPUESTOS LE CONVIENE MÁS A LA EMPRESA técnica y económicamente. Demuestra por qué la inversión en controles de ingeniería o en la fuente tiene un retorno superior (J > 20) frente al costo recurrente y vulnerabilidad del EPP y medidas administrativas.
+6. **Plan de Acción Gerencial y Operativo:** Propuesta super extensa de controles de eliminación, sustitución, ingeniería y administrativos recomendados (Tabla de 4 columnas: Proceso / Peligro, Control Más Conveniente por Costo/Beneficio, Factor F%, Plazo de Ejecución) abarcando la mejora continua.
 6. **Conclusión y Recomendaciones de Alta Gerencia:** Un texto robusto y extenso sobre la integración de la GTC-45 con sistemas ISO o estándares internacionales de clase mundial.
 7. NO incluyas título principal ni encabezado corporativo (el sistema los inyectará antes).
 8. NO incluyas bloque de firmas en tu respuesta de HTML (el sistema las inyectará debajo).

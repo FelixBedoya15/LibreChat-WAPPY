@@ -7,6 +7,7 @@ import { useRegisterUserMutation } from 'librechat-data-provider/react-query';
 import type { TRegisterUser, TError } from 'librechat-data-provider';
 import type { TLoginLayoutContext } from '~/common';
 import { useLocalize, TranslationKeys } from '~/hooks';
+import { useAuthContext } from '~/hooks/AuthContext';
 import { ErrorMessage } from './ErrorMessage';
 import { Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
@@ -17,6 +18,7 @@ const Registration: React.FC = () => {
   const localize = useLocalize();
   const { theme } = useContext(ThemeContext);
   const { startupConfig, startupConfigError, isFetching } = useOutletContext<TLoginLayoutContext>();
+  const { setUserContext, login } = useAuthContext();
 
   const {
     watch,
@@ -197,7 +199,7 @@ const Registration: React.FC = () => {
     onMutate: () => {
       setIsSubmitting(true);
     },
-    onSuccess: () => {
+    onSuccess: async (data: any) => {
       setIsSubmitting(false);
 
       const planParam = queryParams.get('plan');
@@ -213,7 +215,23 @@ const Registration: React.FC = () => {
         return;
       }
 
-      setCountdown(3);
+      const values = getValues();
+      if (data?.token && data?.user) {
+        setUserContext({
+          token: data.token,
+          isAuthenticated: true,
+          user: data.user,
+          redirect: '/c/new',
+        });
+      } else if (values.email && values.password) {
+        try {
+          await login({ email: values.email, password: values.password });
+        } catch (e) {
+          console.error('[Registration auto-login error]', e);
+        }
+      }
+
+      setCountdown(2);
       const timer = setInterval(() => {
         setCountdown((prevCountdown) => {
           if (prevCountdown <= 1) {
@@ -321,16 +339,20 @@ const Registration: React.FC = () => {
       )}
       {registerUser.isSuccess && countdown > 0 && (
         <div
-          className="rounded-md border border-green-500 bg-green-500/10 px-3 py-2 text-sm text-gray-600 dark:text-gray-200"
+          className="rounded-2xl border border-emerald-500/50 bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-lime-500/15 p-4 text-emerald-800 dark:text-emerald-200 mb-4 shadow-sm"
           role="alert"
         >
-          {localize(
-            startupConfig?.emailEnabled
-              ? 'com_auth_registration_success_generic'
-              : 'com_auth_registration_success_insecure',
-          ) +
-            ' ' +
-            localize('com_auth_email_verification_redirecting', { 0: countdown.toString() })}
+          <div className="flex items-center gap-2 font-bold text-base text-emerald-700 dark:text-emerald-300">
+            <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-ping" />
+            ¡Registro exitoso!
+          </div>
+          <p className="mt-1 text-sm text-emerald-700/90 dark:text-emerald-300/90">
+            Hemos activado tus <strong>7 días de membresía PRO gratis</strong> con acceso completo a todos los especialistas de IA y herramientas de WAPPY.
+          </p>
+          <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+            <Spinner className="h-3.5 w-3.5" />
+            <span>Ingresando a la aplicación en {countdown}s...</span>
+          </div>
         </div>
       )}
       {!startupConfigError && !isFetching && (

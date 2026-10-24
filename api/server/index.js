@@ -717,6 +717,20 @@ const startServer = async () => {
     next();
   });
 
+  app.get(['/matrizipvr', '/matriz-ipvr', '/matrizipvr.html'], (req, res, next) => {
+    const candidatePaths = [
+      path.resolve(__dirname, '../../client/dist/matrizipvr.html'),
+      path.resolve(__dirname, '../../client/public/matrizipvr.html'),
+      path.resolve(__dirname, '../../matriz_ipvr_gtc45_offline.html'),
+    ];
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        return res.sendFile(p);
+      }
+    }
+    next();
+  });
+
   app.post('/api/embajadores/send-otp', async (req, res) => {
     try {
       const { email, name, otpCode } = req.body;

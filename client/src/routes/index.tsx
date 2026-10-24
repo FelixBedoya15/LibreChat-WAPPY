@@ -52,6 +52,7 @@ const TermsOfServicePage = lazy(() => import('~/components/Auth/TermsOfServicePa
 const WappyAboutPage = lazy(() => import('~/components/Auth/WappyAboutPage'));
 const ComunidadPage = lazy(() => import('~/components/Marketing/ComunidadPage'));
 const MatrizPage = lazy(() => import('~/components/Marketing/MatrizPage'));
+const MatrizIpvrPage = lazy(() => import('~/components/Marketing/MatrizIpvrPage'));
 const QuibiPage = lazy(() => import('~/components/Marketing/QuibiPage'));
 const BateriaPsicosocialPage = lazy(() => import('~/components/Marketing/BateriaPsicosocialPage'));
 const LandingPage = lazy(() => import('~/components/Marketing/LandingPage'));
@@ -497,6 +498,21 @@ export const router = createBrowserRouter(
           <ApiErrorWatcher />
         </AuthContextProvider>
       ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'matrizipvr',
+      element: withSuspense(
+        <AuthContextProvider>
+          <MatrizIpvrPage />
+          <ApiErrorWatcher />
+        </AuthContextProvider>
+      ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'matriz-ipvr',
+      element: <Navigate to="/matrizipvr" replace={true} />,
       errorElement: <RouteErrorBoundary />,
     },
     {

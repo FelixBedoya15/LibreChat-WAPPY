@@ -18,7 +18,27 @@ const { getOpenIdConfig } = require('~/strategies');
 const registrationController = async (req, res) => {
   try {
     const response = await registerUser(req.body);
-    const { status, message } = response;
+    const { status, message, userId, user } = response;
+
+    if (status === 200 && userId) {
+      try {
+        const token = await setAuthTokens(userId, res);
+        const { ADMIN_EMAILS } = require('../middleware/roles/admin');
+        const cleanUser = user ? { ...user } : {};
+        delete cleanUser.password;
+        delete cleanUser.totpSecret;
+        delete cleanUser.__v;
+        cleanUser.id = userId.toString();
+        if (cleanUser.email && ADMIN_EMAILS.includes(cleanUser.email.toLowerCase())) {
+          cleanUser.role = 'ADMIN';
+        }
+        return res.status(200).send({ message, token, user: cleanUser });
+      } catch (tokenErr) {
+        logger.error('[registrationController] Error generating auth token on register:', tokenErr);
+        return res.status(status).send({ message });
+      }
+    }
+
     res.status(status).send({ message });
   } catch (err) {
     logger.error('[registrationController]', err);

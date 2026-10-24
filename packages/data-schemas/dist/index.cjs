@@ -2344,7 +2344,15 @@ const userSchema = new mongoose.Schema({
     accountStatus: {
         type: String,
         enum: ['active', 'pending', 'inactive'],
-        default: 'pending',
+        default: 'active',
+    },
+    inactiveAt: {
+        type: Date,
+        default: null,
+    },
+    activeAt: {
+        type: Date,
+        default: null,
     },
     /** Field for external source identification (for consistency with TPrincipal schema) */
     idOnTheSource: {

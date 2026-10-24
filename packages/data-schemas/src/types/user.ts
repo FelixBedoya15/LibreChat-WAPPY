@@ -62,6 +62,9 @@ export interface IUser extends Document {
   workerId?: string;
   subUserPermissions?: string[];
   subUserStatus?: 'active' | 'suspended';
+  accountStatus?: 'active' | 'pending' | 'inactive';
+  inactiveAt?: Date | null;
+  activeAt?: Date | null;
 }
 
 export interface BalanceConfig {

@@ -87,6 +87,12 @@ const createSocialUser = async ({
   appConfig,
   emailVerified,
 }) => {
+  const { ADMIN_EMAILS } = require('../server/middleware/roles/admin');
+  const isAdmin = email && ADMIN_EMAILS.includes(email.toLowerCase());
+
+  const PRO_TRIAL_MS = 7 * 24 * 60 * 60 * 1000;
+  const trialExpiryDate = new Date(Date.now() + PRO_TRIAL_MS);
+
   const update = {
     email,
     avatar: avatarUrl,
@@ -95,10 +101,38 @@ const createSocialUser = async ({
     username,
     name,
     emailVerified,
+    role: isAdmin ? 'ADMIN' : 'USER_PRO',
+    accountStatus: 'active',
+    inactiveAt: isAdmin ? null : trialExpiryDate,
   };
 
   const balanceConfig = getBalanceConfig(appConfig);
   const newUserId = await createUser(update, balanceConfig);
+
+  if (!isAdmin) {
+    try {
+      const UserPlan = require('~/db/models/UserPlan');
+      await UserPlan.findOneAndUpdate(
+        { userId: newUserId },
+        {
+          plan: 'pro',
+          planExpiresAt: trialExpiryDate,
+          planInterval: 'trial_7d',
+          cancelAtPeriodEnd: false,
+        },
+        { upsert: true, new: true }
+      );
+      const Notification = require('~/models/Notification');
+      await Notification.create({
+        user: newUserId,
+        type: 'trial_welcome',
+        title: '¡Bienvenido a WAPPY PRO! Tienes 7 días gratis',
+        body: 'Tu membresía gratuita de 7 días está activa. Disfruta de acceso total a todos los especialistas de IA, agentes y herramientas SG-SST de WAPPY.',
+      });
+    } catch (planErr) {
+      logger.error('[createSocialUser] Error creating UserPlan/Notification for trial:', planErr);
+    }
+  }
   const fileStrategy = appConfig?.fileStrategy ?? process.env.CDN_PROVIDER;
   const isLocal = fileStrategy === FileSources.local;
 

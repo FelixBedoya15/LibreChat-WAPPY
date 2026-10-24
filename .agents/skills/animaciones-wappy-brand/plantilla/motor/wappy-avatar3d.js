@@ -229,29 +229,6 @@ class WappyAvatar3D {
     this.brazoIzq = crearBrazo('izq');
     this.brazoDer = crearBrazo('der');
 
-    // Sable láser acoplado a la mano izquierda
-    this.sableGroup = new THREE.Group();
-    this.sableGroup.position.set(0, -0.05, 0.14);
-    this.sableGroup.rotation.x = Math.PI * 0.35;
-    this.sableGroup.rotation.z = 0.45;
-
-    const hilt = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.34, 8), mGlasses);
-    this.sableCore = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.032, 0.032, 2.2, 8),
-      new THREE.MeshBasicMaterial({ color: 0xffffff })
-    );
-    this.sableCore.position.y = 1.25;
-
-    this.sableGlow = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.095, 0.095, 2.26, 8),
-      new THREE.MeshBasicMaterial({ color: this.sableColor, transparent: true, opacity: 0.48 })
-    );
-    this.sableGlow.position.y = 1.25;
-
-    this.sableGroup.add(hilt, this.sableCore, this.sableGlow);
-    this.sableGroup.visible = false;
-    this.brazoIzq.mano.add(this.sableGroup);
-
     // ===================================================================
     // 3. CABEZA ESTILIZADA CHIBI LOW-POLY (PROPORCIÓN DEL AVATAR OFICIAL)
     // ===================================================================
@@ -623,20 +600,12 @@ class WappyAvatar3D {
     this.mouthGroup.scale.y = lerp(0.35, 1.45, clamp(boca));
     this.mouthGroup.scale.x = lerp(1.05, 0.88, clamp(boca * 0.6));
 
-    this.brazoIzq.pivote.rotation.x = -0.18 + Math.sin(t * 2.8) * 0.12;
-    this.brazoIzq.pivote.rotation.z = -0.08 + Math.cos(t * 2.1) * 0.06;
-
-    const conSable = k.sable || (this.sableDesde != null && t >= this.sableDesde);
-    this.sableGroup.visible = false;
-    if (conSable) {
-      this.brazoIzq.pivote.rotation.x = -0.55 + Math.sin(t * 4.2) * 0.12;
-      this.brazoIzq.pivote.rotation.z = -0.35 + Math.cos(t * 3.5) * 0.08;
-      this.brazoDer.pivote.rotation.x = -0.22 - Math.sin(t * 3.1) * 0.12;
-      this.brazoDer.pivote.rotation.z = 0.12 + Math.sin(t * 2.4) * 0.06;
-    } else {
-      this.brazoDer.pivote.rotation.x = -0.25 - Math.sin(t * 3.1) * 0.16 - boca * 0.12;
-      this.brazoDer.pivote.rotation.z = 0.12 + Math.sin(t * 2.4) * 0.08;
-    }
+    // Movimiento orgánico y conversacional de brazos (sin sable láser)
+    const gesticulando = hablando ? 1 : 0.3;
+    this.brazoIzq.pivote.rotation.x = -0.20 + Math.sin(t * 2.3) * 0.16 * gesticulando + boca * 0.08;
+    this.brazoIzq.pivote.rotation.z = -0.10 + Math.cos(t * 1.9) * 0.06;
+    this.brazoDer.pivote.rotation.x = -0.22 - Math.sin(t * 2.8) * 0.18 * gesticulando - boca * 0.08;
+    this.brazoDer.pivote.rotation.z = 0.10 + Math.sin(t * 2.1) * 0.06;
 
     this.renderer.render(this.scene, this.camera);
   }

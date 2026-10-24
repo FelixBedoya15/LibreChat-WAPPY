@@ -233,6 +233,20 @@ const registerUser = async (user, additionalData = {}) => {
     }
 
     const salt = bcrypt.genSaltSync(10);
+    // 7-day PRO trial date for new registrations
+    const PRO_TRIAL_MS = 7 * 24 * 60 * 60 * 1000;
+    const trialExpiryDate = new Date(Date.now() + PRO_TRIAL_MS);
+
+    const initialRole = isFirstRegisteredUser 
+      ? SystemRoles.ADMIN 
+      : (hasPaidWappyVital 
+          ? 'USER_IPEVAR' 
+          : 'USER_PRO');
+
+    const initialInactiveAt = isFirstRegisteredUser || hasPaidWappyVital 
+      ? null 
+      : trialExpiryDate;
+
     const newUserData = {
       provider: 'local',
       email,
@@ -240,16 +254,9 @@ const registerUser = async (user, additionalData = {}) => {
       name,
       phoneNumber,
       avatar: null,
-      role: isFirstRegisteredUser 
-        ? SystemRoles.ADMIN 
-        : (hasPaidWappyVital 
-            ? 'USER_IPEVAR' 
-            : (process.env.DEFAULT_USER_ROLE || SystemRoles.USER)),
-      accountStatus: isFirstRegisteredUser 
-        ? 'active' 
-        : (hasPaidWappyVital 
-            ? 'active' 
-            : (process.env.DEFAULT_ACCOUNT_STATUS || 'active')),
+      role: initialRole,
+      accountStatus: 'active',
+      inactiveAt: initialInactiveAt,
       password: bcrypt.hashSync(password, salt),
       ...additionalData,
     };
@@ -275,6 +282,32 @@ const registerUser = async (user, additionalData = {}) => {
         logger.info(`[registerUser] Auto-provisioned Wappy Vital plan (USER_IPEVAR) on registration for ${email}`);
       } catch (planErr) {
         logger.error('[registerUser] Error creating UserPlan for Wappy Vital:', planErr);
+      }
+    } else if (!isFirstRegisteredUser) {
+      // Auto-provision 7-day free PRO trial for every new registered user
+      try {
+        const UserPlan = require('~/db/models/UserPlan');
+        await UserPlan.findOneAndUpdate(
+          { userId: newUserId },
+          {
+            plan: 'pro',
+            planExpiresAt: trialExpiryDate,
+            planInterval: 'trial_7d',
+            cancelAtPeriodEnd: false
+          },
+          { upsert: true, new: true }
+        );
+        logger.info(`[registerUser] Auto-provisioned 7-day PRO trial on registration for ${email}. Expiry: ${trialExpiryDate.toISOString()}`);
+
+        const Notification = require('~/models/Notification');
+        await Notification.create({
+          user: newUserId,
+          type: 'trial_welcome',
+          title: '¡Bienvenido a WAPPY PRO! Tienes 7 días gratis',
+          body: 'Tu membresía gratuita de 7 días está activa. Disfruta de acceso total a todos los especialistas de IA, agentes y herramientas SG-SST de WAPPY.',
+        });
+      } catch (trialErr) {
+        logger.error('[registerUser] Error creating UserPlan/Notification for 7-day PRO trial:', trialErr);
       }
     }
 
@@ -394,7 +427,14 @@ const registerUser = async (user, additionalData = {}) => {
       await updateUser(newUserId, { emailVerified: true });
     }
 
-    return { status: 200, message: genericVerificationMessage };
+    const registeredUser = await getUserById(newUserId);
+
+    return {
+      status: 200,
+      message: genericVerificationMessage,
+      userId: newUserId,
+      user: registeredUser,
+    };
   } catch (err) {
     logger.error('[registerUser] Error in registering user:', err);
     if (newUserId) {

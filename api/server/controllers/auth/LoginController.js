@@ -20,13 +20,48 @@ const loginController = async (req, res) => {
       }
     }
 
-    if (req.user.accountStatus === 'pending') {
-      return res.status(403).json({ message: 'Account pending approval' });
+    // Auto-approve and activate any pending accounts so users can enter immediately
+    if (req.user.accountStatus === 'pending' || (req.user.accountStatus === undefined && req.user.isApproved === false)) {
+      req.user.accountStatus = 'active';
+      req.user.isApproved = true;
+      try {
+        await updateUser(req.user._id, { accountStatus: 'active', isApproved: true });
+      } catch (e) {
+        logger.error('[loginController] Error updating accountStatus to active:', e);
+      }
     }
 
-    // Legacy check for isApproved (migration support)
-    if (req.user.accountStatus === undefined && req.user.isApproved === false) {
-      return res.status(403).json({ message: 'Account pending approval' });
+    // Auto-grant 7-day PRO trial to existing users without an active plan so they can enter immediately
+    if (!req.user.isSubUser && req.user.role === 'USER' && !req.user.inactiveAt) {
+      try {
+        const UserPlan = require('~/db/models/UserPlan');
+        const userPlan = await UserPlan.findOne({ userId: req.user._id });
+        if (!userPlan || userPlan.plan === 'free') {
+          const PRO_TRIAL_MS = 7 * 24 * 60 * 60 * 1000;
+          const expiryDate = new Date(Date.now() + PRO_TRIAL_MS);
+          await UserPlan.findOneAndUpdate(
+            { userId: req.user._id },
+            {
+              plan: 'pro',
+              planExpiresAt: expiryDate,
+              planInterval: 'trial_7d',
+              cancelAtPeriodEnd: false
+            },
+            { upsert: true, new: true }
+          );
+          await updateUser(req.user._id, {
+            role: 'USER_PRO',
+            accountStatus: 'active',
+            inactiveAt: expiryDate
+          });
+          req.user.role = 'USER_PRO';
+          req.user.inactiveAt = expiryDate;
+          req.user.accountStatus = 'active';
+          logger.info(`[loginController] Auto-granted 7-day PRO trial to existing user ${req.user.email}`);
+        }
+      } catch (planCheckErr) {
+        logger.error('[loginController] Error auto-granting trial to user:', planCheckErr);
+      }
     }
 
     if (req.user.twoFactorEnabled) {
