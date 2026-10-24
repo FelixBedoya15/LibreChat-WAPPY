@@ -818,6 +818,8 @@ export const WAPPY_NAV_MAP: Record<string, { route: string; sgsstModule?: string
   comunidadmp: { route: '/comunidad' },
   wappyvital: { route: '/comunidad' },
   matriz: { route: '/matriz' },
+  matrizipvr: { route: '/matrizipvr' },
+  matriz_ipvr: { route: '/matrizipvr' },
   embajadores: { route: '/embajadores' },
   embajadores_dashboard: { route: '/embajadores/dashboard' },
   tenshi_admin: { route: '/tenshi/admin' },

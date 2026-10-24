@@ -116,6 +116,11 @@ const EmbajadoresRedirect = () => {
   return null;
 };
 
+const MatrizIpvrRedirect = () => {
+  window.location.replace('/matrizipvr.html');
+  return null;
+};
+
 const PortafolioRedirect = () => {
   return withSuspense(
     <AuthContextProvider>
@@ -370,6 +375,31 @@ export const router = createBrowserRouter(
       errorElement: <RouteErrorBoundary />,
     },
     {
+      path: 'matrizipvr',
+      element: withSuspense(
+        <AuthContextProvider>
+          <MatrizIpvrPage />
+          <ApiErrorWatcher />
+        </AuthContextProvider>
+      ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'matrizipvr.html',
+      element: <MatrizIpvrRedirect />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'matriz-ipvr',
+      element: <Navigate to="/matrizipvr" replace={true} />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'matriz-ipvr.html',
+      element: <MatrizIpvrRedirect />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
       // Catch-all for UUIDs at the root (solves the 404 without prefix)
       path: ':id',
       element: withSuspense(<PublicReportView />),
@@ -498,21 +528,6 @@ export const router = createBrowserRouter(
           <ApiErrorWatcher />
         </AuthContextProvider>
       ),
-      errorElement: <RouteErrorBoundary />,
-    },
-    {
-      path: 'matrizipvr',
-      element: withSuspense(
-        <AuthContextProvider>
-          <MatrizIpvrPage />
-          <ApiErrorWatcher />
-        </AuthContextProvider>
-      ),
-      errorElement: <RouteErrorBoundary />,
-    },
-    {
-      path: 'matriz-ipvr',
-      element: <Navigate to="/matrizipvr" replace={true} />,
       errorElement: <RouteErrorBoundary />,
     },
     {

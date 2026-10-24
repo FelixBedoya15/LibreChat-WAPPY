@@ -152,8 +152,14 @@ export default function Root() {
   };
 
   const isPublicRoute = (pathname: string) => {
-    const publicPaths = ['/', '', '/landing', '/inicio', '/planes', '/contactanos', '/privacy', '/terms', '/about', '/register', '/login', '/comunidad', '/comunidadmp', '/wappyvital', '/portafolio', '/portafolio.html', '/embajadores', '/embajadores.html', '/mauricioposada', '/mauricioposada.html', '/cursowappy01', '/cursowappy01.html', '/clase1', '/clase1.html'];
+    const publicPaths = ['/', '', '/landing', '/inicio', '/planes', '/contactanos', '/privacy', '/terms', '/about', '/register', '/login', '/comunidad', '/comunidadmp', '/wappyvital', '/portafolio', '/portafolio.html', '/embajadores', '/embajadores.html', '/mauricioposada', '/mauricioposada.html', '/cursowappy01', '/cursowappy01.html', '/clase1', '/clase1.html', '/matrizipvr', '/matriz-ipvr', '/matrizipvr.html', '/matriz-ipvr.html', '/bateria-psicosocial'];
     if (publicPaths.includes(pathname)) {
+      return true;
+    }
+    if (pathname.startsWith('/matrizipvr') || pathname.startsWith('/matriz-ipvr')) {
+      return true;
+    }
+    if (pathname.startsWith('/bateria-psicosocial/') || pathname === '/bateria-psicosocial') {
       return true;
     }
     if ((pathname === '/blog' || pathname.startsWith('/blog/')) && !pathname.startsWith('/blog/admin')) {
