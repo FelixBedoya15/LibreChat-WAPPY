@@ -171,19 +171,24 @@ export default function PrivacyPolicyPage() {
                 {/* Content Grid */}
                 <div className="grid gap-6 md:grid-cols-2">
                     <Section icon={<DataSVG />} title="Datos que Recopilamos">
-                        <p>Al utilizar nuestra plataforma, recopilamos la siguiente información:</p>
+                        <p>Al utilizar nuestra plataforma y herramientas de SG-SST, recopilamos la siguiente información:</p>
                         <ul className="ml-4 list-disc space-y-1 marker:text-teal-500">
-                            <li>Nombre, correo electrónico y datos de registro</li>
-                            <li>Información de uso de la plataforma (logs de acceso)</li>
-                            <li>Datos técnicos del dispositivo y navegador</li>
-                            <li>Contenido generado por el usuario dentro de la plataforma</li>
+                            <li><strong>Datos de Usuario y Cuenta:</strong> Nombre, correo electrónico y credenciales de acceso.</li>
+                            <li><strong>Datos Corporativos de la Empresa:</strong> Razón social o nombre legal de la empresa, NIT o identificación tributaria, ARL afiliada, actividad económica y código CIIU, nivel de riesgo y número de trabajadores.</li>
+                            <li><strong>Datos de Contacto y Ubicación:</strong> Dirección de sedes, ciudad, departamento, teléfonos y correos electrónicos de contacto corporativo.</li>
+                            <li><strong>Información de Seguridad y Salud en el Trabajo:</strong> Datos del Responsable del SG-SST, número de licencia, vigencia y matrices de riesgos (GTC 45, PESV, Química).</li>
+                            <li><strong>Información de Uso y Técnica:</strong> Logs de acceso, telemetría de interacción y datos del dispositivo/navegador.</li>
+                            <li><strong>Contenido del Usuario:</strong> Registros generados en la gestión de matrices, evaluaciones y diagnósticos.</li>
                         </ul>
                     </Section>
 
                     <Section icon={<EyeSVG />} title="Uso de la Información">
-                        <p>Sus datos personales se utilizan exclusivamente para:</p>
+                        <p>Sus datos personales y empresariales se utilizan exclusivamente para:</p>
                         <ul className="ml-4 list-disc space-y-1 marker:text-teal-500">
-                            <li>Proveer y mantener el servicio de la plataforma</li>
+                            <li>Proveer y mantener el servicio de la plataforma y el ecosistema de IA</li>
+                            <li>Parametrizar y actualizar automáticamente las matrices de identificación de peligros y evaluación de riesgos (IPEVR - GTC 45)</li>
+                            <li>Generar los informes gerenciales y documentos técnicos obligatorios de cumplimiento normativo (Decreto 1072 de 2015 y Resolución 0312 de 2019)</li>
+                            <li>Consolidar análisis estadísticos y caracterización ocupacional para el panel de administración (omitiendo estrictamente firmas digitales en resúmenes administrativos)</li>
                             <li>Autenticación y seguridad de su cuenta</li>
                             <li>Comunicación sobre actualizaciones del servicio</li>
                             <li>Cumplimiento de obligaciones legales colombianas</li>

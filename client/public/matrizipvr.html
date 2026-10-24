@@ -690,6 +690,27 @@
 
       </div>
 
+      <!-- Banner de Bloqueo por Empresa Incompleta -->
+      <div id="companyIncompleteBlockingBanner" class="hidden mx-4 sm:mx-6 my-4 p-4 rounded-2xl bg-amber-500/10 border-2 border-amber-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-amber-900 shadow-sm animate-in fade-in duration-300">
+        <div class="flex items-start sm:items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-700 flex items-center justify-center shrink-0 text-xl font-bold">
+            🔒
+          </div>
+          <div>
+            <h4 class="font-display font-black text-xs sm:text-sm text-amber-950 flex items-center gap-2">
+              <span>Matriz Bloqueada:</span> Información de la Empresa Incompleta
+            </h4>
+            <p class="text-xs text-amber-800 mt-0.5 leading-relaxed">
+              Para crear, parametrizar o modificar la Matriz IPEVR (GTC 45) o emitir el Informe Gerencial oficial, es obligatorio diligenciar primero todos los datos de la empresa activa. Esta información se utiliza exclusivamente para actualizar la matriz y realizar el informe técnico (las firmas digitales son lo único opcional).
+            </p>
+          </div>
+        </div>
+        <button type="button" onclick="openCompanyModal()" class="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs shadow-md transition-all active:scale-95 cursor-pointer">
+          <span>🏢</span>
+          <span>Completar Datos de la Empresa</span>
+        </button>
+      </div>
+
       <!-- Sub-barra informativa Excel (Image 2) -->
       <div class="px-6 py-2 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
         <div class="flex items-center gap-1.5 font-medium">
@@ -1637,6 +1658,15 @@
       <!-- Cuerpo Scrolleable con Datos Completos WAPPY -->
       <div class="flex-1 overflow-y-auto px-6 py-5 space-y-6">
         
+        <!-- Banner Informativo: Uso de Datos y Requisitos Obligatorios -->
+        <div class="bg-teal-500/10 border border-teal-500/30 rounded-2xl p-4 flex items-start gap-3 shadow-xs">
+          <span class="text-xl shrink-0 mt-0.5">ℹ️</span>
+          <div class="text-xs text-teal-900 leading-relaxed">
+            <strong class="font-black text-teal-950">Requisito Obligatorio para Habilitar la Matriz IPEVR e Informe Gerencial:</strong>
+            Esta información se utiliza para parametrizar la matriz de riesgos (procesos, cargos, criticidad y controles) y generar el informe gerencial técnico oficial conforme al Decreto 1072 de 2015 y la Resolución 0312 de 2019. <strong>Es obligatorio completar todos los campos de la empresa activa para poder crear o editar la matriz</strong>. Las firmas digitales son lo único opcional y pueden agregarse o dibujarse en cualquier momento.
+          </div>
+        </div>
+
         <!-- Banner Condicional: Empresa NO Activa -->
         <div id="bannerEmpresaInactiva" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
           <div class="flex items-center gap-3 text-amber-900">
@@ -2482,6 +2512,31 @@ const COMPANY_FIELD_LABELS = {
   courseStatus: 'Curso 50H / 20H',
   licenseExpiry: 'Vigencia de Licencia'
 };
+
+function getMissingCompanyFields(comp) {
+  const c = comp || companyInfo;
+  if (!c) return REQUIRED_COMPANY_FIELDS;
+  return REQUIRED_COMPANY_FIELDS.filter(f => {
+    const val = c[f];
+    if (typeof val === 'string') {
+      const v = val.trim();
+      return v === '' || v === 'N/A' || v === 'No registrado';
+    }
+    return val === undefined || val === null || val === 0 || isNaN(val);
+  });
+}
+
+function isCompanyProfileComplete(comp) {
+  return getMissingCompanyFields(comp).length === 0;
+}
+
+function promptCompleteCompanyInfo(action = 'gestionar la matriz de riesgos') {
+  const missing = getMissingCompanyFields(companyInfo);
+  const missingNames = missing.slice(0, 3).map(f => COMPANY_FIELD_LABELS[f] || f).join(', ');
+  const extra = missing.length > 3 ? ` (+${missing.length - 3} campos obligatorios)` : '';
+  showToast(`🔒 Matriz Bloqueada: Diligencia los datos de la empresa activa para ${action} (Faltan: ${missingNames}${extra}). Las firmas digitales son lo único opcional.`, 'warning');
+  openCompanyModal();
+}
 
 let selectedModel = 'gemini-3.8-flash';
 let currentKeyIndex = 0;
@@ -3492,6 +3547,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // ─── GUARDADO MANUAL CON FEEDBACK VISUAL WAPPY ──────────────────────
 function handleManualSaveMatrix() {
+  if (!isCompanyProfileComplete(companyInfo)) {
+    promptCompleteCompanyInfo('guardar la matriz de riesgos');
+    return;
+  }
+
   saveToLocalStorage(true);
   saveHistorySnapshot();
   renderExecutiveReport();
@@ -3505,13 +3565,10 @@ function handleManualSaveMatrix() {
 
   const animateBtn = (btn) => {
     if (!btn) return;
-    const originalHtml = btn.innerHTML;
-    btn.innerHTML = '<span>✔</span><span class="ml-1 font-bold">¡Guardado!</span>';
-    btn.classList.add('ring-2', 'ring-emerald-400', 'bg-emerald-600', 'text-white');
+    btn.classList.add('ring-2', 'ring-emerald-400', 'bg-emerald-500/30', 'text-emerald-700');
     setTimeout(() => {
-      btn.innerHTML = originalHtml;
-      btn.classList.remove('ring-2', 'ring-emerald-400', 'bg-emerald-600', 'text-white');
-    }, 2200);
+      btn.classList.remove('ring-2', 'ring-emerald-400', 'bg-emerald-500/30', 'text-emerald-700');
+    }, 1800);
   };
 
   animateBtn(btnFilter);
@@ -3825,6 +3882,11 @@ async function callGeminiWithRotation(promptText) {
 
 // ─── CRUD DE RIESGOS ────────────────────────────────────────────────
 function addNewRiskRow() {
+  if (!isCompanyProfileComplete(companyInfo)) {
+    promptCompleteCompanyInfo('crear un nuevo riesgo');
+    return;
+  }
+
   const newRow = calculateRowFormulas({
     id: 'row_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
     proceso: 'Operaciones Generales',
@@ -3861,6 +3923,11 @@ function addNewRiskRow() {
 }
 
 function deleteRiskRow(rowId) {
+  if (!isCompanyProfileComplete(companyInfo)) {
+    promptCompleteCompanyInfo('eliminar riesgos de la matriz');
+    return;
+  }
+
   if (confirm('¿Eliminar este riesgo de la matriz?')) {
     matrixRows = matrixRows.filter(r => r.id !== rowId);
     saveToLocalStorage();
@@ -3873,6 +3940,12 @@ function deleteRiskRow(rowId) {
 }
 
 function updateRowField(rowId, field, val) {
+  if (!isCompanyProfileComplete(companyInfo)) {
+    promptCompleteCompanyInfo('modificar la matriz de riesgos');
+    renderTable();
+    return;
+  }
+
   const row = matrixRows.find(r => r.id === rowId);
   if (!row) return;
 
@@ -3890,6 +3963,11 @@ function updateRowField(rowId, field, val) {
 }
 
 function toggleRutinaria(rowId) {
+  if (!isCompanyProfileComplete(companyInfo)) {
+    promptCompleteCompanyInfo('modificar la matriz de riesgos');
+    return;
+  }
+
   const row = matrixRows.find(r => r.id === rowId);
   if (!row) return;
   row.rutinaria = row.rutinaria === 'Sí' ? 'No' : 'Sí';
@@ -3991,6 +4069,16 @@ function renderTable() {
   const countBottom = document.getElementById('tableCountBottom');
   const activeFilterNotice = document.getElementById('activeFilterNotice');
   if (!tbody) return;
+
+  const isComplete = isCompanyProfileComplete(companyInfo);
+  const blockingBanner = document.getElementById('companyIncompleteBlockingBanner');
+  if (blockingBanner) {
+    if (!isComplete) {
+      blockingBanner.classList.remove('hidden');
+    } else {
+      blockingBanner.classList.add('hidden');
+    }
+  }
 
   const filtered = getFilteredRows();
 
@@ -6711,6 +6799,11 @@ function handleDeleteTemplate(templateName) {
 }
 
 function handleConfirmMapperImport() {
+  if (!isCompanyProfileComplete(companyInfo)) {
+    promptCompleteCompanyInfo('importar registros mapeados');
+    return;
+  }
+
   const currentSheet = detectedWorkbookSheets[selectedSheetIndex] || detectedWorkbookSheets[0];
   if (!currentSheet || !currentSheet.allRows || currentSheet.allRows.length === 0) {
     showToast('No hay datos en la hoja seleccionada', 'warning');
@@ -6786,6 +6879,12 @@ document.addEventListener('click', (e) => {
 
 // ─── IMPORTACIÓN DE EXCEL CON MODAL DE 3 OPCIONES ────────────────────
 function handleFileSelectForImport(input) {
+  if (!isCompanyProfileComplete(companyInfo)) {
+    promptCompleteCompanyInfo('importar una matriz en Excel');
+    if (input) input.value = '';
+    return;
+  }
+
   if (!input.files || !input.files[0]) return;
   const file = input.files[0];
 
@@ -6904,6 +7003,11 @@ function handleSelectDirectImport() {
 }
 
 function executeDirectImport() {
+  if (!isCompanyProfileComplete(companyInfo)) {
+    promptCompleteCompanyInfo('importar registros directos');
+    return;
+  }
+
   const currentSheet = detectedWorkbookSheets[selectedSheetIndex] || detectedWorkbookSheets[0];
   if (!currentSheet || !currentSheet.allRows || currentSheet.allRows.length === 0) return;
 
@@ -6932,6 +7036,11 @@ function executeDirectImport() {
 
 // ─── CARGAR DATOS DUMMY OFICIALES ────────────────────────────────────
 function loadDummyData() {
+  if (!isCompanyProfileComplete(companyInfo)) {
+    promptCompleteCompanyInfo('cargar datos de prueba a la matriz');
+    return;
+  }
+
   matrixRows = INITIAL_DUMMY_ROWS.map(calculateRowFormulas);
   saveToLocalStorage(true);
   renderTable();
@@ -6943,6 +7052,11 @@ function loadDummyData() {
 
 // ─── GENERACIÓN Y VALORACIÓN CON IA ─────────────────────────────────
 async function handleCompleteRowAI(rowId) {
+  if (!isCompanyProfileComplete(companyInfo)) {
+    promptCompleteCompanyInfo('valorar el riesgo con IA');
+    return;
+  }
+
   const row = matrixRows.find(r => r.id === rowId);
   if (!row) return;
 
@@ -7021,6 +7135,11 @@ Responde ÚNICAMENTE un JSON válido (sin markdown):
 }
 
 async function handleAnexoEAiRow(rowId) {
+  if (!isCompanyProfileComplete(companyInfo)) {
+    promptCompleteCompanyInfo('analizar reducción con IA');
+    return;
+  }
+
   const row = matrixRows.find(r => r.id === rowId);
   if (!row) return;
 
@@ -7044,6 +7163,11 @@ Responde SOLO la frase técnica.
 }
 
 async function handleAutoAssignCargoRow(rowId) {
+  if (!isCompanyProfileComplete(companyInfo)) {
+    promptCompleteCompanyInfo('asignar cargos con IA');
+    return;
+  }
+
   const row = matrixRows.find(r => r.id === rowId);
   if (!row) return;
 
@@ -7064,6 +7188,11 @@ Responde ÚNICAMENTE el nombre del cargo (máximo 4 palabras).
 }
 
 async function handleGenerateFullAI() {
+  if (!isCompanyProfileComplete(companyInfo)) {
+    promptCompleteCompanyInfo('generar riesgos con IA');
+    return;
+  }
+
   const btn = document.getElementById('btnGenerateFullAI');
   const origText = btn ? btn.innerHTML : '';
   if (btn) {
@@ -7137,6 +7266,11 @@ Devuelve ÚNICAMENTE un JSON válido:
 }
 
 async function handleGenerateChartConclusionAI() {
+  if (!isCompanyProfileComplete(companyInfo)) {
+    promptCompleteCompanyInfo('generar conclusiones con IA');
+    return;
+  }
+
   showToast('Generando conclusión técnica GTC-45...', 'info');
   try {
     const summary = matrixRows.slice(0, 10).map(r => ({ cargo: r.cargo, peligro: r.peligro_descripcion, nr: r.nr, nivel: r.interpretacion_nr }));
@@ -7156,6 +7290,11 @@ Responde SOLO texto plano.
 }
 
 async function handleGenerateReportAI() {
+  if (!isCompanyProfileComplete(companyInfo)) {
+    promptCompleteCompanyInfo('generar el informe gerencial con IA');
+    return;
+  }
+
   if (matrixRows.length === 0) {
     showToast('Debes tener al menos un riesgo en la matriz para generar el informe', 'warning');
     return;
@@ -8084,6 +8223,7 @@ function updateHeroCompanyBanner() {
   const workersEl = document.getElementById('heroCompanyWorkers');
   const cityEl = document.getElementById('heroCompanyCity');
   const logoBox = document.getElementById('heroCompanyLogoBox');
+  const badgeEl = document.getElementById('heroCompanyActiveBadge');
 
   if (nameEl) nameEl.textContent = companyInfo.companyName || 'Sin Razón Social';
   if (nitEl) nitEl.textContent = `NIT: ${companyInfo.nit || 'N/A'}`;
@@ -8091,6 +8231,17 @@ function updateHeroCompanyBanner() {
   if (riskEl) riskEl.textContent = `Clase ${companyInfo.riskLevel || 'I'}`;
   if (workersEl) workersEl.textContent = `${companyInfo.workerCount || 0} Trabajadores`;
   if (cityEl) cityEl.textContent = `${companyInfo.city || ''}${companyInfo.departamento ? ', ' + companyInfo.departamento : ''}`;
+
+  const isComplete = isCompanyProfileComplete(companyInfo);
+  if (badgeEl) {
+    if (isComplete) {
+      badgeEl.className = 'text-[10px] font-bold text-teal-700 bg-teal-100 px-2 py-0.5 rounded-full shrink-0';
+      badgeEl.innerHTML = '✔ Empresa Activa y Completa';
+    } else {
+      badgeEl.className = 'text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full shrink-0 animate-pulse';
+      badgeEl.innerHTML = '⚠️ Datos Incompletos (Matriz Bloqueada)';
+    }
+  }
 
   if (logoBox) {
     if (companyInfo.logoBase64) {
@@ -8809,6 +8960,11 @@ function validateCompanyForm() {
 function saveCompanyInfo() {
   if (!editingCompany) return;
 
+  if (!validateCompanyForm()) {
+    showToast('⚠️ Completa todos los campos obligatorios de la empresa. Las firmas son lo único opcional.', 'warning');
+    return;
+  }
+
   const idx = companiesList.findIndex(c => c._id === editingCompany._id);
   if (idx !== -1) {
     companiesList[idx] = JSON.parse(JSON.stringify(editingCompany));
@@ -8831,9 +8987,11 @@ function saveCompanyInfo() {
   updateHeroCompanyBanner();
   renderCompanyCards();
   renderExecutiveReport();
+  renderTable();
+  renderDashboard();
   closeCompanyModal();
   syncCompanyMetricsToServer(editingCompany);
-  showToast('Información de la empresa guardada con éxito', 'success');
+  showToast('Información de la empresa guardada y validada con éxito', 'success');
 }
 
 function openCompanyModal() {
