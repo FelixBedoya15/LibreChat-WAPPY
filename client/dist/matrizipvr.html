@@ -262,6 +262,9 @@
         <button onclick="openCompanyModal()" class="px-3 py-1.5 rounded-full hover:bg-teal-50 text-teal-700 transition-colors flex items-center gap-1 cursor-pointer">
           🏢 Datos Empresa
         </button>
+        <a id="navLinkAdminMetrics" href="#admin-metrics-section" onclick="navigateToAdminMetrics(event)" class="hidden px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-700 hover:bg-purple-500/20 font-bold transition-all items-center gap-1.5 cursor-pointer text-xs">
+          <span>📊</span> <span>Métricas Empresas</span>
+        </a>
       </nav>
 
       <!-- Right Action Pill -->
@@ -571,9 +574,9 @@
           </button>
 
           <!-- Botón Guardar Matriz (WAPPY Grupo 3: Teal - Guardar / Confirmar) -->
-          <button onclick="handleManualSaveMatrix()" id="btnCardSaveMatrix" class="wappy-expand-btn group inline-flex items-center justify-center h-8 px-3 min-w-[36px] sm:h-9 sm:px-3.5 sm:min-w-[40px] rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-700 hover:bg-teal-500/20 active:scale-95 cursor-pointer select-none shadow-xs" title="Guardar Cambios de la Matriz">
+          <button onclick="handleManualSaveMatrix()" id="btnCardSaveMatrix" class="wappy-expand-btn group inline-flex items-center justify-center h-8 px-2.5 min-w-[34px] sm:h-9 sm:px-3 sm:min-w-[38px] rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-700 hover:bg-teal-500/20 active:scale-95 cursor-pointer select-none" title="Guardar Cambios de la Matriz">
             <svg class="h-4 w-4 shrink-0 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
-            <span class="flex items-center ml-1.5 font-bold text-xs tracking-wide">
+            <span class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-xs font-bold tracking-wide">
               Guardar Matriz
             </span>
           </button>
@@ -829,6 +832,243 @@
     </div>
 
   </section>
+
+  <!-- ======================================================== -->
+  <!-- 6. MÓDULO DE ANÁLISIS DE MÉTRICAS (SOLO ADMINISTRADORES) -->
+  <!-- ======================================================== -->
+  <section id="admin-metrics-section" class="hidden no-print max-w-7xl mx-auto px-4 sm:px-6 mb-16">
+    <div class="bg-white rounded-3xl p-6 sm:p-8 border border-purple-200/80 shadow-2xl relative overflow-hidden">
+      
+      <!-- Fondo decorativo sutil -->
+      <div class="absolute -top-24 -right-24 w-80 h-80 bg-gradient-to-br from-purple-200/30 to-indigo-200/20 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-24 -left-24 w-80 h-80 bg-gradient-to-tr from-teal-200/20 to-sky-200/20 rounded-full blur-3xl pointer-events-none"></div>
+
+      <!-- Cabecera del Módulo -->
+      <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+        <div>
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800 border border-purple-200">
+              <span class="w-1.5 h-1.5 rounded-full bg-purple-600 animate-pulse"></span>
+              Exclusivo Administrador
+            </span>
+            <span class="text-xs text-slate-400 font-semibold">• Ecosistema WAPPY</span>
+          </div>
+          <h2 class="font-display font-extrabold text-xl sm:text-2xl text-slate-900 tracking-tight flex items-center gap-2">
+            <span>📊</span> Análisis de Métricas & Caracterización de Empresas
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
+            Consolidado general de la información ingresada por los usuarios y empresas (datos organizacionales, colaboradores, sectores económicos y matrices de riesgos GTC-45. Excluye estrictamente firmas digitales para cumplimiento de privacidad).
+          </p>
+        </div>
+
+        <!-- Botones de Acción de Métricas -->
+        <div class="flex flex-wrap items-center gap-2 shrink-0">
+          <button 
+            type="button" 
+            onclick="loadAdminMetrics(true)" 
+            id="btnRefreshMetrics"
+            class="wappy-expand-btn group inline-flex items-center justify-center h-9 px-3 min-w-[36px] rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-700 hover:bg-cyan-500/20 active:scale-95 cursor-pointer text-xs font-bold transition-all shadow-xs"
+            title="Recargar datos actualizados del servidor"
+          >
+            <svg class="h-4 w-4 shrink-0 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            <span class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-xs font-bold">
+              Actualizar
+            </span>
+          </button>
+
+          <button 
+            type="button" 
+            onclick="exportAdminMetricsToExcel()" 
+            class="wappy-expand-btn group inline-flex items-center justify-center h-9 px-3 min-w-[36px] rounded-xl bg-green-500/10 border border-green-500/30 text-green-700 hover:bg-green-500/20 active:scale-95 cursor-pointer text-xs font-bold transition-all shadow-xs"
+            title="Exportar base consolidada de empresas a Excel (.xlsx)"
+          >
+            <svg class="h-4 w-4 shrink-0 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <span class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-xs font-bold">
+              Exportar Excel
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tarjetas Bento de KPIs -->
+      <div class="relative z-10 grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 my-6">
+        
+        <!-- KPI 1: Empresas -->
+        <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-purple-500/10 to-indigo-500/5 border border-purple-500/20">
+          <div class="flex items-center justify-between text-xs text-purple-700 font-bold mb-1">
+            <span>EMPRESAS TOTALES</span>
+            <span>🏢</span>
+          </div>
+          <div id="kpiTotalCompanies" class="font-display font-black text-2xl sm:text-3xl text-purple-900 tracking-tight">0</div>
+          <p class="text-[11px] text-slate-500 font-medium mt-1">Registradas en el ecosistema</p>
+        </div>
+
+        <!-- KPI 2: Trabajadores -->
+        <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-teal-500/10 to-emerald-500/5 border border-teal-500/20">
+          <div class="flex items-center justify-between text-xs text-teal-700 font-bold mb-1">
+            <span>COLABORADORES CUBIERTOS</span>
+            <span>👥</span>
+          </div>
+          <div id="kpiTotalWorkers" class="font-display font-black text-2xl sm:text-3xl text-teal-900 tracking-tight">0</div>
+          <p class="text-[11px] text-slate-500 font-medium mt-1">Censo poblacional protegido</p>
+        </div>
+
+        <!-- KPI 3: Riesgos Evaluados -->
+        <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-sky-500/10 to-blue-500/5 border border-sky-500/20">
+          <div class="flex items-center justify-between text-xs text-sky-700 font-bold mb-1">
+            <span>RIESGOS GTC-45 IDENTIFICADOS</span>
+            <span>⚡</span>
+          </div>
+          <div id="kpiTotalRisks" class="font-display font-black text-2xl sm:text-3xl text-sky-900 tracking-tight">0</div>
+          <p class="text-[11px] text-slate-500 font-medium mt-1">En matrices de peligros</p>
+        </div>
+
+        <!-- KPI 4: Riesgos No Aceptables -->
+        <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-rose-500/10 to-amber-500/5 border border-rose-500/20">
+          <div class="flex items-center justify-between text-xs text-rose-700 font-bold mb-1">
+            <span>RIESGOS CRÍTICOS (NIVEL I)</span>
+            <span>🚨</span>
+          </div>
+          <div id="kpiTotalHighRisks" class="font-display font-black text-2xl sm:text-3xl text-rose-900 tracking-tight">0</div>
+          <p id="kpiHighRisksPct" class="text-[11px] text-rose-600 font-semibold mt-1">0% de intervención inmediata</p>
+        </div>
+
+      </div>
+
+      <!-- Grid de Distribución y Caracterización Visual -->
+      <div class="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        
+        <!-- Card A: Distribución por Nivel de Riesgo ARL -->
+        <div class="p-5 rounded-2xl bg-slate-50/80 border border-slate-200/80">
+          <h4 class="font-extrabold text-xs text-slate-800 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <span>🛡️</span> Distribución por Riesgo ARL
+          </h4>
+          <div id="metricsRiskLevelsBars" class="space-y-2 text-xs">
+            <!-- Inyectado dinámicamente -->
+          </div>
+        </div>
+
+        <!-- Card B: Tamaño de Empresa -->
+        <div class="p-5 rounded-2xl bg-slate-50/80 border border-slate-200/80">
+          <h4 class="font-extrabold text-xs text-slate-800 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <span>📏</span> Estratificación por Tamaño
+          </h4>
+          <div id="metricsCompanySizeBars" class="space-y-2 text-xs">
+            <!-- Inyectado dinámicamente -->
+          </div>
+        </div>
+
+        <!-- Card C: Top Sectores Económicos -->
+        <div class="p-5 rounded-2xl bg-slate-50/80 border border-slate-200/80">
+          <h4 class="font-extrabold text-xs text-slate-800 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <span>🏭</span> Top Sectores Económicos
+          </h4>
+          <div id="metricsTopSectorsList" class="space-y-2 text-xs">
+            <!-- Inyectado dinámicamente -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Tabla Detallada con Buscador y Filtros -->
+      <div class="relative z-10">
+        
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 mb-3">
+          <div class="relative w-full sm:w-80">
+            <input 
+              type="text" 
+              id="adminMetricsSearchInput" 
+              oninput="filterAdminMetricsTable()" 
+              placeholder="🔍 Buscar por nombre, NIT, ciudad..." 
+              class="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs outline-none focus:border-purple-500 font-medium"
+            >
+          </div>
+          
+          <div class="flex items-center gap-2 w-full sm:w-auto">
+            <select 
+              id="adminMetricsFilterRisk" 
+              onchange="filterAdminMetricsTable()" 
+              class="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs outline-none focus:border-purple-500 font-bold text-slate-700"
+            >
+              <option value="">Todos los Riesgos ARL</option>
+              <option value="I">Clase I</option>
+              <option value="II">Clase II</option>
+              <option value="III">Clase III</option>
+              <option value="IV">Clase IV</option>
+              <option value="V">Clase V</option>
+            </select>
+
+            <span id="adminMetricsTableCount" class="text-xs font-bold text-slate-500 whitespace-nowrap">
+              0 empresas
+            </span>
+          </div>
+        </div>
+
+        <!-- Tabla Responsive -->
+        <div class="overflow-x-auto rounded-2xl border border-slate-200/80 shadow-xs bg-white">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="bg-slate-900 text-white font-bold text-[11px] uppercase tracking-wider">
+                <th class="p-3">Empresa / Razón Social</th>
+                <th class="p-3">NIT</th>
+                <th class="p-3">Representante Legal</th>
+                <th class="p-3 text-center">Trabajadores</th>
+                <th class="p-3 text-center">Riesgo ARL</th>
+                <th class="p-3">Responsable SG-SST</th>
+                <th class="p-3 text-center">Riesgos GTC-45</th>
+                <th class="p-3">Ciudad</th>
+                <th class="p-3 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="adminMetricsTableBody" class="divide-y divide-slate-100 text-slate-700 font-medium">
+              <tr>
+                <td colspan="9" class="p-8 text-center text-slate-400">
+                  <div class="inline-block animate-spin mr-2">⏳</div> Cargando métricas de empresas...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========================================================= -->
+  <!-- MODAL: FICHA DETALLADA DE LA EMPRESA (TODO MENOS FIRMAS)  -->
+  <!-- ========================================================= -->
+  <div id="adminCompanyDetailModal" class="hidden fixed inset-0 z-[70] bg-slate-900/60 backdrop-blur-sm items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+      
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">🏢</span>
+          <div>
+            <h3 id="adminDetailCompanyName" class="font-display font-black text-lg text-slate-900">
+              Ficha de la Empresa
+            </h3>
+            <p id="adminDetailCompanyNit" class="text-xs text-slate-500 font-bold">NIT: -</p>
+          </div>
+        </div>
+        <button onclick="closeAdminCompanyDetailModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold cursor-pointer">✕</button>
+      </div>
+
+      <div id="adminDetailModalBody" class="space-y-4 text-xs">
+        <!-- Inyectado dinámicamente con renderCompanyDetailModal() -->
+      </div>
+
+      <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+        <span class="text-[11px] text-slate-400 font-semibold flex items-center gap-1">
+          <span>🔒</span> Firmas digitales omitidas por política de privacidad administrativa.
+        </span>
+        <button onclick="closeAdminCompanyDetailModal()" class="px-5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer transition-colors">
+          Cerrar
+        </button>
+      </div>
+
+    </div>
+  </div>
 
   <!-- ========================================== -->
   <!-- 7. FOOTER OFICIAL ESTILO HOME (WAPPY.CLUB) -->
@@ -1335,6 +1575,15 @@
       <span class="w-2.5 h-2.5 rounded-full bg-[#c7f303] shadow-[0_0_10px_#c7f303] animate-pulse"></span>
       <span class="text-xs font-black text-white tracking-wide">Admin WAPPY</span>
     </div>
+    <button 
+      type="button" 
+      onclick="navigateToAdminMetrics(event)" 
+      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-xs shadow-md cursor-pointer transition-all active:scale-95"
+      title="Ver análisis consolidado de métricas de empresas"
+    >
+      <span>📊</span>
+      <span>Métricas Empresas</span>
+    </button>
     <button 
       type="button" 
       onclick="openVideoConfigModal()" 
@@ -2666,6 +2915,27 @@ function updateAdminUi() {
     }
   }
 
+  const navAdmin = document.getElementById('navLinkAdminMetrics');
+  const secAdmin = document.getElementById('admin-metrics-section');
+  if (isPlatformAdmin) {
+    if (navAdmin) {
+      navAdmin.classList.remove('hidden');
+      navAdmin.classList.add('inline-flex');
+    }
+    if (secAdmin) {
+      secAdmin.classList.remove('hidden');
+    }
+    loadAdminMetrics();
+  } else {
+    if (navAdmin) {
+      navAdmin.classList.add('hidden');
+      navAdmin.classList.remove('inline-flex');
+    }
+    if (secAdmin) {
+      secAdmin.classList.add('hidden');
+    }
+  }
+
   renderTutorialVideo();
 }
 
@@ -2831,6 +3101,370 @@ async function initTutorialVideo() {
   } catch(err){}
 }
 
+// ─── MÓDULO DE ANÁLISIS DE MÉTRICAS (ADMIN WAPPY) ─────────────────────
+let adminMetricsData = null;
+let adminMetricsCompanies = [];
+
+function syncCompanyMetricsToServer(comp) {
+  if (!comp) return;
+  try {
+    const nit = (comp.nit || '').trim();
+    const name = (comp.companyName || '').trim();
+    if (!name && !nit) return;
+
+    // Calcular estadísticas de la matriz actual
+    const processes = [...new Set((matrixRows || []).map(r => r.proceso).filter(Boolean))];
+    const cargos = [...new Set((matrixRows || []).map(r => r.cargo).filter(Boolean))];
+    const peligros = [...new Set((matrixRows || []).map(r => r.peligroDesc).filter(Boolean))];
+    const highRisks = (matrixRows || []).filter(r => r.nivelRiesgoGTC === 'I').length;
+    const mediumRisks = (matrixRows || []).filter(r => r.nivelRiesgoGTC === 'II' || r.nivelRiesgoGTC === 'III').length;
+    const lowRisks = (matrixRows || []).filter(r => r.nivelRiesgoGTC === 'IV').length;
+
+    // REGLA ESTRICTA: Omitir 100% firmas digitales ("todo menos las firmas")
+    const payload = {
+      companyName: comp.companyName || '',
+      companyType: comp.companyType || 'Persona Jurídica',
+      nit: comp.nit || '',
+      legalRepresentative: comp.legalRepresentative || '',
+      legalRepresentativeId: comp.legalRepresentativeId || '',
+      workerCount: Number(comp.workerCount) || 0,
+      arl: comp.arl || '',
+      economicActivity: comp.economicActivity || '',
+      riskLevel: comp.riskLevel || '',
+      ciiu: comp.ciiu || '',
+      address: comp.address || '',
+      city: comp.city || '',
+      phone: comp.phone || '',
+      email: comp.email || '',
+      responsibleSST: comp.responsibleSST || '',
+      licenseNumber: comp.licenseNumber || '',
+      licenseExpiry: comp.licenseExpiry || '',
+      formationLevel: comp.formationLevel || '',
+      totalRisks: (matrixRows || []).length,
+      highRisks,
+      mediumRisks,
+      lowRisks,
+      matrixRowsCount: (matrixRows || []).length,
+      processes,
+      cargos,
+      peligros,
+      sedesCount: Array.isArray(comp.sedes) ? comp.sedes.length : 0
+    };
+
+    fetch('/api/comunidad/matrizipvr/metrics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).catch(() => {});
+  } catch (e) {}
+}
+
+async function loadAdminMetrics(forceToast = false) {
+  if (!isPlatformAdmin) return;
+  try {
+    const res = await fetch('/api/comunidad/matrizipvr/metrics', { credentials: 'include' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.success) {
+        adminMetricsData = data;
+        adminMetricsCompanies = data.companies || [];
+        renderAdminMetricsDashboard();
+        if (forceToast) showToast('Métricas de empresas actualizadas', 'success');
+      }
+    }
+  } catch (err) {
+    console.error('Error loading admin metrics:', err);
+  }
+}
+
+function renderAdminMetricsDashboard() {
+  if (!adminMetricsData) return;
+  const stats = adminMetricsData.stats || {};
+  
+  // KPIs
+  const totalComp = document.getElementById('kpiTotalCompanies');
+  const totalWork = document.getElementById('kpiTotalWorkers');
+  const totalRisk = document.getElementById('kpiTotalRisks');
+  const totalHigh = document.getElementById('kpiTotalHighRisks');
+  const highPct = document.getElementById('kpiHighRisksPct');
+
+  if (totalComp) totalComp.textContent = (stats.totalCompanies || 0).toLocaleString();
+  if (totalWork) totalWork.textContent = (stats.totalWorkers || 0).toLocaleString();
+  if (totalRisk) totalRisk.textContent = (stats.totalRisks || 0).toLocaleString();
+  if (totalHigh) totalHigh.textContent = (stats.totalHighRisks || 0).toLocaleString();
+  if (highPct) {
+    const pct = stats.totalRisks ? Math.round((stats.totalHighRisks / stats.totalRisks) * 100) : 0;
+    highPct.textContent = `${pct}% del total de riesgos evaluados`;
+  }
+
+  // Card A: Niveles de Riesgo
+  const riskBox = document.getElementById('metricsRiskLevelsBars');
+  if (riskBox && stats.byRiskLevel) {
+    const riskColors = { 'I': 'bg-emerald-500', 'II': 'bg-sky-500', 'III': 'bg-amber-500', 'IV': 'bg-orange-500', 'V': 'bg-rose-500', 'Sin especificar': 'bg-slate-400' };
+    const maxVal = Math.max(...Object.values(stats.byRiskLevel), 1);
+    riskBox.innerHTML = Object.entries(stats.byRiskLevel).map(([k, v]) => `
+      <div>
+        <div class="flex justify-between font-bold text-slate-700 mb-0.5">
+          <span>Clase ${k}</span>
+          <span>${v} emp.</span>
+        </div>
+        <div class="w-full bg-slate-200/80 rounded-full h-1.5 overflow-hidden">
+          <div class="${riskColors[k] || 'bg-slate-400'} h-full rounded-full transition-all duration-500" style="width: ${(v / maxVal) * 100}%"></div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Card B: Tamaño
+  const sizeBox = document.getElementById('metricsCompanySizeBars');
+  if (sizeBox && stats.byCompanySize) {
+    const maxVal = Math.max(...Object.values(stats.byCompanySize), 1);
+    sizeBox.innerHTML = Object.entries(stats.byCompanySize).map(([k, v]) => `
+      <div>
+        <div class="flex justify-between font-bold text-slate-700 mb-0.5">
+          <span>${k}</span>
+          <span>${v} emp.</span>
+        </div>
+        <div class="w-full bg-slate-200/80 rounded-full h-1.5 overflow-hidden">
+          <div class="bg-indigo-500 h-full rounded-full transition-all duration-500" style="width: ${(v / maxVal) * 100}%"></div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Card C: Top Sectores
+  const secBox = document.getElementById('metricsTopSectorsList');
+  if (secBox && Array.isArray(stats.topSectors)) {
+    secBox.innerHTML = stats.topSectors.length ? stats.topSectors.map(s => `
+      <div class="flex items-center justify-between p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs">
+        <span class="truncate font-semibold text-slate-700 max-w-[200px]" title="${s.name}">${s.name}</span>
+        <span class="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 font-extrabold text-[10px] shrink-0">${s.count}</span>
+      </div>
+    `).join('') : '<p class="text-slate-400">Sin datos de sector</p>';
+  }
+
+  filterAdminMetricsTable();
+}
+
+function filterAdminMetricsTable() {
+  const searchInput = document.getElementById('adminMetricsSearchInput');
+  const filterRisk = document.getElementById('adminMetricsFilterRisk');
+  const tbody = document.getElementById('adminMetricsTableBody');
+  const countEl = document.getElementById('adminMetricsTableCount');
+
+  const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+  const risk = filterRisk ? filterRisk.value.trim().toUpperCase() : '';
+
+  let filtered = adminMetricsCompanies.filter(c => {
+    if (query) {
+      const matchName = (c.companyName || '').toLowerCase().includes(query);
+      const matchNit = (c.nit || '').toLowerCase().includes(query);
+      const matchCity = (c.city || '').toLowerCase().includes(query);
+      const matchRep = (c.legalRepresentative || '').toLowerCase().includes(query);
+      const matchSst = (c.responsibleSST || '').toLowerCase().includes(query);
+      if (!matchName && !matchNit && !matchCity && !matchRep && !matchSst) return false;
+    }
+    if (risk && (c.riskLevel || '').toString().toUpperCase() !== risk) return false;
+    return true;
+  });
+
+  if (countEl) countEl.textContent = `${filtered.length} empresa${filtered.length === 1 ? '' : 's'}`;
+
+  if (!tbody) return;
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-slate-400">No se encontraron empresas con los criterios seleccionados.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(c => `
+    <tr class="hover:bg-slate-50/80 transition-colors">
+      <td class="p-3">
+        <div class="font-extrabold text-slate-900">${c.companyName || 'Sin Razón Social'}</div>
+        <div class="text-[10px] text-slate-400 font-semibold">${c.companyType || 'Persona Jurídica'}</div>
+      </td>
+      <td class="p-3 font-mono font-bold text-slate-800">${c.nit || '-'}</td>
+      <td class="p-3">
+        <div class="font-semibold text-slate-800">${c.legalRepresentative || '-'}</div>
+        <div class="text-[10px] text-slate-400">${c.legalRepresentativeId ? 'C.C. ' + c.legalRepresentativeId : ''}</div>
+      </td>
+      <td class="p-3 text-center font-bold text-slate-900">${(c.workerCount || 0).toLocaleString()}</td>
+      <td class="p-3 text-center">
+        <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-black ${getRiskBadgeClass(c.riskLevel)}">
+          Clase ${c.riskLevel || 'N/A'}
+        </span>
+      </td>
+      <td class="p-3">
+        <div class="font-semibold text-slate-800">${c.responsibleSST || '-'}</div>
+        <div class="text-[10px] text-teal-700 font-bold">${c.licenseNumber ? 'Lic: ' + c.licenseNumber : ''}</div>
+      </td>
+      <td class="p-3 text-center">
+        <span class="font-black text-slate-900">${c.totalRisks || 0}</span>
+        ${c.highRisks ? `<span class="ml-1 text-rose-600 font-extrabold text-[10px] bg-rose-50 px-1.5 py-0.5 rounded-md">(${c.highRisks} N-I)</span>` : ''}
+      </td>
+      <td class="p-3 text-slate-600">${c.city || '-'}</td>
+      <td class="p-3 text-right whitespace-nowrap">
+        <button onclick="viewAdminCompanyDetail('${c._id}')" class="px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold text-xs cursor-pointer border border-purple-200 transition-all mr-1" title="Ver ficha completa">
+          👁️ Ver Ficha
+        </button>
+        <button onclick="deleteAdminMetric('${c._id}')" class="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs cursor-pointer border border-rose-200 transition-all" title="Eliminar registro">
+          🗑️
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function getRiskBadgeClass(level) {
+  const l = (level || '').toString().trim().toUpperCase();
+  if (l === 'I') return 'bg-emerald-100 text-emerald-800 border border-emerald-300';
+  if (l === 'II') return 'bg-sky-100 text-sky-800 border border-sky-300';
+  if (l === 'III') return 'bg-amber-100 text-amber-800 border border-amber-300';
+  if (l === 'IV') return 'bg-orange-100 text-orange-800 border border-orange-300';
+  if (l === 'V') return 'bg-rose-100 text-rose-800 border border-rose-300';
+  return 'bg-slate-100 text-slate-600 border border-slate-200';
+}
+
+function viewAdminCompanyDetail(id) {
+  const comp = adminMetricsCompanies.find(c => c._id === id);
+  if (!comp) return;
+
+  const modal = document.getElementById('adminCompanyDetailModal');
+  const title = document.getElementById('adminDetailCompanyName');
+  const nitEl = document.getElementById('adminDetailCompanyNit');
+  const body = document.getElementById('adminDetailModalBody');
+
+  if (title) title.textContent = comp.companyName || 'Sin Razón Social';
+  if (nitEl) nitEl.textContent = `NIT: ${comp.nit || 'No registrado'} · ${comp.companyType || 'Persona Jurídica'}`;
+
+  if (body) {
+    body.innerHTML = `
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+        <div><span class="text-slate-400 font-bold">Representante Legal:</span> <strong class="text-slate-800">${comp.legalRepresentative || '-'}</strong></div>
+        <div><span class="text-slate-400 font-bold">Cédula Rep. Legal:</span> <strong class="text-slate-800">${comp.legalRepresentativeId || '-'}</strong></div>
+        <div><span class="text-slate-400 font-bold">Trabajadores:</span> <strong class="text-slate-800">${comp.workerCount || 0}</strong></div>
+        <div><span class="text-slate-400 font-bold">Clase Riesgo ARL:</span> <strong class="text-slate-800">Clase ${comp.riskLevel || '-'} (${comp.arl || 'Sin ARL'})</strong></div>
+        <div><span class="text-slate-400 font-bold">Actividad Económica:</span> <strong class="text-slate-800">${comp.economicActivity || '-'}</strong></div>
+        <div><span class="text-slate-400 font-bold">Código CIIU:</span> <strong class="text-slate-800">${comp.ciiu || '-'}</strong></div>
+        <div><span class="text-slate-400 font-bold">Dirección / Ciudad:</span> <strong class="text-slate-800">${comp.address || '-'} · ${comp.city || '-'}</strong></div>
+        <div><span class="text-slate-400 font-bold">Teléfono / Email:</span> <strong class="text-slate-800">${comp.phone || '-'} · ${comp.email || '-'}</strong></div>
+      </div>
+
+      <div class="bg-teal-50/70 p-4 rounded-2xl border border-teal-200">
+        <h4 class="font-extrabold text-teal-900 mb-2">Responsable SG-SST</h4>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-700">
+          <div><span class="text-teal-700 font-bold">Nombre:</span> ${comp.responsibleSST || '-'}</div>
+          <div><span class="text-teal-700 font-bold">Licencia SST:</span> ${comp.licenseNumber || '-'} (Vence: ${comp.licenseExpiry || '-'})</div>
+          <div><span class="text-teal-700 font-bold">Nivel Formación:</span> ${comp.formationLevel || '-'}</div>
+          <div><span class="text-teal-700 font-bold">Sedes Registradas:</span> ${comp.sedesCount || 0}</div>
+        </div>
+      </div>
+
+      <div class="bg-purple-50/70 p-4 rounded-2xl border border-purple-200">
+        <h4 class="font-extrabold text-purple-900 mb-2">Matriz IPEVR (GTC 45)</h4>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-slate-700">
+          <div><span class="text-purple-700 font-bold">Total Peligros:</span> <strong>${comp.totalRisks || 0}</strong></div>
+          <div><span class="text-purple-700 font-bold">Riesgos Nivel I:</span> <strong class="text-rose-600">${comp.highRisks || 0}</strong></div>
+          <div><span class="text-purple-700 font-bold">Fuente:</span> ${comp.source || 'matrizipvr'}</div>
+        </div>
+        ${Array.isArray(comp.processes) && comp.processes.length ? `
+          <div class="mt-2 pt-2 border-t border-purple-200/60">
+            <span class="text-purple-800 font-bold text-[11px]">Procesos documentados:</span>
+            <div class="flex flex-wrap gap-1 mt-1">
+              ${comp.processes.map(p => `<span class="px-2 py-0.5 rounded-md bg-white text-purple-800 border border-purple-200 text-[10px] font-semibold">${p}</span>`).join('')}
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+}
+
+function closeAdminCompanyDetailModal() {
+  const modal = document.getElementById('adminCompanyDetailModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+}
+
+async function deleteAdminMetric(id) {
+  if (!confirm('¿Estás seguro de eliminar este registro de métrica?')) return;
+  try {
+    const res = await fetch(`/api/comunidad/matrizipvr/metrics/${id}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
+    if (res.ok) {
+      showToast('Registro eliminado con éxito', 'success');
+      loadAdminMetrics();
+    } else {
+      showToast('Error al eliminar registro', 'error');
+    }
+  } catch (err) {
+    showToast('Error de conexión', 'error');
+  }
+}
+
+function exportAdminMetricsToExcel() {
+  if (!adminMetricsCompanies || !adminMetricsCompanies.length) {
+    showToast('No hay datos de empresas para exportar', 'warning');
+    return;
+  }
+  
+  const headers = ['Razón Social', 'Tipo', 'NIT', 'Rep. Legal', 'Cédula Rep.', 'Trabajadores', 'ARL', 'Nivel Riesgo', 'Actividad Económica', 'CIIU', 'Dirección', 'Ciudad', 'Teléfono', 'Email', 'Responsable SST', 'Licencia SST', 'Vigencia Licencia', 'Nivel Formación', 'Total Riesgos GTC-45', 'Riesgos Nivel I (Críticos)', 'Sedes', 'Fecha Actualización'];
+  
+  const rows = adminMetricsCompanies.map(c => [
+    `"${(c.companyName || '').replace(/"/g, '""')}"`,
+    `"${(c.companyType || '').replace(/"/g, '""')}"`,
+    `"${(c.nit || '').replace(/"/g, '""')}"`,
+    `"${(c.legalRepresentative || '').replace(/"/g, '""')}"`,
+    `"${(c.legalRepresentativeId || '').replace(/"/g, '""')}"`,
+    c.workerCount || 0,
+    `"${(c.arl || '').replace(/"/g, '""')}"`,
+    `"${(c.riskLevel || '').replace(/"/g, '""')}"`,
+    `"${(c.economicActivity || '').replace(/"/g, '""')}"`,
+    `"${(c.ciiu || '').replace(/"/g, '""')}"`,
+    `"${(c.address || '').replace(/"/g, '""')}"`,
+    `"${(c.city || '').replace(/"/g, '""')}"`,
+    `"${(c.phone || '').replace(/"/g, '""')}"`,
+    `"${(c.email || '').replace(/"/g, '""')}"`,
+    `"${(c.responsibleSST || '').replace(/"/g, '""')}"`,
+    `"${(c.licenseNumber || '').replace(/"/g, '""')}"`,
+    `"${(c.licenseExpiry || '').replace(/"/g, '""')}"`,
+    `"${(c.formationLevel || '').replace(/"/g, '""')}"`,
+    c.totalRisks || 0,
+    c.highRisks || 0,
+    c.sedesCount || 0,
+    `"${new Date(c.updatedAt).toLocaleDateString()}"`
+  ]);
+
+  const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Metricas_Empresas_WAPPY_${Date.now()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Base consolidada de empresas exportada', 'success');
+}
+
+function navigateToAdminMetrics(e) {
+  if (e) e.preventDefault();
+  if (!isPlatformAdmin) return;
+  const sec = document.getElementById('admin-metrics-section');
+  if (sec) {
+    sec.classList.remove('hidden');
+    sec.scrollIntoView({ behavior: 'smooth' });
+    loadAdminMetrics();
+  }
+}
+
 // ─── INICIALIZACIÓN DE LA APLICACIÓN ────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   initTutorialVideo();
@@ -2842,6 +3476,7 @@ window.addEventListener('DOMContentLoaded', () => {
   renderDashboard();
   renderExecutiveReport();
   updateFilterDropdownOptions();
+  setTimeout(() => syncCompanyMetricsToServer(companyInfo), 3500);
 
   window.addEventListener('online', () => {
     loadSavedKeys();
@@ -2861,6 +3496,7 @@ function handleManualSaveMatrix() {
   saveHistorySnapshot();
   renderExecutiveReport();
   renderDashboard();
+  syncCompanyMetricsToServer(companyInfo);
 
   // Feedback en botones de guardar
   const btnFilter = document.getElementById('btnFilterSaveMatrix');
@@ -7220,10 +7856,18 @@ function renderExecutiveReport() {
         <tr>
           <!-- Responsable SG-SST -->
           <td style="width: 50%; padding: 15px; text-align: center; vertical-align: bottom;">
-            <div style="border-bottom: 2px solid #334155; width: 85%; margin: 0 auto 8px auto; min-height: 65px; display: flex; align-items: flex-end; justify-content: center;">
-              ${(companyInfo.sstRespConsent === 'Sí' && companyInfo.sstRespSignature)
-                ? `<img src="${companyInfo.sstRespSignature}" style="max-height: 60px; max-width: 100%; object-fit: contain; display: block; margin: 0 auto;" alt="Firma SST">`
-                : `<span style="color: #94a3b8; font-size: 10.5px; padding-bottom: 4px; font-weight: bold;">FIRMA DIGITAL AVALADA EN SISTEMA</span>`}
+            <div style="border-bottom: 2px solid #334155; width: 85%; margin: 0 auto 8px auto; min-height: 65px; display: flex; align-items: center; justify-content: flex-end; flex-direction: column;">
+              ${(companyInfo.sstRespSignature)
+                ? `<div class="relative group" style="width: 100%; text-align: center;">
+                    <img src="${companyInfo.sstRespSignature}" style="max-height: 60px; max-width: 100%; object-fit: contain; display: block; margin: 0 auto;" alt="Firma SST">
+                    <button type="button" contenteditable="false" onclick="openSignaturePad('sstRespSignature')" class="no-print mt-1 px-2.5 py-0.5 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 text-[10px] font-bold border border-teal-200 cursor-pointer transition-all">✍️ Cambiar Firma</button>
+                   </div>`
+                : `<div class="w-full text-center py-1">
+                    <button type="button" contenteditable="false" onclick="openSignaturePad('sstRespSignature')" class="no-print mb-1.5 px-3 py-1.5 rounded-xl bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 border border-teal-500/30 text-xs font-bold transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-95">
+                      <span>✍️</span> <span>Dibujar Firma SG-SST</span>
+                    </button>
+                    <div style="color: #94a3b8; font-size: 10.5px; padding-bottom: 4px; font-weight: bold;">FIRMA DIGITAL AVALADA EN SISTEMA</div>
+                   </div>`}
             </div>
             <div style="font-weight: 900; font-size: 13px; color: #0f172a; text-transform: uppercase;">${responsibleSST}</div>
             <div style="font-size: 11px; color: #475569; font-weight: 700; margin-top: 1px;">Responsable del SG-SST</div>
@@ -7234,10 +7878,18 @@ function renderExecutiveReport() {
 
           <!-- Representante Legal -->
           <td style="width: 50%; padding: 15px; text-align: center; vertical-align: bottom;">
-            <div style="border-bottom: 2px solid #334155; width: 85%; margin: 0 auto 8px auto; min-height: 65px; display: flex; align-items: flex-end; justify-content: center;">
-              ${(companyInfo.legalRepConsent === 'Sí' && companyInfo.legalRepSignature)
-                ? `<img src="${companyInfo.legalRepSignature}" style="max-height: 60px; max-width: 100%; object-fit: contain; display: block; margin: 0 auto;" alt="Firma Rep Legal">`
-                : `<span style="color: #94a3b8; font-size: 10.5px; padding-bottom: 4px; font-weight: bold;">FIRMA DIRECCIÓN GENERAL REGISTRADA</span>`}
+            <div style="border-bottom: 2px solid #334155; width: 85%; margin: 0 auto 8px auto; min-height: 65px; display: flex; align-items: center; justify-content: flex-end; flex-direction: column;">
+              ${(companyInfo.legalRepSignature)
+                ? `<div class="relative group" style="width: 100%; text-align: center;">
+                    <img src="${companyInfo.legalRepSignature}" style="max-height: 60px; max-width: 100%; object-fit: contain; display: block; margin: 0 auto;" alt="Firma Rep Legal">
+                    <button type="button" contenteditable="false" onclick="openSignaturePad('legalRepSignature')" class="no-print mt-1 px-2.5 py-0.5 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 text-[10px] font-bold border border-teal-200 cursor-pointer transition-all">✍️ Cambiar Firma</button>
+                   </div>`
+                : `<div class="w-full text-center py-1">
+                    <button type="button" contenteditable="false" onclick="openSignaturePad('legalRepSignature')" class="no-print mb-1.5 px-3 py-1.5 rounded-xl bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 border border-teal-500/30 text-xs font-bold transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-95">
+                      <span>✍️</span> <span>Dibujar Firma Rep. Legal</span>
+                    </button>
+                    <div style="color: #94a3b8; font-size: 10.5px; padding-bottom: 4px; font-weight: bold;">FIRMA DIRECCIÓN GENERAL REGISTRADA</div>
+                   </div>`}
             </div>
             <div style="font-weight: 900; font-size: 13px; color: #0f172a; text-transform: uppercase;">${legalRep}</div>
             <div style="font-size: 11px; color: #475569; font-weight: 700; margin-top: 1px;">Representante Legal</div>
@@ -7868,18 +8520,55 @@ function handleSignatureFileUpload(field, input) {
 
   const reader = new FileReader();
   reader.onload = (e) => {
-    editingCompany[field] = e.target.result;
+    const base64 = e.target.result;
+    if (editingCompany) {
+      editingCompany[field] = base64;
+      if (field === 'sstRespSignature') editingCompany.sstRespConsent = 'Sí';
+      if (field === 'legalRepSignature') editingCompany.legalRepConsent = 'Sí';
+    }
+    if (companyInfo) {
+      companyInfo[field] = base64;
+      if (field === 'sstRespSignature') companyInfo.sstRespConsent = 'Sí';
+      if (field === 'legalRepSignature') companyInfo.legalRepConsent = 'Sí';
+      const inList = companiesList.find(c => c._id === (activeCompanyId || companyInfo._id));
+      if (inList) {
+        inList[field] = base64;
+        if (field === 'sstRespSignature') inList.sstRespConsent = 'Sí';
+        if (field === 'legalRepSignature') inList.legalRepConsent = 'Sí';
+      }
+      localStorage.setItem('wappy_sgsst_companies', JSON.stringify(companiesList));
+      syncCompanyToLocalStorage(companyInfo);
+    }
     renderSignatureBoxes();
-    showToast('Firma digital cargada', 'success');
+    renderExecutiveReport();
+    showToast('Firma digital cargada con éxito', 'success');
   };
   reader.readAsDataURL(file);
   input.value = '';
 }
 
 function removeSignature(field) {
-  if (!editingCompany) return;
-  editingCompany[field] = null;
+  if (editingCompany) {
+    editingCompany[field] = null;
+    if (field === 'sstRespSignature') editingCompany.sstRespConsent = 'No';
+    if (field === 'legalRepSignature') editingCompany.legalRepConsent = 'No';
+  }
+  if (companyInfo) {
+    companyInfo[field] = null;
+    if (field === 'sstRespSignature') companyInfo.sstRespConsent = 'No';
+    if (field === 'legalRepSignature') companyInfo.legalRepConsent = 'No';
+    const inList = companiesList.find(c => c._id === (activeCompanyId || companyInfo._id));
+    if (inList) {
+      inList[field] = null;
+      if (field === 'sstRespSignature') inList.sstRespConsent = 'No';
+      if (field === 'legalRepSignature') inList.legalRepConsent = 'No';
+    }
+    localStorage.setItem('wappy_sgsst_companies', JSON.stringify(companiesList));
+    syncCompanyToLocalStorage(companyInfo);
+  }
   renderSignatureBoxes();
+  renderExecutiveReport();
+  showToast('Firma eliminada', 'info');
 }
 
 let isDrawingSignature = false;
@@ -7966,10 +8655,31 @@ function clearSignatureCanvas() {
 function saveSignatureFromCanvas() {
   if (!sigCanvas || !activeSignatureField) return;
   const base64 = sigCanvas.toDataURL('image/png');
-  editingCompany[activeSignatureField] = base64;
+  
+  if (editingCompany) {
+    editingCompany[activeSignatureField] = base64;
+    if (activeSignatureField === 'sstRespSignature') editingCompany.sstRespConsent = 'Sí';
+    if (activeSignatureField === 'legalRepSignature') editingCompany.legalRepConsent = 'Sí';
+  }
+  
+  if (companyInfo) {
+    companyInfo[activeSignatureField] = base64;
+    if (activeSignatureField === 'sstRespSignature') companyInfo.sstRespConsent = 'Sí';
+    if (activeSignatureField === 'legalRepSignature') companyInfo.legalRepConsent = 'Sí';
+    const inList = companiesList.find(c => c._id === (activeCompanyId || companyInfo._id));
+    if (inList) {
+      inList[activeSignatureField] = base64;
+      if (activeSignatureField === 'sstRespSignature') inList.sstRespConsent = 'Sí';
+      if (activeSignatureField === 'legalRepSignature') inList.legalRepConsent = 'Sí';
+    }
+    localStorage.setItem('wappy_sgsst_companies', JSON.stringify(companiesList));
+    syncCompanyToLocalStorage(companyInfo);
+  }
+  
   renderSignatureBoxes();
+  renderExecutiveReport();
   closeSignaturePad();
-  showToast('Firma digital guardada', 'success');
+  showToast('Firma digital guardada con éxito', 'success');
 }
 
 function handleAddSede() {
@@ -8122,6 +8832,7 @@ function saveCompanyInfo() {
   renderCompanyCards();
   renderExecutiveReport();
   closeCompanyModal();
+  syncCompanyMetricsToServer(editingCompany);
   showToast('Información de la empresa guardada con éxito', 'success');
 }
 
