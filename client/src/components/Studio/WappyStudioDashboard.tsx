@@ -696,7 +696,7 @@ function buildDefaultHtmlComposition({
   <div class="relative z-10 ${isVertical ? 'h-14' : 'h-12'} shrink-0 w-full"></div>
 
   <script>
-    const tl = gsap.timeline({ repeat: -1, repeatDelay: 1.5 });
+    const tl = gsap.timeline({ repeat: 0 });
     window.mainTimeline = tl;
 
     tl.from("#top-bar", { y: -25, opacity: 0, duration: 0.55, ease: "back.out(1.7)" })
@@ -735,8 +735,12 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
       if (window.gsap && !window.gsap.__wappyPatched) {
         window.gsap.__wappyPatched = true;
         var origTl = window.gsap.timeline.bind(window.gsap);
-        window.gsap.timeline = function() {
-          var tl = origTl.apply(window.gsap, arguments);
+        window.gsap.timeline = function(vars) {
+          var cleanVars = Object.assign({}, vars || {});
+          if (!window.mainTimeline && cleanVars.repeat === -1) {
+            cleanVars.repeat = 0;
+          }
+          var tl = origTl(cleanVars);
           if (!window.mainTimeline) window.mainTimeline = tl;
           return tl;
         };
@@ -1239,11 +1243,8 @@ export default function WappyStudioDashboard() {
   const [selectedCanvasElement, setSelectedCanvasElement] =
     useState<SelectedCanvasElementInfo | null>(null);
   const latestEditedHtmlRef = useRef<string>('');
-  const [isRecordingClientVideo, setIsRecordingClientVideo] = useState<boolean>(false);
   const [isRenderingServerMp4, setIsRenderingServerMp4] = useState<boolean>(false);
   const [isBuildingAcademyHtml, setIsBuildingAcademyHtml] = useState<boolean>(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recordingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [statusBanner, setStatusBanner] = useState<{
     type: 'success' | 'error' | 'info';
     text: string;
@@ -1253,7 +1254,6 @@ export default function WappyStudioDashboard() {
   const baseVideoRef = useRef<HTMLVideoElement | null>(null);
   const stageAudioRef = useRef<HTMLAudioElement | null>(null);
   const stageContainerRef = useRef<HTMLDivElement | null>(null);
-  const stageCropTargetRef = useRef<HTMLDivElement | null>(null);
 
   const bridgedHtmlCode = useMemo(() => injectStudioRuntimeBridge(htmlCode), [htmlCode]);
 
@@ -1926,8 +1926,9 @@ export default function WappyStudioDashboard() {
         const dur = Math.max(1, videoDuration || 20);
         const next = prev + dt;
         if (next >= dur) {
-          iframeRef.current?.contentWindow?.postMessage({ type: 'STUDIO_RESTART' }, '*');
-          return 0;
+          setIsVideoPlaying(false);
+          iframeRef.current?.contentWindow?.postMessage({ type: 'STUDIO_PAUSE' }, '*');
+          return dur;
         }
         return next;
       });
@@ -1938,6 +1939,16 @@ export default function WappyStudioDashboard() {
 
   // Sincronización de Play / Pause / Seek entre Video Base, Audio Locución e iframe GSAP
   const toggleStagePlayback = () => {
+    // Si ya llegó al final del audio/video y el usuario presiona Play, reiniciar todo junto (Voz + Animación HTML) desde 0.0s
+    const dur = Math.max(1, videoDuration || 20);
+    const hasEnded =
+      !isVideoPlaying &&
+      (videoCurrentTime >= dur - 0.3 || Boolean(stageAudioRef.current?.ended));
+    if (hasEnded) {
+      restartStagePlayback();
+      return;
+    }
+
     const nextPlaying = !isVideoPlaying;
     if (nextPlaying && isVisualEditMode) {
       setIsVisualEditMode(false);
@@ -2094,184 +2105,17 @@ export default function WappyStudioDashboard() {
   };
 
   // ============================================================================
-  // OPCIÓN A: GRABACIÓN DIRECTA CON GPU DEL NAVEGADOR DEL USUARIO (COSTO $0)
-  // ============================================================================
-  const handleRecordClientVideo = async () => {
-    if (isRecordingClientVideo && mediaRecorderRef.current) {
-      if (recordingTimerRef.current) clearTimeout(recordingTimerRef.current);
-      mediaRecorderRef.current.stop();
-      return;
-    }
-
-    try {
-      setStatusBanner({
-        type: 'info',
-        text: 'Opción A (GPU Local): Selecciona "Esta pestaña" en el diálogo del navegador para grabar el lienzo a 60 FPS + Audio...',
-      });
-
-      const displayStream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          displaySurface: 'browser',
-          frameRate: { ideal: 60, max: 60 },
-        } as any,
-        audio: false,
-        preferCurrentTab: true,
-        selfBrowserSurface: 'include',
-      } as any);
-
-      const videoTrack = displayStream.getVideoTracks()[0];
-
-      // Recorte automático al lienzo 9:16 o 16:9 mediante Region Capture API (Chrome/Edge)
-      const CropTargetApi = (window as any).CropTarget;
-      if (
-        CropTargetApi &&
-        stageCropTargetRef.current &&
-        typeof (videoTrack as any).cropTo === 'function'
-      ) {
-        try {
-          const cropTarget = await CropTargetApi.fromElement(stageCropTargetRef.current);
-          await (videoTrack as any).cropTo(cropTarget);
-        } catch {
-          /* Si el navegador no soporta Region Capture, graba la vista normalmente */
-        }
-      }
-
-      const combinedTracks: MediaStreamTrack[] = [videoTrack];
-      let audioCtx: AudioContext | null = null;
-      let audioSourceNode: AudioBufferSourceNode | null = null;
-
-      // Mezclar pista de locución digital directamente en el archivo de video (sin ruido de micrófono)
-      if (activeStageAudioSrc) {
-        try {
-          const resp = await fetch(activeStageAudioSrc);
-          const arrayBuf = await resp.arrayBuffer();
-          const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
-          audioCtx = new AudioCtxClass();
-          const decodedBuffer = await audioCtx.decodeAudioData(arrayBuf);
-          const destNode = audioCtx.createMediaStreamDestination();
-          audioSourceNode = audioCtx.createBufferSource();
-          audioSourceNode.buffer = decodedBuffer;
-          audioSourceNode.connect(destNode);
-          audioSourceNode.connect(audioCtx.destination);
-          audioSourceNode.start(0);
-          const mixedAudioTrack = destNode.stream.getAudioTracks()[0];
-          if (mixedAudioTrack) {
-            combinedTracks.push(mixedAudioTrack);
-          }
-        } catch {
-          /* Continúa con solo video si falla decodificación de audio */
-        }
-      }
-
-      const combinedStream = new MediaStream(combinedTracks);
-      const mimeCandidates = [
-        'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
-        'video/mp4;codecs=avc1,mp4a.40.2',
-        'video/mp4',
-        'video/webm;codecs=vp9,opus',
-        'video/webm;codecs=vp8,opus',
-        'video/webm',
-      ];
-      const supportedMime =
-        mimeCandidates.find((m) => MediaRecorder.isTypeSupported(m)) || 'video/webm';
-      const isMp4 = supportedMime.includes('mp4');
-
-      const recorder = new MediaRecorder(combinedStream, {
-        mimeType: supportedMime,
-        videoBitsPerSecond: 6_000_000,
-      });
-      mediaRecorderRef.current = recorder;
-
-      const chunks: BlobPart[] = [];
-      recorder.ondataavailable = (ev) => {
-        if (ev.data && ev.data.size > 0) chunks.push(ev.data);
-      };
-
-      recorder.onstop = () => {
-        if (recordingTimerRef.current) clearTimeout(recordingTimerRef.current);
-        try {
-          audioSourceNode?.stop();
-          audioCtx?.close();
-        } catch {}
-        displayStream.getTracks().forEach((t) => t.stop());
-        setIsRecordingClientVideo(false);
-
-        const blob = new Blob(chunks, { type: supportedMime });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `wappy-studio-gpu-local-${Date.now()}.${isMp4 ? 'mp4' : 'webm'}`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        setStatusBanner({
-          type: 'success',
-          text: `¡Video grabado con la GPU de tu navegador (${isMp4 ? 'MP4' : 'WebM'} a 60 FPS) y descargado con éxito!`,
-        });
-      };
-
-      videoTrack.onended = () => {
-        if (recorder.state !== 'inactive') recorder.stop();
-      };
-
-      // Reiniciar la escena GSAP y subtítulos desde 0.0s para grabar la toma completa
-      if (isVisualEditMode) {
-        setIsVisualEditMode(false);
-        iframeRef.current?.contentWindow?.postMessage(
-          { type: 'STUDIO_SET_EDIT_MODE', enabled: false },
-          '*',
-        );
-      }
-      setVideoCurrentTime(0);
-      setIsVideoPlaying(true);
-      iframeRef.current?.contentWindow?.postMessage({ type: 'STUDIO_RESTART' }, '*');
-      if (baseVideoRef.current) {
-        baseVideoRef.current.currentTime = 0;
-        baseVideoRef.current.play().catch(() => {});
-      }
-      if (stageAudioRef.current) {
-        stageAudioRef.current.pause();
-        stageAudioRef.current.currentTime = 0;
-      }
-
-      setIsRecordingClientVideo(true);
-      recorder.start(200);
-
-      const recDurationMs = Math.min(120, Math.max(4, videoDuration || 15)) * 1000 + 400;
-      setStatusBanner({
-        type: 'info',
-        text: `Grabando lienzo con GPU local (${Math.round(recDurationMs / 1000)}s)... Haz clic de nuevo en el botón si deseas detener antes.`,
-      });
-
-      recordingTimerRef.current = setTimeout(() => {
-        if (recorder.state !== 'inactive') {
-          recorder.stop();
-        }
-      }, recDurationMs);
-    } catch (err: any) {
-      setIsRecordingClientVideo(false);
-      setStatusBanner({
-        type: 'error',
-        text:
-          err?.name === 'NotAllowedError'
-            ? 'Grabación cancelada: debes elegir la pestaña actual para capturar el lienzo.'
-            : err?.message || 'No se pudo iniciar la grabación con la GPU del navegador.',
-      });
-    }
-  };
-
-  // ============================================================================
   // OPCIÓN B: RENDERIZADO MP4 EN SERVIDOR (PUPPETEER + FFMPEG H.264 + AAC)
+  // Descarga Todo Junto (.mp4) listo para WhatsApp, Celular, TikTok y Reels
   // ============================================================================
   const handleRenderServerMp4 = async () => {
     try {
       setIsRenderingServerMp4(true);
-      const targetDuration = Math.min(45, Math.max(4, Math.round(videoDuration || 12)));
+      const targetDuration = Math.min(60, Math.max(4, Math.round(videoDuration || 15)));
+      const targetFps = targetDuration > 20 ? 12 : 15;
       setStatusBanner({
         type: 'info',
-        text: `Opción B (Servidor MP4): Renderizando fotogramas HTML/GSAP + Subtítulos + Voz en FFmpeg (${targetDuration}s)... Esto toma ~15-30 segundos.`,
+        text: `Renderizando Video MP4 con Audio + Animación + Subtítulos (${targetDuration}s)... Espera ~15-25 segundos mientras se ensambla el archivo .MP4 para WhatsApp y Celular.`,
       });
 
       const finalHtml = latestEditedHtmlRef.current || htmlCode;
@@ -2288,7 +2132,7 @@ export default function WappyStudioDashboard() {
           subtitlePosition,
           aspectRatio,
           durationSeconds: targetDuration,
-          fps: 15,
+          fps: targetFps,
         }),
       });
 
@@ -2315,7 +2159,7 @@ export default function WappyStudioDashboard() {
 
       setStatusBanner({
         type: 'success',
-        text: `¡Video MP4 Universal (H.264 + AAC • ${data.width}x${data.height}) renderizado y descargado con éxito! Listo para WhatsApp, TikTok o Reels.`,
+        text: `¡Video MP4 Universal (${data.width}x${data.height} • H.264 + Audio AAC) descargado con éxito! Listo para enviar por WhatsApp, ver en celular o subir a Reels/TikTok.`,
       });
     } catch (err: any) {
       setStatusBanner({
@@ -2328,82 +2172,251 @@ export default function WappyStudioDashboard() {
   };
 
   // ============================================================================
-  // OPCIÓN C: CÁPSULA INTERACTIVA HTML5 AUTOCONTENIDA PARA ACADEMIA WAPPY (LMS)
+  // OPCIÓN C: CÁPSULA INTERACTIVA HTML5 100% RESPONSIVE (ACADEMIA WAPPY & CELULAR)
   // ============================================================================
+  /**
+   * Convierte la composición en un HTML 100% autocontenido (Zero-CDN) para que abra
+   * directamente desde WhatsApp en Android (content:// / HTML Viewer / Chrome) e iOS (QuickLook),
+   * donde los <script src="https://..."> externos suelen bloquearse:
+   * 1) Extrae el CSS ya compilado por Tailwind desde el iframe en vivo y lo incrusta en <style>.
+   * 2) Incrusta GSAP y el runtime de Tailwind en línea (sin red).
+   * 3) Garantiza que la primera escena sea visible aunque el visor bloquee JavaScript.
+   */
+  const makeHtmlWhatsAppSafe = async (rawHtml: string): Promise<string> => {
+    let html = rawHtml;
+    const escapeInlineScript = (code: string) => code.replace(/<\/script/gi, '<\\/script');
+    const fetchText = async (url: string) => {
+      try {
+        const r = await fetch(url, { cache: 'force-cache' });
+        return r.ok ? await r.text() : '';
+      } catch {
+        return '';
+      }
+    };
+
+    // 1) CSS compilado por Tailwind desde el iframe vivo (same-origin)
+    let compiledCss = '';
+    try {
+      const doc = iframeRef.current?.contentDocument;
+      if (doc) {
+        Array.from(doc.querySelectorAll('style')).forEach((styleEl) => {
+          const id = styleEl.id || '';
+          if (id.startsWith('wappy-studio-bridge')) return;
+          const txt = styleEl.textContent || '';
+          if (txt && !html.includes(txt.slice(0, 120))) compiledCss += `\n${txt}`;
+        });
+      }
+    } catch {
+      compiledCss = '';
+    }
+
+    const [gsapCode, tailwindCode] = await Promise.all([
+      /gsap(\.min)?\.js/i.test(html) ? fetchText('/assets/gsap.min.js') : Promise.resolve(''),
+      /cdn\.tailwindcss\.com|tailwind-cdn\.js/i.test(html)
+        ? fetchText('/assets/tailwind-cdn.js')
+        : Promise.resolve(''),
+    ]);
+
+    // 2) Reemplazar scripts externos por código en línea (función de reemplazo para no interpretar '$')
+    if (gsapCode) {
+      html = html.replace(
+        /<script[^>]*src=["'][^"']*gsap(\.min)?\.js["'][^>]*>\s*<\/script>/gi,
+        () => `<script id="wappy-inline-gsap">${escapeInlineScript(gsapCode)}</script>`,
+      );
+    }
+    html = html.replace(
+      /<script[^>]*src=["'][^"']*(cdn\.tailwindcss\.com|tailwind-cdn\.js)[^"']*["'][^>]*>\s*<\/script>/gi,
+      () =>
+        `<script>window.tailwind = window.tailwind || {};</script>` +
+        (tailwindCode
+          ? `<script id="wappy-inline-tailwind">${escapeInlineScript(tailwindCode)}</script>`
+          : ''),
+    );
+
+    // 3) Cabecera móvil + CSS precompilado + fallback de visibilidad sin JavaScript
+    const headInjection = `
+<meta name="color-scheme" content="dark" />
+<meta name="format-detection" content="telephone=no" />
+<style id="wappy-precompiled-tailwind">${compiledCss.replace(/<\/style/gi, '<\\/style')}</style>
+<style id="wappy-offline-font-fallback">
+  html, body { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+</style>
+<noscript><style>
+  #header-hud, #top-bar, #scene-1, #scene-1 *, #hero-card, .metric-item { opacity: 1 !important; transform: none !important; visibility: visible !important; }
+  #wappy-capsule-controls, #wappy-mobile-tap-overlay { display: none !important; }
+</style></noscript>`;
+    if (/<head[^>]*>/i.test(html)) {
+      html = html.replace(/<head[^>]*>/i, (m) => `${m}${headInjection}`);
+    } else {
+      html = `${headInjection}\n${html}`;
+    }
+    if (!/<meta[^>]+name=["']viewport/i.test(html)) {
+      html = html.replace(
+        /<head[^>]*>/i,
+        (m) => `${m}<meta name="viewport" content="width=device-width, initial-scale=1.0" />`,
+      );
+    }
+
+    // Guardia: si GSAP no llega a cargarse, mostrar la primera escena en vez de pantalla negra
+    const visibilityGuard = `<script id="wappy-visibility-guard">
+(function(){
+  function reveal(){
+    if (window.gsap) return;
+    var sel = ['#header-hud','#top-bar','#scene-1','#hero-card'];
+    sel.forEach(function(s){
+      var el = document.querySelector(s);
+      if (!el) return;
+      el.style.opacity = '1'; el.style.transform = 'none';
+      el.classList && el.classList.remove('opacity-0');
+      Array.prototype.forEach.call(el.querySelectorAll('.opacity-0'), function(c){ c.style.opacity='1'; c.style.transform='none'; });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.metric-item'), function(c){ c.style.opacity='1'; });
+  }
+  window.addEventListener('load', function(){ setTimeout(reveal, 600); });
+})();
+</script>`;
+    html = html.includes('</body>')
+      ? html.replace('</body>', () => `${visibilityGuard}\n</body>`)
+      : `${html}\n${visibilityGuard}`;
+    return html;
+  };
+
   const buildStandaloneAcademyCapsuleHtml = async (): Promise<string> => {
-    const baseHtml = latestEditedHtmlRef.current || htmlCode;
+    const baseHtml = await makeHtmlWhatsAppSafe(latestEditedHtmlRef.current || htmlCode);
     const audioBase64 = await resolveCurrentAudioBase64();
     const audioDataUri = audioBase64 ? `data:audio/wav;base64,${audioBase64}` : '';
     const dur = Math.max(4, Math.round((videoDuration || 20) * 10) / 10);
 
     const capsulePlayerInjection = `
-<!-- WAPPY ACADEMIA (LMS) CAPSULE PLAYER: AUDIO + SUBTÍTULOS PALABRA A PALABRA + CONTROLES 60 FPS -->
+<!-- WAPPY ACADEMIA (LMS) & MOBILE RESPONSIVE CAPSULE PLAYER -->
 <style id="wappy-academy-capsule-styles">
+  html, body {
+    width: 100% !important;
+    height: 100dvh !important;
+    min-height: -webkit-fill-available !important;
+    max-width: 100vw !important;
+    max-height: 100dvh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+  /* Ocultar subtítulo duplicado interno del HTML para que solo se vea el subtítulo palabra a palabra sincronizado */
+  ${showDynamicSubtitles && cleanSubtitleWords.length > 0 ? '#subtitle-footer, #subtitle-card { display: none !important; }' : ''}
+  #stage {
+    padding-bottom: 112px !important;
+    transform-origin: top center !important;
+  }
+  @media (max-height: 740px), (max-width: 480px) {
+    #stage {
+      padding: 12px 14px 108px 14px !important;
+    }
+    #stage h1 {
+      font-size: clamp(1.25rem, 5vw, 1.65rem) !important;
+      line-height: 1.15 !important;
+    }
+    #stage h2 {
+      font-size: clamp(1rem, 4.2vw, 1.35rem) !important;
+    }
+  }
   #wappy-capsule-subtitles {
     position: fixed;
-    left: 16px;
-    right: 16px;
+    left: 12px;
+    right: 12px;
     z-index: 9990;
     display: flex;
     justify-content: center;
     pointer-events: none;
     ${
       subtitlePosition === 'top'
-        ? 'top: 58px;'
+        ? 'top: 54px;'
         : subtitlePosition === 'center'
           ? 'top: 50%; transform: translateY(-50%);'
-          : 'bottom: 62px;'
+          : 'bottom: 58px;'
     }
   }
   #wappy-capsule-controls {
     position: fixed;
-    left: 12px;
-    right: 12px;
-    bottom: 10px;
+    left: 10px;
+    right: 10px;
+    bottom: max(8px, env(safe-area-inset-bottom, 8px));
+    max-width: 540px;
+    margin: 0 auto;
     z-index: 9995;
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 7px 12px;
     border-radius: 14px;
-    background: rgba(8, 15, 26, 0.88);
+    background: rgba(8, 15, 26, 0.92);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
-    border: 1px solid rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(45, 212, 191, 0.28);
     font-family: 'Plus Jakarta Sans', sans-serif;
     color: #fff;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.65);
   }
   #wappy-capsule-controls button {
     background: #0d9488;
     color: #fff;
     border: none;
     border-radius: 9px;
-    padding: 5px 10px;
+    padding: 6px 11px;
     font-size: 11px;
     font-weight: 800;
     cursor: pointer;
     white-space: nowrap;
   }
   #wappy-capsule-controls button.secondary {
-    background: rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.12);
   }
   #wappy-capsule-controls input[type="range"] {
     flex: 1;
+    min-width: 60px;
     accent-color: #14b8a6;
     cursor: pointer;
     height: 5px;
   }
+  #wappy-mobile-tap-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9998;
+    background: rgba(4, 10, 18, 0.65);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  #wappy-mobile-tap-btn {
+    background: linear-gradient(135deg, #0d9488, #10b981);
+    color: #ffffff;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 20px;
+    padding: 14px 24px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 800;
+    box-shadow: 0 20px 45px rgba(13, 148, 136, 0.45);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
 </style>
-${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload="auto"></audio>` : ''}
+${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload="auto" playsinline></audio>` : ''}
+<div id="wappy-mobile-tap-overlay">
+  <button type="button" id="wappy-mobile-tap-btn">🔊 Tocar para Reproducir Cápsula con Voz</button>
+</div>
 <div id="wappy-capsule-subtitles" style="display:${showDynamicSubtitles && cleanSubtitleWords.length > 0 ? 'flex' : 'none'};">
-  <div id="wappy-capsule-sub-box" style="background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.2);padding:8px 14px;border-radius:14px;text-align:center;max-width:94%;display:flex;flex-wrap:wrap;justify-content:center;gap:6px;"></div>
+  <div id="wappy-capsule-sub-box" style="background:rgba(4,10,18,0.9);backdrop-filter:blur(10px);border:1px solid rgba(45,212,191,0.35);padding:7px 13px;border-radius:13px;text-align:center;max-width:95%;display:flex;flex-wrap:wrap;justify-content:center;gap:5px;"></div>
 </div>
 <div id="wappy-capsule-controls">
   <button type="button" id="wappy-btn-play">⏸ Pausar</button>
   <button type="button" id="wappy-btn-restart" class="secondary" title="Reiniciar">↺</button>
   <input type="range" id="wappy-seek" min="0" max="${dur}" step="0.1" value="0" />
-  <span id="wappy-time-label" style="font-size:11px;font-family:monospace;font-weight:700;color:#cbd5e1;">0.0s / ${dur}s</span>
+  <span id="wappy-time-label" style="font-size:10px;font-family:monospace;font-weight:700;color:#cbd5e1;white-space:nowrap;">0.0s / ${dur}s</span>
 </div>
 <script id="wappy-academy-capsule-runtime">
 (function() {
@@ -2418,6 +2431,24 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
   var seekEl = document.getElementById('wappy-seek');
   var timeLabel = document.getElementById('wappy-time-label');
   var subBox = document.getElementById('wappy-capsule-sub-box');
+  var tapOverlay = document.getElementById('wappy-mobile-tap-overlay');
+  var tapBtn = document.getElementById('wappy-mobile-tap-btn');
+
+  // Auto-escala responsiva para pantallas móviles pequeñas (evita cortes verticales u horizontales)
+  function fitMobileCapsule() {
+    var stage = document.getElementById('stage');
+    if (!stage) return;
+    stage.style.transform = 'none';
+    var vh = window.innerHeight || document.documentElement.clientHeight || 700;
+    var sh = stage.scrollHeight || stage.offsetHeight || vh;
+    if (sh > vh && vh > 240) {
+      var scale = Math.max(0.72, Math.min(1, (vh - 16) / sh));
+      stage.style.transform = 'scale(' + scale.toFixed(3) + ')';
+    }
+  }
+  window.addEventListener('resize', fitMobileCapsule);
+  window.addEventListener('orientationchange', function() { setTimeout(fitMobileCapsule, 150); });
+  setTimeout(fitMobileCapsule, 120);
 
   function renderSubtitles(t) {
     if (!showSubs || !subBox || !words.length) return;
@@ -2429,9 +2460,9 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
     var activeOffset = activeIdx - winStart;
     subBox.innerHTML = slice.map(function(w, i) {
       if (i === activeOffset) {
-        return '<span style="font-size:14px;font-weight:900;text-transform:uppercase;color:#fcd34d;background:rgba(20,184,166,0.32);padding:2px 6px;border-radius:7px;border:1px solid rgba(45,212,191,0.55);">' + w + '</span>';
+        return '<span style="font-size:clamp(12px,3.4vw,14px);font-weight:900;text-transform:uppercase;color:#fcd34d;background:rgba(20,184,166,0.32);padding:2px 6px;border-radius:6px;border:1px solid rgba(45,212,191,0.55);">' + w + '</span>';
       }
-      return '<span style="font-size:14px;font-weight:800;text-transform:uppercase;color:rgba(255,255,255,0.92);">' + w + '</span>';
+      return '<span style="font-size:clamp(12px,3.4vw,14px);font-weight:800;text-transform:uppercase;color:rgba(255,255,255,0.94);">' + w + '</span>';
     }).join(' ');
   }
 
@@ -2441,6 +2472,59 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
     if (timeLabel) timeLabel.textContent = t.toFixed(1) + 's / ' + duration.toFixed(1) + 's';
     renderSubtitles(t);
   }
+
+  function stopMasterTimeline() {
+    try {
+      if (window.mainTimeline && typeof window.mainTimeline.repeat === 'function') {
+        window.mainTimeline.repeat(0);
+      }
+      if (window.mainTimeline && typeof window.mainTimeline.pause === 'function') {
+        window.mainTimeline.pause();
+      }
+      if (window.gsap && window.gsap.globalTimeline) {
+        window.gsap.globalTimeline.pause();
+      }
+    } catch (e) {}
+  }
+
+  function playMasterTimeline(fromStart) {
+    try {
+      if (window.mainTimeline && typeof window.mainTimeline.repeat === 'function') {
+        window.mainTimeline.repeat(0);
+      }
+      if (window.gsap && window.gsap.globalTimeline) {
+        window.gsap.globalTimeline.play();
+      }
+      if (window.mainTimeline) {
+        if (fromStart) window.mainTimeline.restart();
+        else window.mainTimeline.play();
+      }
+    } catch (e) {}
+  }
+
+  function startCapsuleWithSound() {
+    if (tapOverlay) tapOverlay.style.display = 'none';
+    playing = true;
+    if (btnPlay) btnPlay.textContent = '⏸ Pausar';
+    playMasterTimeline(true);
+    if (audioEl) {
+      audioEl.currentTime = 0;
+      audioEl.play().catch(function(){});
+    }
+    updateUi(0);
+  }
+
+  if (tapBtn) tapBtn.addEventListener('click', startCapsuleWithSound);
+  if (tapOverlay) tapOverlay.addEventListener('click', startCapsuleWithSound);
+
+  // Desactivar repeat: -1 en cualquier timeline existente al cargar
+  window.addEventListener('load', function() {
+    try {
+      if (window.mainTimeline && typeof window.mainTimeline.repeat === 'function') {
+        window.mainTimeline.repeat(0);
+      }
+    } catch (e) {}
+  });
 
   if (audioEl) {
     audioEl.addEventListener('loadedmetadata', function() {
@@ -2454,11 +2538,16 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
     });
     audioEl.addEventListener('ended', function() {
       playing = false;
-      if (btnPlay) btnPlay.textContent = '▶ Reproducir (Con Voz)';
+      stopMasterTimeline();
+      updateUi(duration);
+      if (btnPlay) btnPlay.textContent = '▶ Volver a Reproducir';
     });
     audioEl.play().catch(function() {
+      // En celulares (iOS/Android), el navegador pide 1 toque para activar el sonido
       playing = false;
-      if (btnPlay) btnPlay.textContent = '▶ Activar Voz y Play';
+      stopMasterTimeline();
+      if (btnPlay) btnPlay.textContent = '▶ Play';
+      if (tapOverlay) tapOverlay.style.display = 'flex';
     });
   }
 
@@ -2467,38 +2556,37 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
     if (audioEl && !audioEl.paused) return;
     var next = currentTime + 0.2;
     if (next >= duration) {
-      next = 0;
-      if (window.mainTimeline) window.mainTimeline.restart();
+      playing = false;
+      stopMasterTimeline();
+      updateUi(duration);
+      if (btnPlay) btnPlay.textContent = '▶ Volver a Reproducir';
+      return;
     }
     updateUi(next);
   }, 200);
 
   if (btnPlay) {
     btnPlay.addEventListener('click', function() {
+      if (tapOverlay) tapOverlay.style.display = 'none';
+      // Si ya había terminado, al darle Play vuelve a empezar desde 0.0s con el audio y la animación unidos
+      if (!playing && (currentTime >= duration - 0.3 || (audioEl && audioEl.ended))) {
+        startCapsuleWithSound();
+        return;
+      }
       playing = !playing;
       btnPlay.textContent = playing ? '⏸ Pausar' : '▶ Play';
-      if (window.mainTimeline) {
-        if (playing) window.mainTimeline.play();
-        else window.mainTimeline.pause();
-      }
-      if (audioEl) {
-        if (playing) audioEl.play().catch(function(){});
-        else audioEl.pause();
+      if (playing) {
+        playMasterTimeline(false);
+        if (audioEl) audioEl.play().catch(function(){});
+      } else {
+        stopMasterTimeline();
+        if (audioEl) audioEl.pause();
       }
     });
   }
 
   if (btnRestart) {
-    btnRestart.addEventListener('click', function() {
-      playing = true;
-      if (btnPlay) btnPlay.textContent = '⏸ Pausar';
-      if (window.mainTimeline) window.mainTimeline.restart();
-      if (audioEl) {
-        audioEl.currentTime = 0;
-        audioEl.play().catch(function(){});
-      }
-      updateUi(0);
-    });
+    btnRestart.addEventListener('click', startCapsuleWithSound);
   }
 
   if (seekEl) {
@@ -2518,7 +2606,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 </script>`;
 
     return baseHtml.includes('</body>')
-      ? baseHtml.replace('</body>', `${capsulePlayerInjection}\n</body>`)
+      ? baseHtml.replace('</body>', () => `${capsulePlayerInjection}\n</body>`)
       : `${baseHtml}\n${capsulePlayerInjection}`;
   };
 
@@ -2526,18 +2614,43 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
     try {
       setIsBuildingAcademyHtml(true);
       const standaloneHtml = await buildStandaloneAcademyCapsuleHtml();
+      const fileName = `wappy-academia-capsula-${Date.now()}.html`;
       const blob = new Blob([standaloneHtml], { type: 'text/html;charset=utf-8' });
+
+      // En celular: abrir hoja nativa de compartir (WhatsApp) con el archivo .html adjunto
+      const isTouchDevice =
+        typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
+      if (isTouchDevice && typeof navigator.share === 'function') {
+        try {
+          const file = new File([blob], fileName, { type: 'text/html' });
+          if (navigator.canShare?.({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: 'Cápsula WAPPY',
+              text: 'Cápsula interactiva WAPPY (ábrela tocando el archivo).',
+            });
+            setStatusBanner({
+              type: 'success',
+              text: '¡Cápsula HTML compartida! Funciona sin internet al tocarla en WhatsApp.',
+            });
+            return;
+          }
+        } catch (shareErr: any) {
+          if (shareErr?.name === 'AbortError') return;
+        }
+      }
+
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `wappy-academia-capsula-${Date.now()}.html`;
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       setStatusBanner({
         type: 'success',
-        text: '¡Opción C (Cápsula Interactiva HTML5 para Academia WAPPY con Voz IA + Subtítulos + Controles integrados) descargada con éxito!',
+        text: '¡Cápsula HTML autocontenida descargada! Incluye estilos, animación y voz en un solo archivo: envíala por WhatsApp y ábrela tocándola, incluso sin internet.',
       });
     } finally {
       setIsBuildingAcademyHtml(false);
@@ -3807,16 +3920,8 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
                   <ExpandableButton
                     size="sm"
-                    icon={isRecordingClientVideo ? <Loader2 className="animate-spin" /> : <Film />}
-                    label={isRecordingClientVideo ? 'Detener Grabación GPU' : 'Grabar Video (Opción A)'}
-                    variant={isRecordingClientVideo ? 'danger' : 'cyan'}
-                    onClick={handleRecordClientVideo}
-                  />
-
-                  <ExpandableButton
-                    size="sm"
-                    icon={isRenderingServerMp4 ? <Loader2 className="animate-spin" /> : <Cpu />}
-                    label="Exportar MP4 (Opción B)"
+                    icon={isRenderingServerMp4 ? <Loader2 className="animate-spin" /> : <Film />}
+                    label="Descargar MP4 (WhatsApp/Celular)"
                     variant="teal"
                     disabled={isRenderingServerMp4}
                     onClick={handleRenderServerMp4}
@@ -3825,7 +3930,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   <ExpandableButton
                     size="sm"
                     icon={isBuildingAcademyHtml ? <Loader2 className="animate-spin" /> : <Download />}
-                    label="Cápsula Academia (Opción C)"
+                    label="Cápsula Academia (HTML5)"
                     variant="green"
                     disabled={isBuildingAcademyHtml}
                     onClick={handleDownloadHtmlBundle}
@@ -3955,7 +4060,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 >
                   {/* Marco interno centrado que mantiene la proporción exacta en Pantalla Completa sin correrse */}
                   <div
-                    ref={stageCropTargetRef}
                     className={cn(
                       'relative overflow-hidden bg-slate-950',
                       isStageFullscreen
@@ -3979,7 +4083,14 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                             setVideoDuration(e.currentTarget.duration);
                           }
                         }}
-                        onEnded={() => setIsVideoPlaying(false)}
+                        onEnded={() => {
+                          setIsVideoPlaying(false);
+                          iframeRef.current?.contentWindow?.postMessage(
+                            { type: 'STUDIO_PAUSE' },
+                            '*',
+                          );
+                          baseVideoRef.current?.pause();
+                        }}
                       />
                     )}
 
@@ -4215,93 +4326,66 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 </div>
 
                 {/* ============================================================== */}
-                {/* PANEL DE EXPORTACIÓN MULTIMODAL (OPCIONES A, B Y C)            */}
+                {/* PANEL DE EXPORTACIÓN MULTIMODAL (MP4 PARA WHATSAPP Y HTML LMS) */}
                 {/* ============================================================== */}
-                <div className="pt-2 border-t border-slate-200/80 dark:border-zinc-800 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  {/* OPCIÓN A: GRABACIÓN GPU DEL NAVEGADOR (USUARIOS • COSTO $0) */}
-                  <button
-                    type="button"
-                    onClick={handleRecordClientVideo}
-                    className={cn(
-                      'p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1',
-                      isRecordingClientVideo
-                        ? 'bg-rose-500/15 border-rose-500 text-rose-700 dark:text-rose-300 animate-pulse'
-                        : 'bg-cyan-500/10 border-cyan-500/30 hover:bg-cyan-500/20 text-cyan-800 dark:text-cyan-200',
-                    )}
-                  >
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-cyan-500/20">
-                        Opción A • Usuarios
-                      </span>
-                      {isRecordingClientVideo ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
-                      ) : (
-                        <Film className="w-3.5 h-3.5 shrink-0" />
-                      )}
-                    </div>
-                    <div className="text-xs font-extrabold leading-tight mt-0.5">
-                      {isRecordingClientVideo ? 'Detener y Guardar' : 'Grabar con GPU Local'}
-                    </div>
-                    <div className="text-[10px] opacity-80 leading-snug">
-                      Usa la GPU de tu navegador a 60 FPS + Voz (Costo $0)
-                    </div>
-                  </button>
-
-                  {/* OPCIÓN B: RENDERIZADO MP4 EN SERVIDOR (WHATSAPP / REELS / TIKTOK) */}
+                <div className="pt-2 border-t border-slate-200/80 dark:border-zinc-800 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {/* OPCIÓN B: RENDERIZADO MP4 EN SERVIDOR (WHATSAPP / CELULAR / REELS / TIKTOK) */}
                   <button
                     type="button"
                     disabled={isRenderingServerMp4}
                     onClick={handleRenderServerMp4}
-                    className="p-2.5 rounded-xl border bg-teal-500/10 border-teal-500/30 hover:bg-teal-500/20 text-teal-800 dark:text-teal-200 text-left transition-all cursor-pointer disabled:opacity-50 flex flex-col justify-between gap-1"
+                    className="p-3 rounded-xl border bg-teal-500/10 border-teal-500/30 hover:bg-teal-500/20 text-teal-800 dark:text-teal-200 text-left transition-all cursor-pointer disabled:opacity-50 flex flex-col justify-between gap-1.5"
                   >
                     <div className="flex items-center justify-between gap-1">
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-teal-500/20">
-                        Opción B • Redes
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-teal-500/20">
+                        WhatsApp • Celular • Redes
                       </span>
                       {isRenderingServerMp4 ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                        <Loader2 className="w-4 h-4 animate-spin shrink-0" />
                       ) : (
-                        <Cpu className="w-3.5 h-3.5 shrink-0" />
+                        <Film className="w-4 h-4 shrink-0" />
                       )}
                     </div>
                     <div className="text-xs font-extrabold leading-tight mt-0.5">
-                      {isRenderingServerMp4 ? 'Renderizando MP4...' : 'Exportar MP4 (FFmpeg)'}
+                      {isRenderingServerMp4
+                        ? 'Renderizando Video MP4...'
+                        : 'Descargar Video .MP4 (Todo Unido)'}
                     </div>
-                    <div className="text-[10px] opacity-80 leading-snug">
-                      Une HTML + Subtítulos + Voz en archivo .MP4 universal
+                    <div className="text-[10px] opacity-85 leading-snug">
+                      Une Animación + Subtítulos + Voz IA en un archivo .MP4 listo para enviar por WhatsApp o subir a Reels
                     </div>
                   </button>
 
-                  {/* OPCIÓN C: CÁPSULA INTERACTIVA HTML5 PARA ACADEMIA WAPPY (LMS) */}
-                  <div className="p-2.5 rounded-xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-200 flex flex-col justify-between gap-1.5">
+                  {/* OPCIÓN C: CÁPSULA INTERACTIVA HTML5 RESPONSIVE PARA ACADEMIA WAPPY (LMS) */}
+                  <div className="p-3 rounded-xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-200 flex flex-col justify-between gap-1.5">
                     <div className="flex items-center justify-between gap-1">
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/20">
-                        Opción C • Academia
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/20">
+                        Academia WAPPY • LMS Responsive
                       </span>
-                      <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                      <BookOpen className="w-4 h-4 shrink-0" />
                     </div>
                     <div className="text-xs font-extrabold leading-tight">
-                      Cápsula HTML5 (LMS)
+                      Cápsula Interactiva HTML5 (Móvil & Web)
                     </div>
-                    <div className="flex items-center gap-1 mt-0.5">
+                    <div className="flex items-center gap-1.5 mt-0.5">
                       <button
                         type="button"
                         disabled={isBuildingAcademyHtml}
                         onClick={handleDownloadHtmlBundle}
-                        className="flex-1 py-1 px-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-extrabold flex items-center justify-center gap-1 cursor-pointer transition"
+                        className="flex-1 py-1.5 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-extrabold flex items-center justify-center gap-1 cursor-pointer transition"
                       >
                         <Download className="w-3 h-3" />
-                        <span>.HTML</span>
+                        <span>Descargar .HTML</span>
                       </button>
                       <button
                         type="button"
                         disabled={isBuildingAcademyHtml}
                         onClick={handleCopyLmsEmbed}
                         title="Copiar código <iframe srcdoc> para lección de Academia WAPPY"
-                        className="py-1 px-2 rounded-lg bg-white/80 dark:bg-zinc-800 hover:bg-white text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-[10px] font-extrabold flex items-center justify-center gap-1 cursor-pointer transition"
+                        className="py-1.5 px-2.5 rounded-lg bg-white/80 dark:bg-zinc-800 hover:bg-white text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-[10px] font-extrabold flex items-center justify-center gap-1 cursor-pointer transition"
                       >
                         <Copy className="w-3 h-3" />
-                        <span>LMS</span>
+                        <span>Copiar LMS</span>
                       </button>
                     </div>
                   </div>

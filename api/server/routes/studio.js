@@ -1513,9 +1513,10 @@ REGLAS ESTRICTAS DE ARQUITECTURA VISUAL Y RESPONSIVIDAD (PROHIBIDO DESBORDAR EL 
 4. TRANSPARENCIA PARA CAPA DE VIDEO BASE:
    - Si hasBaseVideo es true (${hasBaseVideo}), el <body> DEBE tener \`background: transparent;\` para que el video grabado a cámara del usuario en la capa inferior se vea nítidamente, y tus gráficos/tarjetas/badges se superpongan con glassmorphism (\`backdrop-filter: blur(16px)\`, \`background: rgba(10, 18, 30, 0.78)\`, bordes luminosos).
    - Si hasBaseVideo es false, crea un fondo oscuro animado de alto impacto (\`#060d14\`) con orbes de luz flotantes, rejilla técnica sutil (grid) y viñeta cinematográfica.
-5. SISTEMA DE DISEÑO HYPERFRAMES MOTION DESIGN (GSAP TIMELINE MAESTRO):
-   - Crea SIEMPRE la línea de tiempo maestra asignada a \`window.mainTimeline = gsap.timeline({ repeat: -1, repeatDelay: 1.5 });\`.
-   - Desarrolla una coreografía multicapa de ${durationSeconds} segundos dividida en beats visuales claros (Entrada con impacto, Desarrollo de tarjetas/reglas numeradas, Métricas/HUD y Cierre).
+5. SISTEMA DE DISEÑO HYPERFRAMES MOTION DESIGN (GSAP TIMELINE MAESTRO SIN BUCLE INFINITO Y COMPATIBLE CON WHATSAPP):
+   - Crea SIEMPRE la línea de tiempo maestra asignada a \`window.mainTimeline = gsap.timeline({ repeat: 0 });\`. PROHIBIDO usar \`repeat: -1\` en \`window.mainTimeline\` para que la animación termine exactamente junto con el audio y se detenga en la escena final de cierre (NUNCA apagues con \`opacity: 0\` la escena final de cierre en el último segundo).
+   - PROHIBIDO poner la clase \`opacity-0\` o \`style="opacity:0"\` en el HTML estático del encabezado (\`#header-hud\`) ni de la primera escena (\`#scene-1\` y sus hijos). La primera escena DEBE ser 100% visible por defecto en el HTML estático para que al abrir el archivo en el visor de WhatsApp móvil se vea inmediatamente el diseño completo (usa \`master.from("#sc1-card", { opacity: 0, y: 20, ... })\` en lugar de ocultar con \`opacity-0\` en el HTML).
+   - Desarrolla una coreografía multicapa de ${durationSeconds} segundos dividida en beats visuales claros (Entrada con impacto, Desarrollo de tarjetas/reglas numeradas, Métricas/HUD y Cierre que permanece visible al terminar).
    - Usa curvas elásticas y expresivas: \`back.out(1.7)\`, \`expo.out\`, \`elastic.out(1, 0.5)\`, \`power3.out\`.
    - Añade atributos \`data-editable="true"\` en todas las tarjetas, insignias y textos importantes para que el editor visual de WAPPY Studio pueda moverlos y editarlos con el mouse.
    - Deja libre la franja inferior (\`padding-bottom: 64px\`) para que los subtítulos dinámicos palabra a palabra no tapen las tarjetas.
@@ -1606,22 +1607,40 @@ router.post('/video/render-mp4', studioAuth, async (req, res) => {
       '/usr/bin/ffmpeg',
       '/usr/local/bin/ffmpeg',
       path.join(os.homedir(), '.local', 'bin', 'ffmpeg'),
-      'ffmpeg',
     ].filter(Boolean);
 
-    let ffmpegBin = 'ffmpeg';
+    let ffmpegBin = null;
     for (const candidate of ffmpegCandidates) {
-      if (candidate !== 'ffmpeg' && fs.existsSync(candidate)) {
+      if (fs.existsSync(candidate)) {
         ffmpegBin = candidate;
         break;
       }
     }
 
+    // Si estamos en contenedor Alpine Linux y aún no tiene ffmpeg instalado en caliente, instalarlo automáticamente
+    if (!ffmpegBin && fs.existsSync('/etc/alpine-release')) {
+      try {
+        const { execSync } = require('child_process');
+        logger.info('[WappyStudio Render MP4] Instalando ffmpeg en contenedor Alpine...');
+        execSync('apk add --no-cache ffmpeg', { timeout: 60000 });
+        if (fs.existsSync('/usr/bin/ffmpeg')) {
+          ffmpegBin = '/usr/bin/ffmpeg';
+        }
+      } catch (apkErr) {
+        logger.warn('[WappyStudio Render MP4] No se pudo auto-instalar ffmpeg via apk:', apkErr.message);
+      }
+    }
+    if (!ffmpegBin) {
+      ffmpegBin = 'ffmpeg';
+    }
+
     const isVertical = aspectRatio === '9:16';
     const width = isVertical ? 540 : 960;
     const height = isVertical ? 960 : 540;
-    const targetFps = Math.min(24, Math.max(10, Number(fps) || 15));
-    const safeDuration = Math.min(45, Math.max(3, Number(durationSeconds) || 12));
+    const safeDuration = Math.min(60, Math.max(3, Number(durationSeconds) || 12));
+    // Ajustar FPS inteligentemente para que videos largos (30-45s) se rendericen en ~8-12 segundos sin timeout de Cloudflare
+    const defaultFps = safeDuration > 20 ? 12 : 15;
+    const targetFps = Math.min(20, Math.max(10, Number(fps) || defaultFps));
     const totalFrames = Math.max(1, Math.round(safeDuration * targetFps));
 
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wappy-studio-mp4-'));
@@ -1643,36 +1662,43 @@ router.post('/video/render-mp4', studioAuth, async (req, res) => {
       .filter(Boolean);
 
     const renderHarnessScript = `
+<style id="wappy-mp4-render-styles">
+  ${showSubtitles && cleanWords.length > 0 ? '#subtitle-footer, #subtitle-card { display: none !important; }' : ''}
+  #orb-1, #orb-2, #orb-3, [class*="blur-"] { filter: blur(18px) !important; }
+  .glass-panel, .glass-card, .glass-panel-amber { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+</style>
 <script id="wappy-mp4-render-harness">
   window.__wappyWords = ${JSON.stringify(cleanWords)};
   window.__wappyShowSubs = ${Boolean(showSubtitles && cleanWords.length > 0)};
   window.__wappySubPos = ${JSON.stringify(subtitlePosition || 'bottom')};
   window.__wappyDuration = ${safeDuration};
 
-  window.addEventListener('DOMContentLoaded', () => {
+  function ensureSubOverlay() {
     if (window.__wappyShowSubs && !document.getElementById('wappy-mp4-sub-overlay')) {
       const posStyle = window.__wappySubPos === 'top'
         ? 'top: 56px;'
         : window.__wappySubPos === 'center'
           ? 'top: 50%; transform: translateY(-50%);'
-          : 'bottom: 20px;';
+          : 'bottom: 24px;';
       const subWrap = document.createElement('div');
       subWrap.id = 'wappy-mp4-sub-overlay';
-      subWrap.style.cssText = 'position:fixed;left:12px;right:12px;z-index:9999;display:flex;justify-content:center;pointer-events:none;' + posStyle;
-      subWrap.innerHTML = '<div id="wappy-mp4-sub-box" style="background:rgba(0,0,0,0.86);border:1px solid rgba(255,255,255,0.22);padding:8px 14px;border-radius:14px;text-align:center;max-width:94%;display:flex;flex-wrap:wrap;justify-content:center;gap:5px;font-family:Plus Jakarta Sans,sans-serif;"></div>';
+      subWrap.style.cssText = 'position:fixed;left:16px;right:16px;z-index:9999;display:flex;justify-content:center;pointer-events:none;' + posStyle;
+      subWrap.innerHTML = '<div id="wappy-mp4-sub-box" style="background:rgba(6,13,20,0.9);border:1px solid rgba(45,212,191,0.35);padding:10px 16px;border-radius:16px;text-align:center;max-width:94%;display:flex;flex-wrap:wrap;justify-content:center;gap:6px;font-family:Plus Jakarta Sans,sans-serif;box-shadow:0 12px 32px rgba(0,0,0,0.6);"></div>';
       document.body.appendChild(subWrap);
     }
-  });
+  }
+
+  window.addEventListener('DOMContentLoaded', ensureSubOverlay);
 
   window.__wappySeekTo = function(timeSec) {
+    ensureSubOverlay();
     try {
-      if (window.mainTimeline && typeof window.mainTimeline.pause === 'function') {
-        window.mainTimeline.pause();
-        const tlDur = window.mainTimeline.duration() || 8;
-        window.mainTimeline.time(timeSec % tlDur);
-      } else if (window.gsap && window.gsap.globalTimeline) {
-        window.gsap.globalTimeline.pause();
-        window.gsap.globalTimeline.time(timeSec);
+      if (window.mainTimeline && typeof window.mainTimeline.time === 'function') {
+        const tlDur = window.mainTimeline.duration() || window.__wappyDuration || 12;
+        window.mainTimeline.time(timeSec % tlDur, false);
+      }
+      if (window.gsap && window.gsap.globalTimeline) {
+        window.gsap.globalTimeline.time(timeSec, false);
       }
     } catch (e) {}
 
@@ -1687,9 +1713,9 @@ router.post('/video/render-mp4', studioAuth, async (req, res) => {
         const activeOffset = activeIdx - winStart;
         box.innerHTML = slice.map((w, i) => {
           if (i === activeOffset) {
-            return '<span style="font-size:13px;font-weight:900;text-transform:uppercase;color:#fcd34d;background:rgba(20,184,166,0.32);padding:2px 6px;border-radius:6px;border:1px solid rgba(45,212,191,0.5);">' + w + '</span>';
+            return '<span style="font-size:15px;font-weight:900;text-transform:uppercase;color:#fcd34d;background:rgba(20,184,166,0.32);padding:2px 7px;border-radius:7px;border:1px solid rgba(45,212,191,0.55);">' + w + '</span>';
           }
-          return '<span style="font-size:13px;font-weight:800;text-transform:uppercase;color:rgba(255,255,255,0.92);">' + w + '</span>';
+          return '<span style="font-size:15px;font-weight:800;text-transform:uppercase;color:rgba(255,255,255,0.95);">' + w + '</span>';
         }).join(' ');
       }
     }
@@ -1702,24 +1728,40 @@ router.post('/video/render-mp4', studioAuth, async (req, res) => {
 
     const puppeteer = require('puppeteer');
     const launchOptions = {
-      headless: 'new',
+      headless: true,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
         '--disable-gpu',
         '--no-first-run',
+        '--no-zygote',
       ],
     };
+
+    // Detectar ruta de Chromium en Alpine Linux / Docker (igual que WhatsAppManager.js) o variable de entorno
     if (process.env.PUPPETEER_EXECUTABLE_PATH && fs.existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
       launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    } else if (fs.existsSync('/usr/bin/chromium-browser')) {
+      launchOptions.executablePath = '/usr/bin/chromium-browser';
+    } else if (fs.existsSync('/usr/bin/chromium')) {
+      launchOptions.executablePath = '/usr/bin/chromium';
     }
 
     browser = await puppeteer.launch(launchOptions);
     const page = await browser.newPage();
-    await page.setViewport({ width, height, deviceScaleFactor: 1.5 });
-    await page.setContent(instrumentedHtml, { waitUntil: 'networkidle2', timeout: 25000 });
-    await new Promise((r) => setTimeout(r, 350));
+    await page.setViewport({ width, height, deviceScaleFactor: 1 });
+    await page.setContent(instrumentedHtml, { waitUntil: 'load', timeout: 25000 });
+    await new Promise((r) => setTimeout(r, 400));
+    await page.evaluate(() => {
+      if (window.mainTimeline && typeof window.mainTimeline.pause === 'function') {
+        window.mainTimeline.pause();
+      }
+      if (window.gsap && window.gsap.globalTimeline) {
+        window.gsap.globalTimeline.pause();
+      }
+    });
 
     const ffmpegArgs = [
       '-y',
@@ -1773,7 +1815,12 @@ router.post('/video/render-mp4', studioAuth, async (req, res) => {
         }
       }, currentTime);
 
-      const frameBuffer = await page.screenshot({ type: 'jpeg', quality: 88 });
+      const frameBuffer = await page.screenshot({
+        type: 'jpeg',
+        quality: 84,
+        optimizeForSpeed: true,
+        captureBeyondViewport: false,
+      });
       const canContinue = ffmpegProc.stdin.write(frameBuffer);
       if (!canContinue) {
         await new Promise((r) => ffmpegProc.stdin.once('drain', r));
