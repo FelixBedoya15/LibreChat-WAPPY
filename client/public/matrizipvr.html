@@ -168,7 +168,7 @@
         </button>
 
         <!-- CTA Ir a WAPPY (Lleva directamente a Login) -->
-        <a href="https://wappy.club/login" class="inline-flex items-center gap-1.5 bg-[#c7f303] text-black font-display font-black text-xs uppercase tracking-wider px-3 sm:px-4 py-1.5 sm:py-2 rounded-full shadow-sm hover:brightness-105 active:scale-95 transition-all">
+        <a href="/login" class="inline-flex items-center gap-1.5 bg-[#c7f303] text-black font-display font-black text-xs uppercase tracking-wider px-3 sm:px-4 py-1.5 sm:py-2 rounded-full shadow-sm hover:brightness-105 active:scale-95 transition-all">
           <span>Ir a WAPPY</span>
           <span>→</span>
         </a>
@@ -1203,6 +1203,25 @@
       </form>
 
     </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- BARRA FLOTANTE DE ADMINISTRADOR (Visible SOLO para Admin) -->
+  <!-- ========================================================= -->
+  <div id="floatingAdminBar" class="hidden fixed bottom-5 right-5 z-40 items-center gap-2.5 px-3.5 py-2.5 rounded-2xl bg-slate-900/95 backdrop-blur-md border border-[#c7f303]/50 shadow-2xl animate-in fade-in duration-300">
+    <div class="flex items-center gap-2">
+      <span class="w-2.5 h-2.5 rounded-full bg-[#c7f303] shadow-[0_0_10px_#c7f303] animate-pulse"></span>
+      <span class="text-xs font-black text-white tracking-wide">Admin WAPPY</span>
+    </div>
+    <button 
+      type="button" 
+      onclick="openVideoConfigModal()" 
+      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs shadow-md cursor-pointer transition-all active:scale-95"
+      title="Configurar video tutorial para todos los usuarios"
+    >
+      <span>🎬</span>
+      <span id="floatingAdminBtnText">Configurar Video</span>
+    </button>
   </div>
 
   <!-- ========================================== -->
@@ -2482,30 +2501,91 @@ function closeVideoConfigModal() {
 
 let platformAuthToken = '';
 
+function updateAdminUi() {
+  const btn = document.getElementById('btnAdminEditVideo');
+  if (btn) {
+    if (isPlatformAdmin) {
+      btn.classList.remove('hidden');
+      btn.classList.add('inline-flex');
+    } else {
+      btn.classList.add('hidden');
+      btn.classList.remove('inline-flex');
+    }
+  }
+
+  const floating = document.getElementById('floatingAdminBar');
+  const floatingText = document.getElementById('floatingAdminBtnText');
+  if (floating) {
+    if (isPlatformAdmin) {
+      floating.classList.remove('hidden');
+      floating.classList.add('flex');
+      if (floatingText) {
+        floatingText.textContent = tutorialVideoState.url ? 'Cambiar Video Tutorial' : 'Vincular Video Tutorial';
+      }
+    } else {
+      floating.classList.add('hidden');
+      floating.classList.remove('flex');
+    }
+  }
+
+  renderTutorialVideo();
+}
+
 async function detectAdminSession() {
+  isPlatformAdmin = false;
+  platformAuthToken = '';
+
+  // 1. Probar primero con el endpoint nativo de sesión LibreChat /api/auth/refresh
   try {
-    const res = await fetch('/api/auth/refresh', {
+    const refreshRes = await fetch('/api/auth/refresh', {
       method: 'POST',
       credentials: 'include'
     });
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.token) {
-        platformAuthToken = data.token;
-      }
-      if (data && data.user) {
-        const u = data.user;
+    if (refreshRes.ok) {
+      const authData = await refreshRes.json();
+      if (authData && authData.user) {
+        const u = authData.user;
         const email = u.email ? u.email.toLowerCase() : '';
-        if (u.role === 'ADMIN' || u.role === 'admin' || email.includes('mauricio') || email.includes('cristhian')) {
+        const adminEmails = ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com'];
+        const isAdm = (u.role === 'ADMIN' || u.role === 'admin' || adminEmails.includes(email));
+        if (isAdm) {
           isPlatformAdmin = true;
+          if (authData.token) platformAuthToken = authData.token;
+          updateAdminUi();
+          return;
         }
       }
     }
   } catch(e) {}
+
+  // 2. Probar con /api/comunidad/is-admin (soporta cookies httpOnly y Bearer)
+  try {
+    const res = await fetch('/api/comunidad/is-admin', { credentials: 'include' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.isAdmin === true) {
+        isPlatformAdmin = true;
+        if (data.token) {
+          platformAuthToken = data.token;
+        }
+        updateAdminUi();
+        return;
+      }
+    }
+  } catch(e) {}
+
+  // 3. Visitante regular o sin credenciales
+  isPlatformAdmin = false;
+  platformAuthToken = '';
+  updateAdminUi();
 }
 
 async function handleSaveVideoConfig(e) {
   if (e) e.preventDefault();
+  if (!isPlatformAdmin) {
+    showToast('Acceso restringido: Esta opción solo está disponible para administradores.', 'warning');
+    return;
+  }
   const titleInput = document.getElementById('videoConfigTitleInput');
   const urlInput = document.getElementById('videoConfigUrlInput');
   const submitBtn = document.getElementById('btnSaveVideoConfigSubmit');
@@ -2561,11 +2641,13 @@ async function handleSaveVideoConfig(e) {
 
     if (res.ok) {
       showToast('✅ Video tutorial guardado y publicado en vivo para todos los visitantes.', 'success');
+      const floatingText = document.getElementById('floatingAdminBtnText');
+      if (floatingText) floatingText.textContent = 'Cambiar Video Tutorial';
     } else {
-      showToast('✅ Video guardado localmente en tu navegador.', 'info');
+      showToast('⚠️ No se pudo guardar en el servidor. Verifica tu sesión de administrador.', 'warning');
     }
   } catch (err) {
-    showToast('✅ Video guardado localmente en tu navegador.', 'info');
+    showToast('⚠️ Error de conexión con el servidor.', 'warning');
   } finally {
     if (submitBtn) {
       submitBtn.disabled = false;
@@ -2605,6 +2687,7 @@ async function initTutorialVideo() {
           title: tutorialVideoState.title
         }));
         renderTutorialVideo();
+        updateAdminUi();
       }
     }
   } catch(err){}
