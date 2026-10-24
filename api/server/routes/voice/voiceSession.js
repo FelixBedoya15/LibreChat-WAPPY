@@ -313,20 +313,20 @@ function enrichTechnicalPrompt(rawPrompt, agent) {
         cleanQ = cleanQ.charAt(0).toUpperCase() + cleanQ.slice(1);
     }
 
-    // 2. Si la consulta ya cuenta con contexto técnico/normativo detallado o es suficientemente extensa,
-    // retornarla directamente para no sobrecargar el prompt
-    const hasNormativeContext = /\b(concepto\s+t[eé]cnico|decreto\s+\d+|resoluci[oó]n\s+\d+|ley\s+\d+|art[ií]culo\s+\d+|marco\s+legal|normativa|jurisprudencia|est[aá]ndar\s+m[ií]nimo)\b/i.test(cleanQ);
-    if (hasNormativeContext && cleanQ.length >= 120) {
-        return cleanQ;
-    }
-
-    // 3. ESTRUCTURACIÓN TÉCNICA PROFESIONAL OBLIGATORIA (REGLA 6):
-    // Preservar la consulta EXACTA del usuario como primer párrafo ineludible
-    // y anexar la solicitud de fundamentación técnico-normativa colombiana.
     const cleanCore = cleanQ.replace(/[.?\s]+$/, '');
     const coreQuestion = cleanCore.startsWith('¿') ? `${cleanCore}?` : cleanCore;
 
-    return `${coreQuestion}\n\nPor favor emite concepto técnico ocupacional y jurídico detallado para esta consulta concreta, fundamentado en la normativa colombiana aplicable al SG-SST (Decreto 1072 de 2015, Resoluciones ministeriales vigentes o jurisprudencia) y recomendaciones de aplicación práctica para la empresa.`;
+    const hasNormativeSubject = /\b(norma|normativa|normatividad|decreto|resoluci[oó]n|ley|circular|art[ií]culo|c[oó]digo|est[aá]ndar|smlmv|uvt|jurisprudencia|sentencia|legal|requisito|cumplimiento|accidente|incapacidad|fuero|acoso|pesv|alturas|confinad|qu[ií]mic|retie|ergonom|m[eé]dic|sgsst|sg-sst)\b/i.test(cleanQ);
+
+    if (hasNormativeSubject) {
+        return `${coreQuestion}\n\nPor favor verifica previamente en la web con la herramienta 'web_search' la normatividad colombiana VIGENTE aplicable a esta consulta (revisando decretos, resoluciones ministeriales y sentencias recientes, descartando normas derogadas como Res 1409/2012 o Res 1111/2017) y emite tu concepto técnico ocupacional y jurídico fundamentado con recomendaciones prácticas para el SG-SST de la empresa.`;
+    }
+
+    if (cleanQ.length >= 120) {
+        return cleanQ;
+    }
+
+    return `${coreQuestion}\n\nPor favor emite concepto técnico ocupacional y jurídico detallado para esta consulta concreta, fundamentado en la normativa colombiana aplicable al SG-SST (Decreto 1072 de 2015, Resoluciones ministeriales vigentes verificadas con web_search) y recomendaciones de aplicación práctica para la empresa.`;
 }
 
 /**
@@ -2238,6 +2238,7 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
 3. CASO 3: CONSULTA A ESPECIALISTA TÉCNICO
 - Cuándo aplica: El usuario pide expresamente un dictamen o concepto de un especialista ("pásame al médico laboral", "consulta al abogado laboral", "dictamen de higiene química").
 - Acción OBLIGATORIA: Consulta al especialista con 'consultar_agente_especializado' o abre su chat si el usuario lo pide expresamente.
+- OBLIGACIÓN NORMATIVA: En 'consulta_completa', incluye siempre la instrucción de verificar con 'web_search' la vigencia de la normatividad colombiana aplicable para garantizar que no se citen normas derogadas.
 
 4. CASO 4: INFORME DIRECTO A TENSHI POR CHAT DE TEXTO O MODO LIVE SIN CÁMARA
 - Cuándo aplica: El usuario le pide a Tenshi por chat de texto o por voz (sin haber mostrado objetos en cámara ni estar en un aplicativo) que le redacte un informe, documento Word, matriz Excel o aplicativo interactivo ("hazme un informe sobre la resolución 0312", "redáctame un protocolo en Word").
@@ -2395,9 +2396,9 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
      * 'html': Aplicativo, reporte o página web interactiva con Tailwind CSS y gráficos Chart.js. OBLIGATORIO: Diseño mobile-first 100% responsive para celulares (meta viewport, tablas envueltas en overflow-x-auto, grids adaptativas sm:grid-cols-2).
      * 'presentation': Diapositivas en formato JSON.
    - Usa siempre accion: 'crear'. Cada invocación genera un archivo nuevo e independiente para el usuario.
-8. **web_search (Búsqueda Web en Tiempo Real)**:
+8. **web_search (Búsqueda Web en Tiempo Real - OBLIGATORIA PARA NORMATIVIDAD)**:
    - Tienes la herramienta 'web_search' para consultar Internet en vivo.
-   - INVÓCALA SIEMPRE que el usuario te pida buscar en la web, consultar noticias, verificar normatividad vigente o cuando requieras datos externos actualizados.
+   - REGLA MANDATORIA DE NORMATIVIDAD: Si la consulta del usuario, una asesoría que brindes directamente o tu respuesta involucra leyes, decretos, resoluciones, circulares, sentencias o parámetros normativos en Colombia: ES OBLIGATORIO emitir un llamado a 'web_search' para contrastar la VIGENCIA ACTUAL de la norma antes de responder. Está ESTRICTAMENTE PROHIBIDO responder de memoria citando normas derogadas (ej: Resolución 1409 de 2012 derogada por la 4272 de 2021; Resolución 1111 de 2017 derogada por la 0312 de 2019; reformas recientes). Si delegas a un especialista mediante 'consultar_agente_especializado', indícale también que verifique en la web la vigencia.
 9. **somos_sst (Ecosistema SOMOS SST y Motor Bio-Individual)**:
    - Tienes la herramienta 'somos_sst' para consultar expedientes integrales de trabajadores, exámenes médicos, reportes ATEL, tareas/hitos, perfiles de cargo, EPP, Centro de Control ACPM y generar informes formales HTML.
    - INVÓCALA cuando el usuario te pida consultar o modificar datos del SG-SST o crear tareas ACPM.

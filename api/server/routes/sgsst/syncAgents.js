@@ -10,10 +10,16 @@ const { logger } = require('~/config');
 const mongoose = require('mongoose');
 
 function preprocessInstructions(mdContent) {
-  const searchWebRule = `\n\n⚠️ REGLA MANDATORIA DE BÚSQUEDA WEB PARA NORMATIVIDAD Y CONOCIMIENTO TÉCNICO:
-1. **Obligatoriedad de Búsqueda Web:** Si la consulta del usuario involucra normatividad colombiana (leyes, decretos como 1072 o 780, resoluciones como 0312 o 40595, circulares del Ministerio del Trabajo, jurisprudencia de la Corte Constitucional o Corte Suprema, reformas laborales/pensionales), valores o parámetros regulatorios actualizados (SMLMV, auxilio de transporte, UVT), límites de exposición técnica ocupacional (TLVs, ruido, químicos) o temas técnicos susceptibles de actualización: ES ESTRICTAMENTE OBLIGATORIO emitir un llamado a la herramienta \`web_search\` en tu primer turno para verificar la vigencia de la norma, posibles derogatorias o sentencias recientes antes de dar tu respuesta final. NUNCA respondas asumiendo normas de memoria si no has verificado su vigencia en la web.
-2. **Formulación Experta de Búsqueda:** Al usar la herramienta \`web_search\`, NUNCA busques con palabras sueltas o términos aislados (ej: "decreto", "incapacidad"). Debes redactar consultas específicas y compuestas en lenguaje natural que relacionen el contexto exacto (ej: "Decreto 780 de 2016 pago de incapacidades comunes colombia", "Sentencia SU-111 de 2025 fuero de salud estabilidad laboral corte constitucional", "Resolucion 0312 de 2019 estandares minimos sst colombia vigencia").
-3. **No redundancia:** No realices búsquedas en bucle de forma redundante; si tras 1 o 2 búsquedas obtienes la información oficial o confirmas la vigencia, procede de inmediato a estructurar tu respuesta citando las fuentes normativas encontradas.`;
+  const searchWebRule = `\n\n⚠️ REGLA MANDATORIA DE BÚSQUEDA WEB PARA NORMATIVIDAD Y CONOCIMIENTO TÉCNICO VIGENTE:
+1. **Obligatoriedad Absoluta de Búsqueda Web (web_search) en Primer Turno:**
+   - Si la consulta del usuario, una pregunta delegada por Tenshi, o la respuesta a brindar involucra o implica normatividad colombiana (leyes, decretos como 1072, 780 o 1295, resoluciones como 0312, 4272, 0491 o 40595, circulares del Ministerio del Trabajo, jurisprudencia de la Corte Constitucional o Corte Suprema, reformas laborales/pensionales), valores o parámetros regulatorios actualizados (SMLMV, auxilio de transporte, UVT), límites de exposición técnica ocupacional (TLVs, ruido, químicos) o temas técnicos susceptibles de actualización: ES ESTRICTAMENTE OBLIGATORIO emitir un llamado a la herramienta \`web_search\` en tu primer turno para verificar en tiempo real la vigencia de la norma, posibles derogatorias o sentencias recientes antes de redactar cualquier conclusión o dictamen.
+2. **Prohibición Terminante de Asumir Normas de Memoria o Citar Normas Derogadas:**
+   - NUNCA respondas asumiendo normas de memoria ni des por hecho que los ejemplos del prompt continúan vigentes. El marco normativo colombiano evoluciona continuamente.
+   - Ten presente que citar normas derogadas (ej: Resolución 1409 de 2012 para trabajo en alturas —DEROGADA por la Resolución 4272 de 2021—; Resolución 1111 de 2017 para estándares mínimos —DEROGADA por la Resolución 0312 de 2019—; reformas laborales y pensionales de 2024-2026; etc.) constituye una falta técnica gravísima.
+   - Ante la duda, busca siempre: "vigencia actual de [norma] colombia mintrabajo" o "[tema] normatividad colombiana vigente".
+3. **Formulación Experta de Búsqueda:** Al usar la herramienta \`web_search\`, NUNCA busques con palabras sueltas o términos aislados (ej: "decreto", "incapacidad"). Debes redactar consultas específicas y compuestas en lenguaje natural que relacionen el contexto exacto (ej: "Decreto 780 de 2016 pago de incapacidades comunes colombia vigencia", "Sentencia SU-111 de 2025 fuero de salud estabilidad laboral corte constitucional", "Resolucion 4272 de 2021 alturas colombia vigencia mintrabajo", "Resolucion 0312 de 2019 estandares minimos sst colombia vigencia").
+4. **Citación Transparente de Vigencia:** En tu respuesta final en el chat, cita de forma explícita las normas vigentes encontradas y confirma su estado de vigencia actual (ej: "*Normativa vigente verificada: Resolución XXX de XXX*").
+5. **No redundancia:** No realices búsquedas en bucle de forma redundante; si tras 1 o 2 búsquedas obtienes la información oficial o confirmas la vigencia, procede de inmediato a estructurar tu respuesta citando las fuentes normativas encontradas.`;
   const wappyCardRule = `\n\n⚠️ REGLA DE ORO DE TARJETAS (wappy-card): Si decides presentar información estructurada (como listas de chequeo, planes de acción, resúmenes o métricas), DEBES utilizar estrictamente un bloque de código marcado exclusivamente con la etiqueta de lenguaje \`wappy-card\` (es decir, iniciando con \`\`\`wappy-card y cerrando con \`\`\`). El contenido de este bloque debe ser ÚNICAMENTE un objeto JSON válido y estructurado. Está estrictamente PROHIBIDO escribir la palabra "wappy-card" dentro del JSON o usar cualquier formato Markdown (como viñetas, guiones o negritas) dentro del bloque de código. Ejemplo de formato correcto:
 \`\`\`wappy-card
 {
@@ -314,8 +320,9 @@ router.post('/sync', requireJwtAuth, async (req, res) => {
           continue;
         }
 
-        // Update the instructions, category, and versions of the agent to keep them aligned
+        // Update the instructions, category, tools, and versions of the agent to keep them aligned
         const timestamp = new Date();
+        const currentTools = Array.from(new Set([...(agent.tools || []), 'web_search']));
         const updatedVersions = [
           {
             name: agent.name || dbName,
@@ -323,7 +330,7 @@ router.post('/sync', requireJwtAuth, async (req, res) => {
             instructions: finalInstructions,
             provider: agent.provider || 'google',
             model: agent.model || 'gemini-3.6-flash',
-            tools: agent.tools || [],
+            tools: currentTools,
             createdAt: agent.createdAt || timestamp,
             updatedAt: timestamp
           }
@@ -334,6 +341,7 @@ router.post('/sync', requireJwtAuth, async (req, res) => {
             $set: {
               instructions: finalInstructions,
               category: targetCategory,
+              tools: currentTools,
               versions: updatedVersions
             }
           }

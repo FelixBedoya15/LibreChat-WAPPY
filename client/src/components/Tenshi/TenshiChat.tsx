@@ -470,13 +470,19 @@ export function cleanDelegatedPrompt(raw: string): string {
   }
 
   // 6. ESTRUCTURACIÓN TÉCNICA PROFESIONAL:
-  // Si la consulta es corta o no incluye marco legal técnico específico (decreto, resolución, ley, etc.),
-  // se enriquece para solicitar fundamentación normativa colombiana, alcance y recomendaciones para el SG-SST.
-  const hasNormativeContext = /\b(concepto\s+t[eé]cnico|decreto\s+\d+|resoluci[oó]n\s+\d+|ley\s+\d+|art[ií]culo\s+\d+|marco\s+legal|est[aá]ndar\s+m[ií]nimo)\b/i.test(text);
-  if (text.length < 160 && !hasNormativeContext) {
-    const cleanQuestion = text.replace(/[.?\s]+$/, '');
-    const prefix = cleanQuestion.startsWith('¿') ? cleanQuestion + '?' : `¿${cleanQuestion}?`;
-    text = `${prefix} Por favor proporciona concepto técnico especializado, fundamentación normativa colombiana aplicable (Decretos, Resoluciones vigentes) y recomendaciones clave para el Sistema de Gestión SG-SST de la empresa.`;
+  // Si la consulta involucra normatividad, estándares o es técnica ocupacional,
+  // se solicita expresamente verificar previamente la vigencia en la web mediante web_search
+  // y proporcionar fundamentación normativa colombiana vigente (evitando normas derogadas).
+  const hasNormativeSubject = /\b(norma|normativa|normatividad|decreto|resoluci[oó]n|ley|circular|art[ií]culo|c[oó]digo|est[aá]ndar|smlmv|uvt|jurisprudencia|sentencia|legal|requisito|cumplimiento|accidente|incapacidad|fuero|acoso|pesv|alturas|confinad|qu[ií]mic|retie|ergonom|m[eé]dic|sgsst|sg-sst)\b/i.test(text);
+  const cleanQuestion = text.replace(/[.?\s]+$/, '');
+  const prefix = cleanQuestion.startsWith('¿') ? cleanQuestion + '?' : `¿${cleanQuestion}?`;
+
+  if (hasNormativeSubject) {
+    if (!/web_search|b[uú]squeda\s+web/i.test(text)) {
+      text = `${prefix} Por favor verifica previamente en la web con la herramienta web_search la normatividad colombiana VIGENTE aplicable a este caso (revisando decretos, resoluciones ministeriales y jurisprudencia reciente, sin citar normas derogadas) y proporciona concepto técnico especializado con recomendaciones clave para el Sistema de Gestión SG-SST de la empresa.`;
+    }
+  } else if (text.length < 160) {
+    text = `${prefix} Por favor proporciona concepto técnico especializado, fundamentación normativa colombiana aplicable (Decretos, Resoluciones vigentes verificadas con web_search) y recomendaciones clave para el Sistema de Gestión SG-SST de la empresa.`;
   }
 
   return text;

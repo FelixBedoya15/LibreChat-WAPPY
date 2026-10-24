@@ -130,15 +130,25 @@ class ConsultarAgenteEspecializado extends Tool {
 
       console.log(`[RouterTool] Derivando consulta a: ${agent.name}`);
 
+      // Detección de necesidad normativa o técnica ocupacional
+      const hasNormativeSubject = /\b(norma|normativa|normatividad|decreto|resoluci[oó]n|ley|circular|art[ií]culo|c[oó]digo|est[aá]ndar|smlmv|uvt|jurisprudencia|sentencia|legal|requisito|cumplimiento|accidente|incapacidad|fuero|acoso|pesv|alturas|confinad|qu[ií]mic|retie|ergonom|m[eé]dic|sgsst|sg-sst|reglamento|dotaci[oó]n|epp|copasst|ccl|comit[eé]|brigada|evacuaci[oó]n)\b/i.test(consulta_completa);
+      
+      let enrichedText = consulta_completa;
+      if (hasNormativeSubject && !/web_search|b[uú]squeda\s+web/i.test(consulta_completa)) {
+        enrichedText = `${consulta_completa}\n\n[DIRECTIVA MANDATORIA DE VIGENCIA NORMATIVA]: Esta consulta técnica involucra normatividad o cumplimiento legal en Colombia. Es ESTRICTAMENTE OBLIGATORIO que uses tu herramienta 'web_search' en tu primer turno para verificar en tiempo real la normatividad colombiana VIGENTE aplicable (comprueba posibles derogatorias, modificaciones o sentencias recientes). Está TERMINANTEMENTE PROHIBIDO citar normas derogadas o desactualizadas (ej: Res 1409/2012 para alturas derogada por Res 4272/2021; Res 1111/2017 derogada por Res 0312/2019; reformas recientes). Cita las normas vigentes confirmadas.`;
+      }
+
+      const agentTools = Array.from(new Set([...(agent.tools || []), 'web_search', 'somos_sst']));
+
       const payload = {
         endpoint: 'agents',
         conversationId: 'new',
         messageId: crypto.randomUUID(),
-        text: consulta_completa,
+        text: enrichedText,
         agent_id: agent.id || agent._id.toString(),
         ephemeralAgent: {
-          // Si el especialista tiene sus propias herramientas (ej. "somos_sst"), se usarán.
-          tools: agent.tools || [],
+          // Si el especialista tiene sus propias herramientas (ej. "somos_sst", "web_search"), se usarán.
+          tools: agentTools,
         }
       };
 

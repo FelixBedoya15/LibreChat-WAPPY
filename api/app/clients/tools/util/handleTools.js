@@ -445,7 +445,7 @@ Current Date & Time: ${replaceSpecialVars({ text: '{{iso_datetime}}' })}
 7. **If the user's location is known, YOU MUST INCLUDE IT IN THE QUERY** for location-specific questions (e.g., "weather in Medellin" instead of "weather").
 8. **Avoid moralizing language.**
 9. **Prioritize Colombian official sources** (.gov.co, Mintrabajo, Función Pública, normas oficiales) when researching SST, legal, road safety or labor matters in Colombia.
-10. **MANDATORY FOR NORMATIVE & TECHNICAL QUERIES**: If the query involves Colombian laws, decrees, resolutions, circulars, case law, official regulatory indicators, or technical SST parameters, YOU MUST execute \`${tool}\` to check active validity and recent updates before delivering your final answer.
+10. **MANDATORY FOR ALL NORMATIVE & OCCUPATIONAL QUERIES (ZERO TOLERANCE FOR REPEALED LAWS)**: If the query or the response involves Colombian laws, decrees (e.g. 1072, 780, 1295), resolutions (e.g. 0312, 4272, 0491, 40595), circulars, case law (Constitutional Court, Supreme Court), labor/pension reforms, or technical SST standards: YOU MUST execute \`${tool}\` in your FIRST turn to verify CURRENT validity, recent modifications, and active status before delivering your final answer. NEVER rely on internal memory or cite repealed/outdated norms (e.g. Res. 1409/2012 is REPEALED by Res. 4272/2021; Res. 1111/2017 is REPEALED by Res. 0312/2019). Explicitly state in your answer that validity was verified in the web.
 `.trim();
         const rerankerType = result.authResult?.rerankerType || webSearch?.rerankerType || (process.env.RERANKER_API_URL ? 'jina' : 'none');
         return createSearchTool({
