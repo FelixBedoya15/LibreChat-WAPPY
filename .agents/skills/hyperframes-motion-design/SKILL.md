@@ -95,7 +95,7 @@ Para disparar comentarios en Reels / TikTok:
 
 ---
 
-## 8. Las 5 Leyes Cinéticas Obligatorias (Rebotes, Stagger, Parallax 3 Capas, Micro-Movimientos y Sable Láser en Manos)
+## 8. Las 5 Leyes Cinéticas Obligatorias (Rebotes, Stagger, Parallax 3 Capas, Micro-Movimientos y Gestos Naturales)
 
 > [!IMPORTANT]
 > **DIRECTRIZ ESTRICTA DE DINAMISMO VISUAL:**
@@ -109,5 +109,5 @@ Para disparar comentarios en Reels / TikTok:
    - Separa explícitamente **Fondo** (velocidad `0.25x`), **Plano Medio** (velocidad `1.0x`) y **Frente / Primer Plano** (velocidad `1.45x`), moviéndolos a distintas velocidades durante cada paneo o zoom de cámara.
 4. **Micro-Movimientos Constantes (`Living UI`):**
    - Ningún elemento en pantalla puede quedarse quieto tras su entrada. Todos los contenedores, iconos, avatares y badges deben mantener flotación sinusoidal continua (`sine.inOut`), oscilación angular sutil (`±1°`) y pulso de luz.
-5. **Efecto Sable Láser / Haz de Energía cuando Aparecen Manos:**
-   - Siempre que en el vídeo aparezcan manos (del presentador en cámara, recortadas o del avatar) señalando, gesticulando o sosteniendo algo, añade un efecto de **Sable Láser / Rayo de Plasma Neón** (núcleo blanco `#ffffff` + hoja de energía `#c7f303` o `#2dd4bf` + doble `feGaussianBlur` + `flicker` de alta frecuencia + chispas en la empuñadura/mano) sincronizado con el movimiento de la mano.
+5. **Gesticulación Natural y Punteros Sutiles (ESTRICTAMENTE PROHIBIDO SABLE LÁSER):**
+   - Los avatares y presentadores usan gesticulación natural de oratoria humana. Está **terminantemente prohibido** añadir rayos láser, sables de energía o destellos saliendo de las manos. Para destacar elementos se usan anillos de pulso (`pulse-ring`), destellos o micro-tarjetas flotantes sobre el objeto de interés, nunca armas o rayos en las manos.

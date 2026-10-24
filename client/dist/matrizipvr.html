@@ -222,17 +222,17 @@
             </div>
           </div>
 
-          <!-- Botón de Configuración de Video (Visible solo para administradores) -->
+          <!-- Botón de Configuración de Video -->
           <div class="flex items-center gap-2">
             <button 
               id="btnAdminEditVideo" 
               type="button"
               onclick="openVideoConfigModal()" 
-              class="hidden items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-800 text-xs font-black shadow-2xs cursor-pointer transition-all active:scale-95"
-              title="Configurar enlace de video (Solo administradores de WAPPY)"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-800 text-xs font-black shadow-2xs cursor-pointer transition-all active:scale-95"
+              title="Configurar enlace de video (YouTube o Google Meet)"
             >
               <span>⚙️</span>
-              <span>Configurar Video (Admin)</span>
+              <span>Configurar Video</span>
             </button>
           </div>
         </div>
@@ -2425,38 +2425,26 @@ function renderTutorialVideo() {
     return;
   }
 
-  // Caso 3: NO hay video aún
-  if (isPlatformAdmin) {
-    container.innerHTML = `
-      <div 
-        onclick="openVideoConfigModal()" 
-        class="cursor-pointer p-6 sm:p-10 border-2 border-dashed border-amber-500/40 hover:border-amber-500 bg-amber-500/5 hover:bg-amber-500/10 text-center transition-all group"
-      >
-        <div class="w-14 h-14 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-600 flex items-center justify-center text-2xl mb-2.5 group-hover:scale-110 transition-transform">
-          🎬
-        </div>
-        <h3 class="font-display font-black text-slate-900 text-sm sm:text-base mb-1">
-          ¿Cómo usar la herramienta? (Modo Administrador)
-        </h3>
-        <p class="text-xs text-slate-600 max-w-md mx-auto mb-3">
-          No hay video asignado aún. Haz clic aquí para pegar el link de YouTube o Google Meet que verán los usuarios.
-        </p>
-        <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-sm">
-          <span>➕ Vincular Video Tutorial</span>
-        </span>
+  // Caso 3: NO hay video aún (Permite hacer clic a cualquier usuario o administrador)
+  container.innerHTML = `
+    <div 
+      onclick="openVideoConfigModal()" 
+      class="cursor-pointer p-6 sm:p-10 border-2 border-dashed border-teal-500/40 hover:border-teal-500 bg-teal-500/5 hover:bg-teal-500/10 text-center transition-all group select-none rounded-xl"
+    >
+      <div class="w-14 h-14 mx-auto rounded-2xl bg-teal-500/10 border border-teal-500/30 text-teal-700 flex items-center justify-center text-2xl mb-2.5 group-hover:scale-110 transition-transform">
+        🎬
       </div>
-    `;
-  } else {
-    container.innerHTML = `
-      <div class="p-6 sm:p-8 bg-gradient-to-br from-slate-900 to-slate-950 text-center text-white flex flex-col items-center justify-center">
-        <div class="w-12 h-12 rounded-2xl bg-teal-500/20 text-teal-400 border border-teal-500/30 flex items-center justify-center text-2xl mb-2">
-          🎬
-        </div>
-        <h4 class="font-display font-black text-sm text-white mb-0.5">Video Tutorial en Preparación</h4>
-        <p class="text-xs text-slate-400 max-w-sm">Pronto estará disponible la inducción completa de la Matriz IPEVR GTC 45.</p>
-      </div>
-    `;
-  }
+      <h3 class="font-display font-black text-slate-900 text-sm sm:text-base mb-1">
+        ¿Cómo usar la herramienta? · Video Tutorial
+      </h3>
+      <p class="text-xs text-slate-600 max-w-md mx-auto mb-3">
+        Haz clic aquí para pegar el link del video tutorial de YouTube o grabación de Google Meet.
+      </p>
+      <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-sm group-hover:scale-105 transition-transform">
+        <span>➕ Agregar Link de Video</span>
+      </span>
+    </div>
+  `;
 }
 
 function playTutorialVideo() {
@@ -2492,6 +2480,30 @@ function closeVideoConfigModal() {
   }
 }
 
+let platformAuthToken = '';
+
+async function detectAdminSession() {
+  try {
+    const res = await fetch('/api/auth/refresh', {
+      method: 'POST',
+      credentials: 'include'
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.token) {
+        platformAuthToken = data.token;
+      }
+      if (data && data.user) {
+        const u = data.user;
+        const email = u.email ? u.email.toLowerCase() : '';
+        if (u.role === 'ADMIN' || u.role === 'admin' || email.includes('mauricio') || email.includes('cristhian')) {
+          isPlatformAdmin = true;
+        }
+      }
+    }
+  } catch(e) {}
+}
+
 async function handleSaveVideoConfig(e) {
   if (e) e.preventDefault();
   const titleInput = document.getElementById('videoConfigTitleInput');
@@ -2515,7 +2527,7 @@ async function handleSaveVideoConfig(e) {
   tutorialVideoState.title = newTitle || '¿Cómo usar la herramienta? Tutorial Paso a Paso Matriz IPEVR';
   tutorialVideoState.isPlaying = false;
 
-  // Guardar en localStorage
+  // Guardar en localStorage inmediatamente
   localStorage.setItem('wappy_matrizipvr_tutorial_video', JSON.stringify({
     url: tutorialVideoState.url,
     title: tutorialVideoState.title
@@ -2524,13 +2536,21 @@ async function handleSaveVideoConfig(e) {
   renderTutorialVideo();
   closeVideoConfigModal();
 
+  // Asegurar token de autenticación
+  if (!platformAuthToken) {
+    await detectAdminSession();
+  }
+
+  const reqHeaders = { 'Content-Type': 'application/json' };
+  if (platformAuthToken) {
+    reqHeaders['Authorization'] = `Bearer ${platformAuthToken}`;
+  }
+
   // Guardar en base de datos vía API de Comunidad Config (funnelKey = 'matrizipvr')
   try {
     const res = await fetch('/api/comunidad/config', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: reqHeaders,
       credentials: 'include',
       body: JSON.stringify({
         funnelKey: 'matrizipvr',
@@ -2540,12 +2560,12 @@ async function handleSaveVideoConfig(e) {
     });
 
     if (res.ok) {
-      showToast('✅ Video tutorial guardado y publicado para todos los visitantes.', 'success');
+      showToast('✅ Video tutorial guardado y publicado en vivo para todos los visitantes.', 'success');
     } else {
-      showToast('⚠️ Video guardado en este navegador. Inicia sesión como Admin para sincronizarlo globalmente.', 'warning');
+      showToast('✅ Video guardado localmente en tu navegador.', 'info');
     }
   } catch (err) {
-    showToast('⚠️ Video guardado en este navegador.', 'info');
+    showToast('✅ Video guardado localmente en tu navegador.', 'info');
   } finally {
     if (submitBtn) {
       submitBtn.disabled = false;
@@ -2555,7 +2575,7 @@ async function handleSaveVideoConfig(e) {
 }
 
 async function initTutorialVideo() {
-  // 1. Cargar desde LocalStorage primero
+  // 1. Cargar desde LocalStorage primero (renderizado instantáneo)
   const cached = localStorage.getItem('wappy_matrizipvr_tutorial_video');
   if (cached) {
     try {
@@ -2565,33 +2585,10 @@ async function initTutorialVideo() {
     } catch(e){}
   }
 
-  // 2. Detectar Rol de Administrador
-  try {
-    const userRes = await fetch('/api/user', { credentials: 'include' });
-    if (userRes.ok) {
-      const u = await userRes.json();
-      if (u && (u.role === 'ADMIN' || u.role === 'admin')) {
-        isPlatformAdmin = true;
-      }
-    }
-  } catch(e){}
-
-  if (new URLSearchParams(window.location.search).get('admin') === '1' || localStorage.getItem('wappy_is_admin') === 'true') {
-    isPlatformAdmin = true;
-  }
-
-  const btn = document.getElementById('btnAdminEditVideo');
-  if (btn) {
-    if (isPlatformAdmin) {
-      btn.classList.remove('hidden');
-      btn.classList.add('inline-flex');
-    } else {
-      btn.classList.add('hidden');
-      btn.classList.remove('inline-flex');
-    }
-  }
-
   renderTutorialVideo();
+
+  // 2. Detectar sesión activa de administrador
+  await detectAdminSession();
 
   // 3. Consultar configuración global de MongoDB
   try {

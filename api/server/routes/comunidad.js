@@ -3,10 +3,51 @@ const router = express.Router();
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
+const jwt = require('jsonwebtoken');
+const cookies = require('cookie');
 const { requireJwtAuth } = require('../middleware');
-const { requireAdmin } = require('../middleware/roles/admin');
+const { requireAdmin, ADMIN_EMAILS } = require('../middleware/roles/admin');
+const { getUserById } = require('~/models');
 const { getAppConfig } = require('../../server/services/Config');
 const controller = require('../controllers/ComunidadController');
+
+/**
+ * Middleware resiliente que autentica admin por Bearer token o por cookie refreshToken
+ */
+const requireAdminCookieOrJwt = async (req, res, next) => {
+    // 1. Verificar si ya viene autenticado con rol de admin
+    const currentEmail = req.user?.email?.toLowerCase();
+    if (req.user && (req.user.role === 'ADMIN' || (currentEmail && ADMIN_EMAILS.includes(currentEmail)))) {
+        return next();
+    }
+
+    // 2. Intentar autenticar mediante la cookie refreshToken enviada por el navegador
+    try {
+        const rawCookies = req.headers.cookie;
+        if (rawCookies) {
+            const parsed = cookies.parse(rawCookies);
+            const refreshToken = parsed.refreshToken;
+            if (refreshToken && process.env.JWT_REFRESH_SECRET) {
+                const payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+                if (payload && payload.id) {
+                    const user = await getUserById(payload.id, '-password -__v -totpSecret -backupCodes');
+                    const userEmail = user?.email?.toLowerCase();
+                    if (user && (user.role === 'ADMIN' || (userEmail && ADMIN_EMAILS.includes(userEmail)))) {
+                        req.user = user;
+                        return next();
+                    }
+                }
+            }
+        }
+    } catch (err) {
+        // Fallback a autenticación estándar
+    }
+
+    // 3. Fallback a requireJwtAuth y requireAdmin
+    return requireJwtAuth(req, res, () => {
+        return requireAdmin(req, res, next);
+    });
+};
 
 const storage = multer.diskStorage({
     destination: async function (req, file, cb) {
@@ -64,7 +105,7 @@ router.get('/download/:filename', async (req, res) => {
 });
 
 // --- Admin ---
-router.post('/config', requireJwtAuth, requireAdmin, controller.updateComunidadConfig);
+router.post('/config', requireAdminCookieOrJwt, controller.updateComunidadConfig);
 router.get('/purchases', requireJwtAuth, requireAdmin, controller.getAllPurchases);
 router.delete('/purchases/:id', requireJwtAuth, requireAdmin, controller.deletePurchase);
 router.get('/metrics/stats', requireJwtAuth, requireAdmin, controller.getMetricsStats);

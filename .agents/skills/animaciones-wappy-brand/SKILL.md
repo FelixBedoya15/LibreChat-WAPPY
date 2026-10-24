@@ -39,6 +39,9 @@ nubes.pintar(t);
 ```
 
 ### 2.2. `WappyNavbar(o)` — Barra de Navegación Flotante Oficial (`wappy.club`)
+> [!WARNING]
+> **USO EXCLUSIVO PARA RECREAR LA WEB:** Este componente es ÚNICAMENTE para tutoriales o demostraciones donde explícitamente se muestre la página web de WAPPY. **ESTÁ PROHIBIDO usarlo en vídeos promocionales, reels de marketing o animaciones cinematográficas**, ya que le quita dinamismo y creatividad al vídeo.
+
 Píldora blanca translúcida (`border-radius: 9999px`) con el logo circular del gato WAPPY, texto `WAPPY IA · SOMOS SST`, pestañas centrales y botón negro con círculo verde lima `↗`.
 ```js
 const nav = new WappyNavbar({
@@ -60,6 +63,9 @@ nav.pintar(t, { x: CX, y: 76, o: 1 });
 ```
 
 ### 2.3. `WappyHeroText(o)` — Bloque Izquierdo con Eyebrow, H1 con Marcador Lima y Botones Píldora
+> [!WARNING]
+> **USO EXCLUSIVO PARA RECREAR LA WEB:** No usar botones de página web en vídeos publicitarios. En vídeos publicitarios se usa tipografía cinematográfica, textos dinámicos con resaltador lima y composición centrada o en tercios equilibrados.
+
 ```js
 const hero = new WappyHeroText({
   t0: T.inicio,

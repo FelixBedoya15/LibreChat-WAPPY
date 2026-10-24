@@ -107,3 +107,33 @@ docker exec -it LibreChat node scripts/restore-and-sync-all.js
 >    - Duplicar una herramienta provoca el cierre inmediato del WebSocket de voz por Google con código **1007 (Duplicate function declaration found)**.
 >    - Antes de commitear, ejecutar siempre el script de comprobación que garantice 0 duplicados.
 
+---
+
+## 7. Protocolo Obligatorio de Creación y Producción de Vídeos (WAPPY Video Framework)
+> [!CRITICAL]
+> **PROHIBICIÓN ESTRICTA DE CODIFICAR O RENDERIZAR VÍDEOS SIN ALINEACIÓN Y APROBACIÓN PREVIA:**
+> Antigravity / cualquier agente de codificación tiene **TERMINANTEMENTE PROHIBIDO** saltar directamente a programar (`motor.js`, `index.html`) o renderizar videos completos en MP4 sin haber guiado al usuario y obtenido su aprobación explícita en el siguiente protocolo estructurado de 5 pasos:
+>
+> 1. **Paso 1: Formato, Propósito y Audiencia:**
+>    - Consultar u ofrecer opciones de formato: **Horizontal (16:9 - 1920x1080)** para YouTube / Masterclasses vs **Vertical (9:16 - 1080x1920)** para Reels / TikTok / Shorts.
+>    - Definir el objetivo claro (Promocional/Marketing de conversión, Tutorial técnico, Explicativo normativo SST, Showcase).
+> 2. **Paso 2: Selección de Fondo y Atmósfera Visual (Opciones Múltiples):**
+>    - Presentar alternativas claras para elegir tanto en horizontal como en vertical:
+>      * **Opción A - Dark Tech Cinema:** Fondo oscuro profundo (`#080c04` a `#0e1300`), partículas lumínicas sutiles, cuadrícula suave, acentos verde lima `#c7f303` de alto dramatismo y contraste.
+>      * **Opción B - WAPPY Sky & Clouds:** Azul cielo oficial (`#5bb8f5` a crema `#f6f5ef`), nubes suaves vectoriales y tarjetas translúcidas de cristal (Clean, amigable y corporativo moderno).
+>      * **Opción C - Editorial Warm Cream:** Fondo crema cálido editorial (`#f6f5ef` a `#eceae1`), tipografía negra oliva con acentos turquesa `#0d9488` y lima (Estilo Stripe/Notion de alta gama).
+>      * **Opción D - Dinámico por Tensión (Storytelling Split):** El fondo muta según la narrativa (oscuro tenso en la frustración/problema $\rightarrow$ luminoso y vibrante en la solución).
+> 3. **Paso 3: Personajes, Poses y Roles Escénicos:**
+>    - Definir quién aparece y qué rol desempeña:
+>      * **Félix (Avatar 3D Low-Poly):** Narrador/Host. GESTOS NATURALES DE BRAZOS Y CABEZA ÚNICAMENTE. Está **ESTRICTAMENTE PROHIBIDO** añadir rayos láser, sables o efectos toscos en las manos. La barba debe mantenerse en bajo relieve (`~0.036`) igualada al bigote/boso.
+>      * **Tenshi (Diseño Oficial Fullbody):** Mascota e IA oráculo, flotando sutilmente con halo y expresiones amigables.
+>      * **Solo Motion Graphics:** Sin avatares humanos, 100% tipografía cinética y tarjetas Bento con iconos duotone.
+>    - Definir balance espacial: respetar tercios de composición (evitar dejar la izquierda vacía con elementos amontonados a la derecha).
+> 4. **Paso 4: Tipografía de Marca y Prohibición de Elementos Web:**
+>    - Tipografía: Titulares en *Outfit* / *Plus Jakarta Sans* con resaltador lima `#c7f303` desplegable sincronizado con la voz, textos limpios en *Inter*.
+>    - **PROHIBICIÓN ESTRICTA DE ELEMENTOS DE PÁGINA WEB:** Está terminantemente prohibido incrustar barras de navegación web (`WappyNavbar`), cabeceras de landing page o botones de sitios web en videos de marketing, a menos que el usuario pida explícitamente "muestra una página web". Un video es una experiencia cinematográfica y de motion graphics, no una captura de pantalla de un sitio web.
+> 5. **Paso 5: Guión Estructural Escena por Escena y Previsualizaciones:**
+>    - Presentar la tabla estructural del guión (segundos, locución exacta, disposición visual izquierda/centro/derecha, animaciones y CTA).
+>    - **Previsualización antes de render:** Generar imágenes fijas de demostración (frames clave) de cada escena para validación visual rápida con el usuario antes de procesar cualquier render completo en MP4.
+
+
