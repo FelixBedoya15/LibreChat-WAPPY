@@ -222,17 +222,17 @@
             </div>
           </div>
 
-          <!-- Botón de Configuración de Video -->
+          <!-- Botón de Configuración de Video (Visible SOLO para Admin) -->
           <div class="flex items-center gap-2">
             <button 
               id="btnAdminEditVideo" 
               type="button"
               onclick="openVideoConfigModal()" 
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-800 text-xs font-black shadow-2xs cursor-pointer transition-all active:scale-95"
-              title="Configurar enlace de video (YouTube o Google Meet)"
+              class="hidden items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-800 text-xs font-black shadow-2xs cursor-pointer transition-all active:scale-95"
+              title="Configurar enlace de video (Solo administradores de WAPPY)"
             >
               <span>⚙️</span>
-              <span>Configurar Video</span>
+              <span>Configurar Video (Admin)</span>
             </button>
           </div>
         </div>
@@ -2444,26 +2444,38 @@ function renderTutorialVideo() {
     return;
   }
 
-  // Caso 3: NO hay video aún (Permite hacer clic a cualquier usuario o administrador)
-  container.innerHTML = `
-    <div 
-      onclick="openVideoConfigModal()" 
-      class="cursor-pointer p-6 sm:p-10 border-2 border-dashed border-teal-500/40 hover:border-teal-500 bg-teal-500/5 hover:bg-teal-500/10 text-center transition-all group select-none rounded-xl"
-    >
-      <div class="w-14 h-14 mx-auto rounded-2xl bg-teal-500/10 border border-teal-500/30 text-teal-700 flex items-center justify-center text-2xl mb-2.5 group-hover:scale-110 transition-transform">
-        🎬
+  // Caso 3: NO hay video aún (Solo Admin puede vincular; usuarios regulares ven banner informativo)
+  if (isPlatformAdmin) {
+    container.innerHTML = `
+      <div 
+        onclick="openVideoConfigModal()" 
+        class="cursor-pointer p-6 sm:p-10 border-2 border-dashed border-amber-500/40 hover:border-amber-500 bg-amber-500/5 hover:bg-amber-500/10 text-center transition-all group select-none rounded-xl"
+      >
+        <div class="w-14 h-14 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-600 flex items-center justify-center text-2xl mb-2.5 group-hover:scale-110 transition-transform">
+          🎬
+        </div>
+        <h3 class="font-display font-black text-slate-900 text-sm sm:text-base mb-1">
+          ¿Cómo usar la herramienta? (Modo Administrador)
+        </h3>
+        <p class="text-xs text-slate-600 max-w-md mx-auto mb-3">
+          No hay video asignado aún. Haz clic aquí para pegar el link de YouTube o Google Meet que verán los usuarios.
+        </p>
+        <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-sm group-hover:scale-105 transition-transform">
+          <span>➕ Vincular Video Tutorial</span>
+        </span>
       </div>
-      <h3 class="font-display font-black text-slate-900 text-sm sm:text-base mb-1">
-        ¿Cómo usar la herramienta? · Video Tutorial
-      </h3>
-      <p class="text-xs text-slate-600 max-w-md mx-auto mb-3">
-        Haz clic aquí para pegar el link del video tutorial de YouTube o grabación de Google Meet.
-      </p>
-      <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-sm group-hover:scale-105 transition-transform">
-        <span>➕ Agregar Link de Video</span>
-      </span>
-    </div>
-  `;
+    `;
+  } else {
+    container.innerHTML = `
+      <div class="p-6 sm:p-8 bg-gradient-to-br from-slate-900 to-slate-950 text-center text-white flex flex-col items-center justify-center rounded-xl select-none">
+        <div class="w-12 h-12 rounded-2xl bg-teal-500/20 text-teal-400 border border-teal-500/30 flex items-center justify-center text-2xl mb-2">
+          🎬
+        </div>
+        <h4 class="font-display font-black text-sm text-white mb-0.5">Video Tutorial en Preparación</h4>
+        <p class="text-xs text-slate-400 max-w-sm">Pronto estará disponible la inducción guiada paso a paso de la Matriz IPEVR GTC 45.</p>
+      </div>
+    `;
+  }
 }
 
 function playTutorialVideo() {
@@ -2478,6 +2490,10 @@ function stopTutorialVideo(e) {
 }
 
 function openVideoConfigModal() {
+  if (!isPlatformAdmin) {
+    showToast('Acceso restringido: Esta opción solo está disponible para administradores de WAPPY.', 'warning');
+    return;
+  }
   const modal = document.getElementById('videoConfigModal');
   const titleInput = document.getElementById('videoConfigTitleInput');
   const urlInput = document.getElementById('videoConfigUrlInput');
