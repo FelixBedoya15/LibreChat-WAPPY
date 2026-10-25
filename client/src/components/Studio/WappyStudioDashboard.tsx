@@ -35,7 +35,15 @@ import {
   Edit3,
   X,
   RefreshCw,
+  Save,
 } from 'lucide-react';
+import {
+  putMediaBlob,
+  getMediaBlob,
+  deleteMediaBlob,
+  clearMediaBlobs,
+  base64ToBlob,
+} from './studioMediaStore';
 import { useAuthContext } from '~/hooks';
 import { useGetEndpointsQuery } from '~/data-provider';
 import { EModelEndpoint } from 'librechat-data-provider';
@@ -124,6 +132,16 @@ interface LibraryItem {
   downloadUrl?: string;
   stylePrompt?: string;
   scriptText?: string;
+  /** 'audio' (locución) o 'video' (composición HTML + voz) */
+  kind?: 'audio' | 'video';
+  /** Claves de los binarios guardados en IndexedDB (studioMediaStore) */
+  mediaKey?: string;
+  htmlKey?: string;
+  mp4Key?: string;
+  capsuleKey?: string;
+  aspectRatio?: '9:16' | '16:9';
+  showSubtitles?: boolean;
+  subtitlePosition?: 'bottom' | 'center' | 'top';
 }
 
 // ============================================================================
@@ -1183,6 +1201,7 @@ export default function WappyStudioDashboard() {
     durationSeconds?: number;
     voiceName?: string;
     scriptText?: string;
+    mediaKey?: string;
   } | null>(null);
 
   // Biblioteca Local
@@ -1287,14 +1306,164 @@ export default function WappyStudioDashboard() {
     return () => window.removeEventListener('message', onMessage);
   }, []);
 
-  // Guardar biblioteca cuando cambie
+  // Guardar biblioteca cuando cambie (solo metadata ligera; los binarios viven en IndexedDB)
   useEffect(() => {
+    const items = libraryItems.slice(0, 60);
     try {
-      localStorage.setItem(LOCAL_LIBRARY_STORAGE, JSON.stringify(libraryItems.slice(0, 15)));
+      localStorage.setItem(LOCAL_LIBRARY_STORAGE, JSON.stringify(items));
     } catch {
-      /* ignore quota */
+      // Cuota excedida: guardar sin Base64 embebido para no perder el historial
+      try {
+        localStorage.setItem(
+          LOCAL_LIBRARY_STORAGE,
+          JSON.stringify(items.map(({ audioBase64: _omit, ...rest }) => rest)),
+        );
+      } catch {
+        /* ignore */
+      }
     }
   }, [libraryItems]);
+
+  // Migración: mover audios Base64 antiguos de localStorage a IndexedDB
+  useEffect(() => {
+    const legacy = libraryItems.filter((it) => it.audioBase64 && !it.mediaKey);
+    if (legacy.length === 0) return;
+    (async () => {
+      const migrated: Record<string, string> = {};
+      for (const it of legacy) {
+        try {
+          const key = `audio-${it.id}`;
+          await putMediaBlob(key, base64ToBlob(it.audioBase64 as string));
+          migrated[it.id] = key;
+        } catch {
+          /* mantener Base64 si IndexedDB falla */
+        }
+      }
+      if (Object.keys(migrated).length === 0) return;
+      setLibraryItems((prev) =>
+        prev.map((it) =>
+          migrated[it.id] ? { ...it, mediaKey: migrated[it.id], audioBase64: undefined } : it,
+        ),
+      );
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // URL de objeto (blob:) activa para el reproductor; se revoca al reemplazarla
+  const activeObjectUrlRef = useRef<string | null>(null);
+  const setObjectUrlForPlayer = (blob: Blob) => {
+    if (activeObjectUrlRef.current) URL.revokeObjectURL(activeObjectUrlRef.current);
+    const url = URL.createObjectURL(blob);
+    activeObjectUrlRef.current = url;
+    return url;
+  };
+
+  /**
+   * Agrega un audio a la biblioteca guardando el WAV en IndexedDB (persistente, sin límite de 5 MB).
+   * Acepta Base64 directo o una URL del servidor (trabajos largos que solo viven en RAM del backend).
+   */
+  const saveAudioToLibrary = async (
+    item: LibraryItem,
+    source: { base64?: string; url?: string },
+  ): Promise<string | undefined> => {
+    const key = `audio-${item.id}`;
+    let blob: Blob | null = null;
+    try {
+      if (source.base64) {
+        blob = base64ToBlob(source.base64);
+      } else if (source.url) {
+        const r = await fetch(source.url, { headers: getAuthHeaders(token) });
+        if (r.ok) blob = await r.blob();
+      }
+      if (blob) await putMediaBlob(key, blob);
+    } catch {
+      blob = null;
+    }
+    const stored: LibraryItem = blob
+      ? { ...item, kind: item.kind || 'audio', mediaKey: key, audioBase64: undefined }
+      : { ...item, kind: item.kind || 'audio', audioBase64: source.base64 };
+    setLibraryItems((prev) => [stored, ...prev.filter((x) => x.id !== item.id)]);
+    return blob ? key : undefined;
+  };
+
+  /** Recupera el audio de un elemento de biblioteca como Blob (IndexedDB → Base64 → servidor). */
+  const loadLibraryAudioBlob = async (item: LibraryItem): Promise<Blob | null> => {
+    if (item.mediaKey) {
+      const b = await getMediaBlob(item.mediaKey);
+      if (b) return b;
+    }
+    if (item.audioBase64) return base64ToBlob(item.audioBase64);
+    if (item.downloadUrl) {
+      try {
+        const r = await fetch(item.downloadUrl, { headers: getAuthHeaders(token) });
+        if (r.ok) {
+          const b = await r.blob();
+          // Auto-reparación: guardarlo ya en IndexedDB para que no vuelva a depender del servidor
+          const key = `audio-${item.id}`;
+          putMediaBlob(key, b)
+            .then(() =>
+              setLibraryItems((prev) =>
+                prev.map((x) => (x.id === item.id ? { ...x, mediaKey: key } : x)),
+              ),
+            )
+            .catch(() => {});
+          return b;
+        }
+      } catch {
+        /* sin conexión o 404 */
+      }
+    }
+    return null;
+  };
+
+  const openLibraryAudio = async (item: LibraryItem, goToVideo = false) => {
+    const blob = await loadLibraryAudioBlob(item);
+    if (!blob) {
+      setStatusBanner({
+        type: 'error',
+        text: 'Este audio se generó antes de activar el guardado permanente y el servidor ya lo liberó (se reinició). Vuelve a generarlo: desde ahora todos los audios quedan guardados en tu navegador.',
+      });
+      return false;
+    }
+    setCurrentAudio({
+      url: setObjectUrlForPlayer(blob),
+      title: item.title,
+      durationSeconds: item.durationSeconds,
+      voiceName: item.voiceName,
+      scriptText: item.scriptText,
+      mediaKey: item.mediaKey || `audio-${item.id}`,
+    });
+    if (item.durationSeconds && item.durationSeconds > 1) setVideoDuration(item.durationSeconds);
+    if (goToVideo) handleTabChange('video');
+    return true;
+  };
+
+  const downloadBlobFile = (blob: Blob, fileName: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  };
+
+  const deleteLibraryItem = (item: LibraryItem) => {
+    setLibraryItems((prev) => {
+      const rest = prev.filter((x) => x.id !== item.id);
+      const keys = [item.mediaKey, item.htmlKey, item.mp4Key, item.capsuleKey].filter(
+        Boolean,
+      ) as string[];
+      keys.forEach((k) => {
+        const stillUsed = rest.some((x) =>
+          [x.mediaKey, x.htmlKey, x.mp4Key, x.capsuleKey].includes(k),
+        );
+        if (!stillUsed) deleteMediaBlob(k);
+      });
+      return rest;
+    });
+  };
 
   // Sincronizar modelos TTS desde endpointsConfig (GOOGLE_MODELS en .env) y catálogo del backend
   useEffect(() => {
@@ -1525,11 +1694,13 @@ export default function WappyStudioDashboard() {
         model: data.usedModel || selectedModel,
         durationSeconds: data.durationSeconds,
         wordCount: snippet.split(/\s+/).filter(Boolean).length,
-        audioBase64: data.audioBase64,
         stylePrompt,
         scriptText: snippet,
       };
-      setLibraryItems((prev) => [newItem, ...prev]);
+      const previewKey = await saveAudioToLibrary(newItem, { base64: data.audioBase64 });
+      if (previewKey) {
+        setCurrentAudio((prev) => (prev ? { ...prev, mediaKey: previewKey } : prev));
+      }
       setStatusBanner({
         type: 'success',
         text: 'Audio generado y cargado en el reproductor. Puedes descargarlo en WAV o enviarlo al Compositor de Video.',
@@ -1575,11 +1746,13 @@ export default function WappyStudioDashboard() {
         model: data.usedModel || selectedModel,
         durationSeconds: data.durationSeconds,
         wordCount: labTestText.trim().split(/\s+/).filter(Boolean).length,
-        audioBase64: data.audioBase64,
         stylePrompt: labStylePrompt,
         scriptText: labTestText.trim(),
       };
-      setLibraryItems((prev) => [newItem, ...prev]);
+      const labKey = await saveAudioToLibrary(newItem, { base64: data.audioBase64 });
+      if (labKey) {
+        setCurrentAudio((prev) => (prev ? { ...prev, mediaKey: labKey } : prev));
+      }
     } catch (err: any) {
       setStatusBanner({
         type: 'error',
@@ -1706,7 +1879,10 @@ export default function WappyStudioDashboard() {
           stylePrompt,
           scriptText,
         };
-        setLibraryItems((prev) => [newItem, ...prev]);
+        // Descargar el WAV maestro del servidor (vive solo en RAM) y guardarlo en IndexedDB
+        saveAudioToLibrary(newItem, { url: d.downloadUrl }).then((key) => {
+          if (key) setCurrentAudio((prev) => (prev ? { ...prev, mediaKey: key } : prev));
+        });
       });
 
       es.addEventListener('job_failed', (ev: MessageEvent) => {
@@ -1812,6 +1988,22 @@ export default function WappyStudioDashboard() {
         durationSeconds: data.durationSeconds,
         voiceName: selectedVoice,
         scriptText: textToRead,
+      });
+      saveAudioToLibrary(
+        {
+          id: `vo-${Date.now()}`,
+          title: `Locución de Video: ${textToRead.slice(0, 40)}...`,
+          createdAt: Date.now(),
+          voiceName: selectedVoice,
+          model: data.usedModel || selectedModel,
+          durationSeconds: data.durationSeconds,
+          wordCount: textToRead.split(/\s+/).filter(Boolean).length,
+          stylePrompt,
+          scriptText: textToRead,
+        },
+        { base64: data.audioBase64 },
+      ).then((key) => {
+        if (key) setCurrentAudio((prev) => (prev ? { ...prev, mediaKey: key } : prev));
       });
       if (data.durationSeconds && data.durationSeconds > 1) {
         setVideoDuration(data.durationSeconds);
@@ -2148,6 +2340,7 @@ export default function WappyStudioDashboard() {
       }
       const byteArray = new Uint8Array(byteNumbers);
       const blob = new Blob([byteArray], { type: 'video/mp4' });
+      saveVideoProjectToLibrary({ mp4Blob: blob });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -2610,10 +2803,125 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
       : `${baseHtml}\n${capsulePlayerInjection}`;
   };
 
+  /**
+   * Guarda el video (composición HTML + locución + MP4/cápsula si existen) en la Biblioteca.
+   * Si es la misma composición con el mismo audio, actualiza el registro existente en vez de duplicarlo.
+   */
+  const lastVideoProjectRef = useRef<{ id: string; signature: string } | null>(null);
+  const saveVideoProjectToLibrary = async (
+    extra: { mp4Blob?: Blob; capsuleHtml?: string } = {},
+    silent = true,
+  ) => {
+    try {
+      const html = latestEditedHtmlRef.current || htmlCode;
+      const audioRef = currentAudio?.mediaKey || activeStageAudioSrc || 'sin-audio';
+      const signature = `${html.length}:${html.slice(-200)}:${audioRef}:${aspectRatio}`;
+      const reuse =
+        lastVideoProjectRef.current?.signature === signature &&
+        libraryItems.some((x) => x.id === lastVideoProjectRef.current?.id);
+      const id = reuse ? (lastVideoProjectRef.current as { id: string }).id : `video-${Date.now()}`;
+
+      const htmlKey = `html-${id}`;
+      await putMediaBlob(htmlKey, new Blob([html], { type: 'text/html' }));
+
+      // Audio: reutilizar el de la biblioteca o guardar una copia
+      let mediaKey = currentAudio?.mediaKey;
+      if (!mediaKey && activeStageAudioSrc) {
+        const b64 = await resolveCurrentAudioBase64();
+        if (b64) {
+          mediaKey = `audio-${id}`;
+          await putMediaBlob(mediaKey, base64ToBlob(b64));
+        }
+      }
+
+      let mp4Key: string | undefined;
+      if (extra.mp4Blob) {
+        mp4Key = `mp4-${id}`;
+        await putMediaBlob(mp4Key, extra.mp4Blob);
+      }
+      let capsuleKey: string | undefined;
+      if (extra.capsuleHtml) {
+        capsuleKey = `capsule-${id}`;
+        await putMediaBlob(capsuleKey, new Blob([extra.capsuleHtml], { type: 'text/html' }));
+      }
+
+      const titleSource = (currentAudio?.scriptText || scriptText || headlineOverlayText || '')
+        .replace(/<[^>]+>/g, '')
+        .trim();
+      setLibraryItems((prev) => {
+        const existing = prev.find((x) => x.id === id);
+        const item: LibraryItem = {
+          ...(existing || {}),
+          id,
+          kind: 'video',
+          title: existing?.title || `Video ${aspectRatio}: ${titleSource.slice(0, 40)}...`,
+          createdAt: existing?.createdAt || Date.now(),
+          voiceName: currentAudio?.voiceName || selectedVoice,
+          model: selectedAiModel,
+          durationSeconds: Math.round((videoDuration || 0) * 10) / 10,
+          wordCount: titleSource.split(/\s+/).filter(Boolean).length,
+          scriptText: currentAudio?.scriptText || scriptText,
+          htmlKey,
+          mediaKey: mediaKey || existing?.mediaKey,
+          mp4Key: mp4Key || existing?.mp4Key,
+          capsuleKey: capsuleKey || existing?.capsuleKey,
+          aspectRatio,
+          showSubtitles: showDynamicSubtitles,
+          subtitlePosition,
+        };
+        return [item, ...prev.filter((x) => x.id !== id)];
+      });
+      lastVideoProjectRef.current = { id, signature };
+      if (!silent) {
+        setStatusBanner({
+          type: 'success',
+          text: '¡Video guardado en la Biblioteca! Puedes reabrirlo, editarlo o descargarlo cuando quieras.',
+        });
+      }
+    } catch (err: any) {
+      setStatusBanner({
+        type: 'error',
+        text: `No se pudo guardar el video en la Biblioteca: ${err?.message || 'error de almacenamiento'}`,
+      });
+    }
+  };
+
+  /** Reabre un video guardado en el Compositor (HTML + voz + formato). */
+  const openLibraryVideo = async (item: LibraryItem) => {
+    const htmlBlob = item.htmlKey ? await getMediaBlob(item.htmlKey) : null;
+    if (!htmlBlob) {
+      setStatusBanner({ type: 'error', text: 'No se encontró la composición HTML de este video.' });
+      return;
+    }
+    const html = await htmlBlob.text();
+    if (item.aspectRatio) setAspectRatio(item.aspectRatio);
+    if (typeof item.showSubtitles === 'boolean') setShowDynamicSubtitles(item.showSubtitles);
+    if (item.subtitlePosition) setSubtitlePosition(item.subtitlePosition);
+    latestEditedHtmlRef.current = '';
+    setHtmlCode(html);
+    const audioBlob = item.mediaKey ? await getMediaBlob(item.mediaKey) : null;
+    if (audioBlob) {
+      setCurrentAudio({
+        url: setObjectUrlForPlayer(audioBlob),
+        title: item.title,
+        durationSeconds: item.durationSeconds,
+        voiceName: item.voiceName,
+        scriptText: item.scriptText,
+        mediaKey: item.mediaKey,
+      });
+    }
+    if (item.durationSeconds && item.durationSeconds > 1) setVideoDuration(item.durationSeconds);
+    setVideoCurrentTime(0);
+    setIsVideoPlaying(false);
+    lastVideoProjectRef.current = null;
+    handleTabChange('video');
+  };
+
   const handleDownloadHtmlBundle = async () => {
     try {
       setIsBuildingAcademyHtml(true);
       const standaloneHtml = await buildStandaloneAcademyCapsuleHtml();
+      saveVideoProjectToLibrary({ capsuleHtml: standaloneHtml });
       const fileName = `wappy-academia-capsula-${Date.now()}.html`;
       const blob = new Blob([standaloneHtml], { type: 'text/html;charset=utf-8' });
 
@@ -3938,6 +4246,14 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
                   <ExpandableButton
                     size="sm"
+                    icon={<Save />}
+                    label="Guardar en Biblioteca"
+                    variant="teal"
+                    onClick={() => saveVideoProjectToLibrary({}, false)}
+                  />
+
+                  <ExpandableButton
+                    size="sm"
                     icon={<Maximize2 />}
                     label="Pantalla Completa"
                     variant="neutral"
@@ -4735,10 +5051,10 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               <div>
                 <h2 className="text-base font-extrabold text-text-primary flex items-center gap-2">
                   <BookOpen className="w-5 h-5 text-indigo-500" />
-                  Biblioteca de Audios Generados
+                  Biblioteca de Audios y Videos
                 </h2>
                 <p className="text-xs text-text-secondary">
-                  Tus locuciones y audiolibros quedan guardados localmente para reproducir, descargar en WAV o usar en el Compositor de Video.
+                  Tus locuciones y videos (HTML + voz) quedan guardados permanentemente en este navegador para reproducir, reabrir, editar o descargar.
                 </p>
               </div>
               {libraryItems.length > 0 && (
@@ -4746,7 +5062,11 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   icon={<Trash2 />}
                   label="Limpiar Historial"
                   variant="danger"
-                  onClick={() => setLibraryItems([])}
+                  onClick={() => {
+                    if (!window.confirm('¿Borrar todos los audios y videos guardados?')) return;
+                    setLibraryItems([]);
+                    clearMediaBlobs();
+                  }}
                 />
               )}
             </div>
@@ -4773,9 +5093,16 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         <h4 className="text-sm font-extrabold text-text-primary line-clamp-1">
                           {item.title}
                         </h4>
-                        <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border border-indigo-500/30 shrink-0">
-                          {item.voiceName}
-                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {item.kind === 'video' && (
+                            <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-md bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/30">
+                              🎬 VIDEO {item.aspectRatio || ''}
+                            </span>
+                          )}
+                          <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border border-indigo-500/30">
+                            {item.voiceName}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2.5 text-xs text-text-secondary">
                         <span>⏱ {formatDurationBadge(item.durationSeconds)}</span>
@@ -4793,68 +5120,84 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
                     <div className="flex items-center justify-between pt-3 border-t border-slate-200/60 dark:border-zinc-800">
                       <div className="flex items-center gap-1.5">
-                        <ExpandableButton
-                          size="sm"
-                          icon={<Play />}
-                          label="Reproducir"
-                          variant="teal"
-                          onClick={() =>
-                            setCurrentAudio({
-                              base64: item.audioBase64,
-                              url: item.downloadUrl,
-                              title: item.title,
-                              durationSeconds: item.durationSeconds,
-                              voiceName: item.voiceName,
-                              scriptText: item.scriptText,
-                            })
-                          }
-                        />
-                        <ExpandableButton
-                          size="sm"
-                          icon={<Film />}
-                          label="Usar en Video"
-                          variant="purple"
-                          onClick={() => {
-                            setCurrentAudio({
-                              base64: item.audioBase64,
-                              url: item.downloadUrl,
-                              title: item.title,
-                              durationSeconds: item.durationSeconds,
-                              voiceName: item.voiceName,
-                              scriptText: item.scriptText,
-                            });
-                            handleTabChange('video');
-                          }}
-                        />
+                        {item.kind === 'video' ? (
+                          <ExpandableButton
+                            size="sm"
+                            icon={<Edit3 />}
+                            label="Abrir en Compositor"
+                            variant="orange"
+                            onClick={() => openLibraryVideo(item)}
+                          />
+                        ) : (
+                          <>
+                            <ExpandableButton
+                              size="sm"
+                              icon={<Play />}
+                              label="Reproducir"
+                              variant="teal"
+                              onClick={() => openLibraryAudio(item)}
+                            />
+                            <ExpandableButton
+                              size="sm"
+                              icon={<Film />}
+                              label="Usar en Video"
+                              variant="purple"
+                              onClick={() => openLibraryAudio(item, true)}
+                            />
+                          </>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-1.5">
-                        <ExpandableButton
-                          size="sm"
-                          icon={<Download />}
-                          label="Descargar WAV"
-                          variant="green"
-                          onClick={() => {
-                            const href =
-                              item.downloadUrl ||
-                              (item.audioBase64 ? `data:audio/wav;base64,${item.audioBase64}` : '');
-                            if (!href) return;
-                            const a = document.createElement('a');
-                            a.href = href;
-                            a.download = `wappy-audio-${item.id}.wav`;
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                          }}
-                        />
+                        {item.kind === 'video' && item.mp4Key && (
+                          <ExpandableButton
+                            size="sm"
+                            icon={<Film />}
+                            label="Descargar MP4"
+                            variant="green"
+                            onClick={async () => {
+                              const b = await getMediaBlob(item.mp4Key as string);
+                              if (b) downloadBlobFile(b, `wappy-studio-reel-${item.id}.mp4`);
+                            }}
+                          />
+                        )}
+                        {item.kind === 'video' && item.capsuleKey && (
+                          <ExpandableButton
+                            size="sm"
+                            icon={<Download />}
+                            label="Descargar Cápsula HTML"
+                            variant="green"
+                            onClick={async () => {
+                              const b = await getMediaBlob(item.capsuleKey as string);
+                              if (b) downloadBlobFile(b, `wappy-academia-capsula-${item.id}.html`);
+                            }}
+                          />
+                        )}
+                        {item.kind !== 'video' && (
+                          <ExpandableButton
+                            size="sm"
+                            icon={<Download />}
+                            label="Descargar WAV"
+                            variant="green"
+                            onClick={async () => {
+                              const b = await loadLibraryAudioBlob(item);
+                              if (!b) {
+                                setStatusBanner({
+                                  type: 'error',
+                                  text: 'Este audio ya no está disponible (se generó antes del guardado permanente). Vuelve a generarlo.',
+                                });
+                                return;
+                              }
+                              downloadBlobFile(b, `wappy-audio-${item.id}.wav`);
+                            }}
+                          />
+                        )}
                         <ExpandableButton
                           size="sm"
                           icon={<Trash2 />}
                           label="Eliminar"
                           variant="danger"
-                          onClick={() =>
-                            setLibraryItems((prev) => prev.filter((x) => x.id !== item.id))
-                          }
+                          onClick={() => deleteLibraryItem(item)}
                         />
                       </div>
                     </div>
