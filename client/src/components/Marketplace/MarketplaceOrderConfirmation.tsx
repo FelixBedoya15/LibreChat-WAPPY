@@ -76,12 +76,18 @@ const MarketplaceOrderConfirmation: React.FC<Props> = ({ orderNumber, onBackToCa
 
   const isApproved = order.paymentStatus === 'APPROVED';
   const isReview = order.paymentStatus === 'MANUAL_REVIEW';
+  const hasMatrizIpvrApp = (order.items || []).some(
+    (item) =>
+      item.sku === 'WAPPY-MATRIZ-IPVR-APP' ||
+      /matriz\s*ipvr/i.test(item.title || '') ||
+      /aplicativo\s*descargable/i.test(item.title || '')
+  );
 
   const handleWhatsAppContact = () => {
     const text = encodeURIComponent(
-      `Hola equipo WAPPY, acabo de formalizar la orden ${order.orderNumber} por valor de ${formatCOP(order.totalAmount)} para los servicios de Salud Ocupacional. Solicito la asignación de especialista y cronograma de inicio.`
+      `Hola equipo WAPPY, acabo de formalizar la orden ${order.orderNumber} por valor de ${formatCOP(order.totalAmount)} en la Tienda WAPPY.`
     );
-    window.open(`https://wa.me/573105000000?text=${text}`, '_blank');
+    window.open(`https://wa.me/573102913651?text=${text}`, '_blank');
   };
 
   return (
@@ -120,15 +126,25 @@ const MarketplaceOrderConfirmation: React.FC<Props> = ({ orderNumber, onBackToCa
             : 'Hemos recibido tu comprobante de pago. Un asesor validará la consignación y activará el cronograma de ejecución.'}
         </p>
 
-        {/* Action WhatsApp Button */}
-        <div className="pt-2">
+        {/* Action Buttons */}
+        <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+          {hasMatrizIpvrApp && isApproved && (
+            <a
+              href={`/api/marketplace/orders/${encodeURIComponent(order.orderNumber)}/download-ipvr`}
+              download="Aplicativo_Matriz_IPVR_GTC45_WAPPY.html"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-xs text-slate-950 bg-[#c7f303] hover:bg-[#b5df02] border border-slate-900/20 shadow-lg shadow-[#c7f303]/30 transition-all active:scale-95"
+            >
+              <span>⬇️</span>
+              <span>Descargar Aplicativo Matriz IPVR (.HTML)</span>
+            </a>
+          )}
           <button
             type="button"
             onClick={handleWhatsAppContact}
             className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-xs text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-lg shadow-emerald-600/30 transition-all active:scale-95"
           >
             <MessageCircle className="h-5 w-5" />
-            <span>Coordinar Servicio por WhatsApp Inmediatamente</span>
+            <span>Coordinar o Soporte por WhatsApp</span>
           </button>
         </div>
       </div>

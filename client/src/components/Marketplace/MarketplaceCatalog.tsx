@@ -37,7 +37,14 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 
 const MarketplaceCatalog: React.FC = () => {
   const { user } = useAuthContext();
-  const { catalogRefreshKey, openEditProduct, setActiveTab, setSelectedProductDetail } = useMarketplace();
+  const {
+    catalogRefreshKey,
+    openEditProduct,
+    setActiveTab,
+    setSelectedProductDetail,
+    addToCart,
+    setIsCheckoutOpen,
+  } = useMarketplace();
   const isAdmin = user?.role === 'ADMIN';
 
   const [products, setProducts] = useState<MarketplaceProduct[]>([]);
@@ -83,15 +90,24 @@ const MarketplaceCatalog: React.FC = () => {
           const loaded: MarketplaceProduct[] = data.products || [];
           setProducts(loaded);
 
-          // Support direct product link ?producto=slug or ?curso=slug
+          // Support direct product link ?producto=slug or ?curso=slug (&buy=1 for direct checkout)
           const params = new URLSearchParams(window.location.search);
           const targetSlug = params.get('producto') || params.get('curso') || params.get('product');
+          const directBuy = params.get('buy') === '1';
           if (targetSlug) {
             const match = loaded.find(
-              (p) => p.slug?.toLowerCase() === targetSlug.toLowerCase() || p._id === targetSlug
+              (p) =>
+                p.slug?.toLowerCase() === targetSlug.toLowerCase() ||
+                p.sku?.toLowerCase() === targetSlug.toLowerCase() ||
+                p._id === targetSlug
             );
             if (match) {
-              setSelectedProductDetail(match);
+              if (directBuy) {
+                addToCart(match, undefined, undefined, 1);
+                setIsCheckoutOpen(true);
+              } else {
+                setSelectedProductDetail(match);
+              }
             }
           }
         }

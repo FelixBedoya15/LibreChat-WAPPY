@@ -301,9 +301,63 @@ const DEFAULT_TEST_SLUGS = [
   'investigacion-tecnica-accidente-trabajo-atel'
 ];
 
+// Official downloadable Matriz IPVR HTML application ($50.000 COP)
+const OFFICIAL_MATRIZ_IPVR_APP_PRODUCT = {
+  title: 'Aplicativo Descargable Matriz IPVR (GTC-45 Offline + IA)',
+  slug: 'aplicativo-descargable-matriz-ipvr',
+  sku: 'WAPPY-MATRIZ-IPVR-APP',
+  shortDescription: 'Aplicativo portable en formato .HTML 100% autónomo y funcional sin internet (Offline-First) + conexión directa con claves gratuitas de Google Gemini IA, Dashboard e Informe Gerencial A4.',
+  description: 'Adquiere la versión descargable y portable del Aplicativo Matriz IPVR (GTC-45 / Decreto 1072 de 2015) en un único archivo .HTML autónomo para tu computador o celular. Funciona 100% sin conexión a internet para gestión manual y te permite conectar tus propias claves gratuitas de Google Gemini IA (con rotación automática) para evaluar peligros y controles inteligentes sin pagar mensualidades.',
+  category: 'gtc45_ipevar',
+  tags: ['Matriz IPVR', 'GTC-45', 'Aplicativo Descargable', 'Offline HTML', 'Gemini IA', 'Decreto 1072'],
+  serviceType: 'digital_download',
+  regularPrice: 50000,
+  salePrice: 0,
+  hasDiscount: false,
+  hasVariants: false,
+  estimatedDeliveryDays: 'Descarga digital inmediata al aprobarse el pago',
+  deliverables: [
+    'Archivo maestro .HTML descargable (Aplicativo_Matriz_IPVR_GTC45_WAPPY.html) de uso vitalicio',
+    'Funcionamiento 100% Offline (sin internet) en Windows, Mac, Linux, Android o iOS',
+    'Creación y gestión ilimitada de empresas, sedes y matrices GTC-45 en tu dispositivo',
+    'Módulo de rotación inteligente para conectar tus propias claves gratuitas de Google Gemini IA',
+    'Dashboard interactivo de gráficas, mapa de calor ND x NC y priorización de riesgos',
+    'Generador automático de Informe Gerencial Ejecutivo A4 con firmas digitales o físicas listo para PDF y Excel'
+  ],
+  requirements: [
+    'Cualquier navegador moderno (Google Chrome, Edge, Safari, Brave o Firefox) en PC o celular',
+    'No requiere instalación de servidores ni pagos mensuales'
+  ],
+  faqs: [
+    {
+      question: '¿Cómo recibo el archivo descargable .HTML después de pagar?',
+      answer: 'Una vez aprobado el pago de $50.000 COP por Wompi (Nequi, PSE, Bancolombia o Tarjeta), se habilita de inmediato el botón "Descargar Aplicativo (.HTML)" tanto en la pantalla de confirmación de tu pedido como en la sección final de /matrizipvr.'
+    },
+    {
+      question: '¿Es un pago único o debo pagar mensualidad?',
+      answer: 'Es un pago único de $50.000 COP. El archivo .HTML queda guardado en tu computador o celular para siempre y puedes registrar todas las empresas y matrices que necesites.'
+    },
+    {
+      question: '¿Necesito internet para usar el aplicativo descargado?',
+      answer: 'Toda la gestión manual, cálculos matemáticos GTC-45, gráficas, empresas e informes PDF/JSON funcionan 100% sin internet (Offline). Solo necesitas internet si deseas usar la autocompletación automática con tus claves gratuitas de Google Gemini.'
+    }
+  ],
+  featuredImage: '/marketing/tutorial-thumbnail-felix-tenshi.png',
+  landingPageUrl: '/matrizipvr.html#descargar-aplicativo',
+  status: 'published',
+  isFeatured: true,
+  isTest: false,
+  stockType: 'unlimited',
+  availableSlots: 0,
+  rating: 5.0,
+  reviewsCount: 28,
+  paymentRecipient: 'WAPPY'
+};
+
 // Default initial catalog products
 const DEFAULT_PRODUCTS = [
   OFFICIAL_COURSE_PRODUCT,
+  OFFICIAL_MATRIZ_IPVR_APP_PRODUCT,
   ...WAPPY_ADDON_PRODUCTS,
   ADELANTO_COURSE_PRODUCT,
   {
@@ -693,6 +747,28 @@ const ensureSeedData = async (force = false) => {
         await MarketplaceProduct.updateOne(
           { slug: 'curso-ecosistema-autonomo-sst' },
           { $set: { landingPageUrl: '/cursowappy01' } }
+        );
+      }
+
+      // Ensure the official downloadable Matriz IPVR HTML product exists ($50.000 COP)
+      const matrizApp = await MarketplaceProduct.findOne({ slug: 'aplicativo-descargable-matriz-ipvr' });
+      if (!matrizApp) {
+        await MarketplaceProduct.create(OFFICIAL_MATRIZ_IPVR_APP_PRODUCT);
+        logger.info('[Marketplace] Official Matriz IPVR Downloadable App seeded into database.');
+      } else if (matrizApp.isTest || matrizApp.status === 'draft' || matrizApp.regularPrice !== 50000) {
+        await MarketplaceProduct.updateOne(
+          { slug: 'aplicativo-descargable-matriz-ipvr' },
+          {
+            $set: {
+              status: 'published',
+              isTest: false,
+              isFeatured: true,
+              regularPrice: 50000,
+              serviceType: 'digital_download',
+              featuredImage: OFFICIAL_MATRIZ_IPVR_APP_PRODUCT.featuredImage,
+              landingPageUrl: OFFICIAL_MATRIZ_IPVR_APP_PRODUCT.landingPageUrl
+            }
+          }
         );
       }
 
@@ -1558,6 +1634,82 @@ const adminDeleteCoupon = async (req, res) => {
   }
 };
 
+// GET /api/marketplace/orders/:orderNumber/download-ipvr
+const downloadMatrizIpvrApp = async (req, res) => {
+  try {
+    const rawCode = (req.params.orderNumber || '').trim();
+    if (!rawCode) {
+      return res.status(400).json({ error: 'Número de orden requerido para descargar el aplicativo.' });
+    }
+
+    const isAdmin = !!(req.user && req.user.role === 'ADMIN');
+
+    if (rawCode.toUpperCase() !== 'ADMIN-PREVIEW' || !isAdmin) {
+      const regex = new RegExp(`^${rawCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+      const order = await MarketplaceOrder.findOne({
+        $or: [{ orderNumber: regex }, { wompiReference: regex }]
+      });
+
+      if (!order) {
+        return res.status(404).json({
+          error: `No se encontró ninguna orden con el código "${rawCode}". Verifica el número de orden (ej. ORD-WAP-...).`
+        });
+      }
+
+      if (order.paymentStatus !== 'APPROVED' && !isAdmin) {
+        return res.status(403).json({
+          error: `La orden ${order.orderNumber} aún se encuentra en estado "${order.paymentStatus}". La descarga se habilita automáticamente en cuanto el pago es aprobado.`
+        });
+      }
+
+      const hasMatrizApp = (order.items || []).some(
+        (item) =>
+          item.sku === 'WAPPY-MATRIZ-IPVR-APP' ||
+          /matriz\s*ipvr/i.test(item.title || '') ||
+          /aplicativo\s*descargable/i.test(item.title || '')
+      );
+
+      if (!hasMatrizApp && !isAdmin) {
+        return res.status(403).json({
+          error: 'Esta orden no incluye el Aplicativo Descargable Matriz IPVR.'
+        });
+      }
+
+      if (order.fulfillmentStatus !== 'ENTREGADO') {
+        order.fulfillmentStatus = 'ENTREGADO';
+        order.serviceTimeline.push({
+          status: 'ENTREGADO',
+          comment: 'Aplicativo Descargable Matriz IPVR (.HTML) descargado exitosamente por el cliente.',
+          updatedAt: new Date(),
+          updatedBy: order.customer?.email || 'Cliente'
+        });
+        await order.save();
+      }
+    }
+
+    const candidatePaths = [
+      path.resolve(__dirname, '../../../client/dist/matrizipvr.html'),
+      path.resolve(__dirname, '../../../client/public/matrizipvr.html'),
+      path.resolve(__dirname, '../../../matriz_ipvr_gtc45_offline.html')
+    ];
+
+    const targetFile = candidatePaths.find((p) => fs.existsSync(p));
+    if (!targetFile) {
+      return res.status(404).json({ error: 'Archivo del aplicativo no encontrado en el servidor.' });
+    }
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="Aplicativo_Matriz_IPVR_GTC45_WAPPY.html"'
+    );
+    return res.sendFile(targetFile);
+  } catch (error) {
+    logger.error('[Marketplace] downloadMatrizIpvrApp error:', error);
+    return res.status(500).json({ error: 'Error al generar la descarga del aplicativo.' });
+  }
+};
+
 // POST /api/marketplace/admin/reseed
 const adminReseedCatalog = async (req, res) => {
   try {
@@ -1581,6 +1733,7 @@ module.exports = {
   verifyPayment,
   handleWebhook,
   getOrderDetails,
+  downloadMatrizIpvrApp,
   getMyOrders,
   adminGetOrders,
   adminUpdateOrderStatus,
