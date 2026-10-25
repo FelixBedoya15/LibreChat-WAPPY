@@ -298,7 +298,11 @@ const registerUser = async (user, additionalData = {}) => {
           { upsert: true, new: true }
         );
         logger.info(`[registerUser] Auto-provisioned 7-day PRO trial on registration for ${email}. Expiry: ${trialExpiryDate.toISOString()}`);
+      } catch (trialErr) {
+        logger.error('[registerUser] Error creating UserPlan for 7-day PRO trial:', trialErr);
+      }
 
+      try {
         const Notification = require('~/models/Notification');
         await Notification.create({
           user: newUserId,
@@ -306,8 +310,8 @@ const registerUser = async (user, additionalData = {}) => {
           title: '¡Bienvenido a WAPPY PRO! Tienes 7 días gratis',
           body: 'Tu membresía gratuita de 7 días está activa. Disfruta de acceso total a todos los especialistas de IA, agentes y herramientas SG-SST de WAPPY.',
         });
-      } catch (trialErr) {
-        logger.error('[registerUser] Error creating UserPlan/Notification for 7-day PRO trial:', trialErr);
+      } catch (notifErr) {
+        logger.error('[registerUser] Error creating Notification for 7-day PRO trial:', notifErr);
       }
     }
 
