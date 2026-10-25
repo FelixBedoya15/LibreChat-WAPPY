@@ -265,79 +265,18 @@ router.post('/matrizipvr/metrics', async (req, res) => {
     }
 });
 
-// 2. Consultar métricas de empresas para el panel de Admin (Solo Administradores, omite firmas)
+// 2. Consultar métricas de empresas para el panel de Admin (Solo Administradores, únicamente empresas de /matrizipvr, omite firmas)
 router.get('/matrizipvr/metrics', requireAdminCookieOrJwt, async (req, res) => {
     try {
-        // Consultar métricas de matrizipvr
+        // Consultar únicamente las métricas registradas desde /matrizipvr.html
         const ipvrList = await MatrizIpvrMetric.find({})
             .sort({ updatedAt: -1 })
             .lean();
 
-        // Consultar empresas de la plataforma WAPPY (excluyendo firmas)
-        const wappyCompanies = await CompanyInfo.find({})
-            .select('-legalRepSignature -sstRespSignature -logoBase64')
-            .sort({ updatedAt: -1 })
-            .lean();
-
-        // Mapa para consolidar y evitar duplicados por NIT o companyName
-        const consolidatedMap = new Map();
-
-        // 1. Añadir empresas de WAPPY
-        for (const c of wappyCompanies) {
-            const key = (c.nit || c.companyName || c._id.toString()).trim().toLowerCase();
-            if (!key) continue;
-            consolidatedMap.set(key, {
-                _id: c._id.toString(),
-                companyName: c.companyName || 'Empresa WAPPY',
-                companyType: c.companyType || 'Persona Jurídica',
-                nit: c.nit || '',
-                legalRepresentative: c.legalRepresentative || '',
-                legalRepresentativeId: c.legalRepresentativeId || '',
-                workerCount: Number(c.workerCount) || 0,
-                arl: c.arl || '',
-                economicActivity: c.economicActivity || '',
-                riskLevel: c.riskLevel || '',
-                ciiu: c.ciiu || '',
-                address: c.address || '',
-                city: c.city || '',
-                phone: c.phone || '',
-                email: c.email || '',
-                responsibleSST: c.responsibleSST || '',
-                licenseNumber: c.licenseNumber || '',
-                licenseExpiry: c.licenseExpiry || '',
-                formationLevel: c.formationLevel || '',
-                totalRisks: 0,
-                highRisks: 0,
-                sedesCount: Array.isArray(c.sedes) ? c.sedes.length : 0,
-                source: 'wappy_platform',
-                updatedAt: c.updatedAt || c.createdAt || new Date()
-            });
-        }
-
-        // 2. Fusionar métricas de matrizipvr (tienen datos de la matriz GTC45)
-        for (const m of ipvrList) {
-            const key = (m.nit || m.companyName || m._id.toString()).trim().toLowerCase();
-            if (!key) continue;
-            if (consolidatedMap.has(key)) {
-                const existing = consolidatedMap.get(key);
-                consolidatedMap.set(key, {
-                    ...existing,
-                    ...m,
-                    _id: m._id.toString(),
-                    workerCount: m.workerCount || existing.workerCount,
-                    totalRisks: Math.max(m.totalRisks || 0, existing.totalRisks || 0),
-                    highRisks: Math.max(m.highRisks || 0, existing.highRisks || 0),
-                    updatedAt: m.updatedAt > existing.updatedAt ? m.updatedAt : existing.updatedAt
-                });
-            } else {
-                consolidatedMap.set(key, {
-                    ...m,
-                    _id: m._id.toString()
-                });
-            }
-        }
-
-        const allCompanies = Array.from(consolidatedMap.values()).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+        const allCompanies = ipvrList.map((m) => ({
+            ...m,
+            _id: m._id.toString(),
+        }));
 
         // Estadísticas agregadas
         let totalWorkers = 0;

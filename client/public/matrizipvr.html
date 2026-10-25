@@ -3685,7 +3685,6 @@ window.addEventListener('DOMContentLoaded', () => {
   renderDashboard();
   renderExecutiveReport();
   updateFilterDropdownOptions();
-  setTimeout(() => syncCompanyMetricsToServer(companyInfo), 3500);
 
   window.addEventListener('online', () => {
     loadSavedKeys();
