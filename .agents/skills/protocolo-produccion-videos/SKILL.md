@@ -76,13 +76,24 @@ Ofrecer siempre al usuario alternativas visuales tanto para horizontal como para
 ---
 
 ### Fase 5: Estructuración del Guión y Validación por Frames
-1. **Presentación de la Tabla de Storyboard:**
+1. **Presentación de la Tabla de Storyboard (Con Selección Obligatoria de Transiciones):**
    Antes de codificar, presentar la tabla con:
    - Segundo inicial y final (ej. `0s - 7s`).
    - Título de la escena y concepto.
    - Locución exacta de voz.
    - Distribución visual (Izquierda / Centro / Derecha).
-   - Animación clave / Efecto visual.
+   - **Animación clave / Transición de Alto Impacto (Obligatorio seleccionar de `animaciones-17-efectos-reels`):**
+     * *Orbit (Órbita 3D)*
+     * *Frame Break (Ruptura de encuadre)*
+     * *UI World (Interfaces 3D)*
+     * *Digital Zoom con retícula*
+     * *Phone Mockup con Dynamic Island*
+     * *Headline Wall en perspectiva*
+     * *Zoom-Through (transición inmersiva sin corte)*
+     * *Chart Grow en tiempo real*
+     * *Doodle Boil a 10 Hz*
+     * *Glass Type (cristal 3D)*
+   - **Regla Estricta:** Todo guión de 30 a 60 segundos **DEBE** encadenar al menos 4 de estas transiciones; está prohibido proponer escenas con animaciones pasivas o fundidos simples.
 2. **Generación de Previsualizaciones (Keyframes):**
    - Una vez aprobado el guión, generar imágenes fijas de demostración de las escenas más representativas para que el usuario valide el look & feel en segundos, antes de incurrir en tiempos de renderizado de vídeo largo.
 3. **Renderizado Final:**

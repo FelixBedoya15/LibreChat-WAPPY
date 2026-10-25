@@ -188,6 +188,41 @@
     background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
     transform: rotate(25deg); pointer-events: none;
   }
+
+  /* 18. Orbit 3D (Satélites e Iconos Orbitando en Elipse Tridimensional) */
+  .fx-orbit-container {
+    position: absolute; width: 100%; height: 100%;
+    pointer-events: none; perspective: 1000px;
+  }
+  .fx-orbit-satellite {
+    position: absolute;
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 16px; border-radius: 999px;
+    background: rgba(14, 19, 0, 0.85);
+    border: 1.5px solid rgba(199, 243, 3, 0.45);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 0 0 15px rgba(199, 243, 3, 0.25);
+    font-family: var(--sans); font-size: 14px; font-weight: 800; color: #ffffff;
+    white-space: nowrap; transition: transform 0.1s linear;
+  }
+  .fx-orbit-satellite .dot {
+    width: 8px; height: 8px; border-radius: 999px;
+    background: #c7f303; box-shadow: 0 0 10px #c7f303;
+  }
+
+  /* 19. Zoom-Through (Transición Inmersiva que Atraviesa una Letra o Marco) */
+  .fx-zoom-through-overlay {
+    position: absolute; inset: 0; pointer-events: none;
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle, transparent 20%, rgba(14, 19, 0, 0.95) 70%);
+    overflow: hidden;
+  }
+  .fx-zoom-through-letter {
+    font-family: var(--sans); font-size: 320px; font-weight: 900;
+    line-height: 1; color: transparent;
+    -webkit-text-stroke: 12px #c7f303;
+    text-shadow: 0 0 40px rgba(199, 243, 3, 0.5);
+    transform-origin: center center;
+  }
   `;
   const s = document.createElement('style');
   s.textContent = css;
@@ -538,6 +573,66 @@ class FX17GlassType {
   }
 }
 
+/* 18. Orbit 3D: Satélites, badges o módulos que orbitan elípticamente en 3D */
+class FXOrbit {
+  constructor(o = {}) {
+    this.t0 = o.t0 ?? 0;
+    this.items = o.items || ['Módulo 01', 'Módulo 02', 'Módulo 03', 'Módulo 04'];
+    this.rx = o.rx || 320; // radio horizontal
+    this.ry = o.ry || 110; // radio vertical (inclinación)
+    this.speed = o.speed || 0.6; // vueltas por segundo
+    this.el = mk('div', 'L fx-orbit-container z6');
+    this._satellites = this.items.map((txt) => {
+      const sat = mk('div', 'fx-orbit-satellite');
+      sat.innerHTML = `<span class="dot"></span><span>${txt}</span>`;
+      this.el.appendChild(sat);
+      return sat;
+    });
+  }
+  pintar(t, k = {}) {
+    const op = k.o ?? 1;
+    if (op <= 0.002 || t < this.t0 - 0.05) { off(this.el); return; }
+    const pIntro = P(t, this.t0, 0.5, E.spring);
+    const cx = k.x ?? CX;
+    const cy = k.y ?? CY;
+    const n = this._satellites.length;
+    const angleOffset = (t - this.t0) * Math.PI * 2 * this.speed;
+
+    this._satellites.forEach((sat, i) => {
+      const theta = angleOffset + (i * Math.PI * 2) / n;
+      const cosT = Math.cos(theta);
+      const sinT = Math.sin(theta);
+      const px = cx + cosT * this.rx * pIntro;
+      const py = cy + sinT * this.ry * pIntro;
+      // Parallax de profundidad: satélites en el frente (sinT > 0) son más grandes y opacos
+      const depth = (sinT + 1) / 2; // 0 (fondo) a 1 (frente)
+      const scale = lerp(0.75, 1.12, depth);
+      const satOp = lerp(0.45, 1.0, depth) * op * clamp(pIntro * 2);
+      const zIndex = sinT > 0 ? 10 : 3;
+
+      sat.style.transform = `translate3d(${px}px, ${py}px, 0) translate(-50%, -50%) scale(${scale})`;
+      sat.style.opacity = satOp;
+      sat.style.zIndex = zIndex;
+    });
+    put(this.el, { x: 0, y: 0, o: 1 });
+  }
+}
+
+/* 19. Zoom-Through: Transición inmersiva donde la cámara digital atraviesa un glifo o marco */
+function fxZoomThrough(t, t0, dur = 0.75) {
+  const p = P(t, t0, dur, E.in4);
+  // Escala exponencial de 1x hasta 28x para cruzar completamente el encuadre
+  const scale = lerp(1.0, 28.0, p);
+  const opacity = clamp(1.0 - p * 1.3);
+  const blur = p * 16;
+  return {
+    scale,
+    opacity,
+    blur,
+    activo: t >= t0 && t <= t0 + dur + 0.1,
+  };
+}
+
 window.LISTA_17_EFECTOS = LISTA_17_EFECTOS;
 window.Showcase17Reels = Showcase17Reels;
 window.fx01Giro3D = fx01Giro3D;
@@ -553,3 +648,5 @@ window.FX14DoodleBoil = FX14DoodleBoil;
 window.fx15Vertigo = fx15Vertigo;
 window.FX16CoverStory = FX16CoverStory;
 window.FX17GlassType = FX17GlassType;
+window.FXOrbit = FXOrbit;
+window.fxZoomThrough = fxZoomThrough;

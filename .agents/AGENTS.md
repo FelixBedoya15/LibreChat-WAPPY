@@ -134,6 +134,7 @@ docker exec -it LibreChat node scripts/restore-and-sync-all.js
 >    - **PROHIBICIÓN ESTRICTA DE ELEMENTOS DE PÁGINA WEB:** Está terminantemente prohibido incrustar barras de navegación web (`WappyNavbar`), cabeceras de landing page o botones de sitios web en videos de marketing, a menos que el usuario pida explícitamente "muestra una página web". Un video es una experiencia cinematográfica y de motion graphics, no una captura de pantalla de un sitio web.
 > 5. **Paso 5: Guión Estructural Escena por Escena y Previsualizaciones:**
 >    - Presentar la tabla estructural del guión (segundos, locución exacta, disposición visual izquierda/centro/derecha, animaciones y CTA).
+>    - **Uso Obligatorio de Transiciones Dinámicas:** Todo guión debe encadenar activamente al menos 4 transiciones maestras de la skill `animaciones-17-efectos-reels` (Orbit 3D, Zoom-Through inmersivo sin corte, Frame Break, UI World, Digital Zoom con retícula, Phone Mockup 3D, Headline Wall, Chart Grow, Doodle Boil, Glass Type). Prohibido dejar escenas estáticas o usar fundidos simples sin dinamismo.
 >    - **Previsualización antes de render:** Generar imágenes fijas de demostración (frames clave) de cada escena para validación visual rápida con el usuario antes de procesar cualquier render completo en MP4.
 
 

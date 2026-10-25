@@ -111,3 +111,34 @@ Para disparar comentarios en Reels / TikTok:
    - Ningún elemento en pantalla puede quedarse quieto tras su entrada. Todos los contenedores, iconos, avatares y badges deben mantener flotación sinusoidal continua (`sine.inOut`), oscilación angular sutil (`±1°`) y pulso de luz.
 5. **Gesticulación Natural y Punteros Sutiles (ESTRICTAMENTE PROHIBIDO SABLE LÁSER):**
    - Los avatares y presentadores usan gesticulación natural de oratoria humana. Está **terminantemente prohibido** añadir rayos láser, sables de energía o destellos saliendo de las manos. Para destacar elementos se usan anillos de pulso (`pulse-ring`), destellos o micro-tarjetas flotantes sobre el objeto de interés, nunca armas o rayos en las manos.
+
+---
+
+## 9. Catálogo de Transiciones de Alto Impacto (Nivel After Effects en GSAP)
+
+Todo proyecto en HyperFrames debe integrar las transiciones de la skill `animaciones-17-efectos-reels`, asegurando una experiencia visual hiperdinámica:
+
+1. **ORBIT 3D (Satélites en Órbita):**
+   Elementos y tarjetas orbitan en elipse 3D alrededor del presentador o de la tarjeta núcleo, ajustando escala y opacidad según su posición frontal o trasera.
+2. **FRAME BREAK (Ruptura de Límites):**
+   El avatar o elemento central traspasa la caja contenedora y se proyecta hacia la pantalla rompiendo la cuarta pared.
+3. **UI WORLD (Universo de Interfaces 3D):**
+   Múltiples ventanas, chats con Tenshi y métricas dispuestas en arco curvo tridimensional flotante.
+4. **DIGITAL ZOOM (Zoom con Retícula):**
+   Punch-in acelerado (`power3.out`) con visor HUD que enfoca el elemento clave.
+5. **PHONE MOCKUP 3D (Smartphone Animado):**
+   Celular con Dynamic Island interactiva que muestra notificaciones en vivo.
+6. **HEADLINE WALL (Muro de Titulares):**
+   Muro tipográfico dinámico con franjas inclinadas que se desplazan a contraflujo.
+7. **ZOOM-THROUGH (Transición Inmersiva sin Corte):**
+   La cámara atraviesa a gran escala (`scale: 1 -> 25+`) el hueco de una letra o marco para cambiar de escena fluidamente.
+8. **CHART GROW (Gráficos en Tiempo Real):**
+   Curvas y barras de métricas analíticas que crecen de 0 a 100% con contadores dinámicos.
+9. **DOODLE BOIL (Trazos Vibrantes a Mano):**
+   Líneas y garabatos orgánicos stop-motion a 10 Hz alrededor de las palabras o figuras clave.
+10. **GLASS TYPE (Tipografía 3D de Cristal):**
+    Titulares gruesos en vidrio translúcido con barrido especular continuo.
+
+> [!CRITICAL]
+> **REGLA MANDATORIA DE COMPOSICIÓN:**
+> Todo reel o video de 30 a 60 segundos **DEBE encadenar al menos 4 de estas transiciones maestras**, impidiendo que cualquier toma se sienta estática o lineal.

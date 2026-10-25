@@ -164,3 +164,13 @@ tl.fromTo(".hud-item-right",
   0.6
 );
 ```
+
+---
+
+## 7. Transiciones Cyberpunk HUD Obligatorias (Orbit, Zoom-Through y Glass Type)
+
+Para mantener el estilo pericial de ciencia ficción de alta fidelidad, conecta directamente con `animaciones-17-efectos-reels`:
+- **FXOrbit 3D:** Los 5 módulos de la Huella Biocéntrica orbitan alrededor del núcleo en elipse tridimensional (`rx: 340, ry: 110`), conectándose con haces láser SVG.
+- **fxZoomThrough:** Cambios de escena atravesando el centro del radar holográfico o el visor biométrico (`scale: 1 -> 25x`).
+- **FX17GlassType:** Los titulares de módulos periciales se renderizan con tipografía de cristal táctica, aberración cromática ligera y barrido de luz.
+- **FX14DoodleBoil:** Resaltadores periciales y flechas holográficas vibrando a 10 Hz para señalar no conformidades o alertas de riesgo.
