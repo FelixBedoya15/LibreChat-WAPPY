@@ -1708,7 +1708,7 @@
   <!-- ========================================================= -->
   <!-- BARRA FLOTANTE DE ADMINISTRADOR (Visible SOLO para Admin) -->
   <!-- ========================================================= -->
-  <div id="floatingAdminBar" class="hidden fixed bottom-5 right-5 z-40 items-center gap-2.5 px-3.5 py-2.5 rounded-2xl bg-slate-900/95 backdrop-blur-md border border-[#c7f303]/50 shadow-2xl animate-in fade-in duration-300">
+  <div id="floatingAdminBar" class="no-print hidden fixed bottom-5 right-5 z-40 items-center gap-2.5 px-3.5 py-2.5 rounded-2xl bg-slate-900/95 backdrop-blur-md border border-[#c7f303]/50 shadow-2xl animate-in fade-in duration-300">
     <div class="flex items-center gap-2">
       <span class="w-2.5 h-2.5 rounded-full bg-[#c7f303] shadow-[0_0_10px_#c7f303] animate-pulse"></span>
       <span class="text-xs font-black text-white tracking-wide">Admin WAPPY</span>
@@ -8187,11 +8187,10 @@ function renderExecutiveReport() {
                     <img src="${companyInfo.sstRespSignature}" style="max-height: 60px; max-width: 100%; object-fit: contain; display: block; margin: 0 auto;" alt="Firma SST">
                     <button type="button" contenteditable="false" onclick="openSignaturePad('sstRespSignature')" class="no-print mt-1 px-2.5 py-0.5 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 text-[10px] font-bold border border-teal-200 cursor-pointer transition-all">✍️ Cambiar Firma</button>
                    </div>`
-                : `<div class="w-full text-center py-1">
+                : `<div class="no-print w-full text-center py-2">
                     <button type="button" contenteditable="false" onclick="openSignaturePad('sstRespSignature')" class="no-print mb-1.5 px-3 py-1.5 rounded-xl bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 border border-teal-500/30 text-xs font-bold transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-95">
                       <span>✍️</span> <span>Dibujar Firma SG-SST</span>
                     </button>
-                    <div style="color: #94a3b8; font-size: 10.5px; padding-bottom: 4px; font-weight: bold;">FIRMA DIGITAL AVALADA EN SISTEMA</div>
                    </div>`}
             </div>
             <div style="font-weight: 900; font-size: 13px; color: #0f172a; text-transform: uppercase;">${responsibleSST}</div>
@@ -8209,11 +8208,10 @@ function renderExecutiveReport() {
                     <img src="${companyInfo.legalRepSignature}" style="max-height: 60px; max-width: 100%; object-fit: contain; display: block; margin: 0 auto;" alt="Firma Rep Legal">
                     <button type="button" contenteditable="false" onclick="openSignaturePad('legalRepSignature')" class="no-print mt-1 px-2.5 py-0.5 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 text-[10px] font-bold border border-teal-200 cursor-pointer transition-all">✍️ Cambiar Firma</button>
                    </div>`
-                : `<div class="w-full text-center py-1">
+                : `<div class="no-print w-full text-center py-2">
                     <button type="button" contenteditable="false" onclick="openSignaturePad('legalRepSignature')" class="no-print mb-1.5 px-3 py-1.5 rounded-xl bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 border border-teal-500/30 text-xs font-bold transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-95">
                       <span>✍️</span> <span>Dibujar Firma Rep. Legal</span>
                     </button>
-                    <div style="color: #94a3b8; font-size: 10.5px; padding-bottom: 4px; font-weight: bold;">FIRMA DIRECCIÓN GENERAL REGISTRADA</div>
                    </div>`}
             </div>
             <div style="font-weight: 900; font-size: 13px; color: #0f172a; text-transform: uppercase;">${legalRep}</div>
