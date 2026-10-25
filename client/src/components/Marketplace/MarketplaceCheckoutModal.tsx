@@ -60,94 +60,204 @@ const MarketplaceCheckoutModal: React.FC<Props> = ({ onSuccess }) => {
   useEffect(() => {
     if (!isCheckoutOpen) return;
 
+    const isValidEmail = (v?: string) =>
+      typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+    const isValidPhone = (v?: string) =>
+      typeof v === 'string' && v.replace(/\D/g, '').length >= 7;
+    const isValidText = (v?: string) => {
+      if (typeof v !== 'string') return false;
+      const t = v.trim();
+      if (t.length < 3) return false;
+      if (/^(asd[a-z]*|zsd[a-z]*|zxc[a-z]*|zdf[a-z]*|adv|n\/a|no registrado|sin nombre)$/i.test(t)) {
+        return false;
+      }
+      return true;
+    };
+    const pickFirst = (validator: (v?: string) => boolean, ...candidates: (string | undefined)[]) => {
+      for (const c of candidates) {
+        if (validator(c)) return String(c).trim();
+      }
+      return '';
+    };
+
     const getLocalCompanyFallback = () => {
       try {
-        const activeId = localStorage.getItem('wappy_active_company_id');
+        const activeId = localStorage.getItem('wappy_active_company_id') || '';
         const activeName = localStorage.getItem('wappy_active_company_name') || '';
         const activeNit = localStorage.getItem('wappy_active_company_nit') || '';
-        const draftRaw =
-          (activeId && localStorage.getItem(`wappy_company_draft_${activeId}`)) ||
-          localStorage.getItem('wappy_company_draft_new');
-        const draft = draftRaw ? JSON.parse(draftRaw) : null;
+        const activeArl = localStorage.getItem('wappy_active_company_arl') || '';
+        const activeWorkers = localStorage.getItem('wappy_active_company_workers') || '';
+        const activeRisk = localStorage.getItem('wappy_active_company_risk') || '';
 
-        let matrizipvrCompany: any = null;
-        const ipvrRaw = localStorage.getItem('matrizipvr_State_v2');
-        if (ipvrRaw) {
-          const parsedIpvr = JSON.parse(ipvrRaw);
-          if (parsedIpvr?.companyInfo?.name) {
-            matrizipvrCompany = {
-              companyName: parsedIpvr.companyInfo.name,
-              nit: parsedIpvr.companyInfo.nit,
-              phone: parsedIpvr.companyInfo.phone,
-              city: parsedIpvr.companyInfo.city,
-              address: parsedIpvr.companyInfo.address,
-              email: parsedIpvr.companyInfo.email,
-              legalRepresentative: parsedIpvr.companyInfo.rep,
-            };
+        const parseSafe = (raw: string | null) => {
+          if (!raw) return null;
+          try {
+            return JSON.parse(raw);
+          } catch {
+            return null;
           }
-        }
+        };
+
+        const draft =
+          parseSafe(activeId ? localStorage.getItem(`wappy_company_draft_${activeId}`) : null) ||
+          parseSafe(localStorage.getItem('wappy_company_draft_new'));
+
+        const gtc45Company = parseSafe(localStorage.getItem('wappy_gtc45_company'));
+
+        const companiesListRaw =
+          parseSafe(localStorage.getItem('wappy_sgsst_companies')) ||
+          parseSafe(localStorage.getItem('wappy_sgsst_companies_offline'));
+        const companiesList: any[] = Array.isArray(companiesListRaw) ? companiesListRaw : [];
+        const activeFromList =
+          companiesList.find((c) => activeId && String(c?._id) === activeId) ||
+          companiesList.find((c) => c?.isActive) ||
+          companiesList[0] ||
+          null;
+
+        const ipvrState = parseSafe(localStorage.getItem('matrizipvr_State_v2'));
+        const ipvrComp = ipvrState?.companyInfo
+          ? {
+              companyName: ipvrState.companyInfo.name,
+              nit: ipvrState.companyInfo.nit,
+              phone: ipvrState.companyInfo.phone,
+              city: ipvrState.companyInfo.city,
+              address: ipvrState.companyInfo.address,
+              email: ipvrState.companyInfo.email,
+              legalRepresentative: ipvrState.companyInfo.rep,
+            }
+          : null;
+
+        const sources = [draft, activeFromList, gtc45Company, ...companiesList, ipvrComp].filter(Boolean);
+
+        const fullName = pickFirst(
+          isValidText,
+          ...sources.flatMap((s) => [s?.responsibleSST, s?.legalRepresentative])
+        );
+        const companyName = pickFirst(
+          isValidText,
+          activeName,
+          ...sources.map((s) => s?.companyName)
+        );
+        const documentId = pickFirst(
+          isValidText,
+          activeNit,
+          ...sources.flatMap((s) => [s?.nit, s?.legalRepresentativeId])
+        );
+        const email = pickFirst(
+          isValidEmail,
+          ...sources.map((s) => s?.email)
+        );
+        const phone = pickFirst(
+          isValidPhone,
+          ...sources.flatMap((s) => [s?.phone, s?.responsibleSSTPhone])
+        );
+        const rawCity = pickFirst(
+          isValidText,
+          ...sources.map((s) => s?.city)
+        );
+        const rawDept = pickFirst(
+          isValidText,
+          ...sources.map((s) => s?.departamento)
+        );
+        const city =
+          rawCity && rawDept && !rawCity.toLowerCase().includes(rawDept.toLowerCase())
+            ? `${rawCity}, ${rawDept}`
+            : rawCity;
+        const address = pickFirst(
+          isValidText,
+          ...sources.map((s) => s?.address)
+        );
+        const arl = pickFirst(
+          isValidText,
+          activeArl,
+          ...sources.map((s) => s?.arl)
+        );
+        const riskLevel = pickFirst(
+          (v) => Boolean(v && v.trim()),
+          activeRisk,
+          ...sources.map((s) => s?.riskLevel)
+        );
+        const workers =
+          activeWorkers ||
+          String(sources.find((s) => Number(s?.workerCount) > 0)?.workerCount || '');
+
+        const notesParts: string[] = [];
+        if (address) notesParts.push(`Dir: ${address}`);
+        if (arl) notesParts.push(`ARL: ${arl}`);
+        if (riskLevel) notesParts.push(`Riesgo: ${riskLevel}`);
+        if (workers && workers !== '0') notesParts.push(`${workers} trabajadores`);
+
+        const isDemoDefault =
+          companyName.toUpperCase().includes('WAPPY INDUSTRIA') ||
+          activeId === 'comp_default_1' ||
+          email === 'sst@wappy.club';
 
         return {
-          companyName: draft?.companyName || activeName || matrizipvrCompany?.companyName || '',
-          nit: draft?.nit || activeNit || matrizipvrCompany?.nit || '',
-          legalRepresentativeId: draft?.legalRepresentativeId || '',
-          legalRepresentative: draft?.legalRepresentative || matrizipvrCompany?.legalRepresentative || '',
-          responsibleSST: draft?.responsibleSST || '',
-          phone: draft?.phone || matrizipvrCompany?.phone || '',
-          city: draft?.city || matrizipvrCompany?.city || '',
-          address: draft?.address || matrizipvrCompany?.address || '',
-          email: draft?.email || matrizipvrCompany?.email || '',
+          fullName,
+          companyName,
+          documentId,
+          email,
+          phone,
+          city,
+          address,
+          notes: notesParts.join(' · '),
+          isDemoDefault,
         };
       } catch {
-        return {};
+        return {
+          fullName: '',
+          companyName: '',
+          documentId: '',
+          email: '',
+          phone: '',
+          city: '',
+          address: '',
+          notes: '',
+          isDemoDefault: false,
+        };
       }
     };
 
     const localFallback = getLocalCompanyFallback();
 
-    // 1. Immediately populate any synchronous user or local company data
+    // 1. Immediately populate all fields from user + local company data
     setCustomer((prev) => ({
       ...prev,
-      fullName:
-        prev.fullName ||
-        user?.name ||
-        localFallback.responsibleSST ||
-        localFallback.legalRepresentative ||
-        '',
-      email: prev.email || user?.email || localFallback.email || '',
-      companyName: prev.companyName || localFallback.companyName || '',
-      documentId: prev.documentId || localFallback.nit || localFallback.legalRepresentativeId || '',
-      phone: prev.phone || localFallback.phone || '',
-      city:
-        !prev.city || prev.city === 'Bogotá'
-          ? localFallback.city || prev.city || ''
-          : prev.city,
-      address: prev.address || localFallback.address || '',
+      fullName: pickFirst(isValidText, prev.fullName, user?.name, localFallback.fullName),
+      email: pickFirst(isValidEmail, prev.email, user?.email, localFallback.email),
+      companyName: pickFirst(isValidText, prev.companyName, localFallback.companyName),
+      documentId: pickFirst(isValidText, prev.documentId, localFallback.documentId),
+      phone: pickFirst(isValidPhone, prev.phone, (user as any)?.phoneNumber, localFallback.phone),
+      city: pickFirst(
+        isValidText,
+        prev.city !== 'Bogotá' ? prev.city : '',
+        (user as any)?.ciudad,
+        localFallback.city
+      ),
+      address: pickFirst(isValidText, prev.address, localFallback.address),
+      notes: pickFirst(isValidText, prev.notes, localFallback.notes),
     }));
 
     // 2. Fetch active company info & aggregated customer profile from backend
     const fetchUserAndCompanyData = async () => {
-      let effectiveToken = token;
-      if (!effectiveToken) {
-        try {
-          const refreshRes = await axios.post('/api/auth/refresh');
-          if (refreshRes?.data?.token) {
-            effectiveToken = refreshRes.data.token;
-          }
-        } catch {
-          // Guest user without active session
-        }
-      }
-
-      const headers = effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : undefined;
+      const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
       let serverProfile: any = null;
+      let serverAuthenticated = false;
       let companyInfo: any = null;
       let lastOrderCustomer: any = null;
 
       try {
-        const { data: profileRes } = await axios.get('/api/marketplace/customer-profile', { headers });
+        const { data: profileRes } = await axios.get('/api/marketplace/customer-profile', {
+          headers,
+          withCredentials: true,
+          params: {
+            nit: localFallback.documentId || undefined,
+            email: user?.email || localFallback.email || undefined,
+          },
+        });
         if (profileRes?.profile) {
           serverProfile = profileRes.profile;
+          serverAuthenticated = Boolean(profileRes.authenticated);
         }
         if (profileRes?.company) {
           companyInfo = profileRes.company;
@@ -156,9 +266,12 @@ const MarketplaceCheckoutModal: React.FC<Props> = ({ onSuccess }) => {
         // Ignore if not available
       }
 
-      if (!companyInfo || !companyInfo.companyName) {
+      if ((!companyInfo || !companyInfo.companyName) && token) {
         try {
-          const { data } = await axios.get('/api/sgsst/company-info', { headers });
+          const { data } = await axios.get('/api/sgsst/company-info', {
+            headers,
+            withCredentials: true,
+          });
           if (data && typeof data === 'object' && data.companyName) {
             companyInfo = data;
           }
@@ -167,9 +280,12 @@ const MarketplaceCheckoutModal: React.FC<Props> = ({ onSuccess }) => {
         }
       }
 
-      if (!serverProfile) {
+      if (!serverProfile && token) {
         try {
-          const { data: ordersRes } = await axios.get('/api/marketplace/my-orders', { headers });
+          const { data: ordersRes } = await axios.get('/api/marketplace/my-orders', {
+            headers,
+            withCredentials: true,
+          });
           if (ordersRes?.orders && Array.isArray(ordersRes.orders) && ordersRes.orders.length > 0) {
             lastOrderCustomer = ordersRes.orders[0]?.customer;
           }
@@ -179,63 +295,88 @@ const MarketplaceCheckoutModal: React.FC<Props> = ({ onSuccess }) => {
       }
 
       setCustomer((prev) => {
-        const resolvedCity =
-          serverProfile?.city ||
-          companyInfo?.city ||
-          localFallback.city ||
-          lastOrderCustomer?.city ||
-          '';
+        const preferServer = serverAuthenticated || localFallback.isDemoDefault;
 
         return {
           ...prev,
-          fullName:
-            prev.fullName ||
-            serverProfile?.fullName ||
-            user?.name ||
-            companyInfo?.responsibleSST ||
-            companyInfo?.legalRepresentative ||
-            lastOrderCustomer?.fullName ||
-            '',
-          email:
-            prev.email ||
-            serverProfile?.email ||
-            user?.email ||
-            companyInfo?.email ||
-            lastOrderCustomer?.email ||
-            '',
-          companyName:
-            prev.companyName ||
-            serverProfile?.companyName ||
-            companyInfo?.companyName ||
-            localFallback.companyName ||
-            lastOrderCustomer?.companyName ||
-            '',
-          documentId:
-            prev.documentId ||
-            serverProfile?.documentId ||
-            companyInfo?.nit ||
-            companyInfo?.legalRepresentativeId ||
-            localFallback.nit ||
-            lastOrderCustomer?.documentId ||
-            '',
-          phone:
-            prev.phone ||
-            serverProfile?.phone ||
-            companyInfo?.phone ||
-            localFallback.phone ||
-            lastOrderCustomer?.phone ||
-            '',
-          city:
-            !prev.city || prev.city === 'Bogotá'
-              ? resolvedCity || prev.city || 'Bogotá'
-              : prev.city,
-          address:
-            prev.address ||
-            serverProfile?.address ||
-            companyInfo?.address ||
-            localFallback.address ||
-            lastOrderCustomer?.address ||
-            '',
+          fullName: pickFirst(
+            isValidText,
+            preferServer ? serverProfile?.fullName : prev.fullName,
+            user?.name,
+            serverProfile?.fullName,
+            companyInfo?.responsibleSST,
+            companyInfo?.legalRepresentative,
+            prev.fullName,
+            localFallback.fullName,
+            lastOrderCustomer?.fullName
+          ),
+          email: pickFirst(
+            isValidEmail,
+            preferServer ? serverProfile?.email : prev.email,
+            user?.email,
+            serverProfile?.email,
+            companyInfo?.email,
+            prev.email,
+            localFallback.email,
+            lastOrderCustomer?.email
+          ),
+          companyName: pickFirst(
+            isValidText,
+            preferServer ? serverProfile?.companyName : prev.companyName,
+            serverProfile?.companyName,
+            companyInfo?.companyName,
+            prev.companyName,
+            localFallback.companyName,
+            lastOrderCustomer?.companyName
+          ),
+          documentId: pickFirst(
+            isValidText,
+            preferServer ? serverProfile?.documentId : prev.documentId,
+            serverProfile?.documentId,
+            companyInfo?.nit,
+            companyInfo?.legalRepresentativeId,
+            prev.documentId,
+            localFallback.documentId,
+            lastOrderCustomer?.documentId
+          ),
+          phone: pickFirst(
+            isValidPhone,
+            preferServer ? serverProfile?.phone : prev.phone,
+            serverProfile?.phone,
+            companyInfo?.phone,
+            companyInfo?.responsibleSSTPhone,
+            (user as any)?.phoneNumber,
+            prev.phone,
+            localFallback.phone,
+            lastOrderCustomer?.phone
+          ),
+          city: pickFirst(
+            isValidText,
+            preferServer ? serverProfile?.city : prev.city !== 'Bogotá' ? prev.city : '',
+            serverProfile?.city,
+            companyInfo?.city,
+            (user as any)?.ciudad,
+            prev.city !== 'Bogotá' ? prev.city : '',
+            localFallback.city,
+            lastOrderCustomer?.city,
+            'Medellín'
+          ),
+          address: pickFirst(
+            isValidText,
+            preferServer ? serverProfile?.address : prev.address,
+            serverProfile?.address,
+            companyInfo?.address,
+            prev.address,
+            localFallback.address,
+            lastOrderCustomer?.address
+          ),
+          notes: pickFirst(
+            isValidText,
+            preferServer ? serverProfile?.notes : prev.notes,
+            serverProfile?.notes,
+            prev.notes,
+            localFallback.notes
+          ),
         };
       });
     };

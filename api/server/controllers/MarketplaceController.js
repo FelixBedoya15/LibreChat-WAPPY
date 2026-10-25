@@ -1729,49 +1729,140 @@ const downloadMatrizIpvrApp = async (req, res) => {
 // GET /api/marketplace/customer-profile
 const getCustomerProfile = async (req, res) => {
   try {
-    if (!req.user) {
+    const jwt = require('jsonwebtoken');
+    const cookies = require('cookie');
+    const CompanyInfo = require('~/models/CompanyInfo');
+    const User = mongoose.models.User || mongoose.model('User');
+    const escapeRegex = (s) => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    let resolvedUser = req.user || null;
+
+    // 1. Fallback: Bearer token in Authorization header
+    if (!resolvedUser && req.headers.authorization?.startsWith('Bearer ')) {
+      try {
+        const token = req.headers.authorization.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const uid = decoded?.id || decoded?._id;
+        if (uid) {
+          resolvedUser = await User.findById(uid).lean();
+          if (resolvedUser) resolvedUser.id = String(resolvedUser._id);
+        }
+      } catch (_) {}
+    }
+
+    // 2. Fallback: HTTP-only refreshToken cookie
+    if (!resolvedUser && req.headers.cookie && process.env.JWT_REFRESH_SECRET) {
+      try {
+        const parsedCookies = cookies.parse(req.headers.cookie);
+        if (parsedCookies?.refreshToken) {
+          const payload = jwt.verify(parsedCookies.refreshToken, process.env.JWT_REFRESH_SECRET);
+          const uid = payload?.id || payload?._id;
+          if (uid) {
+            resolvedUser = await User.findById(uid).lean();
+            if (resolvedUser) resolvedUser.id = String(resolvedUser._id);
+          }
+        }
+      } catch (_) {}
+    }
+
+    const isValidEmail = (v) => typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+    const isValidPhone = (v) => typeof v === 'string' && v.replace(/\D/g, '').length >= 7;
+    const isValidText = (v) => {
+      if (typeof v !== 'string') return false;
+      const t = v.trim();
+      if (t.length < 3) return false;
+      if (/^(asd[a-z]*|zsd[a-z]*|zxc[a-z]*|zdf[a-z]*|adv|n\/a|no registrado|sin nombre)$/i.test(t)) {
+        return false;
+      }
+      return true;
+    };
+    const pickFirst = (validator, ...candidates) => {
+      for (const c of candidates) {
+        if (validator(c)) return String(c).trim();
+      }
+      return '';
+    };
+
+    const queryNitRaw = String(req.query?.nit || '').trim();
+    const queryEmailRaw = String(req.query?.email || '').trim();
+    const baseNit = queryNitRaw.replace(/[^0-9]/g, '').slice(0, 9);
+
+    if (!resolvedUser && !baseNit && !isValidEmail(queryEmailRaw)) {
       return res.json({ success: true, profile: null });
     }
 
-    const CompanyInfo = require('~/models/CompanyInfo');
-    const User = mongoose.models.User || mongoose.model('User');
-    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
-    const emailRaw = (req.user.email || '').trim();
-    const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const userId = resolvedUser ? String(resolvedUser.id || resolvedUser._id) : null;
+    const targetUserId =
+      resolvedUser?.isSubUser && resolvedUser?.parentUser
+        ? String(resolvedUser.parentUser)
+        : userId;
+
+    const userDoc = userId ? await User.findById(userId).lean().catch(() => null) : null;
+    const emailRaw = pickFirst(isValidEmail, resolvedUser?.email, userDoc?.email, queryEmailRaw);
     const emailRegex = emailRaw ? new RegExp(`^${escapeRegex(emailRaw)}$`, 'i') : null;
 
-    // 1. User record
-    const userDoc = await User.findById(req.user.id).lean().catch(() => null);
-
-    // 2. Active CompanyInfo (by userId, assignedCompany, or email fallback)
-    let company = null;
-    if (req.user.isSubUser && req.user.assignedCompany) {
-      company = await CompanyInfo.findOne({ _id: req.user.assignedCompany, user: targetUserId }).lean();
-    }
-    if (!company) {
-      company = await CompanyInfo.findOne({ user: targetUserId, isActive: true }).lean();
-    }
-    if (!company) {
-      company = await CompanyInfo.findOne({ user: targetUserId }).sort({ updatedAt: -1 }).lean();
-    }
-    if (!company && emailRegex) {
-      company = await CompanyInfo.findOne({ email: emailRegex }).sort({ isActive: -1, updatedAt: -1 }).lean();
-      if (company && !req.user.isSubUser) {
-        await CompanyInfo.updateOne({ _id: company._id }, { $set: { user: targetUserId, isActive: true } }).catch(() => {});
+    // 3. Gather all candidate CompanyInfo records (active first, then other user companies, then by email or NIT)
+    let userCompanies = [];
+    if (targetUserId) {
+      if (resolvedUser?.isSubUser && resolvedUser?.assignedCompany) {
+        const assigned = await CompanyInfo.findOne({
+          _id: resolvedUser.assignedCompany,
+          user: targetUserId
+        }).lean();
+        if (assigned) userCompanies.push(assigned);
+      } else {
+        userCompanies = await CompanyInfo.find({ user: targetUserId })
+          .sort({ isActive: -1, updatedAt: -1 })
+          .lean();
       }
     }
 
-    // 3. Previous MarketplaceOrder
-    let lastOrderCustomer = null;
-    const orderQuery = emailRegex
-      ? { $or: [{ userId: req.user.id }, { 'customer.email': emailRegex }] }
-      : { userId: req.user.id };
-    const lastOrder = await MarketplaceOrder.findOne(orderQuery).sort({ createdAt: -1 }).lean().catch(() => null);
-    if (lastOrder?.customer) {
-      lastOrderCustomer = lastOrder.customer;
+    if (emailRegex) {
+      const byEmail = await CompanyInfo.find({ email: emailRegex })
+        .sort({ isActive: -1, updatedAt: -1 })
+        .lean();
+      for (const c of byEmail) {
+        if (!userCompanies.some((uc) => String(uc._id) === String(c._id))) {
+          userCompanies.push(c);
+        }
+      }
+      if (userCompanies.length === 1 && targetUserId && !resolvedUser?.isSubUser && String(userCompanies[0].user) !== targetUserId) {
+        await CompanyInfo.updateOne(
+          { _id: userCompanies[0]._id },
+          { $set: { user: targetUserId, isActive: true } }
+        ).catch(() => {});
+      }
     }
 
-    // 4. Fallback phone/document/company from Leads, ComunidadPurchases, Ambassadors, or SupportTickets
+    if (baseNit && baseNit.length >= 6) {
+      const byNit = await CompanyInfo.find({ nit: new RegExp(`^${escapeRegex(baseNit)}`) })
+        .sort({ isActive: -1, updatedAt: -1 })
+        .lean();
+      for (const c of byNit) {
+        if (!userCompanies.some((uc) => String(uc._id) === String(c._id))) {
+          userCompanies.push(c);
+        }
+      }
+    }
+
+    const activeCompany = userCompanies.find((c) => c.isActive) || userCompanies[0] || null;
+
+    // 4. Previous MarketplaceOrder
+    let lastOrderCustomer = null;
+    if (userId || emailRegex) {
+      const orConds = [];
+      if (userId) orConds.push({ userId });
+      if (emailRegex) orConds.push({ 'customer.email': emailRegex });
+      const lastOrder = await MarketplaceOrder.findOne({ $or: orConds })
+        .sort({ createdAt: -1 })
+        .lean()
+        .catch(() => null);
+      if (lastOrder?.customer) {
+        lastOrderCustomer = lastOrder.customer;
+      }
+    }
+
+    // 5. Fallback from Leads, ComunidadPurchases, Ambassadors, or SupportTickets
     let extraPhone = '';
     let extraDoc = '';
     let extraCompany = '';
@@ -1784,58 +1875,100 @@ const getCustomerProfile = async (req, res) => {
         db.collection('ambassadors').findOne({ email: emailRegex }).catch(() => null),
         db.collection('supporttickets').findOne({ userEmail: emailRegex }, { sort: { createdAt: -1 } }).catch(() => null)
       ]);
-      extraPhone = lead?.phone || purchase?.phone || ambassador?.phone || ticket?.userWhatsapp || '';
-      extraDoc = purchase?.documentId || purchase?.nit || ambassador?.documentId || lead?.nit || '';
-      extraCompany = lead?.company || purchase?.companyName || '';
-      extraCity = purchase?.city || lead?.city || '';
+      extraPhone = pickFirst(isValidPhone, lead?.phone, purchase?.phone, ambassador?.phone, ticket?.userWhatsapp);
+      extraDoc = pickFirst(isValidText, purchase?.documentId, purchase?.nit, ambassador?.documentId, lead?.nit);
+      extraCompany = pickFirst(isValidText, lead?.company, purchase?.companyName);
+      extraCity = pickFirst(isValidText, purchase?.city, lead?.city);
     }
 
+    const companyResponsibleCandidates = userCompanies.flatMap((c) => [c.responsibleSST, c.legalRepresentative]);
+    const companyNameCandidates = userCompanies.map((c) => c.companyName);
+    const companyNitCandidates = userCompanies.flatMap((c) => [c.nit, c.legalRepresentativeId]);
+    const companyEmailCandidates = userCompanies.map((c) => c.email);
+    const companyPhoneCandidates = userCompanies.flatMap((c) => [c.phone, c.responsibleSSTPhone]);
+    const companyCityCandidates = userCompanies.map((c) =>
+      c.city && isValidText(c.city)
+        ? c.departamento && isValidText(c.departamento) && !c.city.toLowerCase().includes(c.departamento.toLowerCase())
+          ? `${c.city.trim()}, ${c.departamento.trim()}`
+          : c.city.trim()
+        : ''
+    );
+    const companyAddressCandidates = userCompanies.map((c) => c.address);
+
+    const resolvedCity = pickFirst(
+      isValidText,
+      ...companyCityCandidates,
+      userDoc?.ciudad && userDoc?.departamento ? `${userDoc.ciudad}, ${userDoc.departamento}` : '',
+      userDoc?.ciudad,
+      userDoc?.city,
+      lastOrderCustomer?.city,
+      extraCity
+    );
+
+    const resolvedAddress = pickFirst(
+      isValidText,
+      ...companyAddressCandidates,
+      lastOrderCustomer?.address
+    );
+
+    const arlVal = pickFirst(isValidText, ...userCompanies.map((c) => c.arl));
+    const riskVal = pickFirst((v) => typeof v === 'string' && v.trim().length > 0, ...userCompanies.map((c) => c.riskLevel));
+    const workersVal = userCompanies.find((c) => Number(c.workerCount) > 0)?.workerCount || '';
+
+    const summaryParts = [];
+    if (resolvedAddress) summaryParts.push(`Dir: ${resolvedAddress}`);
+    if (arlVal) summaryParts.push(`ARL: ${arlVal}`);
+    if (riskVal) summaryParts.push(`Riesgo: ${riskVal}`);
+    if (workersVal) summaryParts.push(`${workersVal} trabajadores`);
+
     const profile = {
-      fullName:
-        userDoc?.name ||
-        req.user.name ||
-        company?.responsibleSST ||
-        company?.legalRepresentative ||
-        lastOrderCustomer?.fullName ||
-        '',
-      companyName:
-        company?.companyName ||
-        userDoc?.company ||
-        lastOrderCustomer?.companyName ||
-        extraCompany ||
-        '',
-      documentId:
-        company?.nit ||
-        company?.legalRepresentativeId ||
-        userDoc?.nit ||
-        userDoc?.documentId ||
-        lastOrderCustomer?.documentId ||
-        extraDoc ||
-        '',
-      email:
-        emailRaw ||
-        userDoc?.email ||
-        company?.email ||
-        lastOrderCustomer?.email ||
-        '',
-      phone:
-        company?.phone ||
-        userDoc?.phone ||
-        lastOrderCustomer?.phone ||
-        extraPhone ||
-        '',
-      city:
-        company?.city ||
-        lastOrderCustomer?.city ||
-        extraCity ||
-        '',
-      address:
-        company?.address ||
-        lastOrderCustomer?.address ||
-        ''
+      fullName: pickFirst(
+        isValidText,
+        userDoc?.name,
+        resolvedUser?.name,
+        ...companyResponsibleCandidates,
+        lastOrderCustomer?.fullName
+      ),
+      companyName: pickFirst(
+        isValidText,
+        ...companyNameCandidates,
+        userDoc?.company,
+        lastOrderCustomer?.companyName,
+        extraCompany
+      ),
+      documentId: pickFirst(
+        isValidText,
+        ...companyNitCandidates,
+        userDoc?.nit,
+        userDoc?.documentId,
+        lastOrderCustomer?.documentId,
+        extraDoc
+      ),
+      email: pickFirst(
+        isValidEmail,
+        emailRaw,
+        ...companyEmailCandidates,
+        lastOrderCustomer?.email
+      ),
+      phone: pickFirst(
+        isValidPhone,
+        ...companyPhoneCandidates,
+        userDoc?.phoneNumber,
+        userDoc?.phone,
+        lastOrderCustomer?.phone,
+        extraPhone
+      ),
+      city: resolvedCity,
+      address: resolvedAddress,
+      notes: summaryParts.join(' · ')
     };
 
-    return res.json({ success: true, profile, company });
+    return res.json({
+      success: true,
+      authenticated: Boolean(resolvedUser),
+      profile,
+      company: activeCompany
+    });
   } catch (error) {
     logger.error('[Marketplace] getCustomerProfile error:', error);
     return res.status(500).json({ error: 'Error al consultar perfil del cliente.' });
