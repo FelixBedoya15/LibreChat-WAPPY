@@ -41,6 +41,7 @@ const upload = multer({
 router.get('/categories', checkJwtAuth, controller.getCategories);
 router.get('/products', checkJwtAuth, controller.getProducts);
 router.get('/products/:idOrSlug', checkJwtAuth, controller.getProductBySlugOrId);
+router.get('/customer-profile', checkJwtAuth, controller.getCustomerProfile);
 router.post('/validate-coupon', controller.validateCoupon);
 router.post('/checkout', checkJwtAuth, controller.createCheckout);
 router.post('/verify-payment', controller.verifyPayment);

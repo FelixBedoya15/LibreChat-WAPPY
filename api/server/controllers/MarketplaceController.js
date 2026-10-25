@@ -342,7 +342,12 @@ const OFFICIAL_MATRIZ_IPVR_APP_PRODUCT = {
       answer: 'Toda la gestión manual, cálculos matemáticos GTC-45, gráficas, empresas e informes PDF/JSON funcionan 100% sin internet (Offline). Solo necesitas internet si deseas usar la autocompletación automática con tus claves gratuitas de Google Gemini.'
     }
   ],
-  featuredImage: '/marketing/tutorial-thumbnail-felix-tenshi.png',
+  featuredImage: '/marketing/marketplace-matriz-ipvr-card-horizontal.png',
+  featuredImagePosition: '50% 50%',
+  featuredImageScale: 87,
+  modalImage: '/marketing/marketplace-matriz-ipvr-modal-vertical.png',
+  modalImagePosition: '50% 50%',
+  modalImageScale: 65,
   landingPageUrl: '/matrizipvr.html#descargar-aplicativo',
   status: 'published',
   isFeatured: true,
@@ -755,7 +760,13 @@ const ensureSeedData = async (force = false) => {
       if (!matrizApp) {
         await MarketplaceProduct.create(OFFICIAL_MATRIZ_IPVR_APP_PRODUCT);
         logger.info('[Marketplace] Official Matriz IPVR Downloadable App seeded into database.');
-      } else if (matrizApp.isTest || matrizApp.status === 'draft' || matrizApp.regularPrice !== 50000) {
+      } else if (
+        matrizApp.isTest ||
+        matrizApp.status === 'draft' ||
+        matrizApp.regularPrice !== 50000 ||
+        matrizApp.featuredImage !== OFFICIAL_MATRIZ_IPVR_APP_PRODUCT.featuredImage ||
+        matrizApp.modalImage !== OFFICIAL_MATRIZ_IPVR_APP_PRODUCT.modalImage
+      ) {
         await MarketplaceProduct.updateOne(
           { slug: 'aplicativo-descargable-matriz-ipvr' },
           {
@@ -766,6 +777,11 @@ const ensureSeedData = async (force = false) => {
               regularPrice: 50000,
               serviceType: 'digital_download',
               featuredImage: OFFICIAL_MATRIZ_IPVR_APP_PRODUCT.featuredImage,
+              featuredImagePosition: OFFICIAL_MATRIZ_IPVR_APP_PRODUCT.featuredImagePosition,
+              featuredImageScale: OFFICIAL_MATRIZ_IPVR_APP_PRODUCT.featuredImageScale,
+              modalImage: OFFICIAL_MATRIZ_IPVR_APP_PRODUCT.modalImage,
+              modalImagePosition: OFFICIAL_MATRIZ_IPVR_APP_PRODUCT.modalImagePosition,
+              modalImageScale: OFFICIAL_MATRIZ_IPVR_APP_PRODUCT.modalImageScale,
               landingPageUrl: OFFICIAL_MATRIZ_IPVR_APP_PRODUCT.landingPageUrl
             }
           }
@@ -1710,6 +1726,122 @@ const downloadMatrizIpvrApp = async (req, res) => {
   }
 };
 
+// GET /api/marketplace/customer-profile
+const getCustomerProfile = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.json({ success: true, profile: null });
+    }
+
+    const CompanyInfo = require('~/models/CompanyInfo');
+    const User = mongoose.models.User || mongoose.model('User');
+    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const emailRaw = (req.user.email || '').trim();
+    const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const emailRegex = emailRaw ? new RegExp(`^${escapeRegex(emailRaw)}$`, 'i') : null;
+
+    // 1. User record
+    const userDoc = await User.findById(req.user.id).lean().catch(() => null);
+
+    // 2. Active CompanyInfo (by userId, assignedCompany, or email fallback)
+    let company = null;
+    if (req.user.isSubUser && req.user.assignedCompany) {
+      company = await CompanyInfo.findOne({ _id: req.user.assignedCompany, user: targetUserId }).lean();
+    }
+    if (!company) {
+      company = await CompanyInfo.findOne({ user: targetUserId, isActive: true }).lean();
+    }
+    if (!company) {
+      company = await CompanyInfo.findOne({ user: targetUserId }).sort({ updatedAt: -1 }).lean();
+    }
+    if (!company && emailRegex) {
+      company = await CompanyInfo.findOne({ email: emailRegex }).sort({ isActive: -1, updatedAt: -1 }).lean();
+      if (company && !req.user.isSubUser) {
+        await CompanyInfo.updateOne({ _id: company._id }, { $set: { user: targetUserId, isActive: true } }).catch(() => {});
+      }
+    }
+
+    // 3. Previous MarketplaceOrder
+    let lastOrderCustomer = null;
+    const orderQuery = emailRegex
+      ? { $or: [{ userId: req.user.id }, { 'customer.email': emailRegex }] }
+      : { userId: req.user.id };
+    const lastOrder = await MarketplaceOrder.findOne(orderQuery).sort({ createdAt: -1 }).lean().catch(() => null);
+    if (lastOrder?.customer) {
+      lastOrderCustomer = lastOrder.customer;
+    }
+
+    // 4. Fallback phone/document/company from Leads, ComunidadPurchases, Ambassadors, or SupportTickets
+    let extraPhone = '';
+    let extraDoc = '';
+    let extraCompany = '';
+    let extraCity = '';
+    if (emailRegex && mongoose.connection?.db) {
+      const db = mongoose.connection.db;
+      const [lead, purchase, ambassador, ticket] = await Promise.all([
+        db.collection('leads').findOne({ email: emailRegex }, { sort: { createdAt: -1 } }).catch(() => null),
+        db.collection('comunidadpurchases').findOne({ email: emailRegex }, { sort: { createdAt: -1 } }).catch(() => null),
+        db.collection('ambassadors').findOne({ email: emailRegex }).catch(() => null),
+        db.collection('supporttickets').findOne({ userEmail: emailRegex }, { sort: { createdAt: -1 } }).catch(() => null)
+      ]);
+      extraPhone = lead?.phone || purchase?.phone || ambassador?.phone || ticket?.userWhatsapp || '';
+      extraDoc = purchase?.documentId || purchase?.nit || ambassador?.documentId || lead?.nit || '';
+      extraCompany = lead?.company || purchase?.companyName || '';
+      extraCity = purchase?.city || lead?.city || '';
+    }
+
+    const profile = {
+      fullName:
+        userDoc?.name ||
+        req.user.name ||
+        company?.responsibleSST ||
+        company?.legalRepresentative ||
+        lastOrderCustomer?.fullName ||
+        '',
+      companyName:
+        company?.companyName ||
+        userDoc?.company ||
+        lastOrderCustomer?.companyName ||
+        extraCompany ||
+        '',
+      documentId:
+        company?.nit ||
+        company?.legalRepresentativeId ||
+        userDoc?.nit ||
+        userDoc?.documentId ||
+        lastOrderCustomer?.documentId ||
+        extraDoc ||
+        '',
+      email:
+        emailRaw ||
+        userDoc?.email ||
+        company?.email ||
+        lastOrderCustomer?.email ||
+        '',
+      phone:
+        company?.phone ||
+        userDoc?.phone ||
+        lastOrderCustomer?.phone ||
+        extraPhone ||
+        '',
+      city:
+        company?.city ||
+        lastOrderCustomer?.city ||
+        extraCity ||
+        '',
+      address:
+        company?.address ||
+        lastOrderCustomer?.address ||
+        ''
+    };
+
+    return res.json({ success: true, profile, company });
+  } catch (error) {
+    logger.error('[Marketplace] getCustomerProfile error:', error);
+    return res.status(500).json({ error: 'Error al consultar perfil del cliente.' });
+  }
+};
+
 // POST /api/marketplace/admin/reseed
 const adminReseedCatalog = async (req, res) => {
   try {
@@ -1734,6 +1866,7 @@ module.exports = {
   handleWebhook,
   getOrderDetails,
   downloadMatrizIpvrApp,
+  getCustomerProfile,
   getMyOrders,
   adminGetOrders,
   adminUpdateOrderStatus,

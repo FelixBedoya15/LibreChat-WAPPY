@@ -124,6 +124,47 @@ Descripción General de Actividades (Sede Principal): ${companyData.generalActiv
 }
 
 /**
+ * Helper: Recover orphaned CompanyInfo records matching the user's email
+ * (e.g., when a user account was recreated with the same email) and enrich missing phone.
+ */
+async function recoverOrEnrichCompanyForUser(reqUser, targetUserId, info) {
+    const emailRaw = (reqUser?.email || '').trim();
+    const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const emailRegex = emailRaw ? new RegExp(`^${escapeRegex(emailRaw)}$`, 'i') : null;
+
+    if (!info && emailRegex && !reqUser?.isSubUser) {
+        const byEmail = await CompanyInfo.findOne({ email: emailRegex }).sort({ isActive: -1, updatedAt: -1 }).lean();
+        if (byEmail) {
+            await CompanyInfo.updateOne({ _id: byEmail._id }, { $set: { user: targetUserId, isActive: true } });
+            info = { ...byEmail, user: targetUserId, isActive: true };
+        }
+    }
+
+    if (info && !info.phone && emailRegex) {
+        try {
+            const User = mongoose.models.User;
+            const uDoc = User ? await User.findById(targetUserId).select('phone').lean() : null;
+            let recoveredPhone = uDoc?.phone || '';
+            if (!recoveredPhone && mongoose.connection?.db) {
+                const db = mongoose.connection.db;
+                const lead = await db.collection('leads').findOne({ email: emailRegex, phone: { $exists: true, $ne: '' } });
+                recoveredPhone = lead?.phone || '';
+                if (!recoveredPhone) {
+                    const purchase = await db.collection('comunidadpurchases').findOne({ email: emailRegex, phone: { $exists: true, $ne: '' } });
+                    recoveredPhone = purchase?.phone || '';
+                }
+            }
+            if (recoveredPhone) {
+                info.phone = recoveredPhone;
+                await CompanyInfo.updateOne({ _id: info._id }, { $set: { phone: recoveredPhone } });
+            }
+        } catch (_) {}
+    }
+
+    return info;
+}
+
+/**
  * GET /api/sgsst/company-info
  * Returns the currently ACTIVE company info. Falls back to first if none active.
  */
@@ -147,6 +188,8 @@ router.get('/', requireJwtAuth, async (req, res) => {
                 info.isActive = true;
             }
         }
+
+        info = await recoverOrEnrichCompanyForUser(req.user, targetUserId, info);
         
         if (info && !req.user.isSubUser) {
             // Auto-purge any legacy/duplicate company memories and ensure only active company memory exists
@@ -174,6 +217,12 @@ router.get('/all', requireJwtAuth, async (req, res) => {
             companies = await CompanyInfo.find({ _id: req.user.assignedCompany, user: targetUserId }).lean();
         } else {
             companies = await CompanyInfo.find({ user: targetUserId }).sort({ createdAt: 1 }).lean();
+            if (companies.length === 0 && req.user?.email) {
+                const recovered = await recoverOrEnrichCompanyForUser(req.user, targetUserId, null);
+                if (recovered) {
+                    companies = await CompanyInfo.find({ user: targetUserId }).sort({ createdAt: 1 }).lean();
+                }
+            }
         }
         
         // Auto-fix: Ensure at most one company is active to prevent duplicates

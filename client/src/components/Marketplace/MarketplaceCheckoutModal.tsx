@@ -56,83 +56,188 @@ const MarketplaceCheckoutModal: React.FC<Props> = ({ onSuccess }) => {
     notes: '',
   });
 
-  // Auto-fill customer & company data from user profile and active SG-SST company profile
+  // Auto-fill customer & company data from user profile, active SG-SST company profile, and local cache
   useEffect(() => {
     if (!isCheckoutOpen) return;
 
-    // 1. Ensure user's name and email are populated
+    const getLocalCompanyFallback = () => {
+      try {
+        const activeId = localStorage.getItem('wappy_active_company_id');
+        const activeName = localStorage.getItem('wappy_active_company_name') || '';
+        const activeNit = localStorage.getItem('wappy_active_company_nit') || '';
+        const draftRaw =
+          (activeId && localStorage.getItem(`wappy_company_draft_${activeId}`)) ||
+          localStorage.getItem('wappy_company_draft_new');
+        const draft = draftRaw ? JSON.parse(draftRaw) : null;
+
+        let matrizipvrCompany: any = null;
+        const ipvrRaw = localStorage.getItem('matrizipvr_State_v2');
+        if (ipvrRaw) {
+          const parsedIpvr = JSON.parse(ipvrRaw);
+          if (parsedIpvr?.companyInfo?.name) {
+            matrizipvrCompany = {
+              companyName: parsedIpvr.companyInfo.name,
+              nit: parsedIpvr.companyInfo.nit,
+              phone: parsedIpvr.companyInfo.phone,
+              city: parsedIpvr.companyInfo.city,
+              address: parsedIpvr.companyInfo.address,
+              email: parsedIpvr.companyInfo.email,
+              legalRepresentative: parsedIpvr.companyInfo.rep,
+            };
+          }
+        }
+
+        return {
+          companyName: draft?.companyName || activeName || matrizipvrCompany?.companyName || '',
+          nit: draft?.nit || activeNit || matrizipvrCompany?.nit || '',
+          legalRepresentativeId: draft?.legalRepresentativeId || '',
+          legalRepresentative: draft?.legalRepresentative || matrizipvrCompany?.legalRepresentative || '',
+          responsibleSST: draft?.responsibleSST || '',
+          phone: draft?.phone || matrizipvrCompany?.phone || '',
+          city: draft?.city || matrizipvrCompany?.city || '',
+          address: draft?.address || matrizipvrCompany?.address || '',
+          email: draft?.email || matrizipvrCompany?.email || '',
+        };
+      } catch {
+        return {};
+      }
+    };
+
+    const localFallback = getLocalCompanyFallback();
+
+    // 1. Immediately populate any synchronous user or local company data
     setCustomer((prev) => ({
       ...prev,
-      fullName: prev.fullName || user?.name || '',
-      email: prev.email || user?.email || '',
+      fullName:
+        prev.fullName ||
+        user?.name ||
+        localFallback.responsibleSST ||
+        localFallback.legalRepresentative ||
+        '',
+      email: prev.email || user?.email || localFallback.email || '',
+      companyName: prev.companyName || localFallback.companyName || '',
+      documentId: prev.documentId || localFallback.nit || localFallback.legalRepresentativeId || '',
+      phone: prev.phone || localFallback.phone || '',
+      city:
+        !prev.city || prev.city === 'Bogotá'
+          ? localFallback.city || prev.city || ''
+          : prev.city,
+      address: prev.address || localFallback.address || '',
     }));
 
-    // 2. Fetch active company info from SG-SST profile & previous orders as fallback
+    // 2. Fetch active company info & aggregated customer profile from backend
     const fetchUserAndCompanyData = async () => {
-      const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+      let effectiveToken = token;
+      if (!effectiveToken) {
+        try {
+          const refreshRes = await axios.post('/api/auth/refresh');
+          if (refreshRes?.data?.token) {
+            effectiveToken = refreshRes.data.token;
+          }
+        } catch {
+          // Guest user without active session
+        }
+      }
+
+      const headers = effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : undefined;
+      let serverProfile: any = null;
       let companyInfo: any = null;
       let lastOrderCustomer: any = null;
 
       try {
-        const { data } = await axios.get('/api/sgsst/company-info', { headers });
-        if (data && typeof data === 'object') {
-          companyInfo = data;
+        const { data: profileRes } = await axios.get('/api/marketplace/customer-profile', { headers });
+        if (profileRes?.profile) {
+          serverProfile = profileRes.profile;
+        }
+        if (profileRes?.company) {
+          companyInfo = profileRes.company;
         }
       } catch {
         // Ignore if not available
       }
 
-      try {
-        const { data: ordersRes } = await axios.get('/api/marketplace/my-orders', { headers });
-        if (ordersRes?.orders && Array.isArray(ordersRes.orders) && ordersRes.orders.length > 0) {
-          lastOrderCustomer = ordersRes.orders[0]?.customer;
+      if (!companyInfo || !companyInfo.companyName) {
+        try {
+          const { data } = await axios.get('/api/sgsst/company-info', { headers });
+          if (data && typeof data === 'object' && data.companyName) {
+            companyInfo = data;
+          }
+        } catch {
+          // Ignore if not available
         }
-      } catch {
-        // Ignore if not available
       }
 
-      setCustomer((prev) => ({
-        ...prev,
-        fullName:
-          prev.fullName ||
-          user?.name ||
-          companyInfo?.responsibleSST ||
-          companyInfo?.legalRepresentative ||
-          lastOrderCustomer?.fullName ||
-          '',
-        email:
-          prev.email ||
-          user?.email ||
-          companyInfo?.email ||
-          lastOrderCustomer?.email ||
-          '',
-        companyName:
-          prev.companyName ||
-          companyInfo?.companyName ||
-          lastOrderCustomer?.companyName ||
-          '',
-        documentId:
-          prev.documentId ||
-          companyInfo?.nit ||
-          companyInfo?.legalRepresentativeId ||
-          lastOrderCustomer?.documentId ||
-          '',
-        phone:
-          prev.phone ||
-          companyInfo?.phone ||
-          lastOrderCustomer?.phone ||
-          '',
-        city:
-          prev.city ||
+      if (!serverProfile) {
+        try {
+          const { data: ordersRes } = await axios.get('/api/marketplace/my-orders', { headers });
+          if (ordersRes?.orders && Array.isArray(ordersRes.orders) && ordersRes.orders.length > 0) {
+            lastOrderCustomer = ordersRes.orders[0]?.customer;
+          }
+        } catch {
+          // Ignore if not available
+        }
+      }
+
+      setCustomer((prev) => {
+        const resolvedCity =
+          serverProfile?.city ||
           companyInfo?.city ||
+          localFallback.city ||
           lastOrderCustomer?.city ||
-          'Bogotá',
-        address:
-          prev.address ||
-          companyInfo?.address ||
-          lastOrderCustomer?.address ||
-          '',
-      }));
+          '';
+
+        return {
+          ...prev,
+          fullName:
+            prev.fullName ||
+            serverProfile?.fullName ||
+            user?.name ||
+            companyInfo?.responsibleSST ||
+            companyInfo?.legalRepresentative ||
+            lastOrderCustomer?.fullName ||
+            '',
+          email:
+            prev.email ||
+            serverProfile?.email ||
+            user?.email ||
+            companyInfo?.email ||
+            lastOrderCustomer?.email ||
+            '',
+          companyName:
+            prev.companyName ||
+            serverProfile?.companyName ||
+            companyInfo?.companyName ||
+            localFallback.companyName ||
+            lastOrderCustomer?.companyName ||
+            '',
+          documentId:
+            prev.documentId ||
+            serverProfile?.documentId ||
+            companyInfo?.nit ||
+            companyInfo?.legalRepresentativeId ||
+            localFallback.nit ||
+            lastOrderCustomer?.documentId ||
+            '',
+          phone:
+            prev.phone ||
+            serverProfile?.phone ||
+            companyInfo?.phone ||
+            localFallback.phone ||
+            lastOrderCustomer?.phone ||
+            '',
+          city:
+            !prev.city || prev.city === 'Bogotá'
+              ? resolvedCity || prev.city || 'Bogotá'
+              : prev.city,
+          address:
+            prev.address ||
+            serverProfile?.address ||
+            companyInfo?.address ||
+            localFallback.address ||
+            lastOrderCustomer?.address ||
+            '',
+        };
+      });
     };
 
     fetchUserAndCompanyData();
