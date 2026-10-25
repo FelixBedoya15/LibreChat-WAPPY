@@ -1771,7 +1771,7 @@ const getCustomerProfile = async (req, res) => {
       if (typeof v !== 'string') return false;
       const t = v.trim();
       if (t.length < 3) return false;
-      if (/^(asd[a-z]*|zsd[a-z]*|zxc[a-z]*|zdf[a-z]*|adv|n\/a|no registrado|sin nombre)$/i.test(t)) {
+      if (/^(as[a-z]{1,4}|zs[a-z]{1,4}|zx[a-z]{1,4}|zd[a-z]{1,4}|adv|ave|así|n\/a|no registrado|sin nombre)$/i.test(t)) {
         return false;
       }
       return true;
