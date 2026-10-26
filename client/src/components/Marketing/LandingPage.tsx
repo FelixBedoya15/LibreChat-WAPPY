@@ -758,39 +758,6 @@ export default function LandingPage() {
             </button>
           </div>
 
-          {/* Botones Oficiales de WhatsApp (+573102913651) e Instagram */}
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-3 relative z-[3]">
-            <a
-              href="https://wa.me/573102913651?text=Hola%20WAPPY%20IA,%20quiero%20recibir%20informaci%C3%B3n%20sobre%20el%20ecosistema%20de%20SG-SST%20con%20IA."
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group inline-flex h-10 px-4 items-center justify-center gap-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-950 font-extrabold text-xs sm:text-sm tracking-wide shadow-xs backdrop-blur-md transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 no-underline"
-              title="Escríbenos por WhatsApp +57 310 291 3651"
-            >
-              <span className="w-6 h-6 rounded-lg bg-[#25D366] text-white flex items-center justify-center shadow-2xs shrink-0">
-                <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86s.274.072.376-.043c.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564.289.13.332.202c.045.072.045.419-.1.824zm-3.423-14.416c-6.627 0-12 5.373-12 12 0 2.126.556 4.124 1.535 5.862l-1.535 5.608 5.752-1.509c1.693.903 3.621 1.419 5.672 1.419 6.627 0 12-5.373 12-12s-5.397-11.38-11.424-11.38z" />
-                </svg>
-              </span>
-              <span>{lang === 'es' ? 'WhatsApp Oficial' : 'Official WhatsApp'}</span>
-            </a>
-
-            <a
-              href="https://www.instagram.com/wappy_ia"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group inline-flex h-10 px-4 items-center justify-center gap-2 rounded-xl bg-fuchsia-500/15 hover:bg-fuchsia-500/25 border border-fuchsia-500/40 text-fuchsia-950 font-extrabold text-xs sm:text-sm tracking-wide shadow-xs backdrop-blur-md transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 no-underline"
-              title="Síguenos en Instagram @wappy_ia"
-            >
-              <span className="w-6 h-6 rounded-lg bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] text-white flex items-center justify-center shadow-2xs shrink-0">
-                <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-                </svg>
-              </span>
-              <span>Instagram @wappy_ia</span>
-            </a>
-          </div>
-
           {/* Banner Prevencionista IA (Imagen 4) */}
           <div
             className="hero-ai-banner"
@@ -4577,6 +4544,37 @@ export default function LandingPage() {
             {lang === 'es' ? '¡Entendido, gracias!' : 'Got it, thanks!'}
           </button>
         </div>
+      </div>
+
+      {/* Iconos Flotantes Saltando (Inferior Derecha: WhatsApp +573102913651 e Instagram @wappy_ia) */}
+      <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3">
+        <a
+          href="https://wa.me/573102913651?text=Hola%20WAPPY%20IA,%20quiero%20recibir%20informaci%C3%B3n%20sobre%20el%20ecosistema%20de%20SG-SST%20con%20IA."
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="WhatsApp Oficial +57 310 291 3651"
+          title="Escríbenos por WhatsApp +57 310 291 3651"
+          className="w-12 h-12 sm:w-13 sm:h-13 rounded-2xl bg-[#25D366] text-white flex items-center justify-center shadow-[0_10px_25px_-4px_rgba(37,211,102,0.65)] border-2 border-white/90 animate-bounce hover:scale-110 active:scale-95 transition-transform no-underline"
+          style={{ animationDuration: '1.7s' }}
+        >
+          <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86s.274.072.376-.043c.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564.289.13.332.202c.045.072.045.419-.1.824zm-3.423-14.416c-6.627 0-12 5.373-12 12 0 2.126.556 4.124 1.535 5.862l-1.535 5.608 5.752-1.509c1.693.903 3.621 1.419 5.672 1.419 6.627 0 12-5.373 12-12s-5.397-11.38-11.424-11.38z" />
+          </svg>
+        </a>
+
+        <a
+          href="https://www.instagram.com/wappy_ia"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Instagram Oficial @wappy_ia"
+          title="Síguenos en Instagram @wappy_ia"
+          className="w-12 h-12 sm:w-13 sm:h-13 rounded-2xl bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] text-white flex items-center justify-center shadow-[0_10px_25px_-4px_rgba(220,39,67,0.6)] border-2 border-white/90 animate-bounce hover:scale-110 active:scale-95 transition-transform no-underline"
+          style={{ animationDuration: '1.7s', animationDelay: '0.28s' }}
+        >
+          <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+          </svg>
+        </a>
       </div>
     </div>
   );
