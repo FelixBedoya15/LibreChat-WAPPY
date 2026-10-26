@@ -158,33 +158,60 @@ export default function WappyPortalPage() {
             linear-gradient(180deg, #dff1fd 0%, #f1f8fe 32%, #f6f7f9 100%);
         }
 
-        @keyframes portal-halo-float {
-          0%, 100% {
-            transform: translateX(-50%) rotateX(68deg) translateY(0px) scale(1);
-            box-shadow: 0 0 26px rgba(250, 204, 21, 0.95), 0 0 50px rgba(250, 204, 21, 0.55), inset 0 0 12px rgba(254, 240, 138, 0.85);
-          }
-          50% {
-            transform: translateX(-50%) rotateX(68deg) translateY(-6px) scale(1.08);
-            box-shadow: 0 0 36px rgba(253, 224, 71, 1), 0 0 68px rgba(199, 243, 3, 0.65), inset 0 0 16px rgba(255, 255, 255, 0.95);
-          }
-        }
-
         @keyframes felix-avatar-float {
           0%, 100% {
             transform: translateY(0px) scale(1);
           }
           50% {
-            transform: translateY(-7px) scale(1.018);
+            transform: translateY(-6px) scale(1.015);
           }
         }
 
-        @keyframes portal-badge-bob {
-          0%, 100% {
-            transform: translateY(0px);
-          }
-          50% {
-            transform: translateY(-5px);
-          }
+        .portal-main {
+          flex: 1;
+          padding-top: 132px;
+          padding-bottom: 72px;
+          width: 100%;
+        }
+
+        .portal-nav-actions {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-shrink: 0;
+        }
+
+        .portal-label-mobile {
+          display: none;
+        }
+
+        .portal-label-desktop {
+          display: inline;
+        }
+
+        .portal-eyebrow {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 7px 16px;
+          border-radius: 9999px;
+          background: rgba(14, 19, 0, 0.92);
+          color: #c7f303;
+          font-size: clamp(10.5px, 2.6vw, 13px);
+          font-weight: 700;
+          line-height: 1.3;
+          max-width: 100%;
+          margin-bottom: 16px;
+        }
+
+        .portal-eyebrow .tdot {
+          background: #c7f303;
+          border-radius: 9999px;
+          width: 7px;
+          height: 7px;
+          flex-shrink: 0;
+          animation: 1.8s ease-in-out infinite mkt-pulse;
         }
 
         .portal-main-grid {
@@ -210,7 +237,7 @@ export default function WappyPortalPage() {
         }
 
         .portal-choice-card:hover {
-          transform: translateY(-8px);
+          transform: translateY(-6px);
         }
 
         .portal-choice-card.card-ia:hover {
@@ -225,23 +252,24 @@ export default function WappyPortalPage() {
 
         .portal-stage {
           position: relative;
-          block-size: 310px;
+          min-block-size: 315px;
           display: flex;
+          flex-direction: column;
           align-items: center;
-          justify-content: center;
+          justify-content: space-between;
           overflow: hidden;
-          padding: 20px;
+          padding: 16px 18px 14px;
         }
 
         .portal-stage-ia {
           background:
-            radial-gradient(circle at 50% 32%, rgba(250, 204, 21, 0.24) 0%, rgba(16, 185, 129, 0.22) 36%, rgba(6, 20, 17, 0) 72%),
+            radial-gradient(circle at 50% 42%, rgba(250, 204, 21, 0.24) 0%, rgba(16, 185, 129, 0.22) 38%, rgba(6, 20, 17, 0) 74%),
             linear-gradient(145deg, #041310 0%, #092620 52%, #0e1300 100%);
         }
 
         .portal-stage-apps {
           background:
-            radial-gradient(circle at 50% 42%, rgba(251, 191, 36, 0.28) 0%, rgba(14, 165, 233, 0.2) 42%, rgba(15, 23, 42, 0) 74%),
+            radial-gradient(circle at 50% 45%, rgba(251, 191, 36, 0.28) 0%, rgba(14, 165, 233, 0.2) 42%, rgba(15, 23, 42, 0) 74%),
             linear-gradient(145deg, #0b192c 0%, #102a43 52%, #1e293b 100%);
         }
 
@@ -255,10 +283,34 @@ export default function WappyPortalPage() {
           pointer-events: none;
         }
 
+        .portal-stage-top-bar {
+          position: relative;
+          z-index: 30;
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          margin-bottom: 4px;
+        }
+
+        .portal-stage-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 5px 11px;
+          border-radius: 9999px;
+          font-size: 11px;
+          font-weight: 800;
+          white-space: nowrap;
+          backdrop-filter: blur(8px);
+          line-height: 1.2;
+        }
+
         .felix-avatar-wrapper {
           position: relative;
           z-index: 20;
-          height: 268px;
+          height: 245px;
           display: flex;
           align-items: flex-end;
           justify-content: center;
@@ -268,12 +320,116 @@ export default function WappyPortalPage() {
         }
 
         .portal-choice-card.card-apps:hover .felix-avatar-wrapper {
-          transform: scale(1.06) translateY(-4px);
+          transform: scale(1.05) translateY(-4px);
+        }
+
+        .portal-card-body {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          padding: 26px 28px 28px;
+        }
+
+        .portal-card-kicker {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 11.5px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          margin-bottom: 8px;
+          line-height: 1.35;
+        }
+
+        .portal-card-title-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-bottom: 12px;
+        }
+
+        .portal-card-title {
+          font-size: clamp(26px, 5.5vw, 32px);
+          font-weight: 900;
+          color: #0e1300;
+          margin: 0;
+          letter-spacing: -0.02em;
+          white-space: nowrap;
+          line-height: 1.1;
+        }
+
+        .portal-card-status-pill {
+          font-size: 11px;
+          font-weight: 800;
+          padding: 4px 10px;
+          border-radius: 9999px;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+
+        .portal-chips-wrap {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-bottom: 24px;
+        }
+
+        .portal-chip {
+          font-size: 12px;
+          font-weight: 700;
+          padding: 5px 11px;
+          border-radius: 10px;
+          line-height: 1.3;
+        }
+
+        .portal-cta-btn {
+          width: 100%;
+          justify-content: space-between;
+          padding: 0 12px 0 24px !important;
+          height: 54px !important;
+          font-size: 16px !important;
+          font-weight: 800 !important;
+        }
+
+        .portal-apps-banner {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 20px;
+          background: linear-gradient(135deg, #0b192c 0%, #102a43 60%, #0f172a 100%);
+          border-radius: 28px;
+          padding: 24px 30px;
+          margin-bottom: 32px;
+          color: #fff;
+          box-shadow: 0 20px 45px -15px rgba(15, 23, 42, 0.25);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .portal-apps-banner-back {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 11px 18px;
+          border-radius: 9999px;
+          background: rgba(255, 255, 255, 0.12);
+          border: 1px solid rgba(255, 255, 255, 0.25);
+          color: #fff;
+          font-size: 13.5px;
+          font-weight: 700;
+          cursor: pointer;
+          backdrop-filter: blur(8px);
+          white-space: nowrap;
         }
 
         .portal-apps-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr));
           gap: 24px;
           inline-size: 100%;
           max-inline-size: 1120px;
@@ -308,6 +464,118 @@ export default function WappyPortalPage() {
           opacity: 0.9;
           background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
         }
+
+        /* =========================================================
+           MOBILE & TABLET RESPONSIVE BREAKPOINTS
+           ========================================================= */
+        @media (max-width: 640px) {
+          .portal-main.wrap {
+            padding-top: 94px !important;
+            padding-bottom: 44px !important;
+            padding-left: 14px !important;
+            padding-right: 14px !important;
+          }
+
+          .portal-label-desktop {
+            display: none;
+          }
+
+          .portal-label-mobile {
+            display: inline;
+          }
+
+          .portal-nav-actions {
+            gap: 6px;
+          }
+
+          .portal-nav-actions .btn-sm {
+            height: 36px;
+            padding: 0 12px;
+            font-size: 12px;
+          }
+
+          .portal-main-grid {
+            gap: 20px;
+          }
+
+          .portal-choice-card {
+            border-radius: 24px;
+          }
+
+          .portal-stage {
+            min-block-size: 275px;
+            padding: 12px 12px 10px;
+          }
+
+          .portal-stage-pill {
+            font-size: 10px;
+            padding: 4px 9px;
+            gap: 5px;
+          }
+
+          .felix-avatar-wrapper {
+            height: 215px;
+          }
+
+          .portal-card-body {
+            padding: 20px 18px 20px;
+          }
+
+          .portal-card-kicker {
+            font-size: 10.5px;
+          }
+
+          .portal-card-status-pill {
+            font-size: 10.5px;
+            padding: 3.5px 9px;
+          }
+
+          .portal-chips-wrap {
+            gap: 6px;
+            margin-bottom: 18px;
+          }
+
+          .portal-chip {
+            font-size: 11px;
+            padding: 4px 9px;
+          }
+
+          .portal-cta-btn {
+            height: 50px !important;
+            font-size: 15px !important;
+            padding: 0 10px 0 18px !important;
+          }
+
+          .portal-apps-banner {
+            padding: 18px 18px;
+            border-radius: 22px;
+            margin-bottom: 22px;
+            gap: 14px;
+          }
+
+          .portal-apps-banner-back {
+            width: 100%;
+            padding: 10px 16px;
+            font-size: 13px;
+          }
+
+          .app-item-card {
+            border-radius: 22px;
+          }
+        }
+
+        @media (max-width: 380px) {
+          .portal-stage-pill {
+            font-size: 9.2px;
+            padding: 3.5px 7.5px;
+          }
+
+          .portal-nav-actions .btn-sm {
+            height: 34px;
+            padding: 0 10px;
+            font-size: 11px;
+          }
+        }
       `}</style>
 
       {/* Top Capsule Navbar */}
@@ -330,7 +598,7 @@ export default function WappyPortalPage() {
             </div>
           </a>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="portal-nav-actions">
             {view === 'apps' ? (
               <button
                 type="button"
@@ -338,7 +606,8 @@ export default function WappyPortalPage() {
                 onClick={handleBackToHub}
                 style={{ border: '1px solid #cbd5e1', fontWeight: 700 }}
               >
-                ← Volver a Wappy IA / APPs
+                <span className="portal-label-desktop">← Volver a Wappy IA / APPs</span>
+                <span className="portal-label-mobile">← Volver</span>
               </button>
             ) : (
               <button
@@ -347,7 +616,8 @@ export default function WappyPortalPage() {
                 onClick={() => navigate(`/${getRefQuery()}`)}
                 style={{ border: '1px solid #cbd5e1', fontWeight: 700 }}
               >
-                ← Volver al inicio
+                <span className="portal-label-desktop">← Volver al inicio</span>
+                <span className="portal-label-mobile">← Inicio</span>
               </button>
             )}
 
@@ -357,46 +627,39 @@ export default function WappyPortalPage() {
               onClick={handleGoToWappyIA}
               style={{ fontWeight: 800 }}
             >
-              Iniciar Sesión IA
+              <span className="portal-label-desktop">Iniciar Sesión IA</span>
+              <span className="portal-label-mobile">Login IA</span>
             </button>
           </div>
         </div>
       </nav>
 
       {/* Main Content Container */}
-      <main
-        className="wrap"
-        style={{
-          flex: 1,
-          paddingTop: 136,
-          paddingBottom: 72,
-          width: '100%',
-        }}
-      >
+      <main className="wrap portal-main">
         {view === 'hub' ? (
           <>
             {/* Header Section */}
-            <div style={{ textAlign: 'center', maxWidth: 760, margin: '0 auto 38px' }}>
-              <span className="trial" style={{ marginBottom: 16 }}>
+            <div style={{ textAlign: 'center', maxWidth: 760, margin: '0 auto 30px' }}>
+              <div className="portal-eyebrow">
                 <span className="tdot"></span>
-                PORTAL DE ACCESO OFICIAL · ECOSISTEMA WAPPY
-              </span>
+                <span>PORTAL DE ACCESO OFICIAL · ECOSISTEMA WAPPY</span>
+              </div>
               <h1
                 className="display"
                 style={{
-                  fontSize: 'clamp(30px, 4.5vw, 50px)',
+                  fontSize: 'clamp(26px, 5vw, 50px)',
                   fontWeight: 800,
                   color: '#0e1300',
-                  lineHeight: 1.08,
+                  lineHeight: 1.1,
                   letterSpacing: '-0.03em',
-                  margin: '0 0 14px',
+                  margin: '0 0 12px',
                 }}
               >
                 ¿A dónde deseas ingresar hoy?
               </h1>
               <p
                 style={{
-                  fontSize: 'clamp(15px, 1.8vw, 17.5px)',
+                  fontSize: 'clamp(14px, 2vw, 17.5px)',
                   color: '#475569',
                   lineHeight: 1.55,
                   margin: 0,
@@ -434,72 +697,56 @@ export default function WappyPortalPage() {
                 <div className="portal-stage portal-stage-ia">
                   <div className="portal-stage-grid" />
 
-                  {/* Badge Flotante Izquierdo */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: 16,
-                      left: 18,
-                      zIndex: 30,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      padding: '5px 12px',
-                      borderRadius: 9999,
-                      background: 'rgba(16, 185, 129, 0.18)',
-                      border: '1px solid rgba(52, 211, 153, 0.45)',
-                      color: '#a7f3d0',
-                      fontSize: 11,
-                      fontWeight: 800,
-                      backdropFilter: 'blur(8px)',
-                      animation: 'portal-badge-bob 3.2s ease-in-out infinite',
-                    }}
-                  >
-                    <span
+                  {/* Barra Superior de Insignias (Nunca se superponen ni tapan el avatar en móvil) */}
+                  <div className="portal-stage-top-bar">
+                    <div
+                      className="portal-stage-pill"
                       style={{
-                        width: 7,
-                        height: 7,
-                        borderRadius: '50%',
-                        background: '#c7f303',
-                        boxShadow: '0 0 8px #c7f303',
+                        background: 'rgba(16, 185, 129, 0.18)',
+                        border: '1px solid rgba(52, 211, 153, 0.45)',
+                        color: '#a7f3d0',
                       }}
-                    />
-                    ORQUESTADOR IA 24/7
-                  </div>
+                    >
+                      <span
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: '50%',
+                          background: '#c7f303',
+                          boxShadow: '0 0 8px #c7f303',
+                          flexShrink: 0,
+                        }}
+                      />
+                      <span>ORQUESTADOR IA 24/7</span>
+                    </div>
 
-                  {/* Badge Flotante Derecho */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: 16,
-                      right: 18,
-                      zIndex: 30,
-                      padding: '5px 12px',
-                      borderRadius: 9999,
-                      background: 'rgba(250, 204, 21, 0.16)',
-                      border: '1px solid rgba(250, 204, 21, 0.5)',
-                      color: '#fef08a',
-                      fontSize: 11,
-                      fontWeight: 800,
-                      backdropFilter: 'blur(8px)',
-                    }}
-                  >
-                    😇 Tenshi + +20 Agentes
+                    <div
+                      className="portal-stage-pill"
+                      style={{
+                        background: 'rgba(250, 204, 21, 0.16)',
+                        border: '1px solid rgba(250, 204, 21, 0.5)',
+                        color: '#fef08a',
+                      }}
+                    >
+                      <span className="portal-label-desktop">😇 Tenshi + +20 Agentes</span>
+                      <span className="portal-label-mobile">😇 +20 Agentes IA</span>
+                    </div>
                   </div>
 
                   {/* Contenedor Central de Tenshi con su Única Aureola Celestial Sincronizada */}
                   <div
                     style={{
                       position: 'relative',
+                      zIndex: 20,
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      paddingTop: 14,
+                      paddingTop: 6,
                     }}
                   >
                     <TenshiAvatar
-                      size={225}
+                      size={215}
                       mood="idle"
                       showHaloEffect={true}
                       showHUD={true}
@@ -511,11 +758,11 @@ export default function WappyPortalPage() {
                   <div
                     style={{
                       position: 'absolute',
-                      bottom: 10,
+                      bottom: 8,
                       left: '50%',
                       transform: 'translateX(-50%)',
-                      width: 180,
-                      height: 22,
+                      width: 170,
+                      height: 20,
                       borderRadius: '50%',
                       background:
                         'radial-gradient(ellipse at center, rgba(199, 243, 3, 0.45) 0%, rgba(16, 185, 129, 0) 75%)',
@@ -526,59 +773,19 @@ export default function WappyPortalPage() {
                 </div>
 
                 {/* Cuerpo de la Tarjeta Wappy IA */}
-                <div
-                  style={{
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    padding: '26px 28px 28px',
-                  }}
-                >
+                <div className="portal-card-body">
                   <div>
-                    <div
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        fontSize: 11.5,
-                        fontWeight: 800,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.06em',
-                        color: '#0d9488',
-                        marginBottom: 8,
-                      }}
-                    >
+                    <div className="portal-card-kicker" style={{ color: '#0d9488' }}>
                       <span>✨ PLATAFORMA CENTRAL SG-SST</span>
                     </div>
 
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: 12,
-                        marginBottom: 10,
-                      }}
-                    >
-                      <h2
-                        className="display"
-                        style={{
-                          fontSize: 32,
-                          fontWeight: 900,
-                          color: '#0e1300',
-                          margin: 0,
-                          letterSpacing: '-0.02em',
-                        }}
-                      >
+                    <div className="portal-card-title-row">
+                      <h2 className="display portal-card-title">
                         Wappy <span style={{ color: '#16a34a' }}>IA</span>
                       </h2>
                       <span
+                        className="portal-card-status-pill"
                         style={{
-                          fontSize: 11,
-                          fontWeight: 800,
-                          padding: '4px 10px',
-                          borderRadius: 9999,
                           background: '#ecfdf5',
                           color: '#047857',
                           border: '1px solid #a7f3d0',
@@ -590,10 +797,10 @@ export default function WappyPortalPage() {
 
                     <p
                       style={{
-                        fontSize: 14.5,
+                        fontSize: 'clamp(13.5px, 1.8vw, 14.5px)',
                         color: '#475569',
                         lineHeight: 1.55,
-                        margin: '0 0 18px',
+                        margin: '0 0 16px',
                       }}
                     >
                       Ingresa al ecosistema completo del SG-SST liderado por{' '}
@@ -603,14 +810,7 @@ export default function WappyPortalPage() {
                     </p>
 
                     {/* Chips de Características */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: 8,
-                        marginBottom: 24,
-                      }}
-                    >
+                    <div className="portal-chips-wrap">
                       {[
                         '🤖 +20 Agentes Especialistas SST',
                         '🧬 Metodología del Bioindividuo',
@@ -619,11 +819,8 @@ export default function WappyPortalPage() {
                       ].map((chip) => (
                         <span
                           key={chip}
+                          className="portal-chip"
                           style={{
-                            fontSize: 12,
-                            fontWeight: 700,
-                            padding: '5px 11px',
-                            borderRadius: 10,
                             background: '#f8fafc',
                             border: '1px solid #e2e8f0',
                             color: '#1e293b',
@@ -638,22 +835,14 @@ export default function WappyPortalPage() {
                   {/* Botón CTA Wappy IA */}
                   <button
                     type="button"
-                    className="btn btn-primary"
+                    className="btn btn-primary portal-cta-btn"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleGoToWappyIA();
                     }}
-                    style={{
-                      width: '100%',
-                      justifyContent: 'space-between',
-                      padding: '0 12px 0 24px',
-                      height: 54,
-                      fontSize: 16,
-                      fontWeight: 800,
-                    }}
                   >
                     <span>Ingresar a Wappy IA</span>
-                    <span className="pip" style={{ width: 34, height: 34 }}>
+                    <span className="pip" style={{ width: 34, height: 34, flexShrink: 0 }}>
                       <svg
                         width="16"
                         height="16"
@@ -694,57 +883,40 @@ export default function WappyPortalPage() {
                 <div className="portal-stage portal-stage-apps">
                   <div className="portal-stage-grid" />
 
-                  {/* Badge Flotante Izquierdo */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: 16,
-                      left: 18,
-                      zIndex: 30,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      padding: '5px 12px',
-                      borderRadius: 9999,
-                      background: 'rgba(245, 158, 11, 0.2)',
-                      border: '1px solid rgba(251, 191, 36, 0.5)',
-                      color: '#fde68a',
-                      fontSize: 11,
-                      fontWeight: 800,
-                      backdropFilter: 'blur(8px)',
-                      animation: 'portal-badge-bob 3.5s ease-in-out infinite',
-                    }}
-                  >
-                    <span
+                  {/* Barra Superior de Insignias (Sin colisión en móvil) */}
+                  <div className="portal-stage-top-bar">
+                    <div
+                      className="portal-stage-pill"
                       style={{
-                        width: 7,
-                        height: 7,
-                        borderRadius: '50%',
-                        background: '#fbbf24',
-                        boxShadow: '0 0 8px #fbbf24',
+                        background: 'rgba(245, 158, 11, 0.2)',
+                        border: '1px solid rgba(251, 191, 36, 0.5)',
+                        color: '#fde68a',
                       }}
-                    />
-                    SUITE DE APLICATIVOS
-                  </div>
+                    >
+                      <span
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: '50%',
+                          background: '#fbbf24',
+                          boxShadow: '0 0 8px #fbbf24',
+                          flexShrink: 0,
+                        }}
+                      />
+                      <span>SUITE DE APLICATIVOS</span>
+                    </div>
 
-                  {/* Badge Flotante Derecho */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: 16,
-                      right: 18,
-                      zIndex: 30,
-                      padding: '5px 12px',
-                      borderRadius: 9999,
-                      background: 'rgba(56, 189, 248, 0.18)',
-                      border: '1px solid rgba(56, 189, 248, 0.45)',
-                      color: '#bae6fd',
-                      fontSize: 11,
-                      fontWeight: 800,
-                      backdropFilter: 'blur(8px)',
-                    }}
-                  >
-                    ⚡ Herramientas SST en Vivo
+                    <div
+                      className="portal-stage-pill"
+                      style={{
+                        background: 'rgba(56, 189, 248, 0.18)',
+                        border: '1px solid rgba(56, 189, 248, 0.45)',
+                        color: '#bae6fd',
+                      }}
+                    >
+                      <span className="portal-label-desktop">⚡ Herramientas SST en Vivo</span>
+                      <span className="portal-label-mobile">⚡ SST en Vivo</span>
+                    </div>
                   </div>
 
                   {/* Avatar 3D de Félix (Cuerpo Completo) */}
@@ -766,11 +938,11 @@ export default function WappyPortalPage() {
                   <div
                     style={{
                       position: 'absolute',
-                      bottom: 10,
+                      bottom: 8,
                       left: '50%',
                       transform: 'translateX(-50%)',
-                      width: 180,
-                      height: 22,
+                      width: 170,
+                      height: 20,
                       borderRadius: '50%',
                       background:
                         'radial-gradient(ellipse at center, rgba(251, 191, 36, 0.5) 0%, rgba(14, 165, 233, 0) 75%)',
@@ -781,59 +953,19 @@ export default function WappyPortalPage() {
                 </div>
 
                 {/* Cuerpo de la Tarjeta Wappy APPs */}
-                <div
-                  style={{
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    padding: '26px 28px 28px',
-                  }}
-                >
+                <div className="portal-card-body">
                   <div>
-                    <div
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        fontSize: 11.5,
-                        fontWeight: 800,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.06em',
-                        color: '#d97706',
-                        marginBottom: 8,
-                      }}
-                    >
+                    <div className="portal-card-kicker" style={{ color: '#d97706' }}>
                       <span>🛠️ APLICACIONES INTERACTIVAS DE ACCESO DIRECTO</span>
                     </div>
 
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: 12,
-                        marginBottom: 10,
-                      }}
-                    >
-                      <h2
-                        className="display"
-                        style={{
-                          fontSize: 32,
-                          fontWeight: 900,
-                          color: '#0e1300',
-                          margin: 0,
-                          letterSpacing: '-0.02em',
-                        }}
-                      >
+                    <div className="portal-card-title-row">
+                      <h2 className="display portal-card-title">
                         Wappy <span style={{ color: '#d97706' }}>APPs</span>
                       </h2>
                       <span
+                        className="portal-card-status-pill"
                         style={{
-                          fontSize: 11,
-                          fontWeight: 800,
-                          padding: '4px 10px',
-                          borderRadius: 9999,
                           background: '#fffbeb',
                           color: '#b45309',
                           border: '1px solid #fde68a',
@@ -845,10 +977,10 @@ export default function WappyPortalPage() {
 
                     <p
                       style={{
-                        fontSize: 14.5,
+                        fontSize: 'clamp(13.5px, 1.8vw, 14.5px)',
                         color: '#475569',
                         lineHeight: 1.55,
-                        margin: '0 0 18px',
+                        margin: '0 0 16px',
                       }}
                     >
                       Ingresa a nuestra colección de aplicativos especializados listos para usar al
@@ -858,14 +990,7 @@ export default function WappyPortalPage() {
                     </p>
 
                     {/* Chips de Características */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: 8,
-                        marginBottom: 24,
-                      }}
-                    >
+                    <div className="portal-chips-wrap">
                       {[
                         '📊 APP Matriz IPVR (GTC 45)',
                         '⚡ Uso Inmediato sin Fricción',
@@ -874,11 +999,8 @@ export default function WappyPortalPage() {
                       ].map((chip) => (
                         <span
                           key={chip}
+                          className="portal-chip"
                           style={{
-                            fontSize: 12,
-                            fontWeight: 700,
-                            padding: '5px 11px',
-                            borderRadius: 10,
                             background: '#fffbeb',
                             border: '1px solid #fde68a',
                             color: '#78350f',
@@ -893,18 +1015,12 @@ export default function WappyPortalPage() {
                   {/* Botón CTA Wappy APPs */}
                   <button
                     type="button"
-                    className="btn btn-lime"
+                    className="btn btn-lime portal-cta-btn"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleOpenWappyApps();
                     }}
                     style={{
-                      width: '100%',
-                      justifyContent: 'space-between',
-                      padding: '0 12px 0 24px',
-                      height: 54,
-                      fontSize: 16,
-                      fontWeight: 800,
                       border: '2px solid #0e1300',
                     }}
                   >
@@ -919,6 +1035,7 @@ export default function WappyPortalPage() {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        flexShrink: 0,
                       }}
                     >
                       <svg
@@ -946,28 +1063,13 @@ export default function WappyPortalPage() {
              ================================================================ */
           <div>
             {/* Cabecera Wappy APPs con el Avatar de Félix */}
-            <div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 20,
-                background: 'linear-gradient(135deg, #0b192c 0%, #102a43 60%, #0f172a 100%)',
-                borderRadius: 28,
-                padding: '24px 30px',
-                marginBottom: 32,
-                color: '#fff',
-                boxShadow: '0 20px 45px -15px rgba(15, 23, 42, 0.25)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+            <div className="portal-apps-banner">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
                 <div
                   style={{
-                    width: 78,
-                    height: 78,
-                    borderRadius: 22,
+                    width: 72,
+                    height: 72,
+                    borderRadius: 20,
                     background:
                       'radial-gradient(circle at 50% 40%, rgba(251, 191, 36, 0.35), rgba(15, 23, 42, 0.9))',
                     border: '2px solid #fbbf24',
@@ -984,13 +1086,13 @@ export default function WappyPortalPage() {
                     style={{ height: '94%', width: 'auto', objectFit: 'contain', display: 'block' }}
                   />
                 </div>
-                <div>
+                <div style={{ flex: '1 1 220px', minWidth: 0 }}>
                   <div
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 6,
-                      fontSize: 11,
+                      fontSize: 10.5,
                       fontWeight: 800,
                       textTransform: 'uppercase',
                       letterSpacing: '0.06em',
@@ -1003,7 +1105,7 @@ export default function WappyPortalPage() {
                   <h1
                     className="display"
                     style={{
-                      fontSize: 'clamp(24px, 3.5vw, 36px)',
+                      fontSize: 'clamp(22px, 3.5vw, 34px)',
                       fontWeight: 900,
                       color: '#ffffff',
                       margin: 0,
@@ -1013,10 +1115,11 @@ export default function WappyPortalPage() {
                   </h1>
                   <p
                     style={{
-                      fontSize: 14,
-                      color: 'rgba(255, 255, 255, 0.8)',
+                      fontSize: 13.5,
+                      color: 'rgba(255, 255, 255, 0.82)',
                       margin: '4px 0 0',
                       maxWidth: 620,
+                      lineHeight: 1.45,
                     }}
                   >
                     Selecciona la aplicación especializada que deseas abrir. Herramientas prácticas
@@ -1028,20 +1131,7 @@ export default function WappyPortalPage() {
               <button
                 type="button"
                 onClick={handleBackToHub}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '11px 18px',
-                  borderRadius: 9999,
-                  background: 'rgba(255, 255, 255, 0.12)',
-                  border: '1px solid rgba(255, 255, 255, 0.25)',
-                  color: '#fff',
-                  fontSize: 13.5,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  backdropFilter: 'blur(8px)',
-                }}
+                className="portal-apps-banner-back"
               >
                 <span>← Volver a Selección</span>
               </button>
@@ -1075,7 +1165,7 @@ export default function WappyPortalPage() {
                         <div
                           style={{
                             position: 'relative',
-                            height: 205,
+                            height: 195,
                             background: '#0e1300',
                             overflow: 'hidden',
                             borderBottom: '1px solid #e2e8f0',
@@ -1094,43 +1184,52 @@ export default function WappyPortalPage() {
                           <div
                             style={{
                               position: 'absolute',
-                              top: 12,
-                              left: 12,
+                              top: 10,
+                              left: 10,
+                              maxWidth: 'calc(100% - 20px)',
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: 6,
-                              padding: '5px 12px',
+                              padding: '4px 10px',
                               borderRadius: 9999,
                               background: '#0e1300',
                               color: '#c7f303',
-                              fontSize: 10.5,
+                              fontSize: 10,
                               fontWeight: 900,
-                              letterSpacing: '0.04em',
+                              letterSpacing: '0.03em',
                               boxShadow: '0 6px 16px rgba(0,0,0,0.35)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
                             }}
                           >
                             <span
                               style={{
-                                width: 7,
-                                height: 7,
+                                width: 6,
+                                height: 6,
                                 borderRadius: '50%',
                                 background: '#c7f303',
+                                flexShrink: 0,
                               }}
                             />
-                            {app.badge}
+                            <span>{app.badge}</span>
                           </div>
                           <div
                             style={{
                               position: 'absolute',
                               bottom: 10,
-                              right: 12,
+                              right: 10,
+                              maxWidth: 'calc(100% - 20px)',
                               padding: '4px 10px',
                               borderRadius: 9999,
                               background: 'rgba(15, 23, 42, 0.85)',
                               color: '#fff',
-                              fontSize: 10.5,
+                              fontSize: 10,
                               fontWeight: 800,
                               backdropFilter: 'blur(6px)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
                             }}
                           >
                             APP #{index + 1} · {app.normative}
@@ -1141,8 +1240,7 @@ export default function WappyPortalPage() {
                           style={{
                             position: 'relative',
                             height: 150,
-                            background:
-                              'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+                            background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -1152,13 +1250,13 @@ export default function WappyPortalPage() {
                           <div
                             style={{
                               position: 'absolute',
-                              top: 12,
-                              left: 12,
+                              top: 10,
+                              left: 10,
                               padding: '4px 10px',
                               borderRadius: 9999,
                               background: '#cbd5e1',
                               color: '#334155',
-                              fontSize: 10,
+                              fontSize: 9.5,
                               fontWeight: 800,
                             }}
                           >
@@ -1166,14 +1264,14 @@ export default function WappyPortalPage() {
                           </div>
                           <div
                             style={{
-                              width: 68,
-                              height: 68,
+                              width: 64,
+                              height: 64,
                               borderRadius: 20,
                               background: '#ffffff',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              fontSize: 34,
+                              fontSize: 32,
                               boxShadow: '0 10px 25px rgba(15, 23, 42, 0.08)',
                             }}
                           >
@@ -1183,8 +1281,8 @@ export default function WappyPortalPage() {
                             style={{
                               position: 'absolute',
                               bottom: 10,
-                              right: 12,
-                              fontSize: 10.5,
+                              right: 10,
+                              fontSize: 10,
                               fontWeight: 700,
                               color: '#64748b',
                             }}
@@ -1195,7 +1293,7 @@ export default function WappyPortalPage() {
                       )}
 
                       {/* Contenido de la Tarjeta */}
-                      <div style={{ padding: '22px 24px 16px' }}>
+                      <div style={{ padding: '20px 20px 14px' }}>
                         <div
                           style={{
                             display: 'flex',
@@ -1208,7 +1306,7 @@ export default function WappyPortalPage() {
                           <h3
                             className="display"
                             style={{
-                              fontSize: 23,
+                              fontSize: 'clamp(20px, 4vw, 23px)',
                               fontWeight: 900,
                               color: '#0f172a',
                               margin: 0,
@@ -1224,6 +1322,7 @@ export default function WappyPortalPage() {
                             fontWeight: 800,
                             color: isFirstApp ? '#0d9488' : '#64748b',
                             marginBottom: 10,
+                            lineHeight: 1.35,
                           }}
                         >
                           {app.subtitle}
@@ -1234,7 +1333,7 @@ export default function WappyPortalPage() {
                             fontSize: 13.5,
                             color: '#475569',
                             lineHeight: 1.55,
-                            margin: '0 0 16px',
+                            margin: '0 0 14px',
                           }}
                         >
                           {app.description}
@@ -1269,7 +1368,7 @@ export default function WappyPortalPage() {
                     </div>
 
                     {/* Pie / Botón de la Tarjeta */}
-                    <div style={{ padding: '0 24px 24px' }}>
+                    <div style={{ padding: '0 20px 20px' }}>
                       {isFirstApp ? (
                         <a
                           href="https://wappy.club/matrizipvr"
@@ -1278,15 +1377,15 @@ export default function WappyPortalPage() {
                           style={{
                             width: '100%',
                             justifyContent: 'space-between',
-                            padding: '0 12px 0 20px',
+                            padding: '0 12px 0 18px',
                             height: 50,
-                            fontSize: 15,
+                            fontSize: 14.5,
                             fontWeight: 800,
                             textDecoration: 'none',
                           }}
                         >
                           <span>{app.ctaLabel}</span>
-                          <span className="pip" style={{ width: 32, height: 32 }}>
+                          <span className="pip" style={{ width: 32, height: 32, flexShrink: 0 }}>
                             <svg
                               width="15"
                               height="15"
