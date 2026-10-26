@@ -62,12 +62,37 @@ export function calculateMatchScore(candidate: string, targetKey: string, target
   const normCandidate = normalizeColumnName(candidate);
   if (!normCandidate) return 0;
 
+  // Evitar que campos numéricos de evaluación (nd, ne, np, nc, nr) se asocien por error a columnas cualitativas de "Interpretación"
+  if (['nd', 'ne', 'np', 'nc', 'nr'].includes(targetKey) && (normCandidate.includes('interpretacion') || normCandidate.includes('significado'))) {
+    return 0;
+  }
+  if (['interpretacion_np', 'interpretacion_nr'].includes(targetKey) && !normCandidate.includes('interpretacion') && !normCandidate.includes('significado')) {
+    return 0;
+  }
+
   const normKey = normalizeColumnName(targetKey);
   const normLabel = normalizeColumnName(targetLabel);
 
   // Coincidencia exacta con la clave o etiqueta
   if (normCandidate === normKey || normCandidate === normLabel) {
     return 1.0;
+  }
+
+  // Reglas de alta precisión para encabezados extensos de matrices GTC-45 / SG-SST
+  if (targetKey === 'peligro_clasificacion' && normCandidate.includes('clasificacion') && normCandidate.includes('peligro')) {
+    return 0.96;
+  }
+  if (targetKey === 'peligro_descripcion' && normCandidate.includes('descripcion') && normCandidate.includes('peligro')) {
+    return 0.96;
+  }
+  if (targetKey === 'cargo' && normCandidate.startsWith('cargo')) {
+    return 0.95;
+  }
+  if (targetKey === 'proceso' && normCandidate.startsWith('proceso')) {
+    return 0.95;
+  }
+  if (targetKey === 'zona' && (normCandidate.startsWith('areasitio') || normCandidate.startsWith('zonalugar') || normCandidate.startsWith('area'))) {
+    return 0.95;
   }
 
   for (const syn of synonyms) {
@@ -117,28 +142,112 @@ export function calculateMatchScore(candidate: string, targetKey: string, target
   return 0;
 }
 
-/**
- * Determina si una fila de una matriz Excel tiene características de fila de encabezados
- */
-function isLikelyHeaderRow(row: any[]): boolean {
-  if (!row || !Array.isArray(row)) return false;
-  const textCells = row.filter(c => typeof c === 'string' && c.trim().length > 0);
-  if (textCells.length < 2) return false;
+const HEADER_KEYWORDS_REGEX = /\b(nd|ne|np|nc|nr|epp|nit)\b|proceso|zona|lugar|[aá]rea|sitio|cargo|actividad|tarea|rutinari|peligro|riesgo|clasificaci|descripci|efecto|consecuencia|control|fuente|medio|individuo|trabajador|deficiencia|exposici|probabilidad|aceptabilidad|eliminaci|sustituci|ingenier[ií]a|administrativ|protecci[oó]n|expuesto|requisito|legal|sede|nombre|c[eé]dula|identificaci[oó]n|documento|fecha|estado|responsable|da[ñn]o/i;
 
-  // Si la primera celda es un número secuencial (ej. 1, 2, 3), es una fila de datos
-  if (typeof row[0] === 'number' || (/^\d+$/.test(String(row[0] || '').trim()))) {
-    return false;
-  }
+const METADATA_BANNER_REGEX = /^(versi[oó]n|p[aá]gina|\d+\s*de\s*\d+|fecha\s*de\s*vigencia|fecha\s*de\s*elaboraci[oó]n|c[oó]digo|nit|instrucciones\s*para\s*diligenciar|tabla\s*\d+|aceptabilidad\s*del\s*riesgo\s*:?)$/i;
 
-  // Si contiene párrafos largos (> 70 caracteres), es contenido de datos, no un encabezado
-  const hasLongNarrative = textCells.some(c => String(c).length > 70);
-  if (hasLongNarrative) return false;
+const SUPER_CATEGORY_BANNER_REGEX = /^(evaluaci[oó]n\s+del\s+riesgo|gesti[oó]n\s+del\s+riesgo|identificaci[oó]n\s+del\s+peligro|valoraci[oó]n\s+del\s+riesgo|medidas\s+de\s+intervenci[oó]n|riesgo\s+y\s+consecuencia|peligros?\s+y\s+riesgos?|peligro\s*\/\s*riesgo)/i;
 
-  return true;
+const SELF_DESCRIPTIVE_SUBHEADER_REGEX = /^(nivel\s+de|interpretaci[oó]n|aceptabilidad|existencia\s+de|elementos\s+de|controles\s+en|controles\s+de|controles\s+sobre|proceso|actividad|tarea|[aá]rea|zona|cargo|clasificaci[oó]n|descripci[oó]n|efectos|peor\s+consecuencia|requisito|eliminaci[oó]n|sustituci[oó]n|horas\s+de|rutinari|\b(nd|ne|np|nc|nr)\b)/i;
+
+const CONTEXT_CARRY_COL_REGEX = /^(n[º°o]|item|proceso|[aá]rea|sitio|zona|lugar|ubicaci[oó]n|cargo|actividad|tarea|rutinari|sede|personas\s+expuestas|horas\s+de\s+exposici[oó]n|clasificaci[oó]n\s+de\s+peligro|clasificaci[oó]n\s+del\s+peligro)/i;
+
+const HAZARD_SPECIFIC_COL_REGEX = /(descripci[oó]n\s+del\s+peligro|peligro|efectos\s+posibles|categor[ií]a\s+del\s+da[ñn]o|nivel\s+de\s+da[ñn]o|nivel\s+de\s+deficiencia|nivel\s+de\s+exposici[oó]n|nivel\s+de\s+consecuencia|peor\s+consecuencia|controles\s+administrativo|requisitos\s+legales|existencia\s+de\s+requisito|\b(nd|ne|nc)\b)/i;
+
+function cleanCellText(val: any): string {
+  if (val === undefined || val === null) return '';
+  return String(val).replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 /**
- * Extrae de forma inteligente los encabezados (incluso de 2 niveles/categorías) y las filas de datos.
+ * Propaga los valores de celdas combinadas (!merges) vertical y horizontalmente en la matriz 2D.
+ */
+export function expandSheetMerges(matrix: any[][], merges?: XLSX.Range[]): void {
+  if (!matrix || !Array.isArray(merges) || merges.length === 0) return;
+  for (const m of merges) {
+    if (!m || !m.s || !m.e) continue;
+    const { r: sr, c: sc } = m.s;
+    const { r: er, c: ec } = m.e;
+    if (sr >= matrix.length) continue;
+    const topVal = matrix[sr]?.[sc];
+    if (topVal === undefined || topVal === null || cleanCellText(topVal) === '') continue;
+
+    if (sc === ec && er > sr && (er - sr) <= 80) {
+      for (let r = sr + 1; r <= Math.min(er, matrix.length - 1); r++) {
+        if (!matrix[r]) matrix[r] = [];
+        if (cleanCellText(matrix[r][sc]) === '') {
+          matrix[r][sc] = topVal;
+        }
+      }
+    } else if (sr === er && ec > sc && (ec - sc) <= 14) {
+      for (let c = sc + 1; c <= ec; c++) {
+        if (cleanCellText(matrix[sr][c]) === '') {
+          matrix[sr][c] = topVal;
+        }
+      }
+    } else if (er > sr && ec > sc && (er - sr) <= 4 && (ec - sc) <= 14) {
+      for (let r = sr; r <= Math.min(er, matrix.length - 1); r++) {
+        if (!matrix[r]) matrix[r] = [];
+        for (let c = sc; c <= ec; c++) {
+          if (cleanCellText(matrix[r][c]) === '') {
+            matrix[r][c] = topVal;
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Calcula un puntaje heurístico para identificar filas reales de encabezados de tabla
+ * e ignorar banners de control documental ("PROCESO | VERSIÓN | PÁGINA") o filas de datos.
+ */
+function scoreHeaderCandidateRow(row: any[]): number {
+  if (!row || !Array.isArray(row)) return 0;
+  const nonEmpty: { col: number; txt: string }[] = [];
+  for (let c = 0; c < row.length; c++) {
+    const txt = cleanCellText(row[c]);
+    if (txt) nonEmpty.push({ col: c, txt });
+  }
+  if (nonEmpty.length < 2) return 0;
+
+  const pureNumericCount = nonEmpty.filter(x => /^\d+([.,]\d+)?$/.test(x.txt)).length;
+  const standaloneSiNoCount = nonEmpty.filter(x => /^(si|sí|no|n\.a\.?)$/i.test(x.txt)).length;
+  if (pureNumericCount >= 2 || (pureNumericCount >= 1 && standaloneSiNoCount >= 1) || standaloneSiNoCount >= 2) {
+    return 0;
+  }
+
+  const firstColTxt = cleanCellText(row[0]);
+  if (/^\d+$/.test(firstColTxt)) {
+    return 0;
+  }
+
+  if (nonEmpty.some(x => x.txt.length > 260 || /^[A-ZÁÉÍÓÚÑ\s\/]{3,35}:\s+.{45,}/.test(x.txt))) {
+    return 0;
+  }
+
+  if (nonEmpty.length <= 6 && nonEmpty.some(x => METADATA_BANNER_REGEX.test(x.txt))) {
+    return 0;
+  }
+
+  const textCells = nonEmpty.filter(x => !/^(x|\d+([.,]\d+)?|si|sí|no|n\.a\.?)$/i.test(x.txt));
+  if (textCells.length < 2) return 0;
+
+  let keywordHits = 0;
+  for (const item of textCells) {
+    if (HEADER_KEYWORDS_REGEX.test(item.txt)) {
+      keywordHits++;
+    }
+  }
+
+  if (keywordHits < 2) return 0;
+
+  return textCells.length * 3 + keywordHits * 8;
+}
+
+/**
+ * Extrae de forma inteligente los encabezados (soportando 1, 2, 3 o 4 niveles) y las filas de datos,
+ * sin contaminar con "Columna_1", "Columna_2", etc. y arrastrando celdas de actividad combinadas verticalmente.
  */
 export function extractSheetHeadersAndRows(matrix: any[][]): { headers: string[]; allRows: Record<string, any>[] } {
   if (!matrix || matrix.length === 0) return { headers: [], allRows: [] };
@@ -148,7 +257,7 @@ export function extractSheetHeadersAndRows(matrix: any[][]): { headers: string[]
   for (let r = 0; r < matrix.length; r++) {
     const row = matrix[r] || [];
     for (let c = row.length - 1; c > maxCol; c--) {
-      if (row[c] !== null && row[c] !== undefined && String(row[c]).trim() !== '') {
+      if (cleanCellText(row[c]) !== '') {
         maxCol = c;
         break;
       }
@@ -157,19 +266,30 @@ export function extractSheetHeadersAndRows(matrix: any[][]): { headers: string[]
 
   if (maxCol === -1) return { headers: [], allRows: [] };
 
-  // 2. Buscar fila candidata a encabezado en las primeras 10 filas
+  // 2. Buscar la mejor fila de encabezado evaluando las primeras 200 filas
+  const searchLimit = Math.min(matrix.length, 200);
+  const scores: number[] = new Array(searchLimit).fill(0);
+  for (let r = 0; r < searchLimit; r++) {
+    scores[r] = scoreHeaderCandidateRow(matrix[r]);
+  }
+
   let headerRowIdx = -1;
-  for (let r = 0; r < Math.min(matrix.length, 10); r++) {
-    if (isLikelyHeaderRow(matrix[r])) {
+  let bestCombinedScore = 0;
+  for (let r = 0; r < searchLimit; r++) {
+    if (scores[r] <= 0) continue;
+    const nextScore = (r + 1 < searchLimit && scores[r + 1] >= 12) ? scores[r + 1] * 0.9 : 0;
+    const thirdScore = (r + 2 < searchLimit && scores[r + 2] >= 12) ? scores[r + 2] * 0.8 : 0;
+    const combined = scores[r] + nextScore + thirdScore;
+    if (combined > bestCombinedScore) {
+      bestCombinedScore = combined;
       headerRowIdx = r;
-      break;
     }
   }
 
-  // Respaldo: primera fila con al menos una celda de texto
+  // Respaldo: primera fila con al menos 2 celdas de texto
   if (headerRowIdx === -1) {
-    for (let r = 0; r < Math.min(matrix.length, 10); r++) {
-      if ((matrix[r] || []).some((c: any) => c !== null && c !== undefined && String(c).trim() !== '')) {
+    for (let r = 0; r < Math.min(matrix.length, 20); r++) {
+      if ((matrix[r] || []).filter((c: any) => cleanCellText(c) !== '').length >= 2) {
         headerRowIdx = r;
         break;
       }
@@ -178,75 +298,87 @@ export function extractSheetHeadersAndRows(matrix: any[][]): { headers: string[]
 
   if (headerRowIdx === -1) return { headers: [], allRows: [] };
 
-  // Verificar si la fila siguiente también es un sub-encabezado (encabezado multinivel de matrices GTC-45)
-  let isMultiHeader = false;
-  if (headerRowIdx + 1 < matrix.length && isLikelyHeaderRow(matrix[headerRowIdx + 1])) {
-    isMultiHeader = true;
-  }
+  // 3. Expandir el bloque de encabezados [hStart .. hEnd] (1 a 4 niveles)
+  let hStart = headerRowIdx;
+  let hEnd = headerRowIdx;
 
-  let finalHeaders: string[] = [];
-  let dataStartIdx = headerRowIdx + 1;
-
-  if (isMultiHeader) {
-    dataStartIdx = headerRowIdx + 2;
-    const r1 = matrix[headerRowIdx] || [];
-    const r2 = matrix[headerRowIdx + 1] || [];
-    const colLimit = Math.min(maxCol + 1, Math.max(r1.length, r2.length));
-
-    let currentParent = '';
-    for (let c = 0; c < colLimit; c++) {
-      const top = String(r1[c] || '').trim();
-      const sub = String(r2[c] || '').trim();
-
-      if (top) currentParent = top;
-
-      let colName = '';
-      if (top && sub && top.toLowerCase() !== sub.toLowerCase()) {
-        colName = `${top} - ${sub}`;
-      } else if (sub) {
-        colName = currentParent && !sub.toLowerCase().includes(currentParent.toLowerCase()) 
-          ? `${currentParent} - ${sub}` 
-          : sub;
-      } else if (top) {
-        colName = top;
-      }
-      finalHeaders.push(colName);
+  for (let r = headerRowIdx + 1; r <= Math.min(matrix.length - 1, headerRowIdx + 3); r++) {
+    if (scores[r] >= 12) {
+      hEnd = r;
     }
-  } else {
-    const r1 = matrix[headerRowIdx] || [];
-    const colLimit = Math.min(maxCol + 1, r1.length);
-    for (let c = 0; c < colLimit; c++) {
-      finalHeaders.push(String(r1[c] || '').trim());
-    }
-    dataStartIdx = headerRowIdx + 1;
   }
-
-  // Encontrar el último índice de columna con encabezado o contenido real (evitar columnas fantasma al final)
-  let lastUsefulColIdx = -1;
-  for (let c = finalHeaders.length - 1; c >= 0; c--) {
-    if (finalHeaders[c] && finalHeaders[c].trim().length > 0) {
-      lastUsefulColIdx = c;
+  for (let r = headerRowIdx - 1; r >= Math.max(0, headerRowIdx - 2); r--) {
+    const row = matrix[r] || [];
+    const hasMetadataBanner = row.some((c: any) => METADATA_BANNER_REGEX.test(cleanCellText(c)));
+    const pureNum = row.filter((c: any) => /^\d+$/.test(cleanCellText(c))).length;
+    const nonEmptyCount = row.filter((c: any) => cleanCellText(c) !== '').length;
+    if (!hasMetadataBanner && pureNum === 0 && (scores[r] >= 12 || (nonEmptyCount >= 1 && nonEmptyCount <= 10))) {
+      hStart = r;
+    } else {
       break;
     }
-    // Verificar si alguna fila de datos tiene valor en esta columna
-    for (let r = dataStartIdx; r < matrix.length; r++) {
-      const val = matrix[r]?.[c];
-      if (val !== null && val !== undefined && String(val).trim() !== '') {
-        lastUsefulColIdx = c;
-        break;
+  }
+
+  const dataStartIdx = hEnd + 1;
+  const colLimit = maxCol + 1;
+  const rawHeaders: string[] = [];
+
+  let currentGroupParent = '';
+  for (let c = 0; c < colLimit; c++) {
+    const colCells: string[] = [];
+    for (let r = hStart; r <= hEnd; r++) {
+      const txt = cleanCellText(matrix[r]?.[c]);
+      if (txt && (colCells.length === 0 || colCells[colCells.length - 1].toLowerCase() !== txt.toLowerCase())) {
+        colCells.push(txt);
       }
     }
-    if (lastUsefulColIdx !== -1) break;
+
+    const specificCells = colCells.filter(t => !SUPER_CATEGORY_BANNER_REGEX.test(t));
+    const effectiveCells = specificCells.length > 0 ? specificCells : [];
+
+    let colName = '';
+    if (effectiveCells.length >= 2) {
+      const parent = effectiveCells[effectiveCells.length - 2];
+      const leaf = effectiveCells[effectiveCells.length - 1];
+      currentGroupParent = parent;
+
+      if (parent.toLowerCase() === leaf.toLowerCase() || parent.toLowerCase().startsWith(leaf.toLowerCase())) {
+        colName = parent;
+      } else if (SELF_DESCRIPTIVE_SUBHEADER_REGEX.test(leaf) || leaf.length >= 24) {
+        colName = leaf;
+      } else {
+        colName = `${parent} - ${leaf}`;
+      }
+    } else if (effectiveCells.length === 1) {
+      const single = effectiveCells[0];
+      const bottomVal = cleanCellText(matrix[hEnd]?.[c]);
+      const isFromBottomRow = (hEnd > hStart && bottomVal && bottomVal.toLowerCase() === single.toLowerCase());
+
+      if (isFromBottomRow && currentGroupParent && !SELF_DESCRIPTIVE_SUBHEADER_REGEX.test(single) && single.length < 24) {
+        colName = `${currentGroupParent} - ${single}`;
+      } else {
+        if (!isFromBottomRow) currentGroupParent = '';
+        colName = single;
+      }
+    } else {
+      colName = '';
+    }
+
+    rawHeaders.push(colName);
   }
 
-  if (lastUsefulColIdx >= 0 && lastUsefulColIdx < finalHeaders.length - 1) {
-    finalHeaders = finalHeaders.slice(0, lastUsefulColIdx + 1);
-  }
-
-  // Deduplicar encabezados y reemplazar vacíos intermedios con Columna_X
+  // 4. Omitir columnas vacías sin encabezado para evitar generar "Columna_1", "Columna_2", etc.
+  const namedCount = rawHeaders.filter(Boolean).length;
+  const validCols: { colIdx: number; header: string }[] = [];
   const seen = new Map<string, number>();
-  const cleanedHeaders = finalHeaders.map((h, i) => {
-    let clean = (h || `Columna_${i + 1}`).trim().replace(/\s+/g, ' ');
+
+  for (let c = 0; c < rawHeaders.length; c++) {
+    let h = rawHeaders[c];
+    if (!h) {
+      if (namedCount >= 2) continue;
+      h = `Columna_${c + 1}`;
+    }
+    let clean = h.trim().replace(/\s+/g, ' ');
     const lower = clean.toLowerCase();
     if (seen.has(lower)) {
       const count = seen.get(lower)! + 1;
@@ -255,24 +387,58 @@ export function extractSheetHeadersAndRows(matrix: any[][]): { headers: string[]
     } else {
       seen.set(lower, 1);
     }
-    return clean;
-  });
+    validCols.push({ colIdx: c, header: clean });
+  }
 
-  // Extraer todas las filas de datos reales
+  const cleanedHeaders = validCols.map(vc => vc.header);
+  const contextHeaders = cleanedHeaders.filter(h => CONTEXT_CARRY_COL_REGEX.test(h));
+  const hazardHeaders = cleanedHeaders.filter(h => HAZARD_SPECIFIC_COL_REGEX.test(h));
+
+  // 5. Extraer filas de datos reales (deteniéndose ante tablas secundarias de listas y arrastrando contexto de actividad)
   const allRows: Record<string, any>[] = [];
+  const lastContextValues: Record<string, any> = {};
+
   for (let r = dataStartIdx; r < matrix.length; r++) {
     const rowArr = matrix[r] || [];
-    const hasData = rowArr.some((c: any) => c !== null && c !== undefined && String(c).trim() !== '');
+    const hasData = validCols.some(vc => cleanCellText(rowArr[vc.colIdx]) !== '');
     if (!hasData) continue;
+
+    let repeatedHeaderMatches = 0;
+    for (const vc of validCols) {
+      const cellTxt = cleanCellText(rowArr[vc.colIdx]);
+      if (cellTxt && cellTxt.length >= 5 && vc.header.toLowerCase().includes(cellTxt.toLowerCase())) {
+        repeatedHeaderMatches++;
+      }
+    }
+    const firstNonEmpty = cleanCellText(rowArr.find((c: any) => cleanCellText(c) !== ''));
+    if (repeatedHeaderMatches >= 2 || /^(tabla\s+\d+|rutinaria\s+o\s+no\s+rutinaria|instrucciones)/i.test(firstNonEmpty)) {
+      break;
+    }
+
     const obj: Record<string, any> = {};
-    cleanedHeaders.forEach((h, idx) => {
-      obj[h] = rowArr[idx] !== undefined && rowArr[idx] !== null ? rowArr[idx] : '';
-    });
+    for (const vc of validCols) {
+      const rawVal = rowArr[vc.colIdx];
+      obj[vc.header] = rawVal !== undefined && rawVal !== null ? rawVal : '';
+    }
+
+    const filledHazardCols = hazardHeaders.filter(hh => cleanCellText(obj[hh]) !== '').length;
+    if (filledHazardCols >= 2 && contextHeaders.length > 0) {
+      for (const ch of contextHeaders) {
+        if (cleanCellText(obj[ch]) !== '') {
+          lastContextValues[ch] = obj[ch];
+        } else if (lastContextValues[ch] !== undefined && lastContextValues[ch] !== '') {
+          obj[ch] = lastContextValues[ch];
+        }
+      }
+    }
+
     allRows.push(obj);
   }
 
   return { headers: cleanedHeaders, allRows };
 }
+
+const AUXILIARY_SHEET_NAME_REGEX = /^(instrucci|instructivo|lista|variable|parametro|par[aá]metro|tabla|gu[ií]a|portada|control\s*de\s*cambio)/i;
 
 /**
  * Lee un archivo Excel (File o ArrayBuffer) y extrae todas sus hojas con cabeceras y muestras.
@@ -285,9 +451,11 @@ export function parseWorkbookSheets(data: ArrayBuffer): { workbook: XLSX.WorkBoo
     const sheet = workbook.Sheets[sheetName];
     if (!sheet) continue;
 
-    // Leemos la hoja como matriz 2D para inspección inteligente de encabezados y títulos
+    // Leemos la hoja como matriz 2D y expandimos celdas combinadas (!merges)
     const matrix = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: '' });
     if (!matrix || matrix.length === 0) continue;
+
+    expandSheetMerges(matrix, sheet['!merges']);
 
     const { headers, allRows } = extractSheetHeadersAndRows(matrix);
     if (headers.length === 0) continue;
@@ -309,15 +477,22 @@ export function parseWorkbookSheets(data: ArrayBuffer): { workbook: XLSX.WorkBoo
   }
 
   // Detección de Hojas de Procesos / Matrices Múltiples para Consolidación Automática:
-  // Si hay 2 o más hojas con estructura de matriz amplia (>= 12 columnas y > 0 filas)
-  const processSheets = sheets.filter(s => s.headers.length >= 12 && s.totalRows > 0);
+  // Ignorar hojas auxiliares (INSTRUCCIONES, LISTAS, VARIABLES, TABLAS)
+  const processSheets = sheets.filter(s =>
+    s.headers.length >= 10 &&
+    s.totalRows > 0 &&
+    !AUXILIARY_SHEET_NAME_REGEX.test(s.name) &&
+    s.headers.filter(h => !/^columna_\d+/i.test(h)).length >= 8
+  );
+
   if (processSheets.length >= 2) {
-    // 1. Construir unión ordenada de encabezados
+    // 1. Construir unión ordenada de encabezados (excluyendo cualquier Columna_X residual)
     const unionHeaders: string[] = [];
     const headerSet = new Set<string>();
 
     for (const ps of processSheets) {
       for (const h of ps.headers) {
+        if (/^columna_\d+/i.test(h)) continue;
         if (!headerSet.has(h)) {
           headerSet.add(h);
           unionHeaders.push(h);
@@ -354,13 +529,17 @@ export function parseWorkbookSheets(data: ArrayBuffer): { workbook: XLSX.WorkBoo
 
     sheets.unshift(consolidatedSheet);
   } else if (sheets.length > 1) {
-    // Si no hubo consolidación pero hay varias hojas, asegurar que la hoja
-    // con mayor cantidad de columnas/datos no quede relegada por una hoja resumen vacía
-    const maxColSheetIdx = sheets.reduce((bestIdx, curr, idx, arr) => 
-      (curr.headers.length * (curr.totalRows > 0 ? 1 : 0.1) > arr[bestIdx].headers.length * (arr[bestIdx].totalRows > 0 ? 1 : 0.1)) ? idx : bestIdx, 0
-    );
-    if (maxColSheetIdx > 0 && sheets[0].headers.length < 10 && sheets[maxColSheetIdx].headers.length >= 15) {
-      const [richSheet] = sheets.splice(maxColSheetIdx, 1);
+    // Priorizar hojas de matriz reales por encima de hojas de INSTRUCCIONES o LISTAS
+    const bestSheetIdx = sheets.reduce((bestIdx, curr, idx, arr) => {
+      const currIsAux = AUXILIARY_SHEET_NAME_REGEX.test(curr.name) ? 0.1 : 1;
+      const bestIsAux = AUXILIARY_SHEET_NAME_REGEX.test(arr[bestIdx].name) ? 0.1 : 1;
+      const currScore = curr.headers.length * (curr.totalRows > 0 ? 1 : 0.1) * currIsAux;
+      const bestScore = arr[bestIdx].headers.length * (arr[bestIdx].totalRows > 0 ? 1 : 0.1) * bestIsAux;
+      return currScore > bestScore ? idx : bestIdx;
+    }, 0);
+
+    if (bestSheetIdx > 0) {
+      const [richSheet] = sheets.splice(bestSheetIdx, 1);
       sheets.unshift(richSheet);
     }
   }
@@ -451,6 +630,7 @@ export function transformRowsWithMapping(
     rawRows = source;
   } else if (source) {
     const matrix = XLSX.utils.sheet_to_json<any[]>(source, { header: 1, defval: '' });
+    expandSheetMerges(matrix, source['!merges']);
     const extracted = extractSheetHeadersAndRows(matrix);
     rawRows = extracted.allRows.length > 0
       ? extracted.allRows
