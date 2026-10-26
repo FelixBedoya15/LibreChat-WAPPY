@@ -750,7 +750,15 @@
             </span>
           </button>
 
-          <!-- Botón 5: Pantalla Completa (WAPPY Grupo 14: Neutral/Slate) -->
+          <!-- Botón 5: Vaciar Matriz (WAPPY Grupo 13: Rose / Danger) -->
+          <button onclick="handleClearMatrix()" id="btnCardClearMatrix" class="wappy-expand-btn group inline-flex items-center justify-center h-8 px-2.5 min-w-[34px] sm:h-9 sm:px-3 sm:min-w-[38px] rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 hover:bg-rose-500/20 active:scale-95 cursor-pointer select-none" title="Vaciar Matriz">
+            <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            <span class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-xs font-bold tracking-wide">
+              Vaciar Matriz
+            </span>
+          </button>
+
+          <!-- Botón 6: Pantalla Completa (WAPPY Grupo 14: Neutral/Slate) -->
           <button onclick="toggleFullscreen()" id="btnCardFullscreen" class="wappy-expand-btn group inline-flex items-center justify-center h-8 px-2.5 min-w-[34px] sm:h-9 sm:px-3 sm:min-w-[38px] rounded-xl bg-slate-500/10 border border-slate-300/60 text-slate-700 hover:bg-slate-500/20 active:scale-95 cursor-pointer select-none" title="Pantalla Completa">
             <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
             <span class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-xs font-bold tracking-wide">
@@ -4433,6 +4441,40 @@ function deleteRiskRow(rowId) {
     renderExecutiveReport();
     updateFilterDropdownOptions();
     showToast('Riesgo eliminado', 'info');
+  }
+}
+
+function handleClearMatrix() {
+  if (!isCompanyProfileComplete(companyInfo)) {
+    promptCompleteCompanyInfo('vaciar la matriz de riesgos');
+    return;
+  }
+
+  if (!matrixRows || matrixRows.length === 0) {
+    showToast('La matriz ya se encuentra vacía', 'info');
+    return;
+  }
+
+  if (confirm(`¿Estás seguro de que deseas vaciar todos los riesgos (${matrixRows.length}) de la matriz?\n\nSe guardará un respaldo automático en el Historial de Versiones por si deseas restaurarla.`)) {
+    if (typeof saveHistorySnapshot === 'function') {
+      saveHistorySnapshot();
+    }
+    matrixRows = [];
+    selectedHeatmapCell = null;
+    selectedCategoryFilter = null;
+    filterText = '';
+    filterProceso = '';
+    filterCargo = '';
+    filterPeligro = '';
+    filterCalificacion = '';
+    const filterInput = document.getElementById('filterTextInput');
+    if (filterInput) filterInput.value = '';
+    saveToLocalStorage(true);
+    renderTable();
+    renderDashboard();
+    renderExecutiveReport();
+    updateFilterDropdownOptions();
+    showToast('Matriz vaciada correctamente (respaldo guardado en el historial)', 'info');
   }
 }
 
