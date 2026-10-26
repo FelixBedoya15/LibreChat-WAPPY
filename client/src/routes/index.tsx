@@ -76,6 +76,7 @@ const EventsMeetAdminDashboard = lazy(() => import('~/components/EventsMeet/Even
 const AuditoriaDashboard = lazy(() => import('~/components/Auditoria/AuditoriaDashboard'));
 const CentroControlSST = lazy(() => import('~/components/SGSST/CentroControlSST'));
 const TareasPage = lazy(() => import('~/components/SGSST/TareasPage'));
+const WappyAppsPage = lazy(() => import('~/components/WappyApps/WappyAppsPage'));
 const WappyStudioDashboard = lazy(() => import('~/components/Studio/WappyStudioDashboard'));
 const AcademiaDashboard = lazy(() => import('~/components/Academia/AcademiaDashboard'));
 const MarketplaceDashboard = lazy(() => import('~/components/Marketplace/MarketplaceDashboard'));
@@ -158,11 +159,17 @@ const Clase2Route = () => {
   return null;
 };
 
+/**
+ * Índice de wappy.club.
+ * - PWA instalada (standalone): se mantiene el acceso directo a la app (/c/new o /login).
+ * - Navegador: SIEMPRE muestra la página de inicio (novedades), incluso con sesión activa.
+ *   La propia LandingPage ofrece al usuario autenticado un acceso de 1 clic a WAPPY sin /login.
+ *   Se usa el AuthContextProvider de AuthLayout (sin anidar otro) para evitar dobles refresh de token.
+ */
 const RootIndexRedirect = () => {
   const { isAuthenticated, user } = useAuthContext();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
-  const hasRefParam = Boolean(searchParams.get('ref') || searchParams.get('referral') || searchParams.get('r'));
 
   const isStandalone =
     typeof window !== 'undefined' &&
@@ -183,19 +190,7 @@ const RootIndexRedirect = () => {
     return <Navigate to={{ pathname: '/login', search: location.search }} replace={true} />;
   }
 
-  if (isAuthenticated && !hasRefParam) {
-    if (user && !hasActivePlan(user)) {
-      return <Navigate to={{ pathname: '/planes', search: location.search }} replace={true} />;
-    }
-    return <Navigate to={{ pathname: '/c/new', search: location.search }} replace={true} />;
-  }
-
-  return withSuspense(
-    <AuthContextProvider>
-      <LandingPage />
-      <ApiErrorWatcher />
-    </AuthContextProvider>
-  );
+  return withSuspense(<LandingPage />);
 };
 
 const BillingRedirect = () => {
@@ -919,6 +914,11 @@ export const router = createBrowserRouter(
               /* Tareas (antes "Automatizaciones IA" del Centro de Control) */
               path: 'tareas',
               element: withSuspense(<TareasPage />),
+            },
+            {
+              /* WAPPY APPs: catálogo interno de aplicaciones para usuarios autenticados */
+              path: 'aplicaciones',
+              element: withSuspense(<WappyAppsPage />),
             },
             {
               path: 'embajadores/dashboard',

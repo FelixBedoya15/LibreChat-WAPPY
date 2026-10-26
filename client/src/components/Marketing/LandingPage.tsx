@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '~/hooks';
+import { hasActivePlan } from '~/utils/planAccess';
 import './marketing.css';
 
 interface AmbassadorProfile {
@@ -23,7 +24,29 @@ interface AmbassadorProfile {
 export default function LandingPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated } = useAuthContext();
+  const { isAuthenticated, user } = useAuthContext();
+
+  /*
+   * Sesión activa en el navegador: wappy.club SIEMPRE muestra esta página de inicio (novedades),
+   * pero el usuario autenticado tiene acceso de 1 clic a WAPPY sin pasar por /portal ni /login.
+   */
+  const sessionUserName = (user?.name || user?.username || '').trim();
+  const sessionFirstName = sessionUserName.split(/\s+/)[0] || '';
+  const sessionAvatar = (user as any)?.avatar || '';
+  const sessionNeedsPlan = Boolean(isAuthenticated && user && !hasActivePlan(user));
+  const [isWelcomeDismissed, setIsWelcomeDismissed] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('wappy_welcome_back_dismissed') === '1';
+    } catch (e) {
+      return false;
+    }
+  });
+  const dismissWelcomeBack = () => {
+    setIsWelcomeDismissed(true);
+    try {
+      sessionStorage.setItem('wappy_welcome_back_dismissed', '1');
+    } catch (e) {}
+  };
 
   const [isScrolled, setIsScrolled] = useState(false);
   const [lang, setLang] = useState<'es' | 'en'>('es');
@@ -212,16 +235,30 @@ export default function LandingPage() {
     return '';
   };
 
+  /** Entrada directa a WAPPY para usuarios con sesión activa (respeta la regla de plan activo). */
+  const handleEnterWappy = () => {
+    navigate(sessionNeedsPlan ? '/planes' : '/c/new');
+  };
+
+  /** Acceso directo al catálogo interno de WAPPY APPs (requiere sesión). */
+  const handleOpenWappyAppsInternal = () => {
+    navigate(sessionNeedsPlan ? '/planes' : '/aplicaciones');
+  };
+
   const handleStartTrial = () => {
     const refQuery = getRefQuery();
     if (isAuthenticated && !refQuery) {
-      navigate('/c/new');
+      handleEnterWappy();
     } else {
       navigate(`/register${refQuery}`);
     }
   };
 
   const handleLogin = () => {
+    if (isAuthenticated) {
+      handleEnterWappy();
+      return;
+    }
     const refQuery = getRefQuery();
     navigate(`/portal${refQuery}`);
   };
@@ -433,8 +470,37 @@ export default function LandingPage() {
               {lang === 'es' ? 'Agendar demo' : 'Book a demo'}
             </button>
 
-            <button type="button" className="btn btn-lime btn-sm" onClick={handleLogin}>
-              {lang === 'es' ? 'Ir a WAPPY' : 'Go to WAPPY'}
+            <button
+              type="button"
+              className="btn btn-lime btn-sm"
+              onClick={handleLogin}
+              title={
+                isAuthenticated
+                  ? lang === 'es'
+                    ? `Sesión activa${sessionUserName ? ` como ${sessionUserName}` : ''} · Entrar directo sin iniciar sesión`
+                    : `Active session${sessionUserName ? ` as ${sessionUserName}` : ''} · Enter without signing in`
+                  : undefined
+              }
+              style={isAuthenticated ? { display: 'inline-flex', alignItems: 'center', gap: 8 } : undefined}
+            >
+              {isAuthenticated && (
+                <img
+                  src={
+                    sessionAvatar ||
+                    `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(sessionUserName || 'W')}&backgroundColor=0d9488`
+                  }
+                  alt=""
+                  aria-hidden="true"
+                  style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1.5px solid rgba(14,19,0,0.25)' }}
+                />
+              )}
+              {isAuthenticated
+                ? lang === 'es'
+                  ? 'Entrar a WAPPY →'
+                  : 'Enter WAPPY →'
+                : lang === 'es'
+                  ? 'Ir a WAPPY'
+                  : 'Go to WAPPY'}
             </button>
 
             {/* Mobile Hamburger Toggle Button */}
@@ -527,6 +593,30 @@ export default function LandingPage() {
 
             {/* Mobile CTAs: Botones de Acción Principales */}
             <div className="mkt-mobile-menu-actions">
+              {isAuthenticated && (
+                <button
+                  type="button"
+                  className="btn btn-lime"
+                  style={{
+                    width: '100%',
+                    justifyContent: 'center',
+                    minHeight: '48px',
+                    touchAction: 'manipulation',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                  }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleEnterWappy();
+                    setTimeout(() => setIsMobileMenuOpen(false), 80);
+                  }}
+                >
+                  {lang === 'es'
+                    ? `Entrar a WAPPY${sessionFirstName ? ` como ${sessionFirstName}` : ''} →`
+                    : `Enter WAPPY${sessionFirstName ? ` as ${sessionFirstName}` : ''} →`}
+                </button>
+              )}
               <button
                 type="button"
                 className="btn btn-outline-dark mkt-btn-agendar-demo"
@@ -566,7 +656,13 @@ export default function LandingPage() {
                   setTimeout(() => setIsMobileMenuOpen(false), 80);
                 }}
               >
-                {lang === 'es' ? 'Comenzar prueba gratis de 7 días' : 'Start 7-day free trial'}
+                {isAuthenticated
+                  ? lang === 'es'
+                    ? 'Continuar en WAPPY'
+                    : 'Continue in WAPPY'
+                  : lang === 'es'
+                    ? 'Comenzar prueba gratis de 7 días'
+                    : 'Start 7-day free trial'}
               </button>
             </div>
 
@@ -4153,7 +4249,13 @@ export default function LandingPage() {
                 </span>
               </button>
               <button type="button" className="btn btn-glass" onClick={handleLogin}>
-                {lang === 'es' ? 'Ir a WAPPY' : 'Go to WAPPY'}
+                {isAuthenticated
+                  ? lang === 'es'
+                    ? 'Entrar a WAPPY'
+                    : 'Enter WAPPY'
+                  : lang === 'es'
+                    ? 'Ir a WAPPY'
+                    : 'Go to WAPPY'}
               </button>
             </div>
 
@@ -4219,6 +4321,119 @@ export default function LandingPage() {
       </footer>
 
       {/* Toast Notification */}
+      {/* Tarjeta flotante "Bienvenido de nuevo": acceso de 1 clic para sesiones activas */}
+      {isAuthenticated && !isWelcomeDismissed && (
+        <div className="mkt-welcome-back" role="region" aria-label={lang === 'es' ? 'Sesión activa' : 'Active session'}>
+          <style>{`
+            .mkt-welcome-back {
+              position: fixed;
+              left: 50%;
+              bottom: max(18px, env(safe-area-inset-bottom, 0px));
+              transform: translateX(-50%);
+              z-index: 900;
+              width: calc(100% - 24px);
+              max-width: 640px;
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              padding: 10px 10px 10px 12px;
+              border-radius: 18px;
+              background: rgba(255, 255, 255, 0.92);
+              border: 1px solid rgba(13, 148, 136, 0.28);
+              box-shadow: 0 18px 40px -18px rgba(14, 19, 0, 0.35);
+              backdrop-filter: blur(14px);
+              -webkit-backdrop-filter: blur(14px);
+              font-family: var(--ui);
+              animation: mktWelcomeIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+            }
+            .mkt-dark .mkt-welcome-back {
+              background: rgba(14, 19, 0, 0.9);
+              border-color: rgba(199, 243, 3, 0.25);
+            }
+            @keyframes mktWelcomeIn {
+              from { opacity: 0; transform: translate(-50%, 16px); }
+              to { opacity: 1; transform: translate(-50%, 0); }
+            }
+            .mkt-welcome-back-avatar {
+              width: 38px; height: 38px; border-radius: 12px; object-fit: cover; flex-shrink: 0;
+              border: 2px solid #c7f303;
+            }
+            .mkt-welcome-back-text { flex: 1; min-width: 0; line-height: 1.25; }
+            .mkt-welcome-back-title { font-size: 14px; font-weight: 800; color: #0e1300; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .mkt-welcome-back-sub { font-size: 12px; font-weight: 500; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .mkt-dark .mkt-welcome-back-title { color: #f8fafc; }
+            .mkt-dark .mkt-welcome-back-sub { color: #94a3b8; }
+            .mkt-welcome-back-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+            .mkt-welcome-back-btn {
+              display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+              height: 38px; padding: 0 14px; border-radius: 12px; font-size: 13px; font-weight: 800;
+              cursor: pointer; white-space: nowrap; transition: transform 0.2s ease, background 0.2s ease;
+            }
+            .mkt-welcome-back-btn:hover { transform: translateY(-1px); }
+            .mkt-welcome-back-btn:active { transform: scale(0.97); }
+            .mkt-welcome-back-btn.primary { background: #c7f303; color: #0e1300; border: 1px solid #b4dc00; }
+            .mkt-welcome-back-btn.secondary { background: rgba(13, 148, 136, 0.1); color: #0f766e; border: 1px solid rgba(13, 148, 136, 0.3); }
+            .mkt-dark .mkt-welcome-back-btn.secondary { color: #5eead4; }
+            .mkt-welcome-back-close {
+              width: 30px; height: 30px; border-radius: 10px; border: none; background: transparent;
+              color: #64748b; font-size: 16px; cursor: pointer; flex-shrink: 0;
+            }
+            .mkt-welcome-back-close:hover { background: rgba(100, 116, 139, 0.12); }
+            @media (max-width: 560px) {
+              .mkt-welcome-back { flex-wrap: wrap; }
+              .mkt-welcome-back-text { flex: 1 1 calc(100% - 90px); }
+              .mkt-welcome-back-actions { width: 100%; }
+              .mkt-welcome-back-btn { flex: 1; }
+            }
+          `}</style>
+          <img
+            className="mkt-welcome-back-avatar"
+            src={
+              sessionAvatar ||
+              `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(sessionUserName || 'W')}&backgroundColor=0d9488`
+            }
+            alt=""
+            aria-hidden="true"
+          />
+          <div className="mkt-welcome-back-text">
+            <div className="mkt-welcome-back-title">
+              {lang === 'es'
+                ? `👋 Hola${sessionFirstName ? ` ${sessionFirstName}` : ''}, tu sesión sigue activa`
+                : `👋 Hi${sessionFirstName ? ` ${sessionFirstName}` : ''}, your session is active`}
+            </div>
+            <div className="mkt-welcome-back-sub">
+              {lang === 'es'
+                ? 'Mira las novedades o entra directo, sin iniciar sesión.'
+                : 'Check what is new or jump right in, no sign-in needed.'}
+            </div>
+          </div>
+          <button
+            type="button"
+            className="mkt-welcome-back-close"
+            onClick={dismissWelcomeBack}
+            aria-label={lang === 'es' ? 'Ocultar aviso' : 'Dismiss'}
+          >
+            ×
+          </button>
+          <div className="mkt-welcome-back-actions">
+            {!sessionNeedsPlan && (
+              <button type="button" className="mkt-welcome-back-btn secondary" onClick={handleOpenWappyAppsInternal}>
+                WAPPY APPs
+              </button>
+            )}
+            <button type="button" className="mkt-welcome-back-btn primary" onClick={handleEnterWappy}>
+              {sessionNeedsPlan
+                ? lang === 'es'
+                  ? 'Activar plan →'
+                  : 'Activate plan →'
+                : lang === 'es'
+                  ? 'Entrar a WAPPY →'
+                  : 'Enter WAPPY →'}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className={`mkt-toast ${toastMessage ? 'show' : ''}`} role="status">
         {toastMessage}
       </div>

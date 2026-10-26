@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import TenshiAvatar from '~/components/Tenshi/TenshiAvatar';
+import { WAPPY_APPS_CATALOG, resolveWappyAppUrl } from '~/components/WappyApps/wappyAppsCatalog';
+import { useAuthContext } from '~/hooks';
+import { hasActivePlan } from '~/utils/planAccess';
 import './marketing.css';
 
 interface WappyAppCardItem {
@@ -24,6 +27,7 @@ export default function WappyPortalPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { isAuthenticated, user } = useAuthContext();
 
   const isAppsRoute =
     location.pathname.includes('wappy-apps') ||
@@ -123,6 +127,11 @@ export default function WappyPortalPage() {
   const handleGoToWappyIA = () => {
     setIsMobileMenuOpen(false);
     const refQuery = getRefQuery();
+    // Si el navegador ya tiene sesión activa, entrar directo sin pasar por /login (evita el parpadeo).
+    if (isAuthenticated) {
+      navigate(user && !hasActivePlan(user) ? '/planes' : '/c/new');
+      return;
+    }
     navigate(`/login${refQuery}`);
   };
 
@@ -146,107 +155,22 @@ export default function WappyPortalPage() {
     setSearchParams(nextParams);
   };
 
-  const handleOpenMatrizIpvr = (e?: React.MouseEvent) => {
+  /**
+   * Abre una app del catálogo compartido conservando el comportamiento original del portal
+   * (dominio canónico https://wappy.club en producción, ruta relativa en local).
+   */
+  const handleOpenAppPath = (path: string) => (e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
     }
-    if (
-      typeof window !== 'undefined' &&
-      (window.location.hostname === 'wappy.club' || window.location.hostname.endsWith('.wappy.club'))
-    ) {
-      window.location.href = 'https://wappy.club/matrizipvr';
-    } else {
-      window.location.href = '/matrizipvr';
-    }
+    window.location.href = resolveWappyAppUrl(path);
   };
 
-  const handleOpenWappyStudio = (e?: React.MouseEvent) => {
-    if (e) {
-      e.preventDefault();
-    }
-    if (
-      typeof window !== 'undefined' &&
-      (window.location.hostname === 'wappy.club' || window.location.hostname.endsWith('.wappy.club'))
-    ) {
-      window.location.href = 'https://wappy.club/wappystudio';
-    } else {
-      window.location.href = '/wappystudio';
-    }
-  };
-
-  const wappyAppsCatalog: WappyAppCardItem[] = [
-    {
-      id: 'matriz-ipvr',
-      badge: 'DISPONIBLE AHORA · APP #1',
-      badgeTone: 'active',
-      title: 'APP de Matriz IPVR',
-      subtitle: 'Identificación de Peligros, Evaluación y Valoración de Riesgos · GTC 45',
-      description:
-        'Aplicativo completo para construir, evaluar y auditar tu Matriz IPEVR bajo la metodología GTC 45. Incluye sugerencias automáticas con IA (Google Gemini), Dashboard de analítica con mapa de calor e Informe Gerencial en formato A4 listo para imprimir o exportar.',
-      normative: 'GTC 45 · Decreto 1072 de 2015',
-      image: '/marketing/marketplace-matriz-ipvr-card-horizontal.png',
-      visualType: 'matriz-ipvr',
-      icon: '📊',
-      tags: [
-        'Matriz GTC 45 en Vivo',
-        'Controles con IA Gemini',
-        'Gráficas & Mapa de Calor',
-        'Informe Gerencial A4',
-      ],
-      href: 'https://wappy.club/matrizipvr',
-      ctaLabel: 'Ingresar a APP Matriz IPVR',
-      onOpen: handleOpenMatrizIpvr,
-    },
-    {
-      id: 'wappy-studio',
-      badge: 'DISPONIBLE AHORA · APP #2',
-      badgeTone: 'active',
-      title: 'APP de WAPPY Studio',
-      subtitle: 'Estudio de Locución Neural 24kHz (Gemini 2.5) y Cápsulas de Video HTML + GSAP',
-      description:
-        'Produce locuciones profesionales en 24kHz con etiquetas de actuación vocal SST y genera cápsulas animadas de capacitación en formato Horizontal (16:9) o Reels (9:16), listas para compartir por WhatsApp o descargar en HTML autónomo.',
-      normative: 'Capacitación e Inducción SST · Decreto 1072',
-      visualType: 'wappy-studio',
-      icon: '🎬',
-      tags: [
-        'Locución IA 24kHz (.WAV)',
-        'Cápsulas Video HTML+GSAP',
-        'Formatos 16:9 y 9:16',
-        'Biblioteca Persistente',
-      ],
-      href: 'https://wappy.club/wappystudio',
-      ctaLabel: 'Ingresar a WAPPY Studio',
-      onOpen: handleOpenWappyStudio,
-    },
-    {
-      id: 'diagnostico-0312',
-      badge: 'PRÓXIMAMENTE EN WAPPY APPs',
-      badgeTone: 'soon',
-      title: 'APP Autoevaluación Res. 0312',
-      subtitle: 'Diagnóstico Interactivo de Estándares Mínimos SG-SST (7, 21 y 60 Estándares)',
-      description:
-        'Calculadora normativa inteligente que clasifica tu empresa según número de trabajadores y nivel de riesgo ARL, evalúa el cumplimiento del ciclo PHVA y genera el Plan de Mejoramiento automático.',
-      normative: 'Resolución 0312 de 2019 · Art. 27-28',
-      visualType: 'soon',
-      icon: '🛡️',
-      tags: ['7, 21 o 60 Estándares', 'Plan de Mejora IA', 'Puntaje Ponderado', 'Reporte Oficial'],
-      ctaLabel: 'Próximamente disponible',
-    },
-    {
-      id: 'matriz-quimica-sga',
-      badge: 'PRÓXIMAMENTE EN WAPPY APPs',
-      badgeTone: 'soon',
-      title: 'APP Compatibilidad Química SGA',
-      subtitle: 'Inventario de Sustancias, Pictogramas SGA y Matriz de Almacenamiento Seguro',
-      description:
-        'Valida al instante la compatibilidad de almacenamiento de tus productos químicos según el Sistema Globalmente Armonizado (SGA), extrae datos de Fichas de Seguridad (FDS) y genera etiquetas normativas.',
-      normative: 'Decreto 1496 de 2018 · Res. 773 de 2021',
-      visualType: 'soon',
-      icon: '🧪',
-      tags: ['Cruce SGA en Vivo', 'Pictogramas Oficiales', 'Alertas de Reacción', 'Etiquetado SGA'],
-      ctaLabel: 'Próximamente disponible',
-    },
-  ];
+  /* Catálogo único compartido con la vista interna /aplicaciones (ver wappyAppsCatalog.ts) */
+  const wappyAppsCatalog: WappyAppCardItem[] = WAPPY_APPS_CATALOG.map((app) => ({
+    ...app,
+    onOpen: app.badgeTone === 'active' && app.path ? handleOpenAppPath(app.path) : undefined,
+  }));
 
   return (
     <div className={`mkt wappy-portal-page ${isDarkMode ? 'mkt-dark' : ''}`}>

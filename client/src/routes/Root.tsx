@@ -1,5 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { Outlet, Navigate } from 'react-router-dom';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import type { ContextType } from '~/common';
 import {
   useSearchEnabled,
@@ -75,6 +75,8 @@ export default function Root() {
   });
 
   const { isAuthenticated, logout, user } = useAuthContext();
+  // Suscripción a la ruta: garantiza re-render al navegar desde la página de inicio (/) hacia /c/new.
+  const { pathname: routePathname } = useLocation();
   const [isCheckingSession, setIsCheckingSession] = useState(() => !isAuthenticated);
 
   useEffect(() => {
@@ -223,6 +225,12 @@ export default function Root() {
       );
     }
     return <Navigate to="/login" replace={true} />;
+  }
+
+  // wappy.club (/) muestra SIEMPRE la página de inicio a pantalla completa, también con sesión activa:
+  // sin menú lateral ni Tenshi del layout autenticado (la LandingPage ofrece el acceso de 1 clic).
+  if (routePathname === '/' || routePathname === '') {
+    return <Outlet context={{ navVisible: false, setNavVisible: () => {} } satisfies ContextType} />;
   }
 
   if (

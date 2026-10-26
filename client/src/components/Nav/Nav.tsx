@@ -35,6 +35,7 @@ import AuditoriaButton from './AuditoriaButton';
 import BookmarkNav from './Bookmarks/BookmarkNav';
 import KanbanButton from './KanbanButton';
 import TareasButton from './TareasButton';
+import WappyAppsButton from './WappyAppsButton';
 import WappyStudioButton from './WappyStudioButton';
 import { canAccessTareas } from '~/utils/planAccess';
 import ChatSSTButton from './ChatSSTButton';
@@ -335,6 +336,10 @@ const Nav = memo(
                             <TareasButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
                         )}
+                        {/* WAPPY APPs (acceso directo al catálogo de aplicaciones) */}
+                        <Suspense fallback={null}>
+                          <WappyAppsButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                        </Suspense>
                         {/* WAPPY Studio (Solo ADMIN por el momento) */}
                         {isAdmin && (
                           <Suspense fallback={null}>
@@ -421,6 +426,11 @@ const Nav = memo(
                                     <TareasButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>
                                 )}
+
+                                {/* 3.2. WAPPY APPs (acceso directo al catálogo de aplicaciones, debajo de Tareas) */}
+                                <Suspense fallback={null}>
+                                  <WappyAppsButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                </Suspense>
 
                                 {/* 3.5. WAPPY Studio (Solo ADMIN por el momento - Justo por encima de Academia WAPPY) */}
                                 {isAdmin && (
