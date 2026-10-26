@@ -425,7 +425,7 @@ class WhatsAppManager {
 
         const chat = await message.getChat();
 
-        // Sistema de buffer de 6 segundos para acumular mensajes fragmentados
+        // Sistema de Debounce Inbound de 3 segundos (estilo OpenClaw) para consolidar ráfagas de mensajes/audios
         if (this.bufferTimers.has(userId)) {
           clearTimeout(this.bufferTimers.get(userId));
         }
@@ -437,9 +437,11 @@ class WhatsAppManager {
           const bufferedMessages = this.messageBuffer.get(userId) || [];
           this.messageBuffer.delete(userId);
           this.bufferTimers.delete(userId);
-          const unifiedMessage = bufferedMessages.join('\n');
+          const unifiedMessage = bufferedMessages.length > 1
+            ? bufferedMessages.map((msg, idx) => `[Mensaje ${idx + 1}/${bufferedMessages.length}]: ${msg}`).join('\n')
+            : bufferedMessages[0];
           await this.processUnifiedMessage(userId, user, chat, unifiedMessage);
-        }, 6000);
+        }, 3000);
 
         this.bufferTimers.set(userId, timer);
 
@@ -496,6 +498,41 @@ class WhatsAppManager {
 
     try {
       await chat.sendStateTyping();
+
+      // 1. Verificar si el mensaje es una Aprobación/Rechazo rápido (HITL) de una Acción Gobernada de Tenshi
+      const trimmedLower = String(unifiedMessage || '').trim().toLowerCase();
+      if (['1', 'aprobar', 'autorizar', 'confirmar', '2', 'rechazar', 'cancelar'].includes(trimmedLower)) {
+        const TenshiPendingAction = mongoose.models.TenshiPendingAction;
+        if (TenshiPendingAction) {
+          const pending = await TenshiPendingAction.findOne({
+            userId: String(userId),
+            status: 'pendiente_aprobacion',
+          }).sort({ createdAt: -1 });
+          if (pending) {
+            const isApprove = ['1', 'aprobar', 'autorizar', 'confirmar'].includes(trimmedLower);
+            pending.status = isApprove ? 'aprobado' : 'rechazado';
+            pending.resolvedAt = new Date();
+            await pending.save();
+            await chat.sendMessage(
+              isApprove
+                ? `✅ *Acción Gobernada Aprobada:* "${pending.title}" (${pending.toolName}). Ejecutada y registrada en la bitácora.`
+                : `🚫 *Acción Gobernada Rechazada:* "${pending.title}" ha sido cancelada.`
+            );
+            return;
+          }
+        }
+      }
+
+      // 2. Disparar Auto-Aprendizaje de Habilidades (turn_finalizer en segundo plano)
+      setImmediate(async () => {
+        try {
+          const { autoSynthesizeProceduralRule } = require('../routes/voice/tenshiOpenBotEngine');
+          await autoSynthesizeProceduralRule(unifiedMessage, userId, user?.activeCompanyId || 'global', '');
+        } catch (_e) {
+          // Silencioso
+        }
+      });
+
       const responseText = await this.getAgentResponse(user, unifiedMessage, null);
       const finalMessage = `🤖 ${responseText}`;
       await chat.sendMessage(finalMessage);

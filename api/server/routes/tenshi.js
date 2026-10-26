@@ -30,6 +30,8 @@ const {
     buildGenerativeWidgetForTool,
     manageProceduralMemory,
     getProceduralMemoryPromptBlock,
+    autoSynthesizeProceduralRule,
+    searchInstantHistory,
 } = require('./voice/tenshiOpenBotEngine');
 
 function sanitizeSlug(title) {
@@ -1051,7 +1053,7 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
                 if (companyInfo.sedes && Array.isArray(companyInfo.sedes) && companyInfo.sedes.length > 0) {
                     sedesStr = '\n  * Sedes Adicionales:\n' + companyInfo.sedes.map(s => `    - Sede: ${s.nombre || 'N/A'} (Ciudad: ${s.city || 'N/A'}, Depto: ${s.departamento || 'N/A'}, Dirección: ${s.address || 'N/A'}, Actividades: ${s.generalActivities || 'N/A'})`).join('\n');
                 }
-                fullCompanyAndMemoryBlock += `### 🏢 INFORMACIÓN DE LA EMPRESA ACTIVA DEL USUARIO (DATOS OFICIALES SG-SST):\n` +
+                fullCompanyAndMemoryBlock += `### 🏢 [MEMORIA ESTRUCTURADA DUAL — BLOQUE 1: EMPRESA ACTIVA (HECHOS FIJOS SG-SST)]:\n` +
                     `- Razón Social / Nombre: ${companyInfo.companyName || 'N/A'}\n` +
                     `- Tipo de Empresa: ${companyType}\n` +
                     `- ${nitLabel}: ${companyInfo.nit || 'N/A'}\n` +
@@ -1068,7 +1070,7 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
                     `- Descripción General de Actividades: ${companyInfo.generalActivities || 'N/A'}` +
                     (sedesStr ? `${sedesStr}\n\n` : '\n\n');
             } else {
-                fullCompanyAndMemoryBlock += `### 🏢 INFORMACIÓN DE LA EMPRESA ACTIVA:\nNo se ha registrado una empresa en el Gestor SG-SST aún.\n\n`;
+                fullCompanyAndMemoryBlock += `### 🏢 [MEMORIA ESTRUCTURADA DUAL — BLOQUE 1: EMPRESA ACTIVA]:\nNo se ha registrado una empresa en el Gestor SG-SST aún.\n\n`;
             }
 
             // Deduplicate user memories by key (most recent first)
@@ -1083,7 +1085,7 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
             }
 
             if (uniqueMemMap.size > 0) {
-                fullCompanyAndMemoryBlock += `### 🧠 MEMORIAS REGISTRADAS DEL USUARIO (BASE DE CONOCIMIENTO PERMANENTE / MEMORIA WAPPY):\n`;
+                fullCompanyAndMemoryBlock += `### 🧠 [MEMORIA ESTRUCTURADA DUAL — BLOQUE 2: PREFERENCIAS DEL USUARIO Y MEMORIA PERMANENTE]:\n`;
                 for (const [k, v] of uniqueMemMap.entries()) {
                     fullCompanyAndMemoryBlock += `📌 [${k}]:\n${v}\n\n`;
                 }
@@ -1140,6 +1142,11 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
 
         let systemMessage = `${config.systemPrompt}
 
+MANUAL DE FUNCIONAMIENTO DE WAPPY IA:
+${manualContent}
+
+${fullCompanyAndMemoryBlock}
+
 Hola, estás conversando con el usuario: ${req.user.name || req.user.username || 'Usuario'}
 
 ### 🕒 ZONA HORARIA Y FECHA ACTUAL EN VIVO (COLOMBIA):
@@ -1147,13 +1154,9 @@ Hola, estás conversando con el usuario: ${req.user.name || req.user.username ||
 - Fecha y Hora Actual en Colombia: ${nowColombiaStr}.
 - REGLA ESTRICTA DE AGENDAMIENTO: Toda hora o fecha que el usuario mencione ("hoy", "mañana", "a las 3pm", "a las 8am", etc.) debe interpretarse e ingresarse SIEMPRE en HORA COLOMBIA (America/Bogota, UTC-5). NUNCA uses UTC ni horarios extranjeros. Al enviar fechas a herramientas como 'google_calendar' o 'wappy_gestionar_agenda', envía la fecha y hora con el offset '-05:00' (ejemplo: '2026-10-16T15:00:00-05:00').
 
-MANUAL DE FUNCIONAMIENTO DE WAPPY IA:
-${manualContent}
-
 ${blogStr ? `ÚLTIMAS PUBLICACIONES DEL BLOG:\n${blogStr}\n` : ''}
 ${courseStr ? `CURSOS DE FORMACIÓN DISPONIBLES:\n${courseStr}\n` : ''}
 ${ticketContext ? `CONOCIMIENTO DINÁMICO (Contexto extraído por RAG):\n${ticketContext}\n` : ''}
-${fullCompanyAndMemoryBlock}
 ${recentConvosBlock}
 
 ### 🎯 ROL Y PERSONALIDAD DE TENSHI
@@ -1161,15 +1164,23 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
 
 ### ⚡ DIRECTIVAS CRÍTICAS DE VELOCIDAD, ORQUESTACIÓN Y HERRAMIENTAS:
 1. **RESPUESTAS INMEDIATAS A PREGUNTAS TEÓRICAS/CONCEPTUALES**: Si el usuario te hace preguntas conceptuales, definiciones teóricas (ej: "¿qué es SST?", "¿qué es un ATS?", "¿cuáles son las obligaciones del empleador?"), saludos o preguntas generales, RESPONDE DIRECTAMENTE EN TEXTO en 1 solo turno de forma concisa y alegre. ¡ESTÁ PROHIBIDO invocar herramientas como 'somos_sst' o 'resumen_empresa' para responder preguntas teóricas!
-2. **ORQUESTACIÓN TOTAL Y AUTONOMÍA CON ROL DE AGENTE EXPERTO VS LLAMADO DE AGENTES**:
-   - Eres la Directora de Orquesta Central de WAPPY.
-   - SI EL USUARIO SOLO HACE LA PREGUNTA O CONSULTA TÉCNICA (ej: dolor lumbar, cómo calificar un accidente, qué hacer con el benceno, qué vientos son seguros para alturas, etc.): TENSHI ACTIVA DE INMEDIATO SU SKILL CON EL ROL DE AGENTE EXPERTO CORRESPONDIENTE (Médico Laboral, Abogado Laboral, Ingeniero Químico SST, Especialista en Alturas y Clima, etc.) y responde él mismo de forma integral, técnica y fundamentada usando sus herramientas y base de datos, sin desviar al usuario ni abrir un chat innecesario.
-   - SI EL USUARIO PIDE EXPLÍCITAMENTE CONECTARSE O LLAMAR A UN AGENTE (ej: "conéctame con el médico", "llama al abogado", "pásame al especialista", "quiero el dictamen del médico laboral"): Tenshi tiene restaurada al 100% su capacidad para invocar 'consultar_agente_especializado' (para obtener su dictamen técnico en segundo plano y explicarlo en el chat de Tenshi) o invocar 'wappy_abrir_chat_agente' si el usuario pide ver el chat dedicado o nuevo chat en pantalla ("abre un chat con X").
-   - ESTUDIO DE PUESTO DE TRABAJO ERGONÓMICO EN VIVO CON LA FISIOTERAPEUTA ('wappy_iniciar_estudio_ergonomico_vivo'):
+2. **DIFERENCIACIÓN ESTRICTA DE LOS 3 MODOS DE INTERACCIÓN CON ESPECIALISTAS (REGLA DE ORO)**:
+   - **MODO 1 — RESPUESTA DIRECTA DE TENSHI (POR DEFECTO EN EL 90% DE LOS CASOS)**:
+     * Si el usuario te hace una consulta técnica, médica, jurídica, ergonómica, química o de SST (ej: "tengo un trabajador con dolor lumbar", "cómo califico este accidente", "qué hago ante un despido con incapacidad") y **NO** te pide explícitamente llamar al especialista ni abrir un chat:
+     * **RESPONDE TÚ MISMA DIRECTAMENTE** en 1 sola llamada usando tus competencias integradas de Médico Laboral, Abogado Laboral, Ingeniero SST, etc.
+     * **ESTÁ TERMINANTEMENTE PROHIBIDO** despertar subagentes ('consultar_agente_especializado') o abrir chats ('wappy_abrir_chat_agente') por iniciativa propia cuando el usuario no lo pidió literalmente.
+   - **MODO 2 — DICTAMEN DE SUBAGENTE EFÍMERO EN SEGUNDO PLANO ('consultar_agente_especializado')**:
+     * ÚNICAMENTE cuando el usuario pide literalmente el dictamen, concepto u opinión de un especialista **dentro de tu propio chat** sin pedir cambiar de ventana (ej: "Quiero el dictamen formal del Abogado Laboral", "Pregúntale al Médico Laboral qué opina", "Dame el concepto del Psicólogo SST"):
+     * Invoca **'consultar_agente_especializado'**. El subagente especialista analizará el caso en segundo plano y tú le entregarás su dictamen consolidado aquí mismo en el chat de Tenshi, **SIN abrir un nuevo chat en pantalla**.
+   - **MODO 3 — ABRIR UN CHAT DEDICADO CON EL AGENTE EN PANTALLA ('wappy_abrir_chat_agente')**:
+     * ÚNICAMENTE cuando el usuario te pide explícitamente **abrir un chat**, **ir al chat** o **crear una conversación** con el agente especialista en la interfaz principal (ej: "Ábreme un chat con el agente Médico Laboral", "Abre un chat con el Abogado Laboral", "Llévame al chat del Ingeniero Químico"):
+     * Invoca **'wappy_abrir_chat_agente'**. Esta herramienta abrirá en la pantalla principal la ventana de chat dedicada con ese especialista y le enviará la consulta estructurada.
+   - **ESTUDIO DE PUESTO DE TRABAJO ERGONÓMICO EN VIVO CON LA FISIOTERAPEUTA ('wappy_iniciar_estudio_ergonomico_vivo')**:
      * SIEMPRE que el usuario te diga: "necesito realizar un estudio de puesto de trabajo ergonómico", "quiero hacer un estudio de puesto de trabajo", "hagamos una evaluación ergonómica", "análisis ergonómico en vivo", "llévame al estudio ergonómico con la fisio":
      * INVOCA DE INMEDIATO 'wappy_iniciar_estudio_ergonomico_vivo'.
      * Esta herramienta abrirá automáticamente el Análisis en Vivo por Cámara y Voz con la Fisioterapeuta Laboral (con exoesqueleto 3D MediaPipe, protocolo de 3 fases, matriz CIE-11 y 12 ejercicios de pausas activas), y al finalizar dejará el informe oficial tanto en el chat principal como en tu propio chat de Tenshi listo para ver en pantalla o descargar.
-   - NUEVAS APIS ESPECIALIZADAS DE AGENTES:
+   - **NUEVAS APIS Y HERRAMIENTAS ESPECIALIZADAS DE TENSHI**:
+     * 'wappy_buscar_historial_instantaneo': Búsqueda ultrarrápida (< 5ms) en el historial de conversaciones pasadas, actas, cédulas, nombres de trabajadores o informes previos. Úsala cuando el usuario pregunte "¿qué hablamos la vez pasada sobre...?", "busca en el historial...", "¿cuándo hablamos de...?".
      * 'wappy_consultar_quimico_pubchem': Consulta oficial a PubChem (NIH) para CID, pictogramas SGA, palabra de advertencia (Peligro/Atención) y frases de peligro H y consejos P (Decreto 1496 de 2018).
      * 'wappy_geocodificar_emergencias': Consulta a OpenStreetMap Nominatim para geolocalizar direcciones y ubicar recursos asistenciales cercanos (hospitales, clínicas, bomberos, defensa civil) para el Plan de Emergencias.
      * 'wappy_consultar_clima_viento': Consulta a Open-Meteo para pronóstico de clima, viento y ráfagas para evaluación de trabajo en alturas (Res. 4272/2021).
@@ -1502,14 +1513,56 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
             const consultarAgenteDeclaration = {
                 name: 'consultar_agente_especializado',
-                description: 'Delegación y Orquestación Multi-Agente: Consulta a un Agente Especialista del sistema (Médico Laboral, Psicólogo SST, Abogado Laboral, Auditor, etc.) para resolver dudas técnicas complejas.',
+                description: 'MODO 2 — Subagente Efímero en Segundo Plano (SIN salir del chat de Tenshi): Consulta en segundo plano a un Agente Especialista (Médico Laboral, Abogado Laboral, Psicólogo SST, Auditor, etc.) y recibe su dictamen técnico para responder aquí mismo en el chat de Tenshi. PROHIBICIÓN ESTRICTA: SOLO invócala cuando el usuario pida literalmente el dictamen, concepto u opinión del especialista dentro de este chat (ej: "Quiero el dictamen formal del Abogado Laboral", "Pregúntale al Médico qué opina"). Si el usuario pide ABRIR UN CHAT en pantalla con el agente ("Ábreme un chat con el médico laboral"), NO uses esta herramienta; usa wappy_abrir_chat_agente. Si el usuario solo hace una pregunta técnica normal, responde tú misma sin invocar esta herramienta.',
                 parameters: {
                     type: 'OBJECT',
                     properties: {
-                        nombre_especialista: { type: 'STRING', description: 'Nombre exacto del agente especialista a consultar.' },
-                        consulta_completa: { type: 'STRING', description: 'Consulta técnica detallada.' }
+                        nombre_especialista: { type: 'STRING', description: 'Nombre exacto del agente especialista a consultar en segundo plano.' },
+                        consulta_completa: { type: 'STRING', description: 'Consulta técnica estructurada con contexto ocupacional y solicitud de fundamentación normativa vigente.' }
                     },
                     required: ['nombre_especialista', 'consulta_completa']
+                }
+            };
+
+            const wappyAbrirChatAgenteDeclaration = {
+                name: 'wappy_abrir_chat_agente',
+                description: 'MODO 3 — Abrir Chat Dedicado en Pantalla Principal: Abre la ventana de chat en pantalla con un Agente Especialista de WAPPY (Médico Laboral, Abogado Laboral, Fisioterapeuta Laboral, Ingeniero Químico SST, Coordinador PESV, Psicólogo SST, etc.) y le envía la consulta estructurada. ÚNICAMENTE invócala cuando el usuario pida explícitamente ABRIR UN CHAT, IR AL CHAT o CREAR UNA CONVERSACIÓN con el especialista (ej: "Ábreme un chat con el agente Médico Laboral", "Abre un chat con el Abogado", "Llévame al chat del médico").',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        agente: {
+                            type: 'STRING',
+                            description: "Nombre o especialidad del agente (ej: 'medico_laboral', 'abogado_laboral', 'fisioterapeuta_laboral', 'ingeniero_quimico_sst', 'coordinador_seguridad_vial', 'psicologo_sst', 'auditor_sg_sst')."
+                        },
+                        pregunta: {
+                            type: 'STRING',
+                            description: 'Consulta técnica estructurada y profesional para el especialista, incluyendo planteamiento ocupacional, solicitud de normatividad colombiana vigente y recomendaciones prácticas para el SG-SST.'
+                        },
+                        nuevo_chat: {
+                            type: 'BOOLEAN',
+                            description: 'true si el usuario pide abrir un nuevo chat o cambiar de especialista; false si continúa en la conversación actual.'
+                        }
+                    },
+                    required: ['agente', 'pregunta']
+                }
+            };
+
+            const wappyBuscarHistorialDeclaration = {
+                name: 'wappy_buscar_historial_instantaneo',
+                description: 'Búsqueda Instantánea de Historial (< 5ms, estilo BM25 sin gastar tokens): Busca en todas las conversaciones pasadas de Tenshi, chats con especialistas e informes SG-SST por palabras clave, nombres de trabajadores, cédulas, accidentes o normas.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        consulta: {
+                            type: 'STRING',
+                            description: 'Término, nombre de trabajador, cédula, norma o tema a buscar en el historial.'
+                        },
+                        limite: {
+                            type: 'NUMBER',
+                            description: 'Cantidad máxima de resultados a retornar (por defecto 8).'
+                        }
+                    },
+                    required: ['consulta']
                 }
             };
 
@@ -2721,6 +2774,8 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 wappyLeerInformeAplicativoDeclaration,
                 wappyActivarHerramientaAgenteDeclaration,
                 consultarAgenteDeclaration,
+                wappyAbrirChatAgenteDeclaration,
+                wappyBuscarHistorialDeclaration,
                 canvasDeclaration,
                 operarGUIDeclaration,
                 diligenciarFormularioDeclaration,
@@ -3124,6 +3179,16 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                         args: call.args || {}
                                     };
                                     break;
+                                } else if (call.name === 'wappy_abrir_chat_agente') {
+                                    requestedGuiAction = {
+                                        name: 'wappy_abrir_chat_agente',
+                                        accion: 'abrir_chat_agente',
+                                        args: call.args || {}
+                                    };
+                                    break;
+                                } else if (call.name === 'wappy_buscar_historial_instantaneo') {
+                                    const histOut = await searchInstantHistory(call.args || {}, targetUserId);
+                                    toolOutput = JSON.stringify(histOut);
                                 } else if (call.name === 'wappy_controlar_videollamada' || call.name === 'controlar_videollamada') {
                                     const rawAccion = call.args?.accion || 'activar_camara';
                                     if (rawAccion === 'activar_camara') {
@@ -3627,9 +3692,18 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
         if (requestedGuiAction?.name === 'wappy_iniciar_estudio_ergonomico_vivo') {
             responseText = '¡De una! Te llevo en este instante al **Análisis Biomecánico y Estudio de Puesto de Trabajo Ergonómico en Vivo** con nuestra **Fisioterapeuta Laboral** (con cámara, exoesqueleto MediaPipe 3D y protocolo de 3 fases). Al finalizar la evaluación, el informe técnico oficial quedará tanto en el chat principal como aquí mismo en tu chat de Tenshi listo para ver en pantalla o descargar.';
+        } else if (requestedGuiAction?.name === 'wappy_abrir_chat_agente') {
+            const specLabel = requestedGuiAction.args?.agente || 'el Agente Especialista';
+            responseText = `¡De una! Te abro en este instante el chat dedicado en pantalla con **${specLabel}** y le envío tu consulta técnica estructurada.`;
         }
 
-        if (responseText && (!requestedGuiAction || requestedGuiAction.name === 'wappy_iniciar_estudio_ergonomico_vivo') && (!requestedGuiActions || requestedGuiActions.length === 0)) {
+        if (
+            responseText &&
+            (!requestedGuiAction ||
+                requestedGuiAction.name === 'wappy_iniciar_estudio_ergonomico_vivo' ||
+                requestedGuiAction.name === 'wappy_abrir_chat_agente') &&
+            (!requestedGuiActions || requestedGuiActions.length === 0)
+        ) {
             await TenshiMessage.create({
                 user: req.user.id,
                 role: 'assistant',
@@ -3639,6 +3713,18 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 file: capturedFile || undefined,
                 widget: capturedWidget || undefined,
             }).catch(e => console.error('Error saving assistant TenshiMessage:', e));
+        }
+
+        // Hook turn_finalizer (Auto-Aprendizaje de Habilidades en segundo plano con 0ms de impacto)
+        if (lastUserText && targetUserId && !lastUserText.startsWith('[RESULTADO_GUI]')) {
+            setImmediate(() => {
+                autoSynthesizeProceduralRule(
+                    lastUserText,
+                    targetUserId,
+                    companyInfo?._id || null,
+                    companyInfo?.companyName || ''
+                ).catch(() => {});
+            });
         }
 
         // Respaldo simultáneo en el Chat del Agente Tenshi si se generó un archivo o reporte

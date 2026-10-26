@@ -4952,7 +4952,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
       const isLiveEptGui =
         responseData.guiAction?.name === 'wappy_iniciar_estudio_ergonomico_vivo' ||
-        responseData.guiAction?.accion === 'iniciar_estudio_ergonomico_vivo';
+        responseData.guiAction?.accion === 'iniciar_estudio_ergonomico_vivo' ||
+        responseData.guiAction?.name === 'wappy_abrir_chat_agente' ||
+        responseData.guiAction?.accion === 'abrir_chat_agente';
 
       const delegatedOrder = responseData.delegatedOrder;
       const assistantMsgId = delegatedOrder?.ordenId
@@ -5116,6 +5118,90 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             lastResult = { success: true, message: `Artículo de blog abierto con éxito: ${rawRuta}` };
             setTenshiStatus('');
             index++;
+            continue;
+          }
+
+          if (
+            action.name === 'wappy_abrir_chat_agente' ||
+            action.accion === 'abrir_chat_agente' ||
+            action.action === 'wappy_abrir_chat_agente'
+          ) {
+            const rawAgente = (action.args?.agente || action.agente || '').trim();
+            const rawPregunta = (action.args?.pregunta || action.pregunta || '').trim();
+            const pregunta = cleanDelegatedPrompt(rawPregunta);
+            const matchedAgent = findMatchingAgent(rawAgente, agentsRef.current);
+            const targetAgentId = matchedAgent?.id;
+            const agentName = matchedAgent ? matchedAgent.name : rawAgente || 'Especialista SG-SST';
+
+            const currentAgentId =
+              conversation?.agent_id ||
+              new URLSearchParams(window.location.search).get('agent_id') ||
+              activeConsultationAgentIdRef.current;
+
+            const isSameAgentActive = Boolean(
+              (targetAgentId && currentAgentId && currentAgentId === targetAgentId) ||
+                (activeConsultationAgentIdRef.current &&
+                  targetAgentId &&
+                  activeConsultationAgentIdRef.current === targetAgentId),
+            );
+
+            const requestedNewChat = Boolean(
+              action.args?.nuevo_chat ||
+                /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|abrir\w*\s+(un\s+)?(nuevo\s+)?chat|abrirme|ábreme)\b/i.test(
+                  rawPregunta,
+                ),
+            );
+
+            tenshiAudio.playBlip();
+            setTenshiStatus(`Abriendo chat con ${agentName}...`);
+
+            if (isSameAgentActive && !requestedNewChat) {
+              activeConsultationAgentIdRef.current = targetAgentId || currentAgentId || null;
+              activeConsultationAgentNameRef.current = agentName;
+              setTimeout(() => {
+                window.dispatchEvent(
+                  new CustomEvent('tenshi-submit-agent-prompt', {
+                    detail: {
+                      agentId: targetAgentId,
+                      prompt: pregunta,
+                    },
+                  }),
+                );
+              }, 300);
+            } else {
+              activeConsultationAgentIdRef.current = targetAgentId || null;
+              activeConsultationAgentNameRef.current = agentName;
+              activeConsultationConvoIdRef.current = 'new';
+              try {
+                clearMessagesCache(queryClient, conversation?.conversationId);
+                queryClient.invalidateQueries([QueryKeys.messages]);
+              } catch (_) {}
+              const params = new URLSearchParams();
+              if (targetAgentId) {
+                params.set('agent_id', targetAgentId);
+              }
+              params.set('endpoint', EModelEndpoint.agents);
+              if (pregunta) {
+                params.set('prompt', pregunta);
+                params.set('submit', 'true');
+              }
+              navigate(`/c/new?${params.toString()}`, { replace: true, state: { focusChat: true } });
+              if (pregunta) {
+                setTimeout(() => {
+                  window.dispatchEvent(
+                    new CustomEvent('tenshi-submit-agent-prompt', {
+                      detail: {
+                        agentId: targetAgentId,
+                        prompt: pregunta,
+                        nuevoChat: true,
+                      },
+                    }),
+                  );
+                }, 400);
+              }
+            }
+            setTenshiStatus('');
+            setIsTyping(false);
             continue;
           }
 

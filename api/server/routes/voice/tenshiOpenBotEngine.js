@@ -551,6 +551,246 @@ async function getProceduralMemoryPromptBlock(userId, companyId = null, maxItems
   }
 }
 
+/**
+ * Hook de Auto-Aprendizaje de Habilidades y Hábitos Operativos (turn_finalizer en segundo plano).
+ * Inspirado en Hermes Agent (Skill & Fact Auto-Synthesis): analiza en < 2ms y con 0 consumo
+ * de cuota de API si el mensaje del usuario le enseña a Tenshi una regla permanente de la empresa,
+ * flujo entre hitos o preferencia de formato/interfaz, y la guarda automáticamente en
+ * TenshiProceduralMemory para que aparezca en /kanban?tab=memoria y se aplique en futuros turnos.
+ */
+async function autoSynthesizeProceduralRule(userText, userId, companyId = null, companyName = '') {
+  try {
+    if (!userText || typeof userText !== 'string' || !userId) return null;
+    const clean = userText.replace(/\s+/g, ' ').trim();
+    if (clean.length < 18 || clean.length > 650) return null;
+    // Ignorar preguntas puras o comandos de navegación cortos
+    if (clean.endsWith('?') || /^(hola|buenos|buenas|gracias|ok|listo|abre|ve a|navega|mu[eé]strame)\b/i.test(clean)) {
+      return null;
+    }
+
+    let trigger = '';
+    let rule = '';
+    let category = 'habito_empresa';
+
+    // Patrón 1: "Siempre que [X], [Y]" / "Cada vez que [X], [Y]" / "Cuando se [X], [Y]"
+    const condMatch = clean.match(
+      /(?:siempre\s+que|cada\s+vez\s+que|cuando\s+(?:se\s+)?(?:haga|cierre|registre|cree|genere|emita|autorice|firme|eval[uú]e|presente|reporte))\s+([^,.;:]{6,120})[,:;]\s*(.+)/i
+    );
+    if (condMatch) {
+      trigger = condMatch[1].trim();
+      rule = condMatch[2].trim();
+    }
+
+    // Patrón 2: "Recuerda que (aquí|en nuestra empresa|en la empresa|siempre) [regla]"
+    if (!rule) {
+      const remMatch = clean.match(
+        /(?:recuerda\s+siempre\s+que|recuerda\s+que|ten\s+presente\s+que|ten\s+en\s+cuenta\s+que|no\s+olvides\s+que|por\s+pol[ií]tica\s+interna|de\s+ahora\s+en\s+adelante|en\s+nuestra\s+empresa|aqu[ií]\s+en\s+la\s+(?:empresa|constructora|planta|cl[ií]nica|compa[ñn][ií]a|obra))\s+(.+)/i
+      );
+      if (remMatch) {
+        const body = remMatch[1].trim();
+        // Intentar deducir el disparador temático
+        if (/altura|permiso/i.test(body)) trigger = 'En permisos y trabajo seguro en alturas';
+        else if (/examen|m[eé]dic|emo|ingreso|peri[oó]dico/i.test(body)) trigger = 'En evaluaciones médicas ocupacionales (EMO)';
+        else if (/accidente|incidente|atel|furat/i.test(body)) trigger = 'Al reportar o investigar accidentes ATEL';
+        else if (/qu[ií]mic|fds|sga|sustancia/i.test(body)) trigger = 'En gestión de sustancias químicas SGA';
+        else if (/pesv|veh[ií]culo|vial|conductor/i.test(body)) trigger = 'En controles del Plan Estratégico de Seguridad Vial (PESV)';
+        else if (/epp|dotaci[oó]n|casco|botas/i.test(body)) trigger = 'En entrega e inspección de EPP';
+        else if (/informe|reporte|acta|formato|canvas|documento|tabla/i.test(body)) trigger = 'Al redactar informes, actas o documentos SG-SST';
+        else if (/capacitaci[oó]n|inducci[oó]n|charla/i.test(body)) trigger = 'En programación de capacitaciones e inducciones';
+        else trigger = 'Regla operativa corporativa SG-SST';
+        rule = body;
+      }
+    }
+
+    // Patrón 3: "Los [exámenes/permisos/informes/formatos...] aquí (se hacen|los firma|son cada|deben llevar)..."
+    if (!rule) {
+      const policyMatch = clean.match(
+        /\b(los\s+(?:permisos|ex[aá]menes|informes|formatos|reportes|controles|comit[eé]s|simulacros)[^,.;]{3,80}?)\s+(?:aqu[ií]\s+|en\s+la\s+empresa\s+)?((?:solo\s+)?(?:los\s+firma|se\s+realizan|son\s+cada|se\s+hacen\s+cada|deben\s+llevar|exigen|requieren)\s+.+)/i
+      );
+      if (policyMatch) {
+        trigger = `Gestión de ${policyMatch[1].trim()}`;
+        rule = `${policyMatch[1].trim()} ${policyMatch[2].trim()}`;
+      }
+    }
+
+    if (!trigger || !rule || rule.length < 10) return null;
+
+    // Clasificar categoría según las 3 pestañas del Centro de Control (/kanban?tab=memoria)
+    if (/canvas|formato|word|excel|html|dise[ñn]o|tabla|encabezado|logo|color|plantilla/i.test(`${trigger} ${rule}`)) {
+      category = 'interfaz_canvas';
+    } else if (/hito|matriz|kanban|acpm|cronograma|notifica|correo|enviar|autom[aá]tic|vincular|cruzar/i.test(`${trigger} ${rule}`)) {
+      category = 'flujo_hitos';
+    } else {
+      category = 'habito_empresa';
+    }
+
+    // Capitalizar primera letra
+    trigger = trigger.charAt(0).toUpperCase() + trigger.slice(1).replace(/[.]+$/, '');
+    rule = rule.charAt(0).toUpperCase() + rule.slice(1);
+
+    const saved = await manageProceduralMemory(
+      { accion: 'guardar', trigger, regla: rule, categoria: category },
+      userId,
+      companyId,
+      companyName
+    );
+    if (saved?.exito) {
+      logger.info(`[Tenshi Auto-Synthesis] Nueva regla procedimental aprendida automáticamente: [${category}] "${trigger}" -> "${rule}"`);
+    }
+    return saved;
+  } catch (err) {
+    logger.warn('[Tenshi Auto-Synthesis] Error sintetizando regla procedimental:', err.message);
+    return null;
+  }
+}
+
+/**
+ * Búsqueda Instantánea de Historial (< 5ms, 0 tokens de embeddings, ranking tipo BM25 en memoria)
+ * sobre conversaciones de Tenshi, mensajes de agentes especialistas e informes SG-SST pasados.
+ */
+async function searchInstantHistory(args = {}, userId) {
+  try {
+    const rawQuery = String(args.consulta || args.query || args.termino || args.palabra_clave || '').trim();
+    const limit = Math.min(Math.max(parseInt(args.limite || args.limit || '8', 10) || 8, 1), 20);
+    if (!rawQuery || !userId) {
+      return {
+        exito: false,
+        mensaje: 'Se requiere especificar una palabra clave, nombre, cédula o tema para buscar en el historial.',
+        resultados: [],
+      };
+    }
+
+    const TenshiMessage = require('~/models/TenshiMessage');
+    const { Message, Conversation } = require('~/db/models');
+
+    // Tokenizar términos significativos para ranking tipo BM25
+    const terms = rawQuery
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .split(/\s+/)
+      .filter((t) => t.length >= 2);
+
+    const escapedFull = rawQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regexOr = terms.length > 0
+      ? new RegExp(terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'i')
+      : new RegExp(escapedFull, 'i');
+
+    const [tenshiHits, agentMsgHits, convoHits] = await Promise.all([
+      TenshiMessage.find({
+        user: userId,
+        $or: [{ content: regexOr }, { 'file.title': regexOr }],
+      })
+        .sort({ createdAt: -1 })
+        .limit(25)
+        .select('role content file.title createdAt')
+        .lean()
+        .catch(() => []),
+      Message.find({
+        user: String(userId),
+        text: regexOr,
+      })
+        .sort({ createdAt: -1 })
+        .limit(25)
+        .select('sender text conversationId isCreatedByUser createdAt')
+        .lean()
+        .catch(() => []),
+      Conversation.find({
+        user: String(userId),
+        title: regexOr,
+      })
+        .sort({ updatedAt: -1 })
+        .limit(10)
+        .select('conversationId title agent_id updatedAt')
+        .lean()
+        .catch(() => []),
+    ]);
+
+    const normText = (str) =>
+      String(str || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+
+    const scoreDocument = (text, title = '') => {
+      const haystack = normText(`${title} ${text}`);
+      const normFull = normText(rawQuery);
+      let score = 0;
+      if (haystack.includes(normFull)) score += 10; // Frase exacta
+      for (const term of terms) {
+        if (haystack.includes(term)) {
+          score += 3;
+          if (normText(title).includes(term)) score += 4;
+        }
+      }
+      return score;
+    };
+
+    const combined = [];
+
+    for (const tm of tenshiHits) {
+      const snippet = String(tm.content || '').replace(/\s+/g, ' ').trim().slice(0, 320);
+      const title = tm.file?.title ? `Chat Tenshi • Informe: ${tm.file.title}` : `Chat de Tenshi (${tm.role === 'user' ? 'Usuario' : 'Tenshi'})`;
+      combined.push({
+        origen: 'Chat de Tenshi',
+        titulo: title,
+        extracto: snippet,
+        fecha: tm.createdAt ? new Date(tm.createdAt).toLocaleString('es-CO', { timeZone: 'America/Bogota' }) : 'Reciente',
+        timestamp: tm.createdAt ? new Date(tm.createdAt).getTime() : 0,
+        score: scoreDocument(snippet, title),
+      });
+    }
+
+    for (const am of agentMsgHits) {
+      const snippet = String(am.text || '').replace(/\s+/g, ' ').trim().slice(0, 320);
+      const sender = am.isCreatedByUser ? 'Usuario' : (am.sender || 'Agente Especialista');
+      const title = `Conversación con ${sender}`;
+      combined.push({
+        origen: 'Chat de Agentes Especialistas',
+        titulo: title,
+        conversationId: am.conversationId,
+        extracto: snippet,
+        fecha: am.createdAt ? new Date(am.createdAt).toLocaleString('es-CO', { timeZone: 'America/Bogota' }) : 'Reciente',
+        timestamp: am.createdAt ? new Date(am.createdAt).getTime() : 0,
+        score: scoreDocument(snippet, title),
+      });
+    }
+
+    for (const cv of convoHits) {
+      combined.push({
+        origen: 'Expediente de Conversación',
+        titulo: cv.title || 'Conversación SG-SST',
+        conversationId: cv.conversationId,
+        extracto: `Hilo de conversación titulado "${cv.title}"`,
+        fecha: cv.updatedAt ? new Date(cv.updatedAt).toLocaleString('es-CO', { timeZone: 'America/Bogota' }) : 'Reciente',
+        timestamp: cv.updatedAt ? new Date(cv.updatedAt).getTime() : 0,
+        score: scoreDocument('', cv.title) + 2,
+      });
+    }
+
+    combined.sort((a, b) => (b.score !== a.score ? b.score - a.score : b.timestamp - a.timestamp));
+    const topResults = combined.slice(0, limit);
+
+    return {
+      exito: true,
+      consulta: rawQuery,
+      totalEncontrados: topResults.length,
+      resultados: topResults,
+      mensaje:
+        topResults.length > 0
+          ? `Se encontraron ${topResults.length} registros históricos relevantes para "${rawQuery}".`
+          : `No se encontraron conversaciones o informes previos que coincidan con "${rawQuery}".`,
+    };
+  } catch (err) {
+    logger.error('[Tenshi Instant History Search] Error:', err);
+    return {
+      exito: false,
+      error: err.message,
+      resultados: [],
+    };
+  }
+}
+
 module.exports = {
   GOVERNED_TOOLS_META,
   isGovernedTool,
@@ -558,4 +798,6 @@ module.exports = {
   buildGenerativeWidgetForTool,
   manageProceduralMemory,
   getProceduralMemoryPromptBlock,
+  autoSynthesizeProceduralRule,
+  searchInstantHistory,
 };
