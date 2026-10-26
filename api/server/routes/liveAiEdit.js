@@ -90,24 +90,26 @@ ${dataStr.slice(0, 4000)}${dataStr.length > 4000 ? '\n...(truncado)' : ''}
       const peligroTxt = r.peligro_descripcion ? `${r.peligro_descripcion} (${r.peligro_clasificacion || 'Peligro'})` : 'Peligro evaluado';
       const nrActual = Number(r.nr) || (Number(r.nd || 6) * Number(r.ne || 3) * Number(r.nc || 25)) || 450;
       fieldSpecificPrompt = `ATENCIÓN: Estás redactando los "Factores de Reducción (Anexo E)" de la matriz GTC-45:2012.
-DATOS CONCRETOS DE ESTA FILA EN LA MATRIZ:
-- Proceso: ${r.proceso || 'Operativo'} | Actividad: ${r.actividad || 'General'} | Cargo: ${r.cargo || 'Trabajador'}
-- Peligro: ${peligroTxt}
-- Nivel de Riesgo Inicial (NRi): ${nrActual} (ND=${r.nd ?? 6}, NE=${r.ne ?? 3}, NC=${r.nc ?? 25})
-- Controles de Intervención Propuestos:
+DATOS COMPLETOS DE ESTA FILA EN LA MATRIZ:
+- Proceso: ${r.proceso || 'Operativo'} | Zona/Lugar: ${r.zona || 'General'} | Cargo: ${r.cargo || 'Trabajador'}
+- Actividad: ${r.actividad || 'General'} | Tareas: ${r.tareas || 'General'} | Rutinaria: ${r.rutinaria || 'Sí'}
+- Peligro: ${peligroTxt} | Efectos Posibles: ${r.efectos_posibles || 'Afectación a la salud'}
+- Controles Existentes Actuales: Fuente: ${r.controles_fuente || 'Ninguno'} | Medio: ${r.controles_medio || 'Ninguno'} | Individuo: ${r.controles_individuo || 'Ninguno'}
+- Nivel de Riesgo Inicial (NRi): ${nrActual} (ND=${r.nd ?? 6}, NE=${r.ne ?? 3}, NC=${r.nc ?? 25}) | Nro. Expuestos: ${r.nro_expuestos || 1}
+- Peor Consecuencia: ${r.peor_consecuencia || 'Enfermedad laboral / Accidente de trabajo'} | Requisito Legal: ${r.requisito_legal || 'Sí'}
+- CONTROLES DE INTERVENCIÓN PROPUESTOS EN ESTA FILA (FOCO PRINCIPAL DEL ANÁLISIS COSTO/BENEFICIO):
   * Eliminación: ${r.medida_eliminacion || 'Ninguno'}
   * Sustitución: ${r.medida_sustitucion || 'Ninguno'}
-  * Ingeniería: ${r.medida_ingenieria || 'Ninguno'}
-  * Administrativos: ${r.medida_administrativa || 'Ninguno'}
+  * Controles de Ingeniería: ${r.medida_ingenieria || 'Ninguno'}
+  * Controles Administrativos: ${r.medida_administrativa || 'Ninguno'}
   * EPP: ${r.medida_eppu || 'Ninguno'}
-- Peor Consecuencia: ${r.peor_consecuencia || 'Enfermedad laboral / Accidente de trabajo'}
 
 TERMINANTEMENTE PROHIBIDO:
 - PROHIBIDO responder con una sola frase simple, etiquetas cortas o texto sin análisis de Costo/Beneficio.
 - PROHIBIDO devolver listas de viñetas o markdown.
 
-OBLIGATORIO — Redacta un único párrafo analítico con la siguiente estructura exacta de la GTC 45 Anexo E:
-"Reducción del [X]% (NRi: ${nrActual} → NRf: [NR residual estimado], Nivel [III o IV]). Análisis Costo/Beneficio (GTC 45 Anexo E): [Explica técnicamente cuál de los controles propuestos —priorizando Ingeniería, Sustitución o Eliminación sobre controles administrativos y EPP— le conviene prioritariamente a la empresa (Factor J > 20), cómo atenúa el peligro (${peligroTxt}) en la fuente/medio y por qué representa la mayor rentabilidad técnica y financiera frente a los costos de incapacidades, ausentismo, litigios o indemnizaciones por ${r.peor_consecuencia || 'accidentes o enfermedades laborales'}]."`;
+OBLIGATORIO — Ten en cuenta TODA la información de la fila y ESPECIALMENTE evalúa y compara los CONTROLES PROPUESTOS (Eliminación, Sustitución, Ingeniería, Administrativos y EPP) para dictaminar en base a Costo/Beneficio CUÁL DE ESOS CONTROLES PROPUESTOS LE CONVIENE MÁS A LA EMPRESA, usando esta estructura exacta:
+"Reducción del [X]% (NRi: ${nrActual} → NRf: [NR residual estimado], Nivel [III o IV]). Análisis Costo/Beneficio (GTC 45 Anexo E): [Cita explícitamente los controles propuestos de la fila y dictamina cuál de ellos —priorizando Ingeniería, Sustitución o Eliminación sobre controles administrativos y EPP— le conviene prioritariamente a la empresa en relación costo/beneficio (Factor J > 20), explicando cómo atenúa el peligro (${peligroTxt}) en la fuente/medio y por qué representa la mayor rentabilidad técnica y financiera frente a los costos de incapacidades, ausentismo, litigios o indemnizaciones por ${r.peor_consecuencia || 'accidentes o enfermedades laborales'}]."`;
 
     } else if (field === 'Controles en la Fuente') {
       fieldSpecificPrompt = `ATENCIÓN: Estás editando el campo "Controles en la Fuente" de la matriz GTC-45.

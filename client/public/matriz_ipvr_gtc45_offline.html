@@ -8418,38 +8418,67 @@ async function handleCompleteRowAI(rowId) {
   showToast('Valorando riesgo con IA...', 'info');
 
   try {
+    const isMeaningful = (v) => {
+      if (v === undefined || v === null) return false;
+      const s = String(v).trim();
+      if (!s) return false;
+      return !['ninguno', 'ninguna', 'no especificado', 'no detallado', 'sin especificar'].includes(s.toLowerCase());
+    };
+
+    const nrActual = Number(row.nr) || (Number(row.nd || 6) * Number(row.ne || 3) * Number(row.nc || 25)) || 360;
     const prompt = `
-Eres un consultor senior en Seguridad y Salud en el Trabajo (GTC 45, Decreto 1072 de 2015 en Colombia).
+Eres un consultor senior en Seguridad y Salud en el Trabajo (GTC 45:2012, Decreto 1072 de 2015 en Colombia).
+═══ DATOS DE LA EMPRESA ═══
 EMPRESA: ${companyInfo.companyName} (NIT: ${companyInfo.nit})
 TIPO DE EMPRESA: ${companyInfo.companyType || 'Persona Jurídica'} · SECTOR: ${companyInfo.sector || 'Industrial'}
 ACTIVIDAD ECONÓMICA: ${companyInfo.economicActivity || 'General'} (CIIU: ${companyInfo.ciiu || '4659'})
 NIVEL DE RIESGO: Clase ${companyInfo.riskLevel || 'IV'} · TRABAJADORES: ${companyInfo.workerCount || 10}
 UBICACIÓN / SEDE: ${companyInfo.city || 'Medellín'}${companyInfo.departamento ? ', ' + companyInfo.departamento : ''}
 ACTIVIDADES GENERALES: ${companyInfo.generalActivities || 'Operaciones ocupacionales'}
-CARGO EVALUADO: ${row.cargo || 'General / Operativo'}
-ACTIVIDAD: ${row.actividad || 'General'}
-PELIGRO ACTUAL: "${row.peligro_descripcion || 'No detallado'}" (Clasificación: ${row.peligro_clasificacion || 'Condiciones de seguridad'})
 
-INSTRUCCIONES GTC 45:
-Valora con rigor técnico este riesgo:
-1. Asigna ND (0, 2, 6, 10).
-2. Asigna NE (1, 2, 3, 4).
-3. Asigna NC (10, 25, 60, 100).
-4. Plantea controles existentes (Fuente, Medio, Individuo).
-5. Jerarquía de medidas: Eliminación, Sustitución, Ingeniería, Administrativo, EPP.
-6. Criterios: Peor consecuencia, Requisito Legal ("Sí"/"No") y Factores de Reducción Anexo E.
-   IMPORTANTE: El campo "factores_reduccion" DEBE tener exactamente el mismo formato analítico de Costo/Beneficio del campo Anexo E individual:
-   "Reducción del [X]% (NRi: [NR inicial] → NRf: [NR residual], Nivel [III o IV]). Análisis Costo/Beneficio (GTC 45 Anexo E): [Explica técnicamente cuál de los controles propuestos —priorizando Ingeniería, Sustitución o Eliminación sobre administrativos y EPP— le conviene prioritariamente a la empresa (Factor J > 20), cómo mitiga el peligro en la fuente/medio y por qué resulta altamente rentable frente al costo de incapacidades, ausentismo o indemnizaciones por la peor consecuencia]."
+═══ DATOS ACTUALES DE LA FILA EN LA MATRIZ ═══
+PROCESO: "${row.proceso || ''}" | CARGO: "${row.cargo || ''}" | ZONA/LUGAR: "${row.zona || ''}"
+ACTIVIDAD: "${row.actividad || ''}" | TAREAS: "${row.tareas || ''}" | RUTINARIA: "${row.rutinaria || 'Sí'}"
+PELIGRO DESCRIPCIÓN: "${row.peligro_descripcion || '[VACÍO]'}"
+CLASIFICACIÓN DEL PELIGRO: "${row.peligro_clasificacion || '[VACÍO]'}"
+EFECTOS POSIBLES: "${row.efectos_posibles || '[VACÍO]'}"
+CONTROLES EXISTENTES REGISTRADOS:
+  - Control Fuente: "${row.controles_fuente || 'Ninguno'}"
+  - Control Medio: "${row.controles_medio || 'Ninguno'}"
+  - Control Individuo: "${row.controles_individuo || 'Ninguno'}"
+EVALUACIÓN ACTUAL: ND=${row.nd ?? '[VACÍO]'} | NE=${row.ne ?? '[VACÍO]'} | NC=${row.nc ?? '[VACÍO]'} | NR inicial=${nrActual}
+NRO. EXPUESTOS: ${row.nro_expuestos || '[VACÍO]'} | PEOR CONSECUENCIA: "${row.peor_consecuencia || '[VACÍO]'}" | REQUISITO LEGAL: "${row.requisito_legal || 'Sí'}"
+CONTROLES PROPUESTOS ACTUALES EN LA FILA:
+  - Eliminación: "${row.medida_eliminacion || 'Ninguno'}"
+  - Sustitución: "${row.medida_sustitucion || 'Ninguno'}"
+  - Controles de Ingeniería: "${row.medida_ingenieria || 'Ninguno'}"
+  - Controles Administrativos: "${row.medida_administrativa || 'Ninguno'}"
+  - EPP: "${row.medida_eppu || 'Ninguno'}"
+
+═══ INSTRUCCIONES OBLIGATORIAS GTC 45 ═══
+1. PROTECCIÓN DE DATOS IMPORTADOS O YA DILIGENCIADOS vs FILA DESDE CERO:
+   - Si PELIGRO DESCRIPCIÓN, CLASIFICACIÓN DEL PELIGRO, EFECTOS POSIBLES, CONTROL FUENTE, CONTROL MEDIO, CONTROL INDIVIDUO o NRO. EXPUESTOS ya tienen datos en la fila (no dicen [VACÍO]), DEBES conservarlos exactamente igual sin modificarlos.
+   - ÚNICAMENTE si alguno de esos campos está en [VACÍO] (cuando se crea una fila desde cero), propón su contenido técnico en base a la información de la empresa y la actividad.
+2. EVALUACIÓN ND, NE, NC:
+   - Si ND (${row.nd}), NE (${row.ne}) y NC (${row.nc}) ya tienen valores válidos de la escala GTC-45 (ND en [0,2,6,10], NE en [1,2,3,4], NC en [10,25,60,100]), consérvalos o ajústalos solo si estaban vacíos.
+3. MEDIDAS DE INTERVENCIÓN (Eliminación, Sustitución, Ingeniería, Administrativos, EPP):
+   - Si la fila ya tiene controles propuestos específicos, consérvalos o compleméntalos técnicamente; si están vacíos o dicen "Ninguno"/"No aplica", propón las medidas adecuadas según la jerarquía GTC-45.
+4. FACTORES DE REDUCCIÓN (ANEXO E) — CRÍTICO:
+   - Ten en cuenta TODA la información de la fila y ESPECIALMENTE evalúa y compara los CONTROLES PROPUESTOS (Eliminación, Sustitución, Ingeniería, Administrativos y EPP) para dictaminar en base a Costo/Beneficio CUÁL DE ESOS CONTROLES PROPUESTOS LE CONVIENE MÁS A LA EMPRESA.
+   - Estructura obligatoria:
+     "Reducción del [X]% (NRi: [NR inicial] → NRf: [NR residual], Nivel [III o IV]). Análisis Costo/Beneficio (GTC 45 Anexo E): [Cita explícitamente los controles propuestos de la fila y dictamina cuál de ellos —priorizando Ingeniería, Sustitución o Eliminación sobre administrativos y EPP— le conviene prioritariamente a la empresa en relación costo/beneficio (Factor J > 20), cómo mitiga el peligro en la fuente/medio y por qué es más rentable frente al costo de incapacidades, ausentismo o indemnizaciones por la peor consecuencia]."
 
 Responde ÚNICAMENTE un JSON válido (sin markdown):
 {
+  "cargo": "${row.cargo || '...'}",
+  "zona": "${row.zona || '...'}",
   "peligro_descripcion": "...",
   "peligro_clasificacion": "${row.peligro_clasificacion || 'Condiciones de seguridad'}",
   "efectos_posibles": "...",
   "controles_fuente": "...",
   "controles_medio": "...",
   "controles_individuo": "...",
-  "nd": 6, "ne": 3, "nc": 60, "nro_expuestos": 5,
+  "nd": 6, "ne": 3, "nc": 60, "nro_expuestos": ${Number(row.nro_expuestos) > 0 ? Number(row.nro_expuestos) : 1},
   "peor_consecuencia": "...",
   "requisito_legal": "Sí",
   "medida_eliminacion": "...",
@@ -8465,7 +8494,32 @@ Responde ÚNICAMENTE un JSON válido (sin markdown):
     const cleanJson = aiRes.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     const parsed = JSON.parse(cleanJson);
 
-    const updated = calculateRowFormulas({ ...row, ...parsed });
+    // Respetar estrictamente los campos ya existentes en la fila (no sobrescribir matrices importadas)
+    const safeMerged = { ...row, ...parsed };
+    const protectedFields = [
+      'proceso',
+      'cargo',
+      'zona',
+      'actividad',
+      'tareas',
+      'rutinaria',
+      'peligro_descripcion',
+      'peligro_clasificacion',
+      'efectos_posibles',
+      'controles_fuente',
+      'controles_medio',
+      'controles_individuo'
+    ];
+    protectedFields.forEach((f) => {
+      if (isMeaningful(row[f])) {
+        safeMerged[f] = row[f];
+      }
+    });
+    if (Number(row.nro_expuestos) > 0) {
+      safeMerged.nro_expuestos = Number(row.nro_expuestos);
+    }
+
+    const updated = calculateRowFormulas(safeMerged);
     Object.assign(row, updated);
     saveToLocalStorage();
     renderTable();
@@ -8505,20 +8559,24 @@ async function handleAnexoEAiRow(rowId) {
     const nrActual = Number(row.nr) || (Number(row.nd || 6) * Number(row.ne || 3) * Number(row.nc || 25)) || 360;
     const prompt = `
 Eres un especialista senior en SG-SST y en el Anexo E de la GTC-45:2012.
-DATOS DE LA FILA:
-- Proceso: "${row.proceso || 'Operativo'}" | Cargo: "${row.cargo || 'Operario'}" | Actividad: "${row.actividad || 'General'}"
+EMPRESA: ${companyInfo.companyName} · SECTOR: ${companyInfo.sector || 'General'} · ACTIVIDAD ECONÓMICA: ${companyInfo.economicActivity || 'General'}
+DATOS COMPLETOS DE LA FILA EN LA MATRIZ:
+- Proceso: "${row.proceso || 'Operativo'}" | Zona/Lugar: "${row.zona || 'General'}" | Cargo: "${row.cargo || 'Operario'}"
+- Actividad: "${row.actividad || 'General'}" | Tareas: "${row.tareas || 'General'}" | Rutinaria: "${row.rutinaria || 'Sí'}"
 - Peligro: "${row.peligro_descripcion || 'Peligro identificado'}" (${row.peligro_clasificacion || 'Condiciones de seguridad'})
-- Nivel de Riesgo Inicial (NRi): ${nrActual} (ND=${row.nd ?? 6}, NE=${row.ne ?? 3}, NC=${row.nc ?? 25})
-- Peor Consecuencia: "${row.peor_consecuencia || 'Accidente o enfermedad laboral'}"
-- Controles Propuestos:
+- Efectos Posibles: "${row.efectos_posibles || 'Afectación a la salud'}"
+- Controles Existentes Actuales: Fuente: "${row.controles_fuente || 'Ninguno'}" | Medio: "${row.controles_medio || 'Ninguno'}" | Individuo: "${row.controles_individuo || 'Ninguno'}"
+- Nivel de Riesgo Inicial (NRi): ${nrActual} (ND=${row.nd ?? 6}, NE=${row.ne ?? 3}, NC=${row.nc ?? 25}) | Nro. Expuestos: ${row.nro_expuestos || 1}
+- Peor Consecuencia: "${row.peor_consecuencia || 'Accidente o enfermedad laboral'}" | Requisito Legal: "${row.requisito_legal || 'Sí'}"
+- CONTROLES PROPUESTOS EN ESTA FILA (FOCO PRINCIPAL DEL ANÁLISIS COSTO/BENEFICIO):
   * Eliminación: "${row.medida_eliminacion || 'No aplica'}"
   * Sustitución: "${row.medida_sustitucion || 'No aplica'}"
-  * Ingeniería: "${row.medida_ingenieria || 'Control de ingeniería'}"
-  * Administrativos: "${row.medida_administrativa || 'Procedimiento seguro'}"
+  * Controles de Ingeniería: "${row.medida_ingenieria || 'Control de ingeniería'}"
+  * Controles Administrativos: "${row.medida_administrativa || 'Procedimiento seguro'}"
   * EPP: "${row.medida_eppu || 'EPP certificado'}"
 
-OBLIGATORIO — Redacta un único párrafo analítico con la siguiente estructura exacta de la GTC 45 Anexo E:
-"Reducción del [X]% (NRi: ${nrActual} → NRf: [NR residual estimado], Nivel [III o IV]). Análisis Costo/Beneficio (GTC 45 Anexo E): [Explica técnicamente cuál de los controles propuestos —priorizando Ingeniería, Sustitución o Eliminación sobre administrativos y EPP— le conviene prioritariamente a la empresa (Factor J > 20), cómo mitiga el peligro en la fuente/medio y por qué resulta altamente rentable frente al severo impacto económico, legal y prestacional de incapacidades, ausentismo o indemnizaciones por ${row.peor_consecuencia || 'accidentes o enfermedades laborales'}]."
+OBLIGATORIO — Ten en cuenta TODA la información de la fila y ESPECIALMENTE evalúa y compara los CONTROLES PROPUESTOS (Eliminación, Sustitución, Ingeniería, Administrativos y EPP) para dictaminar en base a Costo/Beneficio CUÁL DE ESOS CONTROLES PROPUESTOS LE CONVIENE MÁS A LA EMPRESA, redactando un único párrafo analítico con esta estructura exacta de la GTC 45 Anexo E:
+"Reducción del [X]% (NRi: ${nrActual} → NRf: [NR residual estimado], Nivel [III o IV]). Análisis Costo/Beneficio (GTC 45 Anexo E): [Cita explícitamente los controles propuestos de la fila y dictamina cuál de ellos —priorizando Ingeniería, Sustitución o Eliminación sobre administrativos y EPP— le conviene prioritariamente a la empresa en relación costo/beneficio (Factor J > 20), explicando cómo mitiga el peligro en la fuente/medio y por qué resulta altamente rentable frente al severo impacto económico, legal y prestacional de incapacidades, ausentismo o indemnizaciones por ${row.peor_consecuencia || 'accidentes o enfermedades laborales'}]."
 Responde ÚNICAMENTE el párrafo en texto plano (sin comillas exteriores ni markdown).
 `;
     const aiRes = await callGeminiWithRotation(prompt, 'Generando Anexo E (Reducción) con IA');

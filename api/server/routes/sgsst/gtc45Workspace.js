@@ -574,65 +574,89 @@ Condiciones de Salud / Limitaciones Previas: ${worker.condicionesSalud || 'Ningu
     const cleanCargoActual = (row.cargo || '').trim();
     const cleanZonaActual = (row.zona || '').trim();
 
+    let compDoc = null;
+    try {
+      compDoc = companyId
+        ? await CompanyInfo.findOne({ _id: companyId, user: userId }).lean()
+        : await CompanyInfo.findOne({ user: userId, isActive: true }).lean() || await CompanyInfo.findOne({ user: userId }).lean();
+    } catch (_) {}
+
+    const companyContextStr = compDoc
+      ? `═══ DATOS DE LA EMPRESA ═══
+EMPRESA: ${compDoc.companyName || 'Empresa Activa'} (NIT: ${compDoc.nit || 'N/A'})
+SECTOR: ${compDoc.sector || 'General'} · ACTIVIDAD ECONÓMICA: ${compDoc.economicActivity || 'General'} (CIIU: ${compDoc.ciiu || 'N/A'})
+NIVEL DE RIESGO ARL: Clase ${compDoc.riskLevel || 'III'} · TRABAJADORES: ${compDoc.workerCount || 10}
+ACTIVIDADES GENERALES: ${compDoc.generalActivities || 'Operaciones generales'}\n`
+      : '';
+
     const prompt = `Eres un experto certificado en Seguridad y Salud en el Trabajo y en la metodología GTC-45:2012 colombiana.
-${workerContext}
+${companyContextStr}${workerContext}
 Tienes esta fila de Matriz IPEVR:
 
-═══ DATOS DE LA ACTIVIDAD Y PELIGRO ═══
+═══ DATOS DE LA ACTIVIDAD, PELIGRO Y CONTROLES ACTUALES ═══
 PROCESO: ${row.proceso || 'No especificado'}
 CARGO ACTUAL: ${cleanCargoActual ? cleanCargoActual : '[VACÍO - REQUIERE ASIGNACIÓN POR IA]'}
 ZONA / LUGAR ACTUAL: ${cleanZonaActual ? cleanZonaActual : '[VACÍO - REQUIERE ASIGNACIÓN POR IA]'}
 ACTIVIDAD: ${row.actividad || 'No especificada'}
 TAREAS: ${row.tareas || 'No especificadas'}
 RUTINARIA: ${row.rutinaria || 'Sí'}
-PELIGRO DESCRIPCIÓN: ${row.peligro_descripcion || 'No especificado'}
-CLASIFICACIÓN: ${row.peligro_clasificacion || 'No especificada'}
-EFECTOS POSIBLES: ${row.efectos_posibles || 'No definidos'}
-CONTROLES EXISTENTES (REGISTRADOS POR EL USUARIO — CONSERVAR):
+PELIGRO DESCRIPCIÓN: ${row.peligro_descripcion || '[VACÍO - PROPONER SEGÚN ACTIVIDAD Y EMPRESA]'}
+CLASIFICACIÓN: ${row.peligro_clasificacion || '[VACÍO - PROPONER SEGÚN PELIGRO]'}
+EFECTOS POSIBLES: ${row.efectos_posibles || '[VACÍO - PROPONER SEGÚN PELIGRO]'}
+CONTROLES EXISTENTES (REGISTRADOS EN LA FILA — CONSERVAR SI YA EXISTEN):
   - Fuente: ${row.controles_fuente || 'Ninguno'}
   - Medio: ${row.controles_medio || 'Ninguno'}
   - Individuo: ${row.controles_individuo || 'Ninguno'}
-ND actual: ${row.nd || 'No definido'} | NE actual: ${row.ne || 'No definido'} | NC actual: ${row.nc || 'No definido'}
-Nro. Expuestos: ${row.nro_expuestos || 1}
+ND actual: ${row.nd ?? 'No definido'} | NE actual: ${row.ne ?? 'No definido'} | NC actual: ${row.nc ?? 'No definido'}
+Nro. Expuestos: ${row.nro_expuestos || '[VACÍO]'}
 Peor Consecuencia: ${row.peor_consecuencia || 'No definida'}
 Requisito Legal: ${row.requisito_legal || 'No especificado'}
+CONTROLES PROPUESTOS ACTUALES EN LA FILA:
+  - Eliminación: ${row.medida_eliminacion || 'Ninguno'}
+  - Sustitución: ${row.medida_sustitucion || 'Ninguno'}
+  - Controles de Ingeniería: ${row.medida_ingenieria || 'Ninguno'}
+  - Controles Administrativos: ${row.medida_administrativa || 'Ninguno'}
+  - EPP: ${row.medida_eppu || 'Ninguno'}
 ${companyCargos.length > 0 ? `\n═══ LISTA DE CARGOS DE LA EMPRESA (PRIORIZAR SI APLICAN) ═══\n${companyCargos.join(', ')}\n` : ''}
 
 ═══ TUS TAREAS OBLIGATORIAS ═══
-1. CARGO:
-   - Si CARGO ACTUAL ya tiene un valor válido asignado por el usuario, DEBES conservarlo exactamente igual sin modificarlo.
-   - Si CARGO ACTUAL está vacío o no especificado:
-     * REGLA 1 (REUTILIZAR EXISTENTES): Revisa la LISTA DE CARGOS DE LA EMPRESA. Si alguno de esos cargos existentes coincide, abarca o es idóneo para la actividad, tareas y proceso (por ejemplo: si la actividad es de socios/gerencia y existe "Socio Director" o "Gerente General"; o si es administrativa y existe "Personal Administrativo"), DEBES asignar EXACTAMENTE ese nombre de cargo registrado.
-     * REGLA 2 (CREAR NUEVO SOLO SI NO EXISTE): ÚNICAMENTE si ABSOLUTAMENTE NINGUNO de los cargos registrados de la empresa corresponde a la labor, deduce y crea un nuevo nombre de cargo profesional, técnico y conciso en español para esa actividad (por ejemplo: si la actividad es "SOCIO DIRECTOR, SOCIOS GERENTES" y no existía, el cargo es "Socio Director"; si es soldadura, "Soldador"). NUNCA fuerces un cargo administrativo si la labor es gerencial/directiva o de manufactura/operativa.
-2. ZONA / LUGAR:
-   - Si ZONA / LUGAR ACTUAL está vacía o no especificada, deduce la zona, área o locación física adecuada para este proceso y actividad (ej: "Oficinas Administrativas", "Área de Dirección", "Planta de Producción", "Almacén", "Obra", etc.).
-   - Si ya tenía una zona fijada por el usuario, consérvala tal cual.
-3. Determina ND, NE, NC correctos según GTC-45:2012. 
-   IMPORTANTE DE ESTABILIDAD: Si ND actual (${row.nd}), NE actual (${row.ne}) y NC actual (${row.nc}) ya tienen valores numéricos válidos en la escala GTC-45 (ND en [0, 2, 6, 10], NE en [1, 2, 3, 4], NC en [10, 25, 60, 100]), DEBES conservarlos exactamente igual en tu respuesta en los campos "nd", "ne" y "nc". Solo recalcula si están vacíos, son cero o si el usuario modificó sustancialmente los controles existentes arriba.
-4. Propón medidas de ELIMINACIÓN, SUSTITUCIÓN, INGENIERÍA, ADMINISTRATIVAS y EPP adecuadas a futuro.
-5. Completa factores_reduccion (Anexo E GTC-45) OBLIGATORIAMENTE con el mismo nivel de sustento técnico y financiero que el análisis individual del campo Anexo E:
-   - Estructura obligatoria: "Reducción del [X]% (NRi: [NR inicial] → NRf: [NR residual esperado], Nivel [III o IV]). Análisis Costo/Beneficio (GTC 45 Anexo E): [Explica técnicamente cuál de los controles propuestos —priorizando Ingeniería, Sustitución o Eliminación sobre administrativos y EPP— le conviene prioritariamente a la empresa (Factor J > 20), cómo mitiga el peligro en la fuente/medio y por qué resulta altamente rentable frente al severo impacto económico, legal y prestacional de incapacidades, ausentismo o indemnizaciones por la peor consecuencia]."
-   - PROHIBIDO responder con una sola frase simple sin el análisis de Costo/Beneficio del Anexo E.
-6. Si los campos nro_expuestos, peor_consecuencia y requisito_legal están vacíos o no definidos, propón o estima valores adecuados basados en el peligro. De lo contrario, consérvalos.
-
-REGLA ABSOLUTA: Los campos "controles_fuente", "controles_medio" y "controles_individuo" en tu respuesta JSON DEBEN ser exactamente iguales a los valores de los controles existentes mostrados arriba. NO los cambies.
+1. PROTECCIÓN DE DATOS IMPORTADOS O YA DILIGENCIADOS vs FILA DESDE CERO:
+   - Si PELIGRO DESCRIPCIÓN, CLASIFICACIÓN, EFECTOS POSIBLES, CONTROLES EXISTENTES (Fuente, Medio, Individuo) o NRO. EXPUESTOS ya tienen información en la fila (no están vacíos), DEBES conservarlos exactamente igual sin modificarlos.
+   - ÚNICAMENTE si alguno de esos campos está vacío (cuando se crea una fila desde cero), complétalo técnicamente teniendo en cuenta los DATOS DE LA EMPRESA y la actividad.
+2. CARGO Y ZONA / LUGAR:
+   - Si CARGO ACTUAL o ZONA / LUGAR ACTUAL ya tienen un valor válido asignado por el usuario, consérvalos exactamente igual.
+   - Si están vacíos, dedúcelos priorizando los cargos registrados de la empresa si aplican.
+3. EVALUACIÓN ND, NE, NC (GTC-45:2012):
+   - Si ND actual (${row.nd}), NE actual (${row.ne}) y NC actual (${row.nc}) ya tienen valores numéricos válidos en la escala GTC-45 (ND en [0, 2, 6, 10], NE en [1, 2, 3, 4], NC en [10, 25, 60, 100]), consérvalos exactamente igual. Solo calcúlalos si están vacíos o fuera de escala.
+4. MEDIDAS DE INTERVENCIÓN PROPUESTAS (Eliminación, Sustitución, Ingeniería, Administrativas, EPP):
+   - Si la fila ya tiene controles propuestos específicos registrados, consérvalos o compleméntalos técnicamente; si están vacíos o dicen "Ninguno"/"No aplica", propón las medidas adecuadas según la jerarquía de controles GTC-45.
+5. FACTORES DE REDUCCIÓN (ANEXO E GTC-45) — CRÍTICO:
+   - Ten en cuenta TODA la información de la fila (proceso, cargo, peligro, controles existentes, ND/NE/NC/NR, expuestos, peor consecuencia) y ESPECIALMENTE evalúa y compara los CONTROLES PROPUESTOS (Eliminación, Sustitución, Ingeniería, Administrativos y EPP) de esta fila para dictaminar en base a Costo/Beneficio CUÁL DE ESOS CONTROLES PROPUESTOS LE CONVIENE MÁS A LA EMPRESA.
+   - Estructura obligatoria: "Reducción del [X]% (NRi: [NR inicial] → NRf: [NR residual esperado], Nivel [III o IV]). Análisis Costo/Beneficio (GTC 45 Anexo E): [Cita explícitamente los controles propuestos de la fila y dictamina cuál de ellos —priorizando Ingeniería, Sustitución o Eliminación frente a Administrativos y EPP— le conviene más a la empresa en relación costo/beneficio (Factor J > 20), explicando cómo mitiga el peligro en la fuente/medio y por qué es más rentable frente al costo de incapacidades, ausentismo o indemnizaciones por la peor consecuencia]."
+6. Si peor_consecuencia y requisito_legal están vacíos o no definidos, propón valores adecuados basados en el peligro; de lo contrario, consérvalos.
 
 Responde ÚNICAMENTE con un objeto JSON válido (sin markdown) con estos campos exactos:
 {
   "cargo": "<nombre del cargo deducido o conservado>",
   "zona": "<nombre de la zona deducida o conservada>",
-  "nd": <número 1-10>,
-  "ne": <número 1-4>,
+  "peligro_descripcion": "<conservar si ya existe, o proponer si estaba vacío>",
+  "peligro_clasificacion": "<conservar si ya existe, o proponer si estaba vacío>",
+  "efectos_posibles": "<conservar si ya existe, o proponer si estaba vacío>",
+  "controles_fuente": "<conservar si ya existe, o proponer si estaba vacío>",
+  "controles_medio": "<conservar si ya existe, o proponer si estaba vacío>",
+  "controles_individuo": "<conservar si ya existe, o proponer si estaba vacío>",
+  "nd": <número 0|2|6|10>,
+  "ne": <número 1|2|3|4>,
   "nc": <número 10|25|60|100>,
-  "nro_expuestos": ${row.nro_expuestos || 1},
-  "peor_consecuencia": "<peor consecuencia o proponer si está vacía>",
-  "requisito_legal": "<'Sí'|'No'|'', proponer si está vacía>",
-  "medida_eliminacion": "<medida propuesta o Ninguno>",
-  "medida_sustitucion": "<medida propuesta o Ninguno>",
-  "medida_ingenieria": "<control de ingeniería propuesto o Ninguno>",
-  "medida_administrativa": "<control administrativo propuesto o Ninguno>",
-  "medida_eppu": "<EPP recomendado específico o Ninguno>",
-  "factores_reduccion": "<Reducción del X% (NRi: ... → NRf: ..., Nivel III/IV). Análisis Costo/Beneficio (GTC 45 Anexo E): Justificación detallada de cuál control propuesto le conviene más a la empresa (J > 20) frente a costos de incapacidades/indemnizaciones>",
+  "nro_expuestos": ${Number(row.nro_expuestos) > 0 ? Number(row.nro_expuestos) : 1},
+  "peor_consecuencia": "<peor consecuencia conservada o propuesta si estaba vacía>",
+  "requisito_legal": "<'Sí'|'No', conservado o propuesto si estaba vacío>",
+  "medida_eliminacion": "<medida propuesta o conservada>",
+  "medida_sustitucion": "<medida propuesta o conservada>",
+  "medida_ingenieria": "<control de ingeniería propuesto o conservado>",
+  "medida_administrativa": "<control administrativo propuesto o conservado>",
+  "medida_eppu": "<EPP recomendado específico o conservado>",
+  "factores_reduccion": "<Reducción del X% (NRi: ... → NRf: ..., Nivel III/IV). Análisis Costo/Beneficio (GTC 45 Anexo E): Evaluación directa de los controles propuestos de la fila indicando cuál le conviene más a la empresa (J > 20) y por qué>",
   "nd_cualitativo": <10|6|2|0 si aplica Anexo C, null si no>
 }`;
 
@@ -689,10 +713,18 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown) con estos campos 
       updatedFields.zona = toSentenceCase(String(updatedFields.zona).replace(/^["']|["']$/g, '').replace(/\.$/, '').trim());
     }
 
-    // Enforce default existing controls just in case
-    updatedFields.controles_fuente = row.controles_fuente || 'Ninguno';
-    updatedFields.controles_medio = row.controles_medio || 'Ninguno';
-    updatedFields.controles_individuo = row.controles_individuo || 'Ninguno';
+    // Proteger campos ya diligenciados/importados (solo permitir que la IA los llene si estaban vacíos al crear desde 0)
+    const isNotEmpty = (v) => v !== undefined && v !== null && String(v).trim() !== '' && !['ninguno', 'ninguna', 'no especificado', 'no detallado'].includes(String(v).trim().toLowerCase());
+    if (isNotEmpty(row.peligro_descripcion)) updatedFields.peligro_descripcion = row.peligro_descripcion;
+    if (isNotEmpty(row.peligro_clasificacion)) updatedFields.peligro_clasificacion = row.peligro_clasificacion;
+    if (isNotEmpty(row.efectos_posibles)) updatedFields.efectos_posibles = row.efectos_posibles;
+    if (isNotEmpty(row.controles_fuente)) updatedFields.controles_fuente = row.controles_fuente;
+    else updatedFields.controles_fuente = updatedFields.controles_fuente || row.controles_fuente || 'Ninguno';
+    if (isNotEmpty(row.controles_medio)) updatedFields.controles_medio = row.controles_medio;
+    else updatedFields.controles_medio = updatedFields.controles_medio || row.controles_medio || 'Ninguno';
+    if (isNotEmpty(row.controles_individuo)) updatedFields.controles_individuo = row.controles_individuo;
+    else updatedFields.controles_individuo = updatedFields.controles_individuo || row.controles_individuo || 'Ninguno';
+    if (Number(row.nro_expuestos) > 0) updatedFields.nro_expuestos = Number(row.nro_expuestos);
 
     // Si la IA asignó o creó un cargo, asegurar que exista y se cree de verdad en Perfiles de Cargo (PerfilCargoData)
     let newPerfilCreated = false;

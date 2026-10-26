@@ -2624,7 +2624,7 @@ export default function MatrizIPEVARTable({
         const newRows = [...matrixRows];
         const original = newRows[index];
 
-        // ─── Campos protegidos que el usuario definió manualmente ───
+        // ─── Campos protegidos cuando la fila ya tiene datos o viene de matriz importada ───
         const PROTECTED_FIELDS = [
           'proceso',
           'actividad',
@@ -2638,11 +2638,21 @@ export default function MatrizIPEVARTable({
           'controles_individuo',
         ] as const;
 
+        const isMeaningfulVal = (val: unknown) => {
+          if (val === undefined || val === null) return false;
+          const s = String(val).trim();
+          if (!s) return false;
+          return !['ninguno', 'ninguna', 'no especificado', 'no detallado'].includes(s.toLowerCase());
+        };
+
         const safeUpdate = { ...data.updatedFields };
         for (const field of PROTECTED_FIELDS) {
-          if (original[field] && String(original[field]).trim() !== '') {
+          if (isMeaningfulVal(original[field])) {
             safeUpdate[field] = original[field];
           }
+        }
+        if (Number(original.nro_expuestos) > 0) {
+          safeUpdate.nro_expuestos = Number(original.nro_expuestos);
         }
 
         // Cargo: si estaba vacío o sin definir, asignar el deducido por la IA
