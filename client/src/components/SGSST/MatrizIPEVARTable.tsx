@@ -3962,7 +3962,7 @@ export default function MatrizIPEVARTable({
                     PELIGRO DESC.
                   </th>
                   <th
-                    className="min-w-[150px] cursor-pointer px-4 py-3 text-left hover:text-teal-600"
+                    className="min-w-[245px] w-[245px] cursor-pointer px-4 py-3 text-left hover:text-teal-600"
                     onClick={() => toggleSort('peligro_clasificacion')}
                   >
                     CLASIFICACIÓN <SortIcon field="peligro_clasificacion" />
@@ -4021,7 +4021,7 @@ export default function MatrizIPEVARTable({
                   </th>
                   {/* Clasificación visible entre NR y Eliminación */}
                   <th
-                    className="min-w-[140px] cursor-pointer border-l-2 border-teal-500/20 px-4 py-3 text-left text-teal-700 hover:text-teal-500 dark:text-teal-400"
+                    className="min-w-[200px] cursor-pointer border-l-2 border-teal-500/20 px-4 py-3 text-left text-teal-700 hover:text-teal-500 dark:text-teal-400"
                     onClick={() => toggleSort('peligro_clasificacion')}
                   >
                     CLASIFICACIÓN <SortIcon field="peligro_clasificacion" />
@@ -4228,11 +4228,11 @@ export default function MatrizIPEVARTable({
                       data-display-idx={displayIdx}
                       data-display-field="peligro_clasificacion"
                       onMouseEnter={() => handleCellMouseEnter(displayIdx, 'peligro_clasificacion')}
-                      className={`group/cell relative px-4 py-3 transition-colors ${getDragCellStyles(displayIdx, 'peligro_clasificacion')}`}
+                      className={`group/cell relative min-w-[245px] w-[245px] px-4 py-3 transition-colors ${getDragCellStyles(displayIdx, 'peligro_clasificacion')}`}
                     >
                       <textarea
                         rows={2}
-                        className="w-full min-w-[140px] resize border-transparent bg-transparent text-sm font-medium text-gray-900 placeholder:text-gray-400 outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-100 dark:placeholder:text-gray-500"
+                        className="w-full min-w-[230px] resize border-transparent bg-transparent text-sm font-medium text-gray-900 placeholder:text-gray-400 outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-100 dark:placeholder:text-gray-500"
                         value={row.peligro_clasificacion || ''}
                         onChange={(e) =>
                           handleCellChange(idx, 'peligro_clasificacion', e.target.value)
@@ -4521,7 +4521,7 @@ export default function MatrizIPEVARTable({
                     </td>
 
                     {/* Clasificación visible con badge de color */}
-                    <td className="border-l border-border-light px-4 py-3 align-middle">
+                    <td className="min-w-[200px] border-l border-border-light px-4 py-3 align-middle">
                       {(() => {
                         const c = (row.peligro_clasificacion || '').toLowerCase();
                         const color =

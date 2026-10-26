@@ -627,10 +627,15 @@ ${companyCargos.length > 0 ? `\n═══ LISTA DE CARGOS DE LA EMPRESA (PRIORIZ
 2. CARGO Y ZONA / LUGAR:
    - Si CARGO ACTUAL o ZONA / LUGAR ACTUAL ya tienen un valor válido asignado por el usuario, consérvalos exactamente igual.
    - Si están vacíos, dedúcelos priorizando los cargos registrados de la empresa si aplican.
-3. EVALUACIÓN ND, NE, NC (GTC-45:2012):
-   - Si ND actual (${row.nd}), NE actual (${row.ne}) y NC actual (${row.nc}) ya tienen valores numéricos válidos en la escala GTC-45 (ND en [0, 2, 6, 10], NE en [1, 2, 3, 4], NC en [10, 25, 60, 100]), consérvalos exactamente igual. Solo calcúlalos si están vacíos o fuera de escala.
-4. MEDIDAS DE INTERVENCIÓN PROPUESTAS (Eliminación, Sustitución, Ingeniería, Administrativas, EPP):
-   - Si la fila ya tiene controles propuestos específicos registrados, consérvalos o compleméntalos técnicamente; si están vacíos o dicen "Ninguno"/"No aplica", propón las medidas adecuadas según la jerarquía de controles GTC-45.
+3. EVALUACIÓN Y CALIFICACIÓN DEL RIESGO (ND, NE, NC — GTC-45:2012) — CRÍTICO:
+   - Evalúa y califica ND (en [0, 2, 6, 10]), NE (en [1, 2, 3, 4]) y NC (en [10, 25, 60, 100]) teniendo MUY EN CUENTA:
+     * Los CONTROLES EXISTENTES actuales (Fuente, Medio, Individuo) para determinar el Nivel de Deficiencia (ND).
+     * Los EFECTOS POSIBLES y la Peor Consecuencia para determinar el Nivel de Consecuencia (NC).
+     * El NRO. DE EXPUESTOS, si la tarea es Rutinaria, la actividad/tareas y toda la INFORMACIÓN SUMINISTRADA POR LA EMPRESA (Sector, Clase de Riesgo ARL, Actividad Económica) para determinar el Nivel de Exposición (NE) y calibrar la evaluación.
+   - PROHIBIDO tener en cuenta los Controles Propuestos (Eliminación, Sustitución, Ingeniería, Administrativos, EPP) o el Factor de Reducción (Anexo E) para calcular ND, NE o NC, ya que la calificación evalúa el estado actual del riesgo con los controles existentes ANTES de aplicar las medidas propuestas.
+4. MEDIDAS DE INTERVENCIÓN PROPUESTAS (Eliminación, Sustitución, Ingeniería, Administrativas, EPP) — PROHIBIDO REPETIR CONTROLES EXISTENTES:
+   - Revisa detenidamente qué dice en CONTROLES EXISTENTES (Fuente: "${row.controles_fuente || 'Ninguno'}", Medio: "${row.controles_medio || 'Ninguno'}", Individuo: "${row.controles_individuo || 'Ninguno'}").
+   - ESTÁ TERMINANTEMENTE PROHIBIDO proponer o recomendar en los Controles Propuestos algo que YA SE USA o YA EXISTE en los Controles Existentes (por ejemplo: si en Controles Existentes ya dice que usan "tapaoídos / protección auditiva", NO propongas "usar tapaoídos" en EPP; propón únicamente controles nuevos, adicionales o de especificación/jerarquía superior que aún NO estén implementados).
 5. FACTORES DE REDUCCIÓN (ANEXO E GTC-45) — CRÍTICO:
    - Ten en cuenta TODA la información de la fila (proceso, cargo, peligro, controles existentes, ND/NE/NC/NR, expuestos, peor consecuencia) y ESPECIALMENTE evalúa y compara los CONTROLES PROPUESTOS (Eliminación, Sustitución, Ingeniería, Administrativos y EPP) de esta fila para dictaminar en base a Costo/Beneficio CUÁL DE ESOS CONTROLES PROPUESTOS LE CONVIENE MÁS A LA EMPRESA.
    - Estructura obligatoria: "Reducción del [X]% (NRi: [NR inicial] → NRf: [NR residual esperado], Nivel [III o IV]). Análisis Costo/Beneficio (GTC 45 Anexo E): [Cita explícitamente los controles propuestos de la fila y dictamina cuál de ellos —priorizando Ingeniería, Sustitución o Eliminación frente a Administrativos y EPP— le conviene más a la empresa en relación costo/beneficio (Factor J > 20), explicando cómo mitiga el peligro en la fuente/medio y por qué es más rentable frente al costo de incapacidades, ausentismo o indemnizaciones por la peor consecuencia]."
@@ -2327,7 +2332,9 @@ ${cargosHint}
 Genera mínimo 15 (entre 15 y 18) riesgos laborales críticos, diversos y representativos que abarquen todos los procesos principales de esta empresa y las 7 clasificaciones de peligros de la metodología GTC 45:2012 (Biológico, Físico, Químico, Psicosocial, Biomecánico, Condiciones de seguridad y Fenómenos naturales).
 IMPORTANTE:
 - El arreglo "filas" DEBE contener al menos 15 objetos de riesgo completos y distintos.
-- En cada fila, el campo "factores_reduccion" (Anexo E GTC-45) DEBE seguir obligatoriamente esta estructura de análisis de Costo/Beneficio:
+- PROHIBIDO repetir en los Controles Propuestos (medida_eliminacion, medida_sustitucion, medida_ingenieria, medida_administrativa, medida_eppu) algo que ya esté escrito en los Controles Existentes (controles_fuente, controles_medio, controles_individuo). Los controles propuestos deben ser medidas nuevas o superiores que aún no se usen.
+- La evaluación y calificación (nd, ne, nc) debe calcularse estrictamente en función de los Controles Existentes, Efectos Posibles, Nro. de Expuestos y la información suministrada de la empresa, SIN tener en cuenta los Controles Propuestos ni el Factor de Reducción.
+- En cada fila, el campo "factores_reduccion" (Anexo E GTC-45) DEBE seguir obligatoriamente esta estructura de análisis de Costo/Beneficio evaluando los controles propuestos:
   "Reducción del [X]% (NRi: [NR inicial] → NRf: [NR residual], Nivel [III o IV]). Análisis Costo/Beneficio (GTC 45 Anexo E): [Sustentación técnica y financiera de cuál control propuesto (priorizando Ingeniería, Sustitución o Eliminación sobre administrativos y EPP) le conviene más a la empresa (J > 20) frente al costo de incapacidades, ausentismo o indemnizaciones por la peor consecuencia]."
 Devuelve ÚNICAMENTE un JSON válido (sin bloques markdown):
 {

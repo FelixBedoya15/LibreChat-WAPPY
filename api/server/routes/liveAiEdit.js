@@ -134,37 +134,57 @@ OBLIGATORIO — Analiza técnicamente:
 3. Si son suficientes para el nivel de riesgo calificado o qué complemento se requiere según la jerarquía GTC-45.`;
 
     } else if (field === 'Medida: Ingeniería') {
+      const r = reportSourceData.currentRow || {};
       fieldSpecificPrompt = `ATENCIÓN: Estás editando el campo "Controles de Ingeniería" (medida propuesta) de la matriz GTC-45.
+CONTROLES EXISTENTES QUE YA USA LA EMPRESA EN ESTA FILA:
+- Fuente: ${r.controles_fuente || 'Ninguno'} | Medio: ${r.controles_medio || 'Ninguno'} | Individuo: ${r.controles_individuo || 'Ninguno'}
+PROHIBICIÓN ESTRICTA: NO propongas ni repitas ningún control que YA EXISTA en los Controles Existentes anteriores.
 OBLIGATORIO — Sé técnico y específico:
-1. Nombra el tipo EXACTO de control de ingeniería (rediseño ergonómico, guardas de seguridad, sistemas de extracción local, automatización, aislamiento acústico, etc.).
+1. Nombra el tipo EXACTO de control de ingeniería NUEVO o adicional que aún no esté implementado (rediseño ergonómico, guardas de seguridad, sistemas de extracción local, automatización, aislamiento acústico, etc.).
 2. Explica el PRINCIPIO TÉCNICO por el cual este control elimina o reduce el peligro desde la fuente o el medio de transmisión.
 3. Sustenta por qué tiene mayor efectividad permanente y es preferible a los controles administrativos o el EPP según la jerarquía de controles.`;
 
     } else if (field === 'Medida: Administrativos') {
+      const r = reportSourceData.currentRow || {};
       fieldSpecificPrompt = `ATENCIÓN: Estás editando el campo "Controles Administrativos" (medida propuesta) de la matriz GTC-45.
+CONTROLES EXISTENTES QUE YA USA LA EMPRESA EN ESTA FILA:
+- Fuente: ${r.controles_fuente || 'Ninguno'} | Medio: ${r.controles_medio || 'Ninguno'} | Individuo: ${r.controles_individuo || 'Ninguno'}
+PROHIBICIÓN ESTRICTA: NO propongas ni repitas ningún control que YA EXISTA en los Controles Existentes anteriores.
 OBLIGATORIO — Sé específico y sustancial:
-1. Detalla los procedimientos documentados, programas de capacitación, sistemas de rotación, señalización o políticas concretas.
+1. Detalla los procedimientos documentados, programas de capacitación especializada, sistemas de rotación, señalización o políticas concretas NUEVAS que aún no se estén aplicando.
 2. Explica CÓMO cada medida impactará directamente en la reducción del Nivel de Exposición (NE) o del Nivel de Deficiencia (ND).
 3. Justifica por qué son necesarias como complemento a los controles de ingeniería para garantizar adherencia y sostenibilidad del programa de seguridad.`;
 
     } else if (field === 'Medida: Sustitución') {
+      const r = reportSourceData.currentRow || {};
       fieldSpecificPrompt = `ATENCIÓN: Estás editando el campo "Sustitución" (medida propuesta) de la matriz GTC-45.
+CONTROLES EXISTENTES QUE YA USA LA EMPRESA EN ESTA FILA:
+- Fuente: ${r.controles_fuente || 'Ninguno'} | Medio: ${r.controles_medio || 'Ninguno'} | Individuo: ${r.controles_individuo || 'Ninguno'}
+PROHIBICIÓN ESTRICTA: NO propongas ni repitas ningún control que YA EXISTA en los Controles Existentes anteriores.
 OBLIGATORIO — Sustenta analíticamente:
 1. Por qué la sustitución propuesta es técnicamente viable para este peligro específico.
 2. Qué nivel de riesgo residual (NR esperado) quedaría después de aplicarla.
 3. Cómo se compara en términos de costo-beneficio frente a mantener el peligro actual o aplicar solo controles administrativos.`;
 
     } else if (field === 'Medida: Eliminación') {
+      const r = reportSourceData.currentRow || {};
       fieldSpecificPrompt = `ATENCIÓN: Estás editando el campo "Eliminación" (medida propuesta) de la matriz GTC-45.
+CONTROLES EXISTENTES QUE YA USA LA EMPRESA EN ESTA FILA:
+- Fuente: ${r.controles_fuente || 'Ninguno'} | Medio: ${r.controles_medio || 'Ninguno'} | Individuo: ${r.controles_individuo || 'Ninguno'}
+PROHIBICIÓN ESTRICTA: NO propongas ni repitas ningún control que YA EXISTA en los Controles Existentes anteriores.
 Es el control de mayor jerarquía. OBLIGATORIO — Sustenta técnicamente:
 1. Si la eliminación es viable, explica cómo se lograría desde el diseño del proceso, la actividad o la tarea.
 2. Si NO aplica, argumenta técnicamente por qué no es factible para este peligro y qué controles sustitutos (ingeniería o administrativos) son los más efectivos como alternativa.`;
 
     } else if (field === 'Medida: EPP') {
-      fieldSpecificPrompt = `ATENCIÓN: Estás editando el campo "EPP" (Equipos de Protección Personal) de la matriz GTC-45.
+      const r = reportSourceData.currentRow || {};
+      fieldSpecificPrompt = `ATENCIÓN: Estás editando el campo "EPP" (Equipos de Protección Personal propuestos) de la matriz GTC-45.
+CONTROLES EXISTENTES QUE YA USA LA EMPRESA EN ESTA FILA:
+- Fuente: ${r.controles_fuente || 'Ninguno'} | Medio: ${r.controles_medio || 'Ninguno'} | Individuo: ${r.controles_individuo || 'Ninguno'}
+PROHIBICIÓN ESTRICTA: Si en Controles Existentes (especialmente en Individuo) ya dice que usan un EPP (ej. tapaoídos, guantes, casco, etc.), ESTÁ TERMINANTEMENTE PROHIBIDO volver a recomendar ese mismo EPP básico como si no lo tuvieran. En su lugar, propón únicamente un EPP adicional o de especificación/certificación técnica superior que aún NO usen, o indica que el EPP base ya está cubierto en controles existentes y qué mejora específica se requiere.
 Recuerda: el EPP es el ÚLTIMO recurso en la jerarquía de controles.
 OBLIGATORIO:
-1. Especifica con referencia técnica exacta el EPP apropiado: norma de certificación (NTC, ANSI, EN), clase, material, nivel de protección requerido.
+1. Especifica con referencia técnica exacta el EPP nuevo o superior apropiado: norma de certificación (NTC, ANSI, EN), clase, material, nivel de protección requerido.
 2. Explica para qué riesgo específico o parte del cuerpo protege, y bajo qué condiciones de uso es efectivo.
 3. Si el peligro es Psicosocial, indica explícitamente: "No aplica — el riesgo psicosocial no se atenúa con EPP. La intervención debe ser organizacional.".`;
     }

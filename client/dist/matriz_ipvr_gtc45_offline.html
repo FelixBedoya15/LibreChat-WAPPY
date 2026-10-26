@@ -962,7 +962,7 @@
               <th class="p-3 border-l-2 border-teal-500/30 border-r border-slate-200 min-w-[220px]">
                 PELIGRO DESC.
               </th>
-              <th class="p-3 border-r border-slate-200 min-w-[150px] cursor-pointer hover:text-teal-700" onclick="toggleSort('peligro_clasificacion')">
+              <th class="p-3 border-r border-slate-200 min-w-[245px] w-[245px] cursor-pointer hover:text-teal-700" onclick="toggleSort('peligro_clasificacion')">
                 CLASIFICACIÓN ⇅
               </th>
               <th class="p-3 border-r border-slate-200 min-w-[220px]">EFECTOS POSIBLES</th>
@@ -998,7 +998,7 @@
               <th class="p-3 bg-sky-50/20 text-center min-w-[120px] text-sky-800">REQUISITO LEGAL</th>
 
               <!-- Clasificación Repetida -->
-              <th class="p-3 border-l-2 border-teal-500/20 min-w-[140px] text-teal-800 cursor-pointer hover:text-teal-950" onclick="toggleSort('peligro_clasificacion')">
+              <th class="p-3 border-l-2 border-teal-500/20 min-w-[200px] text-teal-800 cursor-pointer hover:text-teal-950" onclick="toggleSort('peligro_clasificacion')">
                 CLASIFICACIÓN ⇅
               </th>
 
@@ -5126,8 +5126,8 @@ function renderTable() {
         </td>
 
         <!-- 8. CLASIFICACIÓN -->
-        <td class="p-3 border-r border-slate-200 min-w-[150px]">
-          <select onchange="updateRowField('${r.id}', 'peligro_clasificacion', this.value)" class="w-full text-[11px] font-bold uppercase rounded-lg p-1.5 border border-slate-200 bg-white">
+        <td class="p-3 border-r border-slate-200 min-w-[245px] w-[245px]">
+          <select onchange="updateRowField('${r.id}', 'peligro_clasificacion', this.value)" class="w-full min-w-[230px] text-[11px] font-bold uppercase rounded-lg p-1.5 border border-slate-200 bg-white">
             ${Object.keys(GTC45_CATEGORIES).map(cat => `<option value="${cat}" ${r.peligro_clasificacion === cat ? 'selected' : ''}>${cat}</option>`).join('')}
           </select>
         </td>
@@ -5232,7 +5232,7 @@ function renderTable() {
         </td>
 
         <!-- 24. CLASIFICACIÓN (REPETIDA) -->
-        <td class="p-3 border-l-2 border-teal-500/20 min-w-[140px]">
+        <td class="p-3 border-l-2 border-teal-500/20 min-w-[200px]">
           <span class="inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-[10px] font-bold ${getPeligroClasificacionBadge(r.peligro_clasificacion)}">
             ${r.peligro_clasificacion || '—'}
           </span>
@@ -8460,10 +8460,15 @@ CONTROLES PROPUESTOS ACTUALES EN LA FILA:
    - Si PELIGRO DESCRIPCIÓN, CLASIFICACIÓN DEL PELIGRO, CONTROL FUENTE, CONTROL MEDIO, CONTROL INDIVIDUO o NRO. EXPUESTOS ya tienen datos en la fila (no dicen [VACÍO]), DEBES conservarlos exactamente igual sin modificarlos.
    - ÚNICAMENTE si alguno de esos campos está en [VACÍO] (cuando se crea una fila desde cero), propón su contenido técnico en base a la información de la empresa y la actividad.
    - EFECTOS POSIBLES (efectos_posibles): SIEMPRE debes editarlos, ampliarlos y mejorarlos clínica y ocupacionalmente acorde al peligro identificado (incluso si ya tenían un texto básico).
-2. EVALUACIÓN ND, NE, NC:
-   - Si ND (${row.nd}), NE (${row.ne}) y NC (${row.nc}) ya tienen valores válidos de la escala GTC-45 (ND en [0,2,6,10], NE en [1,2,3,4], NC en [10,25,60,100]), consérvalos o ajústalos solo si estaban vacíos.
-3. MEDIDAS DE INTERVENCIÓN (Eliminación, Sustitución, Ingeniería, Administrativos, EPP):
-   - Si la fila ya tiene controles propuestos específicos, consérvalos o compleméntalos técnicamente; si están vacíos o dicen "Ninguno"/"No aplica", propón las medidas adecuadas según la jerarquía GTC-45.
+2. EVALUACIÓN Y CALIFICACIÓN DEL RIESGO (ND, NE, NC — GTC-45:2012) — CRÍTICO:
+   - Evalúa y califica ND (en [0, 2, 6, 10]), NE (en [1, 2, 3, 4]) y NC (en [10, 25, 60, 100]) teniendo MUY EN CUENTA:
+     * Los CONTROLES EXISTENTES actuales (Fuente, Medio, Individuo) para determinar el Nivel de Deficiencia (ND).
+     * Los EFECTOS POSIBLES y la Peor Consecuencia para determinar el Nivel de Consecuencia (NC).
+     * El NRO. DE EXPUESTOS, si la tarea es Rutinaria, la actividad/tareas y toda la INFORMACIÓN SUMINISTRADA POR LA EMPRESA (Sector, Clase de Riesgo ARL, Actividad Económica) para determinar el Nivel de Exposición (NE) y calibrar la evaluación.
+   - PROHIBIDO tener en cuenta los Controles Propuestos (Eliminación, Sustitución, Ingeniería, Administrativos, EPP) o el Factor de Reducción (Anexo E) para calcular ND, NE o NC, ya que la calificación evalúa el estado actual del riesgo con los controles existentes ANTES de aplicar las medidas propuestas.
+3. MEDIDAS DE INTERVENCIÓN PROPUESTAS (Eliminación, Sustitución, Ingeniería, Administrativos, EPP) — PROHIBIDO REPETIR CONTROLES EXISTENTES:
+   - Revisa detenidamente qué dice en CONTROLES EXISTENTES (Control Fuente: "${row.controles_fuente || 'Ninguno'}", Control Medio: "${row.controles_medio || 'Ninguno'}", Control Individuo: "${row.controles_individuo || 'Ninguno'}").
+   - ESTÁ TERMINANTEMENTE PROHIBIDO proponer o recomendar en los Controles Propuestos algo que YA SE USA o YA EXISTE en los Controles Existentes (por ejemplo: si en Controles Existentes ya dice que usan "tapaoídos / protección auditiva", NO propongas "usar tapaoídos" en EPP; propón únicamente controles nuevos, adicionales o de especificación/jerarquía superior que aún NO estén implementados).
 4. FACTORES DE REDUCCIÓN (ANEXO E) — CRÍTICO:
    - Ten en cuenta TODA la información de la fila y ESPECIALMENTE evalúa y compara los CONTROLES PROPUESTOS (Eliminación, Sustitución, Ingeniería, Administrativos y EPP) para dictaminar en base a Costo/Beneficio CUÁL DE ESOS CONTROLES PROPUESTOS LE CONVIENE MÁS A LA EMPRESA.
    - Estructura obligatoria:
@@ -8650,7 +8655,9 @@ DESCRIPCIÓN DE ACTIVIDADES DE LA EMPRESA: ${companyInfo.generalActivities || 'O
 Genera mínimo 15 (entre 15 y 18) riesgos laborales críticos, diversos y representativos que abarquen todos los procesos principales de esta empresa y las 7 clasificaciones de peligros de la metodología GTC 45:2012 (Biológico, Físico, Químico, Psicosocial, Biomecánicos, Condiciones de seguridad y Fenómenos naturales).
 IMPORTANTE:
 - El arreglo "filas" DEBE contener al menos 15 objetos de riesgo completos y distintos.
-- En cada fila, el campo "factores_reduccion" (Anexo E GTC-45) DEBE seguir obligatoriamente esta estructura de análisis de Costo/Beneficio:
+- PROHIBIDO repetir en los Controles Propuestos (medida_eliminacion, medida_sustitucion, medida_ingenieria, medida_administrativa, medida_eppu) algo que ya esté escrito en los Controles Existentes (controles_fuente, controles_medio, controles_individuo). Los controles propuestos deben ser medidas nuevas o superiores que aún no se usen.
+- La evaluación y calificación (nd, ne, nc) debe calcularse estrictamente en función de los Controles Existentes, Efectos Posibles, Nro. de Expuestos y la información suministrada de la empresa, SIN tener en cuenta los Controles Propuestos ni el Factor de Reducción.
+- En cada fila, el campo "factores_reduccion" (Anexo E GTC-45) DEBE seguir obligatoriamente esta estructura de análisis de Costo/Beneficio evaluando los controles propuestos:
   "Reducción del [X]% (NRi: [NR inicial] → NRf: [NR residual], Nivel [III o IV]). Análisis Costo/Beneficio (GTC 45 Anexo E): [Sustentación técnica y financiera de cuál control propuesto (priorizando Ingeniería, Sustitución o Eliminación sobre administrativos y EPP) le conviene más a la empresa (J > 20) frente al costo de incapacidades, ausentismo o indemnizaciones por la peor consecuencia]."
 Devuelve ÚNICAMENTE un JSON válido:
 {
