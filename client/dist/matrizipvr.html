@@ -457,7 +457,7 @@
             <span>▶️</span>
             <span>Video Tutorial</span>
           </button>
-          <button type="button" onclick="navigateToDownloadApp(); toggleMobileMenuDrawer(false);" class="col-span-2 flex items-center justify-between p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold text-left cursor-pointer">
+          <button id="drawerDownloadAppBtn" type="button" onclick="navigateToDownloadApp(); toggleMobileMenuDrawer(false);" class="col-span-2 flex items-center justify-between p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold text-left cursor-pointer">
             <span class="flex items-center gap-2">
               <span>💻</span>
               <span>Aplicativo Descargable Matriz IPVR</span>
@@ -3511,6 +3511,42 @@ function updateAdminUi() {
   renderTutorialVideo();
 }
 
+function stripDownloadBannerFromHtmlString(rawHtml) {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(String(rawHtml || ''), 'text/html');
+    ['descargar-aplicativo', 'navLinkDownloadApp', 'drawerDownloadAppBtn'].forEach(function(id) {
+      const el = doc.getElementById(id);
+      if (el) el.remove();
+    });
+    if (doc.head && !doc.getElementById('wappy-downloaded-clean-style')) {
+      const flagScript = doc.createElement('script');
+      flagScript.textContent = 'window.WAPPY_IS_DOWNLOADED_HTML = true;';
+      doc.head.appendChild(flagScript);
+      const styleEl = doc.createElement('style');
+      styleEl.id = 'wappy-downloaded-clean-style';
+      styleEl.textContent = '#descargar-aplicativo, #navLinkDownloadApp, #drawerDownloadAppBtn { display: none !important; }';
+      doc.head.appendChild(styleEl);
+    }
+    return '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+  } catch (e) {
+    return String(rawHtml || '');
+  }
+}
+
+function hidePurchaseBannerIfDownloadedCopy() {
+  if (window.WAPPY_IS_DOWNLOADED_HTML === true || window.location.protocol === 'file:') {
+    const sec = document.getElementById('descargar-aplicativo');
+    if (sec) sec.remove();
+    const navLink = document.getElementById('navLinkDownloadApp');
+    if (navLink) navLink.remove();
+    const drawerBtn = document.getElementById('drawerDownloadAppBtn');
+    if (drawerBtn) drawerBtn.remove();
+  }
+}
+hidePurchaseBannerIfDownloadedCopy();
+document.addEventListener('DOMContentLoaded', hidePurchaseBannerIfDownloadedCopy);
+
 function navigateToDownloadApp(e) {
   if (e && e.preventDefault) e.preventDefault();
   const sec = document.getElementById('descargar-aplicativo');
@@ -3550,7 +3586,9 @@ async function handleDownloadPurchasedApp() {
       return;
     }
 
-    const htmlBlob = await res.blob();
+    const rawText = await res.text();
+    const cleanHtml = stripDownloadBannerFromHtmlString(rawText);
+    const htmlBlob = new Blob([cleanHtml], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(htmlBlob);
     const a = document.createElement('a');
     a.href = url;
@@ -3573,8 +3611,9 @@ async function handleDownloadPurchasedApp() {
 
 function downloadStandaloneHtmlDirectly() {
   try {
-    const fullHtml = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
-    const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+    const rawHtml = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+    const cleanHtml = stripDownloadBannerFromHtmlString(rawHtml);
+    const blob = new Blob([cleanHtml], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

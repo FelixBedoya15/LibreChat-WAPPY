@@ -1742,6 +1742,33 @@ const adminDeleteCoupon = async (req, res) => {
   }
 };
 
+const prepareDownloadedPortableHtml = (rawHtml) => {
+  let html = String(rawHtml || '');
+  // 1. Eliminar la sección promocional de compra (#descargar-aplicativo) en el HTML descargado
+  html = html.replace(
+    /<!--\s*=+\s*-->\s*<!--\s*5\.5\s*APLICATIVO DESCARGABLE[\s\S]*?<section\s+id="descargar-aplicativo"[\s\S]*?<\/section>/gi,
+    ''
+  );
+  html = html.replace(/<section\s+id="descargar-aplicativo"[\s\S]*?<\/section>/gi, '');
+
+  // 2. Eliminar accesos directos a la sección de compra en barra superior y menú móvil
+  html = html.replace(/<a\s+id="navLinkDownloadApp"[\s\S]*?<\/a>/gi, '');
+  html = html.replace(/<button[^>]*id="drawerDownloadAppBtn"[\s\S]*?<\/button>/gi, '');
+  html = html.replace(/<button[^>]*onclick="navigateToDownloadApp\(\)[^"]*"[\s\S]*?<\/button>/gi, '');
+
+  // 3. Inyectar bandera y regla CSS defensiva para garantizar que no se muestre en la copia descargada
+  const downloadedFlagAndStyle = `
+  <script>window.WAPPY_IS_DOWNLOADED_HTML = true;</script>
+  <style id="wappy-downloaded-clean-style">
+    #descargar-aplicativo, #navLinkDownloadApp, #drawerDownloadAppBtn { display: none !important; }
+  </style>
+</head>`;
+  if (html.includes('</head>') && !html.includes('wappy-downloaded-clean-style')) {
+    html = html.replace('</head>', downloadedFlagAndStyle);
+  }
+  return html;
+};
+
 // GET /api/marketplace/orders/:orderNumber/download-ipvr
 const downloadMatrizIpvrApp = async (req, res) => {
   try {
@@ -1806,12 +1833,15 @@ const downloadMatrizIpvrApp = async (req, res) => {
       return res.status(404).json({ error: 'Archivo del aplicativo no encontrado en el servidor.' });
     }
 
+    const rawHtml = fs.readFileSync(targetFile, 'utf8');
+    const cleanHtml = prepareDownloadedPortableHtml(rawHtml);
+
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader(
       'Content-Disposition',
       'attachment; filename="Aplicativo_Matriz_IPVR_GTC45_WAPPY.html"'
     );
-    return res.sendFile(targetFile);
+    return res.send(cleanHtml);
   } catch (error) {
     logger.error('[Marketplace] downloadMatrizIpvrApp error:', error);
     return res.status(500).json({ error: 'Error al generar la descarga del aplicativo.' });
@@ -1882,12 +1912,15 @@ const downloadWappyStudioApp = async (req, res) => {
       return res.status(404).json({ error: 'Archivo del aplicativo WAPPY Studio no encontrado en el servidor.' });
     }
 
+    const rawHtml = fs.readFileSync(targetFile, 'utf8');
+    const cleanHtml = prepareDownloadedPortableHtml(rawHtml);
+
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader(
       'Content-Disposition',
       'attachment; filename="Aplicativo_WAPPY_Studio_Multimodal.html"'
     );
-    return res.sendFile(targetFile);
+    return res.send(cleanHtml);
   } catch (error) {
     logger.error('[Marketplace] downloadWappyStudioApp error:', error);
     return res.status(500).json({ error: 'Error al generar la descarga del aplicativo WAPPY Studio.' });
