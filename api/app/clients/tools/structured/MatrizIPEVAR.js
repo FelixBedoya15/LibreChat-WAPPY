@@ -9,7 +9,7 @@ class MatrizIPEVAR extends Tool {
     super();
     this.name = 'matriz_ipevar';
     this.description =
-      'Lee, añade, evalúa o actualiza riesgos laborales directamente en la Matriz GTC-45 de la conversación actual. Usa esta herramienta para leer, documentar o evaluar peligros en la matriz IPEVR/GTC-45. REGLAS CRÍTICAS: (1) Cuando el usuario pida generar la matriz de riesgos con IA para la empresa, genera MÍNIMO 15 riesgos (entre 15 y 18 riesgos diversos y representativos que cubran los procesos y las 7 clasificaciones de peligros GTC-45). (2) En cualquier informe de "Matriz Maestra GTC 45:2012 de Evaluación de Riesgos y Controles", en la columna de Controles SOLO debe aparecer el Anexo E ("🔬 Justificación Técnica del Factor de Reducción").';
+      'Lee, añade, evalúa o actualiza riesgos laborales directamente en la Matriz GTC-45 de la conversación actual. Usa esta herramienta para leer, documentar o evaluar peligros en la matriz IPEVR/GTC-45. REGLAS CRÍTICAS: (1) Cuando el usuario pida generar la matriz de riesgos desde cero con IA para la empresa, ten en cuenta toda la información suministrada de la empresa y genera MÍNIMO 15 riesgos (entre 15 y 18 riesgos diversos y representativos que cubran los procesos y las 7 clasificaciones de peligros GTC-45). (2) Cuando se actualiza una matriz ya realizada o importada, NUNCA sobrescribas Descripción del Peligro (peligro_descripcion), Clasificación del Peligro (peligro_clasificacion), Control Fuente (controles_fuente), Control Medio (controles_medio), Control Individuo (controles_individuo) ni Nro. Expuestos (nro_expuestos); en cambio, Efectos Posibles (efectos_posibles) SÍ se puede editar siempre para mejorarlos técnica y clínicamente. (3) En Factores de Reducción (Anexo E - factores_reduccion), ten en cuenta toda la información de la fila y ESPECIALMENTE evalúa y compara los Controles Propuestos (Eliminación, Sustitución, Ingeniería, Administrativos y EPP) para decir en relación Costo-Beneficio cuál es el control propuesto que más le conviene a la empresa. (4) En cualquier informe de "Matriz Maestra GTC 45:2012 de Evaluación de Riesgos y Controles", en la columna de Controles SOLO debe aparecer el Anexo E ("🔬 Justificación Técnica del Factor de Reducción").';
     this.req = fields.req;
     this.schema = z.object({
       accion: z.enum(['leer', 'escribir', 'borrar', 'consultar_contexto_sgsst']).describe('Usa consultar_contexto_sgsst para datos de la empresa, leer para consultar, escribir para guardar, borrar para eliminar.'),
@@ -27,12 +27,12 @@ class MatrizIPEVAR extends Tool {
         rutinaria: z.enum(['Sí', 'No']).describe('¿Es una tarea rutinaria?'),
         peligro_descripcion: z
           .string()
-          .describe('Descripción del riesgo. CRÍTICO: Si el peligro_clasificacion es "Psicosocial", DEBES extraer y prefijar estrictamente el "Dominio" y la "Dimensión". Ej: "[Dominio: Demandas del trabajo - Dimensión: Carga mental] Descripción...". Para otros peligros, describe normalmente.'),
-        peligro_clasificacion: z.string().describe('Clasificación (ej. Biomecánico, Físico, Químico).'),
-        efectos_posibles: z.string().describe('Posibles efectos en la salud del trabajador.'),
-        controles_fuente: z.string().default('Ninguno').describe('Controles existentes en la fuente. Detalla técnica y analíticamente su suficiencia.'),
-        controles_medio: z.string().default('Ninguno').describe('Controles existentes en el medio. Detalla técnica y analíticamente.'),
-        controles_individuo: z.string().default('Ninguno').describe('Controles existentes en el individuo. Detalla analíticamente.'),
+          .describe('Descripción del riesgo. CRÍTICO: Si es una matriz ya existente/importada, conserva el valor original. Si el peligro_clasificacion es "Psicosocial", DEBES extraer y prefijar estrictamente el "Dominio" y la "Dimensión". Ej: "[Dominio: Demandas del trabajo - Dimensión: Carga mental] Descripción...".'),
+        peligro_clasificacion: z.string().describe('Clasificación (ej. Biomecánico, Físico, Químico). Si es matriz ya existente/importada, conserva el valor original.'),
+        efectos_posibles: z.string().describe('Posibles efectos en la salud del trabajador. SIEMPRE puedes editarlos y enriquecerlos clínica/ocupacionalmente para mejorarlos.'),
+        controles_fuente: z.string().default('Ninguno').describe('Controles existentes en la fuente. Si ya existe en una matriz importada, consérvalo.'),
+        controles_medio: z.string().default('Ninguno').describe('Controles existentes en el medio. Si ya existe en una matriz importada, consérvalo.'),
+        controles_individuo: z.string().default('Ninguno').describe('Controles existentes en el individuo. Si ya existe en una matriz importada, consérvalo.'),
         nd: z.number().describe('Nivel de Deficiencia (ND).'),
         ne: z.number().describe('Nivel de Exposición (NE).'),
         nc: z.number().describe('Nivel de Consecuencia (NC).'),
@@ -41,9 +41,9 @@ class MatrizIPEVAR extends Tool {
         medida_ingenieria: z.string().default('Ninguno').describe('Medidas: Controles de ingeniería. Especifica de forma detallada y técnica.'),
         medida_administrativa: z.string().default('Ninguno').describe('Medidas: Administrativos. Sustenta cómo impactarán la seguridad de forma sustancial.'),
         medida_eppu: z.string().default('Ninguno').describe('Medidas: EPP técnicos apropiados.'),
-        factores_reduccion: z.string().default('No aplica').describe('Factores de reducción (Anexo E GTC-45). CRÍTICO: DEBE seguir esta estructura obligatoria de análisis Costo/Beneficio: "Reducción del [X]% (NRi: [NR inicial] → NRf: [NR residual], Nivel [III o IV]). Análisis Costo/Beneficio (GTC 45 Anexo E): [Justificación técnica y financiera detallada explicando cuál de los controles propuestos —priorizando Ingeniería, Sustitución o Eliminación sobre administrativos y EPP— le conviene más a la empresa (Factor J > 20) frente a costos de incapacidades, ausentismo o indemnizaciones por la peor consecuencia]".'),
+        factores_reduccion: z.string().default('No aplica').describe('Factores de reducción (Anexo E GTC-45). CRÍTICO: Ten en cuenta toda la información de la fila y ESPECIALMENTE evalúa y compara los Controles Propuestos (Eliminación, Sustitución, Ingeniería, Administrativos y EPP) para decir en relación Costo-Beneficio cuál es el que más le conviene a la empresa: "Reducción del [X]% (NRi: [NR inicial] → NRf: [NR residual], Nivel [III o IV]). Análisis Costo/Beneficio (GTC 45 Anexo E): [Cita los controles propuestos y dictamina cuál de ellos —priorizando Ingeniería, Sustitución o Eliminación frente a Administrativos y EPP— le conviene más a la empresa (Factor J > 20) frente a costos de incapacidades, ausentismo o indemnizaciones por la peor consecuencia]".'),
         nd_cualitativo: z.number().optional().describe('ND cualitativo (MA=10, A=6, M=2, B=0).'),
-        nro_expuestos: z.number().default(1).describe('Número de trabajadores expuestos al peligro. Por defecto 1.'),
+        nro_expuestos: z.number().default(1).describe('Número de trabajadores expuestos al peligro. Si ya existe (> 0) en una matriz importada, consérvalo.'),
         peor_consecuencia: z.string().default('Ninguna').describe('Peor consecuencia posible si el peligro se materializa.'),
         requisito_legal: z.string().default('').describe('¿Existe un requisito legal específico asociado al peligro? ("Sí", "No", o vacío).'),
       })).optional().describe('Lista de riesgos. OBLIGATORIO si accion="escribir". Vacío en otros casos.')
@@ -393,8 +393,26 @@ class MatrizIPEVAR extends Tool {
         );
 
         if (targetIndex !== -1) {
-          // UPDATE
-          session.matrixRows[targetIndex] = { ...session.matrixRows[targetIndex], ...row };
+          // UPDATE: proteger campos originales de matrices ya realizadas/importadas (peligro_descripcion, peligro_clasificacion, controles_*, nro_expuestos),
+          // pero permitir siempre mejorar efectos_posibles, medidas propuestas y factores_reduccion (Anexo E).
+          const prev = session.matrixRows[targetIndex];
+          const isValidField = (v) =>
+            v !== undefined &&
+            v !== null &&
+            String(v).trim() !== '' &&
+            !['ninguno', 'ninguna', 'no especificado', 'no detallado'].includes(String(v).trim().toLowerCase());
+
+          const mergedRow = { ...prev, ...row };
+          if (isValidField(prev.peligro_descripcion)) mergedRow.peligro_descripcion = prev.peligro_descripcion;
+          if (isValidField(prev.peligro_clasificacion)) mergedRow.peligro_clasificacion = prev.peligro_clasificacion;
+          if (isValidField(prev.controles_fuente)) mergedRow.controles_fuente = prev.controles_fuente;
+          if (isValidField(prev.controles_medio)) mergedRow.controles_medio = prev.controles_medio;
+          if (isValidField(prev.controles_individuo)) mergedRow.controles_individuo = prev.controles_individuo;
+          if (Number(prev.nro_expuestos) > 0) mergedRow.nro_expuestos = Number(prev.nro_expuestos);
+          // efectos_posibles siempre se actualiza para mejorarlo si viene en row
+          mergedRow.efectos_posibles = row.efectos_posibles || prev.efectos_posibles || '';
+
+          session.matrixRows[targetIndex] = mergedRow;
           updatedCount++;
         } else {
           // INSERT NEW

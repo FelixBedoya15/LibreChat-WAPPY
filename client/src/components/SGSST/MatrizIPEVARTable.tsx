@@ -2625,6 +2625,7 @@ export default function MatrizIPEVARTable({
         const original = newRows[index];
 
         // ─── Campos protegidos cuando la fila ya tiene datos o viene de matriz importada ───
+        // Nota: efectos_posibles siempre puede ser editado por la IA para mejorarlo.
         const PROTECTED_FIELDS = [
           'proceso',
           'actividad',
@@ -2632,7 +2633,6 @@ export default function MatrizIPEVARTable({
           'rutinaria',
           'peligro_descripcion',
           'peligro_clasificacion',
-          'efectos_posibles',
           'controles_fuente',
           'controles_medio',
           'controles_individuo',

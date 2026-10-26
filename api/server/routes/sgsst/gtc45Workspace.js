@@ -621,8 +621,9 @@ ${companyCargos.length > 0 ? `\n═══ LISTA DE CARGOS DE LA EMPRESA (PRIORIZ
 
 ═══ TUS TAREAS OBLIGATORIAS ═══
 1. PROTECCIÓN DE DATOS IMPORTADOS O YA DILIGENCIADOS vs FILA DESDE CERO:
-   - Si PELIGRO DESCRIPCIÓN, CLASIFICACIÓN, EFECTOS POSIBLES, CONTROLES EXISTENTES (Fuente, Medio, Individuo) o NRO. EXPUESTOS ya tienen información en la fila (no están vacíos), DEBES conservarlos exactamente igual sin modificarlos.
+   - Si PELIGRO DESCRIPCIÓN, CLASIFICACIÓN, CONTROLES EXISTENTES (Fuente, Medio, Individuo) o NRO. EXPUESTOS ya tienen información en la fila (no están vacíos), DEBES conservarlos exactamente igual sin modificarlos.
    - ÚNICAMENTE si alguno de esos campos está vacío (cuando se crea una fila desde cero), complétalo técnicamente teniendo en cuenta los DATOS DE LA EMPRESA y la actividad.
+   - EFECTOS POSIBLES (efectos_posibles): SIEMPRE debes editarlos, ampliarlos y mejorarlos clínica y ocupacionalmente acorde al peligro identificado (incluso si ya tenían un texto básico).
 2. CARGO Y ZONA / LUGAR:
    - Si CARGO ACTUAL o ZONA / LUGAR ACTUAL ya tienen un valor válido asignado por el usuario, consérvalos exactamente igual.
    - Si están vacíos, dedúcelos priorizando los cargos registrados de la empresa si aplican.
@@ -641,7 +642,7 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown) con estos campos 
   "zona": "<nombre de la zona deducida o conservada>",
   "peligro_descripcion": "<conservar si ya existe, o proponer si estaba vacío>",
   "peligro_clasificacion": "<conservar si ya existe, o proponer si estaba vacío>",
-  "efectos_posibles": "<conservar si ya existe, o proponer si estaba vacío>",
+  "efectos_posibles": "<efectos posibles mejorados y enriquecidos clínicamente según el peligro>",
   "controles_fuente": "<conservar si ya existe, o proponer si estaba vacío>",
   "controles_medio": "<conservar si ya existe, o proponer si estaba vacío>",
   "controles_individuo": "<conservar si ya existe, o proponer si estaba vacío>",
@@ -714,10 +715,11 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown) con estos campos 
     }
 
     // Proteger campos ya diligenciados/importados (solo permitir que la IA los llene si estaban vacíos al crear desde 0)
+    // Nota: efectos_posibles siempre se puede editar por la IA para mejorarlo.
     const isNotEmpty = (v) => v !== undefined && v !== null && String(v).trim() !== '' && !['ninguno', 'ninguna', 'no especificado', 'no detallado'].includes(String(v).trim().toLowerCase());
     if (isNotEmpty(row.peligro_descripcion)) updatedFields.peligro_descripcion = row.peligro_descripcion;
     if (isNotEmpty(row.peligro_clasificacion)) updatedFields.peligro_clasificacion = row.peligro_clasificacion;
-    if (isNotEmpty(row.efectos_posibles)) updatedFields.efectos_posibles = row.efectos_posibles;
+    updatedFields.efectos_posibles = updatedFields.efectos_posibles || row.efectos_posibles || '';
     if (isNotEmpty(row.controles_fuente)) updatedFields.controles_fuente = row.controles_fuente;
     else updatedFields.controles_fuente = updatedFields.controles_fuente || row.controles_fuente || 'Ninguno';
     if (isNotEmpty(row.controles_medio)) updatedFields.controles_medio = row.controles_medio;

@@ -8457,8 +8457,9 @@ CONTROLES PROPUESTOS ACTUALES EN LA FILA:
 
 ═══ INSTRUCCIONES OBLIGATORIAS GTC 45 ═══
 1. PROTECCIÓN DE DATOS IMPORTADOS O YA DILIGENCIADOS vs FILA DESDE CERO:
-   - Si PELIGRO DESCRIPCIÓN, CLASIFICACIÓN DEL PELIGRO, EFECTOS POSIBLES, CONTROL FUENTE, CONTROL MEDIO, CONTROL INDIVIDUO o NRO. EXPUESTOS ya tienen datos en la fila (no dicen [VACÍO]), DEBES conservarlos exactamente igual sin modificarlos.
+   - Si PELIGRO DESCRIPCIÓN, CLASIFICACIÓN DEL PELIGRO, CONTROL FUENTE, CONTROL MEDIO, CONTROL INDIVIDUO o NRO. EXPUESTOS ya tienen datos en la fila (no dicen [VACÍO]), DEBES conservarlos exactamente igual sin modificarlos.
    - ÚNICAMENTE si alguno de esos campos está en [VACÍO] (cuando se crea una fila desde cero), propón su contenido técnico en base a la información de la empresa y la actividad.
+   - EFECTOS POSIBLES (efectos_posibles): SIEMPRE debes editarlos, ampliarlos y mejorarlos clínica y ocupacionalmente acorde al peligro identificado (incluso si ya tenían un texto básico).
 2. EVALUACIÓN ND, NE, NC:
    - Si ND (${row.nd}), NE (${row.ne}) y NC (${row.nc}) ya tienen valores válidos de la escala GTC-45 (ND en [0,2,6,10], NE en [1,2,3,4], NC en [10,25,60,100]), consérvalos o ajústalos solo si estaban vacíos.
 3. MEDIDAS DE INTERVENCIÓN (Eliminación, Sustitución, Ingeniería, Administrativos, EPP):
@@ -8474,7 +8475,7 @@ Responde ÚNICAMENTE un JSON válido (sin markdown):
   "zona": "${row.zona || '...'}",
   "peligro_descripcion": "...",
   "peligro_clasificacion": "${row.peligro_clasificacion || 'Condiciones de seguridad'}",
-  "efectos_posibles": "...",
+  "efectos_posibles": "<efectos posibles mejorados y enriquecidos clínicamente según el peligro>",
   "controles_fuente": "...",
   "controles_medio": "...",
   "controles_individuo": "...",
@@ -8495,6 +8496,7 @@ Responde ÚNICAMENTE un JSON válido (sin markdown):
     const parsed = JSON.parse(cleanJson);
 
     // Respetar estrictamente los campos ya existentes en la fila (no sobrescribir matrices importadas)
+    // Nota: efectos_posibles siempre se puede editar por la IA para mejorarlo.
     const safeMerged = { ...row, ...parsed };
     const protectedFields = [
       'proceso',
@@ -8505,7 +8507,6 @@ Responde ÚNICAMENTE un JSON válido (sin markdown):
       'rutinaria',
       'peligro_descripcion',
       'peligro_clasificacion',
-      'efectos_posibles',
       'controles_fuente',
       'controles_medio',
       'controles_individuo'
