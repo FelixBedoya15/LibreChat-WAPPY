@@ -2371,9 +2371,49 @@ Devuelve ÚNICAMENTE un JSON válido (sin bloques markdown):
     const targetModel = modelName || SGSST_FALLBACK_MODELS[0];
     const result = await generateWithKeyRotation(targetModel, userId, prompt, { useWebSearch: false });
     const rawText = result.response.text();
-    const cleanJson = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const parsed = JSON.parse(cleanJson);
-    const rawFilas = Array.isArray(parsed?.filas) ? parsed.filas : Array.isArray(parsed) ? parsed : [];
+    let cleanJson = String(rawText || '').replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    const firstBrace = cleanJson.indexOf('{');
+    const firstBracket = cleanJson.indexOf('[');
+    if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+      cleanJson = cleanJson.slice(firstBrace);
+    } else if (firstBracket !== -1) {
+      cleanJson = cleanJson.slice(firstBracket);
+    }
+
+    let rawFilas = [];
+    try {
+      const parsed = JSON.parse(cleanJson);
+      rawFilas = Array.isArray(parsed?.filas) ? parsed.filas : Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+      const filasMatch = cleanJson.match(/"filas"\s*:\s*\[/);
+      const startIdx = filasMatch ? filasMatch.index + filasMatch[0].length : (cleanJson.startsWith('[') ? 1 : 0);
+      let depth = 0;
+      let objStart = -1;
+      let inString = false;
+      let escape = false;
+      for (let i = startIdx; i < cleanJson.length; i++) {
+        const ch = cleanJson[i];
+        if (escape) { escape = false; continue; }
+        if (ch === '\\' && inString) { escape = true; continue; }
+        if (ch === '"') { inString = !inString; continue; }
+        if (inString) continue;
+        if (ch === '{') {
+          if (depth === 0) objStart = i;
+          depth++;
+        } else if (ch === '}') {
+          depth--;
+          if (depth === 0 && objStart !== -1) {
+            try {
+              const obj = JSON.parse(cleanJson.slice(objStart, i + 1));
+              if (obj && typeof obj === 'object' && (obj.peligro_descripcion || obj.proceso || obj.actividad)) {
+                rawFilas.push(obj);
+              }
+            } catch (__) {}
+            objStart = -1;
+          }
+        }
+      }
+    }
 
     const formattedRows = rawFilas.map((r, i) => {
       const nd = [0, 2, 6, 10].includes(Number(r.nd)) ? Number(r.nd) : 6;

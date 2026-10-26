@@ -4744,7 +4744,7 @@ async function callGeminiWithRotation(promptText, customTaskTitle = null) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               contents: [{ parts: [{ text: promptText }] }],
-              generationConfig: { maxOutputTokens: 8192 }
+              generationConfig: { maxOutputTokens: 65536, temperature: 0.2 }
             })
           });
 
@@ -4752,7 +4752,9 @@ async function callGeminiWithRotation(promptText, customTaskTitle = null) {
             const data = await response.json();
             currentKeyIndex = keyIndex;
             updateRotationIndicator(`IA Conectada (${currentModel})`, 'ok');
-            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+            const parts = data?.candidates?.[0]?.content?.parts || [];
+            const nonThoughtParts = parts.filter(p => !p.thought && typeof p.text === 'string');
+            const text = (nonThoughtParts.length > 0 ? nonThoughtParts.map(p => p.text).join('') : parts.map(p => p.text || '').join('')).trim();
             if (!text) throw new Error('Respuesta vacía de Gemini');
             return text;
           }
@@ -4762,8 +4764,8 @@ async function callGeminiWithRotation(promptText, customTaskTitle = null) {
             continue;
           }
 
-          if (response.status === 503) {
-            showToast(`Modelo ${currentModel} saturado (503). Alternando a modelo de respaldo...`, 'warning');
+          if (response.status === 503 || response.status === 404) {
+            showToast(`Modelo ${currentModel} no disponible (${response.status}). Alternando a modelo de respaldo...`, 'warning');
             break;
           }
 
@@ -8288,6 +8290,70 @@ function handleSelectColumnMapper() {
   openColumnMapperModal();
 }
 
+function parseAiRisksJsonSafe(rawText) {
+  let clean = String(rawText || '').replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+  const firstBrace = clean.indexOf('{');
+  const firstBracket = clean.indexOf('[');
+  if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+    clean = clean.slice(firstBrace);
+  } else if (firstBracket !== -1) {
+    clean = clean.slice(firstBracket);
+  }
+
+  try {
+    const parsed = JSON.parse(clean);
+    if (Array.isArray(parsed)) return { filas: parsed };
+    if (parsed && Array.isArray(parsed.filas)) return parsed;
+  } catch (_) {
+    // Recovery if JSON was truncated mid-stream: extract all complete {...} objects inside "filas": [ ... ]
+    const filasMatch = clean.match(/"filas"\s*:\s*\[/);
+    const startIdx = filasMatch ? filasMatch.index + filasMatch[0].length : (clean.startsWith('[') ? 1 : 0);
+    const items = [];
+    let depth = 0;
+    let objStart = -1;
+    let inString = false;
+    let escape = false;
+
+    for (let i = startIdx; i < clean.length; i++) {
+      const ch = clean[i];
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (ch === '\\' && inString) {
+        escape = true;
+        continue;
+      }
+      if (ch === '"') {
+        inString = !inString;
+        continue;
+      }
+      if (inString) continue;
+
+      if (ch === '{') {
+        if (depth === 0) objStart = i;
+        depth++;
+      } else if (ch === '}') {
+        depth--;
+        if (depth === 0 && objStart !== -1) {
+          const candidate = clean.slice(objStart, i + 1);
+          try {
+            const obj = JSON.parse(candidate);
+            if (obj && typeof obj === 'object' && (obj.peligro_descripcion || obj.proceso || obj.actividad)) {
+              items.push(obj);
+            }
+          } catch (_) {}
+          objStart = -1;
+        }
+      }
+    }
+    if (items.length > 0) {
+      return { filas: items };
+    }
+  }
+  throw new Error('No se pudo interpretar el JSON de riesgos devuelto por la IA.');
+}
+
 async function handleSelectAiImport() {
   closeImportMethodModal();
   const currentSheet = detectedWorkbookSheets[selectedSheetIndex] || detectedWorkbookSheets[0];
@@ -8322,8 +8388,7 @@ Devuelve ÚNICAMENTE un JSON con un array "filas":
 `;
 
     const aiRes = await callGeminiWithRotation(prompt, 'Reconstrucción Inteligente con IA');
-    const cleanJson = aiRes.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const parsed = JSON.parse(cleanJson);
+    const parsed = parseAiRisksJsonSafe(aiRes);
 
     if (parsed.filas && Array.isArray(parsed.filas)) {
       const formatted = parsed.filas.map((r, i) => calculateRowFormulas({
@@ -8497,7 +8562,12 @@ Responde ÚNICAMENTE un JSON válido (sin markdown):
 `;
 
     const aiRes = await callGeminiWithRotation(prompt, 'Valorando Riesgo GTC-45 con IA');
-    const cleanJson = aiRes.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    let cleanJson = aiRes.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    const firstBrace = cleanJson.indexOf('{');
+    const lastBrace = cleanJson.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      cleanJson = cleanJson.slice(firstBrace, lastBrace + 1);
+    }
     const parsed = JSON.parse(cleanJson);
 
     // Respetar estrictamente los campos ya existentes en la fila (no sobrescribir matrices importadas)
@@ -8683,9 +8753,8 @@ Devuelve ÚNICAMENTE un JSON válido:
 }
 `;
 
-    const aiRes = await callGeminiWithRotation(prompt, 'Valorando Riesgo GTC-45 con IA');
-    const cleanJson = aiRes.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const parsed = JSON.parse(cleanJson);
+    const aiRes = await callGeminiWithRotation(prompt, 'Generando Matriz GTC-45 con IA (15+ Riesgos)');
+    const parsed = parseAiRisksJsonSafe(aiRes);
 
     if (parsed.filas && Array.isArray(parsed.filas) && parsed.filas.length > 0) {
       const formatted = parsed.filas.map((r, i) => calculateRowFormulas({
