@@ -50,12 +50,22 @@ function staticCache(staticPath, options = {}) {
       index: false,
     });
   } else {
-    return expressStaticGzip(staticPath, {
+    const gzipMiddleware = expressStaticGzip(staticPath, {
       enableBrotli: false,
       orderPreference: ['gz'],
       setHeaders,
       index: false,
     });
+    const fallbackStatic = express.static(staticPath, {
+      setHeaders,
+      index: false,
+    });
+    return (req, res, next) => {
+      gzipMiddleware(req, res, (err) => {
+        if (err) return next(err);
+        fallbackStatic(req, res, next);
+      });
+    };
   }
 }
 

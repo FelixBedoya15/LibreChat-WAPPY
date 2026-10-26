@@ -34,6 +34,32 @@ export default function LandingPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showVideo, setShowVideo] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('wappy_theme_mode') === 'dark';
+    } catch (e) {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('wappy_theme_mode', isDarkMode ? 'dark' : 'light');
+      if (isDarkMode) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    } catch (e) {}
+  }, [isDarkMode]);
+
+  const toggleDarkMode = () => {
+    setIsDarkMode((prev) => {
+      const next = !prev;
+      showToast(next ? '🌙 Modo Oscuro activado' : '☀️ Modo Claro activado');
+      return next;
+    });
+  };
 
   // Ambassador / Referral state
   const [activeRef, setActiveRef] = useState<string>('');
@@ -324,7 +350,7 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="mkt">
+    <div className={`mkt ${isDarkMode ? 'mkt-dark' : ''}`}>
       {/* Mobile Menu Backdrop */}
       {isMobileMenuOpen && (
         <div
@@ -393,6 +419,16 @@ export default function LandingPage() {
           </div>
 
           <div className="mkt-nav-cta">
+            <button
+              type="button"
+              onClick={toggleDarkMode}
+              className="mkt-theme-toggle-btn"
+              title={isDarkMode ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'}
+              aria-label={isDarkMode ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'}
+            >
+              <span>{isDarkMode ? '☀️' : '🌙'}</span>
+            </button>
+
             <button type="button" className="btn btn-ghost mkt-nav-signin" onClick={() => setIsDemoModalOpen(true)}>
               {lang === 'es' ? 'Agendar demo' : 'Book a demo'}
             </button>

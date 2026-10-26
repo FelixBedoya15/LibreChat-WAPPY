@@ -13,6 +13,10 @@ async function postBuild() {
     if (await fs.pathExists('public/images')) {
       await fs.copy('public/images', 'dist/images');
     }
+    if (await fs.pathExists('public/wappystudio.html')) {
+      await fs.copy('public/wappystudio.html', 'dist/wappystudio.html');
+      await fs.copy('public/wappystudio.html', 'dist/assets/wappystudio.html');
+    }
     console.log('✅ PWA icons, videos, images and robots.txt copied successfully.');
   } catch (err) {
     console.error('❌ Error copying files:', err);

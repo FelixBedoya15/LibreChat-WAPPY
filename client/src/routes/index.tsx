@@ -123,11 +123,6 @@ const MatrizIpvrRedirect = () => {
   return null;
 };
 
-const WappyStudioRedirect = () => {
-  window.location.replace('/wappystudio.html');
-  return null;
-};
-
 const PortafolioRedirect = () => {
   return withSuspense(
     <AuthContextProvider>
@@ -453,27 +448,22 @@ export const router = createBrowserRouter(
     },
     {
       path: 'wappystudio',
-      element: withSuspense(
-        <AuthContextProvider>
-          <WappyStudioPage />
-          <ApiErrorWatcher />
-        </AuthContextProvider>
-      ),
+      element: withSuspense(<WappyStudioPage />),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'wappystudio.html',
-      element: <WappyStudioRedirect />,
+      element: withSuspense(<WappyStudioPage />),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'wappy-studio',
-      element: <Navigate to="/wappystudio" replace={true} />,
+      element: withSuspense(<WappyStudioPage />),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'wappy-studio.html',
-      element: <WappyStudioRedirect />,
+      element: withSuspense(<WappyStudioPage />),
       errorElement: <RouteErrorBoundary />,
     },
     {
@@ -827,10 +817,6 @@ export const router = createBrowserRouter(
 
             {
               path: 'studio',
-              element: withSuspense(<WappyStudioDashboard />),
-            },
-            {
-              path: 'wappy-studio',
               element: withSuspense(<WappyStudioDashboard />),
             },
             {

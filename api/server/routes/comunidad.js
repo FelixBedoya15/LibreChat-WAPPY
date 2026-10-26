@@ -475,6 +475,8 @@ router.get('/wappystudio/metrics', requireAdminCookieOrJwt, async (req, res) => 
                 totalWorkers,
                 totalAudios,
                 totalVideos,
+                totalRisks: totalAudios,
+                totalHighRisks: totalVideos,
                 byRiskLevel,
                 byCompanySize,
                 topSectors

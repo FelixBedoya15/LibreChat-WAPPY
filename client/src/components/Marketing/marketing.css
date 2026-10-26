@@ -2776,4 +2776,123 @@ body,
   }
 }
 
+/* ==========================================================================
+   WAPPY SHARED DARK / LIGHT MODE FOR HOME LANDING PAGE (.mkt.mkt-dark)
+   ========================================================================== */
+.mkt .mkt-theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  border: 1px solid rgba(14, 19, 0, 0.14);
+  background: rgba(14, 19, 0, 0.05);
+  color: var(--ink);
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  flex-shrink: 0;
+}
+
+.mkt .mkt-theme-toggle-btn:hover {
+  transform: rotate(-6deg) scale(1.06);
+  background: rgba(14, 19, 0, 0.1);
+}
+
+.mkt.mkt-dark {
+  --ink: #f8fafc;
+  --ink2: #e2e8f0;
+  --muted: #94a3b8;
+  --line: rgba(51, 65, 85, 0.78);
+  --bg: #050b14;
+  --surface: #0f172a;
+  --sky: linear-gradient(180deg, #061325 0%, #091c34 38%, #071322 72%, #050b14 100%);
+  color-scheme: dark;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.mkt.mkt-dark .mkt-nav-inner {
+  background: rgba(15, 23, 42, 0.9) !important;
+  border-color: rgba(51, 65, 85, 0.85) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45) !important;
+}
+
+.mkt.mkt-dark .mkt-logo-title,
+.mkt.mkt-dark .mkt-nav-links a {
+  color: #f1f5f9 !important;
+}
+
+.mkt.mkt-dark .mkt-theme-toggle-btn {
+  border-color: rgba(148, 163, 184, 0.3);
+  background: rgba(30, 41, 59, 0.8);
+  color: #f8fafc;
+}
+
+.mkt.mkt-dark .mkt-mobile-menu-drawer,
+.mkt.mkt-dark .mkt-modal {
+  background: #0f172a !important;
+  border-color: rgba(51, 65, 85, 0.85) !important;
+  color: #f8fafc !important;
+}
+
+.mkt.mkt-dark .mkt-mobile-link {
+  background: rgba(30, 41, 59, 0.65) !important;
+  border-color: rgba(51, 65, 85, 0.7) !important;
+}
+
+.mkt.mkt-dark .mkt-mobile-link-title {
+  color: #f8fafc !important;
+}
+
+.mkt.mkt-dark .mkt-mobile-link-desc {
+  color: #94a3b8 !important;
+}
+
+.mkt.mkt-dark .hero {
+  background: radial-gradient(ellipse 120% 70% at 50% 0%, #0b2239 0%, #071526 52%, #050b14 100%) !important;
+}
+
+.mkt.mkt-dark .hero h1,
+.mkt.mkt-dark .hero-sub,
+.mkt.mkt-dark h2,
+.mkt.mkt-dark h3,
+.mkt.mkt-dark h4 {
+  color: #f8fafc;
+}
+
+.mkt.mkt-dark .hero h1 .hi {
+  color: #0e1300 !important;
+}
+
+.mkt.mkt-dark .bento-card,
+.mkt.mkt-dark .feat-card,
+.mkt.mkt-dark .price-card,
+.mkt.mkt-dark .faq-item,
+.mkt.mkt-dark .stat-card,
+.mkt.mkt-dark .matrix-card,
+.mkt.mkt-dark .tool-pill {
+  background: rgba(15, 23, 42, 0.88) !important;
+  border-color: rgba(51, 65, 85, 0.75) !important;
+  color: #f1f5f9 !important;
+}
+
+.mkt.mkt-dark footer.foot {
+  background: linear-gradient(180deg, #06101e 0%, #0a192f 52%, #050b14 100%) !important;
+  color: #e2e8f0 !important;
+}
+
+.mkt.mkt-dark footer.foot .foot-brand-name,
+.mkt.mkt-dark footer.foot .foot-blurb,
+.mkt.mkt-dark footer.foot .foot-bottom,
+.mkt.mkt-dark footer.foot .foot-legal a {
+  color: #cbd5e1 !important;
+}
+
+.mkt.mkt-dark footer.foot .foot-word {
+  -webkit-text-stroke: 1.5px rgba(199, 243, 3, 0.22) !important;
+}
+
+
 
