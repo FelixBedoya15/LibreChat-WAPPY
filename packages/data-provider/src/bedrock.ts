@@ -120,7 +120,7 @@ export const bedrockInputParser = s.tConversationSchema
     if (
       typeof typedData.model === 'string' &&
       (typedData.model.includes('anthropic.claude-3-7-sonnet') ||
-        /anthropic\.claude-(?:[4-9](?:\.\d+)?(?:-\d+)?-(?:sonnet|opus|haiku)|(?:sonnet|opus|haiku)-[4-9])/.test(
+        /anthropic\.claude-(?:[4-9](?:\.\d+)?(?:-\d+)?-(?:sonnet|opus|haiku|fable)|(?:sonnet|opus|haiku|fable)-[4-9])/.test(
           typedData.model,
         ))
     ) {

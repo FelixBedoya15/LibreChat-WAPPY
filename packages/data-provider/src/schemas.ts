@@ -357,7 +357,7 @@ const DEFAULT_MAX_OUTPUT = 8192 as const;
 const LEGACY_ANTHROPIC_MAX_OUTPUT = 4096 as const;
 export const anthropicSettings = {
   model: {
-    default: 'claude-3-5-sonnet-latest' as const,
+    default: 'claude-sonnet-5-5' as const,
   },
   temperature: {
     min: 0 as const,
@@ -383,7 +383,7 @@ export const anthropicSettings = {
     step: 1 as const,
     default: DEFAULT_MAX_OUTPUT,
     reset: (modelName: string) => {
-      if (/claude-(?:sonnet|haiku)[-.]?[4-9]/.test(modelName)) {
+      if (/claude-(?:sonnet|haiku|fable)[-.]?[4-9]/.test(modelName)) {
         return CLAUDE_4_64K_MAX_OUTPUT;
       }
 
@@ -394,7 +394,7 @@ export const anthropicSettings = {
       return DEFAULT_MAX_OUTPUT;
     },
     set: (value: number, modelName: string) => {
-      if (/claude-(?:sonnet|haiku)[-.]?[4-9]/.test(modelName) && value > CLAUDE_4_64K_MAX_OUTPUT) {
+      if (/claude-(?:sonnet|haiku|fable)[-.]?[4-9]/.test(modelName) && value > CLAUDE_4_64K_MAX_OUTPUT) {
         return CLAUDE_4_64K_MAX_OUTPUT;
       }
 
