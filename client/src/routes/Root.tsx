@@ -152,7 +152,7 @@ export default function Root() {
   };
 
   const isPublicRoute = (pathname: string) => {
-    const publicPaths = ['/', '', '/landing', '/inicio', '/portal', '/ingresar', '/wappy-apps', '/apps', '/planes', '/contactanos', '/privacy', '/terms', '/about', '/register', '/login', '/comunidad', '/comunidadmp', '/wappyvital', '/portafolio', '/portafolio.html', '/embajadores', '/embajadores.html', '/mauricioposada', '/mauricioposada.html', '/cursowappy01', '/cursowappy01.html', '/clase1', '/clase1.html', '/matrizipvr', '/matriz-ipvr', '/matrizipvr.html', '/matriz-ipvr.html', '/wappystudio', '/wappy-studio', '/wappystudio.html', '/wappy-studio.html', '/bateria-psicosocial'];
+    const publicPaths = ['/', '', '/landing', '/inicio', '/portal', '/ingresar', '/wappy-apps', '/apps', '/planes', '/contactanos', '/privacy', '/terms', '/about', '/register', '/login', '/comunidad', '/comunidadmp', '/wappyvital', '/portafolio', '/portafolio.html', '/embajadores', '/embajadores.html', '/mauricioposada', '/mauricioposada.html', '/cursowappy01', '/cursowappy01.html', '/clase1', '/clase1.html', '/clase2', '/clase2.html', '/matrizipvr', '/matriz-ipvr', '/matrizipvr.html', '/matriz-ipvr.html', '/wappystudio', '/wappy-studio', '/wappystudio.html', '/wappy-studio.html', '/bateria-psicosocial'];
     if (publicPaths.includes(pathname)) {
       return true;
     }

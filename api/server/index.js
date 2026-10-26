@@ -717,6 +717,20 @@ const startServer = async () => {
     next();
   });
 
+  app.get(['/clase2', '/clase2.html'], (req, res, next) => {
+    const candidatePaths = [
+      path.resolve(__dirname, '../../client/dist/clase2.html'),
+      path.resolve(__dirname, '../../client/public/clase2.html'),
+      path.resolve(__dirname, '../../clase2.html'),
+    ];
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        return res.sendFile(p);
+      }
+    }
+    next();
+  });
+
   app.get(['/matrizipvr', '/matriz-ipvr', '/matrizipvr.html'], (req, res, next) => {
     const candidatePaths = [
       path.resolve(__dirname, '../../client/dist/matrizipvr.html'),

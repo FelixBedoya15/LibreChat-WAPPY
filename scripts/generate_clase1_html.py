@@ -2143,7 +2143,7 @@ html_content = f'''<!DOCTYPE html>
         <a href="#grabacion">🎥 Grabación</a>
         <a href="#prompts-chat">💬 Prompts Chat</a>
         <a href="#guia-paso-a-paso">📘 Guía</a>
-        <a href="/assets/Clase_1_Antigravity_Syllabus_y_Reglas_WAPPY.pdf" download>📄 PDF</a>
+        <a href="/clase2">⏭️ Clase 2</a>
       </div>
 
       <a href="https://meet.google.com/xvz-jmvv-iym" target="_blank" rel="noopener noreferrer" class="btn btn-dark" style="flex-shrink: 0;">

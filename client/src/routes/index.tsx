@@ -158,6 +158,11 @@ const Clase1Route = () => {
   return null;
 };
 
+const Clase2Route = () => {
+  window.location.replace('/clase2.html');
+  return null;
+};
+
 const RootIndexRedirect = () => {
   const { isAuthenticated, user } = useAuthContext();
   const location = useLocation();
@@ -708,6 +713,16 @@ export const router = createBrowserRouter(
     {
       path: 'clase1.html',
       element: <Clase1Route />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'clase2',
+      element: <Clase2Route />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'clase2.html',
+      element: <Clase2Route />,
       errorElement: <RouteErrorBoundary />,
     },
     {
