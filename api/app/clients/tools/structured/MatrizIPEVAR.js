@@ -9,7 +9,7 @@ class MatrizIPEVAR extends Tool {
     super();
     this.name = 'matriz_ipevar';
     this.description =
-      'Lee, añade, evalúa o actualiza riesgos laborales directamente en la Matriz GTC-45 de la conversación actual. Usa esta herramienta para leer, documentar o evaluar un peligro en la matriz IPEVR/GTC-45.';
+      'Lee, añade, evalúa o actualiza riesgos laborales directamente en la Matriz GTC-45 de la conversación actual. Usa esta herramienta para leer, documentar o evaluar peligros en la matriz IPEVR/GTC-45. REGLAS CRÍTICAS: (1) Cuando el usuario pida generar la matriz de riesgos con IA para la empresa, genera MÍNIMO 15 riesgos (entre 15 y 18 riesgos diversos y representativos que cubran los procesos y las 7 clasificaciones de peligros GTC-45). (2) En cualquier informe de "Matriz Maestra GTC 45:2012 de Evaluación de Riesgos y Controles", en la columna de Controles SOLO debe aparecer el Anexo E ("🔬 Justificación Técnica del Factor de Reducción").';
     this.req = fields.req;
     this.schema = z.object({
       accion: z.enum(['leer', 'escribir', 'borrar', 'consultar_contexto_sgsst']).describe('Usa consultar_contexto_sgsst para datos de la empresa, leer para consultar, escribir para guardar, borrar para eliminar.'),

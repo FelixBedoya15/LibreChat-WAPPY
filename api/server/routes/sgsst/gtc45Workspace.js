@@ -918,7 +918,7 @@ function buildIpevarChartsHtml(matrixRows) {
       </div>
 
       <!-- 3. METODOLOGÍA GTC 45 ANEXO E (FACTOR DE REDUCCIÓN Y JUSTIFICACIÓN COSTO/BENEFICIO) -->
-      <div style="background:#f0fdfa; border:1px solid #99f6e4; border-radius:10px; padding:16px;">
+      <div style="background:#f0fdfa; border:1px solid #99f6e4; border-radius:10px; padding:16px; margin-bottom:22px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <h4 style="margin:0; color:#0f766e; font-size:12.5px; text-transform:uppercase; font-weight:800;">
             🔬 Factores de Reducción y Justificación Costo/Beneficio (GTC 45 Anexo E)
@@ -937,6 +937,72 @@ function buildIpevarChartsHtml(matrixRows) {
           <div><strong>• Cobertura en la Fuente:</strong> ${pctFuente}% (${fuente}/${total})</div>
           <div><strong>• Cobertura en el Medio:</strong> ${pctMedio}% (${medio}/${total})</div>
           <div><strong>• Cobertura en el Individuo:</strong> ${pctIndividuo}% (${individuo}/${total})</div>
+        </div>
+      </div>
+
+      <!-- 4. MATRIZ MAESTRA GTC 45:2012 DE EVALUACIÓN DE RIESGOS Y CONTROLES (SOLO ANEXO E EN CONTROLES) -->
+      <div style="border:1px solid #e2e8f0; border-radius:12px; padding:16px; background:#ffffff;">
+        <h4 style="color:#0f766e; font-size:13px; font-weight:900; text-transform:uppercase; margin:0 0 12px 0; border-bottom:2px solid #0f766e; padding-bottom:5px;">
+          4. Matriz Maestra GTC 45:2012 de Evaluación de Riesgos y Controles
+        </h4>
+        <div style="overflow-x:auto;">
+          <table style="width:100%; border-collapse:collapse; font-size:9.5px; text-align:left;">
+            <thead>
+              <tr style="background:#0f766e; color:#ffffff;">
+                <th style="padding:6px; border:1px solid #0d9488; text-align:center;">#</th>
+                <th style="padding:6px; border:1px solid #0d9488;">Proceso / Cargo</th>
+                <th style="padding:6px; border:1px solid #0d9488;">Peligro &amp; Clasificación</th>
+                <th style="padding:6px; border:1px solid #0d9488; text-align:center;">ND</th>
+                <th style="padding:6px; border:1px solid #0d9488; text-align:center;">NE</th>
+                <th style="padding:6px; border:1px solid #0d9488; text-align:center;">NP</th>
+                <th style="padding:6px; border:1px solid #0d9488; text-align:center;">NC</th>
+                <th style="padding:6px; border:1px solid #0d9488; text-align:center;">NR</th>
+                <th style="padding:6px; border:1px solid #0d9488; text-align:center;">Nivel</th>
+                <th style="padding:6px; border:1px solid #0d9488;">Controles (Anexo E GTC-45)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${matrixRows.map((r, idx) => {
+                const nrVal = Number(r.nr) || 0;
+                const bgNivel = nrVal >= 600 ? '#ef4444' : nrVal >= 150 ? '#f97316' : nrVal >= 40 ? '#eab308' : '#22c55e';
+                const textNivel = nrVal >= 600 ? 'I' : nrVal >= 150 ? 'II' : nrVal >= 40 ? 'III' : 'IV';
+                let frDesc = String(r.factores_reduccion || '').trim();
+                if (!frDesc || ['no aplica', 'n/a', 'ninguno', 'ninguna'].includes(frDesc.toLowerCase())) {
+                  const controlPrioritario = !empty(r.medida_ingenieria)
+                    ? `Control de Ingeniería (${r.medida_ingenieria})`
+                    : !empty(r.medida_eliminacion)
+                      ? `Eliminación en la Fuente (${r.medida_eliminacion})`
+                      : !empty(r.medida_administrativa)
+                        ? `Control Administrativo (${r.medida_administrativa})`
+                        : `Dotación de EPP Específico (${r.medida_eppu || 'Certificado'})`;
+                  frDesc = `El ${controlPrioritario} atenúa la exposición ocupacional y presenta alta rentabilidad preventiva según análisis Costo/Beneficio GTC-45 Anexo E.`;
+                }
+                return `
+                  <tr style="border-bottom:1px solid #e2e8f0; background:${idx % 2 === 0 ? '#f8fafc' : '#ffffff'};">
+                    <td style="padding:5px; border:1px solid #e2e8f0; text-align:center; font-weight:bold;">${idx + 1}</td>
+                    <td style="padding:5px; border:1px solid #e2e8f0;">
+                      <strong>${r.cargo || 'General'}</strong><br>
+                      <span style="color:#64748b; font-size:8.5px;">${r.proceso || 'Operativo'}</span>
+                    </td>
+                    <td style="padding:5px; border:1px solid #e2e8f0;">
+                      <strong>${r.peligro_descripcion || ''}</strong><br>
+                      <span style="color:#0d9488; font-size:8.5px;">[${r.peligro_clasificacion || 'Condición de seguridad'}]</span>
+                    </td>
+                    <td style="padding:5px; border:1px solid #e2e8f0; text-align:center;">${r.nd ?? 0}</td>
+                    <td style="padding:5px; border:1px solid #e2e8f0; text-align:center;">${r.ne ?? 0}</td>
+                    <td style="padding:5px; border:1px solid #e2e8f0; text-align:center; font-weight:bold;">${r.np ?? 0}</td>
+                    <td style="padding:5px; border:1px solid #e2e8f0; text-align:center;">${r.nc ?? 0}</td>
+                    <td style="padding:5px; border:1px solid #e2e8f0; text-align:center; font-weight:900; color:#ffffff; background:${bgNivel};">${nrVal}</td>
+                    <td style="padding:5px; border:1px solid #e2e8f0; text-align:center; font-weight:900; color:${bgNivel};">${textNivel}</td>
+                    <td style="padding:6px 8px; border:1px solid #e2e8f0; background:#f8fafc;">
+                      <div style="font-weight:800; color:#0f172a; margin-bottom:2px;">🔬 Justificación Técnica del Factor de Reducción:</div>
+                      <div style="color:#334155; line-height:1.35;">${frDesc}</div>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -1317,18 +1383,19 @@ router.post('/ai-analyze-matrix', requireJwtAuth, async (req, res) => {
       chartsHTML = buildIpevarChartsHtml(matrixRows);
       const matrixSummary = matrixRows.map((r, i) => {
         const proc = r.proceso || 'General';
+        const cargo = r.cargo || 'General';
         const act = r.actividad || 'Puesto de trabajo';
         const clas = r.peligro_clasificacion || 'General';
         const desc = r.peligro_descripcion || '';
         const nr = r.nr || 0;
         const interp = r.interpretacion_nr || '';
         const ef = r.efectos_posibles || '';
-        return `[${i+1}] Proceso: ${proc} | Actividad: ${act} | Clasificación: ${clas} | Peligro: ${desc} | Nivel de Riesgo: ${nr} (${interp}) | Efectos: ${ef}`;
+        const anexoE = r.factores_reduccion || '';
+        return `[${i+1}] Proceso: ${proc} | Cargo: ${cargo} | Actividad: ${act} | Clasificación: ${clas} | Peligro: ${desc} | Nivel de Riesgo: ${nr} (${interp}) | Efectos: ${ef} | Anexo E (Factor de Reducción): ${anexoE}`;
       }).join('\n');
 
       prompt = `Eres un auditor senior y consultor estratégico en Seguridad y Salud en el Trabajo bajo la metodología GTC-45:2012 y Decreto 1072 de 2015 en Colombia.
 Analiza esta Matriz IPEVR completa y emite un Informe Técnico y Ejecutivo integral MUY EXTENSO, sumamente detallado, pericial y con sustentación analítica de Costo/Beneficio (Anexo E GTC 45).
-Analiza esta Matriz IPEVR completa y emite un Informe Técnico y Ejecutivo integral MUY EXTENSO, sumamente detallado y analítico.
 
 **INSTRUCCIONES DE FORMATO HTML:**
 - Responde EXCLUSIVAMENTE en HTML limpio, listo para inyectarse en el DOM. NO uses \`\`\`html.
@@ -1336,6 +1403,7 @@ Analiza esta Matriz IPEVR completa y emite un Informe Técnico y Ejecutivo integ
 - Headers de tablas (<th>): <th style="background-color:#0f766e;color:#fff;padding:12px 14px;font-size:13px;font-weight:700;text-transform:uppercase;text-align:left;">
 - Celdas (<td>): <td style="padding:10px 14px;border-bottom:1px solid #f0fdfa;font-size:13px;color:#334155;vertical-align:top;background-color:#fff;">
 - Headers de sección (H3): <h3 style="color:#0f766e; margin-top:30px; border-bottom:1px solid #ccc; padding-bottom:5px;">
+- REGLA ESTRICTA DE TABLAS DE CONTROLES: El sistema ya inyecta en la cabecera la sección "4. Matriz Maestra GTC 45:2012 de Evaluación de Riesgos y Controles" donde la columna de controles muestra ÚNICAMENTE el Anexo E ("🔬 Justificación Técnica del Factor de Reducción"). Si incluyes tablas de evaluación de riesgos y controles en tu análisis, en la columna de Controles SOLO debe aparecer la Justificación Técnica del Factor de Reducción (Anexo E GTC-45), sin separar columnas de Medidas de Ingeniería ni Medidas Administrativas / EPP.
 
 **ESTRUCTURA DEL INFORME EXIGIDA (en HTML) - ESTE INFORME DEBE SER EXTREMADAMENTE EXTENSO:**
 1. **Introducción y Contexto General:** Un análisis profundo y muy extenso de la situación actual según la matriz. Incluye interpretaciones sobre cultura de seguridad y asunciones metodológicas.
@@ -1344,14 +1412,14 @@ Analiza esta Matriz IPEVR completa y emite un Informe Técnico y Ejecutivo integ
     - b. Evaluación profunda de la Jerarquía de Controles aplicada (desproporción entre medidas en la Fuente, el Medio y el Individuo).
     - c. Pronóstico sumamente detallado sobre Enfermedades Laborales Potenciales Detectadas y cómo mitigarlas desde ya clínicamente.
     - d. Desglose detallado del Promedio de NR por cada área y Proceso evaluado, buscando responsabilidades orgánicas en las áreas críticas.
-3. **Hallazgos Críticos Detallados:** Menciona los riesgos con Mayor NR (Rojos / No Aceptables) y sus consecuencias a nivel de la salud, lo financiero, legal y productivo. Crea una tabla resumen detallada con: Proceso, Actividad, Peligro y NR.
+3. **Hallazgos Críticos Detallados:** Menciona los riesgos con Mayor NR (Rojos / No Aceptables) y sus consecuencias a nivel de la salud, lo financiero, legal y productivo. Crea una tabla resumen detallada con: Proceso / Cargo, Peligro & Clasificación, NR y Controles (Anexo E: 🔬 Justificación Técnica del Factor de Reducción).
 4. **Brechas en Controles Evaluadas:** Un diagnóstico minucioso y extenso que argumente científicamente la debilidad de las medidas de intervención presentes.
 5. **Análisis de Factores de Reducción y Justificación Costo/Beneficio (GTC 45 Anexo E):**
    Aplica rigurosamente la fórmula F = ((NRi - NRf)/NRi) * 100 y J = (NRi * F) / (d * 10). Para cada peligro crítico (Nivel I y II), SUSTENTA Y DICTAMINA EXPLÍCITAMENTE CUÁL DE LOS CONTROLES PROPUESTOS LE CONVIENE MÁS A LA EMPRESA técnica y económicamente. Demuestra por qué la inversión en controles de ingeniería o en la fuente tiene un retorno superior (J > 20) frente al costo recurrente y vulnerabilidad del EPP y medidas administrativas.
-6. **Plan de Acción Gerencial y Operativo:** Propuesta super extensa de controles de eliminación, sustitución, ingeniería y administrativos recomendados (Tabla de 4 columnas: Proceso / Peligro, Control Más Conveniente por Costo/Beneficio, Factor F%, Plazo de Ejecución) abarcando la mejora continua.
-6. **Conclusión y Recomendaciones de Alta Gerencia:** Un texto robusto y extenso sobre la integración de la GTC-45 con sistemas ISO o estándares internacionales de clase mundial.
-7. NO incluyas título principal ni encabezado corporativo (el sistema los inyectará antes).
-8. NO incluyas bloque de firmas en tu respuesta de HTML (el sistema las inyectará debajo).
+6. **Plan de Acción Gerencial y Operativo (Anexo E):** Propuesta extensa enfocada en el Factor de Reducción (Tabla de 4 columnas: Proceso / Peligro, 🔬 Justificación Técnica del Factor de Reducción (Anexo E), Factor F%, Plazo de Ejecución) abarcando la mejora continua.
+7. **Conclusión y Recomendaciones de Alta Gerencia:** Un texto robusto y extenso sobre la integración de la GTC-45 con sistemas ISO o estándares internacionales de clase mundial.
+8. NO incluyas título principal ni encabezado corporativo (el sistema los inyectará antes).
+9. NO incluyas bloque de firmas en tu respuesta de HTML (el sistema las inyectará debajo).
 
 Asegurate de que cada uno de los puntos anteriores de la estructura genere párrafos MUY robustos y abundantes (múltiples párrafos grandes por viñeta del esquema de análisis). ¡Debe ser una respuesta en formato HTML extremo en longitud y supremamente elaborada a nivel técnico!
 
@@ -2167,6 +2235,164 @@ ${otherControls.length > 0 ? `• Controles Complementarios: ${otherControls.map
   } catch (error) {
     logger.error('[GTC45Workspace POST /sync-controles-anexo-e] Error:', error);
     res.status(500).json({ error: error.message || 'Error al sincronizar controles y Anexo E' });
+  }
+});
+
+// ─── IA: Generar Matriz Completa de Riesgos (Mínimo 15 Riesgos GTC-45) ─────────
+router.post('/ai-generate-risks', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { modelName } = req.body;
+
+    let loadedCompany = null;
+    try {
+      loadedCompany = await CompanyInfo.findOne({ user: userId, isActive: true }).lean()
+        || await CompanyInfo.findOne({ user: userId }).lean();
+    } catch (e) {
+      logger.warn('[GTC45/ai-generate-risks] Could not load CompanyInfo:', e.message);
+    }
+
+    const companyId = loadedCompany?._id || null;
+    let cargosList = [];
+    try {
+      const PerfilCargoData = mongoose.models.PerfilCargoData || require('~/models/PerfilCargoData');
+      const cargoDoc = await PerfilCargoData.findOne({
+        user: userId,
+        ...(companyId ? { companyId } : {}),
+      }).lean();
+      if (cargoDoc && Array.isArray(cargoDoc.perfiles)) {
+        cargosList = cargoDoc.perfiles.map((p) => p.nombreCargo).filter(Boolean);
+      }
+    } catch (_) {}
+
+    const compName = loadedCompany?.companyName || 'Empresa Activa SG-SST';
+    const compNit = loadedCompany?.nit || 'N/A';
+    const compSector = loadedCompany?.sector || 'Industrial y Servicios';
+    const compAct = loadedCompany?.economicActivity || 'Operaciones generales';
+    const compCiiu = loadedCompany?.ciiu || '4659';
+    const compRisk = loadedCompany?.riskLevel || 'III';
+    const compWorkers = loadedCompany?.workerCount || 25;
+    const compGeneral = loadedCompany?.generalActivities || 'Operaciones productivas, administrativas y logísticas';
+    const cargosHint = cargosList.length > 0
+      ? `CARGOS REGISTRADOS EN LA EMPRESA: ${cargosList.join(', ')}`
+      : 'CARGOS SUGERIDOS: Asignar cargos reales acordes a los procesos de la empresa.';
+
+    const prompt = `Eres un especialista senior en Seguridad y Salud en el Trabajo (GTC 45:2012, Decreto 1072 de 2015 en Colombia).
+EMPRESA: ${compName} (NIT: ${compNit})
+SECTOR: ${compSector} · ACTIVIDAD ECONÓMICA: ${compAct} (CIIU: ${compCiiu})
+NIVEL DE RIESGO ARL: Clase ${compRisk} · TRABAJADORES: ${compWorkers}
+DESCRIPCIÓN DE ACTIVIDADES: ${compGeneral}
+${cargosHint}
+
+Genera mínimo 15 (entre 15 y 18) riesgos laborales críticos, diversos y representativos que abarquen todos los procesos principales de esta empresa y las 7 clasificaciones de peligros de la metodología GTC 45:2012 (Biológico, Físico, Químico, Psicosocial, Biomecánico, Condiciones de seguridad y Fenómenos naturales).
+IMPORTANTE:
+- El arreglo "filas" DEBE contener al menos 15 objetos de riesgo completos y distintos.
+- En cada fila, el campo "factores_reduccion" (Anexo E GTC-45) DEBE incluir la justificación técnica del factor de reducción y el sustento de viabilidad costo/beneficio de cómo las medidas atenúan el riesgo.
+Devuelve ÚNICAMENTE un JSON válido (sin bloques markdown):
+{
+  "filas": [
+    {
+      "proceso": "Operaciones",
+      "cargo": "Operario de Planta",
+      "zona": "Área Operativa",
+      "actividad": "Manipulación de herramientas y maquinaria",
+      "tareas": "Corte y ensamblado de piezas",
+      "rutinaria": "Sí",
+      "peligro_descripcion": "Mecánico (atrapamiento en partes móviles de máquinas)",
+      "peligro_clasificacion": "Condiciones de seguridad",
+      "efectos_posibles": "Laceraciones, fracturas, atrapamiento, amputación",
+      "controles_fuente": "Guardas perimetrales y paradas de emergencia",
+      "controles_medio": "Demarcación de áreas seguras",
+      "controles_individuo": "Capacitación en uso seguro y guantes anticorte",
+      "nd": 6,
+      "ne": 3,
+      "nc": 60,
+      "nro_expuestos": 6,
+      "peor_consecuencia": "Amputación de miembro superior",
+      "requisito_legal": "Sí",
+      "medida_eliminacion": "No aplica",
+      "medida_sustitucion": "No aplica",
+      "medida_ingenieria": "Enclavamientos electromecánicos",
+      "medida_administrativa": "Procedimiento seguro PTS y bloqueo LOTO",
+      "medida_eppu": "Guantes nivel de corte 5 y gafas Z87+",
+      "factores_reduccion": "El bloqueo físico LOTO y los enclavamientos electromecánicos anulan la energía residual durante la intervención, reduciendo el Nivel de Riesgo en un 85%."
+    }
+  ]
+}`;
+
+    const targetModel = modelName || SGSST_FALLBACK_MODELS[0];
+    const result = await generateWithKeyRotation(targetModel, userId, prompt, { useWebSearch: false });
+    const rawText = result.response.text();
+    const cleanJson = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const parsed = JSON.parse(cleanJson);
+    const rawFilas = Array.isArray(parsed?.filas) ? parsed.filas : Array.isArray(parsed) ? parsed : [];
+
+    const formattedRows = rawFilas.map((r, i) => {
+      const nd = [0, 2, 6, 10].includes(Number(r.nd)) ? Number(r.nd) : 6;
+      const ne = [1, 2, 3, 4].includes(Number(r.ne)) ? Number(r.ne) : 3;
+      const nc = [10, 25, 60, 100].includes(Number(r.nc)) ? Number(r.nc) : 25;
+      const np = nd * ne;
+      const nr = np * nc;
+      let interpretacion_np = 'Bajo (B)';
+      if (np >= 24) interpretacion_np = 'Muy Alto (MA)';
+      else if (np >= 10) interpretacion_np = 'Alto (A)';
+      else if (np >= 6) interpretacion_np = 'Medio (M)';
+
+      let interpretacion_nr = 'IV';
+      let aceptabilidad = 'Aceptable';
+      if (nr >= 600) {
+        interpretacion_nr = 'I';
+        aceptabilidad = 'No Aceptable';
+      } else if (nr >= 150) {
+        interpretacion_nr = 'II';
+        aceptabilidad = 'No Aceptable o Aceptable con Control Específico';
+      } else if (nr >= 40) {
+        interpretacion_nr = 'III';
+        aceptabilidad = 'Mejorable';
+      }
+
+      return {
+        id: `ai_gen_${Date.now()}_${i}`,
+        proceso: r.proceso || 'Operaciones',
+        cargo: r.cargo || 'Operario General',
+        zona: r.zona || 'Área Operativa',
+        actividad: r.actividad || 'Ejecución de labores operativas',
+        tareas: r.tareas || r.actividad || 'Tareas generales del cargo',
+        rutinaria: r.rutinaria === 'No' ? 'No' : 'Sí',
+        peligro_descripcion: r.peligro_descripcion || '',
+        peligro_clasificacion: r.peligro_clasificacion || 'Condiciones de seguridad',
+        efectos_posibles: r.efectos_posibles || '',
+        controles_fuente: r.controles_fuente || 'Ninguno',
+        controles_medio: r.controles_medio || 'Ninguno',
+        controles_individuo: r.controles_individuo || 'Ninguno',
+        nd,
+        ne,
+        np,
+        interpretacion_np,
+        nc,
+        nr,
+        interpretacion_nr,
+        aceptabilidad,
+        nro_expuestos: Number(r.nro_expuestos) || 1,
+        peor_consecuencia: r.peor_consecuencia || '',
+        requisito_legal: r.requisito_legal === 'No' ? 'No' : 'Sí',
+        medida_eliminacion: r.medida_eliminacion || 'No aplica',
+        medida_sustitucion: r.medida_sustitucion || 'No aplica',
+        medida_ingenieria: r.medida_ingenieria || 'No aplica',
+        medida_administrativa: r.medida_administrativa || 'Protocolos seguros',
+        medida_eppu: r.medida_eppu || 'Dotación estándar',
+        factores_reduccion: r.factores_reduccion || 'Técnicamente viable y costo-efectiva según Anexo E de la GTC-45.',
+        origen_reporte: 'Generación IA GTC-45',
+      };
+    });
+
+    return res.json({
+      success: true,
+      matrixRows: formattedRows,
+    });
+  } catch (error) {
+    logger.error('[GTC45/ai-generate-risks] Error:', error);
+    return res.status(500).json({ error: error.message || 'Error generando riesgos con IA' });
   }
 });
 

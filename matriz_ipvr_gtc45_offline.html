@@ -2962,6 +2962,78 @@ const INITIAL_DUMMY_ROWS = [
     medida_administrativa: 'Protocolo de limpieza y desinfección de superficies de contacto frecuente cada 3 horas',
     medida_eppu: 'Mascarilla quirúrgica disponible para casos de síntomas respiratorios',
     factores_reduccion: 'El mostrador con barrera acrílica y purificación de aire mitiga el riesgo de dispersión de aerosoles a un nivel aceptable de bajo impacto.'
+  },
+  {
+    id: 'row_gtc_13',
+    proceso: 'Mantenimiento & Infraestructura',
+    cargo: 'Técnico Electricista',
+    zona: 'Subestación y Tableros Eléctricos',
+    actividad: 'Mantenimiento preventivo y correctivo de redes de baja y media tensión',
+    tareas: 'Revisión de acometidas, termografía de tableros, ajuste de bornes y cambio de breakers',
+    rutinaria: 'Sí',
+    peligro_descripcion: 'Eléctrico (contacto directo o indirecto con partes energizadas y arco eléctrico)',
+    peligro_clasificacion: 'Condiciones de seguridad',
+    efectos_posibles: 'Electrocución, fibrilación ventricular, quemaduras de tercer grado por arco eléctrico, muerte',
+    controles_fuente: 'Tableros con frente muerto, interruptores diferenciales y puesta a tierra certificada RETIE',
+    controles_medio: 'Tapetes dieléctricos frente a tableros, candados y tarjetas de bloqueo LOTO',
+    controles_individuo: 'Certificación CONTE vigente, aplicación estricta de las 5 Reglas de Oro',
+    nd: 6, ne: 3, nc: 100, nro_expuestos: 3,
+    peor_consecuencia: 'Muerte por electrocución o quemaduras severas por arco eléctrico',
+    requisito_legal: 'Sí',
+    medida_eliminacion: 'Desenergización total de circuitos antes de cualquier intervención',
+    medida_sustitucion: 'Inspección termográfica infrarroja a distancia sin apertura de tableros',
+    medida_ingenieria: 'Instalación de relés de protección contra arco eléctrico y seccionadores con bloqueo mecánico',
+    medida_administrativa: 'Permiso de trabajo eléctrico en caliente y procedimiento LOTO auditado',
+    medida_eppu: 'Traje ignífugo categoría 2/4 cal/cm², guantes dieléctricos clase 00/0, casco y botas dieléctricas',
+    factores_reduccion: 'La aplicación estricta de las 5 Reglas de Oro con bloqueo LOTO y relés de arco eléctrico reduce el nivel de riesgo en un 90%, evitando accidentes fatales.'
+  },
+  {
+    id: 'row_gtc_14',
+    proceso: 'Operaciones de Planta',
+    cargo: 'Operario de Maquinaria Pesada',
+    zona: 'Planta de Compresores y Troquelado',
+    actividad: 'Operación continua de prensas mecánicas y compresores industriales',
+    tareas: 'Alimentación de lámina metálica, supervisión de ciclos de prensado y purga de líneas',
+    rutinaria: 'Sí',
+    peligro_descripcion: 'Ruido continuo y de impacto superior a 85 dB(A) y vibración cuerpo entero/mano-brazo',
+    peligro_clasificacion: 'Físico',
+    efectos_posibles: 'Hipoacusia neurosensorial inducida por ruido, acúfenos, fatiga auditiva, síndrome de Raynaud',
+    controles_fuente: 'Encapsulamiento acústico de compresores y amortiguadores antivibratorios en bancadas',
+    controles_medio: 'Cabinas insonorizadas de control y señalización de áreas de protección auditiva obligatoria',
+    controles_individuo: 'Audiometrías ocupacionales periódicas y capacitación en conservación auditiva',
+    nd: 6, ne: 4, nc: 25, nro_expuestos: 8,
+    peor_consecuencia: 'Pérdida auditiva neurosensorial bilateral irreversible (Hipoacusia ocupacional)',
+    requisito_legal: 'Sí',
+    medida_eliminacion: 'No aplica',
+    medida_sustitucion: 'Reemplazo de boquillas neumáticas abiertas por boquillas silenciosas Venturi',
+    medida_ingenieria: 'Paneles fonoabsorbentes perimetrales y silenciadores neumáticos en escapes de válvulas',
+    medida_administrativa: 'Programa de Vigilancia Epidemiológica (PVE) Auditivo y rotación de puestos de exposición',
+    medida_eppu: 'Doble protección auditiva (inserción + copa NRR 28 dB) y guantes antivibración certificados',
+    factores_reduccion: 'El encapsulamiento acústico en la fuente combinado con silenciadores neumáticos atenúa la presión sonora por debajo de 80 dB(A), reduciendo el riesgo en un 85%.'
+  },
+  {
+    id: 'row_gtc_15',
+    proceso: 'Toda la Organización',
+    cargo: 'Personal Operativo y Administrativo',
+    zona: 'Instalaciones Generales y Edificaciones',
+    actividad: 'Permanencia y ejecución de labores en las instalaciones de la empresa',
+    tareas: 'Actividades operativas, administrativas y atención de emergencias en planta y oficinas',
+    rutinaria: 'Sí',
+    peligro_descripcion: 'Fenómenos naturales (sismo, terremoto, vendaval, tormenta eléctrica e inundación)',
+    peligro_clasificacion: 'Fenómenos naturales',
+    efectos_posibles: 'Aplastamiento por colapso estructural, politraumatismos, heridas múltiples, pánico colectivo, muerte',
+    controles_fuente: 'Certificación de sismorresistencia NSR-10 y mantenimiento de cubiertas y drenajes',
+    controles_medio: 'Sistema de alarma sonora/visual de evacuación, iluminación de emergencia y rutas señalizadas',
+    controles_individuo: 'Conformación y entrenamiento de la Brigada de Emergencias y simulacros anuales',
+    nd: 2, ne: 2, nc: 100, nro_expuestos: 58,
+    peor_consecuencia: 'Mortalidad múltiple por colapso estructural o atrapamiento en emergencia',
+    requisito_legal: 'Sí',
+    medida_eliminacion: 'No aplica (fenómeno natural de origen externo)',
+    medida_sustitucion: 'No aplica',
+    medida_ingenieria: 'Anclaje estructural de estanterías pesadas, película antiesquirlas en vidrios y pararrayos Franklin',
+    medida_administrativa: 'Plan de Prevención, Preparación y Respuesta ante Emergencias (PPRE) y MEDEVAC activo',
+    medida_eppu: 'Dotación completa de brigadistas (cascos, botiquines trauma, camillas rígidas y megáfonos)',
+    factores_reduccion: 'El anclaje estructural sismorresistente y el entrenamiento de la brigada con simulacros periódicos reducen la vulnerabilidad operativa y el tiempo de evacuación en un 80%.'
   }
 ];
 
@@ -4660,7 +4732,8 @@ async function callGeminiWithRotation(promptText, customTaskTitle = null) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              contents: [{ parts: [{ text: promptText }] }]
+              contents: [{ parts: [{ text: promptText }] }],
+              generationConfig: { maxOutputTokens: 8192 }
             })
           });
 
@@ -8487,7 +8560,10 @@ NIVEL DE RIESGO: Clase ${companyInfo.riskLevel || 'IV'} · TRABAJADORES: ${compa
 UBICACIÓN / SEDE: ${companyInfo.city || 'Medellín'}${companyInfo.departamento ? ', ' + companyInfo.departamento : ''}
 DESCRIPCIÓN DE ACTIVIDADES DE LA EMPRESA: ${companyInfo.generalActivities || 'Operaciones generales del SG-SST'}
 
-Genera 4 riesgos laborales críticos y representativos para los principales procesos de esta empresa según la metodología GTC 45:2012.
+Genera mínimo 15 (entre 15 y 18) riesgos laborales críticos, diversos y representativos que abarquen todos los procesos principales de esta empresa y las 7 clasificaciones de peligros de la metodología GTC 45:2012 (Biológico, Físico, Químico, Psicosocial, Biomecánicos, Condiciones de seguridad y Fenómenos naturales).
+IMPORTANTE:
+- El arreglo "filas" DEBE contener al menos 15 objetos de riesgo completos y distintos.
+- En cada fila, el campo "factores_reduccion" (Anexo E GTC-45) DEBE explicar la justificación técnica del factor de reducción y cómo las medidas propuestas atenúan el riesgo.
 Devuelve ÚNICAMENTE un JSON válido:
 {
   "filas": [
@@ -9118,17 +9194,11 @@ function renderExecutiveReport() {
                 </div>
               </div>
 
-              <!-- Medidas de Intervención Clave y Justificación Técnica -->
-              <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px; font-size: 10.5px;">
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: 8px;">
+              <!-- Justificación Técnica del Factor de Reducción (Anexo E GTC-45) -->
+              <div style="font-size: 10.5px;">
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 12px; border-radius: 8px;">
                   <div style="font-weight: 800; color: #0f172a; margin-bottom: 3px;">🔬 Justificación Técnica del Factor de Reducción:</div>
                   <div style="color: #334155; line-height: 1.4;">${frData.desc}</div>
-                </div>
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: 8px; font-size: 10px;">
-                  <div style="font-weight: 800; color: #0f172a; margin-bottom: 2px;">🛡️ Plan de Intervención:</div>
-                  <div><strong>Ingeniería:</strong> ${r.medida_ingenieria || 'No aplica'}</div>
-                  <div><strong>Administrativo:</strong> ${r.medida_administrativa || 'Protocolos seguros'}</div>
-                  <div><strong>EPP:</strong> ${r.medida_eppu || 'Dotación estándar'}</div>
                 </div>
               </div>
             </div>
@@ -9137,7 +9207,7 @@ function renderExecutiveReport() {
       </div>
     </div>
 
-    <!-- SECCIÓN 4: MATRIZ MAESTRA GTC 45 DE PELIGROS Y PLAN DE INTERVENCIÓN COMPLETO -->
+    <!-- SECCIÓN 4: MATRIZ MAESTRA GTC 45 DE PELIGROS Y CONTROLES (ANEXO E) -->
     <div style="border: 1px solid #e2e8f0; border-radius: 16px; padding: 22px; margin-bottom: 26px; background: #ffffff; page-break-before: always;">
       <h2 style="color: #0f766e; font-size: 14px; font-weight: 900; text-transform: uppercase; margin-top: 0; margin-bottom: 12px; border-bottom: 2px solid #0f766e; padding-bottom: 5px;">
         4. Matriz Maestra GTC 45:2012 de Evaluación de Riesgos y Controles
@@ -9155,14 +9225,13 @@ function renderExecutiveReport() {
               <th style="padding: 6px; border: 1px solid #0d9488; text-align: center;">NC</th>
               <th style="padding: 6px; border: 1px solid #0d9488; text-align: center;">NR</th>
               <th style="padding: 6px; border: 1px solid #0d9488; text-align: center;">Nivel</th>
-              <th style="padding: 6px; border: 1px solid #0d9488;">Medidas de Ingeniería</th>
-              <th style="padding: 6px; border: 1px solid #0d9488;">Medidas Administrativas / EPP</th>
+              <th style="padding: 6px; border: 1px solid #0d9488;">Controles (Anexo E GTC-45)</th>
             </tr>
           </thead>
           <tbody>
             ${matrixRows.length === 0 ? `
               <tr>
-                <td colspan="11" style="padding: 24px; text-align: center; color: #94a3b8; font-weight: 600;">
+                <td colspan="10" style="padding: 24px; text-align: center; color: #94a3b8; font-weight: 600;">
                   No se registran peligros evaluados en la matriz de esta empresa.
                 </td>
               </tr>
@@ -9170,6 +9239,7 @@ function renderExecutiveReport() {
               const nrVal = Number(r.nr) || 0;
               const bgNivel = nrVal >= 600 ? '#ef4444' : nrVal >= 150 ? '#f97316' : nrVal >= 40 ? '#eab308' : '#22c55e';
               const textNivel = nrVal >= 600 ? 'I' : nrVal >= 150 ? 'II' : nrVal >= 40 ? 'III' : 'IV';
+              const frData = getFactorReduccionData(r);
               return `
                 <tr style="border-bottom: 1px solid #e2e8f0; background: ${idx % 2 === 0 ? '#f8fafc' : '#ffffff'};">
                   <td style="padding: 5px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold;">${idx + 1}</td>
@@ -9187,10 +9257,9 @@ function renderExecutiveReport() {
                   <td style="padding: 5px; border: 1px solid #e2e8f0; text-align: center;">${r.nc}</td>
                   <td style="padding: 5px; border: 1px solid #e2e8f0; text-align: center; font-weight: 900; color: white; background: ${bgNivel};">${nrVal}</td>
                   <td style="padding: 5px; border: 1px solid #e2e8f0; text-align: center; font-weight: 900; color: ${bgNivel};">${textNivel}</td>
-                  <td style="padding: 5px; border: 1px solid #e2e8f0;">${r.medida_ingenieria || 'No aplica'}</td>
-                  <td style="padding: 5px; border: 1px solid #e2e8f0;">
-                    <div>${r.medida_administrativa || 'Protocolos seguros'}</div>
-                    <div style="color: #0d9488; font-size: 8.5px; margin-top: 2px;"><strong>EPP:</strong> ${r.medida_eppu || 'Dotación estándar'}</div>
+                  <td style="padding: 6px 8px; border: 1px solid #e2e8f0; background: #f8fafc;">
+                    <div style="font-weight: 800; color: #0f172a; margin-bottom: 2px;">🔬 Justificación Técnica del Factor de Reducción:</div>
+                    <div style="color: #334155; line-height: 1.35;">${frData.desc}</div>
                   </td>
                 </tr>
               `;

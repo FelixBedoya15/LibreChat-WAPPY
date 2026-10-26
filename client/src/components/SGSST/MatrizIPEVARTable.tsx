@@ -1016,173 +1016,483 @@ export default function MatrizIPEVARTable({
   const handleDummyData = () => {
     const dummyRows: MatrixRow[] = [
       {
-        proceso: 'Operativo / Construcción',
-        zona: 'Torre A - Pisos 3 a 8',
-        actividad: 'Armado de encofrados y fundición de losas',
-        tareas: 'Instalación de formaleta en borde de placa',
+        id: 'dummy_gtc_1',
+        cargo: 'Soldador Industrial',
+        proceso: 'Metalurgia y Estructuras',
+        zona: 'Taller de Soldadura',
+        actividad: 'Unión de piezas metálicas con arco eléctrico',
+        tareas: 'Corte con oxicorte, esmerilado y soldadura MIG/MAG',
         rutinaria: 'Sí',
-        peligro_clasificacion: 'Condiciones de seguridad',
-        peligro_descripcion: 'Caída a diferente nivel por trabajo en alturas (> 1.50 m)',
-        efectos_posibles: 'Politraumatismos graves, fracturas óseas, invalidez o muerte',
-        controles_fuente: 'Sistema de líneas de vida fijas certificadas',
-        controles_medio: 'Redes de seguridad periféricas y barandas de borde',
-        controles_individuo: 'Arnés de cuerpo entero multipropósito certificado, eslinga con absorbedor de choque',
-        nd: 6,
-        ne: 3,
-        np: 18,
-        nc: 60,
-        nr: 1080,
-        interpretacion_nr: 'I - No Aceptable',
-        aceptabilidad: 'No Aceptable',
-        medida_eliminacion: 'Prearmado de formaletas en nivel cero para reducir tiempo en altura',
-        medida_sustitucion: 'Sustitución de andamios convencionales por sistemas multidireccionales certificados',
-        medida_ingenieria: 'Puntos de anclaje fijos estructurales certificados bajo Res. 4272/2021',
-        medida_administrativa: 'Permiso de trabajo en alturas, ATS diario, coordinador de alturas en sitio',
-        medida_eppu: 'Arnés dieléctrico con 4 argollas, línea de vida vertical de 16mm con freno absorbedor',
-        nro_expuestos: 14,
-        peor_consecuencia: 'Muerte por caída en altura',
-        requisito_legal: 'Sí',
-      },
-      {
-        proceso: 'Almacenamiento y Logística',
-        zona: 'Bodega Central de Materiales',
-        actividad: 'Recepción, descargue y apilamiento de bultos de cemento',
-        tareas: 'Levantamiento manual de cargas pesadas',
-        rutinaria: 'Sí',
-        peligro_clasificacion: 'Biomecánico',
-        peligro_descripcion: 'Manipulación manual de cargas y sobreesfuerzo lumbar continuo',
-        efectos_posibles: 'Lumbalgia aguda, hernia discal lumbosacra, fatiga muscular crónica',
-        controles_fuente: 'No implementado',
-        controles_medio: 'Carretillas y transpaletas hidráulicas de carga',
-        controles_individuo: 'Capacitación en higiene postural y técnica de levantamiento',
+        peligro_clasificacion: 'Químico',
+        peligro_descripcion: 'Humos metálicos de soldadura y gases de combustión',
+        efectos_posibles: 'Fiebre de los humos metálicos, irritación de vías respiratorias, neumoconiosis',
+        controles_fuente: 'Mantenimiento de equipos de soldadura',
+        controles_medio: 'Campanas de extracción localizada de humos',
+        controles_individuo: 'Respirador media cara con filtros P100 para humos metálicos',
         nd: 6,
         ne: 4,
         np: 24,
+        interpretacion_np: 'Muy Alto (MA)',
         nc: 25,
         nr: 600,
-        interpretacion_nr: 'I - No Aceptable',
+        interpretacion_nr: 'I',
         aceptabilidad: 'No Aceptable',
-        medida_eliminacion: 'Adquisición de sacos de cemento fraccionados a 25 kg según ergonomía',
-        medida_sustitucion: 'Implementación de montacargas eléctrico para descargue paletizado',
-        medida_ingenieria: 'Mesa elevadora hidráulica para descarga a nivel de cintura',
-        medida_administrativa: 'Rotación de cuadrillas de cargue cada 45 minutos, pausas activas osteomusculares',
-        medida_eppu: 'Guantes de alta adherencia con refuerzo palmar, faja ergonómica biomecánica',
-        nro_expuestos: 8,
-        peor_consecuencia: 'Discapacidad laboral permanente por hernia discal',
-        requisito_legal: 'Sí',
-      },
-      {
-        proceso: 'Acabados y Pintura',
-        zona: 'Sótanos y áreas de parqueadero',
-        actividad: 'Aplicación de pintura epóxica y selladores con solventes',
-        tareas: 'Mezcla de resinas y aplicación con pistola aerográfica',
-        rutinaria: 'Sí',
-        peligro_clasificacion: 'Químico',
-        peligro_descripcion: 'Vapores orgánicos de solventes aromáticos y nieblas epóxicas (SGA)',
-        efectos_posibles: 'Cefalea, mareos, irritación ocular y respiratoria, toxicidad hepatorrenal',
-        controles_fuente: 'Sistema de mezclado sellado',
-        controles_medio: 'Extractores axiales de aire en sótanos confinados',
-        controles_individuo: 'Respirador de media cara con filtros contra vapores orgánicos y partículas',
-        nd: 2,
-        ne: 3,
-        np: 6,
-        nc: 25,
-        nr: 150,
-        interpretacion_nr: 'II - Aceptable con control específico',
-        aceptabilidad: 'Aceptable con control específico',
         medida_eliminacion: 'No aplica',
-        medida_sustitucion: 'Sustitución de pinturas base solvente por recubrimientos epóxicos base agua de bajo VOC',
-        medida_ingenieria: 'Sistema de ventilación forzada por inyección-extracción continua',
-        medida_administrativa: 'Ficha de datos de seguridad (FDS) según SGA visible, rotulado de envases',
-        medida_eppu: 'Respirador siliconado doble cartucho (NIOSH OV/P100), monogafas, guantes de nitrilo',
-        nro_expuestos: 6,
-        peor_consecuencia: 'Intoxicación aguda sistémica con compromiso respiratorio',
+        medida_sustitucion: 'Uso de electrodos de bajo contenido de manganeso',
+        medida_ingenieria: 'Brazo extractor articulado de humos en cada puesto de soldadura',
+        medida_administrativa: 'Rotación de personal, pausas en áreas ventiladas y espirometrías anuales',
+        medida_eppu: 'Careta electrónica fotosensible, respirador con filtro P100 y delantal de carnaza',
+        factores_reduccion: 'La extracción localizada evita que los humos metálicos ingresen a la zona de respiración del trabajador, reduciendo el Nivel de Riesgo en un 85%.',
+        nro_expuestos: 5,
+        peor_consecuencia: 'Enfermedad pulmonar obstructiva crónica (EPOC) ocupacional',
         requisito_legal: 'Sí',
       },
       {
-        proceso: 'Gestión Administrativa y de Obra',
-        zona: 'Oficinas de Campamento y Dirección Técnica',
-        actividad: 'Programación de obra, control presupuestal y coordinación de contratistas',
-        tareas: 'Gestión de cronogramas críticos y resolución de conflictos contractuales',
-        rutinaria: 'Sí',
-        peligro_clasificacion: 'Psicosocial',
-        peligro_descripcion: 'Demandas cuantitativas de trabajo, presión por tiempos y sobrecarga mental',
-        efectos_posibles: 'Síndrome de Burnout, ansiedad, insomnio, estrés laboral crónico',
-        controles_fuente: 'Definición de perfiles de cargo y alcance',
-        controles_medio: 'Distribución de tareas en software de gestión',
-        controles_individuo: 'Programa de gestión del tiempo y liderazgo positivo',
-        nd: 6,
-        ne: 3,
-        np: 18,
-        nc: 10,
-        nr: 180,
-        interpretacion_nr: 'II - Aceptable con control específico',
-        aceptabilidad: 'Aceptable con control específico',
-        psicosocial_dominio: 'Demandas del trabajo',
-        psicosocial_dimension: 'Exigencias cuantitativas',
-        medida_eliminacion: 'No aplica',
-        medida_sustitucion: 'Redistribución de hitos y balanceo de cargas laborales en equipo técnico',
-        medida_ingenieria: 'Automatización de reportes mediante la plataforma WAPPY',
-        medida_administrativa: 'Batería de Riesgo Psicosocial (Res. 2764/2022), talleres de resiliencia',
-        medida_eppu: 'No aplica',
-        nro_expuestos: 10,
-        peor_consecuencia: 'Trastorno depresivo mayor con incapacidad laboral prolongada',
-        requisito_legal: 'Sí',
-      },
-      {
-        proceso: 'Instalaciones Especiales',
-        zona: 'Subestación provisional y tableros de distribución de obra',
-        actividad: 'Tendido de redes provisionales y conexionado de tableros',
-        tareas: 'Mantenimiento y reubicación de tableros eléctricos bajo tensión',
-        rutinaria: 'Sí',
+        id: 'dummy_gtc_2',
+        cargo: 'Técnico de Alturas',
+        proceso: 'Mantenimiento Locativo',
+        zona: 'Cubiertas y Fachadas (> 2.0 m)',
+        actividad: 'Limpieza e impermeabilización de cubiertas',
+        tareas: 'Ascenso por escalera fija, desplazamiento por línea de vida y sellado de tejas',
+        rutinaria: 'No',
         peligro_clasificacion: 'Condiciones de seguridad',
-        peligro_descripcion: 'Contacto eléctrico directo e indirecto con circuitos energizados (RETIE)',
-        efectos_posibles: 'Fibrilación ventricular, quemaduras de tercer grado, electrocución',
-        controles_fuente: 'Interruptores termomagnéticos y diferenciales (GFCI) en tableros',
-        controles_medio: 'Cerramiento y señalización perimetral de subestación provisional',
-        controles_individuo: 'Procedimiento de las 5 Reglas de Oro eléctricas, verificación de ausencia de tensión',
+        peligro_descripcion: 'Trabajo en alturas por encima de 2.0 metros (Res. 4272 de 2021)',
+        efectos_posibles: 'Politraumatismos severos, fracturas múltiples, trauma craneoencefálico, muerte',
+        controles_fuente: 'Puntos de anclaje estructurales certificados a 5000 lbs',
+        controles_medio: 'Líneas de vida horizontales fijas y barandas perimetrales',
+        controles_individuo: 'Curso avanzado de alturas vigente y examen médico de aptitud',
         nd: 6,
         ne: 2,
         np: 12,
-        nc: 60,
-        nr: 720,
-        interpretacion_nr: 'I - No Aceptable',
+        interpretacion_np: 'Alto (A)',
+        nc: 100,
+        nr: 1200,
+        interpretacion_nr: 'I',
         aceptabilidad: 'No Aceptable',
-        medida_eliminacion: 'Desenergización total y bloqueo/etiquetado (LOTO) previo a intervención',
-        medida_sustitucion: 'Uso de herramientas y luminarias de extra baja tensión (24V)',
-        medida_ingenieria: 'Instalación de relés diferenciales de alta sensibilidad (30mA) en tableros',
-        medida_administrativa: 'Técnico electricista con matrícula CONALTE vigente, permiso de trabajo eléctrico',
-        medida_eppu: 'Guantes dieléctricos Clase 0 (1000V) con sobreguantes de cuero, careta facial, botas dieléctricas',
-        nro_expuestos: 4,
-        peor_consecuencia: 'Muerte por electrocución o choque eléctrico',
+        medida_eliminacion: 'Limpieza desde piso con pértigas telescópicas cuando sea viable',
+        medida_sustitucion: 'Uso de plataformas elevadoras tipo tijera certificadas',
+        medida_ingenieria: 'Instalación de pasarelas antideslizantes con rodapiés en cubiertas',
+        medida_administrativa: 'Permiso de trabajo en alturas firmado por coordinador y lista de chequeo preoperacional',
+        medida_eppu: 'Arnés multipropósito de 4 argollas, eslinga en Y con absorbedor de energía y casco con barbuquejo',
+        factores_reduccion: 'El sistema de ingeniería de líneas de vida certificadas detiene cualquier caída libre reduciendo la fuerza de impacto a niveles seguros (Reducción del 90%).',
+        nro_expuestos: 3,
+        peor_consecuencia: 'Mortalidad por caída a distinto nivel',
         requisito_legal: 'Sí',
       },
       {
-        proceso: 'Movimiento de Tierras y Cimentación',
-        zona: 'Descapote y excavaciones profundas',
-        actividad: 'Limpieza de terreno vegetal y trazado de cimentación',
-        tareas: 'Retiro manual de maleza y escombros',
+        id: 'dummy_gtc_3',
+        cargo: 'Operador de Montacargas',
+        proceso: 'Logística y Despachos',
+        zona: 'Bodega Central y Patio de Maniobras',
+        actividad: 'Movilización y apilamiento de estibas con montacargas',
+        tareas: 'Traslado de mercancía pesada y ubicación en estanterías',
+        rutinaria: 'Sí',
+        peligro_clasificacion: 'Condiciones de seguridad',
+        peligro_descripcion: 'Accidentes de tránsito interno, volcamiento de montacargas y atropellamiento',
+        efectos_posibles: 'Aplastamiento, fracturas graves, trauma torácico, muerte',
+        controles_fuente: 'Mantenimiento preventivo y limitador electrónico de velocidad (10 km/h)',
+        controles_medio: 'Segregación física de senderos peatonales, espejos convexos y alarmas sonoras',
+        controles_individuo: 'Certificación de competencia laboral como operador de montacargas',
+        nd: 2,
+        ne: 4,
+        np: 8,
+        interpretacion_np: 'Medio (M)',
+        nc: 60,
+        nr: 480,
+        interpretacion_nr: 'II',
+        aceptabilidad: 'No Aceptable o Aceptable con Control Específico',
+        medida_eliminacion: 'No aplica',
+        medida_sustitucion: 'Transpaletas eléctricas conducidas a pie en pasillos estrechos',
+        medida_ingenieria: 'Sensores láser de proximidad peatonal y luces azules de advertencia (BlueSpot)',
+        medida_administrativa: 'Plan Estratégico de Seguridad Vial (PESV) e inspección preoperacional diaria',
+        medida_eppu: 'Cinturón de seguridad retráctil obligatorio, casco y botas con puntera de acero',
+        factores_reduccion: 'La segregación física de pasillos y proyectores LED reducen las colisiones hombre-máquina en un 85%.',
+        nro_expuestos: 4,
+        peor_consecuencia: 'Aplastamiento fatal por volcamiento o atropellamiento',
+        requisito_legal: 'Sí',
+      },
+      {
+        id: 'dummy_gtc_4',
+        cargo: 'Técnico de Saneamiento',
+        proceso: 'Mantenimiento Industrial',
+        zona: 'Tanques de Almacenamiento Subterráneos',
+        actividad: 'Lavado e inspección interna de tanques de reserva',
+        tareas: 'Ingreso por boca de visita, remoción de lodos y desinfección',
         rutinaria: 'No',
-        peligro_clasificacion: 'Biológico',
-        peligro_descripcion: 'Exposición a animales ponzoñosos (serpientes, arañas) y picaduras de insectos',
-        efectos_posibles: 'Envenenamiento sistémico, reacciones anafilácticas, infecciones cutáneas',
-        controles_fuente: 'Control biológico de plagas previo a inicio',
-        controles_medio: 'Despeje mecánico con retroexcavadora antes del ingreso de cuadrillas',
-        controles_individuo: 'Uso de polainas de carnaza y repelente de insectos',
+        peligro_clasificacion: 'Condiciones de seguridad',
+        peligro_descripcion: 'Espacios confinados (atmósfera deficiente de oxígeno o presencia de gases tóxicos)',
+        efectos_posibles: 'Asfixia aguda, pérdida de consciencia, intoxicación por sulfuro de hidrógeno, muerte',
+        controles_fuente: 'Purga previa y ventilación mecánica forzada antes y durante el ingreso',
+        controles_medio: 'Monitoreo continuo de atmósfera (O2, LEL, CO, H2S) con detector multigas',
+        controles_individuo: 'Certificación vigente en espacios confinados (Res. 0491 de 2020) y vigía permanente',
+        nd: 6,
+        ne: 1,
+        np: 6,
+        interpretacion_np: 'Medio (M)',
+        nc: 100,
+        nr: 600,
+        interpretacion_nr: 'I',
+        aceptabilidad: 'No Aceptable',
+        medida_eliminacion: 'Limpieza hidrodinámica robotizada con cabezales rotativos sin ingreso humano',
+        medida_sustitucion: 'No aplica',
+        medida_ingenieria: 'Trípode de rescate con winche mecánico e insuflador axial de aire fresco continuo',
+        medida_administrativa: 'Permiso de trabajo en espacios confinados y protocolo de rescate de emergencia activo',
+        medida_eppu: 'Equipo de respiración autocontenido (SCBA) o línea de aire, arnés de rescate y detector personal',
+        factores_reduccion: 'La medición atmosférica continua y ventilación forzada garantizan niveles de oxígeno entre 19.5% y 23.5% (Reducción del 92%).',
+        nro_expuestos: 2,
+        peor_consecuencia: 'Muerte por anoxia o intoxicación aguda en espacio confinado',
+        requisito_legal: 'Sí',
+      },
+      {
+        id: 'dummy_gtc_5',
+        cargo: 'Conductor de Reparto',
+        proceso: 'Distribución y Transporte',
+        zona: 'Vías Urbanas y Nacionales',
+        actividad: 'Transporte y entrega de pedidos a clientes',
+        tareas: 'Conducción de vehículo de carga, cargue y descargue en puntos de entrega',
+        rutinaria: 'Sí',
+        peligro_clasificacion: 'Condiciones de seguridad',
+        peligro_descripcion: 'Público y tránsito (colisiones viales, atracos, asonadas en vía pública)',
+        efectos_posibles: 'Heridas traumáticas, fracturas, estrés postraumático, secuestro, muerte',
+        controles_fuente: 'Mantenimiento preventivo en taller autorizado y monitoreo GPS en tiempo real',
+        controles_medio: 'Rutas seguras preestablecidas y botón de pánico conectado a central',
+        controles_individuo: 'Curso de manejo defensivo, seguridad vial y protocolo de reacción ante robos',
+        nd: 2,
+        ne: 4,
+        np: 8,
+        interpretacion_np: 'Medio (M)',
+        nc: 60,
+        nr: 480,
+        interpretacion_nr: 'II',
+        aceptabilidad: 'No Aceptable o Aceptable con Control Específico',
+        medida_eliminacion: 'No manejo de dinero en efectivo por parte de los conductores (recaudo 100% digital)',
+        medida_sustitucion: 'Programación de despachos únicamente en horarios diurnos de baja siniestralidad',
+        medida_ingenieria: 'Cámaras de telemetría (Dashcam) con alerta de fatiga y frenado autónomo',
+        medida_administrativa: 'Control de horas máximas de conducción, pausas activas viales y pruebas de alcoholemia',
+        medida_eppu: 'Chaleco reflectivo de alta visibilidad clase 2, calzado de seguridad y guantes de vaqueta',
+        factores_reduccion: 'La eliminación del efectivo en ruta y el monitoreo GPS reducen la vulnerabilidad ante delitos viales y siniestros en un 75%.',
+        nro_expuestos: 6,
+        peor_consecuencia: 'Muerte en accidente de tránsito o evento de violencia pública',
+        requisito_legal: 'Sí',
+      },
+      {
+        id: 'dummy_gtc_6',
+        cargo: 'Auxiliar de Bodega',
+        proceso: 'Almacenamiento y Despachos',
+        zona: 'Zona de Picking y Estanterías',
+        actividad: 'Manipulación manual y estibado de mercancías',
+        tareas: 'Cargue y descargue manual de cajas de hasta 25 kg y arrastre de transpaleta',
+        rutinaria: 'Sí',
+        peligro_clasificacion: 'Biomecánico',
+        peligro_descripcion: 'Manipulación manual de cargas pesadas y posturas forzadas en flexión de tronco',
+        efectos_posibles: 'Lumbalgia mecánica aguda, hernia discal lumbosacra, desgarros musculares, fatiga',
+        controles_fuente: 'Rediseño de empaques para limitar peso unitario a máximo 15 kg',
+        controles_medio: 'Uso de transpaletas hidráulicas y mesas pantográficas elevadoras',
+        controles_individuo: 'Capacitación en técnica correcta de levantamiento seguro e higiene postural',
+        nd: 2,
+        ne: 4,
+        np: 8,
+        interpretacion_np: 'Medio (M)',
+        nc: 25,
+        nr: 200,
+        interpretacion_nr: 'II',
+        aceptabilidad: 'No Aceptable o Aceptable con Control Específico',
+        medida_eliminacion: 'Automatización del paletizado con robots en líneas principales',
+        medida_sustitucion: 'Uso obligatorio de ayudas mecánicas rodantes para pesos superiores a 15 kg',
+        medida_ingenieria: 'Brazos manipuladores neumáticos ingrávidos y mesas neumáticas de nivel constante',
+        medida_administrativa: 'Programa de pausas activas osteomusculares dirigidas y rotación periódica de roles',
+        medida_eppu: 'Calzado de seguridad con plantilla ergonómica y guantes con grip',
+        factores_reduccion: 'Las mesas pantográficas neumáticas y ayudas rodantes eliminan la flexión forzada de columna y mitigan el 85% de las incapacidades por lumbalgia.',
+        nro_expuestos: 10,
+        peor_consecuencia: 'Hernia discal lumbar con limitación funcional permanente',
+        requisito_legal: 'Sí',
+      },
+      {
+        id: 'dummy_gtc_7',
+        cargo: 'Operario de Torno',
+        proceso: 'Mecanizado y Taller',
+        zona: 'Área de Máquinas Herramienta',
+        actividad: 'Mecanizado de piezas cilíndricas en torno paralelo',
+        tareas: 'Fijación de piezas en mandril, torneado de ejes y remoción de virutas',
+        rutinaria: 'Sí',
+        peligro_clasificacion: 'Condiciones de seguridad',
+        peligro_descripcion: 'Mecánico (atrapamiento en partes móviles, proyección de partículas incandescentes)',
+        efectos_posibles: 'Trauma ocular por rebabas, laceraciones profundas, atrapamiento de ropa, amputación',
+        controles_fuente: 'Pantalla protectora basculante de policarbonato con microinterruptor de seguridad',
+        controles_medio: 'Demarcación de zona de giro y piso antifatiga antideslizante',
+        controles_individuo: 'Prohibición estricta de mangas sueltas, cabello largo suelto, anillos y guantes holgados',
+        nd: 2,
+        ne: 3,
+        np: 6,
+        interpretacion_np: 'Medio (M)',
+        nc: 25,
+        nr: 150,
+        interpretacion_nr: 'II',
+        aceptabilidad: 'No Aceptable o Aceptable con Control Específico',
+        medida_eliminacion: 'Migración a centro de mecanizado CNC cerrado computarizado',
+        medida_sustitucion: 'No aplica',
+        medida_ingenieria: 'Enclavamiento electromecánico que detiene el husillo al abrir la guarda del mandril',
+        medida_administrativa: 'Procedimiento de trabajo seguro (PTS) para torneado y chequeo preoperacional diario',
+        medida_eppu: 'Gafas de seguridad Z87+ con protección lateral y careta facial de policarbonato alto impacto',
+        factores_reduccion: 'El enclavamiento de seguridad con freno electromagnético detiene el giro en menos de 0.5 segundos ante apertura accidental.',
+        nro_expuestos: 3,
+        peor_consecuencia: 'Pérdida de la visión en un ojo o amputación traumática digital',
+        requisito_legal: 'Sí',
+      },
+      {
+        id: 'dummy_gtc_8',
+        cargo: 'Analista de Laboratorio',
+        proceso: 'Control de Calidad',
+        zona: 'Laboratorio de Ensayos Químicos',
+        actividad: 'Preparación de reactivos y titulación de muestras',
+        tareas: 'Manipulación de solventes orgánicos volátiles, ácidos minerales concentrados y bases',
+        rutinaria: 'Sí',
+        peligro_clasificacion: 'Químico',
+        peligro_descripcion: 'Líquidos y vapores químicos corrosivos, inflamables y tóxicos (ácido clorhídrico, tolueno)',
+        efectos_posibles: 'Quemaduras químicas en piel y ojos, irritación del tracto respiratorio, dermatitis',
+        controles_fuente: 'Cabina de extracción de gases (vitrina química) con velocidad frontal de 0.5 m/s',
+        controles_medio: 'Ducha de emergencia con lavaojos mixto inspeccionada semanalmente',
+        controles_individuo: 'Entrenamiento en hojas de datos de seguridad SGA (FDS) y manejo de derrames',
+        nd: 2,
+        ne: 3,
+        np: 6,
+        interpretacion_np: 'Medio (M)',
+        nc: 25,
+        nr: 150,
+        interpretacion_nr: 'II',
+        aceptabilidad: 'No Aceptable o Aceptable con Control Específico',
+        medida_eliminacion: 'Reemplazo de tolueno por solventes de menor toxicidad según química verde',
+        medida_sustitucion: 'Dosificadores automáticos cerrados para evitar manipulación manual abierta',
+        medida_ingenieria: 'Cabina de flujo laminar con filtros de carbón activado y extracción al exterior',
+        medida_administrativa: 'Matriz de compatibilidad química para almacenamiento y kit para control de derrames',
+        medida_eppu: 'Bata antifluidos, monogafas químicas ventiladas, guantes de nitrilo / butilo de caña larga',
+        factores_reduccion: 'El uso permanente de la cabina de extracción para reactivos volátiles evita que las concentraciones ambientales superen el 10% del TLV-TWA.',
+        nro_expuestos: 2,
+        peor_consecuencia: 'Quemadura ocular con daño corneal severo o neumonitis química',
+        requisito_legal: 'Sí',
+      },
+      {
+        id: 'dummy_gtc_9',
+        cargo: 'Pintor Industrial',
+        proceso: 'Acabados y Recubrimientos',
+        zona: 'Cabina de Pintura Electrostática',
+        actividad: 'Aplicación de pinturas epóxicas y poliuretanos con pistola aerográfica',
+        tareas: 'Preparación de mezclas con thinner, pulverización a presión y curado en horno',
+        rutinaria: 'Sí',
+        peligro_clasificacion: 'Físico',
+        peligro_descripcion: 'Radiación térmica por horno de curado e iluminación intensa en cabina',
+        efectos_posibles: 'Estrés térmico, deshidratación, fatiga visual, cefalea, quemaduras leves por contacto',
+        controles_fuente: 'Aislamiento térmico con lana mineral en paredes del horno de curado',
+        controles_medio: 'Cabina presurizada con inyección de aire fresco climatizado',
+        controles_individuo: 'Hidratación constante en turno y pausas de recuperación térmica',
+        nd: 2,
+        ne: 3,
+        np: 6,
+        interpretacion_np: 'Medio (M)',
+        nc: 25,
+        nr: 150,
+        interpretacion_nr: 'II',
+        aceptabilidad: 'No Aceptable o Aceptable con Control Específico',
+        medida_eliminacion: 'No aplica',
+        medida_sustitucion: 'Curado por radiación infrarroja focalizada de baja disipación térmica',
+        medida_ingenieria: 'Flujo descendente (down-draft) continuo y cortinas térmicas en boca de horno',
+        medida_administrativa: 'Medición anual de estrés térmico (índice WBGT) y rotación semanal del personal',
+        medida_eppu: 'Traje Tyvek ventilado, guantes térmicos de kevlar y protección visual UV/IR',
+        factores_reduccion: 'El aislamiento térmico en paredes del horno y la ventilación de flujo laminar reducen el índice WBGT por debajo del límite permisible (Reducción del 80%).',
+        nro_expuestos: 4,
+        peor_consecuencia: 'Golpe de calor o quemadura de segundo grado',
+        requisito_legal: 'Sí',
+      },
+      {
+        id: 'dummy_gtc_10',
+        cargo: 'Asistente Administrativo',
+        proceso: 'Administración y Gestión',
+        zona: 'Oficinas Administrativas',
+        actividad: 'Procesamiento de información y digitación continua en computador',
+        tareas: 'Manejo de hojas de cálculo, digitación de facturación y archivo digital',
+        rutinaria: 'Sí',
+        peligro_clasificacion: 'Biomecánico',
+        peligro_descripcion: 'Movimiento repetitivo en miembros superiores y postura sedente prolongada mantenida',
+        efectos_posibles: 'Síndrome del túnel carpiano, tenosinovitis de Quervain, cervicalgia, espasmos musculares',
+        controles_fuente: 'Sillas ergonómicas regulables en altura con soporte lumbar según norma técnica',
+        controles_medio: 'Monitores regulables en altura y apoyapies ergonómicos graduables',
+        controles_individuo: 'Capacitación en ergonomía de oficina y pausas visuales cada 2 horas',
+        nd: 2,
+        ne: 3,
+        np: 6,
+        interpretacion_np: 'Medio (M)',
+        nc: 10,
+        nr: 60,
+        interpretacion_nr: 'III',
+        aceptabilidad: 'Mejorable',
+        medida_eliminacion: 'Software con reconocimiento de voz y digitalización automatizada de documentos',
+        medida_sustitucion: 'Mouse vertical ergonómico y teclados ergonómicos divididos',
+        medida_ingenieria: 'Escritorios con ajuste de altura para alternancia de postura sentado-de pie',
+        medida_administrativa: 'Software de alertas de pausas activas instalado en todas las terminales de trabajo',
+        medida_eppu: 'Apoyamuñecas acolchados en gel para teclado y mousepad ergonómico',
+        factores_reduccion: 'La alternancia postural y los periféricos ergonómicos reducen la tensión mecánica en el nervio mediano en más del 70%.',
+        nro_expuestos: 12,
+        peor_consecuencia: 'Síndrome del túnel carpiano bilateral con requerimiento quirúrgico',
+        requisito_legal: 'Sí',
+      },
+      {
+        id: 'dummy_gtc_11',
+        cargo: 'Supervisor de Turno',
+        proceso: 'Supervisión de Planta',
+        zona: 'Planta de Producción General',
+        actividad: 'Coordinación del personal operativo y cumplimiento de metas de despacho',
+        tareas: 'Asignación de turnos, atención de contingencias de producción y reportes diarios',
+        rutinaria: 'Sí',
+        peligro_clasificacion: 'Psicosocial',
+        peligro_descripcion: '[Dominio: Demandas del trabajo - Dimensión: Exigencias cuantitativas] Carga mental y atención a múltiples turnos',
+        efectos_posibles: 'Estrés laboral crónico, síndrome de burnout, insomnio, cefalea tensional, hipertensión',
+        controles_fuente: 'Claridad en la definición de roles y manuales de funciones actualizados',
+        controles_medio: 'Canales de comunicación asertiva y Comité de Convivencia Laboral activo',
+        controles_individuo: 'Talleres de manejo del estrés, resiliencia y liderazgo transformacional',
         nd: 2,
         ne: 2,
         np: 4,
+        interpretacion_np: 'Bajo (B)',
         nc: 25,
         nr: 100,
-        interpretacion_nr: 'III - Mejorable',
+        interpretacion_nr: 'III',
         aceptabilidad: 'Mejorable',
+        medida_eliminacion: 'Distribución equilibrada de cargas de trabajo y software de programación de turnos',
+        medida_sustitucion: 'No aplica',
+        medida_ingenieria: 'Área de descanso y desconexión con condiciones acústicas confortables',
+        medida_administrativa: 'Aplicación de Batería de Riesgo Psicosocial (Res. 2764/2022) y programa de bienestar',
+        medida_eppu: 'No aplica',
+        factores_reduccion: 'El protocolo de desconexión laboral y redistribución de turnos atenúa los picos de sobrecarga cognitiva y estrés laboral en un 55%.',
+        nro_expuestos: 4,
+        peor_consecuencia: 'Trastorno de ansiedad generalizada o episodio depresivo mayor',
+        requisito_legal: 'Sí',
+      },
+      {
+        id: 'dummy_gtc_12',
+        cargo: 'Recepcionista',
+        proceso: 'Servicio al Cliente',
+        zona: 'Recepción y Entrada Principal',
+        actividad: 'Atención al público, contratistas y proveedores externos',
+        tareas: 'Registro de visitantes en sistema, entrega de fichas de acceso y recepción de correspondencia',
+        rutinaria: 'Sí',
+        peligro_clasificacion: 'Biológico',
+        peligro_descripcion: 'Exposición a virus y bacterias de transmisión por gotas y contacto en atención al público',
+        efectos_posibles: 'Infecciones respiratorias agudas, influenza estacional, rinitis, conjuntivitis',
+        controles_fuente: 'Pantalla de protección acrílica transparente en el mostrador de atención',
+        controles_medio: 'Dispensador automático de gel antibacterial y ventilación natural constante',
+        controles_individuo: 'Capacitación en protocolo de bioseguridad, etiqueta de tos y lavado de manos',
+        nd: 2,
+        ne: 2,
+        np: 4,
+        interpretacion_np: 'Bajo (B)',
+        nc: 10,
+        nr: 40,
+        interpretacion_nr: 'III',
+        aceptabilidad: 'Mejorable',
+        medida_eliminacion: 'Kiosco de autorregistro digital con lectura de código QR de visitantes',
+        medida_sustitucion: 'No aplica',
+        medida_ingenieria: 'Purificador de aire con filtro HEPA e ionizador en la sala de espera',
+        medida_administrativa: 'Protocolo de limpieza y desinfección de superficies de contacto frecuente cada 3 horas',
+        medida_eppu: 'Mascarilla quirúrgica disponible para casos de síntomas respiratorios',
+        factores_reduccion: 'El mostrador con barrera acrílica y purificación de aire mitiga el riesgo de dispersión de aerosoles a un nivel aceptable de bajo impacto.',
+        nro_expuestos: 2,
+        peor_consecuencia: 'Infección respiratoria aguda con incapacidad temporal',
+        requisito_legal: 'Sí',
+      },
+      {
+        id: 'dummy_gtc_13',
+        cargo: 'Técnico Electricista',
+        proceso: 'Mantenimiento e Infraestructura',
+        zona: 'Subestación y Tableros Eléctricos',
+        actividad: 'Mantenimiento preventivo y correctivo de redes de baja y media tensión',
+        tareas: 'Revisión de acometidas, termografía de tableros, ajuste de bornes y cambio de breakers',
+        rutinaria: 'Sí',
+        peligro_clasificacion: 'Condiciones de seguridad',
+        peligro_descripcion: 'Eléctrico (contacto directo o indirecto con partes energizadas y arco eléctrico)',
+        efectos_posibles: 'Electrocución, fibrilación ventricular, quemaduras de tercer grado por arco eléctrico, muerte',
+        controles_fuente: 'Tableros con frente muerto, interruptores diferenciales y puesta a tierra certificada RETIE',
+        controles_medio: 'Tapetes dieléctricos frente a tableros, candados y tarjetas de bloqueo LOTO',
+        controles_individuo: 'Certificación CONTE vigente, aplicación estricta de las 5 Reglas de Oro',
+        nd: 6,
+        ne: 3,
+        np: 18,
+        interpretacion_np: 'Alto (A)',
+        nc: 100,
+        nr: 1800,
+        interpretacion_nr: 'I',
+        aceptabilidad: 'No Aceptable',
+        medida_eliminacion: 'Desenergización total de circuitos antes de cualquier intervención',
+        medida_sustitucion: 'Inspección termográfica infrarroja a distancia sin apertura de tableros',
+        medida_ingenieria: 'Instalación de relés de protección contra arco eléctrico y seccionadores con bloqueo mecánico',
+        medida_administrativa: 'Permiso de trabajo eléctrico en caliente y procedimiento LOTO auditado',
+        medida_eppu: 'Traje ignífugo categoría 2/4 cal/cm², guantes dieléctricos clase 00/0, casco y botas dieléctricas',
+        factores_reduccion: 'La aplicación estricta de las 5 Reglas de Oro con bloqueo LOTO y relés de arco eléctrico reduce el nivel de riesgo en un 90%, evitando accidentes fatales.',
+        nro_expuestos: 3,
+        peor_consecuencia: 'Muerte por electrocución o quemaduras severas por arco eléctrico',
+        requisito_legal: 'Sí',
+      },
+      {
+        id: 'dummy_gtc_14',
+        cargo: 'Operario de Maquinaria Pesada',
+        proceso: 'Operaciones de Planta',
+        zona: 'Planta de Compresores y Troquelado',
+        actividad: 'Operación continua de prensas mecánicas y compresores industriales',
+        tareas: 'Alimentación de lámina metálica, supervisión de ciclos de prensado y purga de líneas',
+        rutinaria: 'Sí',
+        peligro_clasificacion: 'Físico',
+        peligro_descripcion: 'Ruido continuo y de impacto superior a 85 dB(A) y vibración cuerpo entero/mano-brazo',
+        efectos_posibles: 'Hipoacusia neurosensorial inducida por ruido, acúfenos, fatiga auditiva, síndrome de Raynaud',
+        controles_fuente: 'Encapsulamiento acústico de compresores y amortiguadores antivibratorios en bancadas',
+        controles_medio: 'Cabinas insonorizadas de control y señalización de áreas de protección auditiva obligatoria',
+        controles_individuo: 'Audiometrías ocupacionales periódicas y capacitación en conservación auditiva',
+        nd: 6,
+        ne: 4,
+        np: 24,
+        interpretacion_np: 'Muy Alto (MA)',
+        nc: 25,
+        nr: 600,
+        interpretacion_nr: 'I',
+        aceptabilidad: 'No Aceptable',
+        medida_eliminacion: 'No aplica',
+        medida_sustitucion: 'Reemplazo de boquillas neumáticas abiertas por boquillas silenciosas Venturi',
+        medida_ingenieria: 'Paneles fonoabsorbentes perimetrales y silenciadores neumáticos en escapes de válvulas',
+        medida_administrativa: 'Programa de Vigilancia Epidemiológica (PVE) Auditivo y rotación de puestos de exposición',
+        medida_eppu: 'Doble protección auditiva (inserción + copa NRR 28 dB) y guantes antivibración certificados',
+        factores_reduccion: 'El encapsulamiento acústico en la fuente combinado con silenciadores neumáticos atenúa la presión sonora por debajo de 80 dB(A), reduciendo el riesgo en un 85%.',
+        nro_expuestos: 8,
+        peor_consecuencia: 'Pérdida auditiva neurosensorial bilateral irreversible (Hipoacusia ocupacional)',
+        requisito_legal: 'Sí',
+      },
+      {
+        id: 'dummy_gtc_15',
+        cargo: 'Personal Operativo y Administrativo',
+        proceso: 'Toda la Organización',
+        zona: 'Instalaciones Generales y Edificaciones',
+        actividad: 'Permanencia y ejecución de labores en las instalaciones de la empresa',
+        tareas: 'Actividades operativas, administrativas y atención de emergencias en planta y oficinas',
+        rutinaria: 'Sí',
+        peligro_clasificacion: 'Fenómenos naturales',
+        peligro_descripcion: 'Fenómenos naturales (sismo, terremoto, vendaval, tormenta eléctrica e inundación)',
+        efectos_posibles: 'Aplastamiento por colapso estructural, politraumatismos, heridas múltiples, pánico colectivo, muerte',
+        controles_fuente: 'Certificación de sismorresistencia NSR-10 y mantenimiento de cubiertas y drenajes',
+        controles_medio: 'Sistema de alarma sonora/visual de evacuación, iluminación de emergencia y rutas señalizadas',
+        controles_individuo: 'Conformación y entrenamiento de la Brigada de Emergencias y simulacros anuales',
+        nd: 2,
+        ne: 2,
+        np: 4,
+        interpretacion_np: 'Bajo (B)',
+        nc: 100,
+        nr: 400,
+        interpretacion_nr: 'II',
+        aceptabilidad: 'No Aceptable o Aceptable con Control Específico',
         medida_eliminacion: 'No aplica',
         medida_sustitucion: 'No aplica',
-        medida_ingenieria: 'Fumigación y cerramiento perimetral de la zona de excavación',
-        medida_administrativa: 'Protocolo de primeros auxilios y disponibilidad de suero antiofídico en centro de referencia',
-        medida_eppu: 'Botas de caña alta, polainas de cuero rígido, guantes de vaqueta largos',
-        nro_expuestos: 12,
-        peor_consecuencia: 'Shock anafiláctico o falla multiorgánica por envenenamiento',
+        medida_ingenieria: 'Anclaje estructural de estanterías pesadas, película antiesquirlas en vidrios y pararrayos Franklin',
+        medida_administrativa: 'Plan de Prevención, Preparación y Respuesta ante Emergencias (PPRE) y MEDEVAC activo',
+        medida_eppu: 'Dotación completa de brigadistas (cascos, botiquines trauma, camillas rígidas y megáfonos)',
+        factores_reduccion: 'El anclaje estructural sismorresistente y el entrenamiento de la brigada con simulacros periódicos reducen la vulnerabilidad operativa y el tiempo de evacuación en un 80%.',
+        nro_expuestos: 58,
+        peor_consecuencia: 'Mortalidad múltiple por colapso estructural o atrapamiento en emergencia',
         requisito_legal: 'Sí',
       },
     ];
@@ -1191,7 +1501,7 @@ export default function MatrizIPEVARTable({
     isDirtyRef.current = true;
     saveMatrixData(dummyRows);
     showToast({
-      message: 'Datos de prueba GTC-45 generados y guardados exitosamente.',
+      message: '15 riesgos de prueba GTC-45 generados y guardados exitosamente.',
       status: 'success',
       severity: 'success',
     });
@@ -1685,6 +1995,7 @@ export default function MatrizIPEVARTable({
   const [availableCargos, setAvailableCargos] = useState<string[]>([]);
   const [isAutoAssigningCargos, setIsAutoAssigningCargos] = useState(false);
   const [isSyncingControles, setIsSyncingControles] = useState(false);
+  const [isGeneratingAiRisks, setIsGeneratingAiRisks] = useState(false);
   const [sortField, setSortField] = useState<
     'cargo' | 'proceso' | 'nr' | 'peligro_clasificacion' | 'interpretacion_nr' | ''
   >('');
@@ -2158,6 +2469,50 @@ export default function MatrizIPEVARTable({
       });
     } finally {
       setIsSyncingControles(false);
+    }
+  };
+
+  // ── Generar Matriz de Peligros con IA (Mínimo 15 Riesgos GTC-45) ──────────
+  const handleAiGenerateRisks = async () => {
+    try {
+      setIsGeneratingAiRisks(true);
+      const res = await fetch('/api/sgsst/gtc45-workspace/ai-generate-risks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ modelName: selectedModel }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || 'Error al generar riesgos con IA');
+      }
+      if (data.matrixRows && Array.isArray(data.matrixRows) && data.matrixRows.length > 0) {
+        const normalized = data.matrixRows.map((r: any) => ({
+          ...r,
+          proceso: toSentenceCase(r.proceso),
+          cargo: toSentenceCase(r.cargo),
+          zona: toSentenceCase(r.zona),
+        }));
+        const combined = [...normalized, ...matrixRows];
+        setMatrixRows(combined);
+        isDirtyRef.current = true;
+        saveMatrixData(combined);
+        showToast({
+          message: `¡Se generaron ${normalized.length} nuevos riesgos laborales con IA bajo la GTC 45:2012!`,
+          status: 'success',
+          severity: 'success',
+        });
+      }
+    } catch (error: any) {
+      console.error('[MatrizIPEVARTable] Error generating AI risks:', error);
+      showToast({
+        message: error.message || 'Error al generar riesgos con IA.',
+        status: 'error',
+      });
+    } finally {
+      setIsGeneratingAiRisks(false);
     }
   };
 
@@ -2891,6 +3246,16 @@ export default function MatrizIPEVARTable({
             isAnalyzing={isAnalyzing}
             aiButtons={[
               {
+                id: 'generate-risks-ai-official',
+                onClick: handleAiGenerateRisks,
+                title: 'Generar mínimo 15 peligros laborales con IA para la empresa activa (GTC 45:2012)',
+                label: isGeneratingAiRisks ? 'Generando Peligros…' : 'Generar Peligros con IA',
+                icon: Sparkles,
+                variant: 'ai',
+                disabled: isGeneratingAiRisks,
+                isLoading: isGeneratingAiRisks,
+              },
+              {
                 id: 'auto-assign-cargos-official',
                 onClick: handleAutoAssignCargos,
                 title: 'Auto-asignar cargos con IA a todas las filas según los perfiles de la empresa',
@@ -3027,6 +3392,29 @@ export default function MatrizIPEVARTable({
                 </div>
               </button>
 
+              {/* Generar Peligros con IA (15+ Riesgos GTC-45) */}
+              <button
+                type="button"
+                onClick={handleAiGenerateRisks}
+                disabled={isGeneratingAiRisks}
+                title="Generar Peligros con IA (Mínimo 15 Riesgos GTC-45)"
+                aria-label="Generar Peligros con IA"
+                className="group flex h-8 min-w-[32px] px-2 sm:h-9 sm:min-w-[36px] sm:px-2.5 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
+              >
+                <div className="relative flex flex-shrink-0 items-center justify-center">
+                  {isGeneratingAiRisks ? (
+                    <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                  )}
+                </div>
+                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                  <span className="text-xs font-bold tracking-wide">
+                    {isGeneratingAiRisks ? 'Generando Peligros…' : 'Generar con IA'}
+                  </span>
+                </div>
+              </button>
+
               {/* Asignar Cargos IA */}
               {matrixRows.length > 0 && (
                 <button
@@ -3051,6 +3439,34 @@ export default function MatrizIPEVARTable({
                   </div>
                 </button>
               )}
+
+              {/* Vaciar Matriz */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (matrixRows.length === 0) {
+                    showToast({ message: 'La matriz ya está vacía.', status: 'info' });
+                    return;
+                  }
+                  if (window.confirm('¿Estás seguro de que deseas vaciar completamente la matriz de riesgos actual?')) {
+                    setMatrixRows([]);
+                    setChartConclusions({});
+                    isDirtyRef.current = true;
+                    saveMatrixData([]);
+                    showToast({ message: 'Matriz vaciada correctamente.', status: 'info' });
+                  }
+                }}
+                title="Vaciar Matriz"
+                aria-label="Vaciar Matriz"
+                className="group flex h-8 min-w-[32px] px-2 sm:h-9 sm:min-w-[36px] sm:px-2.5 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 shadow-xs transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
+              >
+                <div className="relative flex flex-shrink-0 items-center justify-center">
+                  <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                </div>
+                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                  <span className="text-xs font-bold tracking-wide">Vaciar Matriz</span>
+                </div>
+              </button>
 
               {/* Pantalla Completa */}
               <button
@@ -3111,6 +3527,25 @@ export default function MatrizIPEVARTable({
                 <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                 <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
                   Añadir Riesgo
+                </span>
+              </button>
+
+              {/* Generar Peligros con IA (15+ Riesgos GTC-45) */}
+              <button
+                type="button"
+                onClick={handleAiGenerateRisks}
+                disabled={isGeneratingAiRisks}
+                title="Generar Peligros con IA (Mínimo 15 Riesgos GTC-45)"
+                aria-label="Generar Peligros con IA"
+                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
+              >
+                {isGeneratingAiRisks ? (
+                  <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                )}
+                <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
+                  {isGeneratingAiRisks ? 'Generando…' : 'Generar con IA'}
                 </span>
               </button>
 
