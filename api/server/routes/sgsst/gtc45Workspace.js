@@ -1770,20 +1770,45 @@ router.post('/auto-assign-cargos', requireJwtAuth, async (req, res) => {
           .join('\n\n')
       : 'No hay cargos registrados previamente en el aplicativo de Perfiles de la empresa.';
 
-    // 4. Preparar resumen compacto de filas para optimizar tokens
-    const rowsSummary = matrixRows.map((r, index) => ({
-      index,
-      proceso: r.proceso || '',
-      zona: r.zona || '',
-      actividad: r.actividad || '',
-      tareas: r.tareas || '',
-      peligro: r.peligro_descripcion || '',
-      clasificacion: r.peligro_clasificacion || '',
-      cargoActual: r.cargo || '',
+    // 4. Agrupar filas por combinación única de (proceso, actividad, tareas) para evitar truncamiento en matrices de miles de filas
+    const uniqueGroupMap = new Map();
+    const rowGroupKeys = [];
+
+    matrixRows.forEach((r, idx) => {
+      const proc = String(r.proceso || '').trim();
+      const act = String(r.actividad || '').trim();
+      const tar = String(r.tareas || '').trim();
+      const groupKey = `${proc.toLowerCase()}|${act.toLowerCase()}|${tar.toLowerCase()}`;
+      rowGroupKeys[idx] = groupKey;
+
+      if (!uniqueGroupMap.has(groupKey)) {
+        uniqueGroupMap.set(groupKey, {
+          groupIndex: uniqueGroupMap.size,
+          proceso: proc,
+          zona: String(r.zona || '').trim(),
+          actividad: act,
+          tareas: tar,
+          peligro: String(r.peligro_descripcion || '').trim(),
+          clasificacion: String(r.peligro_clasificacion || '').trim(),
+          cargoActual: String(r.cargo || '').trim(),
+        });
+      }
+    });
+
+    const uniqueGroups = Array.from(uniqueGroupMap.values()).slice(0, 120);
+    const rowsSummary = uniqueGroups.map((g) => ({
+      index: g.groupIndex,
+      proceso: g.proceso,
+      zona: g.zona,
+      actividad: g.actividad,
+      tareas: g.tareas,
+      peligro: g.peligro,
+      clasificacion: g.clasificacion,
+      cargoActual: g.cargoActual,
     }));
 
     const prompt = `Eres un Director Senior de Seguridad y Salud en el Trabajo (SG-SST) y Recursos Humanos experto en perfiles de cargo, profesiogramas y matrices de peligros IPEVR (GTC-45:2012).
-Tu misión es ASIGNAR con la máxima precisión el CARGO o puesto de trabajo correspondiente a cada fila de la matriz de riesgos.
+Tu misión es ASIGNAR con la máxima precisión el CARGO o puesto de trabajo correspondiente a cada actividad/fila de la matriz de riesgos.
 
 CONTEXTO EMPRESARIAL:
 ${companyContext || 'No especificado'}
@@ -1791,19 +1816,16 @@ ${companyContext || 'No especificado'}
 CATÁLOGO DE PERFILES DE CARGO REGISTRADOS EN LA EMPRESA (CON SU DESCRIPCIÓN Y ACTIVIDADES):
 ${perfilesFormatText}
 
-FILAS A CLASIFICAR (Array JSON):
+GRUPOS DE ACTIVIDADES A CLASIFICAR (Array JSON):
 ${JSON.stringify(rowsSummary, null, 2)}
 
 REGLA CLAVE DE ORO (LA ACTIVIDAD DE LA MATRIZ DEBE PARECERSE A LA DESCRIPCIÓN DEL PERFIL):
-1. Revisa con sumo cuidado el texto de "actividad" y "tareas" de cada fila de la matriz.
+1. Revisa con sumo cuidado el texto de "actividad" y "tareas" de cada grupo de la matriz.
 2. Compara dicha labor contra la "DESCRIPCIÓN Y ACTIVIDADES DEL PERFIL" de cada perfil de cargo de la empresa listado arriba.
-3. Si la actividad de la fila coincide, se asemeja, se relaciona o describe funciones que forman parte de la descripción de un perfil registrado:
+3. Si la actividad coincide, se asemeja, se relaciona o describe funciones que forman parte de la descripción de un perfil registrado:
    - ASIGNA EXACTAMENTE EL NOMBRE DE ESE CARGO ("nombreCargo" exacto del catálogo registrado).
-   - Ejemplo: Si la actividad dice "Socio director, socios gerentes (administrativo...)" o describe labores gerenciales o directivas, compárala con la descripción de los perfiles directivos registrados (ej: "Director de Proyecto / Gerente de Obra" o "Socio Director") y asígnalo.
-   - Ejemplo: Si la actividad describe excavaciones, zanjas o movimiento de tierras, emparéjala con el perfil de cargo cuya descripción abarca esa labor ("Operador de Excavadora", "Ayudante Práctico de Excavación", etc.).
-   - Ejemplo: Si la actividad describe encofrados, formaleta o armado de vigas, compárala con "Oficial de Encofrados y Formaleta", etc.
-4. Si una fila YA tiene un cargo asignado en "cargoActual" que coincide con uno de los cargos de la empresa y es coherente con la actividad, CONSÉRVALO. Si está vacío o dice "Cargo / Rol...", asígnalo obligatoriamente.
-5. Solo si la actividad de la fila es completamente ajena y no guarda ninguna relación con ninguno de los perfiles registrados de la empresa, asigna un nombre de cargo profesional, técnico y formal en español acorde a la labor.
+4. Si una fila YA tiene un cargo asignado en "cargoActual" que es válido y coherente con la actividad, CONSÉRVALO. Si está vacío o dice "Cargo / Rol...", asígnalo obligatoriamente.
+5. Solo si la actividad es ajena a los perfiles registrados, asigna un nombre de cargo profesional, técnico y específico en español acorde a la labor (prohibido usar "Operario General" o "Operario" genérico si la tarea es administrativa, clínica o profesional).
 
 FORMATO DE SALIDA:
 Responde ÚNICAMENTE con un JSON array válido de objetos con este formato exacto, sin texto adicional ni bloques markdown (\`\`\`json):
@@ -1822,10 +1844,10 @@ Responde ÚNICAMENTE con un JSON array válido de objetos con este formato exact
     } catch (e) {
       logger.warn('[GTC45Workspace /auto-assign-cargos] Direct JSON parse failed, repairing...', e.message);
       const startIdx = text.indexOf('[');
-      const endIdx = text.lastIndexOf(']');
-      if (startIdx !== -1 && endIdx !== -1) {
+      const lastObjEnd = text.lastIndexOf('}');
+      if (startIdx !== -1 && lastObjEnd !== -1 && lastObjEnd > startIdx) {
         try {
-          assignedList = JSON.parse(text.substring(startIdx, endIdx + 1));
+          assignedList = JSON.parse(text.substring(startIdx, lastObjEnd + 1) + ']');
         } catch (e2) {
           logger.error('[GTC45Workspace /auto-assign-cargos] Repair failed:', e2.message);
         }
@@ -1836,18 +1858,34 @@ Responde ÚNICAMENTE con un JSON array válido de objetos con este formato exact
       throw new Error('La respuesta de la IA no tuvo el formato esperado.');
     }
 
-    const assignedMap = new Map();
+    const assignedGroupMap = new Map();
+    const groupByIndex = new Map();
+    for (const [gKey, gObj] of uniqueGroupMap.entries()) {
+      groupByIndex.set(gObj.groupIndex, gKey);
+    }
+
     assignedList.forEach(item => {
       if (item && item.index !== undefined && item.cargo) {
-        assignedMap.set(Number(item.index), toSentenceCase(item.cargo));
+        const gKey = groupByIndex.get(Number(item.index));
+        if (gKey) {
+          assignedGroupMap.set(gKey, toSentenceCase(item.cargo));
+        }
       }
     });
 
     const updatedRows = matrixRows.map((row, idx) => {
-      const assignedCargo = assignedMap.get(idx);
+      const gKey = rowGroupKeys[idx];
+      const assignedCargo = gKey ? assignedGroupMap.get(gKey) : undefined;
+      const existingCargo = String(row.cargo || '').trim();
+      const validExistingCargo =
+        existingCargo &&
+        !existingCargo.toLowerCase().includes('cargo / rol') &&
+        existingCargo.toLowerCase() !== 'cargo'
+          ? toSentenceCase(existingCargo)
+          : '';
       return {
         ...row,
-        cargo: assignedCargo || toSentenceCase(row.cargo || 'Operario General'),
+        cargo: assignedCargo || validExistingCargo || toSentenceCase(row.proceso || 'Colaborador del Proceso'),
         proceso: toSentenceCase(row.proceso || ''),
         zona: toSentenceCase(row.zona || '')
       };

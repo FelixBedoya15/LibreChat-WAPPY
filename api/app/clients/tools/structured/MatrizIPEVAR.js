@@ -248,6 +248,40 @@ class MatrizIPEVAR extends Tool {
         if (filtro_peligro) {
           filteredRows = filteredRows.filter(r => r.peligro_clasificacion && r.peligro_clasificacion.toLowerCase().includes(filtro_peligro.toLowerCase()));
         }
+
+        const MAX_TOOL_ROWS = 60;
+        if (filteredRows.length > MAX_TOOL_ROWS) {
+          const porNivelRiesgo = { I: 0, II: 0, III: 0, IV: 0 };
+          const porClasificacion = {};
+          const procesosSet = new Set();
+          const cargosSet = new Set();
+
+          filteredRows.forEach(r => {
+            const niv = String(r.interpretacion_nr || '').trim().toUpperCase();
+            if (porNivelRiesgo[niv] !== undefined) porNivelRiesgo[niv]++;
+            const clas = String(r.peligro_clasificacion || 'Sin clasificar').trim();
+            porClasificacion[clas] = (porClasificacion[clas] || 0) + 1;
+            if (r.proceso) procesosSet.add(r.proceso);
+            if (r.cargo) cargosSet.add(r.cargo);
+          });
+
+          const topCriticos = [...filteredRows]
+            .sort((a, b) => (Number(b.nr) || 0) - (Number(a.nr) || 0))
+            .slice(0, MAX_TOOL_ROWS);
+
+          return JSON.stringify({
+            mensaje: `Se encontraron ${filteredRows.length} riesgos en la matriz. Para optimizar la ventana de contexto y evitar errores de límite de tokens, se entrega el resumen estadístico completo de los ${filteredRows.length} registros junto con la muestra de los ${MAX_TOOL_ROWS} riesgos más críticos (ordenados por Nivel de Riesgo NR descendente). Puedes usar filtro_proceso, filtro_cargo, filtro_actividad o filtro_peligro para consultar segmentos específicos.`,
+            totalRegistros: rows.length,
+            registrosCoincidentes: filteredRows.length,
+            resumenEstadistico: {
+              porNivelRiesgo,
+              porClasificacion,
+              procesos: Array.from(procesosSet).slice(0, 50),
+              cargos: Array.from(cargosSet).slice(0, 50),
+            },
+            resultadosMuestraCritica: topCriticos,
+          });
+        }
         
         return JSON.stringify({
           mensaje: `Se encontraron ${filteredRows.length} riesgos.`,

@@ -51,8 +51,10 @@ export function normalizeColumnName(str: any): string {
 }
 
 const STOP_WORDS = new Set([
-  'de', 'del', 'la', 'el', 'los', 'las', 'en', 'y', 'o', 'a', 'para', 'por', 'un', 'una',
-  'valor', 'nivel', 'tabla', 'columna', 'formato'
+  'de', 'del', 'la', 'el', 'los', 'las', 'en', 'y', 'o', 'a', 'para', 'por', 'un', 'una', 'con', 'segun',
+  'valor', 'nivel', 'tabla', 'columna', 'formato', 'control', 'controles', 'medida', 'medidas',
+  'riesgo', 'riesgos', 'peligro', 'peligros', 'intervencion', 'implementacion', 'evaluacion',
+  'identificacion', 'analisis', 'plan', 'gestion', 'existentes', 'existente'
 ]);
 
 /**
@@ -63,16 +65,68 @@ export function calculateMatchScore(candidate: any, targetKey: string, targetLab
   const normCandidate = normalizeColumnName(candStr);
   if (!normCandidate) return 0;
 
-  // Evitar que campos numéricos de evaluación (nd, ne, np, nc, nr) se asocien por error a columnas cualitativas de "Interpretación"
-  if (['nd', 'ne', 'np', 'nc', 'nr'].includes(targetKey) && (normCandidate.includes('interpretacion') || normCandidate.includes('significado'))) {
+  // Evitar que campos numéricos de evaluación (nd, ne, np, nc, nr) se asocien por error a columnas cualitativas, horas, expuestos o peor consecuencia
+  if (
+    ['nd', 'ne', 'np', 'nc', 'nr'].includes(targetKey) &&
+    (normCandidate.includes('interpretacion') ||
+      normCandidate.includes('significado') ||
+      normCandidate.includes('aceptabilidad') ||
+      normCandidate.includes('peor') ||
+      normCandidate.includes('hora') ||
+      normCandidate.includes('expuest'))
+  ) {
     return 0;
   }
   if (['interpretacion_np', 'interpretacion_nr'].includes(targetKey) && !normCandidate.includes('interpretacion') && !normCandidate.includes('significado')) {
     return 0;
   }
 
+  // Evitar que columnas de seguimiento/auditoría ("Recursos", "Responsable", "Fecha", "Estado", "Personas Expuestas") contaminen controles o medidas
+  if (
+    [
+      'controles_fuente',
+      'controles_medio',
+      'controles_individuo',
+      'medida_eliminacion',
+      'medida_sustitucion',
+      'medida_ingenieria',
+      'medida_administrativa',
+      'medida_eppu',
+    ].includes(targetKey) &&
+    (normCandidate.includes('expuest') ||
+      normCandidate.includes('visitante') ||
+      normCandidate.includes('contratista') ||
+      normCandidate.includes('funcionario') ||
+      normCandidate.includes('recurso') ||
+      normCandidate.includes('responsable') ||
+      normCandidate.includes('fecha') ||
+      normCandidate.includes('verificacion') ||
+      normCandidate.includes('estado') ||
+      normCandidate.includes('disminuir') ||
+      normCandidate.includes('participaron') ||
+      normCandidate.includes('implemento') ||
+      normCandidate.includes('finalizo') ||
+      normCandidate.includes('nuevasacciones') ||
+      normCandidate.includes('peorconsecuencia'))
+  ) {
+    return 0;
+  }
+
   // REGLA CRÍTICA: 'zona' NUNCA debe capturar 'tarea' o 'tareas' (porque 'tarea' termina en 'area') ni preguntas de control
   if (targetKey === 'zona' && (normCandidate === 'tarea' || normCandidate.startsWith('tarea') || candStr.includes('?') || candStr.includes('¿'))) {
+    return 0;
+  }
+
+  // Evitar que 'peor_consecuencia' capture 'Nivel de Consecuencia (NC)'
+  if (targetKey === 'peor_consecuencia' && !normCandidate.includes('peor') && (normCandidate.includes('nivel') || /\bnc\b/i.test(candStr))) {
+    return 0;
+  }
+
+  // Evitar cruces en interpretacion_np e interpretacion_nr
+  if (targetKey === 'interpretacion_np' && (normCandidate.includes('deficiencia') || normCandidate.includes('riesgo') || /\bnr\b/i.test(candStr))) {
+    return 0;
+  }
+  if (targetKey === 'interpretacion_nr' && (normCandidate.includes('deficiencia') || normCandidate.includes('probabilidad') || normCandidate.includes('exposicion') || /\bnp\b/i.test(candStr))) {
     return 0;
   }
 
@@ -90,6 +144,47 @@ export function calculateMatchScore(candidate: any, targetKey: string, targetLab
   }
   if (targetKey === 'peligro_descripcion' && (normCandidate === 'descripcion' || (normCandidate.includes('descripcion') && (normCandidate.includes('peligro') || normCandidate.includes('riesgo'))))) {
     return 0.98;
+  }
+  if (targetKey === 'efectos_posibles') {
+    if (normCandidate === 'efectosposibles' || normCandidate.includes('descripciondelefecto')) return 0.98;
+    if (normCandidate.includes('efectosposibles') && !normCandidate.includes('categoriadeldano') && !normCandidate.includes('niveldedano')) return 0.95;
+  }
+  if (targetKey === 'peor_consecuencia' && normCandidate.includes('peor') && normCandidate.includes('consecuencia')) {
+    return 0.99;
+  }
+  if (targetKey === 'nd' && (normCandidate.includes('niveldedeficiencia') || normCandidate.includes('niveldeficiencia') || /\bnd\b/i.test(candStr))) {
+    return 0.98;
+  }
+  if (targetKey === 'ne' && (normCandidate.includes('niveldeexposicion') || normCandidate.includes('nivelexposicion') || /\bne\b/i.test(candStr))) {
+    return 0.98;
+  }
+  if (targetKey === 'np' && (normCandidate.includes('niveldeprobabilidad') || normCandidate.includes('nivelprobabilidad') || /\bnp\b/i.test(candStr))) {
+    return 0.98;
+  }
+  if (targetKey === 'interpretacion_np' && normCandidate.includes('interpretacion') && (normCandidate.includes('probabilidad') || /\bnp\b/i.test(candStr))) {
+    return 0.98;
+  }
+  if (targetKey === 'nc' && (normCandidate.includes('niveldeconsecuencia') || normCandidate.includes('nivelconsecuencia') || /\bnc\b/i.test(candStr))) {
+    return 0.98;
+  }
+  if (targetKey === 'nr' && (normCandidate.includes('nivelderiesgo') || normCandidate.includes('nivelriesgo') || /\bnr\b/i.test(candStr))) {
+    return 0.98;
+  }
+  if (targetKey === 'interpretacion_nr' && normCandidate.includes('interpretacion') && (normCandidate.includes('riesgo') || /\bnr\b/i.test(candStr))) {
+    return 0.98;
+  }
+  if (targetKey === 'controles_fuente' && normCandidate.includes('fuente')) {
+    return 0.97;
+  }
+  if (targetKey === 'controles_medio' && normCandidate.includes('medio') && !normCandidate.includes('ambiente') && !normCandidate.includes('ambeinte')) {
+    return 0.97;
+  }
+  if (targetKey === 'controles_individuo' && (normCandidate.includes('individuo') || normCandidate.includes('persona') || normCandidate.includes('trabajador'))) {
+    return 0.97;
+  }
+  if (targetKey === 'nro_expuestos') {
+    if (normCandidate.includes('numerodeexpuestos') || normCandidate.includes('nroexpuestos') || normCandidate.includes('nodeexpuestos') || normCandidate.includes('funcionarios') || normCandidate.includes('planta')) return 0.97;
+    if (normCandidate.includes('personasexpuestas')) return 0.90;
   }
   if (targetKey === 'actividad') {
     if (normCandidate === 'actividad' || normCandidate.startsWith('actividad')) return 0.98;
@@ -162,13 +257,17 @@ const HEADER_KEYWORDS_REGEX = /\b(nd|ne|np|nc|nr|epp|nit)\b|proceso|zona|lugar|[
 
 const METADATA_BANNER_REGEX = /^(versi[oó]n|p[aá]gina|\d+\s*de\s*\d+|fecha\s*de\s*vigencia|fecha\s*de\s*elaboraci[oó]n|c[oó]digo|nit|instrucciones\s*para\s*diligenciar|tabla\s*\d+|aceptabilidad\s*del\s*riesgo\s*:?)$/i;
 
-const SUPER_CATEGORY_BANNER_REGEX = /^(evaluaci[oó]n\s+del\s+riesgo|gesti[oó]n\s+del\s+riesgo|identificaci[oó]n\s+del\s+peligro|valoraci[oó]n\s+del\s+riesgo|medidas\s+de\s+intervenci[oó]n|riesgo\s+y\s+consecuencia|peligros?\s+y\s+riesgos?|peligro\s*\/\s*riesgo)/i;
+const SUPER_CATEGORY_BANNER_REGEX = /^(evaluaci[oó]n\s+del\s+riesgo|gesti[oó]n\s+del\s+riesgo|identificaci[oó]n\s+(y\s+an[aá]lisis\s+)?del\s+peligro|valoraci[oó]n\s+del\s+riesgo|medidas\s+de\s+intervenci[oó]n|tratamiento\s+del\s+riesgo|plan\s+de\s+implementaci[oó]n(\s+de\s+controles)?|evaluaci[oó]n\s+de\s+controles(\s+implementados)?|riesgo\s+y\s+consecuencia|peligros?\s+y\s+riesgos?|peligro\s*\/\s*riesgo|criterios\s+para\s+establecer\s+controles)/i;
 
 const SELF_DESCRIPTIVE_SUBHEADER_REGEX = /^(nivel\s+de|interpretaci[oó]n|aceptabilidad|existencia\s+de|elementos\s+de|controles\s+en|controles\s+de|controles\s+sobre|proceso|actividad|tarea|[aá]rea|zona|cargo|clasificaci[oó]n|descripci[oó]n|efectos|peor\s+consecuencia|requisito|eliminaci[oó]n|sustituci[oó]n|horas\s+de|rutinari|\b(nd|ne|np|nc|nr)\b)/i;
 
-const CONTEXT_CARRY_COL_REGEX = /^(n[º°o]|item|proceso|[aá]rea|sitio|zona|lugar|ubicaci[oó]n|cargo|actividad|tarea|rutinari|sede|personas\s+expuestas|horas\s+de\s+exposici[oó]n|clasificaci[oó]n\s+de\s+peligro|clasificaci[oó]n\s+del\s+peligro)/i;
+const CONTEXT_CARRY_COL_REGEX = /^(n[º°o]|item|proceso|[aá]rea|sitio|zona|lugar|ubicaci[oó]n|cargo|actividad|tarea|rutinari|sede|personas\s+expuestas|horas\s+de\s+exposici[oó]n)/i;
 
-const HAZARD_SPECIFIC_COL_REGEX = /(descripci[oó]n\s+del\s+peligro|peligro|efectos\s+posibles|categor[ií]a\s+del\s+da[ñn]o|nivel\s+de\s+da[ñn]o|nivel\s+de\s+deficiencia|nivel\s+de\s+exposici[oó]n|nivel\s+de\s+consecuencia|peor\s+consecuencia|controles\s+administrativo|requisitos\s+legales|existencia\s+de\s+requisito|\b(nd|ne|nc)\b)/i;
+const HAZARD_SPECIFIC_COL_REGEX = /(descripci[oó]n\s+del\s+peligro|descripci[oó]n|clasificaci[oó]n\s+del?\s+peligro|clasificaci[oó]n|peligro|efectos\s+posibles|categor[ií]a\s+del\s+da[ñn]o|nivel\s+de\s+da[ñn]o|nivel\s+de\s+deficiencia|nivel\s+de\s+exposici[oó]n|nivel\s+de\s+consecuencia|peor\s+consecuencia|controles\s+administrativo|requisitos\s+legales|existencia\s+de\s+requisito|\b(nd|ne|nc)\b)/i;
+
+const LOOKUP_OR_HEADER_CELL_REGEX = /^(ubicaci[oó]n|proceso|procesos|cargo|cargos|actividad|actividades|tarea|tareas|horas\s*de\s*exposici[oó]n|horas\s*exposici[oó]n|horas\s*expocision|clasificaci[oó]n\s*de(l)?\s*peligro.*|descripci[oó]n\s*de(l)?\s*peligro.*|categor[ií]a\s*del\s*da[ñn]o|nivel\s*de\s*da[ñn]o|nivel\s*de\s*deficiencia.*|nivel\s*de\s*exposici[oó]n.*|nivel\s*de\s*probabilidad.*|nivel\s*de\s*consecuencia.*|nivel\s*de\s*riesgo.*|interpretaci[oó]n\s*de(l)?\s*(la\s*)?(probabilidad|nivel|nr|np).*|aceptabilidad\s*del\s*riesgo.*|rutinaria\s*o\s*no\s*rutinaria|efectos\s*posibles.*|peor\s*consecuencia|existencia\s*de\s*requisito.*|origen\s*de\s*la\s*actualizaci[oó]n|tipo\s*aspecto\s*ambiental|impacto\s*ambiental\s*asociado)$/i;
+
+const HEADER_ECHO_VALUE_REGEX = /^(proceso|procesos|cargo|cargos|zona|zona\s*\/\s*lugar|[aá]rea\s*\/\s*sitio|actividad|actividades|tarea|tareas|tarea\s*a\s*realizar|clasificaci[oó]n|clasificaci[oó]n\s*del?\s*peligro.*|descripci[oó]n|descripci[oó]n\s*del?\s*peligro.*|peligro|peligros|riesgo|riesgos|efectos\s*posibles.*|fuente|medio|individuo|persona|controles\s*existentes.*|valoraci[oó]n\s*del\s*riesgo|aceptabilidad\s*del\s*riesgo.*|en\s*cuenta\s*los\s*controles.*)$/i;
 
 function cleanCellText(val: any): string {
   if (val === undefined || val === null) return '';
@@ -238,7 +337,7 @@ function scoreHeaderCandidateRow(row: any[]): number {
     return 0;
   }
 
-  if (nonEmpty.some(x => x.txt.length > 260 || /^[A-ZÁÉÍÓÚÑ\s\/]{3,35}:\s+.{45,}/.test(x.txt))) {
+  if (nonEmpty.some(x => x.txt.length > 260 || /^[A-ZÁÉÍÓÚÑ\s\/]{3,35}:\s+.{45,}/.test(x.txt) || /^\*\s+/.test(x.txt) || /^1\.\s+.+2\.\s+/.test(x.txt))) {
     return 0;
   }
 
@@ -314,13 +413,23 @@ export function extractSheetHeadersAndRows(matrix: any[][]): { headers: string[]
 
   if (headerRowIdx === -1) return { headers: [], allRows: [] };
 
-  // 3. Expandir el bloque de encabezados [hStart .. hEnd] (1 a 4 niveles)
+  // 3. Expandir el bloque de encabezados [hStart .. hEnd] (1 a 4 niveles consecutivos)
   let hStart = headerRowIdx;
   let hEnd = headerRowIdx;
 
   for (let r = headerRowIdx + 1; r <= Math.min(matrix.length - 1, headerRowIdx + 3); r++) {
-    if (scores[r] >= 12) {
+    const row = matrix[r] || [];
+    const nonEmptyCells = row.map((c: any) => cleanCellText(c)).filter(Boolean);
+    const isSparseSubheader =
+      nonEmptyCells.length >= 1 &&
+      nonEmptyCells.length <= 12 &&
+      nonEmptyCells.every(txt => txt.length <= 65 && !/^\d+$/.test(txt) && !/^(si|sí|no)$/i.test(txt)) &&
+      nonEmptyCells.some(txt => HEADER_KEYWORDS_REGEX.test(txt));
+
+    if (scores[r] >= 12 || isSparseSubheader) {
       hEnd = r;
+    } else {
+      break;
     }
   }
   for (let r = headerRowIdx - 1; r >= Math.max(0, headerRowIdx - 2); r--) {
@@ -360,6 +469,10 @@ export function extractSheetHeadersAndRows(matrix: any[][]): { headers: string[]
 
       if (parent.toLowerCase() === leaf.toLowerCase() || parent.toLowerCase().startsWith(leaf.toLowerCase())) {
         colName = parent;
+      } else if (/^(en\s+cuenta|seg[uú]n|de\s+la|del\s+riesgo|o\s+no)/i.test(leaf)) {
+        colName = `${parent} ${leaf}`;
+      } else if (/^(fuente|medio|persona|individuo)$/i.test(parent)) {
+        colName = `${parent} - ${leaf}`;
       } else if (SELF_DESCRIPTIVE_SUBHEADER_REGEX.test(leaf) || leaf.length >= 24) {
         colName = leaf;
       } else {
@@ -426,8 +539,22 @@ export function extractSheetHeadersAndRows(matrix: any[][]): { headers: string[]
         repeatedHeaderMatches++;
       }
     }
+
+    // Detectar si esta fila es el encabezado de una tabla secundaria / catálogo de listas desplegables al final de la hoja
+    let lookupHeaderHits = 0;
+    for (let c = 0; c < rowArr.length; c++) {
+      const cellTxt = cleanCellText(rowArr[c]);
+      if (cellTxt && LOOKUP_OR_HEADER_CELL_REGEX.test(cellTxt)) {
+        lookupHeaderHits++;
+      }
+    }
+
     const firstNonEmpty = cleanCellText(rowArr.find((c: any) => cleanCellText(c) !== ''));
-    if (repeatedHeaderMatches >= 2 || /^(tabla\s+\d+|rutinaria\s+o\s+no\s+rutinaria|instrucciones)/i.test(firstNonEmpty)) {
+    if (
+      repeatedHeaderMatches >= 2 ||
+      lookupHeaderHits >= 3 ||
+      /^(tabla\s+\d+|rutinaria\s+o\s+no\s+rutinaria|instrucciones|riesgos|lista\s+de|convenciones|glosario)/i.test(firstNonEmpty)
+    ) {
       break;
     }
 
@@ -440,9 +567,12 @@ export function extractSheetHeadersAndRows(matrix: any[][]): { headers: string[]
     const filledHazardCols = hazardHeaders.filter(hh => cleanCellText(obj[hh]) !== '').length;
     if (filledHazardCols >= 2 && contextHeaders.length > 0) {
       for (const ch of contextHeaders) {
-        if (cleanCellText(obj[ch]) !== '') {
+        const cellVal = cleanCellText(obj[ch]);
+        const isActivityCol = /^actividad/i.test(ch);
+        const isInvalidActivityCarry = isActivityCol && /^(rutinaria|no\s*rutinaria|si|sí|no|\d+)$/i.test(cellVal);
+        if (cellVal !== '' && !isInvalidActivityCarry) {
           lastContextValues[ch] = obj[ch];
-        } else if (lastContextValues[ch] !== undefined && lastContextValues[ch] !== '') {
+        } else if (cellVal === '' && lastContextValues[ch] !== undefined && lastContextValues[ch] !== '') {
           obj[ch] = lastContextValues[ch];
         }
       }
@@ -454,7 +584,29 @@ export function extractSheetHeadersAndRows(matrix: any[][]): { headers: string[]
   return { headers: cleanedHeaders, allRows };
 }
 
-const AUXILIARY_SHEET_NAME_REGEX = /^(instrucci|instructivo|lista|variable|parametro|par[aá]metro|tabla|gu[ií]a|portada|control\s*de\s*cambio)/i;
+const AUXILIARY_SHEET_NAME_REGEX = /^(instrucci|instructivo|lista|variable|parametro|par[aá]metro|tabla|gu[ií]a|portada|control\s*de\s*cambio|criterio|factor|medida|[ií]ndice|anexo|catalogo|cat[aá]logo|datos|base|referencia|validaci[oó]n|desplegable|ayuda|ejemplo|resumen|dashboard|grafic|gr[aá]fic|estad[ií]stic)/i;
+
+const GENERIC_NON_PROCESS_SHEET_REGEX = /^(hoja\s*\d+|sheet\s*\d+|matriz.*|formato.*|plantilla.*|consolidado.*|datos|base|ipevr.*|gtc.*)$/i;
+
+/**
+ * Evalúa si una hoja extraída corresponde a una verdadera Matriz de Riesgos GTC-45
+ * (contiene columnas de contexto + peligro + controles/intervención) y no a una hoja de listas desplegables (como Hoja1/Hoja2).
+ */
+function isRealGtc45MatrixSheet(sheet: SheetInfo): boolean {
+  if (!sheet || sheet.totalRows <= 0 || sheet.headers.length < 8) return false;
+  if (AUXILIARY_SHEET_NAME_REGEX.test(sheet.name)) return false;
+
+  const realHeaders = sheet.headers.filter(h => !/^columna_\d+/i.test(h));
+  if (realHeaders.length < 8) return false;
+
+  const hasContextCol = realHeaders.some(h => /(proceso|cargo|puesto|actividad|tarea|zona|lugar|[aá]rea)/i.test(h));
+  const hasHazardCol = realHeaders.some(h => /(peligro|clasificaci[oó]n|descripci[oó]n|factor\s+de\s+riesgo)/i.test(h));
+  const hasControlOrInterventionCol = realHeaders.some(h =>
+    /(control|fuente|medio|individuo|persona|eliminaci[oó]n|sustituci[oó]n|ingenier[ií]a|administrativ|protecci[oó]n|\bepp\b)/i.test(h)
+  );
+
+  return hasContextCol && hasHazardCol && hasControlOrInterventionCol;
+}
 
 /**
  * Lee un archivo Excel (File o ArrayBuffer) y extrae todas sus hojas con cabeceras y muestras.
@@ -477,9 +629,11 @@ export function parseWorkbookSheets(data: ArrayBuffer): { workbook: XLSX.WorkBoo
     if (headers.length === 0) continue;
 
     const trimmedSheetName = sheetName.trim();
-    for (const row of allRows) {
-      if (!row['PROCESO'] && !row['proceso'] && !row['Proceso']) {
-        row['_sheetSource'] = trimmedSheetName;
+    if (!GENERIC_NON_PROCESS_SHEET_REGEX.test(trimmedSheetName) && !AUXILIARY_SHEET_NAME_REGEX.test(trimmedSheetName)) {
+      for (const row of allRows) {
+        if (!row['PROCESO'] && !row['proceso'] && !row['Proceso']) {
+          row['_sheetSource'] = trimmedSheetName;
+        }
       }
     }
 
@@ -493,13 +647,14 @@ export function parseWorkbookSheets(data: ArrayBuffer): { workbook: XLSX.WorkBoo
   }
 
   // Detección de Hojas de Procesos / Matrices Múltiples para Consolidación Automática:
-  // Ignorar hojas auxiliares (INSTRUCCIONES, LISTAS, VARIABLES, TABLAS)
-  const processSheets = sheets.filter(s =>
-    s.headers.length >= 10 &&
-    s.totalRows > 0 &&
-    !AUXILIARY_SHEET_NAME_REGEX.test(s.name) &&
-    s.headers.filter(h => !/^columna_\d+/i.test(h)).length >= 8
-  );
+  // Solo consolidar hojas que sean verdaderas matrices GTC-45 (excluyendo hojas de listas como Hoja1, Hoja2, Instrucciones)
+  let processSheets = sheets.filter(s => isRealGtc45MatrixSheet(s));
+
+  // Si existe al menos una hoja con nombre descriptivo (ej. "Matriz"), no mezclar hojas genéricas llamadas "Hoja1"/"Sheet1"
+  const hasNamedMatrixSheet = processSheets.some(s => !/^(hoja\s*\d+|sheet\s*\d+)$/i.test(s.name));
+  if (hasNamedMatrixSheet) {
+    processSheets = processSheets.filter(s => !/^(hoja\s*\d+|sheet\s*\d+)$/i.test(s.name));
+  }
 
   if (processSheets.length >= 2) {
     // 1. Construir unión ordenada de encabezados (excluyendo cualquier Columna_X residual)
@@ -519,6 +674,7 @@ export function parseWorkbookSheets(data: ArrayBuffer): { workbook: XLSX.WorkBoo
     // 2. Unificar todas las filas de los procesos
     const consolidatedRows: Record<string, any>[] = [];
     for (const ps of processSheets) {
+      const canUseSheetNameAsProcess = !GENERIC_NON_PROCESS_SHEET_REGEX.test(ps.name);
       for (const row of ps.allRows) {
         const unifiedRow: Record<string, any> = { ...row };
         for (const h of unionHeaders) {
@@ -527,7 +683,7 @@ export function parseWorkbookSheets(data: ArrayBuffer): { workbook: XLSX.WorkBoo
           }
         }
         const procKey = unionHeaders.find(h => /^proceso/i.test(h));
-        if (procKey && (!unifiedRow[procKey] || String(unifiedRow[procKey]).trim() === '')) {
+        if (procKey && canUseSheetNameAsProcess && (!unifiedRow[procKey] || String(unifiedRow[procKey]).trim() === '')) {
           unifiedRow[procKey] = ps.name;
         }
         consolidatedRows.push(unifiedRow);
@@ -545,13 +701,17 @@ export function parseWorkbookSheets(data: ArrayBuffer): { workbook: XLSX.WorkBoo
 
     sheets.unshift(consolidatedSheet);
   } else if (sheets.length > 1) {
-    // Priorizar hojas de matriz reales por encima de hojas de INSTRUCCIONES o LISTAS
+    // Priorizar hojas de matriz GTC-45 reales por encima de hojas de INSTRUCCIONES o LISTAS (Hoja1/Hoja2)
+    const scoreSheet = (s: SheetInfo): number => {
+      const isAux = AUXILIARY_SHEET_NAME_REGEX.test(s.name) ? 0.05 : 1;
+      const isGenericHoja = /^(hoja\s*\d+|sheet\s*\d+)$/i.test(s.name) ? 0.5 : 1;
+      const isRealMatrix = isRealGtc45MatrixSheet(s) ? 10 : 0.2;
+      const hasRowsFactor = s.totalRows > 0 ? Math.min(s.totalRows, 100) : 0.1;
+      return s.headers.length * isAux * isGenericHoja * isRealMatrix * hasRowsFactor;
+    };
+
     const bestSheetIdx = sheets.reduce((bestIdx, curr, idx, arr) => {
-      const currIsAux = AUXILIARY_SHEET_NAME_REGEX.test(curr.name) ? 0.1 : 1;
-      const bestIsAux = AUXILIARY_SHEET_NAME_REGEX.test(arr[bestIdx].name) ? 0.1 : 1;
-      const currScore = curr.headers.length * (curr.totalRows > 0 ? 1 : 0.1) * currIsAux;
-      const bestScore = arr[bestIdx].headers.length * (arr[bestIdx].totalRows > 0 ? 1 : 0.1) * bestIsAux;
-      return currScore > bestScore ? idx : bestIdx;
+      return scoreSheet(curr) > scoreSheet(arr[bestIdx]) ? idx : bestIdx;
     }, 0);
 
     if (bestSheetIdx > 0) {
@@ -601,6 +761,12 @@ export function autoMatchColumns(
   // Respaldo inteligente: si 'actividad' (obligatorio en GTC-45) quedó sin asociar pero se detectó 'tareas', homologar la labor evaluada
   if (!mapping['actividad'] && mapping['tareas']) {
     mapping['actividad'] = mapping['tareas'];
+  }
+  if (!mapping['tareas'] && mapping['actividad']) {
+    const actNorm = normalizeColumnName(mapping['actividad']);
+    if (actNorm.includes('tarea')) {
+      mapping['tareas'] = mapping['actividad'];
+    }
   }
 
   return mapping;
@@ -697,21 +863,51 @@ export function transformRowsWithMapping(
       isRowValid = false;
     }
 
-    // Filtro defensivo contra filas residuales vacías de Excel o notas al pie
+    // Filtro defensivo contra filas residuales vacías de Excel, listas desplegables (Hoja1) o subencabezados repetidos
     const hasHazardModule = targetFields.some(f => f.key === 'peligro_descripcion' || f.key === 'peligro_clasificacion');
     if (hasHazardModule) {
-      const hasHazardText = !!(
-        (newRecord.peligro_descripcion && String(newRecord.peligro_descripcion).trim() !== '') ||
-        (newRecord.peligro_clasificacion && String(newRecord.peligro_clasificacion).trim() !== '') ||
-        (newRecord.efectos_posibles && String(newRecord.efectos_posibles).trim() !== '')
+      const descTxt = String(newRecord.peligro_descripcion || '').trim();
+      const clasTxt = String(newRecord.peligro_clasificacion || '').trim();
+      const actTxt = String(newRecord.actividad || '').trim();
+      const tarTxt = String(newRecord.tareas || '').trim();
+      const carTxt = String(newRecord.cargo || '').trim();
+      const procTxt = String(newRecord.proceso || '').trim();
+
+      if (/^(hoja\s*\d+|sheet\s*\d+)$/i.test(procTxt)) {
+        newRecord.proceso = 'Operativo';
+      }
+
+      if (!actTxt && tarTxt) {
+        newRecord.actividad = tarTxt;
+      } else if (!tarTxt && actTxt && !/^(rutinaria|no\s*rutinaria|si|sí|no|\d+)$/i.test(actTxt)) {
+        newRecord.tareas = actTxt;
+      }
+
+      // Descartar si los campos principales son ecos literales de encabezados (ej. "Clasificación", "Descripción", "Cargo")
+      if (
+        (descTxt && HEADER_ECHO_VALUE_REGEX.test(descTxt)) ||
+        (clasTxt && HEADER_ECHO_VALUE_REGEX.test(clasTxt)) ||
+        (carTxt && HEADER_ECHO_VALUE_REGEX.test(carTxt) && (!descTxt || HEADER_ECHO_VALUE_REGEX.test(descTxt)))
+      ) {
+        isRowValid = false;
+      }
+
+      // En una matriz GTC-45 real debe existir descripción o clasificación del peligro
+      const hasHazardText = !!(descTxt !== '' || clasTxt !== '');
+      const hasValidActivity = actTxt !== '' && !/^(rutinaria|no\s*rutinaria|si|sí|no|\d+)$/i.test(actTxt);
+      const hasValidContext = !!(
+        hasValidActivity ||
+        tarTxt !== '' ||
+        carTxt !== '' ||
+        (procTxt !== '' && !/^(operativo|general|hoja\s*\d+|sheet\s*\d+)$/i.test(procTxt))
       );
-      const hasContextText = !!(
-        (newRecord.actividad && String(newRecord.actividad).trim() !== '') ||
-        (newRecord.tareas && String(newRecord.tareas).trim() !== '') ||
-        (newRecord.cargo && String(newRecord.cargo).trim() !== '') ||
-        (newRecord.proceso && String(newRecord.proceso).trim() !== '' && String(newRecord.proceso).trim().toLowerCase() !== 'operativo')
-      );
-      if (!hasHazardText || !hasContextText) {
+
+      // Si la actividad dice literalmente "RUTINARIA" / "NO RUTINARIA" y no hay cargo ni tarea, es una lista desplegable (Hoja1)
+      if (/^(rutinaria|no\s*rutinaria)$/i.test(actTxt) && !carTxt && !tarTxt) {
+        isRowValid = false;
+      }
+
+      if (!hasHazardText || !hasValidContext) {
         isRowValid = false;
       }
     }

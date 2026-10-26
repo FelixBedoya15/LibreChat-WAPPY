@@ -51,6 +51,11 @@ import SGSSTToolbar from './SGSSTToolbar';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
 import ImportMethodModal from './ImportMethodModal';
 import { MATRIZ_IPEVAR_FIELDS } from './moduleFieldDefinitions';
+import {
+  parseWorkbookSheets,
+  autoMatchColumns,
+  transformRowsWithMapping,
+} from './columnMapperEngine';
 
 // ── FilterSelect: dropdown con estilo del sistema (reemplaza <select> nativo) ────────────────
 const FilterSelect = ({
@@ -1222,8 +1227,8 @@ export default function MatrizIPEVARTable({
         cargo: toSentenceCase(r.cargo || ''),
         proceso: toSentenceCase(r.proceso || ''),
         zona: toSentenceCase(r.zona || ''),
-        actividad: r.actividad || '',
-        tareas: r.tareas || '',
+        actividad: r.actividad || r.tareas || '',
+        tareas: r.tareas || r.actividad || '',
         rutinaria: r.rutinaria || 'Sí',
         peligro_descripcion: r.peligro_descripcion || '',
         peligro_clasificacion: r.peligro_clasificacion || '',
@@ -1515,217 +1520,51 @@ export default function MatrizIPEVARTable({
             alert('El archivo JSON debe contener un arreglo de objetos.');
           }
         } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv')) {
-          const wb = XLSX.read(buffer, { type: 'array' });
-          
-          let allSheetRows: any[] = [];
-          let hasMatrixSheet = false;
-          
-          for (const sheetName of wb.SheetNames) {
-            // Skip non-matrix sheets or reference/example sheets
-            const nameLower = sheetName.toLowerCase();
-            if (
-              nameLower.includes('ejemplo') || 
-              nameLower.includes('criterio') || 
-              nameLower.includes('cambio') || 
-              nameLower.includes('factor') || 
-              nameLower.includes('medida') || 
-              nameLower.includes('indice') || 
-              nameLower.includes('índice') || 
-              nameLower.includes('hoja') || 
-              nameLower.includes('psicosocial') ||
-              nameLower.includes('dashboard') ||
-              nameLower.includes('pesv') ||
-              nameLower.includes('compatibilidad') ||
-              nameLower.includes('inventario')
-            ) {
-              continue;
-            }
+          const { sheets } = parseWorkbookSheets(buffer);
+          const primarySheet = sheets?.[0];
 
-            const ws = wb.Sheets[sheetName];
-            
-            // 1. Autofill merged cells in the sheet object
-            autofillMergedCells(ws);
-            
-            // 2. Convert to raw arrays
-            const rawRows = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1 });
-            if (rawRows.length === 0) continue;
-            
-            // 3. Find if it's a matrix sheet by checking if any row contains GTC-45 headers with highest score
-            let headerRowIdx = -1;
-            let maxHeaderScore = 0;
-
-            for (let r = 0; r < Math.min(30, rawRows.length); r++) {
-              const row = rawRows[r];
-              if (!Array.isArray(row)) continue;
-              const nonEmpties = row.filter((c) => c !== null && c !== undefined && String(c).trim() !== '');
-              if (nonEmpties.length < 5) continue;
-              const uniqueClean = new Set(nonEmpties.map((c) => cleanKey(c)));
-              if (uniqueClean.size < 5) continue;
-
-              let score = 0;
-              for (const k of uniqueClean) {
-                if (
-                  k.includes('proceso') ||
-                  k.includes('cargo') ||
-                  k.includes('actividad') ||
-                  k.includes('tarea') ||
-                  k.includes('zona') ||
-                  k.includes('lugar') ||
-                  k.includes('area') ||
-                  k.includes('areadetrabajo')
-                ) {
-                  score++;
-                }
-                if (
-                  k.includes('peligro') ||
-                  k.includes('clasificacion') ||
-                  k.includes('descripcion') ||
-                  k.includes('factor') ||
-                  k.includes('riesgo')
-                ) {
-                  score++;
-                }
-                if (
-                  k.includes('rutinaria') ||
-                  k.includes('rutinario') ||
-                  k.includes('deficiencia') ||
-                  k.includes('exposicion') ||
-                  k.includes('consecuencia') ||
-                  k.includes('probabilidad') ||
-                  k.includes('control') ||
-                  k.includes('fuente') ||
-                  k.includes('medio') ||
-                  k.includes('individuo') ||
-                  k.includes('eliminacion') ||
-                  k.includes('sustitucion') ||
-                  k.includes('ingenieria') ||
-                  k.includes('epp') ||
-                  k.includes('nd') ||
-                  k.includes('nr') ||
-                  k.includes('nc') ||
-                  k.includes('np')
-                ) {
-                  score++;
-                }
-              }
-
-              if (score >= 6 && score > maxHeaderScore) {
-                maxHeaderScore = score;
-                headerRowIdx = r;
-              }
-            }
-
-            // If no matrix headers found, skip this sheet (it's a reference sheet)
-            if (headerRowIdx === -1) continue;
-
-            // 4. Extract and combine headers across multi-level header blocks
-            const rawHeaders = rawRows[headerRowIdx];
-            let lastHeaderIdx = rawHeaders.length - 1;
-            while (
-              lastHeaderIdx >= 0 &&
-              (rawHeaders[lastHeaderIdx] === null ||
-                rawHeaders[lastHeaderIdx] === undefined ||
-                String(rawHeaders[lastHeaderIdx] || '').trim() === '' ||
-                lastHeaderIdx > 60)
-            ) {
-              lastHeaderIdx--;
-            }
-            const sliceLen = lastHeaderIdx >= 0 ? lastHeaderIdx + 1 : rawHeaders.length;
-
-            // Matrix should have at least 8 columns
-            if (sliceLen < 8) continue;
-
-            hasMatrixSheet = true;
-
-            const headers: string[] = [];
-            for (let c = 0; c < sliceLen; c++) {
-              let colName = '';
-              if (rawHeaders[c] && String(rawHeaders[c]).trim() !== '') {
-                colName = String(rawHeaders[c]).trim();
-              }
-              // If empty in selected header row (due to merged category headers), look up in preceding rows
-              if (!colName) {
-                for (let r = headerRowIdx - 1; r >= Math.max(0, headerRowIdx - 5); r--) {
-                  if (rawRows[r] && rawRows[r][c] && String(rawRows[r][c]).trim() !== '') {
-                    colName = String(rawRows[r][c]).trim();
-                    break;
-                  }
-                }
-              }
-              headers.push(colName || `Column_${c}`);
-            }
-
-            // Disambiguate duplicate header names
-            const seenHeaders: Record<string, number> = {};
-            const disambiguatedHeaders = headers.map((h) => {
-              const cleanH = cleanKey(h);
-              if (!seenHeaders[cleanH]) {
-                seenHeaders[cleanH] = 1;
-                return h;
-              } else {
-                seenHeaders[cleanH]++;
-                return `${h}__dup${seenHeaders[cleanH]}`;
-              }
-            });
-
-            // 5. Map rows to objects with standard indexation
-            for (let r = headerRowIdx + 1; r < rawRows.length; r++) {
-              const row = rawRows[r];
-              if (!row || row.every((cell) => cell === null || cell === undefined || String(cell).trim() === '')) {
-                continue;
-              }
-
-              if (row[0] && String(row[0]).trim().toUpperCase() === 'RIESGOS') {
-                break;
-              }
-
-              const obj: any = { __sheetName: sheetName };
-              const normalizedMap: any = {};
-              for (let col = 0; col < disambiguatedHeaders.length; col++) {
-                const key = disambiguatedHeaders[col];
-                const val = row[col] !== undefined ? row[col] : '';
-                obj[key] = val;
-                normalizedMap[cleanKey(key)] = val;
-              }
-              obj.__normalizedMap = normalizedMap;
-              allSheetRows.push(obj);
-            }
-          }
-          
-          if (!hasMatrixSheet) {
-            alert('No se encontró ninguna hoja con formato de matriz (GTC-45) en el archivo Excel.');
-            return;
-          }
-          
-          if (allSheetRows.length === 0) {
-            alert('El archivo Excel está vacío o no contiene filas de datos.');
+          if (!primarySheet || !primarySheet.allRows || primarySheet.allRows.length === 0) {
+            alert('No se encontró ninguna hoja con formato de matriz (GTC-45) o datos válidos en el archivo Excel.');
             return;
           }
 
-          const mapND = (val: string) => {
+          const autoMapping = autoMatchColumns(MATRIZ_IPEVAR_FIELDS, primarySheet.headers);
+          const transformResult = transformRowsWithMapping(
+            primarySheet.allRows,
+            MATRIZ_IPEVAR_FIELDS,
+            autoMapping
+          );
+          const mappedRows = transformResult.mappedRows || [];
+
+          if (mappedRows.length === 0) {
+            alert('El archivo Excel está vacío o no contiene filas de riesgos válidas.');
+            return;
+          }
+
+          const mapND = (val: any) => {
             const n = Number(val);
-            if (!isNaN(n) && val !== '') return n;
-            const s = cleanKey(val);
+            if (!isNaN(n) && val !== '' && val !== null && val !== undefined) return n;
+            const s = cleanKey(String(val || ''));
             if (s.includes('muyalto')) return 10;
             if (s.includes('alto')) return 6;
             if (s.includes('medio')) return 2;
             if (s.includes('bajo')) return 0;
             return 0;
           };
-          const mapNE = (val: string) => {
+          const mapNE = (val: any) => {
             const n = Number(val);
-            if (!isNaN(n) && val !== '') return n;
-            const s = cleanKey(val);
+            if (!isNaN(n) && val !== '' && val !== null && val !== undefined) return n;
+            const s = cleanKey(String(val || ''));
             if (s.includes('continua')) return 4;
             if (s.includes('frecuente')) return 3;
             if (s.includes('ocasional')) return 2;
             if (s.includes('esporadica')) return 1;
             return 0;
           };
-          const mapNC = (val: string) => {
+          const mapNC = (val: any) => {
             const n = Number(val);
-            if (!isNaN(n) && val !== '') return n;
-            const s = cleanKey(val);
+            if (!isNaN(n) && val !== '' && val !== null && val !== undefined) return n;
+            const s = cleanKey(String(val || ''));
             if (s.includes('mortal') || s.includes('catastrofico')) return 100;
             if (s.includes('muygrave')) return 60;
             if (s.includes('grave')) return 25;
@@ -1733,99 +1572,94 @@ export default function MatrizIPEVARTable({
             return 0;
           };
 
-          let lastProceso = '';
-          let lastZona = '';
-          let lastCargo = '';
-          let lastTarea = '';
-
-          const newRows = allSheetRows.map((r: any) => {
-            const ndVal = mapND(getValueByKeys(r, ['niveldeficiencia', 'niveldedeficienciand', 'nd', 'niveldedeficiencia']));
-            const neVal = mapNE(getValueByKeys(r, ['niveldeexposicion', 'niveldeexposicionne', 'ne', 'niveldeexposicion']));
-            const ncVal = mapNC(getValueByKeys(r, ['niveldeconsecuencia', 'nc']));
+          const newRows: MatrixRow[] = mappedRows.map((r: any) => {
+            const ndVal = mapND(r.nd);
+            const neVal = mapNE(r.ne);
+            const ncVal = mapNC(r.nc);
             const npVal = ndVal * neVal;
             const nrVal = npVal * ncVal;
-            
-            // Clean up legal requirement value: map "si"/"sí" to "Sí", "no" to "No", otherwise empty
-            const rawReq = String(getValueByKeys(r, ['existenciarequisitolegal', 'requisitolegal', 'requisitolegalasociado']) || '').trim().toLowerCase();
-            let mappedReq: 'Sí' | 'No' | '' = '';
-            if (rawReq.includes('si') || rawReq.includes('sí')) mappedReq = 'Sí';
-            else if (rawReq.includes('no')) mappedReq = 'No';
 
-            let proc = getValueByKeys(r, ['proceso', 'areadeproceso', 'seccion', 'area']);
-            let cargoVal = getValueByKeys(r, ['cargopuestodetrabajo', 'puestodetrabajo', 'puesto', 'cargo', 'cargos', 'ocupacion', 'rol', 'oficio']);
-            let zona = getValueByKeys(r, ['areadetrabajo', 'zonayolugar', 'zonalugar', 'zona', 'lugar', 'sede', 'planta']);
-            let actividad = getValueByKeys(r, ['actividad', 'actividades']);
-            let tarea = getValueByKeys(r, ['tarea', 'tareas']);
+            const rawReq = String(r.requisito_legal || '').trim();
+            const rawReqLower = rawReq.toLowerCase();
+            let mappedReq: string = rawReq;
+            if (rawReqLower === 'si' || rawReqLower === 'sí' || rawReqLower === 'x' || rawReqLower === '1') {
+              mappedReq = 'Sí';
+            } else if (rawReqLower === 'no' || rawReqLower === '0') {
+              mappedReq = 'No';
+            }
 
-            // Forward fill hierarchy if blank (for merged cells or grouped rows)
-            if (proc) lastProceso = proc; else proc = lastProceso;
-            if (cargoVal) lastCargo = cargoVal; else cargoVal = lastCargo;
-            if (zona) lastZona = zona; else zona = lastZona;
-            if (tarea) lastTarea = tarea; else tarea = lastTarea;
-
-            // Clean up rutinaria value: map 'x', 'si', '1' to 'Sí', 'no' to 'No'
-            const rawRut = String(getValueByKeys(r, ['rutinariosiono', 'rutinario', 'rutinaria', 'tipodeactividad']) || '').trim().toLowerCase();
+            const rawRut = String(r.rutinaria || '').trim().toLowerCase();
             let mappedRut = 'Sí';
-            if (rawRut === 'x' || rawRut === 'si' || rawRut === 'sí' || rawRut.includes('rutinari') || rawRut === '1' || rawRut === 'true') {
-              mappedRut = 'Sí';
-            } else if (rawRut.includes('no') || rawRut === '0' || rawRut === 'false') {
+            if (rawRut === 'no' || rawRut.includes('norutinari') || rawRut === '0' || rawRut === 'false') {
               mappedRut = 'No';
             }
 
-            return {
-              cargo: toSentenceCase(cargoVal),
-              proceso: toSentenceCase(proc),
-              zona: toSentenceCase(zona),
-              actividad: actividad || tarea || cargoVal,
-              tareas: tarea || actividad || cargoVal,
+            const rowObj: MatrixRow = {
+              cargo: toSentenceCase(r.cargo || ''),
+              proceso: toSentenceCase(r.proceso || ''),
+              zona: toSentenceCase(r.zona || ''),
+              actividad: r.actividad || r.tareas || '',
+              tareas: r.tareas || r.actividad || '',
               rutinaria: mappedRut,
-              peligro_descripcion: getValueByKeys(r, ['peligro', 'descripcion', 'peligrosdescripcion', 'descripcionfactorderiesgoverlistadefactoresderiesgo', 'peligroorigen', 'peligrodescripcion', 'descripcionpeligro']),
-              peligro_clasificacion: getValueByKeys(r, ['riesgo', 'clasificacion', 'peligrosclasificacion', 'clasificaciondelriesgo', 'clasificaciondelpeligro', 'tipodepeligro', 'peligroclasificacion']),
-              efectos_posibles: getValueByKeys(r, ['consecuencias', 'posiblesconsecuencias', 'efectosposibles', 'efectosenlasalud', 'efectos', 'consecuenciariesgo', 'efectoslesionesdanos']),
-              controles_fuente: getValueByKeys(r, ['fuente', 'fuentecontrolesdeeliminacionosustitucion', 'ctrlfuente', 'controlesexistentesfuente', 'controlfuente']) || 'Ninguno',
-              controles_medio: getValueByKeys(r, ['medio', 'mediocontrolesdesustitucionoingenieria', 'ctrlmedio', 'controlesexistentesmedio', 'controlmedio']) || 'Ninguno',
-              controles_individuo: getValueByKeys(r, ['individuo', 'personacontrolesdesenalizacionadvertencia', 'ctrlindividuo', 'controlesexistentespersona', 'controlesexistentesindividuo', 'persona', 'controlindividuo']) || 'Ninguno',
+              peligro_descripcion: r.peligro_descripcion || '',
+              peligro_clasificacion: r.peligro_clasificacion || '',
+              efectos_posibles: r.efectos_posibles || '',
+              controles_fuente: r.controles_fuente || 'Ninguno',
+              controles_medio: r.controles_medio || 'Ninguno',
+              controles_individuo: r.controles_individuo || 'Ninguno',
               nd: ndVal,
               ne: neVal,
               np: npVal,
               interpretacion_np: getInterpretacionNP(npVal),
               nc: ncVal,
               nr: nrVal,
-              interpretacion_nr: getValueByKeys(r, ['interpretaciondelnr', 'interpretacionnr', 'interpretaciondelnivelderiesgo', 'nivelderiesgo']),
-              aceptabilidad: getValueByKeys(r, ['aceptabilidaddelriesgo', 'aceptabilidad', 'valoraciondelriesgoaceptabilidaddelriesgo', 'valoraciondelriesgo']),
-              nro_expuestos: Number(getValueByKeys(r, ['nodeexpuestos', 'numerodeexpuestos', 'nroexpuestos', 'numeroexpuestos', 'expuestos', 'cantidadexpuestos'])) || 1,
-              peor_consecuencia: getValueByKeys(r, ['peorconsecuencia', 'peorconsecuenciateniendoencuentaloscontrolesexistentes', 'peorconsecuenciaefectos', 'peorconsecuenciaposible']) || '',
-              requisito_legal: mappedReq,
-              medida_eliminacion: getValueByKeys(r, ['eliminacion', 'medidasdeintervencionreduccionoeliminacion', 'medidasdeintervencioneliminacion']) || 'Ninguno',
-              medida_sustitucion: getValueByKeys(r, ['sustitucion', 'medidasdeintervencionsustitucion']) || 'Ninguno',
-              medida_ingenieria: getValueByKeys(r, ['controlesdeingenieria', 'medidasdeintervencioncontrolesdeingenieria', 'ingenieria', 'controlingenieria']) || 'Ninguno',
-              medida_administrativa: getValueByKeys(r, ['controlesadministrativossenalizacionadvertencia', 'medidasdeintervencioncontrolesadministrativossenalizacionadvertencia', 'administrativos']) || 'Ninguno',
-              medida_eppu: getValueByKeys(r, ['equiposelementosdeproteccionpersonalepp', 'equipoelementosdeproteccionpersonal', 'medidasdeintervencionequiposelementosdeproteccionpersonal', 'epp', 'equiposepp']) || 'Ninguno',
-              factores_reduccion: getValueByKeys(r, ['factoresdereduccion', 'factoresreduccionanexoe', 'factoresreduccion']) || 'No aplica',
-              origen_reporte: getValueByKeys(r, ['origenreporte', 'origen', 'aportecolaborador', 'participacion', 'trazabilidad']) || 'Matriz Base SG-SST',
+              interpretacion_nr: r.interpretacion_nr || '',
+              aceptabilidad: r.aceptabilidad || '',
+              nro_expuestos: Number(r.nro_expuestos) || 1,
+              peor_consecuencia: r.peor_consecuencia || '',
+              requisito_legal: mappedReq as any,
+              medida_eliminacion: r.medida_eliminacion || 'Ninguno',
+              medida_sustitucion: r.medida_sustitucion || 'Ninguno',
+              medida_ingenieria: r.medida_ingenieria || 'Ninguno',
+              medida_administrativa: r.medida_administrativa || 'Ninguno',
+              medida_eppu: r.medida_eppu || 'Ninguno',
+              factores_reduccion: r.factores_reduccion || 'No aplica',
+              origen_reporte: r.origen_reporte || 'Matriz Base SG-SST',
               nd_cualitativo: null,
               id: Date.now().toString() + Math.random().toString(36).substring(7),
             };
+            recalcRowFormulas(rowObj);
+            return rowObj;
           });
 
-          let rawLastProceso = '';
-          let rawLastZona = '';
-          let rawLastCargo = '';
-          const preCleaned = allSheetRows.map((r: any) => {
-            let pVal = getValueByKeys(r, ['proceso', 'areadeproceso', 'seccion', 'area']);
-            let cVal = getValueByKeys(r, ['cargopuestodetrabajo', 'puestodetrabajo', 'puesto', 'cargo', 'cargos', 'ocupacion', 'rol', 'oficio']);
-            let zVal = getValueByKeys(r, ['areadetrabajo', 'zonayolugar', 'zonalugar', 'zona', 'lugar', 'sede', 'planta']);
-            if (pVal) rawLastProceso = pVal; else pVal = rawLastProceso;
-            if (cVal) rawLastCargo = cVal; else cVal = rawLastCargo;
-            if (zVal) rawLastZona = zVal; else zVal = rawLastZona;
-            const copy = { ...r };
-            if (pVal) copy['Proceso'] = toSentenceCase(pVal);
-            if (cVal) copy['Cargo'] = toSentenceCase(cVal);
-            if (zVal) copy['Zona'] = toSentenceCase(zVal);
-            return copy;
-          });
+          const preCleaned = newRows.map((r) => ({
+            Proceso: r.proceso,
+            Cargo: r.cargo,
+            Zona: r.zona,
+            Actividad: r.actividad,
+            Tareas: r.tareas,
+            Rutinaria: r.rutinaria,
+            'Clasificación del Peligro': r.peligro_clasificacion,
+            'Descripción del Peligro': r.peligro_descripcion,
+            'Efectos Posibles': r.efectos_posibles,
+            'Controles Fuente': r.controles_fuente,
+            'Controles Medio': r.controles_medio,
+            'Controles Individuo': r.controles_individuo,
+            ND: r.nd,
+            NE: r.ne,
+            NP: r.np,
+            NC: r.nc,
+            NR: r.nr,
+            'Peor Consecuencia': r.peor_consecuencia,
+            'Requisito Legal': r.requisito_legal,
+            Eliminación: r.medida_eliminacion,
+            Sustitución: r.medida_sustitucion,
+            'Controles Ingeniería': r.medida_ingenieria,
+            'Controles Administrativos': r.medida_administrativa,
+            EPP: r.medida_eppu,
+          }));
 
-          setPendingDirectRows(newRows as MatrixRow[]);
+          setPendingDirectRows(newRows);
           setPendingRawRows(preCleaned);
           setIsConfirmModalOpen(true);
         }
