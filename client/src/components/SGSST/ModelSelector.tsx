@@ -225,7 +225,10 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
         </div>
       </button>
 
-      {ReactDOM.createPortal(dropdown, document.body)}
+      {ReactDOM.createPortal(
+        dropdown,
+        document.getElementById('wappy-studio-portal') || document.body,
+      )}
     </>
   );
 };

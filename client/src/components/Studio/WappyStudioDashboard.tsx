@@ -1092,10 +1092,17 @@ function readStoredGeminiKeyItems(): StoredGeminiKeyItem[] {
   try {
     const raw = localStorage.getItem(GEMINI_KEYS_STORAGE);
     if (!raw) return [];
-    const parsed = JSON.parse(raw);
+    let parsed: any;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      // Formato heredado de la app portable: claves separadas por comas
+      parsed = raw.split(',');
+    }
+    if (typeof parsed === 'string') parsed = parsed.split(',');
     if (!Array.isArray(parsed)) return [];
-    return parsed
-      .map((item: any, idx: number) => {
+    return (parsed as any[])
+      .map((item: any, idx: number): StoredGeminiKeyItem | null => {
         if (typeof item === 'string') {
           return { key: item.trim(), label: `Clave #${idx + 1}`, status: 'unchecked' as const };
         }
@@ -1163,7 +1170,7 @@ function formatLibraryDate(timestamp: number): string {
 // COMPONENTE PRINCIPAL: WAPPY STUDIO DASHBOARD
 // ============================================================================
 
-export default function WappyStudioDashboard() {
+export default function WappyStudioDashboard({ portable = false }: { portable?: boolean } = {}) {
   const { user, token, isAuthenticated } = useAuthContext();
   const { data: endpointsConfig } = useGetEndpointsQuery();
   const outletContext = useOutletContext<ContextType>();
@@ -1327,6 +1334,27 @@ export default function WappyStudioDashboard() {
     [customApiKeys],
   );
 
+  // Sincronizar claves si se cambian desde otra parte (p. ej. el modal "Claves IA" de la landing portable)
+  useEffect(() => {
+    const reload = () => {
+      const stored = readStoredGeminiKeyItems();
+      setCustomApiKeys([
+        stored[0] || { key: '', label: 'Clave Principal #1', status: 'unchecked' },
+        stored[1] || { key: '', label: 'Clave Respaldo #2', status: 'unchecked' },
+        stored[2] || { key: '', label: 'Clave Respaldo #3', status: 'unchecked' },
+      ]);
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === GEMINI_KEYS_STORAGE) reload();
+    };
+    window.addEventListener('wappy-keys-updated', reload);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener('wappy-keys-updated', reload);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
+
   const handleSaveAndValidateKeys = async () => {
     setIsValidatingKeys(true);
     setKeyValidationMsg('');
@@ -1359,6 +1387,7 @@ export default function WappyStudioDashboard() {
       setCustomApiKeys(updated);
       const nonEmpty = updated.filter((k) => k.key.trim().length > 0);
       localStorage.setItem(GEMINI_KEYS_STORAGE, JSON.stringify(nonEmpty));
+      window.dispatchEvent(new CustomEvent('wappy-keys-updated'));
       setKeyValidationMsg(
         nonEmpty.length === 0
           ? 'Claves personalizadas limpiadas. Se utilizarán las claves del servidor WAPPY.'
@@ -1661,6 +1690,17 @@ export default function WappyStudioDashboard() {
     setActiveTab(tab);
     setSearchParams({ tab });
   };
+
+  // Permite que la landing portable (/wappystudio) cambie de pestaña desde su navbar
+  useEffect(() => {
+    const onExternalTab = (e: Event) => {
+      const tab = (e as CustomEvent).detail as StudioTab;
+      if (['tts', 'video', 'lab', 'library'].includes(tab)) handleTabChange(tab);
+    };
+    window.addEventListener('wappy-studio-switch-tab', onExternalTab);
+    return () => window.removeEventListener('wappy-studio-switch-tab', onExternalTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const activeModelObj = useMemo(
     () => models.find((m) => m.id === selectedModel) || models[0],
@@ -3090,7 +3130,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
   const activeVoicesCount = activeModelObj?.supportedVoices?.length || 14;
 
-  if (user && user.role !== 'ADMIN') {
+  if (!portable && user && user.role !== 'ADMIN') {
     return (
       <div className="flex-1 flex items-center justify-center bg-surface-secondary/30 min-h-screen p-6">
         <div className="bg-white dark:bg-gray-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-8 max-w-md w-full text-center space-y-4 shadow-md">
@@ -3115,11 +3155,25 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-surface-secondary/30 min-h-[100dvh] h-auto overflow-y-auto pb-16">
+    <div
+      className={cn(
+        'flex-1 flex flex-col',
+        portable
+          ? 'bg-transparent h-auto overflow-visible pb-6'
+          : 'bg-surface-secondary/30 min-h-[100dvh] h-auto overflow-y-auto pb-16',
+      )}
+    >
       {/* ==================================================================== */}
       {/* CABECERA MAESTRA WAPPY STUDIO (100% WAPPY DESIGN SYSTEM)              */}
       {/* ==================================================================== */}
-      <header className="bg-white dark:bg-gray-900 border-b border-border-medium/40 px-4 sm:px-6 py-4 shadow-2xs sticky top-0 z-30">
+      <header
+        className={cn(
+          'bg-white dark:bg-gray-900 px-4 sm:px-6 py-4 shadow-2xs z-30',
+          portable
+            ? 'relative rounded-3xl border border-slate-200/80 dark:border-zinc-800 max-w-7xl w-full mx-auto'
+            : 'sticky top-0 border-b border-border-medium/40',
+        )}
+      >
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           {/* Izquierda: Botón Sidebar + Badge + Título */}
           <div className="flex items-start sm:items-center gap-3">
@@ -3233,6 +3287,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 onClick={handleTestConnection}
               />
 
+              {!portable && (
               <ExpandableButton
                 icon={<ExternalLink />}
                 label="Landing / App Portable"
@@ -3240,6 +3295,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 onClick={() => window.open('/wappystudio.html', '_blank', 'noopener,noreferrer')}
                 title="Abrir Landing Page Pública y Aplicativo Portable de WAPPY Studio"
               />
+              )}
             </div>
           </div>
         </div>
@@ -3587,7 +3643,9 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       <div className="relative flex-1">
                         <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                         <input
-                          type="text"
+                          type="search"
+                          name="wappy-voice-search"
+                          autoComplete="off"
                           value={voiceSearchQuery}
                           onChange={(e) => setVoiceSearchQuery(e.target.value)}
                           placeholder="Buscar voz (Kore, Orus, profunda, podcast...)"
@@ -3755,7 +3813,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     Texto a Sintetizar
                   </h2>
 
-                  <div className="flex items-center gap-2 shrink-0 flex-nowrap">
+                  <div className="flex items-center gap-2 min-w-0 flex-nowrap">
                     <span className="text-xs text-text-secondary hidden sm:inline">
                       Cargar ejemplo:
                     </span>
@@ -3766,7 +3824,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         if (found) setScriptText(found.text);
                         e.target.value = '';
                       }}
-                      className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-text-primary text-xs font-semibold rounded-xl px-3 py-1.5 focus:outline-none focus:border-teal-500"
+                      className="min-w-0 w-full max-w-[220px] sm:max-w-none sm:w-auto bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-text-primary text-xs font-semibold rounded-xl px-3 py-1.5 focus:outline-none focus:border-teal-500"
                     >
                       <option value="" disabled>
                         Seleccionar texto de muestra...
@@ -5420,6 +5478,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   ];
                   setCustomApiKeys(reset);
                   localStorage.removeItem(GEMINI_KEYS_STORAGE);
+                  window.dispatchEvent(new CustomEvent('wappy-keys-updated'));
                   setKeyValidationMsg('Claves eliminadas del navegador.');
                 }}
               />

@@ -422,17 +422,18 @@ async function getCombinedKeysForRequest(req, bodyCustomKeys) {
 
   const headerRaw = req.headers['x-gemini-api-keys'];
   if (headerRaw) {
+    // Acepta JSON (["k1","k2"]) o texto separado por comas ("k1,k2") que envía el cliente
+    let headerList = [];
     try {
       const parsed = JSON.parse(headerRaw);
-      if (Array.isArray(parsed)) {
-        for (const k of parsed) {
-          if (typeof k === 'string' && k.trim().length > 8) {
-            customList.push(k.trim());
-          }
-        }
-      }
+      headerList = Array.isArray(parsed) ? parsed : [];
     } catch {
-      /* ignore malformed header */
+      headerList = String(headerRaw).split(',');
+    }
+    for (const k of headerList) {
+      if (typeof k === 'string' && k.trim().length > 8 && !customList.includes(k.trim())) {
+        customList.push(k.trim());
+      }
     }
   }
 
@@ -1019,10 +1020,10 @@ router.get('/keys-status', studioAuth, async (req, res) => {
  */
 router.post('/keys-validate', studioAuth, async (req, res) => {
   try {
-    const { customKeys = [] } = req.body;
-    const cleanKeys = Array.isArray(customKeys)
-      ? customKeys.map((k) => String(k || '').trim()).filter((k) => k.length > 8)
-      : [];
+    const { customKeys = [], apiKey } = req.body || {};
+    const rawList = Array.isArray(customKeys) ? [...customKeys] : [];
+    if (typeof apiKey === 'string') rawList.push(apiKey);
+    const cleanKeys = rawList.map((k) => String(k || '').trim()).filter((k) => k.length > 8);
 
     if (cleanKeys.length === 0) {
       return res.status(400).json({ error: 'No se proporcionaron claves para validar.' });
@@ -1046,7 +1047,8 @@ router.post('/keys-validate', studioAuth, async (req, res) => {
       }
     }
 
-    res.json({ results });
+    // `valid` refleja la primera clave (contrato usado por el modal "Claves IA" del cliente)
+    res.json({ results, valid: Boolean(results[0]?.valid), error: results[0]?.error });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

@@ -1,0 +1,675 @@
+/**
+ * Capa de API portable de WAPPY Studio.
+ *
+ * En /wappystudio (landing pública) y en el archivo HTML descargable, el mismo componente
+ * WappyStudioDashboard funciona con las Claves IA del propio usuario llamando a Gemini
+ * directamente desde el navegador. Esta capa intercepta `fetch('/api/studio/...')` y
+ * `EventSource` y replica la lógica de `api/server/routes/studio.js`
+ * (síntesis TTS con rotación de claves/modelos, trabajos largos con progreso, ensamblado WAV
+ * sin chasquidos, generación de escenas HTML con IA y validación de claves).
+ *
+ * Solo el render MP4 (Puppeteer + FFmpeg) requiere el servidor; si no hay conexión se informa.
+ */
+import { getPortableGoogleModels, setPortableGoogleModels } from './shims/dataProvider';
+
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+const KEYS_STORAGE = 'wappy_gemini_api_keys';
+const nativeFetch: typeof fetch = window.fetch.bind(window);
+const NativeEventSource = window.EventSource;
+
+// ─── Claves IA ──────────────────────────────────────────────────────────────
+export function readPortableKeys(): string[] {
+  try {
+    const raw = localStorage.getItem(KEYS_STORAGE) || '';
+    if (!raw.trim()) return [];
+    let list: any[];
+    try {
+      const parsed = JSON.parse(raw);
+      list = Array.isArray(parsed) ? parsed : String(parsed).split(',');
+    } catch {
+      list = raw.split(',');
+    }
+    return list
+      .map((k) => (typeof k === 'string' ? k : k?.key || ''))
+      .map((k: string) => k.trim())
+      .filter((k: string) => k.length > 15);
+  } catch {
+    return [];
+  }
+}
+
+function requireKeys(): string[] {
+  const keys = readPortableKeys();
+  if (keys.length === 0) {
+    window.dispatchEvent(new CustomEvent('wappy-portable-missing-keys'));
+    throw new Error(
+      'Configura tu Clave IA de Google Gemini (botón "Claves IA") para generar voz y videos. Es gratuita en aistudio.google.com.',
+    );
+  }
+  return keys;
+}
+
+function ttsModelIds(): string[] {
+  const ids = getPortableGoogleModels().filter((m) => m.includes('tts'));
+  return ids.length ? ids : ['gemini-3.8-flash-tts', 'gemini-3.1-flash-tts-preview', 'gemini-2.5-flash-preview-tts', 'gemini-3.8-flash-lite-tts'];
+}
+
+function textModelIds(): string[] {
+  const ids = getPortableGoogleModels().filter(
+    (m) => !m.includes('live') && !m.includes('native-audio') && !m.includes('tts') && !m.includes('transcribe'),
+  );
+  return ids.length ? ids : ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite'];
+}
+
+// ─── Utilidades de texto (espejo de studio.js) ──────────────────────────────
+function sanitizeScriptText(rawText: string): string {
+  if (!rawText) return '';
+  let clean = String(rawText).trim();
+  clean = clean.replace(/^(?:(?:por\s+favor\s+)?(?:lee|habla|locuta|interpreta|recita|say|read|speak)\s+(?:esto\s+)?(?:en\s+voz\s+alta\s+)?(?:con\s+el\s+siguiente\s+estilo|con\s+estilo)?\s*\([^)]*\)[\s:—–-]*)/i, '');
+  clean = clean.replace(/^(?:(?:por\s+favor\s+)?(?:lee|habla|locuta|interpreta|recita|say|read|speak)\s+(?:esto\s+)?(?:en\s+voz\s+alta\s+)?(?:con\s+el\s+siguiente\s+estilo|con\s+estilo)?[^:\n]*:[^\n]*(?:\n+|$))/i, '');
+  clean = clean.replace(/^(?:directrices?\s+de\s+estilo|estilo|style|tono|tone|director['’]?s\s*notes?)[\s:—–-]+(?:[^\n]+(?:\n+|$))/i, '');
+  clean = clean.replace(/^\[(?:estilo|style|instrucciones|director|notas?):[^\]]+\]\s*/i, '');
+  return clean.trim();
+}
+
+interface Chunk {
+  index: number;
+  text: string;
+  wordCount: number;
+  snippet: string;
+}
+
+function splitTextIntoChunks(text: string, maxWordsPerChunk = 150): Chunk[] {
+  const clean = sanitizeScriptText(text);
+  if (!clean) return [];
+  const safeLimit = Math.max(40, Math.min(300, Number(maxWordsPerChunk) || 150));
+  const paragraphs = clean.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  const chunks: Chunk[] = [];
+  let currentWords: string[] = [];
+  const flush = () => {
+    if (currentWords.length > 0) {
+      const t = currentWords.join(' ').trim();
+      chunks.push({ index: chunks.length, text: t, wordCount: currentWords.length, snippet: t.length > 90 ? `${t.slice(0, 90)}...` : t });
+      currentWords = [];
+    }
+  };
+  for (const para of paragraphs) {
+    for (const sentence of para.split(/(?<=[.!?…])\s+/)) {
+      const words = sentence.trim().split(/\s+/).filter(Boolean);
+      if (words.length === 0) continue;
+      if (currentWords.length + words.length <= safeLimit) {
+        currentWords.push(...words);
+      } else if (words.length > safeLimit) {
+        flush();
+        for (let i = 0; i < words.length; i += safeLimit) {
+          const slice = words.slice(i, i + safeLimit);
+          chunks.push({ index: chunks.length, text: slice.join(' '), wordCount: slice.length, snippet: slice.join(' ').slice(0, 90) });
+        }
+      } else {
+        flush();
+        currentWords.push(...words);
+      }
+    }
+  }
+  flush();
+  return chunks;
+}
+
+// ─── Audio PCM / WAV ────────────────────────────────────────────────────────
+function b64ToBytes(b64: string): Uint8Array {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+function bytesToB64(bytes: Uint8Array): string {
+  let bin = '';
+  const step = 0x8000;
+  for (let i = 0; i < bytes.length; i += step) {
+    bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + step)));
+  }
+  return btoa(bin);
+}
+
+function wavHeader(pcmLength: number, sampleRate = 24000, channels = 1, bits = 16): Uint8Array {
+  const buf = new ArrayBuffer(44);
+  const v = new DataView(buf);
+  const w = (o: number, s: string) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  w(0, 'RIFF');
+  v.setUint32(4, 36 + pcmLength, true);
+  w(8, 'WAVE');
+  w(12, 'fmt ');
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true);
+  v.setUint16(22, channels, true);
+  v.setUint32(24, sampleRate, true);
+  v.setUint32(28, (sampleRate * channels * bits) / 8, true);
+  v.setUint16(32, (channels * bits) / 8, true);
+  v.setUint16(34, bits, true);
+  w(36, 'data');
+  v.setUint32(40, pcmLength, true);
+  return new Uint8Array(buf);
+}
+
+function extractPcm(raw: Uint8Array) {
+  let pcm = raw;
+  let sampleRate = 24000;
+  const ascii = (o: number) => String.fromCharCode(raw[o], raw[o + 1], raw[o + 2], raw[o + 3]);
+  if (raw.length > 44 && ascii(0) === 'RIFF' && ascii(8) === 'WAVE') {
+    const v = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
+    let off = 12;
+    pcm = raw.subarray(44);
+    while (off + 8 <= raw.length) {
+      const id = ascii(off);
+      const size = v.getUint32(off + 4, true);
+      if (id === 'fmt ' && size >= 16) sampleRate = v.getUint32(off + 12, true) || 24000;
+      if (id === 'data') {
+        pcm = raw.subarray(off + 8, Math.min(raw.length, off + 8 + size));
+        break;
+      }
+      off += 8 + size + (size % 2);
+    }
+  }
+  if (pcm.length % 2 !== 0) pcm = pcm.subarray(0, pcm.length - 1);
+  return { pcm: new Uint8Array(pcm), sampleRate };
+}
+
+function microFade(pcm: Uint8Array, sampleRate = 24000, ms = 20, fadeIn = true): Uint8Array {
+  const out = new Uint8Array(pcm);
+  const v = new DataView(out.buffer);
+  const total = Math.floor(out.length / 2);
+  const n = Math.min(Math.floor((sampleRate * ms) / 1000), Math.floor(total / 4));
+  for (let i = 0; i < n; i++) {
+    if (fadeIn) v.setInt16(i * 2, Math.round(v.getInt16(i * 2, true) * (i / n)), true);
+    const idx = total - n + i;
+    v.setInt16(idx * 2, Math.round(v.getInt16(idx * 2, true) * ((n - 1 - i) / n)), true);
+  }
+  return out;
+}
+
+function concatBytes(parts: Uint8Array[]): Uint8Array {
+  const total = parts.reduce((s, p) => s + p.length, 0);
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const p of parts) {
+    out.set(p, off);
+    off += p.length;
+  }
+  return out;
+}
+
+const FUNDAMENTAL_VOICES_2_5 = ['Kore', 'Puck', 'Charon', 'Fenrir', 'Aoede'];
+function compatibleVoice(voice: string, model: string) {
+  const v = (voice || 'Kore').trim();
+  if (model.includes('2.5')) return FUNDAMENTAL_VOICES_2_5.includes(v) ? v : 'Kore';
+  if (model.includes('lite')) return ['Kore', 'Puck', 'Charon', 'Fenrir', 'Zephyr', 'Aoede'].includes(v) ? v : 'Kore';
+  return v;
+}
+
+async function geminiPost(model: string, key: string, body: any, timeoutMs = 90000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const resp = await nativeFetch(`${GEMINI_BASE}/models/${model}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    });
+    const data = await resp.json().catch(() => ({}));
+    return { status: resp.status, ok: resp.ok, data };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+interface SynthOpts {
+  text: string;
+  voiceName?: string;
+  stylePrompt?: string;
+  model?: string;
+  multiSpeaker?: boolean;
+  speaker1?: { name?: string; voiceName?: string };
+  speaker2?: { name?: string; voiceName?: string };
+  onFailover?: (n: any) => void;
+}
+
+async function synthesizeChunk(opts: SynthOpts) {
+  const keys = requireKeys();
+  const cleanText = sanitizeScriptText(opts.text);
+  if (!cleanText) throw new Error('El texto a sintetizar no contiene palabras válidas.');
+  const envIds = ttsModelIds();
+  const preferred = (opts.model || envIds[0]).replace('models/', '').trim();
+  const modelsToTry = [preferred, ...envIds.filter((m) => m !== preferred)];
+  let lastError: Error | null = null;
+
+  for (const model of modelsToTry) {
+    for (let k = 0; k < keys.length; k++) {
+      const speechConfig =
+        opts.multiSpeaker && !model.includes('lite')
+          ? {
+              multiSpeakerVoiceConfig: {
+                speakerVoiceConfigs: [
+                  { speaker: opts.speaker1?.name || 'Alex', voiceConfig: { prebuiltVoiceConfig: { voiceName: compatibleVoice(opts.speaker1?.voiceName || 'Puck', model) } } },
+                  { speaker: opts.speaker2?.name || 'Sam', voiceConfig: { prebuiltVoiceConfig: { voiceName: compatibleVoice(opts.speaker2?.voiceName || 'Kore', model) } } },
+                ],
+              },
+            }
+          : { voiceConfig: { prebuiltVoiceConfig: { voiceName: compatibleVoice(opts.voiceName || 'Kore', model) } } };
+      const part: any = { text: cleanText };
+      if (opts.stylePrompt?.trim()) part.speech_metadata = { type: 'speech_metadata', style: opts.stylePrompt.trim() };
+      const body = () => ({ contents: [{ role: 'user', parts: [part] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig } });
+
+      try {
+        let r = await geminiPost(model, keys[k], body());
+        if (!r.ok && r.status === 400 && part.speech_metadata) {
+          const m = String(r.data?.error?.message || '').toLowerCase();
+          if (m.includes('speech_metadata') || m.includes('unknown') || m.includes('invalid json')) {
+            delete part.speech_metadata;
+            r = await geminiPost(model, keys[k], body());
+          }
+        }
+        if (!r.ok) {
+          const err: any = new Error(r.data?.error?.message || `Error ${r.status} en Gemini TTS`);
+          err.status = r.status;
+          throw err;
+        }
+        const audioPart = (r.data?.candidates?.[0]?.content?.parts || []).find((p: any) => p.inlineData?.data);
+        if (!audioPart) throw new Error('La respuesta de Gemini no incluyó datos de audio.');
+        const { pcm: rawPcm, sampleRate } = extractPcm(b64ToBytes(audioPart.inlineData.data));
+        const pcm = microFade(rawPcm, sampleRate, 18);
+        const wav = concatBytes([wavHeader(pcm.length, sampleRate), pcm]);
+        return {
+          pcm,
+          sampleRate,
+          audioBase64: bytesToB64(wav),
+          durationSeconds: Math.max(1, Math.round((pcm.length / (sampleRate * 2)) * 10) / 10),
+          usedModel: model,
+          usedKeyIndex: k,
+        };
+      } catch (e: any) {
+        const status = e?.status || 0;
+        const msg = String(e?.message || '').toLowerCase();
+        lastError = e instanceof Error ? e : new Error(String(e));
+        const keyErr = status === 429 || status === 403 || (status === 400 && (msg.includes('api_key') || msg.includes('key not valid')));
+        const modelErr = status === 404 || status === 503 || msg.includes('not found') || msg.includes('overloaded') || msg.includes('not supported') || e?.name === 'AbortError';
+        if (keyErr) {
+          if (k + 1 < keys.length) opts.onFailover?.({ fromIndex: k, toIndex: k + 1, label: `Clave #${k + 2}`, reason: status === 429 ? 'Límite de cuota 429 alcanzado' : `Estado ${status}` });
+          continue;
+        }
+        if (modelErr || (status === 400 && msg.includes('voice'))) break;
+        throw lastError;
+      }
+    }
+  }
+  throw lastError || new Error('No se pudo sintetizar el audio con las claves y modelos disponibles.');
+}
+
+// ─── Trabajos largos (hasta 60 min) con eventos estilo SSE ──────────────────
+interface LocalJob {
+  id: string;
+  status: 'processing' | 'paused' | 'completed' | 'failed' | 'cancelled';
+  opts: SynthOpts;
+  chunks: (Chunk & { status: string; durationSeconds: number; pcm?: Uint8Array | null; audioBase64?: string | null })[];
+  totalChunks: number;
+  currentChunkIndex: number;
+  completedChunks: number;
+  estimatedTotalSeconds: number;
+  generatedTotalSeconds: number;
+  progressPercent: number;
+  downloadUrl?: string;
+  listeners: Set<(event: string, data: any) => void>;
+  history: { event: string; data: any }[];
+}
+
+const localJobs = new Map<string, LocalJob>();
+
+function emit(job: LocalJob, event: string, data: any) {
+  job.history.push({ event, data });
+  job.listeners.forEach((l) => l(event, data));
+}
+
+async function processJob(job: LocalJob) {
+  for (let i = 0; i < job.chunks.length; i++) {
+    if (job.status === 'cancelled') return;
+    while (job.status === 'paused') {
+      await new Promise((r) => setTimeout(r, 600));
+      if ((job.status as string) === 'cancelled') return;
+    }
+    const chunk = job.chunks[i];
+    if (chunk.status === 'completed') continue;
+    job.currentChunkIndex = i;
+    chunk.status = 'processing';
+    emit(job, 'chunk_start', { chunkIndex: i });
+    try {
+      const r = await synthesizeChunk({ ...job.opts, text: chunk.text, onFailover: (n) => emit(job, 'api_key_failover', { ...n, timestamp: Date.now() }) });
+      chunk.status = 'completed';
+      chunk.durationSeconds = r.durationSeconds;
+      chunk.pcm = r.pcm;
+      chunk.audioBase64 = r.audioBase64;
+      job.completedChunks = job.chunks.filter((c) => c.status === 'completed').length;
+      job.generatedTotalSeconds = Math.round(job.chunks.reduce((s, c) => s + (c.status === 'completed' ? c.durationSeconds : 0), 0) * 10) / 10;
+      job.progressPercent = Math.round((job.completedChunks / job.totalChunks) * 100);
+      emit(job, 'chunk_complete', { chunkIndex: i, durationSeconds: r.durationSeconds, audioBase64: r.audioBase64, progressPercent: job.progressPercent, generatedTotalSeconds: job.generatedTotalSeconds });
+    } catch (err: any) {
+      chunk.status = 'failed';
+      job.status = 'failed';
+      emit(job, 'job_failed', { error: err?.message || 'Fallo al sintetizar fragmento', chunkIndex: i });
+      return;
+    }
+  }
+
+  // Ensamblado del WAV maestro con micro-fades y pausas naturales de 220 ms
+  const silence = new Uint8Array(Math.floor(24000 * 0.22) * 2);
+  const parts: Uint8Array[] = [];
+  job.chunks.forEach((c, idx) => {
+    if (!c.pcm) return;
+    parts.push(microFade(c.pcm, 24000, 20));
+    if (idx < job.chunks.length - 1) parts.push(silence);
+  });
+  let pcm = concatBytes(parts);
+  pcm = microFade(pcm, 24000, 35, false);
+  const wav = concatBytes([wavHeader(pcm.length), pcm]);
+  job.chunks.forEach((c) => (c.pcm = null));
+  job.downloadUrl = URL.createObjectURL(new Blob([wav], { type: 'audio/wav' }));
+  job.generatedTotalSeconds = Math.round((pcm.length / 48000) * 10) / 10;
+  job.status = 'completed';
+  job.progressPercent = 100;
+  emit(job, 'job_completed', { id: job.id, totalDurationSeconds: job.generatedTotalSeconds, downloadUrl: job.downloadUrl });
+}
+
+class PortableJobEventSource {
+  private handlers = new Map<string, Set<(ev: MessageEvent) => void>>();
+  private listener: ((event: string, data: any) => void) | null = null;
+  readyState = 1;
+  onerror: ((ev: any) => void) | null = null;
+
+  constructor(private job: LocalJob) {
+    this.listener = (event, data) => this.dispatch(event, data);
+    setTimeout(() => {
+      this.dispatch('snapshot', {
+        id: job.id,
+        status: job.status,
+        totalChunks: job.totalChunks,
+        currentChunkIndex: job.currentChunkIndex,
+        completedChunks: job.completedChunks,
+        estimatedTotalSeconds: job.estimatedTotalSeconds,
+        generatedTotalSeconds: job.generatedTotalSeconds,
+        progressPercent: job.progressPercent,
+        downloadUrl: job.downloadUrl,
+        chunks: job.chunks.map((c) => ({ index: c.index, wordCount: c.wordCount, status: c.status, durationSeconds: c.durationSeconds, audioBase64: c.audioBase64 })),
+      });
+      job.history.forEach((h) => this.dispatch(h.event, h.data));
+      if (this.listener) job.listeners.add(this.listener);
+    }, 0);
+  }
+
+  private dispatch(event: string, data: any) {
+    const ev = new MessageEvent(event, { data: JSON.stringify(data) });
+    this.handlers.get(event)?.forEach((h) => h(ev));
+  }
+
+  addEventListener(event: string, handler: (ev: MessageEvent) => void) {
+    if (!this.handlers.has(event)) this.handlers.set(event, new Set());
+    this.handlers.get(event)!.add(handler);
+  }
+
+  removeEventListener(event: string, handler: (ev: MessageEvent) => void) {
+    this.handlers.get(event)?.delete(handler);
+  }
+
+  close() {
+    this.readyState = 2;
+    if (this.listener) this.job.listeners.delete(this.listener);
+    this.listener = null;
+  }
+}
+
+// ─── Generación de escenas HTML con IA (espejo de /video/generate-html) ─────
+function buildHtmlPrompts(b: any) {
+  const aspectRatio = b.aspectRatio || '9:16';
+  const isVertical = aspectRatio === '9:16';
+  const width = isVertical ? 1080 : 1920;
+  const height = isVertical ? 1920 : 1080;
+  const hasBaseVideo = Boolean(b.hasBaseVideo);
+  const durationSeconds = b.durationSeconds || 30;
+  const systemInstruction = `Eres un Director de Motion Graphics Senior experto en el sistema de diseño cinematográfico HyperFrames (SKILL hyperframes-motion-design), GSAP 3, Tailwind CSS y animaciones virales estilo Claude / HeyGen.
+Tu objetivo es crear una página HTML5 autocontenida, fluida, editable y cinematográfica con relación de aspecto ${aspectRatio} (${width}x${height}) lista para reproducirse en cualquier tamaño de pantalla (normal o pantalla completa) sin desbordarse jamás.
+
+REGLAS ESTRICTAS DE ARQUITECTURA VISUAL Y RESPONSIVIDAD (PROHIBIDO DESBORDAR EL LIENZO):
+1. Devuelve ÚNICAMENTE el código HTML completo (desde <!DOCTYPE html> hasta </html>), sin bloques markdown (\`\`\`html).
+2. Incluye en el <head>:
+   - <script src="https://cdn.tailwindcss.com"></script>
+   - <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+   - Google Fonts: 'Plus Jakarta Sans', 'Syne' y 'JetBrains Mono'.
+3. GEOMETRÍA AUTO-AJUSTABLE Y CENTRADA (CERO CORRIMIENTO EN PANTALLA COMPLETA O NORMAL):
+   - PROHIBIDO usar \`width: 1920px\` o \`width: 1080px\` fijos en \`body\` o contenedores que causen recorte o corrimiento horizontal.
+   - \`html, body\` DEBEN tener: \`width: 100vw; height: 100vh; max-width: 100%; max-height: 100%; margin: 0; padding: 0; overflow: hidden; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;\`
+   - Envuelve el contenido visual dentro de un contenedor maestro \`<div id="stage" class="relative w-full h-full flex flex-col justify-between p-5 sm:p-8 overflow-hidden box-border">\` con unidades relativas (\`w-full\`, \`max-w-4xl mx-auto\`, \`clamp()\`, \`grid\`, \`flex\`) para que se vea 100% centrado tanto en vista previa pequeña como en Pantalla Completa.
+4. TRANSPARENCIA PARA CAPA DE VIDEO BASE:
+   - Si hasBaseVideo es true (${hasBaseVideo}), el <body> DEBE tener \`background: transparent;\` para que el video grabado a cámara del usuario en la capa inferior se vea nítidamente, y tus gráficos/tarjetas/badges se superpongan con glassmorphism (\`backdrop-filter: blur(16px)\`, \`background: rgba(10, 18, 30, 0.78)\`, bordes luminosos).
+   - Si hasBaseVideo es false, crea un fondo oscuro animado de alto impacto (\`#060d14\`) con orbes de luz flotantes, rejilla técnica sutil (grid) y viñeta cinematográfica.
+5. SISTEMA DE DISEÑO HYPERFRAMES MOTION DESIGN (GSAP TIMELINE MAESTRO SIN BUCLE INFINITO Y COMPATIBLE CON WHATSAPP):
+   - Crea SIEMPRE la línea de tiempo maestra asignada a \`window.mainTimeline = gsap.timeline({ repeat: 0 });\`. PROHIBIDO usar \`repeat: -1\` en \`window.mainTimeline\` para que la animación termine exactamente junto con el audio y se detenga en la escena final de cierre (NUNCA apagues con \`opacity: 0\` la escena final de cierre en el último segundo).
+   - PROHIBIDO poner la clase \`opacity-0\` o \`style="opacity:0"\` en el HTML estático del encabezado (\`#header-hud\`) ni de la primera escena (\`#scene-1\` y sus hijos). La primera escena DEBE ser 100% visible por defecto en el HTML estático para que al abrir el archivo en el visor de WhatsApp móvil se vea inmediatamente el diseño completo (usa \`master.from("#sc1-card", { opacity: 0, y: 20, ... })\` en lugar de ocultar con \`opacity-0\` en el HTML).
+   - Desarrolla una coreografía multicapa de ${durationSeconds} segundos dividida en beats visuales claros (Entrada con impacto, Desarrollo de tarjetas/reglas numeradas, Métricas/HUD y Cierre que permanece visible al terminar).
+   - Usa curvas elásticas y expresivas: \`back.out(1.7)\`, \`expo.out\`, \`elastic.out(1, 0.5)\`, \`power3.out\`.
+   - Añade atributos \`data-editable="true"\` en todas las tarjetas, insignias y textos importantes para que el editor visual de WAPPY Studio pueda moverlos y editarlos con el mouse.
+   - Deja libre la franja inferior (\`padding-bottom: 64px\`) para que los subtítulos dinámicos palabra a palabra no tapen las tarjetas.
+6. API DE CONTROL EXTERNO (OBLIGATORIA):
+   - Escucha mensajes \`window.addEventListener('message', (e) => { ... })\` para soportar:
+     - \`{ type: 'STUDIO_PLAY' }\` -> \`window.mainTimeline?.play(); gsap.globalTimeline.play();\`
+     - \`{ type: 'STUDIO_PAUSE' }\` -> \`window.mainTimeline?.pause(); gsap.globalTimeline.pause();\`
+     - \`{ type: 'STUDIO_RESTART' }\` -> \`window.mainTimeline?.restart(); gsap.globalTimeline.restart();\`
+     - \`{ type: 'STUDIO_SEEK', progress: 0..1 }\` -> \`window.mainTimeline?.progress(e.data.progress);\``;
+
+  const userPrompt = `Diseña una composición animada en HTML + GSAP con estas especificaciones:
+- Formato: ${aspectRatio} (${width}x${height})
+- Duración objetivo: ${durationSeconds} segundos
+- Empresa / Marca: ${b.companyName || 'WAPPY IA'}
+- Paleta / Tema: ${b.theme || 'wappy-emerald'}
+- ¿Tiene video base del usuario debajo?: ${hasBaseVideo ? 'SÍ (usar fondo transparente y tarjetas superpuestas en tercio superior e inferior sin tapar el rostro central)' : 'NO (diseñar escena completa a pantalla completa con fondo cinematográfico)'}
+- ¿Mostrar barra de subtítulos dinámicos?: ${b.showSubtitles !== false ? 'SÍ' : 'NO'}
+- Instrucción creativa del usuario: ${b.prompt || 'Cápsula de alto impacto visual con estadísticas, insignias animadas y puntos clave.'}
+- Guion / Texto de locución para sincronizar las escenas y subtítulos:
+"""
+${b.scriptText || b.prompt || 'La prevención y la inteligencia artificial transforman la seguridad en el trabajo.'}
+"""
+
+Recuerda devolver SOLO el código HTML puro empezando por <!DOCTYPE html>.`;
+  return { systemInstruction, userPrompt };
+}
+
+async function generateHtml(b: any) {
+  const keys = requireKeys();
+  const { systemInstruction, userPrompt } = buildHtmlPrompts(b);
+  const envIds = textModelIds();
+  const preferred = String(b.modelName || envIds[0]).replace('models/', '').trim();
+  const models = [preferred, ...envIds.filter((m) => m !== preferred)];
+  let lastErr = 'No se pudo generar la escena HTML con IA.';
+  for (const model of models) {
+    for (const key of keys) {
+      const r = await geminiPost(model, key, {
+        systemInstruction: { parts: [{ text: systemInstruction }] },
+        contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+        generationConfig: { temperature: 0.4 },
+      }, 180000).catch((e) => ({ ok: false, status: 0, data: { error: { message: e?.message } } }) as any);
+      if (r.ok) {
+        let html = (r.data?.candidates?.[0]?.content?.parts || []).map((p: any) => p.text || '').join('');
+        html = html.replace(/^```html\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+        if (!html.toLowerCase().includes('<html')) throw new Error('El modelo no devolvió un documento HTML válido.');
+        return html;
+      }
+      lastErr = r.data?.error?.message || `Error ${r.status}`;
+      if (r.status === 429 || r.status === 403) continue; // rotar clave
+      break; // rotar modelo
+    }
+  }
+  throw new Error(lastErr);
+}
+
+// ─── Router de endpoints ────────────────────────────────────────────────────
+const json = (data: any, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+
+let serverChecked: Promise<boolean> | null = null;
+function isServerAvailable(): Promise<boolean> {
+  if (location.protocol === 'file:') return Promise.resolve(false);
+  if (!serverChecked) {
+    serverChecked = nativeFetch('/api/studio/catalog', { cache: 'no-store' })
+      .then(async (r) => {
+        const ok = r.ok && (r.headers.get('content-type') || '').includes('json');
+        if (ok) {
+          const data = await r.json().catch(() => null);
+          if (Array.isArray(data?.googleModelsEnv)) setPortableGoogleModels(data.googleModelsEnv);
+        }
+        return ok;
+      })
+      .catch(() => false);
+  }
+  return serverChecked;
+}
+
+async function handleStudioRequest(url: URL, init?: RequestInit): Promise<Response> {
+  const path = url.pathname.replace(/^\/api\/studio/, '');
+  const method = (init?.method || 'GET').toUpperCase();
+  let body: any = {};
+  if (init?.body && typeof init.body === 'string') {
+    try {
+      body = JSON.parse(init.body);
+    } catch {
+      body = {};
+    }
+  }
+
+  try {
+    if (path === '/catalog') {
+      isServerAvailable();
+      return json({ googleModelsEnv: getPortableGoogleModels() });
+    }
+    if (path === '/keys-status') {
+      const keys = readPortableKeys();
+      return json({
+        totalKeys: keys.length,
+        customKeysCount: keys.length,
+        systemKeysCount: 0,
+        autoRotationEnabled: keys.length > 1,
+        keys: keys.map((k, idx) => ({ index: idx, label: `Clave Local #${idx + 1}`, maskedKey: `${k.slice(0, 6)}••••••••${k.slice(-4)}`, status: idx === 0 ? 'active' : 'standby' })),
+      });
+    }
+    if (path === '/keys-validate') {
+      const list = [...(Array.isArray(body.customKeys) ? body.customKeys : []), ...(body.apiKey ? [body.apiKey] : [])]
+        .map((k: string) => String(k || '').trim())
+        .filter((k: string) => k.length > 8);
+      if (!list.length) return json({ error: 'No se proporcionaron claves para validar.' }, 400);
+      const results: { valid: boolean; error?: string }[] = [];
+      for (const key of list) {
+        try {
+          const r = await nativeFetch(`${GEMINI_BASE}/models?pageSize=5`, { headers: { 'x-goog-api-key': key } });
+          const d = await r.json().catch(() => ({}));
+          results.push(r.ok && Array.isArray(d.models) ? { valid: true } : { valid: false, error: d?.error?.message || 'Clave inválida' });
+        } catch (e: any) {
+          results.push({ valid: false, error: e?.message || 'Sin conexión' });
+        }
+      }
+      return json({ results, valid: Boolean(results[0]?.valid), error: results[0]?.error });
+    }
+    if (path === '/tts/estimate') {
+      const clean = String(body.text || '').trim();
+      const words = clean ? clean.split(/\s+/).filter(Boolean) : [];
+      const chunks = splitTextIntoChunks(clean, body.maxWordsPerChunk);
+      const estimatedSeconds = clean ? Math.max(2, Math.round((words.length / 145) * 60)) : 0;
+      return json({
+        totalWords: words.length,
+        totalChars: clean.length,
+        chunkCount: chunks.length,
+        estimatedSeconds,
+        estimatedMinutes: Math.round((estimatedSeconds / 60) * 10) / 10,
+        chunksPreview: chunks.map((c) => ({ index: c.index, wordCount: c.wordCount, snippet: c.snippet })),
+      });
+    }
+    if (path === '/tts/synthesize') {
+      if (!String(body.text || '').trim()) return json({ error: 'El texto a sintetizar es obligatorio.' }, 400);
+      const r = await synthesizeChunk({ ...body, text: String(body.text).slice(0, 4500) });
+      return json({ success: true, audioBase64: r.audioBase64, durationSeconds: r.durationSeconds, usedModel: r.usedModel, usedKeyIndex: r.usedKeyIndex });
+    }
+    if (path === '/tts/jobs' && method === 'POST') {
+      requireKeys();
+      const chunks = splitTextIntoChunks(String(body.text || ''), body.maxWordsPerChunk);
+      if (!chunks.length) return json({ error: 'El texto no contiene palabras válidas.' }, 400);
+      const totalWords = chunks.reduce((s, c) => s + c.wordCount, 0);
+      const job: LocalJob = {
+        id: `tts_local_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`,
+        status: 'processing',
+        opts: body,
+        chunks: chunks.map((c) => ({ ...c, status: 'pending', durationSeconds: 0, pcm: null, audioBase64: null })),
+        totalChunks: chunks.length,
+        currentChunkIndex: 0,
+        completedChunks: 0,
+        estimatedTotalSeconds: Math.max(3, Math.round((totalWords / 145) * 60)),
+        generatedTotalSeconds: 0,
+        progressPercent: 0,
+        listeners: new Set(),
+        history: [],
+      };
+      localJobs.set(job.id, job);
+      processJob(job).catch(() => {});
+      return json({ jobId: job.id, totalChunks: job.totalChunks, estimatedTotalSeconds: job.estimatedTotalSeconds });
+    }
+    const jobMatch = path.match(/^\/tts\/jobs\/([^/]+)\/(control|download)$/);
+    if (jobMatch) {
+      const job = localJobs.get(jobMatch[1]);
+      if (!job) return json({ error: 'Trabajo no encontrado.' }, 404);
+      if (jobMatch[2] === 'control') {
+        const a = body.action;
+        if (a === 'pause' && job.status === 'processing') job.status = 'paused';
+        else if (a === 'resume' && job.status === 'paused') job.status = 'processing';
+        else if (a === 'cancel') job.status = 'cancelled';
+        emit(job, 'job_status', { status: job.status });
+        return json({ success: true, status: job.status });
+      }
+      if (!job.downloadUrl) return json({ error: 'El archivo maestro de audio aún no está disponible.' }, 404);
+      return nativeFetch(job.downloadUrl);
+    }
+    if (path === '/video/generate-html') {
+      const htmlCode = await generateHtml(body);
+      return json({ success: true, htmlCode });
+    }
+    if (path === '/video/render-mp4' || path === '/video/render-serverless') {
+      if (await isServerAvailable()) return nativeFetch(url.pathname, init);
+      return json({ success: false, error: 'El video MP4 se ensambla en el servidor de WAPPY: abre WAPPY Studio en wappy.club con conexión a internet. Sin conexión puedes descargar la Cápsula HTML5 (incluye voz y animación).' }, 503);
+    }
+    return json({ error: `Endpoint portable no soportado: ${path}` }, 404);
+  } catch (err: any) {
+    return json({ success: false, error: err?.message || 'Error en WAPPY Studio portable.' }, 500);
+  }
+}
+
+/** Instala la capa portable (idempotente). */
+export function installPortableStudioApi() {
+  if ((window as any).__wappyPortableApiInstalled) return;
+  (window as any).__wappyPortableApiInstalled = true;
+
+  (window as any).fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+    const raw = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    let url: URL | null = null;
+    try {
+      url = new URL(raw, location.protocol === 'file:' ? 'https://wappy.club/' : location.href);
+    } catch {
+      url = null;
+    }
+    if (url && url.pathname.startsWith('/api/studio/') && (raw.startsWith('/') || url.origin === location.origin || location.protocol === 'file:')) {
+      return handleStudioRequest(url, init);
+    }
+    return nativeFetch(input as any, init);
+  };
+
+  (window as any).EventSource = function PortableEventSource(this: any, url: string, cfg?: any) {
+    const m = String(url).match(/\/api\/studio\/tts\/jobs\/([^/?]+)\/stream/);
+    if (m && localJobs.has(m[1])) return new PortableJobEventSource(localJobs.get(m[1]) as LocalJob);
+    return new NativeEventSource(url, cfg);
+  } as any;
+
+  isServerAvailable();
+}

@@ -156,3 +156,6 @@ __pycache__/
 *.pyc
 
 
+
+# Build intermedio de WAPPY Studio portable
+client/portable-dist/
