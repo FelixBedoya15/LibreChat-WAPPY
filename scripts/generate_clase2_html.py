@@ -2146,7 +2146,7 @@ html_content = f'''<!DOCTYPE html>
         <a href="#guia-paso-a-paso">📘 Guía Paso a Paso</a>
       </div>
 
-      <a href="https://meet.google.com/xvz-jmvv-iym" target="_blank" rel="noopener noreferrer" class="btn btn-dark" style="flex-shrink: 0;">
+      <a href="https://meet.google.com/vid-ucyc-abt" target="_blank" rel="noopener noreferrer" class="btn btn-dark" style="flex-shrink: 0;">
         Entrar a Meet
         <span class="arrow-pip">↗</span>
       </a>
@@ -2165,7 +2165,7 @@ html_content = f'''<!DOCTYPE html>
       <div>
         <div class="eyebrow">
           <span class="dot"></span>
-          <span>CLASE 02 EN VIVO · MARTES 27 DE OCTUBRE · 7:00 PM A 9:00 PM COL</span>
+          <span>CLASE 02 EN VIVO · MAÑANA MARTES 27 DE OCTUBRE · 7:00 PM – 9:00 PM COL</span>
         </div>
 
         <h1>
@@ -2186,7 +2186,7 @@ html_content = f'''<!DOCTYPE html>
             <span class="arrow-pip">⚡</span>
           </a>
           <button type="button" onclick="openNotesModal()" class="btn btn-glass">
-            📝 Tareas Previas y Bitácora
+            ⏳ Video y Notas (Muy Pronto)
           </button>
         </div>
 
@@ -2220,9 +2220,9 @@ html_content = f'''<!DOCTYPE html>
         <div class="meet-live-strip">
           <div style="text-align:left;">
             <div style="font-size:10px; text-transform:uppercase; color:#99f6e4; font-weight:800;">Sala Google Meet Oficial</div>
-            <div style="font-weight:900; color:#fff;">meet.google.com/xvz-jmvv-iym</div>
+            <div style="font-weight:900; color:#fff;">meet.google.com/vid-ucyc-abt</div>
           </div>
-          <a href="https://meet.google.com/xvz-jmvv-iym" target="_blank" rel="noopener noreferrer" class="btn btn-lime" style="padding:8px 14px; font-size:12px;">
+          <a href="https://meet.google.com/vid-ucyc-abt" target="_blank" rel="noopener noreferrer" class="btn btn-lime" style="padding:8px 14px; font-size:12px;">
             Unirme Ahora ↗
           </a>
         </div>
@@ -2922,17 +2922,17 @@ html_content = f'''<!DOCTYPE html>
   </section>
 
   <!-- ========================================================================
-       3B. SALA EN VIVO, GRABACIÓN CLASE 2 + BOTÓN POPUP DE TAREAS Y MEMORIAS
+       3B. REPRODUCTOR CLASE 2 (MUY PRONTO) + SALA MEET OFICIAL + POPUP NOTAS
        ======================================================================== -->
   <section class="recording-section" id="grabacion">
     <div class="container">
       <div class="sec-head-bar">
         <div>
-          <span class="sec-kicker">🎥 Sala en Vivo &amp; Grabación Oficial · Clase 2 (Martes 27 de Octubre)</span>
-          <h2 class="sec-big-title">Reproductor Oficial Clase 2 &amp; Bitácora del Grupo</h2>
+          <span class="sec-kicker">⏳ Próxima Emisión en Vivo · Mañana Martes 27 de Octubre (7:00 PM – 9:00 PM)</span>
+          <h2 class="sec-big-title">Grabación de la Clase 2 &amp; Notas Oficiales (Muy Pronto)</h2>
         </div>
         <div style="font-size: 13px; color: var(--ink-muted); font-weight: 600;">
-          💡 Conéctate a la sesión en vivo o abre debajo el <strong>Popup de Compromisos y Notas Previas</strong>
+          📹 Sala Google Meet Oficial: <a href="https://meet.google.com/vid-ucyc-abt" target="_blank" rel="noopener noreferrer" style="color:var(--teal); font-weight:800; text-decoration:underline;">meet.google.com/vid-ucyc-abt</a>
         </div>
       </div>
 
@@ -2944,11 +2944,11 @@ html_content = f'''<!DOCTYPE html>
 
         <div class="deck-topbar">
           <div class="deck-telemetry">
-            <span class="telemetry-dot"></span>
-            <span>WAPPY.CLUB // GRABACIÓN_OFICIAL // CLASE_02_TENSHI_&_MCP</span>
+            <span class="telemetry-dot" style="background:#f59e0b; box-shadow:0 0 12px #f59e0b;"></span>
+            <span>WAPPY.CLUB // CLASE_02 // ESTADO: MUY_PRONTO_EN_VIVO (MARTES 27 OCT · 7:00 PM)</span>
           </div>
           <div class="deck-controls-top">
-            <span class="deck-counter-badge">MARTES 27 OCT · 7:00 PM COL</span>
+            <span class="deck-counter-badge" style="border-color:rgba(245,158,11,0.5); color:#fcd34d; background:rgba(245,158,11,0.15);">⏳ GRABACIÓN DISPONIBLE TRAS LA CLASE</span>
             <button type="button" class="btn-fullscreen" onclick="toggleVideoFullscreen()">
               ⛶ Pantalla Completa
             </button>
@@ -2956,23 +2956,23 @@ html_content = f'''<!DOCTYPE html>
         </div>
 
         <div class="deck-progress-track">
-          <div class="deck-progress-fill" style="width: 100%;"></div>
+          <div class="deck-progress-fill" style="width: 100%; background: linear-gradient(90deg, #f59e0b, #c7f303, #2dd4bf);"></div>
         </div>
 
-        <!-- Capítulos Rápidos de la Clase 2 -->
+        <!-- Barra Informativa de la Sesión -->
         <div class="recording-chapters-strip">
-          <span class="rec-chapter-pill"><strong>Bloque 1</strong> Repaso Reto #1 y Ahorro 80% con Markdown (.md)</span>
-          <span class="rec-chapter-pill"><strong>Bloque 2</strong> Conexión MCP WAPPY en Vivo (55+ Tools)</span>
-          <span class="rec-chapter-pill"><strong>Bloque 3</strong> Creación de Skills (Informe Simulacro y Auditorías)</span>
-          <span class="rec-chapter-pill"><strong>Bloque 4</strong> Tenshi Voice en el Celular y Órdenes Delegadas</span>
-          <span class="rec-chapter-pill"><strong>Bloque 5</strong> Triggers, Cron y Comandos /Slash</span>
+          <span class="rec-chapter-pill"><strong>🗓️ Fecha:</strong> Martes 27 de Octubre de 2026</span>
+          <span class="rec-chapter-pill"><strong>⏰ Hora:</strong> 7:00 PM – 9:00 PM (Hora Colombia)</span>
+          <span class="rec-chapter-pill"><strong>📹 Google Meet:</strong> meet.google.com/vid-ucyc-abt</span>
+          <span class="rec-chapter-pill"><strong>🎬 Grabación:</strong> Se publicará aquí al terminar la sesión</span>
+          <span class="rec-chapter-pill"><strong>📝 Notas IA:</strong> Disponibles al finalizar la Clase 2</span>
         </div>
 
-        <!-- Reproductor Embebido 16:9 con Miniatura Oficial de la CLASE 2 -->
+        <!-- Contenedor 16:9 con Miniatura Oficial "CLASE 2 · MUY PRONTO" -->
         <div class="video-viewport-wrap">
           <div class="video-aspect-box">
-            <!-- Miniatura Oficial Personalizada CLASE 2 (Félix Avatar + WAPPY + Tenshi + CLASE 2) -->
-            <div class="video-thumb-cover" id="video-thumb-cover" onclick="playRecordingVideo()">
+            <!-- Miniatura Oficial Personalizada CLASE 2 · MUY PRONTO -->
+            <div class="video-thumb-cover" id="video-thumb-cover" style="cursor:default;">
               <div class="video-thumb-grid-bg"></div>
 
               <!-- Columna Izquierda: Avatar 3D de Félix Bedoya -->
@@ -2981,12 +2981,17 @@ html_content = f'''<!DOCTYPE html>
                 <span class="thumb-char-tag">👨‍🏫 Ing. Félix Bedoya</span>
               </div>
 
-              <!-- Columna Central: Logos WAPPY + Antigravity + CLASE 2 + Botón Play -->
+              <!-- Columna Central: Logos WAPPY + Antigravity + CLASE 2 + MUY PRONTO -->
               <div class="thumb-center-col">
                 <div class="thumb-logos-pill">
                   <img src="{wappy_horiz_logo}" alt="WAPPY Logo" class="wappy-h">
                   <span class="plus-sep">+</span>
                   <img src="{agy_logo}" alt="Google Antigravity" class="agy-i">
+                </div>
+
+                <!-- Insignia Destacada MUY PRONTO -->
+                <div style="display:inline-flex; align-items:center; gap:8px; background:rgba(245,158,11,0.2); border:2px solid #fbbf24; color:#fde047; font-family:var(--font-mono); font-size:clamp(11px, 1.3vw, 15px); font-weight:800; padding:6px 18px; border-radius:999px; text-transform:uppercase; letter-spacing:0.06em; box-shadow:0 0 24px rgba(245,158,11,0.35);">
+                  ⏳ MUY PRONTO · GRABACIÓN EN PROCESO
                 </div>
 
                 <div class="thumb-clase-giant">CLASE 2</div>
@@ -2995,10 +3000,15 @@ html_content = f'''<!DOCTYPE html>
                   <span>Tenshi en el Bolsillo</span>, Conexión MCP WAPPY &amp; <span>Skills en Vivo</span>
                 </div>
 
-                <div class="thumb-play-cta">
-                  <span class="thumb-play-icon">▶</span>
-                  <span>ENTRAR AL REPRODUCTOR / SALA</span>
+                <div style="font-size:clamp(11.5px, 1.25vw, 15px); color:#cbd5e1; font-weight:700; max-width:520px; line-height:1.4;">
+                  🗓️ En vivo mañana <strong style="color:var(--lime);">Martes 27 de Octubre a las 7:00 PM</strong>.<br>
+                  Al terminar la clase, el video grabado quedará disponible en este reproductor.
                 </div>
+
+                <a href="https://meet.google.com/vid-ucyc-abt" target="_blank" rel="noopener noreferrer" class="thumb-play-cta" style="background:linear-gradient(135deg, #c7f303 0%, #a3e635 100%); color:#0e1300; border-color:#ffffff; box-shadow:0 14px 36px rgba(199,243,3,0.45); text-decoration:none;">
+                  <span class="thumb-play-icon" style="background:#0e1300; color:#c7f303;">📹</span>
+                  <span>ENTRAR A SALA MEET (meet.google.com/vid-ucyc-abt)</span>
+                </a>
               </div>
 
               <!-- Columna Derecha: Avatar 3D de Tenshi / WAPPY con Aureola -->
@@ -3011,34 +3021,25 @@ html_content = f'''<!DOCTYPE html>
                 <span class="thumb-char-tag" style="border-color:#2dd4bf; color:#2dd4bf;">✨ Tenshi IA · WAPPY</span>
               </div>
             </div>
-
-            <iframe
-              id="drive-video-iframe"
-              src="https://drive.google.com/file/d/1Q0QK8gpwm5orbdPmOgkW-IHZdJhFcIk-/preview"
-              allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-              allowfullscreen
-              loading="lazy"
-              title="Grabación y Sala Oficial Clase 2 - WAPPY IA y Google Antigravity">
-            </iframe>
           </div>
         </div>
 
-        <!-- BARRA DEBAJO DEL VIDEO CON EL BOTÓN PARA ABRIR EL POPUP DE NOTAS Y TAREAS -->
+        <!-- BARRA DEBAJO DEL VIDEO CON EL BOTÓN PARA EL POPUP DE NOTAS (MUY PRONTO) -->
         <div class="notes-trigger-bar">
           <div class="notes-trigger-info">
-            <h3>📝 Bitácora de Conexión, Compromisos de la Clase 1 y Agenda de la Clase 2</h3>
-            <p>Consulta los 13 compromisos previos del grupo, el repaso de la Clase 1 y la hoja de ruta técnica de la Clase 2.</p>
+            <h3>⏳ Notas de la Clase 2 y Minuto a Minuto (Muy Pronto)</h3>
+            <p>Las notas tomadas por IA y la transcripción de la Clase 2 se subirán apenas finalice la sesión de mañana Martes 27 de Octubre (7:00 PM – 9:00 PM).</p>
           </div>
           <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
             <button type="button" class="btn-open-notes-modal" onclick="openNotesModal()">
-              📋 Abrir Notas y Compromisos (Popup)
-              <span class="badge-count">13 TAREAS + AGENDA C2</span>
+              📝 Ver Estado de Notas y Sala Meet (Popup)
+              <span class="badge-count">MUY PRONTO</span>
             </button>
-            <a href="https://meet.google.com/xvz-jmvv-iym" target="_blank" rel="noopener noreferrer" class="btn btn-glass" style="padding:11px 16px; font-size:12.5px;">
-              📹 Sala Google Meet ↗
+            <a href="https://meet.google.com/vid-ucyc-abt" target="_blank" rel="noopener noreferrer" class="btn btn-lime" style="padding:11px 16px; font-size:12.5px;">
+              📹 Unirme a Google Meet ↗
             </a>
             <a href="/clase1#grabacion" class="btn btn-glass" style="padding:11px 16px; font-size:12.5px;">
-              ⏮️ Ver Grabación Clase 1
+              ⏮️ Ver Grabación y Notas Clase 1
             </a>
           </div>
         </div>
@@ -3047,15 +3048,15 @@ html_content = f'''<!DOCTYPE html>
   </section>
 
   <!-- ========================================================================
-       3C. MODAL POPUP INTERACTIVO CON LAS NOTAS Y AGENDA DE LA CLASE 2
+       3C. MODAL POPUP INTERACTIVO DE NOTAS CLASE 2 (ESTADO: MUY PRONTO + LINK MEET)
        ======================================================================== -->
   <div class="notes-modal-backdrop" id="notes-modal" onclick="handleBackdropClick(event)">
     <div class="notes-modal-window" role="dialog" aria-modal="true" aria-labelledby="notes-modal-title">
 
       <div class="notes-modal-header">
         <div class="notes-modal-title-group">
-          <div class="kicker">📅 Martes 27 de Octubre de 2026 · Clase II - Tenshi Voice, MCP WAPPY &amp; Skills</div>
-          <h3 id="notes-modal-title">Bitácora de Preparación, Compromisos del Grupo y Agenda Clase 2</h3>
+          <div class="kicker">⏳ Próxima Sesión en Vivo · Martes 27 de Octubre de 2026 · 7:00 PM – 9:00 PM</div>
+          <h3 id="notes-modal-title">Notas y Memorias de la Clase 2 — Muy Pronto</h3>
         </div>
         <button type="button" class="btn-close-modal" onclick="closeNotesModal()">
           ✕ Cerrar Ventana
@@ -3063,134 +3064,54 @@ html_content = f'''<!DOCTYPE html>
       </div>
 
       <div class="notes-attachments-strip">
-        <span style="font-size:11.5px; font-weight:800; color:#94a3b8; text-transform:uppercase;">📎 Accesos Rápidos:</span>
-        <a href="https://meet.google.com/xvz-jmvv-iym" target="_blank" rel="noopener noreferrer" class="note-attach-pill">
-          📹 Sala Google Meet (7:00 PM) ↗
+        <span style="font-size:11.5px; font-weight:800; color:#94a3b8; text-transform:uppercase;">📎 Enlaces Oficiales:</span>
+        <a href="https://meet.google.com/vid-ucyc-abt" target="_blank" rel="noopener noreferrer" class="note-attach-pill" style="border-color:var(--lime); color:var(--lime);">
+          📹 Sala Google Meet Clase 2: meet.google.com/vid-ucyc-abt ↗
         </a>
-        <a href="/clase1" class="note-attach-pill">
-          ⏮️ Ir a Página de la Clase 1 ↗
-        </a>
-        <a href="https://docs.google.com/document/d/1YuutMA4ovF9h_dTwdle-NNU1mwK02r8CdDyPLbQPpA4/edit?usp=drive_web&tab=t.b19woqymvai3" target="_blank" rel="noopener noreferrer" class="note-attach-pill">
-          📄 Transcripción Clase 1 (Google Docs) ↗
-        </a>
-        <a href="https://drive.google.com/file/d/1Q0QK8gpwm5orbdPmOgkW-IHZdJhFcIk-/view?usp=drive_web" target="_blank" rel="noopener noreferrer" class="note-attach-pill">
-          🎥 Grabación Clase 1 (Google Drive) ↗
+        <a href="/clase1#grabacion" class="note-attach-pill">
+          ⏮️ Ver Grabación y Notas de la Clase 1 ↗
         </a>
       </div>
 
-      <div class="notes-tabs-bar">
-        <button type="button" class="notes-tab-btn active" onclick="switchNotesTab('all')" id="ntab-all">🌟 Ver Todo</button>
-        <button type="button" class="notes-tab-btn" onclick="switchNotesTab('resumen')" id="ntab-resumen">📌 Objetivos Clase 2</button>
-        <button type="button" class="notes-tab-btn" onclick="switchNotesTab('pasos')" id="ntab-pasos">✅ Revisión de los 13 Compromisos Previos</button>
-        <button type="button" class="notes-tab-btn" onclick="switchNotesTab('detalles')" id="ntab-detalles">⏱️ Cronograma Práctico Clase 2</button>
-      </div>
-
-      <div class="notes-modal-body">
-
-        <!-- SECCIÓN 1: OBJETIVOS DE LA CLASE 2 -->
-        <div class="notes-pane active" data-npane="resumen">
-          <div style="font-size:14px; font-weight:900; color:var(--lime); text-transform:uppercase; letter-spacing:0.06em;">
-            📌 1. Resumen Ejecutivo de lo que Lograremos en la Clase 2
+      <div class="notes-modal-body" style="text-align:center; padding:clamp(28px, 5vw, 56px) clamp(18px, 4vw, 40px);">
+        <div style="max-width:680px; margin:0 auto; background:rgba(15,23,42,0.85); border:2px dashed rgba(199,243,3,0.45); border-radius:26px; padding:clamp(24px, 4vw, 40px); box-shadow:0 20px 50px rgba(0,0,0,0.45);">
+          <div style="display:inline-flex; align-items:center; gap:8px; background:rgba(245,158,11,0.18); border:1.5px solid #fbbf24; color:#fde047; font-family:var(--font-mono); font-size:12px; font-weight:800; padding:6px 16px; border-radius:999px; margin-bottom:16px;">
+            ⏳ MUY PRONTO · PENDIENTE DE EMISIÓN EN VIVO
           </div>
-          <div class="notes-summary-grid">
-            <div class="s-card glow-lime">
-              <h4>🔌 Conexión MCP WAPPY en Vivo</h4>
-              <p>Cada participante dejará conectada su instancia local de Google Antigravity con su cuenta oficial de WAPPY mediante el protocolo MCP, habilitando las más de 55 herramientas del SG-SST.</p>
+
+          <h3 style="font-family:var(--font-display); font-size:clamp(22px, 3vw, 32px); font-weight:900; color:#ffffff; margin-bottom:12px;">
+            Las Notas y la Grabación de la Clase 2 se publicarán mañana al finalizar la sesión
+          </h3>
+
+          <p style="font-size:15px; color:#cbd5e1; line-height:1.65; margin-bottom:24px;">
+            Recuerda que nuestra <strong>Clase 2 (Tenshi en el Bolsillo, Conexión MCP WAPPY y Skills en Vivo)</strong> se realizará en vivo mañana <strong style="color:var(--lime);">Martes 27 de Octubre de 7:00 PM a 9:00 PM (Hora Colombia)</strong>.<br><br>
+            Tan pronto terminemos la clase, aquí mismo encontrarás el <strong>video completo de la grabación</strong>, la <strong>transcripción oficial</strong>, el <strong>resumen ejecutivo</strong> y los <strong>nuevos compromisos del grupo</strong>.
+          </p>
+
+          <!-- Tarjeta Destacada con el Link Oficial de Google Meet -->
+          <div style="background:rgba(13,148,136,0.18); border:1.5px solid #2dd4bf; border-radius:18px; padding:18px 22px; margin-bottom:24px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; text-align:left;">
+            <div>
+              <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#5eead4; letter-spacing:0.06em;">
+                📹 Enlace Oficial de Google Meet · Clase 2 (Martes 27 Oct · 7:00 PM)
+              </div>
+              <div style="font-family:var(--font-mono); font-size:16px; font-weight:900; color:#ffffff; margin-top:4px;">
+                https://meet.google.com/vid-ucyc-abt
+              </div>
             </div>
-            <div class="s-card glow-teal">
-              <h4>📱 Tenshi Voice desde el Celular en Campo</h4>
-              <p>Práctica en vivo entrando a <code>wappy.club</code> desde el celular para dictar actos y condiciones inseguras con la voz mientras se camina por planta u obra, sin digitar en teclado.</p>
-            </div>
-            <div class="s-card">
-              <h4>📲 Órdenes Delegadas (Celular → PC)</h4>
-              <p>Cómo pedirle por voz a Tenshi que delegue una tarea compleja y cómo Antigravity la consulta en el computador con <code>wappy_consultar_ordenes_delegadas_tenshi</code> y la completa automáticamente.</p>
-            </div>
-            <div class="s-card">
-              <h4>⚙️ Skills Reales: Simulacro y Auditorías (.MD)</h4>
-              <p>Creación sin código del archivo <code>SKILL.md</code> basado en el informe ejemplo del Simulacro Nacional y conversión de documentos pesados a Markdown (<code>.md</code>) para ahorrar hasta un 80% de tokens.</p>
-            </div>
+            <a href="https://meet.google.com/vid-ucyc-abt" target="_blank" rel="noopener noreferrer" class="btn btn-lime">
+              Entrar a Google Meet ↗
+            </a>
+          </div>
+
+          <div style="display:flex; justify-content:center; gap:12px; flex-wrap:wrap;">
+            <a href="/clase1#grabacion" class="btn btn-glass">
+              ⏮️ Repasar Grabación y Notas de la Clase 1
+            </a>
+            <button type="button" class="btn btn-dark" onclick="closeNotesModal()">
+              Entendido, Volver a la Clase 2
+            </button>
           </div>
         </div>
-
-        <!-- SECCIÓN 2: REVISIÓN DE LOS 13 COMPROMISOS QUE TRAEMOS DE LA CLASE 1 -->
-        <div class="notes-pane active" data-npane="pasos">
-          <div style="font-size:14px; font-weight:900; color:var(--lime); text-transform:uppercase; letter-spacing:0.06em;">
-            ✅ 2. Checklist de los 13 Compromisos Acordados en la Clase 1 para Hoy
-          </div>
-
-          <div class="n-task-item">
-            <span class="n-task-owner">El Grupo</span>
-            <div><strong>Activar cámaras al inicio:</strong> Encender las cámaras en los primeros minutos de la Clase 2 para fortalecer la comunidad y resolver dudas en vivo.</div>
-          </div>
-          <div class="n-task-item">
-            <span class="n-task-owner">El Grupo</span>
-            <div><strong>Tener Antigravity instalado:</strong> Haber descargado e instalado la aplicación desde <code>antigravity.google</code> con sesión iniciada.</div>
-          </div>
-          <div class="n-task-item">
-            <span class="n-task-owner">El Grupo</span>
-            <div><strong>Proyectos Específicos por Actividad:</strong> Tener creadas carpetas puntuales por actividad o auditoría en lugar de un proyecto general gigante para proteger los tokens.</div>
-          </div>
-          <div class="n-task-item">
-            <span class="n-task-owner">María Elena Obando</span>
-            <div><strong>Estructura de Subcarpetas Multi-Empresa:</strong> Validar en clase la carpeta principal de auditoría con subcarpetas organizadas por cliente.</div>
-          </div>
-          <div class="n-task-item">
-            <span class="n-task-owner">Jenny Ríos</span>
-            <div><strong>Informe Ejemplo de Muestra:</strong> Utilizar un informe base para transformarlo hoy en un <code>SKILL.md</code> que automatice los informes posteriores de las ~20 empresas.</div>
-          </div>
-          <div class="n-task-item">
-            <span class="n-task-owner">Mauricio Posada</span>
-            <div><strong>Aplicativo de Informe de Simulacro:</strong> Integrar la estructura compartida en la comunidad WAPPY dentro del flujo automatizado de hoy.</div>
-          </div>
-          <div class="n-task-item">
-            <span class="n-task-owner">El Grupo</span>
-            <div><strong>Práctica con «Sin Editar Nada»:</strong> Haber probado consultas exploratorias en sus carpetas locales aplicando el comando de seguridad <em>"sin editar nada"</em>.</div>
-          </div>
-          <div class="n-task-item">
-            <span class="n-task-owner">El Grupo</span>
-            <div><strong>Explorar las 60+ Herramientas de WAPPY:</strong> Tener claro qué módulo de WAPPY (GTC 45, PESV, 0312, Químicos, Cronograma) desean alimentar primero en su proyecto.</div>
-          </div>
-        </div>
-
-        <!-- SECCIÓN 3: CRONOGRAMA MINUTO A MINUTO DE LA CLASE 2 -->
-        <div class="notes-pane active" data-npane="detalles">
-          <div style="font-size:14px; font-weight:900; color:var(--lime); text-transform:uppercase; letter-spacing:0.06em;">
-            ⏱️ 3. Hoja de Ruta Minuto a Minuto de la Clase 2 (7:00 PM – 9:00 PM)
-          </div>
-
-          <div class="n-detail-card">
-            <h4>
-              <span>Bloque 1 (7:00 – 7:30 PM): Revisión de Proyectos, Markdown (.MD) y Conexión MCP con WAPPY</span>
-              <span><span class="ts-link">30 MIN</span></span>
-            </h4>
-            <p>Revisión rápida de las carpetas creadas por los alumnos. Demostración de cómo convertir decretos y PDFs a formato Markdown (<code>.md</code>) sin alterar los originales para ahorrar el 80% de tokens, y conexión paso a paso del servidor MCP de WAPPY usando el <strong>Prompt #1</strong>.</p>
-          </div>
-
-          <div class="n-detail-card">
-            <h4>
-              <span>Bloque 2 (7:30 – 8:00 PM): Creación de Skills (SKILL.md) y Caso Real del Simulacro Nacional</span>
-              <span><span class="ts-link">30 MIN</span></span>
-            </h4>
-            <p>Cómo tomar un informe de muestra (como el Informe del Simulacro Nacional o un acta de inspección) y pedirle al chat de Antigravity con el <strong>Prompt #3</strong> que cree una habilidad permanente en <code>.agents/skills/</code> para generar informes de múltiples empresas en minutos y subir los hallazgos a la Matriz GTC 45 de WAPPY.</p>
-          </div>
-
-          <div class="n-detail-card">
-            <h4>
-              <span>Bloque 3 (8:00 – 8:35 PM): Tenshi en el Bolsillo (Voz desde el Celular) y Órdenes Delegadas</span>
-              <span><span class="ts-link">35 MIN</span></span>
-            </h4>
-            <p>Todos los participantes entran desde su celular a <code>wappy.club</code> y abren <strong>Tenshi Voice</strong>. Ejercicio en vivo dictando hallazgos de seguridad por voz y delegando órdenes para que Antigravity las consulte desde el computador mediante <code>wappy_consultar_ordenes_delegadas_tenshi</code> (<strong>Prompt #5</strong>).</p>
-          </div>
-
-          <div class="n-detail-card">
-            <h4>
-              <span>Bloque 4 (8:35 – 9:00 PM): Triggers, Cron, Atajos /Slash y Reto para la Clase 3</span>
-              <span><span class="ts-link">25 MIN</span></span>
-            </h4>
-            <p>Configuración del comando rápido <code>/sincronizar-campo</code> y del Trigger matutino (<strong>Prompt #6</strong>) que une Google Drive + Órdenes de Tenshi + WAPPY. Ronda de debugging colaborativo en pantalla compartida.</p>
-          </div>
-        </div>
-
       </div>
     </div>
   </div>
@@ -3549,7 +3470,7 @@ Configúralo para que cada vez que yo escriba "/sincronizar-campo" o se active e
           <a href="/clase1" class="btn btn-glass">
             ⏮️ Ver Página de la Clase 1
           </a>
-          <a href="https://meet.google.com/xvz-jmvv-iym" target="_blank" rel="noopener noreferrer" class="btn btn-lime">
+          <a href="https://meet.google.com/vid-ucyc-abt" target="_blank" rel="noopener noreferrer" class="btn btn-lime">
             📹 Entrar a Google Meet (7:00 PM)
             <span class="arrow-pip">↗</span>
           </a>
