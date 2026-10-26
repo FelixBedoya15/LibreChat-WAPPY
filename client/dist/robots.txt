@@ -1,19 +1,59 @@
 User-agent: *
+
+# === RUTAS PÚBLICAS PERMITIDAS (SEO / AEO) ===
 Allow: /
 Allow: /landing
+Allow: /inicio
+Allow: /planes
 Allow: /blog
 Allow: /blog/
+Allow: /academia
+Allow: /marketplace
+Allow: /tienda
 Allow: /quibi
-Allow: /quibi/
+Allow: /about
+Allow: /quienes-somos
+Allow: /contactanos
+Allow: /comunidad
+Allow: /privacy
+Allow: /privacy-policy
+Allow: /terms
+Allow: /terminos
 Allow: /matrizipvr.html
 Allow: /propuesta-curso-ia-sgsst.html
 Allow: /clase1.html
 Allow: /cursowappy01.html
 Allow: /assets/
 Allow: /images/
-Disallow: /api/
-Disallow: /c/
-Disallow: /blog/admin
-Disallow: /admin
 
+# === RUTAS PRIVADAS BLOQUEADAS (Empresas, Chats, Administración) ===
+Disallow: /c/
+Disallow: /sgsst/
+Disallow: /sgsst-public/
+Disallow: /api/
+Disallow: /admin/
+Disallow: /blog/admin/
+Disallow: /marketplace/admin/
+Disallow: /tienda/admin/
+Disallow: /training/admin/
+Disallow: /ruta-aprendizaje/admin/
+Disallow: /tenshi/admin/
+Disallow: /events-meet/admin/
+Disallow: /dashboard/
+Disallow: /billing
+Disallow: /auditoria
+Disallow: /kanban
+Disallow: /control
+Disallow: /tareas
+Disallow: /live
+Disallow: /chat-sst
+Disallow: /huella-biocentrica
+Disallow: /bateria-psicosocial
+Disallow: /login
+Disallow: /register
+Disallow: /signup
+Disallow: /reset-password
+Disallow: /forgot-password
+
+# === SITEMAP OFICIAL ===
 Sitemap: https://wappy.club/sitemap.xml
