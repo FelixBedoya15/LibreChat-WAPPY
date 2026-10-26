@@ -1,3 +1,19 @@
 User-agent: *
-Disallow: /api/
 Allow: /
+Allow: /landing
+Allow: /blog
+Allow: /blog/
+Allow: /quibi
+Allow: /quibi/
+Allow: /matrizipvr.html
+Allow: /propuesta-curso-ia-sgsst.html
+Allow: /clase1.html
+Allow: /cursowappy01.html
+Allow: /assets/
+Allow: /images/
+Disallow: /api/
+Disallow: /c/
+Disallow: /blog/admin
+Disallow: /admin
+
+Sitemap: https://wappy.club/sitemap.xml
