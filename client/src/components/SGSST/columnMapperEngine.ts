@@ -40,9 +40,9 @@ export interface MappingResult {
 /**
  * Normaliza una cadena para comparaciones insensibles a mayúsculas, tildes y caracteres especiales.
  */
-export function normalizeColumnName(str: string): string {
-  if (!str) return '';
-  return str
+export function normalizeColumnName(str: any): string {
+  if (str === null || str === undefined) return '';
+  return String(str)
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -58,8 +58,9 @@ const STOP_WORDS = new Set([
 /**
  * Calcula la similitud de Jaccard / Levenshtein aproximada entre dos cadenas limpias.
  */
-export function calculateMatchScore(candidate: string, targetKey: string, targetLabel: string, synonyms: string[] = []): number {
-  const normCandidate = normalizeColumnName(candidate);
+export function calculateMatchScore(candidate: any, targetKey: string, targetLabel: string, synonyms: string[] = []): number {
+  const candStr = String(candidate ?? '');
+  const normCandidate = normalizeColumnName(candStr);
   if (!normCandidate) return 0;
 
   // Evitar que campos numéricos de evaluación (nd, ne, np, nc, nr) se asocien por error a columnas cualitativas de "Interpretación"
@@ -67,6 +68,11 @@ export function calculateMatchScore(candidate: string, targetKey: string, target
     return 0;
   }
   if (['interpretacion_np', 'interpretacion_nr'].includes(targetKey) && !normCandidate.includes('interpretacion') && !normCandidate.includes('significado')) {
+    return 0;
+  }
+
+  // REGLA CRÍTICA: 'zona' NUNCA debe capturar 'tarea' o 'tareas' (porque 'tarea' termina en 'area') ni preguntas de control
+  if (targetKey === 'zona' && (normCandidate === 'tarea' || normCandidate.startsWith('tarea') || candStr.includes('?') || candStr.includes('¿'))) {
     return 0;
   }
 
@@ -79,10 +85,17 @@ export function calculateMatchScore(candidate: string, targetKey: string, target
   }
 
   // Reglas de alta precisión para encabezados extensos de matrices GTC-45 / SG-SST
-  if (targetKey === 'peligro_clasificacion' && normCandidate.includes('clasificacion') && normCandidate.includes('peligro')) {
-    return 0.96;
+  if (targetKey === 'peligro_clasificacion' && (normCandidate === 'clasificacion' || (normCandidate.includes('clasificacion') && (normCandidate.includes('peligro') || normCandidate.includes('riesgo'))))) {
+    return 0.98;
   }
-  if (targetKey === 'peligro_descripcion' && normCandidate.includes('descripcion') && normCandidate.includes('peligro')) {
+  if (targetKey === 'peligro_descripcion' && (normCandidate === 'descripcion' || (normCandidate.includes('descripcion') && (normCandidate.includes('peligro') || normCandidate.includes('riesgo'))))) {
+    return 0.98;
+  }
+  if (targetKey === 'actividad') {
+    if (normCandidate === 'actividad' || normCandidate.startsWith('actividad')) return 0.98;
+    if (normCandidate === 'tarea' || normCandidate === 'tareas' || normCandidate.startsWith('tarea')) return 0.93;
+  }
+  if (targetKey === 'tareas' && (normCandidate === 'tarea' || normCandidate === 'tareas' || normCandidate.startsWith('tarea'))) {
     return 0.96;
   }
   if (targetKey === 'cargo' && normCandidate.startsWith('cargo')) {
@@ -91,7 +104,7 @@ export function calculateMatchScore(candidate: string, targetKey: string, target
   if (targetKey === 'proceso' && normCandidate.startsWith('proceso')) {
     return 0.95;
   }
-  if (targetKey === 'zona' && (normCandidate.startsWith('areasitio') || normCandidate.startsWith('zonalugar') || normCandidate.startsWith('area'))) {
+  if (targetKey === 'zona' && (normCandidate.startsWith('areasitio') || normCandidate.startsWith('zonalugar') || normCandidate.startsWith('area') || normCandidate.startsWith('sede') || normCandidate.startsWith('ubicacion'))) {
     return 0.95;
   }
 
@@ -104,13 +117,15 @@ export function calculateMatchScore(candidate: string, targetKey: string, target
       return 0.98;
     }
 
-    // Prefijo o sufijo exacto
+    // Prefijo o sufijo exacto (excluyendo 'area' si candidate es 'tarea')
     if (normCandidate.startsWith(normSyn) || normCandidate.endsWith(normSyn)) {
+      if (normSyn === 'area' && normCandidate.includes('tarea')) continue;
       if (normSyn.length >= 4) return 0.92;
     }
 
     // Contención de sinónimo en candidato o viceversa
     if (normCandidate.includes(normSyn)) {
+      if (normSyn === 'area' && normCandidate.includes('tarea')) continue;
       if (normSyn.length >= 6 || normCandidate.length <= normSyn.length + 5) {
         return 0.88;
       }
@@ -118,12 +133,13 @@ export function calculateMatchScore(candidate: string, targetKey: string, target
         return 0.75;
       }
     } else if (normSyn.includes(normCandidate) && normCandidate.length >= 4) {
+      if (normCandidate === 'area' && normSyn.includes('tarea')) continue;
       return 0.85;
     }
   }
 
   // Coincidencia por palabras compartidas (filtrando stop words como "de", "del", "nivel", etc.)
-  const candWords = candidate.toLowerCase().split(/[\s_\-\/\.]+/).filter(w => w.length > 2 && !STOP_WORDS.has(w));
+  const candWords = candStr.toLowerCase().split(/[\s_\-\/\.]+/).filter(w => w.length > 2 && !STOP_WORDS.has(w));
   const labelWords = targetLabel.toLowerCase().split(/[\s_\-\/\.]+/).filter(w => w.length > 2 && !STOP_WORDS.has(w));
   
   if (candWords.length > 0 && labelWords.length > 0) {
@@ -568,7 +584,7 @@ export function autoMatchColumns(
       if (usedHeaders.has(header)) continue;
 
       const score = calculateMatchScore(header, field.key, field.label, field.synonyms);
-      if (score > highestScore && score >= 0.70) {
+      if (score > highestScore && score >= 0.60) {
         highestScore = score;
         bestHeader = header;
       }
@@ -580,6 +596,11 @@ export function autoMatchColumns(
     } else {
       mapping[field.key] = '';
     }
+  }
+
+  // Respaldo inteligente: si 'actividad' (obligatorio en GTC-45) quedó sin asociar pero se detectó 'tareas', homologar la labor evaluada
+  if (!mapping['actividad'] && mapping['tareas']) {
+    mapping['actividad'] = mapping['tareas'];
   }
 
   return mapping;
@@ -674,6 +695,25 @@ export function transformRowsWithMapping(
       }
     } else if (!hasAnyData) {
       isRowValid = false;
+    }
+
+    // Filtro defensivo contra filas residuales vacías de Excel o notas al pie
+    const hasHazardModule = targetFields.some(f => f.key === 'peligro_descripcion' || f.key === 'peligro_clasificacion');
+    if (hasHazardModule) {
+      const hasHazardText = !!(
+        (newRecord.peligro_descripcion && String(newRecord.peligro_descripcion).trim() !== '') ||
+        (newRecord.peligro_clasificacion && String(newRecord.peligro_clasificacion).trim() !== '') ||
+        (newRecord.efectos_posibles && String(newRecord.efectos_posibles).trim() !== '')
+      );
+      const hasContextText = !!(
+        (newRecord.actividad && String(newRecord.actividad).trim() !== '') ||
+        (newRecord.tareas && String(newRecord.tareas).trim() !== '') ||
+        (newRecord.cargo && String(newRecord.cargo).trim() !== '') ||
+        (newRecord.proceso && String(newRecord.proceso).trim() !== '' && String(newRecord.proceso).trim().toLowerCase() !== 'operativo')
+      );
+      if (!hasHazardText || !hasContextText) {
+        isRowValid = false;
+      }
     }
 
     if (isRowValid) {
