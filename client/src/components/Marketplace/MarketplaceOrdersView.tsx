@@ -178,8 +178,7 @@ const MarketplaceOrdersView: React.FC = () => {
                     (ord.items || []).some(
                       (item) =>
                         item.sku === 'WAPPY-MATRIZ-IPVR-APP' ||
-                        /matriz\s*ipvr/i.test(item.title || '') ||
-                        /aplicativo\s*descargable/i.test(item.title || '')
+                        /matriz\s*ipvr/i.test(item.title || '')
                     ) && (
                       <a
                         href={`/api/marketplace/orders/${encodeURIComponent(ord.orderNumber)}/download-ipvr`}
@@ -187,7 +186,22 @@ const MarketplaceOrdersView: React.FC = () => {
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-black text-xs bg-[#c7f303] text-slate-950 hover:bg-[#b5df02] border border-slate-900/20 transition-all active:scale-95 shadow-2xs"
                       >
                         <span>⬇️</span>
-                        <span>Descargar Aplicativo (.HTML)</span>
+                        <span>Descargar Matriz IPVR (.HTML)</span>
+                      </a>
+                    )}
+                  {ord.paymentStatus === 'APPROVED' &&
+                    (ord.items || []).some(
+                      (item) =>
+                        item.sku === 'WAPPY-STUDIO-APP' ||
+                        /wappy\s*studio/i.test(item.title || '')
+                    ) && (
+                      <a
+                        href={`/api/marketplace/orders/${encodeURIComponent(ord.orderNumber)}/download-studio`}
+                        download="Aplicativo_WAPPY_Studio_Multimodal.html"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-black text-xs bg-[#c7f303] text-slate-950 hover:bg-[#b5df02] border border-slate-900/20 transition-all active:scale-95 shadow-2xs"
+                      >
+                        <span>⬇️</span>
+                        <span>Descargar WAPPY Studio (.HTML)</span>
                       </a>
                     )}
                   {ord.manualReceiptUrl && (

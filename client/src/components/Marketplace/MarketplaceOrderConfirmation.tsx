@@ -79,8 +79,12 @@ const MarketplaceOrderConfirmation: React.FC<Props> = ({ orderNumber, onBackToCa
   const hasMatrizIpvrApp = (order.items || []).some(
     (item) =>
       item.sku === 'WAPPY-MATRIZ-IPVR-APP' ||
-      /matriz\s*ipvr/i.test(item.title || '') ||
-      /aplicativo\s*descargable/i.test(item.title || '')
+      /matriz\s*ipvr/i.test(item.title || '')
+  );
+  const hasWappyStudioApp = (order.items || []).some(
+    (item) =>
+      item.sku === 'WAPPY-STUDIO-APP' ||
+      /wappy\s*studio/i.test(item.title || '')
   );
 
   const handleWhatsAppContact = () => {
@@ -136,6 +140,16 @@ const MarketplaceOrderConfirmation: React.FC<Props> = ({ orderNumber, onBackToCa
             >
               <span>⬇️</span>
               <span>Descargar Aplicativo Matriz IPVR (.HTML)</span>
+            </a>
+          )}
+          {hasWappyStudioApp && isApproved && (
+            <a
+              href={`/api/marketplace/orders/${encodeURIComponent(order.orderNumber)}/download-studio`}
+              download="Aplicativo_WAPPY_Studio_Multimodal.html"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-xs text-slate-950 bg-[#c7f303] hover:bg-[#b5df02] border border-slate-900/20 shadow-lg shadow-[#c7f303]/30 transition-all active:scale-95"
+            >
+              <span>⬇️</span>
+              <span>Descargar Aplicativo WAPPY Studio (.HTML)</span>
             </a>
           )}
           <button

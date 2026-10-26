@@ -447,6 +447,31 @@ export const router = createBrowserRouter(
       errorElement: <RouteErrorBoundary />,
     },
     {
+      path: 'wappystudio',
+      element: withSuspense(
+        <AuthContextProvider>
+          <WappyStudioPage />
+          <ApiErrorWatcher />
+        </AuthContextProvider>
+      ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'wappystudio.html',
+      element: <WappyStudioRedirect />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'wappy-studio',
+      element: <Navigate to="/wappystudio" replace={true} />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'wappy-studio.html',
+      element: <WappyStudioRedirect />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
       // Catch-all for UUIDs at the root (solves the 404 without prefix)
       path: ':id',
       element: withSuspense(<PublicReportView />),

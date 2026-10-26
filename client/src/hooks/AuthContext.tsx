@@ -187,11 +187,11 @@ const AuthContextProvider = ({
       return false;
     }
 
-    const publicPaths = ['/', '', '/landing', '/inicio', '/portal', '/ingresar', '/wappy-apps', '/apps', '/planes', '/contactanos', '/privacy', '/terms', '/about', '/register', '/login', '/comunidad', '/comunidadmp', '/wappyvital', '/matriz', '/quibi', '/qb', '/bateria-psicosocial', '/portafolio', '/portafolio.html', '/embajadores', '/embajadores.html', '/mauricioposada', '/mauricioposada.html', '/matrizipvr', '/matriz-ipvr', '/matrizipvr.html', '/matriz-ipvr.html'];
+    const publicPaths = ['/', '', '/landing', '/inicio', '/portal', '/ingresar', '/wappy-apps', '/apps', '/planes', '/contactanos', '/privacy', '/terms', '/about', '/register', '/login', '/comunidad', '/comunidadmp', '/wappyvital', '/matriz', '/quibi', '/qb', '/bateria-psicosocial', '/portafolio', '/portafolio.html', '/embajadores', '/embajadores.html', '/mauricioposada', '/mauricioposada.html', '/matrizipvr', '/matriz-ipvr', '/matrizipvr.html', '/matriz-ipvr.html', '/wappystudio', '/wappy-studio', '/wappystudio.html', '/wappy-studio.html'];
     if (publicPaths.includes(pathname)) {
       return true;
     }
-    if (pathname.startsWith('/matrizipvr') || pathname.startsWith('/matriz-ipvr')) {
+    if (pathname.startsWith('/matrizipvr') || pathname.startsWith('/matriz-ipvr') || pathname.startsWith('/wappystudio') || pathname.startsWith('/wappy-studio')) {
       return true;
     }
     if (pathname.startsWith('/bateria-psicosocial/') || pathname === '/bateria-psicosocial') {

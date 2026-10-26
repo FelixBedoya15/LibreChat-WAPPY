@@ -468,7 +468,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
       const dx = Math.max(-1, Math.min(1, (e.clientX - cx) / Math.max(window.innerWidth * 0.45, 320)));
       const dy = Math.max(-1, Math.min(1, (e.clientY - cy) / Math.max(window.innerHeight * 0.45, 320)));
 
-      const factor = interactive ? 1 : 0.72;
+      const factor = interactive ? 1 : 0;
       const ry = dx * 16 * factor;
       const rx = -dy * 13 * factor;
       const rz =
@@ -523,6 +523,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
   // Detector de caricias en la cabeza (Petting Gesture -> estado 'love')
   const handleContainerMouseMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!interactive) return;
       const el = containerRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
@@ -551,6 +552,10 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
   // Manejador de Clic con progresión estilo Coucou:
   // 1 clic -> Rebote normal | 2-3 clics rápidos -> Annoyed (molesto) | 4+ clics rápidos -> Dizzy (mareado)
   const handleClick = useCallback(() => {
+    if (!interactive) {
+      if (onClick) onClick();
+      return;
+    }
     const now = Date.now();
     if (now - lastPokeTimeRef.current < 850) {
       pokeCountRef.current += 1;
@@ -1079,44 +1084,41 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
               : 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
         }}
       >
-        {/* Halo Celestial Dorado Flotante con Resorte de Inercia (Spring Lag de Coucou) */}
-        {showHaloEffect && size >= 45 && (
-          <div
-            className="absolute -top-3 left-1/2 pointer-events-none transition-transform duration-200 ease-out z-30"
-            style={{
-              width: '54%',
-              height: '16%',
-              transform: `translateX(calc(-50% + ${haloLag.dx}px)) translateY(${haloLag.dy}px) rotateX(68deg) rotateZ(${haloLag.tilt}deg)`,
-              animation: isSpeaking
-                ? 'tenshi-halo-pulse 1.2s infinite ease-in-out'
-                : 'tenshi-halo-pulse 3.5s infinite ease-in-out',
-              transformOrigin: 'center center',
-            }}
-          >
-            <div
-              className={cn(
-                'h-full w-full rounded-[50%] border-2 transition-all duration-300',
-                isSpeaking
-                  ? 'border-emerald-400 shadow-[0_0_22px_rgba(52,211,153,0.95),inset_0_0_8px_rgba(52,211,153,0.5)] bg-emerald-400/20'
-                  : activeMood === 'love'
-                  ? 'border-rose-300 shadow-[0_0_20px_rgba(251,113,133,0.85),inset_0_0_8px_rgba(251,113,133,0.4)] bg-rose-300/20'
-                  : isTyping || activeMood === 'thinking' || activeMood === 'searching'
-                  ? 'border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.85),inset_0_0_8px_rgba(251,191,36,0.4)] bg-amber-400/20'
-                  : isVoiceActive
-                  ? 'border-emerald-300 shadow-[0_0_18px_rgba(52,211,153,0.75),inset_0_0_6px_rgba(52,211,153,0.3)] bg-emerald-300/15'
-                  : activeMood === 'sleeping'
-                  ? 'border-amber-200/40 shadow-[0_0_8px_rgba(252,211,77,0.3)] bg-amber-200/5'
-                  : 'border-amber-300 shadow-[0_0_15px_rgba(252,211,77,0.75),inset_0_0_6px_rgba(252,211,77,0.35)] bg-amber-300/15'
-              )}
-            />
-          </div>
-        )}
-
         {/* Cuerpo 3D Íntegro de Tenshi (0 cortes en axilas o cuello) con Cinemática Elástica apoyada en sus pies */}
         <div
           className={cn('relative h-full w-full pointer-events-none select-none', bodyKinematicClass)}
           style={{ transformOrigin: '50% 92%' }}
         >
+          {/* Halo Celestial Dorado sincronizado al 100% con el movimiento del cuerpo de Tenshi */}
+          {showHaloEffect && size >= 45 && (
+            <div
+              className="absolute -top-2.5 left-1/2 pointer-events-none z-30"
+              style={{
+                width: '54%',
+                height: '15%',
+                transform: 'translateX(-50%) rotateX(68deg)',
+                transformOrigin: 'center center',
+              }}
+            >
+              <div
+                className={cn(
+                  'h-full w-full rounded-[50%] border-[2.5px] transition-colors duration-300',
+                  isSpeaking
+                    ? 'border-emerald-400 shadow-[0_0_22px_rgba(52,211,153,0.95),inset_0_0_8px_rgba(52,211,153,0.5)] bg-emerald-400/20'
+                    : activeMood === 'love'
+                    ? 'border-rose-300 shadow-[0_0_20px_rgba(251,113,133,0.85),inset_0_0_8px_rgba(251,113,133,0.4)] bg-rose-300/20'
+                    : isTyping || activeMood === 'thinking' || activeMood === 'searching'
+                    ? 'border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.85),inset_0_0_8px_rgba(251,191,36,0.4)] bg-amber-400/20'
+                    : isVoiceActive
+                    ? 'border-emerald-300 shadow-[0_0_18px_rgba(52,211,153,0.75),inset_0_0_6px_rgba(52,211,153,0.3)] bg-emerald-300/15'
+                    : activeMood === 'sleeping'
+                    ? 'border-amber-200/40 shadow-[0_0_8px_rgba(252,211,77,0.3)] bg-amber-200/5'
+                    : 'border-amber-300 shadow-[0_0_18px_rgba(252,211,77,0.85),inset_0_0_8px_rgba(252,211,77,0.4)] bg-amber-300/20'
+                )}
+              />
+            </div>
+          )}
+
           <img
             src="/assets/tenshi.png"
             alt="Tenshi"

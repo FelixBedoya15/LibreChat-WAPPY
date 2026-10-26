@@ -255,20 +255,6 @@ export default function WappyPortalPage() {
           pointer-events: none;
         }
 
-        .tenshi-celestial-aureola {
-          position: absolute;
-          top: 22px;
-          left: 50%;
-          width: 124px;
-          height: 36px;
-          border-radius: 50%;
-          border: 4px solid #fde047;
-          background: radial-gradient(circle, rgba(254, 240, 138, 0.38) 0%, rgba(250, 204, 21, 0.05) 70%);
-          animation: portal-halo-float 3s ease-in-out infinite;
-          pointer-events: none;
-          z-index: 35;
-        }
-
         .felix-avatar-wrapper {
           position: relative;
           z-index: 20;
@@ -276,7 +262,7 @@ export default function WappyPortalPage() {
           display: flex;
           align-items: flex-end;
           justify-content: center;
-          animation: felix-avatar-float 3.6s ease-in-out infinite;
+          animation: felix-avatar-float 3.4s ease-in-out infinite;
           filter: drop-shadow(0 16px 28px rgba(0, 0, 0, 0.45));
           transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
@@ -382,7 +368,7 @@ export default function WappyPortalPage() {
         className="wrap"
         style={{
           flex: 1,
-          paddingTop: 118,
+          paddingTop: 136,
           paddingBottom: 72,
           width: '100%',
         }}
@@ -501,7 +487,7 @@ export default function WappyPortalPage() {
                     😇 Tenshi + +20 Agentes
                   </div>
 
-                  {/* Contenedor Central de Tenshi con Aureola Celestial Destacada */}
+                  {/* Contenedor Central de Tenshi con su Única Aureola Celestial Sincronizada */}
                   <div
                     style={{
                       position: 'relative',
@@ -509,22 +495,15 @@ export default function WappyPortalPage() {
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      paddingTop: 18,
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleGoToWappyIA();
+                      paddingTop: 14,
                     }}
                   >
-                    {/* Aureola Celestial Dorada Brillante sobre Tenshi */}
-                    <div className="tenshi-celestial-aureola" aria-hidden="true" />
-
                     <TenshiAvatar
-                      size={220}
-                      mood={hoveredCard === 'ia' ? 'love' : 'greeting'}
+                      size={225}
+                      mood="idle"
                       showHaloEffect={true}
                       showHUD={true}
-                      interactive={true}
+                      interactive={false}
                     />
                   </div>
 
