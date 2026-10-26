@@ -897,16 +897,6 @@ export default function WappyPortalPage() {
               Inicio
             </a>
             <a
-              href="/portal"
-              onClick={(e) => {
-                e.preventDefault();
-                handleBackToHub();
-              }}
-              style={view === 'hub' ? { color: '#0d9488', fontWeight: 800 } : undefined}
-            >
-              Selección WAPPY
-            </a>
-            <a
               href="/portal?view=apps"
               onClick={(e) => {
                 e.preventDefault();
@@ -915,27 +905,6 @@ export default function WappyPortalPage() {
               style={view === 'apps' ? { color: '#0d9488', fontWeight: 800 } : undefined}
             >
               Wappy APPs
-            </a>
-            <a
-              href="https://wappy.club/matrizipvr"
-              onClick={handleOpenMatrizIpvr}
-            >
-              Matriz IPVR
-            </a>
-            <a
-              href="https://wappy.club/wappystudio"
-              onClick={handleOpenWappyStudio}
-            >
-              WAPPY Studio
-            </a>
-            <a
-              href="/planes"
-              onClick={(e) => {
-                e.preventDefault();
-                navigate(`/planes${getRefQuery()}`);
-              }}
-            >
-              Planes
             </a>
           </div>
 
@@ -1002,20 +971,8 @@ export default function WappyPortalPage() {
               >
                 <span className="mkt-mobile-link-icon">🏠</span>
                 <div className="mkt-mobile-link-info">
-                  <span className="mkt-mobile-link-title">Página de Inicio</span>
+                  <span className="mkt-mobile-link-title">Inicio</span>
                   <span className="mkt-mobile-link-desc">Volver a la portada principal de WAPPY</span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                className="mkt-mobile-link"
-                onClick={handleBackToHub}
-              >
-                <span className="mkt-mobile-link-icon">✨</span>
-                <div className="mkt-mobile-link-info">
-                  <span className="mkt-mobile-link-title">Selector Wappy IA / Wappy APPs</span>
-                  <span className="mkt-mobile-link-desc">Elegir entre plataforma central o aplicativos</span>
                 </div>
               </button>
 
@@ -1026,32 +983,8 @@ export default function WappyPortalPage() {
               >
                 <span className="mkt-mobile-link-icon">🛠️</span>
                 <div className="mkt-mobile-link-info">
-                  <span className="mkt-mobile-link-title">Catálogo Wappy APPs</span>
-                  <span className="mkt-mobile-link-desc">Matriz IPVR GTC 45, WAPPY Studio y más</span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                className="mkt-mobile-link"
-                onClick={() => handleOpenMatrizIpvr()}
-              >
-                <span className="mkt-mobile-link-icon">📊</span>
-                <div className="mkt-mobile-link-info">
-                  <span className="mkt-mobile-link-title">APP de Matriz IPVR (GTC 45)</span>
-                  <span className="mkt-mobile-link-desc">Abrir aplicativo directo en wappy.club/matrizipvr</span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                className="mkt-mobile-link"
-                onClick={() => handleOpenWappyStudio()}
-              >
-                <span className="mkt-mobile-link-icon">🎬</span>
-                <div className="mkt-mobile-link-info">
-                  <span className="mkt-mobile-link-title">APP de WAPPY Studio</span>
-                  <span className="mkt-mobile-link-desc">Locución IA 24kHz y Cápsulas de Video GSAP</span>
+                  <span className="mkt-mobile-link-title">Wappy APPs</span>
+                  <span className="mkt-mobile-link-desc">Explorar suite de aplicaciones interactivas</span>
                 </div>
               </button>
             </div>
