@@ -88,9 +88,12 @@ const googleModels = {
   'gemma-2': 32768,
   'gemma-3': 32768,
   'gemma-3-27b': 131072,
-  gemini: 30720, // -2048 from max
+  gemini: 1000000,
   'gemini-pro-vision': 12288,
   'gemini-exp': 2000000,
+  'gemini-3': 1000000,
+  'gemini-3.8-flash': 1000000,
+  'gemini-3.6-pro': 1000000,
   'gemini-3.6-flash': 1000000,
   'gemini-3.5-flash-lite': 1000000,
   'gemini-3.5-flash': 1000000,
@@ -328,7 +331,7 @@ export const modelMaxOutputs = {
   'gpt-5-pro': 128000,
   'gpt-oss-20b': 131000,
   'gpt-oss-120b': 131000,
-  system_default: 32000,
+  system_default: 65536,
 };
 
 /** Outputs from https://docs.anthropic.com/en/docs/about-claude/models/all-models#model-names */
@@ -336,11 +339,11 @@ const anthropicMaxOutputs = {
   'claude-3-haiku': 4096,
   'claude-3-sonnet': 4096,
   'claude-3-opus': 4096,
-  'claude-haiku-4-5': 64000,
+  'claude-haiku-4-5': 65536,
   'claude-opus-4': 32000,
-  'claude-sonnet-4': 64000,
-  'claude-3.5-sonnet': 8192,
-  'claude-3-5-sonnet': 8192,
+  'claude-sonnet-4': 65536,
+  'claude-3.5-sonnet': 65536,
+  'claude-3-5-sonnet': 65536,
   'claude-3.7-sonnet': 128000,
   'claude-3-7-sonnet': 128000,
 };

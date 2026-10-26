@@ -2860,7 +2860,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             model: currentModel,
                             systemInstruction: systemMessage,
                             tools: [{ functionDeclarations: toolsToAttach }],
-                            generationConfig: { temperature: 0.7 }
+                            generationConfig: { temperature: 0.7, maxOutputTokens: 65536 }
                         });
 
                         const userParts = [{ text: lastUserMsg }];

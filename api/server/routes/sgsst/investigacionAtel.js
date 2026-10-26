@@ -716,7 +716,7 @@ REGLAS DE DISEÑO OBLIGATORIAS:
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
         const model = genAI.getGenerativeModel({
             model: finalModelName,
-            generationConfig: { maxOutputTokens: 65000, temperature: 0.65 },
+            generationConfig: { maxOutputTokens: 65536, temperature: 0.65 },
         });
 
         const parts = [systemPromptText, ...imageParts];

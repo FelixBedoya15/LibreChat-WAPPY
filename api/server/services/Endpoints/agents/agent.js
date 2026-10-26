@@ -198,7 +198,7 @@ IMPORTANTE:
   const agentMaxContextTokens = optionalChainWithEmptyCheck(
     maxContextTokens,
     getModelMaxTokens(tokensModel, providerEndpointMap[provider], options.endpointTokenConfig),
-    18000,
+    128000,
   );
 
   if (
@@ -383,7 +383,10 @@ Cuando el usuario pida EXPLÍCITAMENTE crear un archivo o lienzo nuevo (aplicati
     toolContextMap,
     additional_instructions: agent.additional_instructions,
     useLegacyContent: !!options.useLegacyContent,
-    maxContextTokens: Math.round((agentMaxContextTokens - maxOutputTokens) * 0.9),
+    maxContextTokens: Math.max(
+      16384,
+      Math.round((agentMaxContextTokens - Math.min(maxOutputTokens, Math.floor(agentMaxContextTokens * 0.5))) * 0.9),
+    ),
   };
 };
 

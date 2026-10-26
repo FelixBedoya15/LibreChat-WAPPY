@@ -166,7 +166,7 @@ export const bedrockInputParser = s.tConversationSchema
 function configureThinking(data: AnthropicInput): AnthropicInput {
   const updatedData = { ...data };
   if (updatedData.additionalModelRequestFields?.thinking === true) {
-    updatedData.maxTokens = updatedData.maxTokens ?? updatedData.maxOutputTokens ?? 8192;
+    updatedData.maxTokens = updatedData.maxTokens ?? updatedData.maxOutputTokens ?? 65536;
     delete updatedData.maxOutputTokens;
     const thinkingConfig: AnthropicReasoning['thinking'] = {
       type: 'enabled',

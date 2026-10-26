@@ -119,7 +119,12 @@ export function getGoogleConfig(
     topP: modelOptions?.topP ?? undefined,
     topK: modelOptions?.topK ?? undefined,
     temperature: modelOptions?.temperature ?? undefined,
-    maxOutputTokens: modelOptions?.maxOutputTokens ?? undefined,
+    maxOutputTokens:
+      modelOptions?.maxOutputTokens != null
+        ? modelOptions.maxOutputTokens === 8192
+          ? 65536
+          : modelOptions.maxOutputTokens
+        : googleSettings.maxOutputTokens.default,
   });
 
   /** Used only for Safety Settings */

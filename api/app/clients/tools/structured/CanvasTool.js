@@ -658,10 +658,10 @@ ${stringContent ? `## BORRADOR O BASE INICIAL SUMINISTRADA:\n${stringContent}\n`
   try {
     const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
     const result = await generateWithKeyRotation(
-      { model: 'gemini-3.6-flash', generationConfig: { maxOutputTokens: 3500 } },
+      { model: 'gemini-3.6-flash', generationConfig: { maxOutputTokens: 65536 } },
       userId,
       prompt,
-      { generationConfig: { maxOutputTokens: 3500 } }
+      { generationConfig: { maxOutputTokens: 65536 } }
     );
     const response = await result?.response;
     let generatedReport = response?.text ? response.text() : '';
@@ -1559,7 +1559,7 @@ Responde ÚNICAMENTE con el documento completo modificado, sin bloques de markdo
 
   const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
   const result = await generateWithKeyRotation(
-    { model: 'gemini-3.6-flash', generationConfig: { maxOutputTokens: 65000 } },
+    { model: 'gemini-3.6-flash', generationConfig: { maxOutputTokens: 65536 } },
     userId,
     prompt,
   );

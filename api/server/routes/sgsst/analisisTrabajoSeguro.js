@@ -220,7 +220,7 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
         temperature: 0.7,
         topP: 0.95,
         topK: 40,
-        maxOutputTokens: 4096,
+        maxOutputTokens: 65536,
       }
     });
 

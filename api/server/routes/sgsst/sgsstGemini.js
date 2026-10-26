@@ -300,8 +300,7 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const isLegacyModel = currentModel.includes('1.5') || currentModel.includes('1.0');
-        const maxOut = isLegacyModel ? 8192 : 65536;
+        const maxOut = 65536;
 
         const mergedGenConfig = {
           maxOutputTokens: maxOut,
@@ -309,6 +308,9 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
           ...genConfig,
           ...(safeOpts.generationConfig || {}),
         };
+        if (mergedGenConfig.maxOutputTokens && mergedGenConfig.maxOutputTokens <= 8192) {
+          mergedGenConfig.maxOutputTokens = 65536;
+        }
 
         if (safeOpts.responseMimeType && !mergedGenConfig.responseMimeType) {
           mergedGenConfig.responseMimeType = safeOpts.responseMimeType;

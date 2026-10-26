@@ -2272,7 +2272,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
 
             const synthResult = await generateWithKeyRotation('gemini-3.5-flash-lite', targetUserId, synthPrompt, {
               fastFallback: false,
-              generationConfig: { maxOutputTokens: 8192, temperature: 0.3 }
+              generationConfig: { maxOutputTokens: 65536, temperature: 0.3 }
             });
 
             if (synthResult?.response) {

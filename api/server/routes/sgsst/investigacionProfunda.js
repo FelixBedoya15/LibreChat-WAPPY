@@ -126,7 +126,7 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
                 const genAI = new GoogleGenerativeAI(resolvedApiKey);
                 const model = genAI.getGenerativeModel({
                     model: finalModelName,
-                    generationConfig: { maxOutputTokens: 65000, temperature: 0.65 },
+                    generationConfig: { maxOutputTokens: 65536, temperature: 0.65 },
                 });
 
                 // Standard header (dynamic concatenation to prevent recitation block)

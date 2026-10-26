@@ -138,6 +138,7 @@ ${userManual || ''}`,
       contents: [{ role: 'user', parts: [{ text: promptText }] }],
       generationConfig: {
         responseMimeType: 'application/json',
+        maxOutputTokens: 65536,
       }
     });
 

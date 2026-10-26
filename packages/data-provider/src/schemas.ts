@@ -314,9 +314,9 @@ export const googleSettings = {
   },
   maxOutputTokens: {
     min: 1 as const,
-    max: 64000 as const,
+    max: 65536 as const,
     step: 1 as const,
-    default: 8192 as const,
+    default: 65536 as const,
   },
   temperature: {
     min: 0 as const,
@@ -351,9 +351,9 @@ export const googleSettings = {
 };
 
 const ANTHROPIC_MAX_OUTPUT = 128000 as const;
-const CLAUDE_4_64K_MAX_OUTPUT = 64000 as const;
+const CLAUDE_4_64K_MAX_OUTPUT = 65536 as const;
 const CLAUDE_32K_MAX_OUTPUT = 32000 as const;
-const DEFAULT_MAX_OUTPUT = 8192 as const;
+const DEFAULT_MAX_OUTPUT = 65536 as const;
 const LEGACY_ANTHROPIC_MAX_OUTPUT = 4096 as const;
 export const anthropicSettings = {
   model: {

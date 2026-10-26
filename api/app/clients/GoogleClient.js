@@ -165,7 +165,14 @@ class GoogleClient extends BaseClient {
 
     // The max prompt tokens is determined by the max context tokens minus the max response tokens.
     // Earlier messages will be dropped until the prompt is within the limit.
-    this.maxResponseTokens = this.modelOptions.maxOutputTokens || settings.maxOutputTokens.default;
+    const rawMaxOutputTokens =
+      this.modelOptions.maxOutputTokens === 8192
+        ? 65536
+        : this.modelOptions.maxOutputTokens || settings.maxOutputTokens.default || 65536;
+    this.maxResponseTokens = Math.min(
+      rawMaxOutputTokens,
+      Math.max(4096, Math.floor((this.maxContextTokens || 1000000) / 3)),
+    );
 
     if (this.maxContextTokens > 32000) {
       this.maxContextTokens = this.maxContextTokens - this.maxResponseTokens;

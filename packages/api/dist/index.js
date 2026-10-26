@@ -1365,9 +1365,12 @@ const googleModels = {
     'gemma-2': 32768,
     'gemma-3': 32768,
     'gemma-3-27b': 131072,
-    gemini: 30720, // -2048 from max
+    gemini: 1000000,
     'gemini-pro-vision': 12288,
     'gemini-exp': 2000000,
+    'gemini-3': 1000000,
+    'gemini-3.8-flash': 1000000,
+    'gemini-3.6-pro': 1000000,
     'gemini-3.6-flash': 1000000,
     'gemini-3.5-flash-lite': 1000000,
     'gemini-3.5-flash': 1000000,
@@ -1563,18 +1566,18 @@ const modelMaxOutputs = {
     'gpt-5-pro': 128000,
     'gpt-oss-20b': 131000,
     'gpt-oss-120b': 131000,
-    system_default: 32000,
+    system_default: 65536,
 };
 /** Outputs from https://docs.anthropic.com/en/docs/about-claude/models/all-models#model-names */
 const anthropicMaxOutputs = {
     'claude-3-haiku': 4096,
     'claude-3-sonnet': 4096,
     'claude-3-opus': 4096,
-    'claude-haiku-4-5': 64000,
+    'claude-haiku-4-5': 65536,
     'claude-opus-4': 32000,
-    'claude-sonnet-4': 64000,
-    'claude-3.5-sonnet': 8192,
-    'claude-3-5-sonnet': 8192,
+    'claude-sonnet-4': 65536,
+    'claude-3.5-sonnet': 65536,
+    'claude-3-5-sonnet': 65536,
     'claude-3.7-sonnet': 128000,
     'claude-3-7-sonnet': 128000,
 };
@@ -29295,7 +29298,7 @@ function getSafetySettings(model) {
  * @param options - The same shape as the "GoogleClient" constructor options
  */
 function getGoogleConfig(credentials, options = {}) {
-    var _a, _b, _c, _d, _e, _f, _g, _h;
+    var _a, _b, _c, _d, _e, _f, _g;
     let creds = {};
     if (typeof credentials === 'string') {
         try {
@@ -29314,8 +29317,12 @@ function getGoogleConfig(credentials, options = {}) {
     const project_id = !apiKey ? ((_c = serviceKey === null || serviceKey === void 0 ? void 0 : serviceKey.project_id) !== null && _c !== void 0 ? _c : null) : null;
     const reverseProxyUrl = options.reverseProxyUrl;
     const authHeader = options.authHeader;
-    const _j = options.modelOptions || {}, { web_search, thinking = librechatDataProvider.googleSettings.thinking.default, thinkingBudget = librechatDataProvider.googleSettings.thinkingBudget.default } = _j, modelOptions = __rest(_j, ["web_search", "thinking", "thinkingBudget"]);
-    const llmConfig = librechatDataProvider.removeNullishValues(Object.assign(Object.assign({}, (modelOptions || {})), { model: (_d = modelOptions === null || modelOptions === void 0 ? void 0 : modelOptions.model) !== null && _d !== void 0 ? _d : '', maxRetries: 2, topP: (_e = modelOptions === null || modelOptions === void 0 ? void 0 : modelOptions.topP) !== null && _e !== void 0 ? _e : undefined, topK: (_f = modelOptions === null || modelOptions === void 0 ? void 0 : modelOptions.topK) !== null && _f !== void 0 ? _f : undefined, temperature: (_g = modelOptions === null || modelOptions === void 0 ? void 0 : modelOptions.temperature) !== null && _g !== void 0 ? _g : undefined, maxOutputTokens: (_h = modelOptions === null || modelOptions === void 0 ? void 0 : modelOptions.maxOutputTokens) !== null && _h !== void 0 ? _h : undefined }));
+    const _h = options.modelOptions || {}, { web_search, thinking = librechatDataProvider.googleSettings.thinking.default, thinkingBudget = librechatDataProvider.googleSettings.thinkingBudget.default } = _h, modelOptions = __rest(_h, ["web_search", "thinking", "thinkingBudget"]);
+    const llmConfig = librechatDataProvider.removeNullishValues(Object.assign(Object.assign({}, (modelOptions || {})), { model: (_d = modelOptions === null || modelOptions === void 0 ? void 0 : modelOptions.model) !== null && _d !== void 0 ? _d : '', maxRetries: 2, topP: (_e = modelOptions === null || modelOptions === void 0 ? void 0 : modelOptions.topP) !== null && _e !== void 0 ? _e : undefined, topK: (_f = modelOptions === null || modelOptions === void 0 ? void 0 : modelOptions.topK) !== null && _f !== void 0 ? _f : undefined, temperature: (_g = modelOptions === null || modelOptions === void 0 ? void 0 : modelOptions.temperature) !== null && _g !== void 0 ? _g : undefined, maxOutputTokens: (modelOptions === null || modelOptions === void 0 ? void 0 : modelOptions.maxOutputTokens) != null
+            ? modelOptions.maxOutputTokens === 8192
+                ? 65536
+                : modelOptions.maxOutputTokens
+            : librechatDataProvider.googleSettings.maxOutputTokens.default }));
     /** Used only for Safety Settings */
     llmConfig.safetySettings = getSafetySettings(llmConfig.model);
     let provider;
