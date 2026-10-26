@@ -197,16 +197,17 @@ export default function WappyAppsPage() {
 
   const activeCount = WAPPY_APPS_CATALOG.filter((a) => a.badgeTone === 'active').length;
 
-  /** Las apps se abren en una pestaña nueva para que el usuario conserve su sesión de WAPPY abierta. */
+  /**
+   * Las apps se abren únicamente en una pestaña nueva para que la página actual (/aplicaciones)
+   * permanezca intacta en WAPPY. Nota: con 'noopener,noreferrer', window.open devuelve null por
+   * especificación aunque la pestaña se abra, por lo que NO se debe redirigir window.location.href.
+   */
   const handleOpenApp = (app: WappyAppCatalogItem) => {
     if (!app.path) {
       return;
     }
     const url = resolveWappyAppUrl(app.path);
-    const win = window.open(url, '_blank', 'noopener,noreferrer');
-    if (!win) {
-      window.location.href = url;
-    }
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   return (

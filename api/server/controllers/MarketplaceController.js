@@ -342,10 +342,10 @@ const OFFICIAL_MATRIZ_IPVR_APP_PRODUCT = {
       answer: 'Toda la gestión manual, cálculos matemáticos GTC-45, gráficas, empresas e informes PDF/JSON funcionan 100% sin internet (Offline). Solo necesitas internet si deseas usar la autocompletación automática con tus claves gratuitas de Google Gemini.'
     }
   ],
-  featuredImage: '/marketing/marketplace-matriz-ipvr-card-horizontal.png',
+  featuredImage: '/marketing/marketplace-matriz-ipvr-card-horizontal.png?v=2',
   featuredImagePosition: '50% 50%',
   featuredImageScale: 87,
-  modalImage: '/marketing/marketplace-matriz-ipvr-modal-vertical.png',
+  modalImage: '/marketing/marketplace-matriz-ipvr-modal-vertical.png?v=2',
   modalImagePosition: '50% 50%',
   modalImageScale: 65,
   landingPageUrl: '/matrizipvr.html#descargar-aplicativo',
@@ -400,10 +400,10 @@ const OFFICIAL_WAPPY_STUDIO_APP_PRODUCT = {
       answer: 'El aplicativo descargado se conecta directamente desde tu navegador a la API oficial de Google Gemini usando tus propias claves gratuitas de Google AI Studio (con rotación automática de hasta 3 claves), y las cápsulas exportadas funcionan 100% sin internet al compartirlas por WhatsApp.'
     }
   ],
-  featuredImage: '/marketing/marketplace-wappy-studio-card-horizontal.png',
+  featuredImage: '/marketing/marketplace-wappy-studio-card-horizontal.png?v=2',
   featuredImagePosition: '50% 50%',
   featuredImageScale: 87,
-  modalImage: '/marketing/marketplace-wappy-studio-modal-vertical.png',
+  modalImage: '/marketing/marketplace-wappy-studio-modal-vertical.png?v=2',
   modalImagePosition: '50% 50%',
   modalImageScale: 65,
   landingPageUrl: '/wappystudio.html#descargar-aplicativo',

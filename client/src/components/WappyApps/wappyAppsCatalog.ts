@@ -37,7 +37,7 @@ export const WAPPY_APPS_CATALOG: WappyAppCatalogItem[] = [
     description:
       'Aplicativo completo para construir, evaluar y auditar tu Matriz IPEVR bajo la metodología GTC 45. Incluye sugerencias automáticas con IA (Google Gemini), Dashboard de analítica con mapa de calor e Informe Gerencial en formato A4 listo para imprimir o exportar.',
     normative: 'GTC 45 · Decreto 1072 de 2015',
-    image: '/marketing/marketplace-matriz-ipvr-card-horizontal.png',
+    image: '/marketing/marketplace-matriz-ipvr-card-horizontal.png?v=2',
     visualType: 'matriz-ipvr',
     icon: '📊',
     tags: [
@@ -59,6 +59,7 @@ export const WAPPY_APPS_CATALOG: WappyAppCatalogItem[] = [
     description:
       'Produce locuciones profesionales en 24kHz con etiquetas de actuación vocal SST y genera cápsulas animadas de capacitación en formato Horizontal (16:9) o Reels (9:16), listas para compartir por WhatsApp o descargar en HTML autónomo.',
     normative: 'Capacitación e Inducción SST · Decreto 1072',
+    image: '/marketing/marketplace-wappy-studio-card-horizontal.png?v=2',
     visualType: 'wappy-studio',
     icon: '🎬',
     tags: [

@@ -1460,7 +1460,7 @@ export default function WappyPortalPage() {
                         </div>
 
                         {/* Cabecera Visual de la Tarjeta */}
-                        {app.visualType === 'matriz-ipvr' && app.image ? (
+                        {app.image ? (
                           <div
                             style={{
                               position: 'relative',
