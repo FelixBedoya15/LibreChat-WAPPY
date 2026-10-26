@@ -14,43 +14,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-                    },
-                    colors: {
-                        wappy: {
-                            50: '#f0fdf4',
-                            100: '#dcfce7',
-                            200: '#bbf7d0',
-                            300: '#86efac',
-                            400: '#4ade80',
-                            500: '#10b981', /* Emerald/Green core */
-                            600: '#059669',
-                            700: '#047857',
-                            800: '#065f46',
-                            900: '#064e3b',
-                        },
-                        accent: {
-                            500: '#06b6d4', /* Cyan */
-                            600: '#0891b2',
-                            900: '#164e63',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
+  <!-- Tailwind CSS First-Party Local + Fallback CDN -->
+  <script src="/assets/tailwind-cdn.js" onload="window.__applyWappyTailwindConfig && window.__applyWappyTailwindConfig()" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdn.tailwindcss.com';s.onload=window.__applyWappyTailwindConfig;document.head.appendChild(s);"></script>
+  <script>if (window.__applyWappyTailwindConfig) window.__applyWappyTailwindConfig();</script>
     
     <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="/assets/lucide.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://unpkg.com/lucide@latest';document.head.appendChild(s);"></script>
 
     <style>
         /* Light / Dark Mode transition styling */

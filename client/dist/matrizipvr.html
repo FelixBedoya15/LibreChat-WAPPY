@@ -23,33 +23,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
-            display: ['"Outfit"', 'system-ui', '-apple-system', 'sans-serif'],
-          },
-          colors: {
-            wappy: {
-              lime: '#c7f303',
-              dark: '#0e1300',
-              teal: '#0d9488',
-              sky: '#5bb8f5',
-            }
-          }
-        }
-      }
-    }
-  </script>
+  <!-- Tailwind CSS First-Party Local + Fallback CDN -->
+  <script src="/assets/tailwind-cdn.js" onload="window.__applyWappyTailwindConfig && window.__applyWappyTailwindConfig()" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdn.tailwindcss.com';s.onload=window.__applyWappyTailwindConfig;document.head.appendChild(s);"></script>
+  <script>if (window.__applyWappyTailwindConfig) window.__applyWappyTailwindConfig();</script>
 
   <!-- SheetJS para lectura y escritura nativa de Excel (.xlsx) -->
-  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <script src="/assets/xlsx.full.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js';document.head.appendChild(s);"></script>
 
   <style>
     body {

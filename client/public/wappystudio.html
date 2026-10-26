@@ -23,33 +23,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
-            display: ['"Outfit"', 'system-ui', '-apple-system', 'sans-serif'],
-          },
-          colors: {
-            wappy: {
-              lime: '#c7f303',
-              dark: '#0e1300',
-              teal: '#0d9488',
-              sky: '#5bb8f5',
-            }
-          }
-        }
-      }
-    }
-  </script>
+  <!-- Tailwind CSS First-Party Local + Fallback CDN -->
+  <script src="/assets/tailwind-cdn.js" onload="window.__applyWappyTailwindConfig && window.__applyWappyTailwindConfig()" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdn.tailwindcss.com';s.onload=window.__applyWappyTailwindConfig;document.head.appendChild(s);"></script>
+  <script>if (window.__applyWappyTailwindConfig) window.__applyWappyTailwindConfig();</script>
 
   <!-- SheetJS para lectura y escritura nativa de Excel (.xlsx) -->
-  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <script src="/assets/xlsx.full.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js';document.head.appendChild(s);"></script>
+  <!-- GSAP First-Party Local + Fallback CDN -->
+  <script src="/assets/gsap.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js';document.head.appendChild(s);"></script>
 
   <style>
     body {
@@ -2707,7 +2688,7 @@ function renderStudioDashboardMetrics() {
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"><\/script>
+<script src="/assets/gsap.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js';document.head.appendChild(s);"><\/script>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;900&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -2778,7 +2759,7 @@ function renderStudioDashboardMetrics() {
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"><\/script>
+<script src="/assets/gsap.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js';document.head.appendChild(s);"><\/script>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;900&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -2830,7 +2811,7 @@ function renderStudioDashboardMetrics() {
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"><\/script>
+<script src="/assets/gsap.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js';document.head.appendChild(s);"><\/script>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;900&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -2879,7 +2860,7 @@ function renderStudioDashboardMetrics() {
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"><\/script>
+<script src="/assets/gsap.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js';document.head.appendChild(s);"><\/script>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;900&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -3699,7 +3680,7 @@ function renderStudioDashboardMetrics() {
                         openApiKeyModal();
                         throw new Error('Configura tu Clave API gratuita de Google Gemini en "Claves IA" para generar escenas con IA.');
                     }
-                    const sysPrompt = `Genera ÚNICAMENTE un documento HTML5 completo y autocontenido con animaciones GSAP 3.12 (usando <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"><\/script>) para una cápsula cinematográfica sobre: "${prompt}". Incluye el nombre de la empresa "${studioState.company.companyName}" y al Responsable SG-SST "${studioState.company.sstResponsible}". Usa tipografía Outfit y Plus Jakarta Sans, paleta oscura elegante con acentos #c7f303 y #0d9488, y añade el atributo data-editable="true" a los títulos y tarjetas. No incluyas bloques markdown \`\`\`html, devuelve solo el código desde <!DOCTYPE html> hasta </html>.`;
+                    const sysPrompt = `Genera ÚNICAMENTE un documento HTML5 completo y autocontenido con animaciones GSAP 3.12 (usando <script src="/assets/gsap.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js';document.head.appendChild(s);"><\/script>) para una cápsula cinematográfica sobre: "${prompt}". Incluye el nombre de la empresa "${studioState.company.companyName}" y al Responsable SG-SST "${studioState.company.sstResponsible}". Usa tipografía Outfit y Plus Jakarta Sans, paleta oscura elegante con acentos #c7f303 y #0d9488, y añade el atributo data-editable="true" a los títulos y tarjetas. No incluyas bloques markdown \`\`\`html, devuelve solo el código desde <!DOCTYPE html> hasta </html>.`;
                     const directResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },

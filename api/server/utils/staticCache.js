@@ -34,6 +34,7 @@ function staticCache(staticPath, options = {}) {
 
     if (
       fileName === 'index.html' ||
+      fileName.endsWith('.html') ||
       fileName.endsWith('.webmanifest') ||
       fileName === 'manifest.json' ||
       fileName === 'sw.js'

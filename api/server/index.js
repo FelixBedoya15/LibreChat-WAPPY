@@ -697,6 +697,7 @@ const startServer = async () => {
     ];
     for (const p of candidatePaths) {
       if (fs.existsSync(p)) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
         return res.sendFile(p);
       }
     }
@@ -711,6 +712,7 @@ const startServer = async () => {
     ];
     for (const p of candidatePaths) {
       if (fs.existsSync(p)) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
         return res.sendFile(p);
       }
     }
@@ -725,6 +727,7 @@ const startServer = async () => {
     ];
     for (const p of candidatePaths) {
       if (fs.existsSync(p)) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
         return res.sendFile(p);
       }
     }
@@ -739,6 +742,7 @@ const startServer = async () => {
     ];
     for (const p of candidatePaths) {
       if (fs.existsSync(p)) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
         return res.sendFile(p);
       }
     }
@@ -753,6 +757,7 @@ const startServer = async () => {
     ];
     for (const p of candidatePaths) {
       if (fs.existsSync(p)) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
         return res.sendFile(p);
       }
     }
