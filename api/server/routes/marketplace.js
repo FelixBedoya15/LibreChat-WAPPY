@@ -47,6 +47,7 @@ router.post('/checkout', checkJwtAuth, controller.createCheckout);
 router.post('/verify-payment', controller.verifyPayment);
 router.post('/webhook', express.json(), controller.handleWebhook);
 router.get('/orders/:orderNumber/download-ipvr', checkJwtAuth, controller.downloadMatrizIpvrApp);
+router.get('/orders/:orderNumber/download-studio', checkJwtAuth, controller.downloadWappyStudioApp);
 router.get('/orders/:orderNumber', controller.getOrderDetails);
 
 // Manual receipt upload for guest or user

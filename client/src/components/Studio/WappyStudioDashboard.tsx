@@ -36,6 +36,8 @@ import {
   X,
   RefreshCw,
   Save,
+  Key,
+  ExternalLink,
 } from 'lucide-react';
 import {
   putMediaBlob,
@@ -1078,12 +1080,50 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
 // ============================================================================
 
 const LOCAL_LIBRARY_STORAGE = 'wappy_studio_audio_library';
+const GEMINI_KEYS_STORAGE = 'wappy_gemini_api_keys';
+
+interface StoredGeminiKeyItem {
+  key: string;
+  label?: string;
+  status?: 'valid' | 'invalid' | 'unchecked';
+}
+
+function readStoredGeminiKeyItems(): StoredGeminiKeyItem[] {
+  try {
+    const raw = localStorage.getItem(GEMINI_KEYS_STORAGE);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((item: any, idx: number) => {
+        if (typeof item === 'string') {
+          return { key: item.trim(), label: `Clave #${idx + 1}`, status: 'unchecked' as const };
+        }
+        if (item && typeof item.key === 'string') {
+          return {
+            key: item.key.trim(),
+            label: item.label || `Clave #${idx + 1}`,
+            status: item.status || 'unchecked',
+          };
+        }
+        return null;
+      })
+      .filter((x): x is StoredGeminiKeyItem => Boolean(x && x.key));
+  } catch {
+    return [];
+  }
+}
 
 function getAuthHeaders(authToken?: string): Record<string, string> {
   const token = authToken || localStorage.getItem('token') || '';
+  const customKeys = readStoredGeminiKeyItems()
+    .map((k) => k.key.trim())
+    .filter((k) => k.length > 15)
+    .join(',');
   return {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(customKeys ? { 'x-gemini-api-keys': customKeys } : {}),
   };
 }
 
@@ -1268,6 +1308,66 @@ export default function WappyStudioDashboard() {
     type: 'success' | 'error' | 'info';
     text: string;
   } | null>(null);
+
+  // Gestión de Claves API Google Gemini (Hasta 3 claves con rotación inteligente)
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState<boolean>(false);
+  const [customApiKeys, setCustomApiKeys] = useState<StoredGeminiKeyItem[]>(() => {
+    const stored = readStoredGeminiKeyItems();
+    return [
+      stored[0] || { key: '', label: 'Clave Principal #1', status: 'unchecked' },
+      stored[1] || { key: '', label: 'Clave Respaldo #2', status: 'unchecked' },
+      stored[2] || { key: '', label: 'Clave Respaldo #3', status: 'unchecked' },
+    ];
+  });
+  const [isValidatingKeys, setIsValidatingKeys] = useState<boolean>(false);
+  const [keyValidationMsg, setKeyValidationMsg] = useState<string>('');
+
+  const activeCustomKeyCount = useMemo(
+    () => customApiKeys.filter((k) => k.key.trim().length > 15).length,
+    [customApiKeys],
+  );
+
+  const handleSaveAndValidateKeys = async () => {
+    setIsValidatingKeys(true);
+    setKeyValidationMsg('');
+    try {
+      const updated = [...customApiKeys];
+      let validCount = 0;
+      for (let i = 0; i < updated.length; i++) {
+        const cleanKey = updated[i].key.trim();
+        if (!cleanKey) {
+          updated[i] = { ...updated[i], key: '', status: 'unchecked' };
+          continue;
+        }
+        try {
+          const resp = await fetch('/api/studio/keys-validate', {
+            method: 'POST',
+            headers: getAuthHeaders(token),
+            body: JSON.stringify({ apiKey: cleanKey }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (resp.ok && data.valid) {
+            updated[i] = { ...updated[i], key: cleanKey, status: 'valid' };
+            validCount++;
+          } else {
+            updated[i] = { ...updated[i], key: cleanKey, status: 'invalid' };
+          }
+        } catch {
+          updated[i] = { ...updated[i], key: cleanKey, status: 'unchecked' };
+        }
+      }
+      setCustomApiKeys(updated);
+      const nonEmpty = updated.filter((k) => k.key.trim().length > 0);
+      localStorage.setItem(GEMINI_KEYS_STORAGE, JSON.stringify(nonEmpty));
+      setKeyValidationMsg(
+        nonEmpty.length === 0
+          ? 'Claves personalizadas limpiadas. Se utilizarán las claves del servidor WAPPY.'
+          : `¡Guardadas ${nonEmpty.length} clave(s) (${validCount} verificada(s) en vivo con Google Gemini)!`,
+      );
+    } finally {
+      setIsValidatingKeys(false);
+    }
+  };
 
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const baseVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -3015,7 +3115,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-surface-secondary/30 min-h-screen h-auto overflow-y-auto pb-16">
+    <div className="flex-1 flex flex-col bg-surface-secondary/30 min-h-[100dvh] h-auto overflow-y-auto pb-16">
       {/* ==================================================================== */}
       {/* CABECERA MAESTRA WAPPY STUDIO (100% WAPPY DESIGN SYSTEM)              */}
       {/* ==================================================================== */}
@@ -3115,11 +3215,30 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               />
 
               <ExpandableButton
+                icon={<Key />}
+                label={`Claves IA (${activeCustomKeyCount})`}
+                variant="fuchsia"
+                onClick={() => {
+                  setKeyValidationMsg('');
+                  setIsApiKeyModalOpen(true);
+                }}
+                title="Configurar hasta 3 claves Google Gemini con rotación inteligente"
+              />
+
+              <ExpandableButton
                 icon={isTestingConnection ? <Loader2 className="animate-spin" /> : <Zap />}
                 label="Probar Audio con IA"
                 variant="purple"
                 disabled={isTestingConnection}
                 onClick={handleTestConnection}
+              />
+
+              <ExpandableButton
+                icon={<ExternalLink />}
+                label="Landing / App Portable"
+                variant="cyan"
+                onClick={() => window.open('/wappystudio.html', '_blank', 'noopener,noreferrer')}
+                title="Abrir Landing Page Pública y Aplicativo Portable de WAPPY Studio"
               />
             </div>
           </div>
@@ -5208,6 +5327,123 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
           </div>
         )}
       </main>
+
+      {/* MODAL DE CLAVES API GOOGLE GEMINI (HASTA 3 CLAVES CON ROTACIÓN INTELIGENTE) */}
+      {isApiKeyModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-fuchsia-500/10 border border-fuchsia-500/30 flex items-center justify-center text-fuchsia-600 dark:text-fuchsia-300 shrink-0">
+                  <Key className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-text-primary">
+                    Claves API Google Gemini (Rotación 3x)
+                  </h3>
+                  <p className="text-xs text-text-secondary">
+                    Multiplica tu cuota gratuita de síntesis de voz TTS y generación de video HTML/GSAP.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsApiKeyModalOpen(false)}
+                className="p-1.5 rounded-xl bg-slate-500/10 hover:bg-slate-500/20 text-slate-600 dark:text-zinc-300 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3 rounded-xl bg-teal-500/10 border border-teal-500/25 text-xs text-teal-800 dark:text-teal-200 leading-relaxed">
+              Obtén gratis tus claves en{' '}
+              <a
+                href="https://aistudio.google.com/app/apikey"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-extrabold underline hover:text-teal-500"
+              >
+                Google AI Studio (aistudio.google.com)
+              </a>
+              . WAPPY Studio rotará automáticamente entre tus claves y las del servidor para evitar límites 429 en locuciones de hasta 60 minutos.
+            </div>
+
+            <div className="space-y-2.5">
+              {customApiKeys.map((item, idx) => (
+                <div key={idx} className="space-y-1">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-text-secondary">
+                    <span>{item.label || `Clave Google Gemini #${idx + 1}`}</span>
+                    {item.status === 'valid' && (
+                      <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Activa y verificada
+                      </span>
+                    )}
+                    {item.status === 'invalid' && (
+                      <span className="text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5" /> Clave inválida o vencida
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    type="password"
+                    value={item.key}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCustomApiKeys((prev) =>
+                        prev.map((k, i) => (i === idx ? { ...k, key: val, status: 'unchecked' } : k)),
+                      );
+                    }}
+                    placeholder="AIzaSy..."
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-950 text-xs font-mono text-text-primary focus:outline-none focus:ring-2 focus:ring-fuchsia-500/40"
+                  />
+                </div>
+              ))}
+            </div>
+
+            {keyValidationMsg && (
+              <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                {keyValidationMsg}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200 dark:border-zinc-800">
+              <ExpandableButton
+                size="sm"
+                icon={<Trash2 />}
+                label="Limpiar Claves"
+                variant="danger"
+                onClick={() => {
+                  const reset: StoredGeminiKeyItem[] = [
+                    { key: '', label: 'Clave Principal #1', status: 'unchecked' },
+                    { key: '', label: 'Clave Respaldo #2', status: 'unchecked' },
+                    { key: '', label: 'Clave Respaldo #3', status: 'unchecked' },
+                  ];
+                  setCustomApiKeys(reset);
+                  localStorage.removeItem(GEMINI_KEYS_STORAGE);
+                  setKeyValidationMsg('Claves eliminadas del navegador.');
+                }}
+              />
+              <div className="flex items-center gap-2">
+                <ExpandableButton
+                  size="sm"
+                  icon={<X />}
+                  label="Cerrar"
+                  variant="neutral"
+                  onClick={() => setIsApiKeyModalOpen(false)}
+                />
+                <ExpandableButton
+                  size="sm"
+                  icon={isValidatingKeys ? <Loader2 className="animate-spin" /> : <Save />}
+                  label={isValidatingKeys ? 'Validando...' : 'Guardar y Validar'}
+                  variant="teal"
+                  disabled={isValidatingKeys}
+                  onClick={handleSaveAndValidateKeys}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -5263,11 +5499,38 @@ function StudioAudioPlayer({
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!src) return;
+    const filename = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'wappy-tts'}.wav`;
+    try {
+      if (src.startsWith('data:') || src.startsWith('blob:')) {
+        const a = document.createElement('a');
+        a.href = src;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
+      }
+      const r = await fetch(src, { headers: getAuthHeaders() });
+      if (r.ok) {
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        return;
+      }
+    } catch {
+      /* fallback below */
+    }
     const a = document.createElement('a');
     a.href = src;
-    a.download = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'wappy-tts'}.wav`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -5393,6 +5656,31 @@ function StudioAudioPlayer({
             />
           );
         })}
+      </div>
+
+      {/* Control Deslizante de Tiempo (Seek Scrubber) */}
+      <div className="flex items-center gap-2.5 px-1">
+        <span className="text-[11px] font-mono font-bold text-text-secondary w-11">
+          {formatTime(currentTime)}
+        </span>
+        <input
+          type="range"
+          min={0}
+          max={Math.max(1, duration)}
+          step={0.1}
+          value={Math.min(currentTime, Math.max(1, duration))}
+          onChange={(e) => {
+            const target = parseFloat(e.target.value);
+            if (audioRef.current) {
+              audioRef.current.currentTime = target;
+            }
+            setCurrentTime(target);
+          }}
+          className="flex-1 h-1.5 rounded-lg accent-teal-500 cursor-pointer"
+        />
+        <span className="text-[11px] font-mono font-bold text-text-secondary w-11 text-right">
+          {formatTime(duration)}
+        </span>
       </div>
     </div>
   );

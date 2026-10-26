@@ -53,9 +53,11 @@ const WappyAboutPage = lazy(() => import('~/components/Auth/WappyAboutPage'));
 const ComunidadPage = lazy(() => import('~/components/Marketing/ComunidadPage'));
 const MatrizPage = lazy(() => import('~/components/Marketing/MatrizPage'));
 const MatrizIpvrPage = lazy(() => import('~/components/Marketing/MatrizIpvrPage'));
+const WappyStudioPage = lazy(() => import('~/components/Marketing/WappyStudioPage'));
 const QuibiPage = lazy(() => import('~/components/Marketing/QuibiPage'));
 const BateriaPsicosocialPage = lazy(() => import('~/components/Marketing/BateriaPsicosocialPage'));
 const LandingPage = lazy(() => import('~/components/Marketing/LandingPage'));
+const WappyPortalPage = lazy(() => import('~/components/Marketing/WappyPortalPage'));
 const AgentMarketplace = lazy(() => import('~/components/Agents/Marketplace'));
 const CourseViewer = lazy(() => import('~/components/Training/CourseViewer'));
 const TrainingAdminDashboard = lazy(() => import('~/components/Training/TrainingAdminDashboard'));
@@ -118,6 +120,11 @@ const EmbajadoresRedirect = () => {
 
 const MatrizIpvrRedirect = () => {
   window.location.replace('/matrizipvr.html');
+  return null;
+};
+
+const WappyStudioRedirect = () => {
+  window.location.replace('/wappystudio.html');
   return null;
 };
 
@@ -369,6 +376,46 @@ export const router = createBrowserRouter(
       element: withSuspense(
         <AuthContextProvider>
           <BateriaPsicosocialPage />
+          <ApiErrorWatcher />
+        </AuthContextProvider>
+      ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'portal',
+      element: withSuspense(
+        <AuthContextProvider>
+          <WappyPortalPage />
+          <ApiErrorWatcher />
+        </AuthContextProvider>
+      ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'ingresar',
+      element: withSuspense(
+        <AuthContextProvider>
+          <WappyPortalPage />
+          <ApiErrorWatcher />
+        </AuthContextProvider>
+      ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'wappy-apps',
+      element: withSuspense(
+        <AuthContextProvider>
+          <WappyPortalPage />
+          <ApiErrorWatcher />
+        </AuthContextProvider>
+      ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'apps',
+      element: withSuspense(
+        <AuthContextProvider>
+          <WappyPortalPage />
           <ApiErrorWatcher />
         </AuthContextProvider>
       ),

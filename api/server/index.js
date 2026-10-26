@@ -731,6 +731,20 @@ const startServer = async () => {
     next();
   });
 
+  app.get(['/wappystudio', '/wappy-studio', '/wappystudio.html', '/wappy-studio.html'], (req, res, next) => {
+    const candidatePaths = [
+      path.resolve(__dirname, '../../client/dist/wappystudio.html'),
+      path.resolve(__dirname, '../../client/public/wappystudio.html'),
+      path.resolve(__dirname, '../../wappy_studio_offline.html'),
+    ];
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        return res.sendFile(p);
+      }
+    }
+    next();
+  });
+
   app.post('/api/embajadores/send-otp', async (req, res) => {
     try {
       const { email, name, otpCode } = req.body;

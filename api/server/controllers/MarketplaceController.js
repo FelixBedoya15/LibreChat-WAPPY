@@ -359,10 +359,69 @@ const OFFICIAL_MATRIZ_IPVR_APP_PRODUCT = {
   paymentRecipient: 'WAPPY'
 };
 
+// Official downloadable WAPPY Studio HTML application ($50.000 COP)
+const OFFICIAL_WAPPY_STUDIO_APP_PRODUCT = {
+  title: 'Aplicativo Descargable WAPPY Studio (Voz Neural 60m + Video HTML/GSAP)',
+  slug: 'aplicativo-descargable-wappy-studio',
+  sku: 'WAPPY-STUDIO-APP',
+  shortDescription: 'Estudio multimodal portable en un único archivo .HTML autónomo: Síntesis de Voz Neural Gemini TTS de hasta 60 minutos (14 voces, diálogo dual y vocal bursts) + Compositor de Video HTML/GSAP con capas, subtítulos dinámicos y exportación de cápsulas interactivas.',
+  description: 'Adquiere la versión descargable y portable de WAPPY Studio en un único archivo .HTML autónomo para tu computador o celular. Combina síntesis de voz neural de alta fidelidad (WAV 24kHz, 14 voces oficiales, modo diálogo a 2 voces y expresiones vocales) con un compositor visual de video en HTML5/GSAP (formatos 9:16 y 16:9, capas sobre tus propios videos, subtítulos palabra a palabra estilo Hormozi/Claude, edición visual arrastrando con el mouse y exportación de cápsulas HTML autocontenidas para WhatsApp o LMS). Conecta hasta 3 claves gratuitas de Google Gemini IA con rotación automática sin pagar mensualidades.',
+  category: 'capacitaciones',
+  tags: ['WAPPY Studio', 'Voz Neural TTS', 'Video HTML GSAP', 'Aplicativo Descargable', 'Offline HTML', 'Gemini IA', 'Capacitación SST'],
+  serviceType: 'digital_download',
+  regularPrice: 50000,
+  salePrice: 0,
+  hasDiscount: false,
+  hasVariants: false,
+  estimatedDeliveryDays: 'Descarga digital inmediata al aprobarse el pago',
+  deliverables: [
+    'Archivo maestro .HTML descargable (Aplicativo_WAPPY_Studio_Multimodal.html) de uso vitalicio',
+    'Estudio de Voz Neural Gemini TTS hasta 60 min continuos (14 voces, diálogo a 2 voces y Vocal Bursts en WAV 24kHz)',
+    'Compositor de Video HTML5 + GSAP (9:16 Vertical y 16:9 Horizontal) con soporte de video base y subtítulos palabra a palabra',
+    'Editor Visual en Vivo (Arrastrar elementos y editar textos con doble clic directamente en el lienzo)',
+    'Exportador de Cápsulas HTML5 100% Autocontenidas (listas para enviar por WhatsApp y abrir sin internet) + código <iframe srcdoc> para LMS',
+    'Módulo de rotación inteligente para conectar hasta 3 claves gratuitas de Google Gemini IA + Biblioteca persistente en tu navegador'
+  ],
+  requirements: [
+    'Cualquier navegador moderno (Google Chrome, Edge, Safari, Brave o Firefox) en PC o celular',
+    'Clave gratuita de Google AI Studio (aistudio.google.com) para síntesis de voz e IA generativa directa desde tu navegador'
+  ],
+  faqs: [
+    {
+      question: '¿Cómo recibo el archivo descargable .HTML de WAPPY Studio después de pagar?',
+      answer: 'Una vez aprobado el pago de $50.000 COP por Wompi (Nequi, PSE, Bancolombia o Tarjeta), se habilita de inmediato el botón "Descargar Aplicativo (.HTML)" tanto en la confirmación de tu pedido como en la sección final de /wappystudio.'
+    },
+    {
+      question: '¿Es un pago único o debo pagar mensualidad?',
+      answer: 'Es un pago único de $50.000 COP con licencia vitalicia. El archivo .HTML queda guardado en tu computador o celular para siempre y puedes crear locuciones, cápsulas de capacitación SST y videos ilimitados.'
+    },
+    {
+      question: '¿Cómo funciona la síntesis de voz y creación de escenas desde mi computador?',
+      answer: 'El aplicativo descargado se conecta directamente desde tu navegador a la API oficial de Google Gemini usando tus propias claves gratuitas de Google AI Studio (con rotación automática de hasta 3 claves), y las cápsulas exportadas funcionan 100% sin internet al compartirlas por WhatsApp.'
+    }
+  ],
+  featuredImage: '/marketing/marketplace-wappy-studio-card-horizontal.png',
+  featuredImagePosition: '50% 50%',
+  featuredImageScale: 87,
+  modalImage: '/marketing/marketplace-wappy-studio-modal-vertical.png',
+  modalImagePosition: '50% 50%',
+  modalImageScale: 65,
+  landingPageUrl: '/wappystudio.html#descargar-aplicativo',
+  status: 'published',
+  isFeatured: true,
+  isTest: false,
+  stockType: 'unlimited',
+  availableSlots: 0,
+  rating: 5.0,
+  reviewsCount: 19,
+  paymentRecipient: 'WAPPY'
+};
+
 // Default initial catalog products
 const DEFAULT_PRODUCTS = [
   OFFICIAL_COURSE_PRODUCT,
   OFFICIAL_MATRIZ_IPVR_APP_PRODUCT,
+  OFFICIAL_WAPPY_STUDIO_APP_PRODUCT,
   ...WAPPY_ADDON_PRODUCTS,
   ADELANTO_COURSE_PRODUCT,
   {
@@ -783,6 +842,39 @@ const ensureSeedData = async (force = false) => {
               modalImagePosition: OFFICIAL_MATRIZ_IPVR_APP_PRODUCT.modalImagePosition,
               modalImageScale: OFFICIAL_MATRIZ_IPVR_APP_PRODUCT.modalImageScale,
               landingPageUrl: OFFICIAL_MATRIZ_IPVR_APP_PRODUCT.landingPageUrl
+            }
+          }
+        );
+      }
+
+      // Ensure the official downloadable WAPPY Studio App ($50.000 COP) is published and visible
+      const studioApp = await MarketplaceProduct.findOne({ slug: 'aplicativo-descargable-wappy-studio' });
+      if (!studioApp) {
+        await MarketplaceProduct.create(OFFICIAL_WAPPY_STUDIO_APP_PRODUCT);
+        logger.info('[Marketplace] Official WAPPY Studio Downloadable App seeded into database.');
+      } else if (
+        studioApp.isTest ||
+        studioApp.status === 'draft' ||
+        studioApp.regularPrice !== 50000 ||
+        studioApp.featuredImage !== OFFICIAL_WAPPY_STUDIO_APP_PRODUCT.featuredImage ||
+        studioApp.modalImage !== OFFICIAL_WAPPY_STUDIO_APP_PRODUCT.modalImage
+      ) {
+        await MarketplaceProduct.updateOne(
+          { slug: 'aplicativo-descargable-wappy-studio' },
+          {
+            $set: {
+              status: 'published',
+              isTest: false,
+              isFeatured: true,
+              regularPrice: 50000,
+              serviceType: 'digital_download',
+              featuredImage: OFFICIAL_WAPPY_STUDIO_APP_PRODUCT.featuredImage,
+              featuredImagePosition: OFFICIAL_WAPPY_STUDIO_APP_PRODUCT.featuredImagePosition,
+              featuredImageScale: OFFICIAL_WAPPY_STUDIO_APP_PRODUCT.featuredImageScale,
+              modalImage: OFFICIAL_WAPPY_STUDIO_APP_PRODUCT.modalImage,
+              modalImagePosition: OFFICIAL_WAPPY_STUDIO_APP_PRODUCT.modalImagePosition,
+              modalImageScale: OFFICIAL_WAPPY_STUDIO_APP_PRODUCT.modalImageScale,
+              landingPageUrl: OFFICIAL_WAPPY_STUDIO_APP_PRODUCT.landingPageUrl
             }
           }
         );
@@ -1726,6 +1818,82 @@ const downloadMatrizIpvrApp = async (req, res) => {
   }
 };
 
+// GET /api/marketplace/orders/:orderNumber/download-studio
+const downloadWappyStudioApp = async (req, res) => {
+  try {
+    const rawCode = (req.params.orderNumber || '').trim();
+    if (!rawCode) {
+      return res.status(400).json({ error: 'Número de orden requerido para descargar el aplicativo.' });
+    }
+
+    const isAdmin = !!(req.user && req.user.role === 'ADMIN');
+
+    if (rawCode.toUpperCase() !== 'ADMIN-PREVIEW' || !isAdmin) {
+      const regex = new RegExp(`^${rawCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+      const order = await MarketplaceOrder.findOne({
+        $or: [{ orderNumber: regex }, { wompiReference: regex }]
+      });
+
+      if (!order) {
+        return res.status(404).json({
+          error: `No se encontró ninguna orden con el código "${rawCode}". Verifica el número de orden (ej. ORD-WAP-...).`
+        });
+      }
+
+      if (order.paymentStatus !== 'APPROVED' && !isAdmin) {
+        return res.status(403).json({
+          error: `La orden ${order.orderNumber} aún se encuentra en estado "${order.paymentStatus}". La descarga se habilita automáticamente en cuanto el pago es aprobado.`
+        });
+      }
+
+      const hasStudioApp = (order.items || []).some(
+        (item) =>
+          item.sku === 'WAPPY-STUDIO-APP' ||
+          /wappy\s*studio/i.test(item.title || '') ||
+          /aplicativo\s*descargable/i.test(item.title || '')
+      );
+
+      if (!hasStudioApp && !isAdmin) {
+        return res.status(403).json({
+          error: 'Esta orden no incluye el Aplicativo Descargable WAPPY Studio.'
+        });
+      }
+
+      if (order.fulfillmentStatus !== 'ENTREGADO') {
+        order.fulfillmentStatus = 'ENTREGADO';
+        order.serviceTimeline.push({
+          status: 'ENTREGADO',
+          comment: 'Aplicativo Descargable WAPPY Studio (.HTML) descargado exitosamente por el cliente.',
+          updatedAt: new Date(),
+          updatedBy: order.customer?.email || 'Cliente'
+        });
+        await order.save();
+      }
+    }
+
+    const candidatePaths = [
+      path.resolve(__dirname, '../../../client/dist/wappystudio.html'),
+      path.resolve(__dirname, '../../../client/public/wappystudio.html'),
+      path.resolve(__dirname, '../../../wappy_studio_offline.html')
+    ];
+
+    const targetFile = candidatePaths.find((p) => fs.existsSync(p));
+    if (!targetFile) {
+      return res.status(404).json({ error: 'Archivo del aplicativo WAPPY Studio no encontrado en el servidor.' });
+    }
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="Aplicativo_WAPPY_Studio_Multimodal.html"'
+    );
+    return res.sendFile(targetFile);
+  } catch (error) {
+    logger.error('[Marketplace] downloadWappyStudioApp error:', error);
+    return res.status(500).json({ error: 'Error al generar la descarga del aplicativo WAPPY Studio.' });
+  }
+};
+
 // GET /api/marketplace/customer-profile
 const getCustomerProfile = async (req, res) => {
   try {
@@ -1999,6 +2167,7 @@ module.exports = {
   handleWebhook,
   getOrderDetails,
   downloadMatrizIpvrApp,
+  downloadWappyStudioApp,
   getCustomerProfile,
   getMyOrders,
   adminGetOrders,

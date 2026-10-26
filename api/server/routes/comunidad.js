@@ -218,7 +218,7 @@ router.post('/matrizipvr/metrics', async (req, res) => {
             return res.status(400).json({ error: 'Razón Social o NIT es requerido.' });
         }
 
-        const query = nit ? { nit } : { companyName };
+        const query = nit ? { nit, source: 'matrizipvr_live' } : { companyName, source: 'matrizipvr_live' };
         const updateData = {
             companyName: companyName || 'Empresa Sin Nombre',
             companyType: payload.companyType || 'Persona Jurídica',
@@ -269,7 +269,9 @@ router.post('/matrizipvr/metrics', async (req, res) => {
 router.get('/matrizipvr/metrics', requireAdminCookieOrJwt, async (req, res) => {
     try {
         // Consultar únicamente las métricas registradas desde /matrizipvr.html
-        const ipvrList = await MatrizIpvrMetric.find({})
+        const ipvrList = await MatrizIpvrMetric.find({
+            source: { $ne: 'wappystudio_live' }
+        })
             .sort({ updatedAt: -1 })
             .lean();
 
@@ -345,6 +347,154 @@ router.delete('/matrizipvr/metrics/:id', requireAdminCookieOrJwt, async (req, re
         return res.json({ success: true, message: 'Registro de métrica eliminado.' });
     } catch (err) {
         console.error('[ComunidadRouter] Error deleting metric:', err);
+        return res.status(500).json({ error: 'Error al eliminar registro de métrica.' });
+    }
+});
+
+// --- WAPPY Studio Metrics (Telemetría de Empresas sin Firmas) ---
+
+// 1. Guardar métricas de empresa desde /wappystudio (Público, omite firmas)
+router.post('/wappystudio/metrics', async (req, res) => {
+    try {
+        const payload = req.body || {};
+
+        // REGLA ESTRICTA: Eliminar totalmente firmas digitales ("todo menos las firmas")
+        delete payload.legalRepSignature;
+        delete payload.sstRespSignature;
+        delete payload.logoBase64;
+
+        const companyName = (payload.companyName || '').trim();
+        const nit = (payload.nit || '').trim();
+
+        if (!companyName && !nit) {
+            return res.status(400).json({ error: 'Razón Social o NIT es requerido.' });
+        }
+
+        const query = nit
+            ? { nit, source: 'wappystudio_live' }
+            : { companyName, source: 'wappystudio_live' };
+
+        const updateData = {
+            companyName: companyName || 'Empresa Sin Nombre',
+            companyType: payload.companyType || 'Persona Jurídica',
+            nit: nit || '',
+            legalRepresentative: payload.legalRepresentative || '',
+            legalRepresentativeId: payload.legalRepresentativeId || '',
+            workerCount: Number(payload.workerCount) || 0,
+            arl: payload.arl || '',
+            economicActivity: payload.economicActivity || '',
+            riskLevel: payload.riskLevel || '',
+            ciiu: payload.ciiu || '',
+            address: payload.address || '',
+            city: payload.city || '',
+            phone: payload.phone || '',
+            email: payload.email || '',
+            responsibleSST: payload.responsibleSST || '',
+            licenseNumber: payload.licenseNumber || '',
+            licenseExpiry: payload.licenseExpiry || '',
+            formationLevel: payload.formationLevel || '',
+            totalRisks: Number(payload.totalRisks) || Number(payload.audiosCount) || 0,
+            highRisks: Number(payload.highRisks) || Number(payload.videosCount) || 0,
+            mediumRisks: Number(payload.mediumRisks) || 0,
+            lowRisks: Number(payload.lowRisks) || 0,
+            matrixRowsCount: Number(payload.matrixRowsCount) || Number(payload.projectsCount) || 0,
+            processes: Array.isArray(payload.processes) ? payload.processes.slice(0, 50) : [],
+            cargos: Array.isArray(payload.cargos) ? payload.cargos.slice(0, 50) : [],
+            peligros: Array.isArray(payload.peligros) ? payload.peligros.slice(0, 50) : [],
+            sedesCount: Array.isArray(payload.sedes) ? payload.sedes.length : (Number(payload.sedesCount) || 0),
+            clientIp: req.headers['x-forwarded-for'] || req.socket.remoteAddress || '',
+            source: 'wappystudio_live',
+            updatedAt: new Date()
+        };
+
+        const result = await MatrizIpvrMetric.findOneAndUpdate(
+            query,
+            { $set: updateData },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+
+        return res.json({ success: true, id: result._id });
+    } catch (err) {
+        console.error('[ComunidadRouter] Error saving wappystudio metrics:', err);
+        return res.status(500).json({ error: 'Error al registrar métricas de empresa en WAPPY Studio.' });
+    }
+});
+
+// 2. Consultar métricas de empresas desde /wappystudio (Solo Administradores, omite firmas)
+router.get('/wappystudio/metrics', requireAdminCookieOrJwt, async (req, res) => {
+    try {
+        const studioList = await MatrizIpvrMetric.find({ source: 'wappystudio_live' })
+            .sort({ updatedAt: -1 })
+            .lean();
+
+        const allCompanies = studioList.map((m) => ({
+            ...m,
+            _id: m._id.toString(),
+        }));
+
+        let totalWorkers = 0;
+        let totalAudios = 0;
+        let totalVideos = 0;
+        const byRiskLevel = { 'I': 0, 'II': 0, 'III': 0, 'IV': 0, 'V': 0, 'Sin especificar': 0 };
+        const byCompanySize = { 'Micro (1-10)': 0, 'Pequeña (11-50)': 0, 'Mediana (51-200)': 0, 'Grande (>200)': 0 };
+        const sectorMap = {};
+
+        for (const c of allCompanies) {
+            const wc = Number(c.workerCount) || 0;
+            totalWorkers += wc;
+            totalAudios += Number(c.totalRisks) || 0;
+            totalVideos += Number(c.highRisks) || 0;
+
+            const rl = (c.riskLevel || '').toString().trim().toUpperCase();
+            if (byRiskLevel[rl] !== undefined) {
+                byRiskLevel[rl]++;
+            } else {
+                byRiskLevel['Sin especificar']++;
+            }
+
+            if (wc <= 10) byCompanySize['Micro (1-10)']++;
+            else if (wc <= 50) byCompanySize['Pequeña (11-50)']++;
+            else if (wc <= 200) byCompanySize['Mediana (51-200)']++;
+            else byCompanySize['Grande (>200)']++;
+
+            const sector = (c.economicActivity || c.companyType || 'General').trim();
+            if (sector) {
+                sectorMap[sector] = (sectorMap[sector] || 0) + 1;
+            }
+        }
+
+        const topSectors = Object.entries(sectorMap)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 8);
+
+        return res.json({
+            success: true,
+            stats: {
+                totalCompanies: allCompanies.length,
+                totalWorkers,
+                totalAudios,
+                totalVideos,
+                byRiskLevel,
+                byCompanySize,
+                topSectors
+            },
+            companies: allCompanies
+        });
+    } catch (err) {
+        console.error('[ComunidadRouter] Error fetching wappystudio metrics:', err);
+        return res.status(500).json({ error: 'Error al consultar métricas de WAPPY Studio.' });
+    }
+});
+
+// 3. Eliminar registro de métrica de WAPPY Studio (Solo Administrador)
+router.delete('/wappystudio/metrics/:id', requireAdminCookieOrJwt, async (req, res) => {
+    try {
+        const { id } = req.params;
+        await MatrizIpvrMetric.findByIdAndDelete(id);
+        return res.json({ success: true, message: 'Registro de métrica eliminado.' });
+    } catch (err) {
+        console.error('[ComunidadRouter] Error deleting wappystudio metric:', err);
         return res.status(500).json({ error: 'Error al eliminar registro de métrica.' });
     }
 });

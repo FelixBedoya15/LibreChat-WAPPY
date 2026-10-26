@@ -197,11 +197,7 @@ export default function LandingPage() {
 
   const handleLogin = () => {
     const refQuery = getRefQuery();
-    if (isAuthenticated && !refQuery) {
-      navigate('/c/new');
-    } else {
-      navigate(`/login${refQuery}`);
-    }
+    navigate(`/portal${refQuery}`);
   };
 
   const handleGoToPlanes = () => {
