@@ -12,10 +12,12 @@ interface WappyAppCardItem {
   description: string;
   normative: string;
   image?: string;
+  visualType?: 'matriz-ipvr' | 'wappy-studio' | 'soon';
   icon: string;
   tags: string[];
   href?: string;
   ctaLabel: string;
+  onOpen?: (e?: React.MouseEvent) => void;
 }
 
 export default function WappyPortalPage() {
@@ -29,7 +31,65 @@ export default function WappyPortalPage() {
     searchParams.get('view') === 'apps';
 
   const [view, setView] = useState<'hub' | 'apps'>(isAppsRoute ? 'apps' : 'hub');
-  const [hoveredCard, setHoveredCard] = useState<'ia' | 'apps' | null>(null);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('wappy_theme_mode') === 'dark';
+    } catch (e) {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('wappy_theme_mode', isDarkMode ? 'dark' : 'light');
+      if (isDarkMode) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    } catch (e) {}
+  }, [isDarkMode]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollY =
+        window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+      setIsScrolled(scrollY > 16);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileMenuOpen]);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3200);
+  };
+
+  const toggleDarkMode = () => {
+    setIsDarkMode((prev) => {
+      const next = !prev;
+      showToast(next ? '🌙 Modo Oscuro activado' : '☀️ Modo Claro activado');
+      return next;
+    });
+  };
 
   useEffect(() => {
     const nextView =
@@ -39,6 +99,7 @@ export default function WappyPortalPage() {
         ? 'apps'
         : 'hub';
     setView(nextView);
+    setIsMobileMenuOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [location.pathname, searchParams]);
 
@@ -60,11 +121,13 @@ export default function WappyPortalPage() {
   };
 
   const handleGoToWappyIA = () => {
+    setIsMobileMenuOpen(false);
     const refQuery = getRefQuery();
     navigate(`/login${refQuery}`);
   };
 
   const handleOpenWappyApps = () => {
+    setIsMobileMenuOpen(false);
     setView('apps');
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set('view', 'apps');
@@ -72,6 +135,7 @@ export default function WappyPortalPage() {
   };
 
   const handleBackToHub = () => {
+    setIsMobileMenuOpen(false);
     if (location.pathname.includes('wappy-apps') || location.pathname === '/apps') {
       navigate(`/portal${getRefQuery()}`);
       return;
@@ -96,10 +160,24 @@ export default function WappyPortalPage() {
     }
   };
 
+  const handleOpenWappyStudio = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    if (
+      typeof window !== 'undefined' &&
+      (window.location.hostname === 'wappy.club' || window.location.hostname.endsWith('.wappy.club'))
+    ) {
+      window.location.href = 'https://wappy.club/wappystudio';
+    } else {
+      window.location.href = '/wappystudio';
+    }
+  };
+
   const wappyAppsCatalog: WappyAppCardItem[] = [
     {
       id: 'matriz-ipvr',
-      badge: 'DISPONIBLE AHORA · APP INTERACTIVA',
+      badge: 'DISPONIBLE AHORA · APP #1',
       badgeTone: 'active',
       title: 'APP de Matriz IPVR',
       subtitle: 'Identificación de Peligros, Evaluación y Valoración de Riesgos · GTC 45',
@@ -107,6 +185,7 @@ export default function WappyPortalPage() {
         'Aplicativo completo para construir, evaluar y auditar tu Matriz IPEVR bajo la metodología GTC 45. Incluye sugerencias automáticas con IA (Google Gemini), Dashboard de analítica con mapa de calor e Informe Gerencial en formato A4 listo para imprimir o exportar.',
       normative: 'GTC 45 · Decreto 1072 de 2015',
       image: '/marketing/marketplace-matriz-ipvr-card-horizontal.png',
+      visualType: 'matriz-ipvr',
       icon: '📊',
       tags: [
         'Matriz GTC 45 en Vivo',
@@ -116,6 +195,28 @@ export default function WappyPortalPage() {
       ],
       href: 'https://wappy.club/matrizipvr',
       ctaLabel: 'Ingresar a APP Matriz IPVR',
+      onOpen: handleOpenMatrizIpvr,
+    },
+    {
+      id: 'wappy-studio',
+      badge: 'DISPONIBLE AHORA · APP #2',
+      badgeTone: 'active',
+      title: 'APP de WAPPY Studio',
+      subtitle: 'Estudio de Locución Neural 24kHz (Gemini 2.5) y Cápsulas de Video HTML + GSAP',
+      description:
+        'Produce locuciones profesionales en 24kHz con etiquetas de actuación vocal SST y genera cápsulas animadas de capacitación en formato Horizontal (16:9) o Reels (9:16), listas para compartir por WhatsApp o descargar en HTML autónomo.',
+      normative: 'Capacitación e Inducción SST · Decreto 1072',
+      visualType: 'wappy-studio',
+      icon: '🎬',
+      tags: [
+        'Locución IA 24kHz (.WAV)',
+        'Cápsulas Video HTML+GSAP',
+        'Formatos 16:9 y 9:16',
+        'Biblioteca Persistente',
+      ],
+      href: 'https://wappy.club/wappystudio',
+      ctaLabel: 'Ingresar a WAPPY Studio',
+      onOpen: handleOpenWappyStudio,
     },
     {
       id: 'diagnostico-0312',
@@ -126,6 +227,7 @@ export default function WappyPortalPage() {
       description:
         'Calculadora normativa inteligente que clasifica tu empresa según número de trabajadores y nivel de riesgo ARL, evalúa el cumplimiento del ciclo PHVA y genera el Plan de Mejoramiento automático.',
       normative: 'Resolución 0312 de 2019 · Art. 27-28',
+      visualType: 'soon',
       icon: '🛡️',
       tags: ['7, 21 o 60 Estándares', 'Plan de Mejora IA', 'Puntaje Ponderado', 'Reporte Oficial'],
       ctaLabel: 'Próximamente disponible',
@@ -139,6 +241,7 @@ export default function WappyPortalPage() {
       description:
         'Valida al instante la compatibilidad de almacenamiento de tus productos químicos según el Sistema Globalmente Armonizado (SGA), extrae datos de Fichas de Seguridad (FDS) y genera etiquetas normativas.',
       normative: 'Decreto 1496 de 2018 · Res. 773 de 2021',
+      visualType: 'soon',
       icon: '🧪',
       tags: ['Cruce SGA en Vivo', 'Pictogramas Oficiales', 'Alertas de Reacción', 'Etiquetado SGA'],
       ctaLabel: 'Próximamente disponible',
@@ -146,7 +249,7 @@ export default function WappyPortalPage() {
   ];
 
   return (
-    <div className="mkt wappy-portal-page">
+    <div className={`mkt wappy-portal-page ${isDarkMode ? 'mkt-dark' : ''}`}>
       <style>{`
         .wappy-portal-page {
           min-height: 100dvh;
@@ -156,6 +259,13 @@ export default function WappyPortalPage() {
             radial-gradient(circle at 18% 12%, rgba(91, 184, 245, 0.35) 0%, rgba(91, 184, 245, 0) 48%),
             radial-gradient(circle at 82% 18%, rgba(199, 243, 3, 0.22) 0%, rgba(199, 243, 3, 0) 45%),
             linear-gradient(180deg, #dff1fd 0%, #f1f8fe 32%, #f6f7f9 100%);
+          transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        .wappy-portal-page.mkt-dark {
+          background:
+            radial-gradient(ellipse 120% 70% at 50% 0%, #0b2239 0%, #071526 52%, #050b14 100%) !important;
+          color: #f8fafc;
         }
 
         @keyframes felix-avatar-float {
@@ -167,26 +277,14 @@ export default function WappyPortalPage() {
           }
         }
 
-        .portal-main {
+        /* Importante: No usar .wrap en el <main> directamente porque marketing.css tiene
+           @media (max-width: 640px) { .mkt .wrap { padding: 0 16px !important; } }
+           lo cual borraba el padding-top y metía el contenido debajo del navbar fijo. */
+        .portal-main-shell {
           flex: 1;
-          padding-top: 132px;
-          padding-bottom: 72px;
           width: 100%;
-        }
-
-        .portal-nav-actions {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          flex-shrink: 0;
-        }
-
-        .portal-label-mobile {
-          display: none;
-        }
-
-        .portal-label-desktop {
-          display: inline;
+          padding-top: 118px;
+          padding-bottom: 72px;
         }
 
         .portal-eyebrow {
@@ -203,6 +301,7 @@ export default function WappyPortalPage() {
           line-height: 1.3;
           max-width: 100%;
           margin-bottom: 16px;
+          border: 1px solid rgba(199, 243, 3, 0.28);
         }
 
         .portal-eyebrow .tdot {
@@ -212,6 +311,39 @@ export default function WappyPortalPage() {
           height: 7px;
           flex-shrink: 0;
           animation: 1.8s ease-in-out infinite mkt-pulse;
+        }
+
+        .portal-hero-title {
+          font-size: clamp(26px, 5vw, 50px);
+          font-weight: 800;
+          color: #0e1300;
+          line-height: 1.1;
+          letter-spacing: -0.03em;
+          margin: 0 0 12px;
+        }
+
+        .wappy-portal-page.mkt-dark .portal-hero-title {
+          color: #f8fafc;
+        }
+
+        .portal-hero-sub {
+          font-size: clamp(14px, 2vw, 17.5px);
+          color: #475569;
+          line-height: 1.55;
+          margin: 0;
+          font-weight: 500;
+        }
+
+        .wappy-portal-page.mkt-dark .portal-hero-sub {
+          color: #cbd5e1;
+        }
+
+        .portal-hero-sub strong {
+          color: #0f172a;
+        }
+
+        .wappy-portal-page.mkt-dark .portal-hero-sub strong {
+          color: #c7f303;
         }
 
         .portal-main-grid {
@@ -233,7 +365,13 @@ export default function WappyPortalPage() {
           box-shadow: 0 20px 50px -15px rgba(15, 23, 42, 0.12);
           overflow: hidden;
           cursor: pointer;
-          transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.25s ease;
+          transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.25s ease, background 0.3s ease;
+        }
+
+        .wappy-portal-page.mkt-dark .portal-choice-card {
+          background: rgba(15, 23, 42, 0.92);
+          border-color: rgba(51, 65, 85, 0.85);
+          box-shadow: 0 22px 55px -15px rgba(0, 0, 0, 0.55);
         }
 
         .portal-choice-card:hover {
@@ -362,6 +500,29 @@ export default function WappyPortalPage() {
           line-height: 1.1;
         }
 
+        .wappy-portal-page.mkt-dark .portal-card-title {
+          color: #f8fafc;
+        }
+
+        .portal-card-desc {
+          font-size: clamp(13.5px, 1.8vw, 14.5px);
+          color: #475569;
+          line-height: 1.55;
+          margin: 0 0 16px;
+        }
+
+        .wappy-portal-page.mkt-dark .portal-card-desc {
+          color: #cbd5e1;
+        }
+
+        .portal-card-desc strong {
+          color: #0f172a;
+        }
+
+        .wappy-portal-page.mkt-dark .portal-card-desc strong {
+          color: #f8fafc;
+        }
+
         .portal-card-status-pill {
           font-size: 11px;
           font-weight: 800;
@@ -386,6 +547,18 @@ export default function WappyPortalPage() {
           line-height: 1.3;
         }
 
+        .wappy-portal-page.mkt-dark .portal-chip.chip-ia {
+          background: rgba(30, 41, 59, 0.85) !important;
+          border-color: rgba(51, 65, 85, 0.9) !important;
+          color: #e2e8f0 !important;
+        }
+
+        .wappy-portal-page.mkt-dark .portal-chip.chip-apps {
+          background: rgba(245, 158, 11, 0.14) !important;
+          border-color: rgba(245, 158, 11, 0.35) !important;
+          color: #fde68a !important;
+        }
+
         .portal-cta-btn {
           width: 100%;
           justify-content: space-between;
@@ -404,10 +577,10 @@ export default function WappyPortalPage() {
           background: linear-gradient(135deg, #0b192c 0%, #102a43 60%, #0f172a 100%);
           border-radius: 28px;
           padding: 24px 30px;
-          margin-bottom: 32px;
+          margin-bottom: 28px;
           color: #fff;
           box-shadow: 0 20px 45px -15px rgba(15, 23, 42, 0.25);
-          border: 1px solid rgba(255, 255, 255, 0.12);
+          border: 1px solid rgba(255, 255, 255, 0.14);
         }
 
         .portal-apps-banner-back {
@@ -425,11 +598,17 @@ export default function WappyPortalPage() {
           cursor: pointer;
           backdrop-filter: blur(8px);
           white-space: nowrap;
+          transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .portal-apps-banner-back:hover {
+          background: rgba(255, 255, 255, 0.2);
+          transform: translateY(-1px);
         }
 
         .portal-apps-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
           gap: 24px;
           inline-size: 100%;
           max-inline-size: 1120px;
@@ -444,14 +623,24 @@ export default function WappyPortalPage() {
           border-radius: 26px;
           border: 2px solid #e2e8f0;
           overflow: hidden;
-          transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease, border-color 0.25s ease;
+          transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease, border-color 0.25s ease, background 0.3s ease;
           box-shadow: 0 14px 34px -12px rgba(15, 23, 42, 0.08);
+        }
+
+        .wappy-portal-page.mkt-dark .app-item-card {
+          background: rgba(15, 23, 42, 0.92);
+          border-color: rgba(51, 65, 85, 0.85);
+          box-shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.5);
         }
 
         .app-item-card.is-active {
           border-color: rgba(13, 148, 136, 0.45);
           box-shadow: 0 20px 45px -12px rgba(13, 148, 136, 0.18);
           cursor: pointer;
+        }
+
+        .wappy-portal-page.mkt-dark .app-item-card.is-active {
+          border-color: rgba(20, 184, 166, 0.55);
         }
 
         .app-item-card.is-active:hover {
@@ -461,19 +650,94 @@ export default function WappyPortalPage() {
         }
 
         .app-item-card.is-soon {
-          opacity: 0.9;
+          opacity: 0.92;
           background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        }
+
+        .wappy-portal-page.mkt-dark .app-item-card.is-soon {
+          background: linear-gradient(180deg, rgba(15, 23, 42, 0.88) 0%, rgba(9, 14, 26, 0.92) 100%);
+        }
+
+        .app-card-meta-strip {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          padding: 10px 14px;
+          background: #0b1320;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+          flex-wrap: wrap;
+        }
+
+        .app-card-title {
+          font-size: clamp(19px, 3.8vw, 22px);
+          font-weight: 900;
+          color: #0f172a;
+          margin: 0;
+          line-height: 1.2;
+        }
+
+        .wappy-portal-page.mkt-dark .app-card-title {
+          color: #f8fafc;
+        }
+
+        .app-card-desc {
+          font-size: 13.5px;
+          color: #475569;
+          line-height: 1.55;
+          margin: 0 0 14px;
+        }
+
+        .wappy-portal-page.mkt-dark .app-card-desc {
+          color: #cbd5e1;
+        }
+
+        .app-card-tag {
+          font-size: 11px;
+          font-weight: 700;
+          padding: 4px 9px;
+          border-radius: 8px;
+        }
+
+        .app-card-tag.tag-active {
+          background: #f0fdfa;
+          color: #0f766e;
+          border: 1px solid #99f6e4;
+        }
+
+        .wappy-portal-page.mkt-dark .app-card-tag.tag-active {
+          background: rgba(13, 148, 136, 0.18);
+          color: #5eead4;
+          border: 1px solid rgba(45, 212, 191, 0.35);
+        }
+
+        .app-card-tag.tag-soon {
+          background: #f1f5f9;
+          color: #475569;
+          border: 1px solid #e2e8f0;
+        }
+
+        .wappy-portal-page.mkt-dark .app-card-tag.tag-soon {
+          background: rgba(30, 41, 59, 0.8);
+          color: #94a3b8;
+          border: 1px solid rgba(51, 65, 85, 0.8);
+        }
+
+        .portal-label-mobile {
+          display: none;
+        }
+
+        .portal-label-desktop {
+          display: inline;
         }
 
         /* =========================================================
            MOBILE & TABLET RESPONSIVE BREAKPOINTS
            ========================================================= */
         @media (max-width: 640px) {
-          .portal-main.wrap {
-            padding-top: 94px !important;
+          .portal-main-shell {
+            padding-top: 82px !important;
             padding-bottom: 44px !important;
-            padding-left: 14px !important;
-            padding-right: 14px !important;
           }
 
           .portal-label-desktop {
@@ -482,16 +746,6 @@ export default function WappyPortalPage() {
 
           .portal-label-mobile {
             display: inline;
-          }
-
-          .portal-nav-actions {
-            gap: 6px;
-          }
-
-          .portal-nav-actions .btn-sm {
-            height: 36px;
-            padding: 0 12px;
-            font-size: 12px;
           }
 
           .portal-main-grid {
@@ -503,7 +757,7 @@ export default function WappyPortalPage() {
           }
 
           .portal-stage {
-            min-block-size: 275px;
+            min-block-size: 270px;
             padding: 12px 12px 10px;
           }
 
@@ -514,7 +768,7 @@ export default function WappyPortalPage() {
           }
 
           .felix-avatar-wrapper {
-            height: 215px;
+            height: 210px;
           }
 
           .portal-card-body {
@@ -547,9 +801,9 @@ export default function WappyPortalPage() {
           }
 
           .portal-apps-banner {
-            padding: 18px 18px;
+            padding: 18px 16px;
             border-radius: 22px;
-            margin-bottom: 22px;
+            margin-bottom: 20px;
             gap: 14px;
           }
 
@@ -562,6 +816,10 @@ export default function WappyPortalPage() {
           .app-item-card {
             border-radius: 22px;
           }
+
+          .app-card-meta-strip {
+            padding: 8px 12px;
+          }
         }
 
         @media (max-width: 380px) {
@@ -569,23 +827,52 @@ export default function WappyPortalPage() {
             font-size: 9.2px;
             padding: 3.5px 7.5px;
           }
-
-          .portal-nav-actions .btn-sm {
-            height: 34px;
-            padding: 0 10px;
-            font-size: 11px;
-          }
         }
       `}</style>
 
-      {/* Top Capsule Navbar */}
-      <nav className="mkt-nav" aria-label="Navegación Portal WAPPY">
-        <div className="mkt-nav-inner scrolled" style={{ maxWidth: 1120 }}>
+      {/* Toast Flotante de Cambio de Tema */}
+      {toastMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 9999,
+            background: '#0e1300',
+            color: '#c7f303',
+            padding: '10px 20px',
+            borderRadius: 9999,
+            fontSize: 13,
+            fontWeight: 800,
+            boxShadow: '0 12px 30px rgba(0,0,0,0.35)',
+            border: '1px solid rgba(199,243,3,0.4)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {toastMessage}
+        </div>
+      )}
+
+      {/* Mobile Menu Backdrop (Idéntico a LandingPage.tsx) */}
+      {isMobileMenuOpen && (
+        <div
+          className="mkt-mobile-menu-backdrop"
+          onClick={() => setIsMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Floating Capsule Navbar (100% alineado con el encabezado de LandingPage.tsx) */}
+      <nav className="mkt-nav" aria-label="Navegación principal WAPPY">
+        <div className={`mkt-nav-inner ${isScrolled ? 'scrolled' : ''}`}>
           <a
             className="mkt-nav-logo"
+            aria-label="WAPPY IA - Ecosistema SG-SST Inteligente"
             href="/"
             onClick={(e) => {
               e.preventDefault();
+              setIsMobileMenuOpen(false);
               navigate(`/${getRefQuery()}`);
             }}
           >
@@ -598,609 +885,695 @@ export default function WappyPortalPage() {
             </div>
           </a>
 
-          <div className="portal-nav-actions">
+          {/* Enlaces Centrales de Escritorio */}
+          <div className="mkt-nav-links">
+            <a
+              href="/"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate(`/${getRefQuery()}`);
+              }}
+            >
+              Inicio
+            </a>
+            <a
+              href="/portal"
+              onClick={(e) => {
+                e.preventDefault();
+                handleBackToHub();
+              }}
+              style={view === 'hub' ? { color: '#0d9488', fontWeight: 800 } : undefined}
+            >
+              Selección WAPPY
+            </a>
+            <a
+              href="/portal?view=apps"
+              onClick={(e) => {
+                e.preventDefault();
+                handleOpenWappyApps();
+              }}
+              style={view === 'apps' ? { color: '#0d9488', fontWeight: 800 } : undefined}
+            >
+              Wappy APPs
+            </a>
+            <a
+              href="https://wappy.club/matrizipvr"
+              onClick={handleOpenMatrizIpvr}
+            >
+              Matriz IPVR
+            </a>
+            <a
+              href="https://wappy.club/wappystudio"
+              onClick={handleOpenWappyStudio}
+            >
+              WAPPY Studio
+            </a>
+            <a
+              href="/planes"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate(`/planes${getRefQuery()}`);
+              }}
+            >
+              Planes
+            </a>
+          </div>
+
+          {/* Botones de Acción + Selector de Tema Claro/Oscuro + Menú Hamburguesa Móvil */}
+          <div className="mkt-nav-cta">
+            <button
+              type="button"
+              onClick={toggleDarkMode}
+              className="mkt-theme-toggle-btn"
+              title={isDarkMode ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'}
+              aria-label={isDarkMode ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'}
+            >
+              <span>{isDarkMode ? '☀️' : '🌙'}</span>
+            </button>
+
             {view === 'apps' ? (
               <button
                 type="button"
-                className="btn btn-glass btn-sm"
+                className="btn btn-ghost mkt-nav-signin"
                 onClick={handleBackToHub}
-                style={{ border: '1px solid #cbd5e1', fontWeight: 700 }}
               >
-                <span className="portal-label-desktop">← Volver a Wappy IA / APPs</span>
-                <span className="portal-label-mobile">← Volver</span>
+                ← Volver a Selección
               </button>
             ) : (
               <button
                 type="button"
-                className="btn btn-glass btn-sm"
+                className="btn btn-ghost mkt-nav-signin"
                 onClick={() => navigate(`/${getRefQuery()}`)}
-                style={{ border: '1px solid #cbd5e1', fontWeight: 700 }}
               >
-                <span className="portal-label-desktop">← Volver al inicio</span>
-                <span className="portal-label-mobile">← Inicio</span>
+                ← Volver al inicio
               </button>
             )}
 
+            <button type="button" className="btn btn-lime btn-sm" onClick={handleGoToWappyIA}>
+              <span className="portal-label-desktop">Ingresar a Wappy IA</span>
+              <span className="portal-label-mobile">Wappy IA</span>
+            </button>
+
             <button
               type="button"
-              className="btn btn-lime btn-sm"
-              onClick={handleGoToWappyIA}
-              style={{ fontWeight: 800 }}
+              className={`mkt-hamburger-btn ${isMobileMenuOpen ? 'active' : ''}`}
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label={isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
+              aria-expanded={isMobileMenuOpen}
             >
-              <span className="portal-label-desktop">Iniciar Sesión IA</span>
-              <span className="portal-label-mobile">Login IA</span>
+              <span className="mkt-hamburger-bar"></span>
+              <span className="mkt-hamburger-bar"></span>
+              <span className="mkt-hamburger-bar"></span>
             </button>
           </div>
         </div>
-      </nav>
 
-      {/* Main Content Container */}
-      <main className="wrap portal-main">
-        {view === 'hub' ? (
-          <>
-            {/* Header Section */}
-            <div style={{ textAlign: 'center', maxWidth: 760, margin: '0 auto 30px' }}>
-              <div className="portal-eyebrow">
-                <span className="tdot"></span>
-                <span>PORTAL DE ACCESO OFICIAL · ECOSISTEMA WAPPY</span>
-              </div>
-              <h1
-                className="display"
-                style={{
-                  fontSize: 'clamp(26px, 5vw, 50px)',
-                  fontWeight: 800,
-                  color: '#0e1300',
-                  lineHeight: 1.1,
-                  letterSpacing: '-0.03em',
-                  margin: '0 0 12px',
+        {/* Cajón Desplegable Móvil (Idéntico a LandingPage.tsx) */}
+        {isMobileMenuOpen && (
+          <div className="mkt-mobile-menu-drawer">
+            <div className="mkt-mobile-menu-links">
+              <button
+                type="button"
+                className="mkt-mobile-link"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  navigate(`/${getRefQuery()}`);
                 }}
               >
-                ¿A dónde deseas ingresar hoy?
-              </h1>
-              <p
-                style={{
-                  fontSize: 'clamp(14px, 2vw, 17.5px)',
-                  color: '#475569',
-                  lineHeight: 1.55,
-                  margin: 0,
-                  fontWeight: 500,
-                }}
-              >
-                Selecciona entre nuestra plataforma central de Inteligencia Artificial con{' '}
-                <strong style={{ color: '#0f172a' }}>Tenshi IA</strong> o nuestra suite de
-                aplicaciones interactivas directas en{' '}
-                <strong style={{ color: '#0f172a' }}>Wappy APPs</strong>.
-              </p>
-            </div>
-
-            {/* Two Master Selection Cards: Wappy IA & Wappy APPs */}
-            <div className="portal-main-grid">
-              {/* ============================================================
-                  TARJETA 1: WAPPY IA (Tenshi con su Aureola Celestial)
-                 ============================================================ */}
-              <article
-                className="portal-choice-card card-ia"
-                onMouseEnter={() => setHoveredCard('ia')}
-                onMouseLeave={() => setHoveredCard(null)}
-                onClick={handleGoToWappyIA}
-                role="button"
-                tabIndex={0}
-                aria-label="Ingresar a Wappy IA - Ir al Login"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleGoToWappyIA();
-                  }
-                }}
-              >
-                {/* Stage Visual Superior con Tenshi y su Aureola */}
-                <div className="portal-stage portal-stage-ia">
-                  <div className="portal-stage-grid" />
-
-                  {/* Barra Superior de Insignias (Nunca se superponen ni tapan el avatar en móvil) */}
-                  <div className="portal-stage-top-bar">
-                    <div
-                      className="portal-stage-pill"
-                      style={{
-                        background: 'rgba(16, 185, 129, 0.18)',
-                        border: '1px solid rgba(52, 211, 153, 0.45)',
-                        color: '#a7f3d0',
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: 6,
-                          height: 6,
-                          borderRadius: '50%',
-                          background: '#c7f303',
-                          boxShadow: '0 0 8px #c7f303',
-                          flexShrink: 0,
-                        }}
-                      />
-                      <span>ORQUESTADOR IA 24/7</span>
-                    </div>
-
-                    <div
-                      className="portal-stage-pill"
-                      style={{
-                        background: 'rgba(250, 204, 21, 0.16)',
-                        border: '1px solid rgba(250, 204, 21, 0.5)',
-                        color: '#fef08a',
-                      }}
-                    >
-                      <span className="portal-label-desktop">😇 Tenshi + +20 Agentes</span>
-                      <span className="portal-label-mobile">😇 +20 Agentes IA</span>
-                    </div>
-                  </div>
-
-                  {/* Contenedor Central de Tenshi con su Única Aureola Celestial Sincronizada */}
-                  <div
-                    style={{
-                      position: 'relative',
-                      zIndex: 20,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      paddingTop: 6,
-                    }}
-                  >
-                    <TenshiAvatar
-                      size={215}
-                      mood="idle"
-                      showHaloEffect={true}
-                      showHUD={true}
-                      interactive={false}
-                    />
-                  </div>
-
-                  {/* Pedestal de Luz Inferior */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      bottom: 8,
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      width: 170,
-                      height: 20,
-                      borderRadius: '50%',
-                      background:
-                        'radial-gradient(ellipse at center, rgba(199, 243, 3, 0.45) 0%, rgba(16, 185, 129, 0) 75%)',
-                      filter: 'blur(6px)',
-                      pointerEvents: 'none',
-                    }}
-                  />
+                <span className="mkt-mobile-link-icon">🏠</span>
+                <div className="mkt-mobile-link-info">
+                  <span className="mkt-mobile-link-title">Página de Inicio</span>
+                  <span className="mkt-mobile-link-desc">Volver a la portada principal de WAPPY</span>
                 </div>
-
-                {/* Cuerpo de la Tarjeta Wappy IA */}
-                <div className="portal-card-body">
-                  <div>
-                    <div className="portal-card-kicker" style={{ color: '#0d9488' }}>
-                      <span>✨ PLATAFORMA CENTRAL SG-SST</span>
-                    </div>
-
-                    <div className="portal-card-title-row">
-                      <h2 className="display portal-card-title">
-                        Wappy <span style={{ color: '#16a34a' }}>IA</span>
-                      </h2>
-                      <span
-                        className="portal-card-status-pill"
-                        style={{
-                          background: '#ecfdf5',
-                          color: '#047857',
-                          border: '1px solid #a7f3d0',
-                        }}
-                      >
-                        Acceso a Cuenta / Login
-                      </span>
-                    </div>
-
-                    <p
-                      style={{
-                        fontSize: 'clamp(13.5px, 1.8vw, 14.5px)',
-                        color: '#475569',
-                        lineHeight: 1.55,
-                        margin: '0 0 16px',
-                      }}
-                    >
-                      Ingresa al ecosistema completo del SG-SST liderado por{' '}
-                      <strong style={{ color: '#0f172a' }}>Tenshi IA</strong>. Gestiona los 8 Hitos
-                      preventivos, Metodología del Bioindividuo, Comités QR, Academia LMS y consulta
-                      en tiempo real a más de 20 especialistas autónomos.
-                    </p>
-
-                    {/* Chips de Características */}
-                    <div className="portal-chips-wrap">
-                      {[
-                        '🤖 +20 Agentes Especialistas SST',
-                        '🧬 Metodología del Bioindividuo',
-                        '🎙️ Voz en Vivo con Tenshi',
-                        '🎓 Academia LMS & Comités QR',
-                      ].map((chip) => (
-                        <span
-                          key={chip}
-                          className="portal-chip"
-                          style={{
-                            background: '#f8fafc',
-                            border: '1px solid #e2e8f0',
-                            color: '#1e293b',
-                          }}
-                        >
-                          {chip}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Botón CTA Wappy IA */}
-                  <button
-                    type="button"
-                    className="btn btn-primary portal-cta-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleGoToWappyIA();
-                    }}
-                  >
-                    <span>Ingresar a Wappy IA</span>
-                    <span className="pip" style={{ width: 34, height: 34, flexShrink: 0 }}>
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#0E1300"
-                        strokeWidth="2.6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                        <polyline points="12 5 19 12 12 19"></polyline>
-                      </svg>
-                    </span>
-                  </button>
-                </div>
-              </article>
-
-              {/* ============================================================
-                  TARJETA 2: WAPPY APPs (Avatar 3D de Félix)
-                 ============================================================ */}
-              <article
-                className="portal-choice-card card-apps"
-                onMouseEnter={() => setHoveredCard('apps')}
-                onMouseLeave={() => setHoveredCard(null)}
-                onClick={handleOpenWappyApps}
-                role="button"
-                tabIndex={0}
-                aria-label="Ingresar a Wappy APPs - Ver tarjetas de aplicaciones"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleOpenWappyApps();
-                  }
-                }}
-              >
-                {/* Stage Visual Superior con el Avatar 3D de Félix */}
-                <div className="portal-stage portal-stage-apps">
-                  <div className="portal-stage-grid" />
-
-                  {/* Barra Superior de Insignias (Sin colisión en móvil) */}
-                  <div className="portal-stage-top-bar">
-                    <div
-                      className="portal-stage-pill"
-                      style={{
-                        background: 'rgba(245, 158, 11, 0.2)',
-                        border: '1px solid rgba(251, 191, 36, 0.5)',
-                        color: '#fde68a',
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: 6,
-                          height: 6,
-                          borderRadius: '50%',
-                          background: '#fbbf24',
-                          boxShadow: '0 0 8px #fbbf24',
-                          flexShrink: 0,
-                        }}
-                      />
-                      <span>SUITE DE APLICATIVOS</span>
-                    </div>
-
-                    <div
-                      className="portal-stage-pill"
-                      style={{
-                        background: 'rgba(56, 189, 248, 0.18)',
-                        border: '1px solid rgba(56, 189, 248, 0.45)',
-                        color: '#bae6fd',
-                      }}
-                    >
-                      <span className="portal-label-desktop">⚡ Herramientas SST en Vivo</span>
-                      <span className="portal-label-mobile">⚡ SST en Vivo</span>
-                    </div>
-                  </div>
-
-                  {/* Avatar 3D de Félix (Cuerpo Completo) */}
-                  <div className="felix-avatar-wrapper">
-                    <img
-                      src="/assets/felix_avatar_3d.png"
-                      alt="Avatar Wappy APPs"
-                      style={{
-                        height: '100%',
-                        width: 'auto',
-                        objectFit: 'contain',
-                        display: 'block',
-                        userSelect: 'none',
-                      }}
-                    />
-                  </div>
-
-                  {/* Pedestal de Luz Inferior Ámbar/Lima */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      bottom: 8,
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      width: 170,
-                      height: 20,
-                      borderRadius: '50%',
-                      background:
-                        'radial-gradient(ellipse at center, rgba(251, 191, 36, 0.5) 0%, rgba(14, 165, 233, 0) 75%)',
-                      filter: 'blur(6px)',
-                      pointerEvents: 'none',
-                    }}
-                  />
-                </div>
-
-                {/* Cuerpo de la Tarjeta Wappy APPs */}
-                <div className="portal-card-body">
-                  <div>
-                    <div className="portal-card-kicker" style={{ color: '#d97706' }}>
-                      <span>🛠️ APLICACIONES INTERACTIVAS DE ACCESO DIRECTO</span>
-                    </div>
-
-                    <div className="portal-card-title-row">
-                      <h2 className="display portal-card-title">
-                        Wappy <span style={{ color: '#d97706' }}>APPs</span>
-                      </h2>
-                      <span
-                        className="portal-card-status-pill"
-                        style={{
-                          background: '#fffbeb',
-                          color: '#b45309',
-                          border: '1px solid #fde68a',
-                        }}
-                      >
-                        Catálogo de Apps
-                      </span>
-                    </div>
-
-                    <p
-                      style={{
-                        fontSize: 'clamp(13.5px, 1.8vw, 14.5px)',
-                        color: '#475569',
-                        lineHeight: 1.55,
-                        margin: '0 0 16px',
-                      }}
-                    >
-                      Ingresa a nuestra colección de aplicativos especializados listos para usar al
-                      instante: comenzando con la{' '}
-                      <strong style={{ color: '#0f172a' }}>APP de Matriz IPVR (GTC 45)</strong> con
-                      Inteligencia Artificial, gráficas ejecutivas e informes descargables.
-                    </p>
-
-                    {/* Chips de Características */}
-                    <div className="portal-chips-wrap">
-                      {[
-                        '📊 APP Matriz IPVR (GTC 45)',
-                        '⚡ Uso Inmediato sin Fricción',
-                        '🧠 IA Gemini Integrada',
-                        '🖨️ Informe Gerencial A4 & Excel',
-                      ].map((chip) => (
-                        <span
-                          key={chip}
-                          className="portal-chip"
-                          style={{
-                            background: '#fffbeb',
-                            border: '1px solid #fde68a',
-                            color: '#78350f',
-                          }}
-                        >
-                          {chip}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Botón CTA Wappy APPs */}
-                  <button
-                    type="button"
-                    className="btn btn-lime portal-cta-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenWappyApps();
-                    }}
-                    style={{
-                      border: '2px solid #0e1300',
-                    }}
-                  >
-                    <span>Explorar Wappy APPs</span>
-                    <span
-                      style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: 9999,
-                        background: '#0e1300',
-                        color: '#c7f303',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#c7f303"
-                        strokeWidth="2.6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                        <polyline points="12 5 19 12 12 19"></polyline>
-                      </svg>
-                    </span>
-                  </button>
-                </div>
-              </article>
-            </div>
-          </>
-        ) : (
-          /* ================================================================
-             VISTA 2: CATÁLOGO DE TARJETAS DENTRO DE WAPPY APPs
-             ================================================================ */
-          <div>
-            {/* Cabecera Wappy APPs con el Avatar de Félix */}
-            <div className="portal-apps-banner">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-                <div
-                  style={{
-                    width: 72,
-                    height: 72,
-                    borderRadius: 20,
-                    background:
-                      'radial-gradient(circle at 50% 40%, rgba(251, 191, 36, 0.35), rgba(15, 23, 42, 0.9))',
-                    border: '2px solid #fbbf24',
-                    display: 'flex',
-                    alignItems: 'flex-end',
-                    justifyContent: 'center',
-                    overflow: 'hidden',
-                    flexShrink: 0,
-                  }}
-                >
-                  <img
-                    src="/assets/felix_avatar_3d.png"
-                    alt="Avatar Wappy APPs"
-                    style={{ height: '94%', width: 'auto', objectFit: 'contain', display: 'block' }}
-                  />
-                </div>
-                <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-                  <div
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      fontSize: 10.5,
-                      fontWeight: 800,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.06em',
-                      color: '#fde047',
-                      marginBottom: 4,
-                    }}
-                  >
-                    <span>🚀 SUITE DE APLICACIONES ESPECIALIZADAS</span>
-                  </div>
-                  <h1
-                    className="display"
-                    style={{
-                      fontSize: 'clamp(22px, 3.5vw, 34px)',
-                      fontWeight: 900,
-                      color: '#ffffff',
-                      margin: 0,
-                    }}
-                  >
-                    Wappy <span style={{ color: '#c7f303' }}>APPs</span>
-                  </h1>
-                  <p
-                    style={{
-                      fontSize: 13.5,
-                      color: 'rgba(255, 255, 255, 0.82)',
-                      margin: '4px 0 0',
-                      maxWidth: 620,
-                      lineHeight: 1.45,
-                    }}
-                  >
-                    Selecciona la aplicación especializada que deseas abrir. Herramientas prácticas
-                    diseñadas para multiplicar tu velocidad en Seguridad y Salud en el Trabajo.
-                  </p>
-                </div>
-              </div>
+              </button>
 
               <button
                 type="button"
+                className="mkt-mobile-link"
                 onClick={handleBackToHub}
-                className="portal-apps-banner-back"
               >
-                <span>← Volver a Selección</span>
+                <span className="mkt-mobile-link-icon">✨</span>
+                <div className="mkt-mobile-link-info">
+                  <span className="mkt-mobile-link-title">Selector Wappy IA / Wappy APPs</span>
+                  <span className="mkt-mobile-link-desc">Elegir entre plataforma central o aplicativos</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                className="mkt-mobile-link"
+                onClick={handleOpenWappyApps}
+              >
+                <span className="mkt-mobile-link-icon">🛠️</span>
+                <div className="mkt-mobile-link-info">
+                  <span className="mkt-mobile-link-title">Catálogo Wappy APPs</span>
+                  <span className="mkt-mobile-link-desc">Matriz IPVR GTC 45, WAPPY Studio y más</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                className="mkt-mobile-link"
+                onClick={() => handleOpenMatrizIpvr()}
+              >
+                <span className="mkt-mobile-link-icon">📊</span>
+                <div className="mkt-mobile-link-info">
+                  <span className="mkt-mobile-link-title">APP de Matriz IPVR (GTC 45)</span>
+                  <span className="mkt-mobile-link-desc">Abrir aplicativo directo en wappy.club/matrizipvr</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                className="mkt-mobile-link"
+                onClick={() => handleOpenWappyStudio()}
+              >
+                <span className="mkt-mobile-link-icon">🎬</span>
+                <div className="mkt-mobile-link-info">
+                  <span className="mkt-mobile-link-title">APP de WAPPY Studio</span>
+                  <span className="mkt-mobile-link-desc">Locución IA 24kHz y Cápsulas de Video GSAP</span>
+                </div>
               </button>
             </div>
 
-            {/* Grid de Tarjetas de Aplicaciones (La 1ra es APP Matriz IPVR -> https://wappy.club/matrizipvr) */}
-            <div className="portal-apps-grid">
-              {wappyAppsCatalog.map((app, index) => {
-                const isFirstApp = app.id === 'matriz-ipvr';
-                return (
-                  <article
-                    key={app.id}
-                    className={`app-item-card ${isFirstApp ? 'is-active' : 'is-soon'}`}
-                    onClick={isFirstApp ? handleOpenMatrizIpvr : undefined}
-                    role={isFirstApp ? 'button' : undefined}
-                    tabIndex={isFirstApp ? 0 : undefined}
-                    onKeyDown={
-                      isFirstApp
-                        ? (e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              handleOpenMatrizIpvr();
-                            }
-                          }
-                        : undefined
+            <div className="mkt-mobile-menu-divider"></div>
+
+            <div className="mkt-mobile-menu-actions">
+              <button
+                type="button"
+                className="btn btn-outline-dark"
+                style={{ width: '100%', justifyContent: 'center', minHeight: 46 }}
+                onClick={toggleDarkMode}
+              >
+                {isDarkMode ? '☀️ Cambiar a Modo Claro' : '🌙 Cambiar a Modo Oscuro'}
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ width: '100%', justifyContent: 'center', minHeight: 46 }}
+                onClick={handleGoToWappyIA}
+              >
+                Ingresar a Wappy IA (Login)
+              </button>
+            </div>
+          </div>
+        )}
+      </nav>
+
+      {/* Main Content Container */}
+      <main className="portal-main-shell">
+        <div className="wrap">
+          {view === 'hub' ? (
+            <>
+              {/* Header Section */}
+              <div style={{ textAlign: 'center', maxWidth: 760, margin: '0 auto 30px' }}>
+                <div className="portal-eyebrow">
+                  <span className="tdot"></span>
+                  <span>PORTAL DE ACCESO OFICIAL · ECOSISTEMA WAPPY</span>
+                </div>
+                <h1 className="display portal-hero-title">¿A dónde deseas ingresar hoy?</h1>
+                <p className="portal-hero-sub">
+                  Selecciona entre nuestra plataforma central de Inteligencia Artificial con{' '}
+                  <strong>Tenshi IA</strong> o nuestra suite de aplicaciones interactivas directas en{' '}
+                  <strong>Wappy APPs</strong>.
+                </p>
+              </div>
+
+              {/* Two Master Selection Cards: Wappy IA & Wappy APPs */}
+              <div className="portal-main-grid">
+                {/* ============================================================
+                    TARJETA 1: WAPPY IA (Tenshi con su Aureola Celestial)
+                   ============================================================ */}
+                <article
+                  className="portal-choice-card card-ia"
+                  onClick={handleGoToWappyIA}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Ingresar a Wappy IA - Ir al Login"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleGoToWappyIA();
                     }
-                  >
-                    <div>
-                      {/* Cabecera Visual de la Tarjeta */}
-                      {app.image ? (
-                        <div
+                  }}
+                >
+                  {/* Stage Visual Superior con Tenshi y su Aureola */}
+                  <div className="portal-stage portal-stage-ia">
+                    <div className="portal-stage-grid" />
+
+                    <div className="portal-stage-top-bar">
+                      <div
+                        className="portal-stage-pill"
+                        style={{
+                          background: 'rgba(16, 185, 129, 0.18)',
+                          border: '1px solid rgba(52, 211, 153, 0.45)',
+                          color: '#a7f3d0',
+                        }}
+                      >
+                        <span
                           style={{
-                            position: 'relative',
-                            height: 195,
-                            background: '#0e1300',
-                            overflow: 'hidden',
-                            borderBottom: '1px solid #e2e8f0',
+                            width: 6,
+                            height: 6,
+                            borderRadius: '50%',
+                            background: '#c7f303',
+                            boxShadow: '0 0 8px #c7f303',
+                            flexShrink: 0,
+                          }}
+                        />
+                        <span>ORQUESTADOR IA 24/7</span>
+                      </div>
+
+                      <div
+                        className="portal-stage-pill"
+                        style={{
+                          background: 'rgba(250, 204, 21, 0.16)',
+                          border: '1px solid rgba(250, 204, 21, 0.5)',
+                          color: '#fef08a',
+                        }}
+                      >
+                        <span className="portal-label-desktop">😇 Tenshi + +20 Agentes</span>
+                        <span className="portal-label-mobile">😇 +20 Agentes IA</span>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        position: 'relative',
+                        zIndex: 20,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingTop: 6,
+                      }}
+                    >
+                      <TenshiAvatar
+                        size={215}
+                        mood="idle"
+                        showHaloEffect={true}
+                        showHUD={true}
+                        interactive={false}
+                      />
+                    </div>
+
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: 8,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        width: 170,
+                        height: 20,
+                        borderRadius: '50%',
+                        background:
+                          'radial-gradient(ellipse at center, rgba(199, 243, 3, 0.45) 0%, rgba(16, 185, 129, 0) 75%)',
+                        filter: 'blur(6px)',
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  </div>
+
+                  {/* Cuerpo de la Tarjeta Wappy IA */}
+                  <div className="portal-card-body">
+                    <div>
+                      <div className="portal-card-kicker" style={{ color: '#14b8a6' }}>
+                        <span>✨ PLATAFORMA CENTRAL SG-SST</span>
+                      </div>
+
+                      <div className="portal-card-title-row">
+                        <h2 className="display portal-card-title">
+                          Wappy <span style={{ color: '#22c55e' }}>IA</span>
+                        </h2>
+                        <span
+                          className="portal-card-status-pill"
+                          style={{
+                            background: isDarkMode ? 'rgba(16, 185, 129, 0.18)' : '#ecfdf5',
+                            color: isDarkMode ? '#6ee7b7' : '#047857',
+                            border: isDarkMode ? '1px solid rgba(52, 211, 153, 0.4)' : '1px solid #a7f3d0',
                           }}
                         >
-                          <img
-                            src={app.image}
-                            alt={app.title}
+                          Acceso a Cuenta / Login
+                        </span>
+                      </div>
+
+                      <p className="portal-card-desc">
+                        Ingresa al ecosistema completo del SG-SST liderado por{' '}
+                        <strong>Tenshi IA</strong>. Gestiona los 8 Hitos preventivos, Metodología del
+                        Bioindividuo, Comités QR, Academia LMS y consulta en tiempo real a más de 20
+                        especialistas autónomos.
+                      </p>
+
+                      <div className="portal-chips-wrap">
+                        {[
+                          '🤖 +20 Agentes Especialistas SST',
+                          '🧬 Metodología del Bioindividuo',
+                          '🎙️ Voz en Vivo con Tenshi',
+                          '🎓 Academia LMS & Comités QR',
+                        ].map((chip) => (
+                          <span
+                            key={chip}
+                            className="portal-chip chip-ia"
                             style={{
-                              width: '100%',
-                              height: '100%',
-                              objectFit: 'cover',
-                              display: 'block',
+                              background: '#f8fafc',
+                              border: '1px solid #e2e8f0',
+                              color: '#1e293b',
                             }}
-                          />
-                          <div
+                          >
+                            {chip}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="btn btn-primary portal-cta-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleGoToWappyIA();
+                      }}
+                    >
+                      <span>Ingresar a Wappy IA</span>
+                      <span className="pip" style={{ width: 34, height: 34, flexShrink: 0 }}>
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#0E1300"
+                          strokeWidth="2.6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <line x1="5" y1="12" x2="19" y2="12"></line>
+                          <polyline points="12 5 19 12 12 19"></polyline>
+                        </svg>
+                      </span>
+                    </button>
+                  </div>
+                </article>
+
+                {/* ============================================================
+                    TARJETA 2: WAPPY APPs (Avatar 3D de Félix)
+                   ============================================================ */}
+                <article
+                  className="portal-choice-card card-apps"
+                  onClick={handleOpenWappyApps}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Ingresar a Wappy APPs - Ver tarjetas de aplicaciones"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleOpenWappyApps();
+                    }
+                  }}
+                >
+                  <div className="portal-stage portal-stage-apps">
+                    <div className="portal-stage-grid" />
+
+                    <div className="portal-stage-top-bar">
+                      <div
+                        className="portal-stage-pill"
+                        style={{
+                          background: 'rgba(245, 158, 11, 0.2)',
+                          border: '1px solid rgba(251, 191, 36, 0.5)',
+                          color: '#fde68a',
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: '50%',
+                            background: '#fbbf24',
+                            boxShadow: '0 0 8px #fbbf24',
+                            flexShrink: 0,
+                          }}
+                        />
+                        <span>SUITE DE APLICATIVOS</span>
+                      </div>
+
+                      <div
+                        className="portal-stage-pill"
+                        style={{
+                          background: 'rgba(56, 189, 248, 0.18)',
+                          border: '1px solid rgba(56, 189, 248, 0.45)',
+                          color: '#bae6fd',
+                        }}
+                      >
+                        <span className="portal-label-desktop">⚡ Herramientas SST en Vivo</span>
+                        <span className="portal-label-mobile">⚡ SST en Vivo</span>
+                      </div>
+                    </div>
+
+                    <div className="felix-avatar-wrapper">
+                      <img
+                        src="/assets/felix_avatar_3d.png"
+                        alt="Avatar Wappy APPs"
+                        style={{
+                          height: '100%',
+                          width: 'auto',
+                          objectFit: 'contain',
+                          display: 'block',
+                          userSelect: 'none',
+                        }}
+                      />
+                    </div>
+
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: 8,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        width: 170,
+                        height: 20,
+                        borderRadius: '50%',
+                        background:
+                          'radial-gradient(ellipse at center, rgba(251, 191, 36, 0.5) 0%, rgba(14, 165, 233, 0) 75%)',
+                        filter: 'blur(6px)',
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  </div>
+
+                  {/* Cuerpo de la Tarjeta Wappy APPs */}
+                  <div className="portal-card-body">
+                    <div>
+                      <div className="portal-card-kicker" style={{ color: '#f59e0b' }}>
+                        <span>🛠️ APLICACIONES INTERACTIVAS DE ACCESO DIRECTO</span>
+                      </div>
+
+                      <div className="portal-card-title-row">
+                        <h2 className="display portal-card-title">
+                          Wappy <span style={{ color: '#f59e0b' }}>APPs</span>
+                        </h2>
+                        <span
+                          className="portal-card-status-pill"
+                          style={{
+                            background: isDarkMode ? 'rgba(245, 158, 11, 0.18)' : '#fffbeb',
+                            color: isDarkMode ? '#fde68a' : '#b45309',
+                            border: isDarkMode ? '1px solid rgba(251, 191, 36, 0.4)' : '1px solid #fde68a',
+                          }}
+                        >
+                          Catálogo de Apps
+                        </span>
+                      </div>
+
+                      <p className="portal-card-desc">
+                        Ingresa a nuestra colección de aplicativos especializados listos para usar al
+                        instante: la <strong>APP de Matriz IPVR (GTC 45)</strong> y{' '}
+                        <strong>WAPPY Studio (Voz 24kHz & Video Cápsulas GSAP)</strong> con IA
+                        integrada.
+                      </p>
+
+                      <div className="portal-chips-wrap">
+                        {[
+                          '📊 APP Matriz IPVR (GTC 45)',
+                          '🎬 APP WAPPY Studio (Voz & Video)',
+                          '🧠 IA Gemini Integrada',
+                          '🖨️ Informes A4, Excel & Cápsulas',
+                        ].map((chip) => (
+                          <span
+                            key={chip}
+                            className="portal-chip chip-apps"
                             style={{
-                              position: 'absolute',
-                              top: 10,
-                              left: 10,
-                              maxWidth: 'calc(100% - 20px)',
+                              background: '#fffbeb',
+                              border: '1px solid #fde68a',
+                              color: '#78350f',
+                            }}
+                          >
+                            {chip}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="btn btn-lime portal-cta-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenWappyApps();
+                      }}
+                      style={{
+                        border: '2px solid #0e1300',
+                      }}
+                    >
+                      <span>Explorar Wappy APPs</span>
+                      <span
+                        style={{
+                          width: 34,
+                          height: 34,
+                          borderRadius: 9999,
+                          background: '#0e1300',
+                          color: '#c7f303',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#c7f303"
+                          strokeWidth="2.6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <line x1="5" y1="12" x2="19" y2="12"></line>
+                          <polyline points="12 5 19 12 12 19"></polyline>
+                        </svg>
+                      </span>
+                    </button>
+                  </div>
+                </article>
+              </div>
+            </>
+          ) : (
+            /* ================================================================
+               VISTA 2: CATÁLOGO DE TARJETAS DENTRO DE WAPPY APPs (?view=apps)
+               ================================================================ */
+            <div>
+              {/* Cabecera Wappy APPs con el Avatar de Félix */}
+              <div className="portal-apps-banner">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                  <div
+                    style={{
+                      width: 68,
+                      height: 68,
+                      borderRadius: 18,
+                      background:
+                        'radial-gradient(circle at 50% 40%, rgba(251, 191, 36, 0.35), rgba(15, 23, 42, 0.9))',
+                      border: '2px solid #fbbf24',
+                      display: 'flex',
+                      alignItems: 'flex-end',
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <img
+                      src="/assets/felix_avatar_3d.png"
+                      alt="Avatar Wappy APPs"
+                      style={{ height: '94%', width: 'auto', objectFit: 'contain', display: 'block' }}
+                    />
+                  </div>
+                  <div style={{ flex: '1 1 210px', minWidth: 0 }}>
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        fontSize: 10.5,
+                        fontWeight: 800,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
+                        color: '#fde047',
+                        marginBottom: 4,
+                      }}
+                    >
+                      <span>🚀 SUITE DE APLICACIONES ESPECIALIZADAS</span>
+                    </div>
+                    <h1
+                      className="display"
+                      style={{
+                        fontSize: 'clamp(22px, 3.5vw, 34px)',
+                        fontWeight: 900,
+                        color: '#ffffff',
+                        margin: 0,
+                      }}
+                    >
+                      Wappy <span style={{ color: '#c7f303' }}>APPs</span>
+                    </h1>
+                    <p
+                      style={{
+                        fontSize: 13.5,
+                        color: 'rgba(255, 255, 255, 0.84)',
+                        margin: '4px 0 0',
+                        maxWidth: 620,
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      Selecciona la aplicación especializada que deseas abrir. Herramientas prácticas
+                      diseñadas para multiplicar tu velocidad en Seguridad y Salud en el Trabajo.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleBackToHub}
+                  className="portal-apps-banner-back"
+                >
+                  <span>← Volver a Selección</span>
+                </button>
+              </div>
+
+              {/* Grid de Tarjetas de Aplicaciones (Matriz IPVR + WAPPY Studio + Próximamente) */}
+              <div className="portal-apps-grid">
+                {wappyAppsCatalog.map((app) => {
+                  const isActiveApp = app.badgeTone === 'active';
+                  return (
+                    <article
+                      key={app.id}
+                      className={`app-item-card ${isActiveApp ? 'is-active' : 'is-soon'}`}
+                      onClick={isActiveApp && app.onOpen ? app.onOpen : undefined}
+                      role={isActiveApp ? 'button' : undefined}
+                      tabIndex={isActiveApp ? 0 : undefined}
+                      onKeyDown={
+                        isActiveApp && app.onOpen
+                          ? (e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                app.onOpen?.();
+                              }
+                            }
+                          : undefined
+                      }
+                    >
+                      <div>
+                        {/* Franja Superior de Estado y Norma (Fuera de la imagen para NUNCA tapar los textos del banner) */}
+                        <div className="app-card-meta-strip">
+                          <span
+                            style={{
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: 6,
-                              padding: '4px 10px',
+                              padding: '3.5px 10px',
                               borderRadius: 9999,
-                              background: '#0e1300',
-                              color: '#c7f303',
+                              background: isActiveApp ? 'rgba(199, 243, 3, 0.16)' : 'rgba(148, 163, 184, 0.18)',
+                              border: isActiveApp ? '1px solid rgba(199, 243, 3, 0.45)' : '1px solid rgba(148, 163, 184, 0.3)',
+                              color: isActiveApp ? '#c7f303' : '#cbd5e1',
                               fontSize: 10,
                               fontWeight: 900,
                               letterSpacing: '0.03em',
-                              boxShadow: '0 6px 16px rgba(0,0,0,0.35)',
                               whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
                             }}
                           >
                             <span
@@ -1208,225 +1581,290 @@ export default function WappyPortalPage() {
                                 width: 6,
                                 height: 6,
                                 borderRadius: '50%',
-                                background: '#c7f303',
+                                background: isActiveApp ? '#c7f303' : '#94a3b8',
                                 flexShrink: 0,
                               }}
                             />
                             <span>{app.badge}</span>
-                          </div>
-                          <div
+                          </span>
+
+                          <span
                             style={{
-                              position: 'absolute',
-                              bottom: 10,
-                              right: 10,
-                              maxWidth: 'calc(100% - 20px)',
-                              padding: '4px 10px',
-                              borderRadius: 9999,
-                              background: 'rgba(15, 23, 42, 0.85)',
-                              color: '#fff',
                               fontSize: 10,
-                              fontWeight: 800,
-                              backdropFilter: 'blur(6px)',
+                              fontWeight: 700,
+                              color: '#94a3b8',
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
                             }}
                           >
-                            APP #{index + 1} · {app.normative}
-                          </div>
+                            {app.normative}
+                          </span>
                         </div>
-                      ) : (
-                        <div
-                          style={{
-                            position: 'relative',
-                            height: 150,
-                            background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            borderBottom: '1px solid #e2e8f0',
-                          }}
-                        >
+
+                        {/* Cabecera Visual de la Tarjeta */}
+                        {app.visualType === 'matriz-ipvr' && app.image ? (
                           <div
                             style={{
-                              position: 'absolute',
-                              top: 10,
-                              left: 10,
-                              padding: '4px 10px',
-                              borderRadius: 9999,
-                              background: '#cbd5e1',
-                              color: '#334155',
-                              fontSize: 9.5,
-                              fontWeight: 800,
+                              position: 'relative',
+                              aspectRatio: '16 / 9',
+                              width: '100%',
+                              background: '#091526',
+                              overflow: 'hidden',
+                              borderBottom: isDarkMode ? '1px solid rgba(51,65,85,0.8)' : '1px solid #e2e8f0',
                             }}
                           >
-                            {app.badge}
+                            <img
+                              src={app.image}
+                              alt={app.title}
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                                display: 'block',
+                              }}
+                            />
                           </div>
+                        ) : app.visualType === 'wappy-studio' ? (
                           <div
                             style={{
-                              width: 64,
-                              height: 64,
-                              borderRadius: 20,
-                              background: '#ffffff',
+                              position: 'relative',
+                              aspectRatio: '16 / 9',
+                              width: '100%',
+                              background:
+                                'radial-gradient(circle at 50% 35%, rgba(168, 85, 247, 0.28) 0%, rgba(13, 148, 136, 0.25) 45%, rgba(6, 15, 28, 0.98) 100%), linear-gradient(135deg, #071120 0%, #0f172a 50%, #1e1b4b 100%)',
+                              overflow: 'hidden',
+                              borderBottom: isDarkMode ? '1px solid rgba(51,65,85,0.8)' : '1px solid #e2e8f0',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '14px 16px 12px',
+                            }}
+                          >
+                            <div style={{ textAlign: 'center', zIndex: 2 }}>
+                              <div
+                                style={{
+                                  fontSize: 'clamp(15px, 3vw, 19px)',
+                                  fontWeight: 900,
+                                  color: '#c7f303',
+                                  letterSpacing: '0.02em',
+                                  lineHeight: 1.1,
+                                }}
+                              >
+                                WAPPY STUDIO · VOZ & VIDEO IA
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: 10.5,
+                                  color: '#5eead4',
+                                  fontWeight: 700,
+                                  marginTop: 2,
+                                }}
+                              >
+                                Locución 24kHz Gemini 2.5 · Cápsulas GSAP 16:9 y 9:16
+                              </div>
+                            </div>
+
+                            {/* Mockup Central del Estudio de Audio y Video */}
+                            <div
+                              style={{
+                                zIndex: 2,
+                                width: '100%',
+                                maxWidth: 290,
+                                background: 'rgba(15, 23, 42, 0.85)',
+                                border: '1px solid rgba(199, 243, 3, 0.35)',
+                                borderRadius: 14,
+                                padding: '10px 12px',
+                                boxShadow: '0 12px 28px rgba(0, 0, 0, 0.45)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 8,
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                <span style={{ fontSize: 10, fontWeight: 800, color: '#f8fafc', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                                  <span>🎙️</span> Pista Master 24kHz
+                                </span>
+                                <span style={{ fontSize: 9.5, fontWeight: 800, padding: '2px 7px', borderRadius: 9999, background: '#c7f303', color: '#0e1300' }}>
+                                  HTML + GSAP
+                                </span>
+                              </div>
+                              {/* Barras de Onda de Audio */}
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 3, height: 22 }}>
+                                {[45, 80, 60, 95, 50, 88, 100, 70, 40, 85, 65, 92, 55, 78, 48, 82, 60, 38].map((h, idx) => (
+                                  <span
+                                    key={idx}
+                                    style={{
+                                      flex: 1,
+                                      height: `${h}%`,
+                                      borderRadius: 9999,
+                                      background: idx % 2 === 0 ? '#c7f303' : '#2dd4bf',
+                                    }}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+
+                            <div
+                              style={{
+                                zIndex: 2,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                padding: '3px 12px',
+                                borderRadius: 9999,
+                                background: 'rgba(16, 185, 129, 0.2)',
+                                border: '1px solid rgba(52, 211, 153, 0.45)',
+                                color: '#a7f3d0',
+                                fontSize: 10,
+                                fontWeight: 800,
+                              }}
+                            >
+                              <span>⚡ Acceso Directo · Exportación .WAV y .HTML</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div
+                            style={{
+                              position: 'relative',
+                              height: 140,
+                              background: isDarkMode
+                                ? 'linear-gradient(135deg, rgba(30,41,59,0.7) 0%, rgba(15,23,42,0.9) 100%)'
+                                : 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              fontSize: 32,
-                              boxShadow: '0 10px 25px rgba(15, 23, 42, 0.08)',
+                              borderBottom: isDarkMode ? '1px solid rgba(51,65,85,0.8)' : '1px solid #e2e8f0',
                             }}
                           >
-                            {app.icon}
-                          </div>
-                          <div
-                            style={{
-                              position: 'absolute',
-                              bottom: 10,
-                              right: 10,
-                              fontSize: 10,
-                              fontWeight: 700,
-                              color: '#64748b',
-                            }}
-                          >
-                            {app.normative}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Contenido de la Tarjeta */}
-                      <div style={{ padding: '20px 20px 14px' }}>
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            marginBottom: 6,
-                          }}
-                        >
-                          <span style={{ fontSize: 22 }}>{app.icon}</span>
-                          <h3
-                            className="display"
-                            style={{
-                              fontSize: 'clamp(20px, 4vw, 23px)',
-                              fontWeight: 900,
-                              color: '#0f172a',
-                              margin: 0,
-                            }}
-                          >
-                            {app.title}
-                          </h3>
-                        </div>
-
-                        <div
-                          style={{
-                            fontSize: 12.5,
-                            fontWeight: 800,
-                            color: isFirstApp ? '#0d9488' : '#64748b',
-                            marginBottom: 10,
-                            lineHeight: 1.35,
-                          }}
-                        >
-                          {app.subtitle}
-                        </div>
-
-                        <p
-                          style={{
-                            fontSize: 13.5,
-                            color: '#475569',
-                            lineHeight: 1.55,
-                            margin: '0 0 14px',
-                          }}
-                        >
-                          {app.description}
-                        </p>
-
-                        <div
-                          style={{
-                            display: 'flex',
-                            flexWrap: 'wrap',
-                            gap: 6,
-                            marginBottom: 10,
-                          }}
-                        >
-                          {app.tags.map((tag) => (
-                            <span
-                              key={tag}
+                            <div
                               style={{
-                                fontSize: 11,
-                                fontWeight: 700,
-                                padding: '4px 9px',
-                                borderRadius: 8,
-                                background: isFirstApp ? '#f0fdfa' : '#f1f5f9',
-                                color: isFirstApp ? '#0f766e' : '#475569',
-                                border: isFirstApp ? '1px solid #99f6e4' : '1px solid #e2e8f0',
+                                width: 62,
+                                height: 62,
+                                borderRadius: 18,
+                                background: isDarkMode ? '#1e293b' : '#ffffff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: 30,
+                                boxShadow: '0 10px 25px rgba(15, 23, 42, 0.12)',
                               }}
                             >
-                              {tag}
-                            </span>
-                          ))}
+                              {app.icon}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Contenido de la Tarjeta */}
+                        <div style={{ padding: '18px 20px 14px' }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8,
+                              marginBottom: 6,
+                            }}
+                          >
+                            <span style={{ fontSize: 22, flexShrink: 0 }}>{app.icon}</span>
+                            <h3 className="display app-card-title">{app.title}</h3>
+                          </div>
+
+                          <div
+                            style={{
+                              fontSize: 12.5,
+                              fontWeight: 800,
+                              color: isActiveApp ? (isDarkMode ? '#2dd4bf' : '#0d9488') : '#64748b',
+                              marginBottom: 10,
+                              lineHeight: 1.35,
+                            }}
+                          >
+                            {app.subtitle}
+                          </div>
+
+                          <p className="app-card-desc">{app.description}</p>
+
+                          <div
+                            style={{
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              gap: 6,
+                              marginBottom: 10,
+                            }}
+                          >
+                            {app.tags.map((tag) => (
+                              <span
+                                key={tag}
+                                className={`app-card-tag ${isActiveApp ? 'tag-active' : 'tag-soon'}`}
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Pie / Botón de la Tarjeta */}
-                    <div style={{ padding: '0 20px 20px' }}>
-                      {isFirstApp ? (
-                        <a
-                          href="https://wappy.club/matrizipvr"
-                          onClick={handleOpenMatrizIpvr}
-                          className="btn btn-primary"
-                          style={{
-                            width: '100%',
-                            justifyContent: 'space-between',
-                            padding: '0 12px 0 18px',
-                            height: 50,
-                            fontSize: 14.5,
-                            fontWeight: 800,
-                            textDecoration: 'none',
-                          }}
-                        >
-                          <span>{app.ctaLabel}</span>
-                          <span className="pip" style={{ width: 32, height: 32, flexShrink: 0 }}>
-                            <svg
-                              width="15"
-                              height="15"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="#0E1300"
-                              strokeWidth="2.6"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <line x1="5" y1="12" x2="19" y2="12"></line>
-                              <polyline points="12 5 19 12 12 19"></polyline>
-                            </svg>
-                          </span>
-                        </a>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled
-                          style={{
-                            width: '100%',
-                            height: 48,
-                            borderRadius: 9999,
-                            border: '1px dashed #cbd5e1',
-                            background: '#f8fafc',
-                            color: '#64748b',
-                            fontSize: 13.5,
-                            fontWeight: 700,
-                            cursor: 'not-allowed',
-                          }}
-                        >
-                          🔒 {app.ctaLabel}
-                        </button>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
+                      {/* Pie / Botón de la Tarjeta */}
+                      <div style={{ padding: '0 20px 20px' }}>
+                        {isActiveApp && app.href ? (
+                          <a
+                            href={app.href}
+                            onClick={app.onOpen}
+                            className="btn btn-primary"
+                            style={{
+                              width: '100%',
+                              justifyContent: 'space-between',
+                              padding: '0 12px 0 18px',
+                              height: 50,
+                              fontSize: 14.5,
+                              fontWeight: 800,
+                              textDecoration: 'none',
+                            }}
+                          >
+                            <span>{app.ctaLabel}</span>
+                            <span className="pip" style={{ width: 32, height: 32, flexShrink: 0 }}>
+                              <svg
+                                width="15"
+                                height="15"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="#0E1300"
+                                strokeWidth="2.6"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                <polyline points="12 5 19 12 12 19"></polyline>
+                              </svg>
+                            </span>
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled
+                            style={{
+                              width: '100%',
+                              height: 48,
+                              borderRadius: 9999,
+                              border: isDarkMode ? '1px dashed #334155' : '1px dashed #cbd5e1',
+                              background: isDarkMode ? 'rgba(30, 41, 59, 0.5)' : '#f8fafc',
+                              color: '#64748b',
+                              fontSize: 13.5,
+                              fontWeight: 700,
+                              cursor: 'not-allowed',
+                            }}
+                          >
+                            🔒 {app.ctaLabel}
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </main>
     </div>
   );
