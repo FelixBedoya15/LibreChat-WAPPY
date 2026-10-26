@@ -88,10 +88,12 @@ ${dataStr.slice(0, 4000)}${dataStr.length > 4000 ? '\n...(truncado)' : ''}
     if (field === 'Factores de Reducción (Anexo E)') {
       const r = reportSourceData.currentRow || {};
       const peligroTxt = r.peligro_descripcion ? `${r.peligro_descripcion} (${r.peligro_clasificacion || 'Peligro'})` : 'Peligro evaluado';
-      fieldSpecificPrompt = `ATENCIÓN: Estás redactando los "Factores de Reducción (Anexo E)" de la matriz GTC-45.
+      const nrActual = Number(r.nr) || (Number(r.nd || 6) * Number(r.ne || 3) * Number(r.nc || 25)) || 450;
+      fieldSpecificPrompt = `ATENCIÓN: Estás redactando los "Factores de Reducción (Anexo E)" de la matriz GTC-45:2012.
 DATOS CONCRETOS DE ESTA FILA EN LA MATRIZ:
 - Proceso: ${r.proceso || 'Operativo'} | Actividad: ${r.actividad || 'General'} | Cargo: ${r.cargo || 'Trabajador'}
 - Peligro: ${peligroTxt}
+- Nivel de Riesgo Inicial (NRi): ${nrActual} (ND=${r.nd ?? 6}, NE=${r.ne ?? 3}, NC=${r.nc ?? 25})
 - Controles de Intervención Propuestos:
   * Eliminación: ${r.medida_eliminacion || 'Ninguno'}
   * Sustitución: ${r.medida_sustitucion || 'Ninguno'}
@@ -101,13 +103,11 @@ DATOS CONCRETOS DE ESTA FILA EN LA MATRIZ:
 - Peor Consecuencia: ${r.peor_consecuencia || 'Enfermedad laboral / Accidente de trabajo'}
 
 TERMINANTEMENTE PROHIBIDO:
-- PROHIBIDO responder con etiquetas cortas, títulos ni frases de pocas palabras (PROHIBIDO cosas como "enfermedades laborales visuales", "cumplimiento normativo", "pausas activas").
-- PROHIBIDO devolver listas de viñetas simples o texto truncado.
+- PROHIBIDO responder con una sola frase simple, etiquetas cortas o texto sin análisis de Costo/Beneficio.
+- PROHIBIDO devolver listas de viñetas o markdown.
 
-OBLIGATORIO — Redacta un párrafo analítico estructurado y profesional (MÍNIMO 3 a 4 oraciones completas):
-1. Explica técnicamente por qué la combinación de controles propuestos (especialmente de ingeniería y administrativos) reduce y contiene eficazmente el peligro específico (${peligroTxt}).
-2. Sustenta la viabilidad técnica y financiera contrastando el costo de implementar las medidas preventivas frente al severo impacto económico, legal y prestacional de ${r.peor_consecuencia || 'enfermedades e incapacidades laborales'}.
-3. Justifica la relación costo-beneficio bajo el Anexo E de la GTC-45 demostrando cómo la intervención protege la continuidad operativa y asegura el cumplimiento estricto del Decreto 1072/2015.`;
+OBLIGATORIO — Redacta un único párrafo analítico con la siguiente estructura exacta de la GTC 45 Anexo E:
+"Reducción del [X]% (NRi: ${nrActual} → NRf: [NR residual estimado], Nivel [III o IV]). Análisis Costo/Beneficio (GTC 45 Anexo E): [Explica técnicamente cuál de los controles propuestos —priorizando Ingeniería, Sustitución o Eliminación sobre controles administrativos y EPP— le conviene prioritariamente a la empresa (Factor J > 20), cómo atenúa el peligro (${peligroTxt}) en la fuente/medio y por qué representa la mayor rentabilidad técnica y financiera frente a los costos de incapacidades, ausentismo, litigios o indemnizaciones por ${r.peor_consecuencia || 'accidentes o enfermedades laborales'}]."`;
 
     } else if (field === 'Controles en la Fuente') {
       fieldSpecificPrompt = `ATENCIÓN: Estás editando el campo "Controles en la Fuente" de la matriz GTC-45.

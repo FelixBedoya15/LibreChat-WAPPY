@@ -610,7 +610,9 @@ ${companyCargos.length > 0 ? `\n═══ LISTA DE CARGOS DE LA EMPRESA (PRIORIZ
 3. Determina ND, NE, NC correctos según GTC-45:2012. 
    IMPORTANTE DE ESTABILIDAD: Si ND actual (${row.nd}), NE actual (${row.ne}) y NC actual (${row.nc}) ya tienen valores numéricos válidos en la escala GTC-45 (ND en [0, 2, 6, 10], NE en [1, 2, 3, 4], NC en [10, 25, 60, 100]), DEBES conservarlos exactamente igual en tu respuesta en los campos "nd", "ne" y "nc". Solo recalcula si están vacíos, son cero o si el usuario modificó sustancialmente los controles existentes arriba.
 4. Propón medidas de ELIMINACIÓN, SUSTITUCIÓN, INGENIERÍA, ADMINISTRATIVAS y EPP adecuadas a futuro.
-5. Completa factores_reduccion con justificación técnica y costo-beneficio (Anexo E). NUNCA dejar vacío.
+5. Completa factores_reduccion (Anexo E GTC-45) OBLIGATORIAMENTE con el mismo nivel de sustento técnico y financiero que el análisis individual del campo Anexo E:
+   - Estructura obligatoria: "Reducción del [X]% (NRi: [NR inicial] → NRf: [NR residual esperado], Nivel [III o IV]). Análisis Costo/Beneficio (GTC 45 Anexo E): [Explica técnicamente cuál de los controles propuestos —priorizando Ingeniería, Sustitución o Eliminación sobre administrativos y EPP— le conviene prioritariamente a la empresa (Factor J > 20), cómo mitiga el peligro en la fuente/medio y por qué resulta altamente rentable frente al severo impacto económico, legal y prestacional de incapacidades, ausentismo o indemnizaciones por la peor consecuencia]."
+   - PROHIBIDO responder con una sola frase simple sin el análisis de Costo/Beneficio del Anexo E.
 6. Si los campos nro_expuestos, peor_consecuencia y requisito_legal están vacíos o no definidos, propón o estima valores adecuados basados en el peligro. De lo contrario, consérvalos.
 
 REGLA ABSOLUTA: Los campos "controles_fuente", "controles_medio" y "controles_individuo" en tu respuesta JSON DEBEN ser exactamente iguales a los valores de los controles existentes mostrados arriba. NO los cambies.
@@ -630,7 +632,7 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown) con estos campos 
   "medida_ingenieria": "<control de ingeniería propuesto o Ninguno>",
   "medida_administrativa": "<control administrativo propuesto o Ninguno>",
   "medida_eppu": "<EPP recomendado específico o Ninguno>",
-  "factores_reduccion": "<Anexo E OBLIGATORIO: Justificación técnica y financiera. NUNCA VACÍO.>",
+  "factores_reduccion": "<Reducción del X% (NRi: ... → NRf: ..., Nivel III/IV). Análisis Costo/Beneficio (GTC 45 Anexo E): Justificación detallada de cuál control propuesto le conviene más a la empresa (J > 20) frente a costos de incapacidades/indemnizaciones>",
   "nd_cualitativo": <10|6|2|0 si aplica Anexo C, null si no>
 }`;
 
@@ -2085,8 +2087,12 @@ router.post('/sync-controles-anexo-e', requireJwtAuth, async (req, res) => {
           const cargo = row.cargo || 'personal del área';
           const peorCons = row.peor_consecuencia || 'incapacidades laborales y deterioro de la salud';
           const proceso = row.proceso || 'la operación';
+          const nrIni = Number(row.nr) || (Number(row.nd || 6) * Number(row.ne || 3) * Number(row.nc || 25)) || 360;
+          const frPct = (controlTipo === 'Eliminación' || controlTipo === 'Sustitución') ? 90 : controlTipo === 'Ingeniería' ? 85 : controlTipo === 'Administrativo' ? 65 : 50;
+          const nrFin = Math.max(10, Math.round(nrIni * (1 - frPct / 100)));
+          const nivFin = nrFin >= 600 ? 'I' : nrFin >= 150 ? 'II' : nrFin >= 40 ? 'III' : 'IV';
 
-          newFactores = `Control óptimo en relación costo-beneficio (Anexo E GTC-45): Se prioriza la medida de ${controlTipo} ("${controlTexto}") al mitigar el peligro (${peligro}) en el origen o medio de forma colectiva y duradera para el cargo de ${cargo} en ${proceso}. Frente al costo potencial de ${peorCons} y contingencias legales, esta intervención representa la mayor rentabilidad técnica y financiera comparada con medidas puramente administrativas o de protección individual.`;
+          newFactores = `Reducción del ${frPct}% (NRi: ${nrIni} → NRf: ${nrFin}, Nivel ${nivFin}). Análisis Costo/Beneficio (GTC 45 Anexo E): La medida de ${controlTipo} ("${controlTexto}") le conviene prioritariamente a la empresa al mitigar el peligro (${peligro}) en el origen o medio de forma colectiva y duradera para el cargo de ${cargo} en ${proceso} (J > 20). Frente al costo potencial de ${peorCons} y contingencias legales, esta intervención representa la mayor rentabilidad técnica y financiera comparada con medidas puramente administrativas o de EPP.`;
         }
       }
 
@@ -2287,7 +2293,8 @@ ${cargosHint}
 Genera mínimo 15 (entre 15 y 18) riesgos laborales críticos, diversos y representativos que abarquen todos los procesos principales de esta empresa y las 7 clasificaciones de peligros de la metodología GTC 45:2012 (Biológico, Físico, Químico, Psicosocial, Biomecánico, Condiciones de seguridad y Fenómenos naturales).
 IMPORTANTE:
 - El arreglo "filas" DEBE contener al menos 15 objetos de riesgo completos y distintos.
-- En cada fila, el campo "factores_reduccion" (Anexo E GTC-45) DEBE incluir la justificación técnica del factor de reducción y el sustento de viabilidad costo/beneficio de cómo las medidas atenúan el riesgo.
+- En cada fila, el campo "factores_reduccion" (Anexo E GTC-45) DEBE seguir obligatoriamente esta estructura de análisis de Costo/Beneficio:
+  "Reducción del [X]% (NRi: [NR inicial] → NRf: [NR residual], Nivel [III o IV]). Análisis Costo/Beneficio (GTC 45 Anexo E): [Sustentación técnica y financiera de cuál control propuesto (priorizando Ingeniería, Sustitución o Eliminación sobre administrativos y EPP) le conviene más a la empresa (J > 20) frente al costo de incapacidades, ausentismo o indemnizaciones por la peor consecuencia]."
 Devuelve ÚNICAMENTE un JSON válido (sin bloques markdown):
 {
   "filas": [
@@ -2315,7 +2322,7 @@ Devuelve ÚNICAMENTE un JSON válido (sin bloques markdown):
       "medida_ingenieria": "Enclavamientos electromecánicos",
       "medida_administrativa": "Procedimiento seguro PTS y bloqueo LOTO",
       "medida_eppu": "Guantes nivel de corte 5 y gafas Z87+",
-      "factores_reduccion": "El bloqueo físico LOTO y los enclavamientos electromecánicos anulan la energía residual durante la intervención, reduciendo el Nivel de Riesgo en un 85%."
+      "factores_reduccion": "Reducción del 88.9% (NRi: 1080 → NRf: 120, Nivel III). Análisis Costo/Beneficio (GTC 45 Anexo E): Los enclavamientos electromecánicos y el bloqueo físico LOTO (ingeniería en la fuente) le convienen prioritariamente a la empresa sobre depender únicamente de guantes anticorte (J=38.4 > 20), anulando la energía residual y evitando costos millonarios por amputación o litigios laborales."
     }
   ]
 }`;

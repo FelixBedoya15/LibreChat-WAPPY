@@ -41,7 +41,7 @@ class MatrizIPEVAR extends Tool {
         medida_ingenieria: z.string().default('Ninguno').describe('Medidas: Controles de ingeniería. Especifica de forma detallada y técnica.'),
         medida_administrativa: z.string().default('Ninguno').describe('Medidas: Administrativos. Sustenta cómo impactarán la seguridad de forma sustancial.'),
         medida_eppu: z.string().default('Ninguno').describe('Medidas: EPP técnicos apropiados.'),
-        factores_reduccion: z.string().default('No aplica').describe('Factores de reducción (Anexo E). CRÍTICO: No pongas solo un resumen, DEBES ser altamente analítico explicando extensamente por qué y cómo los controles propuestos reducirán el riesgo, sustentando la viabilidad técnica/financiera y la relación costo-beneficio del plan.'),
+        factores_reduccion: z.string().default('No aplica').describe('Factores de reducción (Anexo E GTC-45). CRÍTICO: DEBE seguir esta estructura obligatoria de análisis Costo/Beneficio: "Reducción del [X]% (NRi: [NR inicial] → NRf: [NR residual], Nivel [III o IV]). Análisis Costo/Beneficio (GTC 45 Anexo E): [Justificación técnica y financiera detallada explicando cuál de los controles propuestos —priorizando Ingeniería, Sustitución o Eliminación sobre administrativos y EPP— le conviene más a la empresa (Factor J > 20) frente a costos de incapacidades, ausentismo o indemnizaciones por la peor consecuencia]".'),
         nd_cualitativo: z.number().optional().describe('ND cualitativo (MA=10, A=6, M=2, B=0).'),
         nro_expuestos: z.number().default(1).describe('Número de trabajadores expuestos al peligro. Por defecto 1.'),
         peor_consecuencia: z.string().default('Ninguna').describe('Peor consecuencia posible si el peligro se materializa.'),
