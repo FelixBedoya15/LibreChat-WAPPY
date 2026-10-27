@@ -7591,11 +7591,161 @@ router.get('/clima/pronostico', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
-// ─── 44. PUENTE BIDIRECCIONAL TENSHI <-> ANTIGRAVITY ───────────────────────
-// Permite que Tenshi (por voz o texto) envíe órdenes de trabajo e investigaciones
-// a Antigravity (en la máquina o entorno de trabajo del usuario), y que Antigravity
-// entregue los documentos generados (Word, Excel, PDF, Presentaciones, HTML)
-// de vuelta a Tenshi para reflejarlos en el chat.
+// ─── 44. PUENTE BIDIRECCIONAL REACTIVO PUSH TENSHI <-> ANTIGRAVITY ──────────
+// Arquitectura Event-Driven por Server-Sent Events (SSE) + AgentAPI Reactive Wakeup.
+// Cero crons, 0 ms de latencia y 0 consumo de tokens en reposo:
+// 1. Tenshi delega una orden -> emisión instantánea `event: nueva_orden` al stream SSE.
+// 2. El daemon local despierta a Antigravity al instante vía `agentapi` (MESSAGE_PRIORITY_HIGH).
+// 3. Antigravity completa la orden -> emisión instantánea `event: orden_completada` a Tenshi y Canvas.
+
+const antigravityStreamClients = new Map(); // userId (string) -> Set<ServerResponse>
+
+function broadcastAntigravityEvent(userId, eventName, payload) {
+  if (!userId) return 0;
+  const key = String(userId);
+  const clients = antigravityStreamClients.get(key);
+  if (!clients || clients.size === 0) return 0;
+
+  const frame = `event: ${eventName}\ndata: ${JSON.stringify(payload)}\n\n`;
+  let sentCount = 0;
+  for (const clientRes of clients) {
+    try {
+      clientRes.write(frame);
+      if (typeof clientRes.flush === 'function') {
+        clientRes.flush();
+      }
+      sentCount++;
+    } catch (_) {
+      clients.delete(clientRes);
+    }
+  }
+  return sentCount;
+}
+
+router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetUserId = String((req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id);
+
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    if (typeof res.flushHeaders === 'function') {
+      res.flushHeaders();
+    }
+
+    if (!antigravityStreamClients.has(targetUserId)) {
+      antigravityStreamClients.set(targetUserId, new Set());
+    }
+    const userSet = antigravityStreamClients.get(targetUserId);
+    userSet.add(res);
+
+    res.write(`event: connected\ndata: ${JSON.stringify({ status: 'ok', userId: targetUserId, timestamp: new Date().toISOString() })}\n\n`);
+
+    // Si existen órdenes pendientes recién creadas (< 30 min) que aún están en 'todo', empujarlas al conectar
+    try {
+      const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000);
+      const pendingTasks = await KanbanTask.find({
+        user: targetUserId,
+        type: 'antigravity_delegation',
+        status: 'todo',
+        createdAt: { $gte: thirtyMinAgo },
+      })
+        .sort({ createdAt: 1 })
+        .limit(5)
+        .lean();
+
+      for (const t of pendingTasks) {
+        res.write(
+          `event: nueva_orden\ndata: ${JSON.stringify({
+            id: t._id.toString(),
+            ordenId: t._id.toString(),
+            titulo: t.title,
+            instruccion: t.description,
+            descripcion: t.description,
+            estado: t.status,
+            prioridad: t.priority,
+            fechaCreacion: t.createdAt,
+          })}\n\n`
+        );
+      }
+    } catch (_) {}
+
+    const heartbeatTimer = setInterval(() => {
+      try {
+        res.write(`: heartbeat ${Date.now()}\n\n`);
+      } catch (_) {
+        clearInterval(heartbeatTimer);
+        userSet.delete(res);
+      }
+    }, 20000);
+
+    req.on('close', () => {
+      clearInterval(heartbeatTimer);
+      userSet.delete(res);
+      if (userSet.size === 0) {
+        antigravityStreamClients.delete(targetUserId);
+      }
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error en GET /antigravity/stream:', error);
+    if (!res.headersSent) {
+      return res.status(500).json({ error: 'Error estableciendo stream Push de Antigravity.' });
+    }
+  }
+});
+
+router.get('/antigravity/daemon.js', async (req, res) => {
+  try {
+    const fs = require('fs');
+    const daemonPaths = [
+      path.resolve(__dirname, '../../../bin/wappy-antigravity-daemon.js'),
+      path.resolve(process.cwd(), 'bin/wappy-antigravity-daemon.js'),
+      '/app/bin/wappy-antigravity-daemon.js',
+    ];
+    for (const p of daemonPaths) {
+      if (fs.existsSync(p)) {
+        res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-cache');
+        return res.send(fs.readFileSync(p, 'utf8'));
+      }
+    }
+    return res.status(404).send('// Archivo wappy-antigravity-daemon.js no encontrado en el servidor.');
+  } catch (error) {
+    logger.error('[MCP Bridge] Error sirviendo /antigravity/daemon.js:', error);
+    return res.status(500).send('// Error interno sirviendo daemon.js');
+  }
+});
+
+router.post('/antigravity/ordenes/:id/claim', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const ordenId = req.params.id;
+    if (!ordenId || !mongoose.Types.ObjectId.isValid(ordenId)) {
+      return res.status(400).json({ claimed: false, reason: 'invalid_id' });
+    }
+
+    const updated = await KanbanTask.findOneAndUpdate(
+      { _id: ordenId, user: targetUserId, status: 'todo' },
+      { $set: { status: 'in_progress' } },
+      { new: true }
+    ).lean();
+
+    if (!updated) {
+      return res.json({ exito: true, claimed: false, reason: 'already_claimed_or_completed' });
+    }
+
+    return res.json({
+      exito: true,
+      claimed: true,
+      ordenId: updated._id.toString(),
+      estado: updated.status,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error en claim de orden Antigravity:', error);
+    return res.status(500).json({ claimed: false, error: error.message });
+  }
+});
 
 router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
   try {
@@ -7655,10 +7805,31 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
       logger.warn('[MCP Bridge] Error creando registro KanbanTask:', kErr.message);
     }
 
+    const finalOrdenId = kanbanTask?._id ? kanbanTask._id.toString() : `antigravity-${Date.now()}`;
+    const orderPushPayload = {
+      id: finalOrdenId,
+      ordenId: finalOrdenId,
+      titulo: finalTitle,
+      instruccion: finalDesc,
+      descripcion: kanbanTask?.description || finalDesc,
+      recursoObjetivo: finalResource,
+      formatoEntregable: finalOutputType,
+      archivos: finalFiles,
+      estado: 'todo',
+      prioridad: finalPriority,
+      empresa: companyName,
+      fechaCreacion: kanbanTask?.createdAt || new Date().toISOString(),
+    };
+
+    // Emisión Push instantánea (0 ms) a todos los listeners SSE de Antigravity conectados
+    const pushedListeners = broadcastAntigravityEvent(targetUserId, 'nueva_orden', orderPushPayload);
+    logger.info(`[MCP Bridge] Evento Push 'nueva_orden' (${finalOrdenId}) emitido en tiempo real a ${pushedListeners} cliente(s) SSE activos.`);
+
     return res.status(200).json({
       exito: true,
-      mensaje: `Orden delegada a Antigravity exitosamente con la instrucción pura.`,
-      ordenId: kanbanTask?._id ? kanbanTask._id.toString() : `antigravity-${Date.now()}`,
+      mensaje: `Orden delegada a Antigravity exitosamente mediante Push en tiempo real.`,
+      ordenId: finalOrdenId,
+      pushClientesNotificados: pushedListeners,
       estado: 'todo',
       detalles: {
         titulo: finalTitle,
@@ -7669,7 +7840,7 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
         estado: 'todo',
         empresa: companyName,
       },
-      instruccionAntigravity: `La orden "${finalTitle}" ha sido registrada para Antigravity con su instrucción pura. Antigravity utilizará sus herramientas MCP para consultar los datos necesarios de la empresa y elaborar el entregable. Confírmale al usuario con seguridad que la orden fue delegada a Antigravity.`,
+      instruccionAntigravity: `La orden "${finalTitle}" ha sido enviada instantáneamente por Push en tiempo real a Antigravity. Antigravity utilizará sus herramientas MCP para consultar los datos necesarios de la empresa y elaborar el entregable. Confírmale al usuario con seguridad que la orden ya está siendo procesada por Antigravity.`,
     });
   } catch (error) {
     logger.error('[MCP Bridge] Error delegando orden a Antigravity:', error);
@@ -7694,8 +7865,8 @@ router.get('/antigravity/ordenes', requireApiKeyOrJwt, async (req, res) => {
 
     const rawStatus = String(estado || status || '').toLowerCase().trim();
     if (rawStatus) {
-      if (rawStatus === 'pendiente' || rawStatus === 'pendientes' || rawStatus === 'pending' || rawStatus === 'por_hacer') {
-        query.status = 'todo';
+      if (rawStatus === 'pendiente' || rawStatus === 'pendientes' || rawStatus === 'pending' || rawStatus === 'por_hacer' || rawStatus === 'todo') {
+        query.status = { $in: ['todo', 'in_progress'] };
       } else if (rawStatus === 'completada' || rawStatus === 'completado' || rawStatus === 'completed' || rawStatus === 'finalizada') {
         query.status = 'done';
       } else if (rawStatus === 'en_progreso' || rawStatus === 'procesando') {
@@ -7705,15 +7876,14 @@ router.get('/antigravity/ordenes', requireApiKeyOrJwt, async (req, res) => {
       }
     }
 
-    // Si se consultan órdenes pendientes ('todo') sin un ID específico, expirar tareas antiguas (> 2 horas)
-    // para que un cron en segundo plano nunca complete órdenes rezagadas de días anteriores.
-    if (query.status === 'todo' && !targetQueryId) {
+    // Si se consultan órdenes pendientes sin un ID específico, expirar tareas antiguas (> 2 horas)
+    if ((rawStatus === 'todo' || rawStatus === 'pendiente' || rawStatus === 'pendientes' || rawStatus === 'pending') && !targetQueryId) {
       const twoHoursAgo = new Date(Date.now() - 2 * 3600 * 1000);
       await KanbanTask.updateMany(
         {
           user: targetUserId,
           type: 'antigravity_delegation',
-          status: 'todo',
+          status: { $in: ['todo', 'in_progress'] },
           createdAt: { $lt: twoHoursAgo },
         },
         { $set: { status: 'dismissed' } }
@@ -7873,6 +8043,29 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
     } catch (msgErr) {
       logger.error('[MCP Bridge] Error inyectando TenshiMessage al completar orden:', msgErr);
     }
+
+    // ── EMISIÓN PUSH EN TIEMPO REAL AL STREAM SSE (NAVEGADOR / CELULAR / TENSHI) ─
+    try {
+      let normalizedFileType = finalFormat;
+      if (finalFormat === 'word' || finalFormat === 'doc' || finalFormat === 'docx' || finalFormat === 'documento') {
+        normalizedFileType = 'text';
+      } else if (isHtml) {
+        normalizedFileType = 'html';
+      }
+      broadcastAntigravityEvent(targetUserId, 'orden_completada', {
+        ordenId: task._id.toString(),
+        title: task.title,
+        html: isHtml ? finalContent : undefined,
+        file: {
+          title: task.title,
+          fileType: normalizedFileType,
+          content: finalContent,
+          canvasId: `antigravity-${task._id}`,
+        },
+        messageId: createdTenshiMsg?._id ? createdTenshiMsg._id.toString() : `antigravity-${Date.now()}`,
+        summary: finalSummary,
+      });
+    } catch (_) {}
 
     // ── NOTIFICACIÓN EN TIEMPO REAL A SESIÓN DE TENSHI VOICE / LIVE ───────────
     try {

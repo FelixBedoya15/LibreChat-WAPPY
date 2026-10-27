@@ -165,19 +165,22 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
   const effectiveKey = newKeyGenerated || (keys.length > 0 ? `${keys[0].keyPrefix}` : 'PEGA_TU_CLAVE_AQUI');
   const sseServerUrl = `${originUrl}/api/mcp-bridge/sse?apiKey=${effectiveKey}`;
 
-  // Instrucción independiente para activar únicamente el Cron / Vigía Automático
-  const cronOnlyPrompt = `Activa de inmediato tu planificador en segundo plano (usando tu herramienta schedule en modo cron: CronExpression="*/2 * * * *", IsDaemon=true) para revisar cada 2 minutos las órdenes delegadas por Tenshi usando 'wappy_consultar_ordenes_delegadas_tenshi' y completarlas de forma autónoma con 'wappy_completar_orden_delegada_tenshi'.`;
+  // Instrucción independiente para activar el Puente Reactivo Push en Tiempo Real (SSE + AgentAPI — Sin Cron)
+  const buildPushBridgePrompt = (key: string) =>
+    `Activa el Puente Reactivo Push en Tiempo Real con Tenshi (SSE + AgentAPI, 0 ms de latencia y 0 consumo de tokens en reposo, sin usar crons) ejecutando en tu terminal:\ncurl -fsSL "${originUrl}/api/mcp-bridge/antigravity/daemon.js" -o ~/.gemini/antigravity/wappy-push-daemon.js && node ~/.gemini/antigravity/wappy-push-daemon.js --daemon --url="${originUrl}" --key="${key}"`;
+
+  const cronOnlyPrompt = buildPushBridgePrompt(effectiveKey);
 
   // Instrucción para pegar en el chat de Antigravity
-  const buildAntigravityPrompt = (url: string) => `Configura mi conexión con WAPPY en tu archivo de servidores MCP (mcp_config.json) usando esta URL remota:
+  const buildAntigravityPrompt = (url: string, key: string = effectiveKey) => `Configura mi conexión con WAPPY en tu archivo de servidores MCP (mcp_config.json) usando esta URL remota:
 URL: ${url}
 
 Es una conexión MCP directa en la nube por SSE con acceso a toda mi empresa en WAPPY.
 Una vez agregues el servidor MCP 'wappy', realiza estas dos acciones:
-1. ${cronOnlyPrompt}
+1. ${buildPushBridgePrompt(key)}
 2. Hazme un diagnóstico 360° inicial de mi empresa en WAPPY para confirmar que la conexión y las herramientas quedaron 100% operativas.`;
 
-  const antigravityPrompt = buildAntigravityPrompt(sseServerUrl);
+  const antigravityPrompt = buildAntigravityPrompt(sseServerUrl, effectiveKey);
 
   // Configuración JSON para mcp_config.json
   const antigravityJsonConfig = JSON.stringify(
@@ -193,17 +196,18 @@ Una vez agregues el servidor MCP 'wappy', realiza estas dos acciones:
   );
 
   const copyToClipboard = async (text: string, type: 'key' | 'config' | 'prompt' | 'cron' | 'local') => {
-    if (type === 'cron') {
-      navigator.clipboard.writeText(cronOnlyPrompt);
-      setCopiedCron(true);
-      setTimeout(() => setCopiedCron(false), 2000);
-      showToast({ message: 'Instrucción del Vigía Automático (Cron) copiada al portapapeles', status: 'success' });
-      return;
+    let keyToUse = newKeyGenerated;
+    if (!keyToUse && (type === 'config' || type === 'prompt' || type === 'local' || type === 'cron')) {
+      keyToUse = await handleCreateKey();
     }
 
-    let keyToUse = newKeyGenerated;
-    if (!keyToUse && (type === 'config' || type === 'prompt' || type === 'local')) {
-      keyToUse = await handleCreateKey();
+    if (type === 'cron') {
+      const pushText = buildPushBridgePrompt(keyToUse || effectiveKey);
+      navigator.clipboard.writeText(pushText);
+      setCopiedCron(true);
+      setTimeout(() => setCopiedCron(false), 2000);
+      showToast({ message: 'Instrucción del Puente Reactivo Push en Tiempo Real copiada al portapapeles', status: 'success' });
+      return;
     }
 
     let textToCopy = text;
@@ -212,7 +216,7 @@ Una vez agregues el servidor MCP 'wappy', realiza estas dos acciones:
       if (type === 'key') {
         textToCopy = keyToUse;
       } else if (type === 'prompt') {
-        textToCopy = buildAntigravityPrompt(liveSseUrl);
+        textToCopy = buildAntigravityPrompt(liveSseUrl, keyToUse);
       } else if (type === 'config') {
         textToCopy = JSON.stringify(
           {
@@ -688,7 +692,7 @@ Una vez agregues el servidor MCP 'wappy', realiza estas dos acciones:
             </div>
           </div>
 
-          {/* Explicación e Instrucción del Vigía Automático (Cron) entre Método 1 y Método 2 */}
+          {/* Explicación e Instrucción del Puente Reactivo Push en Tiempo Real (SSE + AgentAPI) entre Método 1 y Método 2 */}
           <div className="p-4 rounded-2xl bg-teal-50/40 dark:bg-teal-950/20 border border-teal-500/30 dark:border-teal-500/30 flex flex-col gap-3 shadow-2xs">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
@@ -698,14 +702,14 @@ Una vez agregues el servidor MCP 'wappy', realiza estas dos acciones:
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-bold text-slate-900 dark:text-zinc-100">
-                      ¿Qué hace la instrucción del Vigía Automático (Cron) con Tenshi?
+                      ¿Cómo funciona el Puente Reactivo en Tiempo Real (Push SSE) con Tenshi?
                     </span>
                     <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-teal-600 text-white shadow-2xs">
-                      Escucha cada 2 min
+                      Instantáneo • Sin Cron
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-600 dark:text-zinc-400 mt-0.5 leading-relaxed">
-                    Esta instrucción activa el planificador interno de Antigravity (<code className="font-mono text-teal-700 dark:text-teal-300">schedule</code> con <code className="font-mono text-teal-700 dark:text-teal-300">CronExpression="*/2 * * * *"</code>). Así, cuando le pidas un informe, dashboard o documento a <strong>Tenshi por voz o chat</strong>, Antigravity revisará automáticamente la bandeja cada 2 minutos (<code className="font-mono text-teal-700 dark:text-teal-300">wappy_consultar_ordenes_delegadas_tenshi</code>), consultará los datos reales de tu empresa y devolverá el entregable (<code className="font-mono text-teal-700 dark:text-teal-300">wappy_completar_orden_delegada_tenshi</code>) para que se abra solo en el <strong>Canvas de Tenshi</strong>.
+                    Reemplaza los antiguos crons por la misma tecnología <strong>Event-Driven Push</strong> que usa Antigravity Mobile (<code className="font-mono text-teal-700 dark:text-teal-300">/api/mcp-bridge/antigravity/stream</code> + <code className="font-mono text-teal-700 dark:text-teal-300">agentapi Reactive Wakeup</code>). Consume <strong>0 tokens en reposo</strong> y despierta a Antigravity en <strong>0 milisegundos</strong> en cuanto le pidas un informe, dashboard o documento a <strong>Tenshi desde tu celular o escritorio</strong>, enviando el entregable directo al <strong>Canvas de Tenshi</strong>.
                   </p>
                 </div>
               </div>
@@ -713,9 +717,9 @@ Una vez agregues el servidor MCP 'wappy', realiza estas dos acciones:
               <ExpandingButton
                 onClick={() => copyToClipboard(cronOnlyPrompt, 'cron')}
                 icon={copiedCron ? Check : Copy}
-                label={copiedCron ? '¡Cron Copiado!' : 'Copiar Solo Instrucción Cron'}
+                label={copiedCron ? '¡Puente Push Copiado!' : 'Copiar Solo Puente Push'}
                 variant="teal"
-                title="Copiar únicamente la instrucción para activar el Vigía Automático en Antigravity (ideal si usaste el Método 2 manual o abriste una nueva ventana)"
+                title="Copiar únicamente la instrucción para activar el Puente Reactivo Push en Tiempo Real (sin crons)"
               />
             </div>
 
@@ -723,7 +727,7 @@ Una vez agregues el servidor MCP 'wappy', realiza estas dos acciones:
               {cronOnlyPrompt}
             </div>
             <p className="text-[10px] text-slate-500 dark:text-zinc-400">
-              💡 <strong>Nota:</strong> Si configuraste el archivo JSON manualmente con el <strong>Método 2</strong> o abriste una nueva conversación en Antigravity, pega únicamente este bloque en el chat de Antigravity para dejar encendida la escucha automática con Tenshi.
+              💡 <strong>Nota:</strong> Una vez activado, el daemon ligero (<code className="font-mono">wappy-push-daemon.js</code>) queda registrado permanentemente en segundo plano en tu computador: <strong>no necesitas volver a pegar instrucciones ni mantener crons abiertos</strong> al cambiar de conversación.
             </p>
           </div>
 
@@ -780,10 +784,10 @@ Una vez agregues el servidor MCP 'wappy', realiza estas dos acciones:
             <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex flex-col gap-2 shadow-2xs">
               <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                 <span className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center text-xs font-black">3</span>
-                <span>Puente Autónomo con Tenshi</span>
+                <span>Puente Reactivo en Vivo</span>
               </div>
               <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-relaxed">
-                Antigravity activa su escucha automática en segundo plano cada 2 min. Cuando le pidas tareas a Tenshi por voz o chat, Antigravity las resolverá solo y se verán en Canvas.
+                Conexión Push SSE en tiempo real (0 ms, sin crons). Cuando le pidas tareas a Tenshi por voz o chat, Antigravity despierta al instante, las resuelve y las abre en Canvas.
               </p>
             </div>
           </div>

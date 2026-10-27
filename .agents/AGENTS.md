@@ -106,6 +106,9 @@ docker exec -it LibreChat node scripts/restore-and-sync-all.js
 >    - En `api/server/routes/voice/voiceSession.js`, cada función en `this.liveConfig.tools[0].functionDeclarations` DEBE tener un nombre único en todo el array.
 >    - Duplicar una herramienta provoca el cierre inmediato del WebSocket de voz por Google con código **1007 (Duplicate function declaration found)**.
 >    - Antes de commitear, ejecutar siempre el script de comprobación que garantice 0 duplicados.
+> 8. **PUENTE REACTIVO PUSH EN TIEMPO REAL TENSHI <-> ANTIGRAVITY (SIN CRONS DE SONDEO):**
+>    - La conexión bidireccional entre Tenshi (celular/web) y Google Antigravity utiliza arquitectura **Event-Driven Push SSE** (`/api/mcp-bridge/antigravity/stream`) + el binario nativo `~/.gemini/antigravity/bin/agentapi` (*Reactive Wakeup* vía `bin/wappy-antigravity-daemon.js`).
+>    - Está **terminantemente prohibido** usar o instruir crons periódicos (`schedule` cada 2 minutos) para sondear órdenes delegadas de Tenshi. Tanto el disparo de `nueva_orden` hacia Antigravity como la entrega de `orden_completada` hacia el Canvas de Tenshi operan por Push en tiempo real (0 ms de latencia y 0 consumo de tokens en reposo).
 
 ---
 

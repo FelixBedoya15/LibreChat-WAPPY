@@ -2448,6 +2448,37 @@ if (require.main === module) {
     const transport = new StdioServerTransport();
     await server.connect(transport);
     console.error('[WAPPY MCP Bridge] Conectado exitosamente por stdio con 113 herramientas especializadas.');
+
+    // Iniciar automáticamente el Puente Reactivo Push SSE <-> AgentAPI si no hay uno corriendo
+    try {
+      const os = require('os');
+      const fs = require('fs');
+      const path = require('path');
+      const { spawn } = require('child_process');
+      const pidFile = path.join(os.homedir(), '.gemini', 'antigravity', 'wappy-push-daemon.pid');
+      let daemonAlive = false;
+      if (fs.existsSync(pidFile)) {
+        const existingPid = parseInt(fs.readFileSync(pidFile, 'utf8').trim(), 10);
+        if (existingPid) {
+          try {
+            process.kill(existingPid, 0);
+            daemonAlive = true;
+          } catch (_) {}
+        }
+      }
+      if (!daemonAlive) {
+        const daemonScript = path.resolve(__dirname, 'wappy-antigravity-daemon.js');
+        if (fs.existsSync(daemonScript)) {
+          const child = spawn(
+            process.execPath,
+            [daemonScript, '--worker', '--silent', `--url=${WAPPY_URL}`, `--key=${WAPPY_API_KEY}`],
+            { detached: true, stdio: 'ignore' }
+          );
+          child.unref();
+          console.error(`[WAPPY MCP Bridge] Puente Reactivo Push SSE activado automáticamente (PID: ${child.pid}).`);
+        }
+      }
+    } catch (_) {}
   }
 
   main().catch((err) => {

@@ -4713,10 +4713,17 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     return () => window.removeEventListener('tenshi-report-delivered', handleReportDelivered);
   }, []);
 
-  // Escuchar entrega instantánea por WebSocket cuando Antigravity completa una orden delegada (Push 0-latencia)
+  // Escuchar entrega instantánea por WebSocket y Push SSE cuando Antigravity completa una orden delegada (Push 0-latencia)
+  const deliveredAntigravityIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     const handleAntigravityDelivered = (e: any) => {
       const { ordenId, title, html, file, messageId, summary } = e.detail || {};
+      if (ordenId && deliveredAntigravityIdsRef.current.has(String(ordenId))) {
+        return;
+      }
+      if (ordenId) {
+        deliveredAntigravityIdsRef.current.add(String(ordenId));
+      }
       const finalTitle = title || file?.title || 'Entregable de Antigravity';
       const contenido = file?.content || html || '';
       const fileType = file?.fileType || (html ? 'html' : 'text');
@@ -4798,6 +4805,26 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     window.addEventListener('tenshi-antigravity-delivered', handleAntigravityDelivered);
     return () => window.removeEventListener('tenshi-antigravity-delivered', handleAntigravityDelivered);
   }, [setIsCanvasActive, setStreamingCanvas]);
+
+  // Conexión Push SSE persistente (0 ms) para recibir entregables de Antigravity en tiempo real (en celular y escritorio, incluso sin voz activa)
+  useEffect(() => {
+    if (!token || typeof window === 'undefined' || typeof EventSource === 'undefined') return;
+    let es: EventSource | null = null;
+    try {
+      es = new EventSource(`/api/mcp-bridge/antigravity/stream?token=${encodeURIComponent(token)}`);
+      es.addEventListener('orden_completada', (evt: MessageEvent) => {
+        try {
+          const payload = JSON.parse(evt.data);
+          window.dispatchEvent(new CustomEvent('tenshi-antigravity-delivered', { detail: payload }));
+        } catch (_) {}
+      });
+    } catch (_) {}
+    return () => {
+      try {
+        es?.close();
+      } catch (_) {}
+    };
+  }, [token]);
 
   // Sincronizar siempre un resumen vivo del propio chat de Tenshi e informes generados en window.__TENSHI_OWN_CHAT_SUMMARY__
   // para que leer_pantalla / getVisibleScreenContent siempre conozca los informes propios de Tenshi

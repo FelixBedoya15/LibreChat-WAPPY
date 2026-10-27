@@ -94,6 +94,7 @@ const requireApiKeyOrJwt = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   const rawApiKey =
     req.headers['x-api-key'] ||
+    (typeof req.query?.apiKey === 'string' && req.query.apiKey.startsWith('wpy_live_') ? req.query.apiKey.trim() : null) ||
     (authHeader?.toLowerCase().startsWith('bearer wpy_live_')
       ? authHeader.slice(7).trim()
       : null);
@@ -114,6 +115,11 @@ const requireApiKeyOrJwt = async (req, res, next) => {
       logger.error('[requireApiKeyOrJwt] Authentication error:', error);
       return res.status(500).json({ error: 'Error durante la autenticación de la clave API.' });
     }
+  }
+
+  // Allow JWT via query param ?token=... for EventSource / SSE streams
+  if (!req.headers.authorization && typeof req.query?.token === 'string' && req.query.token.trim()) {
+    req.headers.authorization = `Bearer ${req.query.token.trim()}`;
   }
 
   // Fallback to standard JWT authentication
