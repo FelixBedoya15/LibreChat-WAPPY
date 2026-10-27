@@ -3001,6 +3001,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               subtitle: msg,
             });
             fetchDailyBriefing();
+            window.dispatchEvent(new CustomEvent('wappy-refresh-calendar'));
+            window.dispatchEvent(new CustomEvent('wappy-refresh-kanban'));
             setMessages((prev) => [
               ...prev,
               {
@@ -3117,6 +3119,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             tenshiAudio.playSuccess();
             window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
             window.dispatchEvent(new CustomEvent('wappy-automatizaciones-updated'));
+            window.dispatchEvent(new CustomEvent('wappy-refresh-calendar'));
+            window.dispatchEvent(new CustomEvent('wappy-refresh-kanban'));
             fetchDailyBriefing();
             const rawRes = (action as any).result;
             let parsedMsg = 'Tarea/automatización actualizada en pantalla.';

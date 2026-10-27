@@ -40,6 +40,7 @@ import { KANBAN_ACPM_FIELDS } from '~/components/SGSST/moduleFieldDefinitions';
 import { exportModuleDataToExcel } from '~/components/SGSST/columnMapperEngine';
 import SGSSTLegalBadge from '~/components/SGSST/SGSSTLegalBadge';
 import ExpandableButton from '~/components/Common/ExpandableButton';
+import KanbanCalendarView, { CalendarTask } from './KanbanCalendarView';
 
 interface KanbanTask {
   _id: string;
@@ -66,6 +67,8 @@ interface KanbanTask {
     | 'vulnerabilidad_finding'
     | 'pesv_inspection_finding'
     | 'heights_inspection_finding'
+    | 'copasst_finding'
+    | 'convivencia_finding'
     | 'other';
   priority?: 'alta' | 'media' | 'baja';
   actionType?: 'correctiva' | 'preventiva' | 'mejora';
@@ -76,6 +79,13 @@ interface KanbanTask {
   companyId?: string;
   completedAt?: string;
   createdAt: string;
+  startTime?: string;
+  endTime?: string;
+  allDay?: boolean;
+  emailAttendees?: string[];
+  location?: string;
+  googleEventId?: string;
+  googleHtmlLink?: string;
 }
 
 interface KanbanDashboardProps {
@@ -88,6 +98,21 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
   const { showToast } = useToastContext();
   const [tasks, setTasks] = useState<KanbanTask[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<'calendar' | 'kanban'>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('acpm_active_tab');
+      if (stored === 'kanban' || stored === 'calendar') return stored;
+    }
+    return 'calendar';
+  });
+
+  const handleTabChange = (tab: 'calendar' | 'kanban') => {
+    setActiveTab(tab);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('acpm_active_tab', tab);
+    }
+  };
+
   const [showDashboard, setShowDashboard] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('acpm_show_dashboard') !== 'false';
@@ -318,6 +343,14 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
   const [newDesc, setNewDesc] = useState<string>('');
   const [newDueDate, setNewDueDate] = useState<string>('');
   const [newType, setNewType] = useState<string>('manual');
+  const [newStartTime, setNewStartTime] = useState<string>('09:00');
+  const [newEndTime, setNewEndTime] = useState<string>('10:00');
+  const [newAssignedTo, setNewAssignedTo] = useState<string>('');
+  const [newEmailAttendees, setNewEmailAttendees] = useState<string>('');
+  const [newLocation, setNewLocation] = useState<string>('');
+  const [newPriority, setNewPriority] = useState<'alta' | 'media' | 'baja'>('media');
+  const [newActionType, setNewActionType] = useState<'correctiva' | 'preventiva' | 'mejora'>('correctiva');
+  const [sendEmailOnSave, setSendEmailOnSave] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [editingTask, setEditingTask] = useState<KanbanTask | null>(null);
   const [renewalDate, setRenewalDate] = useState<string>('');
@@ -407,6 +440,18 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
 
   useEffect(() => {
     fetchTasks();
+
+    const handleWappyRefresh = () => {
+      fetchTasks(true);
+    };
+
+    window.addEventListener('wappy-refresh-kanban', handleWappyRefresh);
+    window.addEventListener('wappy-refresh-calendar', handleWappyRefresh);
+
+    return () => {
+      window.removeEventListener('wappy-refresh-kanban', handleWappyRefresh);
+      window.removeEventListener('wappy-refresh-calendar', handleWappyRefresh);
+    };
   }, []);
 
   // Handle Drag and Drop
@@ -450,12 +495,20 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
     }
   };
 
-  const openCreateModal = () => {
+  const openCreateModal = (defaultDate?: string) => {
     setEditingTask(null);
     setNewTitle('');
     setNewDesc('');
-    setNewDueDate('');
+    setNewDueDate(defaultDate || new Date().toISOString().split('T')[0]);
     setNewType('manual');
+    setNewStartTime('09:00');
+    setNewEndTime('10:00');
+    setNewAssignedTo('');
+    setNewEmailAttendees('');
+    setNewLocation('');
+    setNewPriority('media');
+    setNewActionType('correctiva');
+    setSendEmailOnSave(false);
     setRenewalDate('');
     setIsModalOpen(true);
   };
@@ -464,9 +517,17 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
     setEditingTask(task);
     setNewTitle(task.title);
     setNewDesc(task.description || '');
-    const dateStr = task.dueDate.split('T')[0];
+    const dateStr = task.dueDate ? task.dueDate.split('T')[0] : '';
     setNewDueDate(dateStr);
-    setNewType(task.type);
+    setNewType(task.type || 'manual');
+    setNewStartTime(task.startTime || '09:00');
+    setNewEndTime(task.endTime || '10:00');
+    setNewAssignedTo(task.assignedTo || '');
+    setNewEmailAttendees(task.emailAttendees && task.emailAttendees.length > 0 ? task.emailAttendees.join(', ') : '');
+    setNewLocation(task.location || '');
+    setNewPriority(task.priority || 'media');
+    setNewActionType(task.actionType || 'correctiva');
+    setSendEmailOnSave(false);
     setRenewalDate('');
     setIsModalOpen(true);
   };
@@ -481,6 +542,7 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
 
     setIsSaving(true);
     try {
+      let savedTaskId: string | null = null;
       if (editingTask) {
         // Edit mode
         const res = await axios.post('/api/sgsst/kanban/save', {
@@ -490,9 +552,17 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
           dueDate: newDueDate,
           type: newType,
           status: editingTask.status,
+          startTime: newStartTime,
+          endTime: newEndTime,
+          assignedTo: newAssignedTo,
+          emailAttendees: newEmailAttendees ? newEmailAttendees.split(',').map(s => s.trim()).filter(Boolean) : [],
+          location: newLocation,
+          priority: newPriority,
+          actionType: newActionType,
           renewalDate: renewalDate || undefined
         });
 
+        savedTaskId = editingTask._id;
         setTasks(prev => prev.map(t => t._id === editingTask._id ? res.data : t));
         showToast({ message: 'Actividad actualizada correctamente.', status: 'success' });
       } else {
@@ -502,12 +572,41 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
           description: newDesc,
           dueDate: newDueDate,
           type: newType,
-          status: 'todo'
+          status: 'todo',
+          startTime: newStartTime,
+          endTime: newEndTime,
+          assignedTo: newAssignedTo,
+          emailAttendees: newEmailAttendees ? newEmailAttendees.split(',').map(s => s.trim()).filter(Boolean) : [],
+          location: newLocation,
+          priority: newPriority,
+          actionType: newActionType,
         });
 
+        savedTaskId = res.data?._id || null;
         setTasks(prev => [...prev, res.data]);
         showToast({ message: 'Actividad programada correctamente.', status: 'success' });
       }
+
+      // Enviar correo si está seleccionado y hay destinatarios
+      if (sendEmailOnSave && savedTaskId && newEmailAttendees.trim()) {
+        try {
+          await axios.post('/api/sgsst/kanban/send-event-email', {
+            taskId: savedTaskId,
+            recipients: newEmailAttendees,
+            title: newTitle,
+            description: newDesc,
+            dueDate: newDueDate,
+            startTime: newStartTime,
+            endTime: newEndTime,
+            location: newLocation,
+          });
+          showToast({ message: '¡Citación enviada por correo electrónico con éxito!', status: 'success' });
+        } catch (mailErr) {
+          console.error('Error enviando correo:', mailErr);
+          showToast({ message: 'Actividad guardada, pero hubo un detalle al enviar el correo.', status: 'warning' });
+        }
+      }
+
       setIsModalOpen(false);
       
       // Reset form
@@ -515,6 +614,12 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
       setNewDesc('');
       setNewDueDate('');
       setNewType('manual');
+      setNewStartTime('09:00');
+      setNewEndTime('10:00');
+      setNewAssignedTo('');
+      setNewEmailAttendees('');
+      setNewLocation('');
+      setSendEmailOnSave(false);
       setRenewalDate('');
       setEditingTask(null);
     } catch (err) {
@@ -1165,12 +1270,61 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
         </div>
       </div>
 
-      {/* Loading */}
-      {isLoading ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-text-secondary">
-          <Clock className="w-8 h-8 animate-spin text-teal-500 mb-2" />
-          <span>Cargando tablero...</span>
+      {/* View Mode Tabs: Calendario SST (Primero) vs Tablero Kanban */}
+      <div className="px-6 pt-2 pb-0 flex items-center justify-between border-b border-border-medium/30 bg-white/70 dark:bg-gray-900/70">
+        <div className="flex items-center gap-1 sm:gap-2">
+          <button
+            onClick={() => handleTabChange('calendar')}
+            className={`px-4 py-2.5 font-black text-xs sm:text-sm flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
+              activeTab === 'calendar'
+                ? 'border-teal-600 text-teal-700 dark:text-teal-300 bg-teal-500/5 dark:bg-teal-950/20 rounded-t-xl'
+                : 'border-transparent text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            <Calendar className="w-4 h-4 text-teal-500" />
+            <span>Calendario SST</span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-500/10 text-teal-700 dark:text-teal-300">
+              {totalCount}
+            </span>
+          </button>
+
+          <button
+            onClick={() => handleTabChange('kanban')}
+            className={`px-4 py-2.5 font-black text-xs sm:text-sm flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
+              activeTab === 'kanban'
+                ? 'border-teal-600 text-teal-700 dark:text-teal-300 bg-teal-500/5 dark:bg-teal-950/20 rounded-t-xl'
+                : 'border-transparent text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            <Trello className="w-4 h-4 text-teal-500" />
+            <span>Tablero Kanban</span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-gray-500/10 text-gray-700 dark:text-gray-300">
+              4 etapas
+            </span>
+          </button>
         </div>
+
+        <div className="text-[11px] font-semibold text-text-tertiary hidden sm:flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span>Sincronización en tiempo real</span>
+        </div>
+      </div>
+
+      {/* Loading or Views */}
+      {isLoading ? (
+        <div className="flex-1 flex flex-col items-center justify-center text-text-secondary min-h-[400px]">
+          <Clock className="w-8 h-8 animate-spin text-teal-500 mb-2" />
+          <span>Cargando actividades del Centro de Control...</span>
+        </div>
+      ) : activeTab === 'calendar' ? (
+        <KanbanCalendarView
+          tasks={tasks as any}
+          onTasksChange={() => fetchTasks(true)}
+          onOpenCreateModal={(date) => openCreateModal(date)}
+          onOpenEditModal={(task) => openEditModal(task as any)}
+          onDeleteTask={(id) => handleDeleteTask(id)}
+          isLoading={isLoading}
+        />
       ) : (
         /* Board columns container */
         <div data-tenshi-kanban="board" className={`overflow-x-auto p-6 flex gap-6 select-none ${
@@ -1402,9 +1556,116 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
                   >
                     <option value="manual">General / Manual</option>
                     <option value="training">Capacitación</option>
+                    <option value="medical_exam">Examen Médico</option>
+                    <option value="copasst_finding">COPASST / Comité</option>
+                    <option value="audit_finding">Auditoría / Hallazgo</option>
+                    <option value="pesv_inspection_finding">PESV / Vial</option>
                     <option value="other">Otro</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Horario de Inicio y Fin */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-text-secondary">Hora Inicio (Colombia)</label>
+                  <input
+                    type="time"
+                    value={newStartTime}
+                    onChange={(e) => setNewStartTime(e.target.value)}
+                    className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-text-secondary">Hora Fin (Colombia)</label>
+                  <input
+                    type="time"
+                    value={newEndTime}
+                    onChange={(e) => setNewEndTime(e.target.value)}
+                    className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full"
+                  />
+                </div>
+              </div>
+
+              {/* Responsable y Ubicación */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-text-secondary">Responsable / Asignado a</label>
+                  <input
+                    type="text"
+                    value={newAssignedTo}
+                    onChange={(e) => setNewAssignedTo(e.target.value)}
+                    placeholder="Ej: Coordinador SST / Juan Pérez"
+                    className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-text-secondary">Ubicación / Enlace Meet</label>
+                  <input
+                    type="text"
+                    value={newLocation}
+                    onChange={(e) => setNewLocation(e.target.value)}
+                    placeholder="Ej: Sala de Juntas / Google Meet"
+                    className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full"
+                  />
+                </div>
+              </div>
+
+              {/* Prioridad y Tipo de Acción */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-text-secondary">Prioridad</label>
+                  <select
+                    value={newPriority}
+                    onChange={(e) => setNewPriority(e.target.value as any)}
+                    className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full cursor-pointer"
+                  >
+                    <option value="alta">Alta</option>
+                    <option value="media">Media</option>
+                    <option value="baja">Baja</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-text-secondary">Tipo de Acción</label>
+                  <select
+                    value={newActionType}
+                    onChange={(e) => setNewActionType(e.target.value as any)}
+                    className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full cursor-pointer"
+                  >
+                    <option value="correctiva">Correctiva</option>
+                    <option value="preventiva">Preventiva</option>
+                    <option value="mejora">Mejora</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Citación por Correo y Google Calendar */}
+              <div className="p-3.5 rounded-2xl bg-sky-50/60 dark:bg-sky-950/20 border border-sky-200 dark:border-sky-800/40 flex flex-col gap-2.5">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-extrabold text-sky-900 dark:text-sky-300">
+                    Destinatarios para Citación por Correo
+                  </label>
+                  <input
+                    type="text"
+                    value={newEmailAttendees}
+                    onChange={(e) => setNewEmailAttendees(e.target.value)}
+                    placeholder="correos separados por coma (ej: colab@empresa.com, gerente@...)"
+                    className="px-3 py-2 bg-white dark:bg-gray-950 border border-sky-300 dark:border-sky-700/60 rounded-xl text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  />
+                </div>
+
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-sky-900 dark:text-sky-300 select-none">
+                  <input
+                    type="checkbox"
+                    checked={sendEmailOnSave}
+                    onChange={(e) => setSendEmailOnSave(e.target.checked)}
+                    className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500 border-sky-400"
+                  />
+                  <span>Enviar citación por correo con archivo .ics al guardar</span>
+                </label>
               </div>
 
               {editingTask && editingTask.type !== 'manual' && (

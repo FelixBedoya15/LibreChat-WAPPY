@@ -122,8 +122,8 @@ const Nav = memo(
     // Tareas (antes "Automatizaciones IA" del Centro de Control): SOLO Admin y Wappy Pro
     const hasAccessToTareas = canAccessTareas(user);
 
-    // LMS / Academia WAPPY (disponible para usuarios regulares y subusuarios operativos con LMS o SST)
-    const hasAccessToLMS = !isSubUser || subPerms.includes('lms:aula_estudio') || subPerms.includes('lms:ruta_aprendizaje') || subPerms.includes('community:blog') || subPerms.some(p => p.startsWith('sgsst:'));
+    // LMS / Academia WAPPY (disponible para usuarios regulares y subusuarios con permisos de formación o blog)
+    const hasAccessToLMS = !isSubUser || subPerms.includes('lms:aula_estudio') || subPerms.includes('lms:ruta_aprendizaje') || subPerms.includes('sgsst:programa_capacitaciones') || subPerms.includes('community:blog');
 
     // Subscription Plans: only for regular account owners
     const hasAccessToPlans = !isSubUser;

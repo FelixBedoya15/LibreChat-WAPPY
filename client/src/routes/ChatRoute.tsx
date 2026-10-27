@@ -25,7 +25,15 @@ export default function ChatRoute() {
       const subPerms = user.subUserPermissions || [];
       const hasChat = subPerms.includes('chat:wappy_general') || subPerms.includes('chat:sst_specialist');
       if (!hasChat) {
-        navigate('/sgsst', { replace: true });
+        const hasSgsst = subPerms.some(p => p.startsWith('sgsst:') || p.startsWith('audit:') || p.startsWith('kanban:'));
+        const hasLms = subPerms.some(p => p.startsWith('lms:'));
+        if (hasSgsst) {
+          navigate('/sgsst', { replace: true });
+        } else if (hasLms) {
+          navigate('/academia', { replace: true });
+        } else {
+          navigate('/sgsst', { replace: true });
+        }
       }
     }
   }, [user, navigate]);

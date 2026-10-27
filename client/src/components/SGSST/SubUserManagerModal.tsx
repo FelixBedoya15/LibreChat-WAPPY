@@ -67,11 +67,12 @@ export interface CompanyItem {
 
 export type PermissionCategory = 
     | 'IA & Chat WAPPY' 
-    | 'Somos SST Operativo' 
-    | 'Matrices & Legal' 
-    | 'Academia & LMS' 
-    | 'Gestión ACPM & Auditoría' 
-    | 'Comunidad & Blog';
+    | 'Somos SST: Operativo & Campo' 
+    | 'Somos SST: Comités & Brigadas'
+    | 'Somos SST: Salud & Ergonomía'
+    | 'Somos SST: Matrices & Legal' 
+    | 'Verificación, Auditoría & ACPM'
+    | 'Academia & LMS';
 
 export interface PermissionOption {
     id: string;
@@ -92,7 +93,7 @@ export const AVAILABLE_PERMISSIONS: PermissionOption[] = [
     {
         id: 'chat:sst_specialist',
         label: 'Chat Consultor SST Especializado',
-        description: 'Consultas inteligentes normativas y técnicas con el agente experto en SST.',
+        description: 'Consultas inteligentes normativas y técnicas con el agente experto en SST colombiana.',
         category: 'IA & Chat WAPPY'
     },
     {
@@ -102,95 +103,191 @@ export const AVAILABLE_PERMISSIONS: PermissionOption[] = [
         category: 'IA & Chat WAPPY'
     },
 
-    // ─── 2. Somos SST Operativo ──────────────────────────────────────────
+    // ─── 2. Somos SST: Operativo & Campo ─────────────────────────────────
     {
         id: 'sgsst:perfil_sociodemografico_self',
         label: 'Auto-reporte Sociodemográfico (Propio)',
         description: 'Llenar y actualizar su propia ficha médica, sociodemográfica y firma digital.',
-        category: 'Somos SST Operativo'
+        category: 'Somos SST: Operativo & Campo'
     },
     {
         id: 'sgsst:perfil_sociodemografico_all',
         label: 'Gestión Sociodemográfica Completa',
-        description: 'Ver y registrar la información de todos los trabajadores de la empresa.',
-        category: 'Somos SST Operativo'
+        description: 'Ver, registrar y actualizar los datos de todos los trabajadores de la empresa.',
+        category: 'Somos SST: Operativo & Campo'
     },
     {
         id: 'sgsst:reporte_actos',
-        label: 'Reporte de Actos y Condiciones',
-        description: 'Diligenciar y consultar reportes de actos o condiciones inseguras.',
-        category: 'Somos SST Operativo'
+        label: 'Reporte de Actos y Condiciones Inseguras',
+        description: 'Diligenciar y consultar reportes de actos o condiciones de peligro en campo.',
+        category: 'Somos SST: Operativo & Campo'
     },
     {
         id: 'sgsst:permiso_alturas',
-        label: 'Permisos de Trabajo en Alturas',
-        description: 'Crear, consultar y firmar permisos de trabajo seguro en alturas y listas de chequeo.',
-        category: 'Somos SST Operativo'
+        label: 'Permisos de Trabajo en Alturas (Res. 4272)',
+        description: 'Crear, consultar y tramitar permisos de trabajo seguro en alturas y listas de chequeo.',
+        category: 'Somos SST: Operativo & Campo'
+    },
+    {
+        id: 'sgsst:equipos_alturas',
+        label: 'Equipos contra Caídas (Hojas de Vida)',
+        description: 'Control, registro e inspección anual de arneses, eslingas y mosquetones.',
+        category: 'Somos SST: Operativo & Campo'
     },
     {
         id: 'sgsst:analisis_trabajo_seguro',
         label: 'Análisis de Trabajo Seguro (ATS)',
         description: 'Diligenciar y revisar análisis de trabajo seguro por tarea u oficio.',
-        category: 'Somos SST Operativo'
+        category: 'Somos SST: Operativo & Campo'
     },
     {
         id: 'sgsst:participacion_ipevar',
         label: 'Participación IPEVR / Peligros',
-        description: 'Reportar riesgos y participar en la identificación continua de peligros.',
-        category: 'Somos SST Operativo'
+        description: 'Reportar riesgos cotidianos y participar en la identificación continua de peligros.',
+        category: 'Somos SST: Operativo & Campo'
     },
     {
         id: 'sgsst:epp',
-        label: 'Gestión y Entrega de EPP',
-        description: 'Control de dotación, entrega de elementos de protección personal y firmas.',
-        category: 'Somos SST Operativo'
+        label: 'Gestión y Entrega de EPP (Dotación)',
+        description: 'Control de kardex de dotación, entregas de EPP y firmas digitales de recibido.',
+        category: 'Somos SST: Operativo & Campo'
     },
     {
         id: 'sgsst:vehiculos',
-        label: 'Inspección de Vehículos & Flota',
-        description: 'Preoperacionales e inspecciones periódicas de vehículos y maquinaria.',
-        category: 'Somos SST Operativo'
+        label: 'Inspección de Vehículos & Flota (PESV)',
+        description: 'Preoperacionales e inspecciones periódicas de vehículos, motos y maquinaria.',
+        category: 'Somos SST: Operativo & Campo'
     },
     {
         id: 'sgsst:investigacion_atel',
         label: 'Investigación de Accidentes (ATEL)',
-        description: 'Registro, caracterización e investigación de incidentes y accidentes de trabajo.',
-        category: 'Somos SST Operativo'
+        description: 'Registro, caracterización e investigación técnica de incidentes y accidentes de trabajo.',
+        category: 'Somos SST: Operativo & Campo'
+    },
+    {
+        id: 'sgsst:emergencias_equipos',
+        label: 'Equipos de Emergencia (Extintores / Botiquín)',
+        description: 'Inventario e inspecciones periódicas de extintores, botiquines y camillas.',
+        category: 'Somos SST: Operativo & Campo'
+    },
+
+    // ─── 3. Somos SST: Comités & Brigadas ────────────────────────────────
+    {
+        id: 'sgsst:copasst',
+        label: 'COPASST / Vigía de SST',
+        description: 'Actas de reunión, seguimiento a compromisos, elecciones e inspecciones paritarias.',
+        category: 'Somos SST: Comités & Brigadas'
+    },
+    {
+        id: 'sgsst:convivencia',
+        label: 'Comité de Convivencia Laboral (COCOLA)',
+        description: 'Gestión confidencial de quejas de presunto acoso laboral, actas y mediación.',
+        category: 'Somos SST: Comités & Brigadas'
+    },
+    {
+        id: 'sgsst:brigada',
+        label: 'Brigada de Emergencias & SCI',
+        description: 'Estructura del Sistema Comando de Incidentes, brigadistas y planes de contingencia.',
+        category: 'Somos SST: Comités & Brigadas'
+    },
+    {
+        id: 'sgsst:comite_pesv',
+        label: 'Comité de Seguridad Vial (CSV)',
+        description: 'Reuniones periódicas y seguimiento de metas del Plan Estratégico de Seguridad Vial.',
+        category: 'Somos SST: Comités & Brigadas'
+    },
+    {
+        id: 'sgsst:politica_objetivos',
+        label: 'Política, Objetivos SST & Reglamentos',
+        description: 'Consulta y gestión de Política SST, Objetivos, RHS, RIT y asignación del responsable.',
+        category: 'Somos SST: Comités & Brigadas'
+    },
+
+    // ─── 4. Somos SST: Salud & Ergonomía ─────────────────────────────────
+    {
+        id: 'sgsst:condiciones_salud',
+        label: 'Informe de Condiciones de Salud',
+        description: 'Línea base fisiológica, exámenes médicos ocupacionales y aptitudes laborales.',
+        category: 'Somos SST: Salud & Ergonomía'
     },
     {
         id: 'sgsst:estudio_puesto',
-        label: 'Estudios de Puesto (EPT) & Agendamiento 1 a 1',
+        label: 'Estudios de Puesto (EPT) & Agenda 1 a 1',
         description: 'Programar citas ergonómicas a trabajadores, gestionar agenda y consultar informes técnicos.',
-        category: 'Somos SST Operativo'
+        category: 'Somos SST: Salud & Ergonomía'
+    },
+    {
+        id: 'sgsst:metodo_owas',
+        label: 'Evaluación Ergonómica Método OWAS',
+        description: 'Análisis biomecánico y de carga postural para prevenir desórdenes musculoesqueléticos.',
+        category: 'Somos SST: Salud & Ergonomía'
+    },
+    {
+        id: 'sgsst:animo',
+        label: 'Termómetro Psicosocial & Bienestar',
+        description: 'Pulsos de medición anónima de clima laboral, fatiga y estrés en tiempo real.',
+        category: 'Somos SST: Salud & Ergonomía'
     },
 
-    // ─── 3. Matrices & Legal ─────────────────────────────────────────────
+    // ─── 5. Somos SST: Matrices & Legal ──────────────────────────────────
     {
         id: 'sgsst:matriz_peligros',
         label: 'Matriz de Peligros GTC-45 / IPEVR',
-        description: 'Acceso de consulta y edición a la matriz de riesgos general de la empresa.',
-        category: 'Matrices & Legal'
+        description: 'Identificación de peligros, valoración de riesgos y determinación de controles.',
+        category: 'Somos SST: Matrices & Legal'
     },
     {
         id: 'sgsst:matriz_legal',
         label: 'Matriz Legal & Normatividad',
-        description: 'Consulta, evaluación y seguimiento al cumplimiento de requisitos legales.',
-        category: 'Matrices & Legal'
+        description: 'Normograma y evaluación sistemática de cumplimiento de requisitos legales en Colombia.',
+        category: 'Somos SST: Matrices & Legal'
     },
     {
         id: 'sgsst:matriz_pesv',
         label: 'Matriz PESV (Seguridad Vial)',
-        description: 'Evaluación y gestión de riesgos viales conforme a la Resolución 40595.',
-        category: 'Matrices & Legal'
+        description: 'Evaluación y gestión de riesgos viales conforme a la Resolución 40595 de 2022.',
+        category: 'Somos SST: Matrices & Legal'
     },
     {
         id: 'sgsst:matriz_compatibilidad',
-        label: 'Matriz de Compatibilidad Química (SGA)',
-        description: 'Inventario de sustancias químicas, clasificación ONU y matriz de almacenamiento.',
-        category: 'Matrices & Legal'
+        label: 'Matriz Química & FDS (SGA)',
+        description: 'Inventario de sustancias químicas, clasificación ONU, fichas FDS y compatibilidad.',
+        category: 'Somos SST: Matrices & Legal'
     },
 
-    // ─── 4. Academia & LMS ───────────────────────────────────────────────
+    // ─── 6. Verificación, Auditoría & ACPM ───────────────────────────────
+    {
+        id: 'audit:checklist',
+        label: 'Diagnóstico & Auditoría Res. 0312',
+        description: 'Evaluación de estándares mínimos y listas de verificación de auditoría.',
+        category: 'Verificación, Auditoría & ACPM'
+    },
+    {
+        id: 'kanban:acpm',
+        label: 'Tablero Kanban ACPM',
+        description: 'Gestión ágil de acciones correctivas, preventivas y oportunidades de mejora.',
+        category: 'Verificación, Auditoría & ACPM'
+    },
+    {
+        id: 'sgsst:alta_direccion',
+        label: 'Revisión por la Alta Dirección',
+        description: 'Evaluación anual de 22 puntos y rendición de cuentas de la gerencia sobre el SG-SST.',
+        category: 'Verificación, Auditoría & ACPM'
+    },
+    {
+        id: 'sgsst:estadisticas',
+        label: 'Estadísticas ATEL & Ausentismo',
+        description: 'Indicadores de frecuencia, severidad, mortalidad y gestión de ausentismo laboral.',
+        category: 'Verificación, Auditoría & ACPM'
+    },
+    {
+        id: 'sgsst:predictivo',
+        label: 'Centro de Inteligencia Predictiva',
+        description: 'Modelos estocásticos de siniestralidad, radar de 9 dominios y prescripción de controles.',
+        category: 'Verificación, Auditoría & ACPM'
+    },
+
+    // ─── 7. Academia & LMS ───────────────────────────────────────────────
     {
         id: 'lms:aula_estudio',
         label: 'Aula de Estudio & Cursos LMS',
@@ -209,33 +306,17 @@ export const AVAILABLE_PERMISSIONS: PermissionOption[] = [
         description: 'Cronograma anual de capacitaciones de la empresa y registro de asistencias.',
         category: 'Academia & LMS'
     },
-
-    // ─── 5. Gestión ACPM & Auditoría ────────────────────────────────────
-    {
-        id: 'kanban:acpm',
-        label: 'Tablero Kanban ACPM',
-        description: 'Gestión ágil de acciones correctivas, preventivas y oportunidades de mejora.',
-        category: 'Gestión ACPM & Auditoría'
-    },
-    {
-        id: 'audit:checklist',
-        label: 'Diagnóstico & Auditoría Res. 0312',
-        description: 'Evaluación de estándares mínimos y listas de verificación de auditoría.',
-        category: 'Gestión ACPM & Auditoría'
-    },
     {
         id: 'events:calendar',
         label: 'Eventos, Reuniones & Calendario SST',
-        description: 'Programación de reuniones de comités (COPASST/COCOLA) y eventos SST.',
-        category: 'Gestión ACPM & Auditoría'
+        description: 'Programación de reuniones de comités (COPASST/COCOLA) y eventos SST en vivo.',
+        category: 'Academia & LMS'
     },
-
-    // ─── 6. Comunidad & Blog ────────────────────────────────────────────
     {
         id: 'community:blog',
-        label: 'Blog SST & Artículos de Conocimiento',
+        label: 'Blog SST & Biblioteca de Conocimiento',
         description: 'Lectura de guías, artículos técnicos y biblioteca de conocimiento WAPPY.',
-        category: 'Comunidad & Blog'
+        category: 'Academia & LMS'
     }
 ];
 
@@ -250,117 +331,212 @@ export interface PresetRole {
 
 const PRESET_ROLES: PresetRole[] = [
     {
-        id: 'data_entry_field',
-        name: 'Operativo SST / Carga de Datos',
-        description: 'Acceso total a todos los aplicativos y matrices de Somos SST, Academia WAPPY y cursos LMS. Sin IA corporativa.',
+        id: 'auxiliar_sst',
+        name: 'Auxiliar SST / Digitador de Datos',
+        description: 'Carga y digitación masiva de información: trabajadores del perfil sociodemográfico, dotación y entrega de EPP, asistencias a capacitaciones, preoperacionales de vehículos, inventario químico SGA, equipos de emergencia y actas de comités. Sin permisos de auditoría ni modificación de matrices legales.',
         hasAi: false,
-        badgeLabel: 'Sin IA (Somos SST & Academia)',
+        badgeLabel: 'Sin IA (Carga de Datos)',
         permissions: [
             'sgsst:perfil_sociodemografico_self',
             'sgsst:perfil_sociodemografico_all',
             'sgsst:reporte_actos',
             'sgsst:permiso_alturas',
+            'sgsst:equipos_alturas',
             'sgsst:analisis_trabajo_seguro',
             'sgsst:participacion_ipevar',
             'sgsst:epp',
             'sgsst:vehiculos',
-            'sgsst:investigacion_atel',
-            'sgsst:matriz_peligros',
-            'sgsst:matriz_legal',
-            'sgsst:matriz_pesv',
+            'sgsst:emergencias_equipos',
             'sgsst:matriz_compatibilidad',
             'sgsst:programa_capacitaciones',
+            'sgsst:copasst',
+            'sgsst:brigada',
+            'events:calendar',
+            'community:blog',
+            'lms:aula_estudio'
+        ]
+    },
+    {
+        id: 'colaborador_base',
+        name: 'Colaborador / Empleado Base',
+        description: 'Ficha médica sociodemográfica propia, firma digital, reporte de actos y condiciones inseguras, participación en peligros IPEVR, solicitud de EPP, termómetro psicosocial y cursos interactivos del Aula LMS.',
+        hasAi: false,
+        badgeLabel: 'Sin IA (Empleado Base)',
+        permissions: [
+            'sgsst:perfil_sociodemografico_self',
+            'sgsst:reporte_actos',
+            'sgsst:participacion_ipevar',
+            'sgsst:epp',
+            'sgsst:animo',
             'lms:aula_estudio',
             'lms:ruta_aprendizaje',
-            'kanban:acpm',
-            'audit:checklist',
-            'events:calendar',
             'community:blog'
         ]
-    },
-    {
-        id: 'matrices_audit_no_ai',
-        name: 'Gestor de Matrices & Auditoría',
-        description: 'Mantenimiento de Matriz de Peligros GTC-45, Legal, PESV, SGA, Investigación ATEL, Kanban ACPM y Auditoría 0312.',
-        hasAi: false,
-        badgeLabel: 'Sin IA (Solo Datos)',
-        permissions: [
-            'sgsst:matriz_peligros',
-            'sgsst:matriz_legal',
-            'sgsst:matriz_pesv',
-            'sgsst:matriz_compatibilidad',
-            'sgsst:investigacion_atel',
-            'kanban:acpm',
-            'audit:checklist',
-            'events:calendar',
-            'community:blog'
-        ]
-    },
-    {
-        id: 'self_only',
-        name: 'Auto-reporte & Cursos LMS',
-        description: 'Ficha médica sociodemográfica propia, firma digital y cursos interactivos del Aula de Estudio LMS.',
-        hasAi: false,
-        badgeLabel: 'Sin IA (Solo Datos)',
-        permissions: ['sgsst:perfil_sociodemografico_self', 'lms:aula_estudio', 'community:blog']
     },
     {
         id: 'field_inspector',
         name: 'Inspector SST de Campo (Con IA)',
-        description: 'Operativo de campo completo más asistencia del Chat Consultor SST Especializado.',
+        description: 'Control operativo en terreno: permisos de alturas, hojas de vida de equipos contra caídas, ATS, entrega de EPP, inspección vehicular, productos químicos SGA y asistencia del Chat Consultor SST.',
         hasAi: true,
         badgeLabel: 'Con IA Consultora',
         permissions: [
             'sgsst:perfil_sociodemografico_self',
             'sgsst:reporte_actos',
             'sgsst:permiso_alturas',
+            'sgsst:equipos_alturas',
             'sgsst:analisis_trabajo_seguro',
             'sgsst:participacion_ipevar',
             'sgsst:epp',
             'sgsst:vehiculos',
+            'sgsst:matriz_compatibilidad',
+            'sgsst:emergencias_equipos',
+            'sgsst:investigacion_atel',
+            'chat:sst_specialist'
+        ]
+    },
+    {
+        id: 'copasst_member',
+        name: 'Miembro COPASST / Vigía SST',
+        description: 'Acceso al módulo COPASST (actas, elecciones, comités, inspecciones periódicas), participación en investigación de accidentes ATEL, acompañamiento de auditorías y calendario de sesiones.',
+        hasAi: false,
+        badgeLabel: 'Sin IA (COPASST)',
+        permissions: [
+            'sgsst:perfil_sociodemografico_self',
+            'sgsst:reporte_actos',
+            'sgsst:participacion_ipevar',
+            'sgsst:copasst',
+            'sgsst:investigacion_atel',
+            'audit:checklist',
+            'events:calendar',
+            'lms:aula_estudio',
+            'community:blog'
+        ]
+    },
+    {
+        id: 'convivencia_member',
+        name: 'Miembro Convivencia (COCOLA)',
+        description: 'Acceso confidencial al Comité de Convivencia Laboral: gestión y seguimiento reservado de quejas de presunto acoso laboral, actas de mediación y calendario de reuniones.',
+        hasAi: false,
+        badgeLabel: 'Sin IA (Convivencia)',
+        permissions: [
+            'sgsst:perfil_sociodemografico_self',
+            'sgsst:convivencia',
+            'events:calendar',
+            'lms:aula_estudio',
+            'community:blog'
+        ]
+    },
+    {
+        id: 'brigadista',
+        name: 'Brigadista de Emergencias',
+        description: 'Conformación de brigadas (SCI), inspección de extintores, botiquines, camillas, equipos de emergencia y simulacros de evacuación.',
+        hasAi: false,
+        badgeLabel: 'Sin IA (Brigadista)',
+        permissions: [
+            'sgsst:perfil_sociodemografico_self',
+            'sgsst:reporte_actos',
+            'sgsst:brigada',
+            'sgsst:emergencias_equipos',
+            'lms:aula_estudio',
+            'community:blog'
+        ]
+    },
+    {
+        id: 'conductor_pesv',
+        name: 'Conductor / Operador PESV',
+        description: 'Preoperacionales diarios de automotores, inspección de flota vial, reportes de condiciones viales y capacitación interactiva en seguridad vial (PESV).',
+        hasAi: false,
+        badgeLabel: 'Sin IA (PESV Flota)',
+        permissions: [
+            'sgsst:perfil_sociodemografico_self',
+            'sgsst:vehiculos',
+            'sgsst:reporte_actos',
+            'lms:aula_estudio',
+            'lms:ruta_aprendizaje',
+            'community:blog'
+        ]
+    },
+    {
+        id: 'salud_ergonomia',
+        name: 'Salud Ocupacional & Ergónomo (Con IA)',
+        description: 'Gestión sociodemográfica de toda la empresa, informe de condiciones de salud, estudios de puesto de trabajo (EPT), agendamiento ergonómico 1 a 1, método OWAS y estadísticas de ausentismo médico.',
+        hasAi: true,
+        badgeLabel: 'Con IA Consultora',
+        permissions: [
+            'sgsst:perfil_sociodemografico_self',
+            'sgsst:perfil_sociodemografico_all',
+            'sgsst:condiciones_salud',
+            'sgsst:estudio_puesto',
+            'sgsst:metodo_owas',
+            'sgsst:animo',
+            'sgsst:estadisticas',
             'chat:sst_specialist'
         ]
     },
     {
         id: 'sst_coordinator',
         name: 'Coordinador SST Integral (Con IA)',
-        description: 'Control operativo total, matrices técnicas, Kanban ACPM, auditorías y Chat SST Especializado.',
+        description: 'Control técnico total: Matriz GTC-45, Legal, PESV, Químicos SGA, Diagnóstico Res. 0312, Comités (COPASST/COCOLA/Brigadas), cronograma, ATEL, Kanban ACPM y Chat SST Especializado.',
         hasAi: true,
-        badgeLabel: 'Con IA Consultora',
+        badgeLabel: 'Con IA Consultora + Live',
         permissions: [
             'sgsst:perfil_sociodemografico_self',
             'sgsst:perfil_sociodemografico_all',
+            'sgsst:condiciones_salud',
             'sgsst:reporte_actos',
             'sgsst:permiso_alturas',
+            'sgsst:equipos_alturas',
             'sgsst:analisis_trabajo_seguro',
             'sgsst:participacion_ipevar',
             'sgsst:matriz_peligros',
             'sgsst:matriz_legal',
             'sgsst:matriz_pesv',
             'sgsst:matriz_compatibilidad',
+            'sgsst:copasst',
+            'sgsst:convivencia',
+            'sgsst:brigada',
+            'sgsst:comite_pesv',
+            'sgsst:politica_objetivos',
             'sgsst:investigacion_atel',
             'sgsst:epp',
             'sgsst:vehiculos',
+            'sgsst:emergencias_equipos',
             'sgsst:programa_capacitaciones',
             'kanban:acpm',
             'audit:checklist',
             'events:calendar',
             'community:blog',
-            'chat:sst_specialist'
+            'chat:sst_specialist',
+            'ai:live_analysis'
+        ]
+    },
+    {
+        id: 'gerencia_direccion',
+        name: 'Gerencia / Alta Dirección (Con IA)',
+        description: 'Tablero de control gerencial: Revisión por la Alta Dirección, diagnóstico de estándares mínimos Res. 0312, estadísticas globales ATEL/ausentismo, Kanban ACPM y Centro Predictivo.',
+        hasAi: true,
+        badgeLabel: 'Con IA General',
+        permissions: [
+            'audit:checklist',
+            'sgsst:alta_direccion',
+            'sgsst:estadisticas',
+            'kanban:acpm',
+            'sgsst:predictivo',
+            'chat:wappy_general',
+            'community:blog'
         ]
     },
     {
         id: 'student_lms',
-        name: 'Estudiante LMS (Con IA)',
-        description: 'Aula de Estudio, rutas de aprendizaje guiadas, capacitaciones y Chat WAPPY General.',
-        hasAi: true,
-        badgeLabel: 'Con IA General',
+        name: 'Estudiante / Inducción LMS',
+        description: 'Aula de Estudio interactiva, rutas guiadas de formación, programa de capacitaciones asignadas y blog técnico. Sin acceso a datos sensibles de la empresa.',
+        hasAi: false,
+        badgeLabel: 'Sin IA (LMS)',
         permissions: [
             'lms:aula_estudio',
             'lms:ruta_aprendizaje',
             'sgsst:programa_capacitaciones',
-            'community:blog',
-            'chat:wappy_general'
+            'community:blog'
         ]
     },
     {
@@ -409,9 +585,9 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
     const [formEmail, setFormEmail] = useState('');
     const [formPassword, setFormPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [selectedPresetRole, setSelectedPresetRole] = useState<string>('data_entry_field');
+    const [selectedPresetRole, setSelectedPresetRole] = useState<string>('auxiliar_sst');
     const [selectedPermissions, setSelectedPermissions] = useState<string[]>(() => {
-        const defaultRole = PRESET_ROLES.find(r => r.id === 'data_entry_field');
+        const defaultRole = PRESET_ROLES.find(r => r.id === 'auxiliar_sst');
         return defaultRole ? [...defaultRole.permissions] : [];
     });
     const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('Todas');
@@ -514,8 +690,8 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
         }
         setFormPassword(doc); // Default password as document number
         setShowPassword(false);
-        const defaultRole = PRESET_ROLES.find(r => r.id === 'data_entry_field');
-        setSelectedPresetRole('data_entry_field');
+        const defaultRole = PRESET_ROLES.find(r => r.id === 'auxiliar_sst');
+        setSelectedPresetRole('auxiliar_sst');
         setSelectedPermissions(defaultRole ? [...defaultRole.permissions] : ['sgsst:perfil_sociodemografico_self']);
         setEditingSubUser(null);
         setActiveTab('create');
@@ -536,8 +712,8 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
         setFormEmail('');
         setFormPassword('');
         setShowPassword(false);
-        const defaultRole = PRESET_ROLES.find(r => r.id === 'data_entry_field');
-        setSelectedPresetRole('data_entry_field');
+        const defaultRole = PRESET_ROLES.find(r => r.id === 'auxiliar_sst');
+        setSelectedPresetRole('auxiliar_sst');
         setSelectedPermissions(defaultRole ? [...defaultRole.permissions] : ['sgsst:perfil_sociodemografico_self']);
         setFormStatus('active');
         setActiveTab('create');
@@ -553,20 +729,14 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
         setShowPassword(false);
         setFormStatus(su.subUserStatus || 'active');
 
-        if (!isAdmin) {
-            const defaultRole = PRESET_ROLES.find(r => r.id === 'data_entry_field');
-            setSelectedPresetRole('data_entry_field');
-            setSelectedPermissions(defaultRole ? [...defaultRole.permissions] : (su.subUserPermissions || []));
-        } else {
-            setSelectedPermissions(su.subUserPermissions || []);
-            // Check if permissions match any preset
-            const matchingPreset = PRESET_ROLES.find(preset => {
-                if (preset.id === 'custom') return false;
-                if (preset.permissions.length !== su.subUserPermissions.length) return false;
-                return preset.permissions.every(p => su.subUserPermissions.includes(p));
-            });
-            setSelectedPresetRole(matchingPreset ? matchingPreset.id : 'custom');
-        }
+        setSelectedPermissions(su.subUserPermissions || []);
+        // Check if permissions match any preset
+        const matchingPreset = PRESET_ROLES.find(preset => {
+            if (preset.id === 'custom') return false;
+            if (preset.permissions.length !== (su.subUserPermissions || []).length) return false;
+            return preset.permissions.every(p => (su.subUserPermissions || []).includes(p));
+        });
+        setSelectedPresetRole(matchingPreset ? matchingPreset.id : 'custom');
 
         setActiveTab('edit');
     };
@@ -1312,42 +1482,31 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                                         <label className="block text-xs font-semibold text-text-secondary">
                                             Plantillas de Roles Rápidos:
                                         </label>
-                                        {!isAdmin && (
-                                            <span className="text-[10px] font-semibold text-teal-700 dark:text-teal-300 bg-teal-500/10 px-2 py-0.5 rounded-md border border-teal-500/20 flex items-center gap-1">
-                                                <Check className="w-3 h-3 text-teal-600 dark:text-teal-400" />
-                                                Rol habilitado: Operativo SST / Carga de Datos
-                                            </span>
-                                        )}
+                                        <span className="text-[10px] font-semibold text-teal-700 dark:text-teal-300 bg-teal-500/10 px-2 py-0.5 rounded-md border border-teal-500/20 flex items-center gap-1">
+                                            <Sparkles className="w-3 h-3 text-teal-600 dark:text-teal-400" />
+                                            {PRESET_ROLES.find(r => r.id === selectedPresetRole)?.name || 'Personalizado'}
+                                        </span>
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                                         {PRESET_ROLES.map(role => {
                                             const isSelected = selectedPresetRole === role.id;
-                                            const isLocked = !isAdmin && role.id !== 'data_entry_field';
                                             return (
                                                 <button
                                                     key={role.id}
                                                     type="button"
                                                     onClick={() => handlePresetRoleChange(role.id)}
-                                                    className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between relative ${
-                                                        isLocked
-                                                            ? 'border-border-medium/60 bg-surface-tertiary/40 opacity-50 cursor-not-allowed text-text-tertiary'
-                                                            : isSelected
-                                                                ? 'border-teal-500 bg-teal-50/50 dark:bg-teal-950/40 text-text-primary shadow-sm ring-1 ring-teal-500 cursor-pointer'
-                                                                : 'border-border-medium bg-surface-secondary hover:bg-surface-hover text-text-secondary cursor-pointer'
+                                                    className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between relative cursor-pointer ${
+                                                        isSelected
+                                                            ? 'border-teal-500 bg-teal-50/50 dark:bg-teal-950/40 text-text-primary shadow-sm ring-1 ring-teal-500'
+                                                            : 'border-border-medium bg-surface-secondary hover:bg-surface-hover text-text-secondary'
                                                     }`}
                                                 >
-                                                    {isLocked && (
-                                                        <div className="absolute top-2.5 right-2.5 flex items-center gap-1 text-[9px] font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/70 px-1.5 py-0.5 rounded border border-amber-300 dark:border-amber-800 shadow-xs">
-                                                            <Lock className="w-2.5 h-2.5" />
-                                                            <span>Solo Admin</span>
-                                                        </div>
-                                                    )}
                                                     <div>
                                                         <div className="flex items-start justify-between mb-1 gap-1">
-                                                            <span className={`font-bold text-xs leading-tight ${isLocked ? 'text-text-secondary pr-16' : 'text-text-primary'}`}>
+                                                            <span className="font-bold text-xs leading-tight text-text-primary">
                                                                 {role.name}
                                                             </span>
-                                                            {isSelected && !isLocked && <Check className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 flex-shrink-0 mt-0.5" />}
+                                                            {isSelected && <Check className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 flex-shrink-0 mt-0.5" />}
                                                         </div>
                                                         <p className="text-[10px] text-text-secondary line-clamp-2 leading-tight mb-2.5">
                                                             {role.description}
@@ -1355,11 +1514,9 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                                                     </div>
                                                     <div>
                                                         <span className={`inline-block text-[9px] font-bold px-2 py-0.5 rounded-md border ${
-                                                            isLocked
-                                                                ? 'bg-surface-tertiary text-text-tertiary border-border-medium'
-                                                                : role.hasAi
-                                                                    ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
-                                                                    : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                                            role.hasAi
+                                                                ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
+                                                                : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                                                         }`}>
                                                             {role.badgeLabel}
                                                         </span>
@@ -1377,17 +1534,23 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                                             <label className="text-xs font-semibold text-text-secondary">
                                                 Módulos Específicos por Aplicativo:
                                             </label>
-                                            {!isAdmin && (
-                                                <span className="text-[10px] text-text-tertiary flex items-center gap-1 font-normal">
-                                                    <Lock className="w-2.5 h-2.5 text-amber-500" />
-                                                    (Configurados por Rol Operativo)
-                                                </span>
-                                            )}
+                                            <span className="text-[10px] text-text-tertiary flex items-center gap-1 font-normal">
+                                                (Haz clic en cualquier módulo para personalizar)
+                                            </span>
                                         </div>
 
                                         {/* Category Filter Pills */}
                                         <div className="flex flex-wrap items-center gap-1.5">
-                                            {(['Todas', 'IA & Chat WAPPY', 'Somos SST Operativo', 'Matrices & Legal', 'Academia & LMS', 'Gestión ACPM & Auditoría', 'Comunidad & Blog'] as const).map(cat => {
+                                            {([
+                                                'Todas',
+                                                'IA & Chat WAPPY',
+                                                'Somos SST: Operativo & Campo',
+                                                'Somos SST: Comités & Brigadas',
+                                                'Somos SST: Salud & Ergonomía',
+                                                'Somos SST: Matrices & Legal',
+                                                'Verificación, Auditoría & ACPM',
+                                                'Academia & LMS'
+                                            ] as const).map(cat => {
                                                 const isCatActive = selectedCategoryFilter === cat;
                                                 const count = cat === 'Todas' 
                                                     ? AVAILABLE_PERMISSIONS.length 
@@ -1420,9 +1583,7 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                                                     <div
                                                         key={perm.id}
                                                         onClick={() => handleTogglePermission(perm.id)}
-                                                        className={`p-3 rounded-xl border select-none transition-all flex items-start gap-2.5 ${
-                                                            !isAdmin ? 'cursor-default' : 'cursor-pointer'
-                                                        } ${
+                                                        className={`p-3 rounded-xl border select-none transition-all flex items-start gap-2.5 cursor-pointer ${
                                                             isChecked
                                                                 ? 'border-teal-500/80 bg-teal-50/40 dark:bg-teal-950/20 text-text-primary shadow-xs'
                                                                 : 'border-border-medium bg-surface-secondary text-text-secondary opacity-75 hover:opacity-100 hover:border-teal-500/30'

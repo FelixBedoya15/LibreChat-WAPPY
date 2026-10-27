@@ -251,6 +251,83 @@ const PhaseDetail = ({
     const lockTitle = "Somos SST Pro Exclusivo";
     const lockDesc = "El acceso a la suite completa de aplicativos de Somos SST es exclusivo del Plan Wappy Pro. Evoluciona hoy tu plan para comenzar a implementarlo en tu organización.";
 
+    const CATEGORY_PERMISSION_MAP: Record<string, string[]> = useMemo(() => ({
+        // Hito 1
+        diagnostico: ['audit:checklist'],
+        contexto_organizacion: ['sgsst:politica_objetivos'],
+        oportunidades_sst: ['sgsst:politica_objetivos'],
+        responsable: ['sgsst:politica_objetivos'],
+        politica: ['sgsst:politica_objetivos'],
+        objetivos: ['sgsst:politica_objetivos'],
+        legal: ['sgsst:matriz_legal'],
+        rhs: ['sgsst:politica_objetivos'],
+        rit: ['sgsst:politica_objetivos'],
+        participacion_ipevar: ['sgsst:participacion_ipevar'],
+        matriz_ipevar_oficial: ['sgsst:matriz_peligros'],
+        matriz_pesv_oficial: ['sgsst:matriz_pesv'],
+        matriz_compatibilidad_oficial: ['sgsst:matriz_compatibilidad'],
+        vulnerabilidad: ['sgsst:brigada'],
+        plan_emergencias: ['sgsst:brigada'],
+
+        // Hito 2 & Huella Biocéntrica
+        perfil_cargo: ['sgsst:perfil_sociodemografico_all'],
+        perfil_socio: ['sgsst:perfil_sociodemografico_all', 'sgsst:perfil_sociodemografico_self'],
+        condiciones_salud: ['sgsst:condiciones_salud'],
+        oraculo_predictivo: ['sgsst:condiciones_salud'],
+        peligros: ['sgsst:matriz_peligros'],
+
+        // Hito 3
+        copasst: ['sgsst:copasst'],
+        cocolab: ['sgsst:convivencia'],
+        convivencia: ['sgsst:convivencia'],
+        comite_pesv: ['sgsst:comite_pesv'],
+        brigada_emergencias: ['sgsst:brigada'],
+
+        // Hito 4
+        metodo_owas: ['sgsst:metodo_owas'],
+        estudio_puesto: ['sgsst:estudio_puesto'],
+        animo: ['sgsst:animo'],
+
+        // Hito 5
+        compras_sst: ['sgsst:epp'],
+        contratistas_proveedores: ['sgsst:perfil_sociodemografico_all'],
+        gestion_cambio: ['sgsst:analisis_trabajo_seguro'],
+        analisis_trabajo_seguro: ['sgsst:analisis_trabajo_seguro'],
+        permiso_alturas: ['sgsst:permiso_alturas'],
+        heights_lifecycle: ['sgsst:equipos_alturas'],
+        epp_delivery: ['sgsst:epp'],
+        chemical_registry: ['sgsst:matriz_compatibilidad'],
+        vehicles_pesv: ['sgsst:vehiculos'],
+        equipos_emergencia: ['sgsst:emergencias_equipos'],
+
+        // Hito 6
+        comunicaciones_sst: ['sgsst:programa_capacitaciones'],
+        capacitaciones: ['sgsst:programa_capacitaciones'],
+        ruta_aprendizaje: ['lms:ruta_aprendizaje', 'lms:aula_estudio'],
+        reporte_actos: ['sgsst:reporte_actos'],
+        simulacros_emergencia: ['sgsst:brigada'],
+        app_builder: ['sgsst:reporte_actos'],
+
+        // Hito 7
+        estadisticas: ['sgsst:estadisticas'],
+        investigacion_atel: ['sgsst:investigacion_atel'],
+        control_acpm: ['kanban:acpm'],
+        auditoria: ['audit:checklist'],
+        alta_direccion: ['sgsst:alta_direccion'],
+        investigacion_profunda: ['sgsst:investigacion_atel'],
+
+        // Hito 8
+        predictivo: ['sgsst:predictivo'],
+    }), []);
+
+    const checkSubUserCategoryAccess = useCallback((categoryId: string): boolean => {
+        if (!user?.isSubUser) return true;
+        const requiredPerms = CATEGORY_PERMISSION_MAP[categoryId];
+        if (!requiredPerms || requiredPerms.length === 0) return true;
+        const userPerms = user.subUserPermissions || [];
+        return requiredPerms.some(p => userPerms.includes(p));
+    }, [user?.isSubUser, user?.subUserPermissions, CATEGORY_PERMISSION_MAP]);
+
     useEffect(() => {
         const saved = localStorage.getItem(storageKey);
         if (saved) {
@@ -464,6 +541,11 @@ const PhaseDetail = ({
                                                         <Hammer className="w-3 h-3" /> En construcción
                                                     </span>
                                                 )}
+                                                {user?.isSubUser && !checkSubUserCategoryAccess(category.id) && (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-500/10 text-slate-600 dark:text-zinc-400 border border-slate-500/20">
+                                                        <Lock className="w-3 h-3 text-slate-500" /> Sin autorización
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -525,6 +607,16 @@ const PhaseDetail = ({
                                                 title={lockTitle}
                                                 description={lockDesc}
                                             />
+                                        ) : !checkSubUserCategoryAccess(category.id) ? (
+                                            <div className="p-6 md:p-8 rounded-2xl bg-surface-secondary/70 border border-border-medium/80 text-center max-w-lg mx-auto my-6 space-y-3">
+                                                <div className="w-12 h-12 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 mx-auto flex items-center justify-center border border-amber-500/20">
+                                                    <Lock className="w-6 h-6" />
+                                                </div>
+                                                <h4 className="text-base font-bold text-text-primary">Módulo No Autorizado para tu Rol</h4>
+                                                <p className="text-xs text-text-secondary leading-relaxed">
+                                                    Tu cuenta de colaborador no tiene asignado el permiso para acceder a <strong>{category.title}</strong>. Si requieres acceso para el desarrollo de tus funciones, solicita la autorización al Responsable del SG-SST o Administrador de tu empresa.
+                                                </p>
+                                            </div>
                                         ) : (
                                             <>
                                                 {/* Show DiagnosticoChecklist for diagnostico category */}

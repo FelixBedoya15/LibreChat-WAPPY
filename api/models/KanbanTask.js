@@ -95,6 +95,39 @@ const kanbanTaskSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: null,
     },
+    startTime: {
+      type: String,
+      trim: true,
+      default: '09:00',
+    },
+    endTime: {
+      type: String,
+      trim: true,
+      default: '10:00',
+    },
+    allDay: {
+      type: Boolean,
+      default: false,
+    },
+    emailAttendees: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
+    location: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    googleEventId: {
+      type: String,
+      trim: true,
+    },
+    googleHtmlLink: {
+      type: String,
+      trim: true,
+    },
   },
   {
     timestamps: true,

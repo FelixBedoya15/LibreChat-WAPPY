@@ -1070,7 +1070,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
       return res.status(400).json({ error: 'No se encontró empresa activa' });
     }
 
-    const { _id, title, description, dueDate, status, type, renewalDate } = req.body;
+    const { _id, title, description, dueDate, status, type, renewalDate, startTime, endTime, allDay, emailAttendees, location } = req.body;
 
     if (_id) {
       // Find task
@@ -1080,6 +1080,11 @@ router.post('/save', requireJwtAuth, async (req, res) => {
       }
 
       const updateData = { title, description, status, type };
+      if (startTime !== undefined) updateData.startTime = startTime;
+      if (endTime !== undefined) updateData.endTime = endTime;
+      if (allDay !== undefined) updateData.allDay = allDay;
+      if (emailAttendees !== undefined) updateData.emailAttendees = Array.isArray(emailAttendees) ? emailAttendees : (typeof emailAttendees === 'string' ? emailAttendees.split(',').map(s => s.trim()).filter(Boolean) : []);
+      if (location !== undefined) updateData.location = location;
 
       // If a renewal date is provided and this is a synchronized task with a referenceId
       if (renewalDate && task.referenceId) {
@@ -1242,6 +1247,11 @@ router.post('/save', requireJwtAuth, async (req, res) => {
         priority: req.body.priority || 'media',
         actionType: req.body.actionType || 'correctiva',
         assignedTo: req.body.assignedTo || '',
+        startTime: startTime || '09:00',
+        endTime: endTime || '10:00',
+        allDay: Boolean(allDay),
+        emailAttendees: Array.isArray(emailAttendees) ? emailAttendees : (typeof emailAttendees === 'string' ? emailAttendees.split(',').map(s => s.trim()).filter(Boolean) : []),
+        location: location || '',
       });
       lastSyncByCompany.delete(companyId.toString());
       return res.json(task);
@@ -1415,10 +1425,375 @@ router.delete('/delete/:id', requireJwtAuth, async (req, res) => {
       lastSyncByCompany.delete(task.companyId.toString());
     }
 
-    res.json({ success: true });
+    return res.json({ success: true });
   } catch (error) {
     logger.error('[SGSST Kanban] Delete error:', error);
-    res.status(500).json({ error: 'Error al eliminar la tarea' });
+    return res.status(500).json({ error: 'Error al eliminar la tarea' });
+  }
+});
+
+// ─── Helpers para Calendario, ICS y Google Calendar ─────────────────────────
+const generateIcsContent = ({ title, description, startDate, endDate, location, companyName }) => {
+  const formatIcsDate = (date) => {
+    return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  };
+  const now = new Date();
+  const uid = `wappy-sst-${Date.now()}-${Math.random().toString(36).substring(2, 9)}@wappy.club`;
+  const cleanTitle = (title || 'Compromiso SG-SST').replace(/\r?\n/g, ' ');
+  const cleanDesc = (description || '').replace(/\r?\n/g, '\\n');
+  const cleanLoc = (location || `Oficinas ${companyName || 'SG-SST'}`).replace(/\r?\n/g, ' ');
+
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//WAPPY IA//Centro de Control SST//ES',
+    'CALSCALE:GREGORIAN',
+    'METHOD:REQUEST',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTAMP:${formatIcsDate(now)}`,
+    `DTSTART:${formatIcsDate(startDate)}`,
+    `DTEND:${formatIcsDate(endDate)}`,
+    `SUMMARY:${cleanTitle}`,
+    `DESCRIPTION:${cleanDesc}`,
+    `LOCATION:${cleanLoc}`,
+    'STATUS:CONFIRMED',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+};
+
+const generateGoogleCalendarUrl = ({ title, description, startDate, endDate, location }) => {
+  const formatGCalDate = (d) => {
+    return new Date(d).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  };
+  const startStr = formatGCalDate(startDate);
+  const endStr = formatGCalDate(endDate || new Date(new Date(startDate).getTime() + 3600000));
+  const base = 'https://calendar.google.com/calendar/render?action=TEMPLATE';
+  const params = new URLSearchParams({
+    text: title || 'Compromiso SG-SST',
+    dates: `${startStr}/${endStr}`,
+    details: description ? `${description}\n\nAgendado desde el Centro de Control SST - WAPPY IA (wappy.club)` : 'Agendado desde el Centro de Control SST - WAPPY IA (wappy.club)',
+    location: location || 'Oficinas SG-SST',
+  });
+  return `${base}&${params.toString()}`;
+};
+
+// ─── POST /send-event-email — Enviar citación / invitación por correo ───────
+router.post('/send-event-email', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const companyId = await getActiveCompanyId(userId);
+    const company = companyId ? await CompanyInfo.findById(companyId).lean() : null;
+    const companyName = company?.companyName || 'WAPPY SG-SST';
+
+    const {
+      taskId,
+      recipients,
+      to,
+      subject,
+      customMessage,
+    } = req.body;
+
+    let task = null;
+    if (taskId) {
+      task = await KanbanTask.findOne({ _id: taskId, user: userId });
+    }
+
+    const title = req.body.title || task?.title || 'Compromiso SG-SST';
+    const description = req.body.description || task?.description || '';
+    const rawDueDate = req.body.dueDate || task?.dueDate || new Date();
+    const startTime = req.body.startTime || task?.startTime || '09:00';
+    const endTime = req.body.endTime || task?.endTime || '10:00';
+    const location = req.body.location || task?.location || companyName;
+
+    // Calcular fechas exactas
+    const dateBase = new Date(rawDueDate);
+    const dateStr = !isNaN(dateBase.getTime())
+      ? dateBase.toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0];
+
+    const [sh, sm] = startTime.split(':').map((n) => parseInt(n, 10) || 0);
+    const [eh, em] = endTime.split(':').map((n) => parseInt(n, 10) || 0);
+
+    const startDateTime = new Date(`${dateStr}T${String(sh).padStart(2, '0')}:${String(sm).padStart(2, '0')}:00-05:00`);
+    const endDateTime = new Date(`${dateStr}T${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}:00-05:00`);
+
+    const gcalUrl = generateGoogleCalendarUrl({
+      title,
+      description,
+      startDate: startDateTime,
+      endDate: endDateTime,
+      location,
+    });
+
+    const icsContent = generateIcsContent({
+      title,
+      description,
+      startDate: startDateTime,
+      endDate: endDateTime,
+      location,
+      companyName,
+    });
+
+    // Destinatarios
+    let emails = [];
+    if (recipients) {
+      if (Array.isArray(recipients)) emails = recipients;
+      else if (typeof recipients === 'string') emails = recipients.split(',').map((s) => s.trim()).filter(Boolean);
+    } else if (to) {
+      emails = Array.isArray(to) ? to : String(to).split(',').map((s) => s.trim()).filter(Boolean);
+    } else if (task?.emailAttendees && task.emailAttendees.length > 0) {
+      emails = task.emailAttendees;
+    }
+
+    if (emails.length === 0) {
+      return res.status(400).json({ error: 'Debes especificar al menos un correo destinatario.' });
+    }
+
+    const fechaFormateada = startDateTime.toLocaleDateString('es-CO', {
+      timeZone: 'America/Bogota',
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    const emailSubject = subject || `[Citación SG-SST] ${title} - ${companyName}`;
+
+    const htmlBody = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 20px; color: #1f2937; }
+    .card { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 18px; overflow: hidden; border: 1px solid #e5e7eb; box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+    .header { background: linear-gradient(135deg, #0d9488 0%, #047857 100%); padding: 30px 24px; color: #ffffff; text-align: left; }
+    .badge { display: inline-block; background: rgba(255,255,255,0.22); color: #ffffff; font-size: 11px; font-weight: 800; padding: 4px 12px; border-radius: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+    .title { font-size: 22px; font-weight: 800; margin: 0; line-height: 1.3; }
+    .content { padding: 28px 24px; }
+    .info-box { background: #f0fdfa; border: 1px solid #ccfbf1; border-radius: 14px; padding: 18px; margin: 20px 0; }
+    .info-row { display: flex; margin-bottom: 10px; font-size: 14px; }
+    .info-label { font-weight: 700; width: 130px; color: #0f766e; }
+    .info-value { flex: 1; color: #134e4a; font-weight: 500; }
+    .desc { font-size: 14px; line-height: 1.6; color: #4b5563; margin: 16px 0; }
+    .btn-container { text-align: center; margin: 26px 0 16px; }
+    .btn-gcal { display: inline-block; background: #0f766e; color: #ffffff !important; text-decoration: none; padding: 12px 24px; border-radius: 12px; font-weight: 700; font-size: 14px; box-shadow: 0 2px 6px rgba(15, 118, 110, 0.3); }
+    .footer { background: #f9fafb; padding: 18px 24px; text-align: center; font-size: 11px; color: #9ca3af; border-top: 1px solid #f3f4f6; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div class="badge">Centro de Control SG-SST · ${companyName}</div>
+      <h1 class="title">${title}</h1>
+    </div>
+    <div class="content">
+      <p style="font-size: 14px; color: #374151;">
+        Estimado(a) colaborador(a), se ha agendado la siguiente actividad obligatoria de Seguridad y Salud en el Trabajo:
+      </p>
+
+      <div class="info-box">
+        <div class="info-row"><span class="info-label">📅 Fecha:</span><span class="info-value" style="text-transform: capitalize;">${fechaFormateada}</span></div>
+        <div class="info-row"><span class="info-label">⏰ Horario:</span><span class="info-value">${startTime} a ${endTime} (Hora Colombia)</span></div>
+        ${location ? `<div class="info-row"><span class="info-label">📍 Ubicación:</span><span class="info-value">${location}</span></div>` : ''}
+        ${task?.assignedTo ? `<div class="info-row"><span class="info-label">👤 Responsable:</span><span class="info-value">${task.assignedTo}</span></div>` : ''}
+      </div>
+
+      ${description ? `<div class="desc"><strong>Detalles y Alcance:</strong><br>${description.replace(/\n/g, '<br>')}</div>` : ''}
+      ${customMessage ? `<div class="desc" style="background:#fffbeb; border:1px solid #fef3c7; padding:12px; border-radius:10px; color:#92400e;"><strong>Nota de la Coordinación SST:</strong><br>${customMessage}</div>` : ''}
+
+      <div class="btn-container">
+        <a href="${gcalUrl}" class="btn-gcal" target="_blank">
+          ➕ Añadir a mi Google Calendar
+        </a>
+      </div>
+      <p style="font-size: 12px; color: #6b7280; text-align: center; margin-top: 6px;">
+        También se adjunta el archivo oficial <strong>.ics</strong> para sincronizar automáticamente con Outlook, Apple Calendar o tu dispositivo móvil.
+      </p>
+    </div>
+    <div class="footer">
+      Mensaje oficial emitido por el Sistema de Gestión de Seguridad y Salud en el Trabajo (SG-SST) · Plataforma WAPPY IA (wappy.club).
+    </div>
+  </div>
+</body>
+</html>
+    `;
+
+    // Intentar enviar mediante sendEmail
+    const sendEmail = require('../../utils/sendEmail');
+    const sentResults = [];
+
+    for (const recipientEmail of emails) {
+      try {
+        await sendEmail({
+          email: recipientEmail,
+          subject: emailSubject,
+          html: htmlBody,
+          attachments: [
+            {
+              filename: 'invitacion-sst.ics',
+              content: icsContent,
+              contentType: 'text/calendar; charset=utf-8; method=REQUEST',
+            },
+          ],
+        });
+        sentResults.push({ email: recipientEmail, status: 'sent' });
+      } catch (mailErr) {
+        logger.error(`[Kanban] Error sending email to ${recipientEmail}:`, mailErr);
+        sentResults.push({ email: recipientEmail, status: 'error', error: mailErr.message });
+      }
+    }
+
+    // Actualizar emailAttendees en la tarea si existe
+    if (task) {
+      const mergedAttendees = Array.from(new Set([...(task.emailAttendees || []), ...emails]));
+      task.emailAttendees = mergedAttendees;
+      await task.save();
+    }
+
+    return res.json({
+      success: true,
+      mensaje: `Invitación enviada a ${sentResults.filter((r) => r.status === 'sent').length} destinatario(s).`,
+      detalles: sentResults,
+      googleCalendarUrl: gcalUrl,
+    });
+  } catch (error) {
+    logger.error('[SGSST Kanban] send-event-email error:', error);
+    return res.status(500).json({ error: `Error al enviar correo del evento: ${error.message}` });
+  }
+});
+
+// ─── POST /sync-google-calendar — Sincronizar tarea con Google Calendar ─────
+router.post('/sync-google-calendar', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const companyId = await getActiveCompanyId(userId);
+    const { taskId } = req.body;
+
+    if (!taskId) {
+      return res.status(400).json({ error: 'taskId es requerido para sincronizar.' });
+    }
+
+    const task = await KanbanTask.findOne({ _id: taskId, user: userId, companyId });
+    if (!task) {
+      return res.status(404).json({ error: 'Actividad no encontrada.' });
+    }
+
+    const dateBase = new Date(task.dueDate);
+    const dateStr = !isNaN(dateBase.getTime())
+      ? dateBase.toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0];
+
+    const startTime = task.startTime || '09:00';
+    const endTime = task.endTime || '10:00';
+    const [sh, sm] = startTime.split(':').map((n) => parseInt(n, 10) || 0);
+    const [eh, em] = endTime.split(':').map((n) => parseInt(n, 10) || 0);
+
+    const startDateTime = new Date(`${dateStr}T${String(sh).padStart(2, '0')}:${String(sm).padStart(2, '0')}:00-05:00`);
+    const endDateTime = new Date(`${dateStr}T${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}:00-05:00`);
+
+    const directWebUrl = generateGoogleCalendarUrl({
+      title: task.title,
+      description: task.description,
+      startDate: startDateTime,
+      endDate: endDateTime,
+      location: task.location,
+    });
+
+    let googleSynced = false;
+    let syncedLink = null;
+    let message = '';
+
+    try {
+      const { upsertCalendarEvent } = require('../../services/googleCalendar');
+      const gRes = await upsertCalendarEvent(
+        userId,
+        {
+          syncId: task._id.toString(),
+          title: task.title,
+          description: task.description,
+          startTime: startDateTime.toISOString(),
+          endTime: endDateTime.toISOString(),
+          location: task.location,
+        },
+        task._id.toString(),
+        companyId
+      );
+
+      if (gRes) {
+        googleSynced = true;
+        syncedLink = gRes.htmlLink || null;
+        task.googleEventId = gRes.id || task.googleEventId;
+        task.googleHtmlLink = syncedLink || task.googleHtmlLink;
+        await task.save();
+        message = '¡Evento sincronizado exitosamente con tu Google Calendar!';
+      }
+    } catch (gCalErr) {
+      logger.info(`[Kanban] Google Calendar no vinculado directamente via OAuth: ${gCalErr.message}`);
+    }
+
+    if (!googleSynced) {
+      message = 'Abre el enlace directo para añadir este evento a tu Google Calendar en 1 clic.';
+    }
+
+    return res.json({
+      success: true,
+      googleSynced,
+      googleCalendarUrl: directWebUrl,
+      syncedLink,
+      mensaje: message,
+    });
+  } catch (error) {
+    logger.error('[SGSST Kanban] sync-google-calendar error:', error);
+    return res.status(500).json({ error: `Error al sincronizar con Google Calendar: ${error.message}` });
+  }
+});
+
+// ─── GET /export-ics/:id — Descarga de archivo .ics ─────────────────────────
+router.get('/export-ics/:id', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    const task = await KanbanTask.findOne({ _id: id, user: userId });
+    if (!task) {
+      return res.status(404).json({ error: 'Actividad no encontrada.' });
+    }
+
+    const companyId = task.companyId || (await getActiveCompanyId(userId));
+    const company = companyId ? await CompanyInfo.findById(companyId).lean() : null;
+
+    const dateBase = new Date(task.dueDate);
+    const dateStr = !isNaN(dateBase.getTime())
+      ? dateBase.toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0];
+
+    const startTime = task.startTime || '09:00';
+    const endTime = task.endTime || '10:00';
+    const [sh, sm] = startTime.split(':').map((n) => parseInt(n, 10) || 0);
+    const [eh, em] = endTime.split(':').map((n) => parseInt(n, 10) || 0);
+
+    const startDateTime = new Date(`${dateStr}T${String(sh).padStart(2, '0')}:${String(sm).padStart(2, '0')}:00-05:00`);
+    const endDateTime = new Date(`${dateStr}T${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}:00-05:00`);
+
+    const icsContent = generateIcsContent({
+      title: task.title,
+      description: task.description,
+      startDate: startDateTime,
+      endDate: endDateTime,
+      location: task.location,
+      companyName: company?.companyName,
+    });
+
+    const safeFilename = task.title.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 30);
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename || 'evento-sst'}.ics"`);
+    return res.send(icsContent);
+  } catch (error) {
+    logger.error('[SGSST Kanban] export-ics error:', error);
+    return res.status(500).json({ error: 'Error al exportar archivo .ics' });
   }
 });
 

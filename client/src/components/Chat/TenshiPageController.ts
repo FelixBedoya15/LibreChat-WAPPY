@@ -371,6 +371,28 @@ export function getVisibleScreenContent(section?: string): string {
       lines.push('');
     }
 
+    // 1.26 Detección Especializada de Vista Calendario SST en Centro de Control
+    const calendarView = rootScope.querySelector<HTMLElement>('[data-tenshi-calendar="view"]');
+    if (calendarView) {
+      lines.push('=== VISTA CALENDARIO SST / CENTRO DE CONTROL (AGENDA Y CRONOGRAMA) ===');
+      const calendarHeader = calendarView.querySelector('h2')?.innerText?.trim();
+      if (calendarHeader) {
+        lines.push(`* PERÍODO VISIBLE: ${calendarHeader}`);
+      }
+      const visibleTasks = Array.from(calendarView.querySelectorAll<HTMLElement>('[title]'))
+        .map(el => el.getAttribute('title')?.trim())
+        .filter(Boolean);
+      const uniqueVisible = Array.from(new Set(visibleTasks));
+      if (uniqueVisible.length > 0) {
+        lines.push(`* ACTIVIDADES PROGRAMADAS EN PANTALLA (${uniqueVisible.length} detectadas):`);
+        uniqueVisible.slice(0, 15).forEach(t => lines.push(`  - ${t}`));
+        if (uniqueVisible.length > 15) {
+          lines.push(`  ... y ${uniqueVisible.length - 15} actividades más en este período.`);
+        }
+      }
+      lines.push('');
+    }
+
     // 1.28 Detección Especializada de Artículos de Blog y Lecciones de Cursos (.prose, [data-tenshi-article], etc.)
     const articleContentEl = rootScope.querySelector<HTMLElement>(
       '.prose, article, [data-tenshi-article], .blog-post-content, .lesson-content'
