@@ -55,24 +55,88 @@ export const GoogleFlowModal: React.FC<GoogleFlowModalProps> = ({
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { spawn } = require('child_process');
+const net = require('net');
+const { spawn, execSync } = require('child_process');
 
 const SERVER = '${serverOrigin}';
 const TOKEN = '${token || ''}';
-const PORT = 9230;
-const PROFILE = path.join(os.homedir(), '.wappy-notebooklm-auth');
+const PROFILE = path.join(os.homedir(), '.wappy-googleflow-auth');
 const TARGET = 'https://labs.google/fx/tools/flow';
 
-const bins = process.platform === 'darwin'
-  ? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge']
-  : process.platform === 'win32'
-  ? [path.join(process.env.PROGRAMFILES || 'C:\\\\Program Files', 'Google\\\\Chrome\\\\Application\\\\chrome.exe'), path.join(process.env['PROGRAMFILES(X86)'] || 'C:\\\\Program Files (x86)', 'Google\\\\Chrome\\\\Application\\\\chrome.exe'), path.join(process.env.LOCALAPPDATA || '', 'Google\\\\Chrome\\\\Application\\\\chrome.exe'), path.join(process.env['PROGRAMFILES(X86)'] || 'C:\\\\Program Files (x86)', 'Microsoft\\\\Edge\\\\Application\\\\msedge.exe')]
-  : ['/usr/bin/google-chrome', '/usr/bin/chromium-browser', '/usr/bin/brave-browser'];
+function findBrowser() {
+  const p = process.platform;
+  const home = os.homedir();
+  const candidates = p === 'darwin'
+    ? [
+        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        path.join(home, 'Applications/Google Chrome.app/Contents/MacOS/Google Chrome'),
+        '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+        path.join(home, 'Applications/Brave Browser.app/Contents/MacOS/Brave Browser'),
+        '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+        path.join(home, 'Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'),
+      ]
+    : p === 'win32'
+    ? [
+        path.join(process.env.PROGRAMFILES || 'C:\\\\Program Files', 'Google\\\\Chrome\\\\Application\\\\chrome.exe'),
+        path.join(process.env['PROGRAMFILES(X86)'] || 'C:\\\\Program Files (x86)', 'Google\\\\Chrome\\\\Application\\\\chrome.exe'),
+        path.join(process.env.LOCALAPPDATA || path.join(home, 'AppData\\\\Local'), 'Google\\\\Chrome\\\\Application\\\\chrome.exe'),
+        path.join(process.env.PROGRAMFILES || 'C:\\\\Program Files', 'BraveSoftware\\\\Brave-Browser\\\\Application\\\\brave.exe'),
+        path.join(process.env.LOCALAPPDATA || path.join(home, 'AppData\\\\Local'), 'BraveSoftware\\\\Brave-Browser\\\\Application\\\\brave.exe'),
+        path.join(process.env['PROGRAMFILES(X86)'] || 'C:\\\\Program Files (x86)', 'Microsoft\\\\Edge\\\\Application\\\\msedge.exe'),
+        path.join(process.env.PROGRAMFILES || 'C:\\\\Program Files', 'Microsoft\\\\Edge\\\\Application\\\\msedge.exe'),
+      ]
+    : ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium-browser', '/usr/bin/chromium', '/usr/bin/brave-browser', '/snap/bin/chromium'];
+  for (const c of candidates) { if (c && fs.existsSync(c)) return c; }
+  if (p === 'win32') {
+    for (const exe of ['chrome.exe', 'msedge.exe', 'brave.exe']) {
+      for (const hive of ['HKLM', 'HKCU']) {
+        try {
+          const out = execSync(\`reg query "\${hive}\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\App Paths\\\\\${exe}" /ve\`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+          const m = out.match(/REG_SZ\\s+(.+\\.exe)/i);
+          if (m && m[1] && fs.existsSync(m[1].trim())) return m[1].trim();
+        } catch (_) {}
+      }
+    }
+  }
+  return null;
+}
 
-const bin = bins.find((b) => fs.existsSync(b));
-if (!bin) { console.error('No se encontró Chrome, Brave o Edge.'); process.exit(1); }
+function getFreePort() {
+  return new Promise((resolve) => {
+    const srv = net.createServer();
+    srv.listen(0, '127.0.0.1', () => {
+      const port = srv.address().port;
+      srv.close(() => resolve(port));
+    });
+    srv.on('error', () => resolve(9230 + Math.floor(Math.random() * 500)));
+  });
+}
 
-const child = spawn(bin, [\`--remote-debugging-port=\${PORT}\`, '--remote-allow-origins=*', \`--user-data-dir=\${PROFILE}\`, '--no-first-run', '--no-default-browser-check', '--window-size=1080,780', \`--app=\${TARGET}\`], { stdio: 'ignore' });
+function cleanupProfile(dir) {
+  try {
+    if (process.platform === 'win32') {
+      execSync(\`powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*wappy-googleflow-auth*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"\`, { stdio: 'ignore' });
+    } else {
+      execSync('pkill -9 -f "wappy-googleflow-auth" || true', { stdio: 'ignore' });
+    }
+  } catch (_) {}
+  for (const lock of ['SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
+    try { fs.rmSync(path.join(dir, lock), { force: true }); } catch (_) {}
+  }
+}
+
+function bringToFront(bin, pid) {
+  setTimeout(() => {
+    try {
+      if (process.platform === 'darwin') {
+        const app = bin.includes('Brave') ? 'Brave Browser' : bin.includes('Edge') ? 'Microsoft Edge' : 'Google Chrome';
+        execSync(\`osascript -e 'tell application "\${app}" to activate'\`, { stdio: 'ignore' });
+      } else if (process.platform === 'win32' && pid) {
+        execSync(\`powershell -NoProfile -Command "(New-Object -ComObject WScript.Shell).AppActivate(\${pid})"\`, { stdio: 'ignore' });
+      }
+    } catch (_) {}
+  }, 1200);
+}
 
 function getCookies(wsUrl) {
   return new Promise((resolve, reject) => {
@@ -84,12 +148,38 @@ function getCookies(wsUrl) {
 }
 
 (async () => {
-  console.log('Abriendo ventana de conexión de Google Flow en tu computador...');
+  const bin = findBrowser();
+  if (!bin) { console.error('No se encontró Chrome, Brave o Edge.'); process.exit(1); }
+  cleanupProfile(PROFILE);
+  try { fs.mkdirSync(PROFILE, { recursive: true }); } catch (_) {}
+  let port = await getFreePort();
+  const launch = (dir, p) => {
+    const c = spawn(bin, [\`--remote-debugging-port=\${p}\`, '--remote-allow-origins=*', \`--user-data-dir=\${dir}\`, '--no-first-run', '--no-default-browser-check', '--new-window', '--window-size=1080,780', \`--app=\${TARGET}\`], { stdio: 'ignore' });
+    bringToFront(bin, c.pid);
+    return c;
+  };
+  console.log('Abriendo ventana de conexión de Google Flow en primer plano...');
+  let child = launch(PROFILE, port);
+  let ready = false;
+  for (let i = 0; i < 6; i++) {
+    await new Promise((r) => setTimeout(r, 1000));
+    try {
+      const list = await fetch(\`http://127.0.0.1:\${port}/json/list\`).then((r) => r.json());
+      if (Array.isArray(list)) { ready = true; break; }
+    } catch (_) {}
+  }
+  if (!ready) {
+    try { child.kill(); } catch (_) {}
+    port = await getFreePort();
+    const fallbackDir = path.join(os.tmpdir(), 'wappy-flow-' + Date.now());
+    fs.mkdirSync(fallbackDir, { recursive: true });
+    child = launch(fallbackDir, port);
+  }
   const start = Date.now();
   while (Date.now() - start < 180000) {
     await new Promise((r) => setTimeout(r, 2000));
     try {
-      const pages = await fetch(\`http://127.0.0.1:\${PORT}/json/list\`).then((r) => r.json());
+      const pages = await fetch(\`http://127.0.0.1:\${port}/json/list\`).then((r) => r.json());
       const page = pages.find((p) => p.webSocketDebuggerUrl && p.url && (p.url.includes('labs.google') || p.url.includes('google.com')) && !p.url.includes('accounts.google.com'));
       if (!page) continue;
       const all = await getCookies(page.webSocketDebuggerUrl);
@@ -142,28 +232,11 @@ Confírmame apenas se vincule mi sesión.`;
     navigator.clipboard.writeText(antigravityPrompt);
     setCopiedAg(true);
     setTimeout(() => setCopiedAg(false), 3000);
-    if (token) {
-      try {
-        const res = await fetch('/api/mcp-bridge/antigravity/launch-connector', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ service: 'googleflow', token }),
-        });
-        const data = await res.json();
-        if (data?.success) {
-          setFeedback({
-            type: 'success',
-            message:
-              '⚡ ¡Abriendo ventana de conexión directamente en tu computador! (También se copió la instrucción por si deseas pegarla en el chat de Antigravity).',
-          });
-        }
-      } catch {
-        // Fallback silencioso a portapapeles
-      }
-    }
+    setFeedback({
+      type: 'success',
+      message:
+        '📋 ¡Instrucción copiada! Pégala en el chat de tu Google Antigravity y se abrirá la ventana de conexión en primer plano.',
+    });
   };
 
   const handleCopyCmd = () => {

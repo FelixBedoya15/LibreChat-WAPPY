@@ -1002,16 +1002,15 @@ router.get('/connect-script', (req, res) => {
 
   const script = `#!/usr/bin/env node
 /**
- * WAPPY IA — Conector Privado 1-Clic para Google Flow / Creative Studio (Veo & Imagen)
- * Abre una ventana segura de Google Flow en tu computador, detecta tu sesión privada
- * y la vincula automáticamente con tu cuenta de WAPPY.
+ * WAPPY IA — Conector Local Multiplataforma para Google Flow / Studio
  */
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const net = require('net');
 const http = require('http');
 const crypto = require('crypto');
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 
 const SERVER_ORIGIN = ${JSON.stringify(serverOrigin)};
 const USER_TOKEN = ${JSON.stringify(token)};
@@ -1023,26 +1022,43 @@ if (!USER_TOKEN) {
 
 function findBrowserExecutable() {
   const platform = os.platform();
+  const home = os.homedir();
   const candidates = [];
   if (platform === 'darwin') {
     candidates.push(
       '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+      path.join(home, 'Applications/Google Chrome.app/Contents/MacOS/Google Chrome'),
       '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+      path.join(home, 'Applications/Brave Browser.app/Contents/MacOS/Brave Browser'),
       '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+      path.join(home, 'Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'),
+      '/Applications/Arc.app/Contents/MacOS/Arc',
       '/Applications/Chromium.app/Contents/MacOS/Chromium'
     );
   } else if (platform === 'win32') {
     const pf = process.env['PROGRAMFILES'] || 'C:\\\\Program Files';
     const pf86 = process.env['PROGRAMFILES(X86)'] || 'C:\\\\Program Files (x86)';
-    const local = process.env['LOCALAPPDATA'] || '';
+    const local = process.env['LOCALAPPDATA'] || path.join(home, 'AppData\\\\Local');
     candidates.push(
       path.join(pf, 'Google\\\\Chrome\\\\Application\\\\chrome.exe'),
       path.join(pf86, 'Google\\\\Chrome\\\\Application\\\\chrome.exe'),
       path.join(local, 'Google\\\\Chrome\\\\Application\\\\chrome.exe'),
       path.join(pf, 'BraveSoftware\\\\Brave-Browser\\\\Application\\\\brave.exe'),
+      path.join(pf86, 'BraveSoftware\\\\Brave-Browser\\\\Application\\\\brave.exe'),
+      path.join(local, 'BraveSoftware\\\\Brave-Browser\\\\Application\\\\brave.exe'),
       path.join(pf86, 'Microsoft\\\\Edge\\\\Application\\\\msedge.exe'),
-      path.join(pf, 'Microsoft\\\\Edge\\\\Application\\\\msedge.exe')
+      path.join(pf, 'Microsoft\\\\Edge\\\\Application\\\\msedge.exe'),
+      path.join(local, 'Microsoft\\\\Edge\\\\Application\\\\msedge.exe')
     );
+    for (const exe of ['chrome.exe', 'msedge.exe', 'brave.exe']) {
+      for (const hive of ['HKLM', 'HKCU']) {
+        try {
+          const out = execSync(\`reg query "\${hive}\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\App Paths\\\\\${exe}" /ve\`, { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' });
+          const m = out.match(/REG_SZ\\s+(.+\\.exe)/i);
+          if (m && m[1]) candidates.push(m[1].trim().replace(/^"|"$/g, ''));
+        } catch (_) {}
+      }
+    }
   } else {
     candidates.push(
       '/usr/bin/google-chrome',
@@ -1054,9 +1070,53 @@ function findBrowserExecutable() {
     );
   }
   for (const bin of candidates) {
-    if (fs.existsSync(bin)) return bin;
+    if (bin && fs.existsSync(bin)) return bin;
   }
   return null;
+}
+
+function getFreePort() {
+  return new Promise((resolve) => {
+    const srv = net.createServer();
+    srv.listen(0, '127.0.0.1', () => {
+      const port = srv.address().port;
+      srv.close(() => resolve(port));
+    });
+    srv.on('error', () => resolve(9230 + Math.floor(Math.random() * 500)));
+  });
+}
+
+function cleanupStaleProfile(profileDir) {
+  try {
+    fs.mkdirSync(profileDir, { recursive: true });
+    if (os.platform() === 'win32') {
+      try {
+        execSync(\`powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*wappy-notebooklm-auth*' -or $_.CommandLine -like '*wappy-googleflow-auth*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"\`, { stdio: 'ignore' });
+      } catch (_) {}
+    } else {
+      try {
+        execSync('pkill -f "wappy-notebooklm-auth|wappy-googleflow-auth"', { stdio: 'ignore' });
+      } catch (_) {}
+    }
+    for (const lockName of ['SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
+      const lp = path.join(profileDir, lockName);
+      try { fs.unlinkSync(lp); } catch (_) {}
+    }
+  } catch (_) {}
+}
+
+function bringWindowToFront(pid, browserBin) {
+  setTimeout(() => {
+    try {
+      if (os.platform() === 'darwin') {
+        const appMatch = browserBin.match(/\\/Applications\\/([^/]+)\\.app/);
+        const appName = appMatch ? appMatch[1] : 'Google Chrome';
+        execSync(\`osascript -e 'tell application "\${appName}" to activate'\`, { stdio: 'ignore' });
+      } else if (os.platform() === 'win32' && pid) {
+        execSync(\`powershell -NoProfile -Command "$ws = New-Object -ComObject WScript.Shell; [void]$ws.AppActivate(\${pid}); [void]$ws.AppActivate('Flow'); [void]$ws.AppActivate('Google')"\`, { stdio: 'ignore' });
+      }
+    } catch (_) {}
+  }, 1200);
 }
 
 function cdpSend(wsUrl, method, params = {}) {
@@ -1195,7 +1255,7 @@ async function uploadCookies(cookies, email = '') {
 }
 
 (async () => {
-  console.log('\\n🎨 WAPPY IA — Vinculación Privada de Google Flow / Studio (Veo & Imagen)');
+  console.log('\\n🎨 WAPPY IA — Conector de Módulo Creativo');
   console.log('----------------------------------------------------------------------');
 
   const browserBin = findBrowserExecutable();
@@ -1204,18 +1264,18 @@ async function uploadCookies(cookies, email = '') {
     process.exit(1);
   }
 
-  // Reutilizamos el perfil autenticado si ya inició sesión antes en NotebookLM
   const nbProfileDir = path.join(os.homedir(), '.wappy-notebooklm-auth');
-  const flowProfileDir = fs.existsSync(nbProfileDir)
+  let flowProfileDir = fs.existsSync(nbProfileDir)
     ? nbProfileDir
     : path.join(os.homedir(), '.wappy-googleflow-auth');
-  const debugPort = 9230;
+  cleanupStaleProfile(flowProfileDir);
+  let debugPort = await getFreePort();
 
-  console.log('🌐 Abriendo ventana segura de Google Labs / Flow en tu computador...');
-  console.log('👉 Si aún no has iniciado sesión en esa ventana, inicia sesión con tu cuenta de Google.');
-  console.log('⏳ Esperando a que cargue Google Flow (se vinculará automáticamente)...\\n');
+  console.log('🌐 Abriendo ventana en primer plano en tu computador...');
+  console.log('⏳ Detectando tu sesión (si ya iniciaste sesión antes, se cerrará sola en 3 segundos)...\\n');
 
-  const child = spawn(
+  let browserExited = false;
+  let child = spawn(
     browserBin,
     [
       \`--remote-debugging-port=\${debugPort}\`,
@@ -1223,20 +1283,60 @@ async function uploadCookies(cookies, email = '') {
       \`--user-data-dir=\${flowProfileDir}\`,
       '--no-first-run',
       '--no-default-browser-check',
-      '--window-size=1080,780',
+      '--new-window',
+      '--window-size=1100,800',
+      '--window-position=120,80',
       '--app=https://labs.google/fx/tools/flow',
     ],
-    { detached: false, stdio: 'ignore' }
+    { detached: false, stdio: 'ignore', windowsHide: false }
   );
+  child.on('exit', () => { browserExited = true; });
+  bringWindowToFront(child.pid, browserBin);
 
   const maxWaitMs = 180000;
   const start = Date.now();
+  let cdpConnectedOnce = false;
+  let retriedFreshProfile = false;
 
   while (Date.now() - start < maxWaitMs) {
     await new Promise((r) => setTimeout(r, 2000));
+
+    if (!cdpConnectedOnce && !retriedFreshProfile && (browserExited || Date.now() - start > 6000)) {
+      retriedFreshProfile = true;
+      browserExited = false;
+      try { child.kill(); } catch (_) {}
+      flowProfileDir = path.join(os.tmpdir(), 'wappy-flow-auth-' + Date.now());
+      fs.mkdirSync(flowProfileDir, { recursive: true });
+      debugPort = await getFreePort();
+      child = spawn(
+        browserBin,
+        [
+          \`--remote-debugging-port=\${debugPort}\`,
+          '--remote-allow-origins=*',
+          \`--user-data-dir=\${flowProfileDir}\`,
+          '--no-first-run',
+          '--no-default-browser-check',
+          '--new-window',
+          '--window-size=1100,800',
+          '--window-position=120,80',
+          '--app=https://labs.google/fx/tools/flow',
+        ],
+        { detached: false, stdio: 'ignore', windowsHide: false }
+      );
+      child.on('exit', () => { browserExited = true; });
+      bringWindowToFront(child.pid, browserBin);
+      continue;
+    }
+
+    if (browserExited && cdpConnectedOnce) {
+      console.error('⚠️ La ventana se cerró antes de completar la conexión. Vuelve a ejecutar el comando cuando estés listo.');
+      process.exit(1);
+    }
+
     try {
       const listRes = await fetch(\`http://127.0.0.1:\${debugPort}/json/list\`);
       const pages = await listRes.json();
+      cdpConnectedOnce = true;
       const flowPage = pages.find(
         (p) =>
           p.webSocketDebuggerUrl &&
@@ -1264,7 +1364,7 @@ async function uploadCookies(cookies, email = '') {
         console.log('✨ Sesión detectada. Verificando y vinculando con Google Flow en WAPPY...');
         const result = await uploadCookies(googleCookies);
         if (result.ok) {
-          console.log('✅ ' + (result.data.message || '¡Tu módulo de Google Flow quedó vinculado con éxito!'));
+          console.log('✅ ' + (result.data.message || '¡Módulo conectado con éxito!'));
           try { child.kill(); } catch (_) {}
           process.exit(0);
         }
