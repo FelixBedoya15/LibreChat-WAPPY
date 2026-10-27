@@ -9,14 +9,16 @@
     return;
   }
 
-  const STORAGE_PASS_KEY = 'wappy_ig_follow_pass_v3';
+  const STORAGE_PASS_KEY = 'wappy_ig_follow_pass_v4';
   const STORAGE_USER_KEY = 'wappy_ig_follow_username';
-  const STORAGE_CODE_KEY = 'wappy_ig_gate_code_v3';
+  const STORAGE_CODE_KEY = 'wappy_ig_gate_code_v4';
 
   function getOrCreateGateCode() {
     try {
       localStorage.removeItem('wappy_ig_follow_pass_v2');
       localStorage.removeItem('wappy_ig_gate_code_v2');
+      localStorage.removeItem('wappy_ig_follow_pass_v3');
+      localStorage.removeItem('wappy_ig_gate_code_v3');
       const existing = localStorage.getItem(STORAGE_CODE_KEY);
       if (existing && /^WAPPY-\d{4}$/.test(existing)) {
         return existing;
@@ -36,7 +38,7 @@
         localStorage.setItem(STORAGE_USER_KEY, username);
       }
       document.cookie =
-        'wappy_ig_follow_pass_v3=' +
+        'wappy_ig_follow_pass_v4=' +
         encodeURIComponent(passToken) +
         '; path=/; max-age=31536000; SameSite=Lax';
     } catch (e) {}
@@ -45,6 +47,7 @@
   function getStoredPass() {
     try {
       localStorage.removeItem('wappy_ig_follow_pass_v2');
+      localStorage.removeItem('wappy_ig_follow_pass_v3');
       return localStorage.getItem(STORAGE_PASS_KEY) || '';
     } catch (e) {
       return '';

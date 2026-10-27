@@ -2,14 +2,16 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Check, Copy, ExternalLink, MessageCircle, RefreshCw, ShieldCheck, Lock, X } from 'lucide-react';
 import type { WappyAppCatalogItem } from './wappyAppsCatalog';
 
-const STORAGE_PASS_KEY = 'wappy_ig_follow_pass_v3';
+const STORAGE_PASS_KEY = 'wappy_ig_follow_pass_v4';
 const STORAGE_USER_KEY = 'wappy_ig_follow_username';
-const STORAGE_CODE_KEY = 'wappy_ig_gate_code_v3';
+const STORAGE_CODE_KEY = 'wappy_ig_gate_code_v4';
 
 export function getOrCreateIgGateCode(): string {
   try {
     localStorage.removeItem('wappy_ig_follow_pass_v2');
     localStorage.removeItem('wappy_ig_gate_code_v2');
+    localStorage.removeItem('wappy_ig_follow_pass_v3');
+    localStorage.removeItem('wappy_ig_gate_code_v3');
     const existing = localStorage.getItem(STORAGE_CODE_KEY);
     if (existing && /^WAPPY-\d{4}$/.test(existing)) {
       return existing;
@@ -26,6 +28,7 @@ export function getOrCreateIgGateCode(): string {
 export function getStoredIgPass(): string | null {
   try {
     localStorage.removeItem('wappy_ig_follow_pass_v2');
+    localStorage.removeItem('wappy_ig_follow_pass_v3');
     return localStorage.getItem(STORAGE_PASS_KEY) || null;
   } catch (e) {
     return null;
@@ -46,7 +49,15 @@ export function saveStoredIgPass(passToken: string, username?: string | null) {
     if (username) {
       localStorage.setItem(STORAGE_USER_KEY, username);
     }
-    document.cookie = `wappy_ig_follow_pass_v3=${encodeURIComponent(passToken)}; path=/; max-age=31536000; SameSite=Lax`;
+    document.cookie = `wappy_ig_follow_pass_v4=${encodeURIComponent(passToken)}; path=/; max-age=31536000; SameSite=Lax`;
+  } catch (e) {}
+}
+
+export function clearStoredIgPass() {
+  try {
+    localStorage.removeItem(STORAGE_PASS_KEY);
+    localStorage.removeItem(STORAGE_CODE_KEY);
+    document.cookie = 'wappy_ig_follow_pass_v4=; path=/; max-age=0; SameSite=Lax';
   } catch (e) {}
 }
 
@@ -95,6 +106,9 @@ export function useInstagramFollowGate(onVerifiedSuccess?: (username?: string | 
             onVerifiedSuccess(data.username);
           }
         } else {
+          if (urlPass) {
+            clearStoredIgPass();
+          }
           setIsVerified(false);
         }
       })

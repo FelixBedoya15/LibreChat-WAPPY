@@ -548,7 +548,7 @@ function signIgPassToken(payloadObj) {
     return jwt.sign(
         {
             ...payloadObj,
-            scope: 'wappy_apps_ig_follower_v3',
+            scope: 'wappy_apps_ig_follower_v4',
             verifiedAt: Date.now(),
         },
         IG_GATE_SECRET,
@@ -556,11 +556,14 @@ function signIgPassToken(payloadObj) {
     );
 }
 
-function verifyIgPassToken(tokenStr) {
+function verifyIgPassToken(tokenStr, minVerifiedAt = 0) {
     if (!tokenStr || typeof tokenStr !== 'string') return null;
     try {
         const decoded = jwt.verify(tokenStr.trim(), IG_GATE_SECRET);
-        if (decoded && decoded.scope === 'wappy_apps_ig_follower_v3') {
+        if (decoded && decoded.scope === 'wappy_apps_ig_follower_v4') {
+            if (minVerifiedAt > 0 && Number(decoded.verifiedAt || 0) < minVerifiedAt) {
+                return null;
+            }
             return decoded;
         }
     } catch (e) {}
@@ -569,7 +572,8 @@ function verifyIgPassToken(tokenStr) {
 
 function setIgPassCookie(res, passToken) {
     res.clearCookie('wappy_ig_follow_pass_v2', { path: '/' });
-    res.cookie('wappy_ig_follow_pass_v3', passToken, {
+    res.clearCookie('wappy_ig_follow_pass_v3', { path: '/' });
+    res.cookie('wappy_ig_follow_pass_v4', passToken, {
         maxAge: 365 * 24 * 60 * 60 * 1000,
         httpOnly: false,
         sameSite: 'lax',
@@ -640,7 +644,7 @@ async function checkZernioFollowStatus(zernioApiKey, zernioAccountId, igScopedUs
 }
 
 let zernioConvCache = { ts: 0, list: [] };
-const REVOKED_OLD_CODES = new Set(['3659', '1863', '8705', '3642']);
+const REVOKED_OLD_CODES = new Set(['3659', '1863', '8705', '3642', '3519']);
 
 async function findSenderInZernioInbox({ zernioApiKey, zernioAccountId, digitsCode, normalizedCode, forceRefresh = false }) {
     if (!zernioApiKey || !zernioAccountId || (!digitsCode && !normalizedCode)) return null;
@@ -868,14 +872,53 @@ router.get('/ig-follow/status', async (req, res) => {
     try {
         const rawCookies = req.headers.cookie ? cookies.parse(req.headers.cookie) : {};
         res.clearCookie('wappy_ig_follow_pass_v2', { path: '/' });
+        res.clearCookie('wappy_ig_follow_pass_v3', { path: '/' });
         const candidateToken =
             req.query.ig_pass ||
             req.headers['x-wappy-ig-pass'] ||
-            rawCookies.wappy_ig_follow_pass_v3 ||
+            rawCookies.wappy_ig_follow_pass_v4 ||
             '';
 
-        const decoded = verifyIgPassToken(candidateToken);
+        const redis = getOpenReplyRedis();
+        let minVerifiedAt = 0;
+        if (redis) {
+            try {
+                if (redis.status === 'wait') await redis.connect().catch(() => {});
+                const rawMin = await redis.get('wappy:ig:min_verified_at').catch(() => null);
+                if (rawMin) minVerifiedAt = Number(rawMin) || 0;
+            } catch (e) {}
+        }
+
+        const decoded = verifyIgPassToken(candidateToken, minVerifiedAt);
         if (decoded) {
+            // Verificar en vivo si el usuario sigue siendo seguidor de @wappy_ia (si nos deja de seguir, se revoca el acceso de inmediato)
+            if (decoded.igUserId && decoded.igUserId !== 'openreply_dm_link' && /^\d+$/.test(String(decoded.igUserId))) {
+                try {
+                    const { apiKey: zernioApiKey, accountId: zernioAccountId } = await resolveZernioConfig(redis);
+                    const accessToken = await resolveCurrentIgAccessToken(redis);
+                    const [zernioCheck, metaCheck] = await Promise.all([
+                        zernioApiKey ? checkZernioFollowStatus(zernioApiKey, zernioAccountId, String(decoded.igUserId)) : Promise.resolve(null),
+                        accessToken ? checkMetaFollowStatus(accessToken, String(decoded.igUserId)) : Promise.resolve(null),
+                    ]);
+                    const effectiveFollow =
+                        typeof zernioCheck?.isFollower === 'boolean'
+                            ? zernioCheck.isFollower
+                            : typeof metaCheck?.isFollower === 'boolean'
+                              ? metaCheck.isFollower
+                              : null;
+
+                    if (effectiveFollow === false) {
+                        res.clearCookie('wappy_ig_follow_pass_v4', { path: '/' });
+                        return res.json({
+                            verified: false,
+                            unfollowed: true,
+                            username: decoded.username || null,
+                            message: 'Detectamos que dejaste de seguir a @wappy_ia. Vuelve a seguirnos para reactivar tu acceso.',
+                        });
+                    }
+                } catch (e) {}
+            }
+
             setIgPassCookie(res, candidateToken);
             return res.json({
                 verified: true,
@@ -883,6 +926,9 @@ router.get('/ig-follow/status', async (req, res) => {
                 name: decoded.name || null,
                 passToken: candidateToken,
             });
+        }
+        if (candidateToken) {
+            res.clearCookie('wappy_ig_follow_pass_v4', { path: '/' });
         }
 
         // Si viene redirigido desde el botón de DM de OpenReply (/r/wappy-apps -> ?ig_verified=wappy_ig_ok)
