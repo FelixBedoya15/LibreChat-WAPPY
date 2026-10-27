@@ -693,10 +693,22 @@ async def studio_generate(
                 res = await client.artifacts.generate_cinematic_video(nb_id, instructions=instructions)
             else:
                 res = await client.artifacts.generate_video(nb_id)
+        elif t in ("infographic", "infografia", "infografía"):
+            res = await client.artifacts.generate_infographic(
+                nb_id,
+                language=language or "es",
+                instructions=instructions,
+            )
+        elif t in ("data_table", "tabla", "tabla_datos", "table"):
+            res = await client.artifacts.generate_data_table(
+                nb_id,
+                language=language or "es",
+                instructions=instructions,
+            )
         else:
             raise ValueError(
                 f"Tipo de artefacto no reconocido: '{artifact_type}'. "
-                "Opciones válidas: audio, quiz, report, flashcards, mind_map, study_guide."
+                "Opciones válidas: audio, quiz, report, flashcards, mind_map, study_guide, slide_deck, video, infographic, data_table."
             )
 
         task_id = getattr(res, "task_id", getattr(res, "id", str(res)))
@@ -989,6 +1001,666 @@ async def research_import(
 
 
 # =============================================================================
+# HERRAMIENTAS AVANZADAS DE CUADERNOS, FUENTES, NOTAS, STUDIO Y COMPARTICIÓN
+# =============================================================================
+
+@mcp.tool()
+async def notebook_get_summary(
+    notebook: str,
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Obtiene el resumen ejecutivo automático, descripción y temas sugeridos por Gemini para todo el cuaderno."""
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        summary = await client.notebooks.get_summary(nb_id)
+        desc_obj = None
+        try:
+            desc_obj = await client.notebooks.get_description(nb_id)
+        except Exception:
+            pass
+        return {
+            "notebook_id": nb_id,
+            "summary": summary,
+            "description": str(getattr(desc_obj, "description", desc_obj or "")),
+            "suggested_topics": [
+                str(getattr(t, "topic", getattr(t, "title", t)))
+                for t in (getattr(desc_obj, "suggested_topics", []) or [])
+            ],
+        }
+    except Exception as e:
+        _handle_tool_error("notebook_get_summary", e)
+
+
+@mcp.tool()
+async def notebook_suggest_prompts(
+    notebook: str,
+    query: Optional[str] = None,
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Obtiene preguntas de investigación y próximos pasos sugeridos automáticamente por NotebookLM según las fuentes del cuaderno."""
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        if isinstance(input, dict):
+            query = input.get("query") or query
+
+        prompts = []
+        next_steps = []
+        try:
+            raw_prompts = await client.notebooks.suggest_prompts(nb_id, query=query)
+            prompts = [str(getattr(p, "prompt", getattr(p, "text", p))) for p in (raw_prompts or [])]
+        except Exception:
+            pass
+        try:
+            raw_steps = await client.notebooks.suggest_next_steps(nb_id)
+            next_steps = [str(getattr(s, "title", getattr(s, "prompt", s))) for s in (raw_steps or [])]
+        except Exception:
+            pass
+
+        return {
+            "notebook_id": nb_id,
+            "suggested_prompts": prompts,
+            "suggested_next_steps": next_steps,
+        }
+    except Exception as e:
+        _handle_tool_error("notebook_suggest_prompts", e)
+
+
+@mcp.tool()
+async def notebook_copy(
+    notebook: str,
+    new_title: str,
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Duplica (clona) un cuaderno completo de NotebookLM con todas sus fuentes bajo un nuevo título."""
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        if isinstance(input, dict):
+            new_title = input.get("new_title") or input.get("title") or new_title
+        copied = await client.notebooks.copy(nb_id, title=new_title)
+        return {
+            "status": "copied",
+            "source_notebook_id": nb_id,
+            "new_notebook_id": getattr(copied, "id", ""),
+            "title": getattr(copied, "title", new_title),
+        }
+    except Exception as e:
+        _handle_tool_error("notebook_copy", e)
+
+
+@mcp.tool()
+async def notebook_delete(
+    notebook: str,
+    confirm: bool = False,
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Elimina un cuaderno de NotebookLM. Requiere confirm=True explícitamente."""
+    try:
+        if isinstance(input, dict) and "confirm" in input:
+            confirm = bool(input.get("confirm"))
+        if not confirm:
+            return {
+                "status": "confirmation_required",
+                "message": "Por seguridad, para eliminar un cuaderno debes invocar notebook_delete con confirm=True tras autorización explícita del usuario.",
+            }
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        await client.notebooks.delete(nb_id)
+        return {"status": "deleted", "notebook_id": nb_id}
+    except Exception as e:
+        _handle_tool_error("notebook_delete", e)
+
+
+@mcp.tool()
+async def notebook_share(
+    notebook: str,
+    action: str = "status",
+    email: Optional[str] = None,
+    role: str = "viewer",
+    public: Optional[bool] = None,
+    welcome_message: str = "",
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """
+    Gestiona la compartición de un cuaderno de NotebookLM:
+    - action='status': Obtiene el estado de compartición y enlace para compartir.
+    - action='set_public': Activa o desactiva acceso por enlace público (public=True/False).
+    - action='add_user': Comparte el cuaderno con un correo (email, role='viewer'|'editor').
+    - action='remove_user': Revoca el acceso a un correo (email).
+    """
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        if isinstance(input, dict):
+            action = input.get("action") or action
+            email = input.get("email") or email
+            role = input.get("role") or role
+            if "public" in input:
+                public = bool(input.get("public"))
+            welcome_message = input.get("welcome_message") or welcome_message
+
+        act = (action or "status").lower().strip()
+        share_url = ""
+        try:
+            share_url = await client.notebooks.get_share_url(nb_id)
+        except Exception:
+            share_url = f"https://notebook.google.com/notebook/{nb_id}"
+
+        if act == "set_public":
+            status = await client.sharing.set_public(nb_id, bool(public if public is not None else True))
+            return {"status": "updated_public", "notebook_id": nb_id, "share_url": share_url, "details": str(status)}
+        elif act == "add_user":
+            if not email:
+                raise ValueError("El parámetro 'email' es obligatorio para action='add_user'.")
+            from notebooklm.types import SharePermission
+            perm = SharePermission.EDITOR if "edit" in role.lower() else SharePermission.VIEWER
+            status = await client.sharing.add_user(nb_id, email=email, permission=perm, notify=True, welcome_message=welcome_message)
+            return {"status": "user_added", "notebook_id": nb_id, "email": email, "role": role, "share_url": share_url, "details": str(status)}
+        elif act == "remove_user":
+            if not email:
+                raise ValueError("El parámetro 'email' es obligatorio para action='remove_user'.")
+            status = await client.sharing.remove_user(nb_id, email=email)
+            return {"status": "user_removed", "notebook_id": nb_id, "email": email, "details": str(status)}
+        else:
+            status = await client.sharing.get_status(nb_id)
+            return {"status": "ok", "notebook_id": nb_id, "share_url": share_url, "details": str(status)}
+    except Exception as e:
+        _handle_tool_error("notebook_share", e)
+
+
+@mcp.tool()
+async def source_add_file(
+    notebook: str,
+    file_path: str,
+    title: Optional[str] = None,
+    mime_type: Optional[str] = None,
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Sube un archivo local (PDF, TXT, Markdown, Audio, etc.) como fuente directa del cuaderno."""
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        if isinstance(input, dict):
+            file_path = input.get("file_path") or file_path
+            title = input.get("title") or title
+            mime_type = input.get("mime_type") or mime_type
+        src = await client.sources.add_file(nb_id, file_path=file_path, mime_type=mime_type, title=title, wait=True)
+        return {
+            "status": "added",
+            "notebook_id": nb_id,
+            "source_id": getattr(src, "id", ""),
+            "title": getattr(src, "title", title or file_path),
+        }
+    except Exception as e:
+        _handle_tool_error("source_add_file", e)
+
+
+@mcp.tool()
+async def source_add_drive(
+    notebook: str,
+    file_id: str,
+    title: Optional[str] = None,
+    mime_type: str = "application/vnd.google-apps.document",
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Vincula un documento de Google Drive (Docs, Slides, PDF) directamente al cuaderno usando su file_id."""
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        if isinstance(input, dict):
+            file_id = input.get("file_id") or input.get("document_id") or file_id
+            title = input.get("title") or title
+            mime_type = input.get("mime_type") or mime_type
+        src = await client.sources.add_drive(nb_id, file_id=file_id, title=title or "Documento de Drive", mime_type=mime_type, wait=True)
+        return {
+            "status": "added",
+            "notebook_id": nb_id,
+            "source_id": getattr(src, "id", ""),
+            "title": getattr(src, "title", title or file_id),
+        }
+    except Exception as e:
+        _handle_tool_error("source_add_drive", e)
+
+
+@mcp.tool()
+async def source_add_urls_batch(
+    notebook: str,
+    urls: List[str],
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Agrega múltiples URLs web o de YouTube simultáneamente en lote a un cuaderno."""
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        if isinstance(input, dict) and input.get("urls"):
+            urls = input.get("urls")
+        outcomes = await client.sources.add_urls_batch(nb_id, urls=urls)
+        return {
+            "status": "batch_completed",
+            "notebook_id": nb_id,
+            "requested_count": len(urls),
+            "outcomes": [str(o) for o in (outcomes or [])],
+        }
+    except Exception as e:
+        _handle_tool_error("source_add_urls_batch", e)
+
+
+@mcp.tool()
+async def source_get_fulltext(
+    notebook: str,
+    source_id: str,
+    output_format: str = "markdown",
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Extrae el texto completo indexado de una fuente específica del cuaderno (PDF, web, YouTube o documento)."""
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        if isinstance(input, dict):
+            source_id = input.get("source_id") or source_id
+            output_format = input.get("output_format") or output_format
+        fmt = "markdown" if output_format == "markdown" else "text"
+        ft = await client.sources.get_fulltext(nb_id, source_id, output_format=fmt)
+        return {
+            "notebook_id": nb_id,
+            "source_id": source_id,
+            "title": getattr(ft, "title", ""),
+            "content": getattr(ft, "content", getattr(ft, "text", str(ft))),
+        }
+    except Exception as e:
+        _handle_tool_error("source_get_fulltext", e)
+
+
+@mcp.tool()
+async def source_get_guide(
+    notebook: str,
+    source_id: str,
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Obtiene la guía de lectura, resumen individual y temas clave generados por Gemini para una fuente específica."""
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        if isinstance(input, dict):
+            source_id = input.get("source_id") or source_id
+        guide = await client.sources.get_guide(nb_id, source_id)
+        return {
+            "notebook_id": nb_id,
+            "source_id": source_id,
+            "summary": getattr(guide, "summary", str(guide)),
+            "keywords": getattr(guide, "keywords", []),
+        }
+    except Exception as e:
+        _handle_tool_error("source_get_guide", e)
+
+
+@mcp.tool()
+async def source_search(
+    notebook: str,
+    query: str,
+    limit: int = 10,
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Busca pasajes y fragmentos específicos dentro de las fuentes del cuaderno."""
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        if isinstance(input, dict):
+            query = input.get("query") or query
+            limit = int(input.get("limit") or limit)
+        chunks = await client.sources.search(nb_id, query=query, limit=limit)
+        return {
+            "notebook_id": nb_id,
+            "query": query,
+            "results": [
+                {
+                    "source_id": getattr(c, "source_id", ""),
+                    "text": getattr(c, "text", getattr(c, "content", str(c))),
+                    "score": getattr(c, "score", None),
+                }
+                for c in (chunks or [])
+            ],
+        }
+    except Exception as e:
+        _handle_tool_error("source_search", e)
+
+
+@mcp.tool()
+async def source_rename(
+    notebook: str,
+    source_id: str,
+    new_title: str,
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Cambia el título de una fuente específica dentro del cuaderno."""
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        if isinstance(input, dict):
+            source_id = input.get("source_id") or source_id
+            new_title = input.get("new_title") or input.get("title") or new_title
+        src = await client.sources.rename(nb_id, source_id, new_title)
+        return {
+            "status": "renamed",
+            "notebook_id": nb_id,
+            "source_id": source_id,
+            "title": getattr(src, "title", new_title),
+        }
+    except Exception as e:
+        _handle_tool_error("source_rename", e)
+
+
+@mcp.tool()
+async def source_append_text(
+    notebook: str,
+    source_id: str,
+    text: str,
+    header: str = "",
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Anexa texto adicional a una fuente de texto existente en el cuaderno."""
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        if isinstance(input, dict):
+            source_id = input.get("source_id") or source_id
+            text = input.get("text") or input.get("content") or text
+            header = input.get("header") or header
+        await client.sources.append_text(nb_id, source_id, text, header=header)
+        return {"status": "appended", "notebook_id": nb_id, "source_id": source_id}
+    except Exception as e:
+        _handle_tool_error("source_append_text", e)
+
+
+@mcp.tool()
+async def source_refresh(
+    notebook: str,
+    source_id: str,
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Actualiza/resincroniza el contenido de una fuente (Drive o URL) con su documento original."""
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        if isinstance(input, dict):
+            source_id = input.get("source_id") or source_id
+        await client.sources.refresh(nb_id, source_id)
+        return {"status": "refreshed", "notebook_id": nb_id, "source_id": source_id}
+    except Exception as e:
+        _handle_tool_error("source_refresh", e)
+
+
+@mcp.tool()
+async def source_delete(
+    notebook: str,
+    source_id: str,
+    confirm: bool = False,
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Elimina una fuente de un cuaderno. Requiere confirm=True explícitamente."""
+    try:
+        if isinstance(input, dict):
+            source_id = input.get("source_id") or source_id
+            if "confirm" in input:
+                confirm = bool(input.get("confirm"))
+        if not confirm:
+            return {
+                "status": "confirmation_required",
+                "message": "Por seguridad, para eliminar una fuente debes invocar source_delete con confirm=True.",
+            }
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        await client.sources.delete(nb_id, source_id)
+        return {"status": "deleted", "notebook_id": nb_id, "source_id": source_id}
+    except Exception as e:
+        _handle_tool_error("source_delete", e)
+
+
+@mcp.tool()
+async def note_list(
+    notebook: str,
+    input: Optional[Any] = None,
+) -> List[Dict[str, Any]]:
+    """Lista todas las notas guardadas dentro de un cuaderno de NotebookLM."""
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        notes = await client.notes.list(nb_id)
+        return [
+            {
+                "id": getattr(n, "id", ""),
+                "title": getattr(n, "title", ""),
+                "content": getattr(n, "content", ""),
+            }
+            for n in (notes or [])
+        ]
+    except Exception as e:
+        _handle_tool_error("note_list", e)
+
+
+@mcp.tool()
+async def note_create(
+    notebook: str,
+    title: str,
+    content: str,
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Crea una nueva nota escrita dentro del cuaderno de NotebookLM."""
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        if isinstance(input, dict):
+            title = input.get("title") or title
+            content = input.get("content") or input.get("text") or content
+        note = await client.notes.create(nb_id, title=title or "Nota WAPPY", content=content or "")
+        return {
+            "status": "created",
+            "notebook_id": nb_id,
+            "note_id": getattr(note, "id", ""),
+            "title": getattr(note, "title", title),
+        }
+    except Exception as e:
+        _handle_tool_error("note_create", e)
+
+
+@mcp.tool()
+async def note_update(
+    notebook: str,
+    note_id: str,
+    title: str,
+    content: str,
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Actualiza el título y contenido de una nota existente en el cuaderno."""
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        if isinstance(input, dict):
+            note_id = input.get("note_id") or note_id
+            title = input.get("title") or title
+            content = input.get("content") or input.get("text") or content
+        await client.notes.update(nb_id, note_id=note_id, content=content, title=title)
+        return {"status": "updated", "notebook_id": nb_id, "note_id": note_id, "title": title}
+    except Exception as e:
+        _handle_tool_error("note_update", e)
+
+
+@mcp.tool()
+async def note_delete(
+    notebook: str,
+    note_id: str,
+    confirm: bool = False,
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Elimina una nota del cuaderno. Requiere confirm=True."""
+    try:
+        if isinstance(input, dict):
+            note_id = input.get("note_id") or note_id
+            if "confirm" in input:
+                confirm = bool(input.get("confirm"))
+        if not confirm:
+            return {"status": "confirmation_required", "message": "Requiere confirm=True para eliminar la nota."}
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        await client.notes.delete(nb_id, note_id)
+        return {"status": "deleted", "notebook_id": nb_id, "note_id": note_id}
+    except Exception as e:
+        _handle_tool_error("note_delete", e)
+
+
+@mcp.tool()
+async def chat_configure(
+    notebook: str,
+    custom_prompt: Optional[str] = None,
+    response_length: Optional[str] = None,
+    action: str = "configure",
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """
+    Configura el comportamiento del chat del cuaderno (custom_prompt, response_length='default'|'shorter'|'longer')
+    o consulta el historial de conversación del cuaderno (action='history').
+    """
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        if isinstance(input, dict):
+            custom_prompt = input.get("custom_prompt") or custom_prompt
+            response_length = input.get("response_length") or response_length
+            action = input.get("action") or action
+
+        if (action or "").lower() == "history":
+            history = await client.chat.get_history(nb_id, limit=50)
+            return {"notebook_id": nb_id, "history": history}
+
+        from notebooklm.types import ChatResponseLength
+        length_enum = None
+        if response_length:
+            rl = response_length.lower()
+            if "short" in rl or "cort" in rl:
+                length_enum = ChatResponseLength.SHORTER
+            elif "long" in rl or "larg" in rl:
+                length_enum = ChatResponseLength.LONGER
+            else:
+                length_enum = ChatResponseLength.DEFAULT
+
+        await client.chat.configure(nb_id, response_length=length_enum, custom_prompt=custom_prompt)
+        return {
+            "status": "configured",
+            "notebook_id": nb_id,
+            "custom_prompt": custom_prompt,
+            "response_length": response_length or "default",
+        }
+    except Exception as e:
+        _handle_tool_error("chat_configure", e)
+
+
+@mcp.tool()
+async def studio_export(
+    notebook: str,
+    artifact_id: str,
+    title: str = "Exportación WAPPY SST",
+    export_to: str = "docs",
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Exporta un informe o tabla de datos generada en el Studio directamente a Google Docs ('docs') o Google Sheets ('sheets')."""
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        if isinstance(input, dict):
+            artifact_id = input.get("artifact_id") or artifact_id
+            title = input.get("title") or title
+            export_to = input.get("export_to") or export_to
+
+        if "sheet" in (export_to or "").lower() or "tabla" in (export_to or "").lower():
+            res = await client.artifacts.export_data_table(nb_id, artifact_id=artifact_id, title=title)
+        else:
+            res = await client.artifacts.export_report(nb_id, artifact_id=artifact_id, title=title)
+        return {
+            "status": "exported",
+            "notebook_id": nb_id,
+            "artifact_id": artifact_id,
+            "title": title,
+            "result": str(res),
+        }
+    except Exception as e:
+        _handle_tool_error("studio_export", e)
+
+
+@mcp.tool()
+async def studio_revise_slide(
+    notebook: str,
+    artifact_id: str,
+    slide_index: int,
+    prompt: str,
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Revisa y modifica una diapositiva específica (slide_index) de una presentación generada en el Studio usando una instrucción (prompt)."""
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        if isinstance(input, dict):
+            artifact_id = input.get("artifact_id") or artifact_id
+            slide_index = int(input.get("slide_index") if input.get("slide_index") is not None else slide_index)
+            prompt = input.get("prompt") or prompt
+        res = await client.artifacts.revise_slide(nb_id, artifact_id=artifact_id, slide_index=slide_index, prompt=prompt)
+        return {
+            "status": getattr(res, "status", "in_progress"),
+            "notebook_id": nb_id,
+            "artifact_id": artifact_id,
+            "slide_index": slide_index,
+        }
+    except Exception as e:
+        _handle_tool_error("studio_revise_slide", e)
+
+
+@mcp.tool()
+async def studio_manage(
+    notebook: str,
+    artifact_id: str,
+    action: str = "rename",
+    new_title: Optional[str] = None,
+    confirm: bool = False,
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """
+    Gestiona un artefacto existente del Studio:
+    - action='rename': Cambia el título del artefacto (new_title).
+    - action='retry': Reintenta un artefacto cuya generación haya fallado.
+    - action='delete': Elimina el artefacto (requiere confirm=True).
+    """
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        if isinstance(input, dict):
+            artifact_id = input.get("artifact_id") or artifact_id
+            action = input.get("action") or action
+            new_title = input.get("new_title") or input.get("title") or new_title
+            if "confirm" in input:
+                confirm = bool(input.get("confirm"))
+
+        act = (action or "rename").lower().strip()
+        if act == "rename":
+            if not new_title:
+                raise ValueError("Se requiere 'new_title' para action='rename'.")
+            art = await client.artifacts.rename(nb_id, artifact_id, new_title)
+            return {"status": "renamed", "notebook_id": nb_id, "artifact_id": artifact_id, "title": getattr(art, "title", new_title)}
+        elif act == "retry":
+            res = await client.artifacts.retry_failed(nb_id, artifact_id)
+            return {"status": "retried", "notebook_id": nb_id, "artifact_id": artifact_id, "details": str(res)}
+        elif act == "delete":
+            if not confirm:
+                return {"status": "confirmation_required", "message": "Requiere confirm=True para eliminar un artefacto del Studio."}
+            await client.artifacts.delete(nb_id, artifact_id)
+            return {"status": "deleted", "notebook_id": nb_id, "artifact_id": artifact_id}
+        else:
+            raise ValueError(f"Acción no soportada en studio_manage: {action}")
+    except Exception as e:
+        _handle_tool_error("studio_manage", e)
+
+
+# =============================================================================
 # ENDPOINT HTTP DIRECTO PARA TENSHI / SERVICIOS INTERNOS
 # =============================================================================
 
@@ -1007,18 +1679,41 @@ async def direct_tool_handler(request: Request) -> JSONResponse:
         tool_name = body.get("name") or body.get("tool") or ""
         tool_args = body.get("arguments") or body.get("args") or {}
 
-        # Mapeo de herramientas disponibles
+        # Mapeo de las 35 herramientas disponibles
         tools_map = {
             "notebook_list": notebook_list,
             "notebook_create": notebook_create,
             "notebook_rename": notebook_rename,
+            "notebook_get_summary": notebook_get_summary,
+            "notebook_suggest_prompts": notebook_suggest_prompts,
+            "notebook_copy": notebook_copy,
+            "notebook_delete": notebook_delete,
+            "notebook_share": notebook_share,
             "source_list": source_list,
             "source_add": source_add,
+            "source_add_file": source_add_file,
+            "source_add_drive": source_add_drive,
+            "source_add_urls_batch": source_add_urls_batch,
+            "source_get_fulltext": source_get_fulltext,
+            "source_get_guide": source_get_guide,
+            "source_search": source_search,
+            "source_rename": source_rename,
+            "source_append_text": source_append_text,
+            "source_refresh": source_refresh,
+            "source_delete": source_delete,
+            "note_list": note_list,
+            "note_create": note_create,
+            "note_update": note_update,
+            "note_delete": note_delete,
             "chat_ask": chat_ask,
+            "chat_configure": chat_configure,
             "studio_generate": studio_generate,
             "studio_status": studio_status,
             "studio_download": studio_download,
             "studio_list": studio_list,
+            "studio_export": studio_export,
+            "studio_revise_slide": studio_revise_slide,
+            "studio_manage": studio_manage,
             "research_start": research_start,
             "research_import": research_import,
         }
