@@ -161,16 +161,20 @@
       statusBox.textContent = msg;
     }
 
+    let actionClicked = false;
+
     function markActionStarted() {
+      actionClicked = true;
       try {
         localStorage.setItem('wappy_ig_action_started', String(Date.now()));
       } catch (e) {}
     }
 
     function hasStartedActionReady() {
+      if (actionClicked) return true;
       try {
         const ts = Number(localStorage.getItem('wappy_ig_action_started') || '0');
-        return ts > 0 && Date.now() - ts >= 4500;
+        return ts > 0 && Date.now() - ts <= 24 * 60 * 60 * 1000;
       } catch (e) {
         return false;
       }
@@ -215,10 +219,11 @@
         btnVerify.disabled = true;
       }
       try {
-        const isConfirmed = !silent || hasStartedActionReady();
+        const isConfirmed = hasStartedActionReady();
         const url =
           '/api/comunidad/ig-follow/verify?code=' +
           encodeURIComponent(gateCode) +
+          (!silent ? '&explicit=1' : '') +
           (isConfirmed ? '&confirmed=1' : '');
         const resp = await fetch(url, { credentials: 'include' });
         const data = await resp.json();
@@ -254,7 +259,6 @@
 
     if (btnVerify) {
       btnVerify.addEventListener('click', function () {
-        markActionStarted();
         checkNow(false);
       });
     }

@@ -705,7 +705,10 @@ router.get('/ig-follow/status', async (req, res) => {
                 try {
                     if (redis.status === 'wait') await redis.connect();
                     const encryptedToken = await redis.get('wappy:ig:access_token_enc').catch(() => null);
-                    const accessToken = encryptedToken ? decryptOpenReplyToken(encryptedToken) : null;
+                    const accessToken =
+                        (encryptedToken ? decryptOpenReplyToken(encryptedToken) : null) ||
+                        process.env.INSTAGRAM_ACCESS_TOKEN ||
+                        null;
                     currentFollowers = await fetchLiveMetaFollowersCount(accessToken);
                     if (typeof currentFollowers === 'number') {
                         const baseline = await ensureBaselineForCode(redis, codeKey, currentFollowers);
@@ -813,16 +816,27 @@ async function handleVerifyIgFollow(req, res) {
         }
 
         const targetSenderId = matchedSenderId || recentFallbackSenderId;
-        const accessToken = encryptedToken ? decryptOpenReplyToken(encryptedToken) : null;
+        const accessToken =
+            (encryptedToken ? decryptOpenReplyToken(encryptedToken) : null) ||
+            process.env.INSTAGRAM_ACCESS_TOKEN ||
+            null;
+        const isExplicitVerify = req.query.explicit === '1' || req.body?.explicit === true;
+        const hasCompletedAction = req.query.confirmed === '1' || req.body?.confirmed === true;
 
         if (!targetSenderId) {
-            // Si Meta no entregó el webhook de DM (ej. cuenta de usuario externo sin rol Tester en Meta Development Mode),
-            // discriminamos en tiempo real contra el contador oficial de seguidores de @wappy_ia en Meta Graph API:
-            // Solo desbloquea si el contador real de seguidores de @wappy_ia subió (+1) respecto a la línea base de la sesión.
+            // 1. Verificar contador en tiempo real de @wappy_ia en Meta Graph API:
+            //    - Si el contador subió (+1), desbloquea automáticamente (tanto en sondeo en vivo como en clic manual).
+            //    - Si el usuario YA seguía a @wappy_ia desde antes (currentFollowers >= baseline.minFollowers),
+            //      abrió el Paso 1 o Paso 2 (hasCompletedAction) y pulsó explícitamente "Ya seguí — Entrar ahora" (isExplicitVerify),
+            //      desbloquea sin obligarlo a dejar de seguir y volver a seguir.
             const currentFollowers = await fetchLiveMetaFollowersCount(accessToken);
             if (typeof currentFollowers === 'number') {
                 const baseline = await ensureBaselineForCode(redis, codeKey, currentFollowers);
-                if (currentFollowers > baseline.minFollowers) {
+                const followerIncreased = currentFollowers > baseline.minFollowers;
+                const existingFollowerVerified =
+                    isExplicitVerify && hasCompletedAction && currentFollowers >= baseline.minFollowers;
+
+                if (followerIncreased || existingFollowerVerified) {
                     const passToken = signIgPassToken({
                         igUserId: `ig_follower_${digitsCode || Date.now()}`,
                         username: 'seguidor_wappy_ia',
@@ -836,7 +850,18 @@ async function handleVerifyIgFollow(req, res) {
                         username: 'wappy_ia',
                         passToken,
                         followersCount: currentFollowers,
-                        message: '¡Seguimiento verificado en tiempo real en @wappy_ia! Acceso desbloqueado.',
+                        message: '¡Seguimiento verificado en @wappy_ia! Acceso desbloqueado.',
+                    });
+                }
+
+                if (isExplicitVerify && !hasCompletedAction) {
+                    return res.json({
+                        verified: false,
+                        status: 'NOT_FOLLOWING_YET',
+                        followersCount: currentFollowers,
+                        baselineFollowers: baseline.minFollowers,
+                        message:
+                            '⚠️ Primero pulsa "Seguir" en el Paso 1 o "Enviar DM" en el Paso 2 para validar tu seguimiento en @wappy_ia.',
                     });
                 }
 
@@ -846,15 +871,30 @@ async function handleVerifyIgFollow(req, res) {
                     followersCount: currentFollowers,
                     baselineFollowers: baseline.minFollowers,
                     message:
-                        `⚠️ Meta nos indica que aún no has empezado a seguir a @wappy_ia (Seguidores actuales: ${currentFollowers}). ` +
-                        `Ve a @wappy_ia en Instagram, toca el botón "Seguir" (si ya nos seguías antes, deja de seguir y vuelve a tocar "Seguir" para registrar tu verificación en vivo) y luego toca "Verificar ahora".`,
+                        `⚠️ Aún no detectamos tu seguimiento en @wappy_ia. Abre el Paso 1 ("Seguir") o envía el código por DM en el Paso 2 y luego pulsa "Entrar ahora".`,
+                });
+            }
+
+            if (isExplicitVerify && hasCompletedAction) {
+                const passToken = signIgPassToken({
+                    igUserId: `ig_follower_${digitsCode || Date.now()}`,
+                    username: 'seguidor_wappy_ia',
+                    code: rawCode || 'DM',
+                });
+                setIgPassCookie(res, passToken);
+                return res.json({
+                    verified: true,
+                    status: 'FOLLOWING',
+                    username: 'wappy_ia',
+                    passToken,
+                    message: '¡Seguimiento verificado en @wappy_ia! Acceso desbloqueado.',
                 });
             }
 
             return res.json({
                 verified: false,
                 status: 'WAITING_DM',
-                message: 'Sigue a @wappy_ia en el Paso 1, envía tu código en el Paso 2 y luego presiona "Verificar ahora".',
+                message: 'Sigue a @wappy_ia en el Paso 1, envía tu código en el Paso 2 y luego presiona "Entrar ahora".',
             });
         }
 

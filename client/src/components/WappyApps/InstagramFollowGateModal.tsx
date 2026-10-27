@@ -173,16 +173,16 @@ export default function InstagramFollowGateModal({
         setIsChecking(true);
       }
       try {
-        let actionReady = !silent || step1Clicked || step2Clicked;
+        let actionReady = step1Clicked || step2Clicked;
         try {
           const ts = Number(localStorage.getItem('wappy_ig_action_started') || '0');
-          if (ts > 0 && Date.now() - ts >= 4500) {
+          if (ts > 0 && Date.now() - ts <= 24 * 60 * 60 * 1000) {
             actionReady = true;
           }
         } catch (e) {}
 
         const res = await fetch(
-          `/api/comunidad/ig-follow/verify?code=${encodeURIComponent(gateCode)}${actionReady ? '&confirmed=1' : ''}`,
+          `/api/comunidad/ig-follow/verify?code=${encodeURIComponent(gateCode)}${!silent ? '&explicit=1' : ''}${actionReady ? '&confirmed=1' : ''}`,
           {
             method: 'GET',
             credentials: 'include',
@@ -412,7 +412,6 @@ export default function InstagramFollowGateModal({
           <button
             type="button"
             onClick={() => {
-              markActionStarted();
               checkVerificationNow(false);
             }}
             disabled={isChecking}
