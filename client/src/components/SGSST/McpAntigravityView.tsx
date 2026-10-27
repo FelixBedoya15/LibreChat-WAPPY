@@ -174,14 +174,25 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { execFile } = require('child_process');
+const { execFileSync } = require('child_process');
 
 const WAPPY_URL = '${originUrl}';
 const API_KEY = '${key}';
 const agyDir = path.join(os.homedir(), '.gemini', 'antigravity');
+const convDir = path.join(agyDir, 'conversations');
 const threadFile = path.join(agyDir, 'wappy-tenshi-thread.json');
+const pidFile = path.join(agyDir, 'wappy-push-daemon.pid');
 const binName = process.platform === 'win32' ? 'agentapi.exe' : 'agentapi';
 const agentBin = path.join(agyDir, 'bin', binName);
+
+fs.mkdirSync(agyDir, { recursive: true });
+if (fs.existsSync(pidFile)) {
+  try {
+    const oldPid = parseInt(fs.readFileSync(pidFile, 'utf8').trim(), 10);
+    if (oldPid && oldPid !== process.pid) process.kill(oldPid, 'SIGTERM');
+  } catch (_) {}
+}
+fs.writeFileSync(pidFile, String(process.pid), 'utf8');
 
 function connectStream() {
   https.get(\`\${WAPPY_URL}/api/mcp-bridge/antigravity/stream?apiKey=\${API_KEY}\`, (res) => {
@@ -204,23 +215,68 @@ function connectStream() {
 }
 
 function handleOrden(orden) {
-  const id = orden.id || orden._id;
+  const id = String(orden.id || orden._id || '').trim();
   if (!id) return;
-  const req = https.request(\`\${WAPPY_URL}/api/mcp-bridge/antigravity/ordenes/\${id}/claim?apiKey=\${API_KEY}\`, { method: 'POST' }, (res) => {
-    if (res.statusCode !== 200) return;
-    const prompt = \`[Consulta de Tenshi #\${id}]: \${orden.instruccion || orden.pregunta}\\n\\nAl responder, envía el resultado a Tenshi usando la herramienta MCP wappy_completar_orden_delegada_tenshi con ordenId="\${id}".\`;
-    let convoId = '';
-    if (!orden.nuevoChat && fs.existsSync(threadFile)) {
+  const req = https.request(\`\${WAPPY_URL}/api/mcp-bridge/antigravity/ordenes/\${encodeURIComponent(id)}/claim?apiKey=\${API_KEY}\`, { method: 'POST' }, (res) => {
+    let body = '';
+    res.on('data', (c) => (body += c));
+    res.on('end', () => {
+      if (res.statusCode !== 200) return;
       try {
-        const saved = JSON.parse(fs.readFileSync(threadFile, 'utf8'));
-        if (saved.conversationId && Date.now() - (saved.lastUsedAt || 0) < 7200000) convoId = saved.conversationId;
+        const parsed = JSON.parse(body);
+        if (parsed && parsed.claimed === false) return;
       } catch (_) {}
-    }
-    const args = convoId ? ['send', convoId, prompt] : ['new-conversation', os.homedir(), prompt];
-    execFile(agentBin, args, () => {});
+      dispatchToAgent(id, orden);
+    });
   });
   req.on('error', () => {});
   req.end();
+}
+
+function dispatchToAgent(id, orden) {
+  const titulo = String(orden.titulo || orden.title || 'Consulta de Tenshi').slice(0, 60);
+  const instruccion = orden.instruccion || orden.descripcion || orden.pregunta || '';
+  const formato = String(orden.formatoEntregable || orden.formato || 'respuesta').toLowerCase().trim();
+  const prompt = [
+    \`⚡ [ORDEN EN TIEMPO REAL DE TENSHI — WAPPY]\`,
+    \`ID de Orden: \${id}\`,
+    \`Formato Solicitado: \${formato}\`,
+    \`Instrucción del Usuario:\`,
+    instruccion,
+    \`\`,
+    \`Usa tus herramientas MCP de 'wappy' si necesitas consultar datos de la empresa. Al finalizar, invoca OBLIGATORIAMENTE la herramienta MCP 'wappy_completar_orden_delegada_tenshi' enviando ordenId="\${id}", formato="\${formato === 'html' ? 'html' : formato === 'documento' ? 'documento' : 'respuesta'}", resultado (resumen o respuesta directa) y contenido (Markdown o HTML si aplica).\`,
+  ].join('\\n');
+
+  const forceNew = /(nuevo chat|nueva conversaci|desde cero)/i.test(\`\${titulo} \${instruccion}\`);
+  let convoId = '';
+  if (!forceNew && fs.existsSync(threadFile)) {
+    try {
+      const saved = JSON.parse(fs.readFileSync(threadFile, 'utf8'));
+      if (saved.conversationId && Date.now() - (saved.lastUsedAt || 0) < 7200000 && fs.existsSync(path.join(convDir, \`\${saved.conversationId}.db\`))) {
+        convoId = saved.conversationId;
+      }
+    } catch (_) {}
+  }
+
+  if (convoId) {
+    try {
+      execFileSync(agentBin, ['send-message', \`--title=⚡ Tenshi: \${titulo}\`, convoId, prompt], { cwd: os.homedir(), timeout: 15000 });
+      fs.writeFileSync(threadFile, JSON.stringify({ conversationId: convoId, lastUsedAt: Date.now() }, null, 2), 'utf8');
+      return;
+    } catch (_) {}
+  }
+
+  try {
+    const before = new Set(fs.existsSync(convDir) ? fs.readdirSync(convDir).filter((f) => f.endsWith('.db')).map((f) => f.replace(/\\.db$/, '')) : []);
+    const out = execFileSync(agentBin, ['new-conversation', \`--title=⚡ Tenshi: \${titulo}\`, prompt], { cwd: os.homedir(), encoding: 'utf8', timeout: 15000 }) || '';
+    const match = out.match(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
+    let newId = match ? match[0] : '';
+    if (!newId && fs.existsSync(convDir)) {
+      const added = fs.readdirSync(convDir).filter((f) => f.endsWith('.db')).map((f) => f.replace(/\\.db$/, '')).filter((x) => !before.has(x));
+      if (added.length > 0) newId = added[0];
+    }
+    if (newId) fs.writeFileSync(threadFile, JSON.stringify({ conversationId: newId, lastUsedAt: Date.now() }, null, 2), 'utf8');
+  } catch (_) {}
 }
 
 connectStream();
