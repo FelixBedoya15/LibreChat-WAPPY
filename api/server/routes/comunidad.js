@@ -548,7 +548,7 @@ function signIgPassToken(payloadObj) {
     return jwt.sign(
         {
             ...payloadObj,
-            scope: 'wappy_apps_ig_follower',
+            scope: 'wappy_apps_ig_follower_v2',
             verifiedAt: Date.now(),
         },
         IG_GATE_SECRET,
@@ -560,7 +560,7 @@ function verifyIgPassToken(tokenStr) {
     if (!tokenStr || typeof tokenStr !== 'string') return null;
     try {
         const decoded = jwt.verify(tokenStr.trim(), IG_GATE_SECRET);
-        if (decoded && decoded.scope === 'wappy_apps_ig_follower') {
+        if (decoded && decoded.scope === 'wappy_apps_ig_follower_v2') {
             return decoded;
         }
     } catch (e) {}
@@ -568,7 +568,7 @@ function verifyIgPassToken(tokenStr) {
 }
 
 function setIgPassCookie(res, passToken) {
-    res.cookie('wappy_ig_follow_pass', passToken, {
+    res.cookie('wappy_ig_follow_pass_v2', passToken, {
         maxAge: 365 * 24 * 60 * 60 * 1000,
         httpOnly: false,
         sameSite: 'lax',
@@ -597,6 +597,65 @@ async function checkMetaFollowStatus(accessToken, igScopedUserId) {
     }
 }
 
+async function fetchLiveMetaFollowersCount(accessToken) {
+    if (!accessToken) return null;
+    try {
+        const resp = await fetch(
+            `https://graph.instagram.com/v25.0/me?fields=id,username,followers_count&_t=${Date.now()}`,
+            {
+                method: 'GET',
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    'Cache-Control': 'no-cache',
+                },
+                signal: AbortSignal.timeout(4500),
+            }
+        );
+        if (!resp.ok) return null;
+        const data = await resp.json();
+        return typeof data?.followers_count === 'number' ? data.followers_count : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+async function ensureBaselineForCode(redis, codeKey, currentFollowers) {
+    if (!redis || !codeKey || typeof currentFollowers !== 'number') {
+        return { initialFollowers: currentFollowers, minFollowers: currentFollowers };
+    }
+    const redisKey = `wappy:ig:baseline:${codeKey}`;
+    try {
+        const raw = await redis.get(redisKey);
+        if (!raw) {
+            const payload = {
+                initialFollowers: currentFollowers,
+                minFollowers: currentFollowers,
+                createdAt: Date.now(),
+            };
+            await redis.set(redisKey, JSON.stringify(payload), 'EX', 86400);
+            return payload;
+        }
+        const parsed = JSON.parse(raw);
+        let minFollowers =
+            typeof parsed.minFollowers === 'number' ? parsed.minFollowers : currentFollowers;
+        if (currentFollowers < minFollowers) {
+            minFollowers = currentFollowers;
+            parsed.minFollowers = minFollowers;
+            parsed.updatedAt = Date.now();
+            await redis.set(redisKey, JSON.stringify(parsed), 'EX', 86400);
+        }
+        return {
+            initialFollowers:
+                typeof parsed.initialFollowers === 'number'
+                    ? parsed.initialFollowers
+                    : currentFollowers,
+            minFollowers,
+        };
+    } catch (e) {
+        return { initialFollowers: currentFollowers, minFollowers: currentFollowers };
+    }
+}
+
 // 1. Consultar estado de verificación de seguidor de @wappy_ia
 router.get('/ig-follow/status', async (req, res) => {
     try {
@@ -604,7 +663,7 @@ router.get('/ig-follow/status', async (req, res) => {
         const candidateToken =
             req.query.ig_pass ||
             req.headers['x-wappy-ig-pass'] ||
-            rawCookies.wappy_ig_follow_pass ||
+            rawCookies.wappy_ig_follow_pass_v2 ||
             '';
 
         const decoded = verifyIgPassToken(candidateToken);
@@ -633,7 +692,34 @@ router.get('/ig-follow/status', async (req, res) => {
             });
         }
 
-        return res.json({ verified: false });
+        // Si el cliente envía su código de sesión al abrir el modal, registramos la línea base de seguidores de @wappy_ia
+        const rawCode = String(req.query.code || '').trim();
+        const digitsMatch = rawCode.match(/(\d{4})/);
+        const codeKey = digitsMatch ? digitsMatch[1] : rawCode.toLowerCase().replace(/[^a-z0-9]/g, '');
+        let currentFollowers = null;
+        let baselineFollowers = null;
+
+        if (codeKey) {
+            const redis = getOpenReplyRedis();
+            if (redis) {
+                try {
+                    if (redis.status === 'wait') await redis.connect();
+                    const encryptedToken = await redis.get('wappy:ig:access_token_enc').catch(() => null);
+                    const accessToken = encryptedToken ? decryptOpenReplyToken(encryptedToken) : null;
+                    currentFollowers = await fetchLiveMetaFollowersCount(accessToken);
+                    if (typeof currentFollowers === 'number') {
+                        const baseline = await ensureBaselineForCode(redis, codeKey, currentFollowers);
+                        baselineFollowers = baseline.minFollowers;
+                    }
+                } catch (e) {}
+            }
+        }
+
+        return res.json({
+            verified: false,
+            followersCount: currentFollowers,
+            baselineFollowers,
+        });
     } catch (err) {
         return res.json({ verified: false });
     }
@@ -646,6 +732,7 @@ async function handleVerifyIgFollow(req, res) {
         const digitsMatch = rawCode.match(/(\d{4})/);
         const digitsCode = digitsMatch ? digitsMatch[1] : '';
         const normalizedCode = rawCode.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const codeKey = digitsCode || normalizedCode || 'default';
 
         const redis = getOpenReplyRedis();
         if (!redis) {
@@ -726,47 +813,41 @@ async function handleVerifyIgFollow(req, res) {
         }
 
         const targetSenderId = matchedSenderId || recentFallbackSenderId;
-        const userConfirmedSteps =
-            req.query.confirmed === '1' ||
-            req.body?.confirmed === true ||
-            req.body?.confirmed === '1';
+        const accessToken = encryptedToken ? decryptOpenReplyToken(encryptedToken) : null;
 
         if (!targetSenderId) {
-            // Si el usuario ya abrió el perfil/DM de @wappy_ia y pulsó "Verificar ahora" (o regresó a la pestaña tras enviar el DM),
-            // pero Meta Graph API no entregó el webhook de DM (por permisos Standard Access de Meta en cuentas externas),
-            // validamos la conexión en vivo con @wappy_ia en Meta Graph API y otorgamos el pase de acceso.
-            if (userConfirmedSteps) {
-                const accessToken = encryptedToken ? decryptOpenReplyToken(encryptedToken) : null;
-                let igFollowersCount = null;
-                if (accessToken) {
-                    try {
-                        const meResp = await fetch(
-                            'https://graph.instagram.com/v25.0/me?fields=id,username,followers_count',
-                            {
-                                headers: { Authorization: `Bearer ${accessToken}` },
-                                signal: AbortSignal.timeout(4000),
-                            }
-                        );
-                        if (meResp.ok) {
-                            const meData = await meResp.json();
-                            igFollowersCount = meData?.followers_count ?? null;
-                        }
-                    } catch (e) {}
+            // Si Meta no entregó el webhook de DM (ej. cuenta de usuario externo sin rol Tester en Meta Development Mode),
+            // discriminamos en tiempo real contra el contador oficial de seguidores de @wappy_ia en Meta Graph API:
+            // Solo desbloquea si el contador real de seguidores de @wappy_ia subió (+1) respecto a la línea base de la sesión.
+            const currentFollowers = await fetchLiveMetaFollowersCount(accessToken);
+            if (typeof currentFollowers === 'number') {
+                const baseline = await ensureBaselineForCode(redis, codeKey, currentFollowers);
+                if (currentFollowers > baseline.minFollowers) {
+                    const passToken = signIgPassToken({
+                        igUserId: `ig_follower_${digitsCode || Date.now()}`,
+                        username: 'seguidor_wappy_ia',
+                        code: rawCode || 'DM',
+                        followersSnapshot: currentFollowers,
+                    });
+                    setIgPassCookie(res, passToken);
+                    return res.json({
+                        verified: true,
+                        status: 'FOLLOWING',
+                        username: 'wappy_ia',
+                        passToken,
+                        followersCount: currentFollowers,
+                        message: '¡Seguimiento verificado en tiempo real en @wappy_ia! Acceso desbloqueado.',
+                    });
                 }
 
-                const passToken = signIgPassToken({
-                    igUserId: `ig_verified_${digitsCode || Date.now()}`,
-                    username: 'seguidor_wappy_ia',
-                    code: rawCode || 'DM',
-                    followersSnapshot: igFollowersCount,
-                });
-                setIgPassCookie(res, passToken);
                 return res.json({
-                    verified: true,
-                    status: 'FOLLOWING',
-                    username: 'wappy_ia',
-                    passToken,
-                    message: '¡Verificación completada con éxito! Gracias por seguir a @wappy_ia en Instagram.',
+                    verified: false,
+                    status: 'NOT_FOLLOWING_YET',
+                    followersCount: currentFollowers,
+                    baselineFollowers: baseline.minFollowers,
+                    message:
+                        `⚠️ Meta nos indica que aún no has empezado a seguir a @wappy_ia (Seguidores actuales: ${currentFollowers}). ` +
+                        `Ve a @wappy_ia en Instagram, toca el botón "Seguir" (si ya nos seguías antes, deja de seguir y vuelve a tocar "Seguir" para registrar tu verificación en vivo) y luego toca "Verificar ahora".`,
                 });
             }
 
@@ -782,7 +863,6 @@ async function handleVerifyIgFollow(req, res) {
         const hasFollowUpJob = await redis.exists(followUpKey).catch(() => 0);
 
         // Consultar también en vivo a Meta Graph API v25.0 (is_user_follow_business)
-        const accessToken = encryptedToken ? decryptOpenReplyToken(encryptedToken) : null;
         const metaCheck = await checkMetaFollowStatus(accessToken, targetSenderId);
 
         const isConfirmedFollower =

@@ -2,9 +2,9 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { CheckCircle2, Copy, ExternalLink, MessageCircle, RefreshCw, ShieldCheck, Sparkles, Lock } from 'lucide-react';
 import type { WappyAppCatalogItem } from './wappyAppsCatalog';
 
-const STORAGE_PASS_KEY = 'wappy_ig_follow_pass';
+const STORAGE_PASS_KEY = 'wappy_ig_follow_pass_v2';
 const STORAGE_USER_KEY = 'wappy_ig_follow_username';
-const STORAGE_CODE_KEY = 'wappy_ig_gate_code';
+const STORAGE_CODE_KEY = 'wappy_ig_gate_code_v2';
 
 export function getOrCreateIgGateCode(): string {
   try {
@@ -43,7 +43,7 @@ export function saveStoredIgPass(passToken: string, username?: string | null) {
     if (username) {
       localStorage.setItem(STORAGE_USER_KEY, username);
     }
-    document.cookie = `wappy_ig_follow_pass=${encodeURIComponent(passToken)}; path=/; max-age=31536000; SameSite=Lax`;
+    document.cookie = `wappy_ig_follow_pass_v2=${encodeURIComponent(passToken)}; path=/; max-age=31536000; SameSite=Lax`;
   } catch (e) {}
 }
 
@@ -71,10 +71,12 @@ export function useInstagramFollowGate(onVerifiedSuccess?: (username?: string | 
     const sp = new URLSearchParams(window.location.search);
     const urlVerified = sp.get('ig_verified') || '';
     const urlPass = sp.get('ig_pass') || getStoredIgPass() || '';
+    const gateCode = getOrCreateIgGateCode();
 
     const query = new URLSearchParams();
     if (urlPass) query.set('ig_pass', urlPass);
     if (urlVerified) query.set('ig_verified', urlVerified);
+    if (gateCode) query.set('code', gateCode);
 
     fetch(`/api/comunidad/ig-follow/status?${query.toString()}`, {
       credentials: 'include',
@@ -195,9 +197,11 @@ export default function InstagramFollowGateModal({
           onVerified(data.passToken, data.username || null);
           return true;
         }
-        if (data?.status === 'DM_RECEIVED_NOT_FOLLOWING') {
-          setStatusType('warn');
-          setStatusMessage(data.message);
+        if (data?.status === 'DM_RECEIVED_NOT_FOLLOWING' || data?.status === 'NOT_FOLLOWING_YET') {
+          if (!silent || data?.status === 'DM_RECEIVED_NOT_FOLLOWING') {
+            setStatusType('warn');
+            setStatusMessage(data.message);
+          }
         } else if (!silent && data?.message) {
           setStatusType('info');
           setStatusMessage(data.message);

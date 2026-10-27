@@ -9,9 +9,9 @@
     return;
   }
 
-  const STORAGE_PASS_KEY = 'wappy_ig_follow_pass';
+  const STORAGE_PASS_KEY = 'wappy_ig_follow_pass_v2';
   const STORAGE_USER_KEY = 'wappy_ig_follow_username';
-  const STORAGE_CODE_KEY = 'wappy_ig_gate_code';
+  const STORAGE_CODE_KEY = 'wappy_ig_gate_code_v2';
 
   function getOrCreateGateCode() {
     try {
@@ -34,7 +34,7 @@
         localStorage.setItem(STORAGE_USER_KEY, username);
       }
       document.cookie =
-        'wappy_ig_follow_pass=' +
+        'wappy_ig_follow_pass_v2=' +
         encodeURIComponent(passToken) +
         '; path=/; max-age=31536000; SameSite=Lax';
     } catch (e) {}
@@ -230,11 +230,17 @@
           }
           return;
         }
-        if (data && data.status === 'DM_RECEIVED_NOT_FOLLOWING' && statusBox) {
-          statusBox.style.background = 'rgba(245,158,11,0.14)';
-          statusBox.style.borderColor = 'rgba(245,158,11,0.45)';
-          statusBox.style.color = '#92400e';
-          statusBox.textContent = data.message;
+        if (
+          data &&
+          (data.status === 'DM_RECEIVED_NOT_FOLLOWING' || data.status === 'NOT_FOLLOWING_YET') &&
+          statusBox
+        ) {
+          if (!silent || data.status === 'DM_RECEIVED_NOT_FOLLOWING') {
+            statusBox.style.background = 'rgba(245,158,11,0.14)';
+            statusBox.style.borderColor = 'rgba(245,158,11,0.45)';
+            statusBox.style.color = '#92400e';
+            statusBox.textContent = data.message;
+          }
         } else if (!silent && data && data.message && statusBox) {
           statusBox.textContent = 'ℹ️ ' + data.message;
         }
@@ -264,10 +270,12 @@
       const sp = new URLSearchParams(window.location.search);
       const urlPass = sp.get('ig_pass') || getStoredPass() || '';
       const urlVerified = sp.get('ig_verified') || '';
+      const gateCode = getOrCreateGateCode();
 
       const q = new URLSearchParams();
       if (urlPass) q.set('ig_pass', urlPass);
       if (urlVerified) q.set('ig_verified', urlVerified);
+      if (gateCode) q.set('code', gateCode);
 
       const resp = await fetch('/api/comunidad/ig-follow/status?' + q.toString(), {
         credentials: 'include',
