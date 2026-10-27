@@ -705,19 +705,19 @@ async function uploadCookies(cookies, email = '') {
   const profileDir = path.join(os.homedir(), '.wappy-notebooklm-auth');
   const debugPort = 9229;
 
-  console.log('🌐 Abriendo ventana segura de Google NotebookLM en tu computador...');
-  console.log('👉 Si aún no has iniciado sesión en esa ventana, inicia sesión con tu cuenta de Google.');
-  console.log('⏳ Esperando a que cargue tu panel de NotebookLM (se vinculará automáticamente)...\\n');
+  console.log('🌐 Abriendo ventana de conexión de WAPPY en tu computador...');
+  console.log('⏳ Detectando tu sesión (si ya habías iniciado sesión antes, se cerrará sola en 3 segundos)...\\n');
 
   const child = spawn(
     browserBin,
     [
       \`--remote-debugging-port=\${debugPort}\`,
+      '--remote-allow-origins=*',
       \`--user-data-dir=\${profileDir}\`,
       '--no-first-run',
       '--no-default-browser-check',
-      '--new-window',
-      'https://notebooklm.google.com',
+      '--window-size=1080,780',
+      '--app=https://notebook.google.com/',
     ],
     { detached: false, stdio: 'ignore' }
   );
@@ -726,7 +726,7 @@ async function uploadCookies(cookies, email = '') {
   const start = Date.now();
 
   while (Date.now() - start < maxWaitMs) {
-    await new Promise((r) => setTimeout(r, 2500));
+    await new Promise((r) => setTimeout(r, 2000));
     try {
       const listRes = await fetch(\`http://127.0.0.1:\${debugPort}/json/list\`);
       const pages = await listRes.json();
@@ -740,17 +740,34 @@ async function uploadCookies(cookies, email = '') {
       );
       if (!nbPage) continue;
 
-      await new Promise((r) => setTimeout(r, 2000));
-      const cdpRes = await cdpSend(nbPage.webSocketDebuggerUrl, 'Network.getAllCookies');
-      const allCookies = cdpRes?.result?.cookies || [];
+      let allCookies = [];
+      try {
+        const stRes = await cdpSend(nbPage.webSocketDebuggerUrl, 'Storage.getCookies');
+        allCookies = stRes?.result?.cookies || [];
+      } catch (_) {}
+      if (!allCookies.length) {
+        const cdpRes = await cdpSend(nbPage.webSocketDebuggerUrl, 'Network.getAllCookies');
+        allCookies = cdpRes?.result?.cookies || [];
+      }
+
       const googleCookies = allCookies.filter((c) => c.domain && c.domain.includes('google.com'));
       const names = new Set(googleCookies.map((c) => c.name));
 
-      if (names.has('SID') && names.has('OSID') && (names.has('__Secure-1PSID') || names.has('__Secure-1PSIDTS'))) {
-        console.log('✨ Sesión de Google NotebookLM detectada. Verificando y guardando en tu perfil privado...');
+      if (names.has('SID') && (names.has('__Secure-1PSID') || names.has('__Secure-1PSIDTS'))) {
+        // Asegurar que OSID esté presente tanto en notebooklm.google.com como en .notebook.google.com
+        const osidCookie = googleCookies.find((c) => c.name === 'OSID');
+        if (osidCookie) {
+          const hasNotebookDomain = googleCookies.some(
+            (c) => c.name === 'OSID' && c.domain && c.domain.includes('notebook.google.com')
+          );
+          if (!hasNotebookDomain) {
+            googleCookies.push({ ...osidCookie, domain: '.notebook.google.com' });
+          }
+        }
+        console.log('✨ Sesión detectada. Verificando y guardando en tu perfil privado de WAPPY...');
         const result = await uploadCookies(googleCookies);
         if (result.ok) {
-          console.log('✅ ' + (result.data.message || '¡Tu cuenta privada de Google NotebookLM quedó vinculada con éxito!'));
+          console.log('✅ ' + (result.data.message || '¡Tu módulo de Google NotebookLM quedó vinculado con éxito!'));
           try { child.kill(); } catch (_) {}
           process.exit(0);
         }

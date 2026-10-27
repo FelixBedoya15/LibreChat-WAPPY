@@ -1202,11 +1202,12 @@ async function uploadCookies(cookies, email = '') {
     browserBin,
     [
       \`--remote-debugging-port=\${debugPort}\`,
+      '--remote-allow-origins=*',
       \`--user-data-dir=\${flowProfileDir}\`,
       '--no-first-run',
       '--no-default-browser-check',
-      '--new-window',
-      'https://labs.google/fx/tools/flow',
+      '--window-size=1080,780',
+      '--app=https://labs.google/fx/tools/flow',
     ],
     { detached: false, stdio: 'ignore' }
   );
@@ -1215,7 +1216,7 @@ async function uploadCookies(cookies, email = '') {
   const start = Date.now();
 
   while (Date.now() - start < maxWaitMs) {
-    await new Promise((r) => setTimeout(r, 2500));
+    await new Promise((r) => setTimeout(r, 2000));
     try {
       const listRes = await fetch(\`http://127.0.0.1:\${debugPort}/json/list\`);
       const pages = await listRes.json();
@@ -1229,17 +1230,24 @@ async function uploadCookies(cookies, email = '') {
       );
       if (!flowPage) continue;
 
-      await new Promise((r) => setTimeout(r, 2000));
-      const cdpRes = await cdpSend(flowPage.webSocketDebuggerUrl, 'Network.getAllCookies');
-      const allCookies = cdpRes?.result?.cookies || [];
+      let allCookies = [];
+      try {
+        const stRes = await cdpSend(flowPage.webSocketDebuggerUrl, 'Storage.getCookies');
+        allCookies = stRes?.result?.cookies || [];
+      } catch (_) {}
+      if (!allCookies.length) {
+        const cdpRes = await cdpSend(flowPage.webSocketDebuggerUrl, 'Network.getAllCookies');
+        allCookies = cdpRes?.result?.cookies || [];
+      }
+
       const googleCookies = allCookies.filter((c) => c.domain && c.domain.includes('google.com'));
       const names = new Set(googleCookies.map((c) => c.name));
 
       if (names.has('SID') && (names.has('__Secure-1PSID') || names.has('__Secure-1PSIDTS'))) {
-        console.log('✨ Sesión de Google detectada. Verificando y vinculando con Google Flow en WAPPY...');
+        console.log('✨ Sesión detectada. Verificando y vinculando con Google Flow en WAPPY...');
         const result = await uploadCookies(googleCookies);
         if (result.ok) {
-          console.log('✅ ' + (result.data.message || '¡Tu cuenta privada de Google Flow quedó vinculada con éxito!'));
+          console.log('✅ ' + (result.data.message || '¡Tu módulo de Google Flow quedó vinculado con éxito!'));
           try { child.kill(); } catch (_) {}
           process.exit(0);
         }

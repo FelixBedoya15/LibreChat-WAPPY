@@ -46,7 +46,7 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
 
   const serverOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://app.wappy.club';
   const terminalCommand = `curl -fsSL "${serverOrigin}/api/mcp-bridge/antigravity/daemon.js" -o ~/.gemini/antigravity/wappy-push-daemon.js && node ~/.gemini/antigravity/wappy-push-daemon.js --notebooklm --url="${serverOrigin}" --token="${token || ''}"`;
-  const antigravityPrompt = `Hola Antigravity, inicia el módulo documental local de mi entorno WAPPY ejecutando este comando en tu terminal:\n\n\`\`\`bash\n${terminalCommand}\n\`\`\``;
+  const antigravityPrompt = `Hola Antigravity, inicia el módulo documental local de mi entorno WAPPY ejecutando este comando en tu terminal (el comando abrirá su propia ventana automáticamente; no incluyas enlaces web en tu respuesta):\n\n\`\`\`bash\n${terminalCommand}\n\`\`\``;
 
   const fetchStatus = async () => {
     if (!token) return;
@@ -71,31 +71,10 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
     }
   }, [isOpen, token]);
 
-  const handleCopyAg = async () => {
+  const handleCopyAg = () => {
     navigator.clipboard.writeText(antigravityPrompt);
     setCopiedAg(true);
     setTimeout(() => setCopiedAg(false), 3000);
-    if (token) {
-      try {
-        const res = await fetch('/api/mcp-bridge/antigravity/launch-connector', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ service: 'notebooklm', token }),
-        });
-        const data = await res.json();
-        if (data?.success) {
-          setFeedback({
-            type: 'success',
-            message: '⚡ ¡Abriendo ventana de conexión directamente en tu computador vía Antigravity Push! (También se copió el comando por si deseas pegarlo manualmente).',
-          });
-        }
-      } catch {
-        // Fallback silencioso a portapapeles
-      }
-    }
   };
 
   const handleCopyCmd = () => {
