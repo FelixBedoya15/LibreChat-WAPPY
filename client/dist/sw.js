@@ -1,1 +1,58 @@
-if(!self.define){let s,e={};const l=(l,i)=>(l=new URL(l+".js",i).href,e[l]||new Promise((e=>{if("document"in self){const s=document.createElement("script");s.src=l,s.onload=e,document.head.appendChild(s)}else s=l,importScripts(l),e()})).then((()=>{let s=e[l];if(!s)throw new Error(`Module ${l} didn’t register its module`);return s})));self.define=(i,n)=>{const r=s||("document"in self?document.currentScript.src:"")||location.href;if(e[r])return;let a={};const u=s=>l(s,r),o={module:{uri:r},exports:a,require:u};e[r]=Promise.all(i.map((s=>o[s]||u(s)))).then((s=>(n(...s),a)))}}define(["./workbox-ca8b8650"],(function(s){"use strict";self.skipWaiting(),s.clientsClaim(),s.precacheAndRoute([{url:"assets/advanced-inputs.Cdv2NrIY.js",revision:null},{url:"assets/ambassadors-module.DnddMRfr.js",revision:null},{url:"assets/animations.DDTYEMXM.js",revision:null},{url:"assets/auditoria-modules.Dpm_3jqN.js",revision:null},{url:"assets/avatars.Cl1qbG22.js",revision:null},{url:"assets/blog-modules.Dn64ap_k.js",revision:null},{url:"assets/canvas-templates.BS0AxzrQ.js",revision:null},{url:"assets/chart.min.js",revision:null},{url:"assets/ChatSSTView.CbKXVBTt.js",revision:null},{url:"assets/Clase1Page.Dw6CjyQ3.js",revision:null},{url:"assets/codemirror-core.CD3RlEUc.js",revision:null},{url:"assets/codemirror-language.Cy7qhBs6.js",revision:null},{url:"assets/codemirror-state.1WAhZPVj.js",revision:null},{url:"assets/codemirror-view.80MSf1Fh.js",revision:null},{url:"assets/CursoWappy01Page.D2OUXApS.js",revision:null},{url:"assets/date-utils.X8D4nCrw.js",revision:null},{url:"assets/events-modules.CCsAtYp7.js",revision:null},{url:"assets/exceljs.min.js",revision:null},{url:"assets/forms.C_u8xYuW.js",revision:null},{url:"assets/framer-motion.CAsir1WT.js",revision:null},{url:"assets/gsap.min.js",revision:null},{url:"assets/headlessui.BWUMqF-P.js",revision:null},{url:"assets/heic-converter.BhQCFQ0l.js",revision:null},{url:"assets/http-client.zDJt7oay.js",revision:null},{url:"assets/i18n.BNeXehml.js",revision:null},{url:"assets/index.aUZvbTxN.js",revision:null},{url:"assets/index.CsFJuo5w.css",revision:null},{url:"assets/kanban-module.BwhritBa.js",revision:null},{url:"assets/lms-modules.Cca1B6eX.js",revision:null},{url:"assets/locales.6QHFI6kk.js",revision:null},{url:"assets/lucide.min.js",revision:null},{url:"assets/markdown_highlight.BXMLVVdG.js",revision:null},{url:"assets/markdown-processing.Bp7pr2Xd.js",revision:null},{url:"assets/marketing-pages.DIDq1SGY.css",revision:null},{url:"assets/marketing-pages.DYfhUWGX.js",revision:null},{url:"assets/Marketplace.CIslyynP.js",revision:null},{url:"assets/MarketplaceDashboard.CxAmvGPo.js",revision:null},{url:"assets/math-katex.D41sMH58.js",revision:null},{url:"assets/math-katex.sdXCKFqw.css",revision:null},{url:"assets/plans-module.BOT52wNy.js",revision:null},{url:"assets/PrivacyPolicyPage.DopzRjtF.js",revision:null},{url:"assets/radix-ui.DNiy3ozS.js",revision:null},{url:"assets/react-interactions.B7DgaCFx.js",revision:null},{url:"assets/RoadmapPage.Cr_73rKv.js",revision:null},{url:"assets/routing.C-RXYkfz.js",revision:null},{url:"assets/sandpack.Cyxr5t9A.js",revision:null},{url:"assets/security-ui.CyqJnywP.js",revision:null},{url:"assets/sgsst-assets.KdMSUpxn.js",revision:null},{url:"assets/sgsst-modules.SF4kP4ao.js",revision:null},{url:"assets/tailwind-cdn.js",revision:null},{url:"assets/tanstack-vendor.kL74lrOU.js",revision:null},{url:"assets/TenshiAdminPanel.samcNTCJ.js",revision:null},{url:"assets/TenshiChat.JwXbm1Ax.js",revision:null},{url:"assets/TermsOfServicePage.B0klJ-xr.js",revision:null},{url:"assets/utilities.BjsdvwEO.js",revision:null},{url:"assets/validation.CXYwsuSc.js",revision:null},{url:"assets/vendor.GVzMRBDz.js",revision:null},{url:"assets/virtualization.DixZgX9i.js",revision:null},{url:"assets/WappyAboutPage.CO4lo8UV.js",revision:null},{url:"assets/WappyAppsPage.DpKcWiPx.js",revision:null},{url:"assets/WappyStudioDashboard.DLqJWe7J.js",revision:null},{url:"assets/WelcomePromoPopup.BnBtb4iP.js",revision:null},{url:"assets/xlsx.full.min.js",revision:null},{url:"audio-processor.js",revision:"83238bfbca479b35103e7c528b9f6dfb"},{url:"js/wappy-ig-gate.js",revision:"2fbac2e3a892afa25d2727d10a0a1b45"},{url:"registerSW.js",revision:"402b66900e731ca748771b6fc5e7a068"},{url:"assets/favicon-16x16.png",revision:null},{url:"assets/favicon-32x32.png",revision:null},{url:"assets/icon-192x192.png",revision:null},{url:"assets/apple-touch-icon-180x180.png",revision:null},{url:"assets/maskable-icon.png",revision:null},{url:"manifest.webmanifest",revision:"270067122644156a62c4f38c7abcd1f1"},{url:"manifest.json",revision:"33e7a64be375e7be0150b20152741c73"},{url:"assets/apple-touch-icon-180x180.png",revision:"89ff9809a18087de5899e4f23e2335c6"},{url:"assets/favicon-32x32.png",revision:"f66198be4b1652b05f0c75eeccef688f"},{url:"manifest.webmanifest",revision:"270067122644156a62c4f38c7abcd1f1"}],{}),s.cleanupOutdatedCaches(),s.registerRoute((({url:s})=>s.pathname.startsWith("/assets/")),new s.StaleWhileRevalidate({cacheName:"wappy-assets-cache",plugins:[new s.ExpirationPlugin({maxEntries:120,maxAgeSeconds:2592e3})]}),"GET")}));
+// Service Worker for Wappy PWA Push Notifications
+
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('push', (event) => {
+  let data = { title: 'Notificación de Wappy', body: 'Tienes una actualización en el sistema.' };
+
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch (e) {
+      data = { title: 'Notificación de Wappy', body: event.data.text() };
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: data.icon || 'assets/icon-192x192.png',
+    badge: data.badge || 'assets/favicon-32x32.png',
+    data: {
+      url: data.url || '/'
+    },
+    vibrate: [100, 50, 100],
+    actions: data.actions || []
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  
+  const targetUrl = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Si hay una pestaña abierta con la app, redirigirla y enfocarla
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.postMessage({ type: 'NAVIGATE', url: targetUrl });
+          return client.focus();
+        }
+      }
+      // Si no, abrir una ventana nueva
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
