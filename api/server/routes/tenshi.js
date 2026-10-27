@@ -32,6 +32,7 @@ const {
     getProceduralMemoryPromptBlock,
     autoSynthesizeProceduralRule,
     searchInstantHistory,
+    searchNormativeKnowledgeBase,
 } = require('./voice/tenshiOpenBotEngine');
 
 function sanitizeSlug(title) {
@@ -105,11 +106,19 @@ async function findMatchingBlogPost(query) {
 
 // Knowledge Retrieval System (RAG)
 async function getRelevantTickets(req, userQuery) {
-    if (!userQuery || userQuery.length < 5) return '';
+    if (!userQuery || userQuery.length < 4) return '';
     let context = '';
 
-    // 1. Try Vector DB (App RAG System) with ultra-fast 500ms timeout
-    if (process.env.RAG_API_URL) {
+    // 1. Consultar Base de Datos Normativa y Técnica interna de WAPPY (99+ archivos .md: Vademécum 2026, Res 1843/2025, Batería Psicosocial, etc.)
+    try {
+        const normativeRag = await searchNormativeKnowledgeBase(userQuery, 3);
+        if (normativeRag && normativeRag.exito && normativeRag.textoFormateado) {
+            context = normativeRag.textoFormateado;
+        }
+    } catch (_e) {}
+
+    // 2. Try Vector DB (App RAG System) with 2000ms timeout
+    if (!context && process.env.RAG_API_URL) {
         try {
             const jwtToken = generateShortLivedToken(req.user.id);
             const response = await axios.post(`${process.env.RAG_API_URL}/query`, {
@@ -121,7 +130,7 @@ async function getRelevantTickets(req, userQuery) {
                     Authorization: `Bearer ${jwtToken}`,
                     'Content-Type': 'application/json'
                 },
-                timeout: 500
+                timeout: 2000
             });
 
             if (response.data && response.data.length > 0) {
@@ -135,7 +144,7 @@ async function getRelevantTickets(req, userQuery) {
         }
     }
 
-    // 2. Fallback to MongoDB Smart Search (Text Index)
+    // 3. Fallback to MongoDB Smart Search (Text Index)
     if (!context) {
         try {
             const matches = await Ticket.find(
@@ -1297,11 +1306,19 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
    - SI LA TAREA INVOLUCRA GOOGLE DRIVE O BÚSQUEDA WEB: ¡Tú mismo puedes resolverla directamente con 'google_drive' y 'web_search'!
    - PARA TAREAS QUE REQUIERAN ACCEDER A CARPETAS DEL COMPUTADOR PERSONAL DEL USUARIO O PROCESAMIENTO PESADO LOCAL: Invoca de inmediato 'wappy_delegar_orden_antigravity' con la instrucción, carpeta/recurso y formato de entregable deseado (word, excel, pdf, presentacion, html).
    - Explícale al usuario con entusiasmo que la orden quedó registrada en la cola de Antigravity con su ID de seguimiento, y que en cuanto Antigravity lo procese en la máquina, el entregable se reflejará directamente en este chat.
-13. **REGLA MANDATORIA DE NORMATIVIDAD Y BÚSQUEDA WEB EN VIVO ('web_search')**:
-   - Si la consulta del usuario, una duda técnica o tu respuesta involucra normatividad colombiana (Leyes, Decretos como 1072 o 780, Resoluciones como 0312 o 4272, Circulares del Ministerio del Trabajo, jurisprudencia de Cortes, estándares mínimos de SST, reformas laborales o pensionales):
-   - ESTÁ ESTRICTAMENTE PROHIBIDO responder de memoria o dar por hecho la vigencia de normas que podrían estar derogadas o modificadas.
-   - DEBES EJECUTAR INMEDIATAMENTE en tu primer turno la herramienta 'web_search' para verificar la normatividad colombiana VIGENTE antes de formular tu dictamen o respuesta.
-   - Cita siempre la norma vigente confirmada en la búsqueda web y aclara su estado actual. Si delegas a un especialista con 'consultar_agente_especializado', indícale también que verifique en la web la vigencia.`;
+13. **REGLA MANDATORIA DE BASE DE DATOS NORMATIVA RAG Y BÚSQUEDA HÍBRIDA ('web_search')**:
+   - Tienes conectada una **Base de Datos Documental y Normativa Oficial de WAPPY (99+ documentos .md + Vademécum Maestro 2026 + Batería completa de Riesgo Psicosocial manuales 1 al 7 + Resoluciones 2024-2026)** integrada directamente dentro de la herramienta 'web_search' y en tu contexto RAG.
+   - Si el usuario te pide buscar en tu base de datos documental/normativa, pregunta por guías o manuales de riesgo psicosocial, o su consulta involucra normatividad colombiana (Leyes, Decretos, Resoluciones, Sentencias):
+   - DEBES EJECUTAR INMEDIATAMENTE en tu primer turno la herramienta 'web_search' (la cual consulta simultáneamente la Base de Datos Normativa Oficial de WAPPY y el buscador web SearXNG en tiempo real).
+   - **HITOS NORMATIVOS VIGENTES (PROHIBIDO CITAR NORMAS DEROGADAS)**:
+     * **Evaluaciones Médicas Ocupacionales e Historia Clínica:** La norma vigente es la **Resolución 1843 de 2025** del Ministerio del Trabajo (que actualizó y reemplazó a la antigua Resolución 2346 de 2007 y Res. 1918 de 2009). NUNCA digas que la última norma de exámenes médicos es la 2346 de 2007.
+     * **Riesgo Psicosocial y Batería:** **Resolución 2764 de 2022** (adopta la Batería de Instrumentos, Manual General, Intralaboral Forma A/B, Extralaboral, Cuestionario de Estrés, Guías de análisis y Protocolo de Duelo) en articulación con la **Resolución 2646 de 2008** y **Ley 1090 de 2006**.
+     * **Trabajo en Alturas:** **Resolución 4272 de 2021** (derogó la Res. 1409 de 2012).
+     * **Espacios Confinados:** **Resolución 0491 de 2020** modificada por la **Resolución 2605 de 2020**.
+     * **Seguridad Vial (PESV):** **Resolución 40595 de 2022** y **Ley 2251 de 2022**.
+     * **Trabajo en Calderas:** **Resolución 1857 de 2024**.
+     * **Reglamento Técnico de Instalaciones Eléctricas (RETIE):** **Resolución 40117 de 2024** y **Resolución 5018 de 2019**.
+     * **Acoso Laboral y Sexual:** **Ley 1010 de 2006**, **Ley 2209 de 2022** y **Ley 2365 de 2024** (prevención de acoso sexual en el ámbito laboral).`;
 
         if (skillInstructions) {
             systemMessage += `\n\n${skillInstructions}`;

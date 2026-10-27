@@ -1096,13 +1096,13 @@ class VoiceSession {
                         },
                         {
                             name: "web_search",
-                            description: "Busca información actualizada en tiempo real en Internet (noticias, normatividad SST, decretos, resoluciones, estadísticas, documentación técnica, etc.). Utiliza el motor de búsqueda avanzado de WAPPY.",
+                            description: "Consulta simultáneamente la Base de Datos Documental y Normativa Oficial de WAPPY (99+ documentos .md: Vademécum 2026, Resolución 1843 de 2025, Batería de Riesgo Psicosocial completa, manuales, sentencias y decretos) y busca información actualizada en tiempo real en Internet (SearXNG). Úsala SIEMPRE que el usuario pregunte por normatividad, guías, manuales o te pida buscar en tu base de datos.",
                             parameters: {
                                 type: "object",
                                 properties: {
                                     query: {
                                         type: "string",
-                                        description: "La consulta de búsqueda a ejecutar en internet. Sé específico e incluye términos clave relevantes (ej: 'Resolución 0312 de 2019 Colombia Mintrabajo', 'que es burnout sintomas prevencion')."
+                                        description: "La consulta de búsqueda a ejecutar en la base de datos normativa y en internet (ej: 'Resolución 1843 de 2025 exámenes médicos ocupacionales', 'batería riesgo psicosocial manual intralaboral')."
                                     }
                                 },
                                 required: ["query"]
@@ -2259,6 +2259,19 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
 - Cuándo aplica: El usuario pide expresamente un dictamen o concepto de un especialista ("pásame al médico laboral", "consulta al abogado laboral", "dictamen de higiene química").
 - Acción OBLIGATORIA: Consulta al especialista con 'consultar_agente_especializado' o abre su chat si el usuario lo pide expresamente.
 - OBLIGACIÓN NORMATIVA: En 'consulta_completa', incluye siempre la instrucción de verificar con 'web_search' la vigencia de la normatividad colombiana aplicable para garantizar que no se citen normas derogadas.
+
+[BASE DE DATOS NORMATIVA RAG Y ACTUALIZACIONES VIGENTES 2024-2026 ('web_search')]:
+- Tu herramienta 'web_search' es un motor híbrido que consulta simultáneamente la **Base de Datos Documental y Normativa Oficial de WAPPY (99+ documentos .md: Vademécum Maestro 2026, Resolución 1843 de 2025, Batería de Riesgo Psicosocial manuales 1 al 7, Sentencias CSJ 2025, Decretos y Leyes)** y el buscador web en tiempo real.
+- Si el usuario te pide buscar en tu base de datos ("busca en tu base de datos", "revisa tus documentos"), pregunta por guías o manuales de riesgo psicosocial, o pregunta cuál es la norma vigente en cualquier materia de SST, INVOCA DE INMEDIATO 'web_search'.
+- HITOS NORMATIVOS VIGENTES (PROHIBIDO CITAR NORMAS DEROGADAS):
+  * Evaluaciones Médicas Ocupacionales e Historia Clínica: La norma vigente es la **Resolución 1843 de 2025** del Ministerio del Trabajo (que actualizó y reemplazó a la antigua Resolución 2346 de 2007 y Res. 1918 de 2009). NUNCA digas que la última norma de exámenes médicos es la 2346 de 2007.
+  * Riesgo Psicosocial y Batería: **Resolución 2764 de 2022** (adopta la Batería de Instrumentos, Manual General, Intralaboral Forma A/B, Extralaboral, Cuestionario de Estrés, Guías de análisis y Protocolo de Duelo) en conjunto con la **Resolución 2646 de 2008** y **Ley 1090 de 2006**.
+  * Trabajo en Alturas: **Resolución 4272 de 2021** (derogó la Res. 1409 de 2012).
+  * Espacios Confinados: **Resolución 0491 de 2020** modificada por la **Resolución 2605 de 2020**.
+  * Seguridad Vial (PESV): **Resolución 40595 de 2022** y **Ley 2251 de 2022**.
+  * Trabajo en Calderas: **Resolución 1857 de 2024**.
+  * RETIE (Instalaciones Eléctricas): **Resolución 40117 de 2024** y **Resolución 5018 de 2019**.
+  * Acoso Laboral y Sexual: **Ley 1010 de 2006**, **Ley 2209 de 2022** y **Ley 2365 de 2024**.
 
 4. CASO 4: INFORME DIRECTO A TENSHI POR CHAT DE TEXTO O MODO LIVE SIN CÁMARA
 - Cuándo aplica: El usuario le pide a Tenshi por chat de texto o por voz (sin haber mostrado objetos en cámara ni estar en un aplicativo) que le redacte un informe, documento Word, matriz Excel o aplicativo interactivo ("hazme un informe sobre la resolución 0312", "redáctame un protocolo en Word").

@@ -791,6 +791,221 @@ async function searchInstantHistory(args = {}, userId) {
   }
 }
 
+// ============================================================================
+// 7. MOTOR RAG DE BASE DE DATOS NORMATIVA Y TÉCNICA SST (99+ .MD + VADEMÉCUM + RAG_API)
+// ============================================================================
+
+let _normativeChunksCache = null;
+let _normativeCacheBuiltAt = 0;
+const NORMATIVE_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutos
+
+function normalizeForSearch(str = '') {
+  return String(str || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function buildNormativeIndexSync() {
+  const now = Date.now();
+  if (_normativeChunksCache && now - _normativeCacheBuiltAt < NORMATIVE_CACHE_TTL_MS) {
+    return _normativeChunksCache;
+  }
+
+  const fs = require('fs');
+  const path = require('path');
+  const candidateRoots = [
+    '/app/uploads',
+    path.resolve(__dirname, '../../../../uploads'),
+    path.resolve(process.cwd(), 'uploads'),
+  ];
+
+  const chunks = [];
+  const visitedFiles = new Set();
+
+  for (const rootDir of candidateRoots) {
+    if (!fs.existsSync(rootDir)) continue;
+    let subdirs = [];
+    try {
+      subdirs = fs.readdirSync(rootDir, { withFileTypes: true });
+    } catch (_e) {
+      continue;
+    }
+
+    for (const entry of subdirs) {
+      const fullSubPath = path.join(rootDir, entry.name);
+      if (entry.isDirectory()) {
+        let files = [];
+        try {
+          files = fs.readdirSync(fullSubPath);
+        } catch (_e) {
+          continue;
+        }
+        for (const f of files) {
+          if (!f.toLowerCase().endsWith('.md')) continue;
+          const fileAbs = path.join(fullSubPath, f);
+          if (visitedFiles.has(fileAbs)) continue;
+          visitedFiles.add(fileAbs);
+
+          try {
+            const rawText = fs.readFileSync(fileAbs, 'utf8');
+            if (!rawText || rawText.length < 40) continue;
+
+            // Clean readable document name (strip UUID__ prefix)
+            const cleanDocName = f
+              .replace(/^[0-9a-f-]{36}__/i, '')
+              .replace(/\.md$/i, '')
+              .replace(/_/g, ' ')
+              .trim();
+            const normDocName = normalizeForSearch(cleanDocName);
+
+            // Split by headings or ~1400 char blocks
+            const sections = rawText.split(/\n(?=#{1,3}\s|ART[ÍI]CULO\s+\d+|CAP[ÍI]TULO\s+)/i);
+            let buffer = '';
+            for (const sec of sections) {
+              if ((buffer + '\n' + sec).length > 1500 && buffer.length >= 250) {
+                chunks.push({
+                  docName: cleanDocName,
+                  normDocName,
+                  text: buffer.trim(),
+                  normText: normalizeForSearch(buffer),
+                });
+                buffer = sec;
+              } else {
+                buffer = buffer ? `${buffer}\n${sec}` : sec;
+              }
+            }
+            if (buffer.trim().length > 40) {
+              chunks.push({
+                docName: cleanDocName,
+                normDocName,
+                text: buffer.trim().slice(0, 2200),
+                normText: normalizeForSearch(buffer.slice(0, 2200)),
+              });
+            }
+          } catch (_readErr) {
+            // Ignore unreadable file
+          }
+        }
+      }
+    }
+  }
+
+  _normativeChunksCache = chunks;
+  _normativeCacheBuiltAt = now;
+  logger.info(`[Tenshi Normative RAG] Indexed ${chunks.length} sections from ${visitedFiles.size} Markdown normative/technical files.`);
+  return chunks;
+}
+
+/**
+ * Busca en la Base de Datos Documental y Normativa de WAPPY (99+ archivos .md en /uploads + Vademécum 2026 + Batería Psicosocial + Resoluciones 2024-2026).
+ */
+async function searchNormativeKnowledgeBase(query, maxResults = 5) {
+  if (!query || typeof query !== 'string' || query.trim().length < 2) {
+    return { exito: false, resultados: [], textoFormateado: '' };
+  }
+
+  try {
+    const chunks = buildNormativeIndexSync();
+    if (!chunks || chunks.length === 0) {
+      return { exito: false, resultados: [], textoFormateado: '' };
+    }
+
+    const normQ = normalizeForSearch(query);
+    const stopWords = new Set([
+      'para', 'como', 'cual', 'cuales', 'este', 'esta', 'estos', 'estas', 'sobre', 'entre', 'desde', 'hasta',
+      'donde', 'cuando', 'porque', 'quien', 'todo', 'toda', 'todos', 'todas', 'tiene', 'tienen', 'segun',
+      'colombia', 'norma', 'normativa', 'normatividad', 'ultima', 'ultimo', 'vigente', 'actual', 'salio',
+    ]);
+
+    // Extract key tokens and also numbers (like 1843, 2346, 0312, 1072, 2764, 2646, 4272)
+    const rawTokens = normQ
+      .split(/[^a-z0-9]+/)
+      .filter((t) => (t.length >= 3 && !stopWords.has(t)) || /^\d{3,5}$/.test(t));
+
+    // Domain synonym expansion for common SST queries
+    const expandedTokens = [...rawTokens];
+    if (normQ.includes('examen') || normQ.includes('medic') || normQ.includes('ocupacional') || normQ.includes('profesiograma') || normQ.includes('historia clinica')) {
+      expandedTokens.push('1843', 'evaluaciones', 'medicas', 'ocupacionales');
+    }
+    if (normQ.includes('psicosocial') || normQ.includes('bateria') || normQ.includes('intralaboral') || normQ.includes('extralaboral') || normQ.includes('estres')) {
+      expandedTokens.push('2764', '2646', 'psicosocial', 'bateria');
+    }
+    if (normQ.includes('altura') || normQ.includes('andamio') || normQ.includes('arnes')) {
+      expandedTokens.push('4272', 'alturas');
+    }
+    if (normQ.includes('confinad')) {
+      expandedTokens.push('491', '2605', 'confinados');
+    }
+    if (normQ.includes('vial') || normQ.includes('pesv') || normQ.includes('vehicul')) {
+      expandedTokens.push('40595', '2251', 'pesv');
+    }
+    if (normQ.includes('acoso')) {
+      expandedTokens.push('2365', '2209', '1010', 'acoso');
+    }
+
+    const uniqueTokens = [...new Set(expandedTokens)];
+    const scored = [];
+
+    for (const chunk of chunks) {
+      let score = 0;
+      for (const tok of uniqueTokens) {
+        const isNum = /^\d{3,5}$/.test(tok);
+        if (chunk.normDocName.includes(tok)) {
+          score += isNum ? 14 : 6;
+        }
+        if (chunk.normText.includes(tok)) {
+          score += isNum ? 8 : 2.5;
+        }
+      }
+      // Bonus for Vademecum Maestro 2026 and recent 2024/2025/2026 norms
+      if (score > 0) {
+        if (chunk.normDocName.includes('vademecum')) score += 4;
+        if (chunk.normDocName.includes('2025') || chunk.normDocName.includes('2026')) score += 3;
+        scored.push({ chunk, score });
+      }
+    }
+
+    scored.sort((a, b) => b.score - a.score);
+
+    // Pick diverse top results (max 2 chunks per document so one big doc doesn't monopolize)
+    const selected = [];
+    const perDocCount = new Map();
+    for (const item of scored) {
+      const count = perDocCount.get(item.chunk.docName) || 0;
+      if (count >= 2) continue;
+      perDocCount.set(item.chunk.docName, count + 1);
+      selected.push({
+        documento: item.chunk.docName,
+        relevancia: item.score,
+        contenido: item.chunk.text.slice(0, 1400),
+      });
+      if (selected.length >= maxResults) break;
+    }
+
+    if (selected.length === 0) {
+      return { exito: false, resultados: [], textoFormateado: '' };
+    }
+
+    const formatted = selected
+      .map(
+        (r, idx) =>
+          `📘 **[BASE DE DATOS NORMATIVA Y TÉCNICA WAPPY #${idx + 1}: ${r.documento}]**\n${r.contenido}`
+      )
+      .join('\n\n---\n\n');
+
+    return {
+      exito: true,
+      totalEncontrados: selected.length,
+      resultados: selected,
+      textoFormateado: formatted,
+    };
+  } catch (err) {
+    logger.error('[Tenshi Normative RAG] Search error:', err);
+    return { exito: false, resultados: [], textoFormateado: '' };
+  }
+}
+
 module.exports = {
   GOVERNED_TOOLS_META,
   isGovernedTool,
@@ -800,4 +1015,5 @@ module.exports = {
   getProceduralMemoryPromptBlock,
   autoSynthesizeProceduralRule,
   searchInstantHistory,
+  searchNormativeKnowledgeBase,
 };

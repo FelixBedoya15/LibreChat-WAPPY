@@ -32,72 +32,98 @@ class WebSearch extends Tool {
     }
 
     const cleanQuery = query.trim();
-    logger.info(`[WebSearch Tool] Ejecutando búsqueda web: "${cleanQuery}"`);
+    logger.info(`[WebSearch Tool] Ejecutando búsqueda híbrida (Base Normativa WAPPY + Web SearXNG): "${cleanQuery}"`);
 
+    // 1. Consultar en paralelo la Base de Datos Normativa y Técnica interna de WAPPY (99+ documentos .md + Vademécum 2026)
+    let internalNormativeBlock = '';
     try {
-      let rawBaseUrl = process.env.SEARXNG_INSTANCE_URL || 'https://searxng.wappy.club/search';
-      let searchUrl = rawBaseUrl.endsWith('/search') ? rawBaseUrl : `${rawBaseUrl.replace(/\/+$/, '')}/search`;
-
-      const engines = process.env.SEARXNG_ENGINES || 'yandex,wikipedia';
-      const timeout = parseInt(process.env.SEARXNG_TIMEOUT || '10000', 10);
-
-      const params = {
-        q: cleanQuery,
-        format: 'json',
-        categories: 'general',
-        safesearch: 0,
-        engines,
-      };
-
-      const headers = {
-        'Content-Type': 'application/json',
-      };
-
-      if (process.env.SEARXNG_API_KEY) {
-        headers['X-API-Key'] = process.env.SEARXNG_API_KEY;
+      const { searchNormativeKnowledgeBase } = require('../../../server/routes/voice/tenshiOpenBotEngine');
+      const ragHit = await searchNormativeKnowledgeBase(cleanQuery, 3);
+      if (ragHit && ragHit.exito && ragHit.textoFormateado) {
+        internalNormativeBlock = `### 📚 Base de Datos Normativa y Técnica Oficial de WAPPY (Documentos Verificados):\n${ragHit.textoFormateado}\n\n`;
       }
-
-      const response = await axios.get(searchUrl, {
-        headers,
-        params,
-        timeout,
-      });
-
-      const data = response.data;
-      const rawResults = Array.isArray(data?.results) ? data.results : [];
-
-      // Filtrar resultados inválidos y excluir PDFs pesados para optimizar el contexto
-      const validResults = rawResults.filter((r) => {
-        if (!r.url || !r.title) return false;
-        if (r.url.toLowerCase().endsWith('.pdf')) return false;
-        return true;
-      });
-
-      if (validResults.length === 0) {
-        return `No se encontraron resultados en la web para la consulta: "${cleanQuery}".`;
-      }
-
-      const topResults = validResults.slice(0, 6);
-      const formattedLines = [`### 🌐 Resultados de búsqueda web para: "${cleanQuery}"\n`];
-
-      topResults.forEach((res, index) => {
-        const title = (res.title || 'Sin título').trim();
-        const url = (res.url || '').trim();
-        const snippet = (res.content || res.snippet || '').trim().replace(/\s+/g, ' ');
-        const date = res.publishedDate ? ` *(Publicado: ${res.publishedDate})*` : '';
-
-        formattedLines.push(`${index + 1}. **[${title}](${url})**${date}`);
-        if (snippet) {
-          formattedLines.push(`   > ${snippet}`);
-        }
-        formattedLines.push('');
-      });
-
-      return formattedLines.join('\n').trim();
-    } catch (error) {
-      logger.error(`[WebSearch Tool] Error ejecutando búsqueda para "${cleanQuery}":`, error.message);
-      return `No fue posible completar la búsqueda web para "${cleanQuery}": ${error.message}.`;
+    } catch (_ragErr) {
+      // No bloquear si el motor local no está disponible
     }
+
+    // 2. Consultar SearXNG (priorizando red interna Docker de baja latencia + fallback externo)
+    const rawConfiguredUrl = process.env.SEARXNG_INSTANCE_URL || 'https://searxng.wappy.club/search';
+    const configuredSearchUrl = rawConfiguredUrl.endsWith('/search')
+      ? rawConfiguredUrl
+      : `${rawConfiguredUrl.replace(/\/+$/, '')}/search`;
+
+    const candidateUrls = [
+      'http://librechat-searxng-srgfss-searxng-1:8080/search',
+      configuredSearchUrl,
+    ].filter((u, idx, arr) => u && arr.indexOf(u) === idx);
+
+    const engines = process.env.SEARXNG_ENGINES || 'yandex,wikipedia';
+    const headers = { 'Content-Type': 'application/json' };
+    if (process.env.SEARXNG_API_KEY) {
+      headers['X-API-Key'] = process.env.SEARXNG_API_KEY;
+    }
+
+    let rawResults = [];
+    let lastError = null;
+
+    for (const searchUrl of candidateUrls) {
+      try {
+        const response = await axios.get(searchUrl, {
+          headers,
+          params: {
+            q: cleanQuery,
+            format: 'json',
+            categories: 'general',
+            safesearch: 0,
+            engines,
+          },
+          timeout: 5500,
+        });
+        const data = response.data;
+        if (Array.isArray(data?.results) && data.results.length > 0) {
+          rawResults = data.results;
+          break;
+        }
+      } catch (err) {
+        lastError = err;
+        logger.warn(`[WebSearch Tool] Intento fallido en ${searchUrl}: ${err.message}`);
+      }
+    }
+
+    // Filtrar resultados inválidos y excluir PDFs pesados para optimizar el contexto
+    const validResults = rawResults.filter((r) => {
+      if (!r.url || !r.title) return false;
+      if (r.url.toLowerCase().endsWith('.pdf')) return false;
+      return true;
+    });
+
+    if (validResults.length === 0) {
+      if (internalNormativeBlock) {
+        return `${internalNormativeBlock}*(Nota: Se respondió con la Base de Datos Normativa Oficial de WAPPY).*`;
+      }
+      if (lastError) {
+        logger.error(`[WebSearch Tool] Error ejecutando búsqueda para "${cleanQuery}":`, lastError.message);
+      }
+      return `No se encontraron resultados externos en la web para la consulta: "${cleanQuery}".`;
+    }
+
+    const topResults = validResults.slice(0, 6);
+    const formattedLines = [`${internalNormativeBlock}### 🌐 Resultados de búsqueda web en vivo para: "${cleanQuery}"\n`];
+
+    topResults.forEach((res, index) => {
+      const title = (res.title || 'Sin título').trim();
+      const url = (res.url || '').trim();
+      const snippet = (res.content || res.snippet || '').trim().replace(/\s+/g, ' ');
+      const date = res.publishedDate ? ` *(Publicado: ${res.publishedDate})*` : '';
+
+      formattedLines.push(`${index + 1}. **[${title}](${url})**${date}`);
+      if (snippet) {
+        formattedLines.push(`   > ${snippet}`);
+      }
+      formattedLines.push('');
+    });
+
+    return formattedLines.join('\n').trim();
   }
 }
 
