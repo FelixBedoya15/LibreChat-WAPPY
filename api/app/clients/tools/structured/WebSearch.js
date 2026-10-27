@@ -37,7 +37,7 @@ class WebSearch extends Tool {
     // 1. Consultar en paralelo la Base de Datos Normativa y Técnica interna de WAPPY (99+ documentos .md + Vademécum 2026)
     let internalNormativeBlock = '';
     try {
-      const { searchNormativeKnowledgeBase } = require('../../../server/routes/voice/tenshiOpenBotEngine');
+      const { searchNormativeKnowledgeBase } = require('../../../../server/routes/voice/tenshiOpenBotEngine');
       const ragHit = await searchNormativeKnowledgeBase(cleanQuery, 3);
       if (ragHit && ragHit.exito && ragHit.textoFormateado) {
         internalNormativeBlock = `### 📚 Base de Datos Normativa y Técnica Oficial de WAPPY (Documentos Verificados):\n${ragHit.textoFormateado}\n\n`;
