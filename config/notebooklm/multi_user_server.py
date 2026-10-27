@@ -320,23 +320,13 @@ async def get_client_for_request() -> NotebookLMClient:
     selected_profile = safe_profile
     active_storage_file = user_storage_file
 
-    # Si el usuario no tiene storage_state.json con contenido válido:
+    # Aislamiento 100% privado por usuario: nunca hacer fallback a un perfil central compartido
     if not active_storage_file.exists() or active_storage_file.stat().st_size == 0:
-        # Fallback al perfil compartido default
-        selected_profile = "default"
-        active_storage_file = _ensure_default_storage()
-
-    # Si el perfil default tampoco tiene storage_state.json, revisar fallback legado
-    if not active_storage_file.exists() or active_storage_file.stat().st_size == 0:
-        legacy_storage = NOTEBOOKLM_HOME / "storage_state.json"
-        if legacy_storage.exists() and legacy_storage.stat().st_size > 0:
-            active_storage_file = legacy_storage
-            selected_profile = "default"
-        else:
-            raise RuntimeError(
-                "No hay sesión de Google NotebookLM activa en el sistema ni credenciales configuradas. "
-                "Para activarlo: ejecuta 'npm run notebooklm:auth' en el servidor VPS para vincular la cuenta central de WAPPY."
-            )
+        raise RuntimeError(
+            "Aún no has vinculado tu cuenta privada de Google NotebookLM. "
+            "Para conectarla de forma 100% privada (sin compartir cuadernos con nadie), "
+            "ve a Mi Cuenta -> Integraciones -> Google NotebookLM."
+        )
 
     # Obtener o instanciar cliente desde el cache (con verificación de mtime)
     current_mtime = active_storage_file.stat().st_mtime if active_storage_file.exists() else 0
