@@ -1105,18 +1105,54 @@ function cleanupStaleProfile(profileDir) {
   } catch (_) {}
 }
 
-function bringWindowToFront(pid, browserBin) {
-  setTimeout(() => {
+function launchBrowserVisible(browserBin, profileDir, debugPort, targetUrl, useCmdFallback = false) {
+  const args = [
+    \`--remote-debugging-port=\${debugPort}\`,
+    '--remote-allow-origins=*',
+    \`--user-data-dir=\${profileDir}\`,
+    '--no-first-run',
+    '--no-default-browser-check',
+    '--new-window',
+    '--window-size=1100,820',
+    '--window-position=120,80',
+    targetUrl,
+  ];
+  const p = os.platform();
+  if (p === 'darwin') {
+    const appBundle = browserBin.replace(/\\/Contents\\/MacOS\\/[^/]+$/, '');
+    const c = spawn('open', ['-na', appBundle, '--args', ...args], { detached: true, stdio: 'ignore' });
+    c.unref();
+    return c;
+  }
+  if (p === 'win32') {
+    if (!useCmdFallback) {
+      try {
+        const psCmd = \`$p = Start-Process -FilePath $env:WAPPY_BIN -ArgumentList @('--remote-debugging-port=' + $env:WAPPY_PORT, '--remote-allow-origins=*', '--user-data-dir=' + $env:WAPPY_DIR, '--no-first-run', '--no-default-browser-check', '--new-window', '--window-size=1100,820', '--window-position=120,80', $env:WAPPY_TARGET) -WindowStyle Normal -PassThru; Start-Sleep -Milliseconds 1200; try { $ws = New-Object -ComObject WScript.Shell; [void]$ws.AppActivate($p.Id); [void]$ws.AppActivate('Flow'); [void]$ws.AppActivate('Google') } catch {}\`;
+        const c = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', psCmd], {
+          env: { ...process.env, WAPPY_BIN: browserBin, WAPPY_DIR: profileDir, WAPPY_PORT: String(debugPort), WAPPY_TARGET: targetUrl },
+          detached: true,
+          stdio: 'ignore',
+          windowsHide: false,
+        });
+        c.unref();
+        return c;
+      } catch (_) {}
+    }
     try {
-      if (os.platform() === 'darwin') {
-        const appMatch = browserBin.match(/\\/Applications\\/([^/]+)\\.app/);
-        const appName = appMatch ? appMatch[1] : 'Google Chrome';
-        execSync(\`osascript -e 'tell application "\${appName}" to activate'\`, { stdio: 'ignore' });
-      } else if (os.platform() === 'win32' && pid) {
-        execSync(\`powershell -NoProfile -Command "$ws = New-Object -ComObject WScript.Shell; [void]$ws.AppActivate(\${pid}); [void]$ws.AppActivate('Flow'); [void]$ws.AppActivate('Google')"\`, { stdio: 'ignore' });
-      }
+      const cmdLine = \`start "" "\${browserBin}" --remote-debugging-port=\${debugPort} --remote-allow-origins=* --user-data-dir="\${profileDir}" --no-first-run --no-default-browser-check --new-window --window-size=1100,820 "\${targetUrl}"\`;
+      const c = spawn('cmd.exe', ['/d', '/s', '/c', \`"\${cmdLine}"\`], {
+        windowsVerbatimArguments: true,
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: false,
+      });
+      c.unref();
+      return c;
     } catch (_) {}
-  }, 1200);
+  }
+  const c = spawn(browserBin, args, { detached: true, stdio: 'ignore', windowsHide: false });
+  c.unref();
+  return c;
 }
 
 function cdpSend(wsUrl, method, params = {}) {
@@ -1271,27 +1307,11 @@ async function uploadCookies(cookies, email = '') {
   cleanupStaleProfile(flowProfileDir);
   let debugPort = await getFreePort();
 
-  console.log('🌐 Abriendo ventana en primer plano en tu computador...');
+  console.log('🌐 Abriendo ventana en primer plano en tu computador (' + path.basename(browserBin) + ')...');
   console.log('⏳ Detectando tu sesión (si ya iniciaste sesión antes, se cerrará sola en 3 segundos)...\\n');
 
-  let browserExited = false;
-  let child = spawn(
-    browserBin,
-    [
-      \`--remote-debugging-port=\${debugPort}\`,
-      '--remote-allow-origins=*',
-      \`--user-data-dir=\${flowProfileDir}\`,
-      '--no-first-run',
-      '--no-default-browser-check',
-      '--new-window',
-      '--window-size=1100,800',
-      '--window-position=120,80',
-      '--app=https://labs.google/fx/tools/flow',
-    ],
-    { detached: false, stdio: 'ignore', windowsHide: false }
-  );
-  child.on('exit', () => { browserExited = true; });
-  bringWindowToFront(child.pid, browserBin);
+  const targetUrl = 'https://labs.google/fx/tools/flow';
+  let child = launchBrowserVisible(browserBin, flowProfileDir, debugPort, targetUrl, false);
 
   const maxWaitMs = 180000;
   const start = Date.now();
@@ -1301,42 +1321,24 @@ async function uploadCookies(cookies, email = '') {
   while (Date.now() - start < maxWaitMs) {
     await new Promise((r) => setTimeout(r, 2000));
 
-    if (!cdpConnectedOnce && !retriedFreshProfile && (browserExited || Date.now() - start > 6000)) {
+    if (!cdpConnectedOnce && !retriedFreshProfile && Date.now() - start > 6000) {
       retriedFreshProfile = true;
-      browserExited = false;
-      try { child.kill(); } catch (_) {}
+      try { if (child) child.kill(); } catch (_) {}
       flowProfileDir = path.join(os.tmpdir(), 'wappy-flow-auth-' + Date.now());
       fs.mkdirSync(flowProfileDir, { recursive: true });
       debugPort = await getFreePort();
-      child = spawn(
-        browserBin,
-        [
-          \`--remote-debugging-port=\${debugPort}\`,
-          '--remote-allow-origins=*',
-          \`--user-data-dir=\${flowProfileDir}\`,
-          '--no-first-run',
-          '--no-default-browser-check',
-          '--new-window',
-          '--window-size=1100,800',
-          '--window-position=120,80',
-          '--app=https://labs.google/fx/tools/flow',
-        ],
-        { detached: false, stdio: 'ignore', windowsHide: false }
-      );
-      child.on('exit', () => { browserExited = true; });
-      bringWindowToFront(child.pid, browserBin);
+      child = launchBrowserVisible(browserBin, flowProfileDir, debugPort, targetUrl, true);
       continue;
-    }
-
-    if (browserExited && cdpConnectedOnce) {
-      console.error('⚠️ La ventana se cerró antes de completar la conexión. Vuelve a ejecutar el comando cuando estés listo.');
-      process.exit(1);
     }
 
     try {
       const listRes = await fetch(\`http://127.0.0.1:\${debugPort}/json/list\`);
       const pages = await listRes.json();
-      cdpConnectedOnce = true;
+      if (!Array.isArray(pages) || !pages.some((p) => p.type === 'page')) continue;
+      if (!cdpConnectedOnce) {
+        cdpConnectedOnce = true;
+        console.log('🟢 Ventana del navegador activa. Esperando inicio de sesión en Google Flow...');
+      }
       const flowPage = pages.find(
         (p) =>
           p.webSocketDebuggerUrl &&
@@ -1365,7 +1367,8 @@ async function uploadCookies(cookies, email = '') {
         const result = await uploadCookies(googleCookies);
         if (result.ok) {
           console.log('✅ ' + (result.data.message || '¡Módulo conectado con éxito!'));
-          try { child.kill(); } catch (_) {}
+          try { await cdpSend(flowPage.webSocketDebuggerUrl, 'Browser.close'); } catch (_) {}
+          try { if (child) child.kill(); } catch (_) {}
           process.exit(0);
         }
       }
@@ -1375,7 +1378,7 @@ async function uploadCookies(cookies, email = '') {
   }
 
   console.error('⏰ Tiempo de espera agotado. Vuelve a ejecutar el comando cuando estés listo.');
-  try { child.kill(); } catch (_) {}
+  try { if (child) child.kill(); } catch (_) {}
   process.exit(1);
 })();
 `;
