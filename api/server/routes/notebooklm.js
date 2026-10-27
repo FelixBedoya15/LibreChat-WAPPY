@@ -557,6 +557,62 @@ function findBrowserExecutable() {
 }
 
 function cdpSend(wsUrl, method, params = {}) {
+  if (typeof WebSocket !== 'undefined') {
+    return new Promise((resolve, reject) => {
+      const ws = new WebSocket(wsUrl);
+      const timer = setTimeout(() => {
+        try { ws.close(); } catch (_) {}
+        reject(new Error('Timeout CDP'));
+      }, 8000);
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ id: 1, method, params }));
+      };
+      ws.onmessage = (event) => {
+        clearTimeout(timer);
+        try { ws.close(); } catch (_) {}
+        try {
+          resolve(JSON.parse(event.data));
+        } catch (e) {
+          reject(e);
+        }
+      };
+      ws.onerror = (err) => {
+        clearTimeout(timer);
+        try { ws.close(); } catch (_) {}
+        reject(err);
+      };
+    });
+  }
+
+  let WSClient;
+  try { WSClient = require('ws'); } catch (_) {}
+  if (WSClient) {
+    return new Promise((resolve, reject) => {
+      const ws = new WSClient(wsUrl);
+      const timer = setTimeout(() => {
+        try { ws.terminate(); } catch (_) {}
+        reject(new Error('Timeout CDP'));
+      }, 8000);
+      ws.on('open', () => {
+        ws.send(JSON.stringify({ id: 1, method, params }));
+      });
+      ws.on('message', (data) => {
+        clearTimeout(timer);
+        try { ws.close(); } catch (_) {}
+        try {
+          resolve(JSON.parse(data.toString('utf8')));
+        } catch (e) {
+          reject(e);
+        }
+      });
+      ws.on('error', (err) => {
+        clearTimeout(timer);
+        try { ws.terminate(); } catch (_) {}
+        reject(err);
+      });
+    });
+  }
+
   return new Promise((resolve, reject) => {
     const parsed = new URL(wsUrl);
     const key = crypto.randomBytes(16).toString('base64');
@@ -574,7 +630,7 @@ function cdpSend(wsUrl, method, params = {}) {
     const timer = setTimeout(() => {
       req.destroy();
       reject(new Error('Timeout CDP'));
-    }, 5000);
+    }, 8000);
 
     req.on('upgrade', (res, socket) => {
       const payload = Buffer.from(JSON.stringify({ id: 1, method, params }), 'utf8');
@@ -597,29 +653,21 @@ function cdpSend(wsUrl, method, params = {}) {
       for (let i = 0; i < payload.length; i++) masked[i] = payload[i] ^ mask[i % 4];
       socket.write(Buffer.concat([header, mask, masked]));
 
-      let chunks = Buffer.alloc(0);
+      let bodyChunks = [];
       socket.on('data', (chunk) => {
-        chunks = Buffer.concat([chunks, chunk]);
-        if (chunks.length < 2) return;
-        let len = chunks[1] & 0x7f;
-        let offset = 2;
-        if (len === 126) {
-          if (chunks.length < 4) return;
-          len = chunks.readUInt16BE(2);
-          offset = 4;
-        } else if (len === 127) {
-          if (chunks.length < 10) return;
-          len = Number(chunks.readBigUInt64BE(2));
-          offset = 10;
-        }
-        if (chunks.length < offset + len) return;
-        clearTimeout(timer);
-        const body = chunks.slice(offset, offset + len).toString('utf8');
-        socket.end();
-        try {
-          resolve(JSON.parse(body));
-        } catch (e) {
-          reject(e);
+        bodyChunks.push(chunk);
+        const combined = Buffer.concat(bodyChunks);
+        // Find JSON end
+        const str = combined.toString('utf8');
+        const firstBrace = str.indexOf('{');
+        const lastBrace = str.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace > firstBrace) {
+          try {
+            const parsedJson = JSON.parse(str.slice(firstBrace, lastBrace + 1));
+            clearTimeout(timer);
+            socket.end();
+            return resolve(parsedJson);
+          } catch (_) {}
         }
       });
     });
@@ -686,7 +734,7 @@ async function uploadCookies(cookies, email = '') {
         (p) =>
           p.webSocketDebuggerUrl &&
           p.url &&
-          p.url.startsWith('https://notebooklm.google.com') &&
+          (p.url.includes('notebook.google.com') || p.url.includes('notebooklm.google.com')) &&
           !p.url.includes('accounts.google.com')
       );
       if (!nbPage) continue;
