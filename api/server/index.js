@@ -1147,6 +1147,7 @@ const startServer = async () => {
         const notebooklmTools = [
           'notebook_list_mcp_notebooklm',
           'notebook_create_mcp_notebooklm',
+          'notebook_rename_mcp_notebooklm',
           'source_list_mcp_notebooklm',
           'source_add_mcp_notebooklm',
           'chat_ask_mcp_notebooklm',

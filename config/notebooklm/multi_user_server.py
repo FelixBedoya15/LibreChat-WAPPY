@@ -417,8 +417,9 @@ async def notebook_list(
             {
                 "id": nb.id,
                 "title": nb.title,
+                "emoji": getattr(nb, "emoji", ""),
                 "sources_count": getattr(nb, "sources_count", 0),
-                "updated_at": str(getattr(nb, "updated_at", "")),
+                "updated_at": str(getattr(nb, "modified_at", getattr(nb, "updated_at", "")) or ""),
             }
             for nb in notebooks
         ]
@@ -441,6 +442,42 @@ async def notebook_create(
 
 
 @mcp.tool()
+async def notebook_rename(
+    notebook: str,
+    new_title: Optional[str] = None,
+    title: Optional[str] = None,
+    emoji: Optional[str] = None,
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Cambia el nombre (título) y/o emoji de un cuaderno existente de NotebookLM."""
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        if isinstance(input, dict):
+            new_title = input.get("new_title") or input.get("title") or new_title
+            emoji = input.get("emoji") or emoji
+
+        final_title = (new_title or title or "").strip()
+        if not final_title and not emoji:
+            raise ValueError("Debes proporcionar 'new_title' (o 'title') para renombrar el cuaderno.")
+
+        nb = None
+        if final_title:
+            nb = await client.notebooks.rename(nb_id, final_title)
+        if emoji:
+            nb = await client.notebooks.set_emoji(nb_id, emoji)
+
+        return {
+            "status": "renamed",
+            "id": getattr(nb, "id", nb_id),
+            "title": getattr(nb, "title", final_title),
+            "emoji": getattr(nb, "emoji", emoji or ""),
+        }
+    except Exception as e:
+        _handle_tool_error("notebook_rename", e)
+
+
+@mcp.tool()
 async def source_list(
     notebook: str,
     input: Optional[Any] = None,
@@ -454,7 +491,7 @@ async def source_list(
             {
                 "id": s.id,
                 "title": s.title,
-                "type": getattr(s, "type", "document"),
+                "type": str(getattr(s, "type", "document")),
                 "status": str(getattr(s, "status", "ready")),
             }
             for s in sources
@@ -466,32 +503,55 @@ async def source_list(
 @mcp.tool()
 async def source_add(
     notebook: str,
-    source_type: str,
+    source_type: str = "text",
     url: Optional[str] = None,
     text: Optional[str] = None,
+    content: Optional[str] = None,
     title: Optional[str] = None,
     input: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """
     Añade una fuente al cuaderno de NotebookLM.
     - source_type='url': Requiere url (enlace web o YouTube).
-    - source_type='text': Requiere text y opcionalmente title.
+    - source_type='text': Requiere text (o content) y opcionalmente title.
     """
-    client = await get_client_for_request()
-    nb_id = await _resolve_notebook_id(client, notebook)
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
 
-    if source_type == "url":
-        if not url:
-            raise ValueError("El parámetro 'url' es obligatorio para source_type='url'")
-        res = await client.sources.add_url(nb_id, url=url)
-        return {"status": "added", "source_id": getattr(res, "id", "url_added"), "url": url}
-    elif source_type == "text":
-        if not text:
-            raise ValueError("El parámetro 'text' es obligatorio para source_type='text'")
-        res = await client.sources.add_text(nb_id, text=text, title=title or "Nota de Agente WAPPY")
-        return {"status": "added", "source_id": getattr(res, "id", "text_added")}
-    else:
-        raise ValueError(f"Tipo de fuente no soportado directamente: {source_type}. Usa 'url' o 'text'.")
+        if isinstance(input, dict):
+            source_type = input.get("source_type") or source_type
+            url = input.get("url") or url
+            text = input.get("text") or input.get("content") or text
+            title = input.get("title") or title
+
+        body_text = text or content
+        st = (source_type or ("url" if url else "text")).lower().strip()
+
+        if st == "url" or (url and not body_text):
+            if not url:
+                raise ValueError("El parámetro 'url' es obligatorio para source_type='url'")
+            res = await client.sources.add_url(nb_id, url=url, title=title)
+            return {
+                "status": "added",
+                "source_id": getattr(res, "id", "url_added"),
+                "title": getattr(res, "title", title or url),
+                "url": url,
+            }
+        elif st in ("text", "markdown", "note", "document"):
+            if not body_text:
+                raise ValueError("El parámetro 'text' (o 'content') es obligatorio para source_type='text'")
+            final_title = title or "Nota de Agente WAPPY"
+            res = await client.sources.add_text(nb_id, title=final_title, content=body_text)
+            return {
+                "status": "added",
+                "source_id": getattr(res, "id", "text_added"),
+                "title": getattr(res, "title", final_title),
+            }
+        else:
+            raise ValueError(f"Tipo de fuente no soportado directamente: {source_type}. Usa 'url' o 'text'.")
+    except Exception as e:
+        _handle_tool_error("source_add", e)
 
 
 @mcp.tool()
@@ -811,23 +871,77 @@ async def research_start(
     notebook: str,
     query: str,
     mode: Optional[str] = "fast",
+    new_title: Optional[str] = None,
+    auto_import: bool = True,
     input: Optional[Any] = None,
 ) -> Dict[str, Any]:
-    """Inicia una investigación web profunda (Deep Research) para agregar fuentes al cuaderno."""
+    """
+    Inicia una investigación web (Deep Research) y por defecto importa automáticamente
+    las fuentes encontradas directamente dentro del cuaderno de NotebookLM.
+    Opcionalmente puede renombrar el cuaderno si se indica 'new_title'.
+    """
     try:
         client = await get_client_for_request()
         nb_id = await _resolve_notebook_id(client, notebook)
         if isinstance(input, dict):
             query = input.get("query") or query
             mode = input.get("mode") or mode
+            new_title = input.get("new_title") or input.get("title") or new_title
+            if "auto_import" in input:
+                auto_import = bool(input.get("auto_import"))
+
+        renamed_to = None
+        if new_title and str(new_title).strip():
+            try:
+                nb_obj = await client.notebooks.rename(nb_id, str(new_title).strip())
+                renamed_to = getattr(nb_obj, "title", str(new_title).strip())
+            except Exception as re_err:
+                logger.warning(f"No se pudo renombrar cuaderno en research_start: {re_err}")
 
         res = await client.research.start(nb_id, query=query, source="web", mode=mode or "fast")
         task_id = getattr(res, "task_id", getattr(res, "id", str(res)))
+
+        imported_sources = []
+        if auto_import:
+            try:
+                task = await client.research.wait_for_completion(nb_id, task_id=task_id, timeout=40)
+                discovered = list(getattr(task, "sources", []) or [])
+                if discovered:
+                    imported = await client.research.import_sources(
+                        nb_id,
+                        task_id=task_id,
+                        sources=discovered,
+                    )
+                    imported_sources = [
+                        {"id": s.get("id", ""), "title": s.get("title", "")}
+                        for s in (imported or [])
+                        if isinstance(s, dict)
+                    ]
+                    if not imported_sources:
+                        imported_sources = [
+                            {"url": getattr(s, "url", ""), "title": getattr(s, "title", "")}
+                            for s in discovered
+                        ]
+            except Exception as imp_err:
+                logger.warning(f"Auto-import en research_start no completó a tiempo (task_id={task_id}): {imp_err}")
+
+        if imported_sources:
+            return {
+                "status": "completed_and_imported",
+                "notebook_id": nb_id,
+                "renamed_to": renamed_to,
+                "task_id": task_id,
+                "imported_count": len(imported_sources),
+                "imported_sources": imported_sources,
+                "message": f"Investigación completada e importadas {len(imported_sources)} fuentes web directamente al cuaderno.",
+            }
+
         return {
             "status": "started",
             "notebook_id": nb_id,
+            "renamed_to": renamed_to,
             "task_id": task_id,
-            "message": "Investigación web iniciada para el cuaderno.",
+            "message": f"Investigación web iniciada (task_id='{task_id}'). Ejecuta research_import(notebook='{nb_id}', task_id='{task_id}') para importar las fuentes.",
         }
     except Exception as e:
         _handle_tool_error("research_start", e)
@@ -839,7 +953,7 @@ async def research_import(
     task_id: str,
     input: Optional[Any] = None,
 ) -> Dict[str, Any]:
-    """Importa los resultados de una investigación como nuevas fuentes del cuaderno."""
+    """Importa los resultados de una investigación web como nuevas fuentes reales del cuaderno."""
     try:
         client = await get_client_for_request()
         nb_id = await _resolve_notebook_id(client, notebook)
@@ -847,8 +961,29 @@ async def research_import(
             task_id = input.get("task_id") or task_id
             notebook = input.get("notebook") or notebook
 
-        res = await client.research.import_sources(nb_id, task_id=task_id, sources=[])
-        return {"status": "imported", "notebook_id": nb_id, "task_id": task_id, "result": res}
+        task = await client.research.poll(nb_id, task_id)
+        discovered = list(getattr(task, "sources", []) or [])
+        if not discovered:
+            task = await client.research.wait_for_completion(nb_id, task_id=task_id, timeout=35)
+            discovered = list(getattr(task, "sources", []) or [])
+
+        if not discovered:
+            return {
+                "status": "no_sources_found",
+                "notebook_id": nb_id,
+                "task_id": task_id,
+                "imported_count": 0,
+                "message": "La tarea de investigación aún no reporta fuentes o no encontró resultados.",
+            }
+
+        res = await client.research.import_sources(nb_id, task_id=task_id, sources=discovered)
+        return {
+            "status": "imported",
+            "notebook_id": nb_id,
+            "task_id": task_id,
+            "imported_count": len(res or discovered),
+            "result": res,
+        }
     except Exception as e:
         _handle_tool_error("research_import", e)
 
@@ -876,6 +1011,7 @@ async def direct_tool_handler(request: Request) -> JSONResponse:
         tools_map = {
             "notebook_list": notebook_list,
             "notebook_create": notebook_create,
+            "notebook_rename": notebook_rename,
             "source_list": source_list,
             "source_add": source_add,
             "chat_ask": chat_ask,

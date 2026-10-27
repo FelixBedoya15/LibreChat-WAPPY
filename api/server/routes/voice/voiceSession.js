@@ -3519,6 +3519,9 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                             } else if (fc.name === 'notebooklm_crear_cuaderno' || fc.name === 'notebook_create') {
                                 mappedTool = 'notebook_create';
                                 mappedArgs = { title: fc.args?.titulo || fc.args?.title || 'Nuevo Cuaderno SST' };
+                            } else if (fc.name === 'notebooklm_renombrar_cuaderno' || fc.name === 'notebook_rename') {
+                                mappedTool = 'notebook_rename';
+                                mappedArgs = { notebook: fc.args?.cuaderno || fc.args?.notebook || '', new_title: fc.args?.nuevo_titulo || fc.args?.new_title || fc.args?.titulo || fc.args?.title || '' };
                             } else if (fc.name === 'notebooklm_consultar' || fc.name === 'chat_ask') {
                                 mappedTool = 'chat_ask';
                                 mappedArgs = { notebook: fc.args?.cuaderno || fc.args?.notebook || '', query: fc.args?.pregunta || fc.args?.query || fc.args?.question || '' };
