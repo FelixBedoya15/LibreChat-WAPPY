@@ -1813,7 +1813,7 @@ class VoiceSession {
                                     },
                                     tipo_entregable: {
                                         type: "string",
-                                        description: "Tipo de respuesta o entregable esperado según lo que pidió el usuario: 'respuesta' (POR DEFECTO cuando el usuario solo hace una pregunta, consulta o duda y NO pidió explícitamente crear un documento, informe o archivo), 'documento' o 'word' (solo cuando pide explícitamente crear un documento, informe, acta, política o archivo en el Editor de Documentos de WAPPY / Canvas), 'html' (solo cuando pide un aplicativo interactivo o dashboard), 'excel' o 'presentacion'."
+                                        description: "Tipo de respuesta o entregable esperado según lo que pidió el usuario: 'respuesta' (POR DEFECTO cuando el usuario solo hace una pregunta, consulta o duda y NO pidió explícitamente crear un documento, informe o archivo), 'copia_archivo' (cuando el usuario pide que Antigravity busque y le envíe una COPIA ORIGINAL de un archivo existente en su PC/computador sin crear uno nuevo), 'documento' o 'word' (solo cuando pide explícitamente crear/redactar un documento, informe, acta o política nueva en el Editor de Documentos de WAPPY / Canvas), 'html' (solo cuando pide un aplicativo interactivo o dashboard), 'excel' o 'presentacion'."
                                     },
                                     titulo: {
                                         type: "string",
@@ -5052,9 +5052,11 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
 
                         logger.info(`[VoiceSession] Gemini Live invoked WAPPY MCP tool "${targetTool}" with args:`, JSON.stringify(targetArgs));
 
-                        // REGLA ESTRICTA DE PROTECCIÓN: Si se intenta delegar a Antigravity sin que el usuario haya dicho 'antigravity'
-                        // NOTA: Si userTranscriptionText y lastUserTranscription están vacíos (ej. inputAudioTranscription aún no llegó antes del toolCall),
-                        // permitimos la delegación a Antigravity porque el usuario invocó explícitamente la herramienta por voz.
+                        // REGLA DE PROTECCIÓN: Solo redirigir si el usuario pidió generar el análisis IA nativo de un aplicativo interno de WAPPY
+                        // NOTA IMPORTANTE: En modo voz en español, Google ASR (`inputAudioTranscription`) suele transcribir fonéticamente
+                        // la palabra inglesa "Antigravity" como frases en español ("un talento que habita", "a ti gravity", "anti gravedad"),
+                        // mientras que el modelo nativo de audio de Gemini Live sí escucha "Antigravity" y llama a `wappy_delegar_orden_antigravity`.
+                        // Por tanto, JAMÁS redirigir `wappy_delegar_orden_antigravity` hacia `executeCanvasTool`.
                         if (targetTool === 'wappy_delegar_orden_antigravity' || targetTool === 'delegar_orden_antigravity') {
                             const rawUserContext = `${this.userTranscriptionText || ''} ${this.lastUserTranscription || ''}`.trim();
                             const fullUserContext = `${rawUserContext} ${targetArgs?.instruccion || ''} ${targetArgs?.titulo || ''}`.toLowerCase();
@@ -5092,25 +5094,6 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                     }
                                     continue;
                                 }
-
-                                logger.warn(`[VoiceSession] Gemini Live intentó delegar a Antigravity sin mención del usuario ("${rawUserContext}"). Redirigiendo a executeCanvasTool.`);
-                                const requestedType = targetArgs.tipo_entregable === 'word' ? 'text' : (targetArgs.tipo_entregable || 'html');
-                                const docTitle = targetArgs.titulo || 'Aplicativo SG-SST';
-                                const userReq = targetArgs.instruccion || this.lastUserTranscription || 'Generar aplicativo interactivo';
-                                const canvasRes = await this.executeCanvasTool({
-                                    fileType: requestedType,
-                                    title: docTitle,
-                                    prompt: userReq,
-                                    content: ''
-                                }, userReq, fc.id);
-                                if (this.geminiClient) {
-                                    this.sendGeminiToolResponse([{
-                                        id: fc.id,
-                                        name: fc.name,
-                                        response: { result: canvasRes?.ok ? `El entregable '${docTitle}' fue generado directamente en pantalla con canvas_tool en lugar de delegar a Antigravity.` : `No se pudo generar '${docTitle}': ${canvasRes?.failReason || 'Error desconocido'}` }
-                                    }]);
-                                }
-                                continue;
                             }
                         }
 

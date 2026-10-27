@@ -2390,8 +2390,9 @@ server.tool(
   {
     ordenId: z.string().describe('ID de la orden delegada que Antigravity completó'),
     resultado: z.string().describe('Respuesta directa a la pregunta (si formato="respuesta") o resumen ejecutivo técnico de lo realizado'),
-    contenido: z.string().optional().describe('Para documentos ("documento"/"word") o aplicativos ("html"): Cuerpo completo del documento en Markdown con tablas técnicas (sin <!DOCTYPE html> para documentos en el Editor LiveEditor de WAPPY) o código HTML5 completo (<!DOCTYPE html>) si formato="html". No requerido si formato="respuesta".'),
-    formato: z.string().optional().describe('Formato: "respuesta" (cuando solo es una pregunta o consulta conversacional sin generar archivo), "documento" / "word" (para el Editor de Documentos de WAPPY en Canvas), "html" (aplicativo interactivo), "excel", "presentacion"'),
+    contenido: z.string().optional().describe('Para documentos ("documento"/"word") o aplicativos ("html"): Cuerpo completo del documento en Markdown con tablas técnicas (sin <!DOCTYPE html> para documentos en el Editor LiveEditor de WAPPY) o código HTML5 completo (<!DOCTYPE html>) si formato="html". No requerido si formato="respuesta" o formato="copia_archivo".'),
+    formato: z.string().optional().describe('Formato: "respuesta" (cuando solo es una pregunta o consulta conversacional sin generar archivo), "copia_archivo" (para enviar una copia binaria exacta de un archivo original del PC del usuario), "documento" / "word" (para el Editor de Documentos de WAPPY en Canvas), "html" (aplicativo interactivo), "excel", "presentacion"'),
+    rutaArchivoLocal: z.string().optional().describe('Ruta absoluta en el PC del usuario de un archivo original existente para enviar una COPIA BINARIA EXACTA al chat de Tenshi (cuando formato="copia_archivo")'),
     resumen: z.string().optional().describe('Resumen ejecutivo breve para mostrar en la tarjeta del chat de Tenshi'),
     urlDescarga: z.string().optional().describe('URL o enlace de descarga del archivo si fue subido a la nube o Drive'),
     entregable: z.object({
@@ -2404,12 +2405,57 @@ server.tool(
       urlDescarga: z.string().optional(),
     }).passthrough().optional().describe('Objeto opcional de entregable (alternativa a pasar contenido y formato en la raíz)'),
   },
-  async ({ ordenId, resultado, contenido, formato, resumen, urlDescarga, entregable }) => {
+  async ({ ordenId, resultado, contenido, formato, rutaArchivoLocal, resumen, urlDescarga, entregable }) => {
     try {
       const mergedContenido = contenido || entregable?.contenido || entregable?.content;
-      const mergedFormato = formato || entregable?.formato || entregable?.fileType;
+      let mergedFormato = formato || entregable?.formato || entregable?.fileType;
       const mergedResumen = resumen || entregable?.resumen;
       const mergedUrlDescarga = urlDescarga || entregable?.urlDescarga;
+      let archivoOriginal = entregable?.archivoOriginal || undefined;
+
+      if (rutaArchivoLocal && !archivoOriginal) {
+        try {
+          const fs = require('fs');
+          const path = require('path');
+          if (fs.existsSync(rutaArchivoLocal)) {
+            const buf = fs.readFileSync(rutaArchivoLocal);
+            const fileName = path.basename(rutaArchivoLocal);
+            const ext = path.extname(fileName).toLowerCase();
+            const mimeMap = {
+              '.pdf': 'application/pdf',
+              '.doc': 'application/msword',
+              '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+              '.xls': 'application/vnd.ms-excel',
+              '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              '.ppt': 'application/vnd.ms-powerpoint',
+              '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+              '.png': 'image/png',
+              '.jpg': 'image/jpeg',
+              '.jpeg': 'image/jpeg',
+              '.webp': 'image/webp',
+              '.gif': 'image/gif',
+              '.mp4': 'video/mp4',
+              '.mov': 'video/quicktime',
+              '.mp3': 'audio/mpeg',
+              '.wav': 'audio/wav',
+              '.csv': 'text/csv',
+              '.txt': 'text/plain',
+              '.md': 'text/markdown',
+              '.json': 'application/json',
+              '.zip': 'application/zip',
+            };
+            const mimeType = mimeMap[ext] || 'application/octet-stream';
+            archivoOriginal = {
+              name: fileName,
+              mimeType,
+              size: buf.length,
+              dataUrl: `data:${mimeType};base64,${buf.toString('base64')}`,
+            };
+            mergedFormato = 'copia_archivo';
+          }
+        } catch (_) {}
+      }
+
       const data = await wappyRequest('/antigravity/completar', {
         method: 'POST',
         body: JSON.stringify({
@@ -2419,6 +2465,7 @@ server.tool(
           formato: mergedFormato,
           resumen: mergedResumen,
           urlDescarga: mergedUrlDescarga,
+          archivoOriginal,
           entregable,
         }),
       });

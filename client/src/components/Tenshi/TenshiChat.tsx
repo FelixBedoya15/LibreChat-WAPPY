@@ -2143,11 +2143,18 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
             const entregable = orden.entregable || {};
             const contenido = entregable.contenido || '';
+            const mediaPayload = entregable.media || undefined;
             const finalFormat = String(entregable.formato || formato || 'respuesta').toLowerCase().trim();
+            const isOriginalFileCopy =
+              Boolean(mediaPayload?.dataUrl) ||
+              finalFormat === 'copia_archivo' ||
+              finalFormat === 'archivo_original';
             const isConversationalReply =
-              finalFormat === 'respuesta' || finalFormat === 'consulta' || finalFormat === 'chat';
+              !isOriginalFileCopy &&
+              (finalFormat === 'respuesta' || finalFormat === 'consulta' || finalFormat === 'chat');
             const isHtml =
               !isConversationalReply &&
+              !isOriginalFileCopy &&
               finalFormat === 'html';
             const canvasFileType = isHtml
               ? 'html'
@@ -2162,9 +2169,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   title: titulo,
                   formato: finalFormat,
                   isConversationalReply,
+                  isOriginalFileCopy,
+                  media: mediaPayload,
                   html: isHtml ? contenido : undefined,
                   file:
-                    !isConversationalReply && contenido
+                    !isConversationalReply && !isOriginalFileCopy && contenido
                       ? {
                           title: titulo,
                           fileType: canvasFileType,
@@ -4704,7 +4713,18 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   const deliveredAntigravityIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     const handleAntigravityDelivered = (e: any) => {
-      const { ordenId, title, html, file, messageId, summary, formato, isConversationalReply: explicitConversational } = e.detail || {};
+      const {
+        ordenId,
+        title,
+        html,
+        file,
+        media,
+        messageId,
+        summary,
+        formato,
+        isConversationalReply: explicitConversational,
+        isOriginalFileCopy: explicitOriginalFile,
+      } = e.detail || {};
       if (ordenId && deliveredAntigravityIdsRef.current.has(String(ordenId))) {
         return;
       }
@@ -4713,28 +4733,37 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       }
 
       const rawFormat = String(formato || file?.fileType || '').toLowerCase().trim();
-      const isConversationalReply =
-        Boolean(explicitConversational) ||
-        rawFormat === 'respuesta' ||
-        rawFormat === 'consulta' ||
-        rawFormat === 'chat' ||
-        (!file && !html);
+      const isOriginalFileCopy =
+        Boolean(explicitOriginalFile) ||
+        Boolean(media?.dataUrl) ||
+        rawFormat === 'copia_archivo' ||
+        rawFormat === 'archivo_original';
 
-      const finalTitle = title || file?.title || 'Respuesta de Antigravity';
+      const isConversationalReply =
+        !isOriginalFileCopy &&
+        (Boolean(explicitConversational) ||
+          rawFormat === 'respuesta' ||
+          rawFormat === 'consulta' ||
+          rawFormat === 'chat' ||
+          (!file && !html));
+
+      const finalTitle = title || file?.title || media?.name || 'Respuesta de Antigravity';
       const contenido = file?.content || html || '';
 
       // Si es documento ('documento', 'word', 'text', 'informe'), siempre usar 'text' para abrir en el Editor de Documentos de WAPPY (LiveEditor)
       const isExplicitTextDoc =
-        rawFormat === 'documento' ||
-        rawFormat === 'word' ||
-        rawFormat === 'doc' ||
-        rawFormat === 'docx' ||
-        rawFormat === 'text' ||
-        rawFormat === 'informe' ||
-        file?.fileType === 'text';
+        !isOriginalFileCopy &&
+        (rawFormat === 'documento' ||
+          rawFormat === 'word' ||
+          rawFormat === 'doc' ||
+          rawFormat === 'docx' ||
+          rawFormat === 'text' ||
+          rawFormat === 'informe' ||
+          file?.fileType === 'text');
 
       const isHtml =
         !isConversationalReply &&
+        !isOriginalFileCopy &&
         !isExplicitTextDoc &&
         (rawFormat === 'html' ||
           file?.fileType === 'html' ||
@@ -4743,7 +4772,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       const canvasFileType = isHtml ? 'html' : isExplicitTextDoc ? 'text' : (file?.fileType || 'text');
       const chatSummary =
         summary ||
-        (isConversationalReply
+        (isOriginalFileCopy
+          ? `Aquí tienes la copia original intacta del archivo "${media?.name || finalTitle}" enviado desde tu computador.`
+          : isConversationalReply
           ? contenido || 'Consulta respondida por Google Antigravity.'
           : 'Documento procesado en el formato oficial del Editor de Documentos de WAPPY.');
 
@@ -4758,7 +4789,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       } catch (_) {}
 
       const fileObj =
-        !isConversationalReply && contenido
+        !isConversationalReply && !isOriginalFileCopy && contenido
           ? {
               title: finalTitle,
               fileType: canvasFileType,
@@ -4767,7 +4798,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             }
           : undefined;
 
-      const bubbleText = isConversationalReply
+      const bubbleText = isOriginalFileCopy
+        ? `📎 **Copia de Archivo Original desde tu PC (${media?.name || finalTitle})**\n\n${chatSummary}`
+        : isConversationalReply
         ? `⚡ **Respuesta de Google Antigravity**\n\n${chatSummary}`
         : `✨ **${finalTitle} — Listo en el Editor de Documentos de WAPPY**\n\n${chatSummary}`;
 
@@ -4780,6 +4813,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 ...m,
                 content: bubbleText,
                 file: fileObj,
+                media: isOriginalFileCopy && media ? media : m.media,
                 htmlReport: isHtml ? contenido : undefined,
                 delegatedStatus: 'done',
               };
@@ -4794,6 +4828,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             role: 'assistant',
             content: bubbleText,
             file: fileObj,
+            media: isOriginalFileCopy && media ? media : undefined,
             htmlReport: isHtml ? contenido : undefined,
             delegatedOrderId: ordenId,
             delegatedStatus: 'done',
@@ -4804,9 +4839,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       setIsOpen(true);
       refetchHistoryRef.current?.();
 
-      // Si NO es una simple pregunta conversacional y sí se generó un documento o aplicativo,
+      // Si NO es una simple pregunta conversacional ni una copia de archivo original, y sí se generó un documento o aplicativo,
       // abrirlo automáticamente en el Canvas (Editor de Documentos de WAPPY / LiveEditor) incluso si el usuario está en /aplicaciones
-      if (!isConversationalReply && fileObj && contenido) {
+      if (!isConversationalReply && !isOriginalFileCopy && fileObj && contenido) {
         const canvasPayload = {
           id: fileObj.canvasId,
           title: finalTitle,
@@ -4835,7 +4870,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       }
 
       if (isVoiceActiveRef.current) {
-        if (isConversationalReply) {
+        if (isOriginalFileCopy) {
+          sendTextMessageRef.current?.(
+            `[SISTEMA INTERNO WAPPY]: Antigravity acaba de enviar la copia original del archivo "${media?.name || finalTitle}" desde el PC del usuario al chat de Tenshi. Confírmale en una frase breve que ya tiene el archivo original adjunto en su chat listo para descargar.`
+          );
+        } else if (isConversationalReply) {
           sendTextMessageRef.current?.(
             `[SISTEMA INTERNO WAPPY]: Antigravity acaba de responder la consulta del usuario: "${chatSummary.slice(0, 600)}". Compártele esta respuesta de forma natural, clara y breve en voz alta.`
           );

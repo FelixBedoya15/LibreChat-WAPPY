@@ -7831,7 +7831,8 @@ router.post('/antigravity/ordenes/:id/claim', requireApiKeyOrJwt, async (req, re
 /**
  * Determina inteligentemente si la instrucción delegada a Antigravity requiere:
  * - 'respuesta' (pregunta/consulta conversacional directa sin crear archivo ni abrir Canvas)
- * - 'documento' (documento formal en el Editor de Documentos de WAPPY / LiveEditor con fileType='text')
+ * - 'copia_archivo' (enviar una copia binaria exacta de un archivo original que ya existe en el PC del usuario, sin crear uno nuevo)
+ * - 'documento' (documento formal en el Editor de Documentos de WAPPY / LiveEditor con fileType='text', solo cuando se pide explícitamente crear un archivo/documento)
  * - 'html' (aplicativo interactivo o dashboard con fileType='html')
  * - 'excel' o 'presentacion'
  */
@@ -7839,48 +7840,75 @@ function resolveAntigravityOutputFormat(rawType, instructionText = '', files = [
   const normRaw = String(rawType || '').toLowerCase().trim();
   const text = String(instructionText || '').trim();
 
+  if (normRaw === 'copia_archivo' || normRaw === 'archivo_original' || normRaw === 'copia') {
+    return 'copia_archivo';
+  }
+
+  // Detectar si el usuario pide enviar/pasar/traer una copia de un archivo original existente en su PC/computador/carpeta (sin crear uno nuevo)
+  const asksToSendExistingLocalFile =
+    /\b(env[ií][ae](?:me|le|r|s)?|manda(?:me|le|r|s)?|pasa(?:me|le|r|s)?|trae(?:me|r)?|copia(?:r)?|comparte|sube|busca(?:me|r)?\s+[\s\S]{0,25}\b(?:env[ií][ae]|manda|pasa|trae))\b[\s\S]*\b(archivo|pdf|excel|word|docx|xlsx|pptx|imagen|foto|video|zip|furat|factura|formato|plantilla|carpeta|pc|computador|escritorio|descargas|downloads|documents|disco|original)\b/i.test(
+      text
+    ) &&
+    !/\b(crea(?:me|r)?|redacta(?:me|r)?|elabora(?:me|r)?|genera(?:me|r)?|dise[ñn]a(?:me|r)?)\s+(?:un|una|el|la|nuevo|nueva)\b/i.test(
+      text
+    );
+
+  if (asksToSendExistingLocalFile) {
+    return 'copia_archivo';
+  }
+
   if (normRaw === 'respuesta' || normRaw === 'consulta' || normRaw === 'texto' || normRaw === 'chat') {
     return 'respuesta';
   }
-  if (normRaw === 'excel' || normRaw === 'xlsx' || /\b(excel|hoja\s+de\s+c[aá]lculo|xlsx)\b/i.test(text)) {
+
+  // Verificar si el texto pide EXPLÍCITAMENTE crear/generar/redactar un archivo, documento, aplicativo, excel o presentación
+  const hasExplicitCreationVerb =
+    /\b(crea(?:me|r)?|redacta(?:me|r)?|elabora(?:me|r)?|genera(?:me|r)?|dise[ñn]a(?:me|r)?|construye|arma|escribe|haz(?:me)?|hacer|entrega(?:me)?\s+un|prepara(?:me)?\s+un)\b/i.test(
+      text
+    );
+  const mentionsCanvasOrEditor = /\b(en\s+canva|en\s+canvas|en\s+el\s+editor|en\s+un\s+documento|en\s+un\s+archivo|en\s+un\s+word|en\s+un\s+informe)\b/i.test(
+    text
+  );
+
+  if (
+    hasExplicitCreationVerb &&
+    (normRaw === 'excel' || normRaw === 'xlsx' || /\b(excel|hoja\s+de\s+c[aá]lculo|xlsx)\b/i.test(text))
+  ) {
     return 'excel';
   }
   if (
-    normRaw === 'presentacion' ||
-    normRaw === 'presentation' ||
-    normRaw === 'pptx' ||
-    /\b(presentaci[oó]n|diapositivas|slides|powerpoint)\b/i.test(text)
+    hasExplicitCreationVerb &&
+    (normRaw === 'presentacion' ||
+      normRaw === 'presentation' ||
+      normRaw === 'pptx' ||
+      /\b(presentaci[oó]n|diapositivas|slides|powerpoint)\b/i.test(text))
   ) {
     return 'presentacion';
   }
   if (
-    normRaw === 'html' ||
-    normRaw === 'dashboard' ||
-    normRaw === 'aplicativo' ||
-    /\b(html|dashboard|tablero\s+interactivo|aplicativo|calculadora|simulador|widget)\b/i.test(text)
+    hasExplicitCreationVerb &&
+    (normRaw === 'html' ||
+      normRaw === 'dashboard' ||
+      normRaw === 'aplicativo' ||
+      /\b(html|dashboard|tablero\s+interactivo|aplicativo|calculadora|simulador|widget)\b/i.test(text))
   ) {
     return 'html';
   }
 
-  // Verificar si el texto de la instrucción pide explícitamente un documento, informe, formato o archivo
-  const explicitlyAsksForDocument =
-    /\b(documento|informe|reporte|word|acta|pol[ií]tica|procedimiento|protocolo|formato|plantilla|manual|programa|plan\s+de|matriz|estudio|diagn[oó]stico\s+escrito|redacta|redactar|elabora\s+un|crea\s+un|genera\s+un\s+(?:documento|informe|reporte|archivo|formato|acta)|en\s+canvas|en\s+el\s+editor|archivo|pdf)\b/i.test(
-      text
-    );
+  // Solo devolver 'documento' cuando el usuario pide EXPLÍCITAMENTE crear/redactar un documento, informe o archivo
+  const explicitlyAsksToCreateDocument =
+    (hasExplicitCreationVerb &&
+      /\b(documento|informe|reporte|word|acta|pol[ií]tica|procedimiento|protocolo|formato|plantilla|manual|programa|plan\s+de|matriz|estudio|diagn[oó]stico|archivo|pdf)\b/i.test(
+        text
+      )) ||
+    mentionsCanvasOrEditor;
 
-  if (explicitlyAsksForDocument) {
+  if (explicitlyAsksToCreateDocument) {
     return 'documento';
   }
 
-  // Si no pidió explícitamente ningún documento/archivo/aplicativo y no adjuntó archivos para auditar en informe,
-  // es una pregunta o consulta conversacional ('respuesta')
-  if (!Array.isArray(files) || files.length === 0) {
-    return 'respuesta';
-  }
-
-  return normRaw === 'word' || normRaw === 'doc' || normRaw === 'docx' || normRaw === 'informe' || normRaw === 'documento'
-    ? 'documento'
-    : 'respuesta';
+  // En cualquier otro caso (preguntas sencillas, dudas, consultas conceptuales o de datos), SIEMPRE es 'respuesta' (texto plano, 0 archivos)
+  return 'respuesta';
 }
 
 /**
@@ -8188,6 +8216,8 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
       resumen,
       entregable,
       deliverable,
+      archivoOriginal,
+      media,
     } = req.body;
 
     const targetId = ordenId || id;
@@ -8204,8 +8234,43 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
       ? entregable
       : (deliverable && typeof deliverable === 'object' ? deliverable : {});
 
+    // Verificar si se envió una COPIA BINARIA EXACTA de un archivo original del PC del usuario
+    const rawOriginalFile =
+      (archivoOriginal && typeof archivoOriginal === 'object' ? archivoOriginal : null) ||
+      (media && typeof media === 'object' && !Array.isArray(media) ? media : null) ||
+      (nestedDeliverable.archivoOriginal && typeof nestedDeliverable.archivoOriginal === 'object'
+        ? nestedDeliverable.archivoOriginal
+        : null) ||
+      (nestedDeliverable.media && typeof nestedDeliverable.media === 'object' ? nestedDeliverable.media : null);
+
+    let mediaPayload = undefined;
+    if (rawOriginalFile && (rawOriginalFile.dataUrl || rawOriginalFile.base64)) {
+      const origName = String(rawOriginalFile.name || rawOriginalFile.fileName || 'archivo_original').trim();
+      const origMime = String(rawOriginalFile.mimeType || 'application/octet-stream').trim();
+      const origDataUrl = rawOriginalFile.dataUrl
+        ? String(rawOriginalFile.dataUrl)
+        : `data:${origMime};base64,${String(rawOriginalFile.base64).replace(/^data:[^;]+;base64,/, '')}`;
+      const origSize = Number(rawOriginalFile.size) || Math.round((origDataUrl.length * 3) / 4);
+      const origType = origMime.startsWith('image/')
+        ? 'image'
+        : origMime.startsWith('video/')
+        ? 'video'
+        : origMime.startsWith('audio/')
+        ? 'audio'
+        : 'document';
+      mediaPayload = {
+        name: origName,
+        type: origType,
+        mimeType: origMime,
+        size: origSize,
+        dataUrl: origDataUrl,
+      };
+    }
+
+    const isOriginalFileCopy = Boolean(mediaPayload);
+
     const rawFormat = String(
-      formato || fileType || nestedDeliverable.formato || nestedDeliverable.fileType || ''
+      formato || fileType || nestedDeliverable.formato || nestedDeliverable.fileType || (isOriginalFileCopy ? 'copia_archivo' : '')
     ).toLowerCase().trim();
     const rawExplicitContent =
       contenido || content || nestedDeliverable.contenido || nestedDeliverable.content || '';
@@ -8222,34 +8287,37 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
 
     // Determinar si es una respuesta conversacional (pregunta/consulta simple donde NO se pidió documento ni aplicativo)
     const isExplicitDeliverableFormat =
-      rawFormat === 'documento' ||
-      rawFormat === 'word' ||
-      rawFormat === 'doc' ||
-      rawFormat === 'docx' ||
-      rawFormat === 'informe' ||
-      rawFormat === 'html' ||
-      rawFormat === 'excel' ||
-      rawFormat === 'presentacion' ||
-      rawFormat === 'presentation';
+      !isOriginalFileCopy &&
+      (rawFormat === 'documento' ||
+        rawFormat === 'word' ||
+        rawFormat === 'doc' ||
+        rawFormat === 'docx' ||
+        rawFormat === 'informe' ||
+        rawFormat === 'html' ||
+        rawFormat === 'excel' ||
+        rawFormat === 'presentacion' ||
+        rawFormat === 'presentation');
 
     const isConversationalReply =
-      rawFormat === 'respuesta' ||
-      rawFormat === 'consulta' ||
-      rawFormat === 'chat' ||
-      (expectedFormat === 'respuesta' && !isExplicitDeliverableFormat);
+      !isOriginalFileCopy &&
+      (rawFormat === 'respuesta' ||
+        rawFormat === 'consulta' ||
+        rawFormat === 'chat' ||
+        (expectedFormat === 'respuesta' && !isExplicitDeliverableFormat));
 
     const finalContentStr = typeof finalContent === 'string' ? finalContent.trim() : '';
 
-    // Validación: solo exigir mínimo 300 caracteres cuando NO es una respuesta conversacional
-    if (!isConversationalReply && !rawExplicitContent && !finalUrl && finalContentStr.length < 300) {
+    // Validación: solo exigir mínimo 300 caracteres cuando NO es una respuesta conversacional ni una copia de archivo original
+    if (!isConversationalReply && !isOriginalFileCopy && !rawExplicitContent && !finalUrl && finalContentStr.length < 300) {
       return res.status(400).json({
-        error: 'Para entregables de tipo documento/informe o aplicativo HTML, el parámetro "contenido" debe incluir el entregable completo desarrollado (mínimo 300 caracteres). Si la orden es solo una pregunta o consulta conversacional, envía formato="respuesta" y la respuesta en "resultado".',
+        error: 'Para entregables de tipo documento/informe o aplicativo HTML, el parámetro "contenido" debe incluir el entregable completo desarrollado (mínimo 300 caracteres). Si la orden es solo una pregunta o consulta conversacional, envía formato="respuesta" y la respuesta en "resultado". Si estás enviando una copia de un archivo original del PC, usa --send-file o envía archivoOriginal.',
       });
     }
 
     // Determinar si es un documento para el Editor de Documentos de WAPPY ('text' -> LiveEditor) vs Aplicativo HTML ('html')
     const isDocumentFormat =
       !isConversationalReply &&
+      !isOriginalFileCopy &&
       (rawFormat === 'documento' ||
         rawFormat === 'word' ||
         rawFormat === 'doc' ||
@@ -8260,6 +8328,7 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
 
     const isHtml =
       !isConversationalReply &&
+      !isOriginalFileCopy &&
       !isDocumentFormat &&
       (rawFormat === 'html' ||
         expectedFormat === 'html' ||
@@ -8267,7 +8336,9 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
         completionNotesStr.includes('<!DOCTYPE') ||
         (typeof finalContent === 'string' && (finalContent.includes('<html') || finalContent.includes('<!DOCTYPE'))));
 
-    const finalFormat = isConversationalReply
+    const finalFormat = isOriginalFileCopy
+      ? 'copia_archivo'
+      : isConversationalReply
       ? 'respuesta'
       : isHtml
       ? 'html'
@@ -8278,7 +8349,7 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
     // Si es un documento ('documento' / 'word' / 'text'), aplicar el formato oficial del Editor de Documentos de WAPPY (LiveEditor)
     // y sincronizarlo con CanvasSession + LiveEditorSession
     const canvasId = `antigravity-${task._id}`;
-    if (!isConversationalReply && finalFormat === 'documento' && finalContentStr) {
+    if (!isConversationalReply && !isOriginalFileCopy && finalFormat === 'documento' && finalContentStr) {
       const company = await getActiveCompany(targetUserId);
       finalContent = formatWappyEditorDocument(finalContentStr, task.title, company);
 
@@ -8328,7 +8399,14 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
     }
 
     let finalSummary = resumen || nestedDeliverable.resumen;
-    if (isConversationalReply) {
+    if (isOriginalFileCopy && mediaPayload) {
+      finalSummary = (
+        resultado ||
+        result ||
+        finalSummary ||
+        `Aquí tienes la copia original intacta del archivo "${mediaPayload.name}" enviado desde tu computador.`
+      ).trim();
+    } else if (isConversationalReply) {
       finalSummary = (resultado || result || finalSummary || finalContentStr || 'Consulta respondida por Antigravity.').trim();
     } else if (!finalSummary || finalSummary.includes('<!DOCTYPE') || finalSummary.includes('<html')) {
       if (isHtml) {
@@ -8350,17 +8428,18 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
     task.completedAt = new Date();
     task.deliverable = {
       formato: finalFormat,
-      contenido: isConversationalReply ? finalSummary : finalContent,
+      contenido: isConversationalReply || isOriginalFileCopy ? finalSummary : finalContent,
       urlDescarga: finalUrl,
       resumen: finalSummary,
       titulo: task.title,
+      media: mediaPayload,
     };
     task.description += `\n\n[RESULTADO DE ANTIGRAVITY - ${new Date().toISOString()}]\n${completionNotesStr.slice(0, 3000)}`;
     await task.save();
 
     // ── INYECCIÓN AUTOMÁTICA EN EL CHAT DE TENSHI (TenshiMessage) ───────────────
     let createdTenshiMsg = null;
-    const normalizedFileType = isConversationalReply
+    const normalizedFileType = isConversationalReply || isOriginalFileCopy
       ? 'respuesta'
       : isHtml
       ? 'html'
@@ -8370,7 +8449,7 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
       ? 'image'
       : finalFormat;
 
-    const filePayload = (!isConversationalReply && finalContent)
+    const filePayload = (!isConversationalReply && !isOriginalFileCopy && finalContent)
       ? {
           title: task.title,
           fileType: normalizedFileType,
@@ -8380,7 +8459,9 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
       : undefined;
 
     try {
-      const tenshiBubbleContent = isConversationalReply
+      const tenshiBubbleContent = isOriginalFileCopy && mediaPayload
+        ? `📎 **Copia de Archivo Original desde tu PC (` + `${mediaPayload.name}` + `)**\n\n${finalSummary}`
+        : isConversationalReply
         ? `⚡ **Respuesta de Google Antigravity**\n\n${finalSummary}`
         : `✨ **¡Documento / Entregable de Google Antigravity Listo en el Editor de WAPPY!**\n\n**${task.title}**\n\n${finalSummary}${finalUrl ? `\n🔗 **Enlace de descarga:** [Descargar Archivo](${finalUrl})` : ''}`;
 
@@ -8390,7 +8471,8 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
         content: tenshiBubbleContent,
         htmlReport: isHtml ? finalContent : undefined,
         file: filePayload,
-        report: isConversationalReply
+        media: mediaPayload,
+        report: isConversationalReply || isOriginalFileCopy
           ? undefined
           : {
               titulo: task.title,
@@ -8412,6 +8494,8 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
         title: task.title,
         formato: finalFormat,
         isConversationalReply,
+        isOriginalFileCopy,
+        media: mediaPayload,
         html: isHtml ? finalContent : undefined,
         file: filePayload,
         messageId: createdTenshiMsg?._id ? createdTenshiMsg._id.toString() : `antigravity-${Date.now()}`,
@@ -8440,6 +8524,8 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
               title: task.title,
               formato: finalFormat,
               isConversationalReply,
+              isOriginalFileCopy,
+              media: mediaPayload,
               html: isHtml ? finalContent : undefined,
               file: filePayload,
               messageId: createdTenshiMsg?._id ? createdTenshiMsg._id.toString() : `antigravity-${Date.now()}`,
@@ -8464,9 +8550,10 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
       tenshiMensajeId: createdTenshiMsg?._id ? createdTenshiMsg._id.toString() : null,
       entregable: {
         formato: finalFormat,
-        contenido: finalContent,
+        contenido: isConversationalReply || isOriginalFileCopy ? finalSummary : finalContent,
         urlDescarga: finalUrl,
         resumen: finalSummary,
+        media: mediaPayload,
       },
     });
   } catch (error) {

@@ -238,7 +238,7 @@ function jsonRequest(fullUrl, method, apiKey, bodyObj = null) {
             Authorization: `Bearer ${apiKey}`,
             ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {}),
           },
-          timeout: 10000,
+          timeout: 45000,
         },
         (res) => {
           let raw = '';
@@ -346,27 +346,43 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
     ? `\nArchivos Adjuntos:\n${orden.archivos.map((f) => `- ${f}`).join('\n')}`
     : '';
 
+  const isOriginalFileCopy =
+    rawFormato === 'copia_archivo' ||
+    rawFormato === 'archivo_original' ||
+    rawFormato === 'copia';
+
   const isQuestionOnly =
-    rawFormato === 'respuesta' ||
-    rawFormato === 'consulta' ||
-    rawFormato === 'texto' ||
-    rawFormato === 'chat';
+    !isOriginalFileCopy &&
+    (rawFormato === 'respuesta' ||
+      rawFormato === 'consulta' ||
+      rawFormato === 'texto' ||
+      rawFormato === 'chat');
 
   const isHtmlApp =
-    rawFormato === 'html' ||
-    rawFormato === 'dashboard' ||
-    rawFormato === 'aplicativo';
+    !isOriginalFileCopy &&
+    (rawFormato === 'html' ||
+      rawFormato === 'dashboard' ||
+      rawFormato === 'aplicativo');
 
   let executionInstructions = [];
-  if (isQuestionOnly) {
+  if (isOriginalFileCopy) {
     executionInstructions = [
-      `INSTRUCCIÓN DE RESPUESTA DIRECTA (MODO CONSULTA / PREGUNTA — PROHIBIDO GENERAR DOCUMENTO):`,
-      `1. El usuario únicamente realizó una PREGUNTA o CONSULTA puntual desde Tenshi (NO solicitó crear ningún documento, informe ni aplicativo en Canvas).`,
+      `INSTRUCCIÓN DE ENVÍO DE COPIA BINARIA EXACTA DE ARCHIVO ORIGINAL DEL PC (PROHIBIDO CREAR O INVENTAR UN ARCHIVO NUEVO):`,
+      `1. El usuario solicitó recibir una COPIA ORIGINAL INTACTA de un archivo existente en su PC/computador (ej. en ~/Downloads, ~/Documents, ~/Desktop o en su proyecto).`,
+      `2. Localiza la ruta absoluta exacta del archivo solicitado en el disco del usuario. NO crees ni redactes un archivo nuevo; debes enviar la copia binaria del archivo original.`,
+      `3. Una vez localizado el archivo original en el PC, ejecuta inmediatamente en terminal (run_command):`,
+      `   node "${DAEMON_SCRIPT_DEST}" --send-file="<RUTA_ABSOLUTA_DEL_ARCHIVO>" --orden-id="${ordenId}" --resumen="Aquí tienes la copia original del archivo solicitado desde tu PC."`,
+      `   (Esto enviará los bytes exactos del archivo original al chat de Tenshi para descarga directa sin modificarlo).`,
+    ];
+  } else if (isQuestionOnly) {
+    executionInstructions = [
+      `INSTRUCCIÓN DE RESPUESTA DIRECTA (MODO CONSULTA / PREGUNTA — PROHIBIDO GENERAR DOCUMENTO O ARCHIVO):`,
+      `1. El usuario únicamente realizó una PREGUNTA o CONSULTA sencilla desde Tenshi (NO solicitó crear ningún documento, informe ni archivo en Canvas).`,
       `2. Si la pregunta requiere datos de la empresa "${empresa}", consúltalos con tus herramientas MCP de 'wappy'. Si es una pregunta conceptual o normativa de SG-SST, respóndela de inmediato con precisión técnica.`,
       `3. Invoca OBLIGATORIAMENTE 'wappy_completar_orden_delegada_tenshi' enviando:`,
       `   - ordenId: "${ordenId}"`,
       `   - formato: "respuesta"`,
-      `   - resultado: Tu respuesta clara, directa y bien explicada para el usuario (sin crear archivos ni documentos).`,
+      `   - resultado: Tu respuesta en texto plano, clara, directa y bien explicada para el usuario (sin crear archivos ni documentos de ningún tipo).`,
     ];
   } else if (isHtmlApp) {
     executionInstructions = [
@@ -398,7 +414,15 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
     `ID de Orden: ${ordenId}`,
     `Empresa: ${empresa}`,
     `Título: ${titulo}`,
-    `Tipo de Solicitud: ${isQuestionOnly ? 'respuesta (Pregunta / Consulta Directa)' : isHtmlApp ? 'html (Aplicativo Interactivo)' : 'documento (Editor de Documentos Oficial de WAPPY)'}`,
+    `Tipo de Solicitud: ${
+      isOriginalFileCopy
+        ? 'copia_archivo (Enviar Copia Exacta de Archivo Original del PC)'
+        : isQuestionOnly
+        ? 'respuesta (Pregunta / Consulta Directa en Texto Plano — Cero Archivos)'
+        : isHtmlApp
+        ? 'html (Aplicativo Interactivo)'
+        : 'documento (Editor de Documentos Oficial de WAPPY)'
+    }`,
     `Recurso Objetivo: ${recurso}`,
     `Instrucción del Usuario:`,
     instruccion,
@@ -414,34 +438,31 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
   const baseArgs = isLanguageServer ? ['agentapi'] : [];
   const workspaceCwd = resolveWorkspaceDirectory();
 
-  // Por defecto SIEMPRE abrir una NUEVA conversación en Antigravity para no interrumpir ni mezclar el chat que el usuario tenga abierto.
-  // Solo usa send-message si se configuró un preferredConvoId explícito por CLI.
-  const explicitConvoId =
-    preferredConvoId && /^[0-9a-fA-F-]{36}$/.test(String(preferredConvoId).trim())
-      ? String(preferredConvoId).trim()
-      : null;
+  // Inyectar la consulta en el chat activo abierto en Antigravity (para que el usuario la vea inmediatamente en su ventana)
+  // y si no hay ningún chat activo abierto, crear automáticamente una nueva conversación en el workspace resuelto.
+  const targetConvoId = findTargetConversationId(preferredConvoId);
 
   log(
-    `Despachando orden "${titulo}" (ID: ${ordenId}, Tipo: ${rawFormato}) hacia Antigravity (Modo: ${
-      explicitConvoId ? `Conversación fija ${explicitConvoId}` : `NUEVO CHAT en workspace ${workspaceCwd}`
+    `Despachando orden "${titulo}" (ID: ${ordenId}, Tipo: ${rawFormato}) hacia Antigravity (Destino: ${
+      targetConvoId ? `Chat activo ${targetConvoId}` : `NUEVO CHAT en workspace ${workspaceCwd}`
     })...`
   );
 
   let dispatchedOk = false;
-  if (explicitConvoId) {
+  if (targetConvoId) {
     try {
       const sendArgs = [
         ...baseArgs,
         'send-message',
         `--title=⚡ Tenshi: ${titulo.slice(0, 60)}`,
-        explicitConvoId,
+        targetConvoId,
         prompt,
       ];
       execFileSync(bin, sendArgs, { timeout: 15000, stdio: 'pipe', cwd: workspaceCwd });
       dispatchedOk = true;
-      log(`✅ Orden ${ordenId} enviada a conversación explícita ${explicitConvoId}.`);
+      log(`✅ Orden ${ordenId} inyectada en tiempo real en el chat activo ${targetConvoId}.`);
     } catch (err) {
-      log(`Aviso: send-message a ${explicitConvoId} falló (${err.message}). Abriendo nueva conversación...`);
+      log(`Aviso: send-message a ${targetConvoId} falló (${err.message}). Abriendo nueva conversación...`);
     }
   }
 
@@ -681,9 +702,102 @@ function startSseWorker(cliArgs) {
   connect();
 }
 
+/**
+ * Envía una copia binaria exacta de un archivo original local del PC del usuario al chat de Tenshi
+ * Uso: node ~/.gemini/antigravity/wappy-push-daemon.js --send-file="/ruta/archivo.pdf" --orden-id="<id>" [--resumen="..."]
+ */
+async function sendLocalFileCopyToWappy(cliArgs) {
+  const rawFilePath = cliArgs['send-file'] || cliArgs.sendFile || '';
+  const ordenId = cliArgs['orden-id'] || cliArgs.ordenId || '';
+  const resumen =
+    cliArgs.resumen ||
+    cliArgs.resultado ||
+    'Aquí tienes la copia original intacta del archivo solicitado desde tu computador.';
+
+  if (!rawFilePath || !ordenId) {
+    console.error('Uso: --send-file="<ruta_absoluta>" --orden-id="<ordenId>" [--resumen="..."]');
+    process.exit(1);
+  }
+
+  const resolvedPath = rawFilePath.startsWith('~/')
+    ? path.join(os.homedir(), rawFilePath.slice(2))
+    : path.resolve(rawFilePath);
+
+  if (!fs.existsSync(resolvedPath)) {
+    console.error(`❌ El archivo original no existe en la ruta: ${resolvedPath}`);
+    process.exit(1);
+  }
+
+  const stat = fs.statSync(resolvedPath);
+  if (!stat.isFile()) {
+    console.error(`❌ La ruta indicada no es un archivo: ${resolvedPath}`);
+    process.exit(1);
+  }
+
+  const buf = fs.readFileSync(resolvedPath);
+  const fileName = path.basename(resolvedPath);
+  const ext = path.extname(fileName).toLowerCase();
+  const mimeMap = {
+    '.pdf': 'application/pdf',
+    '.doc': 'application/msword',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.xls': 'application/vnd.ms-excel',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.ppt': 'application/vnd.ms-powerpoint',
+    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp',
+    '.gif': 'image/gif',
+    '.svg': 'image/svg+xml',
+    '.mp4': 'video/mp4',
+    '.mov': 'video/quicktime',
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+    '.csv': 'text/csv',
+    '.txt': 'text/plain',
+    '.md': 'text/markdown',
+    '.json': 'application/json',
+    '.zip': 'application/zip',
+  };
+  const mimeType = mimeMap[ext] || 'application/octet-stream';
+  const dataUrl = `data:${mimeType};base64,${buf.toString('base64')}`;
+
+  const { wappyUrl, apiKey } = resolveCredentials(cliArgs);
+  if (!apiKey) {
+    console.error('❌ No se encontró API Key de WAPPY en ~/.gemini/config/mcp_config.json');
+    process.exit(1);
+  }
+
+  const completeUrl = `${wappyUrl}/api/mcp-bridge/antigravity/completar`;
+  const resp = await jsonRequest(completeUrl, 'POST', apiKey, {
+    ordenId,
+    formato: 'copia_archivo',
+    resultado: resumen,
+    resumen,
+    archivoOriginal: {
+      name: fileName,
+      mimeType,
+      size: buf.length,
+      dataUrl,
+    },
+  });
+
+  if (resp.status === 200 && resp.data?.exito) {
+    console.log(`✅ Copia original del archivo "${fileName}" (${buf.length} bytes) enviada exitosamente al chat de Tenshi.`);
+    process.exit(0);
+  } else {
+    console.error(`❌ Error enviando copia del archivo a WAPPY (HTTP ${resp.status}):`, resp.data || '');
+    process.exit(1);
+  }
+}
+
 if (require.main === module) {
   const cliArgs = parseArgs();
-  if (cliArgs.stop) {
+  if (cliArgs['send-file'] || cliArgs.sendFile) {
+    sendLocalFileCopyToWappy(cliArgs);
+  } else if (cliArgs.stop) {
     try {
       if (fs.existsSync(PID_FILE)) {
         const pid = parseInt(fs.readFileSync(PID_FILE, 'utf8').trim(), 10);
@@ -704,4 +818,5 @@ module.exports = {
   startSseWorker,
   installAndStartDaemon,
   resolveCredentials,
+  sendLocalFileCopyToWappy,
 };
