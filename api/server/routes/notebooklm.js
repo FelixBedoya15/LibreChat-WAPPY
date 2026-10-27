@@ -772,14 +772,17 @@ async function uploadCookies(cookies, email = '') {
 
 /**
  * GET /api/notebooklm/download/:notebookId/:artifactId
- * Proxy de descarga directa en 1 clic para artefactos de NotebookLM Studio
- * (videos MP4, podcasts MP4, infografías PNG, presentaciones PDF/PPTX, mapas mentales JSON, tablas CSV, informes MD).
+ * Proxy de reproducción inline (con soporte HTTP Range 206 para Safari/iOS) y descarga en 1 clic
+ * para artefactos de NotebookLM Studio (videos MP4, podcasts MP4, infografías PNG, presentaciones PDF/PPTX, etc.).
  */
 router.get('/download/:notebookId/:artifactId', async (req, res) => {
   try {
+    const { Readable } = require('stream');
     const { notebookId, artifactId } = req.params;
     const type = String(req.query.type || '').trim();
     const format = String(req.query.format || '').trim();
+    const statusOnly = String(req.query.status_only || '').trim();
+    const forceDownload = String(req.query.download || '').trim();
     const userId = String(req.query.userId || req.user?.id || '').trim();
 
     const notebooklmUrl = process.env.NOTEBOOKLM_URL || 'http://notebooklm-mcp:9420';
@@ -789,24 +792,92 @@ router.get('/download/:notebookId/:artifactId', async (req, res) => {
     });
     if (type) qs.set('type', type);
     if (format) qs.set('format', format);
+    if (statusOnly === '1') qs.set('status_only', '1');
+    if (forceDownload === '1') qs.set('download', '1');
     if (userId) qs.set('user_id', userId);
 
+    const reqHeaders = {};
+    if (userId) reqHeaders['x-user-id'] = userId;
+    if (req.headers.range && statusOnly !== '1') {
+      reqHeaders['Range'] = req.headers.range;
+    }
+
     const upstream = await fetch(`${notebooklmUrl}/api/download-artifact?${qs.toString()}`, {
-      headers: userId ? { 'x-user-id': userId } : {},
+      headers: reqHeaders,
     });
+
+    if (statusOnly === '1') {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      const bodyText = await upstream.text().catch(() => '{"ready":false,"status":"in_progress"}');
+      return res.status(upstream.status).send(bodyText);
+    }
+
+    if (upstream.status === 202) {
+      const acceptHeader = String(req.headers.accept || '');
+      if (acceptHeader.includes('text/html')) {
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store');
+        return res.status(200).send(`<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="refresh" content="8" />
+  <title>Renderizando en Google NotebookLM Studio | WAPPY IA</title>
+  <style>
+    body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; background:#090d16; color:#f8fafc; font-family:system-ui,-apple-system,sans-serif; padding:24px; }
+    .card { max-width:480px; width:100%; background:#111827; border:1px solid rgba(20,184,166,0.35); border-radius:20px; padding:32px; text-align:center; box-shadow:0 20px 50px rgba(0,0,0,0.5); }
+    .spinner { width:48px; height:48px; border:4px solid rgba(20,184,166,0.2); border-top-color:#14b8a6; border-radius:50%; margin:0 auto 20px; animation:spin 1s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    h1 { font-size:18px; margin:0 0 10px; color:#5eead4; }
+    p { font-size:14px; line-height:1.5; color:#94a3b8; margin:0 0 16px; }
+    .badge { display:inline-block; padding:6px 12px; border-radius:999px; background:rgba(20,184,166,0.12); color:#2dd4bf; font-size:12px; font-weight:700; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="spinner"></div>
+    <h1>🎬 Google NotebookLM Studio está renderizando tu recurso</h1>
+    <p>Los videos y podcasts narrados por IA toman entre 3 y 7 minutos en generarse. Esta ventana se actualizará automáticamente cada 8 segundos y reproducirá el archivo apenas esté listo.</p>
+    <span class="badge">Actualizando automáticamente...</span>
+  </div>
+</body>
+</html>`);
+      }
+      const waitBody = await upstream.text().catch(() => '{"ready":false,"status":"in_progress"}');
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      return res.status(202).send(waitBody);
+    }
 
     if (!upstream.ok) {
       const errBody = await upstream.text().catch(() => '');
       return res.status(upstream.status).send(errBody || 'No se pudo descargar el artefacto de NotebookLM.');
     }
 
-    const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
-    const contentDisposition = upstream.headers.get('content-disposition');
-    res.setHeader('Content-Type', contentType);
-    if (contentDisposition) {
-      res.setHeader('Content-Disposition', contentDisposition);
+    const forwardHeaders = [
+      'content-type',
+      'content-disposition',
+      'accept-ranges',
+      'content-range',
+      'content-length',
+      'etag',
+      'last-modified',
+    ];
+    for (const h of forwardHeaders) {
+      const val = upstream.headers.get(h);
+      if (val) {
+        res.setHeader(h, val);
+      }
+    }
+    if (!res.getHeader('accept-ranges')) {
+      res.setHeader('Accept-Ranges', 'bytes');
     }
 
+    res.status(upstream.status);
+    if (upstream.body) {
+      return Readable.fromWeb(upstream.body).pipe(res);
+    }
     const arrayBuffer = await upstream.arrayBuffer();
     return res.send(Buffer.from(arrayBuffer));
   } catch (error) {

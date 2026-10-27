@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useRef, useEffect } from 'react';
+import React, { memo, useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { useRecoilValue } from 'recoil';
 import { useToastContext } from '@librechat/client';
 import { PermissionTypes, Permissions, dataService } from 'librechat-data-provider';
@@ -125,6 +125,140 @@ type TAnchorProps = {
   children: React.ReactNode;
 };
 
+export const NotebookLMArtifactPlayer: React.FC<{ href: string; children?: React.ReactNode }> = memo(
+  ({ href, children }) => {
+    const lowerHref = href.toLowerCase();
+    const isVideo = lowerHref.includes('type=video') || lowerHref.includes('type=cinematic_video');
+    const isAudio = lowerHref.includes('type=audio') || lowerHref.includes('type=podcast');
+    const isInfographic = lowerHref.includes('type=infographic') || lowerHref.includes('type=infografia');
+    const isMedia = isVideo || isAudio || isInfographic;
+
+    const [ready, setReady] = useState<boolean>(!isMedia);
+    const [checking, setChecking] = useState<boolean>(isMedia);
+    const [title, setTitle] = useState<string>('');
+    const [retryTick, setRetryTick] = useState<number>(0);
+
+    const statusUrl = useMemo(() => {
+      const sep = href.includes('?') ? '&' : '?';
+      return `${href}${sep}status_only=1`;
+    }, [href]);
+
+    const downloadHref = useMemo(() => {
+      const sep = href.includes('?') ? '&' : '?';
+      return `${href}${sep}download=1`;
+    }, [href]);
+
+    const checkStatus = useCallback(async () => {
+      if (!isMedia) return;
+      try {
+        setChecking(true);
+        const res = await fetch(statusUrl, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.title) setTitle(String(data.title));
+          if (data?.ready === true || data?.status === 'completed') {
+            setReady(true);
+          }
+        }
+      } catch {
+        // Ignore transient network errors while polling
+      } finally {
+        setChecking(false);
+      }
+    }, [isMedia, statusUrl]);
+
+    useEffect(() => {
+      if (!isMedia || ready) return;
+      checkStatus();
+      const interval = setInterval(() => {
+        checkStatus();
+      }, 10000);
+      return () => clearInterval(interval);
+    }, [isMedia, ready, checkStatus]);
+
+    const mediaSrc = useMemo(() => {
+      if (retryTick === 0) return href;
+      const sep = href.includes('?') ? '&' : '?';
+      return `${href}${sep}t=${retryTick}`;
+    }, [href, retryTick]);
+
+    return (
+      <span className="my-2 block overflow-hidden rounded-xl border border-teal-500/30 bg-teal-500/5 p-3">
+        {isMedia && !ready ? (
+          <span className="mb-2 flex flex-col items-center justify-center gap-2 rounded-lg border border-teal-500/20 bg-slate-900/80 px-4 py-6 text-center text-slate-200">
+            <span className="inline-block h-7 w-7 animate-spin rounded-full border-2 border-teal-400/30 border-t-teal-400" />
+            <span className="text-xs font-bold text-teal-300">
+              🎬 Google NotebookLM Studio está renderizando tu {isVideo ? 'video' : isAudio ? 'podcast' : 'infografía'}
+              {title ? ` (${title})` : ''}...
+            </span>
+            <span className="max-w-md text-[11px] text-slate-400">
+              Los recursos multimedia narrados con IA toman entre 2 y 7 minutos en procesarse en los servidores de Google. Se reproducirá aquí automáticamente apenas esté listo.
+            </span>
+            <button
+              type="button"
+              onClick={() => checkStatus()}
+              disabled={checking}
+              className="mt-1 inline-flex items-center gap-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-[11px] font-bold text-cyan-300 transition-all hover:bg-cyan-500/20 disabled:opacity-50"
+            >
+              {checking ? 'Verificando estado...' : '🔄 Verificar ahora'}
+            </button>
+          </span>
+        ) : (
+          <>
+            {isVideo && (
+              <video
+                key={mediaSrc}
+                controls
+                playsInline
+                preload="metadata"
+                src={mediaSrc}
+                onError={() => {
+                  setReady(false);
+                  setRetryTick((n) => n + 1);
+                }}
+                className="mb-2 max-h-96 w-full rounded-lg bg-black"
+              />
+            )}
+            {isAudio && (
+              <audio
+                key={mediaSrc}
+                controls
+                preload="metadata"
+                src={mediaSrc}
+                onError={() => {
+                  setReady(false);
+                  setRetryTick((n) => n + 1);
+                }}
+                className="mb-2 w-full"
+              />
+            )}
+            {isInfographic && (
+              <img
+                key={mediaSrc}
+                src={mediaSrc}
+                alt={title || 'Infografía NotebookLM'}
+                onError={() => {
+                  setReady(false);
+                  setRetryTick((n) => n + 1);
+                }}
+                className="mb-2 max-h-[520px] w-auto rounded-lg border border-border-light object-contain"
+              />
+            )}
+          </>
+        )}
+        <a
+          href={downloadHref}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-green-500/30 bg-green-500/10 px-3 py-1.5 text-xs font-bold text-green-700 transition-all hover:bg-green-500/20 dark:text-green-300"
+        >
+          ⬇ {children || 'Descargar desde Google NotebookLM'}
+        </a>
+      </span>
+    );
+  },
+);
+
 export const a: React.ElementType = memo(({ href, children }: TAnchorProps) => {
   const user = useRecoilValue(store.user);
   const { showToast } = useToastContext();
@@ -152,41 +286,7 @@ export const a: React.ElementType = memo(({ href, children }: TAnchorProps) => {
 
   if (!file_id || !filename) {
     if (href && href.includes('/api/notebooklm/download/')) {
-      const lowerHref = href.toLowerCase();
-      const isVideo = lowerHref.includes('type=video') || lowerHref.includes('type=cinematic_video');
-      const isAudio = lowerHref.includes('type=audio') || lowerHref.includes('type=podcast');
-      const isInfographic = lowerHref.includes('type=infographic') || lowerHref.includes('type=infografia');
-      return (
-        <span className="my-2 block overflow-hidden rounded-xl border border-teal-500/30 bg-teal-500/5 p-3">
-          {isVideo && (
-            <video
-              controls
-              playsInline
-              preload="metadata"
-              src={href}
-              className="mb-2 max-h-96 w-full rounded-lg bg-black"
-            />
-          )}
-          {isAudio && (
-            <audio controls preload="metadata" src={href} className="mb-2 w-full" />
-          )}
-          {isInfographic && (
-            <img
-              src={href}
-              alt="Infografía NotebookLM"
-              className="mb-2 max-h-[520px] w-auto rounded-lg border border-border-light object-contain"
-            />
-          )}
-          <a
-            href={href}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-green-500/30 bg-green-500/10 px-3 py-1.5 text-xs font-bold text-green-700 transition-all hover:bg-green-500/20 dark:text-green-300"
-          >
-            ⬇ {children || 'Descargar desde Google NotebookLM'}
-          </a>
-        </span>
-      );
+      return <NotebookLMArtifactPlayer href={href} children={children} />;
     }
     return (
       <a href={href} {...props}>
