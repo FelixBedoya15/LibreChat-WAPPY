@@ -1366,12 +1366,13 @@ class VoiceSession {
                         },
                         {
                             name: "gestor_automatizaciones",
-                            description: "Crea, lista, actualiza, ejecuta o elimina TAREAS programadas (antes llamadas 'Automatizaciones IA'): tareas periódicas autónomas de agentes en segundo plano. Se visualizan en la sección 'Tareas' del menú lateral, justo debajo de 'Centro de Control SST' (ruta /tareas; historial de corridas en /tareas?tab=historial).",
+                            description: "Crea, lista, actualiza/edita, activa, desactiva/pausa, ejecuta, detiene o elimina TAREAS programadas (antes llamadas 'Automatizaciones IA'): tareas periódicas autónomas de agentes en segundo plano en la sección 'Tareas' (/tareas). Puedes identificar la tarea por su ID, por su título en pantalla o usar 'todas'.",
                             parameters: {
                                 type: "object",
                                 properties: {
-                                    accion: { type: "string", description: "'crear', 'listar', 'actualizar', 'eliminar', 'ejecutar_ahora', 'ver_logs'" },
-                                    nombre: { type: "string", description: "Nombre claro de la automatización" },
+                                    accion: { type: "string", description: "'crear', 'listar', 'actualizar', 'activar', 'desactivar', 'activar_todas', 'desactivar_todas', 'eliminar', 'eliminar_todas', 'ejecutar_ahora', 'detener', 'ver_logs'" },
+                                    nombre: { type: "string", description: "Nombre de la tarea/automatización (para crearla o buscarla por título)" },
+                                    nuevo_nombre: { type: "string", description: "Nuevo nombre si se desea renombrar la tarea" },
                                     agente_objetivo: { type: "string", description: "Agente que ejecutará la tarea periódica" },
                                     prompt_a_ejecutar: { type: "string", description: "Instrucción detallada a ejecutar periódicamente" },
                                     tipo_frecuencia: { type: "string", description: "'daily', 'weekly', 'monthly', 'hourly'" },
@@ -1386,8 +1387,8 @@ class VoiceSession {
                                         }
                                     },
                                     correos_notificacion: { type: "array", items: { type: "string" } },
-                                    automatizacion_id: { type: "string", description: "ID de la automatización para actualizar/eliminar/ejecutar" },
-                                    nuevo_estado: { type: "string", description: "'active' o 'inactive'" }
+                                    automatizacion_id: { type: "string", description: "ID de 24 caracteres, título exacto/parcial de la tarea en pantalla, o 'todas'" },
+                                    nuevo_estado: { type: "string", description: "'active' (activar/encender) o 'inactive' (desactivar/pausar/apagar)" }
                                 },
                                 required: ["accion"]
                             }
@@ -2515,7 +2516,9 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
    - 'matriz_pesv': Evalúa y gestiona riesgos viales del Plan Estratégico de Seguridad Vial (Res. 20223040040595).
    - 'matriz_compatibilidad': Gestiona el inventario químico, fichas FDS y reglas de almacenamiento seguro SGA.
 11. **gestor_automatizaciones**:
-   - Programa, lista, pausa o ejecuta tareas periódicas autónomas en segundo plano.
+   - Programa ('crear'), lista ('listar'), edita ('actualizar'), activa ('activar' / 'activar_todas'), pausa/desactiva ('desactivar' / 'desactivar_todas'), ejecuta ('ejecutar_ahora'), detiene ('detener') o elimina ('eliminar' / 'eliminar_todas') tareas periódicas autónomas en segundo plano.
+   - Puedes pasar el título de la tarea que ves en pantalla o la palabra 'todas' en 'automatizacion_id' (no necesitas conocer el ID hexadecimal de MongoDB).
+   - ⚠️ REGLA CRÍTICA: Si el usuario dice "desactiva", "pausa", "apaga" o "no quiero ninguna abierta", usa accion: "desactivar" o accion: "desactivar_todas" (o accion: "actualizar" con nuevo_estado: "inactive"). JAMÁS uses accion: "eliminar" cuando el usuario solo pide desactivar o pausar. Solo usa accion: "eliminar" o "eliminar_todas" cuando el usuario diga explícitamente "elimina" o "borra".
    - NUEVO NOMBRE Y UBICACIÓN: lo que antes se llamaba 'Automatizaciones' / 'Automatizaciones IA' ahora se llama **'Tareas'** y ya NO está dentro del Centro de Control: tiene su propio botón en el menú lateral, justo debajo de 'Centro de Control SST' (ruta /tareas, historial en /tareas?tab=historial). Si el usuario dice 'automatizaciones', 'tareas programadas' o 'tareas', se refiere a lo mismo. Para abrirla usa wappy_navegar con modulo 'tareas'. ACCESO: exclusivo para Administradores y cuentas Wappy Pro (no Vital ni sub-usuarios); si el usuario no tiene ese plan, explícale con amabilidad que debe adquirir Wappy Pro (/planes).
 12. **OFIMÁTICA EN LA NUBE (Google Workspace & Microsoft 365)**:
    - 'google_sheets': Crea, lee y formatea hojas de cálculo.

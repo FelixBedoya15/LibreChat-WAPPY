@@ -225,6 +225,28 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     loadPlanLimit();
   }, [fetchAutomations, loadPlanLimit]);
 
+  // Refresco silencioso en tiempo real cuando Tenshi o un agente crea/activa/desactiva/edita/elimina tareas
+  useEffect(() => {
+    const handleSilentReload = async () => {
+      try {
+        const res = await axios.get('/api/sgsst/automatizaciones');
+        setAutomations(res.data || []);
+        if (activeTab === 'logs') {
+          const logsRes = await axios.get('/api/sgsst/automatizaciones/logs');
+          setLogs(logsRes.data || []);
+        }
+      } catch (_) {}
+    };
+    window.addEventListener('wappy-reload-sgsst-data', handleSilentReload);
+    window.addEventListener('wappy-empresa-cambiada', handleSilentReload);
+    window.addEventListener('wappy-automatizaciones-updated', handleSilentReload);
+    return () => {
+      window.removeEventListener('wappy-reload-sgsst-data', handleSilentReload);
+      window.removeEventListener('wappy-empresa-cambiada', handleSilentReload);
+      window.removeEventListener('wappy-automatizaciones-updated', handleSilentReload);
+    };
+  }, [activeTab]);
+
   useEffect(() => {
     if (activeTab === 'logs') {
       fetchLogs();

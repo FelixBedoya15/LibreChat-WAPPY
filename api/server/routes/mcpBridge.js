@@ -2042,25 +2042,44 @@ router.post('/tasks', requireApiKeyOrJwt, async (req, res) => {
     const userId = req.user.id;
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
-    const { title, description, dueDate, type, priority } = req.body;
+    const {
+      title,
+      titulo,
+      nombre,
+      actividad,
+      description,
+      descripcion,
+      dueDate,
+      fecha,
+      fechaVencimiento,
+      type,
+      tipo,
+      priority,
+      prioridad,
+    } = req.body || {};
 
-    if (!title || !dueDate) {
-      return res.status(400).json({ error: 'title y dueDate son requeridos para programar una tarea.' });
+    const finalTitle = String(title || titulo || nombre || actividad || '').trim();
+    const rawDate = dueDate || fecha || fechaVencimiento;
+    const finalDate = rawDate ? new Date(rawDate) : new Date(Date.now() + 7 * 86400000);
+
+    if (!finalTitle) {
+      return res.status(400).json({ error: 'El título (title/titulo) es requerido para programar una tarea.' });
     }
 
     const task = new KanbanTask({
       user: userId,
       companyId: companyId || undefined,
-      title: title.trim(),
-      description: (description || '').trim(),
-      dueDate: new Date(dueDate),
-      type: type || 'manual',
-      priority: priority || 'medium',
+      title: finalTitle,
+      description: String(description || descripcion || '').trim(),
+      dueDate: isNaN(finalDate.getTime()) ? new Date(Date.now() + 7 * 86400000) : finalDate,
+      type: type || tipo || 'manual',
+      priority: priority || prioridad || 'medium',
       status: 'todo',
     });
     await task.save();
 
     return res.status(201).json({
+      success: true,
       exito: true,
       mensaje: `Actividad "${task.title}" programada con éxito en el cronograma SST.`,
       tareaId: task._id.toString(),
@@ -2071,56 +2090,162 @@ router.post('/tasks', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
-router.patch('/tasks/:id', requireApiKeyOrJwt, async (req, res) => {
+const resolveKanbanTasksByQuery = async (userId, companyId, queryStr) => {
+  const scope = companyScope(userId, companyId);
+  const raw = String(queryStr || '').trim();
+  const norm = (s = '') =>
+    String(s || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const qNorm = norm(raw);
+  if (/^(todas?|todos?|all|\*|todas\s+las\s+tareas|todas\s+las\s+actividades)$/i.test(qNorm)) {
+    const all = await KanbanTask.find(scope);
+    return { matches: all, isBulk: true };
+  }
+
+  if (/^[0-9a-fA-F]{24}$/.test(raw) && mongoose.Types.ObjectId.isValid(raw)) {
+    const byId = await KanbanTask.findOne({ _id: raw, ...scope });
+    if (byId) return { matches: [byId], isBulk: false };
+  }
+
+  const all = await KanbanTask.find(scope);
+  if (!qNorm || all.length === 0) return { matches: [], isBulk: false };
+
+  const exact = all.filter((t) => norm(t.title) === qNorm);
+  if (exact.length > 0) return { matches: [exact[0]], isBulk: false };
+
+  const sub = all.filter((t) => {
+    const tNorm = norm(t.title);
+    return tNorm && (tNorm.includes(qNorm) || qNorm.includes(tNorm));
+  });
+  if (sub.length > 0) return { matches: [sub[0]], isBulk: false };
+
+  const tokens = qNorm.split(' ').filter((w) => w.length >= 3);
+  if (tokens.length > 0) {
+    let best = null;
+    let bestScore = 0;
+    for (const t of all) {
+      const hay = `${norm(t.title)} ${norm(t.description)}`;
+      const hits = tokens.filter((tk) => hay.includes(tk)).length;
+      const score = hits / tokens.length;
+      if (hits >= 2 || score >= 0.5) {
+        if (score > bestScore) {
+          bestScore = score;
+          best = t;
+        }
+      }
+    }
+    if (best) return { matches: [best], isBulk: false };
+  }
+
+  return { matches: [], isBulk: false };
+};
+
+const handleUpdateKanbanTask = async (req, res) => {
   try {
     const userId = req.user.id;
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
-    const taskId = req.params.id;
-    const { status, description, priority, dueDate } = req.body;
+    const taskIdOrQuery = req.params.id || req.body?.id || req.body?.taskId || req.body?.title || req.body?.titulo || '';
+    const {
+      status,
+      estado,
+      nuevo_estado,
+      title,
+      titulo,
+      nuevo_titulo,
+      description,
+      descripcion,
+      priority,
+      prioridad,
+      dueDate,
+      fecha,
+    } = req.body || {};
 
-    const task = await KanbanTask.findOne({ _id: taskId, ...companyScope(userId, companyId) });
-    if (!task) {
-      return res.status(404).json({ error: 'Tarea no encontrada.' });
+    const { matches, isBulk } = await resolveKanbanTasksByQuery(userId, companyId, taskIdOrQuery);
+    if (!matches || matches.length === 0) {
+      return res.status(404).json({ error: `No se encontró la tarea "${taskIdOrQuery}".` });
     }
 
-    if (status) task.status = status;
-    if (description !== undefined) task.description = description;
-    if (priority) task.priority = priority;
-    if (dueDate) task.dueDate = new Date(dueDate);
+    const rawStatus = String(status || estado || nuevo_estado || '').toLowerCase().trim();
+    let mappedStatus = undefined;
+    if (['done', 'completada', 'completado', 'hecha', 'hecho', 'cerrada', 'cerrado', 'finalizada', 'inactive', 'desactivada', 'inactiva'].includes(rawStatus)) {
+      mappedStatus = 'done';
+    } else if (['todo', 'pendiente', 'activa', 'activo', 'active', 'abierta'].includes(rawStatus)) {
+      mappedStatus = 'todo';
+    } else if (['due_soon', 'proxima', 'proximo'].includes(rawStatus)) {
+      mappedStatus = 'due_soon';
+    } else if (['overdue', 'vencida', 'vencido'].includes(rawStatus)) {
+      mappedStatus = 'overdue';
+    }
 
-    await task.save();
+    for (const task of matches) {
+      if (mappedStatus) task.status = mappedStatus;
+      if (!isBulk && (nuevo_titulo || ( /^[0-9a-fA-F]{24}$/.test(String(taskIdOrQuery)) && (title || titulo)))) {
+        task.title = String(nuevo_titulo || title || titulo).trim();
+      }
+      if (description !== undefined || descripcion !== undefined) {
+        task.description = String(description ?? descripcion ?? '').trim();
+      }
+      if (priority || prioridad) task.priority = priority || prioridad;
+      if (dueDate || fecha) {
+        const d = new Date(dueDate || fecha);
+        if (!isNaN(d.getTime())) task.dueDate = d;
+      }
+      await task.save();
+    }
 
     return res.json({
+      success: true,
       exito: true,
-      mensaje: `Tarea "${task.title}" actualizada exitosamente.`,
+      mensaje:
+        matches.length === 1
+          ? `Tarea "${matches[0].title}" actualizada exitosamente (Estado: ${matches[0].status}).`
+          : `Se actualizaron ${matches.length} tareas exitosamente.`,
       tarea: {
-        id: task._id.toString(),
-        title: task.title,
-        status: task.status,
+        id: matches[0]._id.toString(),
+        title: matches[0].title,
+        status: matches[0].status,
       },
     });
   } catch (error) {
-    logger.error('[MCP Bridge] PATCH /tasks/:id error:', error);
+    logger.error('[MCP Bridge] PATCH/PUT /tasks/:id error:', error);
     return res.status(500).json({ error: 'Error al actualizar la tarea.' });
   }
-});
+};
+
+router.patch('/tasks/:id', requireApiKeyOrJwt, handleUpdateKanbanTask);
+router.put('/tasks/:id', requireApiKeyOrJwt, handleUpdateKanbanTask);
+router.put('/tasks', requireApiKeyOrJwt, handleUpdateKanbanTask);
 
 router.delete('/tasks/:id', requireApiKeyOrJwt, async (req, res) => {
   try {
     const userId = req.user.id;
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
-    const taskId = req.params.id;
+    const taskIdOrQuery = req.params.id;
 
-    const result = await KanbanTask.findOneAndDelete({ _id: taskId, ...companyScope(userId, companyId) });
-    if (!result) {
-      return res.status(404).json({ error: 'Tarea no encontrada.' });
+    const { matches } = await resolveKanbanTasksByQuery(userId, companyId, taskIdOrQuery);
+    if (!matches || matches.length === 0) {
+      return res.status(404).json({ error: `Tarea "${taskIdOrQuery}" no encontrada.` });
     }
 
+    const ids = matches.map((t) => t._id);
+    const titles = matches.map((t) => t.title);
+    await KanbanTask.deleteMany({ _id: { $in: ids } });
+
     return res.json({
+      success: true,
       exito: true,
-      mensaje: `Actividad "${result.title}" eliminada exitosamente del cronograma.`,
+      mensaje:
+        ids.length === 1
+          ? `Actividad "${titles[0]}" eliminada exitosamente del cronograma.`
+          : `Se eliminaron ${ids.length} actividades del cronograma exitosamente.`,
     });
   } catch (error) {
     logger.error('[MCP Bridge] DELETE /tasks/:id error:', error);
@@ -3606,10 +3731,12 @@ router.get('/agentes-automatizaciones', requireApiKeyOrJwt, async (req, res) => 
   try {
     const userId = req.user.id;
     const Agent = mongoose.models.Agent;
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id?.toString();
 
     const [agentes, automations] = await Promise.all([
       Agent ? Agent.find({ author: userId }).select('id name description avatar model').lean() : [],
-      Automation.find({ user: userId }).lean(),
+      Automation.find(companyId ? { $or: [{ companyId }, { user: userId }] } : { user: userId }).sort({ createdAt: -1 }).lean(),
     ]);
 
     return res.json({
@@ -3625,7 +3752,10 @@ router.get('/agentes-automatizaciones', requireApiKeyOrJwt, async (req, res) => 
         name: au.name,
         agentName: au.agentName,
         scheduleType: au.scheduleType,
-        isEnabled: au.isEnabled,
+        scheduleConfig: au.scheduleConfig,
+        status: au.status,
+        isEnabled: au.status === 'active',
+        nextRunAt: au.nextRunAt,
       })),
     });
   } catch (error) {
@@ -3636,55 +3766,80 @@ router.get('/agentes-automatizaciones', requireApiKeyOrJwt, async (req, res) => 
 
 router.post('/agentes-automatizaciones', requireApiKeyOrJwt, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const { name, agentId, agentName, prompt, scheduleType, scheduleConfig } = req.body;
-
-    if (!name || !agentId || !prompt) {
-      return res.status(400).json({ error: 'name, agentId y prompt son obligatorios.' });
+    const GestorAutomatizaciones = require('~/app/clients/tools/structured/GestorAutomatizaciones');
+    const body = req.body || {};
+    const tool = new GestorAutomatizaciones({ req });
+    const rawOut = await tool._call({
+      accion: body.accion || 'crear',
+      nombre: body.nombre || body.name || body.titulo || body.title,
+      nuevo_nombre: body.nuevo_nombre,
+      agente_objetivo: body.agente_objetivo || body.agentName || body.agentId || body.agente,
+      prompt_a_ejecutar: body.prompt_a_ejecutar || body.prompt || body.instruccion || body.descripcion,
+      tipo_frecuencia: body.tipo_frecuencia || body.scheduleType || 'daily',
+      configuracion_horario: body.configuracion_horario || body.scheduleConfig || {},
+      correos_notificacion: body.correos_notificacion || body.emails || [],
+      automatizacion_id: body.automatizacion_id || body.id,
+      nuevo_estado: body.nuevo_estado || body.status || body.estado,
+    });
+    const parsed = JSON.parse(rawOut);
+    if (parsed.error) {
+      return res.status(400).json(parsed);
     }
-
-    const company = await getActiveCompany(userId);
-    const companyId = company?._id?.toString() || userId;
-
-    const auto = new Automation({
-      user: userId,
-      companyId,
-      name: name.trim(),
-      agentId,
-      agentName: agentName || 'Agente Autónomo',
-      prompt: prompt.trim(),
-      scheduleType: scheduleType || 'daily',
-      scheduleConfig: scheduleConfig || { hour: 8 },
-      isEnabled: true,
-    });
-
-    await auto.save();
-
-    return res.status(201).json({
-      exito: true,
-      mensaje: `Automatización "${name}" programada con éxito para el agente ${agentName || agentId}.`,
-      automatizacionId: auto._id.toString(),
-    });
+    return res.status(201).json({ exito: true, ...parsed });
   } catch (error) {
     logger.error('[MCP Bridge] POST /agentes-automatizaciones error:', error);
     return res.status(500).json({ error: 'Error al programar automatización.' });
   }
 });
 
+const handleUpdateAutomationMcp = async (req, res) => {
+  try {
+    const GestorAutomatizaciones = require('~/app/clients/tools/structured/GestorAutomatizaciones');
+    const body = req.body || {};
+    const targetId = req.params.id || body.automatizacion_id || body.id || body.nombre || body.name || 'todas';
+    const tool = new GestorAutomatizaciones({ req });
+    const rawOut = await tool._call({
+      accion: body.accion || 'actualizar',
+      automatizacion_id: targetId,
+      nombre: body.nombre || body.name,
+      nuevo_nombre: body.nuevo_nombre,
+      agente_objetivo: body.agente_objetivo || body.agentName || body.agentId,
+      prompt_a_ejecutar: body.prompt_a_ejecutar || body.prompt,
+      tipo_frecuencia: body.tipo_frecuencia || body.scheduleType,
+      configuracion_horario: body.configuracion_horario || body.scheduleConfig,
+      correos_notificacion: body.correos_notificacion || body.emails,
+      nuevo_estado: body.nuevo_estado || body.status || body.estado,
+    });
+    const parsed = JSON.parse(rawOut);
+    if (parsed.error) {
+      return res.status(404).json(parsed);
+    }
+    return res.json({ exito: true, ...parsed });
+  } catch (error) {
+    logger.error('[MCP Bridge] PUT/PATCH /agentes-automatizaciones error:', error);
+    return res.status(500).json({ error: 'Error al actualizar automatización.' });
+  }
+};
+
+router.put('/agentes-automatizaciones/:id', requireApiKeyOrJwt, handleUpdateAutomationMcp);
+router.patch('/agentes-automatizaciones/:id', requireApiKeyOrJwt, handleUpdateAutomationMcp);
+router.put('/agentes-automatizaciones', requireApiKeyOrJwt, handleUpdateAutomationMcp);
+router.patch('/agentes-automatizaciones', requireApiKeyOrJwt, handleUpdateAutomationMcp);
+
 router.delete('/agentes-automatizaciones/:id', requireApiKeyOrJwt, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const targetId = req.params.id;
-
-    const result = await Automation.findOneAndDelete({ _id: targetId, user: userId });
-    if (!result) {
-      return res.status(404).json({ error: 'Automatización no encontrada.' });
-    }
-
-    return res.json({
-      exito: true,
-      mensaje: `Automatización "${result.name}" eliminada exitosamente.`,
+    const GestorAutomatizaciones = require('~/app/clients/tools/structured/GestorAutomatizaciones');
+    const targetId = req.params.id || req.body?.id || req.body?.automatizacion_id || req.body?.nombre || '';
+    const tool = new GestorAutomatizaciones({ req });
+    const rawOut = await tool._call({
+      accion: 'eliminar',
+      automatizacion_id: targetId,
     });
+    const parsed = JSON.parse(rawOut);
+    if (parsed.error) {
+      return res.status(404).json(parsed);
+    }
+    return res.json({ exito: true, ...parsed });
   } catch (error) {
     logger.error('[MCP Bridge] DELETE /agentes-automatizaciones/:id error:', error);
     return res.status(500).json({ error: 'Error al eliminar automatización.' });

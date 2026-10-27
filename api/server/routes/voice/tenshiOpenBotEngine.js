@@ -68,12 +68,6 @@ const GOVERNED_TOOLS_META = {
     riskLevel: 'high',
     describe: (args) => `Se solicita eliminar el expediente de accidente/enfermedad laboral ID "${args.id || 'seleccionado'}".`,
   },
-  wappy_eliminar_tarea_cronograma: {
-    title: 'Eliminar Actividad del Cronograma Anual SST',
-    moduleLabel: 'Centro de Control • Kanban SST',
-    riskLevel: 'medium',
-    describe: (args) => `Se solicita eliminar la tarea programada ID "${args.id || args.taskId || 'seleccionada'}" del Plan de Trabajo Anual.`,
-  },
   wappy_eliminar_capacitacion: {
     title: 'Eliminar Capacitación del Programa Anual',
     moduleLabel: 'Hito 5 • Capacitaciones SST',
@@ -85,12 +79,6 @@ const GOVERNED_TOOLS_META = {
     moduleLabel: 'Hito 7 • Auditoría y Mejora',
     riskLevel: 'medium',
     describe: (args) => `Se solicita eliminar el hallazgo de auditoría ID "${args.id || 'seleccionado'}".`,
-  },
-  wappy_eliminar_automatizacion: {
-    title: 'Eliminar Automatización Programada de Agente',
-    moduleLabel: 'Automatizaciones IA',
-    riskLevel: 'medium',
-    describe: (args) => `Se solicita eliminar la tarea automática recurrente ID "${args.id || 'seleccionada'}".`,
   },
 };
 

@@ -1911,12 +1911,13 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
             const gestorAutomatizacionesDeclaration = {
                 name: 'gestor_automatizaciones',
-                description: "Crea, lista, actualiza, ejecuta o elimina TAREAS programadas (antes llamadas 'Automatizaciones IA'): tareas periódicas autónomas de agentes en segundo plano. Se visualizan en la sección 'Tareas' del menú lateral, justo debajo de 'Centro de Control SST' (ruta /tareas; historial de corridas en /tareas?tab=historial).",
+                description: "Crea, lista, actualiza/edita, activa, desactiva/pausa, ejecuta, detiene o elimina TAREAS programadas (antes llamadas 'Automatizaciones IA'): tareas periódicas autónomas de agentes en segundo plano en la sección 'Tareas' (/tareas). Puedes identificar la tarea por su ID, por su título en pantalla o usar 'todas'.",
                 parameters: {
                     type: 'OBJECT',
                     properties: {
-                        accion: { type: 'STRING', description: 'crear, listar, actualizar, eliminar, ejecutar_ahora, ver_logs' },
-                        nombre: { type: 'STRING', description: 'Nombre claro de la automatización.' },
+                        accion: { type: 'STRING', description: 'crear, listar, actualizar, activar, desactivar, activar_todas, desactivar_todas, eliminar, eliminar_todas, ejecutar_ahora, detener, ver_logs' },
+                        nombre: { type: 'STRING', description: 'Nombre de la tarea/automatización (para crearla o buscarla por título).' },
+                        nuevo_nombre: { type: 'STRING', description: 'Nuevo nombre si se desea renombrar la tarea.' },
                         agente_objetivo: { type: 'STRING', description: 'Agente que ejecutará la tarea periódica.' },
                         prompt_a_ejecutar: { type: 'STRING', description: 'Instrucción detallada a ejecutar periódicamente.' },
                         tipo_frecuencia: { type: 'STRING', description: 'daily, weekly, monthly, hourly' },
@@ -1931,8 +1932,8 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             }
                         },
                         correos_notificacion: { type: 'ARRAY', items: { type: 'STRING' } },
-                        automatizacion_id: { type: 'STRING', description: 'ID de la automatización para actualizar/eliminar/ejecutar.' },
-                        nuevo_estado: { type: 'STRING', description: 'active o inactive' }
+                        automatizacion_id: { type: 'STRING', description: 'ID de 24 caracteres, título exacto/parcial de la tarea en pantalla, o "todas".' },
+                        nuevo_estado: { type: 'STRING', description: 'active (activar) o inactive (desactivar/pausar)' }
                     },
                     required: ['accion']
                 }

@@ -3103,6 +3103,34 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 iniciarMonitoreoOrden(ordenId, titulo, formato, messageId);
               }
             }
+          } else if (
+            action.name === 'gestor_automatizaciones' ||
+            action.name === 'wappy_programar_automatizacion' ||
+            action.name === 'wappy_actualizar_automatizacion' ||
+            action.name === 'wappy_activar_automatizacion' ||
+            action.name === 'wappy_desactivar_automatizacion' ||
+            action.name === 'wappy_eliminar_automatizacion' ||
+            action.name === 'wappy_crear_actividad_cronograma' ||
+            action.name === 'wappy_actualizar_estado_tarea' ||
+            action.name === 'wappy_eliminar_tarea_cronograma'
+          ) {
+            tenshiAudio.playSuccess();
+            window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
+            window.dispatchEvent(new CustomEvent('wappy-automatizaciones-updated'));
+            fetchDailyBriefing();
+            const rawRes = (action as any).result;
+            let parsedMsg = 'Tarea/automatización actualizada en pantalla.';
+            if (typeof rawRes === 'string') {
+              try {
+                const j = JSON.parse(rawRes);
+                parsedMsg = j.mensaje || j.error || parsedMsg;
+              } catch {
+                parsedMsg = rawRes;
+              }
+            } else if (rawRes && typeof rawRes === 'object') {
+              parsedMsg = rawRes.mensaje || rawRes.error || parsedMsg;
+            }
+            resultMsg = parsedMsg;
           }
 
           // Si la acción de voz incluye un Widget Interactivo o de Gobernanza HITL (OpenBot AG-UI), mostrarlo de inmediato en el chat
