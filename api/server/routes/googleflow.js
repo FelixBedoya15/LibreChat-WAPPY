@@ -833,6 +833,23 @@ router.post('/session', requireJwtAuth, async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
+    if (cookies.length > 0) {
+      try {
+        await NotebookSession.findOneAndUpdate(
+          { user: userId },
+          {
+            email: effectiveEmail,
+            cookies,
+            cookieCount: cookies.length,
+            isValid: true,
+            lastTestedAt: new Date(),
+            source: source || 'googleflow-sync',
+          },
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+      } catch (_) {}
+    }
+
     logger.info(`[GoogleFlow] Sesión guardada para usuario ${userId} (Email: ${effectiveEmail})`);
 
     return res.json({

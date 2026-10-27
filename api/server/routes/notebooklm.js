@@ -338,7 +338,7 @@ router.post('/session', requireJwtAuth, async (req, res) => {
       }
     }
 
-    // 3. Guardar en MongoDB
+    // 3. Guardar en MongoDB (y sincronizar sesión de Google con GoogleFlowSession si existe el modelo)
     await NotebookSession.findOneAndUpdate(
       { user: userId },
       {
@@ -351,6 +351,22 @@ router.post('/session', requireJwtAuth, async (req, res) => {
       },
       { upsert: true, new: true }
     );
+
+    try {
+      const GoogleFlowSession = require('~/models/GoogleFlowSession');
+      await GoogleFlowSession.findOneAndUpdate(
+        { user: userId },
+        {
+          email: effectiveEmail,
+          cookies,
+          cookieCount: cookies.length,
+          isValid: true,
+          lastTestedAt: new Date(),
+          source: source || 'extension',
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+    } catch (_) {}
 
     return res.json({
       success: true,
