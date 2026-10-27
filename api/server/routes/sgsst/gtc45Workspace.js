@@ -627,15 +627,27 @@ ${companyCargos.length > 0 ? `\n═══ LISTA DE CARGOS DE LA EMPRESA (PRIORIZ
 2. CARGO Y ZONA / LUGAR:
    - Si CARGO ACTUAL o ZONA / LUGAR ACTUAL ya tienen un valor válido asignado por el usuario, consérvalos exactamente igual.
    - Si están vacíos, dedúcelos priorizando los cargos registrados de la empresa si aplican.
-3. EVALUACIÓN Y CALIFICACIÓN DEL RIESGO (ND, NE, NC — GTC-45:2012) — CRÍTICO:
-   - Evalúa y califica ND (en [0, 2, 6, 10]), NE (en [1, 2, 3, 4]) y NC (en [10, 25, 60, 100]) teniendo MUY EN CUENTA:
-     * Los CONTROLES EXISTENTES actuales (Fuente, Medio, Individuo) para determinar el Nivel de Deficiencia (ND).
-     * Los EFECTOS POSIBLES y la Peor Consecuencia para determinar el Nivel de Consecuencia (NC).
-     * El NRO. DE EXPUESTOS, si la tarea es Rutinaria, la actividad/tareas y toda la INFORMACIÓN SUMINISTRADA POR LA EMPRESA (Sector, Clase de Riesgo ARL, Actividad Económica) para determinar el Nivel de Exposición (NE) y calibrar la evaluación.
-   - PROHIBIDO tener en cuenta los Controles Propuestos (Eliminación, Sustitución, Ingeniería, Administrativos, EPP) o el Factor de Reducción (Anexo E) para calcular ND, NE o NC, ya que la calificación evalúa el estado actual del riesgo con los controles existentes ANTES de aplicar las medidas propuestas.
-4. MEDIDAS DE INTERVENCIÓN PROPUESTAS (Eliminación, Sustitución, Ingeniería, Administrativas, EPP) — PROHIBIDO REPETIR CONTROLES EXISTENTES:
+3. EVALUACIÓN Y CALIFICACIÓN DEL RIESGO (ND, NE, NC — TABLAS OFICIALES GTC-45:2012) — CRÍTICO:
+   - Evalúa y califica estrictamente con las tablas oficiales de la GTC 45:2012 teniendo MUY EN CUENTA los CONTROLES EXISTENTES actuales, los EFECTOS POSIBLES, el NRO. DE EXPUESTOS y la INFORMACIÓN DE LA EMPRESA, y EXCLUYENDO los Controles Propuestos y el Factor de Reducción:
+     * TABLA 2 — Nivel de Deficiencia (ND en [0, 2, 6, 10]):
+       - ND = 10 (Muy Alto): Peligro con consecuencias muy significativas/mortales y los controles existentes en fuente y medio son "Ninguno" o su eficacia es nula.
+       - ND = 6 (Alto): Peligro con consecuencias significativas y la eficacia del conjunto de controles existentes es baja (ej. sin control en la fuente, solo controles básicos en medio o individuo).
+       - ND = 2 (Medio): Peligro con consecuencias de menor importancia, o YA existen controles preventivos en fuente, medio y/o individuo con eficacia moderada.
+       - ND = 0 (Bajo): No se detecta consecuencia o la eficacia del conjunto de controles existentes es alta (riesgo controlado).
+     * TABLA 3 — Nivel de Exposición (NE en [1, 2, 3, 4]):
+       - NE = 4 (Continua: sin interrupción o varias veces con tiempo prolongado en la jornada).
+       - NE = 3 (Frecuente: varias veces durante la jornada laboral por tiempos cortos).
+       - NE = 2 (Ocasional: alguna vez durante la jornada laboral y por un periodo corto).
+       - NE = 1 (Esporádica: de manera eventual o emergencias).
+     * TABLA 6 — Nivel de Consecuencia (NC en [10, 25, 60, 100]):
+       - NC = 100 (Mortal o Catastrófico: muerte(s), ej. asfixia en espacio confinado, electrocución, caída en alturas, colapso estructural).
+       - NC = 60 (Muy Grave: lesiones o enfermedades graves irreparables / incapacidad permanente parcial o invalidez, ej. amputación, hipoacusia neurosensorial, síndrome de Raynaud).
+       - NC = 25 (Grave: lesiones o enfermedades con incapacidad laboral temporal, ej. fracturas menores, lumbalgias, quemaduras de 1er/2do grado, dermatitis).
+       - NC = 10 (Leve: lesiones que no requieren incapacidad, molestias o fatiga leve).
+4. MEDIDAS DE INTERVENCIÓN PROPUESTAS (Eliminación, Sustitución, Ingeniería, Administrativas, EPP) — PROHIBIDO REPETIR O SOLAPAR CONTROLES EXISTENTES:
    - Revisa detenidamente qué dice en CONTROLES EXISTENTES (Fuente: "${row.controles_fuente || 'Ninguno'}", Medio: "${row.controles_medio || 'Ninguno'}", Individuo: "${row.controles_individuo || 'Ninguno'}").
-   - ESTÁ TERMINANTEMENTE PROHIBIDO proponer o recomendar en los Controles Propuestos algo que YA SE USA o YA EXISTE en los Controles Existentes (por ejemplo: si en Controles Existentes ya dice que usan "tapaoídos / protección auditiva", NO propongas "usar tapaoídos" en EPP; propón únicamente controles nuevos, adicionales o de especificación/jerarquía superior que aún NO estén implementados).
+   - Si estás generando Controles Existentes desde cero (porque estaban vacíos), registra ÚNICAMENTE controles preventivos reales que existan hoy o escribe "Ninguno" (NUNCA escribas condiciones inseguras como "herramientas sin amortiguación" o "envases no rotulados" dentro de Controles Existentes).
+   - ESTÁ TERMINANTEMENTE PROHIBIDO proponer o recomendar en los Controles Propuestos algo que YA SE USA o YA EXISTE en los Controles Existentes (por ejemplo: si en Controles Existentes ya usan "tapaoídos" o "guantes", NO propongas "usar tapaoídos" ni vuelvas a poner "guantes" a secas en EPP; propón controles para otras barreras/partes del cuerpo no cubiertas, o si el EPP existente es técnicamente inadecuado para ese peligro específico —ej. usan guante de vaqueta de cuero que es mecánico y no atenúa vibraciones—, indica explícitamente: "Sustituir [EPP actual inadecuado] por [EPP certificado específico para el peligro]").
 5. FACTORES DE REDUCCIÓN (ANEXO E GTC-45) — CRÍTICO:
    - Ten en cuenta TODA la información de la fila (proceso, cargo, peligro, controles existentes, ND/NE/NC/NR, expuestos, peor consecuencia) y ESPECIALMENTE evalúa y compara los CONTROLES PROPUESTOS (Eliminación, Sustitución, Ingeniería, Administrativos y EPP) de esta fila para dictaminar en base a Costo/Beneficio CUÁL DE ESOS CONTROLES PROPUESTOS LE CONVIENE MÁS A LA EMPRESA.
    - Estructura obligatoria: "Reducción del [X]% (NRi: [NR inicial] → NRf: [NR residual esperado], Nivel [III o IV]). Análisis Costo/Beneficio (GTC 45 Anexo E): [Cita explícitamente los controles propuestos de la fila y dictamina cuál de ellos —priorizando Ingeniería, Sustitución o Eliminación frente a Administrativos y EPP— le conviene más a la empresa en relación costo/beneficio (Factor J > 20), explicando cómo mitiga el peligro en la fuente/medio y por qué es más rentable frente al costo de incapacidades, ausentismo o indemnizaciones por la peor consecuencia]."
@@ -682,8 +694,16 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown) con estos campos 
     }
 
     // Recalculate NP, Interpretación NP, NR, Interpretación NR and Aceptabilidad server-side to ensure 100% GTC-45 accuracy and stability
-    const nd = Number(updatedFields.nd) || 0;
-    const ne = Number(updatedFields.ne) || 0;
+    const snapVal = (v, allowed, fb) => {
+      const n = Number(v);
+      if (isNaN(n)) return fb;
+      if (allowed.includes(n)) return n;
+      return allowed.reduce((prev, curr) => (Math.abs(curr - n) < Math.abs(prev - n) ? curr : prev), fb);
+    };
+    const nd = snapVal(updatedFields.nd, [0, 2, 6, 10], 2);
+    const ne = snapVal(updatedFields.ne, [1, 2, 3, 4], 2);
+    updatedFields.nd = nd;
+    updatedFields.ne = ne;
     const np = nd * ne;
     updatedFields.np = np;
 
@@ -693,7 +713,8 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown) con estos campos 
     else if (np >= 6) interpretacion_np = 'Medio (M)';
     updatedFields.interpretacion_np = interpretacion_np;
 
-    const nc = Number(updatedFields.nc) || 0;
+    const nc = snapVal(updatedFields.nc, [10, 25, 60, 100], 25);
+    updatedFields.nc = nc;
     const nr = np * nc;
     updatedFields.nr = nr;
 
@@ -2332,8 +2353,12 @@ ${cargosHint}
 Genera mínimo 15 (entre 15 y 18) riesgos laborales críticos, diversos y representativos que abarquen todos los procesos principales de esta empresa y las 7 clasificaciones de peligros de la metodología GTC 45:2012 (Biológico, Físico, Químico, Psicosocial, Biomecánico, Condiciones de seguridad y Fenómenos naturales).
 IMPORTANTE:
 - El arreglo "filas" DEBE contener al menos 15 objetos de riesgo completos y distintos.
-- PROHIBIDO repetir en los Controles Propuestos (medida_eliminacion, medida_sustitucion, medida_ingenieria, medida_administrativa, medida_eppu) algo que ya esté escrito en los Controles Existentes (controles_fuente, controles_medio, controles_individuo). Los controles propuestos deben ser medidas nuevas o superiores que aún no se usen.
-- La evaluación y calificación (nd, ne, nc) debe calcularse estrictamente en función de los Controles Existentes, Efectos Posibles, Nro. de Expuestos y la información suministrada de la empresa, SIN tener en cuenta los Controles Propuestos ni el Factor de Reducción.
+- En CONTROLES EXISTENTES (controles_fuente, controles_medio, controles_individuo): registra únicamente medidas preventivas reales implementadas o escribe "Ninguno" cuando no exista control en esa barrera (PROHIBIDO escribir condiciones inseguras como "herramientas sin amortiguación" o "envases sin rotular" dentro de Controles Existentes).
+- PROHIBIDO repetir o solapar en los Controles Propuestos (medida_eliminacion, medida_sustitucion, medida_ingenieria, medida_administrativa, medida_eppu) algo que ya esté escrito en los Controles Existentes (controles_fuente, controles_medio, controles_individuo). Por ejemplo: si en controles_individuo ya pusiste "guantes" o "tapaoídos", NO vuelvas a proponer guantes ni tapaoídos en medida_eppu; propón controles que realmente falten (o si en controles_individuo no hay EPP para ese peligro, pon "Ninguno" o solo capacitación básica y deja el EPP certificado en medida_eppu).
+- CALIFICACIÓN EXACTA SEGÚN TABLAS GTC 45:2012 (ND, NE, NC) — Evalúa en función de los Controles Existentes, Efectos Posibles, Nro. de Expuestos y datos de la empresa, SIN tener en cuenta los Controles Propuestos ni el Factor de Reducción:
+  * ND (Tabla 2): usa 10 (Muy Alto) cuando el peligro sea crítico/mortal y los controles existentes en fuente y medio sean "Ninguno" o ineficaces; usa 6 (Alto) cuando solo haya controles parciales de baja eficacia; usa 2 (Medio) cuando YA existan controles efectivos en fuente/medio/individuo; usa 0 (Bajo) si está totalmente controlado. ¡No pongas todas las filas con ND=6; aplica rigor técnico según los controles existentes de cada fila!
+  * NE (Tabla 3): 4 (Continua), 3 (Frecuente), 2 (Ocasional), 1 (Esporádica).
+  * NC (Tabla 6): 100 (Mortal/Catastrófico), 60 (Muy Grave: invalidez/incapacidad permanente), 25 (Grave: incapacidad temporal), 10 (Leve).
 - En cada fila, el campo "factores_reduccion" (Anexo E GTC-45) DEBE seguir obligatoriamente esta estructura de análisis de Costo/Beneficio evaluando los controles propuestos:
   "Reducción del [X]% (NRi: [NR inicial] → NRf: [NR residual], Nivel [III o IV]). Análisis Costo/Beneficio (GTC 45 Anexo E): [Sustentación técnica y financiera de cuál control propuesto (priorizando Ingeniería, Sustitución o Eliminación sobre administrativos y EPP) le conviene más a la empresa (J > 20) frente al costo de incapacidades, ausentismo o indemnizaciones por la peor consecuencia]."
 Devuelve ÚNICAMENTE un JSON válido (sin bloques markdown):
@@ -2348,10 +2373,10 @@ Devuelve ÚNICAMENTE un JSON válido (sin bloques markdown):
       "rutinaria": "Sí",
       "peligro_descripcion": "Mecánico (atrapamiento en partes móviles de máquinas)",
       "peligro_clasificacion": "Condiciones de seguridad",
-      "efectos_posibles": "Laceraciones, fracturas, atrapamiento, amputación",
-      "controles_fuente": "Guardas perimetrales y paradas de emergencia",
-      "controles_medio": "Demarcación de áreas seguras",
-      "controles_individuo": "Capacitación en uso seguro y guantes anticorte",
+      "efectos_posibles": "Laceraciones severas, fracturas por aplastamiento, atrapamiento mecánico y amputación traumática de falanges",
+      "controles_fuente": "Ninguno",
+      "controles_medio": "Demarcación perimetral básica en piso",
+      "controles_individuo": "Inducción general de seguridad al ingreso",
       "nd": 6,
       "ne": 3,
       "nc": 60,
@@ -2360,10 +2385,10 @@ Devuelve ÚNICAMENTE un JSON válido (sin bloques markdown):
       "requisito_legal": "Sí",
       "medida_eliminacion": "No aplica",
       "medida_sustitucion": "No aplica",
-      "medida_ingenieria": "Enclavamientos electromecánicos",
-      "medida_administrativa": "Procedimiento seguro PTS y bloqueo LOTO",
-      "medida_eppu": "Guantes nivel de corte 5 y gafas Z87+",
-      "factores_reduccion": "Reducción del 88.9% (NRi: 1080 → NRf: 120, Nivel III). Análisis Costo/Beneficio (GTC 45 Anexo E): Los enclavamientos electromecánicos y el bloqueo físico LOTO (ingeniería en la fuente) le convienen prioritariamente a la empresa sobre depender únicamente de guantes anticorte (J=38.4 > 20), anulando la energía residual y evitando costos millonarios por amputación o litigios laborales."
+      "medida_ingenieria": "Instalación de guardas con enclavamiento electromecánico y paradas de emergencia tipo hongo",
+      "medida_administrativa": "Procedimiento de trabajo seguro (PTS) y programa de bloqueo y etiquetado (LOTO)",
+      "medida_eppu": "Guantes anticorte certificados EN 388 nivel 5 y gafas de seguridad ANSI Z87.1",
+      "factores_reduccion": "Reducción del 88.9% (NRi: 1080 → NRf: 120, Nivel III). Análisis Costo/Beneficio (GTC 45 Anexo E): La instalación de guardas con enclavamiento electromecánico y el programa LOTO (ingeniería en la fuente) le convienen prioritariamente a la empresa sobre depender únicamente de guantes anticorte (J=38.4 > 20), anulando la energía mecánica residual y evitando costos millonarios por amputación o litigios laborales."
     }
   ]
 }`;

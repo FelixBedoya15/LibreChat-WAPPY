@@ -30,17 +30,17 @@ class MatrizIPEVAR extends Tool {
           .describe('Descripción del riesgo. CRÍTICO: Si es una matriz ya existente/importada, conserva el valor original. Si el peligro_clasificacion es "Psicosocial", DEBES extraer y prefijar estrictamente el "Dominio" y la "Dimensión". Ej: "[Dominio: Demandas del trabajo - Dimensión: Carga mental] Descripción...".'),
         peligro_clasificacion: z.string().describe('Clasificación (ej. Biomecánico, Físico, Químico). Si es matriz ya existente/importada, conserva el valor original.'),
         efectos_posibles: z.string().describe('Posibles efectos en la salud del trabajador. SIEMPRE puedes editarlos y enriquecerlos clínica/ocupacionalmente para mejorarlos.'),
-        controles_fuente: z.string().default('Ninguno').describe('Controles existentes en la fuente. Si ya existe en una matriz importada, consérvalo.'),
-        controles_medio: z.string().default('Ninguno').describe('Controles existentes en el medio. Si ya existe en una matriz importada, consérvalo.'),
-        controles_individuo: z.string().default('Ninguno').describe('Controles existentes en el individuo. Si ya existe en una matriz importada, consérvalo.'),
-        nd: z.number().describe('Nivel de Deficiencia (ND: 0, 2, 6, 10). Evalúalo teniendo muy en cuenta los Controles Existentes, Efectos Posibles, Nro. de Expuestos y datos de la empresa, SIN tener en cuenta los Controles Propuestos ni el Factor de Reducción.'),
-        ne: z.number().describe('Nivel de Exposición (NE: 1, 2, 3, 4). Evalúalo teniendo muy en cuenta la actividad/rutinaria, Nro. de Expuestos y datos de la empresa, SIN tener en cuenta los Controles Propuestos ni el Factor de Reducción.'),
-        nc: z.number().describe('Nivel de Consecuencia (NC: 10, 25, 60, 100). Evalúalo teniendo muy en cuenta los Efectos Posibles, Peor Consecuencia y datos de la empresa, SIN tener en cuenta los Controles Propuestos ni el Factor de Reducción.'),
-        medida_eliminacion: z.string().default('Ninguno').describe('Medidas: Eliminación. PROHIBIDO recomendar algo que ya figure en Controles Existentes.'),
-        medida_sustitucion: z.string().default('Ninguno').describe('Medidas: Sustitución. PROHIBIDO recomendar algo que ya figure en Controles Existentes.'),
-        medida_ingenieria: z.string().default('Ninguno').describe('Medidas: Controles de ingeniería nuevos/adicionales. PROHIBIDO recomendar algo que ya figure en Controles Existentes.'),
-        medida_administrativa: z.string().default('Ninguno').describe('Medidas: Administrativos nuevos/adicionales. PROHIBIDO recomendar algo que ya figure en Controles Existentes.'),
-        medida_eppu: z.string().default('Ninguno').describe('Medidas: EPP técnicos apropiados nuevos o superiores. PROHIBIDO recomendar un EPP que ya figure en Controles Existentes (ej. si ya usan tapaoídos, no volver a proponer tapaoídos).'),
+        controles_fuente: z.string().default('Ninguno').describe('Controles preventivos reales existentes en la fuente, o "Ninguno" (PROHIBIDO escribir condiciones inseguras). Si ya existe en una matriz importada, consérvalo.'),
+        controles_medio: z.string().default('Ninguno').describe('Controles preventivos reales existentes en el medio, o "Ninguno". Si ya existe en una matriz importada, consérvalo.'),
+        controles_individuo: z.string().default('Ninguno').describe('Controles preventivos reales existentes en el individuo, o "Ninguno". Si ya existe en una matriz importada, consérvalo.'),
+        nd: z.number().describe('Nivel de Deficiencia según Tabla 2 GTC-45 (ND: 10=Muy Alto sin controles eficaces en fuente/medio; 6=Alto eficacia baja; 2=Medio con controles existentes de eficacia moderada; 0=Bajo controlado). Evalúalo teniendo muy en cuenta los Controles Existentes, Efectos Posibles, Nro. de Expuestos y datos de la empresa, SIN tener en cuenta los Controles Propuestos ni el Factor de Reducción.'),
+        ne: z.number().describe('Nivel de Exposición según Tabla 3 GTC-45 (NE: 4=Continua, 3=Frecuente, 2=Ocasional, 1=Esporádica). Evalúalo teniendo muy en cuenta la actividad/rutinaria, Nro. de Expuestos y datos de la empresa, SIN tener en cuenta los Controles Propuestos ni el Factor de Reducción.'),
+        nc: z.number().describe('Nivel de Consecuencia según Tabla 6 GTC-45 (NC: 100=Mortal/Catastrófico, 60=Muy Grave invalidez/incapacidad permanente, 25=Grave incapacidad temporal, 10=Leve). Evalúalo teniendo muy en cuenta los Efectos Posibles, Peor Consecuencia y datos de la empresa, SIN tener en cuenta los Controles Propuestos ni el Factor de Reducción.'),
+        medida_eliminacion: z.string().default('Ninguno').describe('Medidas: Eliminación. PROHIBIDO recomendar o solapar algo que ya figure en Controles Existentes.'),
+        medida_sustitucion: z.string().default('Ninguno').describe('Medidas: Sustitución. PROHIBIDO recomendar o solapar algo que ya figure en Controles Existentes.'),
+        medida_ingenieria: z.string().default('Ninguno').describe('Medidas: Controles de ingeniería nuevos/adicionales. PROHIBIDO recomendar o solapar algo que ya figure en Controles Existentes.'),
+        medida_administrativa: z.string().default('Ninguno').describe('Medidas: Administrativos nuevos/adicionales. PROHIBIDO recomendar o solapar algo que ya figure en Controles Existentes.'),
+        medida_eppu: z.string().default('Ninguno').describe('Medidas: EPP técnicos apropiados nuevos o superiores. PROHIBIDO recomendar un EPP que ya figure en Controles Existentes (ej. si ya usan tapaoídos o guantes, no volver a poner tapaoídos o guantes a secas; si el EPP existente es inadecuado para el peligro —ej. guante de vaqueta mecánico frente a vibración—, escribe explícitamente "Sustituir [EPP actual inadecuado] por [EPP certificado específico]").'),
         factores_reduccion: z.string().default('No aplica').describe('Factores de reducción (Anexo E GTC-45). CRÍTICO: Ten en cuenta toda la información de la fila y ESPECIALMENTE evalúa y compara los Controles Propuestos (Eliminación, Sustitución, Ingeniería, Administrativos y EPP) para decir en relación Costo-Beneficio cuál es el que más le conviene a la empresa: "Reducción del [X]% (NRi: [NR inicial] → NRf: [NR residual], Nivel [III o IV]). Análisis Costo/Beneficio (GTC 45 Anexo E): [Cita los controles propuestos y dictamina cuál de ellos —priorizando Ingeniería, Sustitución o Eliminación frente a Administrativos y EPP— le conviene más a la empresa (Factor J > 20) frente a costos de incapacidades, ausentismo o indemnizaciones por la peor consecuencia]".'),
         nd_cualitativo: z.number().optional().describe('ND cualitativo (MA=10, A=6, M=2, B=0).'),
         nro_expuestos: z.number().default(1).describe('Número de trabajadores expuestos al peligro. Si ya existe (> 0) en una matriz importada, consérvalo.'),
@@ -348,12 +348,19 @@ class MatrizIPEVAR extends Tool {
       let insertedCount = 0;
       let updatedCount = 0;
 
+      const snapVal = (v, allowed, fb) => {
+        const n = Number(v);
+        if (isNaN(n)) return fb;
+        if (allowed.includes(n)) return n;
+        return allowed.reduce((prev, curr) => (Math.abs(curr - n) < Math.abs(prev - n) ? curr : prev), fb);
+      };
+
       for (const riesgo of riesgos) {
         // Autocalculate levels per GTC-45
-        const nd = Number(riesgo.nd) || 0;
-        const ne = Number(riesgo.ne) || 0;
+        const nd = snapVal(riesgo.nd, [0, 2, 6, 10], 2);
+        const ne = snapVal(riesgo.ne, [1, 2, 3, 4], 2);
         const np = nd * ne;
-        const nc = Number(riesgo.nc) || 0;
+        const nc = snapVal(riesgo.nc, [10, 25, 60, 100], 25);
         const nr = np * nc;
 
         let interpretacion_np = 'Bajo (B)';
