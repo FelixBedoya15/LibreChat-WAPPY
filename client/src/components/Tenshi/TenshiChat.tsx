@@ -2210,10 +2210,26 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       onAudioReceived: (audioData: string) => {
         handleAudioReceived(audioData);
       },
-      onTextReceived: (text: string, isUserTranscription?: boolean) => {
+      onTextReceived: (text: string, isUserTranscription?: boolean, replaceLastUserBubble?: boolean) => {
         lastActivityRef.current = Date.now();
         if (isUserTranscription) {
           lastUserTranscriptionRef.current = text;
+
+          // Si el backend envía la corrección final contextual/fonética de la burbuja del usuario,
+          // actualizar en sitio la última burbuja de voz del usuario sin re-disparar interrupciones ni eventos
+          if (replaceLastUserBubble) {
+            setMessages((prev) => {
+              const updated = [...prev];
+              for (let i = updated.length - 1; i >= 0; i--) {
+                if (updated[i].role === 'user' && (updated[i] as any).isLiveVoice) {
+                  updated[i] = { ...updated[i], content: text };
+                  return updated;
+                }
+              }
+              return [...prev, { role: 'user', content: text, isLiveVoice: true }];
+            });
+            return;
+          }
 
           // Adaptar dinámicamente el protocolo de inspección de Tenshi según la intención del usuario
           updateTenshiProtocolByIntent(text);
@@ -2259,6 +2275,19 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             const last = prev[prev.length - 1];
             if (last && last.role === 'user' && (last as any).isLiveVoice) {
               return [...prev.slice(0, -1), { role: 'user', content: text, isLiveVoice: true }];
+            }
+            const secondLast = prev.length >= 2 ? prev[prev.length - 2] : null;
+            if (
+              last &&
+              last.role === 'assistant' &&
+              (last as any).isLiveVoice &&
+              secondLast &&
+              secondLast.role === 'user' &&
+              (secondLast as any).isLiveVoice
+            ) {
+              const updated = [...prev];
+              updated[updated.length - 2] = { ...secondLast, content: text };
+              return updated;
             }
             return [...prev, { role: 'user', content: text, isLiveVoice: true }];
           });

@@ -8,7 +8,7 @@ interface VoiceMessage {
 
 interface UseVoiceSessionOptions {
     onAudioReceived?: (audioData: string) => void;
-    onTextReceived?: (text: string, isUserTranscription?: boolean) => void;
+    onTextReceived?: (text: string, isUserTranscription?: boolean, replaceLastUserBubble?: boolean) => void;
     onReportReceived?: (html: string, messageId?: string, evaluatedFrames?: string[], conversationId?: string, isNewReport?: boolean) => void;
     onWappyAction?: (action: { id: string; name: string; args: any }) => void;
     onAgentSwitched?: (data: { agentName: string; agentId: string; isBiomechanics: boolean; isFisioMode: boolean; conversationId?: string; badge?: string }) => void;
@@ -157,7 +157,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 const currentSampleRate = audioContext?.sampleRate || 16000;
                 let dataToEncode = float32Array;
 
-                // Re-muestreo continuo con fase preservada (crítico para Safari en macOS/iOS a 44.1kHz o 48kHz)
+                // Re-muestreo continuo anti-aliasing con ventana promediada (evita distorsión Nyquist de consonantes s/c/t/d/b a 44.1kHz o 48kHz)
                 if (currentSampleRate !== 16000 && currentSampleRate > 0) {
                     const ratio = currentSampleRate / 16000;
                     const availableSamples = float32Array.length - resamplePhase;
@@ -165,11 +165,31 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     const resampled = new Float32Array(newLength);
                     let srcIdx = resamplePhase;
                     for (let i = 0; i < newLength; i++) {
-                        const idx = Math.floor(srcIdx);
-                        const frac = srcIdx - idx;
-                        const s0 = float32Array[idx] || 0;
-                        const s1 = (idx + 1 < float32Array.length) ? float32Array[idx + 1] : s0;
-                        resampled[i] = s0 + frac * (s1 - s0);
+                        if (ratio > 1.05) {
+                            // Filtro anti-aliasing de diezmado (promediado ponderado en la ventana [srcIdx, srcIdx + ratio])
+                            const start = srcIdx;
+                            const end = Math.min(float32Array.length, srcIdx + ratio);
+                            const iStart = Math.floor(start);
+                            const iEnd = Math.floor(end);
+                            let sum = 0;
+                            let weightSum = 0;
+                            for (let k = iStart; k <= iEnd && k < float32Array.length; k++) {
+                                const segStart = Math.max(start, k);
+                                const segEnd = Math.min(end, k + 1);
+                                const w = Math.max(0, segEnd - segStart);
+                                if (w > 0) {
+                                    sum += float32Array[k] * w;
+                                    weightSum += w;
+                                }
+                            }
+                            resampled[i] = weightSum > 0 ? (sum / weightSum) : (float32Array[iStart] || 0);
+                        } else {
+                            const idx = Math.floor(srcIdx);
+                            const frac = srcIdx - idx;
+                            const s0 = float32Array[idx] || 0;
+                            const s1 = (idx + 1 < float32Array.length) ? float32Array[idx + 1] : s0;
+                            resampled[i] = s0 + frac * (s1 - s0);
+                        }
                         srcIdx += ratio;
                     }
                     resamplePhase = Math.max(0, srcIdx - float32Array.length);
@@ -180,9 +200,20 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
 
                 if (dataToEncode.length === 0) return;
 
+                // Normalización suave de presencia vocal (AGC ligero con limitador hiperbólico para micrófonos bajos)
+                let chunkSumSq = 0;
+                for (let j = 0; j < dataToEncode.length; j++) {
+                    chunkSumSq += dataToEncode[j] * dataToEncode[j];
+                }
+                const chunkRms = Math.sqrt(chunkSumSq / dataToEncode.length);
+                const gain = (chunkRms > 0.008 && chunkRms < 0.09)
+                    ? Math.min(2.1, 0.095 / chunkRms)
+                    : 1.0;
+
                 const int16Data = new Int16Array(dataToEncode.length);
                 for (let j = 0; j < dataToEncode.length; j++) {
-                    const s = Math.max(-1, Math.min(1, dataToEncode[j]));
+                    const raw = dataToEncode[j] * gain;
+                    const s = Math.abs(raw) > 0.85 ? Math.tanh(raw) : Math.max(-1, Math.min(1, raw));
                     int16Data[j] = s < 0 ? s * 0x8000 : s * 0x7FFF;
                 }
                 const bytes = new Uint8Array(int16Data.buffer);
@@ -221,15 +252,15 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 }
                 const rms = Math.sqrt(sumSquare / float32Array.length);
 
-                // Umbral de activación vocal dinámico (sensible a sílabas suaves sin cortar frases)
-                const voiceThreshold = Math.max(0.009, noiseFloorRef.current * 2.0);
+                // Umbral de activación vocal dinámico (sensible a sílabas suaves pero inmune a respiración/ruido de sala)
+                const voiceThreshold = Math.max(0.011, noiseFloorRef.current * 2.15);
                 const now = Date.now();
                 const continuousSpeechMs = isTransmittingSpeechRef.current && speechStartTimeRef.current
                     ? (now - speechStartTimeRef.current)
                     : 0;
 
-                // Solo considerar ruido estacionario si el canal lleva > 25s abierto de forma ininterrumpida con energía muy baja casi idéntica al umbral
-                const isSteadyBackgroundNoise = continuousSpeechMs > 25000 && rms < voiceThreshold * 1.25;
+                // Solo considerar ruido estacionario si el canal lleva > 20s abierto de forma ininterrumpida con energía muy baja casi idéntica al umbral
+                const isSteadyBackgroundNoise = continuousSpeechMs > 20000 && rms < voiceThreshold * 1.3;
                 const isSpeechNow = rms >= voiceThreshold && !isSteadyBackgroundNoise;
 
                 // Adaptación asimétrica del piso de ruido:
@@ -252,14 +283,28 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     }
                 }
 
-                // Hangover amplio de 2200ms (2.2s): permite pausas naturales al pensar, respirar o reformular ("perdón, una tarea...")
-                // sin enviar speech_end (audioStreamEnd) prematuramente a mitad de la frase del usuario.
-                const isInHangover = !isSteadyBackgroundNoise && (now - lastVoiceTimeRef.current) < 2200;
-                const shouldTransmit = isSpeechNow || isInHangover;
+                // Hangover inteligente en 2 etapas:
+                // Etapa A (0 - 380ms tras voz): se transmite la cola acústica natural de las consonantes finales (-s, -d, -r, -n).
+                // Etapa B (380ms - 1050ms tras voz): ventana de tolerancia de pausa (NO cierra el turno ni envía speech_end aún,
+                // pero NO envía ruido ambiental crudo a Google para evitar alucinaciones de subtítulos/películas en el ASR).
+                const timeSinceLastVoice = now - lastVoiceTimeRef.current;
+                const isInNaturalTail = !isSteadyBackgroundNoise && timeSinceLastVoice < 380;
+                const isInPauseWindow = !isSteadyBackgroundNoise && timeSinceLastVoice >= 380 && timeSinceLastVoice < 1050;
+                const shouldTransmitAudio = isSpeechNow || isInNaturalTail;
 
-                // Si NO hay voz activa ni hangover (silencio / ventilador / ruido ambiental), guardar en pre-roll y NO enviar
-                if (!shouldTransmit) {
-                    // Fin de locución: avisar al backend UNA sola vez para que Google cierre el turno ya
+                if (!shouldTransmitAudio) {
+                    // Guardar siempre los últimos 4 chunks (~240ms) en pre-roll para que si el usuario retoma la voz tras una pausa no se corte la primera sílaba
+                    preRollChunksRef.current.push(new Float32Array(float32Array));
+                    if (preRollChunksRef.current.length > 4) {
+                        preRollChunksRef.current.shift();
+                    }
+
+                    // Si aún estamos dentro de la ventana de pausa (< 1050ms), mantener el turno abierto sin enviar ruido a Google
+                    if (isInPauseWindow && isTransmittingSpeechRef.current) {
+                        return;
+                    }
+
+                    // Pasados 1050ms de silencio real: avisar al backend UNA sola vez para que Google cierre el turno limpio
                     if (isTransmittingSpeechRef.current) {
                         isTransmittingSpeechRef.current = false;
                         speechStartTimeRef.current = 0;
@@ -270,11 +315,6 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                             console.warn('[VoiceSession] No se pudo enviar speech_end:', e);
                         }
                     }
-                    // Mantener pre-roll buffer circular de los últimos 2 chunks (~120ms) para no cortar inicios de palabras
-                    preRollChunksRef.current.push(new Float32Array(float32Array));
-                    if (preRollChunksRef.current.length > 2) {
-                        preRollChunksRef.current.shift();
-                    }
                     return;
                 }
 
@@ -283,7 +323,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 }
                 isTransmittingSpeechRef.current = true;
 
-                // Si acabamos de detectar voz tras silencio, vaciar primero el pre-roll buffer
+                // Si acabamos de detectar voz tras silencio o pausa, vaciar primero el pre-roll buffer (~240ms previos)
                 if (preRollChunksRef.current.length > 0) {
                     const flushed = [...preRollChunksRef.current];
                     preRollChunksRef.current = [];
@@ -665,7 +705,11 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
 
             case 'text':
                 if (message.data.text) {
-                    optionsRef.current.onTextReceived?.(message.data.text, message.data.isUserTranscription ?? false);
+                    optionsRef.current.onTextReceived?.(
+                        message.data.text,
+                        message.data.isUserTranscription ?? false,
+                        Boolean(message.data.replaceLastUserBubble)
+                    );
                 }
                 break;
 

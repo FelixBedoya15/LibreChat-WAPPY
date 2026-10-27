@@ -103,6 +103,70 @@ async function findMatchingBlogPost(query) {
  * Sanitizes voice transcription for common Spanish/SST phonetic misrecognitions
  * and blocks multilingual / silence / pretraining-corpus hallucinations from Gemini Live ASR.
  */
+/**
+ * Sanitizes an individual streaming sub-token from Gemini Live's `inputTranscription`
+ * WITHOUT trimming leading/trailing spaces (so sub-word syllables like "Anti" + "gravity"
+ * or "al" + "berto" are never split, and standalone articles like " la " are never deleted).
+ */
+function sanitizeStreamingChunk(rawChunk) {
+    if (!rawChunk || typeof rawChunk !== 'string') return '';
+    // Reject non-Latin script hallucinations immediately
+    if (/[\u0370-\u03FF\u0400-\u04FF\u0590-\u05FF\u0600-\u06FF\u0900-\u097F\u0E00-\u0E7F\u1100-\u11FF\u3040-\u30FF\u3130-\u318F\u4E00-\u9FFF\uAC00-\uD7AF]/u.test(rawChunk)) {
+        logger.warn(`[VoiceSession] Discarding foreign script streaming chunk from STT: "${rawChunk}"`);
+        return '';
+    }
+    // Strip ASR timestamp leaks
+    if (/\[\s*\d+m\d+s\d*ms\s*\]/i.test(rawChunk)) {
+        return rawChunk.replace(/\[\s*\d+m\d+s\d*ms\s*\][\s\S]*$/i, '');
+    }
+    return rawChunk;
+}
+
+/**
+ * Applies deterministic 0ms phonetic repairs for WAPPY, Tenshi, Antigravity,
+ * and Colombian SG-SST domain terminology that Google's context-blind streaming ASR distorts.
+ */
+function applyDomainPhoneticCorrections(text) {
+    if (!text || typeof text !== 'string') return '';
+    let s = text;
+
+    // 1. Tenshi brand & greeting variations
+    s = s.replace(/\b(ventiola|venti\s+hola|tenchi\s+hola|denchi\s+hola|bencini\s+hola)\b/gi, 'Tenshi, hola');
+    s = s.replace(/\b(hola\s+)?(tenchi|denchi|densi|bencini|benchini|pensi|tensi|ten\s+si|ten\s+chi|ven\s+y\s+si|chenchi|zenchi|tenzhi)\b/gi, (_, holaPrefix) => {
+        return holaPrefix ? `${holaPrefix}Tenshi` : 'Tenshi';
+    });
+
+    // 2. Antigravity brand & delegation variations
+    s = s.replace(/\b(le\s+pregunt[eé]\s+a\s+)(un\s+talento\s+que\s+habita(?:\s+y)?|talento\s+que\s+habita|anti\s*gravity|antigravite|antigraviti|anti\s*gravedad|a\s+ti\s+gravity|tigravity)\b/gi, 'pregúntale a Antigravity');
+    s = s.replace(/\b(un\s+talento\s+que\s+habita(?:\s+y)?|talento\s+que\s+habita|anti\s*gravity|antigravite|antigraviti|anti\s*gravedad|a\s+ti\s+gravity|tigravity|tigra\s+biti|antigra\s+vity)\b/gi, 'Antigravity');
+    s = s.replace(/\b(preg[uú]ntale\s+a\s+Antigravity)\s+y\s+qu[eé]\b/gi, '$1 qué');
+
+    // 3. WAPPY brand variations
+    s = s.replace(/\b(wappi|guapi|huapi|wap\s*pi|wapy|guapy)\b/gi, 'WAPPY');
+
+    // 4. Colombian SG-SST & Specialist phonetic distortions observed in production logs
+    s = s.replace(/\b(el\s+may\s+colabora|may\s+colabora|m[eé]dico\s+colabora|m[eé]dica\s+colabora)\b/gi, 'el Médico Laboral');
+    s = s.replace(/\b(busquen?\s+a\s+web|busca(?:r)?\s+a\s+web|busquen?\s+en\s+a\s+web|buscar\s+en\s+a\s+web)\b/gi, 'busque en la web');
+    s = s.replace(/\b(en\s+a\s+web)\b/gi, 'en la web');
+    s = s.replace(/\b(expl[ií]came\s+la\s+masa\s+a\s+fondo|la\s+masa\s+a\s+fondo|masa\s+a\s+fondo)\b/gi, (m) =>
+        /^expl/i.test(m) ? 'explícame más a fondo' : 'más a fondo'
+    );
+    s = s.replace(/\b(me\s+hice\s+salberto|me\s+dice\s+salberto|me\s+dices\s+salberto)\b/gi, 'me dices Alberto');
+    s = s.replace(/\b(matriz\s+hiper(?:\s*b|\s*v)?|matriz\s+iper\w*|iper\s*bar|ipebar)\b/gi, 'Matriz IPEVAR');
+    s = s.replace(/\b(je\s*te\s*se\s*45|gtc\s*cuarenta\s+y\s+cinco)\b/gi, 'GTC-45');
+    s = s.replace(/\b(copas\s*st|copast)\b/gi, 'COPASST');
+    s = s.replace(/\b(furad|fura\s*t)\b/gi, 'FURAT');
+    s = s.replace(/\b(pe\s*ese\s*ve|pes\s*b)\b/gi, 'PESV');
+    s = s.replace(/\b(decreto\s+diez\s+setenta\s+y\s+dos)\b/gi, 'Decreto 1072');
+    s = s.replace(/\b(resoluci[oó]n\s+cero\s+tres\s+doce|resoluci[oó]n\s+tres\s+doce)\b/gi, 'Resolución 0312');
+
+    return s;
+}
+
+/**
+ * Sanitizes voice transcription for common Spanish/SST phonetic misrecognitions
+ * and blocks multilingual / silence / pretraining-corpus hallucinations from Gemini Live ASR.
+ */
 function sanitizeTranscription(text) {
     if (!text || typeof text !== 'string') return '';
     let s = text.trim();
@@ -121,17 +185,18 @@ function sanitizeTranscription(text) {
         if (!s) return '';
     }
 
-    // 3. REJECT KNOWN SILENCE / PRETRAINING CORPUS HALLUCINATIONS (Spanish, English, German, Portuguese)
+    // 3. REJECT KNOWN SILENCE / MOVIE SUBTITLE / PRETRAINING CORPUS HALLUCINATIONS (Spanish, English, French, German, Portuguese)
     if (
-        /^(yo juego a la bola|yo me llamo juan(\s*,\s*mucho gusto)?|mucho gusto|yo soy de argentina|thank you(\s+for\s+watching)?|suscr[ií]bete(\s+al\s+canal)?|subt[ií]tulos(\s+realizados)?\s+por.*|amara\.org|bye|oh|ah|uh|um|hmm|ciao|bonjour|hello|hi|confused|six\s+times|right\s+now|you\s+know|so|por|el|la|de|un|una)\.?$/i.test(s) ||
-        /\b(yo me llamo juan|yo soy de argentina|se subieron a la tarima|a eso de la medianoche|subt[ií]tulos realizados por)\b/i.test(s)
+        /^(yo juego a la bola|yo me llamo juan(\s*,\s*mucho gusto)?|mucho gusto|yo soy de argentina|thank you(\s+for\s+watching)?|suscr[ií]bete(\s+al\s+canal)?|subt[ií]tulos(\s+realizados)?\s+por.*|amara\.org|check\s+check(\.?\s*para\s+cambiar)?|oui(\.?\s*qu'est-ce\s+qu'on\s+a\s+ici\s*\??)?|bye|oh|ah|uh|um|hmm|mm|eh|ada|as|ciao|bonjour|hello|hi|confused|six\s+times|right\s+now|you\s+know|so)\.?$/i.test(s) ||
+        /\b(yo me llamo juan|yo soy de argentina|se subieron a la tarima|a eso de la medianoche|subt[ií]tulos realizados por|recuerdo cada palabra del juramento|la noche se acerca y ahora mi vig[ií]a comienza|soy el escudo que resguarda el reino de los hombres|mi vig[ií]a comienza|reino de los hombres|qu'est-ce qu'on a ici|check check\.?\s*para cambiar)\b/i.test(s)
     ) {
-        logger.warn(`[VoiceSession] Discarding phantom silence hallucination: "${s}"`);
+        logger.warn(`[VoiceSession] Discarding phantom silence/subtitle hallucination: "${s}"`);
         return '';
     }
 
-    // 4. REJECT FOREIGN LANGUAGE DRIFT (German, Portuguese, Romanized Hindi/Urdu)
+    // 4. REJECT FOREIGN LANGUAGE DRIFT (French, German, Portuguese, Romanized Hindi/Urdu)
     if (
+        /\b(qu'est-ce|qu'on|c'est\s+quoi|je\s+suis|avec\s+moi|merci\s+beaucoup)\b/i.test(s) ||
         /\b(händisch|erarbeitet|nicht|auch|wird|haben|einer|einem|diese[rmns]?)\b/i.test(s) ||
         /\b(não|você|vocês|então|isso|tá\s+vendo|a\s+gente\s+tá|acontecer\s+agora|negócio|arrumar|depois\s+que)\b/i.test(s) ||
         /\b(aur|ek\s+chhat|hai\s+na|jo\s+hamara|system\s+hai\s+na)\b/i.test(s)
@@ -167,12 +232,15 @@ function sanitizeTranscription(text) {
     s = s.replace(/\b(has|hazme|as)\s+el\s+(informe|reporte)\b/gi, 'haz el informe');
     s = s.replace(/\b(quiero|dame)\s+el\s+(reporte|informe)\b/gi, 'genera el informe');
 
+    // Apply WAPPY / Tenshi / Antigravity / SG-SST phonetic domain corrections
+    s = applyDomainPhoneticCorrections(s);
+
     return s.trim();
 }
 
 /**
  * Sanitizes the accumulated multi-chunk transcription buffer to eliminate cross-chunk loops,
- * ASR timestamp leaks, and silence hallucinations.
+ * ASR timestamp leaks, movie/subtitle hallucinations, and phonetic distortions.
  */
 function sanitizeAccumulatedTranscription(fullText) {
     if (!fullText || typeof fullText !== 'string') return '';
@@ -182,8 +250,8 @@ function sanitizeAccumulatedTranscription(fullText) {
     // 1. Cut off any ASR timestamp hallucination tail
     s = s.replace(/\[\s*\d+m\d+s\d*ms\s*\][\s\S]*$/i, '').trim();
 
-    // 2. Cut off any known silence hallucination tail that got appended
-    s = s.replace(/(?:yo me llamo juan|yo soy de argentina|y se subieron a la tarima|a eso de la medianoche|händisch erarbeitet|é o que a gente tá vendo)[\s\S]*$/i, '').trim();
+    // 2. Cut off any known silence / movie subtitle hallucination tail that got appended
+    s = s.replace(/(?:yo me llamo juan|yo soy de argentina|y se subieron a la tarima|a eso de la medianoche|händisch erarbeitet|é o que a gente tá vendo|recuerdo cada palabra del juramento|la noche se acerca y ahora mi vig[ií]a comienza|soy el escudo que resguarda el reino de los hombres|qu'est-ce qu'on a ici|check check\.?\s*para cambiar|subt[ií]tulos realizados por|amara\.org)[\s\S]*$/i, '').trim();
 
     // 3. Cut off degenerate 4+ word repetition loops across chunk boundaries
     const loopMatch = s.match(/\b([a-záéíóúñü]{1,12})\b(?:\s+\1\b){3,}/i);
@@ -196,6 +264,9 @@ function sanitizeAccumulatedTranscription(fullText) {
 
     // 5. Normalize whitespace
     s = s.replace(/\s{2,}/g, ' ').trim();
+
+    // 6. Run full-sentence phonetic & hallucination sanitizer now that all sub-word tokens are joined
+    s = sanitizeTranscription(s);
 
     return s;
 }
@@ -3172,12 +3243,10 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
 
         // Listen for USER transcription (what the user says)
         this.geminiClient.on('userTranscription', (text) => {
-            const cleanText = sanitizeTranscription(text);
-            if (!cleanText || !cleanText.trim()) {
-                logger.info(`[VoiceSession] Ignored discarded/hallucinated user transcription: "${text}"`);
+            const safeChunk = sanitizeStreamingChunk(text);
+            if (!safeChunk || !safeChunk.trim()) {
                 return;
             }
-            logger.info(`[VoiceSession] User transcription received: "${cleanText}" (raw: "${text}")`);
             this.toolCalledThisTurn = false;
 
             const now = Date.now();
@@ -3187,22 +3256,35 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
             // tras una consulta previa completa, reiniciar el acumulador para no pegar ruido nuevo a la pregunta anterior
             if (this.turnHadAiOutput || (silenceGapMs > 10000 && (this.userTranscriptionText || '').trim().length > 35)) {
                 this.userTranscriptionText = '';
+                this.rawUserTranscriptionStream = '';
                 this.turnHadAiOutput = false;
             }
             this.lastUserTranscriptionAt = now;
 
-            // Concatenar con separación limpia entre fragmentos y sanitizar el acumulado completo
-            if (this.userTranscriptionText && !this.userTranscriptionText.endsWith(' ') && !/^[.,;!?]/.test(cleanText)) {
-                this.userTranscriptionText += ' ';
+            if (!this.rawUserTranscriptionStream) {
+                this.rawUserTranscriptionStream = '';
             }
-            this.userTranscriptionText += cleanText;
-            this.userTranscriptionText = sanitizeAccumulatedTranscription(this.userTranscriptionText);
+            // Preservar los espacios nativos del tokenizador streaming de Google (para no partir palabras a la mitad
+            // ni eliminar artículos sueltos como "la", "el", "de", "por"). Solo insertar espacio si la frase previa cerró en puntuación.
+            if (
+                this.rawUserTranscriptionStream &&
+                /[.,;!?]$/.test(this.rawUserTranscriptionStream) &&
+                !/^\s/.test(safeChunk)
+            ) {
+                this.rawUserTranscriptionStream += ' ';
+            }
+            this.rawUserTranscriptionStream += safeChunk;
 
-            if (!this.userTranscriptionText) {
+            const sanitizedFull = sanitizeAccumulatedTranscription(this.rawUserTranscriptionStream);
+            if (!sanitizedFull) {
+                logger.info(`[VoiceSession] Ignored discarded/hallucinated user transcription buffer: "${this.rawUserTranscriptionStream}"`);
                 return;
             }
 
+            this.userTranscriptionText = sanitizedFull;
             this.lastUserTranscription = this.userTranscriptionText.trim();
+            logger.info(`[VoiceSession] User transcription accumulated: "${this.lastUserTranscription}" (raw chunk: "${text}")`);
+
             // ✅ FIX: Send accumulated sanitized user transcription to client in real-time for HUD display & keyword matching
             this.sendToClient({
                 type: 'text',
@@ -3211,7 +3293,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
 
             // Detección en caliente de activación de Modo Fisioterapeuta / Ergonomía / Estudio de Puesto
             const fisioTriggers = /\b(fisioterapeuta|fisioterapia|ergonom[ií]a|ergon[oó]mic[ao]|estudio\s+(de\s+)?puesto|higiene\s+postural|biomec[aá]nic[ao]|evaluaci[oó]n\s+postural)\b/i;
-            if (!this.isBiomechanics && !this.isFisioMode && fisioTriggers.test(cleanText)) {
+            if (!this.isBiomechanics && !this.isFisioMode && fisioTriggers.test(this.lastUserTranscription)) {
                 this.enableFisioterapeutaMode('voz');
             }
 
@@ -3219,8 +3301,8 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
             if (!this.isGeneratingReport && this.conversationTurns && this.conversationTurns.length >= 1) {
                 const userReportRegex = /\b(genera(r)?|haz|compil(a|ar)|dame|quiero|entreg(a|ar)|sacar?)\s+(el\s+|un\s+)?(informe|reporte)\b/i;
                 const phoneticApproxRegex = /\b(general)\s+(el\s+|al\s+)?(informe|reporte)\b/i;
-                if (userReportRegex.test(cleanText) || phoneticApproxRegex.test(cleanText)) {
-                    logger.info(`[VoiceSession] Real-time voice trigger matched in user transcription: "${cleanText}"`);
+                if (userReportRegex.test(this.lastUserTranscription) || phoneticApproxRegex.test(this.lastUserTranscription)) {
+                    logger.info(`[VoiceSession] Real-time voice trigger matched in user transcription: "${this.lastUserTranscription}"`);
                     this.isGeneratingReport = true;
                     this.sendToClient({
                         type: 'status',
@@ -3292,6 +3374,17 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
         this.geminiClient.on('toolCall', async (toolCall) => {
             logger.info('[VoiceSession] Tool Call received:', JSON.stringify(toolCall));
             this.toolCalledThisTurn = true;
+            if (toolCall.functionCalls && Array.isArray(toolCall.functionCalls)) {
+                if (!this.currentTurnToolCalls) this.currentTurnToolCalls = [];
+                for (const callItem of toolCall.functionCalls) {
+                    if (callItem && callItem.name) {
+                        this.currentTurnToolCalls.push({
+                            name: callItem.name,
+                            args: callItem.args || {},
+                        });
+                    }
+                }
+            }
 
             if (toolCall.functionCalls) {
                 const toolReq = {
@@ -6418,15 +6511,19 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
      */
     /**
      * Correct user transcription using Gemini Flash Lite with instant fast-path for common phrases
+     * and ground-truth cross-checking against Gemini Live's native audio tool calls & spoken response.
      */
-    async correctTranscription(userText, aiResponseText) {
+    async correctTranscription(userText, aiResponseText, toolCalls = []) {
         try {
             if (!userText || typeof userText !== 'string') {
-                return userText;
+                return '';
             }
 
-            // 1. Pre-sanitizer for common voice recognition inaccuracies
-            const sanitized = sanitizeTranscription(userText).trim();
+            // 1. Pre-sanitizer for common voice recognition inaccuracies & hallucinations
+            const sanitized = sanitizeAccumulatedTranscription(userText).trim();
+            if (!sanitized) {
+                return '';
+            }
 
             // 2. Fast-path for common Spanish responses (zero latency, no API call required)
             const lower = sanitized.toLowerCase().replace(/[.,!¡?¿]/g, '').trim();
@@ -6443,6 +6540,9 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                 'no': 'No.',
                 'correcto': 'Correcto.',
                 'entendido': 'Entendido.',
+                'hola': 'Hola.',
+                'hola tenshi': 'Hola, Tenshi.',
+                'tenshi hola': 'Tenshi, hola.',
                 'haz el informe': 'Haz el informe.',
                 'genera el informe': 'Genera el informe.',
                 'generar el informe': 'Generar el informe.',
@@ -6456,46 +6556,69 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                 return quickPhrases[lower];
             }
 
-            if (sanitized.length <= 3) {
-                return sanitized;
+            // Filter isolated 1-3 character noise fragments
+            const validShortWords = new Set(['sí', 'si', 'no', 'ya', 'ok', 'va', 'voy', 'paz', 'fin', 'hola']);
+            if (lower.length <= 3 && !validShortWords.has(lower)) {
+                logger.info(`[VoiceSession] Discarding short noise fragment in correctTranscription: "${sanitized}"`);
+                return '';
             }
 
-            logger.info(`[VoiceSession] Starting transcription correction for: "${sanitized}"`);
+            logger.info(`[VoiceSession] Starting contextual transcription correction for: "${sanitized}"`);
 
             // Use Gemini 3.5 Flash Lite for high performance voice transcription corrections
             const correctionModelName = 'gemini-3.5-flash-lite';
+            const userNameHint = this.user?.name ? `Nombre real del usuario: "${this.user.name}".` : '';
+            const toolCallsHint = Array.isArray(toolCalls) && toolCalls.length > 0
+                ? `\nHERRAMIENTAS EJECUTADAS POR EL MODELO DE AUDIO NATIVO EN ESTE TURNO (lo que el modelo de audio realmente escuchó decir al usuario):\n${JSON.stringify(toolCalls).substring(0, 500)}\n`
+                : '';
 
-            const prompt = `
-            Eres un corrector ortográfico y gramatical experto en español de Colombia/Latinoamérica, especializado en Seguridad y Salud en el Trabajo (SST/HSE).
-            Tu tarea es corregir y pulir los errores fonéticos o de puntuación de la transcripción de voz para hacerla fluida, correcta y en perfecto español.
+            const prompt = `Eres un corrector fonético, ortográfico y contextual experto en español de Colombia/Latinoamérica para el ecosistema WAPPY (asistente de voz "Tenshi", agente de escritorio "Antigravity", plataforma de Seguridad y Salud en el Trabajo SG-SST).
+${userNameHint}
+${toolCallsHint}
+RESPUESTA QUE DIO LA IA (TENSHI) AL ESCUCHAR EL AUDIO REAL DEL USUARIO:
+"""
+${(aiResponseText || '').substring(0, 450)}
+"""
 
-            ÚLTIMA INTERVENCIÓN DE LA IA:
-            """
-            ${(aiResponseText || '').substring(0, 250)}
-            """
+TRANSCRIPCIÓN CRUDA DEL RECONOCEDOR DE VOZ (ASR) A CORREGIR:
+"""
+${sanitized}
+"""
 
-            TRANSCRIPCIÓN DE VOZ DEL USUARIO A CORREGIR:
-            """
-            ${sanitized}
-            """
-
-            REGLAS DE ORO:
-            1. MANTÉN ESTRICTAMENTE EL TEXTO EN ESPAÑOL. Está absolutamente prohibido traducir cualquier palabra al inglés o a cualquier otro idioma. El usuario habla español.
-            2. Si la transcripción dice palabras como "bistro", "visto" o "cristo" en tono de asentimiento, corrígelas a "Listo".
-            3. Si el usuario pide el informe con palabras parecidas (ej: "general el informe"), corrígelo a "Generar el informe".
-            4. Reconoce y respeta siglas y términos de SST como: "SST", "EPP", "RULA", "REBA", "OWAS", "GTC 45", "ISO 45001", "Decreto 1072", "postura", "ergonomía".
-            5. Si el texto original está en español correcto, devuélvelo tal cual sin inventar nada.
-            6. DEVUELVE ÚNICA Y EXCLUSIVAMENTE EL TEXTO CORREGIDO EN ESPAÑOL. Sin explicaciones, comillas ni notas.
-            `;
+REGLAS ESTRICTAS DE CORRECCIÓN:
+1. El reconocedor de voz crudo suele equivocarse fonéticamente con nombres propios y términos técnicos. Usa la RESPUESTA DE LA IA y las HERRAMIENTAS EJECUTADAS para deducir qué dijo fonéticamente el usuario y corregirlo con fidelidad:
+   - "Tenchi", "Denchi", "Bencini", "Ventiola", "Pensi", "Ven y si" -> "Tenshi"
+   - "un talento que habita", "Antigravite", "anti gravity", "tigravity" -> "Antigravity"
+   - "Wappi", "Guapi", "Huapi" -> "WAPPY"
+   - "el May colabora", "médico colabora" -> "el Médico Laboral"
+   - "busquen a Web", "busca a Web" -> "busque en la web"
+   - "la masa a fondo" -> "más a fondo"
+   - "me hice salberto" -> "me dices Alberto"
+   - Siglas SG-SST: "Matriz IPEVAR", "GTC-45", "PESV", "COPASST", "FURAT", "Decreto 1072", "Resolución 0312", "EPP", "RULA", "REBA", "OWAS".
+2. Si la transcripción cruda es una alucinación de subtítulos de películas/series (ej. juramentos, frases poéticas de fantasía, frases en francés/inglés/alemán o sílabas sueltas sin sentido que no guardan ninguna relación con la respuesta de la IA), devuelve exactamente: [DESCARTAR]
+3. Si al final de una frase válida del usuario se coló basura o una frase incoherente de ruido ambiental, elimina únicamente esa cola incoherente y conserva la frase real del usuario.
+4. Añade signos de interrogación (¿...?) y puntuación natural en español. NO cambies la intención ni agregues palabras que el usuario no haya pronunciado fonéticamente.
+5. DEVUELVE ÚNICA Y EXCLUSIVAMENTE EL TEXTO CORREGIDO EN ESPAÑOL (o [DESCARTAR] si era ruido/alucinación). Sin comillas ni explicaciones.`;
 
             try {
-                const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Transcription correction timeout')), 1200)
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Transcription correction timeout')), 1800)
                 );
-                const correctionPromise = generateWithKeyRotation(correctionModelName, this.userId, prompt, { fastFallback: true });
+                const correctionPromise = generateWithKeyRotation(
+                    correctionModelName,
+                    this.userId,
+                    prompt,
+                    { generationConfig: { maxOutputTokens: 256, temperature: 0.0 } }
+                );
                 const result = await Promise.race([correctionPromise, timeoutPromise]);
-                const correctedText = result.response.text().replace(/^["']|["']$/g, '').trim();
+                const rawOut = result.response.text().replace(/^["'«»]+|["'«»]+$/g, '').trim();
 
+                if (!rawOut || /\[DESCARTAR\]/i.test(rawOut)) {
+                    logger.info(`[VoiceSession] Contextual ASR corrector discarded hallucination: "${userText}"`);
+                    return '';
+                }
+
+                const correctedText = applyDomainPhoneticCorrections(rawOut).trim();
                 logger.info(`[VoiceSession] Transcription correction result: "${userText}" -> "${correctedText}"`);
                 return correctedText;
             } catch (err) {
@@ -6504,7 +6627,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
             }
         } catch (error) {
             logger.error('[VoiceSession] Error correcting transcription:', error);
-            return sanitizeTranscription(userText); // Fallback to sanitized
+            return sanitizeAccumulatedTranscription(userText);
         }
     }
 
@@ -8857,20 +8980,28 @@ ${workerSubHeaderHtml}
     }
 
     async saveCurrentTurn(source = 'Unknown') {
-        const currentUserText = sanitizeAccumulatedTranscription(this.userTranscriptionText);
+        const rawUserSnapshot = this.userTranscriptionText || this.rawUserTranscriptionStream || '';
+        const currentUserText = sanitizeAccumulatedTranscription(rawUserSnapshot);
         const currentAiText = this.aiResponseText;
         const currentAudioCount = this.aiAudioChunkCount;
+        const currentAiBufferSnapshot = this.aiTranscriptionBuffer || '';
+        const turnToolCalls = Array.isArray(this.currentTurnToolCalls) ? [...this.currentTurnToolCalls] : [];
+
+        // Limpiar inmediatamente los acumuladores de turno para evitar condiciones de carrera si el usuario vuelve a hablar
+        this.userTranscriptionText = '';
+        this.rawUserTranscriptionStream = '';
+        this.aiResponseText = '';
+        this.aiTranscriptionBuffer = '';
+        this.aiAudioChunkCount = 0;
+        this.currentTurnToolCalls = [];
 
         if (!currentUserText.trim() && !currentAiText.trim() && currentAudioCount === 0) {
             return;
         }
 
         // On Disconnect, do not save if the AI never started responding (to avoid saving partial/unanswered fragments)
-        if (source === 'Disconnect' && !currentAiText.trim() && currentAudioCount === 0) {
+        if (source === 'Disconnect' && !currentAiText.trim() && currentAudioCount === 0 && turnToolCalls.length === 0) {
             logger.info(`[VoiceSession] [${source}] Discarding unanswered user transcription fragment to prevent chat clutter: "${currentUserText}"`);
-            this.userTranscriptionText = '';
-            this.aiResponseText = '';
-            this.aiAudioChunkCount = 0;
             return;
         }
 
@@ -8878,17 +9009,35 @@ ${workerSubHeaderHtml}
         // NUNCA crear conversaciones en LibreChat sidebar (Conversation collection).
         // Pero SÍ persistir en el modelo TenshiMessage para que el widget mantenga su historial sincronizado.
         if (this.config.mode === 'tenshi_voice') {
-            logger.info(`[VoiceSession] [Tenshi Voice] Turn completed (${source}). User: "${currentUserText}", AI: "${currentAiText}"`);
-            this.handleTenshiVoiceFailsafe(currentUserText, currentAiText);
+            let finalUserText = currentUserText.trim();
+            if (finalUserText && !/^\[SISTEMA INTERNO WAPPY/i.test(finalUserText)) {
+                const corrected = await this.correctTranscription(finalUserText, currentAiText, turnToolCalls);
+                finalUserText = (corrected || '').trim();
+                // Si el corrector mejoró el texto respecto al streaming crudo, actualizar en vivo la burbuja del usuario en el chat de Tenshi
+                if (finalUserText && finalUserText !== currentUserText.trim()) {
+                    this.lastUserTranscription = finalUserText;
+                    this.sendToClient({
+                        type: 'text',
+                        data: {
+                            text: finalUserText,
+                            isUserTranscription: true,
+                            replaceLastUserBubble: true,
+                        },
+                    });
+                }
+            }
+
+            logger.info(`[VoiceSession] [Tenshi Voice] Turn completed (${source}). User: "${finalUserText}" (raw: "${currentUserText}"), AI: "${currentAiText}"`);
+            this.handleTenshiVoiceFailsafe(finalUserText || currentUserText, currentAiText);
 
             try {
                 const TenshiMessage = require('~/models/TenshiMessage');
                 if (this.userId) {
-                    if (currentUserText && currentUserText.trim() && !/^\[SISTEMA INTERNO WAPPY/i.test(currentUserText)) {
+                    if (finalUserText && !/^\[SISTEMA INTERNO WAPPY/i.test(finalUserText)) {
                         TenshiMessage.create({
                             user: this.userId,
                             role: 'user',
-                            content: currentUserText.trim(),
+                            content: finalUserText,
                         }).catch(err => logger.error('[VoiceSession] Error saving Tenshi user message:', err));
                     }
                     const canvasFileToAttach = this.lastGeneratedCanvasFile || null;
@@ -9000,14 +9149,14 @@ ${workerSubHeaderHtml}
                                 { upsert: true, new: true }
                             );
 
-                            if (currentUserText && currentUserText.trim() && !/^\[SISTEMA INTERNO WAPPY/i.test(currentUserText)) {
+                            if (finalUserText && !/^\[SISTEMA INTERNO WAPPY/i.test(finalUserText)) {
                                 const uMsgId = uuidv4();
                                 await Message.create({
                                     messageId: uMsgId,
                                     conversationId: this.fisioConversationId,
                                     user: this.userId,
                                     sender: 'User',
-                                    text: currentUserText.trim(),
+                                    text: finalUserText,
                                     isCreatedByUser: true,
                                 });
                                 this.fisioLastMessageId = uMsgId;
@@ -9036,7 +9185,7 @@ ${workerSubHeaderHtml}
             }
 
             // Acumular el turno en la memoria de la sesión para que Tenshi mantenga contexto
-            const currentTurnContext = `Usuario: ${currentUserText}\nAsistente: ${currentAiText}`;
+            const currentTurnContext = `Usuario: ${finalUserText || currentUserText}\nAsistente: ${currentAiText}`;
             if (!this.conversationTurns) {
                 this.conversationTurns = [];
             }
@@ -9050,8 +9199,8 @@ ${workerSubHeaderHtml}
             if (!this.isGeneratingReport) {
                 const userReportRegex = /\b(genera(r)?|haz|compil(a|ar)|dame|quiero|entreg(a|ar)|sacar?)\s+(el\s+|un\s+)?(informe|reporte)\b/i;
                 const aiReportRegex = /\b(estoy\s+compilando|generando\s+el\s+informe\s+t[eé]cnico|informe técnico compilado y en pantalla)\b/i;
-                const userRequested = userReportRegex.test(currentUserText);
-                const aiConfirmed = (this.conversationTurns && this.conversationTurns.length >= 2) && (aiReportRegex.test(currentAiText) || aiReportRegex.test(this.aiTranscriptionBuffer));
+                const userRequested = userReportRegex.test(finalUserText || currentUserText);
+                const aiConfirmed = (this.conversationTurns && this.conversationTurns.length >= 2) && (aiReportRegex.test(currentAiText) || aiReportRegex.test(currentAiBufferSnapshot));
                 if (userRequested || aiConfirmed) {
                     logger.info(`[VoiceSession] Tenshi voice turn triggered report compilation. userRequested: ${userRequested}, aiConfirmed: ${aiConfirmed}`);
                     this.isGeneratingReport = true;
@@ -9065,26 +9214,17 @@ ${workerSubHeaderHtml}
                 }
             }
 
-            if (currentUserText && currentUserText.trim().length >= 18 && this.userId) {
-                const rawVoiceText = currentUserText.trim();
+            if (finalUserText && finalUserText.length >= 18 && this.userId) {
+                const rawVoiceText = finalUserText;
                 setImmediate(() => {
                     autoSynthesizeProceduralRule(rawVoiceText, this.userId).catch(() => {});
                 });
             }
 
-            this.userTranscriptionText = '';
-            this.aiResponseText = '';
-            this.aiTranscriptionBuffer = '';
-            this.aiAudioChunkCount = 0;
             return;
         }
 
         logger.info(`[VoiceSession] [${source}] Saving pending turn. User: "${currentUserText}", AI: "${currentAiText}", Audio chunks: ${currentAudioCount}`);
-
-        // Reset text and chunk count IMMEDIATELY to prevent multiple saves/race conditions
-        this.userTranscriptionText = '';
-        this.aiResponseText = '';
-        this.aiAudioChunkCount = 0;
 
         let messagesSaved = false;
         let isNewConversation = false;
@@ -9113,11 +9253,10 @@ ${workerSubHeaderHtml}
 
             const userRequested = userReportRegex.test(currentUserText) || phoneticApproxRegex.test(currentUserText);
             // Require at least 2 turns for AI keyword confirmation to prevent greeting false positives
-            const aiConfirmed = (this.conversationTurns && this.conversationTurns.length >= 2) && (aiReportRegex.test(currentAiText) || aiReportRegex.test(this.aiTranscriptionBuffer));
+            const aiConfirmed = (this.conversationTurns && this.conversationTurns.length >= 2) && (aiReportRegex.test(currentAiText) || aiReportRegex.test(currentAiBufferSnapshot));
             const shouldGenerateReport = userRequested || aiConfirmed;
 
             logger.info(`[VoiceSession] Report trigger check. userRequested: ${userRequested} ("${currentUserText}"), aiConfirmed: ${aiConfirmed}, trigger: ${shouldGenerateReport}`);
-            this.aiTranscriptionBuffer = ''; // Reset for next turn
 
             if (shouldGenerateReport) {
                 logger.info('[VoiceSession] Report generation triggered by user or AI keywords.');
@@ -9146,7 +9285,17 @@ ${workerSubHeaderHtml}
         if (currentUserText.trim()) {
             let textToSave = currentUserText.trim();
             // Refine/correct transcription
-            textToSave = await this.correctTranscription(textToSave, currentAiText.trim() || '🎤 [Respuesta de voz]');
+            textToSave = await this.correctTranscription(textToSave, currentAiText.trim() || '🎤 [Respuesta de voz]', turnToolCalls);
+            if (textToSave && textToSave.trim() !== currentUserText.trim()) {
+                this.sendToClient({
+                    type: 'text',
+                    data: {
+                        text: textToSave.trim(),
+                        isUserTranscription: true,
+                        replaceLastUserBubble: true,
+                    },
+                });
+            }
 
             // Filter out isolated cut-off fragments (e.g. "¿Es", "y", "el") that aren't valid standalone utterances
             const stripped = textToSave.replace(/^[¿¡?!\s,.]+|[¿¡?!\s,.]+$/g, '').trim().toLowerCase();
