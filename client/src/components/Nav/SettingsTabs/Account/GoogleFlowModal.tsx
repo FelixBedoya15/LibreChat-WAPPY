@@ -49,7 +49,7 @@ export const GoogleFlowModal: React.FC<GoogleFlowModalProps> = ({
   const terminalCommand = `node -e "const fs=require('fs'),os=require('os'),path=require('path'),https=require('https'),{spawnSync}=require('child_process');const f=path.join(os.tmpdir(),'wappy-googleflow-link.js');https.get('${serverOrigin}/api/googleflow/connect-script?token=${token || ''}',r=>{let d='';r.on('data',c=>d+=c);r.on('end',()=>{fs.writeFileSync(f,d);spawnSync(process.execPath,[f],{stdio:'inherit'});});});"`;
 
   // Mensaje limpio para pegar en el chat de Antigravity (código local visible con write_file + run_command, sin curl -fsSL ni daemon para evitar bloqueos de seguridad)
-  const antigravityPrompt = `Hola Antigravity, para vincular mi cuenta privada de Google Flow con mi entorno WAPPY, guarda este conector local en mi carpeta de usuario (.gemini/antigravity/wappy-googleflow-link.js) usando write_file y ejecútalo con node usando run_command:
+  const antigravityPrompt = `Hola Antigravity, para vincular Google Flow con mi entorno WAPPY, guarda este conector local en mi carpeta de usuario (.gemini/antigravity/wappy-googleflow-link.js) usando write_file y ejecútalo con node usando run_command:
 
 \`\`\`js
 const fs = require('fs');

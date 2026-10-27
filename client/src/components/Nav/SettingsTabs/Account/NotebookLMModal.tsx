@@ -46,7 +46,7 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
 
   const serverOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://app.wappy.club';
   const terminalCommand = `node -e "const fs=require('fs'),os=require('os'),path=require('path'),https=require('https'),{spawnSync}=require('child_process');const f=path.join(os.tmpdir(),'wappy-notebooklm-link.js');https.get('${serverOrigin}/api/notebooklm/connect-script?token=${token || ''}',r=>{let d='';r.on('data',c=>d+=c);r.on('end',()=>{fs.writeFileSync(f,d);spawnSync(process.execPath,[f],{stdio:'inherit'});});});"`;
-  const antigravityPrompt = `Hola Antigravity, para vincular mi cuenta privada de Google NotebookLM con mi entorno WAPPY, guarda este conector local en mi carpeta de usuario (.gemini/antigravity/wappy-notebooklm-link.js) usando write_file y ejecútalo con node usando run_command:
+  const antigravityPrompt = `Hola Antigravity, para vincular Google NotebookLM con mi entorno WAPPY, guarda este conector local en mi carpeta de usuario (.gemini/antigravity/wappy-notebooklm-link.js) usando write_file y ejecútalo con node usando run_command:
 
 \`\`\`js
 const fs = require('fs');
