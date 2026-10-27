@@ -298,7 +298,7 @@ function buildStandardHeader({ title, companyInfo, date, norm, riskLevel, respon
 </style>
 
 <!-- Contenedor del Encabezado Premium Tipo Banner (Responsive) -->
-<div class="wappy-standard-header-banner" style="background: linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #0ea5e9 100%); padding: 18px 24px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(13, 148, 136, 0.15), 0 8px 10px -6px rgba(13, 148, 136, 0.15); font-family: sans-serif; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; box-sizing: border-box; width: 100%; border: none; outline: none; page-break-inside: avoid;">
+<div class="wappy-standard-header-banner" style="background-color: #0f766e; background: linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #0ea5e9 100%); padding: 18px 24px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(13, 148, 136, 0.15), 0 8px 10px -6px rgba(13, 148, 136, 0.15); font-family: sans-serif; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; box-sizing: border-box; width: 100%; border: none; outline: none; page-break-inside: avoid;">
   <!-- Logo -->
   <div class="wappy-header-logo-container" style="background-color: #ffffff; padding: 8px; border-radius: 14px; width: 56px; height: 56px; min-width: 56px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.2); box-sizing: border-box; overflow: hidden; flex-shrink: 0;">
     ${logoHtml}
@@ -330,7 +330,7 @@ function buildStandardHeader({ title, companyInfo, date, norm, riskLevel, respon
   <table class="wappy-entity-table" style="width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; background-color: #ffffff;">
     <thead>
       <tr>
-        <th colspan="4" style="background: linear-gradient(90deg, #0f766e, #0d9488); color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: center; border: none; white-space: normal; line-height: 1.35;">
+        <th colspan="4" bgcolor="#0f766e" style="background-color: #0f766e; background: linear-gradient(90deg, #0f766e, #0d9488); color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: center; border: none; white-space: normal; line-height: 1.35;">
           INFORMACIÓN RESUMIDA DE LA ENTIDAD
         </th>
       </tr>
@@ -529,7 +529,7 @@ function buildWorkerSubHeader({ workerName, workerId, cargo, actividad, evaluati
   <table class="wappy-worker-table" style="width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1.5px solid #0f766e; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.04);">
     <thead>
       <tr>
-        <th colspan="4" style="background: linear-gradient(90deg, #0f766e, #14b8a6); color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.75px; padding: 9px 14px; text-align: left; border: none; white-space: normal; line-height: 1.35;">
+        <th colspan="4" bgcolor="#0f766e" style="background-color: #0f766e; background: linear-gradient(90deg, #0f766e, #14b8a6); color: #ffffff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.75px; padding: 9px 14px; text-align: left; border: none; white-space: normal; line-height: 1.35;">
           📋 CARACTERIZACIÓN DEL PUESTO Y TRABAJADOR EVALUADO (EPT - RES. 2400 / ISO 11226)
         </th>
       </tr>

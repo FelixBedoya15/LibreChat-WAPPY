@@ -858,16 +858,22 @@ function buildIpevarChartsHtml(matrixRows) {
   const maxA = Math.max(...chartA.map(d => d.avg), 1);
 
   function renderBar(label, value, max, color, suffix = '') {
-    const pct = Math.max(0, Math.min(100, (value / max) * 100));
+    const pct = Math.max(8, Math.min(100, Math.round((value / max) * 100)));
+    const emptyPct = Math.max(0, 100 - pct);
     return `
-      <div style="display:flex; align-items:center; margin-bottom:8px;">
-        <div style="width:160px; font-size:11px; color:#475569; font-weight:600; text-align:right; padding-right:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${label}">${label}</div>
-        <div style="flex:1; background-color:#f1f5f9; border-radius:10px; height:18px; position:relative; overflow:hidden;">
-          <div style="background-color:${color}; width:${Math.max(6, pct)}%; height:100%; border-radius:10px; display:flex; align-items:center; justify-content:flex-end; padding-right:8px; color:white; font-size:10px; font-weight:bold;">
-            ${value}${suffix}
-          </div>
-        </div>
-      </div>
+      <table width="100%" cellspacing="0" cellpadding="0" style="width:100%; border-collapse:collapse; margin-bottom:6px; border:none;">
+        <tr>
+          <td width="38%" style="width:38%; font-size:10.5px; color:#475569; font-weight:700; text-align:right; padding:2px 10px 2px 0; border:none; vertical-align:middle;" title="${label}">${label}</td>
+          <td width="62%" style="width:62%; padding:2px 0; border:none; vertical-align:middle;">
+            <table width="100%" cellspacing="0" cellpadding="0" style="width:100%; border-collapse:collapse; border-radius:8px; overflow:hidden; border:none;">
+              <tr>
+                <td width="${pct}%" bgcolor="${color}" style="width:${pct}%; background-color:${color}; height:18px; text-align:right; padding:0 6px; color:#ffffff; font-size:9.5px; font-weight:bold; border:none; vertical-align:middle;">${value}${suffix}</td>
+                ${emptyPct > 0 ? `<td width="${emptyPct}%" bgcolor="#f1f5f9" style="width:${emptyPct}%; background-color:#f1f5f9; height:18px; border:none; font-size:1px;">&nbsp;</td>` : ''}
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
     `;
   }
 
@@ -1145,16 +1151,22 @@ function buildBioIndividualChartsHtml(matrixRows, worker) {
   ];
 
   function renderBioBar(label, value, max, color, suffix = '') {
-    const pct = Math.max(0, Math.min(100, (value / max) * 100));
+    const pct = Math.max(8, Math.min(100, Math.round((value / max) * 100)));
+    const emptyPct = Math.max(0, 100 - pct);
     return `
-      <div style="display:flex; align-items:center; margin-bottom:8px;">
-        <div style="width:160px; font-size:11px; color:#475569; font-weight:600; text-align:right; padding-right:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${label}">${label}</div>
-        <div style="flex:1; background-color:#f1f5f9; border-radius:10px; height:18px; position:relative; overflow:hidden;">
-          <div style="background-color:${color}; width:${Math.max(8, pct)}%; height:100%; border-radius:10px; display:flex; align-items:center; justify-content:flex-end; padding-right:8px; color:white; font-size:10px; font-weight:bold;">
-            ${value}${suffix}
-          </div>
-        </div>
-      </div>
+      <table width="100%" cellspacing="0" cellpadding="0" style="width:100%; border-collapse:collapse; margin-bottom:6px; border:none;">
+        <tr>
+          <td width="38%" style="width:38%; font-size:10.5px; color:#475569; font-weight:700; text-align:right; padding:2px 10px 2px 0; border:none; vertical-align:middle;" title="${label}">${label}</td>
+          <td width="62%" style="width:62%; padding:2px 0; border:none; vertical-align:middle;">
+            <table width="100%" cellspacing="0" cellpadding="0" style="width:100%; border-collapse:collapse; border-radius:8px; overflow:hidden; border:none;">
+              <tr>
+                <td width="${pct}%" bgcolor="${color}" style="width:${pct}%; background-color:${color}; height:18px; text-align:right; padding:0 6px; color:#ffffff; font-size:9.5px; font-weight:bold; border:none; vertical-align:middle;">${value}${suffix}</td>
+                ${emptyPct > 0 ? `<td width="${emptyPct}%" bgcolor="#f1f5f9" style="width:${emptyPct}%; background-color:#f1f5f9; height:18px; border:none; font-size:1px;">&nbsp;</td>` : ''}
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
     `;
   }
 

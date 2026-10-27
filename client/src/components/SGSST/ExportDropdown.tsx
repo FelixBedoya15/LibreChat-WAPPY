@@ -179,6 +179,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
                 print-color-adjust: exact !important;
                 color-adjust: exact !important;
             }
+            .no-print { display: none !important; }
             body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
             .report-wrapper { padding: 0 !important; max-width: 100% !important; width: 100% !important; border: none !important; box-shadow: none !important; }
             .report-container { max-width: 100% !important; width: 100% !important; box-shadow: none !important; }
@@ -429,8 +430,33 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
     // Remove any UI-only .no-print elements (signature buttons, interactive controls)
     root.querySelectorAll('.no-print').forEach((el) => el.remove());
 
-    // Convert CSS Grid containers into native Word tables so multi-column KPI cards don't collapse
+    // Convert .wappy-standard-header-banner into a native 3-column Word table with solid #0f766e background
+    root.querySelectorAll('.wappy-standard-header-banner').forEach((banner) => {
+      const tbl = doc.createElement('table');
+      tbl.setAttribute('width', '100%');
+      tbl.setAttribute('cellspacing', '0');
+      tbl.setAttribute('cellpadding', '12');
+      tbl.setAttribute('bgcolor', '#0f766e');
+      tbl.setAttribute('style', 'width:100%;border-collapse:collapse;background-color:#0f766e;border:none;margin-bottom:14pt;');
+      const tr = doc.createElement('tr');
+      const children = Array.from(banner.children);
+      children.forEach((child, idx) => {
+        const td = doc.createElement('td');
+        td.setAttribute('bgcolor', '#0f766e');
+        const w = idx === 0 ? '12%' : idx === 1 ? '68%' : '20%';
+        const align = idx === 2 ? 'right' : 'left';
+        td.setAttribute('width', w);
+        td.setAttribute('style', `width:${w};background-color:#0f766e;vertical-align:middle;text-align:${align};border:none;padding:10pt;`);
+        td.innerHTML = child.innerHTML;
+        tr.appendChild(td);
+      });
+      tbl.appendChild(tr);
+      banner.replaceWith(tbl);
+    });
+
+    // Convert CSS Grid containers and Flex containers (KPI cards, flex progress bars, section headers) into native Word tables
     root.querySelectorAll('div').forEach((div) => {
+      if (!div.isConnected) return;
       const st = parseStyle(div.getAttribute('style') || '');
       if (st['display'] === 'grid' && div.children.length >= 2 && div.children.length <= 6) {
         const cols = div.children.length;
@@ -439,14 +465,16 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
         tbl.setAttribute('width', '100%');
         tbl.setAttribute('cellspacing', '4');
         tbl.setAttribute('cellpadding', '8');
-        tbl.setAttribute('style', 'width:100%;border-collapse:separate;margin-bottom:10pt;');
+        tbl.setAttribute('style', 'width:100%;border-collapse:separate;margin-bottom:10pt;border:none;');
         const tr = doc.createElement('tr');
         Array.from(div.children).forEach((child) => {
           const childStyle = parseStyle(child.getAttribute('style') || '');
           const td = doc.createElement('td');
           td.setAttribute('width', `${pct}%`);
-          if (childStyle['background'] || childStyle['background-color']) {
-            td.setAttribute('bgcolor', childStyle['background'] || childStyle['background-color']);
+          const bg = childStyle['background-color'] || childStyle['background'];
+          if (bg && !bg.includes('gradient')) {
+            td.setAttribute('bgcolor', bg);
+            childStyle['background-color'] = bg;
           }
           td.setAttribute('style', serializeStyle({ ...childStyle, width: `${pct}%`, 'vertical-align': 'top' }));
           td.innerHTML = child.innerHTML;
@@ -454,6 +482,53 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
         });
         tbl.appendChild(tr);
         div.replaceWith(tbl);
+      } else if (st['display'] === 'flex' && div.children.length === 2) {
+        const c0 = div.children[0];
+        const c1 = div.children[1];
+        const c1Style = parseStyle(c1.getAttribute('style') || '');
+        // Check if it's a horizontal progress bar (child 1 has a single child with percentage width)
+        if (c1.children.length === 1) {
+          const barInner = c1.children[0];
+          const barStyle = parseStyle(barInner.getAttribute('style') || '');
+          const widthMatch = (barStyle['width'] || '').match(/(\d+(?:\.\d+)?)%/);
+          const barColor = barStyle['background-color'] || barStyle['background'] || '#0d9488';
+          if (widthMatch) {
+            const fillPct = Math.max(8, Math.min(100, Math.round(parseFloat(widthMatch[1]))));
+            const emptyPct = Math.max(0, 100 - fillPct);
+            const tbl = doc.createElement('table');
+            tbl.setAttribute('width', '100%');
+            tbl.setAttribute('cellspacing', '0');
+            tbl.setAttribute('cellpadding', '0');
+            tbl.setAttribute('style', 'width:100%;border-collapse:collapse;margin-bottom:4pt;border:none;');
+            tbl.innerHTML = `<tr>
+              <td width="38%" style="width:38%;font-size:9pt;color:#475569;font-weight:bold;text-align:right;padding:2pt 8pt 2pt 0;border:none;vertical-align:middle;">${c0.innerHTML}</td>
+              <td width="62%" style="width:62%;padding:2pt 0;border:none;vertical-align:middle;">
+                <table width="100%" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;border:none;">
+                  <tr>
+                    <td width="${fillPct}%" bgcolor="${barColor}" style="width:${fillPct}%;background-color:${barColor};height:14pt;text-align:right;padding:0 5pt;color:#ffffff;font-size:8pt;font-weight:bold;border:none;vertical-align:middle;">${barInner.innerHTML}</td>
+                    ${emptyPct > 0 ? `<td width="${emptyPct}%" bgcolor="#f1f5f9" style="width:${emptyPct}%;background-color:#f1f5f9;height:14pt;border:none;font-size:1pt;">&nbsp;</td>` : ''}
+                  </tr>
+                </table>
+              </td>
+            </tr>`;
+            div.replaceWith(tbl);
+            return;
+          }
+        }
+        // Check if it's a space-between header row
+        if (st['justify-content'] === 'space-between') {
+          const tbl = doc.createElement('table');
+          tbl.setAttribute('width', '100%');
+          tbl.setAttribute('cellspacing', '0');
+          tbl.setAttribute('cellpadding', '0');
+          const borderBottom = st['border-bottom'] ? `border-bottom:${st['border-bottom']};` : 'border:none;';
+          tbl.setAttribute('style', `width:100%;border-collapse:collapse;margin-bottom:8pt;${borderBottom}`);
+          tbl.innerHTML = `<tr>
+            <td width="75%" style="width:75%;text-align:left;vertical-align:middle;border:none;padding:2pt 0;">${c0.outerHTML}</td>
+            <td width="25%" style="width:25%;text-align:right;vertical-align:middle;border:none;padding:2pt 0;">${c1.outerHTML}</td>
+          </tr>`;
+          div.replaceWith(tbl);
+        }
       }
     });
 
@@ -522,35 +597,39 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
     // --- Tables: force Word-compatible structure, keep editor's visual styles ---
     root.querySelectorAll('table').forEach((table) => {
       const existing = parseStyle(table.getAttribute('style') || '');
-      // Always force these for Word correctness
+      const isBorderless = existing['border'] === 'none';
       const forced: Record<string, string> = {
         width: '100%',
         'table-layout': 'fixed',
         'mso-table-layout-alt': 'fixed',
-        'border-collapse': 'collapse',
-        'border-spacing': '0',
+        'border-collapse': existing['border-collapse'] === 'separate' ? 'separate' : 'collapse',
         'font-family': 'Calibri,Arial,sans-serif',
         'font-size': '8.5pt',
-        margin: '8pt 0',
-        'mso-border-alt': 'solid #CCCCCC .5pt',
       };
+      if (!isBorderless) {
+        forced['margin'] = existing['margin'] || '8pt 0';
+        forced['mso-border-alt'] = 'solid #CCCCCC .5pt';
+      }
       const merged = mergeStyles(existing, forced);
-      // Remove unsupported Word properties and print-breaking styles
       delete merged['border-radius'];
       delete merged['border-spacing'];
       delete merged['box-shadow'];
       delete merged['overflow'];
       delete merged['min-width'];
       table.setAttribute('style', serializeStyle(merged));
-      table.setAttribute('border', '1');
-      table.setAttribute('cellspacing', '0');
-      table.setAttribute('cellpadding', '0');
+      table.setAttribute('border', isBorderless ? '0' : '1');
+      if (!table.getAttribute('cellspacing')) table.setAttribute('cellspacing', '0');
+      if (!table.getAttribute('cellpadding')) table.setAttribute('cellpadding', '0');
     });
 
     // --- TH: PRESERVE all editor styles (color, background, width), add Word mso-* ---
     root.querySelectorAll('th').forEach((th) => {
       const existing = parseStyle(th.getAttribute('style') || '');
-      // Word-required additions only (don't override editor colors)
+      if (existing['background'] && existing['background'].includes('gradient') && !existing['background-color']) {
+        existing['background-color'] = '#0f766e';
+      } else if (existing['background'] && !existing['background'].includes('gradient') && !existing['background-color']) {
+        existing['background-color'] = existing['background'];
+      }
       const wordAdditions: Record<string, string> = {
         'font-family': 'Calibri,Arial,sans-serif',
         'font-weight': 'bold',
@@ -563,22 +642,19 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
         'text-align': 'left',
         'word-break': 'break-word',
       };
-      // Merge: editor styles win for color/background, Word additions fill gaps
       const merged = mergeStyles(wordAdditions, existing);
-      // Always ensure a font-family is set
       if (!merged['font-family']) merged['font-family'] = 'Calibri,Arial,sans-serif';
 
-      // If background color is customized, ensure we overwrite MS automatic background behavior
       if (merged['background-color']) {
         delete merged['mso-background-source'];
         delete merged['mso-pattern'];
         merged['background'] = merged['background-color'];
+        th.setAttribute('bgcolor', merged['background-color']);
       } else {
         if (!merged['mso-background-source']) merged['mso-background-source'] = 'auto';
         if (!merged['mso-pattern']) merged['mso-pattern'] = 'auto';
       }
 
-      // Remove unsupported properties
       delete merged['border-radius'];
       delete merged['box-shadow'];
       delete merged['white-space'];
@@ -590,25 +666,27 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
     // --- TD: PRESERVE all editor styles (background-color, color, width), add Word props ---
     root.querySelectorAll('td').forEach((td) => {
       const existing = parseStyle(td.getAttribute('style') || '');
+      if (existing['background'] && !existing['background'].includes('gradient') && !existing['background-color']) {
+        existing['background-color'] = existing['background'];
+      }
+      const isBorderless = existing['border'] === 'none';
       const wordAdditions: Record<string, string> = {
         'font-family': 'Calibri,Arial,sans-serif',
         'font-size': '8pt',
         padding: '4pt 4pt',
-        border: '1pt solid #DDDDDD',
+        border: isBorderless ? 'none' : '1pt solid #DDDDDD',
         'vertical-align': 'top',
         'word-break': 'break-word',
       };
-      // Editor styles win (background-color, color, width, etc.)
       const merged = mergeStyles(wordAdditions, existing);
 
-      // Overwrite MS background pattern for custom colored cells
       if (merged['background-color']) {
         delete merged['mso-background-source'];
         delete merged['mso-pattern'];
         merged['background'] = merged['background-color'];
+        td.setAttribute('bgcolor', merged['background-color']);
       }
 
-      // Remove unsupported properties
       delete merged['border-radius'];
       delete merged['box-shadow'];
       delete merged['transition'];
