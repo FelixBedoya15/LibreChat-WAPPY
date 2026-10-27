@@ -25,12 +25,11 @@ router.get('/internal/session/:userId', async (req, res) => {
       return res.status(400).json({ error: 'ID de usuario inválido' });
     }
 
-    let session = await NotebookSession.findOne({ user: userId }).lean();
+    const session = await NotebookSession.findOne({ user: userId }).lean();
     if (!session || !session.cookies || session.cookies.length === 0) {
-      session = await NotebookSession.findOne({ isValid: true }).sort({ updatedAt: -1 }).lean();
-    }
-    if (!session || !session.cookies || session.cookies.length === 0) {
-      return res.status(404).json({ error: 'No hay sesión guardada para este usuario' });
+      return res.status(404).json({
+        error: 'El usuario no tiene una sesión privada de Google NotebookLM vinculada.',
+      });
     }
 
     return res.json({
@@ -222,8 +221,8 @@ router.get('/status', requireJwtAuth, async (req, res) => {
     if (!session && !fileExists) {
       return res.json({
         connected: false,
-        usingDefault: true,
-        message: 'Utilizando conexión central compartida de WAPPY.',
+        usingDefault: false,
+        message: 'Sin vincular. Conecta tu cuenta privada de Google NotebookLM.',
       });
     }
 
@@ -334,20 +333,6 @@ router.post('/session', requireJwtAuth, async (req, res) => {
         } else if (Array.isArray(mcpData?.result)) {
           notebooksCount = mcpData.result.length;
         }
-
-        // Si el usuario es ADMIN y la sesión es válida, actualizar también el perfil central default en notebooklm-mcp
-        if (testResult.success && req.user?.role === 'ADMIN') {
-          await fetch(`${notebooklmUrl}/api/direct-tool`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-user-id': '',
-              'x-user-email': String(effectiveEmail),
-              'x-notebooklm-auth': JSON.stringify(cookies),
-            },
-            body: JSON.stringify({ name: 'notebook_list', arguments: {} }),
-          }).catch(() => {});
-        }
       } catch (liveErr) {
         logger.warn(`[NotebookLM] Advertencia sincronizando con notebooklm-mcp: ${liveErr.message}`);
       }
@@ -375,7 +360,7 @@ router.post('/session', requireJwtAuth, async (req, res) => {
       notebooksCount,
       testWarning: testResult.success ? null : testResult.reason,
       message: testResult.success
-        ? `¡Sesión de Google NotebookLM vinculada y verificada con éxito!${notebooksCount !== null ? ` (${notebooksCount} cuadernos detectados)` : ''}`
+        ? `¡Sesión privada de Google NotebookLM vinculada y verificada con éxito!${notebooksCount !== null ? ` (${notebooksCount} cuadernos detectados)` : ''}`
         : `Sesión guardada, pero Google rechazó las cookies: ${testResult.reason}`,
     });
   } catch (error) {
@@ -440,20 +425,6 @@ router.post('/test', requireJwtAuth, async (req, res) => {
         } else if (Array.isArray(mcpData?.result)) {
           notebooksCount = mcpData.result.length;
         }
-
-        // Si el usuario es ADMIN y la sesión es válida, actualizar también el perfil central default en notebooklm-mcp
-        if (testResult.success && req.user?.role === 'ADMIN') {
-          await fetch(`${notebooklmUrl}/api/direct-tool`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-user-id': '',
-              'x-user-email': String(effectiveEmail),
-              'x-notebooklm-auth': JSON.stringify(cookies),
-            },
-            body: JSON.stringify({ name: 'notebook_list', arguments: {} }),
-          }).catch(() => {});
-        }
       } catch (liveErr) {
         testResult = {
           success: false,
@@ -472,7 +443,7 @@ router.post('/test', requireJwtAuth, async (req, res) => {
       notebooksCount,
       reason: testResult.reason || null,
       message: testResult.success
-        ? `¡La sesión contra Google NotebookLM está ACTIVA y funcionando!${notebooksCount !== null ? ` Se detectaron ${notebooksCount} cuadernos disponibles.` : ''}`
+        ? `¡Tu sesión privada contra Google NotebookLM está ACTIVA y funcionando!${notebooksCount !== null ? ` Se detectaron ${notebooksCount} cuadernos disponibles.` : ''}`
         : `La sesión falló la verificación en vivo: ${testResult.reason}`,
     });
   } catch (error) {
@@ -483,7 +454,7 @@ router.post('/test', requireJwtAuth, async (req, res) => {
 
 /**
  * DELETE /api/notebooklm/session
- * Desvincula la sesión privada del usuario (vuelve al perfil central)
+ * Desvincula la sesión privada del usuario
  */
 router.delete('/session', requireJwtAuth, async (req, res) => {
   try {
@@ -507,12 +478,246 @@ router.delete('/session', requireJwtAuth, async (req, res) => {
 
     return res.json({
       success: true,
-      message: 'Sesión desvinculada. Tus consultas utilizarán el perfil central de WAPPY.',
+      message: 'Sesión privada de Google NotebookLM desvinculada correctamente.',
     });
   } catch (error) {
     logger.error('[NotebookLM] Error desvinculando sesión:', error);
     return res.status(500).json({ error: 'Error al desvincular sesión de NotebookLM.' });
   }
+});
+
+/**
+ * GET /api/notebooklm/connect-script
+ * Script autoejecutable de 1 comando (PC / Mac / Antigravity) para vincular la cuenta
+ * privada de Google NotebookLM del usuario sin instalar extensiones manualmente.
+ */
+router.get('/connect-script', (req, res) => {
+  const token = String(req.query.token || '').trim();
+  const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+  const host = req.headers['x-forwarded-host'] || req.get('host') || 'app.wappy.club';
+  const serverOrigin = `${proto}://${host}`;
+
+  const script = `#!/usr/bin/env node
+/**
+ * WAPPY IA — Conector Privado 1-Clic para Google NotebookLM (Por Usuario)
+ * Abre una ventana segura de Google en tu computador, detecta tu sesión privada
+ * de NotebookLM y la vincula automáticamente con tu cuenta de WAPPY.
+ */
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const http = require('http');
+const crypto = require('crypto');
+const { spawn } = require('child_process');
+
+const SERVER_ORIGIN = ${JSON.stringify(serverOrigin)};
+const USER_TOKEN = ${JSON.stringify(token)};
+
+if (!USER_TOKEN) {
+  console.error('❌ Error: Falta el token de usuario en el comando.');
+  process.exit(1);
+}
+
+function findBrowserExecutable() {
+  const platform = os.platform();
+  const candidates = [];
+  if (platform === 'darwin') {
+    candidates.push(
+      '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+      '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+      '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+      '/Applications/Chromium.app/Contents/MacOS/Chromium'
+    );
+  } else if (platform === 'win32') {
+    const pf = process.env['PROGRAMFILES'] || 'C:\\\\Program Files';
+    const pf86 = process.env['PROGRAMFILES(X86)'] || 'C:\\\\Program Files (x86)';
+    const local = process.env['LOCALAPPDATA'] || '';
+    candidates.push(
+      path.join(pf, 'Google\\\\Chrome\\\\Application\\\\chrome.exe'),
+      path.join(pf86, 'Google\\\\Chrome\\\\Application\\\\chrome.exe'),
+      path.join(local, 'Google\\\\Chrome\\\\Application\\\\chrome.exe'),
+      path.join(pf, 'BraveSoftware\\\\Brave-Browser\\\\Application\\\\brave.exe'),
+      path.join(pf86, 'Microsoft\\\\Edge\\\\Application\\\\msedge.exe'),
+      path.join(pf, 'Microsoft\\\\Edge\\\\Application\\\\msedge.exe')
+    );
+  } else {
+    candidates.push(
+      '/usr/bin/google-chrome',
+      '/usr/bin/google-chrome-stable',
+      '/usr/bin/chromium-browser',
+      '/usr/bin/chromium',
+      '/usr/bin/brave-browser',
+      '/usr/bin/microsoft-edge'
+    );
+  }
+  for (const bin of candidates) {
+    if (fs.existsSync(bin)) return bin;
+  }
+  return null;
+}
+
+function cdpSend(wsUrl, method, params = {}) {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(wsUrl);
+    const key = crypto.randomBytes(16).toString('base64');
+    const req = http.request({
+      hostname: parsed.hostname,
+      port: parsed.port,
+      path: parsed.pathname + parsed.search,
+      headers: {
+        Connection: 'Upgrade',
+        Upgrade: 'websocket',
+        'Sec-WebSocket-Key': key,
+        'Sec-WebSocket-Version': '13',
+      },
+    });
+    const timer = setTimeout(() => {
+      req.destroy();
+      reject(new Error('Timeout CDP'));
+    }, 5000);
+
+    req.on('upgrade', (res, socket) => {
+      const payload = Buffer.from(JSON.stringify({ id: 1, method, params }), 'utf8');
+      const mask = crypto.randomBytes(4);
+      let header;
+      if (payload.length < 126) {
+        header = Buffer.from([0x81, 0x80 | payload.length]);
+      } else if (payload.length < 65536) {
+        header = Buffer.alloc(4);
+        header[0] = 0x81;
+        header[1] = 0x80 | 126;
+        header.writeUInt16BE(payload.length, 2);
+      } else {
+        header = Buffer.alloc(10);
+        header[0] = 0x81;
+        header[1] = 0x80 | 127;
+        header.writeBigUInt64BE(BigInt(payload.length), 2);
+      }
+      const masked = Buffer.alloc(payload.length);
+      for (let i = 0; i < payload.length; i++) masked[i] = payload[i] ^ mask[i % 4];
+      socket.write(Buffer.concat([header, mask, masked]));
+
+      let chunks = Buffer.alloc(0);
+      socket.on('data', (chunk) => {
+        chunks = Buffer.concat([chunks, chunk]);
+        if (chunks.length < 2) return;
+        let len = chunks[1] & 0x7f;
+        let offset = 2;
+        if (len === 126) {
+          if (chunks.length < 4) return;
+          len = chunks.readUInt16BE(2);
+          offset = 4;
+        } else if (len === 127) {
+          if (chunks.length < 10) return;
+          len = Number(chunks.readBigUInt64BE(2));
+          offset = 10;
+        }
+        if (chunks.length < offset + len) return;
+        clearTimeout(timer);
+        const body = chunks.slice(offset, offset + len).toString('utf8');
+        socket.end();
+        try {
+          resolve(JSON.parse(body));
+        } catch (e) {
+          reject(e);
+        }
+      });
+    });
+    req.on('error', (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+    req.end();
+  });
+}
+
+async function uploadCookies(cookies, email = '') {
+  const res = await fetch(\`\${SERVER_ORIGIN}/api/notebooklm/session\`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: \`Bearer \${USER_TOKEN}\`,
+    },
+    body: JSON.stringify({ cookies, email, source: 'cli-auto' }),
+  });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok && data.success && data.isValid !== false, data };
+}
+
+(async () => {
+  console.log('\\n🔒 WAPPY IA — Vinculación Privada de Google NotebookLM');
+  console.log('--------------------------------------------------------');
+
+  const browserBin = findBrowserExecutable();
+  if (!browserBin) {
+    console.error('❌ No se encontró Google Chrome, Brave o Edge instalado en este equipo.');
+    process.exit(1);
+  }
+
+  const profileDir = path.join(os.homedir(), '.wappy-notebooklm-auth');
+  const debugPort = 9229;
+
+  console.log('🌐 Abriendo ventana segura de Google NotebookLM en tu computador...');
+  console.log('👉 Si aún no has iniciado sesión en esa ventana, inicia sesión con tu cuenta de Google.');
+  console.log('⏳ Esperando a que cargue tu panel de NotebookLM (se vinculará automáticamente)...\\n');
+
+  const child = spawn(
+    browserBin,
+    [
+      \`--remote-debugging-port=\${debugPort}\`,
+      \`--user-data-dir=\${profileDir}\`,
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--new-window',
+      'https://notebooklm.google.com',
+    ],
+    { detached: false, stdio: 'ignore' }
+  );
+
+  const maxWaitMs = 180000;
+  const start = Date.now();
+
+  while (Date.now() - start < maxWaitMs) {
+    await new Promise((r) => setTimeout(r, 2500));
+    try {
+      const listRes = await fetch(\`http://127.0.0.1:\${debugPort}/json/list\`);
+      const pages = await listRes.json();
+      const nbPage = pages.find(
+        (p) =>
+          p.webSocketDebuggerUrl &&
+          p.url &&
+          p.url.startsWith('https://notebooklm.google.com') &&
+          !p.url.includes('accounts.google.com')
+      );
+      if (!nbPage) continue;
+
+      const cdpRes = await cdpSend(nbPage.webSocketDebuggerUrl, 'Network.getAllCookies');
+      const allCookies = cdpRes?.result?.cookies || [];
+      const googleCookies = allCookies.filter((c) => c.domain && c.domain.includes('google.com'));
+      const names = new Set(googleCookies.map((c) => c.name));
+
+      if (names.has('SID') && (names.has('__Secure-1PSID') || names.has('__Secure-1PSIDTS'))) {
+        console.log('✨ Sesión de Google NotebookLM detectada. Verificando y guardando en tu perfil privado...');
+        const result = await uploadCookies(googleCookies);
+        if (result.ok) {
+          console.log('✅ ' + (result.data.message || '¡Tu cuenta privada de Google NotebookLM quedó vinculada con éxito!'));
+          try { child.kill(); } catch (_) {}
+          process.exit(0);
+        }
+      }
+    } catch (_) {
+      // Sigue esperando mientras el usuario inicia sesión
+    }
+  }
+
+  console.error('⏰ Tiempo de espera agotado. Vuelve a ejecutar el comando cuando estés listo.');
+  try { child.kill(); } catch (_) {}
+  process.exit(1);
+})();
+`;
+
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  return res.status(200).send(script);
 });
 
 module.exports = router;

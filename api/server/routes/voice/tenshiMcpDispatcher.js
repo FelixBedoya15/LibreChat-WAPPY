@@ -363,21 +363,19 @@ async function executeTenshiMcpTool(toolName, args = {}, userId) {
         sessionDoc = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
       }
       if (!sessionDoc || !Array.isArray(sessionDoc.cookies) || sessionDoc.cookies.length === 0) {
-        sessionDoc = await NotebookSession.findOne({ isValid: true })
-          .sort({ updatedAt: -1 })
-          .lean()
-          .catch(() => null);
+        return {
+          error:
+            'Aún no has vinculado tu cuenta privada de Google NotebookLM. Ve a Mi Cuenta -> Integraciones -> Google NotebookLM para vincular tu sesión de forma 100% privada.',
+        };
       }
 
       const nbHeaders = {
         'Content-Type': 'application/json',
         'x-user-id': String(userId || ''),
+        'x-notebooklm-auth': JSON.stringify(sessionDoc.cookies),
       };
-      if (sessionDoc && Array.isArray(sessionDoc.cookies) && sessionDoc.cookies.length > 0) {
-        nbHeaders['x-notebooklm-auth'] = JSON.stringify(sessionDoc.cookies);
-        if (sessionDoc.email) {
-          nbHeaders['x-user-email'] = String(sessionDoc.email);
-        }
+      if (sessionDoc.email) {
+        nbHeaders['x-user-email'] = String(sessionDoc.email);
       }
 
       const response = await fetch(`${notebooklmUrl}/api/direct-tool`, {

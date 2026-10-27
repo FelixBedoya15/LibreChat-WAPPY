@@ -83,14 +83,14 @@ El servidor MCP expone un catálogo de herramientas estandarizadas:
 
 ---
 
-## 5. Acceso a Cuadernos del Usuario (Cuenta Central de WAPPY)
+## 5. Conexión 100% Privada por Usuario (Sin Cuenta Central)
 
-Para que los agentes de WAPPY puedan consultar cuadernos de los usuarios sin pedirles contraseñas ni cookies:
+Cada usuario vincula su propia cuenta de Google NotebookLM de forma **100% privada y aislada** (nunca debe compartir sus cuadernos con correos externos ni cuentas centrales):
 
-* **Compartir Cuaderno en Google NotebookLM:**
-  1. Entra a [notebooklm.google.com](https://notebooklm.google.com).
-  2. Abre tu cuaderno y haz clic en el botón **"Compartir"** (esquina superior derecha).
-  3. Comparte el cuaderno con el correo central del sistema: `wappyinteractivo@gmail.com` con permisos de **Lector** (o Editor).
-  4. En LibreChat, dile al agente el nombre de tu cuaderno (ej: *"Consulta mi cuaderno Normatividad SST"*).
-  5. ¡Listo! El agente lo detectará inmediatamente a través de la conexión central de WAPPY.
+* **Cómo vincula el usuario su cuenta privada:**
+  1. Entra a **Mi Cuenta → Integraciones → Google NotebookLM & Gemini Notebook**.
+  2. Puede elegir cualquiera de las opciones privadas en 1 clic:
+     - **Opción A (Sin instalar extensión):** Copiar el comando de 1 clic para **Antigravity / Terminal**, que abre una ventana segura de Google en su propio computador y vincula su sesión automáticamente.
+     - **Opción B (Extensión WAPPY Connect):** Pulsar *"Vincular con WAPPY"* desde la extensión del navegador.
+  3. ¡Listo! Sus agentes y Tenshi consultarán únicamente sus cuadernos privados asociados a su `userId`.
 
