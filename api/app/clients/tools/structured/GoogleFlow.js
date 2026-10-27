@@ -2,10 +2,6 @@ const { z } = require('zod');
 const { Tool } = require('@langchain/core/tools');
 const { logger } = require('@librechat/data-schemas');
 const { ContentTypes, EImageOutputType } = require('librechat-data-provider');
-const {
-  executeFlowImageGeneration,
-  executeFlowVideoGeneration,
-} = require('~/server/routes/googleflow');
 
 class GoogleFlow extends Tool {
   static lc_name() {
@@ -77,6 +73,11 @@ class GoogleFlow extends Tool {
     }
 
     try {
+      const {
+        executeFlowImageGeneration,
+        executeFlowVideoGeneration,
+      } = require('~/server/routes/googleflow');
+
       if (accion === 'generar_video') {
         logger.info(`[google_flow] Generando video para usuario ${this.userId}: "${prompt.slice(0, 60)}..."`);
         const vidRes = await executeFlowVideoGeneration({
