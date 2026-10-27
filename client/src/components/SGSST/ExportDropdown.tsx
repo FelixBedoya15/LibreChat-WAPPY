@@ -426,6 +426,37 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
       Array.from(element.children).forEach((child) => mapClassesToStyles(child));
     };
 
+    // Remove any UI-only .no-print elements (signature buttons, interactive controls)
+    root.querySelectorAll('.no-print').forEach((el) => el.remove());
+
+    // Convert CSS Grid containers into native Word tables so multi-column KPI cards don't collapse
+    root.querySelectorAll('div').forEach((div) => {
+      const st = parseStyle(div.getAttribute('style') || '');
+      if (st['display'] === 'grid' && div.children.length >= 2 && div.children.length <= 6) {
+        const cols = div.children.length;
+        const pct = Math.floor(100 / cols);
+        const tbl = doc.createElement('table');
+        tbl.setAttribute('width', '100%');
+        tbl.setAttribute('cellspacing', '4');
+        tbl.setAttribute('cellpadding', '8');
+        tbl.setAttribute('style', 'width:100%;border-collapse:separate;margin-bottom:10pt;');
+        const tr = doc.createElement('tr');
+        Array.from(div.children).forEach((child) => {
+          const childStyle = parseStyle(child.getAttribute('style') || '');
+          const td = doc.createElement('td');
+          td.setAttribute('width', `${pct}%`);
+          if (childStyle['background'] || childStyle['background-color']) {
+            td.setAttribute('bgcolor', childStyle['background'] || childStyle['background-color']);
+          }
+          td.setAttribute('style', serializeStyle({ ...childStyle, width: `${pct}%`, 'vertical-align': 'top' }));
+          td.innerHTML = child.innerHTML;
+          tr.appendChild(td);
+        });
+        tbl.appendChild(tr);
+        div.replaceWith(tbl);
+      }
+    });
+
     // Recursively convert classes to inline styles first
     mapClassesToStyles(root);
 

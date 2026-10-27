@@ -2,6 +2,327 @@ import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { MatrixRow, getInterpretacionNP } from './MatrizIPEVARConstants';
 
+function renderDashboardChartsCanvasBase64(rows: MatrixRow[]): string | null {
+  try {
+    if (typeof document === 'undefined') return null;
+    const canvas = document.createElement('canvas');
+    const W = 1520;
+    const H = 1080;
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    const roundRect = (x: number, y: number, w: number, h: number, r: number) => {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    };
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, W, H);
+
+    const total = rows.length || 1;
+    const catMap: Record<string, { count: number; sumNR: number; maxNR: number }> = {};
+    const heatmap: Record<string, number> = {
+      '100_MA': 0, '100_A': 0, '100_M': 0, '100_B': 0,
+      '60_MA': 0,  '60_A': 0,  '60_M': 0,  '60_B': 0,
+      '25_MA': 0,  '25_A': 0,  '25_M': 0,  '25_B': 0,
+      '10_MA': 0,  '10_A': 0,  '10_M': 0,  '10_B': 0,
+    };
+
+    const emptyVal = (v?: string) => !v || ['ninguno', 'ninguna', 'none', 'no aplica', 'n/a', ''].includes(String(v).toLowerCase().trim());
+    let ctrlFuente = 0, ctrlMedio = 0, ctrlIndividuo = 0;
+    let sumNRInicial = 0, sumNRResidual = 0;
+
+    rows.forEach((r) => {
+      const cat = (r.peligro_clasificacion || 'Condiciones de seguridad').trim();
+      if (!catMap[cat]) catMap[cat] = { count: 0, sumNR: 0, maxNR: 0 };
+      const nr = Number(r.nr) || 0;
+      catMap[cat].count++;
+      catMap[cat].sumNR += nr;
+      if (nr > catMap[cat].maxNR) catMap[cat].maxNR = nr;
+
+      const np = Number(r.np) || 0;
+      const ncRaw = Number(r.nc) || 10;
+      const ncKey = ncRaw >= 100 ? '100' : ncRaw >= 60 ? '60' : ncRaw >= 25 ? '25' : '10';
+      const npKey = np >= 24 ? 'MA' : np >= 10 ? 'A' : np >= 6 ? 'M' : 'B';
+      const hmKey = `${ncKey}_${npKey}`;
+      if (heatmap[hmKey] !== undefined) heatmap[hmKey]++;
+
+      if (!emptyVal(r.controles_fuente) || !emptyVal(r.medida_eliminacion) || !emptyVal(r.medida_sustitucion)) ctrlFuente++;
+      if (!emptyVal(r.controles_medio) || !emptyVal(r.medida_ingenieria)) ctrlMedio++;
+      if (!emptyVal(r.controles_individuo) || !emptyVal(r.medida_administrativa) || !emptyVal(r.medida_eppu)) ctrlIndividuo++;
+
+      sumNRInicial += nr;
+      const frMatch = String(r.factores_reduccion || '').match(/(\d{1,3})\s*%/);
+      const frPct = frMatch ? Math.min(98, Math.max(10, parseInt(frMatch[1], 10))) : 75;
+      sumNRResidual += Math.max(10, Math.round(nr * (1 - frPct / 100)));
+    });
+
+    const catList = Object.entries(catMap)
+      .map(([name, d]) => ({ name, count: d.count, avgNR: Math.round(d.sumNR / d.count), maxNR: d.maxNR, pct: Math.round((d.count / total) * 100) }))
+      .sort((a, b) => b.count - a.count);
+
+    const palette = ['#0d9488', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#10b981', '#ec4899', '#6366f1'];
+
+    const cards = [
+      { x: 20, y: 20, w: 730, h: 510, title: '1. DISTRIBUCIÓN DE PELIGROS POR CLASIFICACIÓN (GTC 45)', subtitle: 'Proporción porcentual y número de registros por familia de peligro' },
+      { x: 770, y: 20, w: 730, h: 510, title: '2. MATRIZ TÉRMICA GTC 45 (MAPA DE CALOR NC × NP)', subtitle: 'Ubicación de riesgos según Nivel de Consecuencia y Probabilidad' },
+      { x: 20, y: 550, w: 730, h: 510, title: '3. PERFIL DE SEVERIDAD (NR PROMEDIO POR TIPO DE PELIGRO)', subtitle: 'Nivel de Riesgo promedio (NR = NP × NC) semaforizado según GTC 45' },
+      { x: 770, y: 550, w: 730, h: 510, title: '4. COBERTURA DE CONTROLES Y MITIGACIÓN RESIDUAL (ANEXO E)', subtitle: 'Jerarquía de barreras (Art. 2.2.4.6.24) y reducción NR Inicial vs Residual' },
+    ];
+
+    cards.forEach((c) => {
+      ctx.save();
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 2;
+      roundRect(c.x, c.y, c.w, c.h, 20);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#0f766e';
+      roundRect(c.x, c.y, c.w, 58, 20);
+      ctx.fill();
+      ctx.fillRect(c.x, c.y + 38, c.w, 20);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 18px sans-serif';
+      ctx.fillText(c.title, c.x + 22, c.y + 28);
+      ctx.fillStyle = '#ccfbf1';
+      ctx.font = '13px sans-serif';
+      ctx.fillText(c.subtitle, c.x + 22, c.y + 48);
+      ctx.restore();
+    });
+
+    // CARD 1: DONUT
+    const cx = 215, cy = 295, radius = 135, innerR = 78;
+    let startAngle = -Math.PI / 2;
+    catList.forEach((item, idx) => {
+      const sliceAngle = (item.count / total) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, radius, startAngle, startAngle + sliceAngle);
+      ctx.closePath();
+      ctx.fillStyle = palette[idx % palette.length];
+      ctx.fill();
+      startAngle += sliceAngle;
+    });
+    ctx.beginPath();
+    ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 34px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(String(rows.length), cx, cy + 4);
+    ctx.fillStyle = '#64748b';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillText('PELIGROS', cx, cy + 26);
+    ctx.textAlign = 'left';
+
+    let legY = 115;
+    catList.slice(0, 7).forEach((item, idx) => {
+      const color = palette[idx % palette.length];
+      ctx.fillStyle = color;
+      roundRect(385, legY, 18, 18, 5);
+      ctx.fill();
+
+      ctx.fillStyle = '#1e293b';
+      ctx.font = 'bold 14px sans-serif';
+      const shortName = item.name.length > 26 ? item.name.slice(0, 25) + '…' : item.name;
+      ctx.fillText(shortName, 412, legY + 14);
+
+      ctx.fillStyle = '#0f766e';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(`${item.count} (${item.pct}%)`, 725, legY + 14);
+      ctx.textAlign = 'left';
+
+      ctx.fillStyle = '#e2e8f0';
+      roundRect(412, legY + 22, 313, 8, 4);
+      ctx.fill();
+      ctx.fillStyle = color;
+      roundRect(412, legY + 22, Math.max(8, Math.round((item.pct / 100) * 313)), 8, 4);
+      ctx.fill();
+      legY += 52;
+    });
+
+    // CARD 2: HEATMAP 4x4
+    const hmX = 795, hmY = 105;
+    const colW = 132, rowH = 74, labelW = 145;
+    const npHeaders = ['MA (40-24)', 'A (20-10)', 'M (8-6)', 'B (4-2)'];
+    const ncRows = [
+      { key: '100', label: 'NC 100 (Mortal)', cells: ['I', 'I', 'I', 'II'] },
+      { key: '60',  label: 'NC 60 (Muy Grave)', cells: ['I', 'I', 'II', 'II'] },
+      { key: '25',  label: 'NC 25 (Grave)', cells: ['I', 'II', 'II', 'III'] },
+      { key: '10',  label: 'NC 10 (Leve)', cells: ['II', 'III', 'III', 'IV'] },
+    ];
+    const npKeys = ['MA', 'A', 'M', 'B'];
+
+    ctx.fillStyle = '#f1f5f9';
+    ctx.fillRect(hmX, hmY, labelW, 42);
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.strokeRect(hmX, hmY, labelW, 42);
+    ctx.fillStyle = '#334155';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillText('Consecuencia \\ NP', hmX + 12, hmY + 26);
+
+    npHeaders.forEach((h, cIdx) => {
+      const x = hmX + labelW + cIdx * colW;
+      ctx.fillStyle = '#f1f5f9';
+      ctx.fillRect(x, hmY, colW, 42);
+      ctx.strokeRect(x, hmY, colW, 42);
+      ctx.fillStyle = '#1e293b';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(h, x + colW / 2, hmY + 26);
+    });
+
+    ncRows.forEach((rObj, rIdx) => {
+      const y = hmY + 42 + rIdx * rowH;
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(hmX, y, labelW, rowH);
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.strokeRect(hmX, y, labelW, rowH);
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(rObj.label, hmX + 10, y + rowH / 2 + 5);
+
+      rObj.cells.forEach((lvl, cIdx) => {
+        const x = hmX + labelW + cIdx * colW;
+        const count = heatmap[`${rObj.key}_${npKeys[cIdx]}`] || 0;
+        const bg = lvl === 'I' ? '#fecaca' : lvl === 'II' ? '#fed7aa' : lvl === 'III' ? '#fef08a' : '#bbf7d0';
+        const fg = lvl === 'I' ? '#991b1b' : lvl === 'II' ? '#9a3412' : lvl === 'III' ? '#854d0e' : '#166534';
+        ctx.fillStyle = bg;
+        ctx.fillRect(x, y, colW, rowH);
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.strokeRect(x, y, colW, rowH);
+
+        ctx.fillStyle = fg;
+        ctx.font = 'bold 20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`Nivel ${lvl}`, x + colW / 2, y + 30);
+        ctx.font = 'bold 16px sans-serif';
+        ctx.fillText(`[ ${count} riesgos ]`, x + colW / 2, y + 55);
+      });
+    });
+    ctx.textAlign = 'left';
+
+    // CARD 3: HORIZONTAL BARS
+    const sortedByNR = [...catList].sort((a, b) => b.avgNR - a.avgNR).slice(0, 7);
+    const maxAvgNR = Math.max(...sortedByNR.map(d => d.avgNR), 600);
+    let barY = 635;
+    sortedByNR.forEach((item) => {
+      const color = item.avgNR >= 600 ? '#dc2626' : item.avgNR >= 150 ? '#ea580c' : item.avgNR >= 40 ? '#ca8a04' : '#16a34a';
+      const lvlTxt = item.avgNR >= 600 ? 'Nivel I' : item.avgNR >= 150 ? 'Nivel II' : item.avgNR >= 40 ? 'Nivel III' : 'Nivel IV';
+
+      ctx.fillStyle = '#1e293b';
+      ctx.font = 'bold 14px sans-serif';
+      const label = item.name.length > 28 ? item.name.slice(0, 27) + '…' : item.name;
+      ctx.fillText(`${label} (${item.count})`, 42, barY + 15);
+
+      ctx.fillStyle = color;
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(`NR Prom: ${item.avgNR} (${lvlTxt})`, 725, barY + 15);
+      ctx.textAlign = 'left';
+
+      ctx.fillStyle = '#e2e8f0';
+      roundRect(42, barY + 23, 683, 18, 9);
+      ctx.fill();
+
+      const fillW = Math.max(24, Math.min(683, Math.round((item.avgNR / maxAvgNR) * 683)));
+      ctx.fillStyle = color;
+      roundRect(42, barY + 23, fillW, 18, 9);
+      ctx.fill();
+      barY += 56;
+    });
+
+    // CARD 4: HIERARCHY & ANEXO E
+    const pctF = Math.round((ctrlFuente / total) * 100);
+    const pctM = Math.round((ctrlMedio / total) * 100);
+    const pctI = Math.round((ctrlIndividuo / total) * 100);
+    const avgNRIni = Math.round(sumNRInicial / total);
+    const avgNRRes = Math.round(sumNRResidual / total);
+    const avgRedPct = avgNRIni > 0 ? Math.round(((avgNRIni - avgNRRes) / avgNRIni) * 100) : 0;
+
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 15px sans-serif';
+    ctx.fillText('A. COBERTURA DE LA JERARQUÍA DE CONTROLES (EXISTENTES + PROPUESTOS)', 795, 642);
+
+    const barsCtrl = [
+      { label: 'Controles en la Fuente (Eliminación / Sustitución)', count: ctrlFuente, pct: pctF, color: '#0d9488' },
+      { label: 'Controles en el Medio (Ingeniería / Aislamiento)', count: ctrlMedio, pct: pctM, color: '#0284c7' },
+      { label: 'Controles en el Individuo (Administrativos / EPP)', count: ctrlIndividuo, pct: pctI, color: '#7c3aed' },
+    ];
+
+    let ctrlY = 662;
+    barsCtrl.forEach((b) => {
+      ctx.fillStyle = '#334155';
+      ctx.font = 'bold 13.5px sans-serif';
+      ctx.fillText(b.label, 795, ctrlY + 14);
+      ctx.fillStyle = b.color;
+      ctx.textAlign = 'right';
+      ctx.fillText(`${b.pct}% (${b.count}/${rows.length})`, 1475, ctrlY + 14);
+      ctx.textAlign = 'left';
+
+      ctx.fillStyle = '#e2e8f0';
+      roundRect(795, ctrlY + 22, 680, 16, 8);
+      ctx.fill();
+      ctx.fillStyle = b.color;
+      roundRect(795, ctrlY + 22, Math.max(14, Math.round((b.pct / 100) * 680)), 16, 8);
+      ctx.fill();
+      ctrlY += 54;
+    });
+
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 15px sans-serif';
+    ctx.fillText('B. IMPACTO DE MITIGACIÓN PROYECTADO (ANEXO E: NR INICIAL VS RESIDUAL)', 795, 870);
+
+    const boxes = [
+      { x: 795, w: 215, bg: '#fef2f2', border: '#fecaca', title: 'NR PROMEDIO INICIAL', val: String(avgNRIni), sub: 'Antes de Medidas Propuestas', color: '#dc2626' },
+      { x: 1027, w: 215, bg: '#f0fdf4', border: '#bbf7d0', title: 'NR PROMEDIO RESIDUAL', val: String(avgNRRes), sub: 'Después de Controles Anexo E', color: '#16a34a' },
+      { x: 1260, w: 215, bg: '#eff6ff', border: '#bfdbfe', title: 'FACTOR REDUCCIÓN PROM.', val: `${avgRedPct}%`, sub: 'Mitigación Efectiva Global', color: '#1d4ed8' },
+    ];
+    boxes.forEach((bx) => {
+      ctx.fillStyle = bx.bg;
+      ctx.strokeStyle = bx.border;
+      ctx.lineWidth = 2;
+      roundRect(bx.x, 890, bx.w, 135, 16);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = bx.color;
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(bx.title, bx.x + bx.w / 2, 918);
+      ctx.font = 'bold 38px sans-serif';
+      ctx.fillText(bx.val, bx.x + bx.w / 2, 968);
+      ctx.fillStyle = '#475569';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.fillText(bx.sub, bx.x + bx.w / 2, 1002);
+    });
+    ctx.textAlign = 'left';
+
+    return canvas.toDataURL('image/png');
+  } catch (e) {
+    console.warn('Error rendering dashboard canvas:', e);
+    return null;
+  }
+}
+
 export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Wappy IA';
@@ -12,7 +333,7 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   const totalRows = matrixRows.length > 0 ? matrixRows.length + 1 : 2;
 
   // ============================================================================
-  // HOJA 1: DASHBOARD ANALÍTICO (POWERBI INTERACTIVE STYLE)
+  // HOJA 1: DASHBOARD ANALÍTICO (POWERBI INTERACTIVE STYLE + 4 CHARTS)
   // ============================================================================
   const wsDash = wb.addWorksheet('Dashboard Analítico', {
     views: [{ showGridLines: false }]
@@ -20,7 +341,7 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
 
   // Light Theme Background
   for (let r = 1; r <= 80; r++) {
-    for (let c = 1; c <= 10; c++) {
+    for (let c = 1; c <= 14; c++) {
       wsDash.getCell(r, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } }; // Slate 50
     }
   }
@@ -29,16 +350,29 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   wsDash.getColumn('B').width = 45;
   wsDash.getColumn('C').width = 25;
   wsDash.getColumn('D').width = 40;
+  wsDash.getColumn('E').width = 4;
   
   // Hero Header
-  wsDash.mergeCells('A1:E4');
+  wsDash.mergeCells('A1:N4');
   const heroCell = wsDash.getCell('A1');
   heroCell.value = '   ⚡ DASHBOARD INTERACTIVO — IPEVR GTC-45';
   heroCell.font = { size: 28, bold: true, color: { argb: 'FFFFFFFF' }, name: 'Book Antiqua' };
   heroCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } }; // Dark Teal (Matches Table Header)
   heroCell.alignment = { vertical: 'middle', horizontal: 'left' };
-  for (let c = 1; c <= 5; c++) {
+  for (let c = 1; c <= 14; c++) {
     wsDash.getCell(4, c).border = { bottom: { style: 'thick', color: { argb: 'FF042F2E' } } }; // Very Dark Teal
+  }
+
+  const chartsBase64 = renderDashboardChartsCanvasBase64(matrixRows);
+  if (chartsBase64) {
+    const imgId = wb.addImage({
+      base64: chartsBase64,
+      extension: 'png',
+    });
+    wsDash.addImage(imgId, {
+      tl: { col: 5.2, row: 5.2 },
+      ext: { width: 920, height: 654 },
+    });
   }
 
   // --- INTERACTIVE SLICER (DROPDOWN) ---
@@ -278,11 +612,11 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
       nd: Number(row.nd) || 0,
       ne: Number(row.ne) || 0,
       np: { formula: `M${rowNumber}*N${rowNumber}`, result: row.np },
-      interpretacion_np: getInterpretacionNP(row.np),
+      interpretacion_np: { formula: `IF(O${rowNumber}>=24,"Muy Alto",IF(O${rowNumber}>=10,"Alto",IF(O${rowNumber}>=6,"Medio","Bajo")))`, result: getInterpretacionNP(row.np) },
       nc: Number(row.nc) || 0,
       nr: { formula: `O${rowNumber}*Q${rowNumber}`, result: row.nr },
-      interpretacion_nr: row.interpretacion_nr,
-      aceptabilidad: row.aceptabilidad,
+      interpretacion_nr: { formula: `IF(R${rowNumber}>=600,"I",IF(R${rowNumber}>=150,"II",IF(R${rowNumber}>=40,"III","IV")))`, result: row.interpretacion_nr },
+      aceptabilidad: { formula: `IF(S${rowNumber}="I","No Aceptable",IF(S${rowNumber}="II","No Aceptable o Aceptable con Control Específico",IF(S${rowNumber}="III","Mejorable","Aceptable")))`, result: row.aceptabilidad },
       nro_expuestos: row.nro_expuestos !== undefined ? row.nro_expuestos : 1,
       peor_consecuencia: row.peor_consecuencia || '',
       requisito_legal: row.requisito_legal || '',

@@ -29,6 +29,8 @@
 
   <!-- SheetJS para lectura y escritura nativa de Excel (.xlsx) -->
   <script src="/assets/xlsx.full.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js';document.head.appendChild(s);"></script>
+  <!-- ExcelJS para exportación avanzada con Dashboard, Gráficas, Fórmulas y Formato Condicional -->
+  <script src="/assets/exceljs.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';document.head.appendChild(s);"></script>
 
   <style>
     body {
@@ -108,17 +110,42 @@
       animation: indeterminate-bar 1.6s cubic-bezier(0.65, 0.815, 0.735, 0.395) infinite;
     }
 
-    /* Impresión A4 oficial */
+    /* Impresión A4 oficial (Solo Informe Ejecutivo) */
     @media print {
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+      }
+      @page {
+        size: A4 portrait;
+        margin: 12mm 10mm;
+      }
       body {
         background: #ffffff !important;
         color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
       }
-      .no-print {
+      .no-print,
+      #matriz-section,
+      #dashboardMainContainer,
+      header,
+      footer,
+      #descargar-aplicativo,
+      #admin-metrics-section,
+      #toastContainer,
+      #aiGlobalLoadingOverlay {
         display: none !important;
       }
       .print-only {
         display: block !important;
+      }
+      #reporte-section {
+        max-width: 100% !important;
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
       }
       #reportPaperScrollWrapper {
         overflow: visible !important;
@@ -751,7 +778,7 @@
   <!-- ========================================== -->
   <!-- 5. TARJETA PRINCIPAL: MATRIZ IPEVR LIVE    -->
   <!-- ========================================== -->
-  <main id="matriz-section" class="max-w-7xl mx-auto px-4 sm:px-6 mb-12">
+  <main id="matriz-section" class="no-print max-w-7xl mx-auto px-4 sm:px-6 mb-12">
     <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden">
       
       <!-- Encabezado de la Tarjeta con Botonera de Iconos (Exacta a Image 2) -->
@@ -1069,7 +1096,7 @@
     </div>
 
     <!-- Aviso de desplazamiento táctil en móvil -->
-    <div class="sm:hidden flex items-center justify-center gap-2 py-2 px-3 mb-3 rounded-2xl bg-teal-500/10 border border-teal-500/25 text-teal-900 text-xs font-bold text-center shadow-xs">
+    <div class="no-print sm:hidden flex items-center justify-center gap-2 py-2 px-3 mb-3 rounded-2xl bg-teal-500/10 border border-teal-500/25 text-teal-900 text-xs font-bold text-center shadow-xs">
       <span class="text-base animate-pulse">👆</span>
       <span>Desliza horizontalmente para explorar el Informe A4 oficial</span>
       <span class="text-sm font-black text-teal-700">⇄</span>
@@ -6285,12 +6312,960 @@ function downloadEmptyTemplate() {
   toggleExportDropdown();
 }
 
-function exportMatrixToExcel() {
+function renderExcelDashboardChartsCanvasBase64(rows, compInfo) {
+  try {
+    const canvas = document.createElement('canvas');
+    const W = 1520;
+    const H = 1080;
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    const roundRect = (x, y, w, h, r) => {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    };
+
+    // Background
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, W, H);
+
+    const total = rows.length || 1;
+    const catMap = {};
+    const heatmap = {
+      '100_MA': 0, '100_A': 0, '100_M': 0, '100_B': 0,
+      '60_MA': 0,  '60_A': 0,  '60_M': 0,  '60_B': 0,
+      '25_MA': 0,  '25_A': 0,  '25_M': 0,  '25_B': 0,
+      '10_MA': 0,  '10_A': 0,  '10_M': 0,  '10_B': 0,
+    };
+
+    const emptyVal = (v) => !v || ['ninguno', 'ninguna', 'none', 'no aplica', 'n/a', ''].includes(String(v).toLowerCase().trim());
+    let ctrlFuente = 0, ctrlMedio = 0, ctrlIndividuo = 0;
+    let sumNRInicial = 0, sumNRResidual = 0;
+
+    rows.forEach((r) => {
+      const cat = (r.peligro_clasificacion || 'Condiciones de seguridad').trim();
+      if (!catMap[cat]) catMap[cat] = { count: 0, sumNR: 0, maxNR: 0 };
+      const nr = Number(r.nr) || 0;
+      catMap[cat].count++;
+      catMap[cat].sumNR += nr;
+      if (nr > catMap[cat].maxNR) catMap[cat].maxNR = nr;
+
+      const np = Number(r.np) || 0;
+      const ncRaw = Number(r.nc) || 10;
+      const ncKey = ncRaw >= 100 ? '100' : ncRaw >= 60 ? '60' : ncRaw >= 25 ? '25' : '10';
+      const npKey = np >= 24 ? 'MA' : np >= 10 ? 'A' : np >= 6 ? 'M' : 'B';
+      const hmKey = `${ncKey}_${npKey}`;
+      if (heatmap[hmKey] !== undefined) heatmap[hmKey]++;
+
+      if (!emptyVal(r.controles_fuente) || !emptyVal(r.medida_eliminacion) || !emptyVal(r.medida_sustitucion)) ctrlFuente++;
+      if (!emptyVal(r.controles_medio) || !emptyVal(r.medida_ingenieria)) ctrlMedio++;
+      if (!emptyVal(r.controles_individuo) || !emptyVal(r.medida_administrativa) || !emptyVal(r.medida_eppu)) ctrlIndividuo++;
+
+      sumNRInicial += nr;
+      const frMatch = String(r.factores_reduccion || '').match(/(\d{1,3})\s*%/);
+      const frPct = frMatch ? Math.min(98, Math.max(10, parseInt(frMatch[1], 10))) : 75;
+      sumNRResidual += Math.max(10, Math.round(nr * (1 - frPct / 100)));
+    });
+
+    const catList = Object.entries(catMap)
+      .map(([name, d]) => ({ name, count: d.count, avgNR: Math.round(d.sumNR / d.count), maxNR: d.maxNR, pct: Math.round((d.count / total) * 100) }))
+      .sort((a, b) => b.count - a.count);
+
+    const palette = ['#0d9488', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#10b981', '#ec4899', '#6366f1'];
+
+    // Draw 4 Card Containers (2x2 Grid)
+    const cards = [
+      { x: 20, y: 20, w: 730, h: 510, title: '1. DISTRIBUCIÓN DE PELIGROS POR CLASIFICACIÓN (GTC 45)', subtitle: 'Proporción porcentual y número de registros por familia de peligro' },
+      { x: 770, y: 20, w: 730, h: 510, title: '2. MATRIZ TÉRMICA GTC 45 (MAPA DE CALOR NC × NP)', subtitle: 'Ubicación de riesgos según Nivel de Consecuencia y Probabilidad' },
+      { x: 20, y: 550, w: 730, h: 510, title: '3. PERFIL DE SEVERIDAD (NR PROMEDIO POR TIPO DE PELIGRO)', subtitle: 'Nivel de Riesgo promedio (NR = NP × NC) semaforizado según GTC 45' },
+      { x: 770, y: 550, w: 730, h: 510, title: '4. COBERTURA DE CONTROLES Y MITIGACIÓN RESIDUAL (ANEXO E)', subtitle: 'Jerarquía de barreras (Art. 2.2.4.6.24) y reducción NR Inicial vs Residual' },
+    ];
+
+    cards.forEach((c) => {
+      ctx.save();
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 2;
+      roundRect(c.x, c.y, c.w, c.h, 20);
+      ctx.fill();
+      ctx.stroke();
+
+      // Header strip
+      ctx.fillStyle = '#0f766e';
+      roundRect(c.x, c.y, c.w, 58, 20);
+      ctx.fill();
+      ctx.fillRect(c.x, c.y + 38, c.w, 20);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 18px sans-serif';
+      ctx.fillText(c.title, c.x + 22, c.y + 28);
+      ctx.fillStyle = '#ccfbf1';
+      ctx.font = '13px sans-serif';
+      ctx.fillText(c.subtitle, c.x + 22, c.y + 48);
+      ctx.restore();
+    });
+
+    // ─── CARD 1: DONUT CHART ───
+    const cx = 215, cy = 295, radius = 135, innerR = 78;
+    let startAngle = -Math.PI / 2;
+    catList.forEach((item, idx) => {
+      const sliceAngle = (item.count / total) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, radius, startAngle, startAngle + sliceAngle);
+      ctx.closePath();
+      ctx.fillStyle = palette[idx % palette.length];
+      ctx.fill();
+      startAngle += sliceAngle;
+    });
+    ctx.beginPath();
+    ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 34px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(String(rows.length), cx, cy + 4);
+    ctx.fillStyle = '#64748b';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillText('PELIGROS', cx, cy + 26);
+    ctx.textAlign = 'left';
+
+    // Legend Card 1
+    let legY = 115;
+    catList.slice(0, 7).forEach((item, idx) => {
+      const color = palette[idx % palette.length];
+      ctx.fillStyle = color;
+      roundRect(385, legY, 18, 18, 5);
+      ctx.fill();
+
+      ctx.fillStyle = '#1e293b';
+      ctx.font = 'bold 14px sans-serif';
+      const shortName = item.name.length > 26 ? item.name.slice(0, 25) + '…' : item.name;
+      ctx.fillText(shortName, 412, legY + 14);
+
+      ctx.fillStyle = '#0f766e';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(`${item.count} (${item.pct}%)`, 725, legY + 14);
+      ctx.textAlign = 'left';
+
+      // Mini bar
+      ctx.fillStyle = '#e2e8f0';
+      roundRect(412, legY + 22, 313, 8, 4);
+      ctx.fill();
+      ctx.fillStyle = color;
+      roundRect(412, legY + 22, Math.max(8, Math.round((item.pct / 100) * 313)), 8, 4);
+      ctx.fill();
+
+      legY += 52;
+    });
+
+    // ─── CARD 2: 4x4 THERMAL HEATMAP ───
+    const hmX = 795, hmY = 105;
+    const colW = 132, rowH = 74, labelW = 145;
+    const npHeaders = ['MA (40-24)', 'A (20-10)', 'M (8-6)', 'B (4-2)'];
+    const ncRows = [
+      { key: '100', label: 'NC 100 (Mortal)', cells: ['I', 'I', 'I', 'II'] },
+      { key: '60',  label: 'NC 60 (Muy Grave)', cells: ['I', 'I', 'II', 'II'] },
+      { key: '25',  label: 'NC 25 (Grave)', cells: ['I', 'II', 'II', 'III'] },
+      { key: '10',  label: 'NC 10 (Leve)', cells: ['II', 'III', 'III', 'IV'] },
+    ];
+    const npKeys = ['MA', 'A', 'M', 'B'];
+
+    // Header Row
+    ctx.fillStyle = '#f1f5f9';
+    ctx.fillRect(hmX, hmY, labelW, 42);
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.strokeRect(hmX, hmY, labelW, 42);
+    ctx.fillStyle = '#334155';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillText('Consecuencia \\ NP', hmX + 12, hmY + 26);
+
+    npHeaders.forEach((h, cIdx) => {
+      const x = hmX + labelW + cIdx * colW;
+      ctx.fillStyle = '#f1f5f9';
+      ctx.fillRect(x, hmY, colW, 42);
+      ctx.strokeRect(x, hmY, colW, 42);
+      ctx.fillStyle = '#1e293b';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(h, x + colW / 2, hmY + 26);
+    });
+
+    ncRows.forEach((rObj, rIdx) => {
+      const y = hmY + 42 + rIdx * rowH;
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(hmX, y, labelW, rowH);
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.strokeRect(hmX, y, labelW, rowH);
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(rObj.label, hmX + 10, y + rowH / 2 + 5);
+
+      rObj.cells.forEach((lvl, cIdx) => {
+        const x = hmX + labelW + cIdx * colW;
+        const count = heatmap[`${rObj.key}_${npKeys[cIdx]}`] || 0;
+        const bg = lvl === 'I' ? '#fecaca' : lvl === 'II' ? '#fed7aa' : lvl === 'III' ? '#fef08a' : '#bbf7d0';
+        const fg = lvl === 'I' ? '#991b1b' : lvl === 'II' ? '#9a3412' : lvl === 'III' ? '#854d0e' : '#166534';
+        ctx.fillStyle = bg;
+        ctx.fillRect(x, y, colW, rowH);
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.strokeRect(x, y, colW, rowH);
+
+        ctx.fillStyle = fg;
+        ctx.font = 'bold 20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`Nivel ${lvl}`, x + colW / 2, y + 30);
+        ctx.font = 'bold 16px sans-serif';
+        ctx.fillText(`[ ${count} riesgos ]`, x + colW / 2, y + 55);
+      });
+    });
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#475569';
+    ctx.font = 'bold 12.5px sans-serif';
+    ctx.fillText('Convención GTC 45:  🔴 Nivel I (No Aceptable)   🟠 Nivel II (Control Específico)   🟡 Nivel III (Mejorable)   🟢 Nivel IV (Aceptable)', hmX, hmY + 375);
+
+    // ─── CARD 3: HORIZONTAL BARS (NR PROMEDIO POR PELIGRO) ───
+    const sortedByNR = [...catList].sort((a, b) => b.avgNR - a.avgNR).slice(0, 7);
+    const maxAvgNR = Math.max(...sortedByNR.map(d => d.avgNR), 600);
+    let barY = 635;
+    sortedByNR.forEach((item) => {
+      const color = item.avgNR >= 600 ? '#dc2626' : item.avgNR >= 150 ? '#ea580c' : item.avgNR >= 40 ? '#ca8a04' : '#16a34a';
+      const lvlTxt = item.avgNR >= 600 ? 'Nivel I' : item.avgNR >= 150 ? 'Nivel II' : item.avgNR >= 40 ? 'Nivel III' : 'Nivel IV';
+
+      ctx.fillStyle = '#1e293b';
+      ctx.font = 'bold 14px sans-serif';
+      const label = item.name.length > 28 ? item.name.slice(0, 27) + '…' : item.name;
+      ctx.fillText(`${label} (${item.count})`, 42, barY + 15);
+
+      ctx.fillStyle = color;
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(`NR Prom: ${item.avgNR} (${lvlTxt})`, 725, barY + 15);
+      ctx.textAlign = 'left';
+
+      ctx.fillStyle = '#e2e8f0';
+      roundRect(42, barY + 23, 683, 18, 9);
+      ctx.fill();
+
+      const fillW = Math.max(24, Math.min(683, Math.round((item.avgNR / maxAvgNR) * 683)));
+      ctx.fillStyle = color;
+      roundRect(42, barY + 23, fillW, 18, 9);
+      ctx.fill();
+
+      barY += 56;
+    });
+
+    // ─── CARD 4: HIERARCHY OF CONTROLS & RESIDUAL RISK REDUCTION (ANEXO E) ───
+    const pctF = Math.round((ctrlFuente / total) * 100);
+    const pctM = Math.round((ctrlMedio / total) * 100);
+    const pctI = Math.round((ctrlIndividuo / total) * 100);
+    const avgNRIni = Math.round(sumNRInicial / total);
+    const avgNRRes = Math.round(sumNRResidual / total);
+    const avgRedPct = avgNRIni > 0 ? Math.round(((avgNRIni - avgNRRes) / avgNRIni) * 100) : 0;
+
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 15px sans-serif';
+    ctx.fillText('A. COBERTURA DE LA JERARQUÍA DE CONTROLES (EXISTENTES + PROPUESTOS)', 795, 642);
+
+    const barsCtrl = [
+      { label: 'Controles en la Fuente (Eliminación / Sustitución)', count: ctrlFuente, pct: pctF, color: '#0d9488' },
+      { label: 'Controles en el Medio (Ingeniería / Aislamiento)', count: ctrlMedio, pct: pctM, color: '#0284c7' },
+      { label: 'Controles en el Individuo (Administrativos / EPP)', count: ctrlIndividuo, pct: pctI, color: '#7c3aed' },
+    ];
+
+    let ctrlY = 662;
+    barsCtrl.forEach((b) => {
+      ctx.fillStyle = '#334155';
+      ctx.font = 'bold 13.5px sans-serif';
+      ctx.fillText(b.label, 795, ctrlY + 14);
+      ctx.fillStyle = b.color;
+      ctx.textAlign = 'right';
+      ctx.fillText(`${b.pct}% (${b.count}/${rows.length})`, 1475, ctrlY + 14);
+      ctx.textAlign = 'left';
+
+      ctx.fillStyle = '#e2e8f0';
+      roundRect(795, ctrlY + 22, 680, 16, 8);
+      ctx.fill();
+      ctx.fillStyle = b.color;
+      roundRect(795, ctrlY + 22, Math.max(14, Math.round((b.pct / 100) * 680)), 16, 8);
+      ctx.fill();
+      ctrlY += 54;
+    });
+
+    // Divider
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.beginPath();
+    ctx.moveTo(795, 840);
+    ctx.lineTo(1475, 840);
+    ctx.stroke();
+
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 15px sans-serif';
+    ctx.fillText('B. IMPACTO DE MITIGACIÓN PROYECTADO (ANEXO E GTC 45: NR INICIAL VS RESIDUAL)', 795, 870);
+
+    // Three comparison boxes
+    const boxes = [
+      { x: 795, w: 215, bg: '#fef2f2', border: '#fecaca', title: 'NR PROMEDIO INICIAL', val: String(avgNRIni), sub: 'Antes de Medidas Propuestas', color: '#dc2626' },
+      { x: 1027, w: 215, bg: '#f0fdf4', border: '#bbf7d0', title: 'NR PROMEDIO RESIDUAL', val: String(avgNRRes), sub: 'Después de Controles Anexo E', color: '#16a34a' },
+      { x: 1260, w: 215, bg: '#eff6ff', border: '#bfdbfe', title: 'FACTOR REDUCCIÓN PROM.', val: `${avgRedPct}%`, sub: 'Mitigación Efectiva Global', color: '#1d4ed8' },
+    ];
+    boxes.forEach((bx) => {
+      ctx.fillStyle = bx.bg;
+      ctx.strokeStyle = bx.border;
+      ctx.lineWidth = 2;
+      roundRect(bx.x, 890, bx.w, 135, 16);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = bx.color;
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(bx.title, bx.x + bx.w / 2, 918);
+      ctx.font = 'bold 38px sans-serif';
+      ctx.fillText(bx.val, bx.x + bx.w / 2, 968);
+      ctx.fillStyle = '#475569';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.fillText(bx.sub, bx.x + bx.w / 2, 1002);
+    });
+    ctx.textAlign = 'left';
+
+    return canvas.toDataURL('image/png');
+  } catch (err) {
+    console.warn('Error rendering Excel dashboard canvas:', err);
+    return null;
+  }
+}
+
+async function exportMatrixToExcel() {
   if (matrixRows.length === 0) {
     showToast('No hay registros en la matriz para exportar', 'warning');
     return;
   }
 
+  toggleExportDropdown();
+  showToast('Generando Excel PRO con Dashboard, Gráficas y Fórmulas...', 'info');
+
+  if (typeof ExcelJS !== 'undefined') {
+    try {
+      const wb = new ExcelJS.Workbook();
+      wb.creator = 'WAPPY IA - SG-SST';
+      wb.lastModifiedBy = 'WAPPY IA';
+      wb.created = new Date();
+      wb.modified = new Date();
+
+      const totalRows = matrixRows.length + 1;
+      const cName = companyInfo.companyName || 'EMPRESA EN CONFIGURACIÓN';
+      const cNit = companyInfo.nit || 'Por definir';
+      const cArl = companyInfo.arl || 'Por definir';
+      const cRisk = companyInfo.riskClass || 'Riesgo I - V';
+      const cCity = companyInfo.city || 'Colombia';
+      const cResp = companyInfo.sstResponsible || 'Responsable SG-SST';
+      const fechaHoy = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+
+      // ═══════════════════════════════════════════════════════════════════
+      // HOJA 1: DASHBOARD ANALÍTICO (INTERACTIVO CON FÓRMULAS Y GRÁFICAS)
+      // ═══════════════════════════════════════════════════════════════════
+      const wsDash = wb.addWorksheet('Dashboard Analítico', {
+        views: [{ showGridLines: false }]
+      });
+
+      for (let r = 1; r <= 72; r++) {
+        for (let c = 1; c <= 14; c++) {
+          wsDash.getCell(r, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+        }
+      }
+
+      wsDash.getColumn('A').width = 3;
+      wsDash.getColumn('B').width = 34;
+      wsDash.getColumn('C').width = 16;
+      wsDash.getColumn('D').width = 16;
+      wsDash.getColumn('E').width = 24;
+      wsDash.getColumn('F').width = 4;
+      for (let c = 7; c <= 14; c++) {
+        wsDash.getColumn(c).width = 16;
+      }
+
+      // Hero Header Corporativo (A1:N4)
+      wsDash.mergeCells('A1:N2');
+      const heroCell = wsDash.getCell('A1');
+      heroCell.value = `   ⚡ DASHBOARD EJECUTIVO & ANALÍTICO GTC 45:2012 — ${cName.toUpperCase()}`;
+      heroCell.font = { size: 20, bold: true, color: { argb: 'FFFFFFFF' }, name: 'Calibri' };
+      heroCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } };
+      heroCell.alignment = { vertical: 'middle', horizontal: 'left' };
+      wsDash.getRow(1).height = 24;
+      wsDash.getRow(2).height = 24;
+
+      wsDash.mergeCells('A3:N4');
+      const subHero = wsDash.getCell('A3');
+      subHero.value = `     NIT: ${cNit}   |   ARL: ${cArl} (${cRisk})   |   Sede: ${cCity}   |   Responsable SG-SST: ${cResp}   |   Emisión: ${fechaHoy}   |   By WAPPY IA`;
+      subHero.font = { size: 11, bold: true, color: { argb: 'FFCCFBF1' }, name: 'Calibri' };
+      subHero.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF115E59' } };
+      subHero.alignment = { vertical: 'middle', horizontal: 'left' };
+      wsDash.getRow(3).height = 16;
+      wsDash.getRow(4).height = 16;
+
+      // Slicer Interactivo de Proceso (Fila 6)
+      const procesos = [...new Set(matrixRows.map(r => (r.proceso || 'Operativo').trim()).filter(Boolean))];
+      if (procesos.length === 0) procesos.push('Operativo');
+
+      wsDash.getColumn('Z').hidden = true;
+      wsDash.getCell('Z1').value = 'TODOS';
+      procesos.forEach((p, i) => { wsDash.getCell(`Z${i + 2}`).value = p; });
+      const numProcesos = procesos.length + 1;
+
+      wsDash.getCell('B6').value = '🔍 FILTRO DINÁMICO POR PROCESO:';
+      wsDash.getCell('B6').font = { size: 12, bold: true, color: { argb: 'FF0F172A' }, name: 'Calibri' };
+      wsDash.getCell('B6').alignment = { vertical: 'middle', horizontal: 'right' };
+
+      wsDash.mergeCells('C6:D6');
+      const filterCell = wsDash.getCell('C6');
+      filterCell.value = 'TODOS';
+      filterCell.font = { size: 12, bold: true, color: { argb: 'FF0F766E' }, name: 'Calibri' };
+      filterCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+      filterCell.border = {
+        top: { style: 'medium', color: { argb: 'FF0D9488' } },
+        left: { style: 'medium', color: { argb: 'FF0D9488' } },
+        bottom: { style: 'medium', color: { argb: 'FF0D9488' } },
+        right: { style: 'medium', color: { argb: 'FF0D9488' } }
+      };
+      filterCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      filterCell.dataValidation = {
+        type: 'list',
+        allowBlank: false,
+        formulae: [`'Dashboard Analítico'!$Z$1:$Z$${numProcesos}`]
+      };
+      wsDash.getCell('E6').value = '⬅ Cambia el proceso para recalcular KPIs y tablas';
+      wsDash.getCell('E6').font = { size: 10, italic: true, color: { argb: 'FF475569' }, name: 'Calibri' };
+      wsDash.getCell('E6').alignment = { vertical: 'middle', horizontal: 'left' };
+      wsDash.getRow(6).height = 26;
+
+      // ─── TARJETAS KPI CON FÓRMULAS VIVAS (FILAS 8-9) ───
+      const kpiCards = [
+        {
+          cols: ['B8', 'B9'],
+          title: 'TOTAL PELIGROS EVALUADOS',
+          formula: `IF($C$6="TODOS", COUNTA('Matriz IPEVR'!A2:A${totalRows}), COUNTIF('Matriz IPEVR'!A2:A${totalRows}, $C$6))`,
+          result: matrixRows.length,
+          fg: 'FF0F172A', bg: 'FFFFFFFF', headBg: 'FFF1F5F9'
+        },
+        {
+          cols: ['C8', 'C9'],
+          title: 'NIVEL I (NO ACEPTABLE)',
+          formula: `IF($C$6="TODOS", COUNTIF('Matriz IPEVR'!S2:S${totalRows}, "I"), COUNTIFS('Matriz IPEVR'!S2:S${totalRows}, "I", 'Matriz IPEVR'!A2:A${totalRows}, $C$6))`,
+          result: matrixRows.filter(r => (Number(r.nr) || 0) >= 600).length,
+          fg: 'FFDC2626', bg: 'FFFEF2F2', headBg: 'FFFEE2E2'
+        },
+        {
+          cols: ['D8', 'D9'],
+          title: 'NIVEL II (CONTROL ESP.)',
+          formula: `IF($C$6="TODOS", COUNTIF('Matriz IPEVR'!S2:S${totalRows}, "II"), COUNTIFS('Matriz IPEVR'!S2:S${totalRows}, "II", 'Matriz IPEVR'!A2:A${totalRows}, $C$6))`,
+          result: matrixRows.filter(r => { const n = Number(r.nr) || 0; return n >= 150 && n < 600; }).length,
+          fg: 'FFEA580C', bg: 'FFFFF7ED', headBg: 'FFFFEDD5'
+        },
+        {
+          cols: ['E8', 'E9'],
+          title: '% CRITICIDAD PRIORITARIA (I+II)',
+          formula: `IF(B9=0, 0, (C9+D9)/B9)`,
+          result: matrixRows.length > 0 ? (matrixRows.filter(r => (Number(r.nr) || 0) >= 150).length / matrixRows.length) : 0,
+          fg: 'FF0F766E', bg: 'FFF0FDFA', headBg: 'FFCCFBF1', numFmt: '0.0%'
+        }
+      ];
+
+      wsDash.getRow(8).height = 22;
+      wsDash.getRow(9).height = 36;
+
+      kpiCards.forEach(k => {
+        const hCell = wsDash.getCell(k.cols[0]);
+        hCell.value = k.title;
+        hCell.font = { size: 9.5, bold: true, color: { argb: 'FF334155' }, name: 'Calibri' };
+        hCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: k.headBg } };
+        hCell.alignment = { horizontal: 'center', vertical: 'middle' };
+        hCell.border = { top: { style: 'thin', color: { argb: 'FFCBD5E1' } }, left: { style: 'thin', color: { argb: 'FFCBD5E1' } }, right: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
+
+        const vCell = wsDash.getCell(k.cols[1]);
+        vCell.value = { formula: k.formula, result: k.result };
+        vCell.font = { size: 20, bold: true, color: { argb: k.fg }, name: 'Calibri' };
+        vCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: k.bg } };
+        vCell.alignment = { horizontal: 'center', vertical: 'middle' };
+        vCell.border = { bottom: { style: 'medium', color: { argb: 'FF94A3B8' } }, left: { style: 'thin', color: { argb: 'FFCBD5E1' } }, right: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
+        if (k.numFmt) vCell.numFmt = k.numFmt;
+      });
+
+      // ─── INCRUSTAR TABLERO VISUAL DE 4 GRÁFICAS EN ALTA DEFINICIÓN (G6:N50) ───
+      const chartsBase64 = renderExcelDashboardChartsCanvasBase64(matrixRows, companyInfo);
+      if (chartsBase64) {
+        const imgId = wb.addImage({
+          base64: chartsBase64,
+          extension: 'png',
+        });
+        wsDash.addImage(imgId, {
+          tl: { col: 6.1, row: 5.2 },
+          ext: { width: 920, height: 654 }
+        });
+      }
+
+      // ─── TABLAS ANALÍTICAS DINÁMICAS CON FÓRMULAS EN VIVO (COLUMNAS B:E) ───
+      const createTableSectionHeader = (rowNum, title, colHeaders) => {
+        wsDash.mergeCells(`B${rowNum}:E${rowNum}`);
+        const tCell = wsDash.getCell(`B${rowNum}`);
+        tCell.value = ` ${title}`;
+        tCell.font = { size: 11.5, bold: true, color: { argb: 'FFFFFFFF' }, name: 'Calibri' };
+        tCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } };
+        tCell.alignment = { vertical: 'middle', horizontal: 'left' };
+        wsDash.getRow(rowNum).height = 24;
+
+        const hRow = rowNum + 1;
+        wsDash.getRow(hRow).height = 20;
+        ['B', 'C', 'D', 'E'].forEach((col, i) => {
+          const cell = wsDash.getCell(`${col}${hRow}`);
+          cell.value = colHeaders[i] || '';
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+          cell.font = { size: 10, bold: true, color: { argb: 'FF334155' }, name: 'Calibri' };
+          cell.alignment = { vertical: 'middle', horizontal: i === 0 ? 'left' : 'center' };
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+            bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+            left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+            right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+          };
+        });
+        return hRow + 1;
+      };
+
+      const addFormulaMetricRow = (rowNum, label, countFormula, countResult, colorArgb) => {
+        wsDash.getRow(rowNum).height = 20;
+        ['B', 'C', 'D', 'E'].forEach(col => {
+          const c = wsDash.getCell(`${col}${rowNum}`);
+          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+          c.border = {
+            top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+          };
+        });
+
+        wsDash.getCell(`B${rowNum}`).value = ` ${label}`;
+        wsDash.getCell(`B${rowNum}`).font = { size: 10, bold: true, color: { argb: 'FF1E293B' }, name: 'Calibri' };
+
+        wsDash.getCell(`C${rowNum}`).value = { formula: countFormula, result: countResult };
+        wsDash.getCell(`C${rowNum}`).alignment = { horizontal: 'center', vertical: 'middle' };
+        wsDash.getCell(`C${rowNum}`).font = { size: 11, bold: true, color: { argb: colorArgb }, name: 'Calibri' };
+
+        wsDash.getCell(`D${rowNum}`).value = { formula: `IF($B$9=0, 0, C${rowNum}/$B$9)`, result: matrixRows.length > 0 ? countResult / matrixRows.length : 0 };
+        wsDash.getCell(`D${rowNum}`).alignment = { horizontal: 'center', vertical: 'middle' };
+        wsDash.getCell(`D${rowNum}`).font = { size: 10, bold: true, color: { argb: 'FF475569' }, name: 'Calibri' };
+        wsDash.getCell(`D${rowNum}`).numFmt = '0.0%';
+
+        wsDash.getCell(`E${rowNum}`).value = { formula: countFormula, result: countResult };
+        wsDash.getCell(`E${rowNum}`).font = { color: { argb: 'FFFFFFFF' }, name: 'Calibri' };
+      };
+
+      // TABLA 1: DISTRIBUCIÓN POR NIVEL DE RIESGO (TABLA 7 Y 8 GTC 45)
+      let dRow = 11;
+      dRow = createTableSectionHeader(dRow, '📊 1. VALORACIÓN Y ACEPTABILIDAD DEL RIESGO (GTC 45)', ['Nivel / Aceptabilidad', 'Riesgos', '% Total', 'Barra Interactiva']);
+      const startT1 = dRow;
+      const nivelesInfo = [
+        { code: 'I', label: 'Nivel I — No Aceptable', color: 'FFDC2626', res: matrixRows.filter(r => (Number(r.nr) || 0) >= 600).length },
+        { code: 'II', label: 'Nivel II — Control Específico', color: 'FFEA580C', res: matrixRows.filter(r => { const n = Number(r.nr) || 0; return n >= 150 && n < 600; }).length },
+        { code: 'III', label: 'Nivel III — Mejorable', color: 'FFCA8A04', res: matrixRows.filter(r => { const n = Number(r.nr) || 0; return n >= 40 && n < 150; }).length },
+        { code: 'IV', label: 'Nivel IV — Aceptable', color: 'FF16A34A', res: matrixRows.filter(r => (Number(r.nr) || 0) < 40).length },
+      ];
+      nivelesInfo.forEach(nv => {
+        const f = `IF($C$6="TODOS", COUNTIF('Matriz IPEVR'!S2:S${totalRows}, "${nv.code}"), COUNTIFS('Matriz IPEVR'!S2:S${totalRows}, "${nv.code}", 'Matriz IPEVR'!A2:A${totalRows}, $C$6))`;
+        addFormulaMetricRow(dRow, nv.label, f, nv.res, nv.color);
+        dRow++;
+      });
+      wsDash.addConditionalFormatting({
+        ref: `E${startT1}:E${dRow - 1}`,
+        rules: [{ type: 'dataBar', gradient: true, color: { argb: 'FF0D9488' }, cfvo: [{ type: 'min' }, { type: 'max' }] }]
+      });
+
+      // TABLA 2: MATRIZ TÉRMICA 4x4 EN CELDAS CON FÓRMULAS VIVAS (COUNTIFS NC × NP)
+      dRow += 1;
+      wsDash.mergeCells(`B${dRow}:E${dRow}`);
+      const hmTitle = wsDash.getCell(`B${dRow}`);
+      hmTitle.value = ' 🔥 2. MAPA DE CALOR EN VIVO (FÓRMULAS NC × NP)';
+      hmTitle.font = { size: 11.5, bold: true, color: { argb: 'FFFFFFFF' }, name: 'Calibri' };
+      hmTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } };
+      wsDash.getRow(dRow).height = 24;
+      dRow++;
+
+      wsDash.getRow(dRow).height = 20;
+      const hmCols = ['Consecuencia (NC)', 'MA (40-24)', 'A (20-10)', 'M (8-6) / B (4-2)'];
+      ['B', 'C', 'D', 'E'].forEach((c, idx) => {
+        const cell = wsDash.getCell(`${c}${dRow}`);
+        cell.value = hmCols[idx];
+        cell.font = { size: 9.5, bold: true, color: { argb: 'FF334155' }, name: 'Calibri' };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = { top: { style: 'thin', color: { argb: 'FFCBD5E1' } }, bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } }, left: { style: 'thin', color: { argb: 'FFCBD5E1' } }, right: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
+      });
+      dRow++;
+
+      const ncMatrixDefs = [
+        { nc: 100, label: 'NC 100 (Mortal)', colors: ['FFFECACA', 'FFFECACA', 'FFFED7AA'] },
+        { nc: 60,  label: 'NC 60 (Muy Grave)', colors: ['FFFECACA', 'FFFECACA', 'FFFED7AA'] },
+        { nc: 25,  label: 'NC 25 (Grave)', colors: ['FFFECACA', 'FFFED7AA', 'FFFEF08A'] },
+        { nc: 10,  label: 'NC 10 (Leve)', colors: ['FFFED7AA', 'FFFEF08A', 'FFBBF7D0'] },
+      ];
+      ncMatrixDefs.forEach(ncDef => {
+        wsDash.getRow(dRow).height = 20;
+        const lblCell = wsDash.getCell(`B${dRow}`);
+        lblCell.value = ` ${ncDef.label}`;
+        lblCell.font = { size: 9.5, bold: true, color: { argb: 'FF0F172A' }, name: 'Calibri' };
+        lblCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+        lblCell.border = { top: { style: 'thin', color: { argb: 'FFCBD5E1' } }, bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } }, left: { style: 'thin', color: { argb: 'FFCBD5E1' } }, right: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
+
+        const cMA = wsDash.getCell(`C${dRow}`);
+        cMA.value = { formula: `IF($C$6="TODOS", COUNTIFS('Matriz IPEVR'!Q2:Q${totalRows}, ${ncDef.nc}, 'Matriz IPEVR'!P2:P${totalRows}, "Muy Alto"), COUNTIFS('Matriz IPEVR'!Q2:Q${totalRows}, ${ncDef.nc}, 'Matriz IPEVR'!P2:P${totalRows}, "Muy Alto", 'Matriz IPEVR'!A2:A${totalRows}, $C$6))` };
+        cMA.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ncDef.colors[0] } };
+        cMA.font = { size: 10.5, bold: true, color: { argb: 'FF7F1D1D' }, name: 'Calibri' };
+        cMA.alignment = { horizontal: 'center', vertical: 'middle' };
+        cMA.border = { top: { style: 'thin', color: { argb: 'FFCBD5E1' } }, bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } }, left: { style: 'thin', color: { argb: 'FFCBD5E1' } }, right: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
+
+        const cA = wsDash.getCell(`D${dRow}`);
+        cA.value = { formula: `IF($C$6="TODOS", COUNTIFS('Matriz IPEVR'!Q2:Q${totalRows}, ${ncDef.nc}, 'Matriz IPEVR'!P2:P${totalRows}, "Alto"), COUNTIFS('Matriz IPEVR'!Q2:Q${totalRows}, ${ncDef.nc}, 'Matriz IPEVR'!P2:P${totalRows}, "Alto", 'Matriz IPEVR'!A2:A${totalRows}, $C$6))` };
+        cA.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ncDef.colors[1] } };
+        cA.font = { size: 10.5, bold: true, color: { argb: 'FF7C2D12' }, name: 'Calibri' };
+        cA.alignment = { horizontal: 'center', vertical: 'middle' };
+        cA.border = { top: { style: 'thin', color: { argb: 'FFCBD5E1' } }, bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } }, left: { style: 'thin', color: { argb: 'FFCBD5E1' } }, right: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
+
+        const cMB = wsDash.getCell(`E${dRow}`);
+        cMB.value = { formula: `IF($C$6="TODOS", COUNTIFS('Matriz IPEVR'!Q2:Q${totalRows}, ${ncDef.nc}, 'Matriz IPEVR'!P2:P${totalRows}, "Medio")+COUNTIFS('Matriz IPEVR'!Q2:Q${totalRows}, ${ncDef.nc}, 'Matriz IPEVR'!P2:P${totalRows}, "Bajo"), COUNTIFS('Matriz IPEVR'!Q2:Q${totalRows}, ${ncDef.nc}, 'Matriz IPEVR'!P2:P${totalRows}, "Medio", 'Matriz IPEVR'!A2:A${totalRows}, $C$6)+COUNTIFS('Matriz IPEVR'!Q2:Q${totalRows}, ${ncDef.nc}, 'Matriz IPEVR'!P2:P${totalRows}, "Bajo", 'Matriz IPEVR'!A2:A${totalRows}, $C$6))` };
+        cMB.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ncDef.colors[2] } };
+        cMB.font = { size: 10.5, bold: true, color: { argb: 'FF14532D' }, name: 'Calibri' };
+        cMB.alignment = { horizontal: 'center', vertical: 'middle' };
+        cMB.border = { top: { style: 'thin', color: { argb: 'FFCBD5E1' } }, bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } }, left: { style: 'thin', color: { argb: 'FFCBD5E1' } }, right: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
+
+        dRow++;
+      });
+
+      // TABLA 3: RIESGOS POR CLASIFICACIÓN DE PELIGRO (TABLA 1 GTC 45)
+      dRow += 1;
+      dRow = createTableSectionHeader(dRow, '⚠️ 3. PELIGROS POR CLASIFICACIÓN (TABLA 1 GTC 45)', ['Clasificación de Peligro', 'Cantidad', '% Total', 'Tendencia']);
+      const clasificaciones = [...new Set(matrixRows.map(r => (r.peligro_clasificacion || 'Condiciones de seguridad').trim()).filter(Boolean))];
+      const startT3 = dRow;
+      clasificaciones.forEach(cl => {
+        const cnt = matrixRows.filter(r => (r.peligro_clasificacion || 'Condiciones de seguridad').trim() === cl).length;
+        const f = `IF($C$6="TODOS", COUNTIF('Matriz IPEVR'!H2:H${totalRows}, "${cl}"), COUNTIFS('Matriz IPEVR'!H2:H${totalRows}, "${cl}", 'Matriz IPEVR'!A2:A${totalRows}, $C$6))`;
+        addFormulaMetricRow(dRow, cl, f, cnt, 'FF6D28D9');
+        dRow++;
+      });
+      if (dRow > startT3) {
+        wsDash.addConditionalFormatting({
+          ref: `E${startT3}:E${dRow - 1}`,
+          rules: [{ type: 'dataBar', gradient: true, color: { argb: 'FF8B5CF6' }, cfvo: [{ type: 'min' }, { type: 'max' }] }]
+        });
+      }
+
+      // TABLA 4: DISTRIBUCIÓN DE PELIGROS POR PROCESO
+      dRow += 1;
+      dRow = createTableSectionHeader(dRow, '🏭 4. DISTRIBUCIÓN DE PELIGROS POR PROCESO', ['Proceso Organizacional', 'Cantidad', '% Total', 'Tendencia']);
+      const startT4 = dRow;
+      procesos.forEach(pr => {
+        const cnt = matrixRows.filter(r => (r.proceso || 'Operativo').trim() === pr).length;
+        const f = `COUNTIF('Matriz IPEVR'!A2:A${totalRows}, "${pr}")`;
+        addFormulaMetricRow(dRow, pr, f, cnt, 'FF0284C7');
+        dRow++;
+      });
+      if (dRow > startT4) {
+        wsDash.addConditionalFormatting({
+          ref: `E${startT4}:E${dRow - 1}`,
+          rules: [{ type: 'dataBar', gradient: true, color: { argb: 'FF0EA5E9' }, cfvo: [{ type: 'min' }, { type: 'max' }] }]
+        });
+      }
+
+      // ═══════════════════════════════════════════════════════════════════
+      // HOJA 2: MATRIZ IPEVR GTC-45 (CON FÓRMULAS EXCEL EN VIVO)
+      // ═══════════════════════════════════════════════════════════════════
+      const wsMatriz = wb.addWorksheet('Matriz IPEVR', {
+        views: [{ state: 'frozen', ySplit: 1, xSplit: 2, showGridLines: true }]
+      });
+
+      wsMatriz.autoFilter = {
+        from: { row: 1, column: 1 },
+        to: { row: totalRows, column: 33 }
+      };
+
+      wsMatriz.columns = [
+        { header: 'PROCESO', key: 'proceso', width: 26 },
+        { header: 'CARGO', key: 'cargo', width: 26 },
+        { header: 'ZONA', key: 'zona', width: 22 },
+        { header: 'ACTIVIDAD', key: 'actividad', width: 28 },
+        { header: 'TAREAS', key: 'tareas', width: 34 },
+        { header: 'RUTINARIA', key: 'rutinaria', width: 13 },
+        { header: 'PELIGRO DESC.', key: 'peligro_descripcion', width: 42 },
+        { header: 'CLASIFICACIÓN', key: 'peligro_clasificacion', width: 26 },
+        { header: 'EFECTOS POSIBLES', key: 'efectos_posibles', width: 36 },
+        { header: 'CTRL. FUENTE', key: 'controles_fuente', width: 24 },
+        { header: 'CTRL. MEDIO', key: 'controles_medio', width: 24 },
+        { header: 'CTRL. INDIVIDUO', key: 'controles_individuo', width: 24 },
+        { header: 'ND', key: 'nd', width: 10 },
+        { header: 'NE', key: 'ne', width: 10 },
+        { header: 'NP', key: 'np', width: 11 },
+        { header: 'INTERPRETACIÓN NP', key: 'interpretacion_np', width: 20 },
+        { header: 'NC', key: 'nc', width: 10 },
+        { header: 'NR', key: 'nr', width: 12 },
+        { header: 'INTERPRETACIÓN NR', key: 'interpretacion_nr', width: 18 },
+        { header: 'ACEPTABILIDAD DEL RIESGO', key: 'aceptabilidad', width: 34 },
+        { header: 'NRO. EXPUESTOS', key: 'nro_expuestos', width: 15 },
+        { header: 'PEOR CONSECUENCIA', key: 'peor_consecuencia', width: 32 },
+        { header: 'REQUISITO LEGAL', key: 'requisito_legal', width: 16 },
+        { header: 'MEDIDA ELIMINACIÓN', key: 'medida_eliminacion', width: 28 },
+        { header: 'MEDIDA SUSTITUCIÓN', key: 'medida_sustitucion', width: 28 },
+        { header: 'MEDIDA INGENIERÍA', key: 'medida_ingenieria', width: 32 },
+        { header: 'MEDIDA ADMINISTRATIVA', key: 'medida_administrativa', width: 34 },
+        { header: 'MEDIDA EPP', key: 'medida_eppu', width: 30 },
+        { header: 'FACTORES REDUCCIÓN (ANEXO E)', key: 'factores_reduccion', width: 65 },
+        { header: '% REDUCCIÓN (FR)', key: 'fr_pct', width: 16 },
+        { header: 'NR RESIDUAL (ANEXO E)', key: 'nr_residual', width: 18 },
+        { header: 'NIVEL RESIDUAL', key: 'nivel_residual', width: 16 },
+        { header: 'FACTOR JUSTIFICACIÓN (J)', key: 'justificacion_j', width: 20 },
+      ];
+
+      // Colores de cabecera por grupos semánticos GTC 45
+      wsMatriz.getRow(1).height = 46;
+      wsMatriz.getRow(1).eachCell((cell, colNum) => {
+        let headerHex = 'FF0F766E'; // Identificación (1-6)
+        if (colNum >= 7 && colNum <= 9) headerHex = 'FF0D9488'; // Peligro
+        else if (colNum >= 10 && colNum <= 12) headerHex = 'FF1D4ED8'; // Controles Existentes
+        else if (colNum >= 13 && colNum <= 20) headerHex = 'FF6D28D9'; // Evaluación GTC 45
+        else if (colNum >= 21 && colNum <= 23) headerHex = 'FF0369A1'; // Criterios
+        else if (colNum >= 24 && colNum <= 28) headerHex = 'FF047857'; // Medidas Propuestas
+        else if (colNum >= 29) headerHex = 'FF4338CA'; // Anexo E
+
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, name: 'Calibri', size: 11 };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerHex } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFFFFFFF' } },
+          bottom: { style: 'medium', color: { argb: 'FF0F172A' } },
+          left: { style: 'thin', color: { argb: 'FFFFFFFF' } },
+          right: { style: 'thin', color: { argb: 'FFFFFFFF' } }
+        };
+      });
+
+      matrixRows.forEach((row, index) => {
+        const rNum = index + 2;
+        const ndVal = Number(row.nd) ?? 2;
+        const neVal = Number(row.ne) || 2;
+        const npVal = ndVal * neVal;
+        const ncVal = Number(row.nc) || 25;
+        const nrVal = npVal * ncVal;
+        const interpNpVal = npVal >= 24 ? 'Muy Alto' : npVal >= 10 ? 'Alto' : npVal >= 6 ? 'Medio' : 'Bajo';
+        const interpNrVal = nrVal >= 600 ? 'I' : nrVal >= 150 ? 'II' : nrVal >= 40 ? 'III' : 'IV';
+        const aceptVal = interpNrVal === 'I' ? 'No Aceptable' : interpNrVal === 'II' ? 'Aceptable con control específico' : interpNrVal === 'III' ? 'Mejorable' : 'Aceptable';
+
+        const frMatch = String(row.factores_reduccion || '').match(/(\d{1,3})\s*%/);
+        const frDec = frMatch ? Math.min(0.98, Math.max(0.10, parseInt(frMatch[1], 10) / 100)) : 0.75;
+        const nrResVal = Math.max(10, Math.round(nrVal * (1 - frDec)));
+        const nivResVal = nrResVal >= 600 ? 'I' : nrResVal >= 150 ? 'II' : nrResVal >= 40 ? 'III' : 'IV';
+        const jVal = Math.round(((nrVal * frDec) / 25) * 10) / 10;
+
+        const addedRow = wsMatriz.addRow({
+          proceso: row.proceso || 'Operativo',
+          cargo: row.cargo || '',
+          zona: row.zona || '',
+          actividad: row.actividad || '',
+          tareas: row.tareas || '',
+          rutinaria: row.rutinaria || 'Sí',
+          peligro_descripcion: row.peligro_descripcion || '',
+          peligro_clasificacion: row.peligro_clasificacion || 'Condiciones de seguridad',
+          efectos_posibles: row.efectos_posibles || '',
+          controles_fuente: row.controles_fuente || 'Ninguno',
+          controles_medio: row.controles_medio || 'Ninguno',
+          controles_individuo: row.controles_individuo || 'Ninguno',
+          nd: ndVal,
+          ne: neVal,
+          np: { formula: `M${rNum}*N${rNum}`, result: npVal },
+          interpretacion_np: { formula: `IF(O${rNum}>=24,"Muy Alto",IF(O${rNum}>=10,"Alto",IF(O${rNum}>=6,"Medio","Bajo")))`, result: interpNpVal },
+          nc: ncVal,
+          nr: { formula: `O${rNum}*Q${rNum}`, result: nrVal },
+          interpretacion_nr: { formula: `IF(R${rNum}>=600,"I",IF(R${rNum}>=150,"II",IF(R${rNum}>=40,"III","IV")))`, result: interpNrVal },
+          aceptabilidad: { formula: `IF(S${rNum}="I","No Aceptable",IF(S${rNum}="II","Aceptable con control específico",IF(S${rNum}="III","Mejorable","Aceptable")))`, result: aceptVal },
+          nro_expuestos: Number(row.nro_expuestos) || 1,
+          peor_consecuencia: row.peor_consecuencia || '',
+          requisito_legal: row.requisito_legal || 'Sí',
+          medida_eliminacion: row.medida_eliminacion || 'No aplica',
+          medida_sustitucion: row.medida_sustitucion || 'No aplica',
+          medida_ingenieria: row.medida_ingenieria || 'No aplica',
+          medida_administrativa: row.medida_administrativa || '',
+          medida_eppu: row.medida_eppu || '',
+          factores_reduccion: row.factores_reduccion || '',
+          fr_pct: frDec,
+          nr_residual: { formula: `MAX(10,ROUND(R${rNum}*(1-AD${rNum}),0))`, result: nrResVal },
+          nivel_residual: { formula: `IF(AE${rNum}>=600,"I",IF(AE${rNum}>=150,"II",IF(AE${rNum}>=40,"III","IV")))`, result: nivResVal },
+          justificacion_j: { formula: `ROUND((R${rNum}*AD${rNum})/(2.5*10),1)`, result: jVal },
+        });
+
+        addedRow.height = 42;
+        const isEven = rNum % 2 === 0;
+        const rowBgColor = isEven ? 'FFFFFFFF' : 'FFF8FAFC';
+
+        addedRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          cell.font = { name: 'Calibri', size: 10.5, color: { argb: 'FF1E293B' } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBgColor } };
+          cell.alignment = { vertical: 'middle', wrapText: true };
+
+          if (colNumber === 6 || (colNumber >= 13 && colNumber <= 21) || colNumber === 23 || colNumber >= 30) {
+            cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+          }
+          if (colNumber === 30) {
+            cell.numFmt = '0%';
+            cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF4338CA' } };
+          }
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+          };
+        });
+      });
+
+      // Semaforización Condicional en Matriz IPEVR
+      wsMatriz.addConditionalFormatting({
+        ref: `O2:O${totalRows}`,
+        rules: [
+          { type: 'cellIs', operator: 'between', formulae: ['24', '40'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } },
+          { type: 'cellIs', operator: 'between', formulae: ['10', '20'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFF97316' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } },
+          { type: 'cellIs', operator: 'between', formulae: ['6', '8'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEAB308' } }, font: { color: { argb: 'FF1E293B' }, bold: true } } },
+          { type: 'cellIs', operator: 'between', formulae: ['0', '4'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF22C55E' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }
+        ]
+      });
+
+      wsMatriz.addConditionalFormatting({
+        ref: `R2:R${totalRows}`,
+        rules: [
+          { type: 'cellIs', operator: 'between', formulae: ['600', '4000'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFDC2626' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } },
+          { type: 'cellIs', operator: 'between', formulae: ['150', '599'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEA580C' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } },
+          { type: 'cellIs', operator: 'between', formulae: ['40', '149'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEAB308' } }, font: { color: { argb: 'FF1E293B' }, bold: true } } },
+          { type: 'cellIs', operator: 'between', formulae: ['0', '39'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF16A34A' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }
+        ]
+      });
+
+      wsMatriz.addConditionalFormatting({
+        ref: `S2:S${totalRows}`,
+        rules: [
+          { type: 'cellIs', operator: 'equal', formulae: ['"I"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFDC2626' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } },
+          { type: 'cellIs', operator: 'equal', formulae: ['"II"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEA580C' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } },
+          { type: 'cellIs', operator: 'equal', formulae: ['"III"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEAB308' } }, font: { color: { argb: 'FF1E293B' }, bold: true } } },
+          { type: 'cellIs', operator: 'equal', formulae: ['"IV"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF16A34A' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }
+        ]
+      });
+
+      wsMatriz.addConditionalFormatting({
+        ref: `AE2:AE${totalRows}`,
+        rules: [
+          { type: 'cellIs', operator: 'between', formulae: ['600', '4000'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFDC2626' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } },
+          { type: 'cellIs', operator: 'between', formulae: ['150', '599'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEA580C' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } },
+          { type: 'cellIs', operator: 'between', formulae: ['40', '149'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEAB308' } }, font: { color: { argb: 'FF1E293B' }, bold: true } } },
+          { type: 'cellIs', operator: 'between', formulae: ['0', '39'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF16A34A' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }
+        ]
+      });
+
+      // Validaciones de Datos (Listas desplegables oficiales GTC 45)
+      const valMaxRows = Math.max(totalRows + 40, 80);
+      for (let r = 2; r <= valMaxRows; r++) {
+        wsMatriz.getCell(`F${r}`).dataValidation = { type: 'list', allowBlank: true, formulae: ['"Sí,No"'] };
+        wsMatriz.getCell(`M${r}`).dataValidation = { type: 'list', allowBlank: true, formulae: ['"10,6,2,0"'] };
+        wsMatriz.getCell(`N${r}`).dataValidation = { type: 'list', allowBlank: true, formulae: ['"4,3,2,1"'] };
+        wsMatriz.getCell(`Q${r}`).dataValidation = { type: 'list', allowBlank: true, formulae: ['"100,60,25,10"'] };
+        wsMatriz.getCell(`W${r}`).dataValidation = { type: 'list', allowBlank: true, formulae: ['"Sí,No"'] };
+      }
+
+      // ═══════════════════════════════════════════════════════════════════
+      // HOJA 3: TABLAS OFICIALES GTC 45:2012 (REFERENCIA METODOLÓGICA)
+      // ═══════════════════════════════════════════════════════════════════
+      const wsTablas = wb.addWorksheet('Tablas Oficiales GTC-45', {
+        views: [{ showGridLines: true }]
+      });
+      wsTablas.columns = [
+        { width: 24 }, { width: 16 }, { width: 78 }
+      ];
+      const refRows = [
+        ['GUÍA TÉCNICA COLOMBIANA GTC 45:2012 — TABLAS DE VALORACIÓN OFICIALES', '', ''],
+        ['TABLA 2: DETERMINACIÓN DEL NIVEL DE DEFICIENCIA (ND)', 'Valor ND', 'Significado Técnico (GTC 45:2012)'],
+        ['Muy Alto (MA)', 10, 'Se ha(n) detectado peligro(s) que determina(n) como posible la generación de incidentes o consecuencias muy significativas, o la eficacia del conjunto de medidas preventivas existentes respecto al riesgo es nula o no existe, o ambos.'],
+        ['Alto (A)', 6, 'Se ha(n) detectado algún(os) peligro(s) que pueden dar lugar a consecuencias significativa(s), o la eficacia del conjunto de medidas preventivas existentes es baja, o ambos.'],
+        ['Medio (M)', 2, 'Se han detectado peligros que pueden dar lugar a consecuencias poco significativas o de menor importancia, o la eficacia del conjunto de medidas preventivas existentes es moderada, o ambos.'],
+        ['Bajo (B)', 0, 'No se ha detectado consecuencia alguna, o la eficacia del conjunto de medidas preventivas existentes es alta, o ambos. El riesgo está controlado.'],
+        ['', '', ''],
+        ['TABLA 3: DETERMINACIÓN DEL NIVEL DE EXPOSICIÓN (NE)', 'Valor NE', 'Significado Técnico (GTC 45:2012)'],
+        ['Continua (EC)', 4, 'La situación de exposición se presenta sin interrupción o varias veces con tiempo prolongado durante la jornada laboral.'],
+        ['Frecuente (EF)', 3, 'La situación de exposición se presenta varias veces durante la jornada laboral por tiempos cortos.'],
+        ['Ocasional (EO)', 2, 'La situación de exposición se presenta alguna vez durante la jornada laboral y por un periodo de tiempo corto.'],
+        ['Esporádica (EE)', 1, 'La situación de exposición se presenta de manera eventual.'],
+        ['', '', ''],
+        ['TABLA 5: SIGNIFICADO DE LOS DIFERENTES NIVELES DE PROBABILIDAD (NP = ND × NE)', 'Rango NP', 'Interpretación del Nivel de Probabilidad'],
+        ['Muy Alto (MA)', 'Entre 40 y 24', 'Situación deficiente con exposición continua, o muy deficiente con exposición frecuente. Normalmente la materialización del riesgo ocurre con frecuencia.'],
+        ['Alto (A)', 'Entre 20 y 10', 'Situación deficiente con exposición frecuente u ocasional, o bien situación muy deficiente con exposición ocasional o esporádica. La materialización del riesgo es posible que suceda varias veces en la vida laboral.'],
+        ['Medio (M)', 'Entre 8 y 6', 'Situación deficiente con exposición esporádica, o bien situación mejorable con exposición continuada o frecuente. Es posible que suceda el daño alguna vez.'],
+        ['Bajo (B)', 'Entre 4 y 2', 'Situación mejorable con exposición ocasional o esporádica, o situación sin anomalía destacable con cualquier nivel de exposición. No es esperable que se materialice el riesgo.'],
+        ['', '', ''],
+        ['TABLA 6: DETERMINACIÓN DEL NIVEL DE CONSECUENCIAS (NC)', 'Valor NC', 'Significado (Daños Personales)'],
+        ['Mortal o Catastrófico (M)', 100, 'Muerte(s).'],
+        ['Muy Grave (MG)', 60, 'Lesiones o enfermedades graves irreparables (Incapacidad permanente parcial o invalidez).'],
+        ['Grave (G)', 25, 'Lesiones o enfermedades con incapacidad laboral temporal (ILT).'],
+        ['Leve (L)', 10, 'Lesiones o enfermedades que no requieren incapacidad.'],
+        ['', '', ''],
+        ['TABLA 7 Y 8: NIVEL DE RIESGO (NR = NP × NC) Y ACEPTABILIDAD DEL RIESGO', 'Rango NR', 'Aceptabilidad y Acción Preventiva Requerida'],
+        ['Nivel I (4000 - 600)', 'No Aceptable', 'Situación crítica. Suspender actividades hasta que el riesgo esté bajo control. Intervención urgente.'],
+        ['Nivel II (500 - 150)', 'Aceptable con control específico', 'Corregir y adoptar medidas de control de inmediato.'],
+        ['Nivel III (120 - 40)', 'Mejorable', 'Mejorar si es posible. Sería conveniente justificar la intervención y su rentabilidad.'],
+        ['Nivel IV (20)', 'Aceptable', 'Mantener las medidas de control existentes, pero se deberían considerar soluciones o mejoras y se deben hacer comprobaciones periódicas.']
+      ];
+      refRows.forEach((rr, idx) => {
+        const added = wsTablas.addRow(rr);
+        const isTitle = idx === 0 || String(rr[0]).startsWith('TABLA');
+        if (isTitle) {
+          added.height = 24;
+          added.eachCell(c => {
+            c.font = { bold: true, color: { argb: 'FFFFFFFF' }, name: 'Calibri', size: 11 };
+            c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: idx === 0 ? 'FF0F172A' : 'FF0F766E' } };
+          });
+        } else if (rr[0]) {
+          added.height = 28;
+          added.eachCell(c => {
+            c.font = { name: 'Calibri', size: 10, color: { argb: 'FF1E293B' } };
+            c.alignment = { vertical: 'middle', wrapText: true };
+            c.border = { bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } } };
+          });
+        }
+      });
+
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Matriz_IPEVR_GTC45_PRO_${cName.replace(/\s+/g, '_')}.xlsx`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      showToast('Matriz Excel PRO con Dashboard, Gráficas y Fórmulas descargada', 'success');
+      return;
+    } catch (err) {
+      console.error('Error en ExcelJS export, usando fallback XLSX:', err);
+    }
+  }
+
+  // Fallback con SheetJS si ExcelJS no estuviese disponible
   const exportHeaders = [
     'PROCESO', 'CARGO', 'ZONA', 'ACTIVIDAD', 'TAREAS', 'RUTINARIA',
     'PELIGRO DESC.', 'CLASIFICACIÓN', 'EFECTOS POSIBLES',
@@ -6316,24 +7291,10 @@ function exportMatrixToExcel() {
   if (typeof XLSX !== 'undefined') {
     const ws = XLSX.utils.aoa_to_sheet([exportHeaders, ...exportData]);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Matriz GTC 45');
+    XLSX.utils.book_append_sheet(wb, ws, 'Matriz IPEVR');
     XLSX.writeFile(wb, `Matriz_IPEVR_GTC45_${companyInfo.companyName.replace(/\s+/g, '_')}.xlsx`);
-  } else {
-    let csv = exportHeaders.join(',') + '\n';
-    exportData.forEach(row => {
-      csv += row.map(v => `"${String(v || '').replace(/"/g, '""')}"`).join(',') + '\n';
-    });
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Matriz_IPEVR_GTC45_${companyInfo.companyName.replace(/\s+/g, '_')}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
   }
-
   showToast('Matriz exportada a Excel exitosamente', 'success');
-  toggleExportDropdown();
 }
 
 function openReportInNewWindow() {
@@ -6346,7 +7307,11 @@ function openReportInNewWindow() {
       <meta charset="utf-8">
       <title>Informe IPEVR GTC 45 | ${companyInfo.companyName}</title>
       <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-      <style>body { font-family: 'Plus Jakarta Sans', sans-serif; padding: 40px; color: #0f172a; }</style>
+      <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; padding: 40px; color: #0f172a; max-width: 980px; margin: 0 auto; }
+        .no-print { display: none !important; }
+        @media print { * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } body { padding: 0; } }
+      </style>
     </head>
     <body>${content}</body>
     </html>
@@ -6357,7 +7322,7 @@ function openReportInNewWindow() {
 
 function downloadReportHTML() {
   const content = document.getElementById('reportPaperContainer').innerHTML;
-  const fullHtml = `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Informe IPEVR GTC 45</title><style>body { font-family: Arial, sans-serif; padding: 30px; }</style></head><body>${content}</body></html>`;
+  const fullHtml = `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Informe IPEVR GTC 45 | ${companyInfo.companyName}</title><style>body { font-family: Arial, sans-serif; padding: 30px; max-width: 980px; margin: 0 auto; color: #0f172a; } .no-print { display: none !important; }</style></head><body>${content}</body></html>`;
   const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -6370,21 +7335,527 @@ function downloadReportHTML() {
 }
 
 function exportReportToWord() {
-  const content = document.getElementById('reportPaperContainer').innerHTML;
-  const fullHtml = `
-    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-    <head><meta charset='utf-8'><title>Informe IPEVR GTC 45</title></head>
-    <body style="font-family: Arial, sans-serif; padding: 20px;">${content}</body>
-    </html>
+  const companyName = companyInfo.companyName || 'EMPRESA EN CONFIGURACIÓN';
+  const nit = companyInfo.nit || 'Por definir';
+  const arl = companyInfo.arl || 'Por definir';
+  const riskClass = companyInfo.riskClass || 'Riesgo I - V';
+  const ciiu = companyInfo.ciiu || 'Actividad económica general';
+  const city = companyInfo.city || 'Colombia';
+  const workCenter = companyInfo.workCenter || 'Sede Principal';
+  const directWorkers = Number(companyInfo.directWorkers) || 0;
+  const contractorWorkers = Number(companyInfo.contractorWorkers) || 0;
+  const temporaryWorkers = Number(companyInfo.temporaryWorkers) || 0;
+  const totalWorkers = Number(companyInfo.totalWorkers) || (directWorkers + contractorWorkers + temporaryWorkers) || 1;
+  const sstResp = companyInfo.sstResponsible || 'Responsable del SG-SST';
+  const sstLicense = companyInfo.sstLicense || 'Licencia SST Vigente';
+  const legalRep = companyInfo.legalRep || 'Representante Legal';
+  const legalRepDoc = companyInfo.legalRepDoc || 'CC / NIT';
+  const fechaHoy = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  const total = matrixRows.length;
+  let criticosI = 0, altosII = 0, mediosIII = 0, bajosIV = 0, sumNR = 0, maxNR = 0;
+  let countFuente = 0, countMedio = 0, countIndividuo = 0;
+  const dangerFamilies = {};
+  const heatmapCounts = {
+    '100_MA': 0, '100_A': 0, '100_M': 0, '100_B': 0,
+    '60_MA': 0,  '60_A': 0,  '60_M': 0,  '60_B': 0,
+    '25_MA': 0,  '25_A': 0,  '25_M': 0,  '25_B': 0,
+    '10_MA': 0,  '10_A': 0,  '10_M': 0,  '10_B': 0,
+  };
+  const emptyCtrl = (v) => !v || ['ninguno', 'ninguna', 'none', 'no aplica', 'n/a', ''].includes(String(v).toLowerCase().trim());
+
+  matrixRows.forEach(r => {
+    const nr = Number(r.nr) || 0;
+    const np = Number(r.np) || 0;
+    const nc = Number(r.nc) || 10;
+    sumNR += nr;
+    if (nr > maxNR) maxNR = nr;
+    if (nr >= 600) criticosI++;
+    else if (nr >= 150) altosII++;
+    else if (nr >= 40) mediosIII++;
+    else bajosIV++;
+
+    const fam = (r.peligro_clasificacion || 'Condiciones de seguridad').trim();
+    if (!dangerFamilies[fam]) dangerFamilies[fam] = { count: 0, sumNR: 0, maxNR: 0 };
+    dangerFamilies[fam].count++;
+    dangerFamilies[fam].sumNR += nr;
+    if (nr > dangerFamilies[fam].maxNR) dangerFamilies[fam].maxNR = nr;
+
+    const ncKey = nc >= 100 ? '100' : nc >= 60 ? '60' : nc >= 25 ? '25' : '10';
+    const npKey = np >= 24 ? 'MA' : np >= 10 ? 'A' : np >= 6 ? 'M' : 'B';
+    const hmKey = `${ncKey}_${npKey}`;
+    if (heatmapCounts[hmKey] !== undefined) heatmapCounts[hmKey]++;
+
+    if (!emptyCtrl(r.controles_fuente) || !emptyCtrl(r.medida_eliminacion) || !emptyCtrl(r.medida_sustitucion)) countFuente++;
+    if (!emptyCtrl(r.controles_medio) || !emptyCtrl(r.medida_ingenieria)) countMedio++;
+    if (!emptyCtrl(r.controles_individuo) || !emptyCtrl(r.medida_administrativa) || !emptyCtrl(r.medida_eppu)) countIndividuo++;
+  });
+
+  const avgNR = total > 0 ? Math.round(sumNR / total) : 0;
+  const pctI = total > 0 ? Math.round((criticosI / total) * 100) : 0;
+  const pctII = total > 0 ? Math.round((altosII / total) * 100) : 0;
+  const pctIII = total > 0 ? Math.round((mediosIII / total) * 100) : 0;
+  const pctIV = total > 0 ? Math.round((bajosIV / total) * 100) : 0;
+  const pctCritico = pctI + pctII;
+  const pctFuente = total > 0 ? Math.round((countFuente / total) * 100) : 0;
+  const pctMedio = total > 0 ? Math.round((countMedio / total) * 100) : 0;
+  const pctIndividuo = total > 0 ? Math.round((countIndividuo / total) * 100) : 0;
+
+  const computeRowWordFr = (r) => {
+    const nrInicial = Number(r.nr) || 100;
+    const rawText = (r.factores_reduccion || '').trim();
+    const pctMatch = rawText.match(/(\d{1,3})\s*%/);
+    let frPct = pctMatch ? Math.min(98, Math.max(10, parseInt(pctMatch[1], 10))) : 75;
+    const residualNR = Math.max(10, Math.round(nrInicial * (1 - (frPct / 100))));
+    const residualNivel = residualNR >= 600 ? 'I' : residualNR >= 150 ? 'II' : residualNR >= 40 ? 'III' : 'IV';
+    const residualColor = residualNR >= 600 ? '#dc2626' : residualNR >= 150 ? '#ea580c' : residualNR >= 40 ? '#ca8a04' : '#16a34a';
+    const justificacionJ = Math.round(((nrInicial * (frPct / 100)) / 25) * 10) / 10;
+    const desc = rawText || `Reducción estimada del ${frPct}% (NRi: ${nrInicial} → NRf: ${residualNR}, Nivel ${residualNivel}, J = ${justificacionJ}).`;
+    return { frPct, residualNR, residualNivel, residualColor, desc };
+  };
+
+  // Helper que dibuja barras de progreso compatibles al 100% con Microsoft Word (usando tablas 2 celdas con bgcolor)
+  const wordBarHtml = (pct, colorHex) => {
+    const safePct = Math.min(99, Math.max(4, Number(pct) || 4));
+    const remPct = 100 - safePct;
+    return `
+      <table width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;margin-top:3pt;">
+        <tr>
+          <td width="${safePct}%" bgcolor="${colorHex}" style="width:${safePct}%;background:${colorHex};height:7pt;font-size:1pt;line-height:1pt;border:none;">&nbsp;</td>
+          <td width="${remPct}%" bgcolor="#e2e8f0" style="width:${remPct}%;background:#e2e8f0;height:7pt;font-size:1pt;line-height:1pt;border:none;">&nbsp;</td>
+        </tr>
+      </table>
+    `;
+  };
+
+  const aiSummaryDom = document.getElementById('aiExecutiveSummaryBox');
+  const summaryHtml = (aiSummaryDom && aiSummaryDom.innerHTML.trim()) ? aiSummaryDom.innerHTML : `
+    <p style="margin:0 0 6pt 0;">
+      El presente informe técnico consolida la evaluación sistemática y valoración de riesgos laborales para <strong>${companyName}</strong>, dando riguroso cumplimiento a los requerimientos del <strong>Decreto 1072 de 2015 (Artículo 2.2.4.6.15)</strong>, los Estándares Mínimos de la <strong>Resolución 0312 de 2019 (Ítem 4.1.1)</strong> y los lineamientos metodológicos de la <strong>Guía Técnica Colombiana GTC 45:2012</strong>.
+    </p>
+    <p style="margin:0 0 6pt 0;">
+      A la fecha de corte se han analizado exhaustivamente <strong>${total} condiciones de riesgo ocupacional</strong>. La tasa de criticidad prioritaria se sitúa en un <strong>${pctCritico}%</strong> (correspondiente a <strong>${criticosI} peligros en Nivel I</strong> clasificados como <em>No Aceptables</em> y <strong>${altosII} peligros en Nivel II</strong> clasificados como <em>Aceptables con Control Específico</em>). El Nivel de Riesgo Promedio general es de <strong>${avgNR} puntos</strong>, con un pico de severidad máxima de <strong>${maxNR} puntos</strong>.
+    </p>
   `;
-  const blob = new Blob([fullHtml], { type: 'application/msword' });
+
+  const wordDocHtml = `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta charset="utf-8">
+  <meta name="ProgId" content="Word.Document">
+  <meta name="Generator" content="Microsoft Word 15">
+  <title>Informe Gerencial IPEVR GTC 45 - ${companyName}</title>
+  <!--[if gte mso 9]>
+  <xml>
+    <o:OfficeDocumentSettings>
+      <o:AllowPNG/>
+      <o:PixelsPerInch>96</o:PixelsPerInch>
+    </o:OfficeDocumentSettings>
+  </xml>
+  <xml>
+    <w:WordDocument>
+      <w:View>Print</w:View>
+      <w:Zoom>100</w:Zoom>
+      <w:DoNotOptimizeForBrowser/>
+    </w:WordDocument>
+  </xml>
+  <![endif]-->
+  <style>
+    @page WordSection1 {
+      size: 21.0cm 29.7cm;
+      margin: 1.5cm 1.5cm 1.5cm 1.5cm;
+      mso-header-margin: 1.0cm;
+      mso-footer-margin: 1.0cm;
+    }
+    div.WordSection1 { page: WordSection1; }
+    body {
+      font-family: Calibri, Arial, sans-serif;
+      font-size: 10.5pt;
+      color: #1e293b;
+      line-height: 1.45;
+      background: #ffffff;
+    }
+    table {
+      border-collapse: collapse;
+      mso-table-lspace: 0pt;
+      mso-table-rspace: 0pt;
+    }
+    th, td {
+      font-family: Calibri, Arial, sans-serif;
+      word-wrap: break-word;
+    }
+    h1, h2, h3 {
+      font-family: Calibri, Arial, sans-serif;
+      page-break-after: avoid;
+    }
+  </style>
+</head>
+<body>
+<div class="WordSection1">
+
+  <!-- ENCABEZADO INSTITUCIONAL EN TABLA NATIVA WORD -->
+  <table width="100%" cellspacing="0" cellpadding="8" border="1" style="border-collapse:collapse;border:1.5pt solid #0d9488;margin-bottom:10pt;">
+    <tr>
+      <td width="15%" align="center" valign="middle" bgcolor="#f8fafc" style="border:1pt solid #cbd5e1;background:#f8fafc;">
+        ${companyInfo.logoBase64
+          ? `<img src="${companyInfo.logoBase64}" width="64" height="64" style="width:48pt;height:48pt;display:block;margin:0 auto;" alt="Logo">`
+          : `<strong style="font-size:18pt;color:#0d9488;">SG-SST</strong>`}
+      </td>
+      <td width="55%" valign="middle" style="border:1pt solid #cbd5e1;padding:8pt;">
+        <div style="font-size:14pt;font-weight:bold;color:#0f172a;text-transform:uppercase;">${companyName}</div>
+        <div style="font-size:9.5pt;color:#334155;margin-top:2pt;"><strong>NIT:</strong> ${nit} &nbsp;|&nbsp; <strong>ARL:</strong> ${arl} &nbsp;|&nbsp; <strong>${riskClass}</strong></div>
+        <div style="font-size:9pt;color:#475569;margin-top:2pt;"><strong>Sede:</strong> ${city} &nbsp;|&nbsp; <strong>Centro de Trabajo:</strong> ${workCenter}</div>
+        <div style="font-size:8.5pt;color:#0f766e;font-weight:bold;margin-top:3pt;text-transform:uppercase;">SISTEMA DE GESTIÓN DE LA SEGURIDAD Y SALUD EN EL TRABAJO (SG-SST)</div>
+      </td>
+      <td width="30%" align="right" valign="middle" bgcolor="#f8fafc" style="border:1pt solid #cbd5e1;background:#f8fafc;padding:8pt;font-size:8.5pt;color:#334155;">
+        <div style="font-weight:bold;color:#0f766e;font-size:9pt;">BY WAPPY LTDA - SOMOS SST</div>
+        <div><strong>Código:</strong> SST-INF-IPEVR-2026-01</div>
+        <div><strong>Versión:</strong> 3.0 &nbsp;|&nbsp; <strong style="color:#16a34a;">OFICIAL</strong></div>
+        <div><strong>Fecha:</strong> ${fechaHoy}</div>
+        <div><strong>Metodología:</strong> GTC 45:2012</div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="3" bgcolor="#f1f5f9" style="background:#f1f5f9;border:1pt solid #cbd5e1;padding:5pt 8pt;font-size:9pt;color:#1e293b;">
+        <strong>CIIU / Actividad:</strong> ${ciiu} &nbsp;&nbsp;|&nbsp;&nbsp;
+        <strong>Población Trabajadora:</strong> ${totalWorkers} colaboradores (${directWorkers} directos, ${contractorWorkers} contratistas, ${temporaryWorkers} temporales) &nbsp;&nbsp;|&nbsp;&nbsp;
+        <strong>Normativa:</strong> Dec. 1072/15 · Res. 0312/19
+      </td>
+    </tr>
+  </table>
+
+  <!-- TÍTULO PRINCIPAL -->
+  <div style="text-align:center;margin:10pt 0 14pt 0;">
+    <div style="font-size:15pt;font-weight:bold;color:#0f172a;text-transform:uppercase;">
+      INFORME GERENCIAL EJECUTIVO DE IDENTIFICACIÓN DE PELIGROS, EVALUACIÓN Y VALORACIÓN DE RIESGOS
+    </div>
+    <div style="font-size:10pt;font-weight:bold;color:#0d9488;text-transform:uppercase;margin-top:2pt;">
+      Diagnóstico Técnico Integral Bajo la Guía Técnica Colombiana GTC 45:2012 y Decreto 1072 de 2015
+    </div>
+  </div>
+
+  <!-- SECCIÓN 1: DIAGNÓSTICO EJECUTIVO Y 4 TARJETAS KPI EN TABLA WORD -->
+  <h2 style="font-size:12pt;font-weight:bold;color:#0f766e;border-bottom:2pt solid #0f766e;padding-bottom:3pt;margin:12pt 0 8pt 0;text-transform:uppercase;">
+    1. Diagnóstico Ejecutivo y Cuadro de Mando de Criticidad Ocupacional (Art. 2.2.4.6.15 Dec. 1072)
+  </h2>
+
+  <table width="100%" cellspacing="4" cellpadding="8" border="0" style="width:100%;margin-bottom:10pt;border-collapse:separate;">
+    <tr>
+      <td width="25%" align="center" bgcolor="#f8fafc" style="background:#f8fafc;border:1.5pt solid #cbd5e1;padding:8pt;">
+        <div style="font-size:8pt;font-weight:bold;color:#475569;text-transform:uppercase;">PELIGROS IDENTIFICADOS</div>
+        <div style="font-size:20pt;font-weight:bold;color:#0f172a;margin:3pt 0;">${total}</div>
+        <div style="font-size:8pt;font-weight:bold;color:#0d9488;">100% Panorama Mapeado</div>
+      </td>
+      <td width="25%" align="center" bgcolor="#fef2f2" style="background:#fef2f2;border:1.5pt solid #fecaca;padding:8pt;">
+        <div style="font-size:8pt;font-weight:bold;color:#dc2626;text-transform:uppercase;">NIVEL I (NO ACEPTABLE)</div>
+        <div style="font-size:20pt;font-weight:bold;color:#dc2626;margin:3pt 0;">${criticosI}</div>
+        <div style="font-size:8pt;font-weight:bold;color:#b91c1c;">${pctI}% Intervención Urgente</div>
+      </td>
+      <td width="25%" align="center" bgcolor="#fff7ed" style="background:#fff7ed;border:1.5pt solid #fed7aa;padding:8pt;">
+        <div style="font-size:8pt;font-weight:bold;color:#ea580c;text-transform:uppercase;">NIVEL II (CONTROL ESP.)</div>
+        <div style="font-size:20pt;font-weight:bold;color:#ea580c;margin:3pt 0;">${altosII}</div>
+        <div style="font-size:8pt;font-weight:bold;color:#c2410c;">${pctII}% Control de Ingeniería</div>
+      </td>
+      <td width="25%" align="center" bgcolor="#f0fdf4" style="background:#f0fdf4;border:1.5pt solid #bbf7d0;padding:8pt;">
+        <div style="font-size:8pt;font-weight:bold;color:#16a34a;text-transform:uppercase;">NIVEL III &amp; IV (ACEPTABLES)</div>
+        <div style="font-size:20pt;font-weight:bold;color:#16a34a;margin:3pt 0;">${mediosIII + bajosIV}</div>
+        <div style="font-size:8pt;font-weight:bold;color:#15803d;">${pctIII + pctIV}% Bajo Monitoreo</div>
+      </td>
+    </tr>
+  </table>
+
+  <div style="font-size:10pt;line-height:1.5;color:#1e293b;text-align:justify;margin-bottom:14pt;">
+    ${summaryHtml}
+  </div>
+
+  <!-- SECCIÓN 2: TABLERO GRÁFICO ANALÍTICO EN TABLAS WORD -->
+  <h2 style="font-size:12pt;font-weight:bold;color:#0f766e;border-bottom:2pt solid #0f766e;padding-bottom:3pt;margin:14pt 0 8pt 0;text-transform:uppercase;">
+    2. Tablero Gráfico Analítico de la Población Expuesta y Perfil de Severidad
+  </h2>
+
+  <table width="100%" cellspacing="0" cellpadding="8" border="1" style="border-collapse:collapse;border:1pt solid #cbd5e1;margin-bottom:10pt;">
+    <tr>
+      <td width="50%" valign="top" style="border:1pt solid #cbd5e1;padding:8pt;">
+        <div style="font-size:10pt;font-weight:bold;color:#0f172a;margin-bottom:6pt;text-transform:uppercase;">
+          📊 Perfil de Severidad (NR Promedio por Tipo de Peligro)
+        </div>
+        <table width="100%" cellspacing="0" cellpadding="3" border="0" style="width:100%;">
+          ${Object.keys(dangerFamilies).map(fam => {
+            const d = dangerFamilies[fam];
+            const famAvg = Math.round(d.sumNR / d.count);
+            const barW = Math.min(98, Math.max(8, Math.round((famAvg / 1440) * 100)));
+            const barCol = famAvg >= 600 ? '#dc2626' : famAvg >= 150 ? '#ea580c' : famAvg >= 40 ? '#ca8a04' : '#16a34a';
+            return `
+              <tr>
+                <td style="font-size:9pt;font-weight:bold;color:#1e293b;padding-top:4pt;">${fam} <span style="color:#64748b;font-weight:normal;">(${d.count} casos)</span></td>
+                <td align="right" style="font-size:9pt;font-weight:bold;color:${barCol};padding-top:4pt;">NR Prom: ${famAvg}</td>
+              </tr>
+              <tr>
+                <td colspan="2" style="padding-bottom:4pt;">${wordBarHtml(barW, barCol)}</td>
+              </tr>
+            `;
+          }).join('')}
+        </table>
+      </td>
+      <td width="50%" valign="top" style="border:1pt solid #cbd5e1;padding:8pt;">
+        <div style="font-size:10pt;font-weight:bold;color:#0f172a;margin-bottom:6pt;text-transform:uppercase;">
+          🔥 Matriz Térmica 4x4 (Mapa de Calor GTC 45: NC × NP)
+        </div>
+        <table width="100%" cellspacing="0" cellpadding="5" border="1" style="border-collapse:collapse;border:1pt solid #cbd5e1;text-align:center;font-size:8.5pt;">
+          <tr bgcolor="#f1f5f9" style="background:#f1f5f9;font-weight:bold;color:#334155;">
+            <th style="border:1pt solid #cbd5e1;padding:4pt;">Consecuencia (NC)</th>
+            <th style="border:1pt solid #cbd5e1;padding:4pt;">MA (40-24)</th>
+            <th style="border:1pt solid #cbd5e1;padding:4pt;">A (20-10)</th>
+            <th style="border:1pt solid #cbd5e1;padding:4pt;">M (8-6)</th>
+            <th style="border:1pt solid #cbd5e1;padding:4pt;">B (4-2)</th>
+          </tr>
+          <tr>
+            <td bgcolor="#f8fafc" style="border:1pt solid #cbd5e1;font-weight:bold;">100 (Mortal)</td>
+            <td bgcolor="#fca5a5" style="background:#fca5a5;border:1pt solid #cbd5e1;font-weight:bold;color:#7f1d1d;">I [${heatmapCounts['100_MA']}]</td>
+            <td bgcolor="#fca5a5" style="background:#fca5a5;border:1pt solid #cbd5e1;font-weight:bold;color:#7f1d1d;">I [${heatmapCounts['100_A']}]</td>
+            <td bgcolor="#fca5a5" style="background:#fca5a5;border:1pt solid #cbd5e1;font-weight:bold;color:#7f1d1d;">I [${heatmapCounts['100_M']}]</td>
+            <td bgcolor="#fed7aa" style="background:#fed7aa;border:1pt solid #cbd5e1;font-weight:bold;color:#7c2d12;">II [${heatmapCounts['100_B']}]</td>
+          </tr>
+          <tr>
+            <td bgcolor="#f8fafc" style="border:1pt solid #cbd5e1;font-weight:bold;">60 (Muy Grave)</td>
+            <td bgcolor="#fca5a5" style="background:#fca5a5;border:1pt solid #cbd5e1;font-weight:bold;color:#7f1d1d;">I [${heatmapCounts['60_MA']}]</td>
+            <td bgcolor="#fca5a5" style="background:#fca5a5;border:1pt solid #cbd5e1;font-weight:bold;color:#7f1d1d;">I [${heatmapCounts['60_A']}]</td>
+            <td bgcolor="#fed7aa" style="background:#fed7aa;border:1pt solid #cbd5e1;font-weight:bold;color:#7c2d12;">II [${heatmapCounts['60_M']}]</td>
+            <td bgcolor="#fed7aa" style="background:#fed7aa;border:1pt solid #cbd5e1;font-weight:bold;color:#7c2d12;">II [${heatmapCounts['60_B']}]</td>
+          </tr>
+          <tr>
+            <td bgcolor="#f8fafc" style="border:1pt solid #cbd5e1;font-weight:bold;">25 (Grave)</td>
+            <td bgcolor="#fca5a5" style="background:#fca5a5;border:1pt solid #cbd5e1;font-weight:bold;color:#7f1d1d;">I [${heatmapCounts['25_MA']}]</td>
+            <td bgcolor="#fed7aa" style="background:#fed7aa;border:1pt solid #cbd5e1;font-weight:bold;color:#7c2d12;">II [${heatmapCounts['25_A']}]</td>
+            <td bgcolor="#fed7aa" style="background:#fed7aa;border:1pt solid #cbd5e1;font-weight:bold;color:#7c2d12;">II [${heatmapCounts['25_M']}]</td>
+            <td bgcolor="#fef08a" style="background:#fef08a;border:1pt solid #cbd5e1;font-weight:bold;color:#713f12;">III [${heatmapCounts['25_B']}]</td>
+          </tr>
+          <tr>
+            <td bgcolor="#f8fafc" style="border:1pt solid #cbd5e1;font-weight:bold;">10 (Leve)</td>
+            <td bgcolor="#fed7aa" style="background:#fed7aa;border:1pt solid #cbd5e1;font-weight:bold;color:#7c2d12;">II [${heatmapCounts['10_MA']}]</td>
+            <td bgcolor="#fef08a" style="background:#fef08a;border:1pt solid #cbd5e1;font-weight:bold;color:#713f12;">III [${heatmapCounts['10_A']}]</td>
+            <td bgcolor="#fef08a" style="background:#fef08a;border:1pt solid #cbd5e1;font-weight:bold;color:#713f12;">III [${heatmapCounts['10_M']}]</td>
+            <td bgcolor="#bbf7d0" style="background:#bbf7d0;border:1pt solid #cbd5e1;font-weight:bold;color:#14532d;">IV [${heatmapCounts['10_B']}]</td>
+          </tr>
+        </table>
+        <div style="font-size:8pt;color:#64748b;margin-top:4pt;text-align:center;">
+          Convención: I = Rojo (No Aceptable) · II = Naranja · III = Amarillo · IV = Verde.
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- COBERTURA DE CONTROLES EN 3 COLUMNAS DE TABLA WORD -->
+  <table width="100%" cellspacing="4" cellpadding="8" border="0" style="width:100%;margin-bottom:14pt;border-collapse:separate;">
+    <tr>
+      <td width="33%" bgcolor="#f8fafc" style="background:#f8fafc;border:1pt solid #cbd5e1;padding:7pt;">
+        <div style="font-size:9pt;font-weight:bold;color:#0f172a;">Controles en la Fuente: <span style="color:#0d9488;">${pctFuente}% (${countFuente}/${total})</span></div>
+        ${wordBarHtml(pctFuente, '#0d9488')}
+        <div style="font-size:8pt;color:#64748b;margin-top:3pt;">Eliminación, sustitución o rediseño directo</div>
+      </td>
+      <td width="33%" bgcolor="#f8fafc" style="background:#f8fafc;border:1pt solid #cbd5e1;padding:7pt;">
+        <div style="font-size:9pt;font-weight:bold;color:#0f172a;">Controles en el Medio: <span style="color:#0284c7;">${pctMedio}% (${countMedio}/${total})</span></div>
+        ${wordBarHtml(pctMedio, '#0284c7')}
+        <div style="font-size:8pt;color:#64748b;margin-top:3pt;">Ingeniería, aislamientos y ventilación</div>
+      </td>
+      <td width="34%" bgcolor="#f8fafc" style="background:#f8fafc;border:1pt solid #cbd5e1;padding:7pt;">
+        <div style="font-size:9pt;font-weight:bold;color:#0f172a;">Controles en el Individuo: <span style="color:#7c3aed;">${pctIndividuo}% (${countIndividuo}/${total})</span></div>
+        ${wordBarHtml(pctIndividuo, '#7c3aed')}
+        <div style="font-size:8pt;color:#64748b;margin-top:3pt;">Capacitación, procedimientos y EPP</div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- SECCIÓN 3: ANÁLISIS DEL FACTOR DE REDUCCIÓN (ANEXO E GTC 45) -->
+  <h2 style="font-size:12pt;font-weight:bold;color:#0f766e;border-bottom:2pt solid #0f766e;padding-bottom:3pt;margin:14pt 0 8pt 0;text-transform:uppercase;">
+    3. Análisis del Factor de Reducción y Eficacia de Controles Propuestos (Anexo E GTC 45 / Art. 2.2.4.6.24)
+  </h2>
+
+  <table width="100%" cellspacing="0" cellpadding="8" border="1" style="border-collapse:collapse;border:1pt solid #cbd5e1;background:#f8fafc;margin-bottom:10pt;">
+    <tr>
+      <td bgcolor="#f8fafc" style="padding:8pt;font-size:9.5pt;color:#334155;">
+        <div style="font-weight:bold;color:#0f172a;margin-bottom:3pt;">📐 Fundamentación Técnica del Factor de Reducción (Eficacia Compuesta de Mitigación):</div>
+        <div>El <strong>Factor de Reducción (FR)</strong> cuantifica el porcentaje de mitigación sobre el Nivel de Riesgo Inicial (<strong>NR<sub>Inicial</sub> = NP × NC</strong>) al implementar la Jerarquía de Controles: <strong>NR<sub>Residual</sub> = NR<sub>Inicial</sub> × (1 - FR)</strong>.</div>
+      </td>
+    </tr>
+  </table>
+
+  ${matrixRows.map((r, idx) => {
+    const frData = computeRowWordFr(r);
+    const nrInicial = Number(r.nr) || 0;
+    const initColor = nrInicial >= 600 ? '#dc2626' : nrInicial >= 150 ? '#ea580c' : nrInicial >= 40 ? '#ca8a04' : '#16a34a';
+    const initNivel = nrInicial >= 600 ? 'I' : nrInicial >= 150 ? 'II' : nrInicial >= 40 ? 'III' : 'IV';
+    return `
+      <table width="100%" cellspacing="0" cellpadding="6" border="1" style="border-collapse:collapse;border:1pt solid #cbd5e1;margin-bottom:8pt;page-break-inside:avoid;">
+        <tr bgcolor="#f1f5f9" style="background:#f1f5f9;">
+          <td width="62%" style="border:1pt solid #cbd5e1;padding:5pt 8pt;font-size:9.5pt;">
+            <strong style="background:#0f172a;color:#ffffff;padding:1pt 5pt;">#${idx + 1}</strong>
+            <strong style="color:#0f172a;text-transform:uppercase;"> ${r.cargo || 'Cargo General'}</strong>
+            <span style="color:#475569;"> · Proceso: <strong>${r.proceso || 'Operativo'}</strong> · Zona: ${r.zona || 'Planta'}</span>
+          </td>
+          <td width="38%" align="right" style="border:1pt solid #cbd5e1;padding:5pt 8pt;font-size:8.5pt;">
+            <span style="background:${initColor};color:#ffffff;font-weight:bold;padding:2pt 6pt;">Inicial: NR ${nrInicial} (Nivel ${initNivel})</span>
+            &nbsp;➔&nbsp;
+            <span style="background:${frData.residualColor};color:#ffffff;font-weight:bold;padding:2pt 6pt;">Residual: NR ${frData.residualNR} (Nivel ${frData.residualNivel})</span>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2" style="border:1pt solid #cbd5e1;padding:6pt 8pt;font-size:9pt;color:#334155;">
+            <div><strong>Peligro Identificado:</strong> ${r.peligro_descripcion || 'Sin descripción'} <strong style="color:#0d9488;">[${r.peligro_clasificacion || 'General'}]</strong></div>
+            <div style="margin-top:2pt;color:#475569;"><strong>Efectos Posibles:</strong> ${r.efectos_posibles || 'Afectaciones a la salud'} &nbsp;|&nbsp; <strong>Peor Consecuencia:</strong> ${r.peor_consecuencia || 'Incapacidad'}</div>
+            <div style="margin-top:4pt;padding-top:4pt;border-top:1pt dashed #cbd5e1;">
+              <strong style="color:#0f172a;">🔬 Justificación Técnica Costo-Beneficio (Anexo E · FR = ${frData.frPct}%):</strong><br>
+              <span>${frData.desc}</span>
+            </div>
+          </td>
+        </tr>
+      </table>
+    `;
+  }).join('')}
+
+  <!-- SECCIÓN 4: MATRIZ MAESTRA GTC 45:2012 -->
+  <h2 style="font-size:12pt;font-weight:bold;color:#0f766e;border-bottom:2pt solid #0f766e;padding-bottom:3pt;margin:16pt 0 8pt 0;text-transform:uppercase;page-break-before:always;">
+    4. Matriz Maestra GTC 45:2012 de Evaluación de Riesgos y Controles
+  </h2>
+
+  <table width="100%" cellspacing="0" cellpadding="4" border="1" style="border-collapse:collapse;border:1pt solid #cbd5e1;font-size:8pt;margin-bottom:14pt;">
+    <thead>
+      <tr bgcolor="#0f766e" style="background:#0f766e;color:#ffffff;font-weight:bold;">
+        <th width="4%" align="center" style="border:1pt solid #0d9488;color:#ffffff;padding:4pt;">#</th>
+        <th width="14%" align="left" style="border:1pt solid #0d9488;color:#ffffff;padding:4pt;">Proceso / Cargo</th>
+        <th width="18%" align="left" style="border:1pt solid #0d9488;color:#ffffff;padding:4pt;">Peligro &amp; Clasificación</th>
+        <th width="5%" align="center" style="border:1pt solid #0d9488;color:#ffffff;padding:4pt;">ND</th>
+        <th width="5%" align="center" style="border:1pt solid #0d9488;color:#ffffff;padding:4pt;">NE</th>
+        <th width="5%" align="center" style="border:1pt solid #0d9488;color:#ffffff;padding:4pt;">NP</th>
+        <th width="5%" align="center" style="border:1pt solid #0d9488;color:#ffffff;padding:4pt;">NC</th>
+        <th width="7%" align="center" style="border:1pt solid #0d9488;color:#ffffff;padding:4pt;">NR</th>
+        <th width="6%" align="center" style="border:1pt solid #0d9488;color:#ffffff;padding:4pt;">Nivel</th>
+        <th width="31%" align="left" style="border:1pt solid #0d9488;color:#ffffff;padding:4pt;">Medidas Propuestas &amp; Anexo E</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${matrixRows.map((r, idx) => {
+        const nrVal = Number(r.nr) || 0;
+        const bgNivel = nrVal >= 600 ? '#dc2626' : nrVal >= 150 ? '#ea580c' : nrVal >= 40 ? '#ca8a04' : '#16a34a';
+        const textNivel = nrVal >= 600 ? 'I' : nrVal >= 150 ? 'II' : nrVal >= 40 ? 'III' : 'IV';
+        const frData = computeRowWordFr(r);
+        return `
+          <tr bgcolor="${idx % 2 === 0 ? '#f8fafc' : '#ffffff'}">
+            <td align="center" style="border:1pt solid #cbd5e1;font-weight:bold;">${idx + 1}</td>
+            <td style="border:1pt solid #cbd5e1;"><strong>${r.cargo || 'General'}</strong><br><span style="color:#64748b;">${r.proceso || 'Operativo'}</span></td>
+            <td style="border:1pt solid #cbd5e1;"><strong>${r.peligro_descripcion || ''}</strong><br><span style="color:#0d9488;">[${r.peligro_clasificacion || ''}]</span></td>
+            <td align="center" style="border:1pt solid #cbd5e1;">${r.nd}</td>
+            <td align="center" style="border:1pt solid #cbd5e1;">${r.ne}</td>
+            <td align="center" style="border:1pt solid #cbd5e1;font-weight:bold;">${r.np}</td>
+            <td align="center" style="border:1pt solid #cbd5e1;">${r.nc}</td>
+            <td align="center" bgcolor="${bgNivel}" style="background:${bgNivel};color:#ffffff;font-weight:bold;border:1pt solid #cbd5e1;">${nrVal}</td>
+            <td align="center" style="border:1pt solid #cbd5e1;font-weight:bold;color:${bgNivel};">${textNivel}</td>
+            <td style="border:1pt solid #cbd5e1;">
+              <div><strong>Ing:</strong> ${r.medida_ingenieria || 'N/A'} | <strong>Adm:</strong> ${r.medida_administrativa || 'N/A'} | <strong>EPP:</strong> ${r.medida_eppu || 'N/A'}</div>
+              <div style="margin-top:2pt;color:#334155;"><strong>Anexo E:</strong> ${frData.desc}</div>
+            </td>
+          </tr>
+        `;
+      }).join('')}
+    </tbody>
+  </table>
+
+  <!-- SECCIÓN 5: PROGRAMAS DE VIGILANCIA EPIDEMIOLÓGICA (DEC. 1477/14) -->
+  <h2 style="font-size:12pt;font-weight:bold;color:#0f766e;border-bottom:2pt solid #0f766e;padding-bottom:3pt;margin:14pt 0 8pt 0;text-transform:uppercase;">
+    5. Programas de Vigilancia Epidemiológica (PVE) y Patologías Asociadas (Dec. 1477/14)
+  </h2>
+
+  <table width="100%" cellspacing="0" cellpadding="6" border="1" style="border-collapse:collapse;border:1pt solid #cbd5e1;font-size:9pt;margin-bottom:14pt;">
+    <thead>
+      <tr bgcolor="#0f172a" style="background:#0f172a;color:#ffffff;font-weight:bold;">
+        <th width="22%" align="left" style="border:1pt solid #334155;color:#ffffff;padding:5pt;">PVE Obligatorio</th>
+        <th width="22%" align="left" style="border:1pt solid #334155;color:#ffffff;padding:5pt;">Peligro Detonante</th>
+        <th width="31%" align="left" style="border:1pt solid #334155;color:#ffffff;padding:5pt;">Patologías Objetivo (Dec. 1477/14)</th>
+        <th width="25%" align="left" style="border:1pt solid #334155;color:#ffffff;padding:5pt;">Énfasis Médico &amp; Periodicidad</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr bgcolor="#f8fafc">
+        <td style="border:1pt solid #cbd5e1;font-weight:bold;color:#0d9488;">PVE Osteomuscular</td>
+        <td style="border:1pt solid #cbd5e1;">Biomecánico (Cargas / Posturas)</td>
+        <td style="border:1pt solid #cbd5e1;">Lumbalgia mecánica, Síndrome del Túnel Carpiano (G56.0), Epicondilitis, Tendinitis.</td>
+        <td style="border:1pt solid #cbd5e1;">Examen osteomuscular + Inspección ergonómica anual.</td>
+      </tr>
+      <tr>
+        <td style="border:1pt solid #cbd5e1;font-weight:bold;color:#0d9488;">PVE Conservación Auditiva</td>
+        <td style="border:1pt solid #cbd5e1;">Físico (Ruido continuo/impacto)</td>
+        <td style="border:1pt solid #cbd5e1;">Hipoacusia neurosensorial inducida por ruido (H90.3), trauma acústico.</td>
+        <td style="border:1pt solid #cbd5e1;">Audiometría tonal clínica anual y dosimetría.</td>
+      </tr>
+      <tr bgcolor="#f8fafc">
+        <td style="border:1pt solid #cbd5e1;font-weight:bold;color:#0d9488;">PVE Riesgo Químico</td>
+        <td style="border:1pt solid #cbd5e1;">Químico (Gases / Vapores / Polvos)</td>
+        <td style="border:1pt solid #cbd5e1;">Neumoconiosis, asma ocupacional, dermatitis de contacto, intoxicaciones.</td>
+        <td style="border:1pt solid #cbd5e1;">Espirometría forzada y control biológico según TLV-TWA.</td>
+      </tr>
+      <tr>
+        <td style="border:1pt solid #cbd5e1;font-weight:bold;color:#0d9488;">PVE Riesgo Psicosocial</td>
+        <td style="border:1pt solid #cbd5e1;">Psicosocial (Carga mental / Turnos)</td>
+        <td style="border:1pt solid #cbd5e1;">Trastorno de adaptación, estrés laboral crónico, síndrome de Burnout.</td>
+        <td style="border:1pt solid #cbd5e1;">Batería MinTrabajo (Res. 2764/22) periódica.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- SECCIÓN 6: CONCLUSIONES Y ASIGNACIÓN DE RECURSOS -->
+  <h2 style="font-size:12pt;font-weight:bold;color:#0f766e;border-bottom:2pt solid #0f766e;padding-bottom:3pt;margin:14pt 0 8pt 0;text-transform:uppercase;">
+    6. Conclusiones Técnicas Ejecutivas y Asignación de Recursos Gerenciales (Art. 2.2.4.6.17 Dec. 1072)
+  </h2>
+  <div style="font-size:9.5pt;color:#334155;text-align:justify;margin-bottom:18pt;">
+    <p style="margin:0 0 5pt 0;"><strong>1. Prioridad de Acción Inmediata:</strong> Los <strong>${criticosI} riesgos clasificados en Nivel I (No Aceptables)</strong> deben ser intervenidos de forma perentoria antes de autorizar tareas críticas sin controles de ingeniería operativos.</p>
+    <p style="margin:0 0 5pt 0;"><strong>2. Asignación Formal de Recursos Gerenciales:</strong> La Gerencia General de <strong>${companyName}</strong> ratifica la disposición de los recursos financieros, humanos, físicos y tecnológicos necesarios para el cierre efectivo de las medidas de intervención contempladas en este informe, integrándolos en el Plan de Trabajo Anual del SG-SST (Res. 0312 de 2019).</p>
+    <p style="margin:0;"><strong>3. Ciclo de Seguimiento:</strong> La presente Matriz IPEVR será actualizada como mínimo una vez al año o cuando ocurra un accidente grave/mortal o cambios en los procesos (Art. 2.2.4.6.15 Dec. 1072/15).</p>
+  </div>
+
+  <!-- SECCIÓN 7: FIRMAS DIGITALES BILATERALES EN TABLA NATIVA WORD (SIN BOTONES DE INTERFAZ) -->
+  <table width="100%" cellspacing="0" cellpadding="12" border="0" style="width:100%;margin-top:20pt;border-top:2pt solid #0d9488;page-break-inside:avoid;">
+    <tr>
+      <td width="50%" align="center" valign="bottom" style="padding:12pt;">
+        <div style="min-height:55pt;margin-bottom:4pt;">
+          ${companyInfo.sstRespSignature
+            ? `<img src="${companyInfo.sstRespSignature}" width="150" height="58" style="width:112pt;height:44pt;display:block;margin:0 auto;" alt="Firma SST">`
+            : `<br><br>`}
+        </div>
+        <div style="border-top:1.5pt solid #334155;width:80%;margin:0 auto;padding-top:4pt;">
+          <div style="font-weight:bold;font-size:10pt;color:#0f172a;text-transform:uppercase;">${sstResp}</div>
+          <div style="font-size:9pt;color:#0d9488;font-weight:bold;">Responsable del Diseño y Ejecución del SG-SST</div>
+          <div style="font-size:8.5pt;color:#64748b;">Licencia SST: ${sstLicense}</div>
+        </div>
+      </td>
+      <td width="50%" align="center" valign="bottom" style="padding:12pt;">
+        <div style="min-height:55pt;margin-bottom:4pt;">
+          ${companyInfo.legalRepSignature
+            ? `<img src="${companyInfo.legalRepSignature}" width="150" height="58" style="width:112pt;height:44pt;display:block;margin:0 auto;" alt="Firma Representante Legal">`
+            : `<br><br>`}
+        </div>
+        <div style="border-top:1.5pt solid #334155;width:80%;margin:0 auto;padding-top:4pt;">
+          <div style="font-weight:bold;font-size:10pt;color:#0f172a;text-transform:uppercase;">${legalRep}</div>
+          <div style="font-size:9pt;color:#0d9488;font-weight:bold;">Representante Legal / Alta Dirección</div>
+          <div style="font-size:8.5pt;color:#64748b;">Documento: ${legalRepDoc} · ${companyName}</div>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+</div>
+</body>
+</html>`;
+
+  const blob = new Blob(['\ufeff', wordDocHtml], { type: 'application/msword;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `Informe_IPEVR_GTC45_${companyInfo.companyName.replace(/\s+/g, '_')}.doc`;
+  a.download = `Informe_IPEVR_GTC45_${companyName.replace(/\s+/g, '_')}.doc`;
   a.click();
-  URL.revokeObjectURL(url);
-  showToast('Informe descargado en Word (.doc)', 'success');
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  showToast('Informe Gerencial descargado en Word (.doc)', 'success');
   toggleExportDropdown();
 }
 
