@@ -735,16 +735,18 @@ async function uploadCookies(cookies, email = '') {
           p.webSocketDebuggerUrl &&
           p.url &&
           (p.url.includes('notebook.google.com') || p.url.includes('notebooklm.google.com')) &&
-          !p.url.includes('accounts.google.com')
+          !p.url.includes('accounts.google.com') &&
+          !p.url.includes('/trynow')
       );
       if (!nbPage) continue;
 
+      await new Promise((r) => setTimeout(r, 2000));
       const cdpRes = await cdpSend(nbPage.webSocketDebuggerUrl, 'Network.getAllCookies');
       const allCookies = cdpRes?.result?.cookies || [];
       const googleCookies = allCookies.filter((c) => c.domain && c.domain.includes('google.com'));
       const names = new Set(googleCookies.map((c) => c.name));
 
-      if (names.has('SID') && (names.has('__Secure-1PSID') || names.has('__Secure-1PSIDTS'))) {
+      if (names.has('SID') && names.has('OSID') && (names.has('__Secure-1PSID') || names.has('__Secure-1PSIDTS'))) {
         console.log('✨ Sesión de Google NotebookLM detectada. Verificando y guardando en tu perfil privado...');
         const result = await uploadCookies(googleCookies);
         if (result.ok) {
