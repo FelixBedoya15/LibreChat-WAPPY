@@ -10,6 +10,7 @@ import OneDriveConnect from './OneDriveConnect';
 import GoogleAIConnect from './GoogleAIConnect';
 import AntigravityMcpConnect from './AntigravityMcpConnect';
 import NotebookLMConnect from './NotebookLMConnect';
+import GoogleFlowConnect from './GoogleFlowConnect';
 
 function IntegrationsTab() {
   const { user, token } = useAuthContext();
@@ -155,6 +156,12 @@ function IntegrationsTab() {
         <div className="h-px bg-border-light w-full my-1"></div>
         <div className="py-2">
           <NotebookLMConnect />
+        </div>
+
+        {/* Google Flow (Imágenes y Videos con Veo / Imagen) - Todos los usuarios */}
+        <div className="h-px bg-border-light w-full my-1"></div>
+        <div className="py-2">
+          <GoogleFlowConnect />
         </div>
       </div>
     </div>

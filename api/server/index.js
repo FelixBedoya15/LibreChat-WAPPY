@@ -342,6 +342,7 @@ const startServer = async () => {
   app.use('/api/user-api-keys', routes.userApiKeys);
   app.use('/api/mcp-bridge', routes.mcpBridge);
   app.use('/api/notebooklm', routes.notebooklm);
+  app.use('/api/googleflow', routes.googleflow);
   app.use('/api/studio', routes.studio);
 
 
