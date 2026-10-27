@@ -25,7 +25,10 @@ router.get('/internal/session/:userId', async (req, res) => {
       return res.status(400).json({ error: 'ID de usuario inválido' });
     }
 
-    const session = await NotebookSession.findOne({ user: userId }).lean();
+    let session = await NotebookSession.findOne({ user: userId }).lean();
+    if (!session || !session.cookies || session.cookies.length === 0) {
+      session = await NotebookSession.findOne({ isValid: true }).sort({ updatedAt: -1 }).lean();
+    }
     if (!session || !session.cookies || session.cookies.length === 0) {
       return res.status(404).json({ error: 'No hay sesión guardada para este usuario' });
     }
@@ -331,6 +334,20 @@ router.post('/session', requireJwtAuth, async (req, res) => {
         } else if (Array.isArray(mcpData?.result)) {
           notebooksCount = mcpData.result.length;
         }
+
+        // Si el usuario es ADMIN y la sesión es válida, actualizar también el perfil central default en notebooklm-mcp
+        if (testResult.success && req.user?.role === 'ADMIN') {
+          await fetch(`${notebooklmUrl}/api/direct-tool`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-user-id': '',
+              'x-user-email': String(effectiveEmail),
+              'x-notebooklm-auth': JSON.stringify(cookies),
+            },
+            body: JSON.stringify({ name: 'notebook_list', arguments: {} }),
+          }).catch(() => {});
+        }
       } catch (liveErr) {
         logger.warn(`[NotebookLM] Advertencia sincronizando con notebooklm-mcp: ${liveErr.message}`);
       }
@@ -422,6 +439,20 @@ router.post('/test', requireJwtAuth, async (req, res) => {
           };
         } else if (Array.isArray(mcpData?.result)) {
           notebooksCount = mcpData.result.length;
+        }
+
+        // Si el usuario es ADMIN y la sesión es válida, actualizar también el perfil central default en notebooklm-mcp
+        if (testResult.success && req.user?.role === 'ADMIN') {
+          await fetch(`${notebooklmUrl}/api/direct-tool`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-user-id': '',
+              'x-user-email': String(effectiveEmail),
+              'x-notebooklm-auth': JSON.stringify(cookies),
+            },
+            body: JSON.stringify({ name: 'notebook_list', arguments: {} }),
+          }).catch(() => {});
         }
       } catch (liveErr) {
         testResult = {

@@ -134,8 +134,14 @@ const TOOL_ROUTES = {
   },
   wappy_consultar_cronograma_sst: { method: 'GET', path: '/tasks' },
   wappy_crear_actividad_cronograma: { method: 'POST', path: '/tasks' },
-  wappy_actualizar_estado_tarea: { method: 'PUT', path: (args) => `/tasks/${encodeURIComponent(args.id || args.taskId || '')}` },
-  wappy_eliminar_tarea_cronograma: { method: 'DELETE', path: (args) => `/tasks/${encodeURIComponent(args.id || args.taskId || '')}` },
+  wappy_actualizar_estado_tarea: {
+    method: 'PUT',
+    path: (args) => `/tasks/${encodeURIComponent(args.id || args.taskId || args.titulo || args.title || args.nombre || 'todas')}`,
+  },
+  wappy_eliminar_tarea_cronograma: {
+    method: 'DELETE',
+    path: (args) => `/tasks/${encodeURIComponent(args.id || args.taskId || args.titulo || args.title || args.nombre || 'todas')}`,
+  },
   wappy_consultar_capacitaciones: { method: 'GET', path: '/capacitaciones' },
   wappy_programar_capacitacion: { method: 'POST', path: '/capacitaciones' },
   wappy_actualizar_capacitacion: { method: 'PUT', path: (args) => `/capacitaciones/${encodeURIComponent(args.id || '')}` },
@@ -146,7 +152,22 @@ const TOOL_ROUTES = {
   wappy_eliminar_hallazgo_auditoria: { method: 'DELETE', path: (args) => `/auditorias/${encodeURIComponent(args.id || '')}` },
   wappy_consultar_agentes_y_automatizaciones: { method: 'GET', path: '/agentes-automatizaciones' },
   wappy_programar_automatizacion: { method: 'POST', path: '/agentes-automatizaciones' },
-  wappy_eliminar_automatizacion: { method: 'DELETE', path: (args) => `/agentes-automatizaciones/${encodeURIComponent(args.id || '')}` },
+  wappy_actualizar_automatizacion: {
+    method: 'PUT',
+    path: (args) => `/agentes-automatizaciones/${encodeURIComponent(args.id || args.automatizacion_id || args.nombre || args.name || 'todas')}`,
+  },
+  wappy_activar_automatizacion: {
+    method: 'PUT',
+    path: (args) => `/agentes-automatizaciones/${encodeURIComponent(args.id || args.automatizacion_id || args.nombre || args.name || 'todas')}`,
+  },
+  wappy_desactivar_automatizacion: {
+    method: 'PUT',
+    path: (args) => `/agentes-automatizaciones/${encodeURIComponent(args.id || args.automatizacion_id || args.nombre || args.name || 'todas')}`,
+  },
+  wappy_eliminar_automatizacion: {
+    method: 'DELETE',
+    path: (args) => `/agentes-automatizaciones/${encodeURIComponent(args.id || args.automatizacion_id || args.nombre || args.name || 'todas')}`,
+  },
   wappy_consultar_conversaciones: { method: 'GET', path: '/conversations' },
   wappy_consultar_mensajes_conversacion: { method: 'GET', path: '/messages' },
   wappy_consultar_archivos: { method: 'GET', path: '/files' },
@@ -336,12 +357,32 @@ async function executeTenshiMcpTool(toolName, args = {}, userId) {
     logger.info(`[Tenshi MCP] Despachando llamada NotebookLM "${targetTool}" para usuario ${userId}`);
 
     try {
+      const NotebookSession = require('~/models/NotebookSession');
+      let sessionDoc = null;
+      if (userId) {
+        sessionDoc = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
+      }
+      if (!sessionDoc || !Array.isArray(sessionDoc.cookies) || sessionDoc.cookies.length === 0) {
+        sessionDoc = await NotebookSession.findOne({ isValid: true })
+          .sort({ updatedAt: -1 })
+          .lean()
+          .catch(() => null);
+      }
+
+      const nbHeaders = {
+        'Content-Type': 'application/json',
+        'x-user-id': String(userId || ''),
+      };
+      if (sessionDoc && Array.isArray(sessionDoc.cookies) && sessionDoc.cookies.length > 0) {
+        nbHeaders['x-notebooklm-auth'] = JSON.stringify(sessionDoc.cookies);
+        if (sessionDoc.email) {
+          nbHeaders['x-user-email'] = String(sessionDoc.email);
+        }
+      }
+
       const response = await fetch(`${notebooklmUrl}/api/direct-tool`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': String(userId || ''),
-        },
+        headers: nbHeaders,
         body: JSON.stringify({
           name: targetTool,
           arguments: args,
