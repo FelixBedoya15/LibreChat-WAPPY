@@ -548,7 +548,7 @@ function signIgPassToken(payloadObj) {
     return jwt.sign(
         {
             ...payloadObj,
-            scope: 'wappy_apps_ig_follower_v2',
+            scope: 'wappy_apps_ig_follower_v3',
             verifiedAt: Date.now(),
         },
         IG_GATE_SECRET,
@@ -560,7 +560,7 @@ function verifyIgPassToken(tokenStr) {
     if (!tokenStr || typeof tokenStr !== 'string') return null;
     try {
         const decoded = jwt.verify(tokenStr.trim(), IG_GATE_SECRET);
-        if (decoded && decoded.scope === 'wappy_apps_ig_follower_v2') {
+        if (decoded && decoded.scope === 'wappy_apps_ig_follower_v3') {
             return decoded;
         }
     } catch (e) {}
@@ -568,7 +568,8 @@ function verifyIgPassToken(tokenStr) {
 }
 
 function setIgPassCookie(res, passToken) {
-    res.cookie('wappy_ig_follow_pass_v2', passToken, {
+    res.clearCookie('wappy_ig_follow_pass_v2', { path: '/' });
+    res.cookie('wappy_ig_follow_pass_v3', passToken, {
         maxAge: 365 * 24 * 60 * 60 * 1000,
         httpOnly: false,
         sameSite: 'lax',
@@ -639,13 +640,15 @@ async function checkZernioFollowStatus(zernioApiKey, zernioAccountId, igScopedUs
 }
 
 let zernioConvCache = { ts: 0, list: [] };
+const REVOKED_OLD_CODES = new Set(['3659', '1863', '8705', '3642']);
 
-async function findSenderInZernioInbox({ zernioApiKey, zernioAccountId, digitsCode, normalizedCode }) {
+async function findSenderInZernioInbox({ zernioApiKey, zernioAccountId, digitsCode, normalizedCode, forceRefresh = false }) {
     if (!zernioApiKey || !zernioAccountId || (!digitsCode && !normalizedCode)) return null;
+    if (digitsCode && REVOKED_OLD_CODES.has(digitsCode)) return null;
     try {
         const now = Date.now();
         let conversations = zernioConvCache.list;
-        if (now - zernioConvCache.ts > 2000 || !Array.isArray(conversations) || conversations.length === 0) {
+        if (forceRefresh || now - zernioConvCache.ts > 1500 || !Array.isArray(conversations) || conversations.length === 0) {
             const resp = await fetch(
                 `https://zernio.com/api/v1/inbox/conversations?status=active&limit=15`,
                 {
@@ -864,10 +867,11 @@ function startServerSideIgWatcher() {
 router.get('/ig-follow/status', async (req, res) => {
     try {
         const rawCookies = req.headers.cookie ? cookies.parse(req.headers.cookie) : {};
+        res.clearCookie('wappy_ig_follow_pass_v2', { path: '/' });
         const candidateToken =
             req.query.ig_pass ||
             req.headers['x-wappy-ig-pass'] ||
-            rawCookies.wappy_ig_follow_pass_v2 ||
+            rawCookies.wappy_ig_follow_pass_v3 ||
             '';
 
         const decoded = verifyIgPassToken(candidateToken);
@@ -983,8 +987,9 @@ async function handleVerifyIgFollow(req, res) {
             const senderId = jobData.senderId || jobData.commenterId || jobData.userId || null;
 
             if (!senderId) continue;
+            if (digitsCode && REVOKED_OLD_CODES.has(digitsCode)) continue;
 
-            // 1. Coincidencia exacta por código de 4 dígitos (ej. WAPPY-4821 o 4821)
+            // Coincidencia exacta por el código único de 4 dígitos de este visitante (ej. WAPPY-4821 o 4821)
             if (digitsCode && cleanText.includes(digitsCode)) {
                 matchedSenderId = senderId;
                 matchedCommenterName = jobData.commenterName || null;
@@ -995,24 +1000,9 @@ async function handleVerifyIgFollow(req, res) {
                 matchedCommenterName = jobData.commenterName || null;
                 break;
             }
-
-            // 2. Fallback: si el usuario acaba de escribir "WAPPY" o "APPS" o tocó el botón "✅ Ya sigo a @wappy_ia" en los últimos 3 minutos
-            if (ageMs >= 0 && ageMs <= 3 * 60 * 1000) {
-                if (
-                    jobHash.name === 'process-postback' &&
-                    String(jobData.payload || '').includes(OPENREPLY_AUTOMATION_ID)
-                ) {
-                    recentFallbackSenderId = senderId;
-                } else if (
-                    /wappy|apps|acceso|studio|matriz/i.test(rawText) &&
-                    !recentFallbackSenderId
-                ) {
-                    recentFallbackSenderId = senderId;
-                }
-            }
         }
 
-        let targetSenderId = matchedSenderId || recentFallbackSenderId;
+        let targetSenderId = matchedSenderId;
         const accessToken =
             (encryptedToken ? decryptOpenReplyToken(encryptedToken) : null) ||
             process.env.INSTAGRAM_ACCESS_TOKEN ||
@@ -1026,6 +1016,7 @@ async function handleVerifyIgFollow(req, res) {
                 zernioAccountId,
                 digitsCode,
                 normalizedCode,
+                forceRefresh: String(req.query.explicit || '') === '1',
             });
             if (zernioMatch?.senderId) {
                 targetSenderId = zernioMatch.senderId;
