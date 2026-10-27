@@ -167,23 +167,116 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
   const sseServerUrl = `${originUrl}/api/mcp-bridge/sse?apiKey=${effectiveKey}`;
 
   // Paso 3: Mensaje para pegar en el chat de Antigravity (Opción A: código local visible sin descargas remotas ni palabra daemon)
-  const buildPushBridgePrompt = (key: string) => `Hola Antigravity, para recibir mis consultas de voz de Tenshi desde mi cuenta de WAPPY, guarda este cliente local de eventos SSE en mi carpeta de usuario (.gemini/antigravity/wappy-tenshi-listener.js) usando write_file e inícialo con node usando run_command (con IsDaemon=true y WaitMsBeforeAsync=500):
+  const buildPushBridgePrompt = (key: string) => {
+    const hasFullKey = Boolean(key && !key.includes('...'));
+    return `Hola Antigravity, para recibir mis consultas de voz de Tenshi desde mi cuenta de WAPPY, guarda este cliente local de eventos SSE en mi carpeta de usuario (.gemini/antigravity/wappy-tenshi-listener.js) usando write_file e inícialo con node usando run_command (con IsDaemon=true y WaitMsBeforeAsync=500):
 
 \`\`\`js
 const https = require('https');
+const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { execFileSync } = require('child_process');
 
-const WAPPY_URL = '${originUrl}';
-const API_KEY = '${key}';
 const agyDir = path.join(os.homedir(), '.gemini', 'antigravity');
+const configDir = path.join(os.homedir(), '.gemini', 'config');
 const convDir = path.join(agyDir, 'conversations');
 const threadFile = path.join(agyDir, 'wappy-tenshi-thread.json');
 const pidFile = path.join(agyDir, 'wappy-push-daemon.pid');
-const binName = process.platform === 'win32' ? 'agentapi.exe' : 'agentapi';
-const agentBin = path.join(agyDir, 'bin', binName);
+const logFile = path.join(agyDir, 'wappy-tenshi-listener.log');
+
+function log(msg) {
+  const line = \`[\${new Date().toISOString()}] \${msg}\\n\`;
+  try { fs.appendFileSync(logFile, line, 'utf8'); } catch (_) {}
+  process.stdout.write(line);
+}
+
+// Auto-descubre la API Key y URL completas desde ~/.gemini/config/mcp_config.json (registradas en el Paso 1)
+function resolveCredentials() {
+  let wappyUrl = '${originUrl}';
+  let apiKey = '${hasFullKey ? key : ''}';
+  const cfgPaths = [
+    path.join(configDir, 'mcp_config.json'),
+    path.join(agyDir, 'mcp_config.json'),
+  ];
+  for (const p of cfgPaths) {
+    if (apiKey && !apiKey.includes('...') && apiKey !== 'PEGA_TU_CLAVE_AQUI') break;
+    try {
+      if (!fs.existsSync(p)) continue;
+      const raw = JSON.parse(fs.readFileSync(p, 'utf8'));
+      const servers = raw.mcpServers || {};
+      const entry = servers.wappy || servers['wappy-cloud'] || Object.values(servers)[0];
+      const u = entry?.serverUrl || entry?.url || '';
+      if (u) {
+        const parsed = new URL(u);
+        wappyUrl = \`\${parsed.protocol}//\${parsed.host}\`;
+        const k = parsed.searchParams.get('apiKey');
+        if (k && !k.includes('...')) apiKey = k;
+      }
+    } catch (_) {}
+  }
+  return { wappyUrl: wappyUrl.replace(/\\/$/, ''), apiKey };
+}
+
+function resolveAgentBin() {
+  const candidates = [
+    path.join(agyDir, 'bin', 'agentapi'),
+    path.join(agyDir, 'bin', 'agentapi.exe'),
+    '/Applications/Antigravity.app/Contents/Resources/bin/language_server',
+  ];
+  if (process.platform === 'win32') {
+    const localApp = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
+    candidates.push(
+      path.join(localApp, 'Programs', 'Antigravity', 'resources', 'bin', 'agentapi.exe'),
+      path.join(localApp, 'Programs', 'Antigravity', 'bin', 'agentapi.exe'),
+      path.join(localApp, 'Antigravity', 'bin', 'agentapi.exe')
+    );
+    try {
+      const extDir = path.join(localApp, 'Programs', 'Antigravity', 'resources', 'app', 'extensions', 'antigravity', 'bin');
+      if (fs.existsSync(extDir)) {
+        for (const f of fs.readdirSync(extDir)) {
+          if (f.startsWith('language_server_windows') && f.endsWith('.exe')) {
+            candidates.push(path.join(extDir, f));
+          }
+        }
+      }
+    } catch (_) {}
+  }
+  for (const c of candidates) {
+    try { if (fs.existsSync(c)) return c; } catch (_) {}
+  }
+  return process.platform === 'win32' ? 'agentapi.exe' : 'agentapi';
+}
+
+// Detecta el workspace/proyecto abierto actualmente en Antigravity para que el chat aparezca de inmediato en la ventana activa
+function resolveWorkspaceCwd(agentBin) {
+  try {
+    if (fs.existsSync(convDir)) {
+      const files = fs.readdirSync(convDir)
+        .filter((f) => /^[0-9a-fA-F-]{36}\\.db$/.test(f))
+        .map((f) => ({ id: f.replace(/\\.db$/, ''), mtime: fs.statSync(path.join(convDir, f)).mtimeMs }))
+        .sort((a, b) => b.mtime - a.mtime)
+        .slice(0, 5);
+      const isLangServer = /language_server/i.test(agentBin);
+      const baseArgs = isLangServer ? ['agentapi'] : [];
+      for (const item of files) {
+        try {
+          const out = execFileSync(agentBin, [...baseArgs, 'get-conversation-metadata', item.id], { timeout: 3000, stdio: 'pipe', encoding: 'utf8' });
+          const uris = JSON.parse(out)?.response?.conversationMetadata?.metadata?.workspaceUris || [];
+          for (const u of uris) {
+            if (typeof u === 'string' && u.startsWith('file://')) {
+              let p = decodeURIComponent(u.replace(/^file:\\/\\//, ''));
+              if (process.platform === 'win32' && /^\\/[a-zA-Z]:/.test(p)) p = p.slice(1);
+              if (fs.existsSync(p)) return p;
+            }
+          }
+        } catch (_) {}
+      }
+    }
+  } catch (_) {}
+  return os.homedir();
+}
 
 fs.mkdirSync(agyDir, { recursive: true });
 if (fs.existsSync(pidFile)) {
@@ -195,29 +288,59 @@ if (fs.existsSync(pidFile)) {
 fs.writeFileSync(pidFile, String(process.pid), 'utf8');
 
 function connectStream() {
-  https.get(\`\${WAPPY_URL}/api/mcp-bridge/antigravity/stream?apiKey=\${API_KEY}\`, (res) => {
+  const { wappyUrl, apiKey } = resolveCredentials();
+  if (!apiKey || apiKey.includes('...') || apiKey === 'PEGA_TU_CLAVE_AQUI') {
+    log('Esperando API Key completa en ~/.gemini/config/mcp_config.json (ejecuta primero el Paso 1)...');
+    return setTimeout(connectStream, 6000);
+  }
+  const streamUrl = \`\${wappyUrl}/api/mcp-bridge/antigravity/stream?apiKey=\${encodeURIComponent(apiKey)}\`;
+  const client = streamUrl.startsWith('https') ? https : http;
+  client.get(streamUrl, (res) => {
+    if (res.statusCode !== 200) {
+      log(\`Error HTTP \${res.statusCode} conectando al stream SSE. Reintentando...\`);
+      res.resume();
+      return setTimeout(connectStream, 5000);
+    }
+    log('🟢 Conectado en tiempo real a Tenshi WAPPY SSE. Escuchando órdenes...');
     let buf = '', ev = '';
     res.on('data', (chunk) => {
       buf += chunk.toString();
-      const lines = buf.split('\\n');
+      const lines = buf.split(/\\r?\\n/);
       buf = lines.pop() || '';
       for (const line of lines) {
         if (line.startsWith('event:')) ev = line.slice(6).trim();
         else if (line.startsWith('data:') && ev === 'nueva_orden') {
           try {
-            handleOrden(JSON.parse(line.slice(5).trim()));
-          } catch (_) {}
+            handleOrden(JSON.parse(line.slice(5).trim()), wappyUrl, apiKey);
+          } catch (e) { log('Error parseando orden: ' + e.message); }
         }
       }
     });
-    res.on('end', () => setTimeout(connectStream, 5000));
-  }).on('error', () => setTimeout(connectStream, 5000));
+    res.on('end', () => setTimeout(connectStream, 4000));
+  }).on('error', (e) => {
+    log('Error de red SSE: ' + e.message);
+    setTimeout(connectStream, 5000);
+  });
 }
 
-function handleOrden(orden) {
-  const id = String(orden.id || orden._id || '').trim();
+function reportDispatch(id, wappyUrl, apiKey, payload) {
+  try {
+    const url = \`\${wappyUrl}/api/mcp-bridge/antigravity/ordenes/\${encodeURIComponent(id)}/dispatch-log?apiKey=\${encodeURIComponent(apiKey)}\`;
+    const client = url.startsWith('https') ? https : http;
+    const body = JSON.stringify({ ...payload, platform: process.platform });
+    const req = client.request(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) } }, () => {});
+    req.on('error', () => {});
+    req.write(body);
+    req.end();
+  } catch (_) {}
+}
+
+function handleOrden(orden, wappyUrl, apiKey) {
+  const id = String(orden.id || orden.ordenId || orden._id || '').trim();
   if (!id) return;
-  const req = https.request(\`\${WAPPY_URL}/api/mcp-bridge/antigravity/ordenes/\${encodeURIComponent(id)}/claim?apiKey=\${API_KEY}\`, { method: 'POST' }, (res) => {
+  const claimUrl = \`\${wappyUrl}/api/mcp-bridge/antigravity/ordenes/\${encodeURIComponent(id)}/claim?apiKey=\${encodeURIComponent(apiKey)}\`;
+  const client = claimUrl.startsWith('https') ? https : http;
+  const req = client.request(claimUrl, { method: 'POST' }, (res) => {
     let body = '';
     res.on('data', (c) => (body += c));
     res.on('end', () => {
@@ -226,14 +349,17 @@ function handleOrden(orden) {
         const parsed = JSON.parse(body);
         if (parsed && parsed.claimed === false) return;
       } catch (_) {}
-      dispatchToAgent(id, orden);
+      dispatchToAgent(id, orden, wappyUrl, apiKey);
     });
   });
-  req.on('error', () => {});
+  req.on('error', (e) => log('Error reclamando orden: ' + e.message));
   req.end();
 }
 
-function dispatchToAgent(id, orden) {
+function dispatchToAgent(id, orden, wappyUrl, apiKey) {
+  const agentBin = resolveAgentBin();
+  const baseArgs = /language_server/i.test(agentBin) ? ['agentapi'] : [];
+  const cwd = resolveWorkspaceCwd(agentBin);
   const titulo = String(orden.titulo || orden.title || 'Consulta de Tenshi').slice(0, 60);
   const instruccion = orden.instruccion || orden.descripcion || orden.pregunta || '';
   const formato = String(orden.formatoEntregable || orden.formato || 'respuesta').toLowerCase().trim();
@@ -260,15 +386,17 @@ function dispatchToAgent(id, orden) {
 
   if (convoId) {
     try {
-      execFileSync(agentBin, ['send-message', \`--title=⚡ Tenshi: \${titulo}\`, convoId, prompt], { cwd: os.homedir(), timeout: 15000 });
+      execFileSync(agentBin, [...baseArgs, 'send-message', \`--title=⚡ Tenshi: \${titulo}\`, convoId, prompt], { cwd, timeout: 15000 });
       fs.writeFileSync(threadFile, JSON.stringify({ conversationId: convoId, lastUsedAt: Date.now() }, null, 2), 'utf8');
+      log(\`✅ Orden \${id} enviada al chat activo \${convoId}\`);
+      reportDispatch(id, wappyUrl, apiKey, { ok: true, conversationId: convoId, cwd, bin: agentBin });
       return;
-    } catch (_) {}
+    } catch (e) { log('Aviso send-message falló, abriendo nuevo chat: ' + e.message); }
   }
 
   try {
     const before = new Set(fs.existsSync(convDir) ? fs.readdirSync(convDir).filter((f) => f.endsWith('.db')).map((f) => f.replace(/\\.db$/, '')) : []);
-    const out = execFileSync(agentBin, ['new-conversation', \`--title=⚡ Tenshi: \${titulo}\`, prompt], { cwd: os.homedir(), encoding: 'utf8', timeout: 15000 }) || '';
+    const out = execFileSync(agentBin, [...baseArgs, 'new-conversation', \`--title=⚡ Tenshi: \${titulo}\`, prompt], { cwd, encoding: 'utf8', timeout: 15000 }) || '';
     const match = out.match(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
     let newId = match ? match[0] : '';
     if (!newId && fs.existsSync(convDir)) {
@@ -276,14 +404,19 @@ function dispatchToAgent(id, orden) {
       if (added.length > 0) newId = added[0];
     }
     if (newId) fs.writeFileSync(threadFile, JSON.stringify({ conversationId: newId, lastUsedAt: Date.now() }, null, 2), 'utf8');
-  } catch (_) {}
+    log(\`✅ Nuevo chat de Tenshi abierto (\${newId || 'ok'}) en workspace \${cwd}\`);
+    reportDispatch(id, wappyUrl, apiKey, { ok: true, conversationId: newId || 'new', cwd, bin: agentBin });
+  } catch (e) {
+    log('❌ Error ejecutando agentapi new-conversation: ' + e.message);
+    reportDispatch(id, wappyUrl, apiKey, { ok: false, error: e.message, cwd, bin: agentBin });
+  }
 }
 
 connectStream();
-console.log('Conector de eventos Tenshi WAPPY activo.');
 \`\`\`
 
 Confírmame apenas quede corriendo.`;
+  };
 
   const cronOnlyPrompt = buildPushBridgePrompt(effectiveKey);
 

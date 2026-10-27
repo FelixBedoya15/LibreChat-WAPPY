@@ -7989,6 +7989,22 @@ router.post('/antigravity/launch-connector', requireApiKeyOrJwt, async (req, res
   }
 });
 
+router.post('/antigravity/ordenes/:id/dispatch-log', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const ordenId = req.params.id;
+    const { ok, error, conversationId, cwd, bin, platform } = req.body || {};
+    if (ok) {
+      logger.info(`[MCP Bridge] ✅ Orden ${ordenId} despachada en Antigravity local de usuario ${targetUserId} (convoId: ${conversationId || 'nuevo'}, cwd: ${cwd || 'N/A'}, bin: ${bin || 'N/A'}, OS: ${platform || 'N/A'})`);
+    } else {
+      logger.error(`[MCP Bridge] ❌ Falló despacho local de orden ${ordenId} en PC de usuario ${targetUserId} (OS: ${platform || 'N/A'}, bin: ${bin || 'N/A'}, cwd: ${cwd || 'N/A'}): ${error || 'Error desconocido'}`);
+    }
+    return res.json({ ok: true });
+  } catch (e) {
+    return res.status(500).json({ ok: false });
+  }
+});
+
 router.post('/antigravity/ordenes/:id/claim', requireApiKeyOrJwt, async (req, res) => {
   try {
     const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;

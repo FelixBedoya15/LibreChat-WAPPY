@@ -208,12 +208,22 @@ function resolveAgentApiBinary() {
     '/Applications/Antigravity.app/Contents/Resources/bin/language_server',
   ];
   if (process.platform === 'win32') {
-    if (process.env.LOCALAPPDATA) {
-      candidates.push(
-        path.join(process.env.LOCALAPPDATA, 'Programs', 'Antigravity', 'resources', 'bin', 'agentapi.exe'),
-        path.join(process.env.LOCALAPPDATA, 'Antigravity', 'bin', 'agentapi.exe')
-      );
-    }
+    const localApp = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
+    candidates.push(
+      path.join(localApp, 'Programs', 'Antigravity', 'resources', 'bin', 'agentapi.exe'),
+      path.join(localApp, 'Programs', 'Antigravity', 'bin', 'agentapi.exe'),
+      path.join(localApp, 'Antigravity', 'bin', 'agentapi.exe')
+    );
+    try {
+      const extDir = path.join(localApp, 'Programs', 'Antigravity', 'resources', 'app', 'extensions', 'antigravity', 'bin');
+      if (fs.existsSync(extDir)) {
+        for (const f of fs.readdirSync(extDir)) {
+          if (f.startsWith('language_server_windows') && f.endsWith('.exe')) {
+            candidates.push(path.join(extDir, f));
+          }
+        }
+      }
+    } catch (_) {}
   }
   for (const c of candidates) {
     try {
@@ -451,7 +461,7 @@ function resolveWorkspaceDirectory() {
 
       candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
       const bin = resolveAgentApiBinary();
-      const isLanguageServer = bin.endsWith('language_server');
+      const isLanguageServer = /language_server/i.test(bin);
       const baseArgs = isLanguageServer ? ['agentapi'] : [];
 
       for (const item of candidates) {
@@ -635,7 +645,7 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
     .join('\n');
 
   const bin = resolveAgentApiBinary();
-  const isLanguageServer = bin.endsWith('language_server');
+  const isLanguageServer = /language_server/i.test(bin);
   const baseArgs = isLanguageServer ? ['agentapi'] : [];
   const workspaceCwd = resolveWorkspaceDirectory();
 
@@ -668,6 +678,13 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
       dispatchedOk = true;
       saveTenshiThreadConversationId(targetConvoId, workspaceCwd);
       log(`✅ Orden ${ordenId} continuada en el mismo hilo de Tenshi (${targetConvoId}).`);
+      jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/ordenes/${encodeURIComponent(ordenId)}/dispatch-log`, 'POST', apiKey, {
+        ok: true,
+        conversationId: targetConvoId,
+        cwd: workspaceCwd,
+        bin,
+        platform: process.platform,
+      }).catch(() => {});
     } catch (err) {
       log(`Aviso: send-message al hilo ${targetConvoId} falló (${err.message}). Abriendo nuevo hilo...`);
     }
@@ -708,8 +725,22 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
       } else {
         log(`✅ Orden ${ordenId} iniciada en NUEVA conversación de Antigravity (workspace: ${workspaceCwd}).`);
       }
+      jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/ordenes/${encodeURIComponent(ordenId)}/dispatch-log`, 'POST', apiKey, {
+        ok: true,
+        conversationId: createdConvoId || 'new',
+        cwd: workspaceCwd,
+        bin,
+        platform: process.platform,
+      }).catch(() => {});
     } catch (err) {
       log(`❌ Error invocando agentapi new-conversation para orden ${ordenId}: ${err.message}`);
+      jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/ordenes/${encodeURIComponent(ordenId)}/dispatch-log`, 'POST', apiKey, {
+        ok: false,
+        error: err.message,
+        cwd: workspaceCwd,
+        bin,
+        platform: process.platform,
+      }).catch(() => {});
     }
   }
 }

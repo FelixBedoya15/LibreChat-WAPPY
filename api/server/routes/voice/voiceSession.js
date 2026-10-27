@@ -3067,8 +3067,9 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes gen
 - Último informe o gestión real realizada: ${lastTitle ? `"${lastTitle}"` : 'Avance en el SG-SST'}.
 - Agenda REAL de HOY (${colNowStr} - Google Calendar + Centro de Control): ${todayList}.
 - Agenda REAL de MAÑANA: ${tomorrowList}.${todoList ? `\n- Tareas por hacer / en curso en Centro de Control ACPM: ${todoList}.` : ''}${overdueList ? `\n- Tareas vencidas que requieren atención en Centro de Control ACPM (${overdueTasks.length} recientes): ${overdueList}.` : ''}
-- REGLA OBLIGATORIA DE PRIMER SALUDO (ESTILO DOT CON DATOS REALES):
+- REGLA OBLIGATORIA DE PRIMER SALUDO (ESTILO DOT CON DATOS REALES — CERO TOOL CALLS EN EL SALUDO):
   En tu PRIMERA respuesta de la llamada (cuando el usuario saluda o inicia la conversación):
+  * PROHIBICIÓN ESTRICTA DE INVOCAR HERRAMIENTAS EN EL SALUDO: NO invoques NINGUNA herramienta ('google_calendar', 'wappy_consultar_trabajadores', 'somos_sst', etc.) durante el saludo inicial ni ante ruido de micrófono ("Sim.", "Dios te bendiga", etc.), porque todos los datos reales del briefing ya están inyectados aquí arriba en tu memoria. Invocar 'wappy_consultar_trabajadores' sin que el usuario lo pida inyecta por error la lista/censo de trabajadores en el chat del usuario.
   1) Saluda cálidamente al usuario por su nombre y menciona su empresa activa (${companyInfo?.companyName || 'su empresa'}).
   2) Pregúntale cómo le fue con su última gestión real (${lastTitle ? `"${lastTitle}"` : 'su gestión reciente en el SG-SST'}). ESTÁ TERMINANTEMENTE PROHIBIDO decir "New Chat".
   3) Infórmale con precisión lo que REALMENTE tiene hoy en Google Calendar (${todayList}) y recuérdale brevemente si tiene tareas por hacer o vencidas en su Centro de Control ACPM (${todoList || overdueList || 'sin pendientes'}). NUNCA digas que "no tiene tareas pendientes ni nada programado" si arriba aparecen eventos en Google Calendar o tareas por hacer/vencidas.`;
@@ -5210,7 +5211,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                     try {
                                         await TenshiMessage.create({
                                             user: this.userId,
-                                            role: 'tenshi',
+                                            role: 'assistant',
                                             content: `🛡️ **Control de Gobernanza SG-SST (Aprobación Requerida)**\nHe preparado la solicitud **${staged.widget.title}**: _${staged.widget.subtitle}_.\nPor seguridad, autoriza la operación haciendo clic en **"Autorizar y Ejecutar"** en la tarjeta inferior.`,
                                             source: 'voice',
                                             widget: staged.widget,
@@ -5253,12 +5254,21 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                             }
 
                             // Construir Widget Generative UI si aplica (ej. Resumen 360° o Censo de Trabajadores)
-                            const autoWidget = buildGenerativeWidgetForTool(targetTool, targetArgs, result);
+                            // PROTECCIÓN ESTRICTA: Para 'wappy_consultar_trabajadores', SOLO mostrar el widget de lista de trabajadores
+                            // si el usuario lo solicitó explícitamente en su transcripción (nunca durante el saludo inicial o ruido de micrófono).
+                            const userTurnTextForWidget = `${this.userTranscriptionText || ''} ${this.lastUserTranscription || ''}`.trim();
+                            const userExplicitlyAskedForWorkers =
+                                targetTool !== 'wappy_consultar_trabajadores' ||
+                                /\b(trabajador\w*|colaborador\w*|emplead\w*|n[oó]mina|censo|personal|plantilla|sociodemogr[aá]f\w*|cu[aá]ntos|qui[eé]nes|lista)\b/i.test(userTurnTextForWidget);
+
+                            const autoWidget = userExplicitlyAskedForWorkers
+                                ? buildGenerativeWidgetForTool(targetTool, targetArgs, result)
+                                : null;
                             if (autoWidget) {
                                 try {
                                     await TenshiMessage.create({
                                         user: this.userId,
-                                        role: 'tenshi',
+                                        role: 'assistant',
                                         content: `📊 **${autoWidget.title}** — _${autoWidget.subtitle || 'Vista interactiva en tiempo real'}_`,
                                         source: 'voice',
                                         widget: autoWidget,
