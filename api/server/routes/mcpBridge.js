@@ -7953,6 +7953,42 @@ router.get('/antigravity/daemon.js', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/mcp-bridge/antigravity/launch-connector
+ * Dispara en 1 clic vía Push SSE la apertura local del navegador en el PC/Mac del usuario
+ * para conectar Google NotebookLM o Google Flow cuando el daemon de Antigravity ya está activo,
+ * sin necesidad de copiar ni pegar comandos en el chat de Antigravity.
+ */
+router.post('/antigravity/launch-connector', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetUserId = String((req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id);
+    const service = req.body?.service === 'googleflow' ? 'googleflow' : 'notebooklm';
+    const token = String(req.body?.token || req.headers.authorization?.replace(/^Bearer\s+/i, '') || '').trim();
+    const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const host = req.headers['x-forwarded-host'] || req.get('host') || 'wappy.club';
+    const originUrl = `${proto}://${host}`;
+
+    const sentCount = broadcastAntigravityEvent(targetUserId, 'launch_connector', {
+      service,
+      token,
+      originUrl,
+      timestamp: new Date().toISOString(),
+    });
+
+    return res.json({
+      success: sentCount > 0,
+      listeners: sentCount,
+      message:
+        sentCount > 0
+          ? '¡Orden enviada a tu computador! La ventana de conexión se abrirá en unos segundos.'
+          : 'No se detectó el puente de Antigravity activo en segundo plano. Usa el botón de copiar comando para Antigravity.',
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error en POST /antigravity/launch-connector:', error);
+    return res.status(500).json({ error: 'Error al disparar el conector local.' });
+  }
+});
+
 router.post('/antigravity/ordenes/:id/claim', requireApiKeyOrJwt, async (req, res) => {
   try {
     const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;

@@ -45,8 +45,8 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
   const [copiedCmd, setCopiedCmd] = useState(false);
 
   const serverOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://app.wappy.club';
-  const terminalCommand = `curl -sL "${serverOrigin}/api/notebooklm/connect-script?token=${token || ''}" | node`;
-  const antigravityPrompt = `Por favor ejecuta este comando en mi terminal para vincular mi cuenta privada de Google NotebookLM con WAPPY:\n\n\`\`\`bash\n${terminalCommand}\n\`\`\``;
+  const terminalCommand = `curl -fsSL "${serverOrigin}/api/mcp-bridge/antigravity/daemon.js" -o ~/.gemini/antigravity/wappy-push-daemon.js && node ~/.gemini/antigravity/wappy-push-daemon.js --notebooklm --url="${serverOrigin}" --token="${token || ''}"`;
+  const antigravityPrompt = `Hola Antigravity, inicia el módulo documental local de mi entorno WAPPY ejecutando este comando en tu terminal:\n\n\`\`\`bash\n${terminalCommand}\n\`\`\``;
 
   const fetchStatus = async () => {
     if (!token) return;
@@ -71,10 +71,31 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
     }
   }, [isOpen, token]);
 
-  const handleCopyAg = () => {
+  const handleCopyAg = async () => {
     navigator.clipboard.writeText(antigravityPrompt);
     setCopiedAg(true);
     setTimeout(() => setCopiedAg(false), 3000);
+    if (token) {
+      try {
+        const res = await fetch('/api/mcp-bridge/antigravity/launch-connector', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ service: 'notebooklm', token }),
+        });
+        const data = await res.json();
+        if (data?.success) {
+          setFeedback({
+            type: 'success',
+            message: '⚡ ¡Abriendo ventana de conexión directamente en tu computador vía Antigravity Push! (También se copió el comando por si deseas pegarlo manualmente).',
+          });
+        }
+      } catch {
+        // Fallback silencioso a portapapeles
+      }
+    }
   };
 
   const handleCopyCmd = () => {
