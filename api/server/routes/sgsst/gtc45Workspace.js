@@ -983,91 +983,25 @@ function buildIpevarChartsHtml(matrixRows) {
       </div>
 
       <!-- 3. METODOLOGÍA GTC 45 ANEXO E (FACTOR DE REDUCCIÓN Y JUSTIFICACIÓN COSTO/BENEFICIO) -->
-      <div style="background:#f0fdfa; border:1px solid #99f6e4; border-radius:10px; padding:16px; margin-bottom:22px;">
+      <div style="background-color:#f0fdfa; background:#f0fdfa; border:1px solid #99f6e4; border-radius:10px; padding:16px; margin-bottom:8px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <h4 style="margin:0; color:#0f766e; font-size:12.5px; text-transform:uppercase; font-weight:800;">
             🔬 Factores de Reducción y Justificación Costo/Beneficio (GTC 45 Anexo E)
           </h4>
-          <span style="font-size:10px; font-weight:bold; color:#0f766e; background:#ccfbf1; padding:2px 8px; border-radius:6px;">
+          <span style="font-size:10px; font-weight:bold; color:#0f766e; background-color:#ccfbf1; background:#ccfbf1; padding:2px 8px; border-radius:6px;">
             Fórmula Posipedia / GTC 45
           </span>
         </div>
         <p style="font-size:11px; color:#334155; line-height:1.4; margin:0 0 8px 0;">
           Para ampliar y analizar los criterios de selección de las medidas de intervención, se aplica la formulación matemática del <strong>Factor de Reducción (F)</strong> y el <strong>Factor de Justificación Costo/Beneficio (J)</strong> según GTC 45 Anexo E:
         </p>
-        <div style="background:#ffffff; border:1px dashed #0d9488; border-radius:8px; padding:8px 12px; font-family:monospace; font-size:11px; color:#0f766e; text-align:center; font-weight:bold; margin-bottom:10px;">
+        <div style="background-color:#ffffff; background:#ffffff; border:1px dashed #0d9488; border-radius:8px; padding:8px 12px; font-family:monospace; font-size:11px; color:#0f766e; text-align:center; font-weight:bold; margin-bottom:10px;">
           F = ((NRi - NRf) / NRi) × 100 &nbsp;&nbsp;|&nbsp;&nbsp; J = (NRi × F) / (d × 10)
         </div>
         <div style="font-size:10px; color:#475569; display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:8px;">
           <div><strong>• Cobertura en la Fuente:</strong> ${pctFuente}% (${fuente}/${total})</div>
           <div><strong>• Cobertura en el Medio:</strong> ${pctMedio}% (${medio}/${total})</div>
           <div><strong>• Cobertura en el Individuo:</strong> ${pctIndividuo}% (${individuo}/${total})</div>
-        </div>
-      </div>
-
-      <!-- 4. MATRIZ MAESTRA GTC 45:2012 DE EVALUACIÓN DE RIESGOS Y CONTROLES (SOLO ANEXO E EN CONTROLES) -->
-      <div style="border:1px solid #e2e8f0; border-radius:12px; padding:16px; background:#ffffff;">
-        <h4 style="color:#0f766e; font-size:13px; font-weight:900; text-transform:uppercase; margin:0 0 12px 0; border-bottom:2px solid #0f766e; padding-bottom:5px;">
-          4. Matriz Maestra GTC 45:2012 de Evaluación de Riesgos y Controles
-        </h4>
-        <div style="overflow-x:auto;">
-          <table style="width:100%; border-collapse:collapse; font-size:9.5px; text-align:left;">
-            <thead>
-              <tr style="background:#0f766e; color:#ffffff;">
-                <th style="padding:6px; border:1px solid #0d9488; text-align:center;">#</th>
-                <th style="padding:6px; border:1px solid #0d9488;">Proceso / Cargo</th>
-                <th style="padding:6px; border:1px solid #0d9488;">Peligro &amp; Clasificación</th>
-                <th style="padding:6px; border:1px solid #0d9488; text-align:center;">ND</th>
-                <th style="padding:6px; border:1px solid #0d9488; text-align:center;">NE</th>
-                <th style="padding:6px; border:1px solid #0d9488; text-align:center;">NP</th>
-                <th style="padding:6px; border:1px solid #0d9488; text-align:center;">NC</th>
-                <th style="padding:6px; border:1px solid #0d9488; text-align:center;">NR</th>
-                <th style="padding:6px; border:1px solid #0d9488; text-align:center;">Nivel</th>
-                <th style="padding:6px; border:1px solid #0d9488;">Controles (Anexo E GTC-45)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${matrixRows.map((r, idx) => {
-                const nrVal = Number(r.nr) || 0;
-                const bgNivel = nrVal >= 600 ? '#ef4444' : nrVal >= 150 ? '#f97316' : nrVal >= 40 ? '#eab308' : '#22c55e';
-                const textNivel = nrVal >= 600 ? 'I' : nrVal >= 150 ? 'II' : nrVal >= 40 ? 'III' : 'IV';
-                let frDesc = String(r.factores_reduccion || '').trim();
-                if (!frDesc || ['no aplica', 'n/a', 'ninguno', 'ninguna'].includes(frDesc.toLowerCase())) {
-                  const controlPrioritario = !empty(r.medida_ingenieria)
-                    ? `Control de Ingeniería (${r.medida_ingenieria})`
-                    : !empty(r.medida_eliminacion)
-                      ? `Eliminación en la Fuente (${r.medida_eliminacion})`
-                      : !empty(r.medida_administrativa)
-                        ? `Control Administrativo (${r.medida_administrativa})`
-                        : `Dotación de EPP Específico (${r.medida_eppu || 'Certificado'})`;
-                  frDesc = `El ${controlPrioritario} atenúa la exposición ocupacional y presenta alta rentabilidad preventiva según análisis Costo/Beneficio GTC-45 Anexo E.`;
-                }
-                return `
-                  <tr style="border-bottom:1px solid #e2e8f0; background:${idx % 2 === 0 ? '#f8fafc' : '#ffffff'};">
-                    <td style="padding:5px; border:1px solid #e2e8f0; text-align:center; font-weight:bold;">${idx + 1}</td>
-                    <td style="padding:5px; border:1px solid #e2e8f0;">
-                      <strong>${r.cargo || 'General'}</strong><br>
-                      <span style="color:#64748b; font-size:8.5px;">${r.proceso || 'Operativo'}</span>
-                    </td>
-                    <td style="padding:5px; border:1px solid #e2e8f0;">
-                      <strong>${r.peligro_descripcion || ''}</strong><br>
-                      <span style="color:#0d9488; font-size:8.5px;">[${r.peligro_clasificacion || 'Condición de seguridad'}]</span>
-                    </td>
-                    <td style="padding:5px; border:1px solid #e2e8f0; text-align:center;">${r.nd ?? 0}</td>
-                    <td style="padding:5px; border:1px solid #e2e8f0; text-align:center;">${r.ne ?? 0}</td>
-                    <td style="padding:5px; border:1px solid #e2e8f0; text-align:center; font-weight:bold;">${r.np ?? 0}</td>
-                    <td style="padding:5px; border:1px solid #e2e8f0; text-align:center;">${r.nc ?? 0}</td>
-                    <td style="padding:5px; border:1px solid #e2e8f0; text-align:center; font-weight:900; color:#ffffff; background:${bgNivel};">${nrVal}</td>
-                    <td style="padding:5px; border:1px solid #e2e8f0; text-align:center; font-weight:900; color:${bgNivel};">${textNivel}</td>
-                    <td style="padding:6px 8px; border:1px solid #e2e8f0; background:#f8fafc;">
-                      <div style="font-weight:800; color:#0f172a; margin-bottom:2px;">🔬 Justificación Técnica del Factor de Reducción:</div>
-                      <div style="color:#334155; line-height:1.35;">${frDesc}</div>
-                    </td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
         </div>
       </div>
 

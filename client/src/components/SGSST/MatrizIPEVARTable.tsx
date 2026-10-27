@@ -4924,6 +4924,7 @@ export default function MatrizIPEVARTable({
                       initialContent={reportContent}
                       onUpdate={(html: string) => {
                         reportContentRef.current = html;
+                        setReportContent(html);
                       }}
                       reportSourceData={{ matrixRows, chartConclusions }}
                       onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
@@ -5008,6 +5009,7 @@ export default function MatrizIPEVARTable({
                     initialContent={reportContent}
                     onUpdate={(html: string) => {
                       reportContentRef.current = html;
+                      setReportContent(html);
                     }}
                     reportSourceData={{ matrixRows, chartConclusions }}
                     onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
