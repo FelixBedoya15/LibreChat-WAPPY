@@ -1495,21 +1495,30 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
         </div>
       )}
 
-      {/* Create Task Dialog Modal */}
+      {/* Create Task Dialog Modal (Responsive, ancho optimizado y scroll interno) */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden border border-border-medium/30 transform duration-300 animate-in zoom-in-95">
-            <div className="p-6 border-b border-border-medium/30">
-              <h2 className="text-lg font-extrabold text-text-primary flex items-center gap-2">
-                {editingTask ? <Pencil className="w-5 h-5 text-teal-500" /> : <Plus className="w-5 h-5 text-teal-500" />}
-                {editingTask ? 'Editar Actividad' : 'Programar Actividad Manual'}
-              </h2>
-              <p className="text-xs text-text-tertiary mt-0.5">
-                {editingTask ? 'Modifica los detalles de la tarjeta seleccionada.' : 'Crea una nueva tarjeta en tu plan de trabajo de seguridad y salud.'}
-              </p>
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 px-3 sm:px-4 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-3xl max-h-[88vh] sm:max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-border-medium/30 transform duration-300 animate-in zoom-in-95">
+            <div className="p-4 sm:p-5 border-b border-border-medium/30 flex items-start justify-between gap-3 bg-surface-secondary/20 dark:bg-zinc-950/40 shrink-0">
+              <div>
+                <h2 className="text-base sm:text-lg font-extrabold text-text-primary flex items-center gap-2">
+                  {editingTask ? <Pencil className="w-5 h-5 text-teal-500" /> : <Plus className="w-5 h-5 text-teal-500" />}
+                  {editingTask ? 'Editar Actividad SG-SST' : 'Programar Nueva Actividad / Compromiso'}
+                </h2>
+                <p className="text-xs text-text-tertiary mt-0.5">
+                  {editingTask ? 'Modifica los detalles, horarios y citación de la actividad seleccionada.' : 'Registra la actividad con fecha, horario y citación por correo electrónico.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="p-1.5 rounded-xl text-text-tertiary hover:text-text-primary hover:bg-surface-secondary dark:hover:bg-zinc-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
             
-            <form onSubmit={handleSaveTask} className="p-6 flex flex-col gap-4">
+            <form onSubmit={handleSaveTask} className="p-4 sm:p-6 overflow-y-auto flex-1 flex flex-col gap-4 text-xs">
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-text-secondary">Título de la Actividad *</label>
                 <input 
@@ -1524,16 +1533,16 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-text-secondary">Descripción (Opcional)</label>
+                <label className="text-xs font-bold text-text-secondary">Descripción y Alcance (Opcional)</label>
                 <textarea 
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
                   placeholder="Detalles sobre la actividad a realizar..."
-                  className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary min-h-[80px] w-full"
+                  className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary min-h-[75px] max-h-[140px] w-full resize-y"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold text-text-secondary">Fecha Límite *</label>
                   <input 
@@ -1566,7 +1575,7 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
               </div>
 
               {/* Horario de Inicio y Fin */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold text-text-secondary">Hora Inicio (Colombia)</label>
                   <input
@@ -1589,7 +1598,7 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
               </div>
 
               {/* Responsable y Ubicación */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold text-text-secondary">Responsable / Asignado a</label>
                   <input
@@ -1614,7 +1623,7 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
               </div>
 
               {/* Prioridad y Tipo de Acción */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold text-text-secondary">Prioridad</label>
                   <select
@@ -1669,7 +1678,7 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
               </div>
 
               {editingTask && editingTask.type !== 'manual' && (
-                <div className="p-4 bg-teal-500/5 dark:bg-teal-500/10 border border-teal-500/30 rounded-2xl flex flex-col gap-3.5 mt-2 transition-all">
+                <div className="p-4 bg-teal-500/5 dark:bg-teal-500/10 border border-teal-500/30 rounded-2xl flex flex-col gap-3.5 mt-1 transition-all">
                   <div className="flex items-start gap-2.5">
                     <CheckCircle2 className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
                     <div>
@@ -1698,39 +1707,43 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
                   </div>
                 </div>
               )}
+            </form>
 
-              {/* Action Buttons */}
-              <div className="flex items-center gap-3 mt-4">
-                {editingTask && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsModalOpen(false);
-                      handleDeleteTask(editingTask._id);
-                    }}
-                    className="py-2.5 px-4 border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
-                    title="Eliminar esta actividad del tablero"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Eliminar</span>
-                  </button>
-                )}
+            {/* Action Buttons fijos abajo */}
+            <div className="p-4 border-t border-border-medium/30 bg-surface-secondary/20 dark:bg-zinc-950/40 flex items-center justify-between gap-3 shrink-0">
+              {editingTask ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    handleDeleteTask(editingTask._id);
+                  }}
+                  className="py-2.5 px-4 border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
+                  title="Eliminar esta actividad del tablero"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Eliminar</span>
+                </button>
+              ) : <div />}
+
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="flex-1 py-2.5 border border-border-medium text-text-secondary hover:bg-surface-hover rounded-xl text-xs font-bold transition"
+                  className="py-2.5 px-4 border border-border-medium text-text-secondary hover:bg-surface-hover rounded-xl text-xs font-bold transition"
                 >
                   Cancelar
                 </button>
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={handleSaveTask}
                   disabled={isSaving}
-                  className="flex-1 py-2.5 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-teal-500/10 hover:shadow-teal-500/20 active:scale-95 transition"
+                  className="py-2.5 px-5 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-teal-500/10 hover:shadow-teal-500/20 active:scale-95 transition disabled:opacity-50"
                 >
-                  {isSaving ? 'Guardando...' : editingTask ? 'Guardar Cambios' : 'Programar'}
+                  {isSaving ? 'Guardando...' : editingTask ? 'Guardar Cambios' : 'Programar Actividad'}
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}

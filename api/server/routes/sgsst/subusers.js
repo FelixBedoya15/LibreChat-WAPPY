@@ -25,24 +25,47 @@ const getUserModel = () => {
 };
 
 const ALL_SGSST_OPERATIONAL_PERMS = [
+    // IA & Chat
+    'chat:wappy_general',
+    'chat:sst_specialist',
+    'ai:live_analysis',
+    // Operativo SST & Carga de Datos
     'sgsst:perfil_sociodemografico_self',
     'sgsst:perfil_sociodemografico_all',
+    'sgsst:condiciones_salud',
     'sgsst:reporte_actos',
     'sgsst:permiso_alturas',
+    'sgsst:equipos_alturas',
     'sgsst:analisis_trabajo_seguro',
     'sgsst:participacion_ipevar',
     'sgsst:epp',
     'sgsst:vehiculos',
+    'sgsst:emergencias_equipos',
     'sgsst:investigacion_atel',
+    'sgsst:estudio_puesto',
+    'sgsst:metodo_owas',
+    'sgsst:animo',
+    // Comités, Brigadas & Gobernanza
+    'sgsst:copasst',
+    'sgsst:convivencia',
+    'sgsst:brigada',
+    'sgsst:comite_pesv',
+    'sgsst:politica_objetivos',
+    'sgsst:alta_direccion',
+    // Matrices Técnicas & Legal
     'sgsst:matriz_peligros',
     'sgsst:matriz_legal',
     'sgsst:matriz_pesv',
     'sgsst:matriz_compatibilidad',
-    'sgsst:programa_capacitaciones',
+    // Verificación, Auditoría & ACPM
+    'audit:checklist',
+    'kanban:acpm',
+    'sgsst:estadisticas',
+    'sgsst:predictivo',
+    // Academia & LMS
     'lms:aula_estudio',
     'lms:ruta_aprendizaje',
-    'kanban:acpm',
-    'audit:checklist',
+    'sgsst:programa_capacitaciones',
     'events:calendar',
     'community:blog'
 ];
@@ -135,13 +158,6 @@ router.get('/me-permissions', requireJwtAuth, async (req, res) => {
         }
 
         let permissions = user.subUserPermissions || [];
-        // If operational subuser without AI, ensure they have access to the full Somos SST suite
-        const hasAi = permissions.some(p => ['chat:wappy_general', 'chat:sst_specialist', 'ai:live_analysis'].includes(p));
-        if (user.isSubUser && !hasAi) {
-            permissions = Array.from(new Set([...permissions, ...ALL_SGSST_OPERATIONAL_PERMS]));
-            // Persist to DB in background
-            User.updateOne({ _id: user._id }, { $set: { subUserPermissions: permissions } }).catch(e => logger.debug(e.message));
-        }
 
         res.json({
             isSubUser: !!user.isSubUser,
@@ -179,19 +195,6 @@ router.get('/', requireJwtAuth, async (req, res) => {
                 { parentUser: req.user.id, isSubUser: true, $or: [{ accountStatus: { $ne: 'active' } }, { isApproved: { $ne: true } }] },
                 { $set: { accountStatus: 'active', isApproved: true } }
             );
-
-            // Auto-heal operational subusers so they have the full suite of Somos SST
-            const opUsers = await User.find({
-                parentUser: req.user.id,
-                isSubUser: true,
-                subUserPermissions: { $nin: ['chat:wappy_general', 'chat:sst_specialist', 'ai:live_analysis'] }
-            });
-            for (const opUser of opUsers) {
-                const combined = Array.from(new Set([...(opUser.subUserPermissions || []), ...ALL_SGSST_OPERATIONAL_PERMS]));
-                if (combined.length !== (opUser.subUserPermissions || []).length) {
-                    await User.updateOne({ _id: opUser._id }, { $set: { subUserPermissions: combined } });
-                }
-            }
         } catch (e) {
             // Ignore if already updated
         }
@@ -411,9 +414,11 @@ router.post('/', requireJwtAuth, async (req, res) => {
         const salt = bcrypt.genSaltSync(10);
         const hashedPassword = bcrypt.hashSync(password, salt);
 
-        // Sanitize permissions: Non-admins can ONLY assign the operational SST preset permissions
-        const validPermissions = Array.isArray(subUserPermissions) ? subUserPermissions : [];
-        const finalPermissions = isAdmin ? validPermissions : ALL_SGSST_OPERATIONAL_PERMS;
+        // Sanitize permissions: validate against supported operational permissions
+        const validPermissions = Array.isArray(subUserPermissions)
+            ? subUserPermissions.filter(p => typeof p === 'string' && ALL_SGSST_OPERATIONAL_PERMS.includes(p))
+            : [];
+        const finalPermissions = validPermissions;
 
         const newSubUser = new User({
             name: (name || 'Colaborador SST').trim(),
@@ -505,7 +510,7 @@ router.put('/:id', requireJwtAuth, async (req, res) => {
         const isAdmin = req.user.role === 'ADMIN' || isEmailAdmin;
 
         if (Array.isArray(subUserPermissions)) {
-            subUser.subUserPermissions = isAdmin ? subUserPermissions : ALL_SGSST_OPERATIONAL_PERMS;
+            subUser.subUserPermissions = subUserPermissions.filter(p => typeof p === 'string' && ALL_SGSST_OPERATIONAL_PERMS.includes(p));
         }
 
         if (subUserStatus && ['active', 'suspended'].includes(subUserStatus)) {

@@ -902,158 +902,212 @@ export default function KanbanCalendarView({
         )}
       </div>
 
-      {/* ─── MODAL DETALLES RÁPIDOS DE ACTIVIDAD ─── */}
+      {/* ─── MODAL DETALLES RÁPIDOS DE ACTIVIDAD (RESPONSIVE 2 COLUMNAS Y CONTROL DE ALTURA) ─── */}
       {selectedTask && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            {/* Header del modal */}
-            <div className="p-5 border-b border-border-medium/30 flex items-start justify-between gap-3 bg-surface-secondary/20 dark:bg-zinc-950/40">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1.5">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
+          <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-3xl shadow-2xl w-full max-w-4xl max-h-[88vh] sm:max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Header fijo del modal */}
+            <div className="p-4 sm:p-5 border-b border-border-medium/30 flex items-start justify-between gap-3 bg-surface-secondary/20 dark:bg-zinc-950/40 shrink-0">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase border ${getStatusTheme(selectedTask.status).badge}`}>
                     {getStatusTheme(selectedTask.status).label}
                   </span>
                   {selectedTask.actionType && (
                     <span className="text-xs font-semibold text-text-tertiary capitalize">
-                      {selectedTask.actionType}
+                      Acción: {selectedTask.actionType}
+                    </span>
+                  )}
+                  {selectedTask.priority && (
+                    <span className="text-xs font-bold text-text-tertiary uppercase">
+                      · Prioridad {selectedTask.priority}
                     </span>
                   )}
                 </div>
-                <h3 className="text-lg font-black text-text-primary leading-tight">
+                <h3 className="text-base sm:text-xl font-black text-text-primary leading-snug line-clamp-2">
                   {selectedTask.title}
                 </h3>
               </div>
               <button
                 onClick={() => setSelectedTask(null)}
-                className="p-1.5 rounded-xl text-text-tertiary hover:text-text-primary hover:bg-surface-secondary dark:hover:bg-zinc-800"
+                className="p-2 rounded-xl text-text-tertiary hover:text-text-primary hover:bg-surface-secondary dark:hover:bg-zinc-800 transition-all shrink-0"
+                title="Cerrar ventana"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Cuerpo del modal */}
-            <div className="p-5 flex flex-col gap-4 text-xs">
-              {/* Fecha y Hora */}
-              <div className="p-3.5 rounded-2xl bg-surface-secondary/40 dark:bg-zinc-950/60 border border-border-medium/30 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <CalendarIcon className="w-5 h-5 text-teal-500" />
+            {/* Cuerpo del modal con scroll interno y distribución responsive */}
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
+                
+                {/* Columna Izquierda (7 cols): Fechas, Horarios, Descripción extensa */}
+                <div className="md:col-span-7 flex flex-col gap-4">
+                  {/* Fecha y Horario */}
+                  <div className="p-3.5 rounded-2xl bg-surface-secondary/40 dark:bg-zinc-950/60 border border-border-medium/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400">
+                        <CalendarIcon className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="block font-bold text-text-primary text-xs capitalize">
+                          {new Date(selectedTask.dueDate).toLocaleDateString('es-CO', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
+                        </span>
+                        <span className="text-[11px] text-text-tertiary block mt-0.5">
+                          ⏰ Horario: {selectedTask.startTime || '09:00'} a {selectedTask.endTime || '10:00'} (Hora Colombia)
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Botón rápido cambiar fecha */}
+                    <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
+                      <label className="text-[10px] font-bold text-text-tertiary uppercase">Mover a:</label>
+                      <input
+                        type="date"
+                        value={selectedTask.dueDate ? selectedTask.dueDate.split('T')[0] : ''}
+                        onChange={async (e) => {
+                          const newDate = e.target.value;
+                          if (!newDate) return;
+                          try {
+                            await axios.post('/api/sgsst/kanban/save', {
+                              _id: selectedTask._id,
+                              dueDate: new Date(`${newDate}T12:00:00-05:00`).toISOString(),
+                            });
+                            setSelectedTask({ ...selectedTask, dueDate: newDate });
+                            showToast({ message: 'Fecha reprogramada inmediatamente.', status: 'success' });
+                            onTasksChange();
+                          } catch (err) {
+                            showToast({ message: 'Error al cambiar la fecha.', status: 'error' });
+                          }
+                        }}
+                        className="px-2 py-1 rounded-xl border border-border-medium text-xs font-semibold bg-white dark:bg-gray-900 cursor-pointer shadow-2xs"
+                        title="Cambiar fecha inmediatamente"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Descripción y Alcance con scroll cómodo */}
                   <div>
-                    <span className="block font-bold text-text-primary text-xs">
-                      {new Date(selectedTask.dueDate).toLocaleDateString('es-CO', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                      })}
+                    <span className="font-extrabold text-text-secondary uppercase tracking-wider text-[10px] block mb-1.5 flex items-center justify-between">
+                      <span>Descripción y Alcance del Control</span>
                     </span>
-                    <span className="text-[11px] text-text-tertiary">
-                      ⏰ Horario: {selectedTask.startTime || '09:00'} a {selectedTask.endTime || '10:00'} (Hora Colombia)
-                    </span>
+                    <div className="text-text-primary bg-surface-secondary/30 dark:bg-zinc-950/40 p-3.5 rounded-2xl border border-border-medium/25 leading-relaxed text-xs max-h-[220px] overflow-y-auto pr-2 shadow-inner">
+                      {selectedTask.description ? (
+                        <p className="whitespace-pre-line">{selectedTask.description}</p>
+                      ) : (
+                        <span className="text-text-tertiary italic">Sin descripción registrada para esta actividad.</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Responsable & Ubicación */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="p-3 rounded-2xl border border-border-medium/30 bg-surface-secondary/20 flex items-center gap-2.5">
+                      <div className="p-2 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400">
+                        <User className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-bold text-text-tertiary uppercase block">Asignado a:</span>
+                        <span className="font-semibold text-text-primary mt-0.5 block truncate">
+                          {selectedTask.assignedTo || 'Coordinador SG-SST'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-2xl border border-border-medium/30 bg-surface-secondary/20 flex items-center gap-2.5">
+                      <div className="p-2 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                        <MapPin className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-bold text-text-tertiary uppercase block">Ubicación / Medio:</span>
+                        <span className="font-semibold text-text-primary mt-0.5 block truncate">
+                          {selectedTask.location || 'Oficinas SG-SST / Enlace Virtual'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Botón rápido cambiar fecha */}
-                <input
-                  type="date"
-                  value={selectedTask.dueDate ? selectedTask.dueDate.split('T')[0] : ''}
-                  onChange={async (e) => {
-                    const newDate = e.target.value;
-                    if (!newDate) return;
-                    try {
-                      await axios.post('/api/sgsst/kanban/save', {
-                        _id: selectedTask._id,
-                        dueDate: new Date(`${newDate}T12:00:00-05:00`).toISOString(),
-                      });
-                      setSelectedTask({ ...selectedTask, dueDate: newDate });
-                      showToast({ message: 'Fecha reprogramada inmediatamente.', status: 'success' });
-                      onTasksChange();
-                    } catch (err) {
-                      showToast({ message: 'Error al cambiar la fecha.', status: 'error' });
-                    }
-                  }}
-                  className="px-2 py-1 rounded-xl border border-border-medium text-xs font-semibold bg-white dark:bg-gray-900 cursor-pointer"
-                  title="Cambiar fecha inmediatamente"
-                />
-              </div>
+                {/* Columna Derecha (5 cols): Sincronizaciones, Google Calendar, Correo */}
+                <div className="md:col-span-5 flex flex-col gap-3.5 bg-surface-secondary/30 dark:bg-zinc-950/50 p-4 sm:p-5 rounded-2xl border border-border-medium/30">
+                  <h4 className="text-xs font-black text-text-primary uppercase tracking-wider flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-teal-500" />
+                    Sincronización y Citaciones
+                  </h4>
 
-              {/* Descripción */}
-              {selectedTask.description && (
-                <div>
-                  <span className="font-extrabold text-text-secondary uppercase tracking-wider text-[10px] block mb-1">
-                    Descripción y Alcance
-                  </span>
-                  <p className="text-text-primary bg-surface-secondary/30 dark:bg-zinc-950/30 p-3 rounded-xl border border-border-medium/20 leading-relaxed text-xs">
-                    {selectedTask.description}
-                  </p>
-                </div>
-              )}
+                  {/* Estado y Vencimiento */}
+                  <div className="p-3 rounded-xl bg-white dark:bg-gray-900 border border-border-medium/30 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold text-text-tertiary uppercase block">Estado Actual</span>
+                      <span className="font-extrabold text-xs text-text-primary">
+                        {getStatusTheme(selectedTask.status).label}
+                      </span>
+                    </div>
+                    <span className={`w-3 h-3 rounded-full ${getStatusTheme(selectedTask.status).dot}`} />
+                  </div>
 
-              {/* Responsable & Ubicación */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 rounded-xl border border-border-medium/30 bg-surface-secondary/20">
-                  <span className="text-[10px] font-bold text-text-tertiary uppercase block">Asignado a:</span>
-                  <span className="font-semibold text-text-primary mt-0.5 block truncate">
-                    {selectedTask.assignedTo || 'Sin asignar'}
-                  </span>
-                </div>
-                <div className="p-3 rounded-xl border border-border-medium/30 bg-surface-secondary/20">
-                  <span className="text-[10px] font-bold text-text-tertiary uppercase block">Ubicación:</span>
-                  <span className="font-semibold text-text-primary mt-0.5 block truncate">
-                    {selectedTask.location || 'Oficinas SG-SST'}
-                  </span>
-                </div>
-              </div>
+                  {/* Botones de Google Calendar y .ICS */}
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={() => handleAddToGoogleCalendar(selectedTask)}
+                      className="w-full py-2.5 px-3.5 rounded-xl bg-teal-500/15 border border-teal-500/30 text-teal-700 dark:text-teal-300 font-bold hover:bg-teal-500/25 transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Añadir a Google Calendar
+                    </button>
 
-              {/* Sincronización y Enlaces Rápidos */}
-              <div className="flex flex-col gap-2 pt-2 border-t border-border-medium/30">
-                <div className="flex items-center gap-2">
-                  {/* Google Calendar Link */}
-                  <button
-                    onClick={() => handleAddToGoogleCalendar(selectedTask)}
-                    className="flex-1 py-2 px-3 rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-700 dark:text-teal-300 font-bold hover:bg-teal-500/20 transition-all flex items-center justify-center gap-1.5"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    Añadir a Google Calendar
-                  </button>
+                    <button
+                      onClick={() => handleDownloadIcs(selectedTask._id)}
+                      className="w-full py-2 px-3 rounded-xl border border-border-medium/60 font-bold text-text-primary hover:bg-surface-secondary transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      title="Descargar archivo iCalendar (.ics)"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Descargar archivo .ICS (Outlook/Apple)
+                    </button>
+                  </div>
 
-                  {/* Descargar .ics */}
-                  <button
-                    onClick={() => handleDownloadIcs(selectedTask._id)}
-                    className="py-2 px-3 rounded-xl border border-border-medium font-bold text-text-primary hover:bg-surface-secondary transition-all flex items-center justify-center gap-1.5"
-                    title="Descargar archivo iCalendar (.ics)"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    .ICS
-                  </button>
+                  {/* Botón de Enviar Citación por Correo */}
+                  <div className="pt-2 border-t border-border-medium/30">
+                    <button
+                      onClick={() => {
+                        setEmailRecipients(
+                          selectedTask.emailAttendees && selectedTask.emailAttendees.length > 0
+                            ? selectedTask.emailAttendees.join(', ')
+                            : ''
+                        );
+                        setIsEmailModalOpen(true);
+                      }}
+                      className="w-full py-2.5 px-3.5 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-700 dark:text-sky-300 font-bold hover:bg-sky-500/25 transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                    >
+                      <Mail className="w-4 h-4" />
+                      Enviar Citación por Correo Electrónico
+                    </button>
+
+                    {selectedTask.emailAttendees && selectedTask.emailAttendees.length > 0 && (
+                      <div className="mt-2 text-[10px] text-text-tertiary">
+                        <span className="font-bold">Convocados:</span> {selectedTask.emailAttendees.join(', ')}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Enviar Citación por Correo */}
-                <button
-                  onClick={() => {
-                    setEmailRecipients(
-                      selectedTask.emailAttendees && selectedTask.emailAttendees.length > 0
-                        ? selectedTask.emailAttendees.join(', ')
-                        : ''
-                    );
-                    setIsEmailModalOpen(true);
-                  }}
-                  className="w-full py-2 px-3 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sky-700 dark:text-sky-300 font-bold hover:bg-sky-500/20 transition-all flex items-center justify-center gap-2"
-                >
-                  <Mail className="w-4 h-4" />
-                  Enviar Citación por Correo Electrónico
-                </button>
               </div>
             </div>
 
-            {/* Footer de Acciones del Modal */}
-            <div className="p-4 border-t border-border-medium/30 bg-surface-secondary/20 flex items-center justify-between gap-2">
+            {/* Footer de Acciones del Modal (fijo abajo) */}
+            <div className="p-4 border-t border-border-medium/30 bg-surface-secondary/20 dark:bg-zinc-950/40 flex items-center justify-between gap-2 shrink-0">
               <button
                 onClick={() => {
                   const id = selectedTask._id;
                   setSelectedTask(null);
                   onDeleteTask(id);
                 }}
-                className="p-2 rounded-xl text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 font-bold transition-all flex items-center gap-1.5 text-xs"
+                className="py-2 px-3.5 rounded-xl text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 font-bold transition-all flex items-center gap-1.5 text-xs cursor-pointer"
               >
                 <Trash2 className="w-4 h-4" /> Eliminar
               </button>
@@ -1065,14 +1119,14 @@ export default function KanbanCalendarView({
                     setSelectedTask(null);
                     onOpenEditModal(taskToEdit);
                   }}
-                  className="px-3 py-1.5 rounded-xl border border-border-medium font-bold text-text-primary hover:bg-surface-secondary text-xs transition-all flex items-center gap-1.5"
+                  className="px-3.5 py-2 rounded-xl border border-border-medium font-bold text-text-primary hover:bg-surface-secondary text-xs transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   <Edit3 className="w-3.5 h-3.5" /> Editar
                 </button>
 
                 <button
                   onClick={() => handleToggleTaskDone(selectedTask)}
-                  className={`px-3.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all ${
+                  className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer ${
                     selectedTask.status === 'done'
                       ? 'bg-amber-600 hover:bg-amber-700 text-white'
                       : 'bg-emerald-600 hover:bg-emerald-700 text-white'
@@ -1087,24 +1141,24 @@ export default function KanbanCalendarView({
         </div>
       )}
 
-      {/* ─── MODAL ENVIAR CORREO / CITACIÓN ─── */}
+      {/* ─── MODAL ENVIAR CORREO / CITACIÓN (RESPONSIVE CON SCROLL) ─── */}
       {isEmailModalOpen && selectedTask && (
-        <div className="fixed inset-0 z-60 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="p-5 border-b border-border-medium/30 flex items-center justify-between">
+        <div className="fixed inset-0 z-60 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-3xl shadow-2xl max-w-lg w-full max-h-[88vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-4 sm:p-5 border-b border-border-medium/30 flex items-center justify-between shrink-0">
               <h3 className="font-extrabold text-base text-text-primary flex items-center gap-2">
                 <Mail className="w-5 h-5 text-teal-500" />
                 Enviar Citación SG-SST por Correo
               </h3>
               <button
                 onClick={() => setIsEmailModalOpen(false)}
-                className="text-text-tertiary hover:text-text-primary"
+                className="text-text-tertiary hover:text-text-primary p-1.5 rounded-lg"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSendEmailSubmit} className="p-5 flex flex-col gap-4 text-xs">
+            <form onSubmit={handleSendEmailSubmit} className="p-4 sm:p-5 overflow-y-auto flex-1 flex flex-col gap-4 text-xs">
               <div>
                 <label className="font-bold text-text-primary block mb-1">
                   Correos de Destinatarios (separados por coma):
@@ -1136,7 +1190,7 @@ export default function KanbanCalendarView({
                 ✨ El correo se enviará con formato oficial SG-SST, botón directo para agregar a Google Calendar y archivo <strong>.ics</strong> adjunto.
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2 pt-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsEmailModalOpen(false)}
