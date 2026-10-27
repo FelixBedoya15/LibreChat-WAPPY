@@ -353,9 +353,6 @@ export default function InstagramFollowGateModal({
                   <ExternalLink className="h-3.5 w-3.5" />
                 </button>
               </div>
-              <div className="mt-1.5 border-t border-fuchsia-500/15 pt-1.5 text-[10.5px] leading-tight text-slate-600 dark:text-zinc-400">
-                💡 <b>¿Ya nos seguías?</b> En Instagram toca <b>Siguiendo → Dejar de seguir</b>, espera 2 seg y vuelve a pulsar <b>Seguir</b> para registrar tu alta en vivo.
-              </div>
             </div>
 
             {/* Paso 2: Código integrado + Enviar DM */}

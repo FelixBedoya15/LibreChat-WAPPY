@@ -597,6 +597,123 @@ async function checkMetaFollowStatus(accessToken, igScopedUserId) {
     }
 }
 
+async function resolveZernioConfig(redis) {
+    let apiKey = process.env.ZERNIO_API_KEY || null;
+    let accountId = process.env.ZERNIO_IG_ACCOUNT_ID || '6ae0f9d5dd9f4bc99becb39e';
+    if (!apiKey && redis) {
+        try {
+            if (redis.status === 'wait') await redis.connect().catch(() => {});
+            const enc = await redis.get('wappy:zernio:api_key_enc').catch(() => null);
+            if (enc) {
+                const dec = decryptOpenReplyToken(enc);
+                if (dec) apiKey = dec;
+            }
+            const storedAcc = await redis.get('wappy:zernio:account_id').catch(() => null);
+            if (storedAcc) accountId = storedAcc;
+        } catch (e) {}
+    }
+    return { apiKey, accountId };
+}
+
+async function checkZernioFollowStatus(zernioApiKey, zernioAccountId, igScopedUserId) {
+    if (!zernioApiKey || !zernioAccountId || !igScopedUserId) return null;
+    try {
+        const url = `https://zernio.com/api/v1/accounts/${encodeURIComponent(zernioAccountId)}/follow-status/${encodeURIComponent(igScopedUserId)}?refresh=true`;
+        const resp = await fetch(url, {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${zernioApiKey}` },
+            signal: AbortSignal.timeout(6000),
+        });
+        if (!resp.ok) return null;
+        const data = await resp.json();
+        return {
+            isFollower: typeof data?.isFollower === 'boolean' ? data.isFollower : null,
+            username: data?.username || null,
+            name: data?.name || null,
+            followerCount: typeof data?.followerCount === 'number' ? data.followerCount : null,
+            unavailableReason: data?.unavailableReason || null,
+        };
+    } catch (e) {
+        return null;
+    }
+}
+
+let zernioConvCache = { ts: 0, list: [] };
+
+async function findSenderInZernioInbox({ zernioApiKey, zernioAccountId, digitsCode, normalizedCode }) {
+    if (!zernioApiKey || !zernioAccountId || (!digitsCode && !normalizedCode)) return null;
+    try {
+        const now = Date.now();
+        let conversations = zernioConvCache.list;
+        if (now - zernioConvCache.ts > 2000 || !Array.isArray(conversations) || conversations.length === 0) {
+            const resp = await fetch(
+                `https://zernio.com/api/v1/inbox/conversations?status=active&limit=15`,
+                {
+                    method: 'GET',
+                    headers: { Authorization: `Bearer ${zernioApiKey}` },
+                    signal: AbortSignal.timeout(5500),
+                }
+            );
+            if (resp.ok) {
+                const json = await resp.json();
+                conversations = Array.isArray(json?.data) ? json.data : [];
+                zernioConvCache = { ts: now, list: conversations };
+            }
+        }
+
+        const matchesCode = (text) => {
+            const clean = String(text || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (!clean) return false;
+            if (digitsCode && clean.includes(digitsCode)) return true;
+            if (normalizedCode && normalizedCode.length >= 4 && clean.includes(normalizedCode)) return true;
+            return false;
+        };
+
+        // 1. Revisar lastMessage directo en las conversaciones activas
+        for (const conv of conversations) {
+            if (!conv?.participantId) continue;
+            if (matchesCode(conv.lastMessage)) {
+                return {
+                    senderId: String(conv.participantId),
+                    username: conv.participantUsername || conv.participantName || null,
+                };
+            }
+        }
+
+        // 2. Si una conversación tuvo actividad reciente (últimos 20 min) pero el último mensaje fue la respuesta automática del bot,
+        // inspeccionamos los últimos mensajes de esa conversación
+        for (const conv of conversations.slice(0, 4)) {
+            if (!conv?.id || !conv?.participantId) continue;
+            const updatedMs = conv.updatedTime ? Date.parse(conv.updatedTime) : 0;
+            if (updatedMs && now - updatedMs > 20 * 60 * 1000) continue;
+
+            const msgResp = await fetch(
+                `https://zernio.com/api/v1/inbox/conversations/${encodeURIComponent(conv.id)}/messages?accountId=${encodeURIComponent(zernioAccountId)}`,
+                {
+                    method: 'GET',
+                    headers: { Authorization: `Bearer ${zernioApiKey}` },
+                    signal: AbortSignal.timeout(5000),
+                }
+            ).catch(() => null);
+
+            if (msgResp && msgResp.ok) {
+                const msgJson = await msgResp.json().catch(() => null);
+                const msgs = Array.isArray(msgJson?.messages) ? msgJson.messages.slice(-8) : [];
+                for (let i = msgs.length - 1; i >= 0; i--) {
+                    const m = msgs[i];
+                    if (m?.direction === 'incoming' && matchesCode(m.message)) {
+                        return {
+                            senderId: String(m.senderId || conv.participantId),
+                            username: m.senderName || conv.participantUsername || conv.participantName || null,
+                        };
+                    }
+                }
+            }
+        }
+    } catch (e) {}
+    return null;
+}
+
 async function fetchLiveMetaFollowersCount(accessToken) {
     if (!accessToken) return null;
     try {
@@ -895,71 +1012,34 @@ async function handleVerifyIgFollow(req, res) {
             }
         }
 
-        const targetSenderId = matchedSenderId || recentFallbackSenderId;
+        let targetSenderId = matchedSenderId || recentFallbackSenderId;
         const accessToken =
             (encryptedToken ? decryptOpenReplyToken(encryptedToken) : null) ||
             process.env.INSTAGRAM_ACCESS_TOKEN ||
             null;
+        const { apiKey: zernioApiKey, accountId: zernioAccountId } = await resolveZernioConfig(redis);
+
+        // Si el código aún no llegó por el webhook de BullMQ, consultamos la bandeja en vivo de Zernio
+        if (!targetSenderId && zernioApiKey) {
+            const zernioMatch = await findSenderInZernioInbox({
+                zernioApiKey,
+                zernioAccountId,
+                digitsCode,
+                normalizedCode,
+            });
+            if (zernioMatch?.senderId) {
+                targetSenderId = zernioMatch.senderId;
+                if (zernioMatch.username && !matchedCommenterName) {
+                    matchedCommenterName = zernioMatch.username;
+                }
+            }
+        }
 
         if (!targetSenderId) {
-            // Verificación ESTRICTA contra el contador en vivo de @wappy_ia en Meta Graph API:
-            // Solo desbloquea cuando el contador sube realmente (+1 de nuevo seguidor, o ciclo Dejar de seguir -> Volver a seguir).
-            // NUNCA desbloquea si el contador sigue igual o menor.
-            const currentFollowers = await fetchLiveMetaFollowersCount(accessToken);
-            if (typeof currentFollowers === 'number') {
-                const baseline = await updateBaselineWithCount(redis, codeKey, currentFollowers);
-                const followerIncreased =
-                    Boolean(baseline.verifiedDelta) ||
-                    (currentFollowers > baseline.minFollowers &&
-                        currentFollowers >= baseline.initialFollowers);
-
-                if (followerIncreased) {
-                    const passToken = signIgPassToken({
-                        igUserId: `ig_follower_${digitsCode || Date.now()}`,
-                        username: 'seguidor_wappy_ia',
-                        code: rawCode || 'DM',
-                        followersSnapshot: currentFollowers,
-                    });
-                    setIgPassCookie(res, passToken);
-                    return res.json({
-                        verified: true,
-                        status: 'FOLLOWING',
-                        username: 'wappy_ia',
-                        passToken,
-                        followersCount: currentFollowers,
-                        message: `¡Seguimiento verificado en @wappy_ia (${currentFollowers} seguidores)! Acceso desbloqueado.`,
-                    });
-                }
-
-                if (currentFollowers < baseline.initialFollowers || baseline.sawUnfollowDip) {
-                    return res.json({
-                        verified: false,
-                        status: 'UNFOLLOW_DETECTED_NOW_FOLLOW',
-                        followersCount: currentFollowers,
-                        baselineFollowers: baseline.minFollowers,
-                        initialFollowers: baseline.initialFollowers,
-                        sawUnfollowDip: true,
-                        message:
-                            `🔄 ¡Detectamos tu baja en @wappy_ia (${currentFollowers} seguidores)! Ahora vuelve a tocar el botón "Seguir" en Instagram (@wappy_ia) para subir a ${baseline.initialFollowers} y se desbloqueará automáticamente.`,
-                    });
-                }
-
-                return res.json({
-                    verified: false,
-                    status: 'NOT_FOLLOWING_YET',
-                    followersCount: currentFollowers,
-                    baselineFollowers: baseline.minFollowers,
-                    initialFollowers: baseline.initialFollowers,
-                    sawUnfollowDip: false,
-                    message:
-                        `❌ Aún NO se registra tu nuevo seguimiento en @wappy_ia (contador Meta sin cambios: ${currentFollowers}). Dale a "Seguir" en Instagram. Si ya nos seguías de antes, en Instagram toca "Siguiendo" → "Dejar de seguir", espera 2 seg y vuelve a darle "Seguir".`,
-                });
-            }
-
             return res.json({
                 verified: false,
                 status: 'WAITING_DM',
-                message: 'Sigue a @wappy_ia en Instagram para desbloquear el acceso.',
+                message: `Envía tu código ${rawCode || 'WAPPY'} por mensaje directo (DM) a @wappy_ia y sigue la cuenta para desbloquear.`,
             });
         }
 
@@ -967,15 +1047,33 @@ async function handleVerifyIgFollow(req, res) {
         const followUpKey = `bull:dm-processing:followup_${OPENREPLY_AUTOMATION_ID}_${targetSenderId}`;
         const hasFollowUpJob = await redis.exists(followUpKey).catch(() => 0);
 
-        // Consultar también en vivo a Meta Graph API v25.0 (is_user_follow_business)
-        const metaCheck = await checkMetaFollowStatus(accessToken, targetSenderId);
+        // Consultar en vivo a Zernio (App aprobada en Live Mode) y/o Meta Graph API v25.0 (is_user_follow_business)
+        const [zernioCheck, metaCheck] = await Promise.all([
+            zernioApiKey ? checkZernioFollowStatus(zernioApiKey, zernioAccountId, targetSenderId) : Promise.resolve(null),
+            accessToken ? checkMetaFollowStatus(accessToken, targetSenderId) : Promise.resolve(null),
+        ]);
+
+        const effectiveFollow =
+            typeof zernioCheck?.isFollower === 'boolean'
+                ? zernioCheck.isFollower
+                : typeof metaCheck?.isFollower === 'boolean'
+                  ? metaCheck.isFollower
+                  : null;
 
         const isConfirmedFollower =
-            metaCheck?.isFollower === true ||
-            (hasFollowUpJob > 0 && metaCheck?.isFollower !== false);
+            effectiveFollow === true ||
+            (hasFollowUpJob > 0 && effectiveFollow !== false);
 
-        const resolvedUsername = metaCheck?.username || matchedCommenterName || 'seguidor_wappy_ia';
-        const resolvedName = metaCheck?.name || matchedCommenterName || null;
+        const resolvedUsername =
+            zernioCheck?.username ||
+            metaCheck?.username ||
+            matchedCommenterName ||
+            'seguidor_wappy_ia';
+        const resolvedName =
+            zernioCheck?.name ||
+            metaCheck?.name ||
+            matchedCommenterName ||
+            null;
 
         if (isConfirmedFollower) {
             const passToken = signIgPassToken({
@@ -996,14 +1094,14 @@ async function handleVerifyIgFollow(req, res) {
             });
         }
 
-        // Si envió el DM pero Meta confirma que AÚN NO sigue a @wappy_ia
+        // Si envió el DM pero Zernio/Meta confirma que AÚN NO sigue a @wappy_ia
         return res.json({
             verified: false,
             status: 'DM_RECEIVED_NOT_FOLLOWING',
-            username: metaCheck?.username || null,
+            username: resolvedUsername,
             message:
-                `📩 ¡Recibimos tu mensaje en Instagram${metaCheck?.username ? ` (@${metaCheck.username})` : ''}! ` +
-                `Pero Meta nos indica que aún no sigues a @wappy_ia. Toca el botón "Seguir" en nuestro perfil de Instagram (@wappy_ia) y el acceso se desbloqueará aquí automáticamente.`,
+                `📩 ¡Recibimos tu código en Instagram${resolvedUsername ? ` desde @${resolvedUsername}` : ''}! ` +
+                `Pero aún NO sigues a @wappy_ia. Toca el botón "Seguir" en nuestro perfil (@wappy_ia) y se desbloqueará al instante.`,
         });
     } catch (err) {
         console.error('[ComunidadRouter] Error verifying IG follow:', err);

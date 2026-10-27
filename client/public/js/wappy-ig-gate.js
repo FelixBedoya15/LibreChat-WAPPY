@@ -108,9 +108,6 @@
                   Seguir ↗
                 </a>
               </div>
-              <div style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(217,70,239,0.15);font-size:10.5px;line-height:1.35;color:#475569;">
-                💡 <b>¿Ya nos seguías?</b> En Instagram toca <b>Siguiendo → Dejar de seguir</b>, espera 2 seg y vuelve a pulsar <b>Seguir</b> para registrar tu alta en vivo.
-              </div>
             </div>
 
             <!-- Paso 2 con código integrado -->
