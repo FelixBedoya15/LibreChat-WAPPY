@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import { ArrowUpRight, Clock, LayoutGrid, Megaphone, Search } from 'lucide-react';
+import { ArrowUpRight, Clock, LayoutGrid, Megaphone, Search, CheckCircle2, Lock } from 'lucide-react';
 import { useMediaQuery } from '@librechat/client';
 import type { ContextType } from '~/common';
 import { useDocumentTitle } from '~/hooks';
@@ -12,6 +12,10 @@ import {
   resolveWappyAppUrl,
   type WappyAppCatalogItem,
 } from './wappyAppsCatalog';
+import InstagramFollowGateModal, {
+  useInstagramFollowGate,
+  appendIgPassToUrl,
+} from './InstagramFollowGateModal';
 
 type AppsFilter = 'all' | 'active' | 'soon';
 
@@ -197,21 +201,47 @@ export default function WappyAppsPage() {
 
   const activeCount = WAPPY_APPS_CATALOG.filter((a) => a.badgeTone === 'active').length;
 
-  /**
-   * Las apps se abren únicamente en una pestaña nueva para que la página actual (/aplicaciones)
-   * permanezca intacta en WAPPY. Nota: con 'noopener,noreferrer', window.open devuelve null por
-   * especificación aunque la pestaña se abra, por lo que NO se debe redirigir window.location.href.
-   */
-  const handleOpenApp = (app: WappyAppCatalogItem) => {
+  const {
+    isVerified,
+    verifiedUsername,
+    pendingApp,
+    isGateOpen,
+    setIsGateOpen,
+    requireFollowBeforeOpen,
+    handleGateVerified,
+  } = useInstagramFollowGate();
+
+  useEffect(() => {
+    if (!isVerified) {
+      setIsGateOpen(true);
+    }
+  }, [isVerified, setIsGateOpen]);
+
+  const executeOpenApp = (app: WappyAppCatalogItem) => {
     if (!app.path) {
       return;
     }
-    const url = resolveWappyAppUrl(app.path);
+    const url = appendIgPassToUrl(resolveWappyAppUrl(app.path));
     window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  /**
+   * Todas las WAPPY APPs (actuales y futuras) requieren verificación de seguidor en @wappy_ia (Opción 1: a todos).
+   */
+  const handleOpenApp = (app: WappyAppCatalogItem) => {
+    requireFollowBeforeOpen(app, executeOpenApp);
   };
 
   return (
     <div className="relative flex w-full grow overflow-hidden bg-presentation">
+      <InstagramFollowGateModal
+        isOpen={isGateOpen}
+        onClose={() => setIsGateOpen(false)}
+        targetApp={pendingApp}
+        onVerified={(passToken, username) =>
+          handleGateVerified(passToken, username, executeOpenApp)
+        }
+      />
       <main className="flex h-full w-full flex-col overflow-hidden" role="main">
         <div className="scrollbar-gutter-stable relative flex h-full flex-col overflow-y-auto overflow-x-hidden">
           {/* Barra superior: abrir menú lateral + accesos */}
@@ -222,6 +252,21 @@ export default function WappyAppsPage() {
                 <LayoutGrid className="h-4 w-4 text-teal-600 dark:text-teal-400" />
                 WAPPY APPs
               </span>
+              {isVerified ? (
+                <span className="inline-flex items-center gap-1 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span>@wappy_ia Verificado{verifiedUsername ? ` · @${verifiedUsername}` : ''}</span>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsGateOpen(true)}
+                  className="inline-flex items-center gap-1 rounded-xl border border-fuchsia-500/40 bg-fuchsia-500/10 px-2.5 py-0.5 text-[11px] font-bold text-fuchsia-700 hover:bg-fuchsia-500/20 dark:text-fuchsia-300"
+                >
+                  <Lock className="h-3.5 w-3.5" />
+                  <span>Desbloquear con @wappy_ia</span>
+                </button>
+              )}
             </div>
             <ExpandableButton
               variant="orange"

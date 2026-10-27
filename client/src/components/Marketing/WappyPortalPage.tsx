@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import TenshiAvatar from '~/components/Tenshi/TenshiAvatar';
-import { WAPPY_APPS_CATALOG, resolveWappyAppUrl } from '~/components/WappyApps/wappyAppsCatalog';
+import {
+  WAPPY_APPS_CATALOG,
+  resolveWappyAppUrl,
+  type WappyAppCatalogItem,
+} from '~/components/WappyApps/wappyAppsCatalog';
+import InstagramFollowGateModal, {
+  useInstagramFollowGate,
+  appendIgPassToUrl,
+} from '~/components/WappyApps/InstagramFollowGateModal';
 import { useAuthContext } from '~/hooks';
 import { hasActivePlan } from '~/utils/planAccess';
 import './marketing.css';
@@ -135,12 +143,32 @@ export default function WappyPortalPage() {
     navigate(`/login${refQuery}`);
   };
 
+  const {
+    isVerified: isIgVerified,
+    pendingApp: pendingIgApp,
+    isGateOpen: isIgGateOpen,
+    setIsGateOpen: setIsIgGateOpen,
+    requireFollowBeforeOpen,
+    handleGateVerified,
+  } = useInstagramFollowGate((username) => {
+    showToast(`✅ ¡Acceso verificado en @wappy_ia${username ? ` (@${username})` : ''}!`);
+  });
+
+  useEffect(() => {
+    if (view === 'apps' && !isIgVerified) {
+      setIsIgGateOpen(true);
+    }
+  }, [view, isIgVerified, setIsIgGateOpen]);
+
   const handleOpenWappyApps = () => {
     setIsMobileMenuOpen(false);
     setView('apps');
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set('view', 'apps');
     setSearchParams(nextParams);
+    if (!isIgVerified) {
+      setIsIgGateOpen(true);
+    }
   };
 
   const handleBackToHub = () => {
@@ -155,25 +183,37 @@ export default function WappyPortalPage() {
     setSearchParams(nextParams);
   };
 
+  const executeOpenPortalApp = (app: WappyAppCatalogItem) => {
+    if (!app.path) return;
+    window.location.href = appendIgPassToUrl(resolveWappyAppUrl(app.path));
+  };
+
   /**
-   * Abre una app del catálogo compartido conservando el comportamiento original del portal
-   * (dominio canónico https://wappy.club en producción, ruta relativa en local).
+   * Todas las WAPPY APPs (actuales y futuras) exigen seguir a @wappy_ia en Instagram (Opción 1: a todos).
    */
-  const handleOpenAppPath = (path: string) => (e?: React.MouseEvent) => {
+  const handleOpenAppItem = (app: WappyAppCatalogItem) => (e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
     }
-    window.location.href = resolveWappyAppUrl(path);
+    requireFollowBeforeOpen(app, executeOpenPortalApp);
   };
 
   /* Catálogo único compartido con la vista interna /aplicaciones (ver wappyAppsCatalog.ts) */
   const wappyAppsCatalog: WappyAppCardItem[] = WAPPY_APPS_CATALOG.map((app) => ({
     ...app,
-    onOpen: app.badgeTone === 'active' && app.path ? handleOpenAppPath(app.path) : undefined,
+    onOpen: app.badgeTone === 'active' && app.path ? handleOpenAppItem(app) : undefined,
   }));
 
   return (
     <div className={`mkt wappy-portal-page ${isDarkMode ? 'mkt-dark' : ''}`}>
+      <InstagramFollowGateModal
+        isOpen={isIgGateOpen}
+        onClose={() => setIsIgGateOpen(false)}
+        targetApp={pendingIgApp}
+        onVerified={(passToken, username) =>
+          handleGateVerified(passToken, username, executeOpenPortalApp)
+        }
+      />
       <style>{`
         .wappy-portal-page {
           min-height: 100dvh;

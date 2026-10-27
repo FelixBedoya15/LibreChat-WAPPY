@@ -501,4 +501,293 @@ router.delete('/wappystudio/metrics/:id', requireAdminCookieOrJwt, async (req, r
     }
 });
 
+// =========================================================================
+// INSTAGRAM FOLLOW GATE (WAPPY APPS + OPENREPLY @wappy_ia INTEGRATION)
+// =========================================================================
+const crypto = require('crypto');
+
+const IG_GATE_SECRET = process.env.JWT_SECRET || 'wappy_ig_follow_gate_secret_2026';
+const OPENREPLY_REDIS_URL = process.env.OPENREPLY_REDIS_URL || 'redis://librechat-openreply-g5vvst-redis-1:6379';
+const OPENREPLY_ENC_KEY_HEX = process.env.OPENREPLY_ENCRYPTION_KEY || 'd94f27e57c61730bd7090b8f36a87c1265f24f0c79b1897e934a362f6b8c9d10';
+const OPENREPLY_AUTOMATION_ID = 'wappyappsfollowgate2026';
+
+let openReplyRedisClient = null;
+function getOpenReplyRedis() {
+    if (openReplyRedisClient) return openReplyRedisClient;
+    try {
+        const Redis = require('ioredis');
+        openReplyRedisClient = new Redis(OPENREPLY_REDIS_URL, {
+            connectTimeout: 2500,
+            maxRetriesPerRequest: 1,
+            retryStrategy: (times) => (times > 2 ? null : Math.min(times * 200, 1000)),
+            lazyConnect: true,
+        });
+        openReplyRedisClient.on('error', () => {});
+        return openReplyRedisClient;
+    } catch (e) {
+        return null;
+    }
+}
+
+function decryptOpenReplyToken(encryptedBase64) {
+    try {
+        const key = Buffer.from(OPENREPLY_ENC_KEY_HEX, 'hex');
+        const combined = Buffer.from(encryptedBase64.trim(), 'base64');
+        const iv = combined.subarray(0, 16);
+        const authTag = combined.subarray(16, 32);
+        const ciphertext = combined.subarray(32);
+        const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+        decipher.setAuthTag(authTag);
+        return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
+    } catch (e) {
+        return null;
+    }
+}
+
+function signIgPassToken(payloadObj) {
+    return jwt.sign(
+        {
+            ...payloadObj,
+            scope: 'wappy_apps_ig_follower',
+            verifiedAt: Date.now(),
+        },
+        IG_GATE_SECRET,
+        { expiresIn: '365d' }
+    );
+}
+
+function verifyIgPassToken(tokenStr) {
+    if (!tokenStr || typeof tokenStr !== 'string') return null;
+    try {
+        const decoded = jwt.verify(tokenStr.trim(), IG_GATE_SECRET);
+        if (decoded && decoded.scope === 'wappy_apps_ig_follower') {
+            return decoded;
+        }
+    } catch (e) {}
+    return null;
+}
+
+function setIgPassCookie(res, passToken) {
+    res.cookie('wappy_ig_follow_pass', passToken, {
+        maxAge: 365 * 24 * 60 * 60 * 1000,
+        httpOnly: false,
+        sameSite: 'lax',
+        path: '/',
+    });
+}
+
+async function checkMetaFollowStatus(accessToken, igScopedUserId) {
+    if (!accessToken || !igScopedUserId) return null;
+    try {
+        const url = `https://graph.instagram.com/v25.0/${encodeURIComponent(igScopedUserId)}?fields=name,username,is_user_follow_business`;
+        const resp = await fetch(url, {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${accessToken}` },
+            signal: AbortSignal.timeout(5000),
+        });
+        if (!resp.ok) return null;
+        const data = await resp.json();
+        return {
+            isFollower: typeof data?.is_user_follow_business === 'boolean' ? data.is_user_follow_business : null,
+            username: data?.username || null,
+            name: data?.name || null,
+        };
+    } catch (e) {
+        return null;
+    }
+}
+
+// 1. Consultar estado de verificación de seguidor de @wappy_ia
+router.get('/ig-follow/status', async (req, res) => {
+    try {
+        const rawCookies = req.headers.cookie ? cookies.parse(req.headers.cookie) : {};
+        const candidateToken =
+            req.query.ig_pass ||
+            req.headers['x-wappy-ig-pass'] ||
+            rawCookies.wappy_ig_follow_pass ||
+            '';
+
+        const decoded = verifyIgPassToken(candidateToken);
+        if (decoded) {
+            setIgPassCookie(res, candidateToken);
+            return res.json({
+                verified: true,
+                username: decoded.username || 'wappy_ia_follower',
+                name: decoded.name || null,
+                passToken: candidateToken,
+            });
+        }
+
+        // Si viene redirigido desde el botón de DM de OpenReply (/r/wappy-apps -> ?ig_verified=wappy_ig_ok)
+        if (req.query.ig_verified === 'wappy_ig_ok') {
+            const newPass = signIgPassToken({
+                igUserId: 'openreply_dm_link',
+                username: req.query.ig_user || 'seguidor_wappy_ia',
+                source: 'openreply_tracked_link',
+            });
+            setIgPassCookie(res, newPass);
+            return res.json({
+                verified: true,
+                username: req.query.ig_user || 'seguidor_wappy_ia',
+                passToken: newPass,
+            });
+        }
+
+        return res.json({ verified: false });
+    } catch (err) {
+        return res.json({ verified: false });
+    }
+});
+
+// 2. Verificar en tiempo real contra OpenReply Redis + Meta Graph API si el usuario envió el DM y sigue a @wappy_ia
+async function handleVerifyIgFollow(req, res) {
+    try {
+        const rawCode = String(req.query.code || req.body?.code || '').trim();
+        const digitsMatch = rawCode.match(/(\d{4})/);
+        const digitsCode = digitsMatch ? digitsMatch[1] : '';
+        const normalizedCode = rawCode.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        const redis = getOpenReplyRedis();
+        if (!redis) {
+            return res.json({
+                verified: false,
+                status: 'WAITING_DM',
+                message: 'Esperando confirmación desde @wappy_ia en Instagram...',
+            });
+        }
+
+        try {
+            if (redis.status === 'wait') {
+                await redis.connect();
+            }
+        } catch (e) {}
+
+        // Obtener las últimas tareas de BullMQ en OpenReply
+        const [completedIds, activeIds, waitIds, delayedIds, encryptedToken] = await Promise.all([
+            redis.zrevrange('bull:dm-processing:completed', 0, 80).catch(() => []),
+            redis.lrange('bull:dm-processing:active', 0, 20).catch(() => []),
+            redis.lrange('bull:dm-processing:wait', 0, 20).catch(() => []),
+            redis.zrevrange('bull:dm-processing:delayed', 0, 30).catch(() => []),
+            redis.get('wappy:ig:access_token_enc').catch(() => null),
+        ]);
+
+        const allJobIds = Array.from(new Set([...activeIds, ...waitIds, ...delayedIds, ...completedIds]));
+        let matchedSenderId = null;
+        let matchedCommenterName = null;
+        let recentFallbackSenderId = null;
+        const nowMs = Date.now();
+
+        for (const jobId of allJobIds) {
+            if (!jobId) continue;
+            const jobHash = await redis.hgetall(`bull:dm-processing:${jobId}`).catch(() => null);
+            if (!jobHash || !jobHash.data) continue;
+
+            let jobData = null;
+            try {
+                jobData = JSON.parse(jobHash.data);
+            } catch (e) {
+                continue;
+            }
+
+            const jobTs = Number(jobHash.timestamp) || 0;
+            const ageMs = nowMs - jobTs;
+            const rawText = String(jobData.messageText || jobData.commentText || '').trim();
+            const cleanText = rawText.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const senderId = jobData.senderId || jobData.commenterId || jobData.userId || null;
+
+            if (!senderId) continue;
+
+            // 1. Coincidencia exacta por código de 4 dígitos (ej. WAPPY-4821 o 4821)
+            if (digitsCode && cleanText.includes(digitsCode)) {
+                matchedSenderId = senderId;
+                matchedCommenterName = jobData.commenterName || null;
+                break;
+            }
+            if (normalizedCode && normalizedCode.length >= 4 && cleanText.includes(normalizedCode)) {
+                matchedSenderId = senderId;
+                matchedCommenterName = jobData.commenterName || null;
+                break;
+            }
+
+            // 2. Fallback: si el usuario acaba de escribir "WAPPY" o "APPS" o tocó el botón "✅ Ya sigo a @wappy_ia" en los últimos 3 minutos
+            if (ageMs >= 0 && ageMs <= 3 * 60 * 1000) {
+                if (
+                    jobHash.name === 'process-postback' &&
+                    String(jobData.payload || '').includes(OPENREPLY_AUTOMATION_ID)
+                ) {
+                    recentFallbackSenderId = senderId;
+                } else if (
+                    /wappy|apps|acceso|studio|matriz/i.test(rawText) &&
+                    !recentFallbackSenderId
+                ) {
+                    recentFallbackSenderId = senderId;
+                }
+            }
+        }
+
+        const targetSenderId = matchedSenderId || recentFallbackSenderId;
+        if (!targetSenderId) {
+            return res.json({
+                verified: false,
+                status: 'WAITING_DM',
+                message: 'Aún no detectamos tu mensaje en @wappy_ia. Envía tu código por DM y toca "Verificar".',
+            });
+        }
+
+        // Comprobar si OpenReply ya aprobó el follow gate (crea el job followup_<automationId>_<senderId>)
+        const followUpKey = `bull:dm-processing:followup_${OPENREPLY_AUTOMATION_ID}_${targetSenderId}`;
+        const hasFollowUpJob = await redis.exists(followUpKey).catch(() => 0);
+
+        // Consultar también en vivo a Meta Graph API v25.0 (is_user_follow_business)
+        const accessToken = encryptedToken ? decryptOpenReplyToken(encryptedToken) : null;
+        const metaCheck = await checkMetaFollowStatus(accessToken, targetSenderId);
+
+        const isConfirmedFollower =
+            metaCheck?.isFollower === true ||
+            (hasFollowUpJob > 0 && metaCheck?.isFollower !== false);
+
+        const resolvedUsername = metaCheck?.username || matchedCommenterName || 'seguidor_wappy_ia';
+        const resolvedName = metaCheck?.name || matchedCommenterName || null;
+
+        if (isConfirmedFollower) {
+            const passToken = signIgPassToken({
+                igUserId: targetSenderId,
+                username: resolvedUsername,
+                name: resolvedName,
+                code: rawCode || 'DM',
+            });
+            setIgPassCookie(res, passToken);
+            return res.json({
+                verified: true,
+                status: 'FOLLOWING',
+                igUserId: targetSenderId,
+                username: resolvedUsername,
+                name: resolvedName,
+                passToken,
+                message: `¡Verificación exitosa! Gracias por seguir a @wappy_ia${resolvedUsername ? ` (@${resolvedUsername})` : ''}.`,
+            });
+        }
+
+        // Si envió el DM pero Meta confirma que AÚN NO sigue a @wappy_ia
+        return res.json({
+            verified: false,
+            status: 'DM_RECEIVED_NOT_FOLLOWING',
+            username: metaCheck?.username || null,
+            message:
+                `📩 ¡Recibimos tu mensaje en Instagram${metaCheck?.username ? ` (@${metaCheck.username})` : ''}! ` +
+                `Pero Meta nos indica que aún no sigues a @wappy_ia. Toca el botón "Seguir" en nuestro perfil de Instagram (@wappy_ia) y el acceso se desbloqueará aquí automáticamente.`,
+        });
+    } catch (err) {
+        console.error('[ComunidadRouter] Error verifying IG follow:', err);
+        return res.status(500).json({
+            verified: false,
+            status: 'ERROR',
+            message: 'No se pudo consultar el estado en este momento. Intenta nuevamente.',
+        });
+    }
+}
+
+router.get('/ig-follow/verify', handleVerifyIgFollow);
+router.post('/ig-follow/verify', handleVerifyIgFollow);
+
 module.exports = router;
