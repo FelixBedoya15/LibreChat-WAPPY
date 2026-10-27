@@ -1,6 +1,11 @@
-const TenshiPendingAction = require('~/models/TenshiPendingAction');
-const TenshiProceduralMemory = require('~/models/TenshiProceduralMemory');
-const { logger } = require('~/config');
+const TenshiPendingAction = require('../../../models/TenshiPendingAction');
+const TenshiProceduralMemory = require('../../../models/TenshiProceduralMemory');
+let logger = console;
+try {
+  logger = require('../../../config').logger || console;
+} catch (_e) {
+  logger = console;
+}
 
 /**
  * Catálogo de herramientas críticas / destructivas sujetas a Gobernanza Human-in-the-Loop (HITL).
