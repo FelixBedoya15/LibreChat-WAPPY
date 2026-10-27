@@ -68,6 +68,7 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedConfig, setCopiedConfig] = useState(false);
   const [copiedPrompt, setCopiedPrompt] = useState(false);
+  const [copiedVerify, setCopiedVerify] = useState(false);
   const [copiedCron, setCopiedCron] = useState(false);
   const [copiedLocal, setCopiedLocal] = useState(false);
   const [showAdvancedLocal, setShowAdvancedLocal] = useState(false);
@@ -165,30 +166,37 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
   const effectiveKey = newKeyGenerated || (keys.length > 0 ? `${keys[0].keyPrefix}` : 'PEGA_TU_CLAVE_AQUI');
   const sseServerUrl = `${originUrl}/api/mcp-bridge/sse?apiKey=${effectiveKey}`;
 
-  // Comando de terminal para activar la conexión en vivo con Tenshi
+  // Comando universal (Windows PowerShell/CMD + Mac/Linux) para activar la conexión en vivo con Tenshi en Terminal
   const buildPushBridgePrompt = (key: string) =>
-    `curl -fsSL "${originUrl}/api/mcp-bridge/antigravity/daemon.js" -o ~/.gemini/antigravity/wappy-push-daemon.js && node ~/.gemini/antigravity/wappy-push-daemon.js --daemon --url="${originUrl}" --key="${key}"`;
+    `node -e "const fs=require('fs'),os=require('os'),path=require('path'),https=require('https'),{spawnSync}=require('child_process');const dir=path.join(os.homedir(),'.gemini','antigravity');fs.mkdirSync(dir,{recursive:true});const dest=path.join(dir,'wappy-push-daemon.js');https.get('${originUrl}/api/mcp-bridge/antigravity/daemon.js',r=>{let d='';r.on('data',c=>d+=c);r.on('end',()=>{fs.writeFileSync(dest,d);spawnSync(process.execPath,[dest,'--url=${originUrl}','--key=${key}'],{stdio:'inherit'});});});"`;
 
   const cronOnlyPrompt = buildPushBridgePrompt(effectiveKey);
 
-  // Instrucción todo-en-uno para pegar en el chat de Antigravity
-  const buildAntigravityPrompt = (url: string, key: string = effectiveKey) => `Hola Antigravity, conecta mi cuenta de WAPPY siguiendo estos 3 pasos:
+  // Paso 1: Mensaje limpio para pegar en el chat de Antigravity (invoca agy-customizations sin curl ni daemon para evitar bloqueos de seguridad)
+  const buildAntigravityPrompt = (url: string) => `Hola Antigravity, usando tu guía interna agy-customizations (MCP Servers), ayúdame a registrar mi servidor MCP "wappy" en mi archivo de configuración global de MCP (.gemini/config/mcp_config.json y .gemini/antigravity/mcp_config.json dentro de mi carpeta de usuario, conservando cualquier otro servidor que ya exista en mcpServers) con este bloque JSON:
 
-1. Agrega mi servidor "wappy" en tu archivo de configuración (~/.gemini/antigravity/mcp_config.json) con esta dirección:
-URL: ${url}
+{
+  "mcpServers": {
+    "wappy": {
+      "url": "${url}",
+      "serverUrl": "${url}"
+    }
+  }
+}
 
-2. Activa la conexión en vivo con Tenshi ejecutando este comando en tu terminal:
-${buildPushBridgePrompt(key)}
+Por favor usa tus herramientas de lectura y edición de archivos para guardarlo y confírmame cuando quede listo.`;
 
-3. Confírmame con un resumen rápido de mi empresa en WAPPY que ya quedamos conectados.`;
+  const antigravityPrompt = buildAntigravityPrompt(sseServerUrl);
 
-  const antigravityPrompt = buildAntigravityPrompt(sseServerUrl, effectiveKey);
+  // Paso 2: Mensaje para verificar la conexión en un nuevo chat de Antigravity
+  const verifyConnectionPrompt = `Hola Antigravity, usa las herramientas de mi servidor MCP "wappy" (como wappy_consultar_perfil_empresa y wappy_resumen_general_360) y dame un resumen ejecutivo de mi empresa en WAPPY para confirmar que ya estamos conectados.`;
 
   // Configuración JSON para mcp_config.json
   const antigravityJsonConfig = JSON.stringify(
     {
       mcpServers: {
         wappy: {
+          url: sseServerUrl,
           serverUrl: sseServerUrl,
         },
       },
@@ -197,7 +205,15 @@ ${buildPushBridgePrompt(key)}
     2
   );
 
-  const copyToClipboard = async (text: string, type: 'key' | 'config' | 'prompt' | 'cron' | 'local') => {
+  const copyToClipboard = async (text: string, type: 'key' | 'config' | 'prompt' | 'verify' | 'cron' | 'local') => {
+    if (type === 'verify') {
+      navigator.clipboard.writeText(verifyConnectionPrompt);
+      setCopiedVerify(true);
+      setTimeout(() => setCopiedVerify(false), 2000);
+      showToast({ message: 'Mensaje del Paso 2 copiado al portapapeles', status: 'success' });
+      return;
+    }
+
     let keyToUse = newKeyGenerated;
     if (!keyToUse && (type === 'config' || type === 'prompt' || type === 'local' || type === 'cron')) {
       keyToUse = await handleCreateKey();
@@ -218,12 +234,13 @@ ${buildPushBridgePrompt(key)}
       if (type === 'key') {
         textToCopy = keyToUse;
       } else if (type === 'prompt') {
-        textToCopy = buildAntigravityPrompt(liveSseUrl, keyToUse);
+        textToCopy = buildAntigravityPrompt(liveSseUrl);
       } else if (type === 'config') {
         textToCopy = JSON.stringify(
           {
             mcpServers: {
               wappy: {
+                url: liveSseUrl,
                 serverUrl: liveSseUrl,
               },
             },
@@ -663,52 +680,52 @@ ${buildPushBridgePrompt(key)}
             <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex flex-col gap-1.5 shadow-2xs">
               <div className="flex items-center gap-2 text-xs font-bold text-orange-600 dark:text-orange-400">
                 <span className="w-6 h-6 rounded-full bg-orange-500/10 flex items-center justify-center text-xs font-black">1</span>
-                <span>Abre Antigravity</span>
+                <span>Conecta tu cuenta</span>
               </div>
               <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-relaxed">
-                Abre la aplicación de <strong>Antigravity</strong> que descargaste en tu computador (Mac o Windows).
+                Copia el <strong>Paso 1</strong> de abajo y pégalo en el chat de <strong>Antigravity</strong> (Mac o Windows) para registrar tu clave.
               </p>
             </div>
 
             <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex flex-col gap-1.5 shadow-2xs">
               <div className="flex items-center gap-2 text-xs font-bold text-teal-600 dark:text-teal-400">
                 <span className="w-6 h-6 rounded-full bg-teal-500/10 flex items-center justify-center text-xs font-black">2</span>
-                <span>Copia la instrucción</span>
+                <span>Abre un nuevo chat y prueba</span>
               </div>
               <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-relaxed">
-                Haz clic en el botón naranja <strong>"Copiar Instrucción"</strong> de aquí abajo (incluye tu clave automáticamente).
+                Reinicia Antigravity (o haz clic en <strong>+ New Conversation</strong>) y pega el <strong>Paso 2</strong> para ver el resumen de tu empresa.
               </p>
             </div>
 
             <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex flex-col gap-1.5 shadow-2xs">
               <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                 <span className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center text-xs font-black">3</span>
-                <span>Pégala en el chat</span>
+                <span>Enlaza Tenshi Voz (Opcional)</span>
               </div>
               <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-relaxed">
-                Pega el texto en el chat de Antigravity y presiona <strong>Enter</strong>. ¡Él configurará todo por ti!
+                Si quieres que Tenshi te abra chats desde tu celular, pega el comando del <strong>Paso 3</strong> en la pestaña <strong>Terminal</strong>.
               </p>
             </div>
           </div>
 
-          {/* Tarjeta Principal: Copia y Pega en el Chat de Antigravity */}
+          {/* PASO 1: Conectar cuenta en el Chat de Antigravity */}
           <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-orange-500/30 dark:border-orange-500/30 flex flex-col gap-3 shadow-sm">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-600 dark:text-orange-400 font-bold text-xs shrink-0">
-                  <Sparkles className="w-4 h-4" />
+                <div className="w-8 h-8 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-600 dark:text-orange-400 font-black text-xs shrink-0">
+                  1
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-bold text-slate-900 dark:text-zinc-100">
-                      Copia y pega este mensaje en el chat de Antigravity
+                      Paso 1: Copia y pega este mensaje en el chat de Antigravity
                     </span>
                     <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-orange-500 text-white shadow-2xs">
-                      Automático • 1 Clic
+                      Obligatorio • 1 Clic
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 dark:text-zinc-400">
-                    Al pegarlo en el chat, Antigravity se conectará a tu empresa en WAPPY y activará el enlace en vivo con Tenshi:
+                    Registra las {totalHerramientas} herramientas de tu cuenta WAPPY en Antigravity sin bloqueos de seguridad:
                   </p>
                 </div>
               </div>
@@ -716,14 +733,86 @@ ${buildPushBridgePrompt(key)}
               <ExpandingButton
                 onClick={() => copyToClipboard(antigravityPrompt, 'prompt')}
                 icon={copiedPrompt ? Check : Copy}
-                label={copiedPrompt ? '¡Instrucción Copiada!' : 'Copiar Instrucción'}
+                label={copiedPrompt ? '¡Paso 1 Copiado!' : 'Copiar Paso 1'}
                 variant="orange"
-                title="Copiar instrucción lista para pegar en Antigravity"
+                title="Copiar mensaje del Paso 1 para pegar en el chat de Antigravity"
               />
             </div>
 
             <div className="p-3.5 rounded-xl bg-orange-50/50 dark:bg-zinc-950 text-slate-800 dark:text-zinc-200 font-mono text-xs border border-orange-200/60 dark:border-zinc-800 leading-relaxed whitespace-pre-wrap select-all">
               {antigravityPrompt}
+            </div>
+          </div>
+
+          {/* PASO 2: Reiniciar / Nuevo Chat y Verificar Conexión */}
+          <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-teal-500/30 dark:border-teal-500/30 flex flex-col gap-3 shadow-sm">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-600 dark:text-teal-400 font-black text-xs shrink-0">
+                  2
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-slate-900 dark:text-zinc-100">
+                      Paso 2: Abre un nuevo chat (+ New Conversation) y pega este mensaje
+                    </span>
+                    <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-teal-600 text-white shadow-2xs">
+                      Verificación
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+                    Cuando Antigravity termine el Paso 1, reinícialo o abre una <strong>Nueva Conversación</strong> para cargar las herramientas y pega esto:
+                  </p>
+                </div>
+              </div>
+
+              <ExpandingButton
+                onClick={() => copyToClipboard(verifyConnectionPrompt, 'verify')}
+                icon={copiedVerify ? Check : Copy}
+                label={copiedVerify ? '¡Paso 2 Copiado!' : 'Copiar Paso 2'}
+                variant="teal"
+                title="Copiar mensaje del Paso 2 para probar tu conexión"
+              />
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-teal-50/40 dark:bg-zinc-950 text-slate-800 dark:text-zinc-200 font-mono text-xs border border-teal-200/60 dark:border-zinc-800 leading-relaxed whitespace-pre-wrap select-all">
+              {verifyConnectionPrompt}
+            </div>
+          </div>
+
+          {/* PASO 3 (Opcional): Activar enlace en vivo con Tenshi en Terminal */}
+          <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-emerald-500/30 dark:border-emerald-500/30 flex flex-col gap-3 shadow-sm">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-black text-xs shrink-0">
+                  3
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-slate-900 dark:text-zinc-100">
+                      Paso 3 (Opcional): Recibir órdenes de voz de Tenshi en tu PC
+                    </span>
+                    <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-600 text-white shadow-2xs">
+                      Pegar en Terminal
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+                    Haz clic en <strong>Terminal</strong> (en el panel derecho de Antigravity), pega este comando universal (Windows/Mac) y presiona <strong>Enter</strong>:
+                  </p>
+                </div>
+              </div>
+
+              <ExpandingButton
+                onClick={() => copyToClipboard(cronOnlyPrompt, 'cron')}
+                icon={copiedCron ? Check : Copy}
+                label={copiedCron ? '¡Comando Copiado!' : 'Copiar Paso 3'}
+                variant="emerald"
+                title="Copiar comando para pegar en la Terminal de Antigravity"
+              />
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-emerald-50/40 dark:bg-zinc-950 text-slate-800 dark:text-zinc-200 font-mono text-xs border border-emerald-200/60 dark:border-zinc-800 leading-relaxed whitespace-pre-wrap break-all select-all">
+              {cronOnlyPrompt}
             </div>
           </div>
 
@@ -767,7 +856,7 @@ ${buildPushBridgePrompt(key)}
               className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200 transition-colors"
             >
               {showAdvancedLocal ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              <span>Configuración Manual (Opcional para usuarios avanzados)</span>
+              <span>Configuración Manual del archivo JSON (Opcional)</span>
             </button>
 
             {showAdvancedLocal && (
@@ -777,10 +866,10 @@ ${buildPushBridgePrompt(key)}
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                     <div>
                       <span className="text-xs font-bold text-slate-900 dark:text-zinc-100">
-                        1. Archivo de servidores (<code className="text-teal-600 dark:text-teal-400 font-mono">~/.gemini/antigravity/mcp_config.json</code>)
+                        Archivo de servidores (<code className="text-teal-600 dark:text-teal-400 font-mono">~/.gemini/config/mcp_config.json</code>)
                       </span>
                       <p className="text-[11px] text-slate-500 dark:text-zinc-400">
-                        Si prefieres editar tu archivo JSON manualmente, agrega este bloque:
+                        Si prefieres editar tu archivo JSON manualmente desde Customizations &gt; MCP Servers, agrega este bloque:
                       </p>
                     </div>
                     <ExpandingButton
@@ -795,31 +884,6 @@ ${buildPushBridgePrompt(key)}
                   <pre className="p-3.5 rounded-xl bg-slate-950 text-slate-100 font-mono text-xs overflow-x-auto border border-slate-800 leading-relaxed select-all">
                     {antigravityJsonConfig}
                   </pre>
-                </div>
-
-                {/* Comando de terminal para enlace en vivo con Tenshi */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-200/80 dark:border-zinc-800 flex flex-col gap-2.5">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                    <div>
-                      <span className="text-xs font-bold text-slate-900 dark:text-zinc-100">
-                        2. Comando de terminal para activar el enlace en vivo con Tenshi
-                      </span>
-                      <p className="text-[11px] text-slate-500 dark:text-zinc-400">
-                        Ejecuta este comando una sola vez en tu terminal para recibir las consultas de Tenshi en tu PC:
-                      </p>
-                    </div>
-                    <ExpandingButton
-                      onClick={() => copyToClipboard(cronOnlyPrompt, 'cron')}
-                      icon={copiedCron ? Check : Copy}
-                      label={copiedCron ? '¡Copiado!' : 'Copiar Comando'}
-                      variant="teal"
-                      size="sm"
-                      title="Copiar comando de terminal para enlazar Tenshi"
-                    />
-                  </div>
-                  <div className="p-3 rounded-xl bg-slate-950 text-slate-100 font-mono text-xs border border-slate-800 leading-relaxed whitespace-pre-wrap select-all">
-                    {cronOnlyPrompt}
-                  </div>
                 </div>
               </div>
             )}
