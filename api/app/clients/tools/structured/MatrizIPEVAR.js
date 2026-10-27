@@ -30,9 +30,9 @@ class MatrizIPEVAR extends Tool {
           .describe('Descripción del riesgo. CRÍTICO: Si es una matriz ya existente/importada, conserva el valor original. Si el peligro_clasificacion es "Psicosocial", DEBES extraer y prefijar estrictamente el "Dominio" y la "Dimensión". Ej: "[Dominio: Demandas del trabajo - Dimensión: Carga mental] Descripción...".'),
         peligro_clasificacion: z.string().describe('Clasificación (ej. Biomecánico, Físico, Químico). Si es matriz ya existente/importada, conserva el valor original.'),
         efectos_posibles: z.string().describe('Posibles efectos en la salud del trabajador. SIEMPRE puedes editarlos y enriquecerlos clínica/ocupacionalmente para mejorarlos.'),
-        controles_fuente: z.string().default('Ninguno').describe('Controles preventivos reales existentes en la fuente, o "Ninguno" (PROHIBIDO escribir condiciones inseguras). Si ya existe en una matriz importada, consérvalo.'),
-        controles_medio: z.string().default('Ninguno').describe('Controles preventivos reales existentes en el medio, o "Ninguno". Si ya existe en una matriz importada, consérvalo.'),
-        controles_individuo: z.string().default('Ninguno').describe('Controles preventivos reales existentes en el individuo, o "Ninguno". Si ya existe en una matriz importada, consérvalo.'),
+        controles_fuente: z.string().default('Ninguno').describe('Controles existentes en la fuente. CRÍTICO: PROHIBIDO inventar controles existentes si la información suministrada por la empresa NO los menciona explícitamente; si no se mencionan o no existen, escribe estrictamente "Ninguno". Si ya existe en una matriz importada, consérvalo.'),
+        controles_medio: z.string().default('Ninguno').describe('Controles existentes en el medio. CRÍTICO: PROHIBIDO inventar controles existentes si la información suministrada por la empresa NO los menciona explícitamente; si no se mencionan o no existen, escribe estrictamente "Ninguno". Si ya existe en una matriz importada, consérvalo.'),
+        controles_individuo: z.string().default('Ninguno').describe('Controles existentes en el individuo. CRÍTICO: PROHIBIDO inventar controles existentes si la información suministrada por la empresa NO los menciona explícitamente; si no se mencionan o no existen, escribe estrictamente "Ninguno". Si ya existe en una matriz importada, consérvalo.'),
         nd: z.number().describe('Nivel de Deficiencia según Tabla 2 GTC-45 (ND: 10=Muy Alto sin controles eficaces en fuente/medio; 6=Alto eficacia baja; 2=Medio con controles existentes de eficacia moderada; 0=Bajo controlado). Evalúalo teniendo muy en cuenta los Controles Existentes, Efectos Posibles, Nro. de Expuestos y datos de la empresa, SIN tener en cuenta los Controles Propuestos ni el Factor de Reducción.'),
         ne: z.number().describe('Nivel de Exposición según Tabla 3 GTC-45 (NE: 4=Continua, 3=Frecuente, 2=Ocasional, 1=Esporádica). Evalúalo teniendo muy en cuenta la actividad/rutinaria, Nro. de Expuestos y datos de la empresa, SIN tener en cuenta los Controles Propuestos ni el Factor de Reducción.'),
         nc: z.number().describe('Nivel de Consecuencia según Tabla 6 GTC-45 (NC: 100=Mortal/Catastrófico, 60=Muy Grave invalidez/incapacidad permanente, 25=Grave incapacidad temporal, 10=Leve). Evalúalo teniendo muy en cuenta los Efectos Posibles, Peor Consecuencia y datos de la empresa, SIN tener en cuenta los Controles Propuestos ni el Factor de Reducción.'),
@@ -412,9 +412,9 @@ class MatrizIPEVAR extends Tool {
           const mergedRow = { ...prev, ...row };
           if (isValidField(prev.peligro_descripcion)) mergedRow.peligro_descripcion = prev.peligro_descripcion;
           if (isValidField(prev.peligro_clasificacion)) mergedRow.peligro_clasificacion = prev.peligro_clasificacion;
-          if (isValidField(prev.controles_fuente)) mergedRow.controles_fuente = prev.controles_fuente;
-          if (isValidField(prev.controles_medio)) mergedRow.controles_medio = prev.controles_medio;
-          if (isValidField(prev.controles_individuo)) mergedRow.controles_individuo = prev.controles_individuo;
+          mergedRow.controles_fuente = isValidField(prev.controles_fuente) ? prev.controles_fuente : 'Ninguno';
+          mergedRow.controles_medio = isValidField(prev.controles_medio) ? prev.controles_medio : 'Ninguno';
+          mergedRow.controles_individuo = isValidField(prev.controles_individuo) ? prev.controles_individuo : 'Ninguno';
           if (Number(prev.nro_expuestos) > 0) mergedRow.nro_expuestos = Number(prev.nro_expuestos);
           // efectos_posibles siempre se actualiza para mejorarlo si viene en row
           mergedRow.efectos_posibles = row.efectos_posibles || prev.efectos_posibles || '';

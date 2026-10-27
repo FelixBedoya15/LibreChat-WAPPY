@@ -620,9 +620,9 @@ CONTROLES PROPUESTOS ACTUALES EN LA FILA:
 ${companyCargos.length > 0 ? `\n═══ LISTA DE CARGOS DE LA EMPRESA (PRIORIZAR SI APLICAN) ═══\n${companyCargos.join(', ')}\n` : ''}
 
 ═══ TUS TAREAS OBLIGATORIAS ═══
-1. PROTECCIÓN DE DATOS IMPORTADOS O YA DILIGENCIADOS vs FILA DESDE CERO:
-   - Si PELIGRO DESCRIPCIÓN, CLASIFICACIÓN, CONTROLES EXISTENTES (Fuente, Medio, Individuo) o NRO. EXPUESTOS ya tienen información en la fila (no están vacíos), DEBES conservarlos exactamente igual sin modificarlos.
-   - ÚNICAMENTE si alguno de esos campos está vacío (cuando se crea una fila desde cero), complétalo técnicamente teniendo en cuenta los DATOS DE LA EMPRESA y la actividad.
+1. PROTECCIÓN DE DATOS IMPORTADOS O YA DILIGENCIADOS vs FILA DESDE CERO (PROHIBIDO INVENTAR CONTROLES EXISTENTES):
+   - CONTROLES EXISTENTES (controles_fuente, controles_medio, controles_individuo): CONSERVA SIEMPRE el valor actual de la fila ("${row.controles_fuente || 'Ninguno'}", "${row.controles_medio || 'Ninguno'}", "${row.controles_individuo || 'Ninguno'}"). ESTÁ TERMINANTEMENTE PROHIBIDO inventar o suponer controles existentes que no estén ya escritos en la fila o declarados explícitamente en los datos de la empresa; si no existen, deben quedar en "Ninguno".
+   - Si PELIGRO DESCRIPCIÓN, CLASIFICACIÓN o NRO. EXPUESTOS ya tienen información en la fila (no están vacíos), DEBES conservarlos exactamente igual sin modificarlos; únicamente si están vacíos complétalos técnicamente teniendo en cuenta los DATOS DE LA EMPRESA y la actividad.
    - EFECTOS POSIBLES (efectos_posibles): SIEMPRE debes editarlos, ampliarlos y mejorarlos clínica y ocupacionalmente acorde al peligro identificado (incluso si ya tenían un texto básico).
 2. CARGO Y ZONA / LUGAR:
    - Si CARGO ACTUAL o ZONA / LUGAR ACTUAL ya tienen un valor válido asignado por el usuario, consérvalos exactamente igual.
@@ -746,12 +746,9 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown) con estos campos 
     if (isNotEmpty(row.peligro_descripcion)) updatedFields.peligro_descripcion = row.peligro_descripcion;
     if (isNotEmpty(row.peligro_clasificacion)) updatedFields.peligro_clasificacion = row.peligro_clasificacion;
     updatedFields.efectos_posibles = updatedFields.efectos_posibles || row.efectos_posibles || '';
-    if (isNotEmpty(row.controles_fuente)) updatedFields.controles_fuente = row.controles_fuente;
-    else updatedFields.controles_fuente = updatedFields.controles_fuente || row.controles_fuente || 'Ninguno';
-    if (isNotEmpty(row.controles_medio)) updatedFields.controles_medio = row.controles_medio;
-    else updatedFields.controles_medio = updatedFields.controles_medio || row.controles_medio || 'Ninguno';
-    if (isNotEmpty(row.controles_individuo)) updatedFields.controles_individuo = row.controles_individuo;
-    else updatedFields.controles_individuo = updatedFields.controles_individuo || row.controles_individuo || 'Ninguno';
+    updatedFields.controles_fuente = isNotEmpty(row.controles_fuente) ? row.controles_fuente : 'Ninguno';
+    updatedFields.controles_medio = isNotEmpty(row.controles_medio) ? row.controles_medio : 'Ninguno';
+    updatedFields.controles_individuo = isNotEmpty(row.controles_individuo) ? row.controles_individuo : 'Ninguno';
     if (Number(row.nro_expuestos) > 0) updatedFields.nro_expuestos = Number(row.nro_expuestos);
 
     // Si la IA asignó o creó un cargo, asegurar que exista y se cree de verdad en Perfiles de Cargo (PerfilCargoData)
@@ -2353,10 +2350,13 @@ ${cargosHint}
 Genera mínimo 15 (entre 15 y 18) riesgos laborales críticos, diversos y representativos que abarquen todos los procesos principales de esta empresa y las 7 clasificaciones de peligros de la metodología GTC 45:2012 (Biológico, Físico, Químico, Psicosocial, Biomecánico, Condiciones de seguridad y Fenómenos naturales).
 IMPORTANTE:
 - El arreglo "filas" DEBE contener al menos 15 objetos de riesgo completos y distintos.
-- En CONTROLES EXISTENTES (controles_fuente, controles_medio, controles_individuo): registra únicamente medidas preventivas reales implementadas o escribe "Ninguno" cuando no exista control en esa barrera (PROHIBIDO escribir condiciones inseguras como "herramientas sin amortiguación" o "envases sin rotular" dentro de Controles Existentes).
-- PROHIBIDO repetir o solapar en los Controles Propuestos (medida_eliminacion, medida_sustitucion, medida_ingenieria, medida_administrativa, medida_eppu) algo que ya esté escrito en los Controles Existentes (controles_fuente, controles_medio, controles_individuo). Por ejemplo: si en controles_individuo ya pusiste "guantes" o "tapaoídos", NO vuelvas a proponer guantes ni tapaoídos en medida_eppu; propón controles que realmente falten (o si en controles_individuo no hay EPP para ese peligro, pon "Ninguno" o solo capacitación básica y deja el EPP certificado en medida_eppu).
+- CONTROLES EXISTENTES (controles_fuente, controles_medio, controles_individuo) — PROHIBIDO INVENTAR CONTROLES:
+  * ESTÁ TERMINANTEMENTE PROHIBIDO inventar, asumir o suponer controles existentes si la información suministrada por la empresa ("DESCRIPCIÓN DE ACTIVIDADES") NO los menciona explícitamente.
+  * Si la información de la empresa NO dice explícitamente que ya cuentan con un control específico en la fuente, en el medio o en el individuo para ese peligro, DEBES colocar estrictamente "Ninguno" en controles_fuente, controles_medio y controles_individuo.
+  * Todos los controles que recomiendes implementar deben ir exclusivamente en CONTROLES PROPUESTOS (medida_eliminacion, medida_sustitucion, medida_ingenieria, medida_administrativa, medida_eppu).
+- PROHIBIDO repetir o solapar en los Controles Propuestos (medida_eliminacion, medida_sustitucion, medida_ingenieria, medida_administrativa, medida_eppu) algo que ya esté escrito en los Controles Existentes (controles_fuente, controles_medio, controles_individuo).
 - CALIFICACIÓN EXACTA SEGÚN TABLAS GTC 45:2012 (ND, NE, NC) — Evalúa en función de los Controles Existentes, Efectos Posibles, Nro. de Expuestos y datos de la empresa, SIN tener en cuenta los Controles Propuestos ni el Factor de Reducción:
-  * ND (Tabla 2): usa 10 (Muy Alto) cuando el peligro sea crítico/mortal y los controles existentes en fuente y medio sean "Ninguno" o ineficaces; usa 6 (Alto) cuando solo haya controles parciales de baja eficacia; usa 2 (Medio) cuando YA existan controles efectivos en fuente/medio/individuo; usa 0 (Bajo) si está totalmente controlado. ¡No pongas todas las filas con ND=6; aplica rigor técnico según los controles existentes de cada fila!
+  * ND (Tabla 2): usa 10 (Muy Alto) cuando el peligro pueda generar consecuencias muy significativas/mortales y los controles existentes sean "Ninguno"; usa 6 (Alto) cuando el peligro pueda dar lugar a consecuencias significativas o la eficacia de los controles existentes sea baja; usa 2 (Medio) cuando el peligro dé lugar a consecuencias poco significativas o de menor importancia (o si la empresa declaró controles existentes de eficacia moderada); usa 0 (Bajo) si está totalmente controlado.
   * NE (Tabla 3): 4 (Continua), 3 (Frecuente), 2 (Ocasional), 1 (Esporádica).
   * NC (Tabla 6): 100 (Mortal/Catastrófico), 60 (Muy Grave: invalidez/incapacidad permanente), 25 (Grave: incapacidad temporal), 10 (Leve).
 - En cada fila, el campo "factores_reduccion" (Anexo E GTC-45) DEBE seguir obligatoriamente esta estructura de análisis de Costo/Beneficio evaluando los controles propuestos:
@@ -2375,9 +2375,9 @@ Devuelve ÚNICAMENTE un JSON válido (sin bloques markdown):
       "peligro_clasificacion": "Condiciones de seguridad",
       "efectos_posibles": "Laceraciones severas, fracturas por aplastamiento, atrapamiento mecánico y amputación traumática de falanges",
       "controles_fuente": "Ninguno",
-      "controles_medio": "Demarcación perimetral básica en piso",
-      "controles_individuo": "Inducción general de seguridad al ingreso",
-      "nd": 6,
+      "controles_medio": "Ninguno",
+      "controles_individuo": "Ninguno",
+      "nd": 10,
       "ne": 3,
       "nc": 60,
       "nro_expuestos": 6,
@@ -2388,7 +2388,7 @@ Devuelve ÚNICAMENTE un JSON válido (sin bloques markdown):
       "medida_ingenieria": "Instalación de guardas con enclavamiento electromecánico y paradas de emergencia tipo hongo",
       "medida_administrativa": "Procedimiento de trabajo seguro (PTS) y programa de bloqueo y etiquetado (LOTO)",
       "medida_eppu": "Guantes anticorte certificados EN 388 nivel 5 y gafas de seguridad ANSI Z87.1",
-      "factores_reduccion": "Reducción del 88.9% (NRi: 1080 → NRf: 120, Nivel III). Análisis Costo/Beneficio (GTC 45 Anexo E): La instalación de guardas con enclavamiento electromecánico y el programa LOTO (ingeniería en la fuente) le convienen prioritariamente a la empresa sobre depender únicamente de guantes anticorte (J=38.4 > 20), anulando la energía mecánica residual y evitando costos millonarios por amputación o litigios laborales."
+      "factores_reduccion": "Reducción del 93.3% (NRi: 1800 → NRf: 120, Nivel III). Análisis Costo/Beneficio (GTC 45 Anexo E): La instalación de guardas con enclavamiento electromecánico y el programa LOTO (ingeniería en la fuente) le convienen prioritariamente a la empresa sobre depender únicamente de guantes anticorte (J=38.4 > 20), anulando la energía mecánica residual y evitando costos millonarios por amputación o litigios laborales."
     }
   ]
 }`;
