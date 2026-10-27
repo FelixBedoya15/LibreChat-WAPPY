@@ -17,7 +17,9 @@ import {
   X,
   Bot,
   Award,
-  Loader2
+  Loader2,
+  Plug,
+  Handshake
 } from 'lucide-react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import { useMediaQuery } from '@librechat/client';
@@ -31,6 +33,8 @@ import {
   Data,
   Balance,
   Account,
+  IntegrationsTab,
+  PartnersTab,
   Admin,
   Ads,
 } from './SettingsTabs';
@@ -102,6 +106,18 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
         value: SettingsTabValues.ACCOUNT,
         icon: User,
         label: 'com_nav_setting_account' as TranslationKeys,
+        section: 'account' as const,
+      },
+      {
+        value: 'integrations',
+        icon: Plug,
+        label: 'Integraciones' as TranslationKeys,
+        section: 'account' as const,
+      },
+      {
+        value: 'partners',
+        icon: Handshake,
+        label: 'Partners' as TranslationKeys,
         section: 'account' as const,
       },
       {
@@ -255,7 +271,19 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
         return {
           icon: User,
           title: 'Mi Cuenta y Perfil',
-          subtitle: 'Datos personales, credenciales, conexiones e integraciones',
+          subtitle: 'Datos personales, seguridad de acceso y opciones de perfil',
+        };
+      case 'integrations':
+        return {
+          icon: Plug,
+          title: 'Conexiones e Integraciones',
+          subtitle: 'Conecta Google Workspace, Antigravity MCP, NotebookLM y servicios externos',
+        };
+      case 'partners':
+        return {
+          icon: Handshake,
+          title: 'Partners, Puntos y Embajadores',
+          subtitle: 'Programa de puntos asociados, comisiones de embajador y perfil comercial',
         };
       case SettingsTabValues.DATA:
         return {
@@ -511,6 +539,12 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
                     )}
                     <Tabs.Content value={SettingsTabValues.ACCOUNT} tabIndex={-1} className="outline-none">
                       <Account />
+                    </Tabs.Content>
+                    <Tabs.Content value={'integrations'} tabIndex={-1} className="outline-none">
+                      <IntegrationsTab />
+                    </Tabs.Content>
+                    <Tabs.Content value={'partners'} tabIndex={-1} className="outline-none">
+                      <PartnersTab />
                     </Tabs.Content>
                     {user?.role === SystemRoles.ADMIN && (
                       <Tabs.Content value={SettingsTabValues.ADMIN} tabIndex={-1} className="outline-none">
