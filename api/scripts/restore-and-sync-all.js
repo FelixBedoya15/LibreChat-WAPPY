@@ -409,6 +409,8 @@ Si el usuario te solicita redactar un contenido, guion, política, informe, o re
       tools.push('generar_imagen_sst');
     }
 
+    tools.push('google_flow');
+
     tools = [...new Set(tools)];
 
     let defaultModel = process.env.DEFAULT_AGENT_MODEL || 'gemini-3.5-flash-lite';

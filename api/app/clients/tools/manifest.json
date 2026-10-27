@@ -368,5 +368,12 @@
     "description": "Guarda, lista y gestiona hábitos operativos y reglas personalizadas de la empresa compartidas entre Tenshi y todos los especialistas.",
     "icon": "https://cdn-icons-png.flaticon.com/512/2040/2040946.png",
     "authConfig": []
+  },
+  {
+    "name": "Google Flow & Studio (Veo & Imagen)",
+    "pluginKey": "google_flow",
+    "description": "Genera imágenes fotorrealistas de alta resolución con Google Imagen y clips de video cinematográficos en MP4 con Google Veo directamente en el chat.",
+    "icon": "https://cdn-icons-png.flaticon.com/512/2991/2991148.png",
+    "authConfig": []
   }
 ]

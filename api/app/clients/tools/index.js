@@ -36,6 +36,7 @@ const PuterImageGen = require('./structured/PuterImageGen');
 const GestorAutomatizaciones = require('./structured/GestorAutomatizaciones');
 const WebSearch = require('./structured/WebSearch');
 const GenerarImagenSST = require('./structured/GenerarImagenSST');
+const GoogleFlow = require('./structured/GoogleFlow');
 const PubChem = require('./structured/PubChem');
 const {
   WidgetInteractivoSST,
@@ -61,6 +62,7 @@ module.exports = {
   createOpenAIImageTools,
   GoogleImageTools,
   GenerarImagenSST,
+  GoogleFlow,
   n8nWebhook,
   MatrizIPEVAR,
   MatrizPESV,

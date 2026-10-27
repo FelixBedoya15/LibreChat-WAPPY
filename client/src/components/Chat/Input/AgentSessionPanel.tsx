@@ -5,7 +5,7 @@ import {
     Settings2, Globe, FolderSearch, Notebook as NotebookIcon, TerminalSquare, Wrench, Cpu, Check, ChevronDown,
     FileText, Calculator, Brain, HardHat, ShieldCheck, Palette, BarChart3, Cloud, Calendar, Mail, FileSpreadsheet, Presentation,
     HeartPulse, ShieldAlert, Car, FlaskConical, FileEdit, Scale, BookOpen, UserCheck, Heart, Activity,
-    Search, Youtube, Image, Binary, Compass, CloudSun, GitFork, MapPin
+    Search, Youtube, Image, Binary, Compass, CloudSun, GitFork, MapPin, Clapperboard
 } from 'lucide-react';
 import type { TEphemeralAgent } from 'librechat-data-provider';
 import { useGetModelsQuery } from 'librechat-data-provider/react-query';
@@ -132,6 +132,8 @@ const getToolIcon = (toolId: string) => {
             return <Cpu className="h-4 w-4 text-purple-500" />;
 
         // --- Google Suite ---
+        case 'google_flow':
+            return <Clapperboard className="h-4 w-4 text-purple-500" />;
         case 'google_drive':
             return <Cloud className="h-4 w-4 text-emerald-500" />;
         case 'google_calendar':
@@ -214,7 +216,7 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
 
     // Filter tools into Google and General categories (excluding always-on background system tools)
     const alwaysOnHiddenTools = ['wappy_renderizar_widget_interactivo', 'wappy_memoria_procedimental', 'memory'];
-    const googleToolIds = ['google_drive', 'google_calendar', 'google_gmail', 'google_sheets', 'google_docs', 'google_slides'];
+    const googleToolIds = ['google_flow', 'google_drive', 'google_calendar', 'google_gmail', 'google_sheets', 'google_docs', 'google_slides'];
     const googleTools = externalTools.filter(id => googleToolIds.includes(id));
     const notebookLmTools = externalTools.filter(id => id.includes('_mcp_notebooklm'));
     const generalExternalTools = externalTools.filter(
@@ -253,6 +255,7 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
         consultar_analitica_psicosocial: 'Consultar Analítica Psicosocial',
         consultar_analitica_actos_condiciones: 'Analítica de Actos y Condiciones',
         gestor_automatizaciones: 'Automatizaciones',
+        google_flow: 'Google Flow (Veo & Imagen)',
         google_drive: 'Google Drive',
         google_calendar: 'Google Calendar',
         google_gmail: 'Google Gmail',

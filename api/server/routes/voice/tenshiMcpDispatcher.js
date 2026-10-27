@@ -374,6 +374,10 @@ const TOOL_ROUTES = {
   research_import: { isNotebookLM: true, tool: 'research_import' },
   research_import_mcp_notebooklm: { isNotebookLM: true, tool: 'research_import' },
 
+  // Google Flow & Studio (Veo & Imagen)
+  google_flow_generar_imagen: { isGoogleFlow: true, type: 'image' },
+  google_flow_generar_video: { isGoogleFlow: true, type: 'video' },
+
   // MedlinePlus Connect (NIH) & Fisioterapia Laboral
   wappy_consultar_rehabilitacion_medlineplus: {
     method: 'GET',
@@ -447,6 +451,55 @@ async function executeTenshiMcpTool(toolName, args = {}, userId) {
     } catch (nbErr) {
       logger.error(`[Tenshi MCP] Error conectando con NotebookLM para "${targetTool}":`, nbErr);
       return { error: `No se pudo conectar con el servidor de NotebookLM: ${nbErr.message}` };
+    }
+  }
+
+  // Si es una herramienta de Google Flow & Studio (Veo & Imagen)
+  if (routeConfig.isGoogleFlow) {
+    try {
+      const {
+        executeFlowImageGeneration,
+        executeFlowVideoGeneration,
+      } = require('~/server/routes/googleflow');
+      const flowPrompt = args?.prompt || args?.descripcion || '';
+      const flowAspect = args?.aspecto || args?.aspectRatio || '16:9';
+      const flowStyle = args?.estilo || args?.style || 'fotorrealista';
+      const flowMotion = args?.movimiento_camara || args?.cameraMotion || 'zoom_in';
+
+      if (routeConfig.type === 'video') {
+        const vidRes = await executeFlowVideoGeneration({
+          userId,
+          prompt: flowPrompt,
+          aspectRatio: flowAspect,
+          cameraMotion: flowMotion,
+        });
+        return {
+          success: true,
+          type: 'video',
+          publicUrl: vidRes.publicUrl,
+          model: vidRes.model,
+          aspectRatio: vidRes.aspectRatio,
+          message: `Video generado exitosamente en ${vidRes.publicUrl}`,
+        };
+      } else {
+        const imgRes = await executeFlowImageGeneration({
+          userId,
+          prompt: flowPrompt,
+          aspectRatio: flowAspect,
+          style: flowStyle,
+        });
+        return {
+          success: true,
+          type: 'image',
+          publicUrl: imgRes.publicUrl,
+          model: imgRes.model,
+          aspectRatio: imgRes.aspectRatio,
+          message: `Imagen generada exitosamente en ${imgRes.publicUrl}`,
+        };
+      }
+    } catch (flowErr) {
+      logger.error('[Tenshi MCP] Error en Google Flow:', flowErr);
+      return { error: `Error al generar en Google Flow: ${flowErr.message}` };
     }
   }
 

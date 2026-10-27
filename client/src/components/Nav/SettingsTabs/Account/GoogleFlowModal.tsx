@@ -17,6 +17,10 @@ import {
   Key,
   Video,
   Image as ImageIcon,
+  Play,
+  Download,
+  Loader2,
+  Zap,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 
@@ -37,6 +41,7 @@ export const GoogleFlowModal: React.FC<GoogleFlowModalProps> = ({
   const [manualJson, setManualJson] = useState('');
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isSyncingNb, setIsSyncingNb] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
@@ -44,7 +49,16 @@ export const GoogleFlowModal: React.FC<GoogleFlowModalProps> = ({
   const [copiedAg, setCopiedAg] = useState(false);
   const [copiedCmd, setCopiedCmd] = useState(false);
 
-  const serverOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://app.wappy.club';
+  // Laboratorio de prueba rápida en vivo
+  const [testMediaType, setTestMediaType] = useState<'image' | 'video'>('image');
+  const [testPrompt, setTestPrompt] = useState(
+    'Ingeniero de seguridad y salud en el trabajo con casco blanco, gafas de seguridad y chaleco reflectivo supervisando una planta industrial moderna al atardecer, iluminación cinematográfica 8k'
+  );
+  const [testAspectRatio, setTestAspectRatio] = useState<'16:9' | '9:16' | '1:1'>('16:9');
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
+  const [previewResult, setPreviewResult] = useState<any>(null);
+
+  const serverOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://wappy.club';
   const terminalCommand = `curl -sL "${serverOrigin}/api/googleflow/connect-script?token=${token || ''}" | node`;
   const antigravityPrompt = `Por favor ejecuta este comando en mi terminal para vincular mi cuenta privada de Google Flow / Studio con WAPPY:\n\n\`\`\`bash\n${terminalCommand}\n\`\`\``;
 
@@ -81,6 +95,85 @@ export const GoogleFlowModal: React.FC<GoogleFlowModalProps> = ({
     navigator.clipboard.writeText(terminalCommand);
     setCopiedCmd(true);
     setTimeout(() => setCopiedCmd(false), 3000);
+  };
+
+  const handleSyncFromNotebookLM = async () => {
+    try {
+      setIsSyncingNb(true);
+      setFeedback(null);
+      const res = await fetch('/api/googleflow/sync-from-notebooklm', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setFeedback({
+          type: 'success',
+          message: data.message || '¡Cuenta de Google vinculada al instante desde tu sesión de NotebookLM!',
+        });
+        await fetchStatus();
+        if (onStatusChange) onStatusChange();
+      } else {
+        setFeedback({
+          type: 'error',
+          message: data.error || 'No se encontró una sesión activa en NotebookLM para importar.',
+        });
+      }
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: 'Error de conexión: ' + err.message });
+    } finally {
+      setIsSyncingNb(false);
+    }
+  };
+
+  const handleGeneratePreview = async () => {
+    if (!testPrompt.trim()) {
+      setFeedback({ type: 'error', message: 'Por favor escribe una descripción para probar.' });
+      return;
+    }
+
+    try {
+      setIsGeneratingPreview(true);
+      setFeedback(null);
+      setPreviewResult(null);
+
+      const res = await fetch('/api/googleflow/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          type: testMediaType,
+          prompt: testPrompt.trim(),
+          aspectRatio: testAspectRatio,
+          style: 'fotorrealista',
+          cameraMotion: 'zoom_in',
+        }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setPreviewResult(data);
+        setFeedback({
+          type: 'success',
+          message:
+            testMediaType === 'video'
+              ? `✓ ¡Video generado exitosamente con ${data.model}!`
+              : `✓ ¡Imagen generada exitosamente con ${data.model}!`,
+        });
+      } else {
+        setFeedback({
+          type: 'error',
+          message: data.error || 'Error al generar la vista previa.',
+        });
+      }
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: 'Error generando vista previa: ' + err.message });
+    } finally {
+      setIsGeneratingPreview(false);
+    }
   };
 
   const handleSaveApiKey = async () => {
@@ -374,7 +467,7 @@ export const GoogleFlowModal: React.FC<GoogleFlowModalProps> = ({
             </div>
           )}
 
-          {/* Opción 1: Antigravity / Terminal 1-Clic */}
+          {/* Opción 1: Antigravity / Terminal 1-Clic + Importar desde NotebookLM */}
           <div className="rounded-2xl border border-purple-500/30 bg-purple-500/5 dark:bg-purple-950/20 p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -389,8 +482,29 @@ export const GoogleFlowModal: React.FC<GoogleFlowModalProps> = ({
                 Automático
               </span>
             </div>
+
+            {status?.canSyncFromNotebookLM && (
+              <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-950/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="text-[11px] text-emerald-900 dark:text-emerald-200">
+                  <span className="font-bold block">✨ ¡Detectamos tu sesión activa de Google NotebookLM!</span>
+                  <span>
+                    Puedes vincular Google Flow al instante usando tu misma cuenta ({status.notebookEmail || 'Google'}) sin abrir la terminal.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSyncFromNotebookLM}
+                  disabled={isSyncingNb}
+                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shrink-0 flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
+                >
+                  {isSyncingNb ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                  {isSyncingNb ? 'Vinculando...' : 'Vincular en 1 Clic Aquí'}
+                </button>
+              </div>
+            )}
+
             <p className="text-[11px] text-slate-600 dark:text-zinc-400">
-              Abre una ventana segura de Google Flow en tu navegador local, detecta tu sesión privada y la sincroniza con WAPPY sin configuraciones manuales:
+              O ejecuta este comando en tu Terminal / Antigravity para abrir Google Flow en tu navegador local y sincronizar automáticamente:
             </p>
 
             <div className="space-y-2">
@@ -422,6 +536,125 @@ export const GoogleFlowModal: React.FC<GoogleFlowModalProps> = ({
             </div>
           </div>
 
+          {/* Laboratorio de Prueba Rápida en Vivo */}
+          <div className="rounded-2xl border border-pink-500/30 bg-gradient-to-br from-purple-500/5 via-indigo-500/5 to-pink-500/5 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                <h4 className="text-xs font-bold text-slate-900 dark:text-zinc-100">
+                  Estudio de Prueba en Vivo (Generar Imagen o Video Ahora)
+                </h4>
+              </div>
+              <div className="flex items-center gap-1 bg-slate-200/70 dark:bg-zinc-800 p-0.5 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setTestMediaType('image')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                    testMediaType === 'image'
+                      ? 'bg-white dark:bg-zinc-900 text-purple-600 dark:text-purple-400 shadow-sm'
+                      : 'text-slate-600 dark:text-zinc-400'
+                  }`}
+                >
+                  <ImageIcon className="w-3 h-3" /> Imagen
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTestMediaType('video')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                    testMediaType === 'video'
+                      ? 'bg-white dark:bg-zinc-900 text-pink-600 dark:text-pink-400 shadow-sm'
+                      : 'text-slate-600 dark:text-zinc-400'
+                  }`}
+                >
+                  <Video className="w-3 h-3" /> Video MP4
+                </button>
+              </div>
+            </div>
+
+            <textarea
+              rows={2}
+              value={testPrompt}
+              onChange={(e) => setTestPrompt(e.target.value)}
+              placeholder="Describe la imagen o el clip de video que deseas generar..."
+              className="w-full p-2.5 text-xs rounded-xl border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400">Formato:</span>
+                {(['16:9', '9:16', '1:1'] as const).map((ratio) => (
+                  <button
+                    key={ratio}
+                    type="button"
+                    onClick={() => setTestAspectRatio(ratio)}
+                    className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all ${
+                      testAspectRatio === ratio
+                        ? 'border-purple-500 bg-purple-500/15 text-purple-700 dark:text-purple-300'
+                        : 'border-slate-300 dark:border-zinc-700 text-slate-600 dark:text-zinc-400'
+                    }`}
+                  >
+                    {ratio}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGeneratePreview}
+                disabled={isGeneratingPreview || !testPrompt.trim()}
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 hover:opacity-95 text-white text-xs font-bold shadow-md shadow-purple-500/20 transition-all disabled:opacity-50"
+              >
+                {isGeneratingPreview ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    {testMediaType === 'video' ? 'Renderizando Video...' : 'Generando Imagen...'}
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3.5 h-3.5" />
+                    Probar {testMediaType === 'video' ? 'Video con Veo' : 'Imagen con Imagen'}
+                  </>
+                )}
+              </button>
+            </div>
+
+            {previewResult && (
+              <div className="mt-3 p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-black/95 space-y-2.5">
+                <div className="flex items-center justify-between text-[11px] text-zinc-300 px-1">
+                  <span className="font-bold text-purple-400">{previewResult.model}</span>
+                  <a
+                    href={previewResult.publicUrl}
+                    download
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px]"
+                  >
+                    <Download className="w-3 h-3" /> Descargar
+                  </a>
+                </div>
+                <div className="flex justify-center overflow-hidden rounded-xl bg-black">
+                  {previewResult.type === 'video' ? (
+                    <video
+                      src={previewResult.publicUrl}
+                      poster={previewResult.posterUrl}
+                      controls
+                      autoPlay
+                      loop
+                      playsInline
+                      className="max-h-64 w-auto object-contain rounded-lg"
+                    />
+                  ) : (
+                    <img
+                      src={previewResult.publicUrl}
+                      alt={previewResult.prompt}
+                      className="max-h-64 w-auto object-contain rounded-lg"
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Opción 2: API Key de Google AI Studio */}
           <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/5 dark:bg-indigo-950/20 p-4 space-y-3">
             <div className="flex items-center justify-between">
@@ -430,7 +663,7 @@ export const GoogleFlowModal: React.FC<GoogleFlowModalProps> = ({
                   2
                 </span>
                 <h4 className="text-xs font-bold text-slate-900 dark:text-zinc-100">
-                  Método 2: Google AI Studio API Key (Alternativo)
+                  Método 2: Google AI Studio API Key (Opcional)
                 </h4>
               </div>
               <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-500/15 border border-indigo-500/30 px-2 py-0.5 rounded-lg">
@@ -438,7 +671,7 @@ export const GoogleFlowModal: React.FC<GoogleFlowModalProps> = ({
               </span>
             </div>
             <p className="text-[11px] text-slate-600 dark:text-zinc-400">
-              Si prefieres usar una clave de API directa de Google AI Studio para invocar Veo e Imagen sin depender de la sesión web:
+              Si prefieres usar una clave de API directa de Google AI Studio para invocar Veo e Imagen:
             </p>
 
             <div className="flex gap-2">
@@ -504,39 +737,12 @@ export const GoogleFlowModal: React.FC<GoogleFlowModalProps> = ({
               </div>
             )}
           </div>
-
-          {/* Modelos disponibles */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-            <div className="p-3 rounded-xl border border-slate-200/80 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/30 flex items-start gap-2.5">
-              <div className="p-2 rounded-lg bg-pink-500/10 text-pink-600 dark:text-pink-400 shrink-0">
-                <ImageIcon className="w-4 h-4" />
-              </div>
-              <div>
-                <h5 className="text-xs font-bold text-slate-900 dark:text-zinc-100">Google Imagen</h5>
-                <p className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
-                  Generación fotorrealista de imágenes, afiches de seguridad y portadas de cursos en alta resolución.
-                </p>
-              </div>
-            </div>
-
-            <div className="p-3 rounded-xl border border-slate-200/80 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/30 flex items-start gap-2.5">
-              <div className="p-2 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 shrink-0">
-                <Video className="w-4 h-4" />
-              </div>
-              <div>
-                <h5 className="text-xs font-bold text-slate-900 dark:text-zinc-100">Google Veo</h5>
-                <p className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
-                  Generación de vídeo cinematográfico a 1080p, tomas de apoyo y clips de simulacros para Tenshi y chats.
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-slate-200/80 dark:border-zinc-800/80 px-6 py-3.5 bg-slate-50/50 dark:bg-zinc-900/50">
           <span className="text-[11px] text-slate-500 dark:text-zinc-400">
-            Conexión aislada por usuario &bull; Cifrada en base de datos
+            Conexión aislada por usuario &bull; Disponible en Chat y Tenshi
           </span>
           <button
             type="button"

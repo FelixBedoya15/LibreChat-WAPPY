@@ -58,6 +58,7 @@ const {
   PuterImageGen,
   GestorAutomatizaciones,
   GenerarImagenSST,
+  GoogleFlow,
   PubChem,
   WidgetInteractivoSST,
   MemoriaProcedimentalSST,
@@ -321,6 +322,14 @@ const loadTools = async ({
     },
     generar_imagen_sst: async (_toolContextMap) => {
       return new GenerarImagenSST({
+        userId: user,
+        req: options.req,
+        isAgent: !!agent,
+        imageOutputType,
+      });
+    },
+    google_flow: async (_toolContextMap) => {
+      return new GoogleFlow({
         userId: user,
         req: options.req,
         isAgent: !!agent,
