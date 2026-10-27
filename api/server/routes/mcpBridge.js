@@ -8875,6 +8875,429 @@ router.get('/medicina/rehabilitacion-medlineplus', async (req, res) => {
   }
 });
 
+// ─── 40. MÓDULOS AVANZADOS SG-SST (ATS, PERMISOS ALTURAS, VULNERABILIDAD, OWAS, ALTA DIRECCIÓN, CONTEXTO, ESTADÍSTICAS, SUBUSUARIOS, LIVE DOCS, NOTEBOOKLM) ───
+
+// 40.1 Análisis de Trabajo Seguro (ATS)
+router.get('/ats', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    const companyId = company ? company._id : null;
+    if (!AnalisisTrabajoSeguroData) {
+      return res.json({ formData: {}, trabajadoresList: [], responsablesList: [] });
+    }
+    const doc = await AnalisisTrabajoSeguroData.findOne(companyScope(req.user.id, companyId)).lean();
+    return res.json(doc || { formData: {}, trabajadoresList: [], responsablesList: [] });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error GET /ats:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/ats', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    const companyId = company ? company._id : null;
+    if (!AnalisisTrabajoSeguroData) {
+      return res.status(500).json({ error: 'Modelo AnalisisTrabajoSeguroData no disponible.' });
+    }
+    const update = {
+      user: req.user.id,
+      companyId,
+      updatedAt: new Date(),
+    };
+    if (req.body.formData !== undefined) update.formData = req.body.formData;
+    if (req.body.trabajadoresList !== undefined) update.trabajadoresList = req.body.trabajadoresList;
+    if (req.body.responsablesList !== undefined) update.responsablesList = req.body.responsablesList;
+    const saved = await AnalisisTrabajoSeguroData.findOneAndUpdate(
+      companyScope(req.user.id, companyId),
+      { $set: update },
+      { upsert: true, new: true }
+    ).lean();
+    return res.json({ success: true, data: saved });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error POST /ats:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// 40.2 Permisos de Trabajo en Alturas
+router.get('/permisos-alturas', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    const companyId = company ? company._id : null;
+    try { require('./sgsst/permisoAlturas'); } catch (_) {}
+    const PermisoAlturasData = mongoose.models.PermisoAlturasData;
+    if (!PermisoAlturasData) {
+      return res.json({ formData: {}, trabajadoresList: [], responsablesList: [] });
+    }
+    const doc = await PermisoAlturasData.findOne(companyScope(req.user.id, companyId)).lean();
+    return res.json(doc || { formData: {}, trabajadoresList: [], responsablesList: [] });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error GET /permisos-alturas:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/permisos-alturas', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    const companyId = company ? company._id : null;
+    try { require('./sgsst/permisoAlturas'); } catch (_) {}
+    const PermisoAlturasData = mongoose.models.PermisoAlturasData;
+    if (!PermisoAlturasData) {
+      return res.status(500).json({ error: 'Modelo PermisoAlturasData no disponible.' });
+    }
+    const update = {
+      user: req.user.id,
+      companyId,
+      updatedAt: new Date(),
+    };
+    if (req.body.formData !== undefined) update.formData = req.body.formData;
+    if (req.body.trabajadoresList !== undefined) update.trabajadoresList = req.body.trabajadoresList;
+    if (req.body.responsablesList !== undefined) update.responsablesList = req.body.responsablesList;
+    const saved = await PermisoAlturasData.findOneAndUpdate(
+      companyScope(req.user.id, companyId),
+      { $set: update },
+      { upsert: true, new: true }
+    ).lean();
+    return res.json({ success: true, data: saved });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error POST /permisos-alturas:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// 40.3 Análisis de Vulnerabilidad y Amenazas
+router.get('/vulnerabilidad', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    const companyId = company ? company._id : null;
+    if (!AnalisisVulnerabilidadData) {
+      return res.json({ formData: {}, evaluadoresList: [] });
+    }
+    const doc = await AnalisisVulnerabilidadData.findOne(companyScope(req.user.id, companyId)).lean();
+    return res.json(doc || { formData: {}, evaluadoresList: [] });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error GET /vulnerabilidad:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/vulnerabilidad', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    const companyId = company ? company._id : null;
+    if (!AnalisisVulnerabilidadData) {
+      return res.status(500).json({ error: 'Modelo AnalisisVulnerabilidadData no disponible.' });
+    }
+    const update = {
+      user: req.user.id,
+      companyId,
+      updatedAt: new Date(),
+    };
+    if (req.body.formData !== undefined) update.formData = req.body.formData;
+    if (req.body.evaluadoresList !== undefined) update.evaluadoresList = req.body.evaluadoresList;
+    const saved = await AnalisisVulnerabilidadData.findOneAndUpdate(
+      companyScope(req.user.id, companyId),
+      { $set: update },
+      { upsert: true, new: true }
+    ).lean();
+    return res.json({ success: true, data: saved });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error POST /vulnerabilidad:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// 40.4 Ergonomía — Método OWAS
+router.get('/owas', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    const companyId = company ? company._id : null;
+    if (!MetodoOwasData) {
+      return res.json({ formData: {}, observaciones: [], trabajadoresList: [] });
+    }
+    const doc = await MetodoOwasData.findOne(companyScope(req.user.id, companyId)).lean();
+    return res.json(doc || { formData: {}, observaciones: [], trabajadoresList: [] });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error GET /owas:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/owas', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    const companyId = company ? company._id : null;
+    if (!MetodoOwasData) {
+      return res.status(500).json({ error: 'Modelo MetodoOwasData no disponible.' });
+    }
+    const update = {
+      user: req.user.id,
+      companyId,
+      updatedAt: new Date(),
+    };
+    if (req.body.formData !== undefined) update.formData = req.body.formData;
+    if (req.body.observaciones !== undefined) update.observaciones = req.body.observaciones;
+    if (req.body.trabajadoresList !== undefined) update.trabajadoresList = req.body.trabajadoresList;
+    const saved = await MetodoOwasData.findOneAndUpdate(
+      companyScope(req.user.id, companyId),
+      { $set: update },
+      { upsert: true, new: true }
+    ).lean();
+    return res.json({ success: true, data: saved });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error POST /owas:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// 40.5 Revisión por la Alta Dirección
+router.get('/alta-direccion', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    const companyId = company ? company._id : null;
+    try { require('./sgsst/altaDireccion'); } catch (_) {}
+    const AltaDireccionData = mongoose.models.AltaDireccionData;
+    if (!AltaDireccionData) {
+      return res.json({ statusData: [], reviewerInfo: {}, inboxPublico: [] });
+    }
+    const doc = await AltaDireccionData.findOne(companyScope(req.user.id, companyId)).lean();
+    return res.json(doc || { statusData: [], reviewerInfo: {}, inboxPublico: [] });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error GET /alta-direccion:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/alta-direccion', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    const companyId = company ? company._id : null;
+    try { require('./sgsst/altaDireccion'); } catch (_) {}
+    const AltaDireccionData = mongoose.models.AltaDireccionData;
+    if (!AltaDireccionData) {
+      return res.status(500).json({ error: 'Modelo AltaDireccionData no disponible.' });
+    }
+    const update = {
+      user: req.user.id,
+      companyId,
+      updatedAt: new Date(),
+    };
+    if (req.body.statusData !== undefined) update.statusData = req.body.statusData;
+    if (req.body.reviewerInfo !== undefined) update.reviewerInfo = req.body.reviewerInfo;
+    const saved = await AltaDireccionData.findOneAndUpdate(
+      companyScope(req.user.id, companyId),
+      { $set: update },
+      { upsert: true, new: true }
+    ).lean();
+    return res.json({ success: true, data: saved });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error POST /alta-direccion:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// 40.6 Contexto Organizacional (DOFA y Partes Interesadas)
+router.get('/contexto', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    const companyId = company ? company._id : null;
+    const ContextoData = mongoose.models.ContextoData || require('~/models/ContextoData');
+    const doc = await ContextoData.findOne(companyScope(req.user.id, companyId)).lean();
+    return res.json(doc || { dofaList: [], stakeholders: [], crossStrategies: { fo: [], do: [], fa: [], da: [] } });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error GET /contexto:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/contexto', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    const companyId = company ? company._id : null;
+    const ContextoData = mongoose.models.ContextoData || require('~/models/ContextoData');
+    const update = {
+      user: req.user.id,
+      companyId,
+      updatedAt: new Date(),
+    };
+    if (req.body.dofaList !== undefined) update.dofaList = req.body.dofaList;
+    if (req.body.stakeholders !== undefined) update.stakeholders = req.body.stakeholders;
+    if (req.body.crossStrategies !== undefined) update.crossStrategies = req.body.crossStrategies;
+    if (req.body.lastGeneratedReport !== undefined) update.lastGeneratedReport = req.body.lastGeneratedReport;
+    const saved = await ContextoData.findOneAndUpdate(
+      companyScope(req.user.id, companyId),
+      { $set: update },
+      { upsert: true, new: true }
+    ).lean();
+    return res.json({ success: true, data: saved });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error POST /contexto:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// 40.7 Estadísticas e Indicadores Mínimos ATEL / Ausentismo (Res. 0312 Art. 30)
+router.get('/estadisticas-atel', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    const companyId = company ? company._id : null;
+    const year = Number(req.query.year || new Date().getFullYear());
+    try { require('./sgsst/atel-data'); } catch (_) {}
+    const ATELAnnualData = mongoose.models.ATELAnnualData;
+    if (!ATELAnnualData) {
+      return res.json({ year, annualData: {} });
+    }
+    const doc = await ATELAnnualData.findOne({ ...companyScope(req.user.id, companyId), year }).lean();
+    return res.json(doc || { year, annualData: {} });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error GET /estadisticas-atel:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/estadisticas-atel', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    const companyId = company ? company._id : null;
+    const year = Number(req.body.year || new Date().getFullYear());
+    try { require('./sgsst/atel-data'); } catch (_) {}
+    const ATELAnnualData = mongoose.models.ATELAnnualData;
+    if (!ATELAnnualData) {
+      return res.status(500).json({ error: 'Modelo ATELAnnualData no disponible.' });
+    }
+    const saved = await ATELAnnualData.findOneAndUpdate(
+      { ...companyScope(req.user.id, companyId), year },
+      {
+        $set: {
+          user: req.user.id,
+          companyId,
+          year,
+          annualData: req.body.annualData || {},
+          updatedAt: new Date(),
+        },
+      },
+      { upsert: true, new: true }
+    ).lean();
+    return res.json({ success: true, data: saved });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error POST /estadisticas-atel:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// 40.8 Sub-usuarios Operativos de Empresa
+router.get('/subusuarios', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const User = mongoose.models.User || mongoose.model('User');
+    const subs = await User.find({ parentUserId: req.user.id })
+      .select('_id name username email role isSubUser subUserPermissions assignedCompanyId createdAt')
+      .lean();
+    return res.json({ total: subs.length, subusuarios: subs });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error GET /subusuarios:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// 40.9 Documentos en Vivo / Canvas (LiveDocument)
+router.get('/documentos-vivo', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const LiveDocument = mongoose.models.LiveDocument || require('~/models/LiveDocument');
+    const docs = await LiveDocument.find({ user: req.user.id })
+      .sort({ updatedAt: -1 })
+      .limit(Number(req.query.limit || 30))
+      .lean();
+    return res.json({ total: docs.length, documentos: docs });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error GET /documentos-vivo:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/documentos-vivo', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const LiveDocument = mongoose.models.LiveDocument || require('~/models/LiveDocument');
+    const company = await getActiveCompany(req.user.id);
+    const { id, title, content } = req.body;
+    if (id && mongoose.isValidObjectId(id)) {
+      const updated = await LiveDocument.findOneAndUpdate(
+        { _id: id, user: req.user.id },
+        { $set: { title: title || 'Documento SST', content: content || '' } },
+        { new: true }
+      ).lean();
+      return res.json({ success: true, documento: updated });
+    }
+    const created = await LiveDocument.create({
+      user: req.user.id,
+      companyId: company ? company._id : null,
+      title: title || 'Documento SST',
+      content: content || '',
+    });
+    return res.json({ success: true, documento: created });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error POST /documentos-vivo:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/documentos-vivo/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const LiveDocument = mongoose.models.LiveDocument || require('~/models/LiveDocument');
+    await LiveDocument.deleteOne({ _id: req.params.id, user: req.user.id });
+    return res.json({ success: true, deletedId: req.params.id });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error DELETE /documentos-vivo:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// 40.10 Puente Directo de Antigravity hacia Google NotebookLM (35 herramientas)
+router.post('/notebooklm/tool', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const { tool, arguments: toolArgs = {} } = req.body || {};
+    if (!tool) {
+      return res.status(400).json({ error: 'El parámetro "tool" es obligatorio.' });
+    }
+    const NotebookSession = require('~/models/NotebookSession');
+    const session = await NotebookSession.findOne({ user: req.user.id }).lean();
+    const cookies = session?.cookies || [];
+    const effectiveEmail = session?.email || req.user.email || '';
+
+    const notebooklmUrl = process.env.NOTEBOOKLM_URL || 'http://notebooklm-mcp:9420';
+    const headers = {
+      'Content-Type': 'application/json',
+      'x-user-id': String(req.user.id),
+      'x-user-email': String(effectiveEmail),
+    };
+    if (cookies.length > 0) {
+      headers['x-notebooklm-auth'] = JSON.stringify(cookies);
+    }
+
+    const mcpRes = await fetch(`${notebooklmUrl}/api/direct-tool`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        name: tool,
+        arguments: toolArgs,
+        user_id: String(req.user.id),
+        user_email: String(effectiveEmail),
+      }),
+    });
+    const mcpData = await mcpRes.json().catch(() => ({}));
+    if (!mcpRes.ok || mcpData?.error) {
+      return res.status(mcpRes.status || 500).json({
+        error: mcpData?.error || `Error ejecutando herramienta NotebookLM "${tool}".`,
+      });
+    }
+    return res.json(mcpData);
+  } catch (error) {
+    logger.error('[MCP Bridge] Error POST /notebooklm/tool:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
 
 

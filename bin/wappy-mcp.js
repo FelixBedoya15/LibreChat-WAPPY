@@ -2476,6 +2476,666 @@ server.tool(
   }
 );
 
+server.tool(
+  'wappy_delegar_orden_antigravity',
+  {
+    instruccion: z.string().describe('Instrucción detallada de la tarea a delegar a Antigravity'),
+    formatoEsperado: z.string().optional().describe('Formato esperado: respuesta, documento, html, excel, copia_archivo'),
+    prioridad: z.string().optional().describe('Prioridad: alta, media, baja'),
+  },
+  async (params) => {
+    try {
+      const data = await wappyRequest('/antigravity/delegar', {
+        method: 'POST',
+        body: JSON.stringify(params),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+// ─── 36. AGENDA Y CALENDARIO SST ─────────────────────────────────────────────
+
+server.tool(
+  'wappy_consultar_agenda',
+  {},
+  async () => {
+    try {
+      const data = await wappyRequest('/agenda/events', { method: 'GET' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_crear_evento_agenda',
+  {
+    title: z.string().describe('Título del evento en la agenda'),
+    date: z.string().describe('Fecha del evento (YYYY-MM-DD o ISO)'),
+    time: z.string().optional().describe('Hora del evento (HH:mm)'),
+    description: z.string().optional().describe('Descripción o notas de la actividad'),
+    category: z.string().optional().describe('Categoría: reunion, auditoria, capacitacion, inspeccion, personal'),
+  },
+  async (params) => {
+    try {
+      const data = await wappyRequest('/agenda/events', {
+        method: 'POST',
+        body: JSON.stringify(params),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_actualizar_evento_agenda',
+  {
+    id: z.string().describe('ID del evento de agenda'),
+    title: z.string().optional().describe('Nuevo título'),
+    date: z.string().optional().describe('Nueva fecha'),
+    time: z.string().optional().describe('Nueva hora'),
+    description: z.string().optional().describe('Nueva descripción'),
+  },
+  async ({ id, ...rest }) => {
+    try {
+      const data = await wappyRequest(`/agenda/events/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body: JSON.stringify({ id, ...rest }),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_eliminar_evento_agenda',
+  {
+    id: z.string().describe('ID del evento de agenda a eliminar'),
+  },
+  async ({ id }) => {
+    try {
+      const data = await wappyRequest(`/agenda/events/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+// ─── 37. BRIEFING EJECUTIVO, CORREOS, QR E INFORMES ─────────────────────────
+
+server.tool(
+  'wappy_obtener_briefing_ejecutivo',
+  {},
+  async () => {
+    try {
+      const data = await wappyRequest('/briefing', { method: 'GET' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_enviar_correo',
+  {
+    destinatario: z.string().describe('Correo electrónico del destinatario (o nombre del trabajador)'),
+    asunto: z.string().describe('Asunto del correo'),
+    mensaje: z.string().describe('Contenido o cuerpo del correo (texto o HTML)'),
+  },
+  async (params) => {
+    try {
+      const data = await wappyRequest('/email/send', {
+        method: 'POST',
+        body: JSON.stringify(params),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_generar_codigo_qr',
+  {
+    modulo: z.string().describe('Módulo para el QR: sociodemografico, actos_condiciones, ipevar, capacitaciones, comites, alta_direccion'),
+    titulo: z.string().optional().describe('Título personalizado para el cartel QR'),
+  },
+  async (params) => {
+    try {
+      const data = await wappyRequest('/qr/generate', {
+        method: 'POST',
+        body: JSON.stringify(params),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_consultar_informe_aplicativo',
+  {
+    aplicativo: z.string().describe('Nombre del aplicativo SST: gtc45, pesv, 0312, vulnerabilidad, owas, ats, alturas, legal, comites, capacitaciones, auditoria, atel'),
+    id: z.string().optional().describe('ID específico del registro si aplica'),
+  },
+  async ({ aplicativo, id }) => {
+    try {
+      const qs = new URLSearchParams({ aplicativo });
+      if (id) qs.set('id', id);
+      const data = await wappyRequest(`/informe?${qs.toString()}`, { method: 'GET' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_generar_informe_ejecutivo',
+  {
+    tipoInforme: z.string().describe('Tipo de informe a consolidar (ej. general_360, alta_direccion, accidentalidad, auditoria)'),
+    observaciones: z.string().optional().describe('Observaciones adicionales para incluir en el informe'),
+  },
+  async (params) => {
+    try {
+      const data = await wappyRequest('/reports/generate', {
+        method: 'POST',
+        body: JSON.stringify(params),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+// ─── 38. ANALÍTICA BIOCÉNTRICA, PUBCHEM, EMERGENCIAS, CLIMA Y MEDLINEPLUS ───
+
+server.tool(
+  'wappy_analitica_psicosocial_animo',
+  {},
+  async () => {
+    try {
+      const data = await wappyRequest('/analitica/psicosocial', { method: 'GET' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_analitica_actos_condiciones',
+  {},
+  async () => {
+    try {
+      const data = await wappyRequest('/analitica/actos-condiciones', { method: 'GET' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_consultar_pubchem_quimico',
+  {
+    sustancia: z.string().describe('Nombre de la sustancia química o número CAS'),
+  },
+  async ({ sustancia }) => {
+    try {
+      const data = await wappyRequest(`/quimicos/pubchem?sustancia=${encodeURIComponent(sustancia)}`, { method: 'GET' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_buscar_centros_emergencia',
+  {
+    ciudad: z.string().optional().describe('Ciudad o dirección para buscar hospitales, clínicas, bomberos y policía cercanos'),
+  },
+  async ({ ciudad }) => {
+    try {
+      const qs = ciudad ? `?ciudad=${encodeURIComponent(ciudad)}` : '';
+      const data = await wappyRequest(`/emergencias/nominatim${qs}`, { method: 'GET' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_pronostico_clima_sst',
+  {
+    ciudad: z.string().optional().describe('Ciudad o municipio para consultar clima, lluvia, viento e índice UV para trabajo seguro'),
+  },
+  async ({ ciudad }) => {
+    try {
+      const qs = ciudad ? `?ciudad=${encodeURIComponent(ciudad)}` : '';
+      const data = await wappyRequest(`/clima/pronostico${qs}`, { method: 'GET' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_consultar_medlineplus_rehabilitacion',
+  {
+    codigo: z.string().optional().describe('Código CIE-10 (ej. M54.5, G56.0)'),
+    segmento: z.string().optional().describe('Segmento corporal (ej. lumbar, cervical, tunel carpiano, hombro, visual)'),
+  },
+  async ({ codigo, segmento }) => {
+    try {
+      const qs = new URLSearchParams();
+      if (codigo) qs.set('codigo', codigo);
+      if (segmento) qs.set('segmento', segmento);
+      const data = await wappyRequest(`/medicina/rehabilitacion-medlineplus?${qs.toString()}`, { method: 'GET' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+// ─── 39. IMPORTACIÓN DRIVE Y ACTUALIZACIÓN DE AUTOMATIZACIONES ──────────────
+
+server.tool(
+  'wappy_importar_trabajadores_drive',
+  {
+    spreadsheetUrl: z.string().optional().describe('URL o ID de la hoja de Google Sheets de trabajadores (opcional si ya está vinculada)'),
+  },
+  async (params) => {
+    try {
+      const data = await wappyRequest('/workers/import-drive', {
+        method: 'POST',
+        body: JSON.stringify(params),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_importar_hito1_drive',
+  {
+    spreadsheetUrl: z.string().optional().describe('URL o ID de Google Sheets para Hito 1 (opcional)'),
+  },
+  async (params) => {
+    try {
+      const data = await wappyRequest('/hito1/import-drive', {
+        method: 'POST',
+        body: JSON.stringify(params),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_actualizar_automatizacion',
+  {
+    id: z.string().describe('ID de la automatización a actualizar'),
+    name: z.string().optional().describe('Nuevo nombre'),
+    prompt: z.string().optional().describe('Nuevo prompt o instrucción'),
+    scheduleType: z.string().optional().describe('Frecuencia: daily, weekly, monthly'),
+    isActive: z.boolean().optional().describe('Estado activo (true/false)'),
+  },
+  async ({ id, ...rest }) => {
+    try {
+      const data = await wappyRequest(`/agentes-automatizaciones/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body: JSON.stringify({ id, ...rest }),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+// ─── 40. ATS, PERMISOS ALTURAS, VULNERABILIDAD, OWAS, ALTA DIRECCIÓN, DOFA, ESTADÍSTICAS ATEL, SUBUSUARIOS, LIVE DOCS Y NOTEBOOKLM ───
+
+server.tool(
+  'wappy_consultar_ats',
+  {},
+  async () => {
+    try {
+      const data = await wappyRequest('/ats', { method: 'GET' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_guardar_ats',
+  {
+    formData: z.record(z.any()).optional().describe('Datos del Análisis de Trabajo Seguro (tarea, lugar, pasos, peligros, controles)'),
+    trabajadoresList: z.array(z.any()).optional().describe('Lista de trabajadores autorizados para la tarea'),
+    responsablesList: z.array(z.any()).optional().describe('Lista de responsables y supervisores SST'),
+  },
+  async (params) => {
+    try {
+      const data = await wappyRequest('/ats', {
+        method: 'POST',
+        body: JSON.stringify(params),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_consultar_permisos_alturas',
+  {},
+  async () => {
+    try {
+      const data = await wappyRequest('/permisos-alturas', { method: 'GET' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_guardar_permiso_alturas',
+  {
+    formData: z.record(z.any()).optional().describe('Datos del Permiso de Trabajo en Alturas (altura, actividad, lista de verificación Res. 4272/2021)'),
+    trabajadoresList: z.array(z.any()).optional().describe('Trabajadores ejecutantes autorizados'),
+    responsablesList: z.array(z.any()).optional().describe('Coordinador de trabajo en alturas y emisor del permiso'),
+  },
+  async (params) => {
+    try {
+      const data = await wappyRequest('/permisos-alturas', {
+        method: 'POST',
+        body: JSON.stringify(params),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_consultar_vulnerabilidad',
+  {},
+  async () => {
+    try {
+      const data = await wappyRequest('/vulnerabilidad', { method: 'GET' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_guardar_vulnerabilidad',
+  {
+    formData: z.record(z.any()).optional().describe('Amenazas identificadas, diamantes de riesgo (personas, recursos, sistemas) y plan de emergencias'),
+    evaluadoresList: z.array(z.any()).optional().describe('Integrantes del equipo evaluador'),
+  },
+  async (params) => {
+    try {
+      const data = await wappyRequest('/vulnerabilidad', {
+        method: 'POST',
+        body: JSON.stringify(params),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_consultar_evaluaciones_owas',
+  {},
+  async () => {
+    try {
+      const data = await wappyRequest('/owas', { method: 'GET' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_guardar_evaluacion_owas',
+  {
+    formData: z.record(z.any()).optional().describe('Datos generales de la evaluación postural OWAS'),
+    observaciones: z.array(z.any()).optional().describe('Lista de posturas observadas (espalda, brazos, piernas, fuerza/carga y categoría de riesgo)'),
+    trabajadoresList: z.array(z.any()).optional().describe('Trabajadores evaluados'),
+  },
+  async (params) => {
+    try {
+      const data = await wappyRequest('/owas', {
+        method: 'POST',
+        body: JSON.stringify(params),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_consultar_revision_alta_direccion',
+  {},
+  async () => {
+    try {
+      const data = await wappyRequest('/alta-direccion', { method: 'GET' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_guardar_revision_alta_direccion',
+  {
+    statusData: z.array(z.any()).optional().describe('Estado de los 24 ítems de revisión por la Alta Dirección (Decreto 1072 Art. 2.2.4.6.31)'),
+    reviewerInfo: z.record(z.any()).optional().describe('Datos del representante legal o revisor (nombre, cargo, cedula, fecha)'),
+  },
+  async (params) => {
+    try {
+      const data = await wappyRequest('/alta-direccion', {
+        method: 'POST',
+        body: JSON.stringify(params),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_consultar_contexto_dofa',
+  {},
+  async () => {
+    try {
+      const data = await wappyRequest('/contexto', { method: 'GET' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_guardar_contexto_dofa',
+  {
+    dofaList: z.array(z.any()).optional().describe('Lista de ítems DOFA (fortaleza, debilidad, oportunidad, amenaza)'),
+    stakeholders: z.array(z.any()).optional().describe('Matriz de partes interesadas (parte, necesidades, expectativas, requisito, control)'),
+    crossStrategies: z.record(z.any()).optional().describe('Estrategias cruzadas FO, DO, FA, DA'),
+    lastGeneratedReport: z.string().optional().describe('Informe estratégico en Markdown/HTML'),
+  },
+  async (params) => {
+    try {
+      const data = await wappyRequest('/contexto', {
+        method: 'POST',
+        body: JSON.stringify(params),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_consultar_estadisticas_atel',
+  {
+    year: z.number().optional().describe('Año de consulta de estadísticas e indicadores ATEL y ausentismo (ej. 2026)'),
+  },
+  async ({ year }) => {
+    try {
+      const qs = year ? `?year=${encodeURIComponent(year)}` : '';
+      const data = await wappyRequest(`/estadisticas-atel${qs}`, { method: 'GET' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_guardar_estadisticas_atel',
+  {
+    year: z.number().describe('Año de registro'),
+    annualData: z.record(z.any()).describe('Datos mensuales de eventos ATEL, ausentismo, días de incapacidad y costos'),
+  },
+  async (params) => {
+    try {
+      const data = await wappyRequest('/estadisticas-atel', {
+        method: 'POST',
+        body: JSON.stringify(params),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_consultar_subusuarios',
+  {},
+  async () => {
+    try {
+      const data = await wappyRequest('/subusuarios', { method: 'GET' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_consultar_documentos_vivo',
+  {
+    limit: z.number().optional().describe('Cantidad máxima de documentos del editor en vivo a listar'),
+  },
+  async ({ limit }) => {
+    try {
+      const qs = limit ? `?limit=${encodeURIComponent(limit)}` : '';
+      const data = await wappyRequest(`/documentos-vivo${qs}`, { method: 'GET' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_guardar_documento_vivo',
+  {
+    id: z.string().optional().describe('ID del documento existente para actualizar (omitir para crear uno nuevo)'),
+    title: z.string().describe('Título del documento en el Editor en Vivo / Canvas'),
+    content: z.string().describe('Contenido completo del documento en Markdown o HTML'),
+  },
+  async (params) => {
+    try {
+      const data = await wappyRequest('/documentos-vivo', {
+        method: 'POST',
+        body: JSON.stringify(params),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_eliminar_documento_vivo',
+  {
+    id: z.string().describe('ID del documento a eliminar'),
+  },
+  async ({ id }) => {
+    try {
+      const data = await wappyRequest(`/documentos-vivo/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_ejecutar_notebooklm',
+  {
+    tool: z.string().describe('Nombre de cualquiera de las 35 herramientas de Google NotebookLM (ej. notebook_list, notebook_create, notebook_rename, notebook_get_summary, notebook_suggest_prompts, notebook_copy, notebook_delete, notebook_share, source_list, source_add, source_add_file, source_add_drive, source_add_urls_batch, source_get_fulltext, source_get_guide, source_search, source_rename, source_append_text, source_refresh, source_delete, note_list, note_create, note_update, note_delete, chat_ask, chat_configure, studio_generate, studio_status, studio_download, studio_list, studio_export, studio_revise_slide, studio_manage, research_start, research_import)'),
+    arguments: z.record(z.any()).optional().describe('Objeto con los argumentos para la herramienta de NotebookLM seleccionada'),
+  },
+  async ({ tool, arguments: toolArgs }) => {
+    try {
+      const data = await wappyRequest('/notebooklm/tool', {
+        method: 'POST',
+        body: JSON.stringify({ tool, arguments: toolArgs || {} }),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
   return server;
 }
 
