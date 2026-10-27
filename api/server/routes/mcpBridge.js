@@ -8229,6 +8229,14 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
     if (!task) {
       return res.status(404).json({ error: 'Orden no encontrada.' });
     }
+    if (task.status === 'done') {
+      logger.info(`[MCP Bridge] Orden ${targetId} ya estaba en estado 'done'. Ignorando llamada duplicada a /antigravity/completar.`);
+      return res.status(200).json({
+        exito: true,
+        duplicado: true,
+        mensaje: `La orden "${task.title}" ya había sido marcada como completada y entregada a Tenshi.`,
+      });
+    }
 
     const nestedDeliverable = (entregable && typeof entregable === 'object')
       ? entregable

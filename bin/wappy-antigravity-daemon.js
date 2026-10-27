@@ -138,62 +138,21 @@ function resolveAgentApiBinary() {
 }
 
 /**
- * Obtiene el ID de la conversación más reciente / activa en Antigravity
+ * Obtiene el ID de conversación destino ÚNICAMENTE si fue forzado explícitamente (--conversation=<uuid>).
+ * Por defecto devuelve `null` para que cada consulta de Tenshi abra SIEMPRE un chat nuevo (`new-conversation`).
  */
 function findTargetConversationId(preferredId) {
-  // 1. Si se pasó una conversación explícita o guardada recientemente (< 6 horas) y existe su archivo
-  const checkCandidate = (id) => {
-    if (!id || typeof id !== 'string') return null;
-    const clean = id.trim();
-    if (!/^[0-9a-fA-F-]{36}$/.test(clean)) return null;
-    const dbPath = path.join(AGY_DIR, 'conversations', `${clean}.db`);
-    if (fs.existsSync(dbPath)) return clean;
+  if (!preferredId || typeof preferredId !== 'string') {
     return null;
-  };
-
-  if (preferredId) {
-    const valid = checkCandidate(preferredId);
-    if (valid) return valid;
   }
-
-  try {
-    if (fs.existsSync(ACTIVE_CONVO_FILE)) {
-      const stat = fs.statSync(ACTIVE_CONVO_FILE);
-      if (Date.now() - stat.mtimeMs < 6 * 3600 * 1000) {
-        const saved = fs.readFileSync(ACTIVE_CONVO_FILE, 'utf8').trim();
-        const valid = checkCandidate(saved);
-        if (valid) return valid;
-      }
-    }
-  } catch (_) {}
-
-  // 2. Buscar la conversación activa más reciente en ~/.gemini/antigravity/conversations/
-  try {
-    const convDir = path.join(AGY_DIR, 'conversations');
-    if (fs.existsSync(convDir)) {
-      const entries = fs.readdirSync(convDir);
-      let newestId = null;
-      let newestMtime = 0;
-
-      for (const name of entries) {
-        const match = name.match(/^([0-9a-fA-F-]{36})\.db(?:-wal)?$/);
-        if (!match) continue;
-        const fullPath = path.join(convDir, name);
-        try {
-          const st = fs.statSync(fullPath);
-          if (st.mtimeMs > newestMtime) {
-            newestMtime = st.mtimeMs;
-            newestId = match[1];
-          }
-        } catch (_) {}
-      }
-
-      if (newestId) {
-        return newestId;
-      }
-    }
-  } catch (_) {}
-
+  const clean = preferredId.trim();
+  if (!/^[0-9a-fA-F-]{36}$/.test(clean)) {
+    return null;
+  }
+  const dbPath = path.join(AGY_DIR, 'conversations', `${clean}.db`);
+  if (fs.existsSync(dbPath)) {
+    return clean;
+  }
   return null;
 }
 
@@ -271,14 +230,67 @@ function jsonRequest(fullUrl, method, apiKey, bodyObj = null) {
 
 /**
  * Resuelve el directorio de trabajo (workspace) para `agentapi new-conversation`:
- * - Si el usuario tiene algún proyecto registrado en ~/.gemini/config/projects/*.json cuya carpeta exista en disco, usa el más reciente.
- * - Si el usuario NO tiene proyectos configurados en Antigravity, usa `os.homedir()` (~), lo que asigna automáticamente
- *   la conversación al contenedor global nativo "Outside of Project" (`outside-of-project.json`) con acceso total al MCP global de WAPPY.
+ * 1. Primero consulta la conversación más reciente en `~/.gemini/antigravity/conversations/` vía
+ *    `agentapi get-conversation-metadata` para detectar el proyecto exacto que el usuario tiene abierto actualmente en pantalla.
+ * 2. Si no hay conversación activa con workspace, busca en `~/.gemini/config/projects/*.json`.
+ * 3. Si el usuario NO tiene proyectos configurados en Antigravity, usa `os.homedir()` (~), lo que asigna automáticamente
+ *    la conversación al contenedor global nativo "Outside of Project" (`outside-of-project.json`) con acceso total al MCP global de WAPPY.
  */
 function resolveWorkspaceDirectory() {
   if (process.env.WAPPY_PROJECT_DIR && fs.existsSync(process.env.WAPPY_PROJECT_DIR)) {
     return process.env.WAPPY_PROJECT_DIR;
   }
+
+  // 1. Detectar el proyecto actualmente abierto en Antigravity a partir de la conversación activa más reciente
+  try {
+    const convDir = path.join(AGY_DIR, 'conversations');
+    if (fs.existsSync(convDir)) {
+      const entries = fs.readdirSync(convDir);
+      const candidates = [];
+      const seenIds = new Set();
+
+      for (const name of entries) {
+        const match = name.match(/^([0-9a-fA-F-]{36})\.db(?:-wal)?$/);
+        if (!match) continue;
+        const id = match[1];
+        const fullPath = path.join(convDir, name);
+        try {
+          const st = fs.statSync(fullPath);
+          candidates.push({ id, mtimeMs: st.mtimeMs });
+        } catch (_) {}
+      }
+
+      candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
+      const bin = resolveAgentApiBinary();
+      const isLanguageServer = bin.endsWith('language_server');
+      const baseArgs = isLanguageServer ? ['agentapi'] : [];
+
+      for (const item of candidates) {
+        if (seenIds.has(item.id)) continue;
+        seenIds.add(item.id);
+        if (seenIds.size > 5) break;
+        try {
+          const out = execFileSync(bin, [...baseArgs, 'get-conversation-metadata', item.id], {
+            timeout: 3000,
+            stdio: 'pipe',
+            encoding: 'utf8',
+          });
+          const parsed = JSON.parse(out);
+          const uris = parsed?.response?.conversationMetadata?.metadata?.workspaceUris || [];
+          for (const uri of uris) {
+            if (typeof uri === 'string' && uri.startsWith('file://')) {
+              const folderPath = decodeURIComponent(uri.replace(/^file:\/\//, ''));
+              if (fs.existsSync(folderPath)) {
+                return folderPath;
+              }
+            }
+          }
+        } catch (_) {}
+      }
+    }
+  } catch (_) {}
+
+  // 2. Respaldo: proyecto más reciente en ~/.gemini/config/projects/*.json
   try {
     const projectsDir = path.join(os.homedir(), '.gemini', 'config', 'projects');
     if (fs.existsSync(projectsDir)) {
@@ -293,7 +305,7 @@ function resolveWorkspaceDirectory() {
           const raw = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
           const resources = raw?.projectResources?.resources || [];
           for (const r of resources) {
-            const uri = r?.gitFolder?.folderUri || r?.folder?.folderUri || '';
+            const uri = r?.gitFolder?.folderUri || r?.folder?.folderUri || r?.folderUri || '';
             if (uri.startsWith('file://')) {
               const folderPath = decodeURIComponent(uri.replace(/^file:\/\//, ''));
               if (fs.existsSync(folderPath) && st.mtimeMs >= bestMtime) {
@@ -492,6 +504,10 @@ function installAndStartDaemon(cliArgs) {
     try {
       fs.writeFileSync(ACTIVE_CONVO_FILE, String(cliArgs.conversation).trim(), 'utf8');
     } catch (_) {}
+  } else {
+    try {
+      if (fs.existsSync(ACTIVE_CONVO_FILE)) fs.unlinkSync(ACTIVE_CONVO_FILE);
+    } catch (_) {}
   }
 
   // 1. Copiar este script a ~/.gemini/antigravity/wappy-push-daemon.js para que sea independiente del workspace
@@ -505,8 +521,16 @@ function installAndStartDaemon(cliArgs) {
     log(`Aviso copiando script a ${DAEMON_SCRIPT_DEST}: ${err.message}`);
   }
 
-  // 2. Terminar cualquier proceso anterior registrado en PID_FILE
+  // 2. Terminar cualquier proceso anterior (tanto en PID_FILE como LaunchAgent o workers huérfanos)
   try {
+    if (process.platform === 'darwin') {
+      const plistPath = path.join(HOME_DIR, 'Library', 'LaunchAgents', 'club.wappy.antigravity.bridge.plist');
+      if (fs.existsSync(plistPath)) {
+        try {
+          execFileSync('launchctl', ['unload', plistPath], { stdio: 'ignore' });
+        } catch (_) {}
+      }
+    }
     if (fs.existsSync(PID_FILE)) {
       const oldPid = parseInt(fs.readFileSync(PID_FILE, 'utf8').trim(), 10);
       if (oldPid && oldPid !== process.pid) {
@@ -515,6 +539,22 @@ function installAndStartDaemon(cliArgs) {
           log(`Proceso daemon anterior (PID ${oldPid}) detenido para actualización limpia.`);
         } catch (_) {}
       }
+      try {
+        fs.unlinkSync(PID_FILE);
+      } catch (_) {}
+    }
+    if (process.platform === 'darwin' || process.platform === 'linux') {
+      try {
+        const pgrepOut = execFileSync('pgrep', ['-f', 'wappy-push-daemon\\.js.*--worker'], { encoding: 'utf8' });
+        for (const line of pgrepOut.split(/\r?\n/)) {
+          const p = parseInt(line.trim(), 10);
+          if (p && p !== process.pid) {
+            try {
+              process.kill(p, 'SIGTERM');
+            } catch (_) {}
+          }
+        }
+      } catch (_) {}
     }
   } catch (_) {}
 
@@ -539,13 +579,14 @@ function installAndStartDaemon(cliArgs) {
     <string>${nodeBin}</string>
     <string>${scriptToRun}</string>
     <string>--worker</string>
+    <string>--silent</string>
   </array>
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>
   <true/>
   <key>StandardOutPath</key>
-  <string>${LOG_FILE}</string>
+  <string>/dev/null</string>
   <key>StandardErrorPath</key>
   <string>${LOG_FILE}</string>
 </dict>
@@ -578,6 +619,19 @@ function installAndStartDaemon(cliArgs) {
  */
 function startSseWorker(cliArgs) {
   ensureDirs();
+  // Singleton guard: evitar workers duplicados
+  try {
+    if (fs.existsSync(PID_FILE)) {
+      const existingPid = parseInt(fs.readFileSync(PID_FILE, 'utf8').trim(), 10);
+      if (existingPid && existingPid !== process.pid) {
+        try {
+          process.kill(existingPid, 0);
+          // Otro worker ya está vivo; salir silenciosamente
+          process.exit(0);
+        } catch (_) {}
+      }
+    }
+  } catch (_) {}
   fs.writeFileSync(PID_FILE, String(process.pid), 'utf8');
 
   if (cliArgs.conversation && /^[0-9a-fA-F-]{36}$/.test(String(cliArgs.conversation).trim())) {
