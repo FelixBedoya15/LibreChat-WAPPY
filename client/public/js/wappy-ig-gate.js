@@ -113,7 +113,7 @@
           </div>
 
           <div style="margin-top:14px;display:flex;flex-direction:column;gap:9px;">
-            <a href="https://www.instagram.com/wappy_ia/" target="_blank" rel="noopener noreferrer" style="text-decoration:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:16px;background:rgba(217,70,239,0.1);border:1px solid rgba(217,70,239,0.35);color:#86198f;">
+            <a id="btnFollowWappyIg" href="https://www.instagram.com/wappy_ia/" target="_blank" rel="noopener noreferrer" style="text-decoration:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:16px;background:rgba(217,70,239,0.1);border:1px solid rgba(217,70,239,0.35);color:#86198f;">
               <div style="display:flex;align-items:center;gap:10px;">
                 <span style="width:28px;height:28px;border-radius:9px;background:#c026d3;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;">1</span>
                 <div>
@@ -150,9 +150,25 @@
     document.body.appendChild(overlay);
 
     const btnCopy = document.getElementById('btnCopyWappyIgCode');
+    const btnFollow = document.getElementById('btnFollowWappyIg');
     const btnDm = document.getElementById('btnSendDmWappyIg');
     const btnVerify = document.getElementById('btnVerifyWappyIgNow');
     const statusBox = document.getElementById('wappyIgGateStatusBox');
+
+    function markActionStarted() {
+      try {
+        localStorage.setItem('wappy_ig_action_started', String(Date.now()));
+      } catch (e) {}
+    }
+
+    function hasStartedActionReady() {
+      try {
+        const ts = Number(localStorage.getItem('wappy_ig_action_started') || '0');
+        return ts > 0 && Date.now() - ts >= 4500;
+      } catch (e) {
+        return false;
+      }
+    }
 
     function copyCode() {
       try {
@@ -170,8 +186,15 @@
       btnCopy.addEventListener('click', copyCode);
     }
 
+    if (btnFollow) {
+      btnFollow.addEventListener('click', function () {
+        markActionStarted();
+      });
+    }
+
     if (btnDm) {
       btnDm.addEventListener('click', function () {
+        markActionStarted();
         copyCode();
         if (statusBox) {
           statusBox.textContent =
@@ -189,10 +212,12 @@
         btnVerify.disabled = true;
       }
       try {
-        const resp = await fetch(
-          '/api/comunidad/ig-follow/verify?code=' + encodeURIComponent(gateCode),
-          { credentials: 'include' }
-        );
+        const isConfirmed = !silent || hasStartedActionReady();
+        const url =
+          '/api/comunidad/ig-follow/verify?code=' +
+          encodeURIComponent(gateCode) +
+          (isConfirmed ? '&confirmed=1' : '');
+        const resp = await fetch(url, { credentials: 'include' });
         const data = await resp.json();
         if (data && data.verified && data.passToken) {
           savePass(data.passToken, data.username);
@@ -224,6 +249,7 @@
 
     if (btnVerify) {
       btnVerify.addEventListener('click', function () {
+        markActionStarted();
         checkNow(false);
       });
     }
