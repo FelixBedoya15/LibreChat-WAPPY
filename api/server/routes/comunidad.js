@@ -645,6 +645,147 @@ async function checkZernioFollowStatus(zernioApiKey, zernioAccountId, igScopedUs
 
 let zernioConvCache = { ts: 0, list: [] };
 const REVOKED_OLD_CODES = new Set(['3659', '1863', '8705', '3642', '3519']);
+const WAPPY_IG_BUSINESS_ID = '17841445043944381';
+
+async function sendInstagramWelcomeDm({ redis, accessToken, zernioApiKey, zernioAccountId, recipientId, codeKey }) {
+    if (!recipientId) return;
+    try {
+        // Esperar 1.5s por si el worker de OpenReply ya lo está enviando al mismo tiempo
+        await new Promise((r) => setTimeout(r, 1500));
+        if (redis) {
+            const alreadyRevealed = await redis.get(`wappy:ig:reveal_sent:${recipientId}`).catch(() => null);
+            if (alreadyRevealed) return;
+            const lock = await redis.set(`wappy:ig:reveal_sent:${recipientId}`, '1', 'EX', 300, 'NX').catch(() => null);
+            if (lock !== 'OK') return;
+        }
+
+        const welcomeText =
+            '¡Acceso verificado! 🎉 Gracias por seguir a @wappy_ia. Toca el botón de abajo para entrar directo a los aplicativos de WAPPY Apps (si enviaste tu código desde computador, tu pantalla ya se desbloqueó automáticamente):';
+        const webButtons = [
+            {
+                type: 'web_url',
+                title: '🚀 Abrir WAPPY Apps',
+                url: 'https://wappy.club/portal?view=apps&ig_verified=wappy_ig_ok',
+            },
+            {
+                type: 'web_url',
+                title: 'Ver Planes y Precios',
+                url: 'https://wappy.club/planes',
+            },
+            {
+                type: 'web_url',
+                title: 'Hablar por WhatsApp',
+                url: 'https://wa.me/573106415385?text=Hola%20WAPPY%20IA%2C%20vengo%20de%20Instagram%20%40wappy_ia%20y%20quiero%20conocer%20WAPPY%20Apps',
+            },
+        ];
+
+        if (accessToken) {
+            const metaResp = await fetch(`https://graph.instagram.com/v25.0/${WAPPY_IG_BUSINESS_ID}/messages`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${accessToken}`,
+                },
+                body: JSON.stringify({
+                    recipient: { id: String(recipientId) },
+                    message: {
+                        attachment: {
+                            type: 'template',
+                            payload: {
+                                template_type: 'button',
+                                text: welcomeText,
+                                buttons: webButtons,
+                            },
+                        },
+                    },
+                }),
+                signal: AbortSignal.timeout(6000),
+            }).catch(() => null);
+            if (metaResp && metaResp.ok) return;
+        }
+
+        if (zernioApiKey && zernioAccountId) {
+            await fetch(`https://zernio.com/api/v1/inbox/conversations/${encodeURIComponent(recipientId)}/messages`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${zernioApiKey}`,
+                },
+                body: JSON.stringify({
+                    accountId: zernioAccountId,
+                    message: welcomeText,
+                    buttons: webButtons.map((b) => ({ type: 'url', title: b.title, url: b.url })),
+                }),
+                signal: AbortSignal.timeout(6000),
+            }).catch(() => null);
+        }
+    } catch (e) {}
+}
+
+async function sendInstagramStillNotFollowingDm({ redis, accessToken, zernioApiKey, zernioAccountId, recipientId }) {
+    if (!recipientId) return;
+    try {
+        if (redis) {
+            const recent = await redis.set(`wappy:ig:recheck_dm:${recipientId}`, '1', 'EX', 12, 'NX').catch(() => null);
+            if (recent !== 'OK') return;
+        }
+        const promptText =
+            '🔍 Ya verificamos tu cuenta y aún NO nos sigues en @wappy_ia. Por favor síguenos en @wappy_ia para ingresar a las WAPPY Apps y luego presiona el botón de abajo 👇';
+
+        if (accessToken) {
+            const metaResp = await fetch(`https://graph.instagram.com/v25.0/${WAPPY_IG_BUSINESS_ID}/messages`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${accessToken}`,
+                },
+                body: JSON.stringify({
+                    recipient: { id: String(recipientId) },
+                    message: {
+                        attachment: {
+                            type: 'template',
+                            payload: {
+                                template_type: 'button',
+                                text: promptText,
+                                buttons: [
+                                    {
+                                        type: 'postback',
+                                        title: '✅ Ya sigo a @wappy_ia'.slice(0, 20),
+                                        payload: `followcheck:${OPENREPLY_AUTOMATION_ID}`,
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                }),
+                signal: AbortSignal.timeout(6000),
+            }).catch(() => null);
+            if (metaResp && metaResp.ok) return;
+        }
+
+        if (zernioApiKey && zernioAccountId) {
+            await fetch(`https://zernio.com/api/v1/inbox/conversations/${encodeURIComponent(recipientId)}/messages`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${zernioApiKey}`,
+                },
+                body: JSON.stringify({
+                    accountId: zernioAccountId,
+                    message: promptText,
+                    buttons: [
+                        {
+                            type: 'postback',
+                            title: '✅ Ya sigo a @wappy_ia'.slice(0, 20),
+                            payload: `followcheck:${OPENREPLY_AUTOMATION_ID}`,
+                        },
+                    ],
+                }),
+                signal: AbortSignal.timeout(6000),
+            }).catch(() => null);
+        }
+    } catch (e) {}
+}
 
 async function findSenderInZernioInbox({ zernioApiKey, zernioAccountId, digitsCode, normalizedCode, forceRefresh = false }) {
     if (!zernioApiKey || !zernioAccountId || (!digitsCode && !normalizedCode)) return null;
@@ -652,7 +793,7 @@ async function findSenderInZernioInbox({ zernioApiKey, zernioAccountId, digitsCo
     try {
         const now = Date.now();
         let conversations = zernioConvCache.list;
-        if (forceRefresh || now - zernioConvCache.ts > 1500 || !Array.isArray(conversations) || conversations.length === 0) {
+        if (forceRefresh || now - zernioConvCache.ts > 8000 || !Array.isArray(conversations) || conversations.length === 0) {
             const resp = await fetch(
                 `https://zernio.com/api/v1/inbox/conversations?status=active&limit=15`,
                 {
@@ -1084,17 +1225,20 @@ async function handleVerifyIgFollow(req, res) {
         const followUpKey = `bull:dm-processing:followup_${OPENREPLY_AUTOMATION_ID}_${targetSenderId}`;
         const hasFollowUpJob = await redis.exists(followUpKey).catch(() => 0);
 
-        // Consultar en vivo a Zernio (App aprobada en Live Mode) y/o Meta Graph API v25.0 (is_user_follow_business)
-        const [zernioCheck, metaCheck] = await Promise.all([
-            zernioApiKey ? checkZernioFollowStatus(zernioApiKey, zernioAccountId, targetSenderId) : Promise.resolve(null),
-            accessToken ? checkMetaFollowStatus(accessToken, targetSenderId) : Promise.resolve(null),
-        ]);
+        // Consultar primero Meta Graph API v25.0 (is_user_follow_business, sin límite de 10 req/min)
+        // y respaldar con Zernio sólo si Meta no devuelve booleano o si es clic explícito
+        const isExplicitClick = String(req.query.explicit || '') === '1';
+        const metaCheck = accessToken ? await checkMetaFollowStatus(accessToken, targetSenderId) : null;
+        const zernioCheck =
+            zernioApiKey && (typeof metaCheck?.isFollower !== 'boolean' || isExplicitClick)
+                ? await checkZernioFollowStatus(zernioApiKey, zernioAccountId, targetSenderId)
+                : null;
 
         const effectiveFollow =
-            typeof zernioCheck?.isFollower === 'boolean'
-                ? zernioCheck.isFollower
-                : typeof metaCheck?.isFollower === 'boolean'
-                  ? metaCheck.isFollower
+            typeof metaCheck?.isFollower === 'boolean'
+                ? metaCheck.isFollower
+                : typeof zernioCheck?.isFollower === 'boolean'
+                  ? zernioCheck.isFollower
                   : null;
 
         const isConfirmedFollower =
@@ -1102,17 +1246,27 @@ async function handleVerifyIgFollow(req, res) {
             (hasFollowUpJob > 0 && effectiveFollow !== false);
 
         const resolvedUsername =
-            zernioCheck?.username ||
             metaCheck?.username ||
+            zernioCheck?.username ||
             matchedCommenterName ||
             'seguidor_wappy_ia';
         const resolvedName =
-            zernioCheck?.name ||
             metaCheck?.name ||
+            zernioCheck?.name ||
             matchedCommenterName ||
             null;
 
         if (isConfirmedFollower) {
+            // Garantizar que al activarse la página SIEMPRE le llegue el mensaje de bienvenida con los 3 botones en Instagram DM
+            sendInstagramWelcomeDm({
+                redis,
+                accessToken,
+                zernioApiKey,
+                zernioAccountId,
+                recipientId: targetSenderId,
+                codeKey,
+            }).catch(() => {});
+
             const passToken = signIgPassToken({
                 igUserId: targetSenderId,
                 username: resolvedUsername,
@@ -1131,7 +1285,27 @@ async function handleVerifyIgFollow(req, res) {
             });
         }
 
-        // Si envió el DM pero Zernio/Meta confirma que AÚN NO sigue a @wappy_ia
+        // Si el usuario pulsó explícitamente "Ya seguí a @wappy_ia" pero sigue sin seguirnos, enviamos el mensaje de verificación fallida tanto en el modal como en el DM
+        if (isExplicitClick) {
+            sendInstagramStillNotFollowingDm({
+                redis,
+                accessToken,
+                zernioApiKey,
+                zernioAccountId,
+                recipientId: targetSenderId,
+            }).catch(() => {});
+
+            return res.json({
+                verified: false,
+                status: 'DM_RECEIVED_NOT_FOLLOWING',
+                username: resolvedUsername,
+                message:
+                    `🔍 Ya verificamos tu cuenta${resolvedUsername ? ` (@${resolvedUsername})` : ''} y aún NO nos sigues en @wappy_ia. ` +
+                    `Por favor síguenos en @wappy_ia para poder ingresar a las WAPPY Apps.`,
+            });
+        }
+
+        // Si envió el DM pero Zernio/Meta confirma que AÚN NO sigue a @wappy_ia (sondeo inicial automático)
         return res.json({
             verified: false,
             status: 'DM_RECEIVED_NOT_FOLLOWING',
