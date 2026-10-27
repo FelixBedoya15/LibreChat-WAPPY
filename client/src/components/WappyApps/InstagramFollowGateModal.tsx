@@ -197,7 +197,10 @@ export default function InstagramFollowGateModal({
           onVerified(data.passToken, data.username || null);
           return true;
         }
-        if (data?.status === 'DM_RECEIVED_NOT_FOLLOWING' || data?.status === 'NOT_FOLLOWING_YET') {
+        if (data?.status === 'UNFOLLOW_DETECTED_NOW_FOLLOW') {
+          setStatusType('info');
+          setStatusMessage(data.message);
+        } else if (data?.status === 'DM_RECEIVED_NOT_FOLLOWING' || data?.status === 'NOT_FOLLOWING_YET') {
           if (!silent || data?.status === 'DM_RECEIVED_NOT_FOLLOWING') {
             setStatusType('warn');
             setStatusMessage(data.message);
@@ -230,9 +233,10 @@ export default function InstagramFollowGateModal({
       return;
     }
 
+    checkVerificationNow(true);
     pollTimerRef.current = window.setInterval(() => {
       checkVerificationNow(true);
-    }, 3500);
+    }, 2000);
 
     return () => {
       if (pollTimerRef.current) {
@@ -325,28 +329,33 @@ export default function InstagramFollowGateModal({
           {/* Pasos 1 y 2 compactos y sin redundancia */}
           <div className="mt-3 space-y-2">
             {/* Paso 1: Seguir */}
-            <div className="flex items-center justify-between gap-2.5 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/10 p-2.5 sm:p-3">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-fuchsia-500/40 bg-fuchsia-500/20 text-xs font-black text-fuchsia-800 dark:text-fuchsia-200">
-                  1
-                </span>
-                <div className="min-w-0">
-                  <div className="truncate text-xs font-extrabold text-slate-900 dark:text-zinc-100 sm:text-sm">
-                    Seguir a @wappy_ia
-                  </div>
-                  <div className="truncate text-[11px] text-slate-600 dark:text-zinc-400">
-                    Abre el perfil y pulsa &ldquo;Seguir&rdquo;
+            <div className="rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/10 p-2.5 sm:p-3">
+              <div className="flex items-center justify-between gap-2.5">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-fuchsia-500/40 bg-fuchsia-500/20 text-xs font-black text-fuchsia-800 dark:text-fuchsia-200">
+                    1
+                  </span>
+                  <div className="min-w-0">
+                    <div className="truncate text-xs font-extrabold text-slate-900 dark:text-zinc-100 sm:text-sm">
+                      Seguir a @wappy_ia
+                    </div>
+                    <div className="truncate text-[11px] text-slate-600 dark:text-zinc-400">
+                      Abre el perfil y pulsa &ldquo;Seguir&rdquo;
+                    </div>
                   </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={handleFollowInstagram}
+                  className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-xl border border-fuchsia-500/30 bg-white/90 px-3 text-xs font-bold text-fuchsia-700 transition-all duration-300 ease-in-out hover:bg-fuchsia-500/20 sm:h-9 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 dark:bg-zinc-800 dark:text-fuchsia-300"
+                >
+                  <span>{step1Clicked ? 'Abierto ✓' : 'Seguir'}</span>
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={handleFollowInstagram}
-                className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-xl border border-fuchsia-500/30 bg-white/90 px-3 text-xs font-bold text-fuchsia-700 transition-all duration-300 ease-in-out hover:bg-fuchsia-500/20 sm:h-9 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 dark:bg-zinc-800 dark:text-fuchsia-300"
-              >
-                <span>{step1Clicked ? 'Abierto ✓' : 'Seguir'}</span>
-                <ExternalLink className="h-3.5 w-3.5" />
-              </button>
+              <div className="mt-1.5 border-t border-fuchsia-500/15 pt-1.5 text-[10.5px] leading-tight text-slate-600 dark:text-zinc-400">
+                💡 <b>¿Ya nos seguías?</b> En Instagram toca <b>Siguiendo → Dejar de seguir</b>, espera 2 seg y vuelve a pulsar <b>Seguir</b> para registrar tu alta en vivo.
+              </div>
             </div>
 
             {/* Paso 2: Código integrado + Enviar DM */}

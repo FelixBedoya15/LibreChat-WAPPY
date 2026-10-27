@@ -95,17 +95,22 @@
 
           <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">
             <!-- Paso 1 -->
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:12px;background:rgba(217,70,239,0.1);border:1px solid rgba(217,70,239,0.3);">
-              <div style="display:flex;align-items:center;gap:10px;min-width:0;">
-                <span style="width:26px;height:26px;flex-shrink:0;border-radius:8px;background:rgba(217,70,239,0.2);border:1px solid rgba(217,70,239,0.4);color:#86198f;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;">1</span>
-                <div style="min-width:0;">
-                  <div style="font-size:13px;font-weight:800;color:#0f172a;">Seguir a @wappy_ia</div>
-                  <div style="font-size:11px;color:#64748b;">Abre el perfil y pulsa "Seguir"</div>
+            <div style="padding:10px 12px;border-radius:12px;background:rgba(217,70,239,0.1);border:1px solid rgba(217,70,239,0.3);">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+                  <span style="width:26px;height:26px;flex-shrink:0;border-radius:8px;background:rgba(217,70,239,0.2);border:1px solid rgba(217,70,239,0.4);color:#86198f;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;">1</span>
+                  <div style="min-width:0;">
+                    <div style="font-size:13px;font-weight:800;color:#0f172a;">Seguir a @wappy_ia</div>
+                    <div style="font-size:11px;color:#64748b;">Abre el perfil y pulsa "Seguir"</div>
+                  </div>
                 </div>
+                <a id="btnFollowWappyIg" href="https://www.instagram.com/wappy_ia/" target="_blank" rel="noopener noreferrer" style="text-decoration:none;flex-shrink:0;padding:6px 12px;border-radius:10px;background:#ffffff;border:1px solid rgba(217,70,239,0.35);color:#a21caf;font-size:12px;font-weight:800;">
+                  Seguir ↗
+                </a>
               </div>
-              <a id="btnFollowWappyIg" href="https://www.instagram.com/wappy_ia/" target="_blank" rel="noopener noreferrer" style="text-decoration:none;flex-shrink:0;padding:6px 12px;border-radius:10px;background:#ffffff;border:1px solid rgba(217,70,239,0.35);color:#a21caf;font-size:12px;font-weight:800;">
-                Seguir ↗
-              </a>
+              <div style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(217,70,239,0.15);font-size:10.5px;line-height:1.35;color:#475569;">
+                💡 <b>¿Ya nos seguías?</b> En Instagram toca <b>Siguiendo → Dejar de seguir</b>, espera 2 seg y vuelve a pulsar <b>Seguir</b> para registrar tu alta en vivo.
+              </div>
             </div>
 
             <!-- Paso 2 con código integrado -->
@@ -238,7 +243,9 @@
           }
           return;
         }
-        if (
+        if (data && data.status === 'UNFOLLOW_DETECTED_NOW_FOLLOW') {
+          showStatus(data.message, 'info');
+        } else if (
           data &&
           (data.status === 'DM_RECEIVED_NOT_FOLLOWING' || data.status === 'NOT_FOLLOWING_YET')
         ) {
@@ -263,9 +270,10 @@
       });
     }
 
+    checkNow(true);
     pollTimer = setInterval(function () {
       checkNow(true);
-    }, 3500);
+    }, 2000);
   }
 
   async function verifyInitialStatus() {

@@ -619,41 +619,128 @@ async function fetchLiveMetaFollowersCount(accessToken) {
     }
 }
 
-async function ensureBaselineForCode(redis, codeKey, currentFollowers) {
-    if (!redis || !codeKey || typeof currentFollowers !== 'number') {
-        return { initialFollowers: currentFollowers, minFollowers: currentFollowers };
-    }
-    const redisKey = `wappy:ig:baseline:${codeKey}`;
+// Watcher en memoria + Redis en el servidor (muestreo cada 1.5s mientras haya sesiones activas)
+// Garantiza capturar tanto subidas (+1 de seguidores nuevos) como el ciclo Dejar de seguir (-1) -> Volver a seguir (+1)
+// incluso cuando la pestaña del navegador está en segundo plano mientras el usuario está en la app de Instagram.
+const activeIgSessions = new Map();
+let igWatcherInterval = null;
+let igWatcherRunning = false;
+
+async function resolveCurrentIgAccessToken(redis) {
     try {
-        const raw = await redis.get(redisKey);
-        if (!raw) {
-            const payload = {
-                initialFollowers: currentFollowers,
-                minFollowers: currentFollowers,
-                createdAt: Date.now(),
-            };
-            await redis.set(redisKey, JSON.stringify(payload), 'EX', 86400);
-            return payload;
+        if (redis) {
+            if (redis.status === 'wait') await redis.connect().catch(() => {});
+            const enc = await redis.get('wappy:ig:access_token_enc').catch(() => null);
+            if (enc) {
+                const dec = decryptOpenReplyToken(enc);
+                if (dec) return dec;
+            }
         }
-        const parsed = JSON.parse(raw);
-        let minFollowers =
-            typeof parsed.minFollowers === 'number' ? parsed.minFollowers : currentFollowers;
-        if (currentFollowers < minFollowers) {
-            minFollowers = currentFollowers;
-            parsed.minFollowers = minFollowers;
-            parsed.updatedAt = Date.now();
-            await redis.set(redisKey, JSON.stringify(parsed), 'EX', 86400);
-        }
+    } catch (e) {}
+    return process.env.INSTAGRAM_ACCESS_TOKEN || null;
+}
+
+async function updateBaselineWithCount(redis, codeKey, currentFollowers) {
+    if (!codeKey || typeof currentFollowers !== 'number') {
         return {
-            initialFollowers:
-                typeof parsed.initialFollowers === 'number'
-                    ? parsed.initialFollowers
-                    : currentFollowers,
-            minFollowers,
+            initialFollowers: currentFollowers,
+            minFollowers: currentFollowers,
+            sawUnfollowDip: false,
+            verifiedDelta: false,
         };
-    } catch (e) {
-        return { initialFollowers: currentFollowers, minFollowers: currentFollowers };
     }
+
+    const now = Date.now();
+    const redisKey = `wappy:ig:baseline:${codeKey}`;
+    let state = activeIgSessions.get(codeKey) || null;
+
+    if (!state && redis) {
+        try {
+            const raw = await redis.get(redisKey);
+            if (raw) state = JSON.parse(raw);
+        } catch (e) {}
+    }
+
+    if (!state || typeof state.initialFollowers !== 'number') {
+        state = {
+            initialFollowers: currentFollowers,
+            minFollowers: currentFollowers,
+            sawUnfollowDip: false,
+            verifiedDelta: false,
+            verifiedAtFollowers: null,
+            createdAt: now,
+            updatedAt: now,
+            expiresAt: now + 5 * 60 * 1000,
+        };
+    } else {
+        let changed = false;
+        if (currentFollowers < state.minFollowers) {
+            state.minFollowers = currentFollowers;
+            state.sawUnfollowDip = true;
+            changed = true;
+        }
+        // Solo se marca verifiedDelta = true si el contador SUBIÓ respecto al mínimo observado
+        // Y además es mayor o igual al contador inicial (para que dejar de seguir sin volver a seguir NUNCA desbloquee)
+        if (
+            currentFollowers > state.minFollowers &&
+            currentFollowers >= state.initialFollowers
+        ) {
+            state.verifiedDelta = true;
+            state.verifiedAtFollowers = currentFollowers;
+            changed = true;
+        }
+        state.updatedAt = now;
+        state.expiresAt = Math.max(state.expiresAt || 0, now + 3 * 60 * 1000);
+        if (changed && redis) {
+            await redis.set(redisKey, JSON.stringify(state), 'EX', 86400).catch(() => {});
+        }
+    }
+
+    activeIgSessions.set(codeKey, state);
+    if (redis) {
+        await redis.set(redisKey, JSON.stringify(state), 'EX', 86400).catch(() => {});
+    }
+    startServerSideIgWatcher();
+    return state;
+}
+
+function startServerSideIgWatcher() {
+    if (igWatcherInterval) return;
+    igWatcherInterval = setInterval(async () => {
+        if (igWatcherRunning) return;
+        const now = Date.now();
+        for (const [key, sess] of activeIgSessions.entries()) {
+            if (!sess || (sess.expiresAt && now > sess.expiresAt) || sess.verifiedDelta) {
+                if (sess && sess.expiresAt && now > sess.expiresAt) {
+                    activeIgSessions.delete(key);
+                }
+            }
+        }
+        const pendingKeys = Array.from(activeIgSessions.keys()).filter((k) => {
+            const s = activeIgSessions.get(k);
+            return s && !s.verifiedDelta && (!s.expiresAt || now <= s.expiresAt);
+        });
+        if (pendingKeys.length === 0) {
+            clearInterval(igWatcherInterval);
+            igWatcherInterval = null;
+            return;
+        }
+        igWatcherRunning = true;
+        try {
+            const redis = getOpenReplyRedis();
+            const accessToken = await resolveCurrentIgAccessToken(redis);
+            const liveCount = await fetchLiveMetaFollowersCount(accessToken);
+            if (typeof liveCount === 'number') {
+                for (const codeKey of pendingKeys) {
+                    await updateBaselineWithCount(redis, codeKey, liveCount);
+                }
+            }
+        } catch (e) {
+            // ignorar error transitorio
+        } finally {
+            igWatcherRunning = false;
+        }
+    }, 1500);
 }
 
 // 1. Consultar estado de verificación de seguidor de @wappy_ia
@@ -701,21 +788,14 @@ router.get('/ig-follow/status', async (req, res) => {
 
         if (codeKey) {
             const redis = getOpenReplyRedis();
-            if (redis) {
-                try {
-                    if (redis.status === 'wait') await redis.connect();
-                    const encryptedToken = await redis.get('wappy:ig:access_token_enc').catch(() => null);
-                    const accessToken =
-                        (encryptedToken ? decryptOpenReplyToken(encryptedToken) : null) ||
-                        process.env.INSTAGRAM_ACCESS_TOKEN ||
-                        null;
-                    currentFollowers = await fetchLiveMetaFollowersCount(accessToken);
-                    if (typeof currentFollowers === 'number') {
-                        const baseline = await ensureBaselineForCode(redis, codeKey, currentFollowers);
-                        baselineFollowers = baseline.minFollowers;
-                    }
-                } catch (e) {}
-            }
+            try {
+                const accessToken = await resolveCurrentIgAccessToken(redis);
+                currentFollowers = await fetchLiveMetaFollowersCount(accessToken);
+                if (typeof currentFollowers === 'number') {
+                    const baseline = await updateBaselineWithCount(redis, codeKey, currentFollowers);
+                    baselineFollowers = baseline.minFollowers;
+                }
+            } catch (e) {}
         }
 
         return res.json({
@@ -820,23 +900,20 @@ async function handleVerifyIgFollow(req, res) {
             (encryptedToken ? decryptOpenReplyToken(encryptedToken) : null) ||
             process.env.INSTAGRAM_ACCESS_TOKEN ||
             null;
-        const isExplicitVerify = req.query.explicit === '1' || req.body?.explicit === true;
-        const hasCompletedAction = req.query.confirmed === '1' || req.body?.confirmed === true;
 
         if (!targetSenderId) {
-            // 1. Verificar contador en tiempo real de @wappy_ia en Meta Graph API:
-            //    - Si el contador subió (+1), desbloquea automáticamente (tanto en sondeo en vivo como en clic manual).
-            //    - Si el usuario YA seguía a @wappy_ia desde antes (currentFollowers >= baseline.minFollowers),
-            //      abrió el Paso 1 o Paso 2 (hasCompletedAction) y pulsó explícitamente "Ya seguí — Entrar ahora" (isExplicitVerify),
-            //      desbloquea sin obligarlo a dejar de seguir y volver a seguir.
+            // Verificación ESTRICTA contra el contador en vivo de @wappy_ia en Meta Graph API:
+            // Solo desbloquea cuando el contador sube realmente (+1 de nuevo seguidor, o ciclo Dejar de seguir -> Volver a seguir).
+            // NUNCA desbloquea si el contador sigue igual o menor.
             const currentFollowers = await fetchLiveMetaFollowersCount(accessToken);
             if (typeof currentFollowers === 'number') {
-                const baseline = await ensureBaselineForCode(redis, codeKey, currentFollowers);
-                const followerIncreased = currentFollowers > baseline.minFollowers;
-                const existingFollowerVerified =
-                    isExplicitVerify && hasCompletedAction && currentFollowers >= baseline.minFollowers;
+                const baseline = await updateBaselineWithCount(redis, codeKey, currentFollowers);
+                const followerIncreased =
+                    Boolean(baseline.verifiedDelta) ||
+                    (currentFollowers > baseline.minFollowers &&
+                        currentFollowers >= baseline.initialFollowers);
 
-                if (followerIncreased || existingFollowerVerified) {
+                if (followerIncreased) {
                     const passToken = signIgPassToken({
                         igUserId: `ig_follower_${digitsCode || Date.now()}`,
                         username: 'seguidor_wappy_ia',
@@ -850,18 +927,20 @@ async function handleVerifyIgFollow(req, res) {
                         username: 'wappy_ia',
                         passToken,
                         followersCount: currentFollowers,
-                        message: '¡Seguimiento verificado en @wappy_ia! Acceso desbloqueado.',
+                        message: `¡Seguimiento verificado en @wappy_ia (${currentFollowers} seguidores)! Acceso desbloqueado.`,
                     });
                 }
 
-                if (isExplicitVerify && !hasCompletedAction) {
+                if (currentFollowers < baseline.initialFollowers || baseline.sawUnfollowDip) {
                     return res.json({
                         verified: false,
-                        status: 'NOT_FOLLOWING_YET',
+                        status: 'UNFOLLOW_DETECTED_NOW_FOLLOW',
                         followersCount: currentFollowers,
                         baselineFollowers: baseline.minFollowers,
+                        initialFollowers: baseline.initialFollowers,
+                        sawUnfollowDip: true,
                         message:
-                            '⚠️ Primero pulsa "Seguir" en el Paso 1 o "Enviar DM" en el Paso 2 para validar tu seguimiento en @wappy_ia.',
+                            `🔄 ¡Detectamos tu baja en @wappy_ia (${currentFollowers} seguidores)! Ahora vuelve a tocar el botón "Seguir" en Instagram (@wappy_ia) para subir a ${baseline.initialFollowers} y se desbloqueará automáticamente.`,
                     });
                 }
 
@@ -870,31 +949,17 @@ async function handleVerifyIgFollow(req, res) {
                     status: 'NOT_FOLLOWING_YET',
                     followersCount: currentFollowers,
                     baselineFollowers: baseline.minFollowers,
+                    initialFollowers: baseline.initialFollowers,
+                    sawUnfollowDip: false,
                     message:
-                        `⚠️ Aún no detectamos tu seguimiento en @wappy_ia. Abre el Paso 1 ("Seguir") o envía el código por DM en el Paso 2 y luego pulsa "Entrar ahora".`,
-                });
-            }
-
-            if (isExplicitVerify && hasCompletedAction) {
-                const passToken = signIgPassToken({
-                    igUserId: `ig_follower_${digitsCode || Date.now()}`,
-                    username: 'seguidor_wappy_ia',
-                    code: rawCode || 'DM',
-                });
-                setIgPassCookie(res, passToken);
-                return res.json({
-                    verified: true,
-                    status: 'FOLLOWING',
-                    username: 'wappy_ia',
-                    passToken,
-                    message: '¡Seguimiento verificado en @wappy_ia! Acceso desbloqueado.',
+                        `❌ Aún NO se registra tu nuevo seguimiento en @wappy_ia (contador Meta sin cambios: ${currentFollowers}). Dale a "Seguir" en Instagram. Si ya nos seguías de antes, en Instagram toca "Siguiendo" → "Dejar de seguir", espera 2 seg y vuelve a darle "Seguir".`,
                 });
             }
 
             return res.json({
                 verified: false,
                 status: 'WAITING_DM',
-                message: 'Sigue a @wappy_ia en el Paso 1, envía tu código en el Paso 2 y luego presiona "Entrar ahora".',
+                message: 'Sigue a @wappy_ia en Instagram para desbloquear el acceso.',
             });
         }
 
