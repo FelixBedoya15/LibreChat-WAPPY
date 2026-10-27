@@ -593,17 +593,20 @@ async function autoSynthesizeProceduralRule(userText, userId, companyId = null, 
       );
       if (remMatch) {
         const body = remMatch[1].trim();
-        // Intentar deducir el disparador temático
-        if (/altura|permiso/i.test(body)) trigger = 'En permisos y trabajo seguro en alturas';
-        else if (/examen|m[eé]dic|emo|ingreso|peri[oó]dico/i.test(body)) trigger = 'En evaluaciones médicas ocupacionales (EMO)';
-        else if (/accidente|incidente|atel|furat/i.test(body)) trigger = 'Al reportar o investigar accidentes ATEL';
-        else if (/qu[ií]mic|fds|sga|sustancia/i.test(body)) trigger = 'En gestión de sustancias químicas SGA';
-        else if (/pesv|veh[ií]culo|vial|conductor/i.test(body)) trigger = 'En controles del Plan Estratégico de Seguridad Vial (PESV)';
-        else if (/epp|dotaci[oó]n|casco|botas/i.test(body)) trigger = 'En entrega e inspección de EPP';
-        else if (/informe|reporte|acta|formato|canvas|documento|tabla/i.test(body)) trigger = 'Al redactar informes, actas o documentos SG-SST';
-        else if (/capacitaci[oó]n|inducci[oó]n|charla/i.test(body)) trigger = 'En programación de capacitaciones e inducciones';
-        else trigger = 'Regla operativa corporativa SG-SST';
-        rule = body;
+        // Ignorar si es una pregunta sobre el pasado ("recuerda qué fue lo último que hice...")
+        if (!/^(fue|hice|hicimos|hablamos|dijiste|dije|est[aá]bamos|ten[ií]a|tengo|ayer|antes|lo\s+[uú]ltimo|cu[aá]l|qu[eé]|qui[eé]n|c[oó]mo|d[oó]nde|cu[aá]ndo)\b/i.test(body)) {
+          // Intentar deducir el disparador temático
+          if (/altura|permiso/i.test(body)) trigger = 'En permisos y trabajo seguro en alturas';
+          else if (/examen|m[eé]dic|emo|ingreso|peri[oó]dico/i.test(body)) trigger = 'En evaluaciones médicas ocupacionales (EMO)';
+          else if (/accidente|incidente|atel|furat/i.test(body)) trigger = 'Al reportar o investigar accidentes ATEL';
+          else if (/qu[ií]mic|fds|sga|sustancia/i.test(body)) trigger = 'En gestión de sustancias químicas SGA';
+          else if (/pesv|veh[ií]culo|vial|conductor/i.test(body)) trigger = 'En controles del Plan Estratégico de Seguridad Vial (PESV)';
+          else if (/epp|dotaci[oó]n|casco|botas/i.test(body)) trigger = 'En entrega e inspección de EPP';
+          else if (/informe|reporte|acta|formato|canvas|documento|tabla/i.test(body)) trigger = 'Al redactar informes, actas o documentos SG-SST';
+          else if (/capacitaci[oó]n|inducci[oó]n|charla/i.test(body)) trigger = 'En programación de capacitaciones e inducciones';
+          else trigger = 'Regla operativa corporativa SG-SST';
+          rule = body;
+        }
       }
     }
 

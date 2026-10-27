@@ -6757,6 +6757,31 @@ router.get('/briefing', requireApiKeyOrJwt, async (req, res) => {
     const startOfTomorrow = new Date(endOfToday.getTime() + 1);
 
     const scopeQuery = companyScope(targetUserId, companyId);
+    const TenshiMessage = mongoose.models.TenshiMessage || require('~/models/TenshiMessage');
+    const { getCalendarClient } = require('~/server/services/googleCalendar');
+
+    const fetchGcal = async () => {
+      try {
+        const cal = await getCalendarClient(String(targetUserId));
+        if (!cal) return [];
+        const resCal = await cal.events.list({
+          calendarId: 'primary',
+          timeMin: startOfToday.toISOString(),
+          timeMax: endOfTomorrow.toISOString(),
+          singleEvents: true,
+          orderBy: 'startTime',
+          maxResults: 15,
+        });
+        return resCal?.data?.items || [];
+      } catch (_e) {
+        return [];
+      }
+    };
+
+    const gcalWithTimeout = Promise.race([
+      fetchGcal(),
+      new Promise((resolve) => setTimeout(() => resolve([]), 1800)),
+    ]);
 
     const [
       todayTasks,
@@ -6764,6 +6789,8 @@ router.get('/briefing', requireApiKeyOrJwt, async (req, res) => {
       overdueTasks,
       lastDoneTask,
       latestReportConvo,
+      latestTenshiReport,
+      gcalEvents,
     ] = await Promise.all([
       KanbanTask.find({
         ...scopeQuery,
@@ -6778,7 +6805,10 @@ router.get('/briefing', requireApiKeyOrJwt, async (req, res) => {
       KanbanTask.find({
         ...scopeQuery,
         status: { $nin: ['done', 'dismissed'] },
-        dueDate: { $lt: startOfToday },
+        $or: [
+          { status: 'overdue' },
+          { dueDate: { $lt: startOfToday } },
+        ],
       }).sort({ dueDate: -1 }).limit(5).lean().catch(() => []),
       KanbanTask.findOne({
         ...scopeQuery,
@@ -6786,6 +6816,7 @@ router.get('/briefing', requireApiKeyOrJwt, async (req, res) => {
       }).sort({ updatedAt: -1 }).select('title status updatedAt sourceModule').lean().catch(() => null),
       Conversation.findOne({
         user: String(targetUserId),
+        title: { $nin: ['New Chat', 'new chat', 'Nueva conversación', 'Nuevo chat', 'Untitled', ''] },
         tags: { $elemMatch: { $regex: /^sgsst-/i } },
         ...(companyId ? {
           $or: [
@@ -6794,6 +6825,11 @@ router.get('/briefing', requireApiKeyOrJwt, async (req, res) => {
           ],
         } : {}),
       }).sort({ updatedAt: -1 }).select('title tags updatedAt').lean().catch(() => null),
+      TenshiMessage.findOne({
+        user: targetUserId,
+        'file.title': { $exists: true, $nin: ['', 'New Chat', 'new chat'] },
+      }).sort({ createdAt: -1 }).select('file.title createdAt').lean().catch(() => null),
+      gcalWithTimeout,
     ]);
 
     const formatTimeCol = (d) => {
@@ -6815,38 +6851,82 @@ router.get('/briefing', requireApiKeyOrJwt, async (req, res) => {
       });
     };
 
-    let ultimaActividad = null;
-    if (latestReportConvo && (!lastDoneTask || new Date(latestReportConvo.updatedAt) >= new Date(lastDoneTask.updatedAt))) {
-      ultimaActividad = {
+    const candidates = [];
+    if (latestTenshiReport?.file?.title) {
+      candidates.push({
         tipo: 'informe',
-        titulo: (latestReportConvo.title || 'Informe SG-SST').replace(/^\[.*?\]\s*/, ''),
-        fecha: formatShortDateCol(latestReportConvo.updatedAt),
-        updatedAt: latestReportConvo.updatedAt,
-      };
-    } else if (lastDoneTask) {
-      ultimaActividad = {
+        titulo: latestTenshiReport.file.title.trim(),
+        fecha: formatShortDateCol(latestTenshiReport.createdAt),
+        updatedAt: latestTenshiReport.createdAt,
+        time: new Date(latestTenshiReport.createdAt || 0).getTime(),
+      });
+    }
+    if (latestReportConvo?.title) {
+      const cleanT = latestReportConvo.title.replace(/^\[.*?\]\s*/, '').trim();
+      if (cleanT && !/^(new chat|nueva conversaci[oó]n|nuevo chat)$/i.test(cleanT)) {
+        candidates.push({
+          tipo: 'informe',
+          titulo: cleanT,
+          fecha: formatShortDateCol(latestReportConvo.updatedAt),
+          updatedAt: latestReportConvo.updatedAt,
+          time: new Date(latestReportConvo.updatedAt || 0).getTime(),
+        });
+      }
+    }
+    if (lastDoneTask?.title && !/^new chat$/i.test(lastDoneTask.title.trim())) {
+      candidates.push({
         tipo: 'tarea',
-        titulo: lastDoneTask.title,
+        titulo: lastDoneTask.title.trim(),
         estado: lastDoneTask.status === 'done' ? 'completada' : 'en curso',
         fecha: formatShortDateCol(lastDoneTask.updatedAt),
         updatedAt: lastDoneTask.updatedAt,
+        time: new Date(lastDoneTask.updatedAt || 0).getTime(),
+      });
+    }
+    candidates.sort((a, b) => b.time - a.time);
+    const ultimaActividad = candidates[0] || null;
+
+    const gcalTodayItems = [];
+    const gcalTomorrowItems = [];
+    for (const ev of (gcalEvents || [])) {
+      const startRaw = ev.start?.dateTime || ev.start?.date;
+      if (!startRaw) continue;
+      const evDate = new Date(startRaw);
+      const evDateStr = evDate.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+      const item = {
+        id: String(ev.id || Math.random()),
+        titulo: `📅 ${ev.summary || 'Reunión Google Calendar'}`,
+        hora: ev.start?.dateTime ? formatTimeCol(evDate) : 'Todo el día',
+        prioridad: 'alta',
+        tipo: 'google_calendar',
       };
+      if (evDateStr === colNowStr) {
+        gcalTodayItems.push(item);
+      } else {
+        gcalTomorrowItems.push(item);
+      }
     }
 
-    const agendaHoy = (todayTasks || []).map((t) => ({
-      id: String(t._id),
-      titulo: t.title,
-      hora: formatTimeCol(t.dueDate),
-      prioridad: t.priority || 'media',
-      tipo: t.type || 'manual',
-    }));
+    const agendaHoy = [
+      ...gcalTodayItems,
+      ...(todayTasks || []).map((t) => ({
+        id: String(t._id),
+        titulo: t.title,
+        hora: formatTimeCol(t.dueDate),
+        prioridad: t.priority || 'media',
+        tipo: t.type || 'manual',
+      })),
+    ];
 
-    const vencenManana = (tomorrowTasks || []).map((t) => ({
-      id: String(t._id),
-      titulo: t.title,
-      hora: formatTimeCol(t.dueDate),
-      prioridad: t.priority || 'media',
-    }));
+    const vencenManana = [
+      ...gcalTomorrowItems,
+      ...(tomorrowTasks || []).map((t) => ({
+        id: String(t._id),
+        titulo: t.title,
+        hora: formatTimeCol(t.dueDate),
+        prioridad: t.priority || 'media',
+      })),
+    ];
 
     const vencidas = (overdueTasks || []).map((t) => ({
       id: String(t._id),
@@ -6856,6 +6936,7 @@ router.get('/briefing', requireApiKeyOrJwt, async (req, res) => {
     }));
 
     return res.json({
+      success: true,
       exito: true,
       empresa: company?.companyName || 'Empresa Activa',
       companyId,

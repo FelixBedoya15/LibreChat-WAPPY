@@ -2827,12 +2827,14 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes gen
 
                     // ─── BRIEFING EJECUTIVO DIARIO Y MEMORIA AUTOBIOGRÁFICA (ESTILO DOT) ───
                     let lastTitle = null;
-                    let todayList = 'Sin actividades programadas para hoy';
-                    let tomorrowList = 'Ninguna actividad vence mañana';
+                    let todayList = 'Sin eventos en Google Calendar ni tareas con vencimiento exacto hoy';
+                    let tomorrowList = 'Ningún evento o tarea vence mañana';
                     let overdueList = '';
+                    let todoList = '';
                     try {
                         const KanbanTask = mongoose.models.KanbanTask || require('~/models/KanbanTask');
                         const { Conversation } = require('~/db/models');
+                        const { getCalendarClient } = require('~/server/services/googleCalendar');
                         const activeCompId = companyInfo?._id ? String(companyInfo._id) : null;
                         const taskScope = {
                             user: targetUserId,
@@ -2853,7 +2855,39 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes gen
                         const startOfTomorrow = new Date(endOfToday.getTime() + 1);
                         const endOfTomorrow = new Date(endOfToday.getTime() + 24 * 3600 * 1000);
 
-                        const [todayTasks, tomorrowTasks, overdueTasks, latestSgsstReport] = await Promise.all([
+                        // Consultar Google Calendar en vivo con timeout rápido (1800ms) para no retrasar el arranque
+                        const fetchGoogleCalendarEvents = async () => {
+                            try {
+                                const cal = await getCalendarClient(String(targetUserId));
+                                if (!cal) return [];
+                                const resCal = await cal.events.list({
+                                    calendarId: 'primary',
+                                    timeMin: startOfToday.toISOString(),
+                                    timeMax: endOfTomorrow.toISOString(),
+                                    singleEvents: true,
+                                    orderBy: 'startTime',
+                                    maxResults: 15,
+                                });
+                                return resCal?.data?.items || [];
+                            } catch (_calErr) {
+                                return [];
+                            }
+                        };
+
+                        const calendarPromiseWithTimeout = Promise.race([
+                            fetchGoogleCalendarEvents(),
+                            new Promise((resolve) => setTimeout(() => resolve([]), 1800)),
+                        ]);
+
+                        const [
+                            todayTasks,
+                            tomorrowTasks,
+                            overdueTasks,
+                            todoTasks,
+                            lastDoneTask,
+                            latestSgsstReport,
+                            gcalEvents,
+                        ] = await Promise.all([
                             KanbanTask.find({
                                 ...taskScope,
                                 status: { $nin: ['done', 'dismissed'] },
@@ -2867,10 +2901,22 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes gen
                             KanbanTask.find({
                                 ...taskScope,
                                 status: { $nin: ['done', 'dismissed'] },
-                                dueDate: { $lt: startOfToday },
-                            }).sort({ dueDate: -1 }).limit(3).select('title dueDate').lean().catch(() => []),
+                                $or: [
+                                    { status: 'overdue' },
+                                    { dueDate: { $lt: startOfToday } },
+                                ],
+                            }).sort({ dueDate: -1 }).limit(5).select('title dueDate').lean().catch(() => []),
+                            KanbanTask.find({
+                                ...taskScope,
+                                status: { $in: ['todo', 'in_progress', 'due_soon'] },
+                            }).sort({ updatedAt: -1 }).limit(5).select('title status dueDate').lean().catch(() => []),
+                            KanbanTask.findOne({
+                                ...taskScope,
+                                status: { $in: ['done', 'in_progress'] },
+                            }).sort({ updatedAt: -1 }).select('title updatedAt').lean().catch(() => null),
                             Conversation.findOne({
                                 user: String(targetUserId),
+                                title: { $nin: ['New Chat', 'new chat', 'Nueva conversación', 'Nuevo chat', 'Untitled', ''] },
                                 tags: { $elemMatch: { $regex: /^sgsst-/i } },
                                 ...(activeCompId ? {
                                     $or: [
@@ -2879,25 +2925,79 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes gen
                                     ],
                                 } : {}),
                             }).sort({ updatedAt: -1 }).select('title updatedAt').lean().catch(() => null),
+                            calendarPromiseWithTimeout,
                         ]);
 
                         const fmtTime = (d) => d ? new Date(d).toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: true }) : '';
-                        lastTitle = latestSgsstReport?.title ? latestSgsstReport.title.replace(/^\[.*?\]\s*/, '') : null;
-                        todayList = (todayTasks || []).map(t => `${t.title} (${fmtTime(t.dueDate)})`).join(', ') || 'Sin actividades programadas para hoy';
-                        tomorrowList = (tomorrowTasks || []).map(t => `${t.title} (${fmtTime(t.dueDate)})`).join(', ') || 'Ninguna actividad vence mañana';
-                        overdueList = (overdueTasks || []).map(t => t.title).join(', ');
 
-                        companyAndMemoryPrompt += `\n\n[MEMORIA AUTOBIOGRÁFICA Y BRIEFING EJECUTIVO DEL DÍA (ESTILO DOT - PRIORIDAD MÁXIMA EN EL PRIMER SALUDO)]:
+                        // Separar eventos de Google Calendar entre Hoy y Mañana (en hora Colombia)
+                        const gcalToday = [];
+                        const gcalTomorrow = [];
+                        for (const ev of (gcalEvents || [])) {
+                            const startRaw = ev.start?.dateTime || ev.start?.date;
+                            if (!startRaw) continue;
+                            const evDate = new Date(startRaw);
+                            const evDateStr = evDate.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+                            const timeLabel = ev.start?.dateTime ? fmtTime(evDate) : 'Todo el día';
+                            const label = `${ev.summary || 'Evento sin título'} (${timeLabel})`;
+                            if (evDateStr === colNowStr) {
+                                gcalToday.push(label);
+                            } else {
+                                gcalTomorrow.push(label);
+                            }
+                        }
+
+                        // Determinar el último informe o gestión real (NUNCA "New Chat")
+                        const recentReportCandidate = recentTenshiReports?.[0];
+                        const candidates = [];
+                        if (recentReportCandidate?.file?.title && !/^new chat$/i.test(recentReportCandidate.file.title.trim())) {
+                            candidates.push({
+                                title: recentReportCandidate.file.title.trim(),
+                                time: new Date(recentReportCandidate.createdAt || 0).getTime(),
+                            });
+                        }
+                        if (lastDoneTask?.title && !/^new chat$/i.test(lastDoneTask.title.trim())) {
+                            candidates.push({
+                                title: lastDoneTask.title.trim(),
+                                time: new Date(lastDoneTask.updatedAt || 0).getTime(),
+                            });
+                        }
+                        if (latestSgsstReport?.title) {
+                            const cleaned = latestSgsstReport.title.replace(/^\[.*?\]\s*/, '').trim();
+                            if (cleaned && !/^(new chat|nueva conversaci[oó]n|nuevo chat)$/i.test(cleaned)) {
+                                candidates.push({
+                                    title: cleaned,
+                                    time: new Date(latestSgsstReport.updatedAt || 0).getTime(),
+                                });
+                            }
+                        }
+                        candidates.sort((a, b) => b.time - a.time);
+                        lastTitle = candidates[0]?.title || null;
+
+                        const combinedToday = [
+                            ...gcalToday.map(e => `[Google Calendar] ${e}`),
+                            ...(todayTasks || []).map(t => `[Centro de Control] ${t.title} (${fmtTime(t.dueDate)})`),
+                        ];
+                        const combinedTomorrow = [
+                            ...gcalTomorrow.map(e => `[Google Calendar] ${e}`),
+                            ...(tomorrowTasks || []).map(t => `[Centro de Control] ${t.title} (${fmtTime(t.dueDate)})`),
+                        ];
+
+                        todayList = combinedToday.join('; ') || 'Sin reuniones en Google Calendar para hoy';
+                        tomorrowList = combinedTomorrow.join('; ') || 'Ninguna reunión o tarea programada para mañana';
+                        overdueList = (overdueTasks || []).map(t => t.title).join(', ');
+                        todoList = (todoTasks || []).map(t => t.title).join(', ');
+
+                        companyAndMemoryPrompt += `\n\n[MEMORIA AUTOBIOGRÁFICA Y BRIEFING EJECUTIVO DEL DÍA (ESTILO DOT - DATOS REALES EN TIEMPO REAL)]:
 - Empresa activa actual: ${companyInfo?.companyName || 'Tu Empresa'}.
-- Último informe o gestión realizada: ${lastTitle ? `"${lastTitle}"` : 'Evaluación del SG-SST'}.
-- Agenda programada para HOY (${colNowStr}): ${todayList}.
-- Actividades que vencen MAÑANA: ${tomorrowList}.${overdueList ? `\n- Actividades pendientes de días previos: ${overdueList}.` : ''}
-- REGLA OBLIGATORIA DE PRIMER SALUDO (ESTILO DOT):
-  En tu PRIMERA respuesta de la llamada (o cuando el usuario apenas enciende el micrófono, dice "Hola", hace ruido inicial o saluda), ESTÁ PROHIBIDO dar un saludo genérico como "¿En qué te puedo ayudar hoy con el chat?".
-  SIEMPRE en tu primera intervención de la llamada debes:
-  1) Saludar cálidamente al usuario por su nombre y mencionar su empresa activa (${companyInfo?.companyName || 'su empresa'}).
-  2) Preguntarle cómo le fue con su última gestión o informe (${lastTitle ? `"${lastTitle}"` : 'su último avance en el SG-SST'}).
-  3) Informarle de inmediato su agenda de hoy (${todayList}) y lo que vence mañana (${tomorrowList}).`;
+- Último informe o gestión real realizada: ${lastTitle ? `"${lastTitle}"` : 'Avance en el SG-SST'}.
+- Agenda REAL de HOY (${colNowStr} - Google Calendar + Centro de Control): ${todayList}.
+- Agenda REAL de MAÑANA: ${tomorrowList}.${todoList ? `\n- Tareas por hacer / en curso en Centro de Control ACPM: ${todoList}.` : ''}${overdueList ? `\n- Tareas vencidas que requieren atención en Centro de Control ACPM (${overdueTasks.length} recientes): ${overdueList}.` : ''}
+- REGLA OBLIGATORIA DE PRIMER SALUDO (ESTILO DOT CON DATOS REALES):
+  En tu PRIMERA respuesta de la llamada (cuando el usuario saluda o inicia la conversación):
+  1) Saluda cálidamente al usuario por su nombre y menciona su empresa activa (${companyInfo?.companyName || 'su empresa'}).
+  2) Pregúntale cómo le fue con su última gestión real (${lastTitle ? `"${lastTitle}"` : 'su gestión reciente en el SG-SST'}). ESTÁ TERMINANTEMENTE PROHIBIDO decir "New Chat".
+  3) Infórmale con precisión lo que REALMENTE tiene hoy en Google Calendar (${todayList}) y recuérdale brevemente si tiene tareas por hacer o vencidas en su Centro de Control ACPM (${todoList || overdueList || 'sin pendientes'}). NUNCA digas que "no tiene tareas pendientes ni nada programado" si arriba aparecen eventos en Google Calendar o tareas por hacer/vencidas.`;
                     } catch (briefErr) {
                         logger.warn('[VoiceSession] Could not build daily briefing context:', briefErr.message);
                     }
