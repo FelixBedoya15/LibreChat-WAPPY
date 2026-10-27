@@ -770,4 +770,49 @@ async function uploadCookies(cookies, email = '') {
   return res.status(200).send(script);
 });
 
+/**
+ * GET /api/notebooklm/download/:notebookId/:artifactId
+ * Proxy de descarga directa en 1 clic para artefactos de NotebookLM Studio
+ * (videos MP4, podcasts MP4, infografías PNG, presentaciones PDF/PPTX, mapas mentales JSON, tablas CSV, informes MD).
+ */
+router.get('/download/:notebookId/:artifactId', async (req, res) => {
+  try {
+    const { notebookId, artifactId } = req.params;
+    const type = String(req.query.type || '').trim();
+    const format = String(req.query.format || '').trim();
+    const userId = String(req.query.userId || req.user?.id || '').trim();
+
+    const notebooklmUrl = process.env.NOTEBOOKLM_URL || 'http://notebooklm-mcp:9420';
+    const qs = new URLSearchParams({
+      notebook_id: notebookId,
+      artifact_id: artifactId,
+    });
+    if (type) qs.set('type', type);
+    if (format) qs.set('format', format);
+    if (userId) qs.set('user_id', userId);
+
+    const upstream = await fetch(`${notebooklmUrl}/api/download-artifact?${qs.toString()}`, {
+      headers: userId ? { 'x-user-id': userId } : {},
+    });
+
+    if (!upstream.ok) {
+      const errBody = await upstream.text().catch(() => '');
+      return res.status(upstream.status).send(errBody || 'No se pudo descargar el artefacto de NotebookLM.');
+    }
+
+    const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
+    const contentDisposition = upstream.headers.get('content-disposition');
+    res.setHeader('Content-Type', contentType);
+    if (contentDisposition) {
+      res.setHeader('Content-Disposition', contentDisposition);
+    }
+
+    const arrayBuffer = await upstream.arrayBuffer();
+    return res.send(Buffer.from(arrayBuffer));
+  } catch (error) {
+    logger.error('[NotebookLM Download] Error descargando artefacto:', error);
+    return res.status(500).json({ error: 'Error al descargar el artefacto de NotebookLM.' });
+  }
+});
+
 module.exports = router;

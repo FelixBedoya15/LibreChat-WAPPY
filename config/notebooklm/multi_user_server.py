@@ -658,12 +658,167 @@ async def studio_generate(
     client = await get_client_for_request()
     nb_id = await _resolve_notebook_id(client, notebook)
 
+def _get_active_user_id() -> str:
+    try:
+        from fastmcp.server.dependencies import get_http_headers
+        try:
+            raw_headers = get_http_headers(include_all=True) or {}
+        except TypeError:
+            raw_headers = get_http_headers() or {}
+        headers = {str(k).lower(): str(v) for k, v in raw_headers.items()}
+    except Exception:
+        headers = {}
+    ctx_headers = _CURRENT_USER_CONTEXT.get() or {}
+    for ck, cv in ctx_headers.items():
+        if cv and ck.lower() not in headers:
+            headers[ck.lower()] = cv
+    uid = headers.get("x-user-id") or headers.get("x_user_id") or ""
+    return "" if uid.startswith("{{") else uid
+
+
+async def _download_artifact_by_kind(
+    client: NotebookLMClient,
+    nb_id: str,
+    artifact_id: str,
+    artifact_type: str = "",
+    output_format: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Descarga cualquier artefacto de NotebookLM (video, audio, infografía, slides, mapa mental, tabla, quiz, flashcards, informe) en /tmp y extrae su contenido si es legible."""
+    dl_dir = Path("/tmp/notebooklm_downloads")
+    dl_dir.mkdir(parents=True, exist_ok=True)
+    t = (artifact_type or "").lower().strip()
+    art = None
+    try:
+        art = await client.artifacts.get_or_none(nb_id, artifact_id)
+    except Exception:
+        pass
+
+    if not t and art:
+        kind_val = str(getattr(art, "kind", getattr(art, "_artifact_type", ""))).lower()
+        title_val = str(getattr(art, "title", "")).lower()
+        if getattr(art, "infographics", None) or "infog" in kind_val or "infog" in title_val:
+            t = "infographic"
+        elif getattr(art, "slides", None) or "slide" in kind_val or "present" in title_val:
+            t = "slide_deck"
+        elif "video" in kind_val or "video" in title_val:
+            t = "video"
+        elif "audio" in kind_val or "podcast" in title_val:
+            t = "audio"
+        elif "table" in kind_val or "tabla" in title_val:
+            t = "data_table"
+        elif "quiz" in kind_val or getattr(art, "is_quiz", False):
+            t = "quiz"
+        elif "flash" in kind_val:
+            t = "flashcards"
+        elif "mind" in kind_val or "mapa" in title_val:
+            t = "mind_map"
+        else:
+            t = "report"
+
+    ext_map = {
+        "audio": "mp4",
+        "podcast": "mp4",
+        "video": "mp4",
+        "cinematic_video": "mp4",
+        "infographic": "png",
+        "slide_deck": output_format or "pdf",
+        "slides": output_format or "pdf",
+        "mind_map": "json",
+        "data_table": "csv",
+        "quiz": output_format or "markdown",
+        "flashcards": output_format or "markdown",
+        "report": "md",
+        "study_guide": "md",
+    }
+    ext = ext_map.get(t, "md")
+    if ext == "markdown":
+        file_ext = "md"
+    else:
+        file_ext = ext
+
+    out_file = str(dl_dir / f"{nb_id}_{artifact_id}.{file_ext}")
+    saved_path = None
+
+    if t in ("audio", "podcast", "audio_overview"):
+        saved_path = await client.artifacts.download_audio(nb_id, out_file, artifact_id=artifact_id)
+    elif t in ("video", "cinematic_video"):
+        saved_path = await client.artifacts.download_video(nb_id, out_file, artifact_id=artifact_id)
+    elif t in ("infographic", "infografia", "infografía"):
+        saved_path = await client.artifacts.download_infographic(nb_id, out_file, artifact_id=artifact_id)
+    elif t in ("slide_deck", "slides", "presentacion", "presentación"):
+        saved_path = await client.artifacts.download_slide_deck(
+            nb_id, out_file, artifact_id=artifact_id, output_format=output_format or "pdf"
+        )
+    elif t in ("mind_map", "mindmap", "mapa_conceptual", "mapa"):
+        saved_path = await client.artifacts.download_mind_map(nb_id, out_file, artifact_id=artifact_id)
+    elif t in ("data_table", "tabla", "tabla_datos", "table"):
+        saved_path = await client.artifacts.download_data_table(nb_id, out_file, artifact_id=artifact_id)
+    elif t in ("quiz", "cuestionario", "evaluacion", "evaluación"):
+        saved_path = await client.artifacts.download_quiz(
+            nb_id, out_file, artifact_id=artifact_id, output_format=output_format or "markdown"
+        )
+    elif t in ("flashcards", "flashcard", "fichas"):
+        saved_path = await client.artifacts.download_flashcards(
+            nb_id, out_file, artifact_id=artifact_id, output_format=output_format or "markdown"
+        )
+    else:
+        saved_path = await client.artifacts.download_report(nb_id, out_file, artifact_id=artifact_id)
+
+    final_path = Path(saved_path or out_file)
+    text_content = None
+    if final_path.exists() and final_path.suffix.lower() in (".md", ".json", ".csv", ".txt", ".html"):
+        try:
+            text_content = final_path.read_text(encoding="utf-8")[:25000]
+        except Exception:
+            pass
+
+    uid = _get_active_user_id()
+    wappy_download_url = f"https://wappy.club/api/notebooklm/download/{nb_id}/{artifact_id}?type={t or 'report'}"
+    if uid:
+        wappy_download_url += f"&userId={uid}"
+
+    return {
+        "saved_to": str(final_path),
+        "artifact_type": t or "report",
+        "content": text_content,
+        "wappy_download_url": wappy_download_url,
+        "notebooklm_web_url": f"https://notebook.google.com/notebook/{nb_id}",
+        "title": getattr(art, "title", "") if art else "",
+        "media_url": getattr(art, "url", None) if art else None,
+    }
+
+
+@mcp.tool()
+async def studio_generate(
+    notebook: str,
+    artifact_type: str = "audio",
+    instructions: Optional[str] = None,
+    language: Optional[str] = "es",
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """
+    Genera cualquier artefacto del Studio de NotebookLM a partir de las fuentes del cuaderno:
+    - 'audio' / 'podcast': Resumen de Audio (Podcast conversacional en español).
+    - 'video' / 'cinematic_video': Resumen de Video explicativo con IA (MP4).
+    - 'mind_map': Mapa mental interactivo jerárquico (JSON/estructura completa).
+    - 'infographic': Infografía visual de alta resolución (PNG).
+    - 'slide_deck' / 'slides': Presentación de diapositivas (PDF / PPTX).
+    - 'data_table': Tabla estructurada de datos extraídos de las fuentes (CSV / Markdown).
+    - 'quiz': Cuestionario de evaluación con respuestas explicadas.
+    - 'flashcards': Tarjetas de estudio pregunta/respuesta.
+    - 'report' / 'study_guide': Informe ejecutivo o guía de estudio en Markdown.
+    Entrega automáticamente el contenido y el enlace directo de descarga ('wappy_download_url') para enviárselo al usuario en el chat.
+    """
+    client = await get_client_for_request()
+    nb_id = await _resolve_notebook_id(client, notebook)
+
     if isinstance(input, dict):
         artifact_type = input.get("artifact_type") or artifact_type
         instructions = input.get("instructions") or instructions
         language = input.get("language") or language
 
     t = (artifact_type or "").lower().strip()
+    uid = _get_active_user_id()
 
     try:
         if t in ("audio", "podcast", "audio_overview"):
@@ -672,33 +827,46 @@ async def studio_generate(
                 language=language or "es",
                 instructions=instructions,
             )
+            norm_type = "audio"
         elif t in ("quiz", "cuestionario", "evaluacion", "evaluación"):
             res = await client.artifacts.generate_quiz(
                 nb_id,
                 instructions=instructions,
             )
+            norm_type = "quiz"
         elif t in ("report", "informe", "resumen", "briefing_doc"):
             res = await client.artifacts.generate_report(
                 nb_id,
                 language=language or "es",
                 custom_prompt=instructions,
             )
+            norm_type = "report"
         elif t in ("flashcards", "flashcard", "fichas"):
             res = await client.artifacts.generate_flashcards(
                 nb_id,
                 instructions=instructions,
             )
+            norm_type = "flashcards"
         elif t in ("mind_map", "mindmap", "mapa_conceptual", "mapa"):
             res = await client.artifacts.generate_mind_map(
                 nb_id,
                 language=language or "es",
                 instructions=instructions,
             )
+            note_id = getattr(res, "note_id", None)
+            mind_map_data = getattr(res, "mind_map", res)
+            dl_url = f"https://wappy.club/api/notebooklm/download/{nb_id}/{note_id or 'latest'}?type=mind_map"
+            if uid:
+                dl_url += f"&userId={uid}"
             return {
                 "status": "completed",
                 "notebook_id": nb_id,
-                "artifact_type": artifact_type,
-                "result": str(res),
+                "artifact_id": note_id,
+                "artifact_type": "mind_map",
+                "mind_map": mind_map_data,
+                "wappy_download_url": dl_url,
+                "notebooklm_web_url": f"https://notebook.google.com/notebook/{nb_id}",
+                "message": "Mapa mental generado exitosamente. Presenta la estructura jerárquica al usuario y compártele el enlace de descarga.",
             }
         elif t in ("study_guide", "guia", "guia_estudio", "guía"):
             res = await client.artifacts.generate_study_guide(
@@ -706,25 +874,42 @@ async def studio_generate(
                 language=language or "es",
                 extra_instructions=instructions,
             )
+            norm_type = "report"
         elif t in ("slide_deck", "slides", "presentacion", "presentación"):
-            res = await client.artifacts.generate_slide_deck(nb_id)
+            res = await client.artifacts.generate_slide_deck(
+                nb_id,
+                language=language or "es",
+                instructions=instructions,
+            )
+            norm_type = "slide_deck"
         elif t in ("video", "cinematic_video"):
-            if hasattr(client.artifacts, "generate_cinematic_video"):
-                res = await client.artifacts.generate_cinematic_video(nb_id, instructions=instructions)
+            if hasattr(client.artifacts, "generate_video"):
+                res = await client.artifacts.generate_video(
+                    nb_id,
+                    language=language or "es",
+                    instructions=instructions,
+                )
             else:
-                res = await client.artifacts.generate_video(nb_id)
+                res = await client.artifacts.generate_cinematic_video(
+                    nb_id,
+                    language=language or "es",
+                    instructions=instructions,
+                )
+            norm_type = "video"
         elif t in ("infographic", "infografia", "infografía"):
             res = await client.artifacts.generate_infographic(
                 nb_id,
                 language=language or "es",
                 instructions=instructions,
             )
+            norm_type = "infographic"
         elif t in ("data_table", "tabla", "tabla_datos", "table"):
             res = await client.artifacts.generate_data_table(
                 nb_id,
                 language=language or "es",
                 instructions=instructions,
             )
+            norm_type = "data_table"
         else:
             raise ValueError(
                 f"Tipo de artefacto no reconocido: '{artifact_type}'. "
@@ -732,14 +917,45 @@ async def studio_generate(
             )
 
         task_id = getattr(res, "task_id", getattr(res, "id", str(res)))
+        wappy_download_url = f"https://wappy.club/api/notebooklm/download/{nb_id}/{task_id}?type={norm_type}"
+        if uid:
+            wappy_download_url += f"&userId={uid}"
+
+        # Esperar hasta 40s para entregar el resultado o archivo listo en un solo paso cuando sea posible
+        wait_secs = 40.0 if norm_type not in ("audio", "video") else 25.0
+        try:
+            waited = await client.artifacts.wait_for_completion(nb_id, task_id, timeout=wait_secs)
+            if waited and getattr(waited, "is_complete", False):
+                res = waited
+        except Exception:
+            pass
+
+        is_done = bool(getattr(res, "is_complete", False) or str(getattr(res, "status", "")).lower() in ("completed", "ready", "done"))
+        extracted_content = None
+        if is_done:
+            try:
+                dl_info = await _download_artifact_by_kind(client, nb_id, task_id, norm_type)
+                extracted_content = dl_info.get("content")
+            except Exception as dl_err:
+                logger.warning(f"No se pudo pre-descargar artefacto '{task_id}' ({norm_type}): {dl_err}")
+
         return {
-            "status": getattr(res, "status", "in_progress"),
+            "status": "completed" if is_done else getattr(res, "status", "in_progress"),
             "task_id": task_id,
+            "artifact_id": task_id,
             "notebook_id": nb_id,
-            "artifact_type": artifact_type,
+            "artifact_type": norm_type,
+            "is_complete": is_done,
+            "content": extracted_content,
+            "wappy_download_url": wappy_download_url,
+            "notebooklm_web_url": f"https://notebook.google.com/notebook/{nb_id}",
             "url": getattr(res, "url", None),
-            "is_complete": getattr(res, "is_complete", False),
-            "message": f"Generación de '{artifact_type}' iniciada exitosamente en NotebookLM. Consulta el avance con studio_status(task_id='{task_id}').",
+            "message": (
+                f"¡Artefacto '{norm_type}' completado! Entrégale al usuario el contenido y el enlace directo de descarga: {wappy_download_url}"
+                if is_done
+                else f"Generación de '{norm_type}' en curso en Google NotebookLM (task_id='{task_id}'). "
+                     f"Enlace de descarga directa cuando finalice: {wappy_download_url} — puedes verificar con studio_status(notebook='{nb_id}', task_id='{task_id}')."
+            ),
         }
     except Exception as e:
         _handle_tool_error("studio_generate", e)
@@ -751,71 +967,41 @@ async def studio_status(
     notebook: Optional[str] = None,
     input: Optional[Any] = None,
 ) -> Dict[str, Any]:
-    """Consulta el estado de una generación en el Studio de NotebookLM."""
+    """Consulta el estado de una generación en el Studio de NotebookLM y devuelve su enlace directo de descarga."""
     client = await get_client_for_request()
 
     if isinstance(input, dict):
         task_id = input.get("task_id") or task_id
         notebook = input.get("notebook") or notebook
 
+    uid = _get_active_user_id()
     target_nb_id = None
     if notebook:
         target_nb_id = await _resolve_notebook_id(client, notebook)
 
-    # Si se especificó el cuaderno, consultar directamente
-    if target_nb_id:
+    candidate_nbs = [target_nb_id] if target_nb_id else [nb.id for nb in await client.notebooks.list()]
+    for nb_id in candidate_nbs:
+        if not nb_id:
+            continue
         try:
-            res = await client.artifacts.poll_status(target_nb_id, task_id)
-            url = getattr(res, "url", None)
-            if not url and getattr(res, "is_complete", False):
-                try:
-                    audios = await client.artifacts.list_audio(target_nb_id)
-                    for a in audios:
-                        if a.id == task_id and getattr(a, "url", None):
-                            url = a.url
-                            break
-                except Exception:
-                    pass
-            return {
-                "status": getattr(res, "status", "unknown"),
-                "task_id": task_id,
-                "notebook_id": target_nb_id,
-                "url": url,
-                "is_complete": getattr(res, "is_complete", False),
-                "error": getattr(res, "error", None),
-            }
-        except Exception as e:
-            logger.warning(f"Error consultando poll_status en '{target_nb_id}': {e}")
-
-    # Si no se pasó notebook o falló, buscar en todos los cuadernos del usuario
-    try:
-        notebooks = await client.notebooks.list()
-        for nb in notebooks:
-            try:
-                res = await client.artifacts.poll_status(nb.id, task_id)
-                if res and getattr(res, "status", "") not in ("not_found", ""):
-                    url = getattr(res, "url", None)
-                    if not url and getattr(res, "is_complete", False):
-                        try:
-                            audios = await client.artifacts.list_audio(nb.id)
-                            for a in audios:
-                                if a.id == task_id and getattr(a, "url", None):
-                                    url = a.url
-                                    break
-                        except Exception:
-                            pass
-                    return {
-                        "status": getattr(res, "status", "completed"),
-                        "task_id": task_id,
-                        "notebook_id": nb.id,
-                        "url": url,
-                        "is_complete": getattr(res, "is_complete", False),
-                        "error": getattr(res, "error", None),
-                    }
-            except Exception:
-                continue
-    except Exception as e:
-        _handle_tool_error("studio_status", e)
+            res = await client.artifacts.poll_status(nb_id, task_id)
+            if res and getattr(res, "status", "") not in ("not_found", ""):
+                is_done = bool(getattr(res, "is_complete", False) or str(getattr(res, "status", "")).lower() in ("completed", "ready", "done"))
+                dl_url = f"https://wappy.club/api/notebooklm/download/{nb_id}/{task_id}"
+                if uid:
+                    dl_url += f"?userId={uid}"
+                return {
+                    "status": getattr(res, "status", "completed" if is_done else "in_progress"),
+                    "task_id": task_id,
+                    "notebook_id": nb_id,
+                    "url": getattr(res, "url", None),
+                    "wappy_download_url": dl_url,
+                    "notebooklm_web_url": f"https://notebook.google.com/notebook/{nb_id}",
+                    "is_complete": is_done,
+                    "error": getattr(res, "error", None),
+                }
+        except Exception:
+            continue
 
     return {"status": "not_found", "task_id": task_id, "message": "No se encontró la tarea especificada."}
 
@@ -824,18 +1010,24 @@ async def studio_status(
 async def studio_download(
     artifact_id: str,
     notebook: Optional[str] = None,
+    artifact_type: Optional[str] = None,
+    output_format: Optional[str] = None,
     output_path: Optional[str] = None,
     input: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """
-    Obtiene información o enlace de descarga para un artefacto generado (audio, quiz, reporte).
-    Si se proporciona output_path, descarga el archivo localmente en esa ruta.
+    Descarga y entrega cualquier artefacto generado en NotebookLM (video MP4, podcast/audio MP4,
+    infografía PNG, presentación PDF/PPTX, mapa mental JSON, tabla CSV, cuestionario, fichas o informe Markdown).
+    Retorna tanto el contenido legible ('content') como el enlace directo de descarga ('wappy_download_url')
+    para que el usuario pueda descargarlo desde el chat con 1 clic.
     """
     client = await get_client_for_request()
 
     if isinstance(input, dict):
         artifact_id = input.get("artifact_id") or artifact_id
         notebook = input.get("notebook") or notebook
+        artifact_type = input.get("artifact_type") or input.get("type") or artifact_type
+        output_format = input.get("output_format") or input.get("format") or output_format
         output_path = input.get("output_path") or output_path
 
     target_nb_id = None
@@ -845,28 +1037,24 @@ async def studio_download(
     try:
         candidate_nbs = [target_nb_id] if target_nb_id else [nb.id for nb in await client.notebooks.list()]
         for nb_id in candidate_nbs:
+            if not nb_id:
+                continue
             try:
-                art = await client.artifacts.get(nb_id, artifact_id)
-                if art:
-                    download_url = getattr(art, "url", None)
-                    saved_to = None
-                    if output_path:
-                        if getattr(art, "is_quiz", False):
-                            saved_to = await client.artifacts.download_quiz(nb_id, output_path, artifact_id=artifact_id)
-                        elif getattr(art, "kind", None) == "audio" or "audio" in str(getattr(art, "title", "")).lower() or download_url:
-                            saved_to = await client.artifacts.download_audio(nb_id, output_path, artifact_id=artifact_id)
-                        else:
-                            saved_to = await client.artifacts.download_report(nb_id, output_path, artifact_id=artifact_id)
-
-                    return {
-                        "status": "ready",
-                        "artifact_id": artifact_id,
-                        "notebook_id": nb_id,
-                        "title": getattr(art, "title", ""),
-                        "download_url": download_url,
-                        "saved_to": saved_to,
-                    }
-            except Exception:
+                dl_info = await _download_artifact_by_kind(
+                    client,
+                    nb_id,
+                    artifact_id,
+                    artifact_type=artifact_type or "",
+                    output_format=output_format,
+                )
+                return {
+                    "status": "ready",
+                    "artifact_id": artifact_id,
+                    "notebook_id": nb_id,
+                    **dl_info,
+                }
+            except Exception as inner_err:
+                logger.debug(f"Intento de descarga en '{nb_id}' falló: {inner_err}")
                 continue
     except Exception as e:
         _handle_tool_error("studio_download", e)
@@ -1763,6 +1951,50 @@ async def direct_tool_handler(request: Request) -> JSONResponse:
             _CURRENT_USER_CONTEXT.reset(token)
     except Exception as e:
         logger.error(f"[Direct Tool] Error ejecutando '{tool_name}': {e}", exc_info=True)
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@mcp.custom_route("/api/download-artifact", methods=["GET"])
+async def download_artifact_route(request: Request):
+    """Descarga binaria directa de cualquier artefacto generado en NotebookLM (video MP4, podcast MP4, infografía PNG, slides PDF/PPTX, etc.)."""
+    from starlette.responses import FileResponse
+    try:
+        nb_id = request.query_params.get("notebook_id") or ""
+        artifact_id = request.query_params.get("artifact_id") or ""
+        art_type = request.query_params.get("type") or ""
+        out_format = request.query_params.get("format") or None
+        user_id = request.query_params.get("user_id") or request.headers.get("x-user-id") or ""
+
+        if not nb_id or not artifact_id:
+            return JSONResponse({"error": "notebook_id y artifact_id son obligatorios"}, status_code=400)
+
+        ctx_dict = {k.lower(): v for k, v in request.headers.items()}
+        if user_id:
+            ctx_dict["x-user-id"] = str(user_id)
+
+        token = _CURRENT_USER_CONTEXT.set(ctx_dict)
+        try:
+            client = await get_client_for_request()
+            resolved_nb = await _resolve_notebook_id(client, nb_id)
+            dl_info = await _download_artifact_by_kind(
+                client,
+                resolved_nb,
+                 None if artifact_id == "latest" else artifact_id,
+                artifact_type=art_type,
+                output_format=out_format,
+            )
+            saved_path = Path(dl_info["saved_to"])
+            if not saved_path.exists():
+                return JSONResponse({"error": "El archivo descargado no se encontró en disco"}, status_code=404)
+
+            return FileResponse(
+                path=str(saved_path),
+                filename=saved_path.name,
+            )
+        finally:
+            _CURRENT_USER_CONTEXT.reset(token)
+    except Exception as e:
+        logger.error(f"[Download Artifact] Error descargando artefacto: {e}", exc_info=True)
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
