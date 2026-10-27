@@ -7747,6 +7747,180 @@ router.post('/antigravity/ordenes/:id/claim', requireApiKeyOrJwt, async (req, re
   }
 });
 
+/**
+ * Determina inteligentemente si la instrucción delegada a Antigravity requiere:
+ * - 'respuesta' (pregunta/consulta conversacional directa sin crear archivo ni abrir Canvas)
+ * - 'documento' (documento formal en el Editor de Documentos de WAPPY / LiveEditor con fileType='text')
+ * - 'html' (aplicativo interactivo o dashboard con fileType='html')
+ * - 'excel' o 'presentacion'
+ */
+function resolveAntigravityOutputFormat(rawType, instructionText = '', files = []) {
+  const normRaw = String(rawType || '').toLowerCase().trim();
+  const text = String(instructionText || '').trim();
+
+  if (normRaw === 'respuesta' || normRaw === 'consulta' || normRaw === 'texto' || normRaw === 'chat') {
+    return 'respuesta';
+  }
+  if (normRaw === 'excel' || normRaw === 'xlsx' || /\b(excel|hoja\s+de\s+c[aá]lculo|xlsx)\b/i.test(text)) {
+    return 'excel';
+  }
+  if (
+    normRaw === 'presentacion' ||
+    normRaw === 'presentation' ||
+    normRaw === 'pptx' ||
+    /\b(presentaci[oó]n|diapositivas|slides|powerpoint)\b/i.test(text)
+  ) {
+    return 'presentacion';
+  }
+  if (
+    normRaw === 'html' ||
+    normRaw === 'dashboard' ||
+    normRaw === 'aplicativo' ||
+    /\b(html|dashboard|tablero\s+interactivo|aplicativo|calculadora|simulador|widget)\b/i.test(text)
+  ) {
+    return 'html';
+  }
+
+  // Verificar si el texto de la instrucción pide explícitamente un documento, informe, formato o archivo
+  const explicitlyAsksForDocument =
+    /\b(documento|informe|reporte|word|acta|pol[ií]tica|procedimiento|protocolo|formato|plantilla|manual|programa|plan\s+de|matriz|estudio|diagn[oó]stico\s+escrito|redacta|redactar|elabora\s+un|crea\s+un|genera\s+un\s+(?:documento|informe|reporte|archivo|formato|acta)|en\s+canvas|en\s+el\s+editor|archivo|pdf)\b/i.test(
+      text
+    );
+
+  if (explicitlyAsksForDocument) {
+    return 'documento';
+  }
+
+  // Si no pidió explícitamente ningún documento/archivo/aplicativo y no adjuntó archivos para auditar en informe,
+  // es una pregunta o consulta conversacional ('respuesta')
+  if (!Array.isArray(files) || files.length === 0) {
+    return 'respuesta';
+  }
+
+  return normRaw === 'word' || normRaw === 'doc' || normRaw === 'docx' || normRaw === 'informe' || normRaw === 'documento'
+    ? 'documento'
+    : 'respuesta';
+}
+
+/**
+ * Formatea un documento ('documento' / 'word' / 'text') con el estándar oficial del
+ * Editor de Documentos de WAPPY (LiveEditor / CanvasTextEditor):
+ * 1. Limpia envoltorios <!DOCTYPE html> / <html> / <script> para que CanvasPanel lo abra en LiveEditor (fileType='text') y no en el visor de código HTML.
+ * 2. Convierte tablas y bloques Markdown a HTML corporativo limpio compatible con TipTap/LiveEditor.
+ * 3. Pre-inyecta el cabezote oficial WAPPY (`buildStandardHeader` + tabla `INFORMACIÓN RESUMIDA DE LA ENTIDAD`).
+ * 4. Post-inyecta el bloque interactivo de firmas digitales (`buildSignatureSection` con `.signature-placeholder`).
+ */
+function formatWappyEditorDocument(rawContent, title, companyInfo) {
+  const { buildStandardHeader, buildSignatureSection } = require('./sgsst/reportHeader');
+  let contentStr = typeof rawContent === 'string' ? rawContent.trim() : String(rawContent || '');
+
+  // Quitar bloques ```markdown o ```html envolventes si existen
+  contentStr = contentStr
+    .replace(/^```(?:markdown|html|text)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+
+  // Si el modelo envió un documento envuelto en <!DOCTYPE html> o <html>, extraer únicamente el <body>
+  // y eliminar <script> para que WAPPY lo trate como documento editable 'text' en LiveEditor
+  if (/<!DOCTYPE\s+html/i.test(contentStr) || /<html[\s>]/i.test(contentStr)) {
+    const bodyMatch = contentStr.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    if (bodyMatch && bodyMatch[1]) {
+      contentStr = bodyMatch[1].trim();
+    } else {
+      contentStr = contentStr
+        .replace(/<!DOCTYPE[^>]*>/gi, '')
+        .replace(/<head[\s\S]*?<\/head>/gi, '')
+        .replace(/<\/?(?:html|body)[^>]*>/gi, '')
+        .trim();
+    }
+    contentStr = contentStr.replace(/<script[\s\S]*?<\/script>/gi, '').trim();
+  }
+
+  const lower = contentStr.toLowerCase();
+  const alreadyHasHeader =
+    lower.includes('información resumida de la entidad') ||
+    lower.includes('wappy-standard-header-banner') ||
+    lower.includes('proceso: sg-sst');
+  const alreadyHasSignature =
+    lower.includes('signature-placeholder') ||
+    lower.includes('wappy-signature-table') ||
+    (lower.includes('responsable sg-sst') && lower.includes('representante legal'));
+
+  // Convertir tablas Markdown y formato Markdown a HTML limpio si el cuerpo está en Markdown
+  const tableRegex = /((?:^|\n)\|[^\n]+\|[^\n]*\n\|[ \t]*:?-+:?[ \t]*\|[^\n]*\n(?:\|[^\n]+\|[^\n]*(?:\n|$))+)/g;
+  contentStr = contentStr.replace(tableRegex, (match) => {
+    const lines = match
+      .trim()
+      .split('\n')
+      .map((l) => l.trim());
+    if (lines.length < 2) return match;
+    const headerCols = lines[0]
+      .split('|')
+      .map((c) => c.trim())
+      .filter((_, i, arr) => i > 0 && i < arr.length - 1);
+    const headersHtml = headerCols
+      .map(
+        (col) =>
+          `<th style="border: 1px solid #cbd5e1; padding: 8px 10px; background-color: #f1f5f9; font-weight: bold; text-align: left; color: #0f172a;">${col}</th>`
+      )
+      .join('');
+    const dataRowsHtml = lines
+      .slice(2)
+      .map((line) => {
+        const cols = line
+          .split('|')
+          .map((c) => c.trim())
+          .filter((_, i, arr) => i > 0 && i < arr.length - 1);
+        const cellsHtml = cols
+          .map((col) => `<td style="border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left;">${col}</td>`)
+          .join('');
+        return `<tr>${cellsHtml}</tr>`;
+      })
+      .join('');
+    return `\n<div style="overflow-x:auto; margin: 15px 0;"><table style="border-collapse: collapse; width: 100%; border: 1px solid #cbd5e1; font-family: Arial, sans-serif; font-size: 13px;"><thead><tr>${headersHtml}</tr></thead><tbody>${dataRowsHtml}</tbody></table></div>\n`;
+  });
+
+  // Si el contenido no tiene párrafos HTML (<p>, <h2>, <h3>), convertir encabezados y listas Markdown a HTML
+  if (!/<(?:p|h1|h2|h3|section)\b/i.test(contentStr)) {
+    const blocks = contentStr.split(/(<div[\s\S]*?<\/div>|<table[\s\S]*?<\/table>)/i);
+    contentStr = blocks
+      .map((part) => {
+        if (part.trim().startsWith('<div') || part.trim().startsWith('<table')) {
+          return part;
+        }
+        return part
+          .replace(/^#{4,6}\s+(.+)$/gm, '<h4 style="color:#0f766e; margin-top:14px; margin-bottom:6px; font-weight:bold;">$1</h4>')
+          .replace(/^#{3}\s+(.+)$/gm, '<h3 style="color:#0f766e; margin-top:16px; margin-bottom:8px; font-weight:bold;">$1</h3>')
+          .replace(/^#{2}\s+(.+)$/gm, '<h2 style="color:#0d9488; border-bottom:1px solid #e2e8f0; padding-bottom:4px; margin-top:20px; margin-bottom:10px; font-weight:bold;">$1</h2>')
+          .replace(/^#{1}\s+(.+)$/gm, '<h2 style="color:#0d9488; border-bottom:1px solid #e2e8f0; padding-bottom:4px; margin-top:20px; margin-bottom:10px; font-weight:bold;">$1</h2>')
+          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*(.+?)\*/g, '<em>$1</em>')
+          .replace(/^\s*[-*]\s+(.+)$/gm, '<li>$1</li>')
+          .replace(/(<li>.*<\/li>\n?)+/g, (b) => `<ul style="margin:8px 0 12px 20px;">${b}</ul>`)
+          .replace(/\n{2,}/g, '</p><p>')
+          .replace(/^(?!<[hluptd])(.+)$/gm, '<p style="margin: 8px 0; line-height: 1.6;">$1</p>')
+          .replace(/<p[^>]*>\s*<\/p>/g, '');
+      })
+      .join('\n');
+  }
+
+  if (!alreadyHasHeader) {
+    const headerHtml = buildStandardHeader({
+      title: title || 'DOCUMENTO TÉCNICO SG-SST',
+      companyInfo,
+      norm: 'Decreto 1072 de 2015 / Resolución 0312 de 2019',
+    });
+    contentStr = `${headerHtml}\n\n${contentStr}`;
+  }
+
+  if (!alreadyHasSignature) {
+    const sigHtml = buildSignatureSection(companyInfo);
+    contentStr = `${contentStr}\n\n${sigHtml}`;
+  }
+
+  return contentStr;
+}
+
 router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
   try {
     const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
@@ -7773,10 +7947,10 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
     const rawFiles = archivos || files || adjuntos || media || [];
     const finalFiles = Array.isArray(rawFiles) ? rawFiles : (typeof rawFiles === 'string' && rawFiles.trim() ? [rawFiles.trim()] : []);
 
-    const finalTitle = titulo || title || `Orden Antigravity: ${(tarea || instruccion || 'Investigación / Procesamiento de Archivos').slice(0, 60)}`;
+    const finalTitle = titulo || title || `Orden Antigravity: ${(tarea || instruccion || 'Consulta / Procesamiento').slice(0, 60)}`;
     const finalDesc = instruccion || instruction || tarea || task || 'Procesar requerimiento delegado desde Tenshi.';
-    const finalResource = carpeta_o_recurso || folderPath || 'Google Drive / Entorno Local';
-    const finalOutputType = tipo_entregable || outputType || 'documento';
+    const finalResource = carpeta_o_recurso || folderPath || 'Datos Empresariales WAPPY MCP';
+    const finalOutputType = resolveAntigravityOutputFormat(tipo_entregable || outputType, finalDesc, finalFiles);
 
     const rawPriority = String(prioridad || 'alta').toLowerCase();
     const finalPriority = (rawPriority === 'high' || rawPriority === 'alta') ? 'alta' : (rawPriority === 'low' || rawPriority === 'baja') ? 'baja' : 'media';
@@ -7954,37 +8128,138 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
     ).toLowerCase().trim();
     const rawExplicitContent =
       contenido || content || nestedDeliverable.contenido || nestedDeliverable.content || '';
-    const finalContent = rawExplicitContent || resultado || result || '';
+    let finalContent = rawExplicitContent || resultado || result || '';
     const finalUrl = urlDescarga || fileUrl || nestedDeliverable.urlDescarga || nestedDeliverable.fileUrl || null;
     const completionNotes =
       resultado || result || nestedDeliverable.resumen || rawExplicitContent || 'Tarea completada exitosamente por Antigravity.';
     const completionNotesStr = typeof completionNotes === 'string' ? completionNotes : JSON.stringify(completionNotes);
 
-    // Validación: evitar que una llamada sin 'contenido' real inyecte un documento vacío de 1 línea en Tenshi
+    // Detectar el formato esperado registrado en la tarea
+    const taskDescStr = String(task.description || '');
+    const expectedFormatMatch = taskDescStr.match(/Formato Esperado:\s*([^\n\r]+)/i);
+    const expectedFormat = expectedFormatMatch ? expectedFormatMatch[1].trim().toLowerCase() : '';
+
+    // Determinar si es una respuesta conversacional (pregunta/consulta simple donde NO se pidió documento ni aplicativo)
+    const isExplicitDeliverableFormat =
+      rawFormat === 'documento' ||
+      rawFormat === 'word' ||
+      rawFormat === 'doc' ||
+      rawFormat === 'docx' ||
+      rawFormat === 'informe' ||
+      rawFormat === 'html' ||
+      rawFormat === 'excel' ||
+      rawFormat === 'presentacion' ||
+      rawFormat === 'presentation';
+
+    const isConversationalReply =
+      rawFormat === 'respuesta' ||
+      rawFormat === 'consulta' ||
+      rawFormat === 'chat' ||
+      (expectedFormat === 'respuesta' && !isExplicitDeliverableFormat);
+
     const finalContentStr = typeof finalContent === 'string' ? finalContent.trim() : '';
-    if (!rawExplicitContent && !finalUrl && finalContentStr.length < 300) {
+
+    // Validación: solo exigir mínimo 300 caracteres cuando NO es una respuesta conversacional
+    if (!isConversationalReply && !rawExplicitContent && !finalUrl && finalContentStr.length < 300) {
       return res.status(400).json({
-        error: 'El parámetro "contenido" es obligatorio y debe incluir el entregable completo desarrollado (código HTML5 completo con <!DOCTYPE html> o documento extenso en Markdown/Word de mínimo 300 caracteres). No se permite cerrar la orden enviando únicamente una frase corta de resumen en "resultado".',
+        error: 'Para entregables de tipo documento/informe o aplicativo HTML, el parámetro "contenido" debe incluir el entregable completo desarrollado (mínimo 300 caracteres). Si la orden es solo una pregunta o consulta conversacional, envía formato="respuesta" y la respuesta en "resultado".',
       });
     }
 
-    const isHtml =
-      rawFormat === 'html' ||
-      completionNotesStr.includes('<html') ||
-      completionNotesStr.includes('<!DOCTYPE') ||
-      (typeof finalContent === 'string' && (finalContent.includes('<html') || finalContent.includes('<!DOCTYPE')));
+    // Determinar si es un documento para el Editor de Documentos de WAPPY ('text' -> LiveEditor) vs Aplicativo HTML ('html')
+    const isDocumentFormat =
+      !isConversationalReply &&
+      (rawFormat === 'documento' ||
+        rawFormat === 'word' ||
+        rawFormat === 'doc' ||
+        rawFormat === 'docx' ||
+        rawFormat === 'text' ||
+        rawFormat === 'informe' ||
+        (!rawFormat && (expectedFormat === 'documento' || expectedFormat === 'word' || expectedFormat === 'informe')));
 
-    const finalFormat = isHtml ? 'html' : (rawFormat || 'documento');
+    const isHtml =
+      !isConversationalReply &&
+      !isDocumentFormat &&
+      (rawFormat === 'html' ||
+        expectedFormat === 'html' ||
+        completionNotesStr.includes('<html') ||
+        completionNotesStr.includes('<!DOCTYPE') ||
+        (typeof finalContent === 'string' && (finalContent.includes('<html') || finalContent.includes('<!DOCTYPE'))));
+
+    const finalFormat = isConversationalReply
+      ? 'respuesta'
+      : isHtml
+      ? 'html'
+      : isDocumentFormat
+      ? 'documento'
+      : (rawFormat || 'documento');
+
+    // Si es un documento ('documento' / 'word' / 'text'), aplicar el formato oficial del Editor de Documentos de WAPPY (LiveEditor)
+    // y sincronizarlo con CanvasSession + LiveEditorSession
+    const canvasId = `antigravity-${task._id}`;
+    if (!isConversationalReply && finalFormat === 'documento' && finalContentStr) {
+      const company = await getActiveCompany(targetUserId);
+      finalContent = formatWappyEditorDocument(finalContentStr, task.title, company);
+
+      try {
+        const CanvasSession = require('~/models/CanvasSession');
+        const { syncCanvasToLiveEditor } = require('./sgsst/syncBridge');
+        await CanvasSession.findOneAndUpdate(
+          { user: targetUserId, conversationId: canvasId },
+          {
+            $set: {
+              content: finalContent,
+              title: task.title,
+              fileType: 'text',
+              companyId: company?._id || undefined,
+              updatedAt: new Date(),
+            },
+            $setOnInsert: { version: 1 },
+          },
+          { upsert: true, new: true }
+        );
+        await syncCanvasToLiveEditor(canvasId, finalContent, task.title, targetUserId);
+
+        // También sincronizar con la sesión activa más reciente del usuario para que al abrir Canvas o LiveEditor esté disponible de inmediato
+        const latestSession = await CanvasSession.findOne({
+          user: targetUserId,
+          conversationId: { $nin: ['new', canvasId] },
+        })
+          .sort({ updatedAt: -1 })
+          .lean();
+        if (latestSession?.conversationId) {
+          await CanvasSession.findOneAndUpdate(
+            { user: targetUserId, conversationId: latestSession.conversationId },
+            {
+              $set: {
+                content: finalContent,
+                title: task.title,
+                fileType: 'text',
+                updatedAt: new Date(),
+              },
+            }
+          );
+          await syncCanvasToLiveEditor(latestSession.conversationId, finalContent, task.title, targetUserId);
+        }
+      } catch (syncErr) {
+        logger.warn('[MCP Bridge] Error sincronizando documento con CanvasSession / LiveEditorSession:', syncErr.message);
+      }
+    }
 
     let finalSummary = resumen || nestedDeliverable.resumen;
-    if (!finalSummary || finalSummary.includes('<!DOCTYPE') || finalSummary.includes('<html')) {
+    if (isConversationalReply) {
+      finalSummary = (resultado || result || finalSummary || finalContentStr || 'Consulta respondida por Antigravity.').trim();
+    } else if (!finalSummary || finalSummary.includes('<!DOCTYPE') || finalSummary.includes('<html')) {
       if (isHtml) {
         const cleanNotes = completionNotesStr.replace(/<[^>]*>?/gm, '').trim();
         finalSummary = (cleanNotes && cleanNotes.length > 20 && cleanNotes.length < 600 && !cleanNotes.includes('<!DOCTYPE'))
           ? cleanNotes
-          : 'El informe técnico interactivo ha sido estructurado y generado con éxito. Puedes explorarlo y editarlo en pantalla con Canvas o descargarlo directamente.';
+          : 'El aplicativo interactivo ha sido estructurado y generado con éxito. Puedes explorarlo en pantalla con Canvas o descargarlo directamente.';
       } else {
-        finalSummary = typeof finalContent === 'string' ? finalContent.replace(/<[^>]*>?/gm, '').trim().slice(0, 500) : 'Orden completada con éxito.';
+        const cleanNotes = (resultado || result || '').replace(/<[^>]*>?/gm, '').trim();
+        finalSummary = cleanNotes.length > 20
+          ? cleanNotes.slice(0, 600)
+          : 'Documento técnico generado en el formato oficial del Editor de Documentos de WAPPY (con cabezote corporativo, tablas técnicas y sección de firmas).';
       }
     } else {
       finalSummary = finalSummary.replace(/<[^>]*>?/gm, '').trim();
@@ -7994,7 +8269,7 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
     task.completedAt = new Date();
     task.deliverable = {
       formato: finalFormat,
-      contenido: finalContent,
+      contenido: isConversationalReply ? finalSummary : finalContent,
       urlDescarga: finalUrl,
       resumen: finalSummary,
       titulo: task.title,
@@ -8004,26 +8279,29 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
 
     // ── INYECCIÓN AUTOMÁTICA EN EL CHAT DE TENSHI (TenshiMessage) ───────────────
     let createdTenshiMsg = null;
+    const normalizedFileType = isConversationalReply
+      ? 'respuesta'
+      : isHtml
+      ? 'html'
+      : (finalFormat === 'word' || finalFormat === 'doc' || finalFormat === 'docx' || finalFormat === 'documento' || finalFormat === 'informe')
+      ? 'text'
+      : finalFormat === 'image' || finalFormat === 'imagen'
+      ? 'image'
+      : finalFormat;
+
+    const filePayload = (!isConversationalReply && finalContent)
+      ? {
+          title: task.title,
+          fileType: normalizedFileType,
+          content: finalContent,
+          canvasId,
+        }
+      : undefined;
+
     try {
-      let normalizedFileType = finalFormat;
-      if (finalFormat === 'word' || finalFormat === 'doc' || finalFormat === 'docx' || finalFormat === 'documento') {
-        normalizedFileType = 'text';
-      }
-      if (isHtml) {
-        normalizedFileType = 'html';
-      }
-      if (finalFormat === 'image' || finalFormat === 'imagen') {
-        normalizedFileType = 'image';
-      }
-
-      const filePayload = finalContent ? {
-        title: task.title,
-        fileType: normalizedFileType,
-        content: finalContent,
-        canvasId: `antigravity-${task._id}`,
-      } : undefined;
-
-      const tenshiBubbleContent = `✨ **¡Entregable de Google Antigravity Recibido!**\n\nHe procesado el resultado de la tarea técnica delegada:\n**${task.title}**\n\n${finalSummary}\n\n📄 **Formato generado:** \`${finalFormat.toUpperCase()}\`${finalUrl ? `\n🔗 **Enlace de descarga:** [Descargar Archivo](${finalUrl})` : ''}`;
+      const tenshiBubbleContent = isConversationalReply
+        ? `⚡ **Respuesta de Google Antigravity**\n\n${finalSummary}`
+        : `✨ **¡Documento / Entregable de Google Antigravity Listo en el Editor de WAPPY!**\n\n**${task.title}**\n\n${finalSummary}${finalUrl ? `\n🔗 **Enlace de descarga:** [Descargar Archivo](${finalUrl})` : ''}`;
 
       createdTenshiMsg = await TenshiMessage.create({
         user: targetUserId,
@@ -8031,37 +8309,30 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
         content: tenshiBubbleContent,
         htmlReport: isHtml ? finalContent : undefined,
         file: filePayload,
-        report: {
-          titulo: task.title,
-          aplicativo: 'antigravity_delegation',
-          formato: finalFormat,
-          contenido: finalContent ? finalContent.slice(0, 10000) : '',
-        },
+        report: isConversationalReply
+          ? undefined
+          : {
+              titulo: task.title,
+              aplicativo: 'antigravity_delegation',
+              formato: finalFormat,
+              contenido: finalContent ? finalContent.slice(0, 10000) : '',
+            },
       });
 
-      logger.info(`[MCP Bridge] Mensaje de Tenshi inyectado exitosamente (ID: ${createdTenshiMsg._id}) para orden ${task._id}`);
+      logger.info(`[MCP Bridge] Mensaje de Tenshi inyectado exitosamente (ID: ${createdTenshiMsg._id}, formato: ${finalFormat}) para orden ${task._id}`);
     } catch (msgErr) {
       logger.error('[MCP Bridge] Error inyectando TenshiMessage al completar orden:', msgErr);
     }
 
     // ── EMISIÓN PUSH EN TIEMPO REAL AL STREAM SSE (NAVEGADOR / CELULAR / TENSHI) ─
     try {
-      let normalizedFileType = finalFormat;
-      if (finalFormat === 'word' || finalFormat === 'doc' || finalFormat === 'docx' || finalFormat === 'documento') {
-        normalizedFileType = 'text';
-      } else if (isHtml) {
-        normalizedFileType = 'html';
-      }
       broadcastAntigravityEvent(targetUserId, 'orden_completada', {
         ordenId: task._id.toString(),
         title: task.title,
+        formato: finalFormat,
+        isConversationalReply,
         html: isHtml ? finalContent : undefined,
-        file: {
-          title: task.title,
-          fileType: normalizedFileType,
-          content: finalContent,
-          canvasId: `antigravity-${task._id}`,
-        },
+        file: filePayload,
         messageId: createdTenshiMsg?._id ? createdTenshiMsg._id.toString() : `antigravity-${Date.now()}`,
         summary: finalSummary,
       });
@@ -8081,24 +8352,15 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
           }
         }
         if (userSession && typeof userSession.sendToClient === 'function') {
-          let normalizedFileType = finalFormat;
-          if (finalFormat === 'word' || finalFormat === 'doc' || finalFormat === 'docx' || finalFormat === 'documento') {
-            normalizedFileType = 'text';
-          } else if (isHtml) {
-            normalizedFileType = 'html';
-          }
           userSession.sendToClient({
             type: 'tenshi_report_delivered',
             data: {
               ordenId: task._id.toString(),
               title: task.title,
+              formato: finalFormat,
+              isConversationalReply,
               html: isHtml ? finalContent : undefined,
-              file: {
-                title: task.title,
-                fileType: normalizedFileType,
-                content: finalContent,
-                canvasId: `antigravity-${task._id}`,
-              },
+              file: filePayload,
               messageId: createdTenshiMsg?._id ? createdTenshiMsg._id.toString() : `antigravity-${Date.now()}`,
               summary: finalSummary,
             },

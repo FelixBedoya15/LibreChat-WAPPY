@@ -2137,59 +2137,46 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           const orden = (data.ordenes && data.ordenes[0]) || null;
 
           if (orden && orden.estado === 'done') {
-            console.log(`[Tenshi Watchdog] ¡Orden ${ordenId} COMPLETADA por Antigravity! Proyectando entregable...`);
+            console.log(`[Tenshi Watchdog] ¡Orden ${ordenId} COMPLETADA por Antigravity! Delegando a manejador unificado...`);
             clearInterval(timer);
             activeOrderWatchdogsRef.current.delete(ordenId);
 
             const entregable = orden.entregable || {};
-            const contenido = entregable.contenido || orden.descripcion || '';
-            const finalFormat = entregable.formato || formato || 'html';
-            const isHtml = finalFormat === 'html' || (typeof contenido === 'string' && (contenido.trim().startsWith('<!DOCTYPE') || contenido.trim().startsWith('<html')));
-            const canvasFileType = isHtml ? 'html' : (finalFormat === 'word' || finalFormat === 'documento' ? 'text' : finalFormat);
-            const chatSummary = entregable.resumen || (isHtml
-              ? 'Se ha generado el dashboard interactivo en HTML con las gráficas de salud ocupacional. Puedes visualizarlo e interactuar con él desde el panel Canvas.'
-              : contenido);
+            const contenido = entregable.contenido || '';
+            const finalFormat = String(entregable.formato || formato || 'respuesta').toLowerCase().trim();
+            const isConversationalReply =
+              finalFormat === 'respuesta' || finalFormat === 'consulta' || finalFormat === 'chat';
+            const isHtml =
+              !isConversationalReply &&
+              finalFormat === 'html';
+            const canvasFileType = isHtml
+              ? 'html'
+              : finalFormat === 'word' || finalFormat === 'documento' || finalFormat === 'informe' || finalFormat === 'doc' || finalFormat === 'docx'
+              ? 'text'
+              : finalFormat;
 
-            // 1. Actualizar el mensaje de la orden en el chat de Tenshi
-            setMessages((prev) =>
-              prev.map((m) => {
-                if (m._id === messageId || m.delegatedOrderId === ordenId) {
-                  return {
-                    ...m,
-                    content: `⚡ **${titulo} — Entregable Listo por Antigravity**\n\n${chatSummary}`,
-                    file: {
-                      title: titulo,
-                      fileType: canvasFileType,
-                      content: contenido,
-                      canvasId: `antigravity-report-${Date.now()}`,
-                    },
-                    delegatedStatus: 'done',
-                  };
-                }
-                return m;
+            window.dispatchEvent(
+              new CustomEvent('tenshi-antigravity-delivered', {
+                detail: {
+                  ordenId,
+                  title: titulo,
+                  formato: finalFormat,
+                  isConversationalReply,
+                  html: isHtml ? contenido : undefined,
+                  file:
+                    !isConversationalReply && contenido
+                      ? {
+                          title: titulo,
+                          fileType: canvasFileType,
+                          content: contenido,
+                          canvasId: `antigravity-${ordenId}`,
+                        }
+                      : undefined,
+                  messageId,
+                  summary: entregable.resumen || contenido,
+                },
               })
             );
-            setIsOpen(true);
-
-            // 2. Abrir Canvas automáticamente si hay contenido
-            if (contenido && window.location.pathname.startsWith('/c/')) {
-              setStreamingCanvas({
-                id: `antigravity-${Date.now()}`,
-                title: titulo,
-                fileType: canvasFileType,
-                content: contenido,
-                messageId: '',
-                isStreaming: false,
-              });
-              setIsCanvasActive(true);
-            }
-
-            // 3. Confirmación auditiva si Tenshi Voice está activo
-            if (isVoiceActive) {
-              sendTextMessageRef.current?.(
-                `Antigravity completó la orden sobre "${titulo}". Confírmale al usuario en una frase alegre y breve que el entregable y las gráficas ya están listos en Canvas.`
-              );
-            }
           }
         } catch (_) {
           // Ignorar errores transitorios de red
@@ -4717,19 +4704,48 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   const deliveredAntigravityIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     const handleAntigravityDelivered = (e: any) => {
-      const { ordenId, title, html, file, messageId, summary } = e.detail || {};
+      const { ordenId, title, html, file, messageId, summary, formato, isConversationalReply: explicitConversational } = e.detail || {};
       if (ordenId && deliveredAntigravityIdsRef.current.has(String(ordenId))) {
         return;
       }
       if (ordenId) {
         deliveredAntigravityIdsRef.current.add(String(ordenId));
       }
-      const finalTitle = title || file?.title || 'Entregable de Antigravity';
+
+      const rawFormat = String(formato || file?.fileType || '').toLowerCase().trim();
+      const isConversationalReply =
+        Boolean(explicitConversational) ||
+        rawFormat === 'respuesta' ||
+        rawFormat === 'consulta' ||
+        rawFormat === 'chat' ||
+        (!file && !html);
+
+      const finalTitle = title || file?.title || 'Respuesta de Antigravity';
       const contenido = file?.content || html || '';
-      const fileType = file?.fileType || (html ? 'html' : 'text');
-      const isHtml = fileType === 'html' || (typeof contenido === 'string' && (contenido.trim().startsWith('<!DOCTYPE') || contenido.trim().startsWith('<html')));
-      const canvasFileType = isHtml ? 'html' : (fileType === 'word' || fileType === 'documento' ? 'text' : fileType);
-      const chatSummary = summary || 'Entregable procesado y completado por Antigravity. Puedes visualizarlo o descargarlo desde aquí.';
+
+      // Si es documento ('documento', 'word', 'text', 'informe'), siempre usar 'text' para abrir en el Editor de Documentos de WAPPY (LiveEditor)
+      const isExplicitTextDoc =
+        rawFormat === 'documento' ||
+        rawFormat === 'word' ||
+        rawFormat === 'doc' ||
+        rawFormat === 'docx' ||
+        rawFormat === 'text' ||
+        rawFormat === 'informe' ||
+        file?.fileType === 'text';
+
+      const isHtml =
+        !isConversationalReply &&
+        !isExplicitTextDoc &&
+        (rawFormat === 'html' ||
+          file?.fileType === 'html' ||
+          (typeof contenido === 'string' && (contenido.trim().startsWith('<!DOCTYPE') || contenido.trim().startsWith('<html'))));
+
+      const canvasFileType = isHtml ? 'html' : isExplicitTextDoc ? 'text' : (file?.fileType || 'text');
+      const chatSummary =
+        summary ||
+        (isConversationalReply
+          ? contenido || 'Consulta respondida por Google Antigravity.'
+          : 'Documento procesado en el formato oficial del Editor de Documentos de WAPPY.');
 
       // Detener el timer de polling si estaba activo para esta orden
       if (ordenId && activeOrderWatchdogsRef.current.has(ordenId)) {
@@ -4741,14 +4757,19 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         tenshiAudio.playSuccess();
       } catch (_) {}
 
-      const fileObj = contenido
-        ? {
-            title: finalTitle,
-            fileType: canvasFileType,
-            content: contenido,
-            canvasId: file?.canvasId || messageId || `antigravity-report-${Date.now()}`,
-          }
-        : undefined;
+      const fileObj =
+        !isConversationalReply && contenido
+          ? {
+              title: finalTitle,
+              fileType: canvasFileType,
+              content: contenido,
+              canvasId: file?.canvasId || (ordenId ? `antigravity-${ordenId}` : `antigravity-report-${Date.now()}`),
+            }
+          : undefined;
+
+      const bubbleText = isConversationalReply
+        ? `⚡ **Respuesta de Google Antigravity**\n\n${chatSummary}`
+        : `✨ **${finalTitle} — Listo en el Editor de Documentos de WAPPY**\n\n${chatSummary}`;
 
       setMessages((prev) => {
         const hasPendingBubble = ordenId && prev.some((m) => m.delegatedOrderId === ordenId);
@@ -4757,7 +4778,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             if (m.delegatedOrderId === ordenId) {
               return {
                 ...m,
-                content: `⚡ **${finalTitle} — Entregable Listo por Antigravity**\n\n${chatSummary}`,
+                content: bubbleText,
                 file: fileObj,
                 htmlReport: isHtml ? contenido : undefined,
                 delegatedStatus: 'done',
@@ -4771,7 +4792,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           {
             _id: messageId || `antigravity-done-${Date.now()}`,
             role: 'assistant',
-            content: `⚡ **${finalTitle} — Entregable Listo por Antigravity**\n\n${chatSummary}`,
+            content: bubbleText,
             file: fileObj,
             htmlReport: isHtml ? contenido : undefined,
             delegatedOrderId: ordenId,
@@ -4783,28 +4804,52 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       setIsOpen(true);
       refetchHistoryRef.current?.();
 
-      if (contenido && window.location.pathname.startsWith('/c/')) {
-        setStreamingCanvas({
-          id: fileObj?.canvasId || `antigravity-${Date.now()}`,
+      // Si NO es una simple pregunta conversacional y sí se generó un documento o aplicativo,
+      // abrirlo automáticamente en el Canvas (Editor de Documentos de WAPPY / LiveEditor) incluso si el usuario está en /aplicaciones
+      if (!isConversationalReply && fileObj && contenido) {
+        const canvasPayload = {
+          id: fileObj.canvasId,
           title: finalTitle,
-          fileType: canvasFileType,
+          fileType: canvasFileType as any,
           content: contenido,
           messageId: '',
           isStreaming: false,
-        });
-        setIsCanvasActive(true);
+        };
+
+        const needsNavigation = !window.location.pathname.startsWith('/c/');
+        if (needsNavigation) {
+          navigate('/c/new');
+        }
+
+        const applyCanvas = () => {
+          setStreamingCanvas(canvasPayload);
+          setIsCanvasActive(true);
+          setCanvasMaximized(true);
+        };
+
+        applyCanvas();
+        if (needsNavigation) {
+          setTimeout(applyCanvas, 180);
+          setTimeout(applyCanvas, 420);
+        }
       }
 
       if (isVoiceActiveRef.current) {
-        sendTextMessageRef.current?.(
-          `[SISTEMA INTERNO WAPPY]: Antigravity acaba de entregar en vivo el resultado de la orden "${finalTitle}". Confírmale al usuario en una sola frase breve y entusiasta que el entregable de Antigravity ya está disponible en su chat de Tenshi.`
-        );
+        if (isConversationalReply) {
+          sendTextMessageRef.current?.(
+            `[SISTEMA INTERNO WAPPY]: Antigravity acaba de responder la consulta del usuario: "${chatSummary.slice(0, 600)}". Compártele esta respuesta de forma natural, clara y breve en voz alta.`
+          );
+        } else {
+          sendTextMessageRef.current?.(
+            `[SISTEMA INTERNO WAPPY]: Antigravity acaba de entregar el documento "${finalTitle}" directamente en el Editor de Documentos de WAPPY (Canvas). Confírmale al usuario en una sola frase breve y entusiasta que ya está abierto en su pantalla.`
+          );
+        }
       }
     };
 
     window.addEventListener('tenshi-antigravity-delivered', handleAntigravityDelivered);
     return () => window.removeEventListener('tenshi-antigravity-delivered', handleAntigravityDelivered);
-  }, [setIsCanvasActive, setStreamingCanvas]);
+  }, [navigate, setIsCanvasActive, setCanvasMaximized, setStreamingCanvas]);
 
   // Conexión Push SSE persistente (0 ms) para recibir entregables de Antigravity en tiempo real (en celular y escritorio, incluso sin voz activa)
   useEffect(() => {
@@ -5664,13 +5709,29 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
   const handleOpenFileInCanvas = useCallback(
     (file: TenshiFileAttachment, fullScreen = true) => {
-      const isHtmlContent = typeof file.content === 'string' && (file.content.includes('<!DOCTYPE html') || file.content.includes('<html') || file.content.includes('<section') || file.content.includes('<div class='));
-      const normFileType = isHtmlContent
+      // Documentos del Editor de Documentos de WAPPY ('text', 'word', 'documento', 'informe' o que contengan el cabezote WAPPY sin <!DOCTYPE html>)
+      // DEBEN abrirse como 'text' (en CanvasTextEditor / LiveEditor) y NUNCA como 'html' (visor de código/iframe).
+      const rawType = String(file.fileType || '').toLowerCase().trim();
+      const contentStr = typeof file.content === 'string' ? file.content : '';
+      const isWappyEditorDocument =
+        rawType === 'text' ||
+        rawType === 'word' ||
+        rawType === 'doc' ||
+        rawType === 'docx' ||
+        rawType === 'documento' ||
+        rawType === 'informe' ||
+        ((contentStr.includes('wappy-standard-header-banner') ||
+          contentStr.includes('INFORMACIÓN RESUMIDA DE LA ENTIDAD')) &&
+          !contentStr.includes('<!DOCTYPE html'));
+
+      const isStandaloneHtmlApp =
+        !isWappyEditorDocument &&
+        (rawType === 'html' || contentStr.includes('<!DOCTYPE html') || contentStr.includes('<html'));
+
+      const normFileType = isStandaloneHtmlApp
         ? 'html'
-        : (file.fileType === 'word' || file.fileType === 'doc' || file.fileType === 'documento')
+        : isWappyEditorDocument
         ? 'text'
-        : (file.fileType === 'html')
-        ? 'html'
         : (file.fileType as any || 'text');
 
       const canvasPayload = {

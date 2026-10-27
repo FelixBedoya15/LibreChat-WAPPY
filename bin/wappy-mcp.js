@@ -2389,9 +2389,9 @@ server.tool(
   'wappy_completar_orden_delegada_tenshi',
   {
     ordenId: z.string().describe('ID de la orden delegada que Antigravity completó'),
-    resultado: z.string().describe('Resumen ejecutivo técnico del resultado de la investigación o desarrollo'),
-    contenido: z.string().optional().describe('OBLIGATORIO (en la raíz o dentro de entregable.contenido): Código completo del informe o aplicativo generado (HTML5 completo con <!DOCTYPE html>, Tailwind CSS y desarrollo extenso, o documento Markdown/Word completo)'),
-    formato: z.string().optional().describe('Formato del entregable: html, word, excel, pdf, presentacion'),
+    resultado: z.string().describe('Respuesta directa a la pregunta (si formato="respuesta") o resumen ejecutivo técnico de lo realizado'),
+    contenido: z.string().optional().describe('Para documentos ("documento"/"word") o aplicativos ("html"): Cuerpo completo del documento en Markdown con tablas técnicas (sin <!DOCTYPE html> para documentos en el Editor LiveEditor de WAPPY) o código HTML5 completo (<!DOCTYPE html>) si formato="html". No requerido si formato="respuesta".'),
+    formato: z.string().optional().describe('Formato: "respuesta" (cuando solo es una pregunta o consulta conversacional sin generar archivo), "documento" / "word" (para el Editor de Documentos de WAPPY en Canvas), "html" (aplicativo interactivo), "excel", "presentacion"'),
     resumen: z.string().optional().describe('Resumen ejecutivo breve para mostrar en la tarjeta del chat de Tenshi'),
     urlDescarga: z.string().optional().describe('URL o enlace de descarga del archivo si fue subido a la nube o Drive'),
     entregable: z.object({

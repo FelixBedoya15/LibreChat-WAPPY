@@ -270,7 +270,53 @@ function jsonRequest(fullUrl, method, apiKey, bodyObj = null) {
 }
 
 /**
+ * Resuelve el directorio de trabajo (workspace) para `agentapi new-conversation`:
+ * - Si el usuario tiene algún proyecto registrado en ~/.gemini/config/projects/*.json cuya carpeta exista en disco, usa el más reciente.
+ * - Si el usuario NO tiene proyectos configurados en Antigravity, usa `os.homedir()` (~), lo que asigna automáticamente
+ *   la conversación al contenedor global nativo "Outside of Project" (`outside-of-project.json`) con acceso total al MCP global de WAPPY.
+ */
+function resolveWorkspaceDirectory() {
+  if (process.env.WAPPY_PROJECT_DIR && fs.existsSync(process.env.WAPPY_PROJECT_DIR)) {
+    return process.env.WAPPY_PROJECT_DIR;
+  }
+  try {
+    const projectsDir = path.join(os.homedir(), '.gemini', 'config', 'projects');
+    if (fs.existsSync(projectsDir)) {
+      const files = fs.readdirSync(projectsDir).filter((f) => f.endsWith('.json') && f !== 'outside-of-project.json');
+      let bestFolder = null;
+      let bestMtime = 0;
+
+      for (const file of files) {
+        const fullPath = path.join(projectsDir, file);
+        try {
+          const st = fs.statSync(fullPath);
+          const raw = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+          const resources = raw?.projectResources?.resources || [];
+          for (const r of resources) {
+            const uri = r?.gitFolder?.folderUri || r?.folder?.folderUri || '';
+            if (uri.startsWith('file://')) {
+              const folderPath = decodeURIComponent(uri.replace(/^file:\/\//, ''));
+              if (fs.existsSync(folderPath) && st.mtimeMs >= bestMtime) {
+                bestMtime = st.mtimeMs;
+                bestFolder = folderPath;
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (bestFolder) {
+        return bestFolder;
+      }
+    }
+  } catch (_) {}
+
+  return os.homedir();
+}
+
+/**
  * Despierta a Google Antigravity inmediatamente vía `agentapi` (Reactive Wakeup)
+ * Abriendo siempre una NUEVA conversación limpia para cada consulta de Tenshi (salvo que se fuerce --conversation explícito).
  */
 async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConvoId, dispatchedSet) {
   const ordenId = String(orden?.id || orden?.ordenId || '').trim();
@@ -291,35 +337,74 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
 
   markOrderDispatched(ordenId, dispatchedSet);
 
-  const titulo = orden.titulo || orden.title || 'Orden Delegada por Tenshi';
+  const titulo = orden.titulo || orden.title || 'Consulta Delegada por Tenshi';
   const instruccion = orden.instruccion || orden.descripcion || orden.description || '';
   const empresa = orden.empresa || 'Empresa Activa en WAPPY';
-  const formato = orden.formatoEntregable || orden.formato || 'html';
+  const rawFormato = String(orden.formatoEntregable || orden.formato || 'respuesta').toLowerCase().trim();
   const recurso = orden.recursoObjetivo || 'Datos Empresariales WAPPY MCP';
   const archivos = Array.isArray(orden.archivos) && orden.archivos.length > 0
     ? `\nArchivos Adjuntos:\n${orden.archivos.map((f) => `- ${f}`).join('\n')}`
     : '';
+
+  const isQuestionOnly =
+    rawFormato === 'respuesta' ||
+    rawFormato === 'consulta' ||
+    rawFormato === 'texto' ||
+    rawFormato === 'chat';
+
+  const isHtmlApp =
+    rawFormato === 'html' ||
+    rawFormato === 'dashboard' ||
+    rawFormato === 'aplicativo';
+
+  let executionInstructions = [];
+  if (isQuestionOnly) {
+    executionInstructions = [
+      `INSTRUCCIÓN DE RESPUESTA DIRECTA (MODO CONSULTA / PREGUNTA — PROHIBIDO GENERAR DOCUMENTO):`,
+      `1. El usuario únicamente realizó una PREGUNTA o CONSULTA puntual desde Tenshi (NO solicitó crear ningún documento, informe ni aplicativo en Canvas).`,
+      `2. Si la pregunta requiere datos de la empresa "${empresa}", consúltalos con tus herramientas MCP de 'wappy'. Si es una pregunta conceptual o normativa de SG-SST, respóndela de inmediato con precisión técnica.`,
+      `3. Invoca OBLIGATORIAMENTE 'wappy_completar_orden_delegada_tenshi' enviando:`,
+      `   - ordenId: "${ordenId}"`,
+      `   - formato: "respuesta"`,
+      `   - resultado: Tu respuesta clara, directa y bien explicada para el usuario (sin crear archivos ni documentos).`,
+    ];
+  } else if (isHtmlApp) {
+    executionInstructions = [
+      `INSTRUCCIÓN DE EJECUCIÓN AUTÓNOMA (MODO APLICATIVO / DASHBOARD HTML EN CANVAS):`,
+      `1. Utiliza tus herramientas MCP de 'wappy' (ej. wappy_resumen_general_360, matrices GTC-45/PESV, trabajadores, etc.) para obtener los datos reales de "${empresa}".`,
+      `2. Desarrolla un aplicativo interactivo HTML5 completo (<!DOCTYPE html>) con diseño moderno Tailwind CSS, KPIs y gráficas interactivas.`,
+      `3. Al finalizar, invoca OBLIGATORIAMENTE 'wappy_completar_orden_delegada_tenshi' enviando:`,
+      `   - ordenId: "${ordenId}"`,
+      `   - formato: "html"`,
+      `   - resultado: Resumen ejecutivo breve de lo desarrollado`,
+      `   - contenido: El código HTML5 completo (<!DOCTYPE html>...)`,
+    ];
+  } else {
+    executionInstructions = [
+      `INSTRUCCIÓN DE EJECUCIÓN AUTÓNOMA (MODO EDITOR DE DOCUMENTOS OFICIAL DE WAPPY — LIVEEDITOR / CANVAS):`,
+      `1. Utiliza tus herramientas MCP de 'wappy' (ej. wappy_resumen_general_360, matrices GTC-45/PESV, trabajadores, diagnóstico 0312, etc.) para obtener los datos reales de "${empresa}".`,
+      `2. Redacta el cuerpo del documento técnico en formato Markdown estructurado (con encabezados ## y ###, negritas, listas y tablas técnicas Markdown | Columna | Columna |) fundamentado en la normatividad colombiana vigente (Decreto 1072 de 2015, Resolución 0312 de 2019).`,
+      `3. IMPORTANTE PARA EL EDITOR DE DOCUMENTOS DE WAPPY: NO envuelvas el documento en <!DOCTYPE html> ni <html> (el servidor de WAPPY inyecta automáticamente el cabezote corporativo oficial "INFORMACIÓN RESUMIDA DE LA ENTIDAD" con los datos de la empresa y el bloque interactivo de firmas digitales para el Editor de Documentos LiveEditor de WAPPY).`,
+      `4. Al finalizar, invoca OBLIGATORIAMENTE 'wappy_completar_orden_delegada_tenshi' enviando:`,
+      `   - ordenId: "${ordenId}"`,
+      `   - formato: "documento"`,
+      `   - resultado: Resumen ejecutivo técnico breve de lo redactado`,
+      `   - contenido: El cuerpo completo del documento en Markdown estructurado con sus tablas técnicas (mínimo 300 caracteres)`,
+    ];
+  }
 
   const prompt = [
     `⚡ [ORDEN EN TIEMPO REAL DE TENSHI — PUENTE REACTIVO PUSH WAPPY]`,
     `ID de Orden: ${ordenId}`,
     `Empresa: ${empresa}`,
     `Título: ${titulo}`,
-    `Formato Entregable Solicitado: ${formato}`,
+    `Tipo de Solicitud: ${isQuestionOnly ? 'respuesta (Pregunta / Consulta Directa)' : isHtmlApp ? 'html (Aplicativo Interactivo)' : 'documento (Editor de Documentos Oficial de WAPPY)'}`,
     `Recurso Objetivo: ${recurso}`,
-    `Instrucción Detallada:`,
+    `Instrucción del Usuario:`,
     instruccion,
     archivos,
     ``,
-    `INSTRUCCIÓN DE EJECUCIÓN AUTÓNOMA INMEDIATA (SIN PREGUNTAR AL USUARIO):`,
-    `1. Utiliza de inmediato tus herramientas MCP de 'wappy' (ej. wappy_resumen_general_360, matrices GTC-45/PESV, trabajadores, etc.) para obtener los datos reales de la empresa.`,
-    `2. Elabora el entregable completo, riguroso y extenso en el formato solicitado (${formato}). Si es HTML o dashboard, genera un documento HTML5 completo (<!DOCTYPE html>) con diseño moderno Tailwind CSS, KPIs y gráficas interactivas.`,
-    `3. Al finalizar, invoca OBLIGATORIAMENTE 'wappy_completar_orden_delegada_tenshi' enviando:`,
-    `   - ordenId: "${ordenId}"`,
-    `   - formato: "${formato}"`,
-    `   - resultado: Resumen ejecutivo técnico de lo realizado`,
-    `   - contenido: El código HTML5 completo o documento extenso desarrollado (mínimo 300 caracteres)`,
-    `   para que se abra automáticamente en vivo en el Canvas de Tenshi.`,
+    ...executionInstructions,
   ]
     .filter(Boolean)
     .join('\n');
@@ -327,25 +412,36 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
   const bin = resolveAgentApiBinary();
   const isLanguageServer = bin.endsWith('language_server');
   const baseArgs = isLanguageServer ? ['agentapi'] : [];
-  const targetConvoId = findTargetConversationId(preferredConvoId);
+  const workspaceCwd = resolveWorkspaceDirectory();
 
-  log(`Despachando orden "${titulo}" (ID: ${ordenId}) hacia Antigravity (Conversación destino: ${targetConvoId || 'NUEVA'})...`);
+  // Por defecto SIEMPRE abrir una NUEVA conversación en Antigravity para no interrumpir ni mezclar el chat que el usuario tenga abierto.
+  // Solo usa send-message si se configuró un preferredConvoId explícito por CLI.
+  const explicitConvoId =
+    preferredConvoId && /^[0-9a-fA-F-]{36}$/.test(String(preferredConvoId).trim())
+      ? String(preferredConvoId).trim()
+      : null;
+
+  log(
+    `Despachando orden "${titulo}" (ID: ${ordenId}, Tipo: ${rawFormato}) hacia Antigravity (Modo: ${
+      explicitConvoId ? `Conversación fija ${explicitConvoId}` : `NUEVO CHAT en workspace ${workspaceCwd}`
+    })...`
+  );
 
   let dispatchedOk = false;
-  if (targetConvoId) {
+  if (explicitConvoId) {
     try {
       const sendArgs = [
         ...baseArgs,
         'send-message',
-        `--title=⚡ Orden Tenshi: ${titulo.slice(0, 60)}`,
-        targetConvoId,
+        `--title=⚡ Tenshi: ${titulo.slice(0, 60)}`,
+        explicitConvoId,
         prompt,
       ];
-      execFileSync(bin, sendArgs, { timeout: 15000, stdio: 'pipe' });
+      execFileSync(bin, sendArgs, { timeout: 15000, stdio: 'pipe', cwd: workspaceCwd });
       dispatchedOk = true;
-      log(`✅ Orden ${ordenId} inyectada instantáneamente en conversación ${targetConvoId} vía agentapi send-message.`);
+      log(`✅ Orden ${ordenId} enviada a conversación explícita ${explicitConvoId}.`);
     } catch (err) {
-      log(`Aviso: send-message a ${targetConvoId} falló (${err.message}). Creando nueva conversación...`);
+      log(`Aviso: send-message a ${explicitConvoId} falló (${err.message}). Abriendo nueva conversación...`);
     }
   }
 
@@ -357,10 +453,10 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
         `--title=⚡ Tenshi: ${titulo.slice(0, 60)}`,
         prompt,
       ];
-      execFileSync(bin, newArgs, { timeout: 15000, stdio: 'pipe' });
-      log(`✅ Orden ${ordenId} iniciada en nueva conversación autónoma vía agentapi new-conversation.`);
+      execFileSync(bin, newArgs, { timeout: 15000, stdio: 'pipe', cwd: workspaceCwd });
+      log(`✅ Orden ${ordenId} iniciada en NUEVA conversación autónoma de Antigravity (workspace: ${workspaceCwd}).`);
     } catch (err) {
-      log(`❌ Error invocando agentapi para orden ${ordenId}: ${err.message}`);
+      log(`❌ Error invocando agentapi new-conversation para orden ${ordenId}: ${err.message}`);
     }
   }
 }

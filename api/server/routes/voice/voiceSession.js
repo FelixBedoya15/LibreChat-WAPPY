@@ -1813,7 +1813,7 @@ class VoiceSession {
                                     },
                                     tipo_entregable: {
                                         type: "string",
-                                        description: "Tipo de documento o entregable esperado: word, excel, pdf, presentacion, html o informe."
+                                        description: "Tipo de respuesta o entregable esperado según lo que pidió el usuario: 'respuesta' (POR DEFECTO cuando el usuario solo hace una pregunta, consulta o duda y NO pidió explícitamente crear un documento, informe o archivo), 'documento' o 'word' (solo cuando pide explícitamente crear un documento, informe, acta, política o archivo en el Editor de Documentos de WAPPY / Canvas), 'html' (solo cuando pide un aplicativo interactivo o dashboard), 'excel' o 'presentacion'."
                                     },
                                     titulo: {
                                         type: "string",
@@ -2284,11 +2284,14 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
 - ESTÁ TERMINANTEMENTE PROHIBIDO decir que no puedes crear o enviar el archivo del informe en este momento. ¡TIENES 'canvas_tool' precisamente para eso! Invócala de inmediato y confirma con alegría que se lo acabas de generar en su chat.
 
 [DELEGACIÓN A ANTIGRAVITY ('wappy_delegar_orden_antigravity')]:
-- REGLA ESTRICTA Y OBLIGATORIA: SOLO Y EXCLUSIVAMENTE INVOCA 'wappy_delegar_orden_antigravity' SI EL USUARIO MENCIONA LITERALMENTE LA PALABRA "ANTIGRAVITY" (ej: "pídele a Antigravity que...", "delega en Antigravity...", "trabaja con Antigravity").
+- REGLA ESTRICTA Y OBLIGATORIA: SOLO Y EXCLUSIVAMENTE INVOCA 'wappy_delegar_orden_antigravity' SI EL USUARIO MENCIONA LITERALMENTE LA PALABRA "ANTIGRAVITY" (ej: "pídele a Antigravity que...", "delega en Antigravity...", "pregúntale a Antigravity...").
 - SI EL USUARIO PIDE CREAR UN APLICATIVO, HTML, DASHBOARD, GRÁFICAS, REPORTE O DOCUMENTO SIN DECIR "ANTIGRAVITY", ESTÁ TERMINANTEMENTE PROHIBIDO INVOCAR ESTA HERRAMIENTA. DEBES USAR 'canvas_tool' PARA CREARLO TÚ DIRECTAMENTE.
+- DISTINCIÓN CRÍTICA ENTRE PREGUNTA ('respuesta') Y DOCUMENTO ('documento' / 'html'):
+  * Si el usuario solo le hace una pregunta o consulta a Antigravity (ej: "pregúntale a Antigravity qué es SST", "dile a Antigravity que me explique...") y NO pidió explícitamente crear un documento, informe o aplicativo, DEBES enviar tipo_entregable='respuesta' y redactar la 'instruccion' como una pregunta directa sin pedirle informes ni documentos.
+  * Solo envía tipo_entregable='documento' (o 'word', 'html', 'excel', 'presentacion') cuando el usuario pida explícitamente crear un documento, informe, formato o aplicativo.
 - Cuando el usuario te pida explícitamente trabajar con Antigravity:
-  1. INVOCA DE INMEDIATO 'wappy_delegar_orden_antigravity' pasando la instrucción clara, título, empresa y tipo_entregable.
-  2. Confírmale de inmediato al usuario: "¡Listo! He delegado la orden a Antigravity con la instrucción exacta."
+  1. INVOCA DE INMEDIATO 'wappy_delegar_orden_antigravity' pasando la instrucción clara, título, empresa y tipo_entregable adecuado ('respuesta' para preguntas, 'documento' para documentos en el editor Canvas de WAPPY, 'html' para aplicativos).
+  2. Confírmale de inmediato al usuario: "¡Listo! He enviado la consulta/orden a Antigravity en tiempo real."
 
 [INTERACCIÓN, GENERACIÓN IA Y CLICS EN BOTONES EN PANTALLA ('operar_interfaz_visual')]:
 - ACCIÓN REAL ANTE ÓRDENES DE CLIC / GENERAR ANÁLISIS:

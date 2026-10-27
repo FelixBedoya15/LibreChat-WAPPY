@@ -1302,10 +1302,10 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
 11. **ACTIVACIÓN TOTAL DE HERRAMIENTAS DE AGENTES ('wappy_activar_herramienta_agente')**:
    - TIENES FACULTAD TOTAL para activar y ejecutar directamente cualquiera de las herramientas especializadas de los agentes ('canvas', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'gestor_automatizaciones', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'editor_live', 'generar_imagen_sst'). Invócala cuando el usuario te pida abrir, activar o ejecutar la herramienta de un agente.
 12. **DELEGACIÓN Y CONEXIÓN BIDIRECCIONAL CON ANTIGRAVITY ('wappy_delegar_orden_antigravity')**:
-   - Si el usuario te pide: "conéctate con Antigravity", "mira tal carpeta en mi computador", "hazme una investigación con Antigravity", "que Antigravity cree un documento (Word, Excel, PDF, presentación, HTML) y me lo mande al chat":
-   - SI LA TAREA INVOLUCRA GOOGLE DRIVE O BÚSQUEDA WEB: ¡Tú mismo puedes resolverla directamente con 'google_drive' y 'web_search'!
-   - PARA TAREAS QUE REQUIERAN ACCEDER A CARPETAS DEL COMPUTADOR PERSONAL DEL USUARIO O PROCESAMIENTO PESADO LOCAL: Invoca de inmediato 'wappy_delegar_orden_antigravity' con la instrucción, carpeta/recurso y formato de entregable deseado (word, excel, pdf, presentacion, html).
-   - Explícale al usuario con entusiasmo que la orden quedó registrada en la cola de Antigravity con su ID de seguimiento, y que en cuanto Antigravity lo procese en la máquina, el entregable se reflejará directamente en este chat.
+   - Si el usuario menciona explícitamente a "Antigravity" (ej: "pregúntale a Antigravity...", "conéctate con Antigravity", "que Antigravity cree un documento y me lo mande al chat"):
+   - DISTINCIÓN CRÍTICA: Si el usuario solo hace una pregunta o consulta para Antigravity (sin pedir explícitamente crear un documento, informe o aplicativo), invoca 'wappy_delegar_orden_antigravity' con tipo_entregable='respuesta' para que Antigravity responda directamente en el chat sin generar documentos innecesarios.
+   - Si el usuario sí pide explícitamente crear un documento o informe, usa tipo_entregable='documento' (se abrirá en el Editor de Documentos de WAPPY / Canvas); si pide un aplicativo o dashboard, usa tipo_entregable='html'.
+   - Explícale al usuario que la consulta/orden fue enviada en tiempo real por Push a Antigravity.
 13. **REGLA MANDATORIA DE BASE DE DATOS NORMATIVA RAG Y BÚSQUEDA HÍBRIDA ('web_search')**:
    - Tienes conectada una **Base de Datos Documental y Normativa Oficial de WAPPY (99+ documentos .md + Vademécum Maestro 2026 + Batería completa de Riesgo Psicosocial manuales 1 al 7 + Resoluciones 2024-2026)** integrada directamente dentro de la herramienta 'web_search' y en tu contexto RAG.
    - Si el usuario te pide buscar en tu base de datos documental/normativa, pregunta por guías o manuales de riesgo psicosocial, o su consulta involucra normatividad colombiana (Leyes, Decretos, Resoluciones, Sentencias):
@@ -2511,7 +2511,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         },
                         tipo_entregable: {
                             type: 'STRING',
-                            description: 'Tipo de documento o entregable que Antigravity debe generar: word, excel, pdf, presentacion, html o informe.'
+                            description: "Tipo de respuesta o entregable esperado según lo que pidió el usuario: 'respuesta' (POR DEFECTO cuando el usuario solo hace una pregunta o consulta y NO pidió explícitamente crear un documento o archivo), 'documento' / 'word' (para documentos o informes en el Editor de Documentos de WAPPY / Canvas), 'html' (para aplicativos interactivos o dashboards), 'excel' o 'presentacion'."
                         },
                         titulo: {
                             type: 'STRING',
