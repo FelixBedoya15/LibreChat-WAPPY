@@ -1932,7 +1932,7 @@ class VoiceSession {
                         },
                         {
                             name: "notebooklm_generar_studio",
-                            description: "Genera artefactos de estudio o multimedia en el Studio de Google NotebookLM a partir de las fuentes del cuaderno: podcast ('audio'), cuestionario ('quiz'), informe ejecutivo ('report'), fichas ('flashcards') o mapa conceptual ('mind_map').",
+                            description: "Genera artefactos de estudio o multimedia en el Studio de Google NotebookLM a partir de las fuentes del cuaderno: video explicativo ('video'), infografía ('infographic'), presentación de diapositivas ('slide_deck'), tabla de datos ('data_table'), podcast ('audio'), cuestionario ('quiz'), informe ejecutivo ('report'), fichas ('flashcards') o mapa conceptual ('mind_map').",
                             parameters: {
                                 type: "object",
                                 properties: {
@@ -1942,7 +1942,7 @@ class VoiceSession {
                                     },
                                     tipo_artefacto: {
                                         type: "string",
-                                        description: "Tipo de contenido a generar: 'audio' (podcast), 'quiz' (cuestionario), 'report' (informe), 'flashcards' (fichas) o 'mind_map' (mapa conceptual)."
+                                        description: "Tipo de contenido a generar: 'video', 'infographic', 'slide_deck', 'data_table', 'audio' (podcast), 'quiz' (cuestionario), 'report' (informe), 'flashcards' (fichas) o 'mind_map' (mapa conceptual)."
                                     },
                                     instrucciones: {
                                         type: "string",
@@ -2574,8 +2574,8 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
    - Si el usuario te hace preguntas técnicas contrastando sus documentos o normativas cargadas:
      -> INVOCA DE INMEDIATO 'notebooklm_consultar' con el cuaderno y la pregunta detallada.
      -> Explica la respuesta con solidez verbal y cita las fuentes y autores específicos devueltos por el cuaderno.
-   - Si pide generar contenido pedagógico:
-     -> INVOCA DE INMEDIATO 'notebooklm_generar_studio' ('audio' para podcast explicativo, 'quiz' para cuestionario, 'report' para informe o 'mind_map' para mapa conceptual).
+   - Si pide generar contenido pedagógico o multimedia:
+     -> INVOCA DE INMEDIATO 'notebooklm_generar_studio' ('video' para video explicativo, 'infographic' para infografía, 'slide_deck' para presentación, 'data_table' para tabla, 'audio' para podcast, 'quiz' para cuestionario, 'report' para informe, 'flashcards' para fichas o 'mind_map' para mapa conceptual).
 20. **MEDLINEPLUS CONNECT (NIH) Y GUÍAS DE FISIOTERAPIA LABORAL ('wappy_consultar_rehabilitacion_medlineplus')**:
    - Tenshi y la Fisioterapeuta Laboral cuentan con conexión en vivo a la Biblioteca Nacional de Medicina de los Estados Unidos (NLM / NIH).
    - Si el usuario o trabajador consulta por dolores musculares, molestias posturales, síndrome del túnel carpiano, dolor de cuello/cervicalgia, dolor de espalda/lumbago, o pide pausas activas o folletos de prevención:

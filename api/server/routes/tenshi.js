@@ -2556,15 +2556,43 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
             const notebooklmGenerarStudioDeclaration = {
                 name: "notebooklm_generar_studio",
-                description: "Genera artefactos de estudio en Google NotebookLM: podcast ('audio'), cuestionario ('quiz'), informe ('report'), fichas ('flashcards') o mapa conceptual ('mind_map').",
+                description: "Genera artefactos de estudio o multimedia en Google NotebookLM: video explicativo ('video'), infografía ('infographic'), presentación de diapositivas ('slide_deck'), tabla de datos ('data_table'), podcast ('audio'), cuestionario ('quiz'), informe ('report'), fichas ('flashcards') o mapa conceptual ('mind_map').",
                 parameters: {
                     type: "OBJECT",
                     properties: {
                         cuaderno: { type: "STRING", description: "Nombre o ID del cuaderno." },
-                        tipo_artefacto: { type: "STRING", description: "Tipo de contenido: audio, quiz, report, flashcards o mind_map." },
+                        tipo_artefacto: { type: "STRING", description: "Tipo de contenido: video, infographic, slide_deck, data_table, audio, quiz, report, flashcards o mind_map." },
                         instrucciones: { type: "STRING", description: "Instrucciones de enfoque o temas prioritarios." }
                     },
                     required: ["cuaderno", "tipo_artefacto"]
+                }
+            };
+
+            const googleFlowGenerarImagenDeclaration = {
+                name: "google_flow_generar_imagen",
+                description: "Genera imágenes fotorrealistas, afiches de seguridad, diagramas técnicos o ilustraciones 3D con Google Flow Studio (Google Imagen / Nano Banana) y las entrega directamente en el chat y en el Canvas de Tenshi.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        prompt: { type: "STRING", description: "Descripción visual detallada de la escena u objeto a generar." },
+                        aspecto: { type: "STRING", description: "Relación de aspecto: '16:9', '9:16' o '1:1'." },
+                        estilo: { type: "STRING", description: "Estilo visual: 'fotorrealista', '3d_render', 'ilustracion_tecnica' o 'afiche_seguridad'." }
+                    },
+                    required: ["prompt"]
+                }
+            };
+
+            const googleFlowGenerarVideoDeclaration = {
+                name: "google_flow_generar_video",
+                description: "Genera un clip de video cinematográfico en MP4 con Google Flow Studio (Google Veo / Flow Camera) y lo entrega con reproductor de video directamente en el chat y en el Canvas de Tenshi.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        prompt: { type: "STRING", description: "Descripción cinematográfica detallada de la escena y acción del video." },
+                        aspecto: { type: "STRING", description: "Relación de aspecto: '16:9' (horizontal) o '9:16' (vertical/Reel)." },
+                        movimiento_camara: { type: "STRING", description: "Movimiento de cámara: 'zoom_in', 'zoom_out', 'orbit', 'pan_right' o 'pan_left'." }
+                    },
+                    required: ["prompt"]
                 }
             };
 
@@ -2762,6 +2790,8 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 notebooklmListarCuadernosDeclaration,
                 notebooklmConsultarDeclaration,
                 notebooklmGenerarStudioDeclaration,
+                googleFlowGenerarImagenDeclaration,
+                googleFlowGenerarVideoDeclaration,
                 wappyEnviarCorreoDeclaration,
                 wappyGestionarAgendaDeclaration,
                 googleCalendarDeclaration,

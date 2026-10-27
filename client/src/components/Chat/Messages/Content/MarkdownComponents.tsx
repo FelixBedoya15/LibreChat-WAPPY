@@ -151,6 +151,43 @@ export const a: React.ElementType = memo(({ href, children }: TAnchorProps) => {
   const props: { target?: string; onClick?: React.MouseEventHandler } = { target: '_new' };
 
   if (!file_id || !filename) {
+    if (href && href.includes('/api/notebooklm/download/')) {
+      const lowerHref = href.toLowerCase();
+      const isVideo = lowerHref.includes('type=video') || lowerHref.includes('type=cinematic_video');
+      const isAudio = lowerHref.includes('type=audio') || lowerHref.includes('type=podcast');
+      const isInfographic = lowerHref.includes('type=infographic') || lowerHref.includes('type=infografia');
+      return (
+        <span className="my-2 block overflow-hidden rounded-xl border border-teal-500/30 bg-teal-500/5 p-3">
+          {isVideo && (
+            <video
+              controls
+              playsInline
+              preload="metadata"
+              src={href}
+              className="mb-2 max-h-96 w-full rounded-lg bg-black"
+            />
+          )}
+          {isAudio && (
+            <audio controls preload="metadata" src={href} className="mb-2 w-full" />
+          )}
+          {isInfographic && (
+            <img
+              src={href}
+              alt="Infografía NotebookLM"
+              className="mb-2 max-h-[520px] w-auto rounded-lg border border-border-light object-contain"
+            />
+          )}
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-green-500/30 bg-green-500/10 px-3 py-1.5 text-xs font-bold text-green-700 transition-all hover:bg-green-500/20 dark:text-green-300"
+          >
+            ⬇ {children || 'Descargar desde Google NotebookLM'}
+          </a>
+        </span>
+      );
+    }
     return (
       <a href={href} {...props}>
         {children}

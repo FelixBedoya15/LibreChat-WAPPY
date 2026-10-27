@@ -3135,6 +3135,88 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               parsedMsg = rawRes.mensaje || rawRes.error || parsedMsg;
             }
             resultMsg = parsedMsg;
+          } else if (
+            action.name.startsWith('notebooklm_') ||
+            action.name.startsWith('studio_') ||
+            action.name.startsWith('notebook_') ||
+            action.name.startsWith('research_')
+          ) {
+            tenshiAudio.playSuccess();
+            const rawRes = (action as any).result;
+            const parsed =
+              typeof rawRes === 'string'
+                ? (() => {
+                    try {
+                      return JSON.parse(rawRes);
+                    } catch {
+                      return { message: rawRes };
+                    }
+                  })()
+                : rawRes || {};
+            const dataObj = parsed.result || parsed;
+            const dlUrl = dataObj.wappy_download_url || dataObj.download_url || dataObj.url || '';
+            const artType = String(
+              dataObj.artifact_type || action.args?.tipo_artefacto || action.args?.artifact_type || ''
+            ).toLowerCase();
+            const textBody =
+              dataObj.answer ||
+              dataObj.content ||
+              (dataObj.mind_map ? `\`\`\`json\n${JSON.stringify(dataObj.mind_map, null, 2)}\n\`\`\`` : '') ||
+              dataObj.message ||
+              'Operación ejecutada en Google NotebookLM.';
+
+            let mediaObj: TenshiMediaAttachment | undefined;
+            if (dlUrl && (artType.includes('video') || dlUrl.includes('type=video'))) {
+              mediaObj = {
+                name: 'Video_NotebookLM.mp4',
+                type: 'video',
+                mimeType: 'video/mp4',
+                size: 0,
+                dataUrl: dlUrl,
+                previewUrl: dlUrl,
+              };
+            } else if (dlUrl && (artType.includes('infog') || dlUrl.includes('type=infographic'))) {
+              mediaObj = {
+                name: 'Infografia_NotebookLM.png',
+                type: 'image',
+                mimeType: 'image/png',
+                size: 0,
+                dataUrl: dlUrl,
+                previewUrl: dlUrl,
+              };
+            } else if (dlUrl && (artType.includes('audio') || artType.includes('podcast') || dlUrl.includes('type=audio'))) {
+              mediaObj = {
+                name: 'Podcast_NotebookLM.mp4',
+                type: 'audio',
+                mimeType: 'audio/mp4',
+                size: 0,
+                dataUrl: dlUrl,
+                previewUrl: dlUrl,
+              };
+            } else if (dlUrl) {
+              mediaObj = {
+                name: `NotebookLM_${artType || 'artefacto'}`,
+                type: 'document',
+                mimeType: 'application/octet-stream',
+                size: 0,
+                dataUrl: dlUrl,
+              };
+            }
+
+            if (mediaObj || dataObj.answer || dataObj.content || dataObj.mind_map || dlUrl) {
+              setMessages((prev) => [
+                ...prev,
+                {
+                  role: 'assistant',
+                  content: `📓 **Google NotebookLM (${artType || action.name})**\n\n${textBody}${
+                    dlUrl ? `\n\n🔗 [Descargar archivo de NotebookLM](${dlUrl})` : ''
+                  }`,
+                  media: mediaObj,
+                },
+              ]);
+              setIsOpen(true);
+            }
+            resultMsg = dataObj.message || 'Artefacto de Google NotebookLM entregado en el chat de Tenshi.';
           }
 
           // Si la acción de voz incluye un Widget Interactivo o de Gobernanza HITL (OpenBot AG-UI), mostrarlo de inmediato en el chat
@@ -6798,27 +6880,39 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
                         {/* Render de Documento o Audio adjunto */}
                         {msg.media && (msg.media.type === 'document' || msg.media.type === 'audio') && (
-                          <div className="mt-2 p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900/80 flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <FileText className="h-4 w-4 shrink-0 text-teal-600 dark:text-teal-400" />
-                              <div className="min-w-0 flex-1">
-                                <span className="truncate text-xs font-bold text-slate-800 dark:text-zinc-100 block">
-                                  {msg.media.name}
-                                </span>
-                                <span className="text-[10px] text-slate-500 dark:text-zinc-400">
-                                  {formatBytes(msg.media.size)}
-                                </span>
+                          <div className="mt-2 p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900/80 flex flex-col gap-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <FileText className="h-4 w-4 shrink-0 text-teal-600 dark:text-teal-400" />
+                                <div className="min-w-0 flex-1">
+                                  <span className="truncate text-xs font-bold text-slate-800 dark:text-zinc-100 block">
+                                    {msg.media.name}
+                                  </span>
+                                  {msg.media.size > 0 && (
+                                    <span className="text-[10px] text-slate-500 dark:text-zinc-400">
+                                      {formatBytes(msg.media.size)}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
+                              {msg.media.dataUrl && (
+                                <a
+                                  href={msg.media.dataUrl}
+                                  download={msg.media.name}
+                                  className="p-1.5 rounded-lg text-slate-500 hover:text-teal-600 transition-colors"
+                                  title="Descargar archivo"
+                                >
+                                  <Download className="h-4 w-4" />
+                                </a>
+                              )}
                             </div>
-                            {msg.media.dataUrl && (
-                              <a
-                                href={msg.media.dataUrl}
-                                download={msg.media.name}
-                                className="p-1.5 rounded-lg text-slate-500 hover:text-teal-600 transition-colors"
-                                title="Descargar archivo"
-                              >
-                                <Download className="h-4 w-4" />
-                              </a>
+                            {msg.media.type === 'audio' && (msg.media.dataUrl || msg.media.previewUrl) && (
+                              <audio
+                                controls
+                                preload="metadata"
+                                src={msg.media.dataUrl || msg.media.previewUrl}
+                                className="w-full h-9"
+                              />
                             )}
                           </div>
                         )}
@@ -7720,29 +7814,41 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
                             {/* Render de Documento o Audio adjunto */}
                             {msg.media && (msg.media.type === 'document' || msg.media.type === 'audio') && (
-                              <div className="mt-2.5 flex items-center justify-between gap-2.5 rounded-xl border border-slate-200/80 bg-white/90 p-2.5 shadow-sm dark:border-zinc-700/80 dark:bg-zinc-800/90 max-w-sm">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-600 dark:bg-teal-950/60 dark:text-teal-300">
-                                    <FileText className="h-4 w-4" />
+                              <div className="mt-2.5 flex flex-col gap-2 rounded-xl border border-slate-200/80 bg-white/90 p-2.5 shadow-sm dark:border-zinc-700/80 dark:bg-zinc-800/90 max-w-sm">
+                                <div className="flex items-center justify-between gap-2.5">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-600 dark:bg-teal-950/60 dark:text-teal-300">
+                                      <FileText className="h-4 w-4" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="truncate text-xs font-bold text-slate-800 dark:text-zinc-100">
+                                        {msg.media.name}
+                                      </p>
+                                      {msg.media.size > 0 && (
+                                        <p className="text-[10px] text-slate-500 dark:text-zinc-400">
+                                          {formatBytes(msg.media.size)}
+                                        </p>
+                                      )}
+                                    </div>
                                   </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="truncate text-xs font-bold text-slate-800 dark:text-zinc-100">
-                                      {msg.media.name}
-                                    </p>
-                                    <p className="text-[10px] text-slate-500 dark:text-zinc-400">
-                                      {formatBytes(msg.media.size)}
-                                    </p>
-                                  </div>
+                                  {msg.media.dataUrl && (
+                                    <a
+                                      href={msg.media.dataUrl}
+                                      download={msg.media.name}
+                                      className="shrink-0 p-1.5 rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors"
+                                      title="Descargar archivo"
+                                    >
+                                      <Download className="h-4 w-4" />
+                                    </a>
+                                  )}
                                 </div>
-                                {msg.media.dataUrl && (
-                                  <a
-                                    href={msg.media.dataUrl}
-                                    download={msg.media.name}
-                                    className="shrink-0 p-1.5 rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors"
-                                    title="Descargar archivo"
-                                  >
-                                    <Download className="h-4 w-4" />
-                                  </a>
+                                {msg.media.type === 'audio' && (msg.media.dataUrl || msg.media.previewUrl) && (
+                                  <audio
+                                    controls
+                                    preload="metadata"
+                                    src={msg.media.dataUrl || msg.media.previewUrl}
+                                    className="w-full h-9"
+                                  />
                                 )}
                               </div>
                             )}
