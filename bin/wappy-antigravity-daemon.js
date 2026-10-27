@@ -28,6 +28,8 @@ const PID_FILE = path.join(AGY_DIR, 'wappy-push-daemon.pid');
 const LOG_FILE = path.join(AGY_DIR, 'wappy-push-daemon.log');
 const DISPATCHED_FILE = path.join(AGY_DIR, 'wappy-dispatched-orders.json');
 const ACTIVE_CONVO_FILE = path.join(AGY_DIR, 'wappy-active-conversation.txt');
+const TENSHI_THREAD_FILE = path.join(AGY_DIR, 'wappy-tenshi-thread.json');
+const TENSHI_THREAD_TTL_MS = 2 * 60 * 60 * 1000; // 2 horas de continuidad de hilo en el mismo chat de Tenshi
 
 function ensureDirs() {
   try {
@@ -138,21 +140,122 @@ function resolveAgentApiBinary() {
 }
 
 /**
- * Obtiene el ID de conversación destino ÚNICAMENTE si fue forzado explícitamente (--conversation=<uuid>).
- * Por defecto devuelve `null` para que cada consulta de Tenshi abra SIEMPRE un chat nuevo (`new-conversation`).
+ * Obtiene el ID del hilo dedicado de Tenshi activo (creado en la primera consulta de la sesión).
+ * - Si el usuario pide explícitamente abrir un nuevo chat (`forceNewChat = true`), devuelve `null`.
+ * - Si existe un hilo dedicado de Tenshi en `wappy-tenshi-thread.json` con menos de 2 horas de inactividad
+ *   y su base `.db` sigue existiendo en `~/.gemini/antigravity/conversations/`, reutiliza ese mismo chat.
+ * - De lo contrario devuelve `null` para crear el primer chat limpio del hilo (`new-conversation`).
  */
-function findTargetConversationId(preferredId) {
-  if (!preferredId || typeof preferredId !== 'string') {
+function findTargetConversationId(preferredId, forceNewChat = false) {
+  if (forceNewChat) {
     return null;
   }
-  const clean = preferredId.trim();
-  if (!/^[0-9a-fA-F-]{36}$/.test(clean)) {
-    return null;
+
+  if (preferredId && typeof preferredId === 'string') {
+    const clean = preferredId.trim();
+    if (/^[0-9a-fA-F-]{36}$/.test(clean)) {
+      const dbPath = path.join(AGY_DIR, 'conversations', `${clean}.db`);
+      if (fs.existsSync(dbPath)) {
+        return clean;
+      }
+    }
   }
-  const dbPath = path.join(AGY_DIR, 'conversations', `${clean}.db`);
-  if (fs.existsSync(dbPath)) {
-    return clean;
+
+  try {
+    if (fs.existsSync(TENSHI_THREAD_FILE)) {
+      const raw = JSON.parse(fs.readFileSync(TENSHI_THREAD_FILE, 'utf8'));
+      const convoId = String(raw?.conversationId || '').trim();
+      const lastUsedAt = Number(raw?.lastUsedAt || raw?.createdAt || 0);
+      if (
+        /^[0-9a-fA-F-]{36}$/.test(convoId) &&
+        lastUsedAt > 0 &&
+        Date.now() - lastUsedAt <= TENSHI_THREAD_TTL_MS
+      ) {
+        const dbPath = path.join(AGY_DIR, 'conversations', `${convoId}.db`);
+        if (fs.existsSync(dbPath)) {
+          return convoId;
+        }
+      }
+    }
+  } catch (_) {}
+
+  return null;
+}
+
+/**
+ * Guarda o actualiza el ID de conversación del hilo dedicado de Tenshi
+ */
+function saveTenshiThreadConversationId(convoId, workspaceCwd) {
+  if (!convoId || !/^[0-9a-fA-F-]{36}$/.test(String(convoId).trim())) return;
+  const cleanId = String(convoId).trim();
+  let createdAt = Date.now();
+  try {
+    if (fs.existsSync(TENSHI_THREAD_FILE)) {
+      const prev = JSON.parse(fs.readFileSync(TENSHI_THREAD_FILE, 'utf8'));
+      if (prev?.conversationId === cleanId && prev?.createdAt) {
+        createdAt = prev.createdAt;
+      }
+    }
+  } catch (_) {}
+  try {
+    fs.writeFileSync(
+      TENSHI_THREAD_FILE,
+      JSON.stringify(
+        {
+          conversationId: cleanId,
+          workspaceCwd: workspaceCwd || '',
+          createdAt,
+          lastUsedAt: Date.now(),
+        },
+        null,
+        2
+      ),
+      'utf8'
+    );
+  } catch (_) {}
+}
+
+/**
+ * Detecta el UUID de la conversación recién creada por `agentapi new-conversation`
+ */
+function detectNewlyCreatedConversationId(beforeDbs, stdoutText) {
+  const convDir = path.join(AGY_DIR, 'conversations');
+  if (stdoutText && typeof stdoutText === 'string') {
+    const matches = stdoutText.match(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g);
+    if (matches) {
+      for (const m of matches) {
+        if (fs.existsSync(path.join(convDir, `${m}.db`))) {
+          return m;
+        }
+      }
+    }
   }
+
+  try {
+    if (fs.existsSync(convDir)) {
+      const files = fs.readdirSync(convDir).filter((f) => f.endsWith('.db'));
+      let newestNewId = null;
+      let newestMtime = 0;
+
+      for (const f of files) {
+        const id = f.replace(/\.db$/, '');
+        if (!/^[0-9a-fA-F-]{36}$/.test(id)) continue;
+        if (beforeDbs && beforeDbs.has(id)) continue;
+        try {
+          const st = fs.statSync(path.join(convDir, f));
+          if (st.mtimeMs > newestMtime) {
+            newestMtime = st.mtimeMs;
+            newestNewId = id;
+          }
+        } catch (_) {}
+      }
+
+      if (newestNewId) {
+        return newestNewId;
+      }
+    }
+  } catch (_) {}
+
   return null;
 }
 
@@ -450,13 +553,18 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
   const baseArgs = isLanguageServer ? ['agentapi'] : [];
   const workspaceCwd = resolveWorkspaceDirectory();
 
-  // Inyectar la consulta en el chat activo abierto en Antigravity (para que el usuario la vea inmediatamente en su ventana)
-  // y si no hay ningún chat activo abierto, crear automáticamente una nueva conversación en el workspace resuelto.
-  const targetConvoId = findTargetConversationId(preferredConvoId);
+  // Detectar si el usuario solicitó explícitamente abrir un nuevo chat desde cero
+  const combinedText = `${titulo} ${instruccion}`;
+  const forceNewChat = /(nuevo chat|nueva conversaci[oó]n|otro chat|chat nuevo|empezar de cero|desde cero)/i.test(
+    combinedText
+  );
+
+  // Reutilizar el hilo dedicado de Tenshi (si ya fue creado en esta sesión) o abrir el primero
+  const targetConvoId = findTargetConversationId(preferredConvoId, forceNewChat);
 
   log(
     `Despachando orden "${titulo}" (ID: ${ordenId}, Tipo: ${rawFormato}) hacia Antigravity (Destino: ${
-      targetConvoId ? `Chat activo ${targetConvoId}` : `NUEVO CHAT en workspace ${workspaceCwd}`
+      targetConvoId ? `Hilo activo de Tenshi ${targetConvoId}` : `NUEVO HILO de Tenshi en workspace ${workspaceCwd}`
     })...`
   );
 
@@ -472,22 +580,48 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
       ];
       execFileSync(bin, sendArgs, { timeout: 15000, stdio: 'pipe', cwd: workspaceCwd });
       dispatchedOk = true;
-      log(`✅ Orden ${ordenId} inyectada en tiempo real en el chat activo ${targetConvoId}.`);
+      saveTenshiThreadConversationId(targetConvoId, workspaceCwd);
+      log(`✅ Orden ${ordenId} continuada en el mismo hilo de Tenshi (${targetConvoId}).`);
     } catch (err) {
-      log(`Aviso: send-message a ${targetConvoId} falló (${err.message}). Abriendo nueva conversación...`);
+      log(`Aviso: send-message al hilo ${targetConvoId} falló (${err.message}). Abriendo nuevo hilo...`);
     }
   }
 
   if (!dispatchedOk) {
     try {
+      const convDir = path.join(AGY_DIR, 'conversations');
+      const beforeDbs = new Set(
+        fs.existsSync(convDir)
+          ? fs
+              .readdirSync(convDir)
+              .filter((f) => f.endsWith('.db'))
+              .map((f) => f.replace(/\.db$/, ''))
+          : []
+      );
+
       const newArgs = [
         ...baseArgs,
         'new-conversation',
         `--title=⚡ Tenshi: ${titulo.slice(0, 60)}`,
         prompt,
       ];
-      execFileSync(bin, newArgs, { timeout: 15000, stdio: 'pipe', cwd: workspaceCwd });
-      log(`✅ Orden ${ordenId} iniciada en NUEVA conversación autónoma de Antigravity (workspace: ${workspaceCwd}).`);
+      const stdout =
+        execFileSync(bin, newArgs, {
+          timeout: 15000,
+          stdio: 'pipe',
+          cwd: workspaceCwd,
+          encoding: 'utf8',
+        }) || '';
+
+      const createdConvoId = detectNewlyCreatedConversationId(beforeDbs, stdout);
+      if (createdConvoId) {
+        saveTenshiThreadConversationId(createdConvoId, workspaceCwd);
+        log(
+          `✅ Orden ${ordenId} iniciada en NUEVO hilo dedicado de Tenshi (${createdConvoId}, workspace: ${workspaceCwd}). Las siguientes consultas continuarán en este mismo chat.`
+        );
+      } else {
+        log(`✅ Orden ${ordenId} iniciada en NUEVA conversación de Antigravity (workspace: ${workspaceCwd}).`);
+      }
     } catch (err) {
       log(`❌ Error invocando agentapi new-conversation para orden ${ordenId}: ${err.message}`);
     }
