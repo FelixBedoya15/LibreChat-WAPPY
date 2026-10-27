@@ -1469,10 +1469,13 @@ export default function TenshiChat() {
     if (!token) return;
     try {
       const compId = overrideCompanyId ?? localStorage.getItem('wappy_active_company_id') ?? '';
-      const res = await axios.get(`/api/mcp-bridge/briefing${compId ? `?companyId=${encodeURIComponent(compId)}` : ''}`, {
+      const query = compId
+        ? `?companyId=${encodeURIComponent(compId)}&_t=${Date.now()}`
+        : `?_t=${Date.now()}`;
+      const res = await axios.get(`/api/mcp-bridge/briefing${query}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.data?.success) {
+      if (res.data?.success || res.data?.exito) {
         setDailyBriefing(res.data);
         setIsBriefingDismissed(false);
       }
@@ -1484,6 +1487,12 @@ export default function TenshiChat() {
       fetchDailyBriefing();
     }
   }, [isAuthenticated, token, fetchDailyBriefing]);
+
+  useEffect(() => {
+    if ((isVoiceActive || isOpen) && isAuthenticated && token) {
+      fetchDailyBriefing();
+    }
+  }, [isVoiceActive, isOpen, isAuthenticated, token, fetchDailyBriefing]);
 
   useEffect(() => {
     const onCompanyChanged = (e: Event) => {
@@ -1752,6 +1761,7 @@ export default function TenshiChat() {
   const playbackEndTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const sendTextMessageRef = useRef<((text: string) => void) | null>(null);
   const activeOrderWatchdogsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const pendingAntigravityOrderRef = useRef<{ active: boolean; startedAt: number }>({ active: false, startedAt: 0 });
 
   useEffect(() => {
     return () => {
@@ -2101,6 +2111,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
   const iniciarMonitoreoOrden = useCallback(
     (ordenId: string, titulo: string, formato: string, messageId: string) => {
+      pendingAntigravityOrderRef.current = { active: true, startedAt: Date.now() };
+      lastActivityRef.current = Date.now();
       if (!ordenId) return;
 
       if (activeOrderWatchdogsRef.current.has(ordenId)) {
@@ -3012,6 +3024,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             }
             resultMsg = `Código QR para "${qrData.titulo || 'Formulario'}" entregado en el chat.`;
           } else if (action.name === 'wappy_delegar_orden_antigravity' || action.name === 'delegar_orden_antigravity') {
+            pendingAntigravityOrderRef.current = { active: true, startedAt: Date.now() };
+            lastActivityRef.current = Date.now();
             const res = (action as any).result || {};
             const entregable = res.entregable || {};
             const titulo = entregable.titulo || action.args?.titulo || 'Informe Antigravity';
@@ -4023,17 +4037,25 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           return;
         }
 
+        const isWaitingAntigravity =
+          (pendingAntigravityOrderRef.current.active &&
+            Date.now() - pendingAntigravityOrderRef.current.startedAt < 600000) ||
+          activeOrderWatchdogsRef.current.size > 0;
+        const maxInactivitySeconds = isWaitingAntigravity ? 600 : 300;
         const elapsed = Math.floor((Date.now() - lastActivityRef.current) / 1000);
         setInactivitySeconds(elapsed);
-        if (elapsed >= 300) {
-          console.log('[Tenshi Voice] 300s (5m) inactividad alcanzada. Auto-desactivando modo voz.');
+        if (elapsed >= maxInactivitySeconds) {
+          const mins = maxInactivitySeconds === 600 ? 10 : 5;
+          console.log(
+            `[Tenshi Voice] ${maxInactivitySeconds}s (${mins}m) inactividad alcanzada. Auto-desactivando modo voz.`,
+          );
+          pendingAntigravityOrderRef.current = { active: false, startedAt: 0 };
           stopVoiceMode();
           setMessages((prev) => [
             ...prev,
             {
               role: 'assistant',
-              content:
-                'ℹ️ Modo voz pausado automáticamente tras 5 minutos sin actividad para ahorrar batería y recursos. Cuando quieras volver a hablarme, solo pulsa el micrófono. 😊',
+              content: `ℹ️ Modo voz pausado automáticamente tras ${mins} minutos sin actividad para ahorrar batería y recursos. Cuando quieras volver a hablarme, solo pulsa el micrófono. 😊`,
             },
           ]);
         }
@@ -4812,6 +4834,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         clearInterval(activeOrderWatchdogsRef.current.get(ordenId));
         activeOrderWatchdogsRef.current.delete(ordenId);
       }
+      if (activeOrderWatchdogsRef.current.size === 0) {
+        pendingAntigravityOrderRef.current = { active: false, startedAt: 0 };
+      }
+      lastActivityRef.current = Date.now();
 
       try {
         tenshiAudio.playSuccess();
@@ -8394,22 +8420,45 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   <span>{dailyBriefing.ultimaActividad.titulo}</span>
                 </div>
               )}
-              <div className="truncate">
+              <div className="line-clamp-2">
                 <span className="font-bold text-white">📅 Hoy ({dailyBriefing.agendaHoy?.length || 0}): </span>
                 <span>
                   {dailyBriefing.agendaHoy && dailyBriefing.agendaHoy.length > 0
-                    ? dailyBriefing.agendaHoy[0].titulo
-                    : 'Sin pendientes críticos hoy'}
+                    ? dailyBriefing.agendaHoy
+                        .map((a) => {
+                          const cleanTitle = (a.titulo || '').replace(/^📅\s*/, '');
+                          return a.hora && a.hora !== 'Hoy' ? `${cleanTitle} (${a.hora})` : cleanTitle;
+                        })
+                        .join(' • ')
+                    : dailyBriefing.vencidas && dailyBriefing.vencidas.length > 0
+                    ? `${dailyBriefing.vencidas.length} pendientes activos en ACPM`
+                    : 'Agenda del día despejada'}
                 </span>
               </div>
-              <div className="truncate">
+              <div className="line-clamp-2">
                 <span className="font-bold text-amber-300">⏰ Mañana ({dailyBriefing.vencenManana?.length || 0}): </span>
                 <span>
                   {dailyBriefing.vencenManana && dailyBriefing.vencenManana.length > 0
-                    ? dailyBriefing.vencenManana[0].titulo
-                    : 'Nada vence mañana'}
+                    ? dailyBriefing.vencenManana
+                        .map((a) => {
+                          const cleanTitle = (a.titulo || '').replace(/^📅\s*/, '');
+                          return a.hora && a.hora !== 'Mañana' ? `${cleanTitle} (${a.hora})` : cleanTitle;
+                        })
+                        .join(' • ')
+                    : 'Sin eventos programados mañana'}
                 </span>
               </div>
+              {dailyBriefing.vencidas && dailyBriefing.vencidas.length > 0 && (
+                <div className="truncate">
+                  <span className="font-bold text-rose-400">⚠️ Pendientes ({dailyBriefing.vencidas.length}): </span>
+                  <span>
+                    {dailyBriefing.vencidas
+                      .slice(0, 2)
+                      .map((t) => t.titulo)
+                      .join(' • ')}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )}
