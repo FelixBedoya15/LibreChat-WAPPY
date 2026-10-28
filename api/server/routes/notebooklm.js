@@ -5,6 +5,7 @@ const router = express.Router();
 const NotebookSession = require('~/models/NotebookSession');
 const { requireJwtAuth } = require('~/server/middleware');
 const { logger } = require('~/config');
+const paths = require('~/config/paths');
 
 // Directorio base de perfiles de NotebookLM
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
@@ -12,6 +13,114 @@ const LOCAL_PROFILES_DIR = path.join(REPO_ROOT, 'config', 'notebooklm', 'profile
 const SYSTEM_PROFILES_DIR = process.env.NOTEBOOKLM_HOME
   ? path.join(process.env.NOTEBOOKLM_HOME, 'profiles')
   : '/root/.notebooklm/profiles';
+
+const OUTPUT_MEDIA_DIR =
+  paths.imageOutput || path.resolve(__dirname, '../../../client/public/images');
+const MEDIA_RETENTION_MS = 30 * 24 * 60 * 60 * 1000; // 30 días
+
+/**
+ * Limpia automáticamente de /images/ los recursos descargados de Google Flow (flow_*)
+ * y Google NotebookLM (nlm_*) que tengan más de 30 días de antigüedad.
+ */
+async function cleanupExpiredFlowAndNotebookMedia() {
+  try {
+    if (!fs.existsSync(OUTPUT_MEDIA_DIR)) return;
+    const files = await fs.promises.readdir(OUTPUT_MEDIA_DIR);
+    const now = Date.now();
+    let deletedCount = 0;
+
+    for (const file of files) {
+      if (!file.startsWith('flow_') && !file.startsWith('nlm_')) continue;
+      const fullPath = path.join(OUTPUT_MEDIA_DIR, file);
+      try {
+        const stat = await fs.promises.stat(fullPath);
+        if (stat.isFile() && now - stat.mtimeMs > MEDIA_RETENTION_MS) {
+          await fs.promises.unlink(fullPath);
+          deletedCount++;
+        }
+      } catch (_) {}
+    }
+
+    if (deletedCount > 0) {
+      logger.info(
+        `[MediaCleanup] Se eliminaron ${deletedCount} archivos de Flow/NotebookLM con más de 30 días de antigüedad.`
+      );
+    }
+  } catch (err) {
+    logger.warn('[MediaCleanup] Error ejecutando limpieza de 30 días:', err.message);
+  }
+}
+
+// Ejecutar limpieza al iniciar y cada 12 horas
+setTimeout(() => {
+  cleanupExpiredFlowAndNotebookMedia();
+}, 15000);
+setInterval(() => {
+  cleanupExpiredFlowAndNotebookMedia();
+}, 12 * 60 * 60 * 1000);
+
+/**
+ * Resuelve la extensión y prefijo para guardar un artefacto de NotebookLM en /images/
+ */
+function resolveNotebookArtifactFileMeta(artifactId, type = '', format = '', contentType = '') {
+  const safeId = String(artifactId || '').replace(/[^a-zA-Z0-9_-]/g, '');
+  const lowerType = String(type || '').toLowerCase();
+  const lowerFmt = String(format || '').toLowerCase();
+  const lowerCt = String(contentType || '').toLowerCase();
+
+  let prefix = 'nlm_media';
+  let ext = 'bin';
+
+  if (lowerType.includes('infographic') || lowerType.includes('infografia') || lowerCt.includes('image/')) {
+    prefix = 'nlm_infographic';
+    ext = lowerCt.includes('jpeg') || lowerCt.includes('jpg') ? 'jpg' : 'png';
+  } else if (lowerType.includes('video') || lowerCt.includes('video/')) {
+    prefix = 'nlm_video';
+    ext = 'mp4';
+  } else if (lowerType.includes('audio') || lowerType.includes('podcast') || lowerCt.includes('audio/')) {
+    prefix = 'nlm_audio';
+    ext = lowerCt.includes('wav') ? 'wav' : lowerCt.includes('mpeg') || lowerCt.includes('mp3') ? 'mp3' : 'mp4';
+  } else if (lowerType.includes('slide') || lowerFmt === 'pptx' || lowerCt.includes('presentation')) {
+    prefix = 'nlm_slides';
+    ext = lowerFmt === 'pdf' || lowerCt.includes('pdf') ? 'pdf' : 'pptx';
+  } else if (lowerFmt === 'pdf' || lowerCt.includes('pdf')) {
+    prefix = 'nlm_doc';
+    ext = 'pdf';
+  } else if (lowerFmt) {
+    ext = lowerFmt.replace(/[^a-z0-9]/g, '') || 'dat';
+  }
+
+  const filename = `${prefix}_${safeId}.${ext}`;
+  const fullPath = path.join(OUTPUT_MEDIA_DIR, filename);
+  const publicUrl = `/images/${filename}`;
+  return { filename, fullPath, publicUrl, ext };
+}
+
+/**
+ * Busca si el artefacto de NotebookLM ya fue descargado y guardado en /images/
+ */
+function findCachedNotebookArtifact(artifactId, type = '', format = '') {
+  try {
+    if (!fs.existsSync(OUTPUT_MEDIA_DIR)) return null;
+    const safeId = String(artifactId || '').replace(/[^a-zA-Z0-9_-]/g, '');
+    if (!safeId) return null;
+    const files = fs.readdirSync(OUTPUT_MEDIA_DIR);
+    const match = files.find((f) => f.startsWith('nlm_') && f.includes(`_${safeId}.`));
+    if (match) {
+      const fullPath = path.join(OUTPUT_MEDIA_DIR, match);
+      const stat = fs.statSync(fullPath);
+      if (stat.isFile() && stat.size > 512) {
+        return {
+          filename: match,
+          fullPath,
+          publicUrl: `/images/${match}`,
+          size: stat.size,
+        };
+      }
+    }
+  } catch (_) {}
+  return null;
+}
 
 /**
  * GET /api/notebooklm/internal/session/:userId
@@ -872,6 +981,27 @@ router.get('/download/:notebookId/:artifactId', async (req, res) => {
     const userId = String(req.query.userId || req.user?.id || '').trim();
 
     const notebooklmUrl = process.env.NOTEBOOKLM_URL || 'http://notebooklm-mcp:9420';
+    const cachedFile = findCachedNotebookArtifact(artifactId, type, format);
+
+    if (statusOnly === '1' && cachedFile) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      return res.status(200).json({
+        ready: true,
+        status: 'completed',
+        publicUrl: cachedFile.publicUrl,
+        filename: cachedFile.filename,
+        cached: true,
+      });
+    }
+
+    if (cachedFile && statusOnly !== '1') {
+      if (forceDownload === '1') {
+        res.setHeader('Content-Disposition', `attachment; filename="${cachedFile.filename}"`);
+      }
+      return res.sendFile(cachedFile.fullPath);
+    }
+
     const qs = new URLSearchParams({
       notebook_id: notebookId,
       artifact_id: artifactId,
@@ -896,6 +1026,42 @@ router.get('/download/:notebookId/:artifactId', async (req, res) => {
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       const bodyText = await upstream.text().catch(() => '{"ready":false,"status":"in_progress"}');
+      try {
+        const parsedStatus = JSON.parse(bodyText);
+        if (parsedStatus?.ready === true || parsedStatus?.status === 'completed') {
+          // Descargar y persistir en segundo plano en /images/ (retención de 30 días) igual que Flow
+          const dlQs = new URLSearchParams({
+            notebook_id: notebookId,
+            artifact_id: artifactId,
+          });
+          if (type) dlQs.set('type', type);
+          if (format) dlQs.set('format', format);
+          if (userId) dlQs.set('user_id', userId);
+
+          try {
+            const bgRes = await fetch(`${notebooklmUrl}/api/download-artifact?${dlQs.toString()}`, {
+              headers: userId ? { 'x-user-id': userId } : {},
+            });
+            if (bgRes.ok && bgRes.status === 200) {
+              const ct = bgRes.headers.get('content-type') || '';
+              const meta = resolveNotebookArtifactFileMeta(artifactId, type, format, ct);
+              await fs.promises.mkdir(OUTPUT_MEDIA_DIR, { recursive: true });
+              const ab = await bgRes.arrayBuffer();
+              if (ab.byteLength > 512) {
+                await fs.promises.writeFile(meta.fullPath, Buffer.from(ab));
+                parsedStatus.publicUrl = meta.publicUrl;
+                parsedStatus.filename = meta.filename;
+                logger.info(
+                  `[NotebookLM] Recurso guardado en servidor (30 días): ${meta.publicUrl} (${ab.byteLength} bytes)`
+                );
+              }
+            }
+          } catch (bgErr) {
+            logger.debug('[NotebookLM] Aviso guardando copia local en status_only:', bgErr.message);
+          }
+          return res.status(upstream.status).json(parsedStatus);
+        }
+      } catch (_) {}
       return res.status(upstream.status).send(bodyText);
     }
 
@@ -958,6 +1124,31 @@ router.get('/download/:notebookId/:artifactId', async (req, res) => {
     }
     if (!res.getHeader('accept-ranges')) {
       res.setHeader('Accept-Ranges', 'bytes');
+    }
+
+    // Si es descarga completa (HTTP 200 sin Range parcial), guardar en /images/ (retención 30 días) y servir desde disco
+    if (upstream.status === 200 && !req.headers.range) {
+      const ct = upstream.headers.get('content-type') || '';
+      const meta = resolveNotebookArtifactFileMeta(artifactId, type, format, ct);
+      const arrayBuffer = await upstream.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      if (buffer.byteLength > 512) {
+        try {
+          await fs.promises.mkdir(OUTPUT_MEDIA_DIR, { recursive: true });
+          await fs.promises.writeFile(meta.fullPath, buffer);
+          logger.info(
+            `[NotebookLM] Recurso guardado en servidor (30 días): ${meta.publicUrl} (${buffer.byteLength} bytes)`
+          );
+          if (forceDownload === '1') {
+            res.setHeader('Content-Disposition', `attachment; filename="${meta.filename}"`);
+          }
+          return res.sendFile(meta.fullPath);
+        } catch (writeErr) {
+          logger.warn('[NotebookLM] No se pudo guardar en /images/:', writeErr.message);
+        }
+      }
+      res.status(200);
+      return res.send(buffer);
     }
 
     res.status(upstream.status);

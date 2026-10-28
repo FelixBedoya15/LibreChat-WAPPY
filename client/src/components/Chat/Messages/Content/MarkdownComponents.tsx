@@ -136,6 +136,7 @@ export const NotebookLMArtifactPlayer: React.FC<{ href: string; children?: React
     const [ready, setReady] = useState<boolean>(!isMedia);
     const [checking, setChecking] = useState<boolean>(isMedia);
     const [title, setTitle] = useState<string>('');
+    const [publicUrl, setPublicUrl] = useState<string>('');
     const [retryTick, setRetryTick] = useState<number>(0);
 
     const statusUrl = useMemo(() => {
@@ -144,9 +145,10 @@ export const NotebookLMArtifactPlayer: React.FC<{ href: string; children?: React
     }, [href]);
 
     const downloadHref = useMemo(() => {
+      if (publicUrl) return publicUrl;
       const sep = href.includes('?') ? '&' : '?';
       return `${href}${sep}download=1`;
-    }, [href]);
+    }, [href, publicUrl]);
 
     const checkStatus = useCallback(async () => {
       if (!isMedia) return;
@@ -156,6 +158,7 @@ export const NotebookLMArtifactPlayer: React.FC<{ href: string; children?: React
         if (res.ok) {
           const data = await res.json();
           if (data?.title) setTitle(String(data.title));
+          if (data?.publicUrl) setPublicUrl(String(data.publicUrl));
           if (data?.ready === true || data?.status === 'completed') {
             setReady(true);
           }
@@ -177,10 +180,11 @@ export const NotebookLMArtifactPlayer: React.FC<{ href: string; children?: React
     }, [isMedia, ready, checkStatus]);
 
     const mediaSrc = useMemo(() => {
-      if (retryTick === 0) return href;
-      const sep = href.includes('?') ? '&' : '?';
-      return `${href}${sep}t=${retryTick}`;
-    }, [href, retryTick]);
+      const baseSrc = publicUrl || href;
+      if (retryTick === 0) return baseSrc;
+      const sep = baseSrc.includes('?') ? '&' : '?';
+      return `${baseSrc}${sep}t=${retryTick}`;
+    }, [href, publicUrl, retryTick]);
 
     return (
       <span className="my-2 block overflow-hidden rounded-xl border border-teal-500/30 bg-teal-500/5 p-3">
@@ -246,14 +250,22 @@ export const NotebookLMArtifactPlayer: React.FC<{ href: string; children?: React
             )}
           </>
         )}
-        <a
-          href={downloadHref}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-xl border border-green-500/30 bg-green-500/10 px-3 py-1.5 text-xs font-bold text-green-700 transition-all hover:bg-green-500/20 dark:text-green-300"
-        >
-          ⬇ {children || 'Descargar desde Google NotebookLM'}
-        </a>
+        <span className="flex flex-wrap items-center justify-between gap-2">
+          <a
+            href={downloadHref}
+            download={Boolean(publicUrl)}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-green-500/30 bg-green-500/10 px-3 py-1.5 text-xs font-bold text-green-700 transition-all hover:bg-green-500/20 dark:text-green-300"
+          >
+            ⬇ {children || 'Descargar desde Google NotebookLM'}
+          </a>
+          {publicUrl && (
+            <span className="text-[11px] font-medium text-teal-600 dark:text-teal-400">
+              💾 Guardado en WAPPY (30 días): <code className="rounded bg-black/10 px-1 py-0.5 text-[10px]">{publicUrl}</code>
+            </span>
+          )}
+        </span>
       </span>
     );
   },
