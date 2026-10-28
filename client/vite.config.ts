@@ -133,12 +133,18 @@ export default defineConfig(({ command }) => ({
         manualChunks(id: string) {
           const normalizedId = id.replace(/\\/g, '/');
           if (normalizedId.includes('node_modules')) {
+            // Core React & Scheduler in dedicated leaf chunk with zero circular deps
+            if (
+              normalizedId.includes('/node_modules/react/') ||
+              normalizedId.includes('/node_modules/react-dom/') ||
+              normalizedId.includes('/node_modules/scheduler/') ||
+              normalizedId.includes('/node_modules/react-is/')
+            ) {
+              return 'react-core';
+            }
             // High-impact chunking for large libraries
             if (normalizedId.includes('phaser')) {
               return 'phaser';
-            }
-            if (normalizedId.includes('@codesandbox/sandpack')) {
-              return 'sandpack';
             }
             if (normalizedId.includes('react-virtualized')) {
               return 'virtualization';
@@ -155,13 +161,10 @@ export default defineConfig(({ command }) => ({
             if (normalizedId.includes('@dicebear')) {
               return 'avatars';
             }
-            if (normalizedId.includes('react-dnd') || normalizedId.includes('react-flip-toolkit')) {
-              return 'react-interactions';
-            }
             if (normalizedId.includes('react-hook-form')) {
               return 'forms';
             }
-            if (normalizedId.includes('react-router-dom')) {
+            if (normalizedId.includes('react-router-dom') || normalizedId.includes('@remix-run/router') || normalizedId.includes('react-router/')) {
               return 'routing';
             }
             if (
@@ -169,19 +172,6 @@ export default defineConfig(({ command }) => ({
               normalizedId.includes('@marsidev/react-turnstile')
             ) {
               return 'security-ui';
-            }
-
-            if (normalizedId.includes('@codemirror/view')) {
-              return 'codemirror-view';
-            }
-            if (normalizedId.includes('@codemirror/state')) {
-              return 'codemirror-state';
-            }
-            if (normalizedId.includes('@codemirror/language')) {
-              return 'codemirror-language';
-            }
-            if (normalizedId.includes('@codemirror')) {
-              return 'codemirror-core';
             }
 
             if (
