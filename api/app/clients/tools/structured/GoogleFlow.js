@@ -18,20 +18,26 @@ class GoogleFlow extends Tool {
 
     this.name = 'google_flow';
     this.description =
-      'Google Flow & Studio (Veo & Imagen): Genera imágenes fotorrealistas de alta resolución con Google Imagen y clips de video cinematográficos en MP4 con Google Veo, entregándolos directamente en el chat del usuario.';
+      'Google Flow & Studio (Veo 3.1 Lite & Nano Banana 2 Lite) + Biblioteca Multimedia WAPPY (30 días): Genera imágenes fotorrealistas en alta resolución con Google Imagen, clips de video cinematográficos en MP4 con Google Veo, o lista todos los recursos multimedia descargados de Google Flow (flow_*) y Google NotebookLM (nlm_*) guardados en el servidor para usarlos en el chat o en cualquier lienzo de Canvas.';
 
     this.schema = z.object({
       accion: z
-        .enum(['generar_imagen', 'generar_video'])
+        .enum(['generar_imagen', 'generar_video', 'listar_recursos'])
         .default('generar_imagen')
         .describe(
-          'Acción a ejecutar: "generar_imagen" (usando Google Imagen / Nano Banana) o "generar_video" (usando Google Veo).',
+          'Acción a ejecutar: "generar_imagen" (usando Google Imagen / Nano Banana 2 Lite), "generar_video" (usando Google Veo 3.1 Lite) o "listar_recursos" (lista todas las imágenes, videos, infografías y audios descargados de Flow y NotebookLM en los últimos 30 días para incrustarlos en Canvas o consultarlos).',
         ),
       prompt: z
         .string()
+        .optional()
         .describe(
-          'Descripción detallada de la imagen o escena de video a generar (incluyendo iluminación, ambiente, sujetos y detalles visuales).',
+          'Descripción detallada de la imagen o escena de video a generar (requerido cuando accion es "generar_imagen" o "generar_video").',
         ),
+      filtro_fuente: z
+        .enum(['all', 'flow', 'notebooklm'])
+        .optional()
+        .default('all')
+        .describe('Filtro opcional cuando accion es "listar_recursos": "all" (todos), "flow" (solo Google Flow) o "notebooklm" (solo Google NotebookLM).'),
       aspecto: z
         .enum(['16:9', '9:16', '1:1'])
         .optional()
@@ -61,22 +67,39 @@ class GoogleFlow extends Tool {
     const {
       accion = 'generar_imagen',
       prompt,
+      filtro_fuente = 'all',
       aspecto = '16:9',
       estilo = 'fotorrealista',
       movimiento_camara = 'zoom_in',
     } = data || {};
 
-    if (!prompt) {
-      return this.returnValue(
-        'Por favor proporciona una descripción detallada (prompt) de la imagen o video a generar con Google Flow.',
-      );
-    }
-
     try {
       const {
         executeFlowImageGeneration,
         executeFlowVideoGeneration,
+        listDownloadedMediaLibrary,
       } = require('~/server/routes/googleflow');
+
+      if (accion === 'listar_recursos') {
+        const items = await listDownloadedMediaLibrary(filtro_fuente);
+        if (!items || items.length === 0) {
+          return this.returnValue(
+            'No se encontraron recursos descargados de Google Flow o NotebookLM en los últimos 30 días.',
+          );
+        }
+        const rows = items.slice(0, 30).map((it, i) => {
+          return `${i + 1}. **[${it.source === 'flow' ? 'Google Flow' : 'NotebookLM'}]** ${it.label} (\`${it.mediaType}\`) -> URL local: \`${it.publicUrl}\` (Expira en ${it.daysRemaining} días)`;
+        });
+        return this.returnValue(
+          `### 🗂️ Biblioteca Multimedia WAPPY (Google Flow & NotebookLM — Retención 30 días)\nTotal recursos disponibles: **${items.length}**\n\n${rows.join('\n')}\n\n*(Puedes incrustar cualquiera de estas rutas \`/images/...\` directamente en informes Word, Presentaciones o Aplicativos HTML de Canvas).*`,
+        );
+      }
+
+      if (!prompt) {
+        return this.returnValue(
+          'Por favor proporciona una descripción detallada (prompt) de la imagen o video a generar con Google Flow.',
+        );
+      }
 
       if (accion === 'generar_video') {
         logger.info(`[google_flow] Generando video para usuario ${this.userId}: "${prompt.slice(0, 60)}..."`);

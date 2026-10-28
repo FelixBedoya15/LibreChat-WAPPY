@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { PREMIUM_SST_COMPONENTS } from './sstTemplates';
+import CanvasWorkspaceBridge from './CanvasWorkspaceBridge';
 
 interface CanvasHtmlEditorProps {
   initialContent: string;
@@ -836,6 +837,20 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
   const iframeContainerRef = useRef<HTMLDivElement>(null);
   const [isCanvasMaximized, setIsCanvasMaximized] = useRecoilState<boolean>(store.canvasMaximized);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [isBridgeOpen, setIsBridgeOpen] = useState<boolean>(false);
+
+  const handleInjectHtmlBlock = (htmlBlock: string) => {
+    const current = code || '';
+    let updated = '';
+    if (/<\/body>/i.test(current)) {
+      updated = current.replace(/<\/body>/i, `\n${htmlBlock}\n</body>`);
+    } else {
+      updated = `${current}\n${htmlBlock}`;
+    }
+    setCode(updated);
+    onUpdate(updated);
+    setIframeKey((prev) => prev + 1);
+  };
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -1182,6 +1197,21 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsBridgeOpen(true)}
+              className="group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs"
+              title="Insertar imágenes, videos o infografías de Google Flow y NotebookLM (30 días)"
+            >
+              <div className="relative flex-shrink-0 flex items-center justify-center">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[240px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <span className="text-xs font-bold tracking-wide">
+                  Flow & NotebookLM
+                </span>
+              </div>
+            </button>
+
             {(activeTab === 'preview' || activeTab === 'split') && (
               <>
                 <button
@@ -1347,6 +1377,15 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
             </div>
           </div>,
           document.body
+        )}
+        {isBridgeOpen && (
+          <CanvasWorkspaceBridge
+            onClose={() => setIsBridgeOpen(false)}
+            onImportTable={handleInjectHtmlBlock}
+            onImportMedia={(_item, htmlBlock) => handleInjectHtmlBlock(htmlBlock)}
+            activeFileType="html"
+            initialTab="media"
+          />
         )}
       </div>
     </div>

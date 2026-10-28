@@ -209,6 +209,17 @@ async function processHtmlAppDocument(content, fileType, title, userId, req, exi
     }
   }
 
+  // Cargar recursos multimedia recientes de Google Flow y Google NotebookLM (retención 30 días en /images/)
+  let mediaLibraryContext = '';
+  try {
+    const { listDownloadedMediaLibrary } = require('~/server/routes/googleflow');
+    const mediaItems = await listDownloadedMediaLibrary('all');
+    if (Array.isArray(mediaItems) && mediaItems.length > 0) {
+      const topMedia = mediaItems.slice(0, 12).map((m, idx) => `- [${idx + 1}] (${m.source.toUpperCase()} - ${m.mediaType}): "${m.label}" -> URL: ${m.publicUrl}`);
+      mediaLibraryContext = `\n## RECURSOS MULTIMEDIA DESCARGADOS EN SERVIDOR WAPPY (GOOGLE FLOW & NOTEBOOKLM - 30 DÍAS):\nSi el usuario pidió incluir imágenes, videos, infografías o podcasts de Google Flow o NotebookLM, usa exactamente estas rutas locales en etiquetas <img>, <video controls> o <audio controls>:\n${topMedia.join('\n')}\n`;
+    }
+  } catch (_) {}
+
   const companyName = companyInfo?.companyName || 'WAPPY LTDA';
   const companyNit = companyInfo?.nit || '9014373103';
   const companyArl = companyInfo?.arl || 'Sura';
@@ -238,6 +249,7 @@ ${userPrompt || title || 'Dashboard de Indicadores y Gestión SG-SST'}
 ${stringContent ? `## DATOS O LÓGICA BASE SUMINISTRADA (Conservar, enriquecer visualmente y nunca degradar):\n${stringContent.slice(0, 4000)}\n` : ''}
 
 ${toolsContext ? `## HERRAMIENTAS Y BASES DE DATOS VINCULADAS:\n${toolsContext}\n` : ''}
+${mediaLibraryContext}
 
 ---
 
@@ -613,6 +625,17 @@ async function processTextReportDocument(content, fileType, title, userId, req, 
     }
   }
 
+  // Cargar recursos multimedia recientes de Google Flow y Google NotebookLM (retención 30 días en /images/)
+  let mediaLibraryContext = '';
+  try {
+    const { listDownloadedMediaLibrary } = require('~/server/routes/googleflow');
+    const mediaItems = await listDownloadedMediaLibrary('all');
+    if (Array.isArray(mediaItems) && mediaItems.length > 0) {
+      const topMedia = mediaItems.slice(0, 12).map((m, idx) => `- [${idx + 1}] (${m.source.toUpperCase()} - ${m.mediaType}): "${m.label}" -> URL: ${m.publicUrl}`);
+      mediaLibraryContext = `\n## RECURSOS MULTIMEDIA DESCARGADOS EN SERVIDOR WAPPY (GOOGLE FLOW & NOTEBOOKLM - 30 DÍAS):\nSi el usuario pidió incluir alguna imagen, infografía o recurso descargado de Google Flow o NotebookLM en este documento, incrústalo en Markdown usando exactamente su ruta local (ej. ![${mediaItems[0].label}](${mediaItems[0].publicUrl})):\n${topMedia.join('\n')}\n`;
+    }
+  } catch (_) {}
+
   const companyContext = companyInfo
     ? `Empresa: ${companyInfo.companyName || 'Empresa Activa'}\nNIT: ${companyInfo.nit || 'Sin NIT'}\nActividad Económica: ${companyInfo.economicActivity || companyInfo.sector || 'General'}\nSector: ${companyInfo.sector || 'General'}\nClase de Riesgo ARL: ${companyInfo.riskLevel || 'Riesgo III'}\nNúmero de Colaboradores: ${companyInfo.workerCount || companyInfo.numWorkers || companyInfo.employeeCount || 'No especificado'}\nCiudad / Sede: ${companyInfo.city || companyInfo.address || 'Colombia'}\nDirección: ${companyInfo.address || 'Colombia'}\nRepresentante Legal: ${companyInfo.legalRepresentative || 'Representante Legal'}\nResponsable SG-SST: ${companyInfo.responsibleSST || companyInfo.sstResponsible || 'Especialista SST'}\nLicencia SST: ${companyInfo.licenseNumber || 'Sin Licencia'} (Vence: ${companyInfo.licenseExpiry || 'N/A'})\nTeléfono Responsable SST: ${companyInfo.responsibleSSTPhone || companyInfo.phone || 'N/A'}`
     : 'No hay información de empresa registrada en el perfil.';
@@ -632,6 +655,7 @@ ${userPrompt || title || 'Informe Técnico Especializado en SG-SST'}
 ${agentContext ? `## CONTEXTO DEL ESPECIALISTA / AGENTE:\n${agentContext}\n` : ''}
 ${screenContext ? `## CONTEXTO DE PANTALLA ACTIVA:\n${screenContext}\n` : ''}
 ${toolsContext ? `## DATOS DE HERRAMIENTAS PREVIAS:\n${toolsContext}\n` : ''}
+${mediaLibraryContext}
 ${stringContent ? `## BORRADOR O BASE INICIAL SUMINISTRADA:\n${stringContent}\n` : ''}
 
 ## REGLAS TÉCNICAS OBLIGATORIAS (SG-SST COLOMBIA):

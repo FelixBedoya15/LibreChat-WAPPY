@@ -2120,6 +2120,94 @@ class VoiceSession {
           }
 },
 {
+          "name": "google_flow_generar_imagen",
+          "description": "Genera una imagen fotorrealista o ilustración en alta resolución con Google Flow Studio (Nano Banana 2 Lite) y la descarga en el servidor de WAPPY con retención de 30 días (/images/flow_img_*.jpg) para mostrarla en el chat o usarla en Canvas.",
+          "parameters": {
+                    "type": "object",
+                    "properties": {
+                          "prompt": {
+                                    "type": "string",
+                                    "description": "Descripción visual detallada de la imagen a generar."
+                          },
+                          "aspecto": {
+                                    "type": "string",
+                                    "enum": [
+                                              "16:9",
+                                              "9:16",
+                                              "1:1"
+                                    ],
+                                    "description": "Relación de aspecto: '16:9' (horizontal), '9:16' (vertical) o '1:1' (cuadrada)."
+                          },
+                          "estilo": {
+                                    "type": "string",
+                                    "enum": [
+                                              "fotorrealista",
+                                              "3d_render",
+                                              "ilustracion_tecnica",
+                                              "afiche_seguridad"
+                                    ],
+                                    "description": "Estilo visual de la imagen."
+                          }
+                    },
+                    "required": [
+                          "prompt"
+                    ]
+          }
+},
+{
+          "name": "google_flow_generar_video",
+          "description": "Genera un clip de video cinematográfico en MP4 con Google Flow Studio (Veo 3.1 Lite) y lo descarga en el servidor de WAPPY con retención de 30 días (/images/flow_vid_*.mp4) para reproducirlo en pantalla o incrustarlo en Canvas.",
+          "parameters": {
+                    "type": "object",
+                    "properties": {
+                          "prompt": {
+                                    "type": "string",
+                                    "description": "Descripción cinematográfica detallada del video a generar."
+                          },
+                          "aspecto": {
+                                    "type": "string",
+                                    "enum": [
+                                              "16:9",
+                                              "9:16"
+                                    ],
+                                    "description": "Relación de aspecto: '16:9' (horizontal) o '9:16' (vertical/Reels)."
+                          },
+                          "movimiento_camara": {
+                                    "type": "string",
+                                    "enum": [
+                                              "zoom_in",
+                                              "zoom_out",
+                                              "orbit",
+                                              "pan_right",
+                                              "pan_left"
+                                    ],
+                                    "description": "Movimiento de cámara en la escena."
+                          }
+                    },
+                    "required": [
+                          "prompt"
+                    ]
+          }
+},
+{
+          "name": "google_flow_listar_recursos",
+          "description": "Lista todas las imágenes, videos, infografías y podcasts descargados en el servidor de WAPPY desde Google Flow (flow_*) y Google NotebookLM (nlm_*) en los últimos 30 días, con sus URLs locales (/images/...) listas para usarse en cualquier lienzo de Canvas (Word, Presentaciones, Aplicativos HTML).",
+          "parameters": {
+                    "type": "object",
+                    "properties": {
+                          "filtro": {
+                                    "type": "string",
+                                    "enum": [
+                                              "all",
+                                              "flow",
+                                              "notebooklm"
+                                    ],
+                                    "description": "Filtro de fuente: 'all' (todos), 'flow' (solo Google Flow) o 'notebooklm' (solo Google NotebookLM)."
+                          }
+                    }
+          }
+},
+{
           "name": "wappy_consultar_rehabilitacion_medlineplus",
           "description": "Consulta en vivo la API oficial en español de MedlinePlus Connect (NIH / Biblioteca Nacional de Medicina de EE. UU.) para obtener guías de salud ocupacional, folletos de prevención y recomendaciones de ejercicios y pausas activas de Fisioterapia laboral (ExerciseDB) según el código CIE-10 (ej: M54.2 para cervicalgia, G56.0 para túnel del carpo, M54.5 para dolor de espalda, M75.1 para manguito rotador) o el segmento anatómico (cervical, lumbar, muñeca, hombro, codo).",
           "parameters": {
@@ -2576,11 +2664,17 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
      -> Explica la respuesta con solidez verbal y cita las fuentes y autores específicos devueltos por el cuaderno.
    - Si pide generar contenido pedagógico o multimedia:
      -> INVOCA DE INMEDIATO 'notebooklm_generar_studio' ('video' para video explicativo, 'infographic' para infografía, 'slide_deck' para presentación, 'data_table' para tabla, 'audio' para podcast, 'quiz' para cuestionario, 'report' para informe, 'flashcards' para fichas o 'mind_map' para mapa conceptual).
-20. **MEDLINEPLUS CONNECT (NIH) Y GUÍAS DE FISIOTERAPIA LABORAL ('wappy_consultar_rehabilitacion_medlineplus')**:
+20. **MEDLINEPLUS CONNECT (NIH) Y GUÍAS DE FISIOTERAPEUTA LABORAL ('wappy_consultar_rehabilitacion_medlineplus')**:
    - Tenshi y la Fisioterapeuta Laboral cuentan con conexión en vivo a la Biblioteca Nacional de Medicina de los Estados Unidos (NLM / NIH).
    - Si el usuario o trabajador consulta por dolores musculares, molestias posturales, síndrome del túnel carpiano, dolor de cuello/cervicalgia, dolor de espalda/lumbago, o pide pausas activas o folletos de prevención:
      -> INVOCA DE INMEDIATO 'wappy_consultar_rehabilitacion_medlineplus' pasando el código CIE-10 (ej: 'M54.2' para cuello, 'G56.0' para túnel carpiano, 'M54.5' para dolor lumbar, 'M75.1' para hombro) o el segmento (cervical, lumbar, muñeca, hombro, codo).
      -> Explícale al usuario verbalmente el resumen de autocuidado oficial del NIH y la rutina de ejercicios de la Fisioterapeuta.
+21. **GOOGLE FLOW STUDIO (VEO 3.1 LITE & NANO BANANA 2 LITE) Y BIBLIOTECA MULTIMEDIA 30 DÍAS PARA CANVAS**:
+   - Tienes acceso nativo y directo a Google Flow Studio y a la Biblioteca Multimedia WAPPY de 30 días:
+     * 'google_flow_generar_imagen': Genera imágenes en alta resolución con Nano Banana 2 Lite y las guarda en el servidor (/images/flow_img_*.jpg).
+     * 'google_flow_generar_video': Genera videos cinematográficos MP4 con Google Veo 3.1 Lite y los guarda en el servidor (/images/flow_vid_*.mp4).
+     * 'google_flow_listar_recursos': Consulta todas las imágenes, videos, infografías y podcasts descargados de Google Flow y Google NotebookLM disponibles en el servidor durante 30 días.
+   - Si el usuario pide usar una infografía de NotebookLM o una imagen/video de Google Flow dentro de un informe Word, Presentación o Aplicativo HTML en Canvas, puedes consultar los recursos con 'google_flow_listar_recursos' o crear el documento directamente con 'canvas_tool' (el motor de Canvas inyecta automáticamente las rutas locales '/images/flow_*' y '/images/nlm_*').
 
 [DOMINIO INTEGRAL DE METODOLOGÍAS Y SKILLS DE WAPPY IA]:
 1. **Investigación de Accidentes e Incidentes (Resolución 1401 de 2007)**:
@@ -3579,6 +3673,122 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                     id: fc.id,
                                     name: fc.name,
                                     response: { error: `No se pudo consultar Google NotebookLM: ${nbErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de Google Flow Studio (Veo 3.1 Lite & Nano Banana 2 Lite) y Biblioteca Multimedia 30 días en modo voz
+                    if (fc.name.startsWith('google_flow')) {
+                        logger.info(`[VoiceSession] Gemini Live invoked Google Flow tool "${fc.name}" with args:`, fc.args);
+                        try {
+                            const {
+                                executeFlowImageGeneration,
+                                executeFlowVideoGeneration,
+                                listDownloadedMediaLibrary,
+                            } = require('~/server/routes/googleflow');
+                            const TenshiMessage = require('~/models/TenshiMessage');
+
+                            if (fc.name === 'google_flow_listar_recursos' || fc.args?.accion === 'listar_recursos') {
+                                const filtro = fc.args?.filtro || fc.args?.filtro_fuente || 'all';
+                                const items = await listDownloadedMediaLibrary(filtro);
+                                const summary = items.length === 0
+                                    ? 'No hay recursos multimedia descargados de Google Flow o NotebookLM en los últimos 30 días.'
+                                    : `Hay ${items.length} recursos multimedia disponibles en el servidor (retención 30 días):\n` +
+                                      items.slice(0, 15).map((it, idx) => `${idx + 1}. [${it.source}] ${it.label} (${it.mediaType}) -> ${it.publicUrl} (${it.daysRemaining}d restantes)`).join('\n');
+
+                                this.sendToClient({
+                                    type: 'wappy_action',
+                                    data: { id: fc.id, name: fc.name, args: fc.args, result: summary }
+                                });
+                                if (this.geminiClient) {
+                                    this.sendGeminiToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: { result: summary }
+                                    }]);
+                                }
+                                continue;
+                            }
+
+                            const isVideo = fc.name === 'google_flow_generar_video' || fc.args?.accion === 'generar_video';
+                            const prompt = fc.args?.prompt || fc.args?.descripcion || 'Escena profesional de Seguridad y Salud en el Trabajo';
+                            const aspecto = fc.args?.aspecto || '16:9';
+
+                            this.sendToClient({
+                                type: 'status',
+                                data: {
+                                    status: 'loading',
+                                    message: isVideo
+                                        ? 'Generando video en Google Flow Studio (Veo 3.1 Lite)...'
+                                        : 'Generando imagen en Google Flow Studio (Nano Banana 2 Lite)...'
+                                }
+                            });
+
+                            if (isVideo) {
+                                const vidRes = await executeFlowVideoGeneration({
+                                    userId: this.userId,
+                                    prompt,
+                                    aspectRatio: aspecto,
+                                    cameraMotion: fc.args?.movimiento_camara || 'zoom_in',
+                                });
+                                const mdContent = `🎬 **Video generado con Google Flow Studio (Veo 3.1 Lite)**\n\n[🎬 Reproducir Video (${vidRes.filename})](${vidRes.publicUrl}${vidRes.posterUrl ? `?poster=${encodeURIComponent(vidRes.posterUrl)}` : ''})\n\n💾 **Guardado en WAPPY (30 días):** \`${vidRes.publicUrl}\``;
+                                if (this.userId) {
+                                    await TenshiMessage.create({
+                                        user: this.userId,
+                                        role: 'assistant',
+                                        content: mdContent,
+                                    }).catch(() => {});
+                                }
+                                this.sendToClient({
+                                    type: 'wappy_action',
+                                    data: { id: fc.id, name: fc.name, args: fc.args, result: mdContent, publicUrl: vidRes.publicUrl }
+                                });
+                                this.sendToClient({ type: 'status', data: { status: 'idle', message: '' } });
+                                if (this.geminiClient) {
+                                    this.sendGeminiToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: { result: `Video generado y descargado exitosamente en ${vidRes.publicUrl} (guardado por 30 días y listo para reproducirse en el chat o insertarse en Canvas). Confírmaselo al usuario en español.` }
+                                    }]);
+                                }
+                            } else {
+                                const imgRes = await executeFlowImageGeneration({
+                                    userId: this.userId,
+                                    prompt,
+                                    aspectRatio: aspecto,
+                                    style: fc.args?.estilo || 'fotorrealista',
+                                });
+                                const mdContent = `✨ **Imagen generada con Google Flow Studio (Nano Banana 2 Lite)**\n\n![${prompt.slice(0, 80)}](${imgRes.publicUrl})\n\n💾 **Guardado en WAPPY (30 días):** \`${imgRes.publicUrl}\``;
+                                if (this.userId) {
+                                    await TenshiMessage.create({
+                                        user: this.userId,
+                                        role: 'assistant',
+                                        content: mdContent,
+                                    }).catch(() => {});
+                                }
+                                this.sendToClient({
+                                    type: 'wappy_action',
+                                    data: { id: fc.id, name: fc.name, args: fc.args, result: mdContent, publicUrl: imgRes.publicUrl }
+                                });
+                                this.sendToClient({ type: 'status', data: { status: 'idle', message: '' } });
+                                if (this.geminiClient) {
+                                    this.sendGeminiToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: { result: `Imagen generada y descargada exitosamente en ${imgRes.publicUrl} (guardada por 30 días y lista para verse en pantalla o insertarse en Canvas). Confírmaselo al usuario en español.` }
+                                    }]);
+                                }
+                            }
+                        } catch (flowErr) {
+                            logger.error(`[VoiceSession] Error executing Google Flow tool "${fc.name}":`, flowErr);
+                            this.sendToClient({ type: 'status', data: { status: 'idle', message: '' } });
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `No se pudo ejecutar Google Flow: ${flowErr.message}` }
                                 }]);
                             }
                         }

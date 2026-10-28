@@ -10,8 +10,23 @@ import {
   Check, 
   ChevronRight, 
   RefreshCw, 
-  AlertCircle 
+  AlertCircle,
+  Image as ImageIcon,
+  Film,
+  Music
 } from 'lucide-react';
+import { useAuthContext } from '~/hooks/AuthContext';
+
+export interface MediaLibraryItem {
+  filename: string;
+  publicUrl: string;
+  source: 'flow' | 'notebooklm';
+  mediaType: 'image' | 'video' | 'audio' | 'document';
+  label: string;
+  sizeBytes: number;
+  createdAt: string;
+  daysRemaining: number;
+}
 
 interface CanvasSessionSummary {
   conversationId: string;
@@ -29,7 +44,9 @@ interface CanvasWorkspaceBridgeProps {
     title: string;
   }) => void;
   onImportBullets?: (title: string, bullets: string[]) => void;
-  activeFileType: 'text' | 'presentation';
+  onImportMedia?: (item: MediaLibraryItem, htmlBlock: string) => void;
+  activeFileType: 'text' | 'presentation' | 'html' | 'excel';
+  initialTab?: 'excel' | 'text' | 'media';
 }
 
 const CanvasWorkspaceBridge: React.FC<CanvasWorkspaceBridgeProps> = ({
@@ -37,14 +54,22 @@ const CanvasWorkspaceBridge: React.FC<CanvasWorkspaceBridgeProps> = ({
   onImportTable,
   onImportChart,
   onImportBullets,
-  activeFileType
+  onImportMedia,
+  activeFileType,
+  initialTab = 'media',
 }) => {
+  const { token } = useAuthContext();
   const [history, setHistory] = useState<CanvasSessionSummary[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string>('');
   
   // Tab control
-  const [activeTab, setActiveTab] = useState<'excel' | 'text'>('excel');
+  const [activeTab, setActiveTab] = useState<'excel' | 'text' | 'media'>(initialTab);
+  
+  // Media Library States (Flow & NotebookLM 30 days)
+  const [mediaItems, setMediaItems] = useState<MediaLibraryItem[]>([]);
+  const [isLoadingMedia, setIsLoadingMedia] = useState<boolean>(false);
+  const [mediaFilter, setMediaFilter] = useState<'all' | 'flow' | 'notebooklm'>('all');
   
   // Selected Document States
   const [selectedDocId, setSelectedDocId] = useState<string>('');
@@ -71,10 +96,47 @@ const CanvasWorkspaceBridge: React.FC<CanvasWorkspaceBridgeProps> = ({
   const [summaryBullets, setSummaryBullets] = useState<string[]>([]);
   const [summaryTitle, setSummaryTitle] = useState<string>('Resumen de Política');
 
-  // Fetch History on Mount
+  // Fetch History and Media Library on Mount
   useEffect(() => {
     fetchHistory();
+    fetchMediaLibrary();
   }, []);
+
+  const fetchMediaLibrary = async () => {
+    setIsLoadingMedia(true);
+    try {
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch('/api/googleflow/media-library', { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setMediaItems(Array.isArray(data.items) ? data.items : []);
+      }
+    } catch (err) {
+      console.error('Error loading Flow & NotebookLM media library:', err);
+    } finally {
+      setIsLoadingMedia(false);
+    }
+  };
+
+  const triggerInsertMediaItem = (item: MediaLibraryItem) => {
+    let htmlBlock = '';
+    if (item.mediaType === 'video') {
+      htmlBlock = `<div style="margin:20px 0; text-align:center; background:#090d16; padding:14px; border-radius:16px; border:1px solid rgba(168,85,247,0.3);"><video src="${item.publicUrl}" controls playsinline loop style="width:100%; max-height:460px; border-radius:12px; background:#000;"></video><p style="margin:8px 0 0; font-size:11px; color:#cbd5e1; font-weight:600;">🎬 ${item.label} (${item.filename})</p></div>`;
+    } else if (item.mediaType === 'audio') {
+      htmlBlock = `<div style="margin:18px 0; padding:14px; border-radius:14px; background:#0f172a; border:1px solid rgba(20,184,166,0.35);"><p style="margin:0 0 8px; font-size:12px; color:#5eead4; font-weight:700;">🎙️ ${item.label}</p><audio src="${item.publicUrl}" controls style="width:100%;"></audio></div>`;
+    } else {
+      htmlBlock = `<div style="margin:20px 0; text-align:center;"><img src="${item.publicUrl}" alt="${item.label}" style="max-width:100%; height:auto; border-radius:14px; box-shadow:0 8px 25px rgba(0,0,0,0.12); border:1px solid rgba(148,163,184,0.25);" /><p style="margin:6px 0 0; font-size:11px; color:#64748b; font-style:italic;">✨ ${item.label}</p></div>`;
+    }
+
+    if (onImportMedia) {
+      onImportMedia(item, htmlBlock);
+      onClose();
+    } else if (onImportTable) {
+      onImportTable(htmlBlock);
+      onClose();
+    }
+  };
 
   const fetchHistory = async () => {
     setIsLoadingHistory(true);
@@ -105,8 +167,12 @@ const CanvasWorkspaceBridge: React.FC<CanvasWorkspaceBridgeProps> = ({
     }
   };
 
-  const handleTabChange = (tab: 'excel' | 'text') => {
+  const handleTabChange = (tab: 'excel' | 'text' | 'media') => {
     setActiveTab(tab);
+    if (tab === 'media') {
+      fetchMediaLibrary();
+      return;
+    }
     setExcelData([]);
     setTextParagraphs([]);
     setSelectedDocId('');
@@ -353,35 +419,178 @@ const CanvasWorkspaceBridge: React.FC<CanvasWorkspaceBridgeProps> = ({
       </div>
 
       {/* Tabs */}
-      <div className="px-4 py-3 bg-slate-950/50 border-b border-slate-900 flex gap-2">
+      <div className="px-3 py-2.5 bg-slate-950/50 border-b border-slate-900 flex gap-1.5">
+        <button
+          onClick={() => handleTabChange('media')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-[11px] font-bold tracking-wide transition-all duration-300 ${
+            activeTab === 'media'
+              ? 'bg-purple-500/20 border border-purple-500/40 text-purple-300 shadow-sm'
+              : 'bg-transparent border border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Sparkles className="h-3.5 w-3.5 text-purple-400" />
+          Flow & NotebookLM
+        </button>
         <button
           onClick={() => handleTabChange('excel')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all duration-300 ${
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-[11px] font-semibold tracking-wide transition-all duration-300 ${
             activeTab === 'excel'
               ? 'bg-teal-500/15 border border-teal-500/40 text-teal-300'
               : 'bg-transparent border border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
           <FileSpreadsheet className="h-3.5 w-3.5" />
-          Traer de Excel
+          Excel
         </button>
         <button
           onClick={() => handleTabChange('text')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all duration-300 ${
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-[11px] font-semibold tracking-wide transition-all duration-300 ${
             activeTab === 'text'
               ? 'bg-teal-500/15 border border-teal-500/40 text-teal-300'
               : 'bg-transparent border border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
           <FileText className="h-3.5 w-3.5" />
-          Sintetizar Word
+          Word
         </button>
       </div>
 
       {/* Main Body content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         
+        {/* TAB 0: MEDIA LIBRARY (Google Flow & NotebookLM - 30 días) */}
+        {activeTab === 'media' && (
+          <div className="space-y-3.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1 bg-slate-900/90 border border-slate-800 rounded-lg p-1 flex-1">
+                {(['all', 'flow', 'notebooklm'] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setMediaFilter(f)}
+                    className={`flex-1 py-1 px-2 rounded-md text-[10px] font-bold transition-all ${
+                      mediaFilter === f
+                        ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {f === 'all' ? 'Todos' : f === 'flow' ? 'Google Flow' : 'NotebookLM'}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={fetchMediaLibrary}
+                disabled={isLoadingMedia}
+                className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-purple-500/40 transition-all"
+                title="Actualizar biblioteca multimedia (30 días)"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isLoadingMedia ? 'animate-spin text-purple-400' : ''}`} />
+              </button>
+            </div>
+
+            <div className="px-2.5 py-1.5 rounded-lg bg-purple-950/20 border border-purple-500/20 flex items-center justify-between text-[10px] text-purple-200">
+              <span>💾 Almacenados en tu servidor WAPPY</span>
+              <span className="font-bold text-purple-400">Retención: 30 días</span>
+            </div>
+
+            {isLoadingMedia ? (
+              <div className="flex flex-col items-center justify-center py-12 space-y-3 bg-slate-900/20 border border-slate-900/50 rounded-xl">
+                <RefreshCw className="h-6 w-6 text-purple-400 animate-spin" />
+                <p className="text-xs text-slate-400">Cargando recursos de Flow y NotebookLM...</p>
+              </div>
+            ) : (
+              (() => {
+                const filtered = mediaItems.filter((item) => mediaFilter === 'all' || item.source === mediaFilter);
+                if (filtered.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-10 px-5 text-center bg-slate-900/20 border border-dashed border-slate-800 rounded-xl">
+                      <ImageIcon className="h-7 w-7 text-slate-500 mb-2" />
+                      <p className="text-xs font-bold text-slate-300 mb-1">No hay recursos descargados aún</p>
+                      <p className="text-[10.5px] text-slate-400">
+                        Genera una imagen o video con Google Flow o una infografía/podcast con NotebookLM y aparecerá aquí automáticamente durante 30 días.
+                      </p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-3">
+                    {filtered.map((item) => (
+                      <div
+                        key={item.filename}
+                        className="bg-slate-900/70 border border-slate-800 hover:border-purple-500/40 rounded-xl overflow-hidden transition-all shadow-md"
+                      >
+                        {item.mediaType === 'image' && (
+                          <div className="relative h-36 w-full bg-slate-950 overflow-hidden">
+                            <img
+                              src={item.publicUrl}
+                              alt={item.label}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                            <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-slate-950/80 text-purple-300 border border-purple-500/30">
+                              {item.source === 'flow' ? '✨ Flow Imagen' : '📊 NotebookLM'}
+                            </span>
+                            <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-950/80 text-emerald-300 border border-emerald-500/30">
+                              ⏳ {item.daysRemaining}d
+                            </span>
+                          </div>
+                        )}
+
+                        {item.mediaType === 'video' && (
+                          <div className="relative bg-black">
+                            <video
+                              src={item.publicUrl}
+                              controls
+                              playsInline
+                              preload="metadata"
+                              className="w-full max-h-40 object-contain"
+                            />
+                            <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-slate-950/80 text-cyan-300 border border-cyan-500/30 pointer-events-none">
+                              🎬 {item.source === 'flow' ? 'Veo 3.1 Lite' : 'NotebookLM Video'}
+                            </span>
+                          </div>
+                        )}
+
+                        {item.mediaType === 'audio' && (
+                          <div className="p-3 bg-slate-950 border-b border-slate-800/80">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-[10px] font-bold text-teal-300 flex items-center gap-1">
+                                <Music className="h-3.5 w-3.5" /> Podcast / Audio NotebookLM
+                              </span>
+                              <span className="text-[9px] text-emerald-400 font-bold">⏳ {item.daysRemaining}d</span>
+                            </div>
+                            <audio src={item.publicUrl} controls className="w-full h-8" />
+                          </div>
+                        )}
+
+                        <div className="p-3 flex items-center justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold text-white truncate" title={item.label}>
+                              {item.label}
+                            </p>
+                            <p className="text-[10px] text-slate-400 truncate font-mono">
+                              {item.filename} • {(item.sizeBytes / 1024).toFixed(0)} KB
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => triggerInsertMediaItem(item)}
+                            className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 active:scale-95 text-[11px] font-bold text-white shadow-sm transition-all cursor-pointer"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                            <span>Insertar</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()
+            )}
+          </div>
+        )}
+
         {/* Document selector from history */}
+        {activeTab !== 'media' && (
         <div>
           <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
             Seleccionar origen del historial
@@ -391,7 +600,9 @@ const CanvasWorkspaceBridge: React.FC<CanvasWorkspaceBridgeProps> = ({
               value={selectedDocId}
               onChange={(e) => {
                 const doc = history.find(d => d.conversationId === e.target.value);
-                if (doc) loadDocument(doc.conversationId, doc.title, activeTab);
+                if (doc && (activeTab === 'excel' || activeTab === 'text')) {
+                  loadDocument(doc.conversationId, doc.title, activeTab);
+                }
               }}
               className="w-full bg-slate-900/90 border border-slate-800 text-xs text-slate-200 py-2.5 px-3 rounded-lg focus:outline-none focus:border-teal-500/50 appearance-none pr-8 cursor-pointer"
             >
@@ -411,9 +622,10 @@ const CanvasWorkspaceBridge: React.FC<CanvasWorkspaceBridgeProps> = ({
             </div>
           </div>
         </div>
+        )}
 
         {/* LOADING INDICATOR */}
-        {isLoadingDoc && (
+        {activeTab !== 'media' && isLoadingDoc && (
           <div className="flex flex-col items-center justify-center py-12 space-y-3 bg-slate-900/20 border border-slate-900/50 rounded-xl">
             <RefreshCw className="h-6 w-6 text-teal-400 animate-spin" />
             <p className="text-xs text-slate-400">Analizando celdas y estructuras...</p>
@@ -421,7 +633,7 @@ const CanvasWorkspaceBridge: React.FC<CanvasWorkspaceBridgeProps> = ({
         )}
 
         {/* NO SELECCIONADO / HISTORIAL VACÍO */}
-        {!selectedDocId && !isLoadingDoc && (
+        {activeTab !== 'media' && !selectedDocId && !isLoadingDoc && (
           <div className="flex flex-col items-center justify-center py-12 px-6 text-center bg-slate-900/10 border border-dashed border-slate-850 rounded-xl">
             <AlertCircle className="h-6 w-6 text-slate-500 mb-2" />
             <p className="text-xs font-semibold text-slate-400 mb-1">Sin archivos disponibles</p>

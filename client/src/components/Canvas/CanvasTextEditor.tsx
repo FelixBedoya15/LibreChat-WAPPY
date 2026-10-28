@@ -1548,12 +1548,12 @@ const CanvasTextEditor: React.FC<CanvasTextEditorProps> = ({ initialContent, onU
 
             <button
               onClick={() => setIsBridgeOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold border border-teal-500/20 bg-teal-500/10 text-teal-600 dark:text-teal-400 hover:bg-teal-500/15 rounded-xl transition-all duration-300 cursor-pointer shadow-sm"
-              title="Conectar con otros Lienzos (Excel)"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold border border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-300 hover:bg-purple-500/20 rounded-xl transition-all duration-300 cursor-pointer shadow-sm"
+              title="Insertar recursos de Google Flow, NotebookLM (30 días) o tablas de Excel"
             >
-              <Link2 className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Conectar Lienzo (Excel)</span>
-              <span className="sm:hidden">Conectar</span>
+              <Sparkles className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Flow, NotebookLM & Lienzos</span>
+              <span className="sm:hidden">Recursos IA</span>
             </button>
           </div>
         </div>
@@ -1576,7 +1576,9 @@ const CanvasTextEditor: React.FC<CanvasTextEditorProps> = ({ initialContent, onU
         <CanvasWorkspaceBridge
           onClose={() => setIsBridgeOpen(false)}
           onImportTable={handleImportTable}
+          onImportMedia={(_item, htmlBlock) => handleImportTable(htmlBlock)}
           activeFileType="text"
+          initialTab="media"
         />
       )}
     </div>

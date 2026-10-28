@@ -1757,7 +1757,15 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
               </div>
 
               {/* Multimedia Group */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setIsBridgeOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-300 hover:bg-purple-500/20 rounded-xl transition-all duration-300 cursor-pointer"
+                  title="Insertar imágenes, videos o infografías descargadas de Google Flow y NotebookLM (30 días)"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>Flow & NotebookLM</span>
+                </button>
                 <button
                   onClick={() => setIsImageModalOpen(true)}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border border-teal-500/20 bg-teal-500/10 text-teal-600 dark:text-teal-400 hover:bg-teal-500/15 rounded-xl transition-all duration-300 cursor-pointer"
@@ -1944,7 +1952,11 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({ initialContent,
           onImportTable={handleImportTable}
           onImportChart={handleImportChart}
           onImportBullets={handleImportBullets}
+          onImportMedia={(item) => {
+            saveImageToSlide(item.publicUrl);
+          }}
           activeFileType="presentation"
+          initialTab="media"
         />
       )}
     </div>

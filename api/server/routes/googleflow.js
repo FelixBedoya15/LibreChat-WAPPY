@@ -1883,8 +1883,88 @@ async function uploadCookies(cookies, email = '') {
   return res.status(200).send(script);
 });
 
+/**
+ * Lista todos los recursos multimedia descargados de Google Flow (flow_*) y Google NotebookLM (nlm_*)
+ * disponibles en el servidor durante su ventana de retención de 30 días.
+ */
+async function listDownloadedMediaLibrary(filterSource = 'all') {
+  await fs.promises.mkdir(OUTPUT_MEDIA_DIR, { recursive: true });
+  const files = await fs.promises.readdir(OUTPUT_MEDIA_DIR);
+  const now = Date.now();
+  const RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+  const items = [];
+
+  for (const file of files) {
+    if (!file.startsWith('flow_') && !file.startsWith('nlm_')) continue;
+    if (file.startsWith('flow_poster_')) continue; // skip internal video posters
+    const isFlow = file.startsWith('flow_');
+    if (filterSource === 'flow' && !isFlow) continue;
+    if (filterSource === 'notebooklm' && isFlow) continue;
+
+    const fullPath = path.join(OUTPUT_MEDIA_DIR, file);
+    try {
+      const stat = await fs.promises.stat(fullPath);
+      if (!stat.isFile()) continue;
+      const ageMs = now - stat.mtimeMs;
+      if (ageMs > RETENTION_MS) continue;
+
+      const daysRemaining = Math.max(1, Math.ceil((RETENTION_MS - ageMs) / (24 * 60 * 60 * 1000)));
+      const lower = file.toLowerCase();
+      let mediaType = 'image';
+      if (lower.endsWith('.mp4') || lower.includes('_vid_') || lower.includes('_video_')) {
+        mediaType = 'video';
+      } else if (lower.endsWith('.mp3') || lower.endsWith('.wav') || lower.includes('_audio_')) {
+        mediaType = 'audio';
+      } else if (lower.endsWith('.pdf') || lower.endsWith('.pptx')) {
+        mediaType = 'document';
+      }
+
+      let label = isFlow ? 'Imagen Google Flow (Nano Banana)' : 'Infografía NotebookLM';
+      if (isFlow && mediaType === 'video') label = 'Video Google Flow (Veo 3.1 Lite)';
+      else if (!isFlow && mediaType === 'video') label = 'Video Explicativo NotebookLM';
+      else if (!isFlow && mediaType === 'audio') label = 'Podcast / Audio NotebookLM';
+      else if (!isFlow && mediaType === 'document') label = 'Presentación / Doc NotebookLM';
+
+      items.push({
+        filename: file,
+        publicUrl: `/images/${file}`,
+        source: isFlow ? 'flow' : 'notebooklm',
+        mediaType,
+        label,
+        sizeBytes: stat.size,
+        createdAt: new Date(stat.mtimeMs).toISOString(),
+        daysRemaining,
+      });
+    } catch (_) {}
+  }
+
+  items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  return items.slice(0, 80);
+}
+
+/**
+ * GET /api/googleflow/media-library
+ * Lista todos los recursos multimedia descargados de Google Flow (flow_*) y Google NotebookLM (nlm_*)
+ * disponibles en el servidor durante su ventana de retención de 30 días.
+ */
+router.get('/media-library', requireJwtAuth, async (req, res) => {
+  try {
+    const filter = req.query.source || 'all';
+    const items = await listDownloadedMediaLibrary(filter);
+    return res.json({
+      success: true,
+      count: items.length,
+      items,
+    });
+  } catch (error) {
+    logger.error('[GoogleFlow] Error listando media-library:', error);
+    return res.status(500).json({ error: 'Error al consultar la galería de recursos IA.' });
+  }
+});
+
 router.executeFlowImageGeneration = executeFlowImageGeneration;
 router.executeFlowVideoGeneration = executeFlowVideoGeneration;
 router.buildFlowStudioCanvasHtml = buildFlowStudioCanvasHtml;
+router.listDownloadedMediaLibrary = listDownloadedMediaLibrary;
 
 module.exports = router;
