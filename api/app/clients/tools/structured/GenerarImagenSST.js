@@ -315,8 +315,7 @@ class GenerarImagenSST extends Tool {
     // Guardar imagen en disco estático para servirla inmediatamente vía HTTP /images/...
     try {
       const ext = mimeType.includes('jpeg') || mimeType.includes('jpg') ? 'jpg' : 'png';
-      const { fileId, publicUrl } = await this.saveImageToDisk(imageBuffer, ext);
-      const base64String = imageBuffer.toString('base64');
+      const { publicUrl } = await this.saveImageToDisk(imageBuffer, ext);
 
       logger.info(
         `[generar_imagen_sst] Imagen guardada con éxito en ${publicUrl} (${generationSource}, ${imageBuffer.length} bytes)`,
@@ -331,27 +330,7 @@ class GenerarImagenSST extends Tool {
 
 ${displayMessage}`;
 
-      if (this.isAgent) {
-        const content = [
-          {
-            type: ContentTypes.IMAGE_URL,
-            image_url: {
-              url: `data:${mimeType};base64,${base64String}`,
-            },
-          },
-        ];
-
-        const responseMsg = [
-          {
-            type: ContentTypes.TEXT,
-            text: responseMarkdown,
-          },
-        ];
-
-        return [responseMsg, { content, file_ids: [fileId] }];
-      }
-
-      return responseMarkdown;
+      return this.returnValue(responseMarkdown);
     } catch (saveError) {
       logger.error('[generar_imagen_sst] Error guardando archivo de imagen:', saveError);
       return this.returnValue(`Error procesando la imagen generada: ${saveError.message}`);

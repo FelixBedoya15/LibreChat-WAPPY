@@ -105,34 +105,15 @@ class GoogleFlow extends Tool {
           style: estilo,
         });
 
-        const base64String = imgRes.buffer.toString('base64');
         const markdown = `### ✨ Imagen Generada con Google Flow Studio
 ![${prompt.slice(0, 100)}](${imgRes.publicUrl})
 
 * **Prompt:** ${prompt}
 * **Motor:** ${imgRes.model}
 * **Formato:** \`${imgRes.aspectRatio}\`
-* **Descargar PNG:** [⬇ Descargar Imagen (${imgRes.filename})](${imgRes.publicUrl})`;
+* **Descargar:** [⬇ Descargar Imagen (${imgRes.filename})](${imgRes.publicUrl})`;
 
-        if (this.isAgent) {
-          const content = [
-            {
-              type: ContentTypes.IMAGE_URL,
-              image_url: {
-                url: `data:${imgRes.mimeType};base64,${base64String}`,
-              },
-            },
-          ];
-          const responseMsg = [
-            {
-              type: ContentTypes.TEXT,
-              text: markdown,
-            },
-          ];
-          return [responseMsg, { content, file_ids: [imgRes.fileId] }];
-        }
-
-        return markdown;
+        return this.returnValue(markdown);
       }
     } catch (err) {
       logger.error('[google_flow] Error en herramienta:', err);
