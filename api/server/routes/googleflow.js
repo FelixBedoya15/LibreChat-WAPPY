@@ -3,7 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
-const { execFile } = require('child_process');
+const { execFile, spawn } = require('child_process');
+const WebSocket = require('ws');
 const router = express.Router();
 const GoogleFlowSession = require('~/models/GoogleFlowSession');
 const NotebookSession = require('~/models/NotebookSession');
@@ -328,6 +329,374 @@ async function resolveGoogleFlowCredentials(userId) {
 }
 
 /**
+ * Envía un comando CDP (Chrome DevTools Protocol) a una instancia local de Chromium
+ */
+function cdpRequest(ws, id, method, params = {}) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      ws.off('message', handler);
+      reject(new Error(`CDP timeout on ${method}`));
+    }, 45000);
+    const handler = (data) => {
+      try {
+        const msg = JSON.parse(data.toString());
+        if (msg.id === id) {
+          clearTimeout(timer);
+          ws.off('message', handler);
+          if (msg.error) reject(new Error(msg.error.message));
+          else resolve(msg.result);
+        }
+      } catch (_) {}
+    };
+    ws.on('message', handler);
+    ws.send(JSON.stringify({ id, method, params }));
+  });
+}
+
+/**
+ * Resuelve el binario de Chromium / Chrome instalado en el servidor o contenedor
+ */
+function findServerChromiumBinary() {
+  const candidates = [
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  ];
+  for (const bin of candidates) {
+    if (fs.existsSync(bin)) return bin;
+  }
+  return 'chromium';
+}
+
+/**
+ * Obtiene el primer projectId activo del usuario en flow.google.com (o crea uno si no tiene)
+ */
+async function resolveFlowProjectId(cookieHeader, at, fSid, bl) {
+  const ua =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+  try {
+    const fReq = JSON.stringify([[['UpteDb', '[]', null, 'generic']]]);
+    const params = new URLSearchParams({
+      rpcids: 'UpteDb',
+      'source-path': '/',
+      bl,
+      'f.sid': fSid,
+      hl: 'es-419',
+      rt: 'c',
+    });
+    const body = new URLSearchParams({ 'f.req': fReq, at }).toString();
+    const res = await axios.post(
+      `https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute?${params.toString()}`,
+      body,
+      {
+        headers: {
+          Cookie: cookieHeader,
+          'User-Agent': ua,
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+          Origin: 'https://flow.google.com',
+          Referer: 'https://flow.google.com/',
+        },
+        timeout: 10000,
+      }
+    );
+    const raw = typeof res.data === 'string' ? res.data : '';
+    const uuidMatch = raw.match(/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+    if (uuidMatch && uuidMatch[1]) {
+      return uuidMatch[1];
+    }
+  } catch (err) {
+    logger.debug('[GoogleFlow] Info obteniendo UpteDb projectId:', err.message);
+  }
+  return null;
+}
+
+/**
+ * Ejecuta una generación real de imagen o video dentro de la cuenta de Google Flow (flow.google.com)
+ * usando Chromium Headless + Boq batchexecute (ogiZ0b para Nano Banana 2 Lite / 2.1, YhhmEf para Veo 3.1 Lite)
+ */
+async function executeFlowNativeStudioAction({
+  cookies,
+  actionType = 'IMAGE_GENERATION',
+  prompt,
+  aspectRatio = '16:9',
+}) {
+  if (!Array.isArray(cookies) || cookies.length === 0) {
+    throw new Error('No hay cookies de sesión de Google Flow disponibles.');
+  }
+
+  const filtered = cookies.filter((c) => {
+    const dom = String(c.domain || '.google.com').toLowerCase();
+    return (
+      dom === 'flow.google.com' ||
+      dom === '.flow.google.com' ||
+      dom === '.google.com' ||
+      dom === 'google.com'
+    );
+  });
+
+  const cookieHeader = buildFlowCookieHeader(cookies);
+  const chromiumBin = findServerChromiumBinary();
+  const port = 9450 + Math.floor(Math.random() * 450);
+  const profileDir = `/tmp/wappy-flow-cdp-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  await fs.promises.mkdir(profileDir, { recursive: true });
+
+  const proc = spawn(
+    chromiumBin,
+    [
+      '--headless=new',
+      '--no-sandbox',
+      '--disable-gpu',
+      '--disable-dev-shm-usage',
+      '--disable-blink-features=AutomationControlled',
+      '--window-size=1440,900',
+      '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      `--remote-debugging-port=${port}`,
+      `--user-data-dir=${profileDir}`,
+      'about:blank',
+    ],
+    { stdio: 'ignore' }
+  );
+
+  let ws = null;
+  try {
+    let pageTarget = null;
+    for (let i = 0; i < 25; i++) {
+      await new Promise((r) => setTimeout(r, 350));
+      try {
+        const listRes = await axios.get(`http://127.0.0.1:${port}/json/list`, { timeout: 2000 });
+        pageTarget = Array.isArray(listRes.data)
+          ? listRes.data.find((t) => t.type === 'page' && t.webSocketDebuggerUrl)
+          : null;
+        if (pageTarget) break;
+      } catch (_) {}
+    }
+
+    if (!pageTarget || !pageTarget.webSocketDebuggerUrl) {
+      throw new Error('No se pudo inicializar el motor Chromium para Google Flow.');
+    }
+
+    ws = new WebSocket(pageTarget.webSocketDebuggerUrl);
+    await new Promise((resolve, reject) => {
+      ws.once('open', resolve);
+      ws.once('error', reject);
+    });
+
+    await cdpRequest(ws, 1, 'Network.enable');
+    await cdpRequest(ws, 2, 'Page.enable');
+    await cdpRequest(ws, 3, 'Page.addScriptToEvaluateOnNewDocument', {
+      source: `
+        Object.defineProperty(navigator, "webdriver", { get: () => undefined });
+        const origDefProp = Object.defineProperty;
+        Object.defineProperty = function(obj, prop, desc) {
+          if (prop === "execute" && desc && typeof desc.value === "function") {
+            window.__origRecapExec = obj.execute ? obj.execute.bind(obj) : desc.value;
+            return obj;
+          }
+          return origDefProp.call(this, obj, prop, desc);
+        };
+      `,
+    });
+
+    for (let i = 0; i < filtered.length; i++) {
+      const c = filtered[i];
+      await cdpRequest(ws, 10 + i, 'Network.setCookie', {
+        name: c.name,
+        value: c.value,
+        domain: c.domain || '.google.com',
+        path: c.path || '/',
+        secure: true,
+        httpOnly: Boolean(c.httpOnly),
+      }).catch(() => {});
+    }
+
+    await cdpRequest(ws, 200, 'Page.navigate', { url: 'https://flow.google.com/' });
+
+    let tokenInfo = null;
+    for (let i = 0; i < 24; i++) {
+      await new Promise((r) => setTimeout(r, 750));
+      const evalRes = await cdpRequest(ws, 300 + i, 'Runtime.evaluate', {
+        expression: `(async () => {
+          if (window.grecaptcha && window.grecaptcha.enterprise && window.WIZ_global_data && window.WIZ_global_data.SNlM0e) {
+            const execFn = window.__origRecapExec || window.grecaptcha.enterprise.execute;
+            const siteKey = window.WIZ_global_data.xZbWve || "6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV";
+            const t = await execFn(siteKey, { action: ${JSON.stringify(actionType)} });
+            if (typeof t === "string" && t.length > 20) {
+              return JSON.stringify({
+                token: t,
+                at: window.WIZ_global_data.SNlM0e,
+                fSid: window.WIZ_global_data.FdrFJe || "",
+                bl: window.WIZ_global_data.cfb2h || "boq_labs-ai-sandbox-frontend_20261027.00_p0"
+              });
+            }
+          }
+          return null;
+        })()`,
+        awaitPromise: true,
+        returnByValue: true,
+      }).catch(() => null);
+
+      const val = evalRes?.result?.value;
+      if (typeof val === 'string' && val.startsWith('{')) {
+        tokenInfo = JSON.parse(val);
+        break;
+      }
+    }
+
+    if (!tokenInfo || !tokenInfo.token || !tokenInfo.at) {
+      throw new Error(
+        'No se pudo autenticar la sesión interactiva en flow.google.com. Verifica que tu sesión de Google Flow esté activa.'
+      );
+    }
+
+    const projectId =
+      (await resolveFlowProjectId(cookieHeader, tokenInfo.at, tokenInfo.fSid, tokenInfo.bl)) ||
+      '98397ce4-4aa7-4eac-a03b-fe62aa9d04d6';
+    const sessionId = `;${Date.now()}`;
+    const mediaId = uuidv4();
+    const workflowId = uuidv4();
+    const N = [tokenInfo.token, 1];
+
+    if (actionType === 'IMAGE_GENERATION') {
+      // AspectRatio enum for FlowService.BatchGenerateImages (ogiZ0b): 1=1:1, 2=9:16, 3=16:9, 4=3:4, 5=4:3
+      const imgAspectMap = { '1:1': 1, '9:16': 2, '16:9': 3, '3:4': 4, '4:3': 5 };
+      const aspectEnum = imgAspectMap[aspectRatio] || 3;
+      const seed = Math.floor(Math.random() * 2147483647);
+      const W = [null, 22, null, null, null, projectId, null, workflowId, null, null, N];
+      const h = [sessionId];
+
+      // Try Nano Banana 2 Lite (HARBOR_SEAL) first, then Nano Banana 2.1 (BELUGA)
+      const flowImageModels = [
+        { code: 'HARBOR_SEAL', label: 'Google Flow Studio (🍌 Nano Banana 2 Lite • gemini-3.1-flash-lite-image)' },
+        { code: 'BELUGA', label: 'Google Flow Studio (🍌 Nano Banana 2.1)' },
+        { code: 'GEM_PIX_2', label: 'Google Flow Studio (🍌 Nano Banana Pro)' },
+      ];
+
+      for (const fm of flowImageModels) {
+        const za = [
+          null,
+          null,
+          [],
+          seed,
+          aspectEnum,
+          fm.code,
+          null,
+          W,
+          [[[prompt]]],
+          null,
+          [],
+          [],
+          workflowId,
+          mediaId,
+        ];
+        const rpcPayload = [null, [za], 1, W, h];
+        const fReq = JSON.stringify([[['ogiZ0b', JSON.stringify(rpcPayload), null, 'generic']]]);
+
+        const browserFetch = await cdpRequest(ws, 500, 'Runtime.evaluate', {
+          expression: `(async () => {
+            const params = new URLSearchParams({
+              rpcids: "ogiZ0b",
+              "source-path": "/",
+              bl: ${JSON.stringify(tokenInfo.bl)},
+              "f.sid": ${JSON.stringify(tokenInfo.fSid)},
+              hl: "es-419",
+              rt: "c"
+            });
+            const body = new URLSearchParams({ "f.req": ${JSON.stringify(fReq)}, at: ${JSON.stringify(tokenInfo.at)} });
+            const r = await fetch("/_/AiSandboxAngularFrontend/data/batchexecute?" + params.toString(), {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+              body: body.toString()
+            });
+            return await r.text();
+          })()`,
+          awaitPromise: true,
+          returnByValue: true,
+        });
+
+        const rawText = browserFetch?.result?.value || '';
+        const urlMatch = rawText.match(/https:\/\/flow-content\.google\/image\/[^"\\]+/);
+        if (urlMatch && urlMatch[0]) {
+          const signedUrl = urlMatch[0]
+            .replace(/\\u003d/g, '=')
+            .replace(/\\u0026/g, '&');
+          return {
+            ok: true,
+            signedUrl,
+            mediaId,
+            workflowId,
+            projectId,
+            modelLabel: fm.label,
+          };
+        }
+      }
+      throw new Error('Google Flow no devolvió la URL de la imagen generada.');
+    } else {
+      // VIDEO_GENERATION via YhhmEf (/VideoFxService.BatchAsyncGenerateVideoText) + Veo 3.1 Lite
+      // AspectRatio enum for VideoFxService (oP): 2=16:9, 1=9:16, 0=1:1
+      const vidAspectEnum = aspectRatio === '9:16' ? 1 : 2;
+      const k = [null, 22, null, null, null, projectId, null, null, null, null, N];
+      const x = [sessionId, 1];
+      const lD = [null, null, null, null, mediaId, workflowId];
+      const h = [null, null, [[[prompt]]]];
+      const G = [h, 'veo_3_1_t2v_lite', vidAspectEnum, null, lD];
+      const rpcPayload = [[G], k, x];
+      const fReq = JSON.stringify([[['YhhmEf', JSON.stringify(rpcPayload), null, 'generic']]]);
+
+      const browserFetch = await cdpRequest(ws, 600, 'Runtime.evaluate', {
+        expression: `(async () => {
+          const params = new URLSearchParams({
+            rpcids: "YhhmEf",
+            "source-path": "/",
+            bl: ${JSON.stringify(tokenInfo.bl)},
+            "f.sid": ${JSON.stringify(tokenInfo.fSid)},
+            hl: "es-419",
+            rt: "c"
+          });
+          const body = new URLSearchParams({ "f.req": ${JSON.stringify(fReq)}, at: ${JSON.stringify(tokenInfo.at)} });
+          const r = await fetch("/_/AiSandboxAngularFrontend/data/batchexecute?" + params.toString(), {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body: body.toString()
+          });
+          return await r.text();
+        })()`,
+        awaitPromise: true,
+        returnByValue: true,
+      });
+
+      const rawText = browserFetch?.result?.value || '';
+      if (!rawText.includes(mediaId)) {
+        throw new Error('No se pudo iniciar la generación del video con Veo 3.1 Lite en Google Flow.');
+      }
+
+      return {
+        ok: true,
+        mediaId,
+        workflowId,
+        projectId,
+        at: tokenInfo.at,
+        fSid: tokenInfo.fSid,
+        bl: tokenInfo.bl,
+        cookieHeader,
+        modelLabel: 'Google Flow Studio (🎬 Veo 3.1 Lite • veo_3_1_t2v_lite)',
+      };
+    }
+  } finally {
+    try {
+      if (ws) ws.close();
+    } catch (_) {}
+    try {
+      proc.kill('SIGKILL');
+    } catch (_) {}
+    try {
+      await fs.promises.rm(profileDir, { recursive: true, force: true });
+    } catch (_) {}
+  }
+}
+
+/**
  * Genera una imagen con Google Flow / Imagen 3 / Nano Banana y la guarda en /images/
  */
 async function executeFlowImageGeneration({
@@ -364,65 +733,44 @@ async function executeFlowImageGeneration({
   let mimeType = 'image/png';
   let modelUsed = '';
 
-  // INTENTO 1: Google Labs / Flow ImageFX (aisandbox-pa.googleapis.com/v1:runImageFx)
+  // INTENTO 1: Generación Nativa en Google Flow Studio (flow.google.com • Nano Banana 2 Lite / 2.1)
   if (creds.cookies && creds.cookies.length > 0) {
     try {
-      const fxSession = await fetchLabsFxSession(creds.cookies);
-      if (fxSession.ok && fxSession.accessToken) {
-        logger.info('[GoogleFlow] Ejecutando generación en Google Labs ImageFX...');
-        const fxAspectMap = {
-          '16:9': 'IMAGE_ASPECT_RATIO_LANDSCAPE',
-          '9:16': 'IMAGE_ASPECT_RATIO_PORTRAIT',
-          '1:1': 'IMAGE_ASPECT_RATIO_SQUARE',
-        };
-        const fxRes = await axios.post(
-          'https://aisandbox-pa.googleapis.com/v1:runImageFx',
-          {
-            userInput: {
-              candidatesCount: 1,
-              prompts: [enhancedPrompt],
-              seed: Math.floor(Math.random() * 2147483647),
-            },
-            clientContext: {
-              sessionId: `;${Date.now()}`,
-              tool: 'IMAGE_FX',
-            },
-            modelInput: {
-              modelNameType: 'IMAGEN_3_1',
-            },
-            aspectRatio: fxAspectMap[cleanRatio] || 'IMAGE_ASPECT_RATIO_LANDSCAPE',
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${fxSession.accessToken}`,
-              'Content-Type': 'application/json',
-              Origin: 'https://labs.google',
-              Referer: 'https://labs.google/fx/tools/image-fx',
-            },
-            timeout: 45000,
-          }
-        );
+      logger.info('[GoogleFlow] Ejecutando generación nativa en flow.google.com (Nano Banana 2 Lite / 2.1)...');
+      const nativeRes = await executeFlowNativeStudioAction({
+        cookies: creds.cookies,
+        actionType: 'IMAGE_GENERATION',
+        prompt: enhancedPrompt,
+        aspectRatio: cleanRatio,
+      });
 
-        const encoded =
-          fxRes.data?.imagePanels?.[0]?.generatedImages?.[0]?.encodedImage ||
-          fxRes.data?.generatedImages?.[0]?.encodedImage;
-        if (encoded) {
-          imageBuffer = Buffer.from(encoded, 'base64');
-          mimeType = 'image/png';
-          modelUsed = 'Google Flow Studio (Imagen 3.1 Labs)';
+      if (nativeRes.ok && nativeRes.signedUrl) {
+        const dlRes = await axios.get(nativeRes.signedUrl, {
+          responseType: 'arraybuffer',
+          timeout: 35000,
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+          },
+        });
+        if (dlRes.data && dlRes.data.byteLength > 1024) {
+          imageBuffer = Buffer.from(dlRes.data);
+          mimeType = dlRes.headers['content-type'] || 'image/jpeg';
+          modelUsed = nativeRes.modelLabel;
         }
       }
-    } catch (fxErr) {
-      logger.warn(
-        '[GoogleFlow] Aviso en endpoint Labs ImageFX, pasando a Gemini/Imagen API:',
-        fxErr.response?.data?.error?.message || fxErr.message
-      );
+    } catch (flowErr) {
+      logger.warn('[GoogleFlow] Aviso en generación nativa flow.google.com:', flowErr.message);
     }
   }
 
-  // INTENTO 2: Google Gemini Native Image (gemini-2.5-flash-image / gemini-3.1-flash-image)
+  // INTENTO 2: Google Gemini Native Image API (gemini-3.1-flash-lite-image / gemini-3.1-flash-image / gemini-2.5-flash-image)
   if (!imageBuffer && creds.apiKeys && creds.apiKeys.length > 0) {
-    const geminiImgModels = ['gemini-2.5-flash-image', 'gemini-3.1-flash-image'];
+    const geminiImgModels = [
+      'gemini-3.1-flash-lite-image',
+      'gemini-3.1-flash-image',
+      'gemini-2.5-flash-image',
+    ];
     for (const gm of geminiImgModels) {
       if (imageBuffer) break;
       for (const keyCandidate of creds.apiKeys.slice(0, 3)) {
@@ -448,7 +796,7 @@ async function executeFlowImageGeneration({
             if (imagePart?.inlineData?.data) {
               imageBuffer = Buffer.from(imagePart.inlineData.data, 'base64');
               mimeType = imagePart.inlineData.mimeType || 'image/png';
-              modelUsed = `Google Flow (Nano Banana • ${gm})`;
+              modelUsed = `Google Flow (${gm})`;
             }
           }
         } catch (err2) {
@@ -462,111 +810,9 @@ async function executeFlowImageGeneration({
     }
   }
 
-  // INTENTO 3: Google Imagen 3 (imagen-3.0-generate-002:predict)
-  if (!imageBuffer && creds.apiKey) {
-    try {
-      logger.info('[GoogleFlow] Generando imagen con Google Imagen 3 (imagen-3.0-generate-002)...');
-      const imagenUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${creds.apiKey}`;
-      const response = await axios.post(
-        imagenUrl,
-        {
-          instances: [{ prompt: enhancedPrompt }],
-          parameters: {
-            sampleCount: 1,
-            aspectRatio: cleanRatio,
-          },
-        },
-        {
-          headers: { 'Content-Type': 'application/json' },
-          timeout: 25000,
-        }
-      );
-
-      const predictions = response.data?.predictions;
-      if (predictions && predictions[0]?.bytesBase64Encoded) {
-        imageBuffer = Buffer.from(predictions[0].bytesBase64Encoded, 'base64');
-        mimeType = predictions[0].mimeType || 'image/png';
-        modelUsed = 'Google Flow (Imagen 3.0)';
-      }
-    } catch (err3) {
-      logger.warn(
-        '[GoogleFlow] Aviso en Imagen 3:',
-        (err3.response?.data?.error?.message || err3.message || '').slice(0, 120)
-      );
-    }
-  }
-
-  // INTENTO 4: Motor de respaldo fotorrealista de alta velocidad (cuando Free Tier tiene limit: 0 o reCAPTCHA Enterprise)
-  if (!imageBuffer) {
-    let promptForEngine = enhancedPrompt;
-    if (creds.apiKey) {
-      try {
-        const transRes = await axios.post(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${creds.apiKey}`,
-          {
-            contents: [
-              {
-                parts: [
-                  {
-                    text: `Translate and optimize this visual prompt into a concise, vivid English photography prompt (max 45 words, output ONLY the English prompt without quotes): ${prompt}`,
-                  },
-                ],
-              },
-            ],
-          },
-          { headers: { 'Content-Type': 'application/json' }, timeout: 8000 }
-        );
-        const enText = transRes.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-        if (enText && enText.length > 10) {
-          promptForEngine = `${enText}, ${styleSuffix}`;
-        }
-      } catch (_) {}
-    }
-
-    const dimMap = {
-      '16:9': { w: 1280, h: 720 },
-      '9:16': { w: 720, h: 1280 },
-      '1:1': { w: 1024, h: 1024 },
-      '4:3': { w: 1152, h: 864 },
-      '3:4': { w: 864, h: 1152 },
-    };
-    const { w, h } = dimMap[cleanRatio] || dimMap['16:9'];
-    const seed = Math.floor(10000 + Math.random() * 900000);
-    const encodedPrompt = encodeURIComponent(promptForEngine);
-    const fallbackUrls = [
-      `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${w}&height=${h}&nologo=true&seed=${seed}&model=flux`,
-      `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${w}&height=${h}&nologo=true&seed=${seed}`,
-    ];
-
-    for (const fbUrl of fallbackUrls) {
-      if (imageBuffer) break;
-      try {
-        logger.info('[GoogleFlow] Ejecutando renderizado visual de alta definición...');
-        const fbRes = await axios.get(fbUrl, {
-          responseType: 'arraybuffer',
-          timeout: 35000,
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-            Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
-          },
-        });
-        if (fbRes.data && fbRes.data.byteLength > 1024) {
-          imageBuffer = Buffer.from(fbRes.data);
-          mimeType = fbRes.headers['content-type'] || 'image/jpeg';
-          modelUsed = creds.hasFlowSession
-            ? 'Google Flow Studio (Imagen • Sesión Vinculada)'
-            : 'Google Flow Studio (Imagen HD)';
-        }
-      } catch (fbErr) {
-        logger.warn('[GoogleFlow] Aviso en renderizador secundario:', fbErr.message);
-      }
-    }
-  }
-
   if (!imageBuffer) {
     throw new Error(
-      'No fue posible generar la imagen en este momento. Verifica tu sesión de Google Flow o intenta nuevamente.'
+      'No fue posible generar la imagen en Google Flow. Verifica que tu sesión de Google Flow esté vinculada y activa en Mi Cuenta -> Integraciones.'
     );
   }
 
@@ -681,10 +927,93 @@ async function executeFlowVideoGeneration({
   const enhancedPrompt = `${String(prompt).trim()}, ${motionText}, 4k cinematic quality, realistic physics, natural lighting`;
 
   let videoBuffer = null;
+  let posterBuffer = null;
   let modelUsed = '';
 
-  // INTENTO 1: Google Veo oficial vía Gemini API (:predictLongRunning)
-  if (creds.apiKey) {
+  // INTENTO 1: Generación Nativa en Google Flow Studio (flow.google.com • Veo 3.1 Lite)
+  if (creds.cookies && creds.cookies.length > 0) {
+    try {
+      logger.info('[GoogleFlow] Iniciando generación nativa de video en flow.google.com (Veo 3.1 Lite)...');
+      const nativeVid = await executeFlowNativeStudioAction({
+        cookies: creds.cookies,
+        actionType: 'VIDEO_GENERATION',
+        prompt: enhancedPrompt,
+        aspectRatio: cleanRatio,
+      });
+
+      if (nativeVid.ok && nativeVid.mediaId) {
+        const ua =
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+        for (let attempt = 0; attempt < 28; attempt++) {
+          await new Promise((r) => setTimeout(r, 3500));
+          const fReq = JSON.stringify([
+            [['Iyc41d', JSON.stringify([[nativeVid.mediaId]]), null, 'generic']],
+          ]);
+          const params = new URLSearchParams({
+            rpcids: 'Iyc41d',
+            'source-path': '/',
+            bl: nativeVid.bl,
+            'f.sid': nativeVid.fSid,
+            hl: 'es-419',
+            rt: 'c',
+          });
+          const body = new URLSearchParams({ 'f.req': fReq, at: nativeVid.at }).toString();
+          const pollRes = await axios.post(
+            `https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute?${params.toString()}`,
+            body,
+            {
+              headers: {
+                Cookie: nativeVid.cookieHeader,
+                'User-Agent': ua,
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                Origin: 'https://flow.google.com',
+                Referer: 'https://flow.google.com/',
+              },
+              timeout: 12000,
+            }
+          );
+          const rawPoll = typeof pollRes.data === 'string' ? pollRes.data : '';
+          const vidUrlMatch = rawPoll.match(/https:\/\/flow-content\.google\/video\/[^"\\]+/);
+          if (vidUrlMatch && vidUrlMatch[0]) {
+            const signedVideoUrl = vidUrlMatch[0]
+              .replace(/\\u003d/g, '=')
+              .replace(/\\u0026/g, '&');
+            const dlVid = await axios.get(signedVideoUrl, {
+              responseType: 'arraybuffer',
+              timeout: 45000,
+              headers: { 'User-Agent': ua },
+            });
+            if (dlVid.data && dlVid.data.byteLength > 5000) {
+              videoBuffer = Buffer.from(dlVid.data);
+              modelUsed = nativeVid.modelLabel;
+            }
+            const imgUrlMatch = rawPoll.match(/https:\/\/flow-content\.google\/image\/[^"\\]+/);
+            if (imgUrlMatch && imgUrlMatch[0]) {
+              try {
+                const signedPosterUrl = imgUrlMatch[0]
+                  .replace(/\\u003d/g, '=')
+                  .replace(/\\u0026/g, '&');
+                const dlPoster = await axios.get(signedPosterUrl, {
+                  responseType: 'arraybuffer',
+                  timeout: 20000,
+                  headers: { 'User-Agent': ua },
+                });
+                if (dlPoster.data && dlPoster.data.byteLength > 1000) {
+                  posterBuffer = Buffer.from(dlPoster.data);
+                }
+              } catch (_) {}
+            }
+            break;
+          }
+        }
+      }
+    } catch (flowVidErr) {
+      logger.warn('[GoogleFlow] Aviso en generación de video en flow.google.com:', flowVidErr.message);
+    }
+  }
+
+  // INTENTO 2: Google Veo oficial vía Gemini API (:predictLongRunning)
+  if (!videoBuffer && creds.apiKey) {
     const veoModels = [
       'veo-3.1-generate-preview',
       'veo-3.0-generate-preview',
@@ -773,6 +1102,12 @@ async function executeFlowVideoGeneration({
 
   if (videoBuffer) {
     await fs.promises.writeFile(fullPath, videoBuffer);
+    if (posterBuffer) {
+      const posterName = `flow_poster_${fileId}.jpg`;
+      const posterPath = path.join(OUTPUT_MEDIA_DIR, posterName);
+      await fs.promises.writeFile(posterPath, posterBuffer);
+      posterUrl = `/images/${posterName}`;
+    }
   } else {
     // Fallback Cinematográfico Garantizado: Fotograma Maestro Google Imagen + Cámara Flow en MP4 H.264
     logger.info(
