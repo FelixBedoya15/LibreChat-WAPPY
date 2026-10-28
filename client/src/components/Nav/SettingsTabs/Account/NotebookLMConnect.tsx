@@ -14,9 +14,9 @@ export default function NotebookLMConnect() {
     fetch('/api/notebooklm/status', {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((res) => res.json())
+      .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        setStatus(data);
+        if (data) setStatus(data);
       })
       .catch(() => {});
   };

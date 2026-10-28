@@ -53,107 +53,36 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const net = require('net');
-const { spawn, execSync } = require('child_process');
+const { spawn } = require('child_process');
 
 const SERVER = '${serverOrigin}';
 const TOKEN = '${token || ''}';
 const PROFILE = path.join(os.homedir(), '.wappy-notebooklm-auth');
 const TARGET = 'https://notebook.google.com/';
 
-function findBrowser() {
-  const p = process.platform;
-  const home = os.homedir();
-  const candidates = p === 'darwin'
-    ? [
-        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-        path.join(home, 'Applications/Google Chrome.app/Contents/MacOS/Google Chrome'),
-        '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
-        path.join(home, 'Applications/Brave Browser.app/Contents/MacOS/Brave Browser'),
-        '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
-        path.join(home, 'Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'),
-      ]
-    : p === 'win32'
-    ? [
-        path.join(process.env.PROGRAMFILES || 'C:\\\\Program Files', 'Google\\\\Chrome\\\\Application\\\\chrome.exe'),
-        path.join(process.env['PROGRAMFILES(X86)'] || 'C:\\\\Program Files (x86)', 'Google\\\\Chrome\\\\Application\\\\chrome.exe'),
-        path.join(process.env.LOCALAPPDATA || path.join(home, 'AppData\\\\Local'), 'Google\\\\Chrome\\\\Application\\\\chrome.exe'),
-        path.join(process.env.PROGRAMFILES || 'C:\\\\Program Files', 'BraveSoftware\\\\Brave-Browser\\\\Application\\\\brave.exe'),
-        path.join(process.env.LOCALAPPDATA || path.join(home, 'AppData\\\\Local'), 'BraveSoftware\\\\Brave-Browser\\\\Application\\\\brave.exe'),
-        path.join(process.env['PROGRAMFILES(X86)'] || 'C:\\\\Program Files (x86)', 'Microsoft\\\\Edge\\\\Application\\\\msedge.exe'),
-        path.join(process.env.PROGRAMFILES || 'C:\\\\Program Files', 'Microsoft\\\\Edge\\\\Application\\\\msedge.exe'),
-      ]
-    : ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium-browser', '/usr/bin/chromium', '/usr/bin/brave-browser', '/snap/bin/chromium'];
-  for (const c of candidates) { if (c && fs.existsSync(c)) return c; }
-  if (p === 'win32') {
-    for (const exe of ['chrome.exe', 'msedge.exe', 'brave.exe']) {
-      for (const hive of ['HKLM', 'HKCU']) {
-        try {
-          const out = execSync(\`reg query "\${hive}\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\App Paths\\\\\${exe}" /ve\`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-          const m = out.match(/REG_SZ\\s+(.+\\.exe)/i);
-          if (m && m[1] && fs.existsSync(m[1].trim())) return m[1].trim();
-        } catch (_) {}
-      }
-    }
-  }
-  return null;
-}
+const bins = process.platform === 'darwin'
+  ? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge']
+  : process.platform === 'win32'
+  ? [
+      path.join(process.env.PROGRAMFILES || 'C:\\\\Program Files', 'Google\\\\Chrome\\\\Application\\\\chrome.exe'),
+      path.join(process.env['PROGRAMFILES(X86)'] || 'C:\\\\Program Files (x86)', 'Google\\\\Chrome\\\\Application\\\\chrome.exe'),
+      path.join(process.env.LOCALAPPDATA || '', 'Google\\\\Chrome\\\\Application\\\\chrome.exe'),
+      path.join(process.env.PROGRAMFILES || 'C:\\\\Program Files', 'BraveSoftware\\\\Brave-Browser\\\\Application\\\\brave.exe'),
+      path.join(process.env.LOCALAPPDATA || '', 'BraveSoftware\\\\Brave-Browser\\\\Application\\\\brave.exe'),
+      path.join(process.env['PROGRAMFILES(X86)'] || 'C:\\\\Program Files (x86)', 'Microsoft\\\\Edge\\\\Application\\\\msedge.exe'),
+      path.join(process.env.PROGRAMFILES || 'C:\\\\Program Files', 'Microsoft\\\\Edge\\\\Application\\\\msedge.exe'),
+    ]
+  : ['/usr/bin/google-chrome', '/usr/bin/chromium-browser', '/usr/bin/brave-browser'];
+
+const bin = bins.find((b) => b && fs.existsSync(b));
+if (!bin) { console.error('No se encontró Chrome, Brave o Edge.'); process.exit(1); }
 
 function getFreePort() {
   return new Promise((resolve) => {
     const srv = net.createServer();
-    srv.listen(0, '127.0.0.1', () => {
-      const port = srv.address().port;
-      srv.close(() => resolve(port));
-    });
-    srv.on('error', () => resolve(9229 + Math.floor(Math.random() * 500)));
+    srv.listen(0, '127.0.0.1', () => { const p = srv.address().port; srv.close(() => resolve(p)); });
+    srv.on('error', () => resolve(9229));
   });
-}
-
-function cleanupProfile(dir) {
-  try {
-    if (process.platform === 'win32') {
-      execSync(\`powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*wappy-notebooklm-auth*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"\`, { stdio: 'ignore' });
-    } else {
-      execSync('pkill -9 -f "wappy-notebooklm-auth" || true', { stdio: 'ignore' });
-    }
-  } catch (_) {}
-  for (const lock of ['SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
-    try { fs.rmSync(path.join(dir, lock), { force: true }); } catch (_) {}
-  }
-}
-
-function launchVisible(bin, dir, p, useCmdFallback = false) {
-  const args = [\`--remote-debugging-port=\${p}\`, '--remote-allow-origins=*', \`--user-data-dir=\${dir}\`, '--no-first-run', '--no-default-browser-check', '--new-window', '--window-size=1100,820', '--window-position=120,80', TARGET];
-  if (process.platform === 'darwin') {
-    const appBundle = bin.replace(/\\/Contents\\/MacOS\\/[^/]+$/, '');
-    const c = spawn('open', ['-na', appBundle, '--args', ...args], { detached: true, stdio: 'ignore' });
-    c.unref();
-    return c;
-  }
-  if (process.platform === 'win32') {
-    if (!useCmdFallback) {
-      try {
-        const psCmd = \`$p = Start-Process -FilePath $env:WAPPY_BIN -ArgumentList @('--remote-debugging-port=' + $env:WAPPY_PORT, '--remote-allow-origins=*', '--user-data-dir=' + $env:WAPPY_DIR, '--no-first-run', '--no-default-browser-check', '--new-window', '--window-size=1100,820', '--window-position=120,80', $env:WAPPY_TARGET) -WindowStyle Normal -PassThru; Start-Sleep -Milliseconds 1200; try { $ws = New-Object -ComObject WScript.Shell; [void]$ws.AppActivate($p.Id); [void]$ws.AppActivate('NotebookLM'); [void]$ws.AppActivate('Google') } catch {}\`;
-        const c = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', psCmd], {
-          env: { ...process.env, WAPPY_BIN: bin, WAPPY_DIR: dir, WAPPY_PORT: String(p), WAPPY_TARGET: TARGET },
-          detached: true,
-          stdio: 'ignore',
-          windowsHide: false,
-        });
-        c.unref();
-        return c;
-      } catch (_) {}
-    }
-    try {
-      const cmdLine = \`start "" "\${bin}" --remote-debugging-port=\${p} --remote-allow-origins=* --user-data-dir="\${dir}" --no-first-run --no-default-browser-check --new-window --window-size=1100,820 "\${TARGET}"\`;
-      const c = spawn('cmd.exe', ['/d', '/s', '/c', \`"\${cmdLine}"\`], { windowsVerbatimArguments: true, detached: true, stdio: 'ignore', windowsHide: false });
-      c.unref();
-      return c;
-    } catch (_) {}
-  }
-  const c = spawn(bin, args, { detached: true, stdio: 'ignore', windowsHide: false });
-  c.unref();
-  return c;
 }
 
 function getCookies(wsUrl) {
@@ -169,44 +98,28 @@ function closeBrowser(wsUrl) {
   return new Promise((resolve) => {
     try {
       const ws = new WebSocket(wsUrl);
-      const t = setTimeout(resolve, 1200);
-      ws.onopen = () => {
-        ws.send(JSON.stringify({ id: 99, method: 'Browser.close' }));
-        setTimeout(() => { try { ws.close(); } catch (_) {} clearTimeout(t); resolve(); }, 300);
-      };
+      const t = setTimeout(resolve, 1000);
+      ws.onopen = () => { ws.send(JSON.stringify({ id: 99, method: 'Browser.close' })); setTimeout(() => { try { ws.close(); } catch (_) {} clearTimeout(t); resolve(); }, 250); };
       ws.onerror = () => { clearTimeout(t); resolve(); };
     } catch (_) { resolve(); }
   });
 }
 
 (async () => {
-  const bin = findBrowser();
-  if (!bin) { console.error('No se encontró Chrome, Brave o Edge.'); process.exit(1); }
-  cleanupProfile(PROFILE);
   try { fs.mkdirSync(PROFILE, { recursive: true }); } catch (_) {}
-  let port = await getFreePort();
-  console.log('Abriendo ventana de conexión de Google NotebookLM en primer plano (' + path.basename(bin) + ')...');
-  let child = launchVisible(bin, PROFILE, port, false);
-  let ready = false;
-  for (let i = 0; i < 6; i++) {
-    await new Promise((r) => setTimeout(r, 1000));
-    try {
-      const list = await fetch(\`http://127.0.0.1:\${port}/json/list\`).then((r) => r.json());
-      if (Array.isArray(list) && list.some((p) => p.type === 'page')) { ready = true; break; }
-    } catch (_) {}
-  }
-  if (!ready) {
-    try { if (child) child.kill(); } catch (_) {}
-    port = await getFreePort();
-    const fallbackDir = path.join(os.tmpdir(), 'wappy-nlm-' + Date.now());
-    fs.mkdirSync(fallbackDir, { recursive: true });
-    child = launchVisible(bin, fallbackDir, port, true);
-  }
+  try { fs.rmSync(path.join(PROFILE, 'SingletonLock'), { force: true }); } catch (_) {}
+  const PORT = await getFreePort();
+  const args = [\`--remote-debugging-port=\${PORT}\`, '--remote-allow-origins=*', \`--user-data-dir=\${PROFILE}\`, '--no-first-run', '--no-default-browser-check', '--window-size=1080,780', \`--app=\${TARGET}\`];
+  const child = process.platform === 'win32'
+    ? spawn('cmd.exe', ['/d', '/s', '/c', \`"start "" "\${bin}" --remote-debugging-port=\${PORT} --remote-allow-origins=* --user-data-dir="\${PROFILE}" --no-first-run --no-default-browser-check --window-size=1080,780 --app=\${TARGET}"\`], { windowsVerbatimArguments: true, detached: true, stdio: 'ignore', windowsHide: false })
+    : spawn(bin, args, { stdio: 'ignore' });
+
+  console.log('Abriendo ventana de conexión de Google NotebookLM en tu computador...');
   const start = Date.now();
   while (Date.now() - start < 180000) {
     await new Promise((r) => setTimeout(r, 2000));
     try {
-      const pages = await fetch(\`http://127.0.0.1:\${port}/json/list\`).then((r) => r.json());
+      const pages = await fetch(\`http://127.0.0.1:\${PORT}/json/list\`).then((r) => r.json());
       const page = pages.find((p) => p.webSocketDebuggerUrl && p.url && (p.url.includes('notebook.google.com') || p.url.includes('notebooklm.google.com')) && !p.url.includes('accounts.google.com') && !p.url.includes('/trynow'));
       if (!page) continue;
       const all = await getCookies(page.webSocketDebuggerUrl);
@@ -221,13 +134,13 @@ function closeBrowser(wsUrl) {
         if (res.success) {
           console.log('✅ ¡Tu módulo de Google NotebookLM quedó vinculado con éxito!');
           await closeBrowser(page.webSocketDebuggerUrl);
-          try { if (child) child.kill(); } catch (_) {}
+          try { child.kill(); } catch (_) {}
           process.exit(0);
         }
       }
     } catch (_) {}
   }
-  try { if (child) child.kill(); } catch (_) {}
+  try { child.kill(); } catch (_) {}
 })();
 \`\`\`
 
@@ -240,8 +153,10 @@ Confírmame apenas se vincule mi sesión.`;
       const res = await fetch('/api/notebooklm/status', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      setStatus(data);
+      if (res.ok) {
+        const data = await res.json();
+        setStatus(data);
+      }
     } catch (e: any) {
       console.error('Error fetching NotebookLM status:', e);
     } finally {

@@ -220,46 +220,53 @@ async def get_client_for_request() -> NotebookLMClient:
     target_profile_dir.mkdir(parents=True, exist_ok=True)
     user_storage_file = target_profile_dir / "storage_state.json"
 
-    # Si el usuario suministró credenciales privadas en la cabecera, actualizamos su perfil
+    # Si el usuario suministró credenciales privadas en la cabecera, actualizamos su perfil solo si las cookies cambiaron
     if user_auth:
         cookies = _safe_parse_cookies(user_auth)
         if cookies:
-            from datetime import datetime, timezone
-            now_iso = datetime.now(timezone.utc).isoformat()
-            storage_data = {
-                "cookies": cookies,
-                "origins": [],
-                "notebooklm": {
-                    "version": 1,
-                    "updatedAt": now_iso,
-                    "account": {
-                        "authuser": 0,
-                        "email": user_email or (f"{user_id}@wappy.internal" if user_id else "default@wappy.internal"),
+            cookies_changed = True
+            if user_storage_file.exists() and user_storage_file.stat().st_size > 0:
+                try:
+                    existing_json = json.loads(user_storage_file.read_text())
+                    existing_cookies = existing_json.get("cookies", [])
+                    old_pairs = {(c.get("name"), c.get("value")) for c in existing_cookies if isinstance(c, dict)}
+                    new_pairs = {(c.get("name"), c.get("value")) for c in cookies if isinstance(c, dict)}
+                    if old_pairs and old_pairs == new_pairs:
+                        cookies_changed = False
+                except Exception:
+                    cookies_changed = True
+
+            if cookies_changed:
+                from datetime import datetime, timezone
+                now_iso = datetime.now(timezone.utc).isoformat()
+                storage_data = {
+                    "cookies": cookies,
+                    "origins": [],
+                    "notebooklm": {
+                        "version": 1,
+                        "updatedAt": now_iso,
+                        "account": {
+                            "authuser": 0,
+                            "email": user_email or (f"{user_id}@wappy.internal" if user_id else "default@wappy.internal"),
+                        },
                     },
-                },
-            }
-            serialized = json.dumps(storage_data, indent=2)
-            user_storage_file.write_text(serialized)
-            try:
-                os.chmod(user_storage_file, 0o600)
-            except Exception:
-                pass
-            # Persistir también en volumen montado del host (/root/.notebooklm/profiles)
-            try:
-                persist_dir = Path.home() / ".notebooklm" / "profiles" / safe_profile
-                persist_dir.mkdir(parents=True, exist_ok=True)
-                (persist_dir / "storage_state.json").write_text(serialized)
-            except Exception:
-                pass
-            logger.info(f"Perfil guardado para '{safe_profile}' con {len(cookies)} cookies en {user_storage_file}.")
-            # Invalidar cache anterior si existía
-            async with _CACHE_LOCK:
-                if safe_profile in _CLIENT_CACHE:
-                    try:
-                        _, old_ctx, _ = _CLIENT_CACHE.pop(safe_profile)
-                        await old_ctx.__aexit__(None, None, None)
-                    except Exception:
-                        pass
+                }
+                serialized = json.dumps(storage_data, indent=2)
+                user_storage_file.write_text(serialized)
+                try:
+                    os.chmod(user_storage_file, 0o600)
+                except Exception:
+                    pass
+                # Persistir también en volumen montado del host (/root/.notebooklm/profiles)
+                try:
+                    persist_dir = Path.home() / ".notebooklm" / "profiles" / safe_profile
+                    persist_dir.mkdir(parents=True, exist_ok=True)
+                    (persist_dir / "storage_state.json").write_text(serialized)
+                except Exception:
+                    pass
+                logger.info(f"Perfil guardado para '{safe_profile}' con {len(cookies)} cookies en {user_storage_file}.")
+                async with _CACHE_LOCK:
+                    _CLIENT_CACHE.pop(safe_profile, None)
 
     # Si el archivo del usuario no existe en disco, intentar sincronizarlo dinámicamente desde LibreChat API
     if user_id and (not user_storage_file.exists() or user_storage_file.stat().st_size == 0):
@@ -291,17 +298,19 @@ async def get_client_for_request() -> NotebookLMClient:
                         fetched_cookies = session_json.get("cookies", [])
                         remote_updated_at = str(session_json.get("updatedAt") or "")
                         if fetched_cookies:
-                            # Comprobar si el archivo en disco no existe o si MongoDB tiene una sesión más reciente
+                            # Comprobar si el archivo en disco no existe o si las cookies en MongoDB son distintas
                             needs_write = not user_storage_file.exists() or user_storage_file.stat().st_size == 0
                             if not needs_write:
                                 try:
                                     existing_data = json.loads(user_storage_file.read_text())
-                                    existing_updated = str(existing_data.get("notebooklm", {}).get("updatedAt") or "")
-                                    existing_count = len(existing_data.get("cookies", []))
-                                    if existing_count == 0:
+                                    existing_cookies = existing_data.get("cookies", [])
+                                    if len(existing_cookies) == 0:
                                         needs_write = True
-                                    elif existing_updated and remote_updated_at and remote_updated_at > existing_updated:
-                                        needs_write = True
+                                    else:
+                                        old_pairs = {(c.get("name"), c.get("value")) for c in existing_cookies if isinstance(c, dict)}
+                                        new_pairs = {(c.get("name"), c.get("value")) for c in fetched_cookies if isinstance(c, dict)}
+                                        if old_pairs != new_pairs:
+                                            needs_write = True
                                 except Exception:
                                     needs_write = True
 
@@ -356,12 +365,8 @@ async def get_client_for_request() -> NotebookLMClient:
             client, old_ctx, cached_mtime = _CLIENT_CACHE[selected_profile]
             if current_mtime == cached_mtime:
                 return client
-            # Archivo actualizado en disco: invalidar sesión previa
+            # Archivo actualizado en disco: invalidar sesión previa sin abortar descargas en vuelo
             logger.info(f"Perfil '{selected_profile}' actualizado en disco. Reinicializando cliente...")
-            try:
-                await old_ctx.__aexit__(None, None, None)
-            except Exception:
-                pass
             _CLIENT_CACHE.pop(selected_profile, None)
 
         logger.info(f"Inicializando NotebookLMClient para perfil '{selected_profile}' desde '{active_storage_file}'...")

@@ -602,57 +602,24 @@ function getFreePort() {
 function cleanupStaleProfile(profileDir) {
   try {
     fs.mkdirSync(profileDir, { recursive: true });
-    if (os.platform() === 'win32') {
-      try {
-        execSync(\`powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*wappy-notebooklm-auth*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"\`, { stdio: 'ignore' });
-      } catch (_) {}
-    } else {
-      try {
-        execSync('pkill -f "wappy-notebooklm-auth"', { stdio: 'ignore' });
-      } catch (_) {}
-    }
-    for (const lockName of ['SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
-      const lp = path.join(profileDir, lockName);
-      try { fs.unlinkSync(lp); } catch (_) {}
-    }
+    const lp = path.join(profileDir, 'SingletonLock');
+    try { fs.rmSync(lp, { force: true }); } catch (_) {}
   } catch (_) {}
 }
 
-function launchBrowserVisible(browserBin, profileDir, debugPort, targetUrl, useCmdFallback = false) {
+function launchBrowserVisible(browserBin, profileDir, debugPort, targetUrl) {
   const args = [
     \`--remote-debugging-port=\${debugPort}\`,
     '--remote-allow-origins=*',
     \`--user-data-dir=\${profileDir}\`,
     '--no-first-run',
     '--no-default-browser-check',
-    '--new-window',
-    '--window-size=1100,820',
-    '--window-position=120,80',
-    targetUrl,
+    '--window-size=1080,780',
+    \`--app=\${targetUrl}\`,
   ];
-  const p = os.platform();
-  if (p === 'darwin') {
-    const appBundle = browserBin.replace(/\\/Contents\\/MacOS\\/[^/]+$/, '');
-    const c = spawn('open', ['-na', appBundle, '--args', ...args], { detached: true, stdio: 'ignore' });
-    c.unref();
-    return c;
-  }
-  if (p === 'win32') {
-    if (!useCmdFallback) {
-      try {
-        const psCmd = \`$p = Start-Process -FilePath $env:WAPPY_BIN -ArgumentList @('--remote-debugging-port=' + $env:WAPPY_PORT, '--remote-allow-origins=*', '--user-data-dir=' + $env:WAPPY_DIR, '--no-first-run', '--no-default-browser-check', '--new-window', '--window-size=1100,820', '--window-position=120,80', $env:WAPPY_TARGET) -WindowStyle Normal -PassThru; Start-Sleep -Milliseconds 1200; try { $ws = New-Object -ComObject WScript.Shell; [void]$ws.AppActivate($p.Id); [void]$ws.AppActivate('NotebookLM'); [void]$ws.AppActivate('Google') } catch {}\`;
-        const c = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', psCmd], {
-          env: { ...process.env, WAPPY_BIN: browserBin, WAPPY_DIR: profileDir, WAPPY_PORT: String(debugPort), WAPPY_TARGET: targetUrl },
-          detached: true,
-          stdio: 'ignore',
-          windowsHide: false,
-        });
-        c.unref();
-        return c;
-      } catch (_) {}
-    }
+  if (os.platform() === 'win32') {
     try {
-      const cmdLine = \`start "" "\${browserBin}" --remote-debugging-port=\${debugPort} --remote-allow-origins=* --user-data-dir="\${profileDir}" --no-first-run --no-default-browser-check --new-window --window-size=1100,820 "\${targetUrl}"\`;
+      const cmdLine = \`start "" "\${browserBin}" --remote-debugging-port=\${debugPort} --remote-allow-origins=* --user-data-dir="\${profileDir}" --no-first-run --no-default-browser-check --window-size=1080,780 --app=\${targetUrl}\`;
       const c = spawn('cmd.exe', ['/d', '/s', '/c', \`"\${cmdLine}"\`], {
         windowsVerbatimArguments: true,
         detached: true,
@@ -663,9 +630,7 @@ function launchBrowserVisible(browserBin, profileDir, debugPort, targetUrl, useC
       return c;
     } catch (_) {}
   }
-  const c = spawn(browserBin, args, { detached: true, stdio: 'ignore', windowsHide: false });
-  c.unref();
-  return c;
+  return spawn(browserBin, args, { stdio: 'ignore' });
 }
 
 function cdpSend(wsUrl, method, params = {}) {
@@ -822,35 +787,18 @@ async function uploadCookies(cookies, email = '') {
   console.log('⏳ Detectando tu sesión (si ya iniciaste sesión antes, se cerrará sola en 3 segundos)...\\n');
 
   const targetUrl = 'https://notebook.google.com/';
-  let child = launchBrowserVisible(browserBin, profileDir, debugPort, targetUrl, false);
+  const child = launchBrowserVisible(browserBin, profileDir, debugPort, targetUrl);
 
   const maxWaitMs = 180000;
   const start = Date.now();
-  let cdpConnectedOnce = false;
-  let retriedFreshProfile = false;
 
   while (Date.now() - start < maxWaitMs) {
     await new Promise((r) => setTimeout(r, 2000));
 
-    // Si a los 6 segundos no hay una página abierta en el puerto CDP, reintentar con perfil limpio y lanzador secundario
-    if (!cdpConnectedOnce && !retriedFreshProfile && Date.now() - start > 6000) {
-      retriedFreshProfile = true;
-      try { if (child) child.kill(); } catch (_) {}
-      profileDir = path.join(os.tmpdir(), 'wappy-nb-auth-' + Date.now());
-      fs.mkdirSync(profileDir, { recursive: true });
-      debugPort = await getFreePort();
-      child = launchBrowserVisible(browserBin, profileDir, debugPort, targetUrl, true);
-      continue;
-    }
-
     try {
       const listRes = await fetch(\`http://127.0.0.1:\${debugPort}/json/list\`);
       const pages = await listRes.json();
-      if (!Array.isArray(pages) || !pages.some((p) => p.type === 'page')) continue;
-      if (!cdpConnectedOnce) {
-        cdpConnectedOnce = true;
-        console.log('🟢 Ventana del navegador activa. Esperando inicio de sesión en Google NotebookLM...');
-      }
+      if (!Array.isArray(pages)) continue;
       const nbPage = pages.find(
         (p) =>
           p.webSocketDebuggerUrl &&
