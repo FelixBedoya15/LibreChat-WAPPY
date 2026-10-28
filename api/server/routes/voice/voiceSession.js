@@ -6897,21 +6897,10 @@ REGLAS ESTRICTAS DE CORRECCIÓN:
         let generatedContent = '';
         let finalTitle = args.title;
 
-        // Para documentos de texto ('text'), si no hay contenido explícito o es breve, usar userPrompt para enriquecimiento pesado
-        if (args.fileType === 'text' && (!args.content || !String(args.content).trim())) {
-            args.content = userPrompt || args.title || 'Informe Técnico SG-SST';
-        }
-
-        // Validación previa de JSON para Excel / Presentación
-        if ((args.fileType === 'excel' || args.fileType === 'presentation') && typeof args.content === 'string') {
-            try {
-                JSON.parse(args.content);
-            } catch (jsonErr) {
-                failReason = `El contenido para ${fileTypeLabel} no es un JSON válido (${jsonErr.message}). Para Excel debe ser un arreglo 2D, ej: [["Columna1","Columna2"],["valor","valor"]].`;
-            }
-        }
-        if (!failReason && !args.content && args.fileType !== 'html') {
-            failReason = 'No se envió contenido para el archivo.';
+        // Para documentos ('text', 'presentation', 'excel', 'html'), si no hay contenido explícito o es breve/texto plano,
+        // usar userPrompt o args.title para que Camino B de CanvasTool sintetice el documento/presentación/hoja de cálculo completa.
+        if (!args.content || (typeof args.content === 'string' && !args.content.trim())) {
+            args.content = userPrompt || args.title || `Archivo ${fileTypeLabel} SG-SST`;
         }
 
         if (!failReason) {

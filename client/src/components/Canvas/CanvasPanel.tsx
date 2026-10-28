@@ -1326,7 +1326,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
         {/* Botón Cerrar Móvil (Accesible inmediatamente debajo del notch) */}
         <button
           onClick={handleCloseCanvas}
-          className="flex sm:hidden items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 font-bold text-xs shrink-0 active:scale-95 mr-2"
+          className="flex sm:hidden items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-500/10 dark:bg-zinc-800/80 text-slate-700 dark:text-zinc-300 border border-slate-300/60 dark:border-zinc-700 font-bold text-xs shrink-0 active:scale-95 mr-2"
           aria-label="Cerrar lienzo"
           title="Cerrar lienzo"
         >
@@ -1335,11 +1335,16 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
         </button>
 
         <div className="mr-2 flex min-w-0 flex-shrink items-center gap-2 sm:gap-3 overflow-hidden">
-          <div className="hidden sm:flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-teal-500/20 bg-teal-500/10 text-teal-600 shadow-sm">
-            <FileEdit className="h-5 w-5" />
+          <div className="hidden sm:flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-600 dark:text-teal-400 shadow-xs">
+            <FileEdit className="h-4 w-4" />
           </div>
           <div className="min-w-0 overflow-hidden">
-            <h2 className="truncate text-xs sm:text-sm font-semibold text-text-primary">Canvas</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="truncate text-xs sm:text-sm font-extrabold text-text-primary">Canvas</h2>
+              <span className="hidden md:inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">
+                2.0
+              </span>
+            </div>
             <div className="flex items-center gap-1.5">
               <span
                 className={`h-1.5 w-1.5 shrink-0 rounded-full ${isSubmitting ? 'animate-pulse bg-teal-500' : 'bg-green-500'}`}
@@ -1391,48 +1396,8 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                 onClick={async (e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  if (!downloadRef.current) {
-                    console.warn(
-                      '[CanvasPanel] No download function registered for fileType:',
-                      fileType,
-                    );
-                    return;
-                  }
 
-                  if (user?.role === 'USER') {
-                    try {
-                      const res = await fetch('/api/files/register-download', {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                          Authorization: `Bearer ${token}`,
-                        },
-                      });
-
-                      if (res.status === 403) {
-                        const data = await res.json();
-                        showToast({
-                          status: 'error',
-                          message:
-                            data.message ||
-                            'Límite de descarga diaria alcanzado en el plan Gratis. Adquiere Wappy Pro o Wappy Vital.',
-                        });
-                        return;
-                      }
-
-                      if (!res.ok) {
-                        throw new Error('Limit check failed');
-                      }
-                    } catch (err) {
-                      console.error('Download check error:', err);
-                      showToast({
-                        status: 'error',
-                        message: 'Error al verificar tu límite de descargas.',
-                      });
-                      return;
-                    }
-                  }
-
+                  // Trigger registered download immediately to preserve browser user-gesture token
                   if (downloadRef.current) {
                     downloadRef.current();
                   } else if (content) {
@@ -1441,19 +1406,38 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                     const ext = isHtml ? 'html' : fileType === 'excel' ? 'json' : 'txt';
                     const blob = new Blob([content], { type: isHtml ? 'text/html;charset=utf-8' : 'text/plain;charset=utf-8' });
                     saveAs(blob, `${safeTitle}.${ext}`);
-                  } else {
-                    console.warn('[CanvasPanel] No download function registered and no content available');
+                  }
+
+                  if (user?.role === 'USER') {
+                    fetch('/api/files/register-download', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                      },
+                    }).catch((err) => console.error('Download register error:', err));
                   }
                 }}
                 className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-300 hover:bg-green-500/20 shadow-xs outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Descargar archivo"
+                title={
+                  fileType === 'presentation'
+                    ? 'Descargar presentación editable en PowerPoint (.pptx)'
+                    : fileType === 'excel'
+                      ? 'Descargar hoja de cálculo en Excel (.xlsx)'
+                      : 'Descargar aplicativo (.html)'
+                }
               >
                 <div className="relative flex flex-shrink-0 items-center justify-center">
                   <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </div>
                 <div className="hidden sm:flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
                   <span className="text-xs font-bold tracking-wide">
-                    Descargar
+                    {fileType === 'presentation'
+                      ? 'Descargar .PPTX'
+                      : fileType === 'excel'
+                        ? 'Descargar .XLSX'
+                        : 'Descargar .HTML'}
                   </span>
                 </div>
               </button>
@@ -1556,117 +1540,266 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             </div>
           </>
         ) : (
-          /* Premium Empty State Guide */
-          <div className="mx-auto flex max-w-lg flex-1 flex-col items-center justify-center space-y-6 p-8 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-teal-500/20 bg-teal-500/10 text-teal-600 shadow-inner">
-              <Sparkles className="h-8 w-8 animate-pulse" />
-            </div>
+          /* Premium Empty State Guide — WAPPY Canvas Studio 2.0 */
+          <div className="relative flex-1 overflow-y-auto px-4 py-6 sm:px-8 sm:py-10">
+            {/* Ambient Background Glows */}
+            <div className="pointer-events-none absolute -top-20 left-1/4 h-64 w-64 rounded-full bg-teal-500/10 blur-3xl" />
+            <div className="pointer-events-none absolute bottom-10 right-1/4 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl" />
 
-            <div className="space-y-2">
-              <h3 className="text-xl font-extrabold text-text-primary">El lienzo está listo</h3>
-              <p className="text-sm leading-relaxed text-text-secondary">
-                Pídele a Wappy que empiece a redactar o diagramar un entregable. Canvas creará hojas
-                de cálculo, documentos, diapositivas y prototipos interactivos que podrás ver,
-                editar y exportar de inmediato.
-              </p>
-            </div>
-
-            <div className="grid w-full grid-cols-2 gap-3 pt-4">
-              <button
-                onClick={() => {
-                  const initialContent = '';
-                  if (!conversationId || conversationId === 'new') {
-                    initializeConvoAndSave('text', initialContent, 'Nuevo Documento');
-                  } else {
-                    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-                    muteAutoSave(1500);
-                    setFileType('text');
-                    setContent(initialContent);
-                    setTitle('Nuevo Documento');
-                    fileTypeRef.current = 'text';
-                    contentRef.current = initialContent;
-                    titleRef.current = 'Nuevo Documento';
-                    saveSession();
-                  }
-                }}
-                className="group flex flex-col items-center justify-center space-y-2 rounded-2xl border border-border-medium bg-surface-secondary p-4 text-left transition-all hover:border-teal-500/40 hover:bg-surface-hover"
-              >
-                <FileEdit className="h-6 w-6 text-teal-500 transition-transform group-hover:scale-110" />
-                <span className="text-xs font-bold text-text-primary">Documento Word</span>
-                <span className="text-center text-[10px] text-text-tertiary">
-                  Políticas, actas o guías
+            <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center justify-center space-y-6 text-center">
+              {/* Studio Badge & Icon */}
+              <div className="flex flex-col items-center gap-3">
+                <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-teal-500/30 bg-gradient-to-br from-teal-500/20 via-emerald-500/10 to-transparent text-teal-600 dark:text-teal-400 shadow-lg shadow-teal-500/10">
+                  <Sparkles className="h-8 w-8 animate-pulse" />
+                  <span className="absolute -right-1.5 -top-1.5 flex h-5 items-center rounded-md border border-teal-500/40 bg-surface-primary px-1.5 text-[9px] font-black uppercase tracking-wider text-teal-600 dark:text-teal-400 shadow-xs">
+                    PRO
+                  </span>
+                </div>
+                <span className="inline-flex items-center gap-1.5 rounded-xl border border-teal-500/25 bg-teal-500/10 px-3 py-1 text-[10px] font-extrabold uppercase tracking-widest text-teal-700 dark:text-teal-300">
+                  WAPPY CANVAS STUDIO 2.0 · SUITE EJECUTIVA SG-SST
                 </span>
-              </button>
+              </div>
 
-              <button
-                onClick={() => {
-                  const initialContent = JSON.stringify([
-                    ['Concepto', 'Enero', 'Febrero', 'Total'],
-                    ['Presupuesto EPP', '500', '600', '1100'],
-                    ['Capacitación', '200', '300', '500'],
-                  ]);
-                  if (!conversationId || conversationId === 'new') {
-                    initializeConvoAndSave('excel', initialContent, 'Hoja de Cálculo');
-                  } else {
-                    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-                    muteAutoSave(1500);
-                    setFileType('excel');
-                    setContent(initialContent);
-                    setTitle('Hoja de Cálculo');
-                    fileTypeRef.current = 'excel';
-                    contentRef.current = initialContent;
-                    titleRef.current = 'Hoja de Cálculo';
-                    saveSession();
-                  }
-                }}
-                className="group flex flex-col items-center justify-center space-y-2 rounded-2xl border border-border-medium bg-surface-secondary p-4 text-left transition-all hover:border-emerald-500/40 hover:bg-surface-hover"
-              >
-                <FileSpreadsheet className="h-6 w-6 text-emerald-500 transition-transform group-hover:scale-110" />
-                <span className="text-xs font-bold text-text-primary">Hoja de Cálculo</span>
-                <span className="text-center text-[10px] text-text-tertiary">
-                  Presupuestos e indicadores
-                </span>
-              </button>
+              <div className="space-y-2 max-w-xl">
+                <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-text-primary">
+                  El lienzo está listo
+                </h3>
+                <p className="text-xs sm:text-sm leading-relaxed text-text-secondary">
+                  Crea documentos normativos, matrices de cálculo, presentaciones ejecutivas con descarga nativa en{' '}
+                  <span className="font-bold text-text-primary">PowerPoint (.PPTX)</span> y aplicativos interactivos en tiempo real.
+                </p>
+              </div>
 
-              <button
-                onClick={() => {
-                  const initialContent = JSON.stringify([
-                    {
-                      title: 'Plan de Capacitación',
-                      bullets: ['Fase 1: Inducción General', 'Fase 2: Brigadas'],
-                    },
-                  ]);
-                  if (!conversationId || conversationId === 'new') {
-                    initializeConvoAndSave('presentation', initialContent, 'Presentación');
-                  } else {
-                    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-                    muteAutoSave(1500);
-                    setFileType('presentation');
-                    setContent(initialContent);
-                    setTitle('Presentación');
-                    fileTypeRef.current = 'presentation';
-                    contentRef.current = initialContent;
-                    titleRef.current = 'Presentación';
-                    saveSession();
-                  }
-                }}
-                className="group flex flex-col items-center justify-center space-y-2 rounded-2xl border border-border-medium bg-surface-secondary p-4 text-left transition-all hover:border-amber-500/40 hover:bg-surface-hover"
-              >
-                <MonitorPlay className="h-6 w-6 text-amber-500 transition-transform group-hover:scale-110" />
-                <span className="text-xs font-bold text-text-primary">Presentación</span>
-                <span className="text-center text-[10px] text-text-tertiary">
-                  Diapositivas y capacitaciones
-                </span>
-              </button>
+              {/* Bento 2x2 Grid — 4 Specialized Studios */}
+              <div className="grid w-full grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
+                {/* 1. Documento Word */}
+                <button
+                  onClick={() => {
+                    const initialContent = '';
+                    if (!conversationId || conversationId === 'new') {
+                      initializeConvoAndSave('text', initialContent, 'Informe Técnico SG-SST');
+                    } else {
+                      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+                      muteAutoSave(1500);
+                      setFileType('text');
+                      setContent(initialContent);
+                      setTitle('Informe Técnico SG-SST');
+                      fileTypeRef.current = 'text';
+                      contentRef.current = initialContent;
+                      titleRef.current = 'Informe Técnico SG-SST';
+                      saveSession();
+                    }
+                  }}
+                  className="group relative flex flex-col justify-between rounded-2xl border border-teal-500/25 bg-surface-secondary/80 p-4 text-left shadow-xs backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-teal-500/50 hover:bg-teal-500/[0.06] hover:shadow-md cursor-pointer"
+                >
+                  <div className="flex w-full items-start justify-between gap-2">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-600 dark:text-teal-400 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3">
+                      <FileEdit className="h-5 w-5" />
+                    </div>
+                    <span className="rounded-lg border border-teal-500/30 bg-teal-500/10 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-teal-700 dark:text-teal-300">
+                      .DOC / .PDF
+                    </span>
+                  </div>
+                  <div className="mt-3 space-y-1">
+                    <div className="text-sm font-extrabold text-text-primary group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+                      Documento Word
+                    </div>
+                    <p className="text-[11px] leading-snug text-text-secondary">
+                      Políticas, actas COPASST, procedimientos, RIT y formatos oficiales con firma digital.
+                    </p>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-1 border-t border-border-light pt-2.5">
+                    <span className="rounded-md bg-surface-primary px-2 py-0.5 text-[9px] font-semibold text-text-tertiary">
+                      15 Plantillas SST
+                    </span>
+                    <span className="rounded-md bg-surface-primary px-2 py-0.5 text-[9px] font-semibold text-text-tertiary">
+                      Firma Digital
+                    </span>
+                  </div>
+                </button>
 
-              <button
-                onClick={() => {
-                  const initialContent = `<!DOCTYPE html>
+                {/* 2. Hoja de Cálculo Excel */}
+                <button
+                  onClick={() => {
+                    const initialContent = JSON.stringify([
+                      ['Indicador SG-SST (Res. 0312)', 'Meta Anual (%)', 'Q1 (%)', 'Q2 (%)', 'Q3 (%)', 'Q4 (%)', 'Promedio Real'],
+                      ['Ejecución Plan Anual de Trabajo', '95', '88', '92', '95', '98', '=PROMEDIO(C2:F2)'],
+                      ['Cumplimiento Cronograma Capacitación', '90', '85', '90', '92', '96', '=PROMEDIO(C3:F3)'],
+                      ['Cierre de Acciones ACPM', '100', '80', '88', '94', '100', '=PROMEDIO(C4:F4)'],
+                      ['Cobertura Exámenes Ocupacionales', '100', '95', '100', '100', '100', '=PROMEDIO(C5:F5)'],
+                      ['PROMEDIO CONSOLIDADO', '=PROMEDIO(B2:B5)', '=PROMEDIO(C2:C5)', '=PROMEDIO(D2:D5)', '=PROMEDIO(E2:E5)', '=PROMEDIO(F2:F5)', '=PROMEDIO(G2:G5)'],
+                    ]);
+                    if (!conversationId || conversationId === 'new') {
+                      initializeConvoAndSave('excel', initialContent, 'Tablero Indicadores SG-SST');
+                    } else {
+                      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+                      muteAutoSave(1500);
+                      setFileType('excel');
+                      setContent(initialContent);
+                      setTitle('Tablero Indicadores SG-SST');
+                      fileTypeRef.current = 'excel';
+                      contentRef.current = initialContent;
+                      titleRef.current = 'Tablero Indicadores SG-SST';
+                      saveSession();
+                    }
+                  }}
+                  className="group relative flex flex-col justify-between rounded-2xl border border-emerald-500/25 bg-surface-secondary/80 p-4 text-left shadow-xs backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-500/50 hover:bg-emerald-500/[0.06] hover:shadow-md cursor-pointer"
+                >
+                  <div className="flex w-full items-start justify-between gap-2">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3">
+                      <FileSpreadsheet className="h-5 w-5" />
+                    </div>
+                    <span className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                      .XLSX NATIVO
+                    </span>
+                  </div>
+                  <div className="mt-3 space-y-1">
+                    <div className="text-sm font-extrabold text-text-primary group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                      Hoja de Cálculo
+                    </div>
+                    <p className="text-[11px] leading-snug text-text-secondary">
+                      Matrices GTC-45, presupuestos, indicadores Res. 0312, fórmulas en vivo y analítica gráfica.
+                    </p>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-1 border-t border-border-light pt-2.5">
+                    <span className="rounded-md bg-surface-primary px-2 py-0.5 text-[9px] font-semibold text-text-tertiary">
+                      Fórmulas + Gráficos
+                    </span>
+                    <span className="rounded-md bg-surface-primary px-2 py-0.5 text-[9px] font-semibold text-text-tertiary">
+                      Multi-Hoja
+                    </span>
+                  </div>
+                </button>
+
+                {/* 3. Presentación Ejecutiva PowerPoint */}
+                <button
+                  onClick={() => {
+                    const initialContent = JSON.stringify([
+                      {
+                        title: 'Informe Ejecutivo de Rendición de Cuentas SG-SST',
+                        subtitle: 'Evaluación del Desempeño, Indicadores de Siniestralidad y Plan Maestro de Mejora',
+                        kicker: 'DECRETO 1072 DE 2015 · ART. 2.2.4.6.31',
+                        layout: 'title',
+                        theme: 'wappy-dark',
+                        bullets: [
+                          'Cumplimiento de Estándares Mínimos Resolución 0312 de 2019',
+                          'Gestión de Peligros Prioritarios y Vigilancia Epidemiológica',
+                        ],
+                        takeaway: 'Presentación oficial para aprobación de la Alta Dirección.',
+                      },
+                      {
+                        title: 'El cumplimiento global del SG-SST alcanzó el 94.5%, superando la meta anual',
+                        subtitle: 'Balance cuantitativo de los cuatro indicadores rectores del sistema',
+                        kicker: 'TABLERO DE CONTROL GERENCIAL',
+                        layout: 'kpi-grid',
+                        theme: 'wappy-dark',
+                        bullets: [
+                          'Estándares Res. 0312: 94.5% (Nivel Aceptable)',
+                          'Plan Anual de Trabajo: 92% ejecutado',
+                          'Reducción de accidentalidad ATEL: -35%',
+                          'Cobertura de exámenes médicos: 100%',
+                        ],
+                        kpis: [
+                          { label: 'Estándares Res. 0312', value: '94.5%', delta: '+14.5% vs año ant.', trend: 'up', description: 'Calificación Aceptable (>85%)' },
+                          { label: 'Plan Anual SST', value: '92.0%', delta: '46 de 50 actividades', trend: 'up', description: 'Ejecución presupuestal del 96%' },
+                          { label: 'Siniestralidad ATEL', value: '-35%', delta: '0 accidentes graves', trend: 'down', description: 'Reducción sostenida en planta' },
+                          { label: 'Cobertura EMO', value: '100%', delta: 'Res. 1843 de 2025', trend: 'up', description: 'Profesiograma y SVE al día' },
+                        ],
+                        takeaway: 'La intervención en la fuente redujo los días de incapacidad en un 41%.',
+                      },
+                      {
+                        title: 'Transición de controles reactivos hacia controles de ingeniería en la fuente',
+                        kicker: 'MATRIZ DE PELIGROS GTC-45',
+                        layout: 'columns',
+                        theme: 'emerald-sst',
+                        bullets: ['Comparativa de estado inicial vs intervención ejecutada'],
+                        columns: [
+                          {
+                            title: 'Estado Inicial (Riesgo Crítico)',
+                            badge: 'Nivel I — NR 600',
+                            theme: 'danger',
+                            items: [
+                              'Manipulación manual de cargas >25 kg sin ayudas mecánicas.',
+                              'Permisos de trabajo en alturas diligenciados en papel.',
+                            ],
+                          },
+                          {
+                            title: 'Estado Actual (Control Ingeniería)',
+                            badge: 'Nivel III — NR 80',
+                            theme: 'success',
+                            items: [
+                              'Ayudas mecánicas hidráulicas instaladas en bodega central.',
+                              'Trazabilidad digital en tiempo real mediante WAPPY IA.',
+                            ],
+                          },
+                        ],
+                        takeaway: '100% de los peligros críticos intervenidos con controles efectivos.',
+                      },
+                      {
+                        title: 'Hoja de Ruta Estratégica PHVA para el Próximo Periodo',
+                        kicker: 'MEJORA CONTINUA',
+                        layout: 'timeline',
+                        theme: 'wappy-cream',
+                        bullets: ['Planificación trimestral verificable'],
+                        steps: [
+                          { phase: 'FASE 01 · PLANEAR', title: 'Diagnóstico e Higiene', detail: 'Actualización GTC-45 y mediciones ambientales.' },
+                          { phase: 'FASE 02 · HACER', title: 'Intervención SVE', detail: 'Batería psicosocial y escuela de liderazgo.' },
+                          { phase: 'FASE 03 · VERIFICAR', title: 'Auditoría e Inspección', detail: 'Simulacro anual y auditoría Decreto 1072.' },
+                          { phase: 'FASE 04 · ACTUAR', title: 'Cierre de ACPM', detail: 'Cierre del 100% de hallazgos y revisión gerencial.' },
+                        ],
+                        takeaway: 'Compromiso gerencial con la mejora continua del SG-SST.',
+                      },
+                    ]);
+                    if (!conversationId || conversationId === 'new') {
+                      initializeConvoAndSave('presentation', initialContent, 'Presentación Ejecutiva SG-SST');
+                    } else {
+                      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+                      muteAutoSave(1500);
+                      setFileType('presentation');
+                      setContent(initialContent);
+                      setTitle('Presentación Ejecutiva SG-SST');
+                      fileTypeRef.current = 'presentation';
+                      contentRef.current = initialContent;
+                      titleRef.current = 'Presentación Ejecutiva SG-SST';
+                      saveSession();
+                    }
+                  }}
+                  className="group relative flex flex-col justify-between rounded-2xl border border-amber-500/25 bg-surface-secondary/80 p-4 text-left shadow-xs backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-amber-500/50 hover:bg-amber-500/[0.06] hover:shadow-md cursor-pointer"
+                >
+                  <div className="flex w-full items-start justify-between gap-2">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3">
+                      <MonitorPlay className="h-5 w-5" />
+                    </div>
+                    <span className="rounded-lg border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-green-700 dark:text-green-300">
+                      .PPTX EDITABLE
+                    </span>
+                  </div>
+                  <div className="mt-3 space-y-1">
+                    <div className="text-sm font-extrabold text-text-primary group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                      Presentación Ejecutiva
+                    </div>
+                    <p className="text-[11px] leading-snug text-text-secondary">
+                      10 layouts ejecutivos (KPIs, columnas, PHVA, tablas, gráficos) y exportación a PowerPoint.
+                    </p>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-1 border-t border-border-light pt-2.5">
+                    <span className="rounded-md bg-surface-primary px-2 py-0.5 text-[9px] font-semibold text-text-tertiary">
+                      PowerPoint .PPTX
+                    </span>
+                    <span className="rounded-md bg-surface-primary px-2 py-0.5 text-[9px] font-semibold text-text-tertiary">
+                      8 Temas Pro
+                    </span>
+                  </div>
+                </button>
+
+                {/* 4. Código Prototipo Web */}
+                <button
+                  onClick={() => {
+                    const initialContent = `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <title>Plantilla Informativa SST</title>
-  <!-- Tailwind CSS CDN para estilizado premium de componentes -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body {
@@ -1702,38 +1835,59 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   </div>
 </body>
 </html>`;
-                  if (!conversationId || conversationId === 'new') {
-                    initializeConvoAndSave('html', initialContent, 'Prototipo de Código');
-                  } else {
-                    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-                    muteAutoSave(1500);
-                    setFileType('html');
-                    setContent(initialContent);
-                    setTitle('Prototipo de Código');
-                    fileTypeRef.current = 'html';
-                    contentRef.current = initialContent;
-                    titleRef.current = 'Prototipo de Código';
-                    saveSession();
-                  }
-                }}
-                className="group flex flex-col items-center justify-center space-y-2 rounded-2xl border border-border-medium bg-surface-secondary p-4 text-left transition-all hover:border-blue-500/40 hover:bg-surface-hover"
-              >
-                <Code2 className="h-6 w-6 text-blue-500 transition-transform group-hover:scale-110" />
-                <span className="text-xs font-bold text-text-primary">Código Prototipo</span>
-                <span className="text-center text-[10px] text-text-tertiary">
-                  Páginas web y dashboards
-                </span>
-              </button>
-            </div>
+                    if (!conversationId || conversationId === 'new') {
+                      initializeConvoAndSave('html', initialContent, 'Prototipo de Código');
+                    } else {
+                      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+                      muteAutoSave(1500);
+                      setFileType('html');
+                      setContent(initialContent);
+                      setTitle('Prototipo de Código');
+                      fileTypeRef.current = 'html';
+                      contentRef.current = initialContent;
+                      titleRef.current = 'Prototipo de Código';
+                      saveSession();
+                    }
+                  }}
+                  className="group relative flex flex-col justify-between rounded-2xl border border-blue-500/25 bg-surface-secondary/80 p-4 text-left shadow-xs backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-blue-500/50 hover:bg-blue-500/[0.06] hover:shadow-md cursor-pointer"
+                >
+                  <div className="flex w-full items-start justify-between gap-2">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3">
+                      <Code2 className="h-5 w-5" />
+                    </div>
+                    <span className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+                      .HTML5 APP
+                    </span>
+                  </div>
+                  <div className="mt-3 space-y-1">
+                    <div className="text-sm font-extrabold text-text-primary group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                      Código Prototipo
+                    </div>
+                    <p className="text-[11px] leading-snug text-text-secondary">
+                      Calculadoras SST, simuladores, tableros interactivos y páginas web autocontenidas.
+                    </p>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-1 border-t border-border-light pt-2.5">
+                    <span className="rounded-md bg-surface-primary px-2 py-0.5 text-[9px] font-semibold text-text-tertiary">
+                      Sandbox en Vivo
+                    </span>
+                    <span className="rounded-md bg-surface-primary px-2 py-0.5 text-[9px] font-semibold text-text-tertiary">
+                      Componentes SST
+                    </span>
+                  </div>
+                </button>
+              </div>
 
-            <div className="flex w-full pt-2">
-              <button
-                onClick={() => setIsReportHistoryOpen(true)}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-teal-500/30 bg-teal-500/5 px-5 py-2.5 text-sm font-semibold text-teal-600 transition-all hover:bg-teal-500/10"
-              >
-                <History className="h-4 w-4" />
-                Explorar el Historial de Documentos Canvas
-              </button>
+              {/* History Button — Group 12 (Orange) */}
+              <div className="flex w-full pt-1">
+                <button
+                  onClick={() => setIsReportHistoryOpen(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-orange-500/30 bg-orange-500/10 px-5 py-3 text-xs sm:text-sm font-extrabold text-orange-700 dark:text-orange-300 shadow-xs transition-all duration-300 hover:bg-orange-500/20 sm:hover:scale-[1.01] active:scale-95 cursor-pointer"
+                >
+                  <History className="h-4 w-4" />
+                  <span>Explorar el Historial de Documentos Canvas</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1956,11 +2110,11 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
         {/* Botón flotante de salida rápida para celulares (garantiza que el usuario nunca quede atrapado) */}
         <button
           onClick={handleCloseCanvas}
-          className="fixed bottom-6 right-6 z-[99999999] flex sm:hidden h-12 w-12 items-center justify-center rounded-full bg-red-600 text-white shadow-2xl active:scale-90 border-2 border-white/40 focus:outline-none"
+          className="fixed bottom-6 right-6 z-[99999999] flex sm:hidden h-11 w-11 items-center justify-center rounded-xl bg-slate-900/90 dark:bg-zinc-800/95 text-white shadow-2xl active:scale-90 border border-slate-400/30 backdrop-blur-md focus:outline-none"
           aria-label="Cerrar lienzo"
           title="Cerrar lienzo"
         >
-          <X className="h-6 w-6 stroke-[2.5]" />
+          <X className="h-5 w-5" />
         </button>
       </div>
     </div>

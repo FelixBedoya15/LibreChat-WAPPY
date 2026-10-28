@@ -2205,10 +2205,22 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
           try {
             const CanvasSession = require('~/models/CanvasSession');
             const existingSession = this.conversationId ? await CanvasSession.findOne({ conversationId: this.conversationId }) : null;
-            // Si ya existe un documento válido (Excel, Word o presentación) en esta conversación y el usuario no pidió explícitamente un aplicativo HTML,
-            // NUNCA sobrescribirlo con un aplicativo HTML autogenerado.
+            const asksPresentation = /presentaci[oó]n|diapositiva|slide|powerpoint|pptx|deck/i.test(userQuery);
+            const asksExcel = /\bexcel\b|hoja de c[aá]lculo|spreadsheet|grilla|presupuesto en excel/i.test(userQuery);
+            const asksWord = /\bword\b|documento|acta|informe|pol[ií]tica|procedimiento|reglamento|formato|manual/i.test(userQuery);
             const explicitlyAsksHtmlApp = /aplicativo|aplicaci[oó]n|dashboard|calculadora|simulador|html|interfaz web/i.test(userQuery);
-            if (!existingSession || existingSession.fileType === 'html' || explicitlyAsksHtmlApp) {
+
+            const detectedFileType = explicitlyAsksHtmlApp
+              ? 'html'
+              : asksPresentation
+              ? 'presentation'
+              : asksExcel
+              ? 'excel'
+              : asksWord
+              ? 'text'
+              : 'html';
+
+            if (!existingSession || existingSession.fileType === detectedFileType || explicitlyAsksHtmlApp || asksPresentation || asksExcel) {
               const CanvasTool = require('~/app/clients/tools/structured/CanvasTool');
               const targetReq = this.options.req || {};
               if (!targetReq.body) targetReq.body = {};
@@ -2216,22 +2228,37 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
                 targetReq.body.conversationId = this.conversationId;
               }
               const canvasTool = new CanvasTool({ req: targetReq });
-              const appTitle = (userQuery ? `Aplicativo: ${userQuery.slice(0, 50)}` : 'Aplicativo SG-SST Interactivo').trim();
-              const synthesisPrompt = thoughtParts || userQuery || 'Aplicativo interactivo SG-SST';
+              const prefixLabel =
+                detectedFileType === 'presentation'
+                  ? 'Presentación Ejecutiva'
+                  : detectedFileType === 'excel'
+                  ? 'Hoja de Cálculo'
+                  : detectedFileType === 'text'
+                  ? 'Documento SG-SST'
+                  : 'Aplicativo';
+              const appTitle = (userQuery ? `${prefixLabel}: ${userQuery.slice(0, 50)}` : `${prefixLabel} SG-SST`).trim();
+              const synthesisPrompt = thoughtParts || userQuery || `${prefixLabel} SG-SST`;
 
-              logger.info(`[AgentClient Fallback] Autogenerando Canvas interactivo tras pensamientos del modelo para convoId: ${this.conversationId}`);
+              logger.info(`[AgentClient Fallback] Autogenerando Canvas (${detectedFileType}) tras pensamientos del modelo para convoId: ${this.conversationId}`);
               await canvasTool._call({
                 accion: 'crear',
-                fileType: 'html',
+                fileType: detectedFileType,
                 title: appTitle,
                 content: synthesisPrompt,
               });
 
-              fallbackMsg = '¡Listo! He diseñado y desplegado el aplicativo interactivo en tu panel lateral de Canvas. Ya puedes interactuar con él, gestionar los datos y visualizar los indicadores en tiempo real.';
+              fallbackMsg =
+                detectedFileType === 'presentation'
+                  ? '¡Listo! He diseñado y desplegado la presentación ejecutiva en tu panel lateral de Canvas. Ya puedes navegar por las diapositivas, presentarlas a pantalla completa o descargarlas.'
+                  : detectedFileType === 'excel'
+                  ? '¡Listo! He generado la hoja de cálculo con fórmulas e indicadores en tu panel lateral de Canvas. Ya puedes editar las celdas, ver las gráficas y descargar el archivo.'
+                  : detectedFileType === 'text'
+                  ? '¡Listo! He redactado y estructurado el documento formal en tu panel lateral de Canvas. Ya puedes revisarlo, editarlo o descargarlo en Word/PDF.'
+                  : '¡Listo! He diseñado y desplegado el aplicativo interactivo en tu panel lateral de Canvas. Ya puedes interactuar con él, gestionar los datos y visualizar los indicadores en tiempo real.';
             }
           } catch (canvasErr) {
             logger.error('[AgentClient Fallback] Error autogenerando Canvas:', canvasErr);
-            fallbackMsg = 'He estructurado el aplicativo interactivo para tus indicadores. Puedes visualizarlo y editarlo en tu panel lateral de Canvas.';
+            fallbackMsg = 'He estructurado el archivo interactivo en tu panel lateral de Canvas. Ya puedes visualizarlo y editarlo en tiempo real.';
           }
         }
 
@@ -2325,7 +2352,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
 
       // Safety net Watchdog: Si es una tarea de Canvas/Aplicativo y no existe CanvasSession en la BD
       // (por ejemplo si el modelo respondió en texto afirmando que lo creó sin llamar a la herramienta),
-      // autogenerar de inmediato el aplicativo HTML en Canvas para que el lienzo lateral nunca quede vacío.
+      // autogenerar de inmediato el lienzo en Canvas con el fileType correspondiente para que nunca quede vacío.
       if (isCanvasTask) {
         try {
           const CanvasSession = require('~/models/CanvasSession');
@@ -2337,14 +2364,38 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
             if (this.conversationId && (!targetReq.body.conversationId || targetReq.body.conversationId === 'new')) {
               targetReq.body.conversationId = this.conversationId;
             }
+            const asksPresentation = /presentaci[oó]n|diapositiva|slide|powerpoint|pptx|deck/i.test(userQuery);
+            const asksExcel = /\bexcel\b|hoja de c[aá]lculo|spreadsheet|grilla|presupuesto en excel/i.test(userQuery);
+            const asksWord = /\bword\b|documento|acta|informe|pol[ií]tica|procedimiento|reglamento|formato|manual/i.test(userQuery);
+            const explicitlyAsksHtmlApp = /aplicativo|aplicaci[oó]n|dashboard|calculadora|simulador|html|interfaz web/i.test(userQuery);
+
+            const detectedFileType = explicitlyAsksHtmlApp
+              ? 'html'
+              : asksPresentation
+              ? 'presentation'
+              : asksExcel
+              ? 'excel'
+              : asksWord
+              ? 'text'
+              : 'html';
+
+            const prefixLabel =
+              detectedFileType === 'presentation'
+                ? 'Presentación Ejecutiva'
+                : detectedFileType === 'excel'
+                ? 'Hoja de Cálculo'
+                : detectedFileType === 'text'
+                ? 'Documento SG-SST'
+                : 'Aplicativo';
+
             const canvasTool = new CanvasTool({ req: targetReq });
-            const appTitle = (userQuery ? `Aplicativo: ${userQuery.slice(0, 50)}` : 'Aplicativo SG-SST Interactivo').trim();
+            const appTitle = (userQuery ? `${prefixLabel}: ${userQuery.slice(0, 50)}` : `${prefixLabel} SG-SST`).trim();
             const textContent = this.contentParts.find((p) => p && p.type === ContentTypes.TEXT)?.text || userQuery;
 
-            logger.info(`[AgentClient Watchdog] CanvasSession no encontrada para convoId: ${this.conversationId}. Autogenerando aplicativo HTML...`);
+            logger.info(`[AgentClient Watchdog] CanvasSession no encontrada para convoId: ${this.conversationId}. Autogenerando Canvas (${detectedFileType})...`);
             await canvasTool._call({
               accion: 'crear',
-              fileType: 'html',
+              fileType: detectedFileType,
               title: appTitle,
               content: textContent,
             });

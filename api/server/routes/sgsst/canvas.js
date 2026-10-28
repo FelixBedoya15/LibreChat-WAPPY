@@ -742,24 +742,37 @@ NO incluyas explicaciones, introducciones, ni bloques de código de markdown. Re
   ...
 ]`;
     } else if (taskType === 'slides') {
-      promptText = `Genera la estructura de una PRESENTACIÓN DE DIAPOSITIVAS de capacitación de SST:
-      
-## PROPÓSITO DE LA CAPACITACIÓN
+      promptText = `Diseña una PRESENTACIÓN EJECUTIVA MAGISTRAL de 8 diapositivas de alto impacto (estilo McKinsey / Gamma.app) para Seguridad y Salud en el Trabajo (SG-SST):
+
+## PROPÓSITO DE LA PRESENTACIÓN / CAPACITACIÓN
 ${userInput || 'Capacitación en Higiene Postural y Pausas Activas'}
 
 ## INSTRUCCIONES DE COMPORTAMIENTO (ALMA DE IA DEL APLICATIVO)
-${systemPrompt || 'Presentación profesional.'}
+${systemPrompt || 'Presentación ejecutiva, técnica y persuasiva bajo normativa colombiana (Decreto 1072 de 2015 / Resolución 0312 de 2019).'}
 
 ## CONTEXTO DE LA EMPRESA
-${companyContext || 'No hay información de la empresa registrada.'}
+${companyContext || 'Empresa colombiana comprometida con el SG-SST.'}
 
-## REQUISITO DE RESPUESTA:
-Debes responder ÚNICAMENTE con un arreglo JSON válido conteniendo exactamente 5 diapositivas. Cada diapositiva debe tener un "title" y un "content" (un párrafo corto explicativo).
-NO incluyas explicaciones ni bloques de código de markdown. Responde solo con el JSON crudo. Ejemplo:
-[
-  {"title": "...", "content": "..."},
-  ...
-]`;
+## REQUISITO ESTRICTO DE ESTRUCTURA JSON (8 DIAPOSITIVAS VARIADAS):
+Debes responder ÚNICAMENTE con un arreglo JSON válido de 8 objetos de diapositiva.
+Cada diapositiva DEBE incluir:
+- "title": Action Title ejecutivo (un hallazgo o conclusión clara, NO palabras genéricas).
+- "subtitle": Subtítulo de contexto técnico.
+- "kicker": Etiqueta superior en mayúsculas (ej. "DIAGNÓSTICO SG-SST", "INDICADORES CRÍTICOS").
+- "layout": Alterna entre "title" (slide 1), "kpi-grid" (slide 2), "columns" (slide 3), "table" (slide 4), "chart" (slide 5), "timeline" (slide 6), "quote" (slide 7) y "bullets" (slide 8).
+- "theme": Uno de ["wappy-dark", "emerald-sst", "cobalt", "forest", "corporate-light", "wappy-cream", "sunset", "charcoal"].
+- "bullets": Arreglo obligatorio en TODAS las diapositivas con 3 a 5 puntos ejecutivos en texto limpio sin etiquetas HTML.
+- Campos específicos según layout:
+  * Si layout="kpi-grid": "kpis": [{"label": "...", "value": "...", "delta": "+12% vs meta", "trend": "up", "description": "..."}] (4 KPIs).
+  * Si layout="columns": "columns": [{"title": "...", "badge": "...", "theme": "info", "items": ["...", "..."]}] (2 o 3 columnas).
+  * Si layout="table": "tableHtml": "<table><thead><tr><th>...</th></tr></thead><tbody><tr><td>...</td></tr></tbody></table>" (mínimo 4 filas reales).
+  * Si layout="chart": "chartConfig": {"type": "bar", "title": "...", "data": [{"label": "...", "val": 45}], "labels": ["..."], "datasets": [{"label": "...", "data": [45], "color": "#14b8a6"}]}.
+  * Si layout="timeline": "steps": [{"phase": "Fase 1 — Planear", "title": "...", "detail": "..."}] (4 fases).
+  * Si layout="quote": "quote": "Cita técnica o legal...", "citation": "Decreto 1072 de 2015 / Res. 0312 de 2019".
+- "takeaway": Frase ejecutiva de conclusión en el pie de la diapositiva.
+- "speakerNotes": Guía breve de locución para el presentador.
+
+NO incluyas bloques markdown (\`\`\`json) ni texto fuera del arreglo JSON.`;
     } else if (taskType === 'html') {
       promptText = `Diseña una interfaz web o componente interactivo elegante usando HTML y TailwindCSS (si aplica) o estilos inline:
       
@@ -828,8 +841,229 @@ router.get('/:conversationId/view', async (req, res) => {
       return res.send(session.content);
     }
 
-    // Para tipo "text" (Word) u otros, envolvemos en un contenedor premium de lectura y Tailwind
     const title = session.title || 'Documento de Canvas';
+
+    // Renderizado imprimible 16:9 cuando es Presentación Ejecutiva (`presentation`)
+    if (session.fileType === 'presentation') {
+      let slides = [];
+      if (Array.isArray(session.content)) {
+        slides = session.content;
+      } else if (typeof session.content === 'string') {
+        try {
+          const parsed = JSON.parse(session.content);
+          slides = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.slides) ? parsed.slides : [];
+        } catch (_) {}
+      }
+
+      const slideCardsHtml = slides
+        .map((s, idx) => {
+          const sTitle = s?.title || `Diapositiva #${idx + 1}`;
+          const sSub = s?.subtitle || '';
+          const sKicker = s?.kicker || s?.badge || `DIAPOSITIVA 0${idx + 1}`;
+          const bullets = Array.isArray(s?.bullets) ? s.bullets : [];
+          const kpis = Array.isArray(s?.kpis) ? s.kpis : [];
+          const columns = Array.isArray(s?.columns) ? s.columns : [];
+          const steps = Array.isArray(s?.steps) ? s.steps : [];
+          const chartData = Array.isArray(s?.chartConfig?.data) ? s.chartConfig.data : [];
+
+          let bodyHtml = '';
+          if (kpis.length > 0) {
+            bodyHtml += `<div class="grid grid-cols-2 md:grid-cols-4 gap-4 my-4">${kpis
+              .map(
+                (k) => `<div class="p-4 rounded-xl bg-slate-800/80 border border-teal-500/30">
+                  <div class="text-xs uppercase tracking-wider text-teal-400 font-semibold">${k.label || 'Indicador'}</div>
+                  <div class="text-2xl font-extrabold text-white mt-1">${k.value || '0'}</div>
+                  ${k.delta ? `<div class="text-xs text-emerald-400 mt-1">${k.delta}</div>` : ''}
+                  ${k.description ? `<div class="text-xs text-slate-300 mt-1">${k.description}</div>` : ''}
+                </div>`,
+              )
+              .join('')}</div>`;
+          }
+          if (columns.length > 0) {
+            bodyHtml += `<div class="grid grid-cols-1 md:grid-cols-${Math.min(columns.length, 3)} gap-4 my-4">${columns
+              .map(
+                (col) => `<div class="p-4 rounded-xl bg-slate-800/70 border border-slate-700">
+                  <div class="font-bold text-teal-300 mb-2">${col.title || 'Pilar'}</div>
+                  <ul class="space-y-1.5 text-sm text-slate-200 list-disc pl-4">
+                    ${(Array.isArray(col.items) ? col.items : []).map((it) => `<li>${it}</li>`).join('')}
+                  </ul>
+                </div>`,
+              )
+              .join('')}</div>`;
+          }
+          if (steps.length > 0) {
+            bodyHtml += `<div class="grid grid-cols-1 md:grid-cols-4 gap-3 my-4">${steps
+              .map(
+                (st, si) => `<div class="p-3.5 rounded-xl bg-slate-800/70 border-l-4 border-teal-400">
+                  <div class="text-xs font-bold text-teal-400 uppercase">${st.phase || `Fase ${si + 1}`}</div>
+                  <div class="font-bold text-white text-sm mt-1">${st.title || ''}</div>
+                  <div class="text-xs text-slate-300 mt-1">${st.detail || st.description || ''}</div>
+                </div>`,
+              )
+              .join('')}</div>`;
+          }
+          if (s?.tableHtml) {
+            bodyHtml += `<div class="my-4 overflow-x-auto text-sm [&_table]:w-full [&_th]:bg-teal-900/60 [&_th]:text-teal-200 [&_th]:p-2.5 [&_th]:text-left [&_td]:p-2.5 [&_td]:border-t [&_td]:border-slate-700">${s.tableHtml}</div>`;
+          }
+          if (chartData.length > 0) {
+            const maxVal = Math.max(...chartData.map((d) => Number(d.val) || 1), 1);
+            bodyHtml += `<div class="my-4 p-4 rounded-xl bg-slate-800/60 border border-slate-700">
+              <div class="text-xs font-bold uppercase tracking-wider text-teal-300 mb-3">${s.chartConfig?.title || 'Análisis Cuantitativo'}</div>
+              <div class="space-y-2.5">
+                ${chartData
+                  .map(
+                    (d) => `<div>
+                      <div class="flex justify-between text-xs text-slate-200 mb-1"><span>${d.label}</span><span class="font-bold text-teal-300">${d.val}</span></div>
+                      <div class="w-full bg-slate-700 h-2.5 rounded-full overflow-hidden">
+                        <div class="bg-gradient-to-r from-teal-500 to-emerald-400 h-full rounded-full" style="width: ${Math.min(100, Math.round(((Number(d.val) || 0) / maxVal) * 100))}%"></div>
+                      </div>
+                    </div>`,
+                  )
+                  .join('')}
+              </div>
+            </div>`;
+          }
+          if (s?.quote) {
+            bodyHtml += `<blockquote class="my-4 p-5 rounded-xl bg-teal-950/50 border-l-4 border-teal-400 italic text-slate-100 text-base">
+              "${s.quote}"
+              ${s.citation ? `<footer class="mt-2 text-xs font-semibold text-teal-300 not-italic">— ${s.citation}</footer>` : ''}
+            </blockquote>`;
+          }
+          if (bullets.length > 0) {
+            bodyHtml += `<ul class="space-y-2 my-3 text-slate-200 text-sm list-disc pl-5">
+              ${bullets.map((b) => `<li>${typeof b === 'object' ? JSON.stringify(b) : b}</li>`).join('')}
+            </ul>`;
+          }
+
+          return `<section class="slide-page bg-slate-900 text-white rounded-2xl p-8 md:p-10 mb-8 shadow-xl border border-slate-700/80 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                <span class="text-xs font-bold uppercase tracking-widest text-teal-400">${sKicker}</span>
+                <span class="text-xs text-slate-400">${idx + 1} / ${slides.length}</span>
+              </div>
+              <h2 class="text-2xl md:text-3xl font-extrabold tracking-tight text-white">${sTitle}</h2>
+              ${sSub ? `<p class="text-sm text-slate-300 mt-1.5">${sSub}</p>` : ''}
+              <div class="mt-4">${bodyHtml}</div>
+            </div>
+            ${
+              s?.takeaway
+                ? `<div class="mt-6 pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-teal-300">
+                    <span><strong>Conclusión Clave:</strong> ${s.takeaway}</span>
+                    <span class="text-slate-500">WAPPY IA • SG-SST</span>
+                  </div>`
+                : ''
+            }
+          </section>`;
+        })
+        .join('\n');
+
+      const presentationHtml = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title} — Presentación Ejecutiva</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background-color: #0b1120; font-family: system-ui, -apple-system, sans-serif; }
+    .slide-page { min-height: 480px; page-break-after: always; }
+    @media print {
+      body { background-color: #0b1120; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .no-print { display: none !important; }
+      .slide-page { margin-bottom: 0; border-radius: 0; page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body class="p-6 md:p-12 max-w-5xl mx-auto">
+  <div class="no-print fixed top-4 right-4 z-50 flex gap-2">
+    <button onclick="window.print()" class="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg font-semibold text-sm shadow-lg cursor-pointer">
+      Imprimir / Guardar PDF (16:9)
+    </button>
+  </div>
+  <header class="mb-8 text-white no-print">
+    <h1 class="text-2xl font-bold">${title}</h1>
+    <p class="text-xs text-slate-400">Vista Ejecutiva Imprimible • ${slides.length} diapositivas</p>
+  </header>
+  ${slideCardsHtml}
+</body>
+</html>`;
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.send(presentationHtml);
+    }
+
+    // Renderizado estilizado en tabla HTML cuando es Hoja de Cálculo (`excel`)
+    if (session.fileType === 'excel') {
+      let sheets = {};
+      if (Array.isArray(session.content)) {
+        sheets = { 'Hoja 1': session.content };
+      } else if (session.content && typeof session.content === 'object') {
+        sheets = session.content;
+      } else if (typeof session.content === 'string') {
+        try {
+          const parsed = JSON.parse(session.content);
+          sheets = Array.isArray(parsed) ? { 'Hoja 1': parsed } : parsed;
+        } catch (_) {
+          sheets = { 'Hoja 1': [[session.content]] };
+        }
+      }
+
+      const tablesHtml = Object.entries(sheets)
+        .map(([sheetName, rows]) => {
+          if (!Array.isArray(rows) || rows.length === 0) return '';
+          const headers = Array.isArray(rows[0]) ? rows[0] : [String(rows[0])];
+          const bodyRows = rows.slice(1);
+          return `<div class="mb-8">
+            <h2 class="text-lg font-bold text-teal-800 mb-3">${sheetName}</h2>
+            <div class="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+              <table class="w-full text-sm text-left border-collapse">
+                <thead class="bg-teal-700 text-white uppercase text-xs">
+                  <tr>${headers.map((h) => `<th class="px-4 py-3 border border-teal-800">${h ?? ''}</th>`).join('')}</tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                  ${bodyRows
+                    .map(
+                      (r, ri) =>
+                        `<tr class="${ri % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-teal-50/40">
+                          ${(Array.isArray(r) ? r : [r]).map((c) => `<td class="px-4 py-2.5 border border-slate-200 text-slate-700">${c ?? ''}</td>`).join('')}
+                        </tr>`,
+                    )
+                    .join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>`;
+        })
+        .join('\n');
+
+      const excelHtml = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title} — Hoja de Cálculo SG-SST</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @media print { .no-print { display: none !important; } }
+  </style>
+</head>
+<body class="bg-slate-100 p-6 md:p-10 font-sans">
+  <div class="no-print fixed top-4 right-4 z-50">
+    <button onclick="window.print()" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold text-sm shadow cursor-pointer">
+      Imprimir / Guardar PDF
+    </button>
+  </div>
+  <div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-lg p-8 border border-slate-200">
+    <h1 class="text-2xl font-extrabold text-slate-900 mb-1">${title}</h1>
+    <p class="text-xs text-slate-500 mb-6">WAPPY IA • Hoja de Cálculo Corporativa SG-SST</p>
+    ${tablesHtml}
+  </div>
+</body>
+</html>`;
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.send(excelHtml);
+    }
+
+    // Para tipo "text" (Word) u otros, envolvemos en un contenedor premium de lectura y Tailwind
     const htmlPage = `
 <!DOCTYPE html>
 <html lang="es">

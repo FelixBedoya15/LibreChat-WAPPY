@@ -711,6 +711,505 @@ ${stringContent ? `## BORRADOR O BASE INICIAL SUMINISTRADA:\n${stringContent}\n`
 }
 
 /**
+ * Extrae y parsea un arreglo JSON válido desde una cadena de respuesta del modelo (eliminando markdown fences o texto conversacional).
+ */
+function extractJsonArraySafe(rawText) {
+  if (!rawText) return null;
+  if (Array.isArray(rawText)) return rawText;
+  if (typeof rawText === 'object' && Array.isArray(rawText.slides)) return rawText.slides;
+  if (typeof rawText !== 'string') return null;
+
+  let clean = rawText
+    .replace(/^```(?:json|javascript)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+
+  try {
+    const parsed = JSON.parse(clean);
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed && typeof parsed === 'object' && Array.isArray(parsed.slides)) return parsed.slides;
+  } catch (_) {}
+
+  const startIdx = clean.indexOf('[');
+  const endIdx = clean.lastIndexOf(']');
+  if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+    const slice = clean.slice(startIdx, endIdx + 1);
+    try {
+      const parsed = JSON.parse(slice);
+      if (Array.isArray(parsed)) return parsed;
+    } catch (_) {
+      try {
+        const sanitized = slice
+          .replace(/\/\*[\s\S]*?\*\//g, '')
+          .replace(/,\s*([\]}])/g, '$1');
+        const parsedSanitized = JSON.parse(sanitized);
+        if (Array.isArray(parsedSanitized)) return parsedSanitized;
+      } catch (__) {}
+    }
+  }
+  return null;
+}
+
+/**
+ * Normaliza cada diapositiva del deck para asegurar 100% de compatibilidad con CanvasSlidesEditor.tsx
+ * (tanto el contrato nuevo McKinsey/Gamma como el contrato clásico de chartConfig.data, tableHtml y bullets).
+ */
+function normalizeSlideItem(slide, idx, defaultTitle) {
+  if (!slide || typeof slide !== 'object') {
+    return {
+      title: `${defaultTitle || 'Diapositiva'} — #${idx + 1}`,
+      subtitle: 'Sistema de Gestión de Seguridad y Salud en el Trabajo (SG-SST)',
+      kicker: `SECCIÓN 0${idx + 1}`,
+      layout: 'bullets',
+      theme: 'wappy-dark',
+      bullets: ['Análisis técnico normativo conforme al Decreto 1072 de 2015 y Resolución 0312 de 2019.'],
+      takeaway: 'Cumplimiento normativo verificable y prevención en la fuente.',
+      speakerNotes: 'Explicar el alcance normativo y técnico de este punto ante el comité.',
+    };
+  }
+
+  const validThemes = [
+    'wappy-dark',
+    'wappy-cream',
+    'corporate-light',
+    'emerald-sst',
+    'cobalt',
+    'forest',
+    'sunset',
+    'charcoal',
+  ];
+  const theme = validThemes.includes(slide.theme)
+    ? slide.theme
+    : ['wappy-dark', 'emerald-sst', 'cobalt', 'forest', 'corporate-light', 'sunset', 'charcoal', 'wappy-cream'][idx % 8];
+
+  const validLayouts = [
+    'title',
+    'kpi-grid',
+    'columns',
+    'timeline',
+    'table',
+    'chart',
+    'quote',
+    'bullets',
+    'split',
+    'media',
+  ];
+  let layout = validLayouts.includes(slide.layout) ? slide.layout : (idx === 0 ? 'title' : 'bullets');
+
+  // Asegurar kpis normalizados
+  const kpis = Array.isArray(slide.kpis)
+    ? slide.kpis
+    : Array.isArray(slide.metrics)
+    ? slide.metrics
+    : undefined;
+
+  // Asegurar columns normalizadas
+  const columns = Array.isArray(slide.columns) ? slide.columns : undefined;
+
+  // Asegurar steps normalizados
+  const steps = Array.isArray(slide.steps)
+    ? slide.steps
+    : Array.isArray(slide.timeline)
+    ? slide.timeline
+    : undefined;
+
+  // Asegurar chartConfig compatible tanto con { labels, datasets } como con { data: [{ label, val }] }
+  let chartConfig = slide.chartConfig || slide.chart || undefined;
+  if (chartConfig && typeof chartConfig === 'object') {
+    const chartType = ['bar', 'line', 'pie', 'doughnut'].includes(chartConfig.type)
+      ? chartConfig.type
+      : 'bar';
+    const chartTitle = chartConfig.title || slide.title || 'Análisis Cuantitativo SG-SST';
+
+    let dataPairs = Array.isArray(chartConfig.data) ? chartConfig.data : [];
+    let labels = Array.isArray(chartConfig.labels) ? chartConfig.labels : [];
+    let datasets = Array.isArray(chartConfig.datasets) ? chartConfig.datasets : [];
+
+    if (dataPairs.length === 0 && labels.length > 0 && datasets.length > 0 && Array.isArray(datasets[0]?.data)) {
+      dataPairs = labels.map((lbl, i) => ({
+        label: String(lbl),
+        val: Number(datasets[0].data[i]) || 0,
+      }));
+    } else if (dataPairs.length > 0 && labels.length === 0) {
+      labels = dataPairs.map((d) => String(d.label || d.name || ''));
+      datasets = [
+        {
+          label: chartTitle,
+          data: dataPairs.map((d) => Number(d.val ?? d.value) || 0),
+          color: '#14b8a6',
+        },
+      ];
+    }
+
+    chartConfig = {
+      type: chartType,
+      title: chartTitle,
+      data: dataPairs.map((d) => ({
+        label: String(d.label || d.name || 'Indicador'),
+        val: Number(d.val ?? d.value) || 0,
+      })),
+      labels,
+      datasets,
+    };
+  }
+
+  // Asegurar bullets universales de respaldo (strings limpios sin etiquetas HTML crudas)
+  let bullets = [];
+  if (Array.isArray(slide.bullets) && slide.bullets.length > 0) {
+    bullets = slide.bullets.map((b) =>
+      String(typeof b === 'object' ? b.text || b.title || JSON.stringify(b) : b)
+        .replace(/<[^>]+>/g, '')
+        .trim(),
+    ).filter(Boolean);
+  } else if (typeof slide.content === 'string' && slide.content.trim()) {
+    bullets = slide.content
+      .split(/\n+/)
+      .map((line) => line.replace(/^[-*•\d.)\s]+/, '').replace(/<[^>]+>/g, '').trim())
+      .filter(Boolean);
+  }
+
+  if (bullets.length === 0) {
+    if (Array.isArray(kpis) && kpis.length > 0) {
+      bullets = kpis.map((k) => `${k.label || 'KPI'}: ${k.value || 'N/A'} (${k.delta || k.description || 'Meta SG-SST'})`);
+    } else if (Array.isArray(columns) && columns.length > 0) {
+      bullets = columns.flatMap((col) =>
+        (Array.isArray(col.items) ? col.items : []).map((it) => `${col.title ? col.title + ': ' : ''}${String(it).replace(/<[^>]+>/g, '')}`),
+      );
+    } else if (Array.isArray(steps) && steps.length > 0) {
+      bullets = steps.map((s) => `${s.phase ? s.phase + ' — ' : ''}${s.title || ''}: ${s.detail || s.description || ''}`);
+    } else if (slide.quote) {
+      bullets = [
+        `"${String(slide.quote).replace(/<[^>]+>/g, '')}"`,
+        slide.citation ? `Fuente Normativa: ${slide.citation}` : 'Marco Normativo SG-SST Vigente en Colombia',
+      ];
+    } else {
+      bullets = [
+        slide.subtitle || 'Desarrollo estratégico conforme al Sistema de Gestión de Seguridad y Salud en el Trabajo.',
+        slide.takeaway || 'Aplicación de jerarquía de controles (Decreto 1072 de 2015 y Resolución 0312 de 2019).',
+      ];
+    }
+  }
+
+  return {
+    ...slide,
+    title: String(slide.title || `${defaultTitle || 'Estrategia SG-SST'} — #${idx + 1}`).replace(/<[^>]+>/g, '').trim(),
+    subtitle: slide.subtitle ? String(slide.subtitle).replace(/<[^>]+>/g, '').trim() : undefined,
+    kicker: slide.kicker || slide.badge || `SLIDE 0${idx + 1}`,
+    layout,
+    theme,
+    bullets,
+    kpis,
+    columns,
+    steps,
+    tableHtml: slide.tableHtml || undefined,
+    chartConfig,
+    quote: slide.quote ? String(slide.quote).replace(/<[^>]+>/g, '').trim() : undefined,
+    citation: slide.citation ? String(slide.citation).replace(/<[^>]+>/g, '').trim() : undefined,
+    takeaway: slide.takeaway ? String(slide.takeaway).replace(/<[^>]+>/g, '').trim() : undefined,
+    speakerNotes: slide.speakerNotes ? String(slide.speakerNotes).replace(/<[^>]+>/g, '').trim() : undefined,
+    imageUrl: slide.imageUrl || undefined,
+  };
+}
+
+/**
+ * Camino B para Presentaciones Ejecutivas (`fileType === 'presentation'`):
+ * Si el JSON enviado tiene menos de 6 diapositivas o son diapositivas planas sin variedad de layouts ejecutivos,
+ * utiliza `generateWithKeyRotation` con `gemini-3.6-flash` para sintetizar un deck de 8 a 10 diapositivas
+ * nivel consultoría McKinsey / Gamma.app contextualizado a la empresa activa.
+ */
+async function processPresentationDocument(content, fileType, title, userId, req, existingContent) {
+  if (fileType !== 'presentation') {
+    return content;
+  }
+
+  let initialSlides = extractJsonArraySafe(content);
+  const richLayouts = new Set(['kpi-grid', 'columns', 'timeline', 'table', 'chart', 'quote']);
+  const distinctLayouts = new Set(
+    Array.isArray(initialSlides) ? initialSlides.map((s) => s?.layout).filter(Boolean) : [],
+  );
+  const hasRichVariety =
+    Array.isArray(initialSlides) &&
+    initialSlides.length >= 6 &&
+    distinctLayouts.size >= 4 &&
+    [...distinctLayouts].some((l) => richLayouts.has(l));
+
+  if (hasRichVariety) {
+    return initialSlides.map((s, i) => normalizeSlideItem(s, i, title));
+  }
+
+  // Cargar información corporativa de la empresa activa
+  let companyInfo = null;
+  try {
+    companyInfo =
+      (await CompanyInfo.findOne({ user: userId, isActive: true })) ||
+      (await CompanyInfo.findOne({ user: userId }));
+  } catch (err) {
+    logger.warn('[CanvasTool Camino B - Presentation] Error cargando CompanyInfo:', err.message);
+  }
+
+  const userPrompt =
+    req?.body?.text ||
+    req?.body?.userRequestText ||
+    (Array.isArray(req?.body?.messages) && req.body.messages.length > 0
+      ? req.body.messages[req.body.messages.length - 1]?.text ||
+        req.body.messages[req.body.messages.length - 1]?.content ||
+        ''
+      : '');
+
+  let toolsContext = '';
+  if (Array.isArray(req?.contentParts)) {
+    for (const part of req.contentParts) {
+      if (part && part.type === 'tool_result' && part.output) {
+        toolsContext += `\n- Resultado de herramienta previa: ${typeof part.output === 'string' ? part.output : JSON.stringify(part.output)}`;
+      }
+    }
+  }
+
+  let mediaLibraryContext = '';
+  try {
+    const { listDownloadedMediaLibrary } = require('~/server/routes/googleflow');
+    const mediaItems = await listDownloadedMediaLibrary('all');
+    if (Array.isArray(mediaItems) && mediaItems.length > 0) {
+      const topMedia = mediaItems
+        .slice(0, 8)
+        .map((m, idx) => `- [${idx + 1}] (${m.source.toUpperCase()} - ${m.mediaType}): "${m.label}" -> imageUrl: "${m.publicUrl}"`);
+      mediaLibraryContext = `\n## RECURSOS MULTIMEDIA DISPONIBLES EN SERVIDOR WAPPY:\nSi aplica incluir imágenes generadas o descargadas en alguna diapositiva, usa su ruta en el campo "imageUrl":\n${topMedia.join('\n')}\n`;
+    }
+  } catch (_) {}
+
+  const companyContext = companyInfo
+    ? `Empresa: ${companyInfo.companyName || 'WAPPY LTDA'} | NIT: ${companyInfo.nit || '9014373103'} | Sector/Actividad: ${companyInfo.economicActivity || companyInfo.sector || 'General'} | ARL: ${companyInfo.arl || 'Sura'} | Nivel de Riesgo: ${companyInfo.riskLevel || 'III'} | Trabajadores: ${companyInfo.workerCount || companyInfo.numWorkers || '17'} | Ciudad: ${companyInfo.city || 'Colombia'} | Responsable SG-SST: ${companyInfo.responsibleSST || 'Especialista SST'}`
+    : 'Empresa colombiana bajo régimen del Decreto 1072 de 2015 y Resolución 0312 de 2019.';
+
+  const seedDraftStr = initialSlides
+    ? JSON.stringify(initialSlides).slice(0, 3500)
+    : typeof content === 'string'
+    ? content.slice(0, 3500)
+    : '';
+
+  const prompt = `Eres un Socio Director de Consultoría Estratégica (estilo McKinsey & Company / BCG / Gamma.app) y Especialista Senior en Seguridad y Salud en el Trabajo (SG-SST) de WAPPY IA en Colombia.
+Tu misión es diseñar una PRESENTACIÓN EJECUTIVA MAGISTRAL de entre **8 y 10 diapositivas** en formato JSON estructurado.
+
+## TÍTULO DE LA PRESENTACIÓN:
+${title || 'Presentación Ejecutiva SG-SST'}
+
+## CONTEXTO CORPORATIVO DE LA EMPRESA ACTIVA:
+${companyContext}
+
+## SOLICITUD DEL USUARIO / PROPÓSITO:
+${userPrompt || title || 'Presentación Ejecutiva y Capacitación Técnica de SG-SST'}
+
+${toolsContext ? `## DATOS DE HERRAMIENTAS PREVIAS:\n${toolsContext.slice(0, 3000)}\n` : ''}
+${mediaLibraryContext}
+${seedDraftStr ? `## BORRADOR O IDEAS INICIALES A ENRIQUECER:\n${seedDraftStr}\n` : ''}
+
+## 🎯 REGLAS DE ORO DE DISEÑO EJECUTIVO (MCKINSEY / GAMMA.APP):
+1. **ACTION TITLES (Títulos con Hallazgo):** Ninguna diapositiva interna debe llamarse simplemente "Introducción" o "Objetivos". El campo \`"title"\` debe expresar una conclusión ejecutiva potente (ej: *"La intervención en ingeniería reduce el riesgo biomecánico crítico en un 68%"*). Usa \`"kicker"\` para la categoría corta superior (ej: \`"DIAGNÓSTICO DE LÍNEA BASE"\`, \`"MARCO LEGAL VIGENTE"\`).
+2. **VARIEDAD OBLIGATORIA DE LAYOUTS (8 A 10 DIAPOSITIVAS):**
+   Debes alternar obligatoriamente entre los siguientes valores de \`"layout"\` a lo largo de las 8-10 diapositivas:
+   - Diapositiva 1: \`"layout": "title"\` (Portada ejecutiva de alto impacto con \`title\`, \`subtitle\`, \`kicker\`, \`bullets\` con 3 pilares clave y \`takeaway\`).
+   - Diapositiva 2: \`"layout": "kpi-grid"\` (Tablero de 4 indicadores clave en \`"kpis": [{ "label": "...", "value": "...", "delta": "+15% vs meta", "trend": "up"|"down"|"neutral", "description": "..." }]\`).
+   - Diapositiva 3: \`"layout": "columns"\` (Comparativa estratégica de 2 o 3 columnas en \`"columns": [{ "title": "...", "badge": "...", "theme": "danger"|"success"|"info", "items": ["...", "...", "..."] }]\`).
+   - Diapositiva 4: \`"layout": "table"\` (Matriz técnica o de controles con \`"tableHtml"\`: código \`<table><thead>...</thead><tbody>...</tbody></table>\` limpio con mínimo 4 filas y 4-5 columnas de datos reales, sin markdown).
+   - Diapositiva 5: \`"layout": "chart"\` (Análisis cuantitativo con \`"chartConfig": { "type": "bar"|"line"|"pie", "title": "...", "data": [{ "label": "Biomecánico", "val": 45 }, { "label": "Físico", "val": 28 }, { "label": "Psicosocial", "val": 18 }, { "label": "Locativo", "val": 9 }], "labels": ["Biomecánico", "Físico", "Psicosocial", "Locativo"], "datasets": [{ "label": "% Distribución", "data": [45, 28, 18, 9], "color": "#14b8a6" }] }\`).
+   - Diapositiva 6: \`"layout": "timeline"\` (Hoja de ruta o Ciclo PHVA con 4 fases en \`"steps": [{ "phase": "Fase 1 — Planear", "title": "...", "detail": "..." }]\`).
+   - Diapositiva 7: \`"layout": "quote"\` (Fundamento jurídico/normativo colombiano con \`"quote"\` textual o técnico y \`"citation"\` citando Decreto 1072 de 2015, Resolución 0312 de 2019, GTC-45, Res. 1843 de 2025, Res. 4272 de 2021, etc.).
+   - Diapositiva 8 (y 9-10 si aplica): \`"layout": "bullets"\` o \`"columns"\` para Plan de Acción, Compromisos de la Alta Dirección y Cierre Ejecutivo.
+3. **RESPALDO UNIVERSAL DE VIÑETAS (\`"bullets"\` OBLIGATORIO EN TODAS LAS DIAPOSITIVAS):**
+   - **TODA diapositiva (sin importar su \`layout\`) DEBE incluir también un arreglo \`"bullets"\` con 3 a 5 puntos ejecutivos en texto plano limpio (SIN etiquetas HTML \`<b>\` ni \`<strong>\`)**.
+4. **TAKEAWAY Y NOTAS DEL ORADOR:**
+   - Toda diapositiva debe incluir \`"takeaway"\` (una frase de síntesis de impacto en el pie de la diapositiva) y \`"speakerNotes"\` (guía breve para el expositor).
+5. **TEMA VISUAL (\`"theme"\`):**
+   - Asigna un tema coherente de la lista: \`"wappy-dark"\`, \`"emerald-sst"\`, \`"cobalt"\`, \`"forest"\`, \`"corporate-light"\`, \`"wappy-cream"\`, \`"sunset"\`, \`"charcoal"\`.
+
+RESPUESTA ESTRICTA: Devuelve ÚNICAMENTE el arreglo JSON válido \`[ { ... }, { ... } ]\`, sin bloques de código markdown (\`\`\`json) ni texto adicional.`;
+
+  try {
+    const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
+    logger.info('[CanvasTool Camino B - Presentation] Delegando síntesis de presentación ejecutiva a gemini-3.6-flash...');
+    const result = await generateWithKeyRotation(
+      { model: 'gemini-3.6-flash', generationConfig: { maxOutputTokens: 65536 } },
+      userId,
+      prompt,
+      { generationConfig: { maxOutputTokens: 65536 } },
+    );
+    const response = await result?.response;
+    const generatedText = response?.text ? response.text() : '';
+    const parsedDeck = extractJsonArraySafe(generatedText);
+
+    if (Array.isArray(parsedDeck) && parsedDeck.length >= 4) {
+      logger.info(
+        `[CanvasTool Camino B - Presentation] Presentación ejecutiva generada con éxito por gemini-3.6-flash (${parsedDeck.length} diapositivas).`,
+      );
+      return parsedDeck.map((s, i) => normalizeSlideItem(s, i, title));
+    }
+  } catch (err) {
+    logger.error('[CanvasTool Camino B - Presentation] Error delegando presentación a gemini-3.6-flash:', err);
+  }
+
+  if (Array.isArray(initialSlides) && initialSlides.length > 0) {
+    return initialSlides.map((s, i) => normalizeSlideItem(s, i, title));
+  }
+
+  return [
+    normalizeSlideItem(
+      {
+        title: title || 'Presentación Ejecutiva SG-SST',
+        subtitle: companyContext,
+        kicker: 'SISTEMA DE GESTIÓN SG-SST',
+        layout: 'title',
+        theme: 'wappy-dark',
+        bullets: [
+          'Diagnóstico integral de condiciones de seguridad y salud en el trabajo.',
+          'Cumplimiento normativo bajo Decreto 1072 de 2015 y Resolución 0312 de 2019.',
+          'Plan de intervención basado en la jerarquía de controles GTC-45.',
+        ],
+        takeaway: 'Compromiso de la Alta Dirección con ambientes de trabajo seguros y saludables.',
+      },
+      0,
+      title,
+    ),
+  ];
+}
+
+/**
+ * Camino B para Hojas de Cálculo (`fileType === 'excel'`):
+ * Si el agente envía un Excel muy pequeño (< 5 filas) o vacío/texto plano,
+ * lo enriquece con `gemini-3.6-flash` para producir una matriz o tabla profesional completa
+ * contextualizada a la empresa activa, con encabezados claros, datos realistas y fórmulas (`=SUMA(...)`, `=PROMEDIO(...)`).
+ */
+async function processExcelDocument(content, fileType, title, userId, req, existingContent) {
+  if (fileType !== 'excel') {
+    return content;
+  }
+
+  // Verificar si ya es un objeto multi-hoja o una grilla 2D suficientemente poblada (>= 6 filas)
+  let parsedGrid = null;
+  if (Array.isArray(content)) {
+    parsedGrid = content;
+  } else if (content && typeof content === 'object') {
+    const keys = Object.keys(content);
+    if (keys.length > 0 && keys.every((k) => Array.isArray(content[k]))) {
+      const firstSheet = content[keys[0]];
+      if (firstSheet.length >= 6) {
+        return content;
+      }
+      parsedGrid = firstSheet;
+    }
+  } else if (typeof content === 'string' && content.trim()) {
+    const extracted = extractJsonArraySafe(content);
+    if (Array.isArray(extracted)) {
+      parsedGrid = extracted;
+    }
+  }
+
+  // Si es un arreglo de objetos [{"Col1": "val1"}], convertirlo a matriz 2D [["Col1"], ["val1"]]
+  if (Array.isArray(parsedGrid) && parsedGrid.length > 0 && !Array.isArray(parsedGrid[0]) && typeof parsedGrid[0] === 'object' && parsedGrid[0] !== null) {
+    const headers = Object.keys(parsedGrid[0]);
+    parsedGrid = [
+      headers,
+      ...parsedGrid.map((rowObj) => headers.map((h) => (rowObj[h] !== undefined && rowObj[h] !== null ? String(rowObj[h]) : ''))),
+    ];
+  }
+
+  if (Array.isArray(parsedGrid) && parsedGrid.length >= 6 && Array.isArray(parsedGrid[0]) && parsedGrid[0].length >= 4) {
+    return parsedGrid;
+  }
+
+  let companyInfo = null;
+  try {
+    companyInfo =
+      (await CompanyInfo.findOne({ user: userId, isActive: true })) ||
+      (await CompanyInfo.findOne({ user: userId }));
+  } catch (err) {
+    logger.warn('[CanvasTool Camino B - Excel] Error cargando CompanyInfo:', err.message);
+  }
+
+  const userPrompt =
+    req?.body?.text ||
+    req?.body?.userRequestText ||
+    (Array.isArray(req?.body?.messages) && req.body.messages.length > 0
+      ? req.body.messages[req.body.messages.length - 1]?.text ||
+        req.body.messages[req.body.messages.length - 1]?.content ||
+        ''
+      : '');
+
+  const companyContext = companyInfo
+    ? `Empresa: ${companyInfo.companyName || 'WAPPY LTDA'} | NIT: ${companyInfo.nit || '9014373103'} | Sector: ${companyInfo.economicActivity || companyInfo.sector || 'General'} | ARL: ${companyInfo.arl || 'Sura'} | Nivel de Riesgo: ${companyInfo.riskLevel || 'III'} | Trabajadores: ${companyInfo.workerCount || '17'}`
+    : 'Empresa colombiana bajo Decreto 1072 de 2015 y Resolución 0312 de 2019.';
+
+  const seedStr = parsedGrid
+    ? JSON.stringify(parsedGrid).slice(0, 3000)
+    : typeof content === 'string'
+    ? content.slice(0, 3000)
+    : '';
+
+  const prompt = `Eres un Consultor Senior en SG-SST y Analista Financiero/Estadístico de WAPPY IA.
+Construye una HOJA DE CÁLCULO PROFESIONAL EN EXCEL representada como una matriz bidimensional JSON (\`string[][]\`) lista para el motor de fórmulas de WAPPY Canvas.
+
+## TÍTULO DE LA HOJA DE CÁLCULO:
+${title || 'Matriz e Indicadores de Gestión SG-SST'}
+
+## CONTEXTO CORPORATIVO DE LA EMPRESA:
+${companyContext}
+
+## SOLICITUD DEL USUARIO:
+${userPrompt || title || 'Hoja de cálculo técnica de Seguridad y Salud en el Trabajo'}
+
+${seedStr ? `## DATOS INICIALES SUMINISTRADOS (Conservar y expandir):\n${seedStr}\n` : ''}
+
+## REGLAS TÉCNICAS OBLIGATORIAS DE LA GRILLA:
+1. Formato exacto: Un arreglo JSON bidimensional \`[ ["Columna A", "Columna B", ...], ["Fila 2 A", "120", ...], ... ]\` donde TODAS las filas tienen la misma cantidad de columnas (entre 6 y 9 columnas).
+2. Fila 1 (Índice 0): Encabezados claros, ejecutivos y técnicos acordes al tema solicitado.
+3. Filas 2 a 11 (Mínimo 8 a 10 filas de registros reales): Datos técnicos realistas, coherentes con el sector de la empresa y la normativa colombiana (Decreto 1072 de 2015 / Resolución 0312 de 2019). Incluye al menos 2 columnas con valores numéricos puros (ej. presupuesto, horas, trabajadores expuestos, puntaje, cumplimiento) para que el analizador gráfico automático del Canvas genere gráficas de barras/líneas de inmediato.
+4. Últimas 2 filas (Filas de Resumen con Fórmulas Nativas):
+   - Agrega una fila de \`"TOTAL ACUMULADO"\` usando fórmulas reales como \`"=SUMA(D2:D10)"\` en las columnas numéricas pertinentes.
+   - Agrega una fila de \`"PROMEDIO GENERAL"\` usando fórmulas reales como \`"=PROMEDIO(D2:D10)"\`.
+   *(Nota: Recuerda que la fila 1 es el encabezado, los datos empiezan en la fila 2 hasta la fila N, y las letras de columna son A, B, C, D, E, F, G, H...).*
+
+RESPUESTA ESTRICTA: Devuelve ÚNICAMENTE el arreglo JSON 2D \`[[...], [...]]\`, sin bloques markdown (\`\`\`json) ni texto explicativo.`;
+
+  try {
+    const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
+    logger.info('[CanvasTool Camino B - Excel] Delegando enriquecimiento de hoja de cálculo a gemini-3.6-flash...');
+    const result = await generateWithKeyRotation(
+      { model: 'gemini-3.6-flash', generationConfig: { maxOutputTokens: 32768 } },
+      userId,
+      prompt,
+    );
+    const response = await result?.response;
+    const generatedText = response?.text ? response.text() : '';
+    const enrichedGrid = extractJsonArraySafe(generatedText);
+
+    if (Array.isArray(enrichedGrid) && enrichedGrid.length >= 4 && Array.isArray(enrichedGrid[0])) {
+      logger.info(
+        `[CanvasTool Camino B - Excel] Hoja de cálculo enriquecida con éxito (${enrichedGrid.length} filas).`,
+      );
+      return enrichedGrid.map((row) =>
+        Array.isArray(row) ? row.map((cell) => (cell !== undefined && cell !== null ? String(cell) : '')) : [String(row)],
+      );
+    }
+  } catch (err) {
+    logger.error('[CanvasTool Camino B - Excel] Error delegando hoja de cálculo a gemini-3.6-flash:', err);
+  }
+
+  if (Array.isArray(parsedGrid) && parsedGrid.length > 0) {
+    return parsedGrid;
+  }
+
+  return [
+    ['ID', 'Proceso / Área', 'Indicador / Actividad SG-SST', 'Meta Programada', 'Ejecutado', '% Cumplimiento', 'Presupuesto (COP)', 'Responsable', 'Estado'],
+    ['IND-01', 'Dirección SG-SST', 'Evaluación Inicial Estándares Mínimos (Res. 0312/2019)', '100', '95', '=E2/D2*100', '2500000', 'Responsable SG-SST', 'Cumplido'],
+    ['IND-02', 'Operaciones', 'Inspecciones Planeadas de Seguridad Locativa y Equipos', '24', '22', '=E3/D3*100', '4200000', 'COPASST / Vigía', 'En Ejecución'],
+    ['IND-03', 'Talento Humano', 'Exámenes Médicos Ocupacionales Periódicos (Res. 1843/2025)', '17', '17', '=E4/D4*100', '5100000', 'Médico Laboral', 'Cumplido'],
+    ['IND-04', 'Producción / Planta', 'Mediciones Higiénicas y Control de Riesgo Biomecánico', '12', '10', '=E5/D5*100', '6800000', 'Higienista Industrial', 'En Ejecución'],
+    ['IND-05', 'Brigada de Emergencias', 'Simulacros de Evacuación y Entrenamiento Primer Respondiente', '4', '4', '=E6/D6*100', '3400000', 'Líder de Brigada', 'Cumplido'],
+    ['TOTAL', 'Consolidado Anual', 'TOTAL ACUMULADO', '=SUMA(D2:D6)', '=SUMA(E2:E6)', '=PROMEDIO(F2:F6)', '=SUMA(G2:G6)', 'Alta Dirección', 'Verificado'],
+    ['PROMEDIO', 'Media Operativa', 'PROMEDIO GENERAL', '=PROMEDIO(D2:D6)', '=PROMEDIO(E2:E6)', '=PROMEDIO(F2:F6)', '=PROMEDIO(G2:G6)', 'Responsable SG-SST', 'Activo'],
+  ];
+}
+
+/**
  * Canvas Tool
  * Permite al agente leer, crear y editar documentos, hojas de cálculo, diapositivas y código HTML
  * en tiempo real dentro del panel lateral de la conversación.
@@ -757,8 +1256,8 @@ class CanvasTool extends Tool {
         .describe(
           'Contenido principal del archivo. OBLIGATORIO al crear o actualizar completamente. Si usas acciones parciales o "leer", envía un string vacío o no lo envíes.\n' +
             '- Para "text" y "html": una cadena de texto (Markdown, HTML enriquecido o código HTML/CSS plano).\n' +
-            '- Para "excel": un JSON stringificado o array bidimensional directo representando la grilla, ej: [["Col1", "Col2"], ["Dato1", "Dato2"]].\n' +
-            '- Para "presentation": un JSON stringificado o array directo representando las diapositivas, ej: [{"title": "SST", "bullets": ["Seguridad", "Salud"]}].',
+            '- Para "excel": un JSON stringificado o array bidimensional directo representando la grilla, ej: [["Col1", "Col2"], ["Dato1", "Dato2", "=SUMA(B2:B5)"]].\n' +
+            '- Para "presentation": un JSON stringificado o array directo representando las diapositivas ejecutivas (mínimo 8 slides si las envías completas, o un resumen/borrador que el motor ejecutivo enriquecerá automáticamente con layouts: "title", "kpi-grid", "columns", "table", "chart", "timeline", "quote", "bullets", además de "kpis", "columns", "steps", "tableHtml", "chartConfig", "takeaway" y "speakerNotes").',
         ),
 
       // Para accion="editar_seccion"
@@ -766,14 +1265,14 @@ class CanvasTool extends Tool {
         .string()
         .optional()
         .describe(
-          'Título exacto (o fragmento) de la sección a editar. El sistema buscará el bloque de texto o etiqueta de encabezado bajo ese título y lo reemplazará. Requerido para accion="editar_seccion". Solo para fileType="text" o fileType="html".',
+          'Título exacto (o fragmento) de la sección, diapositiva o fila a editar. Requerido para accion="editar_seccion". Soportado en todos los fileTypes ("text", "html", "presentation", "excel").',
         ),
 
       nuevo_contenido_seccion: z
         .string()
         .optional()
         .describe(
-          'Nuevo contenido HTML/Markdown para reemplazar la sección identificada por titulo_seccion. Requerido para accion="editar_seccion". Solo para fileType="text" o fileType="html".',
+          'Nuevo contenido HTML/Markdown o JSON para reemplazar la sección, diapositiva o fila identificada por titulo_seccion. Requerido para accion="editar_seccion".',
         ),
 
       // Para accion="buscar_reemplazar"
@@ -781,14 +1280,14 @@ class CanvasTool extends Tool {
         .string()
         .optional()
         .describe(
-          'Texto exacto o fragmento a buscar en el documento. Requerido para accion="buscar_reemplazar". Solo para fileType="text" o fileType="html".',
+          'Texto exacto o fragmento a buscar en el documento, presentación o grilla Excel. Requerido para accion="buscar_reemplazar".',
         ),
 
       reemplazar: z
         .string()
         .optional()
         .describe(
-          'Texto o HTML que reemplazará al encontrado. Requerido para accion="buscar_reemplazar". Solo para fileType="text" o fileType="html".',
+          'Texto, valor o HTML que reemplazará al encontrado. Requerido para accion="buscar_reemplazar".',
         ),
 
       reemplazar_todo: z
@@ -804,14 +1303,14 @@ class CanvasTool extends Tool {
         .enum(['inicio', 'fin', 'despues_de'])
         .optional()
         .describe(
-          'Dónde insertar: "inicio" = al principio, "fin" = al final (para html se inserta de forma inteligente antes de la etiqueta body/html), "despues_de" = después del texto indicado en "insertar_despues_de_texto". Solo para fileType="text" o fileType="html".',
+          'Dónde insertar: "inicio" = al principio, "fin" = al final, "despues_de" = después del texto/diapositiva/fila indicado en "insertar_despues_de_texto". Soportado en "text", "html", "presentation" y "excel".',
         ),
 
       insertar_contenido: z
         .string()
         .optional()
         .describe(
-          'Contenido HTML/Markdown a insertar. Requerido para accion="insertar". Solo para fileType="text" o fileType="html".',
+          'Contenido HTML/Markdown o JSON de diapositiva/fila a insertar. Requerido para accion="insertar".',
         ),
 
       insertar_despues_de_texto: z
@@ -944,22 +1443,19 @@ class CanvasTool extends Tool {
       }
       // ---------------------------------
 
-      // Si es excel o presentation, intentar parsear el JSON de forma segura (aceptando strings u objetos directos)
-      if (fileType === 'excel' || fileType === 'presentation') {
-        try {
-          if (content) {
-            if (typeof content === 'string') {
+      // Si es excel o presentation, intentar parsear el JSON de forma segura (aceptando strings, arreglos o borradores de texto que Camino B enriquecerá)
+      if (fileType === 'excel' || fileType === 'presentation' || (session && (session.fileType === 'excel' || session.fileType === 'presentation'))) {
+        if (content) {
+          if (typeof content === 'string') {
+            try {
               parsedContent = JSON.parse(content);
-            } else {
-              parsedContent = content;
+            } catch (_) {
+              const extracted = extractJsonArraySafe(content);
+              parsedContent = extracted || content;
             }
+          } else {
+            parsedContent = content;
           }
-        } catch (e) {
-          return JSON.stringify({
-            error:
-              'El campo "content" debe ser un JSON stringificado válido para los tipos "excel" y "presentation".',
-            detalles: e.message,
-          });
         }
       }
 
@@ -999,6 +1495,24 @@ class CanvasTool extends Tool {
             );
           } else if (activeFileType === 'html') {
             parsedContent = await processHtmlAppDocument(
+              parsedContent ?? session.content,
+              activeFileType,
+              activeTitle,
+              userId,
+              this.req,
+              session.content,
+            );
+          } else if (activeFileType === 'presentation') {
+            parsedContent = await processPresentationDocument(
+              parsedContent ?? session.content,
+              activeFileType,
+              activeTitle,
+              userId,
+              this.req,
+              session.content,
+            );
+          } else if (activeFileType === 'excel') {
+            parsedContent = await processExcelDocument(
               parsedContent ?? session.content,
               activeFileType,
               activeTitle,
@@ -1073,6 +1587,24 @@ class CanvasTool extends Tool {
               this.req,
               null,
             );
+          } else if (fileType === 'presentation') {
+            parsedContent = await processPresentationDocument(
+              parsedContent,
+              fileType,
+              activeTitle,
+              userId,
+              this.req,
+              null,
+            );
+          } else if (fileType === 'excel') {
+            parsedContent = await processExcelDocument(
+              parsedContent,
+              fileType,
+              activeTitle,
+              userId,
+              this.req,
+              null,
+            );
           }
 
           session = new CanvasSession({
@@ -1136,6 +1668,24 @@ class CanvasTool extends Tool {
             );
           } else if (activeFileType === 'html') {
             parsedContent = await processHtmlAppDocument(
+              parsedContent,
+              activeFileType,
+              activeTitle,
+              userId,
+              this.req,
+              null,
+            );
+          } else if (activeFileType === 'presentation') {
+            parsedContent = await processPresentationDocument(
+              parsedContent,
+              activeFileType,
+              activeTitle,
+              userId,
+              this.req,
+              null,
+            );
+          } else if (activeFileType === 'excel') {
+            parsedContent = await processExcelDocument(
               parsedContent,
               activeFileType,
               activeTitle,
@@ -1222,6 +1772,24 @@ class CanvasTool extends Tool {
               this.req,
               session.content,
             );
+          } else if (activeFileType === 'presentation') {
+            parsedContent = await processPresentationDocument(
+              parsedContent ?? session.content,
+              activeFileType,
+              activeTitle,
+              userId,
+              this.req,
+              session.content,
+            );
+          } else if (activeFileType === 'excel') {
+            parsedContent = await processExcelDocument(
+              parsedContent ?? session.content,
+              activeFileType,
+              activeTitle,
+              userId,
+              this.req,
+              session.content,
+            );
           }
 
           const maxHistoryVersion = (session.history || []).reduce((max, item) => Math.max(max, item.version || 0), 0);
@@ -1268,12 +1836,6 @@ class CanvasTool extends Tool {
       // ── EDITAR SECCIÓN ────────────────────────────────────────────────────
       if (accion === 'editar_seccion') {
         const activeFileType = fileType || (session ? session.fileType : 'text');
-        if (activeFileType !== 'text' && activeFileType !== 'html') {
-          return JSON.stringify({
-            error:
-              'La acción "editar_seccion" solo está soportada para archivos de tipo "text" o "html".',
-          });
-        }
         if (!titulo_seccion || !nuevo_contenido_seccion) {
           return JSON.stringify({
             error:
@@ -1287,33 +1849,90 @@ class CanvasTool extends Tool {
         }
 
         let updatedContent = session.content;
-        const escapedTitle = titulo_seccion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-        // Match heading containing the title text + everything until next heading or end
-        const sectionRegex = new RegExp(
-          `(<h[1-6][^>]*>[^<]*${escapedTitle}[^<]*</h[1-6]>)(.*?)(?=<h[1-6]|$)`,
-          'is',
-        );
-        const match = sectionRegex.exec(updatedContent);
+        if (activeFileType === 'presentation' && Array.isArray(session.content)) {
+          const searchLower = titulo_seccion.toLowerCase();
+          const slideIdx = session.content.findIndex(
+            (s, i) =>
+              (s?.title && String(s.title).toLowerCase().includes(searchLower)) ||
+              (s?.kicker && String(s.kicker).toLowerCase().includes(searchLower)) ||
+              searchLower.includes(String(i + 1)),
+          );
+          if (slideIdx === -1) {
+            return JSON.stringify({
+              error: `No se encontró una diapositiva que coincida con "${titulo_seccion}".`,
+            });
+          }
+          let newSlideObj = null;
+          try {
+            newSlideObj = JSON.parse(nuevo_contenido_seccion);
+          } catch (_) {
+            newSlideObj = {
+              ...session.content[slideIdx],
+              bullets: nuevo_contenido_seccion
+                .split(/\n+/)
+                .map((l) => l.replace(/^[-*•\d.)\s]+/, '').trim())
+                .filter(Boolean),
+            };
+          }
+          const copySlides = [...session.content];
+          copySlides[slideIdx] = normalizeSlideItem(
+            { ...copySlides[slideIdx], ...(Array.isArray(newSlideObj) ? newSlideObj[0] : newSlideObj) },
+            slideIdx,
+            activeTitle,
+          );
+          updatedContent = copySlides;
+        } else if (activeFileType === 'excel' && Array.isArray(session.content)) {
+          const searchLower = titulo_seccion.toLowerCase();
+          const rowIdx = session.content.findIndex(
+            (r) => Array.isArray(r) && r.some((cell) => String(cell).toLowerCase().includes(searchLower)),
+          );
+          if (rowIdx === -1) {
+            return JSON.stringify({
+              error: `No se encontró una fila que coincida con "${titulo_seccion}".`,
+            });
+          }
+          let newRow = null;
+          try {
+            const parsedRow = JSON.parse(nuevo_contenido_seccion);
+            if (Array.isArray(parsedRow)) {
+              newRow = Array.isArray(parsedRow[0]) ? parsedRow[0] : parsedRow.map(String);
+            }
+          } catch (_) {
+            newRow = nuevo_contenido_seccion.split(/[,\t|]/).map((c) => c.trim());
+          }
+          const copyGrid = [...session.content];
+          if (Array.isArray(newRow)) {
+            copyGrid[rowIdx] = newRow;
+          }
+          updatedContent = copyGrid;
+        } else {
+          const escapedTitle = titulo_seccion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const sectionRegex = new RegExp(
+            `(<h[1-6][^>]*>[^<]*${escapedTitle}[^<]*</h[1-6]>)(.*?)(?=<h[1-6]|$)`,
+            'is',
+          );
+          const match = sectionRegex.exec(String(updatedContent));
 
-        if (!match) {
-          return JSON.stringify({
-            error: `No se encontró una sección con el título o coincidencia "${titulo_seccion}". Verifica que el título exista en el documento.`,
-          });
+          if (!match) {
+            return JSON.stringify({
+              error: `No se encontró una sección con el título o coincidencia "${titulo_seccion}". Verifica que el título exista en el documento.`,
+            });
+          }
+
+          updatedContent = String(updatedContent).replace(
+            sectionRegex,
+            match[1] + '\n' + nuevo_contenido_seccion + '\n',
+          );
+
+          updatedContent = await processTextDocument(
+            updatedContent,
+            activeFileType,
+            activeTitle,
+            userId,
+            session.content,
+          );
         }
-
-        updatedContent = updatedContent.replace(
-          sectionRegex,
-          match[1] + '\n' + nuevo_contenido_seccion + '\n',
-        );
-
-        updatedContent = await processTextDocument(
-          updatedContent,
-          activeFileType,
-          activeTitle,
-          userId,
-          session.content,
-        );
 
         const maxHistoryVersion = (session.history || []).reduce((max, item) => Math.max(max, item.version || 0), 0);
         const nextVersion = Math.max(maxHistoryVersion, session.version || 0) + 1;
@@ -1341,7 +1960,9 @@ class CanvasTool extends Tool {
 
         await session.save();
 
-        await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
+        if (activeFileType === 'text' || activeFileType === 'html') {
+          await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
+        }
 
         return JSON.stringify({
           success: true,
@@ -1354,12 +1975,6 @@ class CanvasTool extends Tool {
       // ── BUSCAR Y REEMPLAZAR ───────────────────────────────────────────────
       if (accion === 'buscar_reemplazar') {
         const activeFileType = fileType || (session ? session.fileType : 'text');
-        if (activeFileType !== 'text' && activeFileType !== 'html') {
-          return JSON.stringify({
-            error:
-              'La acción "buscar_reemplazar" solo está soportada para archivos de tipo "text" o "html".',
-          });
-        }
         if (!buscar || reemplazar === undefined) {
           return JSON.stringify({
             error: 'Se requieren "buscar" y "reemplazar" para accion="buscar_reemplazar".',
@@ -1373,20 +1988,34 @@ class CanvasTool extends Tool {
 
         const flags = reemplazar_todo !== false ? 'gi' : 'i';
         const searchRegex = new RegExp(buscar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
-        const matches = (session.content.match(searchRegex) || []).length;
+        let updatedContent;
+        let matches = 0;
 
-        if (matches === 0) {
-          return JSON.stringify({ error: `No se encontró el texto "${buscar}" en el documento.` });
+        if (activeFileType === 'presentation' || activeFileType === 'excel') {
+          const serialized = JSON.stringify(session.content);
+          matches = (serialized.match(searchRegex) || []).length;
+          if (matches === 0) {
+            return JSON.stringify({ error: `No se encontró el texto "${buscar}" en el archivo.` });
+          }
+          const safeReplacement = String(reemplazar).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+          updatedContent = JSON.parse(serialized.replace(searchRegex, safeReplacement));
+        } else {
+          const strContent = String(session.content);
+          matches = (strContent.match(searchRegex) || []).length;
+
+          if (matches === 0) {
+            return JSON.stringify({ error: `No se encontró el texto "${buscar}" en el documento.` });
+          }
+
+          updatedContent = strContent.replace(searchRegex, reemplazar);
+          updatedContent = await processTextDocument(
+            updatedContent,
+            activeFileType,
+            activeTitle,
+            userId,
+            session.content,
+          );
         }
-
-        let updatedContent = session.content.replace(searchRegex, reemplazar);
-        updatedContent = await processTextDocument(
-          updatedContent,
-          activeFileType,
-          activeTitle,
-          userId,
-          session.content,
-        );
 
         const maxHistoryVersion = (session.history || []).reduce((max, item) => Math.max(max, item.version || 0), 0);
         const nextVersion = Math.max(maxHistoryVersion, session.version || 0) + 1;
@@ -1414,7 +2043,9 @@ class CanvasTool extends Tool {
 
         await session.save();
 
-        await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
+        if (activeFileType === 'text' || activeFileType === 'html') {
+          await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
+        }
 
         return JSON.stringify({
           success: true,
@@ -1428,12 +2059,6 @@ class CanvasTool extends Tool {
       // ── INSERTAR ──────────────────────────────────────────────────────────
       if (accion === 'insertar') {
         const activeFileType = fileType || (session ? session.fileType : 'text');
-        if (activeFileType !== 'text' && activeFileType !== 'html') {
-          return JSON.stringify({
-            error:
-              'La acción "insertar" solo está soportada para archivos de tipo "text" o "html".',
-          });
-        }
         if (!insertar_contenido || !posicion) {
           return JSON.stringify({
             error: 'Se requieren "insertar_contenido" y "posicion" para accion="insertar".',
@@ -1445,73 +2070,121 @@ class CanvasTool extends Tool {
           });
         }
 
-        const currentContent = session.content || '';
         let updatedContent;
 
-        if (posicion === 'inicio') {
-          updatedContent = insertar_contenido + '\n' + currentContent;
-        } else if (posicion === 'fin') {
-          if (activeFileType === 'html') {
-            // Inserción inteligente al final en HTML (antes de body o html close tags)
-            const bodyCloseIndex = currentContent.lastIndexOf('</body>');
-            const htmlCloseIndex = currentContent.lastIndexOf('</html>');
-            const index =
-              bodyCloseIndex !== -1 ? bodyCloseIndex : htmlCloseIndex !== -1 ? htmlCloseIndex : -1;
-            if (index !== -1) {
-              updatedContent =
-                currentContent.substring(0, index) +
-                '\n' +
-                insertar_contenido +
-                '\n' +
-                currentContent.substring(index);
+        if (activeFileType === 'presentation' && Array.isArray(session.content)) {
+          let slideToInsert = null;
+          try {
+            const parsed = JSON.parse(insertar_contenido);
+            slideToInsert = Array.isArray(parsed) ? parsed[0] : parsed;
+          } catch (_) {
+            slideToInsert = {
+              title: insertar_despues_de_texto || 'Nueva Diapositiva Ejecutiva',
+              layout: 'bullets',
+              bullets: insertar_contenido
+                .split(/\n+/)
+                .map((l) => l.replace(/^[-*•\d.)\s]+/, '').trim())
+                .filter(Boolean),
+            };
+          }
+          const normalizedSlide = normalizeSlideItem(slideToInsert, session.content.length, activeTitle);
+          const copySlides = [...session.content];
+          if (posicion === 'inicio') {
+            copySlides.unshift(normalizedSlide);
+          } else if (posicion === 'despues_de' && insertar_despues_de_texto) {
+            const refLower = insertar_despues_de_texto.toLowerCase();
+            const idx = copySlides.findIndex(
+              (s) => s?.title && String(s.title).toLowerCase().includes(refLower),
+            );
+            if (idx !== -1) {
+              copySlides.splice(idx + 1, 0, normalizedSlide);
             } else {
-              updatedContent = currentContent + '\n' + insertar_contenido;
+              copySlides.push(normalizedSlide);
             }
           } else {
-            // Si tiene bloque de firmas en Word, queremos insertar ANTES del bloque de firmas.
-            const sigIndex = currentContent.indexOf('<div style="margin-top: 50px;');
-            const sigAlternativeIndex = currentContent.indexOf('<div style="margin-top:50px;');
-            const index =
-              sigIndex !== -1 ? sigIndex : sigAlternativeIndex !== -1 ? sigAlternativeIndex : -1;
-
-            if (index !== -1) {
-              updatedContent =
-                currentContent.substring(0, index) +
-                '\n' +
-                insertar_contenido +
-                '\n\n' +
-                currentContent.substring(index);
-            } else {
-              updatedContent = currentContent + '\n' + insertar_contenido;
-            }
+            copySlides.push(normalizedSlide);
           }
-        } else if (posicion === 'despues_de') {
-          if (!insertar_despues_de_texto) {
-            return JSON.stringify({
-              error: '"insertar_despues_de_texto" es requerido cuando posicion="despues_de".',
-            });
+          updatedContent = copySlides;
+        } else if (activeFileType === 'excel' && Array.isArray(session.content)) {
+          let rowToInsert = null;
+          try {
+            const parsed = JSON.parse(insertar_contenido);
+            rowToInsert = Array.isArray(parsed[0]) ? parsed[0] : Array.isArray(parsed) ? parsed.map(String) : [String(parsed)];
+          } catch (_) {
+            rowToInsert = insertar_contenido.split(/[,\t|]/).map((c) => c.trim());
           }
-          const escapedRef = insertar_despues_de_texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const refRegex = new RegExp(`(${escapedRef}.*?(?:</[^>]+>))`, 'i');
-          if (!refRegex.test(currentContent)) {
-            return JSON.stringify({
-              error: `No se encontró el texto de referencia "${insertar_despues_de_texto}" en el documento.`,
-            });
+          const copyGrid = [...session.content];
+          if (posicion === 'inicio') {
+            copyGrid.splice(1, 0, rowToInsert);
+          } else {
+            copyGrid.push(rowToInsert);
           }
-          updatedContent = currentContent.replace(refRegex, `$1\n${insertar_contenido}`);
+          updatedContent = copyGrid;
         } else {
-          return JSON.stringify({
-            error: 'Posición inválida. Usa "inicio", "fin" o "despues_de".',
-          });
-        }
+          const currentContent = String(session.content || '');
+          if (posicion === 'inicio') {
+            updatedContent = insertar_contenido + '\n' + currentContent;
+          } else if (posicion === 'fin') {
+            if (activeFileType === 'html') {
+              const bodyCloseIndex = currentContent.lastIndexOf('</body>');
+              const htmlCloseIndex = currentContent.lastIndexOf('</html>');
+              const index =
+                bodyCloseIndex !== -1 ? bodyCloseIndex : htmlCloseIndex !== -1 ? htmlCloseIndex : -1;
+              if (index !== -1) {
+                updatedContent =
+                  currentContent.substring(0, index) +
+                  '\n' +
+                  insertar_contenido +
+                  '\n' +
+                  currentContent.substring(index);
+              } else {
+                updatedContent = currentContent + '\n' + insertar_contenido;
+              }
+            } else {
+              const sigIndex = currentContent.indexOf('<div style="margin-top: 50px;');
+              const sigAlternativeIndex = currentContent.indexOf('<div style="margin-top:50px;');
+              const index =
+                sigIndex !== -1 ? sigIndex : sigAlternativeIndex !== -1 ? sigAlternativeIndex : -1;
 
-        updatedContent = await processTextDocument(
-          updatedContent,
-          activeFileType,
-          activeTitle,
-          userId,
-          session.content,
-        );
+              if (index !== -1) {
+                updatedContent =
+                  currentContent.substring(0, index) +
+                  '\n' +
+                  insertar_contenido +
+                  '\n\n' +
+                  currentContent.substring(index);
+              } else {
+                updatedContent = currentContent + '\n' + insertar_contenido;
+              }
+            }
+          } else if (posicion === 'despues_de') {
+            if (!insertar_despues_de_texto) {
+              return JSON.stringify({
+                error: '"insertar_despues_de_texto" es requerido cuando posicion="despues_de".',
+              });
+            }
+            const escapedRef = insertar_despues_de_texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const refRegex = new RegExp(`(${escapedRef}.*?(?:</[^>]+>))`, 'i');
+            if (!refRegex.test(currentContent)) {
+              return JSON.stringify({
+                error: `No se encontró el texto de referencia "${insertar_despues_de_texto}" en el documento.`,
+              });
+            }
+            updatedContent = currentContent.replace(refRegex, `$1\n${insertar_contenido}`);
+          } else {
+            return JSON.stringify({
+              error: 'Posición inválida. Usa "inicio", "fin" o "despues_de".',
+            });
+          }
+
+          updatedContent = await processTextDocument(
+            updatedContent,
+            activeFileType,
+            activeTitle,
+            userId,
+            session.content,
+          );
+        }
 
         const maxHistoryVersion = (session.history || []).reduce((max, item) => Math.max(max, item.version || 0), 0);
         const nextVersion = Math.max(maxHistoryVersion, session.version || 0) + 1;
@@ -1539,7 +2212,9 @@ class CanvasTool extends Tool {
 
         await session.save();
 
-        await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
+        if (activeFileType === 'text' || activeFileType === 'html') {
+          await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
+        }
 
         return JSON.stringify({
           success: true,
@@ -1615,6 +2290,9 @@ Responde ÚNICAMENTE con el documento completo modificado, sin bloques de markdo
 
 CanvasTool.processHtmlAppDocument = processHtmlAppDocument;
 CanvasTool.processTextReportDocument = processTextReportDocument;
+CanvasTool.processPresentationDocument = processPresentationDocument;
+CanvasTool.processExcelDocument = processExcelDocument;
+CanvasTool.normalizeSlideItem = normalizeSlideItem;
 CanvasTool.syncCanvasToLiveEditor = syncCanvasToLiveEditor;
 CanvasTool.applyCanvasModification = applyCanvasModification;
 CanvasTool.injectStandaloneCssIfMissing = injectStandaloneCssIfMissing;

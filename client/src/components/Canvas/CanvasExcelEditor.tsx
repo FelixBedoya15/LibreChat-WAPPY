@@ -53,8 +53,8 @@ function evaluateFormula(formula: any, gridData: any[][], visited: Set<string> =
 
   const upperFormula = formula.toUpperCase().trim();
   
-  // 1. Check for functions: SUM, SUMA, AVERAGE, PROMEDIO
-  const funcMatch = upperFormula.match(/^=(SUM|SUMA|AVERAGE|PROMEDIO)\((.+?)\)$/);
+  // 1. Check for functions: SUM, SUMA, AVERAGE, PROMEDIO, MAX, MIN, COUNT, CONTAR
+  const funcMatch = upperFormula.match(/^=(SUM|SUMA|AVERAGE|PROMEDIO|MAX|MIN|COUNT|CONTAR)\((.+?)\)$/);
   if (funcMatch) {
     const funcName = funcMatch[1];
     const argsStr = funcMatch[2];
@@ -99,12 +99,20 @@ function evaluateFormula(formula: any, gridData: any[][], visited: Set<string> =
     
     if (funcName === 'SUM' || funcName === 'SUMA') {
       const sum = values.reduce((acc, v) => acc + v, 0);
-      return sum.toString();
+      return (Math.round(sum * 10000) / 10000).toString();
     } else if (funcName === 'AVERAGE' || funcName === 'PROMEDIO') {
       if (values.length === 0) return '0';
       const sum = values.reduce((acc, v) => acc + v, 0);
       const avg = sum / values.length;
       return (Math.round(avg * 10000) / 10000).toString();
+    } else if (funcName === 'MAX') {
+      if (values.length === 0) return '0';
+      return Math.max(...values).toString();
+    } else if (funcName === 'MIN') {
+      if (values.length === 0) return '0';
+      return Math.min(...values).toString();
+    } else if (funcName === 'COUNT' || funcName === 'CONTAR') {
+      return values.length.toString();
     }
   }
   
@@ -627,78 +635,134 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
           </div>
         </div>
 
-        {/* Action Toolbar */}
+        {/* Action Toolbar — WAPPY 14-Group Design System */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {/* Add Row (Group 4: Emerald) */}
             <button
               onClick={addRow}
-              className="group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl   border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
+              className="group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-xs shrink-0 cursor-pointer border outline-none rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20"
               aria-label="Agregar Fila"
             >
               <div className="relative flex-shrink-0 flex items-center justify-center">
-                <Plus className="h-4 w-4 text-green-500" />
+                <Plus className="h-4 w-4" />
               </div>
               <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                <span className="text-xs font-bold tracking-wide">Fila</span>
+                <span className="text-xs font-bold tracking-wide">+ Fila</span>
               </div>
             </button>
+
+            {/* Delete Row (Group 13: Rose) */}
             <button
               onClick={deleteRow}
               disabled={data.length <= 1}
-              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-red-500/20 hover:bg-red-50 text-red-600 disabled:hover:bg-surface-primary disabled:border-red-500/20 disabled:text-red-600"
+              className="group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-xs shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed border outline-none rounded-xl bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20"
               aria-label="Quitar Fila"
             >
               <div className="relative flex-shrink-0 flex items-center justify-center">
-                <Trash2 className="h-4 w-4 text-red-500" />
+                <Trash2 className="h-4 w-4" />
               </div>
               <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
                 <span className="text-xs font-bold tracking-wide">Quitar Fila</span>
               </div>
             </button>
+
             <div className="h-6 w-px bg-border-medium" />
+
+            {/* Add Column (Group 4: Emerald) */}
             <button
               onClick={addColumn}
-              className="group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl   border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
+              className="group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-xs shrink-0 cursor-pointer border outline-none rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20"
               aria-label="Agregar Columna"
             >
               <div className="relative flex-shrink-0 flex items-center justify-center">
-                <Plus className="h-4 w-4 text-green-500" />
+                <Plus className="h-4 w-4" />
               </div>
               <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                <span className="text-xs font-bold tracking-wide">Columna</span>
+                <span className="text-xs font-bold tracking-wide">+ Columna</span>
               </div>
             </button>
+
+            {/* Delete Column (Group 13: Rose) */}
             <button
               onClick={deleteColumn}
               disabled={data[0]?.length <= 1}
-              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-red-500/20 hover:bg-red-50 text-red-600 disabled:hover:bg-surface-primary disabled:border-red-500/20 disabled:text-red-600"
+              className="group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-xs shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed border outline-none rounded-xl bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20"
               aria-label="Quitar Columna"
             >
               <div className="relative flex-shrink-0 flex items-center justify-center">
-                <Trash2 className="h-4 w-4 text-red-500" />
+                <Trash2 className="h-4 w-4" />
               </div>
               <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
                 <span className="text-xs font-bold tracking-wide">Quitar Col</span>
               </div>
             </button>
+
+            <div className="h-6 w-px bg-border-medium hidden sm:block" />
+
+            {/* Quick SST Excel Templates Selector */}
+            <select
+              onChange={(e) => {
+                const val = e.target.value;
+                if (!val) return;
+                if (val === 'gtc45') {
+                  updateSheets([
+                    ['Proceso / Área', 'Peligro (GTC-45)', 'Clasificación', 'ND', 'NE', 'NP (ND*NE)', 'NC', 'NR (NP*NC)', 'Control de Ingeniería / Medio'],
+                    ['Operaciones / Planta', 'Levantamiento manual de cargas', 'Biomecánico', '6', '4', '=D2*E2', '25', '=F2*G2', 'Ayudas mecánicas hidráulicas'],
+                    ['Mantenimiento', 'Trabajos en alturas > 2.0m', 'Condiciones de Seguridad', '6', '3', '=D3*E3', '60', '=F3*G3', 'Línea de vida certificada Res. 4272'],
+                    ['Producción', 'Ruido continuo > 85 dBA', 'Físico', '2', '4', '=D4*E4', '25', '=F4*G4', 'Encapsulamiento acústico en fuente'],
+                    ['Administración', 'Carga mental y pantallas PVD', 'Psicosocial', '2', '3', '=D5*E5', '10', '=F5*G5', 'Pausas activas y ajuste ergonómico'],
+                    ['PROMEDIO / MÁXIMO RIESGO', '-', '-', '=PROMEDIO(D2:D5)', '=PROMEDIO(E2:E5)', '=PROMEDIO(F2:F5)', '=MAX(G2:G5)', '=MAX(H2:H5)', 'Intervención Prioritaria'],
+                  ]);
+                } else if (val === 'presupuesto') {
+                  updateSheets([
+                    ['Rubro SG-SST (Dec. 1072)', 'Presupuesto Asignado ($)', 'Ejecutado Q1 ($)', 'Ejecutado Q2 ($)', 'Total Ejecutado ($)', 'Saldo Disponible ($)'],
+                    ['Medicina Preventiva y EMO', '4500000', '1200000', '1800000', '=C2+D2', '=B2-E2'],
+                    ['Elementos de Protección EPP', '6800000', '2500000', '2900000', '=C3+D3', '=B3-E3'],
+                    ['Capacitación y Brigadas', '3200000', '900000', '1400000', '=C4+D4', '=B4-E4'],
+                    ['Mediciones Higiénicas', '5000000', '0', '3500000', '=C5+D5', '=B5-E5'],
+                    ['TOTAL PRESUPUESTO SST', '=SUMA(B2:B5)', '=SUMA(C2:C5)', '=SUMA(D2:D5)', '=SUMA(E2:E5)', '=SUMA(F2:F5)'],
+                  ]);
+                } else if (val === 'indicadores0312') {
+                  updateSheets([
+                    ['Indicador Resolución 0312/2019', 'Meta (%)', 'Enero', 'Febrero', 'Marzo', 'Promedio Trimestral'],
+                    ['Frecuencia de Accidentalidad', '0', '0', '1', '0', '=PROMEDIO(C2:E2)'],
+                    ['Severidad de Accidentalidad', '0', '0', '3', '0', '=PROMEDIO(C3:E3)'],
+                    ['Cumplimiento Plan de Trabajo', '95', '90', '94', '98', '=PROMEDIO(C4:E4)'],
+                    ['Cobertura Inducción SST', '100', '100', '100', '100', '=PROMEDIO(C5:E5)'],
+                  ]);
+                }
+                e.target.value = '';
+              }}
+              defaultValue=""
+              className="h-9 sm:h-10 px-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 text-xs font-bold outline-none cursor-pointer hover:bg-amber-500/20 transition-all"
+            >
+              <option value="" disabled>
+                ⚡ Plantillas Excel SST...
+              </option>
+              <option value="gtc45">📋 Matriz de Peligros GTC-45 (Fórmulas NR)</option>
+              <option value="presupuesto">💰 Presupuesto Anual SG-SST</option>
+              <option value="indicadores0312">📊 Indicadores Resolución 0312/2019</option>
+            </select>
           </div>
 
           <div className="flex items-center gap-1.5">
+            {/* Analytics & Charts (Group 12: Orange) */}
             <button
               onClick={() => setIsChartPanelOpen(!isChartPanelOpen)}
-              className={`group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   ${
+              className={`group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-xs shrink-0 cursor-pointer border outline-none rounded-xl ${
                 isChartPanelOpen
-                  ? 'bg-teal-500/10 border-teal-500/30 text-teal-600'
-                  : 'border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs '
+                  ? 'bg-orange-500/20 border-orange-500/50 text-orange-700 dark:text-orange-300 ring-1 ring-orange-500/30'
+                  : 'bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20'
               }`}
               aria-label="Analizar datos"
             >
               <div className="relative flex-shrink-0 flex items-center justify-center">
-                <BarChart2 className={`h-4 w-4 ${isChartPanelOpen ? 'text-teal-600' : 'text-teal-500'}`} />
+                <BarChart2 className="h-4 w-4" />
               </div>
               <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
                 <span className="text-xs font-bold tracking-wide">
-                  Analizar
+                  Analizar y Graficar
                 </span>
               </div>
             </button>
@@ -706,31 +770,32 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
             {isMaximized && (
               <button
                 onClick={toggleFullscreen}
-                className="group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs "
+                className="group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-xs shrink-0 cursor-pointer border outline-none rounded-xl bg-slate-500/10 dark:bg-zinc-800/80 border-slate-300/60 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-500/20"
                 title={isFullscreen ? 'Salir Pantalla Completa' : 'Pantalla Completa'}
               >
-                <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
-                  {isFullscreen ? <Minimize className="h-4 w-4 text-text-primary" /> : <Maximize className="h-4 w-4 text-text-primary" />}
+                <div className="relative flex-shrink-0 flex items-center justify-center">
+                  {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
                 </div>
                 <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                  <span className="text-xs font-bold tracking-wide text-text-primary">
-                    {isFullscreen ? 'Salir Pantalla Completa' : 'Pantalla Completa'}
+                  <span className="text-xs font-bold tracking-wide">
+                    {isFullscreen ? 'Salir' : 'Pantalla Completa'}
                   </span>
                 </div>
               </button>
             )}
 
+            {/* Download Excel .XLSX (Group 10: Green) */}
             <button
               onClick={handleExportExcel}
-              className="group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl   border rounded-xl bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 shadow-xs "
+              className="group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-xs shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-300 hover:bg-green-500/20"
               aria-label="Descargar Excel"
             >
-              <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
-                <Download className="h-4 w-4 text-text-primary" />
+              <div className="relative flex-shrink-0 flex items-center justify-center">
+                <Download className="h-4 w-4" />
               </div>
               <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                <span className="text-xs font-bold tracking-wide text-text-primary">
-                  Descargar Excel
+                <span className="text-xs font-bold tracking-wide">
+                  Descargar Excel .XLSX
                 </span>
               </div>
             </button>

@@ -2981,21 +2981,28 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                     const toolInstance = new ConsultarAgenteEspecializado({ req });
                                     toolOutput = await toolInstance._call(call.args);
                                 } else if (call.name === 'canvas_tool' || call.name === 'canvas') {
+                                    const tempCanvasConvoId = req.body?.conversationId && req.body.conversationId !== 'new'
+                                        ? req.body.conversationId
+                                        : `tenshi-canvas-${targetUserId}-${Date.now()}`;
+                                    if (!req.body) req.body = {};
+                                    req.body.conversationId = tempCanvasConvoId;
                                     const toolInstance = new CanvasTool({ req });
                                     toolOutput = await toolInstance._call(call.args);
                                     try {
                                         const parsed = typeof toolOutput === 'string' ? JSON.parse(toolOutput) : toolOutput;
                                         if (parsed?.success) {
-                                            const fileType = call.args?.fileType || 'html';
-                                            const title = call.args?.title || 'Documento SG-SST';
-                                            const content = call.args?.content || '';
+                                            const sessionDoc = await CanvasSession.findOne({ conversationId: tempCanvasConvoId }).lean();
+                                            const fileType = sessionDoc?.fileType || call.args?.fileType || 'html';
+                                            const title = sessionDoc?.title || call.args?.title || 'Documento SG-SST';
+                                            const content = sessionDoc?.content ?? call.args?.content ?? '';
                                             capturedFile = {
                                                 title,
                                                 fileType,
-                                                content,
-                                                canvasId: `tenshi-canvas-${targetUserId}-${Date.now()}`
+                                                content: typeof content === 'string' ? content : JSON.stringify(content),
+                                                rawContent: content,
+                                                canvasId: tempCanvasConvoId
                                             };
-                                            if (fileType === 'html' || content.includes('<html') || content.includes('<!DOCTYPE')) {
+                                            if (fileType === 'html' || (typeof content === 'string' && (content.includes('<html') || content.includes('<!DOCTYPE')))) {
                                                 capturedHtmlReport = content;
                                             }
                                         }
@@ -3876,7 +3883,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             user: String(req.user.id),
                             title: fileTitle,
                             fileType: capturedFile?.fileType || 'html',
-                            content: capturedFile?.content || capturedHtmlReport || '',
+                            content: capturedFile?.rawContent ?? capturedFile?.content ?? capturedHtmlReport ?? '',
                             updatedAt: new Date(),
                         },
                         $setOnInsert: {
