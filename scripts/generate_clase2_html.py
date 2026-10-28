@@ -2134,13 +2134,13 @@ html_content = f'''<!DOCTYPE html>
         </div>
         <div class="brand-text">
           <div class="main">WAPPY<span>IA</span></div>
-          <div class="sub">SOMOS SST</div>
+          <div class="sub">SOMOS SST · CLASE 2</div>
         </div>
       </a>
 
       <div class="nav-links">
-        <a href="/clase1">⏮️ Ir a Clase 1</a>
-        <a href="#presentacion" class="active-pill">🎬 Presentación</a>
+        <a href="#inicio" class="active-pill">🚀 Clase 2</a>
+        <a href="#presentacion">🎬 Presentación</a>
         <a href="#grabacion">🎥 Grabación & Notas</a>
         <a href="#prompts-chat">💬 Prompts Clase 2</a>
         <a href="#guia-paso-a-paso">📘 Guía Paso a Paso</a>
@@ -2165,7 +2165,7 @@ html_content = f'''<!DOCTYPE html>
       <div>
         <div class="eyebrow">
           <span class="dot"></span>
-          <span>CLASE 02 EN VIVO · MAÑANA MARTES 27 DE OCTUBRE · 7:00 PM – 9:00 PM COL</span>
+          <span>CLASE 02 EN VIVO · HOY MARTES 27 DE OCTUBRE · 7:00 PM – 9:00 PM COL</span>
         </div>
 
         <h1>
@@ -2928,7 +2928,7 @@ html_content = f'''<!DOCTYPE html>
     <div class="container">
       <div class="sec-head-bar">
         <div>
-          <span class="sec-kicker">⏳ Próxima Emisión en Vivo · Mañana Martes 27 de Octubre (7:00 PM – 9:00 PM)</span>
+          <span class="sec-kicker">⏳ Próxima Emisión en Vivo · Hoy Martes 27 de Octubre (7:00 PM – 9:00 PM)</span>
           <h2 class="sec-big-title">Grabación de la Clase 2 &amp; Notas Oficiales (Muy Pronto)</h2>
         </div>
         <div style="font-size: 13px; color: var(--ink-muted); font-weight: 600;">
@@ -3001,7 +3001,7 @@ html_content = f'''<!DOCTYPE html>
                 </div>
 
                 <div style="font-size:clamp(11.5px, 1.25vw, 15px); color:#cbd5e1; font-weight:700; max-width:520px; line-height:1.4;">
-                  🗓️ En vivo mañana <strong style="color:var(--lime);">Martes 27 de Octubre a las 7:00 PM</strong>.<br>
+                  🗓️ En vivo hoy <strong style="color:var(--lime);">Martes 27 de Octubre a las 7:00 PM</strong>.<br>
                   Al terminar la clase, el video grabado quedará disponible en este reproductor.
                 </div>
 
@@ -3084,7 +3084,7 @@ html_content = f'''<!DOCTYPE html>
           </h3>
 
           <p style="font-size:15px; color:#cbd5e1; line-height:1.65; margin-bottom:24px;">
-            Recuerda que nuestra <strong>Clase 2 (Tenshi en el Bolsillo, Conexión MCP WAPPY y Skills en Vivo)</strong> se realizará en vivo mañana <strong style="color:var(--lime);">Martes 27 de Octubre de 7:00 PM a 9:00 PM (Hora Colombia)</strong>.<br><br>
+            Recuerda que nuestra <strong>Clase 2 (Tenshi en el Bolsillo, Conexión MCP WAPPY y Skills en Vivo)</strong> se realizará en vivo hoy <strong style="color:var(--lime);">Martes 27 de Octubre de 7:00 PM a 9:00 PM (Hora Colombia)</strong>.<br><br>
             Tan pronto terminemos la clase, aquí mismo encontrarás el <strong>video completo de la grabación</strong>, la <strong>transcripción oficial</strong>, el <strong>resumen ejecutivo</strong> y los <strong>nuevos compromisos del grupo</strong>.
           </p>
 
