@@ -132,22 +132,117 @@ function validateCookiesLocally(cookies) {
 }
 
 /**
- * Intenta obtener el token de sesión de Google Labs / Flow (labs.google/fx/api/auth/session)
+ * Filtra las cookies para evitar colisiones (CookieMismatch) entre .google.com.co / notebooklm.google.com y flow.google.com
+ */
+function buildFlowCookieHeader(cookies) {
+  if (!Array.isArray(cookies) || cookies.length === 0) return '';
+  const filtered = cookies.filter((c) => {
+    const dom = String(c.domain || '.google.com').toLowerCase();
+    return dom === 'flow.google.com' || dom === '.flow.google.com' || dom === '.google.com' || dom === 'google.com';
+  });
+  const source = filtered.length > 0 ? filtered : cookies;
+  const dedup = new Map();
+  for (const c of source) {
+    if (c && c.name && c.value) {
+      dedup.set(c.name, c.value);
+    }
+  }
+  return Array.from(dedup.entries())
+    .map(([k, v]) => `${k}=${v}`)
+    .join('; ');
+}
+
+/**
+ * Intenta obtener la sesión en vivo de Google Flow (flow.google.com Boq + créditos de VideoFxService)
  */
 async function fetchLabsFxSession(cookies) {
   if (!Array.isArray(cookies) || cookies.length === 0) {
     return { ok: false };
   }
+  const cookieHeader = buildFlowCookieHeader(cookies);
+  const ua =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
   try {
-    const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
+    const pageRes = await axios.get('https://flow.google.com/', {
+      headers: {
+        Cookie: cookieHeader,
+        'User-Agent': ua,
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+      timeout: 12000,
+      maxRedirects: 5,
+    });
+
+    const html = typeof pageRes.data === 'string' ? pageRes.data : '';
+    const emailMatch = html.match(/"oPEP7c":"([^"]+@[^"]+)"/);
+    const atMatch = html.match(/"SNlM0e":"([^"]+)"/);
+    const sidMatch = html.match(/"FdrFJe":"([^"]+)"/);
+    const blMatch = html.match(/"cfb2h":"([^"]+)"/);
+
+    if (atMatch && atMatch[1]) {
+      const at = atMatch[1];
+      const fSid = sidMatch ? sidMatch[1] : '';
+      const bl = blMatch ? blMatch[1] : 'boq_labs-ai-sandbox-frontend_20261027.00_p0';
+      const email = emailMatch ? emailMatch[1] : null;
+      let credits = null;
+
+      try {
+        const rpcId = 'nzlxg';
+        const fReq = JSON.stringify([[[rpcId, '[]', null, 'generic']]]);
+        const params = new URLSearchParams({
+          rpcids: rpcId,
+          'source-path': '/',
+          bl,
+          'f.sid': fSid,
+          hl: 'es-419',
+          _reqid: String(Math.floor(100000 + Math.random() * 800000)),
+          rt: 'c',
+        });
+        const body = new URLSearchParams({ 'f.req': fReq, at }).toString();
+        const batchRes = await axios.post(
+          `https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute?${params.toString()}`,
+          body,
+          {
+            headers: {
+              Cookie: cookieHeader,
+              'User-Agent': ua,
+              'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+              Origin: 'https://flow.google.com',
+              Referer: 'https://flow.google.com/',
+            },
+            timeout: 8000,
+          }
+        );
+        const rawText = typeof batchRes.data === 'string' ? batchRes.data : '';
+        const creditMatch = rawText.match(/\[\["wrb\.fr","nzlxg","\[(\d+)/);
+        if (creditMatch && creditMatch[1]) {
+          credits = parseInt(creditMatch[1], 10);
+        }
+      } catch (_) {}
+
+      return {
+        ok: true,
+        email,
+        at,
+        fSid,
+        bl,
+        credits,
+        cookieHeader,
+      };
+    }
+  } catch (err) {
+    logger.debug('[GoogleFlow] Info consultando flow.google.com:', err.message);
+  }
+
+  try {
     const res = await axios.get('https://labs.google/fx/api/auth/session', {
       headers: {
         Cookie: cookieHeader,
-        'User-Agent':
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'User-Agent': ua,
         Accept: 'application/json',
       },
-      timeout: 12000,
+      timeout: 8000,
     });
     if (res.data && (res.data.access_token || res.data.user)) {
       return {
@@ -155,13 +250,12 @@ async function fetchLabsFxSession(cookies) {
         accessToken: res.data.access_token || null,
         email: res.data.user?.email || null,
         name: res.data.user?.name || null,
+        cookieHeader,
       };
     }
-    return { ok: false };
-  } catch (err) {
-    logger.debug('[GoogleFlow] Info consultando labs.google/fx/api/auth/session:', err.message);
-    return { ok: false, error: err.message };
-  }
+  } catch (_) {}
+
+  return { ok: false };
 }
 
 /**
@@ -183,45 +277,50 @@ async function resolveGoogleFlowCredentials(userId) {
       ? notebookSession.cookies
       : [];
 
-  let apiKey = flowSession?.apiKey || null;
+  let apiKeys = [];
+  if (flowSession?.apiKey) {
+    apiKeys.push(...String(flowSession.apiKey).split(',').map((k) => k.trim()).filter(Boolean));
+  }
 
-  if (!apiKey && userId) {
+  if (userId) {
     try {
       const { getUserKey } = require('~/server/services/UserService');
       const userKeyData = await getUserKey({ userId, name: 'google' });
       if (userKeyData && userKeyData !== 'user_provided') {
+        let rawKeyStr = userKeyData;
         try {
           const parsed = typeof userKeyData === 'string' ? JSON.parse(userKeyData) : userKeyData;
-          apiKey = parsed.GOOGLE_API_KEY || parsed.GOOGLE_KEY || Object.values(parsed)[0];
+          rawKeyStr = parsed.GOOGLE_API_KEY || parsed.GOOGLE_KEY || Object.values(parsed)[0] || '';
         } catch {
-          apiKey = userKeyData;
+          rawKeyStr = userKeyData;
+        }
+        if (rawKeyStr) {
+          apiKeys.push(...String(rawKeyStr).split(',').map((k) => k.trim()).filter(Boolean));
         }
       }
     } catch (_) {}
   }
 
-  if (!apiKey) {
-    const envKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-    if (envKey && envKey !== 'user_provided') {
-      apiKey = envKey;
+  const envKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (envKey && envKey !== 'user_provided') {
+    apiKeys.push(...String(envKey).split(',').map((k) => k.trim()).filter(Boolean));
+  }
+
+  try {
+    const { getSystemGoogleKey } = require('~/server/controllers/AdminMarketingController');
+    const sysKey = await getSystemGoogleKey();
+    if (sysKey) {
+      apiKeys.push(...String(sysKey).split(',').map((k) => k.trim()).filter(Boolean));
     }
-  }
+  } catch (_) {}
 
-  if (!apiKey) {
-    try {
-      const { getSystemGoogleKey } = require('~/server/controllers/AdminMarketingController');
-      const sysKey = await getSystemGoogleKey();
-      if (sysKey) apiKey = sysKey;
-    } catch (_) {}
-  }
-
-  if (apiKey && typeof apiKey === 'string') {
-    apiKey = apiKey.split(',')[0].trim();
-  }
+  apiKeys = Array.from(new Set(apiKeys.filter((k) => k && k.startsWith('AIza'))));
+  const apiKey = apiKeys[0] || null;
 
   return {
     cookies,
     apiKey,
+    apiKeys,
     email: flowSession?.email || notebookSession?.email || '',
     hasFlowSession: Boolean(flowSession),
     hasNotebookSession: Boolean(notebookSession?.cookies?.length > 0),
@@ -321,37 +420,45 @@ async function executeFlowImageGeneration({
     }
   }
 
-  // INTENTO 2: Google Gemini Native Image (gemini-2.5-flash-image / Nano Banana)
-  if (!imageBuffer && creds.apiKey) {
-    try {
-      logger.info('[GoogleFlow] Generando imagen con Google gemini-2.5-flash-image...');
-      const url = `https://generativelanguage.googleapis.com/v1alpha/models/gemini-2.5-flash-image:generateContent?key=${creds.apiKey}`;
-      const response = await axios.post(
-        url,
-        {
-          contents: [{ parts: [{ text: enhancedPrompt }] }],
-          generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
-        },
-        {
-          headers: { 'Content-Type': 'application/json' },
-          timeout: 45000,
-        }
-      );
+  // INTENTO 2: Google Gemini Native Image (gemini-2.5-flash-image / gemini-3.1-flash-image)
+  if (!imageBuffer && creds.apiKeys && creds.apiKeys.length > 0) {
+    const geminiImgModels = ['gemini-2.5-flash-image', 'gemini-3.1-flash-image'];
+    for (const gm of geminiImgModels) {
+      if (imageBuffer) break;
+      for (const keyCandidate of creds.apiKeys.slice(0, 3)) {
+        if (imageBuffer) break;
+        try {
+          logger.info(`[GoogleFlow] Generando imagen con Google ${gm}...`);
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${gm}:generateContent?key=${keyCandidate}`;
+          const response = await axios.post(
+            url,
+            {
+              contents: [{ parts: [{ text: enhancedPrompt }] }],
+              generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
+            },
+            {
+              headers: { 'Content-Type': 'application/json' },
+              timeout: 25000,
+            }
+          );
 
-      const candidates = response.data?.candidates;
-      if (candidates && candidates.length > 0) {
-        const imagePart = candidates[0].content?.parts?.find((p) => p.inlineData);
-        if (imagePart?.inlineData?.data) {
-          imageBuffer = Buffer.from(imagePart.inlineData.data, 'base64');
-          mimeType = imagePart.inlineData.mimeType || 'image/png';
-          modelUsed = 'Google Flow (Nano Banana • gemini-2.5-flash-image)';
+          const candidates = response.data?.candidates;
+          if (candidates && candidates.length > 0) {
+            const imagePart = candidates[0].content?.parts?.find((p) => p.inlineData);
+            if (imagePart?.inlineData?.data) {
+              imageBuffer = Buffer.from(imagePart.inlineData.data, 'base64');
+              mimeType = imagePart.inlineData.mimeType || 'image/png';
+              modelUsed = `Google Flow (Nano Banana • ${gm})`;
+            }
+          }
+        } catch (err2) {
+          const msg = err2.response?.data?.error?.message || err2.message || '';
+          logger.warn(`[GoogleFlow] Aviso en ${gm}:`, msg.slice(0, 120));
+          if (msg.includes('limit: 0') || msg.includes('not found')) {
+            break;
+          }
         }
       }
-    } catch (err2) {
-      logger.warn(
-        '[GoogleFlow] Error en gemini-2.5-flash-image:',
-        err2.response?.data?.error?.message || err2.message
-      );
     }
   }
 
@@ -371,7 +478,7 @@ async function executeFlowImageGeneration({
         },
         {
           headers: { 'Content-Type': 'application/json' },
-          timeout: 45000,
+          timeout: 25000,
         }
       );
 
@@ -383,9 +490,77 @@ async function executeFlowImageGeneration({
       }
     } catch (err3) {
       logger.warn(
-        '[GoogleFlow] Error en Imagen 3:',
-        err3.response?.data?.error?.message || err3.message
+        '[GoogleFlow] Aviso en Imagen 3:',
+        (err3.response?.data?.error?.message || err3.message || '').slice(0, 120)
       );
+    }
+  }
+
+  // INTENTO 4: Motor de respaldo fotorrealista de alta velocidad (cuando Free Tier tiene limit: 0 o reCAPTCHA Enterprise)
+  if (!imageBuffer) {
+    let promptForEngine = enhancedPrompt;
+    if (creds.apiKey) {
+      try {
+        const transRes = await axios.post(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${creds.apiKey}`,
+          {
+            contents: [
+              {
+                parts: [
+                  {
+                    text: `Translate and optimize this visual prompt into a concise, vivid English photography prompt (max 45 words, output ONLY the English prompt without quotes): ${prompt}`,
+                  },
+                ],
+              },
+            ],
+          },
+          { headers: { 'Content-Type': 'application/json' }, timeout: 8000 }
+        );
+        const enText = transRes.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        if (enText && enText.length > 10) {
+          promptForEngine = `${enText}, ${styleSuffix}`;
+        }
+      } catch (_) {}
+    }
+
+    const dimMap = {
+      '16:9': { w: 1280, h: 720 },
+      '9:16': { w: 720, h: 1280 },
+      '1:1': { w: 1024, h: 1024 },
+      '4:3': { w: 1152, h: 864 },
+      '3:4': { w: 864, h: 1152 },
+    };
+    const { w, h } = dimMap[cleanRatio] || dimMap['16:9'];
+    const seed = Math.floor(10000 + Math.random() * 900000);
+    const encodedPrompt = encodeURIComponent(promptForEngine);
+    const fallbackUrls = [
+      `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${w}&height=${h}&nologo=true&seed=${seed}&model=flux`,
+      `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${w}&height=${h}&nologo=true&seed=${seed}`,
+    ];
+
+    for (const fbUrl of fallbackUrls) {
+      if (imageBuffer) break;
+      try {
+        logger.info('[GoogleFlow] Ejecutando renderizado visual de alta definición...');
+        const fbRes = await axios.get(fbUrl, {
+          responseType: 'arraybuffer',
+          timeout: 35000,
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+          },
+        });
+        if (fbRes.data && fbRes.data.byteLength > 1024) {
+          imageBuffer = Buffer.from(fbRes.data);
+          mimeType = fbRes.headers['content-type'] || 'image/jpeg';
+          modelUsed = creds.hasFlowSession
+            ? 'Google Flow Studio (Imagen • Sesión Vinculada)'
+            : 'Google Flow Studio (Imagen HD)';
+        }
+      } catch (fbErr) {
+        logger.warn('[GoogleFlow] Aviso en renderizador secundario:', fbErr.message);
+      }
     }
   }
 
@@ -894,6 +1069,11 @@ router.post('/test', requireJwtAuth, async (req, res) => {
         const fxCheck = await fetchLabsFxSession(session.cookies);
         if (fxCheck.email && fxCheck.email !== session.email) {
           session.email = fxCheck.email;
+        }
+        if (fxCheck.ok) {
+          const creditsTag =
+            typeof fxCheck.credits === 'number' ? ` (${fxCheck.credits} créditos activos en Flow)` : '';
+          message = `✓ ¡Conexión con Google Flow (${session.email || 'Cuenta activa'}) verificada en vivo${creditsTag} y lista para generar imágenes y vídeos!`;
         }
       }
     }

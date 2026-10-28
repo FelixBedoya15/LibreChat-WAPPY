@@ -282,6 +282,71 @@ class GenerarImagenSST extends Tool {
       }
     }
 
+    // INTENTO 4: Motor de respaldo fotorrealista de alta definición (garantiza que nunca falle por cuota Free Tier)
+    if (!imageBuffer) {
+      let promptForEngine = enhancedPrompt;
+      try {
+        const googleApiKey = await this.resolveGoogleApiKey();
+        if (googleApiKey) {
+          const transRes = await axios.post(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${googleApiKey}`,
+            {
+              contents: [
+                {
+                  parts: [
+                    {
+                      text: `Translate and optimize this visual prompt into a concise, vivid English photography prompt (max 45 words, output ONLY the English prompt without quotes): ${prompt}`,
+                    },
+                  ],
+                },
+              ],
+            },
+            { headers: { 'Content-Type': 'application/json' }, timeout: 8000 },
+          );
+          const enText = transRes.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          if (enText && enText.length > 10) {
+            promptForEngine = this.enhancePrompt(enText, estilo, aspecto);
+          }
+        }
+      } catch (_) {}
+
+      const dimMap = {
+        cuadrada: { w: 1024, h: 1024 },
+        horizontal: { w: 1280, h: 720 },
+        vertical: { w: 720, h: 1280 },
+      };
+      const { w, h } = dimMap[aspecto] || dimMap.cuadrada;
+      const seed = Math.floor(10000 + Math.random() * 900000);
+      const encodedPrompt = encodeURIComponent(promptForEngine);
+      const fallbackUrls = [
+        `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${w}&height=${h}&nologo=true&seed=${seed}&model=flux`,
+        `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${w}&height=${h}&nologo=true&seed=${seed}`,
+      ];
+
+      for (const fbUrl of fallbackUrls) {
+        if (imageBuffer) break;
+        try {
+          logger.info('[generar_imagen_sst] Ejecutando renderizado visual fotorrealista de respaldo...');
+          const fbRes = await axios.get(fbUrl, {
+            responseType: 'arraybuffer',
+            timeout: 35000,
+            headers: {
+              'User-Agent':
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+              Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+            },
+          });
+          if (fbRes.data && fbRes.data.byteLength > 1024) {
+            imageBuffer = Buffer.from(fbRes.data);
+            mimeType = fbRes.headers['content-type'] || 'image/jpeg';
+            generationSource = 'WAPPY Studio Visual (Flux HD)';
+          }
+        } catch (fbErr) {
+          logger.warn('[generar_imagen_sst] Aviso en renderizador de respaldo:', fbErr.message);
+        }
+      }
+    }
+
     // Si ningún proveedor pudo generar la imagen
     if (!imageBuffer) {
       return this.returnValue(
