@@ -616,11 +616,14 @@ async function executeFlowNativeStudioAction({
         });
 
         const rawText = browserFetch?.result?.value || '';
-        const urlMatch = rawText.match(/https:\/\/flow-content\.google\/image\/[^"\\]+/);
+        const urlMatch = rawText.match(/https:\/\/flow-content\.google\/image\/[^"]+/);
         if (urlMatch && urlMatch[0]) {
           const signedUrl = urlMatch[0]
+            .replace(/\\\\u003d/g, '=')
+            .replace(/\\\\u0026/g, '&')
             .replace(/\\u003d/g, '=')
-            .replace(/\\u0026/g, '&');
+            .replace(/\\u0026/g, '&')
+            .replace(/\\+$/g, '');
           return {
             ok: true,
             signedUrl,
@@ -976,11 +979,14 @@ async function executeFlowVideoGeneration({
             }
           );
           const rawPoll = typeof pollRes.data === 'string' ? pollRes.data : '';
-          const vidUrlMatch = rawPoll.match(/https:\/\/flow-content\.google\/video\/[^"\\]+/);
+          const vidUrlMatch = rawPoll.match(/https:\/\/flow-content\.google\/video\/[^"]+/);
           if (vidUrlMatch && vidUrlMatch[0]) {
             const signedVideoUrl = vidUrlMatch[0]
+              .replace(/\\\\u003d/g, '=')
+              .replace(/\\\\u0026/g, '&')
               .replace(/\\u003d/g, '=')
-              .replace(/\\u0026/g, '&');
+              .replace(/\\u0026/g, '&')
+              .replace(/\\+$/g, '');
             const dlVid = await axios.get(signedVideoUrl, {
               responseType: 'arraybuffer',
               timeout: 45000,
@@ -995,12 +1001,15 @@ async function executeFlowVideoGeneration({
               videoBuffer = Buffer.from(dlVid.data);
               modelUsed = nativeVid.modelLabel;
             }
-            const imgUrlMatch = rawPoll.match(/https:\/\/flow-content\.google\/image\/[^"\\]+/);
+            const imgUrlMatch = rawPoll.match(/https:\/\/flow-content\.google\/image\/[^"]+/);
             if (imgUrlMatch && imgUrlMatch[0]) {
               try {
                 const signedPosterUrl = imgUrlMatch[0]
+                  .replace(/\\\\u003d/g, '=')
+                  .replace(/\\\\u0026/g, '&')
                   .replace(/\\u003d/g, '=')
-                  .replace(/\\u0026/g, '&');
+                  .replace(/\\u0026/g, '&')
+                  .replace(/\\+$/g, '');
                 const dlPoster = await axios.get(signedPosterUrl, {
                   responseType: 'arraybuffer',
                   timeout: 20000,
