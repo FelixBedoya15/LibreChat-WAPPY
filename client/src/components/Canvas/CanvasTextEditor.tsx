@@ -1517,73 +1517,15 @@ const CanvasTextEditor: React.FC<CanvasTextEditorProps> = ({ initialContent, onU
         </div>
       </div>
 
-      {/* Live WYSIWYG Word Editor Wrapper */}
+      {/* Live WYSIWYG Word Editor Wrapper — Single Unified Toolbar (Exact Image 2 Configuration) */}
       <div className="flex-1 h-full overflow-hidden relative flex flex-col">
-        {/* WAPPY 14-Group Executive Action Bar (All buttons expand on hover & collapse to icon) */}
-        <div className="px-3 py-2 border-b border-border-medium bg-surface-secondary/50 flex items-center justify-between gap-2 shrink-0 flex-wrap">
-          <div className="flex items-center gap-1.5">
-            <ExpandableButton
-              onClick={() => {
-                setActiveTab('templates');
-                setSidebarOpen((prev) => (activeTab === 'templates' ? !prev : true));
-              }}
-              icon={<Layers className="h-4 w-4" />}
-              label="Plantillas SST"
-              title="Abrir 15 Plantillas Normativas SG-SST"
-              variant="amber"
-              size="sm"
-              isActive={sidebarOpen && activeTab === 'templates'}
-            />
-            <ExpandableButton
-              onClick={() => {
-                setActiveTab('inlays');
-                setSidebarOpen((prev) => (activeTab === 'inlays' ? !prev : true));
-              }}
-              icon={<Plus className="h-4 w-4" />}
-              label="Bloques Rápidos"
-              title="Insertar Tarjetas KPI, Citas Legales, Tablas de Acción o Firmas"
-              variant="emerald"
-              size="sm"
-              isActive={sidebarOpen && activeTab === 'inlays'}
-            />
-            <ExpandableButton
-              onClick={() => handleInsertInlay(DEFAULT_SIGNATURE_BLOCK)}
-              icon={<PenTool className="h-4 w-4" />}
-              label="Insertar Firmas"
-              title="Insertar bloque de firmas digitales al documento"
-              variant="fuchsia"
-              size="sm"
-            />
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <ExpandableButton
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-              icon={<Upload className="h-4 w-4" />}
-              label={isUploading ? 'Importando...' : 'Importar Documento'}
-              title="Importar documento externo conservando el formato"
-              variant="blue"
-              size="sm"
-            />
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              accept=".docx,.doc"
-              onChange={handleWordUpload}
-            />
-
-            <ExpandableButton
-              onClick={() => setIsBridgeOpen(true)}
-              icon={<Sparkles className="h-4 w-4" />}
-              label="Conectar Recursos IA"
-              title="Insertar tablas de Hoja de Cálculo o recursos de Google Flow y NotebookLM"
-              variant="purple"
-              size="sm"
-            />
-          </div>
-        </div>
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          accept=".docx,.doc"
+          onChange={handleWordUpload}
+        />
 
         <div className="flex-1 overflow-hidden relative">
           <LiveEditor
@@ -1595,6 +1537,11 @@ const CanvasTextEditor: React.FC<CanvasTextEditorProps> = ({ initialContent, onU
             hideFullscreen={false}
             reportSourceData={reportSourceData}
             hideToolbarWhenCollapsed={false}
+            onToggleTemplates={() => setSidebarOpen((prev) => !prev)}
+            isTemplatesOpen={sidebarOpen}
+            onUploadDocument={() => fileInputRef.current?.click()}
+            isUploadingDocument={isUploading}
+            onOpenAiBridge={() => setIsBridgeOpen(true)}
           />
         </div>
       </div>

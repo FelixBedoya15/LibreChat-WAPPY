@@ -25,17 +25,83 @@ async function getActiveCompanyId(userId) {
 }
 
 function hasHeader(html) {
-  if (!html) return false;
+  if (!html || typeof html !== 'string') return false;
   const lower = html.toLowerCase();
-  return (
-    lower.includes('información resumida de la entidad') ||
-    lower.includes('linear-gradient') ||
-    lower.includes('registro de inducción') ||
-    lower.includes('formato de inspección') ||
-    lower.includes('datos generales') ||
-    lower.includes('proceso: sg-sst') ||
-    lower.includes('proceso:sg-sst')
+  // A document only has the official WAPPY corporate header (Image 2) when it contains
+  // .wappy-standard-header-banner AND does NOT have unreplaced {{empresa_nombre}} template placeholders
+  if (lower.includes('{{empresa_nombre}}') || lower.includes('{{empresa_nit}}')) {
+    return false;
+  }
+  return lower.includes('wappy-standard-header-banner');
+}
+
+function replaceCompanyVariables(html, companyInfo) {
+  if (!html || typeof html !== 'string') return html;
+  const ci = companyInfo || {};
+  const replacements = {
+    '{{empresa_nombre}}': ci.companyName || 'WAPPY LTDA',
+    '{{empresa_nit}}': ci.nit || '9014373103',
+    '{{representante_legal}}': ci.legalRepresentative || ci.responsibleSST || 'Representante Legal',
+    '{{numero_trabajadores}}': String(ci.workerCount || '17'),
+    '{{nivel_riesgo}}': ci.riskLevel || 'V',
+    '{{arl}}': ci.arl || 'Sura',
+    '{{ciudad_domicilio}}': ci.city || 'Medellín',
+    '{{departamento}}': ci.departamento || 'Antioquia',
+    '{{direccion}}': ci.address || 'Sede Principal',
+    '{{tipo_empresa}}': ci.companyType || 'Persona Jurídica',
+    '{{actividad_economica}}': ci.economicActivity || 'Actividades Empresariales',
+    '{{codigo_ciiu}}': ci.ciiu || '6201',
+    '{{orden_jerarquico}}': '1. Gerencia General / Representante Legal · 2. Dirección de Operaciones y SG-SST · 3. Coordinadores de Área · 4. Personal Operativo y Administrativo',
+    '{{horarios_trabajo}}': 'Lunes a Viernes de 8:00 a.m. a 5:30 p.m. (Con 1 hora de almuerzo)',
+    '{{forma_pago}}': 'Transferencia Bancaria Electrónica',
+    '{{periodicidad_pago}}': 'Quincenal / Mensual',
+  };
+  let out = html;
+  for (const [key, val] of Object.entries(replacements)) {
+    out = out.split(key).join(val);
+  }
+  return out;
+}
+
+/**
+ * Strips any legacy/template fake banner and placeholder company table at the start of a template
+ * so buildStandardHeader({ title, companyInfo }) can prepend the official WAPPY header (Image 2).
+ */
+function stripFakeTemplateHeader(html) {
+  if (!html || typeof html !== 'string') return html;
+  if (html.includes('wappy-standard-header-banner')) return html;
+
+  let cleaned = html;
+
+  // 1. Remove outer wrapper div if it starts with <div class="rit-document" or <div style="font-family:
+  // Actually keep outer wrapper or strip inner fake banner:
+  // Pattern A: Template banner comments `<!-- Contenedor del Encabezado...` through the end of `<!-- Tabla Resumen... </table>\s*</div>`
+  cleaned = cleaned.replace(
+    /<!--\s*Contenedor del Encabezado[\s\S]*?<\/table>\s*<\/div>/i,
+    '',
   );
+
+  // Pattern B: Any leading banner div with linear-gradient or solid background-color (#0e7490, #0f766e, #042f2e, etc.) followed by a summary table before the first <h2> or <h3>
+  cleaned = cleaned.replace(
+    /<div[^>]*style="[^"]*background(?:-color)?:\s*(?:linear-gradient|#0e7490|#0f766e|#042f2e|#4f46e5|#0284c7|#6366f1)[^"]*"[^>]*>[\s\S]*?<\/div>\s*(?:<div[^>]*>\s*)?<table[\s\S]*?<\/table>(?:\s*<\/div>)?/i,
+    '',
+  );
+
+  // Pattern C: RIT backend template `<h1>REGLAMENTO INTERNO DE TRABAJO</h1>` + `INFORMACIÓN GENERAL DE LA EMPRESA` table
+  cleaned = cleaned.replace(
+    /<h1[^>]*>\s*REGLAMENTO INTERNO DE TRABAJO\s*<\/h1>\s*<table[\s\S]*?INFORMACI[ÓO]N GENERAL DE LA EMPRESA[\s\S]*?<\/table>/i,
+    '',
+  );
+
+  // Pattern D: Fallback if a standalone `INFORMACIÓN GENERAL DE LA EMPRESA` or `INFORMACIÓN RESUMIDA DE LA ENTIDAD` table without `wappy-entity-table` remains at the top
+  if (!cleaned.includes('wappy-entity-table')) {
+    cleaned = cleaned.replace(
+      /(?:<div[^>]*>\s*)?<table[^>]*>[\s\S]{0,1500}?(?:INFORMACI[ÓO]N GENERAL DE LA EMPRESA|INFORMACI[ÓO]N RESUMIDA DE LA ENTIDAD|DATOS GENERALES DEL COMIT[ÉE]|DATOS GENERALES DEL TRABAJADOR|INFORMACI[ÓO]N DEL REGISTRO)[\s\S]*?<\/table>(?:\s*<\/div>)?/i,
+      '',
+    );
+  }
+
+  return cleaned.trim();
 }
 
 function detectFileType(content, defaultType = 'text') {
@@ -100,15 +166,14 @@ function extractExistingHeader(html) {
   }
   if (!tableEndMatch) return null;
 
-  const headerStartIdx = html.indexOf('<div style="background: linear-gradient');
+  let headerStartIdx = html.indexOf('<style id="__wappy_report_responsive_styles__"');
   if (headerStartIdx === -1) {
-    const tableStartIdx = html.indexOf('<div style="overflow-x: auto;');
-    if (tableStartIdx === -1) return null;
-
-    const endIdx = html.indexOf(tableEndMatch[0], tableStartIdx);
-    if (endIdx === -1) return null;
-    return html.substring(tableStartIdx, endIdx + tableEndMatch[0].length);
+    headerStartIdx = html.indexOf('<div class="wappy-standard-header-banner"');
   }
+  if (headerStartIdx === -1) {
+    headerStartIdx = html.indexOf('<div style="background: linear-gradient');
+  }
+  if (headerStartIdx === -1) return null;
 
   const endIdx = html.indexOf(tableEndMatch[0], headerStartIdx);
   if (endIdx === -1) return null;
@@ -150,44 +215,38 @@ async function processTextDocument(content, fileType, title, userId, existingCon
   }
 
   let stringContent = (content || '').trim();
+  if (!stringContent) return stringContent;
 
   const currentHasHeader = hasHeader(stringContent);
   const currentHasSignature = hasSignature(stringContent);
+  const hasPlaceholders = stringContent.includes('{{empresa_') || stringContent.includes('{{representante_');
 
-  if (currentHasHeader && currentHasSignature) {
+  if (currentHasHeader && currentHasSignature && !hasPlaceholders) {
     return stringContent;
   }
 
-  let headerHtml = null;
-  let signatureHtml = null;
-
-  if (existingContent) {
-    if (!currentHasHeader) {
-      headerHtml = extractExistingHeader(existingContent);
-    }
-    if (!currentHasSignature) {
-      signatureHtml = extractExistingSignature(existingContent);
-    }
-  }
-
   let companyInfo = null;
-  if ((!currentHasHeader && !headerHtml) || (!currentHasSignature && !signatureHtml)) {
+  if (!currentHasHeader || !currentHasSignature || hasPlaceholders) {
     companyInfo =
       (await CompanyInfo.findOne({ user: userId, isActive: true })) ||
       (await CompanyInfo.findOne({ user: userId }));
   }
 
+  if (hasPlaceholders && companyInfo) {
+    stringContent = replaceCompanyVariables(stringContent, companyInfo);
+  }
+
   if (!currentHasHeader) {
-    if (!headerHtml) {
-      headerHtml = buildStandardHeader({
-        title: title || 'DOCUMENTO DE TRABAJO',
-        companyInfo,
-      });
-    }
+    stringContent = stripFakeTemplateHeader(stringContent);
+    const headerHtml = buildStandardHeader({
+      title: title || 'DOCUMENTO DE TRABAJO',
+      companyInfo,
+    });
     stringContent = headerHtml + '\n\n' + stringContent;
   }
 
   if (!currentHasSignature) {
+    let signatureHtml = existingContent ? extractExistingSignature(existingContent) : null;
     if (!signatureHtml && companyInfo) {
       signatureHtml = buildSignatureSection(companyInfo);
     }
@@ -282,7 +341,21 @@ router.get('/:conversationId', requireJwtAuth, async (req, res) => {
     }
 
     let servedContent = session.content;
-    if (session.fileType === 'html' && typeof servedContent === 'string' && servedContent.length > 0) {
+    if (session.fileType === 'text' && typeof servedContent === 'string' && servedContent.trim().length > 0) {
+      if (!hasHeader(servedContent) || !hasSignature(servedContent) || servedContent.includes('{{empresa_')) {
+        try {
+          servedContent = await processTextDocument(
+            servedContent,
+            'text',
+            session.title,
+            req.user?.id || session.user,
+            session.content,
+          );
+          session.content = servedContent;
+          await session.save();
+        } catch (_) {}
+      }
+    } else if (session.fileType === 'html' && typeof servedContent === 'string' && servedContent.length > 0) {
       try {
         const CanvasTool = require('~/app/clients/tools/structured/CanvasTool');
         if (typeof CanvasTool.injectStandaloneCssIfMissing === 'function') {

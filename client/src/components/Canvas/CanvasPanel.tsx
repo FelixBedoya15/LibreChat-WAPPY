@@ -869,7 +869,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
       }));
     }
 
-    await saveSession(newConvoId);
+    await saveSession(newConvoId, false, true);
 
     queryClient.invalidateQueries([QueryKeys.messages, newConvoId]);
     queryClient.invalidateQueries([QueryKeys.allConversations]);
@@ -879,7 +879,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
   // ── Debounced Auto-Save ──────────────────────────────────────────────────
   const saveSession = useCallback(
-    async (customId?: string, isManual = false) => {
+    async (customId?: string, isManual = false, forceSyncState = false) => {
       const activeConvoId = customId || conversationId;
       if (!activeConvoId || activeConvoId === 'new') return;
       isSavingRef.current = true;
@@ -906,8 +906,20 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
         if (data.success) {
           muteAutoSave(2000);
           if (data.content !== undefined) {
-            // Update ref to keep content fresh, but do not setContent state to avoid cursor jumping
+            const hadOfficialHeader =
+              typeof contentRef.current === 'string' &&
+              contentRef.current.includes('wappy-standard-header-banner') &&
+              !contentRef.current.includes('{{empresa_');
             contentRef.current = data.content;
+            if (
+              forceSyncState ||
+              (fileTypeRef.current === 'text' &&
+                typeof data.content === 'string' &&
+                data.content.includes('wappy-standard-header-banner') &&
+                !hadOfficialHeader)
+            ) {
+              setContent(data.content);
+            }
           }
           setVersion(data.version);
           setHistory(data.history || []);
@@ -971,12 +983,12 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           conversationId: newConvoId,
         }));
       }
-      await saveSession(newConvoId);
+      await saveSession(newConvoId, false, true);
       queryClient.invalidateQueries([QueryKeys.messages, newConvoId]);
       queryClient.invalidateQueries([QueryKeys.allConversations]);
       navigate(`/c/${newConvoId}`, { replace: true });
     } else {
-      await saveSession();
+      await saveSession(undefined, false, true);
     }
   };
 
@@ -1576,34 +1588,8 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                   onClick={() => {
                     const initialContent = appendSignatureIfMissing(`
 <div style="font-family: 'Inter', Arial, sans-serif; color: #1e293b; line-height: 1.6;">
-  <div style="background: linear-gradient(135deg, #042f2e 0%, #0f766e 100%); color: #ffffff; padding: 20px 24px; border-radius: 12px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center;">
-    <div>
-      <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.14em; color: #5eead4; text-transform: uppercase; margin-bottom: 4px;">SISTEMA DE GESTIÓN SG-SST · DECRETO 1072 DE 2015</div>
-      <div style="font-size: 19px; font-weight: 800; color: #ffffff; letter-spacing: -0.01em;">DOCUMENTO EJECUTIVO Y NORMATIVO SG-SST</div>
-      <div style="font-size: 12px; color: #ccfbf1; margin-top: 2px;">Política Corporativa, Acta Oficial o Procedimiento Operativo Normalizado</div>
-    </div>
-  </div>
-  <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden;">
-    <tr>
-      <td style="width: 25%; padding: 10px 12px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 11px;">
-        <strong>Código:</strong> SST-DOC-001
-      </td>
-      <td style="width: 25%; padding: 10px 12px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 11px;">
-        <strong>Versión:</strong> 01 Vigente
-      </td>
-      <td style="width: 25%; padding: 10px 12px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 11px;">
-        <strong>Norma:</strong> Res. 0312/2019
-      </td>
-      <td style="width: 25%; padding: 10px 12px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 11px;">
-        <strong>Fecha:</strong> ${new Date().toLocaleDateString('es-CO')}
-      </td>
-    </tr>
-  </table>
-  <div style="background: #f0fdfa; border-left: 4px solid #0d9488; padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 20px; font-size: 12.5px; color: #134e4a;">
-    <strong>Directriz Técnica:</strong> Usa los botones superiores <strong>Plantillas SST</strong> y <strong>Bloques Rápidos</strong> para insertar formatos oficiales (Actas COPASST, Matriz Legal, Investigación ATEL, Reglamento Higiene, Tarjetas KPI o Bloques de Firma Digital).
-  </div>
-  <h2 style="font-size: 15px; font-weight: 800; color: #0f766e; border-bottom: 2px solid #0d9488; padding-bottom: 4px; margin-top: 16px;">1. OBJETIVO Y ALCANCE NORMATIVO</h2>
-  <p style="font-size: 13px;">Establecer los lineamientos técnicos, administrativos y legales de Seguridad y Salud en el Trabajo conforme al Decreto Único Reglamentario 1072 de 2015 y los Estándares Mínimos de la Resolución 0312 de 2019, aplicables a todos los centros de trabajo, contratistas y partes interesadas.</p>
+  <h2 style="font-size: 15px; font-weight: 800; color: #0f766e; border-bottom: 2px solid #0d9488; padding-bottom: 4px; margin-top: 8px;">1. OBJETIVO Y ALCANCE NORMATIVO</h2>
+  <p style="font-size: 13px; text-align: justify;">Establecer los lineamientos técnicos, administrativos y legales del Sistema de Gestión de la Seguridad y Salud en el Trabajo (SG-SST) conforme al Decreto Único Reglamentario 1072 de 2015 y los Estándares Mínimos de la Resolución 0312 de 2019, aplicables a todos los centros de trabajo, trabajadores directos, contratistas y partes interesadas de la organización.</p>
   <h2 style="font-size: 15px; font-weight: 800; color: #0f766e; border-bottom: 2px solid #0d9488; padding-bottom: 4px; margin-top: 20px;">2. LINEAMIENTOS Y CONTROLES OPERATIVOS</h2>
   <table style="width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 12px;">
     <thead>
@@ -1647,7 +1633,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                       fileTypeRef.current = 'text';
                       contentRef.current = initialContent;
                       titleRef.current = 'Informe Técnico SG-SST';
-                      saveSession();
+                      saveSession(undefined, false, true);
                     }
                   }}
                   className="group relative flex flex-col justify-between rounded-2xl border border-teal-500/25 bg-surface-secondary/80 p-4 text-left shadow-xs backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-teal-500/50 hover:bg-teal-500/[0.06] hover:shadow-md cursor-pointer"

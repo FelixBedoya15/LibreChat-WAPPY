@@ -33,6 +33,8 @@ import {
   History,
   AArrowUp,
   AArrowDown,
+  Upload,
+  Sparkles,
 } from 'lucide-react';
 import { useLocalize } from '~/hooks';
 import { useAuthContext } from '~/hooks/AuthContext';
@@ -49,6 +51,12 @@ interface LiveEditorProps {
   /** Optional source data for AI context (passed to backend for AI inline editing) */
   reportSourceData?: any;
   onHistory?: () => void;
+  /** Optional callbacks for Canvas Word Editor integration inside the single unified toolbar */
+  onToggleTemplates?: () => void;
+  isTemplatesOpen?: boolean;
+  onUploadDocument?: () => void;
+  isUploadingDocument?: boolean;
+  onOpenAiBridge?: () => void;
   /** When true, hides the native fullscreen button from the toolbar (use when the parent panel provides its own maximize control) */
   hideFullscreen?: boolean;
   /** When true, the toolbar is hidden unless the editor is in its own native fullscreen mode */
@@ -134,6 +142,11 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
       onChange,
       onSave,
       onHistory,
+      onToggleTemplates,
+      isTemplatesOpen = false,
+      onUploadDocument,
+      isUploadingDocument = false,
+      onOpenAiBridge,
       reportType = 'general',
       reportSourceData,
       paperMode = true,
@@ -1333,6 +1346,18 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
       {
         id: 'media',
         buttons: [
+          ...(onToggleTemplates
+            ? [
+                {
+                  icon: Layers,
+                  label: 'Plantillas SST',
+                  onClick: onToggleTemplates,
+                  accentClass: isTemplatesOpen
+                    ? 'bg-teal-500/20 border-teal-500/50 text-teal-800 dark:text-teal-200 shadow-xs'
+                    : 'bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs',
+                },
+              ]
+            : []),
           {
             icon: TableIcon,
             label: 'Tabla SST',
@@ -1361,6 +1386,28 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
             accentClass:
               'bg-fuchsia-500/10 border-fuchsia-500/30 text-fuchsia-700 dark:text-fuchsia-300 hover:bg-fuchsia-500/20 shadow-xs',
           },
+          ...(onUploadDocument
+            ? [
+                {
+                  icon: Upload,
+                  label: isUploadingDocument ? 'Importando...' : 'Importar',
+                  onClick: onUploadDocument,
+                  accentClass:
+                    'bg-sky-500/10 border-sky-500/30 text-sky-700 dark:text-sky-300 hover:bg-sky-500/20 shadow-xs',
+                },
+              ]
+            : []),
+          ...(onOpenAiBridge
+            ? [
+                {
+                  icon: Sparkles,
+                  label: 'Recursos IA',
+                  onClick: onOpenAiBridge,
+                  accentClass:
+                    'bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs',
+                },
+              ]
+            : []),
         ],
       },
       {

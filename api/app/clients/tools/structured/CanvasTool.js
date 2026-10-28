@@ -12,15 +12,69 @@ const { logger } = require('@librechat/data-schemas');
 function hasHeader(html) {
   if (!html || typeof html !== 'string') return false;
   const lower = html.toLowerCase();
-  return (
-    lower.includes('información resumida de la entidad') ||
-    lower.includes('linear-gradient') ||
-    lower.includes('registro de inducción') ||
-    lower.includes('formato de inspección') ||
-    lower.includes('datos generales') ||
-    lower.includes('proceso: sg-sst') ||
-    lower.includes('proceso:sg-sst')
+  if (lower.includes('{{empresa_nombre}}') || lower.includes('{{empresa_nit}}')) {
+    return false;
+  }
+  return lower.includes('wappy-standard-header-banner');
+}
+
+function replaceCompanyVariables(html, companyInfo) {
+  if (!html || typeof html !== 'string') return html;
+  const ci = companyInfo || {};
+  const replacements = {
+    '{{empresa_nombre}}': ci.companyName || 'WAPPY LTDA',
+    '{{empresa_nit}}': ci.nit || '9014373103',
+    '{{representante_legal}}': ci.legalRepresentative || ci.responsibleSST || 'Representante Legal',
+    '{{numero_trabajadores}}': String(ci.workerCount || '17'),
+    '{{nivel_riesgo}}': ci.riskLevel || 'V',
+    '{{arl}}': ci.arl || 'Sura',
+    '{{ciudad_domicilio}}': ci.city || 'Medellín',
+    '{{departamento}}': ci.departamento || 'Antioquia',
+    '{{direccion}}': ci.address || 'Sede Principal',
+    '{{tipo_empresa}}': ci.companyType || 'Persona Jurídica',
+    '{{actividad_economica}}': ci.economicActivity || 'Actividades Empresariales',
+    '{{codigo_ciiu}}': ci.ciiu || '6201',
+    '{{orden_jerarquico}}': '1. Gerencia General / Representante Legal · 2. Dirección de Operaciones y SG-SST · 3. Coordinadores de Área · 4. Personal Operativo y Administrativo',
+    '{{horarios_trabajo}}': 'Lunes a Viernes de 8:00 a.m. a 5:30 p.m. (Con 1 hora de almuerzo)',
+    '{{forma_pago}}': 'Transferencia Bancaria Electrónica',
+    '{{periodicidad_pago}}': 'Quincenal / Mensual',
+  };
+  let out = html;
+  for (const [key, val] of Object.entries(replacements)) {
+    out = out.split(key).join(val);
+  }
+  return out;
+}
+
+function stripFakeTemplateHeader(html) {
+  if (!html || typeof html !== 'string') return html;
+  if (html.includes('wappy-standard-header-banner')) return html;
+
+  let cleaned = html;
+
+  cleaned = cleaned.replace(
+    /<!--\s*Contenedor del Encabezado[\s\S]*?<\/table>\s*<\/div>/i,
+    '',
   );
+
+  cleaned = cleaned.replace(
+    /<div[^>]*style="[^"]*background(?:-color)?:\s*(?:linear-gradient|#0e7490|#0f766e|#042f2e|#4f46e5|#0284c7|#6366f1)[^"]*"[^>]*>[\s\S]*?<\/div>\s*(?:<div[^>]*>\s*)?<table[\s\S]*?<\/table>(?:\s*<\/div>)?/i,
+    '',
+  );
+
+  cleaned = cleaned.replace(
+    /<h1[^>]*>\s*REGLAMENTO INTERNO DE TRABAJO\s*<\/h1>\s*<table[\s\S]*?INFORMACI[ÓO]N GENERAL DE LA EMPRESA[\s\S]*?<\/table>/i,
+    '',
+  );
+
+  if (!cleaned.includes('wappy-entity-table')) {
+    cleaned = cleaned.replace(
+      /(?:<div[^>]*>\s*)?<table[^>]*>[\s\S]{0,1500}?(?:INFORMACI[ÓO]N GENERAL DE LA EMPRESA|INFORMACI[ÓO]N RESUMIDA DE LA ENTIDAD|DATOS GENERALES DEL COMIT[ÉE]|DATOS GENERALES DEL TRABAJADOR|INFORMACI[ÓO]N DEL REGISTRO)[\s\S]*?<\/table>(?:\s*<\/div>)?/i,
+      '',
+    );
+  }
+
+  return cleaned.trim();
 }
 
 function hasSignature(html) {
@@ -33,36 +87,6 @@ function hasSignature(html) {
     lower.includes('trabajador inducido') ||
     lower.includes('representante legal')
   );
-}
-
-/**
- * Busca y extrae el bloque del encabezado corporativo (contenedor con degradado linear-gradient y tabla resumen de la entidad)
- * existente en el contenido previo para evitar sobrescribir las ediciones manuales.
- */
-function extractExistingHeader(html) {
-  if (!html || typeof html !== 'string' || !hasHeader(html)) {
-    return null;
-  }
-
-  let tableEndMatch = html.match(/<\/table>\s*<\/div>/i);
-  if (!tableEndMatch) {
-    tableEndMatch = html.match(/<\/table>/i);
-  }
-  if (!tableEndMatch) return null;
-
-  const headerStartIdx = html.indexOf('<div style="background: linear-gradient');
-  if (headerStartIdx === -1) {
-    const tableStartIdx = html.indexOf('<div style="overflow-x: auto;');
-    if (tableStartIdx === -1) return null;
-
-    const endIdx = html.indexOf(tableEndMatch[0], tableStartIdx);
-    if (endIdx === -1) return null;
-    return html.substring(tableStartIdx, endIdx + tableEndMatch[0].length);
-  }
-
-  const endIdx = html.indexOf(tableEndMatch[0], headerStartIdx);
-  if (endIdx === -1) return null;
-  return html.substring(headerStartIdx, endIdx + tableEndMatch[0].length);
 }
 
 /**
@@ -100,44 +124,38 @@ async function processTextDocument(content, fileType, title, userId, existingCon
   }
 
   let stringContent = typeof content === 'string' ? content.trim() : (content ? String(content) : '');
+  if (!stringContent) return stringContent;
 
   const currentHasHeader = hasHeader(stringContent);
   const currentHasSignature = hasSignature(stringContent);
+  const hasPlaceholders = stringContent.includes('{{empresa_') || stringContent.includes('{{representante_');
 
-  if (currentHasHeader && currentHasSignature) {
+  if (currentHasHeader && currentHasSignature && !hasPlaceholders) {
     return stringContent;
   }
 
-  let headerHtml = null;
-  let signatureHtml = null;
-
-  if (existingContent) {
-    if (!currentHasHeader) {
-      headerHtml = extractExistingHeader(existingContent);
-    }
-    if (!currentHasSignature) {
-      signatureHtml = extractExistingSignature(existingContent);
-    }
-  }
-
   let companyInfo = null;
-  if ((!currentHasHeader && !headerHtml) || (!currentHasSignature && !signatureHtml)) {
+  if (!currentHasHeader || !currentHasSignature || hasPlaceholders) {
     companyInfo =
       (await CompanyInfo.findOne({ user: userId, isActive: true })) ||
       (await CompanyInfo.findOne({ user: userId }));
   }
 
+  if (hasPlaceholders && companyInfo) {
+    stringContent = replaceCompanyVariables(stringContent, companyInfo);
+  }
+
   if (!currentHasHeader) {
-    if (!headerHtml) {
-      headerHtml = buildStandardHeader({
-        title: title || 'DOCUMENTO DE TRABAJO',
-        companyInfo,
-      });
-    }
+    stringContent = stripFakeTemplateHeader(stringContent);
+    const headerHtml = buildStandardHeader({
+      title: title || 'DOCUMENTO DE TRABAJO',
+      companyInfo,
+    });
     stringContent = headerHtml + '\n\n' + stringContent;
   }
 
   if (!currentHasSignature) {
+    let signatureHtml = existingContent ? extractExistingSignature(existingContent) : null;
     if (!signatureHtml && companyInfo) {
       signatureHtml = buildSignatureSection(companyInfo);
     }

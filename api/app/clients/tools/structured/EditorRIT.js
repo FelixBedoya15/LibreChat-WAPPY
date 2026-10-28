@@ -1,9 +1,70 @@
 const { z } = require('zod');
 const { Tool } = require('@langchain/core/tools');
 const LiveEditorSession = require('~/models/LiveEditorSession');
+const CompanyInfo = require('~/models/CompanyInfo');
+const { buildStandardHeader, buildSignatureSection } = require('~/server/routes/sgsst/reportHeader');
 const { syncLiveEditorToCanvas } = require('~/server/routes/sgsst/syncBridge');
 const ritTemplateTradicional = require('./rit_template_tradicional');
 const ritTemplateHumanista = require('./rit_template_humanista');
+
+async function formatOfficialRITWithCompany(rawHtml, title, userId) {
+  let out = typeof rawHtml === 'string' ? rawHtml.trim() : '';
+  if (!out) return out;
+
+  const companyInfo =
+    (await CompanyInfo.findOne({ user: userId, isActive: true })) ||
+    (await CompanyInfo.findOne({ user: userId }));
+  const ci = companyInfo || {};
+
+  // Strip the legacy <h1>REGLAMENTO INTERNO DE TRABAJO</h1> + INFORMACIÓN GENERAL DE LA EMPRESA table
+  out = out.replace(
+    /<h1[^>]*>\s*REGLAMENTO INTERNO DE TRABAJO\s*<\/h1>\s*<table[\s\S]*?INFORMACI[ÓO]N GENERAL DE LA EMPRESA[\s\S]*?<\/table>/i,
+    '',
+  );
+
+  // Replace company variables with real CompanyInfo data
+  const replacements = {
+    '{{empresa_nombre}}': ci.companyName || 'WAPPY LTDA',
+    '{{empresa_nit}}': ci.nit || '9014373103',
+    '{{representante_legal}}': ci.legalRepresentative || ci.responsibleSST || 'Representante Legal',
+    '{{numero_trabajadores}}': String(ci.workerCount || '17'),
+    '{{nivel_riesgo}}': ci.riskLevel || 'V',
+    '{{arl}}': ci.arl || 'Sura',
+    '{{ciudad_domicilio}}': ci.city || 'Medellín',
+    '{{departamento}}': ci.departamento || 'Antioquia',
+    '{{direccion}}': ci.address || 'Sede Principal',
+    '{{tipo_empresa}}': ci.companyType || 'Persona Jurídica',
+    '{{actividad_economica}}': ci.economicActivity || 'Actividades Empresariales',
+    '{{codigo_ciiu}}': ci.ciiu || '6201',
+    '{{orden_jerarquico}}': '1. Gerencia General / Representante Legal · 2. Dirección de Operaciones y SG-SST · 3. Coordinadores de Área · 4. Personal Operativo y Administrativo',
+    '{{horarios_trabajo}}': 'Lunes a Viernes de 8:00 a.m. a 5:30 p.m. (Con 1 hora de almuerzo)',
+    '{{forma_pago}}': 'Transferencia Bancaria Electrónica',
+    '{{periodicidad_pago}}': 'Quincenal / Mensual',
+  };
+  for (const [key, val] of Object.entries(replacements)) {
+    out = out.split(key).join(val);
+  }
+
+  if (!out.toLowerCase().includes('wappy-standard-header-banner')) {
+    const headerHtml = buildStandardHeader({
+      title: title || 'REGLAMENTO INTERNO DE TRABAJO',
+      companyInfo,
+    });
+    out = `${headerHtml}\n\n${out}`;
+  }
+
+  const lower = out.toLowerCase();
+  const hasSig =
+    lower.includes('signature-placeholder') ||
+    lower.includes('responsable sg-sst') ||
+    lower.includes('representante legal');
+  if (!hasSig && companyInfo) {
+    const sigHtml = buildSignatureSection(companyInfo);
+    if (sigHtml) out = `${out}\n\n${sigHtml}`;
+  }
+
+  return out;
+}
 
 /**
  * EditorRIT Tool
@@ -123,7 +184,8 @@ class EditorRIT extends Tool {
       // ── CARGAR PLANTILLA ────────────────────────────────────────────────────
       if (accion === 'cargar_plantilla') {
         const fileName = input.fileName || 'Reglamento Interno de Trabajo';
-        const templateToUse = input.tono === 'humanista' ? ritTemplateHumanista : ritTemplateTradicional;
+        const rawTemplate = input.tono === 'humanista' ? ritTemplateHumanista : ritTemplateTradicional;
+        const templateToUse = await formatOfficialRITWithCompany(rawTemplate, fileName, userId);
 
         await LiveEditorSession.findOneAndUpdate(
           { conversationId },
@@ -140,7 +202,7 @@ class EditorRIT extends Tool {
         await syncLiveEditorToCanvas(conversationId, templateToUse, fileName, userId);
         return JSON.stringify({
           success: true,
-          mensaje: `Plantilla del Reglamento Interno de Trabajo (${input.tono || 'tradicional'}) cargada exitosamente. Contiene la estructura completa. Ahora usa "buscar_reemplazar" para sustituir variables como {{empresa_nombre}}, etc.`,
+          mensaje: `Plantilla del Reglamento Interno de Trabajo (${input.tono || 'tradicional'}) cargada exitosamente con el encabezado oficial y datos de la empresa.`,
           fileName: fileName,
           contentLength: templateToUse.length,
         });
@@ -194,11 +256,16 @@ class EditorRIT extends Tool {
         if (!input.content) {
           return JSON.stringify({ error: 'El campo "content" es obligatorio para accion="escribir".' });
         }
+        const finalDocHtml = await formatOfficialRITWithCompany(
+          input.content,
+          input.fileName || 'Reglamento Interno de Trabajo',
+          userId,
+        );
         await LiveEditorSession.findOneAndUpdate(
           { conversationId },
           {
             $set: {
-              content: input.content,
+              content: finalDocHtml,
               contentUpdatedAt: new Date(),
               ...(input.fileName ? { fileName: input.fileName } : {}),
             },
@@ -206,12 +273,12 @@ class EditorRIT extends Tool {
           },
           { upsert: true, new: true },
         );
-        await syncLiveEditorToCanvas(conversationId, input.content, input.fileName || 'Reglamento Interno de Trabajo', userId);
+        await syncLiveEditorToCanvas(conversationId, finalDocHtml, input.fileName || 'Reglamento Interno de Trabajo', userId);
         return JSON.stringify({
           success: true,
           mensaje: `Documento actualizado correctamente.`,
           fileName: input.fileName || 'Documento sin título',
-          contentLength: input.content.length,
+          contentLength: finalDocHtml.length,
         });
       }
 

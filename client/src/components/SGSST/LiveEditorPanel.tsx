@@ -336,6 +336,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
         ? (userId ? `temp-${userId}` : null)
         : conversationId;
 
+      let finalWithHeader = withSigs;
       if (targetId) {
         const saveRes = await fetch(`/api/live-editor/${targetId}`, {
           method: 'PUT',
@@ -347,6 +348,9 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
         }
         const saved = await saveRes.json();
         lastUpdatedAtRef.current = saved.contentUpdatedAt;
+        if (saved.content) {
+          finalWithHeader = saved.content;
+        }
         if (conversationId && conversationId !== 'new') {
           await tagConversation(conversationId, LIVE_EDITOR_TAG, token || '');
         }
@@ -354,10 +358,10 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
         lastUpdatedAtRef.current = null;
       }
 
-      setContent(withSigs);
+      setContent(finalWithHeader);
       setFileName(data.fileName);
-      editorContentRef.current = withSigs;
-      liveEditorRef.current?.setHTML(withSigs);
+      editorContentRef.current = finalWithHeader;
+      liveEditorRef.current?.setHTML(finalWithHeader);
       setRefreshTrigger(prev => prev + 1);
     } catch (err: any) {
       console.error('[LiveEditorPanel] applyExtractedDocument error:', err);
@@ -462,8 +466,16 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
       if (res.ok) {
         const data = await res.json();
         lastUpdatedAtRef.current = data.contentUpdatedAt;
-        setContent(finalContent);
-        editorContentRef.current = finalContent;
+        const resolvedContent = data.content || finalContent;
+        setContent(resolvedContent);
+        editorContentRef.current = resolvedContent;
+        if (
+          data.content &&
+          data.content.includes('wappy-standard-header-banner') &&
+          !finalContent.includes('wappy-standard-header-banner')
+        ) {
+          liveEditorRef.current?.setHTML(data.content);
+        }
         if (data.history) {
           setHistory(data.history);
         }
@@ -867,8 +879,9 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
                 onUpdate={(c: string) => { editorContentRef.current = c; }}
                 onSave={handleSave}
                 onHistory={() => setIsHistoryOpen(h => !h)}
-                hideFullscreen={true}
-                hideToolbarWhenCollapsed={!isMaximized}
+                paperMode={true}
+                hideFullscreen={false}
+                hideToolbarWhenCollapsed={false}
               />
             </div>
           </div>

@@ -1,7 +1,38 @@
 const { z } = require('zod');
 const { Tool } = require('@langchain/core/tools');
 const LiveEditorSession = require('~/models/LiveEditorSession');
+const CompanyInfo = require('~/models/CompanyInfo');
+const { buildStandardHeader, buildSignatureSection } = require('~/server/routes/sgsst/reportHeader');
 const { syncLiveEditorToCanvas } = require('~/server/routes/sgsst/syncBridge');
+
+async function ensureOfficialWappyDoc(html, title, userId) {
+  let out = typeof html === 'string' ? html.trim() : '';
+  if (!out) return out;
+
+  const companyInfo =
+    (await CompanyInfo.findOne({ user: userId, isActive: true })) ||
+    (await CompanyInfo.findOne({ user: userId }));
+
+  if (!out.toLowerCase().includes('wappy-standard-header-banner')) {
+    const headerHtml = buildStandardHeader({
+      title: title || 'DOCUMENTO CORPORATIVO SG-SST',
+      companyInfo,
+    });
+    out = `${headerHtml}\n\n${out}`;
+  }
+
+  const lower = out.toLowerCase();
+  const hasSig =
+    lower.includes('signature-placeholder') ||
+    lower.includes('responsable sg-sst') ||
+    lower.includes('representante legal');
+  if (!hasSig && companyInfo) {
+    const sigHtml = buildSignatureSection(companyInfo);
+    if (sigHtml) out = `${out}\n\n${sigHtml}`;
+  }
+
+  return out;
+}
 
 /**
  * EditorLive Tool
@@ -149,11 +180,16 @@ class EditorLive extends Tool {
         if (!input.content) {
           return JSON.stringify({ error: 'El campo "content" es obligatorio para accion="escribir".' });
         }
+        const finalDocHtml = await ensureOfficialWappyDoc(
+          input.content,
+          input.fileName || 'DOCUMENTO CORPORATIVO SG-SST',
+          userId,
+        );
         await LiveEditorSession.findOneAndUpdate(
           { conversationId },
           {
             $set: {
-              content: input.content,
+              content: finalDocHtml,
               contentUpdatedAt: new Date(),
               ...(input.fileName ? { fileName: input.fileName } : {}),
             },
@@ -161,12 +197,12 @@ class EditorLive extends Tool {
           },
           { upsert: true, new: true },
         );
-        await syncLiveEditorToCanvas(conversationId, input.content, input.fileName, userId);
+        await syncLiveEditorToCanvas(conversationId, finalDocHtml, input.fileName, userId);
         return JSON.stringify({
           success: true,
           mensaje: `Documento creado/actualizado correctamente. El usuario puede verlo en el panel lateral.`,
           fileName: input.fileName || 'Documento sin título',
-          contentLength: input.content.length,
+          contentLength: finalDocHtml.length,
         });
       }
 

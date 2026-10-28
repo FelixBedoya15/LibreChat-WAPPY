@@ -945,7 +945,8 @@ const LivePage = () => {
                                 setEditorContent(html);
                             }}
                             onSave={handleSave}
-                            paperMode={false}
+                            paperMode={true}
+                            hideToolbarWhenCollapsed={false}
                             reportSourceData={reportSourceData}
                         />
                     )}

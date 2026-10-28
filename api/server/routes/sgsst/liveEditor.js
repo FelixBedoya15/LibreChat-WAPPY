@@ -12,7 +12,126 @@ const { generateWithKeyRotation, SGSST_FALLBACK_MODELS } = require('./sgsstGemin
 const { EModelEndpoint } = require('librechat-data-provider');
 const { saveMessage, saveConvo, getMessages } = require('~/models');
 const mongoose = require('mongoose');
-const { buildSignatureSection } = require('./reportHeader');
+const { buildStandardHeader, buildSignatureSection } = require('./reportHeader');
+
+function hasOfficialHeader(html) {
+  if (!html || typeof html !== 'string') return false;
+  const lower = html.toLowerCase();
+  if (lower.includes('{{empresa_nombre}}') || lower.includes('{{empresa_nit}}')) {
+    return false;
+  }
+  return lower.includes('wappy-standard-header-banner');
+}
+
+function hasSignatureBlock(html) {
+  if (!html || typeof html !== 'string') return false;
+  const lower = html.toLowerCase();
+  return (
+    lower.includes('signature-placeholder') ||
+    lower.includes('responsable sg-sst') ||
+    lower.includes('responsable sst') ||
+    lower.includes('trabajador inducido') ||
+    lower.includes('representante legal')
+  );
+}
+
+function replaceCompanyVariables(html, companyInfo) {
+  if (!html || typeof html !== 'string') return html;
+  const ci = companyInfo || {};
+  const replacements = {
+    '{{empresa_nombre}}': ci.companyName || 'WAPPY LTDA',
+    '{{empresa_nit}}': ci.nit || '9014373103',
+    '{{representante_legal}}': ci.legalRepresentative || ci.responsibleSST || 'Representante Legal',
+    '{{numero_trabajadores}}': String(ci.workerCount || '17'),
+    '{{nivel_riesgo}}': ci.riskLevel || 'V',
+    '{{arl}}': ci.arl || 'Sura',
+    '{{ciudad_domicilio}}': ci.city || 'Medellín',
+    '{{departamento}}': ci.departamento || 'Antioquia',
+    '{{direccion}}': ci.address || 'Sede Principal',
+    '{{tipo_empresa}}': ci.companyType || 'Persona Jurídica',
+    '{{actividad_economica}}': ci.economicActivity || 'Actividades Empresariales',
+    '{{codigo_ciiu}}': ci.ciiu || '6201',
+    '{{orden_jerarquico}}': '1. Gerencia General / Representante Legal · 2. Dirección de Operaciones y SG-SST · 3. Coordinadores de Área · 4. Personal Operativo y Administrativo',
+    '{{horarios_trabajo}}': 'Lunes a Viernes de 8:00 a.m. a 5:30 p.m. (Con 1 hora de almuerzo)',
+    '{{forma_pago}}': 'Transferencia Bancaria Electrónica',
+    '{{periodicidad_pago}}': 'Quincenal / Mensual',
+  };
+  let out = html;
+  for (const [key, val] of Object.entries(replacements)) {
+    out = out.split(key).join(val);
+  }
+  return out;
+}
+
+function stripFakeTemplateHeader(html) {
+  if (!html || typeof html !== 'string') return html;
+  if (html.includes('wappy-standard-header-banner')) return html;
+
+  let cleaned = html;
+
+  cleaned = cleaned.replace(
+    /<!--\s*Contenedor del Encabezado[\s\S]*?<\/table>\s*<\/div>/i,
+    '',
+  );
+
+  cleaned = cleaned.replace(
+    /<div[^>]*style="[^"]*background(?:-color)?:\s*(?:linear-gradient|#0e7490|#0f766e|#042f2e|#4f46e5|#0284c7|#6366f1)[^"]*"[^>]*>[\s\S]*?<\/div>\s*(?:<div[^>]*>\s*)?<table[\s\S]*?<\/table>(?:\s*<\/div>)?/i,
+    '',
+  );
+
+  cleaned = cleaned.replace(
+    /<h1[^>]*>\s*REGLAMENTO INTERNO DE TRABAJO\s*<\/h1>\s*<table[\s\S]*?INFORMACI[ÓO]N GENERAL DE LA EMPRESA[\s\S]*?<\/table>/i,
+    '',
+  );
+
+  if (!cleaned.includes('wappy-entity-table')) {
+    cleaned = cleaned.replace(
+      /(?:<div[^>]*>\s*)?<table[^>]*>[\s\S]{0,1500}?(?:INFORMACI[ÓO]N GENERAL DE LA EMPRESA|INFORMACI[ÓO]N RESUMIDA DE LA ENTIDAD|DATOS GENERALES DEL COMIT[ÉE]|DATOS GENERALES DEL TRABAJADOR|INFORMACI[ÓO]N DEL REGISTRO)[\s\S]*?<\/table>(?:\s*<\/div>)?/i,
+      '',
+    );
+  }
+
+  return cleaned.trim();
+}
+
+async function ensureOfficialDocumentHeaderAndSignature(content, title, userId) {
+  let stringContent = typeof content === 'string' ? content.trim() : '';
+  if (!stringContent) return stringContent;
+
+  const hasHeaderNow = hasOfficialHeader(stringContent);
+  const hasSigNow = hasSignatureBlock(stringContent);
+  const hasPlaceholders = stringContent.includes('{{empresa_') || stringContent.includes('{{representante_');
+
+  if (hasHeaderNow && hasSigNow && !hasPlaceholders) {
+    return stringContent;
+  }
+
+  const companyInfo =
+    (await CompanyInfo.findOne({ user: userId, isActive: true })) ||
+    (await CompanyInfo.findOne({ user: userId }));
+
+  if (hasPlaceholders && companyInfo) {
+    stringContent = replaceCompanyVariables(stringContent, companyInfo);
+  }
+
+  if (!hasHeaderNow) {
+    stringContent = stripFakeTemplateHeader(stringContent);
+    const headerHtml = buildStandardHeader({
+      title: title || 'DOCUMENTO CORPORATIVO SG-SST',
+      companyInfo,
+    });
+    stringContent = headerHtml + '\n\n' + stringContent;
+  }
+
+  if (!hasSigNow && companyInfo) {
+    const sigHtml = buildSignatureSection(companyInfo);
+    if (sigHtml) {
+      stringContent = stringContent + '\n\n' + sigHtml;
+    }
+  }
+
+  return stringContent;
+}
 
 
 async function getActiveCompanyId(userId) {
@@ -112,6 +231,19 @@ router.get('/:conversationId', requireJwtAuth, async (req, res) => {
       return res.json({ content: '', fileName: 'Documento sin título', contentUpdatedAt: null, history: [], version: 1 });
     }
 
+    if (session.content && typeof session.content === 'string' && session.content.trim().length > 0) {
+      if (!hasOfficialHeader(session.content) || !hasSignatureBlock(session.content) || session.content.includes('{{empresa_')) {
+        try {
+          session.content = await ensureOfficialDocumentHeaderAndSignature(
+            session.content,
+            session.fileName,
+            userId,
+          );
+          await session.save();
+        } catch (_) {}
+      }
+    }
+
     // Fetch corresponding CanvasSession of type 'text' to get history and version
     const CanvasSession = require('~/models/CanvasSession');
     const canvasSession = await CanvasSession.findOne({ conversationId, fileType: 'text' });
@@ -143,9 +275,13 @@ router.put('/:conversationId', requireJwtAuth, async (req, res) => {
     const userId = req.user.id;
     const companyId = await getActiveCompanyId(userId);
 
+    const processedContent = content
+      ? await ensureOfficialDocumentHeaderAndSignature(content, fileName || 'DOCUMENTO CORPORATIVO SG-SST', userId)
+      : '';
+
     const update = {
       $set: {
-        content: content ?? '',
+        content: processedContent,
         contentUpdatedAt: new Date(),
         companyId,
         ...(fileName ? { fileName } : {}),
@@ -182,6 +318,7 @@ router.put('/:conversationId', requireJwtAuth, async (req, res) => {
 
     res.json({
       success: true,
+      content: session.content,
       contentUpdatedAt: session.contentUpdatedAt,
       fileName: session.fileName,
       history,
@@ -520,6 +657,13 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
       }
 
       if (companyInfo) {
+        if (!hasOfficialHeader(reportHtml)) {
+          const headerHtml = buildStandardHeader({
+            title: `INFORME DE INSPECCIÓN HSE - ${activeTemplate.toUpperCase()}`,
+            companyInfo,
+          });
+          reportHtml = `${headerHtml}\n\n${reportHtml}`;
+        }
         finalSignatureHtml = buildSignatureSection(companyInfo, matchedWorker);
       }
     } catch (err) {
@@ -527,7 +671,7 @@ REQUERIMIENTO ADICIONAL OBLIGATORIO:
     }
 
     if (finalSignatureHtml) {
-      reportHtml += `\\n\\n\${finalSignatureHtml}`;
+      reportHtml += `\n\n${finalSignatureHtml}`;
     }
 
     // Save user notes to DB as a chat message
