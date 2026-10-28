@@ -199,9 +199,12 @@ function resolveCredentials(cliArgs = {}) {
 }
 
 /**
- * Localiza el binario nativo `agentapi` de Google Antigravity (macOS, Windows y Linux)
+ * Localiza el binario nativo `agentapi` / `language_server` de Google Antigravity (macOS, Windows y Linux)
  */
 function resolveAgentApiBinary() {
+  if (process.env.ANTIGRAVITY_AGENTAPI_EXE && fs.existsSync(process.env.ANTIGRAVITY_AGENTAPI_EXE)) {
+    return process.env.ANTIGRAVITY_AGENTAPI_EXE;
+  }
   const candidates = [
     path.join(AGY_DIR, 'bin', 'agentapi'),
     path.join(AGY_DIR, 'bin', 'agentapi.exe'),
@@ -209,16 +212,23 @@ function resolveAgentApiBinary() {
   ];
   if (process.platform === 'win32') {
     const localApp = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
+    const progFiles = process.env.ProgramFiles || 'C:\\Program Files';
     candidates.push(
+      path.join(localApp, 'Programs', 'Antigravity', 'resources', 'bin', 'language_server.exe'),
       path.join(localApp, 'Programs', 'Antigravity', 'resources', 'bin', 'agentapi.exe'),
+      path.join(localApp, 'Programs', 'Antigravity', 'bin', 'language_server.exe'),
       path.join(localApp, 'Programs', 'Antigravity', 'bin', 'agentapi.exe'),
-      path.join(localApp, 'Antigravity', 'bin', 'agentapi.exe')
+      path.join(localApp, 'Antigravity', 'resources', 'bin', 'language_server.exe'),
+      path.join(localApp, 'Antigravity', 'bin', 'language_server.exe'),
+      path.join(progFiles, 'Antigravity', 'resources', 'bin', 'language_server.exe'),
+      path.join(AGY_DIR, 'bin', 'agentapi.bat'),
+      path.join(AGY_DIR, 'bin', 'agentapi.cmd')
     );
     try {
       const extDir = path.join(localApp, 'Programs', 'Antigravity', 'resources', 'app', 'extensions', 'antigravity', 'bin');
       if (fs.existsSync(extDir)) {
         for (const f of fs.readdirSync(extDir)) {
-          if (f.startsWith('language_server_windows') && f.endsWith('.exe')) {
+          if (f.startsWith('language_server') && f.endsWith('.exe')) {
             candidates.push(path.join(extDir, f));
           }
         }
@@ -227,12 +237,26 @@ function resolveAgentApiBinary() {
   }
   for (const c of candidates) {
     try {
-      if (fs.existsSync(c)) {
-        return c;
+      if (!fs.existsSync(c)) continue;
+      if (process.platform === 'win32' && !/\.(exe|bat|cmd)$/i.test(c)) {
+        try {
+          const sh = fs.readFileSync(c, 'utf8');
+          const m = sh.match(/"([^"]+\.exe)"/i) || sh.match(/([A-Za-z]:[^\s"']+\.exe)/i);
+          if (m && m[1] && fs.existsSync(m[1])) return m[1];
+        } catch (_) {}
+        continue;
       }
+      return c;
     } catch (_) {}
   }
-  return process.platform === 'win32' ? 'agentapi.exe' : 'agentapi';
+  return process.platform === 'win32' ? 'agentapi.bat' : 'agentapi';
+}
+
+function runAgentApi(bin, subArgs, opts = {}) {
+  const isLanguageServer = /language_server/i.test(bin);
+  const fullArgs = isLanguageServer ? ['agentapi', ...subArgs] : subArgs;
+  const isBatch = /\.(bat|cmd)$/i.test(bin);
+  return execFileSync(bin, fullArgs, { ...opts, ...(isBatch ? { shell: true } : {}) });
 }
 
 /**
@@ -461,15 +485,13 @@ function resolveWorkspaceDirectory() {
 
       candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
       const bin = resolveAgentApiBinary();
-      const isLanguageServer = /language_server/i.test(bin);
-      const baseArgs = isLanguageServer ? ['agentapi'] : [];
 
       for (const item of candidates) {
         if (seenIds.has(item.id)) continue;
         seenIds.add(item.id);
         if (seenIds.size > 5) break;
         try {
-          const out = execFileSync(bin, [...baseArgs, 'get-conversation-metadata', item.id], {
+          const out = runAgentApi(bin, ['get-conversation-metadata', item.id], {
             timeout: 3000,
             stdio: 'pipe',
             encoding: 'utf8',
@@ -478,7 +500,10 @@ function resolveWorkspaceDirectory() {
           const uris = parsed?.response?.conversationMetadata?.metadata?.workspaceUris || [];
           for (const uri of uris) {
             if (typeof uri === 'string' && uri.startsWith('file://')) {
-              const folderPath = decodeURIComponent(uri.replace(/^file:\/\//, ''));
+              let folderPath = decodeURIComponent(uri.replace(/^file:\/\//, ''));
+              if (process.platform === 'win32' && /^\/[a-zA-Z]:/.test(folderPath)) {
+                folderPath = folderPath.slice(1);
+              }
               if (fs.existsSync(folderPath)) {
                 return folderPath;
               }
@@ -645,8 +670,6 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
     .join('\n');
 
   const bin = resolveAgentApiBinary();
-  const isLanguageServer = /language_server/i.test(bin);
-  const baseArgs = isLanguageServer ? ['agentapi'] : [];
   const workspaceCwd = resolveWorkspaceDirectory();
 
   // Detectar si el usuario solicitó explícitamente abrir un nuevo chat desde cero
@@ -668,13 +691,12 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
   if (targetConvoId) {
     try {
       const sendArgs = [
-        ...baseArgs,
         'send-message',
         `--title=⚡ Tenshi: ${titulo.slice(0, 60)}`,
         targetConvoId,
         prompt,
       ];
-      execFileSync(bin, sendArgs, { timeout: 15000, stdio: 'pipe', cwd: workspaceCwd });
+      runAgentApi(bin, sendArgs, { timeout: 15000, stdio: 'pipe', cwd: workspaceCwd });
       dispatchedOk = true;
       saveTenshiThreadConversationId(targetConvoId, workspaceCwd);
       log(`✅ Orden ${ordenId} continuada en el mismo hilo de Tenshi (${targetConvoId}).`);
@@ -703,13 +725,12 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
       );
 
       const newArgs = [
-        ...baseArgs,
         'new-conversation',
         `--title=⚡ Tenshi: ${titulo.slice(0, 60)}`,
         prompt,
       ];
       const stdout =
-        execFileSync(bin, newArgs, {
+        runAgentApi(bin, newArgs, {
           timeout: 15000,
           stdio: 'pipe',
           cwd: workspaceCwd,
