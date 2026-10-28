@@ -509,6 +509,50 @@ async function generateHtml(b: any) {
   throw new Error(lastErr);
 }
 
+async function enhanceScript(opts: any) {
+  const keys = requireKeys();
+  const envModels = getPortableGoogleModels().filter(
+    (m) => !m.includes('live') && !m.includes('native-audio') && !m.includes('tts'),
+  );
+  const preferred = String(opts.modelName || envModels[0] || 'gemini-3.8-flash')
+    .replace('models/', '')
+    .trim();
+  const models = Array.from(new Set([preferred, ...envModels, ...TEXT_FALLBACK]));
+  const promptInstruction = opts.multiSpeaker
+    ? `Eres un guionista experto en podcasts y locución neural para Gemini 3.8 Flash TTS.
+Convierte o mejora el siguiente texto en un diálogo dinámico entre dos interlocutores usando exactamente las etiquetas "Alex:" y "Sam:" al inicio de cada intervención.
+Inserta efectos vocales orgánicos donde aporten naturalidad: <breath> (respiración), <laugh> (risa suave), |mhm| (asentimiento), |yeah| (acuerdo).
+Estilo solicitado: ${opts.stylePrompt || 'Conversacional, fluido y profesional'}.
+Devuelve ÚNICAMENTE el guion listo para sintetizar, sin introducciones ni bloques markdown.`
+    : `Eres un director de locución profesional experto en Gemini 3.8 Flash TTS.
+Mejora y enriquece el siguiente guion para que suene 100% humano, envolvente y con ritmo profesional.
+Inserta etiquetas vocales orgánicas de Gemini TTS en las pausas clave: <breath> (toma de aire natural), <laugh> (si aplica), <gasp> (si aplica énfasis).
+Estilo solicitado: ${opts.stylePrompt || 'Narración profesional, clara y expresiva'}.
+Devuelve ÚNICAMENTE el texto del guion mejorado, sin comentarios adicionales ni comillas.`;
+
+  const inputContent = `${promptInstruction}\n\nTEXTO BASE:\n${opts.text || 'Crea una introducción impactante sobre cómo la Inteligencia Artificial y la prevención transforman el aprendizaje y la seguridad.'}`;
+
+  let lastErr = 'Error al mejorar el guion con IA.';
+  for (const model of models) {
+    for (const key of keys) {
+      const r = await geminiGenerate(model, key, {
+        contents: [{ role: 'user', parts: [{ text: inputContent }] }],
+        generationConfig: { temperature: 0.5 },
+      });
+      if (r.ok) {
+        const text = (
+          r.data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text || '').join('') || ''
+        ).trim();
+        if (text) return { text, model };
+      }
+      lastErr = r.data?.error?.message || `Error ${r.status}`;
+      if (r.status === 429 || r.status === 403) continue;
+      break;
+    }
+  }
+  throw new Error(lastErr);
+}
+
 // ─── Router de endpoints ────────────────────────────────────────────────────
 const json = (data: any, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
@@ -545,11 +589,16 @@ async function handleStudioRequest(url: URL, init?: RequestInit): Promise<Respon
 
   try {
     if (path === '/catalog') {
-      isServerAvailable();
+      if (await isServerAvailable()) {
+        return nativeFetch(url.pathname + url.search, init);
+      }
       return json({ googleModelsEnv: getPortableGoogleModels() });
     }
     if (path === '/keys-status') {
       const keys = readPortableKeys();
+      if (keys.length === 0 && (await isServerAvailable())) {
+        return nativeFetch(url.pathname + url.search, init);
+      }
       return json({
         totalKeys: keys.length,
         customKeysCount: keys.length,
@@ -591,10 +640,16 @@ async function handleStudioRequest(url: URL, init?: RequestInit): Promise<Respon
     }
     if (path === '/tts/synthesize') {
       if (!String(body.text || '').trim()) return json({ error: 'El texto a sintetizar es obligatorio.' }, 400);
+      if (readPortableKeys().length === 0 && (await isServerAvailable())) {
+        return nativeFetch(url.pathname + url.search, init);
+      }
       const r = await synthesizeChunk({ ...body, text: String(body.text).slice(0, 4500) });
       return json({ success: true, audioBase64: r.audioBase64, durationSeconds: r.durationSeconds, usedModel: r.usedModel, usedKeyIndex: r.usedKeyIndex });
     }
     if (path === '/tts/jobs' && method === 'POST') {
+      if (readPortableKeys().length === 0 && (await isServerAvailable())) {
+        return nativeFetch(url.pathname + url.search, init);
+      }
       requireKeys();
       const chunks = splitTextIntoChunks(String(body.text || ''), body.maxWordsPerChunk);
       if (!chunks.length) return json({ error: 'El texto no contiene palabras válidas.' }, 400);
@@ -620,7 +675,10 @@ async function handleStudioRequest(url: URL, init?: RequestInit): Promise<Respon
     const jobMatch = path.match(/^\/tts\/jobs\/([^/]+)\/(control|download)$/);
     if (jobMatch) {
       const job = localJobs.get(jobMatch[1]);
-      if (!job) return json({ error: 'Trabajo no encontrado.' }, 404);
+      if (!job) {
+        if (await isServerAvailable()) return nativeFetch(url.pathname + url.search, init);
+        return json({ error: 'Trabajo no encontrado.' }, 404);
+      }
       if (jobMatch[2] === 'control') {
         const a = body.action;
         if (a === 'pause' && job.status === 'processing') job.status = 'paused';
@@ -632,7 +690,17 @@ async function handleStudioRequest(url: URL, init?: RequestInit): Promise<Respon
       if (!job.downloadUrl) return json({ error: 'El archivo maestro de audio aún no está disponible.' }, 404);
       return nativeFetch(job.downloadUrl);
     }
+    if (path === '/script/enhance') {
+      if (readPortableKeys().length === 0 && (await isServerAvailable())) {
+        return nativeFetch(url.pathname + url.search, init);
+      }
+      const res = await enhanceScript(body);
+      return json({ success: true, text: res.text, model: res.model });
+    }
     if (path === '/video/generate-html') {
+      if (readPortableKeys().length === 0 && (await isServerAvailable())) {
+        return nativeFetch(url.pathname + url.search, init);
+      }
       const htmlCode = await generateHtml(body);
       return json({ success: true, htmlCode });
     }

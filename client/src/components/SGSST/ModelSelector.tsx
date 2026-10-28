@@ -5,11 +5,11 @@ import { cn } from '~/utils';
 import { useGetEndpointsQuery } from '~/data-provider';
 import { EModelEndpoint } from 'librechat-data-provider';
 
-// Modern official Gemini Flash model lineup
+// Modern official Gemini Flash model lineup (from GOOGLE_MODELS)
 export const AI_MODELS = [
-  { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash (Recomendado)' },
-  { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite' },
-  { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
+  { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash (Recomendado)' },
+  { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash' },
+  { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash-Lite' },
 ];
 
 interface ModelSelectorProps {

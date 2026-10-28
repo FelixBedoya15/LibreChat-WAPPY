@@ -8,6 +8,7 @@ const base = require('./tailwind.config.cjs');
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   ...base,
+  darkMode: 'class',
   content: [
     './src/components/Studio/**/*.{ts,tsx}',
     './src/components/Common/ExpandableButton.tsx',

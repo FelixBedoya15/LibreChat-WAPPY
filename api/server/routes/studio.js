@@ -1465,6 +1465,92 @@ router.get('/tts/jobs/:jobId/download', async (req, res) => {
   return res.send(job.masterWavBuffer);
 });
 
+/**
+ * POST /api/studio/script/enhance
+ * Mejora o genera un guion de locución con efectos vocales (<breath>, <laugh>, |mhm|) usando GOOGLE_MODELS.
+ */
+router.post('/script/enhance', studioAuth, async (req, res) => {
+  try {
+    const {
+      text = '',
+      stylePrompt = '',
+      multiSpeaker = false,
+      modelName,
+    } = req.body || {};
+
+    const envTextModels = getStudioTextModelsFromEnv();
+    const preferredTextModel =
+      (modelName || '').replace('models/', '').trim() ||
+      req.user?.personalization?.geminiModels?.sstManagement ||
+      envTextModels[0] ||
+      'gemini-3.8-flash';
+
+    const { allKeys } = await getCombinedKeysForRequest(req, []);
+    const promptInstruction = multiSpeaker
+      ? `Eres un guionista experto en podcasts y locución neural para Gemini 3.8 Flash TTS.
+Convierte o mejora el siguiente texto en un diálogo dinámico entre dos interlocutores usando exactamente las etiquetas "Alex:" y "Sam:" al inicio de cada intervención.
+Inserta efectos vocales orgánicos donde aporten naturalidad: <breath> (respiración), <laugh> (risa suave), |mhm| (asentimiento), |yeah| (acuerdo).
+Estilo solicitado: ${stylePrompt || 'Conversacional, fluido y profesional'}.
+Devuelve ÚNICAMENTE el guion listo para sintetizar, sin introducciones ni bloques markdown.`
+      : `Eres un director de locución profesional experto en Gemini 3.8 Flash TTS.
+Mejora y enriquece el siguiente guion para que suene 100% humano, envolvente y con ritmo profesional.
+Inserta etiquetas vocales orgánicas de Gemini TTS en las pausas clave: <breath> (toma de aire natural), <laugh> (si aplica), <gasp> (si aplica énfasis).
+Estilo solicitado: ${stylePrompt || 'Narración profesional, clara y expresiva'}.
+Devuelve ÚNICAMENTE el texto del guion mejorado, sin comentarios adicionales ni comillas.`;
+
+    const inputContent = `${promptInstruction}\n\nTEXTO BASE:\n${text || 'Crea una introducción impactante sobre cómo la Inteligencia Artificial y la prevención transforman el aprendizaje y la seguridad.'}`;
+
+    let enhancedText = '';
+    if (allKeys.length > 0) {
+      const modelsToTry = Array.from(new Set([preferredTextModel, ...envTextModels]));
+      let lastErr = null;
+      outer: for (const key of allKeys) {
+        for (const mId of modelsToTry) {
+          try {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(mId)}:generateContent?key=${encodeURIComponent(key)}`;
+            const resp = await axios.post(
+              url,
+              {
+                contents: [{ role: 'user', parts: [{ text: inputContent }] }],
+                generationConfig: { temperature: 0.5 },
+              },
+              { timeout: 30000 },
+            );
+            const candidateText =
+              resp.data?.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || '';
+            if (candidateText.trim()) {
+              enhancedText = candidateText.trim();
+              break outer;
+            }
+          } catch (e) {
+            lastErr = e;
+          }
+        }
+      }
+      if (!enhancedText && lastErr) throw lastErr;
+    } else {
+      const aiResult = await generateWithKeyRotation(
+        { model: preferredTextModel, generationConfig: { temperature: 0.5 } },
+        req.user,
+        inputContent,
+      );
+      enhancedText = (aiResult?.response?.text?.() || '').trim();
+    }
+
+    if (!enhancedText) {
+      throw new Error('No se pudo generar el guion mejorado.');
+    }
+
+    return res.json({ success: true, text: enhancedText, model: preferredTextModel });
+  } catch (error) {
+    logger.error('[WappyStudio Script] Error enhancing script:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.response?.data?.error?.message || error.message || 'Error al mejorar el guion con IA.',
+    });
+  }
+});
+
 // ============================================================================
 // ENDPOINTS DE COMPOSICIÓN DE VIDEO HTML / GSAP (ESTILO CLAUDE / HYPERFRAMES)
 // ============================================================================

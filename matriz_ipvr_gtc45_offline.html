@@ -23,7 +23,28 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <!-- Tailwind CSS First-Party Local + Fallback CDN -->
+  <!-- Tailwind CSS First-Party Local + Fallback CDN (darkMode: 'class' estricto para respetar Modo Claro/Oscuro) -->
+  <script>
+    window.__applyWappyTailwindConfig = function () {
+      if (window.tailwind) {
+        window.tailwind.config = {
+          darkMode: 'class',
+          theme: {
+            extend: {
+              fontFamily: {
+                display: ['Outfit', 'sans-serif'],
+                sans: ['Plus Jakarta Sans', 'sans-serif'],
+              },
+              colors: {
+                'wappy-lime': '#c7f303',
+                'wappy-dark': '#0e1300',
+              },
+            },
+          },
+        };
+      }
+    };
+  </script>
   <script src="/assets/tailwind-cdn.js" onload="window.__applyWappyTailwindConfig && window.__applyWappyTailwindConfig()" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdn.tailwindcss.com';s.onload=window.__applyWappyTailwindConfig;document.head.appendChild(s);"></script>
   <script>if (window.__applyWappyTailwindConfig) window.__applyWappyTailwindConfig();</script>
 

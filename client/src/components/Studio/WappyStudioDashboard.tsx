@@ -120,7 +120,71 @@ interface TtsJobState {
   chunks: JobChunk[];
   downloadUrl?: string;
   error?: string;
+  failoverNotice?: string;
 }
+
+export const WAPPY_GOOGLE_MODELS_ECOSYSTEM = [
+  {
+    id: 'gemini-3.8-flash',
+    category: 'Generación IA & Guiones',
+    badge: 'Principal 3.8',
+    description: 'Motor principal para generación de escenas HTML/GSAP y enriquecimiento de guiones.',
+  },
+  {
+    id: 'gemini-3.6-flash',
+    category: 'Generación IA & Guiones',
+    badge: 'Estable 3.6',
+    description: 'Modelo rápido de alta precisión para código HTML5, Tailwind y estructura SST.',
+  },
+  {
+    id: 'gemini-3.5-flash-lite',
+    category: 'Generación IA & Guiones',
+    badge: 'Ultra Ligero',
+    description: 'Baja latencia para respuestas instantáneas y estructuración rápida.',
+  },
+  {
+    id: 'gemini-3.8-live',
+    category: 'Voz en Tiempo Real (Live)',
+    badge: 'Tenshi Live 3.8',
+    description: 'Interacción conversacional bidireccional de baja latencia en tiempo real.',
+  },
+  {
+    id: 'gemini-3.1-flash-live-preview',
+    category: 'Voz en Tiempo Real (Live)',
+    badge: 'Live Preview 3.1',
+    description: 'Respaldo multimodal en vivo para sesiones de voz continua.',
+  },
+  {
+    id: 'gemini-2.5-flash-native-audio-preview-12-2025',
+    category: 'Voz en Tiempo Real (Live)',
+    badge: 'Audio Nativo 2.5',
+    description: 'Audio nativo multimodal con soporte extendido de herramientas.',
+  },
+  {
+    id: 'gemini-3.8-flash-tts',
+    category: 'Síntesis de Voz (TTS 24kHz)',
+    badge: 'Recomendado (14 voces)',
+    description: 'Máxima expresividad, vocal bursts (<breath>, <laugh>) y las 14 voces activas.',
+  },
+  {
+    id: 'gemini-3.1-flash-tts-preview',
+    category: 'Síntesis de Voz (TTS 24kHz)',
+    badge: 'Preview 3.1 (14 voces)',
+    description: 'Prosodia refinada y soporte completo para las 14 voces preconstruidas.',
+  },
+  {
+    id: 'gemini-2.5-flash-preview-tts',
+    category: 'Síntesis de Voz (TTS 24kHz)',
+    badge: 'Reemplazo 2.5 Pro (5 voces)',
+    description: 'Activa las 5 voces fundamentales (Kore, Puck, Charon, Fenrir, Aoede).',
+  },
+  {
+    id: 'gemini-3.8-flash-lite-tts',
+    category: 'Síntesis de Voz (TTS 24kHz)',
+    badge: 'Ultra Rápido (6 voces)',
+    description: 'Lecturas masivas de baja latencia con 6 voces optimizadas.',
+  },
+] as const;
 
 interface LibraryItem {
   id: string;
@@ -469,6 +533,48 @@ Primero: Cortar de forma efectiva todas las fuentes de tensión. Segundo: Bloque
 Tercero: Verificar la ausencia de tensión con un detector calibrado. Cuarto: Poner a tierra y en cortocircuito todas las posibles fuentes de corriente. Y quinto: Delimitar y señalizar la zona de trabajo. <breath>
 
 En WAPPY IA cuidamos lo más valioso: que regreses sano y salvo a casa.`,
+  },
+  {
+    title: 'Narración Épica con Orus: El Guardián del Tiempo',
+    text: `En las profundidades de la antigua biblioteca de Alejandría, donde el polvo danzaba sobre rayos de sol eternos, existía un manuscrito que nadie se atrevía a abrir. <breath>
+
+Decían los sabios que sus páginas no contenían tinta, sino la memoria viva de las civilizaciones olvidadas. Cada palabra pronunciada en voz alta hacía vibrar los cimientos de piedra. <breath>
+
+Aquella noche, cuando las antorchas comenzaron a extinguirse una por una, el guardián comprendió que el tiempo no es una línea recta... sino un océano esperando ser navegado.`,
+  },
+  {
+    title: 'Audiolibro: El Faro de las Galaxias',
+    text: `Capítulo Uno: El horizonte silencioso. <breath>
+
+El observatorio flotaba a trescientos kilómetros sobre la atmósfera terrestre. Desde el ventanal principal, Elena observaba el destello azulado de las tormentas eléctricas sobre el Pacífico. <breath>
+
+Durante años habíamos buscado señales de radio en frecuencias convencionales. Pero aquella madrugada, el sensor cuántico registró un pulso rítmico, casi musical, proveniente del cúmulo de Hércules. <gasp> No era ruido cósmico; era una invitación.`,
+  },
+  {
+    title: 'Podcast: IA y la Voz Humana (Diálogo Alex & Sam)',
+    text: `Alex: ¡Bienvenidos a un nuevo episodio de Futuro Sonoro! <breath> Hoy estamos probando en vivo la nueva generación de síntesis neuronal con expresiones humanas reales.
+
+Sam: ¡Hola Alex! |yeah| Es impresionante cómo ya no suena a lectura robótica. <laugh> Ahora la voz respira, hace pausas orgánicas y transmite intención en cada frase.
+
+Alex: Totalmente. |mhm| Y lo mejor es que podemos pasar de una cápsula de treinta segundos a un audiolibro de una hora completa sin perder calidad.
+
+Sam: Sin duda estamos ante una nueva era para creadores, formadores y equipos de prevención.`,
+  },
+  {
+    title: 'Meditación Guiada: Serenidad y Respiración Profunda',
+    text: `Encuentra una postura cómoda y permite que tus párpados se cierren suavemente... <breath>
+
+Toma una inhalación lenta y profunda por la nariz... sintiendo cómo el aire fresco llena tus pulmones de calma y claridad. <breath>
+
+Ahora exhala despacio... soltando cualquier prisa, cualquier preocupación del día. <breath> Aquí y ahora, estás en completo equilibrio.`,
+  },
+  {
+    title: 'Noticia: Avance Histórico en Computación Cuántica',
+    text: `En noticias de última hora, un consorcio internacional de investigadores ha logrado estabilizar un procesador cuántico de mil cúbits lógicos a temperatura controlada. <breath>
+
+Este avance permitirá simular moléculas complejas para nuevos medicamentos y optimizar redes energéticas enteras en cuestión de segundos. <breath>
+
+Los expertos señalan que las primeras aplicaciones industriales comenzarán a desplegarse durante el próximo trimestre.`,
   },
   {
     title: 'Reel Viral Estilo Claude: Cómo la IA transforma el SG-SST',
@@ -1183,11 +1289,14 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
     ['tts', 'video', 'lab', 'library'].includes(initialTab) ? initialTab : 'tts',
   );
 
-  // Modelo de IA para generación de escenas HTML/GSAP (leído desde GOOGLE_MODELS igual que los demás módulos de WAPPY)
+  // Modelo de IA para generación de escenas HTML/GSAP y mejora de guiones (leído desde GOOGLE_MODELS igual que los demás módulos de WAPPY)
   const [selectedAiModel, setSelectedAiModel] = useState<string>(() =>
     user?.personalization?.geminiModels?.sstManagement ||
-    (process.env.GOOGLE_MODELS || 'gemini-3.6-flash').split(',')[0].trim(),
+    (process.env.GOOGLE_MODELS || 'gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash-lite').split(',')[0].trim() ||
+    'gemini-3.8-flash',
   );
+  const [isEnhancingScript, setIsEnhancingScript] = useState<boolean>(false);
+  const [apiKeyModalTab, setApiKeyModalTab] = useState<'keys' | 'models'>('keys');
 
   // Catálogo precargado inmediatamente (14 voces, 4 modelos, 9 presets y 5 vocal bursts siempre visibles)
   const [models, setModels] = useState<StudioModel[]>(() =>
@@ -1607,7 +1716,9 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
       if (envTtsIds.length > 0) {
         setModels((prev) => {
           const prevMap = new Map(prev.map((item) => [item.id, item]));
-          return envTtsIds.map(
+          const baseIds = Object.keys(DEFAULT_STUDIO_TTS_MODELS);
+          const mergedIds = Array.from(new Set([...baseIds, ...envTtsIds]));
+          return mergedIds.map(
             (id: string) =>
               DEFAULT_STUDIO_TTS_MODELS[id] ||
               prevMap.get(id) || {
@@ -2035,8 +2146,59 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
         const d = JSON.parse(ev.data);
         setActiveJob((prev) => (prev ? { ...prev, status: d.status } : null));
       });
+
+      es.addEventListener('key_failover', (ev: MessageEvent) => {
+        try {
+          const d = JSON.parse(ev.data);
+          setActiveJob((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  failoverNotice:
+                    d.message ||
+                    'Cuota 429 detectada en la clave anterior. Rotación automática a clave de respaldo activada.',
+                }
+              : null,
+          );
+        } catch {
+          /* ignore */
+        }
+      });
     } catch (err: any) {
       setStatusBanner({ type: 'error', text: err.message || 'Error iniciando trabajo.' });
+    }
+  };
+
+  const handleEnhanceScriptWithAi = async () => {
+    try {
+      setIsEnhancingScript(true);
+      setStatusBanner(null);
+      const resp = await fetch('/api/studio/script/enhance', {
+        method: 'POST',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify({
+          scriptText,
+          stylePrompt,
+          multiSpeaker,
+          modelName: selectedAiModel,
+        }),
+      });
+      const data = await parseStudioJson(resp);
+      if (!resp.ok || !data.success || !data.scriptText) {
+        throw new Error(data.error || 'No se pudo mejorar el guion con IA.');
+      }
+      setScriptText(data.scriptText);
+      setStatusBanner({
+        type: 'success',
+        text: `¡Guion enriquecido con expresiones vocales (<breath>, <laugh>) usando ${data.usedModel || selectedAiModel}!`,
+      });
+    } catch (err: any) {
+      setStatusBanner({
+        type: 'error',
+        text: err.message || 'Error mejorando el guion con IA.',
+      });
+    } finally {
+      setIsEnhancingScript(false);
     }
   };
 
@@ -3132,15 +3294,15 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
   if (!portable && user && user.role !== 'ADMIN') {
     return (
-      <div className="flex-1 flex items-center justify-center bg-surface-secondary/30 min-h-screen p-6">
-        <div className="bg-white dark:bg-gray-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-8 max-w-md w-full text-center space-y-4 shadow-md">
+      <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-slate-50 via-white to-teal-50/20 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 min-h-screen p-6">
+        <div className="bg-white dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 max-w-md w-full text-center space-y-4 shadow-md">
           <div className="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-600 dark:text-teal-300 mx-auto">
             <Clapperboard className="w-6 h-6" />
           </div>
-          <h2 className="text-lg font-extrabold text-text-primary">
+          <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">
             WAPPY Studio (Acceso Administrador)
           </h2>
-          <p className="text-xs text-text-secondary">
+          <p className="text-xs text-slate-600 dark:text-slate-300">
             Por el momento este módulo está habilitado exclusivamente para cuentas de Administración de WAPPY.
           </p>
           <a
@@ -3160,7 +3322,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
         'flex-1 flex flex-col',
         portable
           ? 'bg-transparent h-auto overflow-visible pb-6'
-          : 'bg-surface-secondary/30 min-h-[100dvh] h-auto overflow-y-auto pb-16',
+          : 'bg-gradient-to-b from-slate-50 via-white to-teal-50/20 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 min-h-[100dvh] h-auto overflow-y-auto pb-16',
       )}
     >
       {/* ==================================================================== */}
@@ -3168,10 +3330,10 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
       {/* ==================================================================== */}
       <header
         className={cn(
-          'bg-white dark:bg-gray-900 px-4 sm:px-6 py-4 shadow-2xs z-30',
+          'bg-white dark:bg-slate-900/95 px-4 sm:px-6 py-4 shadow-2xs z-30',
           portable
-            ? 'relative rounded-3xl border border-slate-200/80 dark:border-zinc-800 max-w-7xl w-full mx-auto'
-            : 'sticky top-0 border-b border-border-medium/40',
+            ? 'relative rounded-3xl border border-slate-200/80 dark:border-slate-800 max-w-7xl w-full mx-auto'
+            : 'sticky top-0 border-b border-slate-200/90 dark:border-slate-800',
         )}
       >
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -3193,7 +3355,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 <Clapperboard className="w-6 h-6 sm:w-7 sm:h-7 text-teal-500 shrink-0" />
                 WAPPY Studio
               </h1>
-              <p className="text-xs text-text-secondary mt-0.5 hidden sm:block">
+              <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 hidden sm:block">
                 Síntesis de voz neural de hasta 1 hora continua y creación de videos animados en HTML/GSAP con capas sobre tus propios videos.
               </p>
             </div>
@@ -3202,7 +3364,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
           {/* Derecha: Cápsula de Pestañas (SGSSTToolbar style) + Botones Expandibles (14 Grupos) */}
           <div className="flex items-center gap-2 w-full lg:w-auto justify-between lg:justify-end flex-nowrap">
             {/* Botonera Flotante Cápsula / Isla */}
-            <div className="inline-flex items-center gap-1 p-1.5 rounded-2xl bg-slate-100/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-xs overflow-x-auto no-scrollbar min-w-0">
+            <div className="inline-flex items-center gap-1 p-1.5 rounded-2xl bg-slate-100/90 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-x-auto no-scrollbar min-w-0">
               <button
                 type="button"
                 onClick={() => handleTabChange('tts')}
@@ -3358,6 +3520,62 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
         {/* ==================================================================== */}
         {activeTab === 'tts' && (
           <div className="space-y-6 animate-in fade-in duration-200">
+            {/* Barra Interactiva de Flujo Creativo en 3 Pasos (Estilo WAPPY Fluido & Innovador) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-gradient-to-r from-teal-500/10 via-emerald-500/5 to-indigo-500/10 dark:from-teal-950/40 dark:via-zinc-900/80 dark:to-indigo-950/40 border border-teal-500/25 dark:border-teal-500/20 rounded-2xl p-3 sm:p-3.5 shadow-2xs">
+              <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white/90 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                <div className="w-8 h-8 rounded-xl bg-teal-500/15 border border-teal-500/30 text-teal-700 dark:text-teal-300 font-black text-xs flex items-center justify-center shrink-0">
+                  01
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-extrabold uppercase tracking-wider text-teal-700 dark:text-teal-300">
+                    Motor & Voz Neural
+                  </div>
+                  <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                    {activeModelObj?.name} •{' '}
+                    <span className="text-teal-600 dark:text-teal-400">
+                      {multiSpeaker ? `${speaker1Voice} + ${speaker2Voice}` : selectedVoice}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white/90 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-black text-xs flex items-center justify-center shrink-0">
+                  02
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-extrabold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                    Guion Expresivo & Bursts
+                  </div>
+                  <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                    {wordCount} palabras • ~{estimatedMinutes} min ({chunkCount}{' '}
+                    {chunkCount === 1 ? 'fragmento' : 'fragmentos'})
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleTabChange('video')}
+                className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-white/90 dark:bg-slate-900/95 hover:bg-purple-50/80 dark:hover:bg-purple-950/30 border border-slate-200/80 dark:border-slate-800 hover:border-purple-500/40 shadow-2xs transition cursor-pointer text-left group"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-700 dark:text-purple-300 font-black text-xs flex items-center justify-center shrink-0">
+                    03
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-extrabold uppercase tracking-wider text-purple-700 dark:text-purple-300">
+                      WAV 24kHz & Video HTML/GSAP
+                    </div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                      Sintetiza audio o llévalo al Compositor →
+                    </div>
+                  </div>
+                </div>
+                <Film className="w-4 h-4 text-purple-500 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+            </div>
+
             {/* Monitor de Trabajo Asíncrono de Larga Duración */}
             {activeJob && (
               <AsyncJobMonitorCard
@@ -3391,16 +3609,16 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               {/* COLUMNA IZQUIERDA (5 cols): Modelos, Presets, Modo Diálogo y Catálogo de 14 Voces */}
-              <div className="lg:col-span-5 space-y-5 bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-xs">
+              <div className="lg:col-span-5 space-y-5 bg-white dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs">
                 {/* 1. Selector de Modelo Gemini TTS */}
-                <div className="space-y-2.5">
+                <div className="space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-1.5">
-                    <label className="text-xs font-extrabold uppercase tracking-wider text-text-primary flex items-center gap-1.5">
+                    <label className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
                       <Cpu className="w-4 h-4 text-teal-500" />
                       Modelo Oficial Gemini TTS
                     </label>
-                    <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-                      Verificado en AI Studio
+                    <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+                      ✓ GOOGLE_MODELS Activo
                     </span>
                   </div>
 
@@ -3418,40 +3636,43 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                             }
                           }}
                           className={cn(
-                            'text-left p-3 rounded-xl border transition-all flex flex-col justify-between cursor-pointer',
+                            'text-left p-3.5 rounded-2xl border transition-all flex flex-col justify-between cursor-pointer',
                             isSelected
-                              ? 'bg-teal-50/70 dark:bg-teal-950/40 border-teal-500 ring-1 ring-teal-500/30 shadow-xs'
-                              : 'bg-slate-50/60 dark:bg-zinc-900/60 border-slate-200/80 dark:border-zinc-800 hover:border-teal-400',
+                              ? 'bg-gradient-to-br from-teal-50/95 via-emerald-50/70 to-indigo-50/50 dark:from-teal-950/50 dark:via-emerald-950/30 dark:to-indigo-950/30 border-teal-500 ring-2 ring-teal-500/20 shadow-xs'
+                              : 'bg-white dark:bg-slate-900/70 border-slate-200/90 dark:border-slate-800 hover:border-teal-400 hover:bg-slate-50/60 dark:hover:bg-zinc-800/60',
                           )}
                         >
                           <div>
-                            <div className="flex items-center justify-between gap-1.5 mb-1">
-                              <span className="text-xs font-extrabold text-text-primary">
-                                {m.name}
-                              </span>
+                            <div className="flex items-center justify-between gap-1.5 mb-1.5">
                               <span
                                 className={cn(
-                                  'text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0',
+                                  'text-[9px] font-extrabold px-2 py-0.5 rounded-md border',
                                   m.badgeColor,
                                 )}
                               >
                                 {m.badge}
                               </span>
+                              {isSelected && (
+                                <span className="w-2 h-2 rounded-full bg-teal-500 animate-ping shrink-0" />
+                              )}
                             </div>
-                            <p className="text-[11px] text-text-secondary leading-snug">
+                            <div className="text-xs font-extrabold text-slate-900 dark:text-white leading-snug mb-1">
+                              {m.name}
+                            </div>
+                            <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-snug">
                               {m.description}
                             </p>
                           </div>
-                          <div className="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-zinc-800 flex items-center justify-between text-[10px]">
-                            <span className="text-amber-600 dark:text-amber-400 font-bold">
+                          <div className="mt-3 pt-2 border-t border-slate-200/70 dark:border-slate-800 flex items-center justify-between text-[10px]">
+                            <span className="text-amber-700 dark:text-amber-400 font-bold">
                               {m.rateLimitLabel || m.quotaLabel}
                             </span>
                             {isSelected ? (
-                              <span className="text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-0.5">
-                                <Check className="w-3 h-3" /> Activo ({m.supportedVoices.length} voces)
+                              <span className="text-teal-700 dark:text-teal-300 font-extrabold flex items-center gap-0.5">
+                                <Check className="w-3 h-3" /> {m.supportedVoices.length} voces
                               </span>
                             ) : (
-                              <span className="text-text-secondary">
+                              <span className="text-slate-500 dark:text-zinc-400 font-semibold">
                                 {m.supportedVoices.length} voces
                               </span>
                             )}
@@ -3462,72 +3683,128 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   </div>
 
                   {/* Barra de voces activas para el modelo seleccionado */}
-                  <div className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-zinc-900/90 border border-slate-200/80 dark:border-zinc-800 flex items-center justify-between gap-2 text-[11px]">
-                    <span className="text-text-secondary flex items-center gap-1.5">
+                  <div className="px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 flex items-center justify-between gap-2 text-[11px]">
+                    <span className="text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5 text-teal-500 shrink-0" />
                       <span>
                         Voces activas para{' '}
-                        <strong className="text-text-primary">{activeModelObj?.name}</strong>:
+                        <strong className="text-slate-900 dark:text-white">
+                          {activeModelObj?.name}
+                        </strong>
+                        :
                       </span>
                     </span>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
+                      <span className="font-extrabold text-emerald-700 dark:text-emerald-400">
                         {activeVoicesCount} de {voices.length} disponibles
                       </span>
                       {activeVoicesCount < voices.length && (
                         <button
                           type="button"
                           onClick={() => setSelectedModel('gemini-3.8-flash-tts')}
-                          className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/20 cursor-pointer"
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/20 cursor-pointer"
                         >
-                          Mostrar todas ({voices.length})
+                          Activar las 14 →
                         </button>
                       )}
                     </div>
                   </div>
+
+                  {/* Alerta Ámbar Explicativa cuando está seleccionado Gemini 2.5 Flash TTS */}
+                  {selectedModel === 'gemini-2.5-flash-preview-tts' && (
+                    <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs space-y-2 animate-in fade-in duration-150">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                        <div className="space-y-1">
+                          <p className="font-extrabold text-amber-900 dark:text-amber-200">
+                            ¿Por qué algunas voces aparecen desactivadas en Gemini 2.5 Flash TTS?
+                          </p>
+                          <p className="text-[11px] text-amber-800 dark:text-amber-300/90 leading-relaxed">
+                            <span className="font-bold">Gemini 2.5 Pro Preview TTS</span> no posee cuota activa en API (0 RPM / 0 RPD). Su reemplazo oficial funcional es{' '}
+                            <span className="font-bold">Gemini 2.5 Flash TTS</span>, el cual habilita únicamente las{' '}
+                            <span className="font-bold">5 voces fundamentales</span> (Kore, Puck, Charon, Fenrir y Aoede). Para usar las 14 voces y Vocal Bursts, cambia a{' '}
+                            <span className="font-bold">Gemini 3.8 Flash TTS</span>.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedModel('gemini-3.8-flash-tts')}
+                          className="px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-900 dark:text-amber-200 font-extrabold text-[11px] transition cursor-pointer"
+                        >
+                          Cambiar a Gemini 3.8 Flash TTS (14 voces) →
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* 2. Plantillas Rápidas de Estilo */}
                 <div className="space-y-2">
-                  <label className="block text-xs font-extrabold uppercase tracking-wider text-text-primary">
-                    Estilos y Plantillas Rápidas
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white">
+                      Estilos y Plantillas Rápidas
+                    </label>
+                    <span className="text-[10px] text-slate-500 dark:text-zinc-400">
+                      1 clic configura voz + emoción
+                    </span>
+                  </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {presets.map((preset) => (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => {
-                          if (!isVoiceSupported(preset.voiceName)) {
-                            setSelectedModel('gemini-3.8-flash-tts');
-                          }
-                          if (preset.multiSpeaker) {
-                            setMultiSpeaker(true);
-                            if (preset.speaker1) setSpeaker1Voice(preset.speaker1.voiceName);
-                            if (preset.speaker2) setSpeaker2Voice(preset.speaker2.voiceName);
-                          } else {
-                            setMultiSpeaker(false);
-                            setSelectedVoice(preset.voiceName);
-                          }
-                          setStylePrompt(preset.style);
-                        }}
-                        className="text-xs px-2.5 py-1.5 rounded-xl border border-slate-200/80 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/80 hover:border-teal-500/50 hover:bg-teal-500/10 text-text-primary font-semibold transition cursor-pointer"
-                      >
-                        {preset.name}
-                      </button>
-                    ))}
+                    {presets.map((preset) => {
+                      const isPresetActive =
+                        stylePrompt === preset.style &&
+                        (preset.multiSpeaker
+                          ? multiSpeaker
+                          : !multiSpeaker && selectedVoice === preset.voiceName);
+                      const needsUpgrade =
+                        !preset.multiSpeaker && !isVoiceSupported(preset.voiceName);
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => {
+                            if (!isVoiceSupported(preset.voiceName)) {
+                              setSelectedModel('gemini-3.8-flash-tts');
+                            }
+                            if (preset.multiSpeaker) {
+                              setMultiSpeaker(true);
+                              if (preset.speaker1) setSpeaker1Voice(preset.speaker1.voiceName);
+                              if (preset.speaker2) setSpeaker2Voice(preset.speaker2.voiceName);
+                            } else {
+                              setMultiSpeaker(false);
+                              setSelectedVoice(preset.voiceName);
+                            }
+                            setStylePrompt(preset.style);
+                          }}
+                          className={cn(
+                            'text-xs px-2.5 py-1.5 rounded-xl border font-semibold transition cursor-pointer inline-flex items-center gap-1.5',
+                            isPresetActive
+                              ? 'bg-teal-500/15 border-teal-500 text-teal-800 dark:text-teal-200 shadow-2xs font-bold'
+                              : 'border-slate-200/90 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-900/90 hover:border-teal-500/50 hover:bg-teal-500/10 text-slate-800 dark:text-zinc-200',
+                          )}
+                        >
+                          <span>{preset.name}</span>
+                          {needsUpgrade && (
+                            <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">
+                              Auto 3.8
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
                 {/* 3. Modo Diálogo / Screenplay (2 Voces) */}
-                <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-zinc-900/90 rounded-xl border border-slate-200/80 dark:border-zinc-800 gap-3">
+                <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900/95 rounded-xl border border-slate-200/90 dark:border-slate-800 gap-3">
                   <div className="flex items-center gap-2.5">
                     <Users className="w-4 h-4 text-teal-500 shrink-0" />
                     <div>
-                      <p className="text-xs font-bold text-text-primary">
+                      <p className="text-xs font-bold text-slate-900 dark:text-white">
                         Modo Diálogo / Podcast (2 Voces)
                       </p>
-                      <p className="text-[11px] text-text-secondary">
+                      <p className="text-[11px] text-slate-600 dark:text-zinc-400">
                         Alterna interlocutores usando{' '}
                         <span className="font-mono font-bold text-teal-600 dark:text-teal-400">
                           Alex:
@@ -3557,15 +3834,15 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 </div>
 
                 {multiSpeaker ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-50 dark:bg-zinc-900/80 rounded-xl border border-slate-200/80 dark:border-zinc-800">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 bg-slate-50 dark:bg-slate-900/90 rounded-xl border border-slate-200/90 dark:border-slate-800">
                     <div>
-                      <label className="block text-xs font-bold text-teal-600 dark:text-teal-400 mb-1">
+                      <label className="block text-xs font-bold text-teal-700 dark:text-teal-400 mb-1">
                         Voz para Alex (Hablante 1)
                       </label>
                       <select
                         value={speaker1Voice}
                         onChange={(e) => setSpeaker1Voice(e.target.value)}
-                        className="w-full bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs text-text-primary font-semibold focus:outline-none focus:border-teal-500"
+                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-teal-500"
                       >
                         {(activeModelObj?.supportedVoices || []).map((vId) => {
                           const vObj = voices.find((v) => v.id === vId);
@@ -3578,13 +3855,13 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-purple-600 dark:text-purple-400 mb-1">
+                      <label className="block text-xs font-bold text-purple-700 dark:text-purple-400 mb-1">
                         Voz para Sam (Hablante 2)
                       </label>
                       <select
                         value={speaker2Voice}
                         onChange={(e) => setSpeaker2Voice(e.target.value)}
-                        className="w-full bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs text-text-primary font-semibold focus:outline-none focus:border-teal-500"
+                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-teal-500"
                       >
                         {(activeModelObj?.supportedVoices || []).map((vId) => {
                           const vObj = voices.find((v) => v.id === vId);
@@ -3598,20 +3875,20 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     </div>
                   </div>
                 ) : (
-                  /* 4. Catálogo de 14 Voces en Rejilla de 3 Columnas con Audición en Vivo */
+                  /* 4. Catálogo de 14 Voces en Rejilla Espaciosa de 2 Columnas con Audición en Vivo */
                   <div className="space-y-3">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
-                        <label className="text-xs font-extrabold uppercase tracking-wider text-text-primary flex items-center gap-1.5">
+                        <label className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
                           <MicVocal className="w-3.5 h-3.5 text-teal-500" />
                           Catálogo de Voces ({activeVoicesCount} activas / {voices.length} totales)
                         </label>
-                        <p className="text-[10px] text-text-secondary mt-0.5">
-                          Las voces no compatibles con la versión seleccionada quedan desactivadas.
+                        <p className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                          Haz clic en cualquier tarjeta para elegir la voz o en ▶ para escuchar su timbre real.
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-800 p-0.5 rounded-lg border border-slate-200 dark:border-zinc-700 text-[11px]">
+                      <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 text-[11px]">
                         <button
                           type="button"
                           onClick={() => setVoiceActiveFilter('only_active')}
@@ -3619,7 +3896,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                             'px-2 py-0.5 rounded-md transition cursor-pointer',
                             voiceActiveFilter === 'only_active'
                               ? 'bg-teal-600 text-white font-bold'
-                              : 'text-text-secondary hover:text-text-primary',
+                              : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white',
                           )}
                         >
                           Solo Activas ({activeVoicesCount})
@@ -3631,7 +3908,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                             'px-2 py-0.5 rounded-md transition cursor-pointer',
                             voiceActiveFilter === 'all'
                               ? 'bg-teal-600 text-white font-bold'
-                              : 'text-text-secondary hover:text-text-primary',
+                              : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white',
                           )}
                         >
                           Todas ({voices.length})
@@ -3649,29 +3926,29 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           value={voiceSearchQuery}
                           onChange={(e) => setVoiceSearchQuery(e.target.value)}
                           placeholder="Buscar voz (Kore, Orus, profunda, podcast...)"
-                          className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-text-primary placeholder-slate-400 focus:outline-none focus:border-teal-500"
+                          className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-teal-500"
                         />
                       </div>
-                      <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-800 p-0.5 rounded-xl border border-slate-200 dark:border-zinc-700 text-[11px] shrink-0">
+                      <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] shrink-0">
                         {(['all', 'Femenino', 'Masculino'] as const).map((g) => (
                           <button
                             key={g}
                             type="button"
                             onClick={() => setVoiceGenderFilter(g)}
                             className={cn(
-                              'px-2 py-1 rounded-lg transition cursor-pointer',
+                              'px-2.5 py-1 rounded-lg transition cursor-pointer',
                               voiceGenderFilter === g
-                                ? 'bg-white dark:bg-zinc-900 text-teal-600 dark:text-teal-300 font-bold shadow-2xs'
-                                : 'text-text-secondary hover:text-text-primary',
+                                ? 'bg-white dark:bg-slate-900 text-teal-700 dark:text-teal-300 font-bold shadow-2xs'
+                                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white',
                             )}
                           >
-                            {g === 'all' ? 'Todas' : g === 'Femenino' ? 'Femeninas' : 'Masculinas'}
+                            {g === 'all' ? 'Todas' : g === 'Femenino' ? '♀ Femeninas' : '♂ Masculinas'}
                           </button>
                         ))}
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 max-h-[380px] overflow-y-auto pr-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[420px] overflow-y-auto pr-1">
                       {filteredVoices.map((v) => {
                         const isSelected = selectedVoice === v.id;
                         const isAuditioning = auditioningVoiceId === v.id;
@@ -3684,62 +3961,88 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                               setSelectedVoice(v.id);
                             }}
                             className={cn(
-                              'p-2.5 rounded-xl border transition-all flex flex-col justify-between cursor-pointer',
+                              'p-3 rounded-2xl border transition-all flex flex-col justify-between cursor-pointer',
                               isSelected
-                                ? 'bg-teal-50/80 dark:bg-teal-950/40 border-teal-500 ring-1 ring-teal-500/30 shadow-xs'
-                                : 'bg-slate-50/50 dark:bg-zinc-900/50 border-slate-200/80 dark:border-zinc-800 hover:border-teal-400',
-                              !supported && 'opacity-60',
+                                ? 'bg-gradient-to-br from-teal-50/95 via-emerald-50/60 to-white dark:from-teal-950/50 dark:via-emerald-950/25 dark:to-zinc-900 border-teal-500 ring-2 ring-teal-500/20 shadow-xs'
+                                : 'bg-white dark:bg-slate-900/60 border-slate-200/90 dark:border-slate-800 hover:border-teal-400 hover:bg-slate-50/70 dark:hover:bg-zinc-800/60',
+                              !supported && 'opacity-75 border-dashed',
                             )}
                           >
                             <div>
-                              <div className="flex items-start justify-between gap-1">
-                                <span className="text-sm font-extrabold text-text-primary">
-                                  {v.name}
-                                </span>
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
+                                      {v.name}
+                                    </span>
+                                    {v.tag && (
+                                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/25 shrink-0">
+                                        {v.tag}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                                    <span
+                                      className={cn(
+                                        'text-[9px] font-bold px-1.5 py-0.5 rounded',
+                                        v.gender === 'Femenino'
+                                          ? 'bg-pink-500/10 text-pink-700 dark:text-pink-300 border border-pink-500/20'
+                                          : 'bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20',
+                                      )}
+                                    >
+                                      {v.gender === 'Femenino' ? '♀ Femenina' : '♂ Masculina'}
+                                    </span>
+                                    {supported ? (
+                                      <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded">
+                                        ✓ Activa
+                                      </span>
+                                    ) : (
+                                      <span className="text-[9px] font-bold text-amber-700 dark:text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 rounded">
+                                        Requiere 3.8/3.1
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
                                 <button
                                   type="button"
                                   onClick={(e) => handleAuditionVoice(v.id, e)}
                                   disabled={isAuditioning}
-                                  title="Escuchar muestra de esta voz"
-                                  className="p-1.5 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 dark:text-teal-300 border border-teal-500/30 transition shrink-0 cursor-pointer"
+                                  title={`Escuchar muestra de ${v.name}`}
+                                  className="px-2 py-1.5 rounded-xl bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 dark:text-teal-300 border border-teal-500/30 transition shrink-0 cursor-pointer flex items-center gap-1 text-[10px] font-extrabold"
                                 >
                                   {isAuditioning ? (
                                     <Loader2 className="w-3 h-3 animate-spin" />
                                   ) : (
                                     <Play className="w-3 h-3 fill-current" />
                                   )}
+                                  <span>Oír</span>
                                 </button>
                               </div>
 
-                              <div className="flex items-center gap-1 flex-wrap mt-1">
-                                <span className="text-[9px] font-semibold text-text-secondary bg-slate-200/70 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
-                                  {v.gender}
-                                </span>
-                                {supported ? (
-                                  <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded">
-                                    ✓ Activa
-                                  </span>
-                                ) : (
-                                  <span className="text-[9px] font-bold text-amber-700 dark:text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 rounded">
-                                    Solo 3.8/3.1
-                                  </span>
-                                )}
-                              </div>
-
-                              <p className="text-[11px] text-teal-700 dark:text-teal-300 font-semibold mt-1 leading-tight">
+                              <p className="text-[11px] text-teal-700 dark:text-teal-300 font-bold mt-2 leading-snug">
                                 {v.tone}
                               </p>
-
-                              {v.tag && (
-                                <span className="inline-block mt-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20">
-                                  {v.tag}
-                                </span>
-                              )}
                             </div>
 
-                            <p className="text-[10px] text-text-secondary mt-2 pt-1.5 border-t border-slate-200/60 dark:border-zinc-800 line-clamp-2 leading-tight">
-                              {v.recommendedFor}
-                            </p>
+                            <div className="mt-2 pt-1.5 border-t border-slate-200/70 dark:border-slate-800 flex items-center justify-between gap-2">
+                              <p className="text-[10px] text-slate-600 dark:text-zinc-400 line-clamp-1 leading-tight">
+                                {v.recommendedFor}
+                              </p>
+                              {!supported && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedModel('gemini-3.8-flash-tts');
+                                    setSelectedVoice(v.id);
+                                  }}
+                                  className="text-[9px] font-extrabold text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 px-1.5 py-0.5 rounded shrink-0 cursor-pointer"
+                                >
+                                  Usar con 3.8 →
+                                </button>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
@@ -3750,10 +4053,10 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 {/* 5. Directiva de Estilo y Emoción */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-extrabold uppercase tracking-wider text-text-primary">
+                    <label className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white">
                       Directiva de Estilo y Emoción
                     </label>
-                    <span className="text-[10px] font-mono text-text-secondary">
+                    <span className="text-[10px] font-mono text-slate-500 dark:text-zinc-400">
                       speechMetadata.style
                     </span>
                   </div>
@@ -3762,7 +4065,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     value={stylePrompt}
                     onChange={(e) => setStylePrompt(e.target.value)}
                     placeholder="Ej: Voz cálida, pausada y reflexiva de narrador de documentales..."
-                    className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-3 text-xs text-text-primary focus:outline-none focus:border-teal-500 resize-none"
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-teal-500 resize-none"
                   />
                 </div>
 
@@ -3771,7 +4074,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   <button
                     type="button"
                     onClick={() => setShowAdvancedChunking(!showAdvancedChunking)}
-                    className="flex items-center justify-between w-full text-xs text-text-secondary hover:text-text-primary font-bold py-1 transition cursor-pointer"
+                    className="flex items-center justify-between w-full text-xs text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white font-bold py-1 transition cursor-pointer"
                   >
                     <span className="flex items-center gap-1.5">
                       <Sliders className="w-3.5 h-3.5 text-teal-500" />
@@ -3780,9 +4083,11 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     <span>{showAdvancedChunking ? '▲' : '▼'}</span>
                   </button>
                   {showAdvancedChunking && (
-                    <div className="mt-2 p-3 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 space-y-2 text-xs">
+                    <div className="mt-2 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
                       <div className="flex justify-between">
-                        <span className="text-text-secondary">Palabras por fragmento</span>
+                        <span className="text-slate-600 dark:text-zinc-400">
+                          Palabras por fragmento
+                        </span>
                         <span className="font-mono font-bold text-teal-600 dark:text-teal-400">
                           {wordsPerChunk} palabras
                         </span>
@@ -3796,7 +4101,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         onChange={(e) => setWordsPerChunk(parseInt(e.target.value, 10))}
                         className="w-full h-1.5 bg-slate-200 dark:bg-zinc-700 rounded appearance-none cursor-pointer accent-teal-600"
                       />
-                      <p className="text-[10px] text-text-secondary">
+                      <p className="text-[10px] text-slate-500 dark:text-zinc-400">
                         Fragmentos de ~150 palabras (~55s de audio) garantizan fluidez continua para audiolibros de hasta 60 minutos.
                       </p>
                     </div>
@@ -3805,29 +4110,92 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               </div>
 
               {/* COLUMNA DERECHA (7 cols): Editor de Guion, Vocal Bursts y Despacho */}
-              <div className="lg:col-span-7 space-y-5 bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-xs">
-                {/* Cabecera del Editor + Selector de Plantilla */}
-                <div className="flex items-center justify-between gap-3 flex-nowrap">
-                  <h2 className="text-sm font-extrabold text-text-primary flex items-center gap-2 shrink-0">
+              <div className="lg:col-span-7 space-y-5 bg-white dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs">
+                {/* Banner Integrado de Estado de Claves API & Rotación Anti-429 */}
+                <div
+                  className={cn(
+                    'p-3.5 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all',
+                    activeCustomKeyCount > 0
+                      ? 'bg-emerald-500/10 border-emerald-500/30'
+                      : 'bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-teal-500/10 border-indigo-500/25',
+                  )}
+                >
+                  <div className="flex items-start sm:items-center gap-3">
+                    <div
+                      className={cn(
+                        'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border',
+                        activeCustomKeyCount > 0
+                          ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
+                          : 'bg-indigo-500/15 border-indigo-500/30 text-indigo-700 dark:text-indigo-300',
+                      )}
+                    >
+                      <Key className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        {activeCustomKeyCount > 0 ? (
+                          <>
+                            <span>
+                              {activeCustomKeyCount} clave(s) API guardada(s) • Rotación y failover automático (429) activados
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span>
+                              Motor Multi-Key Gemini TTS (Almacenamiento Local + Respaldo WAPPY)
+                            </span>
+                          </>
+                        )}
+                      </p>
+                      <p className="text-[11px] text-slate-600 dark:text-zinc-400">
+                        {activeCustomKeyCount > 0
+                          ? 'Si una clave alcanza el límite de cuota (429), WAPPY Studio salta instantáneamente a la siguiente sin interrumpir tu audio.'
+                          : 'Puedes agregar hasta 3 claves gratuitas de Google AI Studio para multiplicar tu cuota de síntesis de 60 min.'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setKeyValidationMsg('');
+                      setApiKeyModalTab('keys');
+                      setIsApiKeyModalOpen(true);
+                    }}
+                    className={cn(
+                      'px-3 py-1.5 rounded-xl text-xs font-extrabold border transition shrink-0 cursor-pointer',
+                      activeCustomKeyCount > 0
+                        ? 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-800 dark:text-emerald-200 border-emerald-500/30'
+                        : 'bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-800 dark:text-indigo-200 border-indigo-500/30',
+                    )}
+                  >
+                    {activeCustomKeyCount > 0 ? 'Administrar claves' : 'Configurar claves'}
+                  </button>
+                </div>
+
+                {/* Cabecera del Editor + Selector de Plantilla + Botón Mejorar con IA */}
+                <div className="flex flex-wrap items-center justify-between gap-2.5">
+                  <h2 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2 shrink-0">
                     <MicVocal className="w-4 h-4 text-teal-500" />
                     Texto a Sintetizar
                   </h2>
 
-                  <div className="flex items-center gap-2 min-w-0 flex-nowrap">
-                    <span className="text-xs text-text-secondary hidden sm:inline">
-                      Cargar ejemplo:
-                    </span>
+                  <div className="flex flex-wrap items-center gap-2 min-w-0">
                     <select
                       defaultValue=""
                       onChange={(e) => {
                         const found = SCRIPT_TEMPLATES.find((t) => t.title === e.target.value);
-                        if (found) setScriptText(found.text);
+                        if (found) {
+                          setScriptText(found.text);
+                          if (found.text.includes('Alex:') && found.text.includes('Sam:')) {
+                            setMultiSpeaker(true);
+                          }
+                        }
                         e.target.value = '';
                       }}
-                      className="min-w-0 w-full max-w-[220px] sm:max-w-none sm:w-auto bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-text-primary text-xs font-semibold rounded-xl px-3 py-1.5 focus:outline-none focus:border-teal-500"
+                      className="min-w-0 max-w-[230px] sm:max-w-[260px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-semibold rounded-xl px-3 py-1.5 focus:outline-none focus:border-teal-500 cursor-pointer"
                     >
                       <option value="" disabled>
-                        Seleccionar texto de muestra...
+                        📋 Cargar ejemplo ({SCRIPT_TEMPLATES.length} plantillas)...
                       </option>
                       {SCRIPT_TEMPLATES.map((tpl) => (
                         <option key={tpl.title} value={tpl.title}>
@@ -3835,6 +4203,16 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         </option>
                       ))}
                     </select>
+
+                    <ExpandableButton
+                      size="sm"
+                      icon={isEnhancingScript ? <Loader2 className="animate-spin" /> : <Wand2 />}
+                      label={isEnhancingScript ? 'Enriqueciendo...' : 'Mejorar Guion con IA'}
+                      variant="purple"
+                      disabled={isEnhancingScript}
+                      onClick={handleEnhanceScriptWithAi}
+                      title={`Enriquecer o generar guion con Vocal Bursts usando ${selectedAiModel}`}
+                    />
 
                     {scriptText && (
                       <ExpandableButton
@@ -3849,13 +4227,13 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 </div>
 
                 {/* Barra de Inserción Rápida de Vocal Bursts y Hablantes */}
-                <div className="p-3 bg-slate-50 dark:bg-zinc-900/90 border border-slate-200/80 dark:border-zinc-800 rounded-xl space-y-2">
+                <div className="p-3 bg-slate-50 dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 rounded-xl space-y-2">
                   <div className="flex items-center justify-between text-[11px]">
-                    <span className="font-bold text-text-secondary flex items-center gap-1">
+                    <span className="font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-1">
                       <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                       Insertar Efectos Vocales (Vocal Bursts) en el cursor:
                     </span>
-                    <span className="font-mono text-[10px] text-teal-600 dark:text-teal-400 font-bold">
+                    <span className="font-mono text-[10px] text-teal-700 dark:text-teal-400 font-bold">
                       {selectedModel}
                     </span>
                   </div>
@@ -3866,12 +4244,12 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         type="button"
                         onClick={() => insertTagIntoEditor(` ${b.tag} `)}
                         title={b.description}
-                        className="px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-800 hover:bg-teal-500/10 border border-slate-200 dark:border-zinc-700 text-xs font-mono transition flex items-center gap-1 cursor-pointer"
+                        className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 hover:bg-teal-500/10 border border-slate-200 dark:border-slate-700 text-xs font-mono transition flex items-center gap-1 cursor-pointer shadow-2xs"
                       >
-                        <span className="text-amber-600 dark:text-amber-400 font-bold">
+                        <span className="text-amber-700 dark:text-amber-400 font-bold">
                           {b.tag}
                         </span>
-                        <span className="text-text-secondary text-[10px] font-sans">
+                        <span className="text-slate-600 dark:text-zinc-400 text-[10px] font-sans">
                           ({b.label})
                         </span>
                       </button>
@@ -3900,21 +4278,21 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   value={scriptText}
                   onChange={(e) => setScriptText(e.target.value)}
                   placeholder="Escribe o pega aquí el guion para tu cápsula SST, curso de Academia WAPPY, podcast o audiolibro de hasta 1 hora..."
-                  className="w-full bg-slate-50/70 dark:bg-zinc-950/70 border border-slate-200 dark:border-zinc-800 rounded-2xl p-4 text-sm text-text-primary placeholder-slate-400 focus:outline-none focus:border-teal-500 leading-relaxed resize-y min-h-[260px]"
+                  className="w-full bg-white dark:bg-slate-950/90 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 leading-relaxed resize-y min-h-[260px] shadow-inner"
                 />
 
                 {/* Barra de Métricas y Estimación */}
-                <div className="bg-slate-50 dark:bg-zinc-900/80 p-3.5 rounded-xl border border-slate-200/80 dark:border-zinc-800 space-y-2">
+                <div className="bg-slate-50 dark:bg-slate-900/90 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2">
                   <div className="flex flex-wrap items-center justify-between text-xs gap-2">
-                    <div className="flex items-center gap-3 text-text-secondary">
+                    <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
                       <span>
                         Palabras:{' '}
-                        <strong className="text-text-primary font-mono">{wordCount}</strong>
+                        <strong className="text-slate-900 dark:text-white font-mono">{wordCount}</strong>
                       </span>
                       <span>•</span>
                       <span>
                         Caracteres:{' '}
-                        <strong className="text-text-primary font-mono">{charCount}</strong>
+                        <strong className="text-slate-900 dark:text-white font-mono">{charCount}</strong>
                       </span>
                       <span>•</span>
                       <span>
@@ -3924,7 +4302,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         </strong>
                       </span>
                     </div>
-                    <div className="text-text-primary font-semibold">
+                    <div className="text-slate-900 dark:text-white font-semibold">
                       Duración estimada:{' '}
                       <strong className="text-amber-600 dark:text-amber-400 font-mono">
                         ~{estimatedMinutes} min
@@ -3932,7 +4310,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       / 60 min máx
                     </div>
                   </div>
-                  <div className="w-full h-1.5 bg-slate-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                  <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 transition-all duration-300"
                       style={{
@@ -3950,7 +4328,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     disabled={
                       isPreviewing || activeJob?.status === 'processing' || !scriptText.trim()
                     }
-                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-slate-700 shadow-xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
                   >
                     {isPreviewing ? (
                       <Loader2 className="w-4 h-4 animate-spin text-teal-500" />
@@ -3991,14 +4369,14 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
         {activeTab === 'video' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start animate-in fade-in duration-200">
             {/* COLUMNA IZQUIERDA (6 cols): Capas de Video, Audio, Subtítulos e IA HTML */}
-            <div className="lg:col-span-6 space-y-5 bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-xs [content-visibility:auto] [contain-intrinsic-size:auto_500px_auto_780px] [contain:layout_style_paint]">
+            <div className="lg:col-span-6 space-y-5 bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs [content-visibility:auto] [contain-intrinsic-size:auto_500px_auto_780px] [contain:layout_style_paint]">
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <h2 className="text-base font-extrabold text-text-primary flex items-center gap-2">
+                  <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                     <Film className="w-5 h-5 text-purple-500" />
                     Estudio de Capas & Motion Graphics HTML
                   </h2>
-                  <p className="text-xs text-text-secondary">
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
                     Sube tu propio video grabado a cámara o genera animaciones estilo Claude/HeyGen sincronizadas con tu voz.
                   </p>
                 </div>
@@ -4016,13 +4394,13 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     'p-3 rounded-xl border text-left transition cursor-pointer',
                     aspectRatio === '9:16'
                       ? 'bg-teal-50/80 dark:bg-teal-950/40 border-teal-500 ring-1 ring-teal-500/30'
-                      : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800',
+                      : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800',
                   )}
                 >
-                  <div className="text-xs font-extrabold text-text-primary">
+                  <div className="text-xs font-extrabold text-slate-900 dark:text-white">
                     📱 Vertical 9:16 (Reels / TikTok)
                   </div>
-                  <div className="text-[10px] text-text-secondary mt-0.5">
+                  <div className="text-[10px] text-slate-600 dark:text-slate-300 mt-0.5">
                     1080 × 1920 px • Ideal para redes y WhatsApp
                   </div>
                 </button>
@@ -4037,13 +4415,13 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     'p-3 rounded-xl border text-left transition cursor-pointer',
                     aspectRatio === '16:9'
                       ? 'bg-teal-50/80 dark:bg-teal-950/40 border-teal-500 ring-1 ring-teal-500/30'
-                      : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800',
+                      : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800',
                   )}
                 >
-                  <div className="text-xs font-extrabold text-text-primary">
+                  <div className="text-xs font-extrabold text-slate-900 dark:text-white">
                     🖥️ Horizontal 16:9 (YouTube / LMS)
                   </div>
-                  <div className="text-[10px] text-text-secondary mt-0.5">
+                  <div className="text-[10px] text-slate-600 dark:text-slate-300 mt-0.5">
                     1920 × 1080 px • Ideal para cursos Academia WAPPY
                   </div>
                 </button>
@@ -4052,11 +4430,11 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               {/* Selector Rápido de Plantillas de Escena Motion Graphics */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-text-primary flex items-center gap-1.5">
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-teal-500" />
                     Plantillas Visuales Instantáneas (HyperFrames)
                   </span>
-                  <span className="text-[10px] text-text-secondary">Clic para aplicar</span>
+                  <span className="text-[10px] text-slate-600 dark:text-slate-300">Clic para aplicar</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {STUDIO_SCENE_TEMPLATES.map((tpl) => {
@@ -4073,18 +4451,18 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           'p-2.5 rounded-xl border text-left transition cursor-pointer',
                           isSelected
                             ? 'bg-teal-50/80 dark:bg-teal-950/40 border-teal-500 ring-1 ring-teal-500/30'
-                            : 'bg-slate-50/70 dark:bg-zinc-900/70 border-slate-200 dark:border-zinc-800 hover:border-teal-400',
+                            : 'bg-slate-50/70 dark:bg-slate-900/70 border-slate-200 dark:border-slate-800 hover:border-teal-400',
                         )}
                       >
                         <div className="flex items-center justify-between gap-1">
-                          <span className="text-xs font-extrabold text-text-primary truncate">
+                          <span className="text-xs font-extrabold text-slate-900 dark:text-white truncate">
                             {tpl.name}
                           </span>
                           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20 shrink-0">
                             {tpl.badge}
                           </span>
                         </div>
-                        <p className="text-[10px] text-text-secondary mt-0.5 line-clamp-1">
+                        <p className="text-[10px] text-slate-600 dark:text-slate-300 mt-0.5 line-clamp-1">
                           {tpl.description}
                         </p>
                       </button>
@@ -4094,20 +4472,20 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               </div>
 
               {/* 2. CAPA 1 y 2: Subir Video Propio y/o Audio Propio */}
-              <div className="p-4 bg-slate-50 dark:bg-zinc-900/80 rounded-2xl border border-slate-200/80 dark:border-zinc-800 space-y-3">
-                <div className="text-xs font-extrabold uppercase tracking-wider text-text-primary flex items-center gap-1.5">
+              <div className="p-4 bg-slate-50 dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-3">
+                <div className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
                   <Layers className="w-4 h-4 text-teal-500" />
                   Capas Base Multimedia (Video a Cámara + Locución)
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Subir Video Base */}
-                  <div className="p-3 bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 flex flex-col justify-between gap-2">
+                  <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-2">
                     <div>
-                      <div className="text-xs font-bold text-text-primary">
+                      <div className="text-xs font-bold text-slate-900 dark:text-white">
                         1. Tu Video Base (Opcional)
                       </div>
-                      <p className="text-[11px] text-text-secondary">
+                      <p className="text-[11px] text-slate-600 dark:text-slate-300">
                         {baseVideoName
                           ? `Activo: ${baseVideoName}`
                           : 'Sube un MP4/WebM tuyo para montarle capas HTML encima.'}
@@ -4142,12 +4520,12 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   </div>
 
                   {/* Pista de Audio / Locución */}
-                  <div className="p-3 bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 flex flex-col justify-between gap-2">
+                  <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-2">
                     <div>
-                      <div className="text-xs font-bold text-text-primary">
+                      <div className="text-xs font-bold text-slate-900 dark:text-white">
                         2. Audio / Locución Sincronizada
                       </div>
-                      <p className="text-[11px] text-text-secondary">
+                      <p className="text-[11px] text-slate-600 dark:text-slate-300">
                         {customAudioName
                           ? `Archivo: ${customAudioName}`
                           : currentAudio
@@ -4185,9 +4563,9 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               </div>
 
               {/* 3. Textos Rápidos de Superposición y Subtítulos Estilo Hormozi/Claude */}
-              <div className="p-4 bg-slate-50 dark:bg-zinc-900/80 rounded-2xl border border-slate-200/80 dark:border-zinc-800 space-y-3">
+              <div className="p-4 bg-slate-50 dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-text-primary">
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white">
                     3. Textos de Capa y Subtítulos Dinámicos
                   </span>
                   <div className="flex items-center gap-2">
@@ -4201,7 +4579,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       Subtítulos
                     </label>
                     {showDynamicSubtitles && (
-                      <div className="inline-flex items-center gap-0.5 bg-white dark:bg-zinc-800 p-0.5 rounded-lg border border-slate-200 dark:border-zinc-700 text-[10px]">
+                      <div className="inline-flex items-center gap-0.5 bg-white dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 text-[10px]">
                         {(
                           [
                             { id: 'bottom', label: 'Abajo' },
@@ -4217,7 +4595,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                               'px-1.5 py-0.5 rounded transition cursor-pointer',
                               subtitlePosition === pos.id
                                 ? 'bg-teal-600 text-white font-bold'
-                                : 'text-text-secondary hover:text-text-primary',
+                                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:text-white',
                             )}
                           >
                             {pos.label}
@@ -4230,18 +4608,18 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div>
-                    <label className="block text-[11px] font-bold text-text-secondary mb-1">
+                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
                       Insignia Superior (Badge)
                     </label>
                     <input
                       type="text"
                       value={badgeOverlayText}
                       onChange={(e) => setBadgeOverlayText(e.target.value)}
-                      className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-text-primary"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-text-secondary mb-1">
+                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
                       Color de Acento
                     </label>
                     <div className="flex items-center gap-2">
@@ -4264,14 +4642,14 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-text-secondary mb-1">
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
                     Titular Principal en Pantalla
                   </label>
                   <input
                     type="text"
                     value={headlineOverlayText}
                     onChange={(e) => setHeadlineOverlayText(e.target.value)}
-                    className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-text-primary font-bold"
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white font-bold"
                   />
                 </div>
 
@@ -4281,7 +4659,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     value={subheadlineOverlayText}
                     onChange={(e) => setSubheadlineOverlayText(e.target.value)}
                     placeholder="Subtítulo secundario..."
-                    className="flex-1 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-text-primary"
+                    className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white"
                   />
                   <ExpandableButton
                     icon={<RefreshCw />}
@@ -4316,7 +4694,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   value={aiScenePrompt}
                   onChange={(e) => setAiScenePrompt(e.target.value)}
                   placeholder="Describe qué gráficos animados, tarjetas, alertas o diagramas quieres que la IA programe en HTML + GSAP..."
-                  className="w-full bg-white dark:bg-zinc-900 border border-purple-500/30 rounded-xl p-3 text-xs text-text-primary focus:outline-none focus:border-purple-500 resize-none"
+                  className="w-full bg-white dark:bg-slate-900 border border-purple-500/30 rounded-xl p-3 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500 resize-none"
                 />
 
                 <div className="flex justify-end">
@@ -4341,7 +4719,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
                 {showCodeEditor && (
                   <div className="pt-2">
-                    <label className="block text-[10px] font-mono uppercase text-text-secondary mb-1">
+                    <label className="block text-[10px] font-mono uppercase text-slate-600 dark:text-slate-300 mb-1">
                       Código Fuente HTML5 / Tailwind / GSAP en Vivo:
                     </label>
                     <textarea
@@ -4356,7 +4734,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
             </div>
 
             {/* COLUMNA DERECHA (6 cols): Reproductor en Vivo Multi-Capa + Editor Visual + Exportación */}
-            <div className="lg:col-span-6 space-y-4 bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-xs [content-visibility:auto] [contain-intrinsic-size:auto_500px_auto_780px] [contain:layout_style_paint]">
+            <div className="lg:col-span-6 space-y-4 bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs [content-visibility:auto] [contain-intrinsic-size:auto_500px_auto_780px] [contain:layout_style_paint]">
               {/* Barra Superior del Lienzo (sin flex-wrap para evitar salto de línea y titileo al expandir botones) */}
               <div className="flex items-center justify-between gap-2 flex-nowrap">
                 <div className="flex items-center gap-2 min-w-0">
@@ -4370,7 +4748,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           : 'bg-slate-400',
                     )}
                   />
-                  <h3 className="text-sm font-extrabold text-text-primary truncate">
+                  <h3 className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
                     {isVisualEditMode
                       ? `Editor Visual (${aspectRatio})`
                       : `Lienzo Interactivo (${aspectRatio})`}
@@ -4466,7 +4844,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           '*',
                         )
                       }
-                      className="px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-[11px] font-bold text-text-primary hover:border-teal-500 flex items-center gap-1 cursor-pointer"
+                      className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-900 dark:text-white hover:border-teal-500 flex items-center gap-1 cursor-pointer"
                     >
                       <Plus className="w-3 h-3 text-teal-500" />
                       <Type className="w-3 h-3 text-teal-500" />
@@ -4481,7 +4859,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           '*',
                         )
                       }
-                      className="px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-[11px] font-bold text-text-primary hover:border-teal-500 flex items-center gap-1 cursor-pointer"
+                      className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-900 dark:text-white hover:border-teal-500 flex items-center gap-1 cursor-pointer"
                     >
                       <Plus className="w-3 h-3 text-purple-500" />
                       <Layers className="w-3 h-3 text-purple-500" />
@@ -4497,7 +4875,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         )
                       }
                       disabled={!selectedCanvasElement}
-                      className="px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-[11px] font-bold text-text-primary hover:border-teal-500 disabled:opacity-40 cursor-pointer"
+                      className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-900 dark:text-white hover:border-teal-500 disabled:opacity-40 cursor-pointer"
                     >
                       Seleccionar Caja Contenedora
                     </button>
@@ -4511,7 +4889,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         )
                       }
                       disabled={!selectedCanvasElement}
-                      className="px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-[11px] font-bold text-text-primary hover:border-teal-500 disabled:opacity-40 cursor-pointer flex items-center gap-1"
+                      className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-900 dark:text-white hover:border-teal-500 disabled:opacity-40 cursor-pointer flex items-center gap-1"
                     >
                       <Copy className="w-3 h-3 text-indigo-500" />
                       <span>Duplicar</span>
@@ -4754,7 +5132,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               </div>
 
               {/* Controles de Línea de Tiempo del Escenario (Vista Normal) */}
-              <div className="p-3.5 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200/80 dark:border-zinc-800 space-y-2.5">
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2.5">
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
@@ -4779,7 +5157,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     type="button"
                     onClick={restartStagePlayback}
                     title="Reiniciar animación"
-                    className="p-2 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-text-secondary hover:text-text-primary transition cursor-pointer shrink-0"
+                    className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:text-white transition cursor-pointer shrink-0"
                   >
                     <RotateCcw className="w-4 h-4" />
                   </button>
@@ -4794,7 +5172,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     className="flex-1 h-1.5 bg-slate-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-teal-600"
                   />
 
-                  <span className="text-xs font-mono font-bold text-text-secondary shrink-0">
+                  <span className="text-xs font-mono font-bold text-slate-600 dark:text-slate-300 shrink-0">
                     {videoCurrentTime.toFixed(1)}s / {(videoDuration || 20).toFixed(1)}s
                   </span>
 
@@ -4807,7 +5185,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           ? 'Activar audio del video original'
                           : 'Silenciar video original'
                       }
-                      className="p-2 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-text-secondary hover:text-text-primary transition cursor-pointer"
+                      className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:text-white transition cursor-pointer"
                     >
                       {muteBaseVideo ? (
                         <VolumeX className="w-4 h-4 text-rose-500" />
@@ -4821,7 +5199,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 {/* ============================================================== */}
                 {/* PANEL DE EXPORTACIÓN MULTIMODAL (MP4 PARA WHATSAPP Y HTML LMS) */}
                 {/* ============================================================== */}
-                <div className="pt-2 border-t border-slate-200/80 dark:border-zinc-800 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {/* OPCIÓN B: RENDERIZADO MP4 EN SERVIDOR (WHATSAPP / CELULAR / REELS / TIKTOK) */}
                   <button
                     type="button"
@@ -4875,7 +5253,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         disabled={isBuildingAcademyHtml}
                         onClick={handleCopyLmsEmbed}
                         title="Copiar código <iframe srcdoc> para lección de Academia WAPPY"
-                        className="py-1.5 px-2.5 rounded-lg bg-white/80 dark:bg-zinc-800 hover:bg-white text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-[10px] font-extrabold flex items-center justify-center gap-1 cursor-pointer transition"
+                        className="py-1.5 px-2.5 rounded-lg bg-white/80 dark:bg-slate-800 hover:bg-white text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-[10px] font-extrabold flex items-center justify-center gap-1 cursor-pointer transition"
                       >
                         <Copy className="w-3 h-3" />
                         <span>Copiar LMS</span>
@@ -4887,7 +5265,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
               {/* INSPECTOR VISUAL DEL ELEMENTO SELECCIONADO EN EL LIENZO */}
               {isVisualEditMode && selectedCanvasElement && (
-                <div className="p-4 bg-slate-50 dark:bg-zinc-900/90 rounded-2xl border border-teal-500/40 space-y-3 animate-in fade-in duration-150">
+                <div className="p-4 bg-slate-50 dark:bg-slate-900/95 rounded-2xl border border-teal-500/40 space-y-3 animate-in fade-in duration-150">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-extrabold uppercase tracking-wider text-teal-700 dark:text-teal-300 flex items-center gap-1.5">
                       <Edit3 className="w-3.5 h-3.5" />
@@ -4903,20 +5281,20 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-text-secondary mb-1">
+                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
                       Texto del elemento (edita aquí o con doble clic en el video):
                     </label>
                     <textarea
                       rows={2}
                       value={selectedCanvasElement.text}
                       onChange={(e) => updateSelectedCanvasElement({ text: e.target.value })}
-                      className="w-full bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-700 rounded-xl p-2.5 text-xs text-text-primary font-semibold focus:outline-none focus:border-teal-500 resize-none"
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-teal-500 resize-none"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 items-center">
                     <div>
-                      <label className="block text-[10px] font-bold text-text-secondary mb-1">
+                      <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-1">
                         Tamaño Letra ({selectedCanvasElement.fontSize}px)
                       </label>
                       <div className="flex items-center gap-1">
@@ -4927,7 +5305,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                               fontSize: Math.max(10, selectedCanvasElement.fontSize - 2),
                             })
                           }
-                          className="flex-1 py-1 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-xs font-bold cursor-pointer"
+                          className="flex-1 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer"
                         >
                           A-
                         </button>
@@ -4938,7 +5316,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                               fontSize: Math.min(96, selectedCanvasElement.fontSize + 2),
                             })
                           }
-                          className="flex-1 py-1 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-xs font-bold cursor-pointer"
+                          className="flex-1 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer"
                         >
                           A+
                         </button>
@@ -4946,7 +5324,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-text-secondary mb-1">
+                      <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-1">
                         Escala Caja ({selectedCanvasElement.scale}x)
                       </label>
                       <div className="flex items-center gap-1">
@@ -4960,7 +5338,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                               ),
                             })
                           }
-                          className="flex-1 py-1 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-xs font-bold cursor-pointer"
+                          className="flex-1 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer"
                         >
                           -
                         </button>
@@ -4974,7 +5352,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                               ),
                             })
                           }
-                          className="flex-1 py-1 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-xs font-bold cursor-pointer"
+                          className="flex-1 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer"
                         >
                           +
                         </button>
@@ -4982,19 +5360,19 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-text-secondary mb-1">
+                      <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-1">
                         Color de Texto
                       </label>
                       <input
                         type="color"
                         value={selectedCanvasElement.color}
                         onChange={(e) => updateSelectedCanvasElement({ color: e.target.value })}
-                        className="w-full h-7 rounded-lg cursor-pointer bg-transparent border border-slate-200 dark:border-zinc-700"
+                        className="w-full h-7 rounded-lg cursor-pointer bg-transparent border border-slate-200 dark:border-slate-700"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-text-secondary mb-1">
+                      <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-1">
                         Color de Fondo
                       </label>
                       <input
@@ -5003,7 +5381,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         onChange={(e) =>
                           updateSelectedCanvasElement({ backgroundColor: e.target.value })
                         }
-                        className="w-full h-7 rounded-lg cursor-pointer bg-transparent border border-slate-200 dark:border-zinc-700"
+                        className="w-full h-7 rounded-lg cursor-pointer bg-transparent border border-slate-200 dark:border-slate-700"
                       />
                     </div>
                   </div>
@@ -5019,23 +5397,23 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
         {activeTab === 'lab' && (
           <div className="space-y-6 animate-in fade-in duration-200">
             {/* Tarjeta de Cabecera del Laboratorio */}
-            <div className="bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-5 flex items-center gap-4 shadow-xs">
+            <div className="bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 flex items-center gap-4 shadow-xs">
               <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-300 shrink-0">
                 <Sparkles className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-base font-extrabold text-text-primary">
+                <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
                   Laboratorio de Expresividad y Vocal Bursts
                 </h2>
-                <p className="text-xs text-text-secondary">
+                <p className="text-xs text-slate-600 dark:text-slate-300">
                   Explora las capacidades de Gemini TTS: respiraciones orgánicas, risas, susurros y dirección de estilo en tiempo real
                 </p>
               </div>
             </div>
 
             {/* Selector de Modelo en el Laboratorio */}
-            <div className="bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-xs">
-              <span className="text-xs font-extrabold uppercase tracking-wider text-text-secondary">
+            <div className="bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
                 Modelo en el Laboratorio:
               </span>
               <div className="flex flex-wrap items-center gap-2">
@@ -5055,7 +5433,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         'px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer',
                         isSelected
                           ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
-                          : 'bg-slate-50 dark:bg-zinc-900 text-text-secondary border-slate-200 dark:border-zinc-800 hover:border-teal-400',
+                          : 'bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-teal-400',
                       )}
                     >
                       {m.name} ({m.supportedVoices.length} voces)
@@ -5066,8 +5444,8 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
             </div>
 
             {/* SECCIÓN 1: Efectos Vocales Orgánicos Integrados */}
-            <div className="bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-5 space-y-4 shadow-xs">
-              <h3 className="text-sm font-extrabold text-text-primary">
+            <div className="bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 space-y-4 shadow-xs">
+              <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
                 Efectos Vocales Orgánicos Integrados
               </h3>
 
@@ -5077,14 +5455,14 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   return (
                     <div
                       key={b.tag}
-                      className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/90 border border-slate-200/80 dark:border-zinc-800 flex items-center justify-between gap-3"
+                      className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3"
                     >
                       <div>
                         <span className="font-mono text-sm font-extrabold text-amber-600 dark:text-amber-400">
                           {b.tag}
                         </span>
-                        <p className="text-xs font-bold text-text-primary mt-0.5">{b.label}</p>
-                        <p className="text-[11px] text-text-secondary">{b.description}</p>
+                        <p className="text-xs font-bold text-slate-900 dark:text-white mt-0.5">{b.label}</p>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-300">{b.description}</p>
                       </div>
                       <button
                         type="button"
@@ -5132,9 +5510,9 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
             </div>
 
             {/* SECCIÓN 2: Probador Libre de Prosodia y Dirección de Voz */}
-            <div className="bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-5 space-y-4 shadow-xs">
+            <div className="bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 space-y-4 shadow-xs">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="text-sm font-extrabold text-text-primary">
+                <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
                   Probador Libre de Prosodia y Dirección de Voz
                 </h3>
                 <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
@@ -5143,7 +5521,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               </div>
 
               <div className="space-y-2">
-                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">
+                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
                   Selecciona la Voz ({activeVoicesCount} activas para {activeModelObj?.name})
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -5162,7 +5540,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           'px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center gap-1',
                           isSelected
                             ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
-                            : 'bg-slate-50 dark:bg-zinc-900 text-text-primary border-slate-200 dark:border-zinc-800 hover:border-teal-400',
+                            : 'bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border-slate-200 dark:border-slate-800 hover:border-teal-400',
                           !supported && 'opacity-55',
                         )}
                       >
@@ -5177,26 +5555,26 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               </div>
 
               <div>
-                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary mb-1.5">
+                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
                   Prompt de Dirección (speechMetadata.style)
                 </label>
                 <input
                   type="text"
                   value={labStylePrompt}
                   onChange={(e) => setLabStylePrompt(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-text-primary focus:outline-none focus:border-teal-500"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-teal-500"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-text-secondary mb-1.5">
+                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
                   Texto de Prueba
                 </label>
                 <textarea
                   rows={3}
                   value={labTestText}
                   onChange={(e) => setLabTestText(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl p-3.5 text-xs text-text-primary focus:outline-none focus:border-teal-500 resize-none"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-teal-500 resize-none"
                 />
               </div>
 
@@ -5224,13 +5602,13 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
         {/* ==================================================================== */}
         {activeTab === 'library' && (
           <div className="space-y-5 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-5 flex items-center justify-between flex-wrap gap-3 shadow-xs">
+            <div className="bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 flex items-center justify-between flex-wrap gap-3 shadow-xs">
               <div>
-                <h2 className="text-base font-extrabold text-text-primary flex items-center gap-2">
+                <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                   <BookOpen className="w-5 h-5 text-indigo-500" />
                   Biblioteca de Audios y Videos
                 </h2>
-                <p className="text-xs text-text-secondary">
+                <p className="text-xs text-slate-600 dark:text-slate-300">
                   Tus locuciones y videos (HTML + voz) quedan guardados permanentemente en este navegador para reproducir, reabrir, editar o descargar.
                 </p>
               </div>
@@ -5249,12 +5627,12 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
             </div>
 
             {libraryItems.length === 0 ? (
-              <div className="bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-12 text-center space-y-2">
+              <div className="bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-12 text-center space-y-2">
                 <MicVocal className="w-10 h-10 mx-auto text-slate-400" />
-                <p className="text-sm font-bold text-text-primary">
+                <p className="text-sm font-bold text-slate-900 dark:text-white">
                   Aún no hay audios en tu biblioteca
                 </p>
-                <p className="text-xs text-text-secondary max-w-md mx-auto">
+                <p className="text-xs text-slate-600 dark:text-slate-300 max-w-md mx-auto">
                   Genera una locución en la pestaña "Estudio de Voz (TTS)" o en "Voces & Bursts" y aparecerá aquí automáticamente.
                 </p>
               </div>
@@ -5263,11 +5641,11 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 {libraryItems.map((item) => (
                   <div
                     key={item.id}
-                    className="bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-xs"
+                    className="bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-xs"
                   >
                     <div className="space-y-2">
                       <div className="flex items-start justify-between gap-2">
-                        <h4 className="text-sm font-extrabold text-text-primary line-clamp-1">
+                        <h4 className="text-sm font-extrabold text-slate-900 dark:text-white line-clamp-1">
                           {item.title}
                         </h4>
                         <div className="flex items-center gap-1.5 shrink-0">
@@ -5281,7 +5659,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           </span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2.5 text-xs text-text-secondary">
+                      <div className="flex items-center gap-2.5 text-xs text-slate-600 dark:text-slate-300">
                         <span>⏱ {formatDurationBadge(item.durationSeconds)}</span>
                         <span>•</span>
                         <span>{item.wordCount} palabras</span>
@@ -5289,13 +5667,13 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         <span>{formatLibraryDate(item.createdAt)}</span>
                       </div>
                       {item.stylePrompt && (
-                        <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-950 border border-slate-200/70 dark:border-zinc-800 text-[11px] italic text-text-secondary line-clamp-2">
+                        <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/70 dark:border-slate-800 text-[11px] italic text-slate-600 dark:text-slate-300 line-clamp-2">
                           "{item.stylePrompt}"
                         </div>
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between pt-3 border-t border-slate-200/60 dark:border-zinc-800">
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-200/60 dark:border-slate-800">
                       <div className="flex items-center gap-1.5">
                         {item.kind === 'video' ? (
                           <ExpandableButton
@@ -5386,21 +5764,21 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
         )}
       </main>
 
-      {/* MODAL DE CLAVES API GOOGLE GEMINI (HASTA 3 CLAVES CON ROTACIÓN INTELIGENTE) */}
+      {/* MODAL DE CLAVES API GOOGLE GEMINI & ECOSISTEMA GOOGLE_MODELS (2 PESTAÑAS) */}
       {isApiKeyModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-10 h-10 rounded-xl bg-fuchsia-500/10 border border-fuchsia-500/30 flex items-center justify-center text-fuchsia-600 dark:text-fuchsia-300 shrink-0">
                   <Key className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-text-primary">
-                    Claves API Google Gemini (Rotación 3x)
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                    Gestor de Claves API & Ecosistema GOOGLE_MODELS
                   </h3>
-                  <p className="text-xs text-text-secondary">
-                    Multiplica tu cuota gratuita de síntesis de voz TTS y generación de video HTML/GSAP.
+                  <p className="text-xs text-slate-600 dark:text-zinc-400">
+                    Rotación inteligente anti-429 y catálogo completo de modelos oficiales de WAPPY.
                   </p>
                 </div>
               </div>
@@ -5413,93 +5791,228 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               </button>
             </div>
 
-            <div className="p-3 rounded-xl bg-teal-500/10 border border-teal-500/25 text-xs text-teal-800 dark:text-teal-200 leading-relaxed">
-              Obtén gratis tus claves en{' '}
-              <a
-                href="https://aistudio.google.com/app/apikey"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-extrabold underline hover:text-teal-500"
+            {/* Pestañas del Modal */}
+            <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setApiKeyModalTab('keys')}
+                className={cn(
+                  'py-2 px-3 rounded-lg text-xs font-extrabold transition cursor-pointer flex items-center justify-center gap-1.5',
+                  apiKeyModalTab === 'keys'
+                    ? 'bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-300 shadow-2xs'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white',
+                )}
               >
-                Google AI Studio (aistudio.google.com)
-              </a>
-              . WAPPY Studio rotará automáticamente entre tus claves y las del servidor para evitar límites 429 en locuciones de hasta 60 minutos.
+                <Key className="w-3.5 h-3.5" />
+                <span>Mis Claves Locales ({activeCustomKeyCount}/3)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setApiKeyModalTab('models')}
+                className={cn(
+                  'py-2 px-3 rounded-lg text-xs font-extrabold transition cursor-pointer flex items-center justify-center gap-1.5',
+                  apiKeyModalTab === 'models'
+                    ? 'bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 shadow-2xs'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white',
+                )}
+              >
+                <Cpu className="w-3.5 h-3.5" />
+                <span>Modelos WAPPY ({WAPPY_GOOGLE_MODELS_ECOSYSTEM.length})</span>
+              </button>
             </div>
 
-            <div className="space-y-2.5">
-              {customApiKeys.map((item, idx) => (
-                <div key={idx} className="space-y-1">
-                  <div className="flex items-center justify-between text-[11px] font-bold text-text-secondary">
-                    <span>{item.label || `Clave Google Gemini #${idx + 1}`}</span>
-                    {item.status === 'valid' && (
-                      <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Activa y verificada
-                      </span>
-                    )}
-                    {item.status === 'invalid' && (
-                      <span className="text-rose-600 dark:text-rose-400 flex items-center gap-1">
-                        <AlertCircle className="w-3.5 h-3.5" /> Clave inválida o vencida
-                      </span>
-                    )}
+            {apiKeyModalTab === 'keys' ? (
+              <>
+                <div className="p-3 rounded-xl bg-teal-500/10 border border-teal-500/25 text-xs text-teal-900 dark:text-teal-200 leading-relaxed">
+                  Obtén gratis tus claves en{' '}
+                  <a
+                    href="https://aistudio.google.com/app/apikey"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-extrabold underline hover:text-teal-600"
+                  >
+                    Google AI Studio (aistudio.google.com)
+                  </a>
+                  . WAPPY Studio rotará automáticamente entre tus claves locales y el pool del servidor para evitar bloqueos por cuota 429 en locuciones de hasta 60 minutos.
+                </div>
+
+                <div className="space-y-2.5">
+                  {customApiKeys.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200/90 dark:border-slate-800 space-y-1.5"
+                    >
+                      <div className="flex items-center justify-between text-[11px] font-bold">
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-900 dark:text-white">
+                            {item.label || `Clave Google Gemini #${idx + 1}`}
+                          </span>
+                          <span
+                            className={cn(
+                              'text-[9px] font-extrabold px-1.5 py-0.5 rounded border',
+                              idx === 0
+                                ? 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30'
+                                : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
+                            )}
+                          >
+                            {idx === 0 ? 'Prioridad #1' : `Failover #${idx + 1}`}
+                          </span>
+                        </div>
+                        {item.status === 'valid' && (
+                          <span className="text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Activa y verificada
+                          </span>
+                        )}
+                        {item.status === 'invalid' && (
+                          <span className="text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                            <AlertCircle className="w-3.5 h-3.5" /> Clave inválida o vencida
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="password"
+                        value={item.key}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setCustomApiKeys((prev) =>
+                            prev.map((k, i) =>
+                              i === idx ? { ...k, key: val, status: 'unchecked' } : k,
+                            ),
+                          );
+                        }}
+                        placeholder="AIzaSy..."
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-500/40"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {keyValidationMsg && (
+                  <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                    {keyValidationMsg}
                   </div>
-                  <input
-                    type="password"
-                    value={item.key}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setCustomApiKeys((prev) =>
-                        prev.map((k, i) => (i === idx ? { ...k, key: val, status: 'unchecked' } : k)),
-                      );
+                )}
+
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                  <ExpandableButton
+                    size="sm"
+                    icon={<Trash2 />}
+                    label="Limpiar Claves"
+                    variant="danger"
+                    onClick={() => {
+                      const reset: StoredGeminiKeyItem[] = [
+                        { key: '', label: 'Clave Principal #1', status: 'unchecked' },
+                        { key: '', label: 'Clave Respaldo #2', status: 'unchecked' },
+                        { key: '', label: 'Clave Respaldo #3', status: 'unchecked' },
+                      ];
+                      setCustomApiKeys(reset);
+                      localStorage.removeItem(GEMINI_KEYS_STORAGE);
+                      window.dispatchEvent(new CustomEvent('wappy-keys-updated'));
+                      setKeyValidationMsg('Claves eliminadas del navegador.');
                     }}
-                    placeholder="AIzaSy..."
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-950 text-xs font-mono text-text-primary focus:outline-none focus:ring-2 focus:ring-fuchsia-500/40"
+                  />
+                  <div className="flex items-center gap-2">
+                    <ExpandableButton
+                      size="sm"
+                      icon={<X />}
+                      label="Cerrar"
+                      variant="neutral"
+                      onClick={() => setIsApiKeyModalOpen(false)}
+                    />
+                    <ExpandableButton
+                      size="sm"
+                      icon={isValidatingKeys ? <Loader2 className="animate-spin" /> : <Save />}
+                      label={isValidatingKeys ? 'Validando...' : 'Guardar y Validar'}
+                      variant="teal"
+                      disabled={isValidatingKeys}
+                      onClick={handleSaveAndValidateKeys}
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-3">
+                <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/25 text-xs text-indigo-900 dark:text-indigo-200 leading-relaxed">
+                  <strong>Ecosistema Oficial GOOGLE_MODELS de WAPPY:</strong> Haz clic en cualquier modelo TTS o de Generación IA para activarlo de inmediato en el estudio.
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[360px] overflow-y-auto pr-1">
+                  {WAPPY_GOOGLE_MODELS_ECOSYSTEM.map((gm) => {
+                    const isTts = gm.id.includes('tts');
+                    const isGen =
+                      gm.id === 'gemini-3.8-flash' ||
+                      gm.id === 'gemini-3.6-flash' ||
+                      gm.id === 'gemini-3.5-flash-lite';
+                    const isActive =
+                      (isTts && selectedModel === gm.id) ||
+                      (isGen && selectedAiModel === gm.id);
+                    return (
+                      <div
+                        key={gm.id}
+                        onClick={() => {
+                          if (isTts) {
+                            setSelectedModel(gm.id);
+                          } else if (isGen) {
+                            setSelectedAiModel(gm.id);
+                          }
+                        }}
+                        className={cn(
+                          'p-3 rounded-xl border text-left transition flex flex-col justify-between',
+                          isTts || isGen ? 'cursor-pointer' : 'opacity-90',
+                          isActive
+                            ? 'bg-teal-50/90 dark:bg-teal-950/40 border-teal-500 ring-1 ring-teal-500/30'
+                            : 'bg-slate-50 dark:bg-slate-950/80 border-slate-200 dark:border-slate-800 hover:border-teal-400',
+                        )}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-1.5 mb-1">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-teal-700 dark:text-teal-400">
+                              {gm.category}
+                            </span>
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/25">
+                              {gm.badge}
+                            </span>
+                          </div>
+                          <div className="font-mono text-xs font-extrabold text-slate-900 dark:text-white">
+                            {gm.id}
+                          </div>
+                          <p className="text-[11px] text-slate-600 dark:text-zinc-400 mt-1 leading-snug">
+                            {gm.description}
+                          </p>
+                        </div>
+                        {(isTts || isGen) && (
+                          <div className="mt-2 pt-1.5 border-t border-slate-200/70 dark:border-slate-800 flex items-center justify-between text-[10px]">
+                            <span className="text-slate-500 dark:text-zinc-400">
+                              {isTts ? 'Motor de Voz TTS' : 'Motor IA Escenas/Guion'}
+                            </span>
+                            <span
+                              className={cn(
+                                'font-extrabold',
+                                isActive
+                                  ? 'text-emerald-700 dark:text-emerald-400'
+                                  : 'text-indigo-600 dark:text-indigo-400',
+                              )}
+                            >
+                              {isActive ? '✓ En uso' : 'Usar este modelo →'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex justify-end pt-2 border-t border-slate-200 dark:border-slate-800">
+                  <ExpandableButton
+                    size="sm"
+                    icon={<Check />}
+                    label="Listo"
+                    variant="teal"
+                    onClick={() => setIsApiKeyModalOpen(false)}
                   />
                 </div>
-              ))}
-            </div>
-
-            {keyValidationMsg && (
-              <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                {keyValidationMsg}
               </div>
             )}
-
-            <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200 dark:border-zinc-800">
-              <ExpandableButton
-                size="sm"
-                icon={<Trash2 />}
-                label="Limpiar Claves"
-                variant="danger"
-                onClick={() => {
-                  const reset: StoredGeminiKeyItem[] = [
-                    { key: '', label: 'Clave Principal #1', status: 'unchecked' },
-                    { key: '', label: 'Clave Respaldo #2', status: 'unchecked' },
-                    { key: '', label: 'Clave Respaldo #3', status: 'unchecked' },
-                  ];
-                  setCustomApiKeys(reset);
-                  localStorage.removeItem(GEMINI_KEYS_STORAGE);
-                  window.dispatchEvent(new CustomEvent('wappy-keys-updated'));
-                  setKeyValidationMsg('Claves eliminadas del navegador.');
-                }}
-              />
-              <div className="flex items-center gap-2">
-                <ExpandableButton
-                  size="sm"
-                  icon={<X />}
-                  label="Cerrar"
-                  variant="neutral"
-                  onClick={() => setIsApiKeyModalOpen(false)}
-                />
-                <ExpandableButton
-                  size="sm"
-                  icon={isValidatingKeys ? <Loader2 className="animate-spin" /> : <Save />}
-                  label={isValidatingKeys ? 'Validando...' : 'Guardar y Validar'}
-                  variant="teal"
-                  disabled={isValidatingKeys}
-                  onClick={handleSaveAndValidateKeys}
-                />
-              </div>
-            </div>
           </div>
         </div>
       )}
@@ -5531,6 +6044,8 @@ function StudioAudioPlayer({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(durationSeconds || 0);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [volume, setVolume] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const src = audioUrl || (audioBase64 ? `data:audio/wav;base64,${audioBase64}` : '');
@@ -5548,6 +6063,21 @@ function StudioAudioPlayer({
     } else {
       audioRef.current.play().catch((e) => console.error('Error al reproducir audio:', e));
     }
+  };
+
+  const skipSeconds = (delta: number) => {
+    if (!audioRef.current) return;
+    const maxDur = Math.max(1, duration || audioRef.current.duration || 0);
+    const next = Math.max(0, Math.min(maxDur, audioRef.current.currentTime + delta));
+    audioRef.current.currentTime = next;
+    setCurrentTime(next);
+  };
+
+  const toggleMute = () => {
+    if (!audioRef.current) return;
+    const next = !isMuted;
+    audioRef.current.muted = next;
+    setIsMuted(next);
   };
 
   const formatTime = (secs: number) => {
@@ -5598,7 +6128,7 @@ function StudioAudioPlayer({
   if (!src) return null;
 
   return (
-    <div className="bg-white dark:bg-gray-900 border border-teal-500/30 rounded-2xl p-4 sm:p-5 shadow-md space-y-3">
+    <div className="bg-white dark:bg-slate-900/95 border border-teal-500/40 rounded-2xl p-4 sm:p-5 shadow-md space-y-3">
       <audio
         ref={audioRef}
         src={src}
@@ -5617,7 +6147,16 @@ function StudioAudioPlayer({
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <button
+            type="button"
+            onClick={() => skipSeconds(-10)}
+            title="Retroceder 10 segundos"
+            className="px-2 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-zinc-700 border border-slate-200 dark:border-slate-700 text-[11px] font-mono font-bold text-slate-700 dark:text-zinc-200 transition cursor-pointer shrink-0"
+          >
+            -10s
+          </button>
+
           <button
             type="button"
             onClick={togglePlay}
@@ -5630,19 +6169,63 @@ function StudioAudioPlayer({
             )}
           </button>
 
-          <div className="min-w-0">
+          <button
+            type="button"
+            onClick={() => skipSeconds(10)}
+            title="Adelantar 10 segundos"
+            className="px-2 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-zinc-700 border border-slate-200 dark:border-slate-700 text-[11px] font-mono font-bold text-slate-700 dark:text-zinc-200 transition cursor-pointer shrink-0"
+          >
+            +10s
+          </button>
+
+          <div className="min-w-0 ml-1">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0" />
-              <h3 className="text-sm font-extrabold text-text-primary truncate">{title}</h3>
+              <h3 className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
+                {title}
+              </h3>
             </div>
-            <p className="text-xs text-teal-600 dark:text-teal-400 font-semibold">
+            <p className="text-xs text-teal-700 dark:text-teal-400 font-semibold">
               Voz: {voiceName || 'Kore'} • WAV 24kHz Alta Fidelidad ({formatTime(currentTime)} /{' '}
               {formatTime(duration)})
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {/* Control de Volumen */}
+          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+            <button
+              type="button"
+              onClick={toggleMute}
+              title={isMuted ? 'Activar sonido' : 'Silenciar'}
+              className="text-slate-600 dark:text-zinc-300 hover:text-teal-600 cursor-pointer"
+            >
+              {isMuted || volume === 0 ? (
+                <VolumeX className="w-3.5 h-3.5 text-rose-500" />
+              ) : (
+                <Volume2 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+              )}
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={isMuted ? 0 : volume}
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
+                setVolume(v);
+                setIsMuted(v === 0);
+                if (audioRef.current) {
+                  audioRef.current.volume = v;
+                  audioRef.current.muted = v === 0;
+                }
+              }}
+              className="w-16 h-1 accent-teal-500 cursor-pointer"
+            />
+          </div>
+
           <button
             type="button"
             onClick={() => {
@@ -5651,7 +6234,7 @@ function StudioAudioPlayer({
               setPlaybackRate(next);
               if (audioRef.current) audioRef.current.playbackRate = next;
             }}
-            className="px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-teal-700 dark:text-teal-300 cursor-pointer"
+            className="px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-teal-700 dark:text-teal-300 cursor-pointer"
           >
             {playbackRate}x
           </button>
@@ -5689,7 +6272,7 @@ function StudioAudioPlayer({
       </div>
 
       {/* Visualizador de Onda Interactivo */}
-      <div className="flex items-center justify-between gap-1 h-10 bg-slate-50 dark:bg-zinc-950 rounded-xl px-3 py-1.5 border border-slate-200/80 dark:border-zinc-800 overflow-hidden">
+      <div className="flex items-center justify-between gap-1 h-10 bg-slate-50 dark:bg-slate-950 rounded-xl px-3 py-1.5 border border-slate-200/80 dark:border-slate-800 overflow-hidden">
         {Array.from({ length: 44 }).map((_, idx) => {
           const progress = duration > 0 ? currentTime / duration : 0;
           const barRatio = idx / 44;
@@ -5710,7 +6293,7 @@ function StudioAudioPlayer({
                 'w-1 rounded-full cursor-pointer transition-all duration-150',
                 isPlayed
                   ? 'bg-gradient-to-t from-teal-500 to-emerald-400'
-                  : 'bg-slate-300 dark:bg-zinc-800 hover:bg-teal-400/50',
+                  : 'bg-slate-300 dark:bg-slate-800 hover:bg-teal-400/50',
               )}
             />
           );
@@ -5719,7 +6302,7 @@ function StudioAudioPlayer({
 
       {/* Control Deslizante de Tiempo (Seek Scrubber) */}
       <div className="flex items-center gap-2.5 px-1">
-        <span className="text-[11px] font-mono font-bold text-text-secondary w-11">
+        <span className="text-[11px] font-mono font-bold text-slate-600 dark:text-zinc-400 w-11">
           {formatTime(currentTime)}
         </span>
         <input
@@ -5737,7 +6320,7 @@ function StudioAudioPlayer({
           }}
           className="flex-1 h-1.5 rounded-lg accent-teal-500 cursor-pointer"
         />
-        <span className="text-[11px] font-mono font-bold text-text-secondary w-11 text-right">
+        <span className="text-[11px] font-mono font-bold text-slate-600 dark:text-zinc-400 w-11 text-right">
           {formatTime(duration)}
         </span>
       </div>
@@ -5770,7 +6353,7 @@ function AsyncJobMonitorCard({
   const isPaused = job.status === 'paused';
 
   return (
-    <div className="bg-white dark:bg-gray-900 border border-teal-500/40 rounded-2xl p-5 shadow-md space-y-4">
+    <div className="bg-white dark:bg-slate-900/95 border border-teal-500/40 rounded-2xl p-5 shadow-md space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-300 flex items-center justify-center">
@@ -5783,7 +6366,7 @@ function AsyncJobMonitorCard({
             )}
           </div>
           <div>
-            <h4 className="text-sm font-extrabold text-text-primary">
+            <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">
               {isCompleted
                 ? '¡Audio Maestro de Larga Duración Completado!'
                 : isFailed
@@ -5792,7 +6375,7 @@ function AsyncJobMonitorCard({
                     ? 'Generación en Pausa'
                     : `Sintetizando fragmento ${job.currentChunkIndex + 1} de ${job.totalChunks}...`}
             </h4>
-            <p className="text-xs text-text-secondary">
+            <p className="text-xs text-slate-600 dark:text-zinc-400">
               Generados {Math.round(job.generatedTotalSeconds)}s de ~{job.estimatedTotalSeconds}s estimados ({job.progressPercent}%)
             </p>
           </div>
@@ -5848,8 +6431,25 @@ function AsyncJobMonitorCard({
         </div>
       </div>
 
+      {/* Aviso de Failover 429 o Error */}
+      {job.failoverNotice && (
+        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-800 dark:text-amber-200 flex items-center gap-2">
+          <RefreshCw className="w-4 h-4 text-amber-500 shrink-0" />
+          <span>
+            <strong>Rotación Automática 429:</strong> {job.failoverNotice}
+          </span>
+        </div>
+      )}
+
+      {isFailed && job.error && (
+        <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-800 dark:text-rose-200 flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+          <span>{job.error}</span>
+        </div>
+      )}
+
       {/* Barra de progreso */}
-      <div className="w-full h-2.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+      <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
         <div
           className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 transition-all duration-300"
           style={{ width: `${Math.min(100, Math.max(2, job.progressPercent))}%` }}
@@ -5857,7 +6457,7 @@ function AsyncJobMonitorCard({
       </div>
 
       {/* Rejilla de Fragmentos */}
-      <div className="grid grid-cols-6 sm:grid-cols-10 md:grid-cols-14 gap-1.5 p-2.5 bg-slate-50 dark:bg-zinc-950 rounded-xl border border-slate-200/80 dark:border-zinc-800 max-h-32 overflow-y-auto">
+      <div className="grid grid-cols-6 sm:grid-cols-10 md:grid-cols-14 gap-1.5 p-2.5 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200/80 dark:border-slate-800 max-h-32 overflow-y-auto">
         {job.chunks.map((c) => {
           const done = c.status === 'completed';
           const busy = c.status === 'processing';
@@ -5874,7 +6474,7 @@ function AsyncJobMonitorCard({
                   ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/25 cursor-pointer'
                   : busy
                     ? 'bg-teal-500/20 text-teal-700 dark:text-teal-300 border-teal-500/40 animate-pulse'
-                    : 'bg-slate-200/50 dark:bg-zinc-900 text-text-secondary border-transparent opacity-60',
+                    : 'bg-slate-200/50 dark:bg-slate-900 text-slate-600 dark:text-zinc-400 border-transparent opacity-60',
               )}
             >
               {done ? (
