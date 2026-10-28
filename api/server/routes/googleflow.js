@@ -670,16 +670,21 @@ async function executeFlowNativeStudioAction({
       });
 
       const rawText = browserFetch?.result?.value || '';
-      const serverMediaMatch = rawText.match(
-        /\\"\s*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\s*\\"/i
+      const allUuids = Array.from(
+        new Set(
+          (rawText.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi) || [])
+        )
       );
-      const activeMediaId = serverMediaMatch ? serverMediaMatch[1] : mediaId;
+      const activeMediaId =
+        allUuids.find((u) => u !== projectId && u !== workflowId && u !== allUuids[0]) ||
+        allUuids[1] ||
+        mediaId;
 
-      if (!rawText.includes('YhhmEf') || (!serverMediaMatch && !rawText.includes(workflowId))) {
+      if (!rawText.includes('YhhmEf') || allUuids.length < 2) {
         throw new Error(`No se pudo iniciar la generación del video con Veo 3.1 Lite en Google Flow: ${rawText.slice(0, 240)}`);
       }
 
-      // Poll Iyc41d (/FlowService.BatchGetMedia) directly inside the authenticated Chromium page
+      // Poll Iyc41d (/FlowService.BatchGetMedia) directly inside the authenticated Chromium page using the exact mediaId
       for (let attempt = 0; attempt < 34; attempt++) {
         await new Promise((r) => setTimeout(r, 3500));
         const pollFReq = JSON.stringify([
