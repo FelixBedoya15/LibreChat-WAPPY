@@ -670,7 +670,12 @@ async function executeFlowNativeStudioAction({
       });
 
       const rawText = browserFetch?.result?.value || '';
-      if (!rawText.includes(mediaId)) {
+      const serverMediaMatch = rawText.match(
+        /\\"\s*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\s*\\"/i
+      );
+      const activeMediaId = serverMediaMatch ? serverMediaMatch[1] : mediaId;
+
+      if (!rawText.includes('YhhmEf') || (!serverMediaMatch && !rawText.includes(workflowId))) {
         throw new Error(`No se pudo iniciar la generación del video con Veo 3.1 Lite en Google Flow: ${rawText.slice(0, 240)}`);
       }
 
@@ -678,7 +683,7 @@ async function executeFlowNativeStudioAction({
       for (let attempt = 0; attempt < 34; attempt++) {
         await new Promise((r) => setTimeout(r, 3500));
         const pollFReq = JSON.stringify([
-          [['Iyc41d', JSON.stringify([[mediaId]]), null, 'generic']],
+          [['Iyc41d', JSON.stringify([[activeMediaId]]), null, 'generic']],
         ]);
         const pollEval = await cdpRequest(ws, 700 + attempt, 'Runtime.evaluate', {
           expression: `(async () => {
@@ -727,7 +732,7 @@ async function executeFlowNativeStudioAction({
             ok: true,
             signedVideoUrl,
             signedPosterUrl,
-            mediaId,
+            mediaId: activeMediaId,
             workflowId,
             projectId,
             cookieHeader,
