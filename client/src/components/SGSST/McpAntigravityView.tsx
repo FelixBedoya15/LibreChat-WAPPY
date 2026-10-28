@@ -321,15 +321,35 @@ function connectStream() {
   }
   const streamUrl = \`\${wappyUrl}/api/mcp-bridge/antigravity/stream?apiKey=\${encodeURIComponent(apiKey)}\`;
   const client = streamUrl.startsWith('https') ? https : http;
-  client.get(streamUrl, (res) => {
+  let reconnecting = false;
+  let watchdog = null;
+  let activeReq = null;
+
+  const scheduleReconnect = (reason, delay = 3000) => {
+    if (reconnecting) return;
+    reconnecting = true;
+    if (watchdog) clearInterval(watchdog);
+    try { if (activeReq) activeReq.destroy(); } catch (_) {}
+    if (reason) log(reason);
+    setTimeout(connectStream, delay);
+  };
+
+  activeReq = client.get(streamUrl, (res) => {
     if (res.statusCode !== 200) {
-      log(\`Error HTTP \${res.statusCode} conectando al stream SSE. Reintentando...\`);
       res.resume();
-      return setTimeout(connectStream, 5000);
+      return scheduleReconnect(\`Error HTTP \${res.statusCode} conectando al stream SSE. Reintentando...\`, 4000);
     }
     log('🟢 Conectado en tiempo real a Tenshi WAPPY SSE. Escuchando órdenes...');
+    let lastChunkAt = Date.now();
+    watchdog = setInterval(() => {
+      if (Date.now() - lastChunkAt > 45000) {
+        scheduleReconnect('🔄 Silencio en stream SSE (>45s). Reconectando automáticamente...', 1500);
+      }
+    }, 15000);
+
     let buf = '', ev = '';
     res.on('data', (chunk) => {
+      lastChunkAt = Date.now();
       buf += chunk.toString();
       const lines = buf.split(/\\r?\\n/);
       buf = lines.pop() || '';
@@ -342,11 +362,11 @@ function connectStream() {
         }
       }
     });
-    res.on('end', () => setTimeout(connectStream, 4000));
-  }).on('error', (e) => {
-    log('Error de red SSE: ' + e.message);
-    setTimeout(connectStream, 5000);
+    res.on('end', () => scheduleReconnect('Stream SSE cerrado por el servidor. Reconectando...', 3000));
+    res.on('close', () => scheduleReconnect('Conexión SSE cerrada. Reconectando...', 3000));
+    res.on('error', (e) => scheduleReconnect('Error en lectura SSE: ' + e.message, 3000));
   });
+  activeReq.on('error', (e) => scheduleReconnect('Error de red SSE: ' + e.message, 4000));
 }
 
 function reportDispatch(id, wappyUrl, apiKey, payload) {

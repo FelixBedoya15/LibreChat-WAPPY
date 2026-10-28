@@ -927,6 +927,20 @@ function startSseWorker(cliArgs) {
     const streamUrl = `${wappyUrl}/api/mcp-bridge/antigravity/stream?apiKey=${encodeURIComponent(apiKey)}`;
     log(`Conectando al stream Push SSE: ${wappyUrl}/api/mcp-bridge/antigravity/stream ...`);
 
+    let reconnecting = false;
+    let watchdog = null;
+
+    const scheduleReconnect = (reason, delay = reconnectDelay) => {
+      if (reconnecting) return;
+      reconnecting = true;
+      if (watchdog) clearInterval(watchdog);
+      try {
+        if (activeReq) activeReq.destroy();
+      } catch (_) {}
+      if (reason) log(reason);
+      setTimeout(connect, delay);
+    };
+
     try {
       const parsed = new URL(streamUrl);
       const client = parsed.protocol === 'https:' ? https : http;
@@ -945,21 +959,32 @@ function startSseWorker(cliArgs) {
         },
         (res) => {
           if (res.statusCode !== 200) {
-            log(`Respuesta inesperada del stream SSE (HTTP ${res.statusCode}). Reintentando en ${reconnectDelay / 1000}s...`);
             res.resume();
-            setTimeout(connect, reconnectDelay);
+            const currentDelay = reconnectDelay;
             reconnectDelay = Math.min(reconnectDelay * 1.5, 30000);
+            scheduleReconnect(
+              `Respuesta inesperada del stream SSE (HTTP ${res.statusCode}). Reintentando en ${currentDelay / 1000}s...`,
+              currentDelay
+            );
             return;
           }
 
           reconnectDelay = 3000;
           log('🟢 Conexión Push SSE establecida con éxito. Escuchando órdenes de Tenshi en tiempo real (0 ms)...');
 
+          let lastChunkAt = Date.now();
+          watchdog = setInterval(() => {
+            if (Date.now() - lastChunkAt > 45000) {
+              scheduleReconnect('🔄 Silencio en stream SSE (>45s). Reconectando automáticamente...', 1500);
+            }
+          }, 15000);
+
           let buffer = '';
           let currentEvent = 'message';
           let currentDataLines = [];
 
           res.on('data', (chunk) => {
+            lastChunkAt = Date.now();
             buffer += chunk.toString('utf8');
             let lines = buffer.split(/\r?\n/);
             buffer = lines.pop() || '';
@@ -1008,27 +1033,31 @@ function startSseWorker(cliArgs) {
           });
 
           res.on('end', () => {
-            log('Stream SSE cerrado por el servidor. Reconectando en 3s...');
-            setTimeout(connect, 3000);
+            scheduleReconnect('Stream SSE cerrado por el servidor. Reconectando en 3s...', 3000);
+          });
+
+          res.on('close', () => {
+            scheduleReconnect('Conexión SSE cerrada. Reconectando en 3s...', 3000);
           });
 
           res.on('error', (err) => {
-            log(`Error en lectura de stream SSE (${err.message}). Reconectando...`);
-            setTimeout(connect, reconnectDelay);
+            scheduleReconnect(`Error en lectura de stream SSE (${err.message}). Reconectando...`, reconnectDelay);
           });
         }
       );
 
       activeReq.on('error', (err) => {
-        log(`Error de red conectando a SSE (${err.message}). Reintentando en ${reconnectDelay / 1000}s...`);
-        setTimeout(connect, reconnectDelay);
+        const currentDelay = reconnectDelay;
         reconnectDelay = Math.min(reconnectDelay * 1.5, 30000);
+        scheduleReconnect(
+          `Error de red conectando a SSE (${err.message}). Reintentando en ${currentDelay / 1000}s...`,
+          currentDelay
+        );
       });
 
       activeReq.end();
     } catch (err) {
-      log(`Excepción iniciando cliente SSE: ${err.message}`);
-      setTimeout(connect, reconnectDelay);
+      scheduleReconnect(`Excepción iniciando cliente SSE: ${err.message}`, reconnectDelay);
     }
   };
 
