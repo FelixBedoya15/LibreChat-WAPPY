@@ -1575,7 +1575,32 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                 {/* 1. Documento Word */}
                 <button
                   onClick={() => {
-                    const initialContent = '';
+                    const initialContent = appendSignatureIfMissing(`
+<div style="font-family: 'Inter', Arial, sans-serif; color: #1e293b; line-height: 1.6;">
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; border: 1px solid #cbd5e1;">
+    <tr>
+      <td style="width: 25%; padding: 12px; border: 1px solid #cbd5e1; background: #f8fafc; font-weight: bold; font-size: 12px; text-align: center;">
+        SISTEMA DE GESTIÓN SG-SST<br/><span style="font-size: 10px; color: #0d9488;">DECRETO 1072 DE 2015</span>
+      </td>
+      <td style="width: 50%; padding: 12px; border: 1px solid #cbd5e1; text-align: center;">
+        <div style="font-size: 15px; font-weight: 800; color: #0f172a;">DOCUMENTO CORPORATIVO SG-SST</div>
+        <div style="font-size: 11px; color: #64748b;">Política, Acta o Procedimiento Operativo Normalizado</div>
+      </td>
+      <td style="width: 25%; padding: 12px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 11px;">
+        <strong>Código:</strong> SST-DOC-001<br/>
+        <strong>Versión:</strong> 01<br/>
+        <strong>Fecha:</strong> ${new Date().toLocaleDateString('es-CO')}
+      </td>
+    </tr>
+  </table>
+  <h2 style="font-size: 16px; font-weight: bold; color: #0d9488; border-bottom: 2px solid #0d9488; padding-bottom: 4px; margin-top: 16px;">1. OBJETIVO Y ALCANCE</h2>
+  <p style="font-size: 13px;">Establecer los lineamientos normativos y técnicos de Seguridad y Salud en el Trabajo conforme al Decreto 1072 de 2015 y la Resolución 0312 de 2019. Haz clic aquí para redactar o selecciona una de las <strong>15 Plantillas SST</strong> en la barra superior.</p>
+  <h2 style="font-size: 16px; font-weight: bold; color: #0d9488; border-bottom: 2px solid #0d9488; padding-bottom: 4px; margin-top: 20px;">2. DESARROLLO Y COMPROMISOS</h2>
+  <ul>
+    <li style="font-size: 13px;">Identificación de peligros, evaluación y valoración de riesgos (GTC-45).</li>
+    <li style="font-size: 13px;">Cumplimiento de estándares mínimos y mejora continua del ciclo PHVA.</li>
+  </ul>
+</div>`);
                     if (!conversationId || conversationId === 'new') {
                       initializeConvoAndSave('text', initialContent, 'Informe Técnico SG-SST');
                     } else {
