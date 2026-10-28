@@ -1,6 +1,9 @@
 'use strict';
 
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 const crypto = require('crypto');
 const axios = require('axios');
 const passport = require('passport');
@@ -8,6 +11,12 @@ const router = express.Router();
 const { logger } = require('~/config');
 const { resolveApiKeys, generateWithKeyRotation } = require('./sgsst/sgsstGemini');
 const geminiPoolManager = require('~/server/services/GeminiPoolManager');
+const {
+  alignTimelineMapWithWavBuffer,
+  buildSmartScenePlanFromScript,
+  generateCreativeScenePlanWithAi,
+  compileAntigravityMasterReelHtml,
+} = require('./wappyReelEngine');
 
 /**
  * Middleware de autenticación flexible para WAPPY Studio:
@@ -1743,7 +1752,28 @@ function getPublicAssetDataUri(relPath, mime = 'image/png') {
   return '';
 }
 
-function inlineWappyPublicAssetsInHtml(rawHtml) {
+function getPublicAssetText(relPath) {
+  const cacheKey = `txt:${relPath}`;
+  if (WAPPY_ASSET_CACHE.has(cacheKey)) return WAPPY_ASSET_CACHE.get(cacheKey);
+  const candidates = [
+    path.join(process.cwd(), 'client', 'public', relPath),
+    path.join(process.cwd(), 'client', 'dist', relPath),
+    path.join(__dirname, '..', '..', '..', 'client', 'public', relPath),
+    path.join(__dirname, '..', '..', '..', 'client', 'dist', relPath),
+  ];
+  for (const fullPath of candidates) {
+    try {
+      if (fs.existsSync(fullPath)) {
+        const txt = fs.readFileSync(fullPath, 'utf8');
+        WAPPY_ASSET_CACHE.set(cacheKey, txt);
+        return txt;
+      }
+    } catch (_) {}
+  }
+  return '';
+}
+
+function inlineWappyPublicAssetsInHtml(rawHtml, { inlineVendorScripts = false } = {}) {
   if (!rawHtml || typeof rawHtml !== 'string') return '';
   let html = rawHtml;
   const assetMap = [
@@ -1757,6 +1787,23 @@ function inlineWappyPublicAssetsInHtml(rawHtml) {
     const dataUri = getPublicAssetDataUri(item.rel, 'image/png');
     if (dataUri) {
       html = html.replace(item.regex, (_, q1, q2) => `${q1}${dataUri}${q2}`);
+    }
+  }
+  if (inlineVendorScripts) {
+    const escapeInline = (code) => code.replace(/<\/script/gi, '<\\/script');
+    const threeCode = getPublicAssetText('assets/wappy/three.min.js');
+    if (threeCode) {
+      html = html.replace(
+        /<script[^>]*src=["'][^"']*three(\.min)?\.js["'][^>]*>\s*<\/script>/gi,
+        () => `<script id="wappy-inline-three">${escapeInline(threeCode)}</script>`,
+      );
+    }
+    const gsapCode = getPublicAssetText('assets/gsap.min.js');
+    if (gsapCode) {
+      html = html.replace(
+        /<script[^>]*src=["'][^"']*gsap(\.min)?\.js["'][^>]*>\s*<\/script>/gi,
+        () => `<script id="wappy-inline-gsap">${escapeInline(gsapCode)}</script>`,
+      );
     }
   }
   return html;
@@ -1872,23 +1919,87 @@ function postProcessGeneratedVideoHtml(rawHtml, timelineMap) {
   let html = inlineWappyPublicAssetsInHtml(rawHtml);
   // Corregir bug común de LLMs: subtitles.reverse() muta el arreglo en cada frame de GSAP onUpdate
   html = html.replace(/subtitles\.reverse\(\)/g, 'subtitles.slice().reverse()');
-  // Inyectar mapa de palabras ponderadas para que el reproductor y el renderizador MP4 sincronicen al milisegundo
-  const syncHelper = `<script id="wappy-beat-sync-helper">
+  // Si el HTML aún no tiene el helper de sincronización, inyectarlo
+  if (!html.includes('window.__wappyTimelineBeats')) {
+    const syncHelper = `<script id="wappy-beat-sync-helper">
   window.__wappyTimelineBeats = ${JSON.stringify(timelineMap.beats)};
   window.__wappyWordTimings = ${JSON.stringify(timelineMap.wordTimings)};
 </script>`;
-  if (html.includes('</head>')) {
-    html = html.replace('</head>', `${syncHelper}\n</head>`);
-  } else {
-    html = `${syncHelper}\n${html}`;
+    if (html.includes('</head>')) {
+      html = html.replace('</head>', `${syncHelper}\n</head>`);
+    } else {
+      html = `${syncHelper}\n${html}`;
+    }
   }
   return html;
 }
 
 /**
+ * POST /api/studio/video/compile-master-reel
+ * Compila instantáneamente (<10ms) el Motor Maestro 60-FPS de Antigravity (7 Arquetipos + Three.js WappyAvatarVoxel3D)
+ * a partir del guion actual y el audio WAV (si existe), sin esperar llamada a LLM.
+ */
+router.post('/video/compile-master-reel', studioAuth, async (req, res) => {
+  try {
+    const {
+      scriptText = '',
+      headline = '',
+      aspectRatio = '9:16',
+      hasBaseVideo = false,
+      showSubtitles = true,
+      durationSeconds = 30,
+      companyName = 'WAPPY IA',
+      audioBase64,
+    } = req.body || {};
+
+    const safeDuration = Math.max(6, Math.min(180, Number(durationSeconds) || 30));
+    const effectiveScript =
+      scriptText ||
+      headline ||
+      '¡Atención equipo! Antes de intervenir cualquier tablero o red eléctrica, recuerda que tu vida depende de las Cinco Reglas de Oro. Primero: Cortar de forma efectiva todas las fuentes de tensión. Segundo: Bloquear y etiquetar los aparatos de corte con tu candado personal LOTO. Tercero: Verificar la ausencia de tensión con un detector calibrado. Cuarto: Poner a tierra y en cortocircuito todas las posibles fuentes de corriente. Y quinto: Delimitar y señalizar la zona de trabajo. En WAPPY IA cuidamos lo más valioso: que regreses sano y salvo a casa.';
+
+    let timelineMap = computeServerScriptTimelineMap(effectiveScript, safeDuration);
+
+    if (audioBase64 && typeof audioBase64 === 'string') {
+      try {
+        const cleanB64 = audioBase64.replace(/^data:audio\/[^;]+;base64,/, '');
+        const wavBuf = Buffer.from(cleanB64, 'base64');
+        timelineMap = alignTimelineMapWithWavBuffer(timelineMap, wavBuf);
+      } catch (_) {}
+    }
+
+    const scenePlan = buildSmartScenePlanFromScript(effectiveScript, timelineMap.beats, {
+      companyName,
+    });
+
+    let htmlCode = compileAntigravityMasterReelHtml(scenePlan, timelineMap, {
+      aspectRatio,
+      hasBaseVideo,
+      companyName,
+      showSubtitles,
+    });
+
+    htmlCode = postProcessGeneratedVideoHtml(htmlCode, timelineMap);
+
+    return res.json({
+      success: true,
+      htmlCode,
+      timelineMap,
+      scenePlan,
+    });
+  } catch (error) {
+    logger.error('[WappyStudio Video] Error compiling master reel:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Error compilando el motor maestro de video.',
+    });
+  }
+});
+
+/**
  * POST /api/studio/video/generate-html
- * Genera una composición animada en HTML5 + Tailwind + GSAP que puede superponerse
- * sobre un video propio del usuario o reproducirse de forma autónoma con subtítulos sincronizados.
+ * Genera una composición animada con el Motor Maestro 60-FPS de Antigravity (HyperFrames + Three.js WappyAvatarVoxel3D + 7 Arquetipos Dinámicos)
+ * sincronizada milimétricamente con las pausas reales de la voz WAV y envolvente RMS de lip-sync.
  */
 router.post('/video/generate-html', studioAuth, async (req, res) => {
   try {
@@ -1902,7 +2013,8 @@ router.post('/video/generate-html', studioAuth, async (req, res) => {
       durationSeconds = 30,
       companyName = 'WAPPY IA',
       modelName,
-    } = req.body;
+      audioBase64,
+    } = req.body || {};
 
     const envTextModels = getStudioTextModelsFromEnv();
     const preferredTextModel =
@@ -1911,83 +2023,77 @@ router.post('/video/generate-html', studioAuth, async (req, res) => {
       envTextModels[0] ||
       'gemini-3.8-flash';
 
-    const isVertical = aspectRatio === '9:16';
-    const width = isVertical ? 1080 : 1920;
-    const height = isVertical ? 1920 : 1080;
     const safeDuration = Math.max(6, Math.min(180, Number(durationSeconds) || 30));
     const effectiveScript =
       scriptText ||
       prompt ||
       'La prevención y la inteligencia artificial transforman la seguridad en el trabajo con WAPPY IA.';
-    const timelineMap = computeServerScriptTimelineMap(effectiveScript, safeDuration);
-    const beatsScheduleText = timelineMap.beats
-      .map(
-        (b) =>
-          `  * ESCENA #scene-${b.index} [Desde ${b.startSec}s hasta ${b.endSec}s (duración ${b.durationSec}s)]: "${b.text}"`,
-      )
-      .join('\n');
 
-    const systemInstruction = `Eres el Director de Motion Graphics Senior de WAPPY IA, experto en los sistemas oficiales "animaciones-17-efectos-reels", "animaciones-wappy-brand", "animaciones-dark-tech-hud", "animaciones-explicativas-sst" y "hyperframes-motion-design" (GSAP 3 + Tailwind CSS + SVG Duotone + HUD Táctico).
-Tu objetivo es crear una composición HTML5 autocontenida, cinematográfica y 100% sincronizada segundo a segundo con la voz para relación de aspecto ${aspectRatio} (${width}x${height}).
+    let timelineMap = computeServerScriptTimelineMap(effectiveScript, safeDuration);
 
-REGLAS ESTRICTAS DE ARQUITECTURA VISUAL, IDENTIDAD WAPPY Y SINCRONIZACIÓN DE VOZ:
-1. Devuelve ÚNICAMENTE el código HTML completo (desde <!DOCTYPE html> hasta </html>), sin bloques markdown (\`\`\`html).
-2. Incluye en el <head>:
-   - <script src="https://cdn.tailwindcss.com"></script>
-   - <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-   - Google Fonts: 'Outfit' (800, 900), 'Plus Jakarta Sans' (500, 700, 800) y 'JetBrains Mono' (600, 700).
-3. IDENTIDAD VISUAL OFICIAL DE WAPPY IA (ESTILO REELS OFICIALES GTC-45 Y PLATAFORMA WAPPY):
-   - Paleta oficial: Verde Lima Eléctrico (\`#c7f303\`), Turquesa SST (\`#14b8a6\` / \`#0d9488\`), Cian HUD (\`#06b6d4\`), Ámbar Alerta (\`#f59e0b\`) y Cosmos Oscuro (\`#050d0a\` a \`#060d14\`).
-   - Titulares Cinéticos en 'Outfit' ExtraBold/Black con píldoras de resaltado luminoso: usa \`<span class="inline-block px-3 py-0.5 rounded-xl bg-[#c7f303] text-[#0a1004] font-black shadow-[0_0_24px_rgba(199,243,3,0.45)]">PALABRA CLAVE</span>\` o cian/ámbar según la escena.
-   - TOP HUD TÁCTICO (#header-hud): Barra superior estilo cristal con:
-     * Izquierda: Ecualizador animado de 4 barras cian/lima + insignia con punto pulsante (\`ECOSISTEMA IA • SG-SST\` / \`${companyName}\`).
-     * Derecha: Radar holográfico SVG giratorio o píldora \`• WAPPY.CLUB\`.
-   - RIQUEZA VISUAL OBLIGATORIA (PROHIBIDO HACER CAJAS DE TEXTO PLANAS):
-     * Cada escena DEBE incluir componentes visuales ricos: Tarjetas comparativas (Método Tradicional Rojo vs Con WAPPY IA Verde Lima), Mockup de Celular con Dynamic Island y checklist lateral con firmas/controles SVG animados, Telemetría HUD con barras de progreso y ángulos/indicadores, e Iconos SVG Duotone grandes con trazos animados (\`stroke-dasharray\`) y anillos orbitales.
-     * En la parte inferior del escenario (encima del área de subtítulos), incluye una tarjeta de presentador WAPPY con el avatar oficial \`<img src="/assets/wappy/tenshi.png" class="w-11 h-11 rounded-xl object-cover border border-[#c7f303]/50" />\` o \`<img src="/assets/wappy/felix_avatar_3d.png" class="w-12 h-12 rounded-xl object-cover border border-teal-400/50" />\`, mostrando el resumen ejecutivo en vivo.
-4. SINCRONIZACIÓN EXACTA ESCENA POR ESCENA CON LA VOZ (PROHIBIDO DESINCRONIZAR):
-   - Tienes ${timelineMap.beats.length} escenas obligatorias que DEBEN aparecer y ocultarse exactamente en los segundos indicados del mapa de locución:
-${beatsScheduleText}
-   - En \`window.mainTimeline = gsap.timeline({ repeat: 0 });\`:
-     * Posiciona cada \`#scene-i\` usando el tiempo absoluto exacto \`startSec\` en el timeline maestro (\`master.add(tlScene, startSec)\`).
-     * La primera escena (\`#scene-1\`) DEBE estar visible por defecto en el HTML estático (sin \`opacity-0\` en el contenedor \`#scene-1\`) para que al abrir en WhatsApp se vea de inmediato.
-     * Al terminar cada escena (en su \`endSec\`), haz transición rápida y dinámica (Zoom-Through, Giro 3D \`rotationY\`, Frame Break o Slide Elástico) hacia la siguiente escena, EXCEPTO la última escena (\`#scene-${timelineMap.beats.length}\`), la cual NUNCA debe ocultarse al final para que el cierre permanezca visible.
-   - PROHIBIDO crear un \`<footer id="subtitle-container">\` propio ni usar \`subtitles.reverse()\` (el reproductor de WAPPY Studio ya renderiza los subtítulos oficiales sincronizados palabra por palabra). Deja \`padding-bottom: 78px\` en \`#stage\`.
-5. GEOMETRÍA RESPONSIVA Y TRANSPARENCIA:
-   - \`html, body { width: 100vw; height: 100vh; margin: 0; padding: 0; overflow: hidden; }\`
-   - Si hasBaseVideo es true (${hasBaseVideo}), \`body\` debe tener \`background: transparent;\`. Si es false, incluye fondo oscuro cósmico con red de partículas en \`<canvas id="bg-particles">\` + rejilla técnica sutil.
-6. API DE CONTROL EXTERNO (OBLIGATORIA):
-   - Escucha \`window.addEventListener('message', (e) => { ... })\` para \`STUDIO_PLAY\`, \`STUDIO_PAUSE\`, \`STUDIO_RESTART\` y \`STUDIO_SEEK\` (\`window.mainTimeline?.progress(e.data.progress)\`).`;
+    // Si el cliente envió el audio WAV sintetizado, detectar silencios reales y extraer envolvente RMS 60-FPS
+    if (audioBase64 && typeof audioBase64 === 'string') {
+      try {
+        const cleanB64 = audioBase64.replace(/^data:audio\/[^;]+;base64,/, '');
+        const wavBuf = Buffer.from(cleanB64, 'base64');
+        timelineMap = alignTimelineMapWithWavBuffer(timelineMap, wavBuf);
+      } catch (wavErr) {
+        logger.debug('[WappyStudio Video] WAV alignment fallback:', wavErr.message);
+      }
+    }
 
-    const userPrompt = `Diseña una composición animada de nivel estudio en HTML + GSAP sincronizada exactamente con este mapa de locución:
-- Formato: ${aspectRatio} (${width}x${height})
-- Duración exacta del audio: ${safeDuration} segundos
-- Empresa / Marca: ${companyName}
-- Tema visual: ${theme}
-- ¿Tiene video base debajo?: ${hasBaseVideo ? 'SÍ (fondo transparente)' : 'NO (fondo cósmico WAPPY Dark Tech + partículas)'}
-- Instrucción creativa del usuario: ${prompt || 'Reel estilo WAPPY IA oficial con tarjetas interactivas, iconos SVG duotone animados, telemetría HUD y presentador Tenshi/Félix.'}
-- MAPA EXACTO DE ESCENAS Y TIEMPOS DE VOZ (OBLIGATORIO RESPETAR CADA SEGUNDO):
-${beatsScheduleText}
+    const { allKeys } = await getCombinedKeysForRequest(req, []);
 
-Devuelve SOLO el código HTML puro empezando por <!DOCTYPE html>.`;
+    const aiGeneratorFn = async (planPrompt) => {
+      if (allKeys.length > 0) {
+        const modelsToTry = Array.from(new Set([preferredTextModel, ...envTextModels]));
+        for (const key of allKeys) {
+          for (const mId of modelsToTry) {
+            try {
+              const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(mId)}:generateContent?key=${encodeURIComponent(key)}`;
+              const resp = await axios.post(
+                url,
+                {
+                  contents: [{ role: 'user', parts: [{ text: planPrompt }] }],
+                  generationConfig: {
+                    temperature: 0.35,
+                    responseMimeType: 'application/json',
+                  },
+                },
+                { timeout: 22000 },
+              );
+              const candidateText =
+                resp.data?.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || '';
+              if (candidateText.trim()) {
+                return candidateText.trim();
+              }
+            } catch (_) {
+              /* try next model/key */
+            }
+          }
+        }
+      }
+      const aiResult = await generateWithKeyRotation(
+        { model: preferredTextModel, generationConfig: { temperature: 0.35 } },
+        req.user,
+        planPrompt,
+      );
+      return (aiResult?.response?.text?.() || '').trim();
+    };
 
-    const aiResult = await generateWithKeyRotation(
-      { model: preferredTextModel, generationConfig: { temperature: 0.35 } },
-      req.user,
-      userPrompt,
-      { systemInstruction },
+    const scenePlan = await generateCreativeScenePlanWithAi(
+      effectiveScript,
+      timelineMap.beats,
+      { companyName, prompt, theme },
+      aiGeneratorFn,
     );
 
-    let htmlCode = aiResult?.response?.text?.() || '';
-    htmlCode = htmlCode
-      .replace(/^```html\s*/i, '')
-      .replace(/^```\s*/i, '')
-      .replace(/\s*```$/i, '')
-      .trim();
-
-    if (!htmlCode.toLowerCase().includes('<html')) {
-      throw new Error('El modelo no devolvió un documento HTML válido.');
-    }
+    let htmlCode = compileAntigravityMasterReelHtml(scenePlan, timelineMap, {
+      aspectRatio,
+      hasBaseVideo,
+      companyName,
+      showSubtitles,
+    });
 
     htmlCode = postProcessGeneratedVideoHtml(htmlCode, timelineMap);
 
@@ -1995,6 +2101,7 @@ Devuelve SOLO el código HTML puro empezando por <!DOCTYPE html>.`;
       success: true,
       htmlCode,
       timelineMap,
+      scenePlan,
     });
   } catch (error) {
     logger.error('[WappyStudio Video] Error generating HTML composition:', error);
@@ -2069,24 +2176,35 @@ router.post('/video/render-mp4', studioAuth, async (req, res) => {
     const isVertical = aspectRatio === '9:16';
     const width = isVertical ? 540 : 960;
     const height = isVertical ? 960 : 540;
-    const safeDuration = Math.min(60, Math.max(3, Number(durationSeconds) || 12));
-    // Ajustar FPS inteligentemente para que videos largos (30-45s) se rendericen en ~8-12 segundos sin timeout de Cloudflare
-    const defaultFps = safeDuration > 20 ? 12 : 15;
-    const targetFps = Math.min(20, Math.max(10, Number(fps) || defaultFps));
-    const totalFrames = Math.max(1, Math.round(safeDuration * targetFps));
+    let safeDuration = Math.min(60, Math.max(3, Number(durationSeconds) || 12));
 
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wappy-studio-mp4-'));
     const outputMp4Path = path.join(tempDir, 'output.mp4');
     let audioFilePath = null;
+    let wavBuf = null;
 
     if (audioBase64 && typeof audioBase64 === 'string') {
       const cleanBase64 = audioBase64.replace(/^data:audio\/[^;]+;base64,/, '');
+      wavBuf = Buffer.from(cleanBase64, 'base64');
       audioFilePath = path.join(tempDir, 'voiceover.wav');
-      fs.writeFileSync(audioFilePath, Buffer.from(cleanBase64, 'base64'));
+      fs.writeFileSync(audioFilePath, wavBuf);
     }
 
-    // Inyectar controlador determinista de fotogramas y subtítulos dinámicos ponderados por sílabas y pausas
-    const timelineMap = computeServerScriptTimelineMap(scriptText, safeDuration);
+    // Inyectar controlador determinista de fotogramas y subtítulos dinámicos alineados con los silencios reales del WAV
+    let timelineMap = computeServerScriptTimelineMap(scriptText, safeDuration);
+    if (wavBuf) {
+      try {
+        timelineMap = alignTimelineMapWithWavBuffer(timelineMap, wavBuf);
+        if (timelineMap.totalDurationSeconds > 3) {
+          safeDuration = Math.min(60, timelineMap.totalDurationSeconds);
+        }
+      } catch (_) {}
+    }
+
+    // Ajustar FPS inteligentemente para que videos largos (30-45s) se rendericen en ~8-12 segundos sin timeout de Cloudflare
+    const defaultFps = safeDuration > 20 ? 12 : 15;
+    const targetFps = Math.min(20, Math.max(10, Number(fps) || defaultFps));
+    const totalFrames = Math.max(1, Math.round(safeDuration * targetFps));
     const cleanWords = timelineMap.wordTimings.map((w) => w.word);
 
     const renderHarnessScript = `
@@ -2097,7 +2215,9 @@ router.post('/video/render-mp4', studioAuth, async (req, res) => {
 </style>
 <script id="wappy-mp4-render-harness">
   window.__wappyWords = ${JSON.stringify(cleanWords)};
+  window.__wappyTimelineBeats = ${JSON.stringify(timelineMap.beats)};
   window.__wappyWordTimings = ${JSON.stringify(timelineMap.wordTimings)};
+  ${timelineMap.vozData ? `window.VOZ = ${JSON.stringify(timelineMap.vozData)};` : ''}
   window.__wappyShowSubs = ${Boolean(showSubtitles && cleanWords.length > 0)};
   window.__wappySubPos = ${JSON.stringify(subtitlePosition || 'bottom')};
   window.__wappyDuration = ${safeDuration};
@@ -2168,7 +2288,7 @@ router.post('/video/render-mp4', studioAuth, async (req, res) => {
   };
 </script>`;
 
-    const safeHtml = inlineWappyPublicAssetsInHtml(htmlCode).replace(
+    const safeHtml = inlineWappyPublicAssetsInHtml(htmlCode, { inlineVendorScripts: true }).replace(
       /subtitles\.reverse\(\)/g,
       'subtitles.slice().reverse()',
     );

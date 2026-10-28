@@ -1760,6 +1760,7 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
       window.__wappyCurrentTime = 0;
       if (window.mainTimeline) window.mainTimeline.restart();
       else if (window.gsap && window.gsap.globalTimeline) window.gsap.globalTimeline.restart();
+      if (typeof window.__wappyRenderTick === 'function') window.__wappyRenderTick(0);
     } else if (data.type === 'STUDIO_SEEK') {
       var p = Math.max(0, Math.min(1, Number(data.progress || 0)));
       if (typeof data.time === 'number') window.__wappyCurrentTime = data.time;
@@ -1767,6 +1768,9 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
         window.mainTimeline.progress(p);
       } else if (window.gsap && window.gsap.globalTimeline && typeof data.time === 'number') {
         window.gsap.globalTimeline.time(data.time);
+      }
+      if (typeof window.__wappyRenderTick === 'function' && typeof data.time === 'number') {
+        window.__wappyRenderTick(data.time);
       }
     } else if (data.type === 'STUDIO_SYNC_TIME') {
       var curT = Number(data.currentTime || 0);
@@ -1782,6 +1786,9 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
         if (Math.abs(window.mainTimeline.progress() - prog) > 0.015) {
           window.mainTimeline.progress(prog, false);
         }
+      }
+      if (typeof window.__wappyRenderTick === 'function') {
+        window.__wappyRenderTick(curT, durT);
       }
     } else if (data.type === 'STUDIO_SET_EDIT_MODE') {
       editMode = Boolean(data.enabled);
@@ -2982,7 +2989,14 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
     nextTemplateId = selectedSceneTemplate,
     customScript?: string,
     customDur?: number,
+    customAudioBase64?: string,
   ) => {
+    const effectiveScriptText = customScript ?? (currentAudio?.scriptText || scriptText);
+    const effectiveDur = Math.max(
+      5,
+      Math.round(customDur ?? (currentAudio?.durationSeconds || videoDuration || 28)),
+    );
+
     setHtmlCode(
       buildDefaultHtmlComposition({
         aspectRatio: nextRatio,
@@ -2992,14 +3006,52 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
         subheadline: subheadlineOverlayText,
         accentColor,
         templateId: nextTemplateId,
-        scriptText: customScript ?? (currentAudio?.scriptText || scriptText),
-        durationSeconds: Math.max(
-          5,
-          Math.round(customDur ?? (currentAudio?.durationSeconds || videoDuration || 28)),
-        ),
+        scriptText: effectiveScriptText,
+        durationSeconds: effectiveDur,
       }),
     );
+
+    // Si no es superposición de cámara transparente, compilar en milisegundos el Motor Maestro 60-FPS de Antigravity (Three.js WappyAvatarVoxel3D + 7 Arquetipos)
+    if (nextTemplateId !== 'camera-overlay' && !nextHasVideo) {
+      fetch('/api/studio/video/compile-master-reel', {
+        method: 'POST',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify({
+          scriptText: effectiveScriptText,
+          headline: headlineOverlayText,
+          aspectRatio: nextRatio,
+          hasBaseVideo: nextHasVideo,
+          showSubtitles: showDynamicSubtitles,
+          durationSeconds: effectiveDur,
+          companyName: user?.name || 'WAPPY IA',
+          audioBase64: customAudioBase64 || currentAudio?.base64 || undefined,
+        }),
+      })
+        .then((r) => parseStudioJson(r))
+        .then((d) => {
+          if (d?.success && d.htmlCode) {
+            setHtmlCode(d.htmlCode);
+          }
+        })
+        .catch(() => {});
+    }
   };
+
+  // Al entrar a la pestaña de Video por primera vez con plantilla WAPPY, activar el Motor Maestro 60-FPS de Antigravity
+  const hasBootstrappedMasterReelRef = useRef(false);
+  useEffect(() => {
+    if (activeTab === 'video' && !hasBootstrappedMasterReelRef.current) {
+      hasBootstrappedMasterReelRef.current = true;
+      handleRebuildDefaultTemplate(
+        aspectRatio,
+        Boolean(baseVideoUrl),
+        selectedSceneTemplate,
+        currentAudio?.scriptText || scriptText,
+        currentAudio?.durationSeconds || videoDuration || 28,
+        currentAudio?.base64,
+      );
+    }
+  }, [activeTab]);
 
   const handleSyncVoiceToVideo = async () => {
     const textToRead = (scriptText || headlineOverlayText || '').trim().slice(0, 750);
@@ -3050,7 +3102,7 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
       if (data.durationSeconds && data.durationSeconds > 1) {
         setVideoDuration(data.durationSeconds);
       }
-      // Si el lienzo usa una plantilla WAPPY, reconstruir las escenas con el guion y duración exacta de la voz
+      // Si el lienzo usa una plantilla WAPPY, reconstruir las escenas con el guion, duración exacta y silencios reales del WAV
       if (htmlCode.includes('data-wappy-template="true"')) {
         handleRebuildDefaultTemplate(
           aspectRatio,
@@ -3058,6 +3110,7 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
           selectedSceneTemplate,
           textToRead,
           data.durationSeconds,
+          data.audioBase64,
         );
       }
       setVideoCurrentTime(0);
@@ -3069,7 +3122,7 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
       }, 120);
       setStatusBanner({
         type: 'success',
-        text: `¡Locución neural (${selectedVoice} • ${data.durationSeconds}s) sincronizada frase a frase con las escenas del video!`,
+        text: `¡Locución neural (${selectedVoice} • ${data.durationSeconds}s) sincronizada al milisegundo con el Motor Maestro 60-FPS + Avatar 3D!`,
       });
     } catch (err: any) {
       setStatusBanner({
@@ -3085,6 +3138,7 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
     try {
       setIsGeneratingHtmlAi(true);
       setStatusBanner(null);
+      const audioBase64 = await resolveCurrentAudioBase64();
       const resp = await fetch('/api/studio/video/generate-html', {
         method: 'POST',
         headers: getAuthHeaders(token),
@@ -3097,16 +3151,20 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
           durationSeconds: Math.round(currentAudio?.durationSeconds || videoDuration || 25),
           companyName: user?.name || 'WAPPY IA',
           modelName: selectedAiModel,
+          audioBase64: audioBase64 || undefined,
         }),
       });
       const data = await parseStudioJson(resp);
       if (!resp.ok || !data.success) {
         throw new Error(data.error || 'Error generando composición HTML con IA.');
       }
+      if (data.timelineMap?.totalDurationSeconds && data.timelineMap.totalDurationSeconds > 2) {
+        setVideoDuration(data.timelineMap.totalDurationSeconds);
+      }
       setHtmlCode(data.htmlCode);
       setStatusBanner({
         type: 'success',
-        text: '¡Escena HTML + GSAP generada con éxito! Reproduciendo en el lienzo interactivo.',
+        text: '¡Motor Maestro 60-FPS de Antigravity (7 Arquetipos + Avatar 3D Voxel) generado y sincronizado con la voz!',
       });
     } catch (err: any) {
       setStatusBanner({
@@ -3506,8 +3564,9 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
       compiledCss = '';
     }
 
-    const [gsapCode, tailwindCode, tenshiUri, felixUri, catLogoUri] = await Promise.all([
+    const [gsapCode, threeCode, tailwindCode, tenshiUri, felixUri, catLogoUri] = await Promise.all([
       /gsap(\.min)?\.js/i.test(html) ? fetchText('/assets/gsap.min.js') : Promise.resolve(''),
+      /three(\.min)?\.js/i.test(html) ? fetchText('/assets/wappy/three.min.js') : Promise.resolve(''),
       /cdn\.tailwindcss\.com|tailwind-cdn\.js/i.test(html)
         ? fetchText('/assets/tailwind-cdn.js')
         : Promise.resolve(''),
@@ -3544,6 +3603,12 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
       html = html.replace(
         /<script[^>]*src=["'][^"']*gsap(\.min)?\.js["'][^>]*>\s*<\/script>/gi,
         () => `<script id="wappy-inline-gsap">${escapeInlineScript(gsapCode)}</script>`,
+      );
+    }
+    if (threeCode) {
+      html = html.replace(
+        /<script[^>]*src=["'][^"']*three(\.min)?\.js["'][^>]*>\s*<\/script>/gi,
+        () => `<script id="wappy-inline-three">${escapeInlineScript(threeCode)}</script>`,
       );
     }
     html = html.replace(
@@ -3625,19 +3690,19 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
   }
   /* Ocultar subtítulo duplicado interno del HTML para que solo se vea el subtítulo palabra a palabra sincronizado */
   #subtitle-footer, #subtitle-card, #subtitle-container, #subtitle-box, footer[id*="subtitle"] { display: none !important; }
-  #stage {
+  #stage:not([data-wappy-master-reel="true"]) {
     padding-bottom: 112px !important;
     transform-origin: top center !important;
   }
   @media (max-height: 740px), (max-width: 480px) {
-    #stage {
+    #stage:not([data-wappy-master-reel="true"]) {
       padding: 12px 14px 108px 14px !important;
     }
-    #stage h1 {
+    #stage:not([data-wappy-master-reel="true"]) h1 {
       font-size: clamp(1.25rem, 5vw, 1.65rem) !important;
       line-height: 1.15 !important;
     }
-    #stage h2 {
+    #stage:not([data-wappy-master-reel="true"]) h2 {
       font-size: clamp(1rem, 4.2vw, 1.35rem) !important;
     }
   }
@@ -3761,11 +3826,22 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
   function fitMobileCapsule() {
     var stage = document.getElementById('stage');
     if (!stage) return;
+    if (stage.getAttribute('data-wappy-master-reel') === 'true') {
+      if (typeof window.__wappyFitViewport === 'function') {
+        window.__wappyFitViewport();
+      } else {
+        var vw = window.innerWidth || 540;
+        var vh = window.innerHeight || 960;
+        var s = Math.min(vw / 1080, vh / 1920);
+        stage.style.transform = 'scale(' + s.toFixed(5) + ')';
+      }
+      return;
+    }
     stage.style.transform = 'none';
-    var vh = window.innerHeight || document.documentElement.clientHeight || 700;
-    var sh = stage.scrollHeight || stage.offsetHeight || vh;
-    if (sh > vh && vh > 240) {
-      var scale = Math.max(0.72, Math.min(1, (vh - 16) / sh));
+    var vh2 = window.innerHeight || document.documentElement.clientHeight || 700;
+    var sh = stage.scrollHeight || stage.offsetHeight || vh2;
+    if (sh > vh2 && vh2 > 240) {
+      var scale = Math.max(0.72, Math.min(1, (vh2 - 16) / sh));
       stage.style.transform = 'scale(' + scale.toFixed(3) + ')';
     }
   }
@@ -3775,10 +3851,11 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
   function renderSubtitles(t) {
     if (!showSubs || !subBox || !words.length) return;
+    var activeTimings = window.__wappyWordTimings || wordTimings;
     var p = Math.max(0, Math.min(0.9999, t / Math.max(1, duration)));
     var activeIdx = -1;
-    for (var k = 0; k < wordTimings.length; k++) {
-      if (p >= wordTimings[k].startPct && p <= wordTimings[k].endPct) {
+    for (var k = 0; k < activeTimings.length; k++) {
+      if (p >= activeTimings[k].startPct && p <= activeTimings[k].endPct) {
         activeIdx = k;
         break;
       }
@@ -3802,6 +3879,10 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
     window.__wappyCurrentTime = t;
     window.__wappyVoicePlaying = Boolean(isVoiceActive);
     try {
+      if (typeof window.__wappyRenderTick === 'function') {
+        window.__wappyRenderTick(t, duration);
+        return;
+      }
       if (window.mainTimeline && typeof window.mainTimeline.progress === 'function') {
         var prog = Math.max(0, Math.min(0.9999, t / Math.max(0.5, duration)));
         var tlDur = window.mainTimeline.duration();
