@@ -357,7 +357,7 @@ function resolveCredentials(cliArgs = {}) {
 }
 
 function findExeRecursive(baseDir, depth = 0) {
-  if (depth > 4 || !baseDir) return null;
+  if (depth > 6 || !baseDir) return null;
   try {
     if (!fs.existsSync(baseDir)) return null;
     const entries = fs.readdirSync(baseDir, { withFileTypes: true });
