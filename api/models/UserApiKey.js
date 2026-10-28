@@ -24,6 +24,10 @@ const userApiKeySchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
+    rawKey: {
+      type: String,
+      default: null,
+    },
     scopes: {
       type: [String],
       default: ['mcp:read', 'mcp:write', 'sgsst', 'profile'],

@@ -12,15 +12,38 @@ const { logger } = require('~/config');
 router.get('/', requireJwtAuth, async (req, res) => {
   try {
     const targetUserId = req.user.id;
-    const keys = await UserApiKey.find({ user: targetUserId, isActive: true })
-      .select('_id name keyPrefix scopes createdAt lastUsedAt isActive')
+    let keys = await UserApiKey.find({ user: targetUserId, isActive: true })
+      .select('_id name keyPrefix rawKey scopes createdAt lastUsedAt isActive')
       .sort({ createdAt: -1 })
       .lean();
+
+    // Garantizar que el usuario siempre tenga al menos una clave activa con rawKey completa
+    // para que la interfaz nunca muestre claves truncadas (wpy_live_xxx...) ni cree claves duplicadas en cada clic.
+    const hasFullKey = keys.some((k) => k.rawKey && typeof k.rawKey === 'string' && !k.rawKey.includes('...'));
+    if (!hasFullKey) {
+      const randomHex = crypto.randomBytes(24).toString('hex');
+      const rawApiKey = `wpy_live_${randomHex}`;
+      const keyPrefix = `wpy_live_${randomHex.slice(0, 6)}...`;
+      const keyHash = crypto.createHash('sha256').update(rawApiKey).digest('hex');
+
+      const created = await UserApiKey.create({
+        user: targetUserId,
+        name: 'Antigravity MCP Key',
+        keyPrefix,
+        keyHash,
+        rawKey: rawApiKey,
+        scopes: ['mcp:read', 'mcp:write', 'sgsst', 'profile'],
+        isActive: true,
+      });
+
+      keys = [created.toObject(), ...keys];
+    }
 
     const formattedKeys = keys.map((k) => ({
       id: k._id.toString(),
       name: k.name,
       keyPrefix: k.keyPrefix,
+      apiKey: k.rawKey || null,
       scopes: k.scopes,
       createdAt: k.createdAt,
       lastUsedAt: k.lastUsedAt,
@@ -54,6 +77,7 @@ router.post('/', requireJwtAuth, async (req, res) => {
       name,
       keyPrefix,
       keyHash,
+      rawKey: rawApiKey,
       scopes: ['mcp:read', 'mcp:write', 'sgsst', 'profile'],
       isActive: true,
     });
@@ -64,6 +88,7 @@ router.post('/', requireJwtAuth, async (req, res) => {
         id: newKey._id.toString(),
         name: newKey.name,
         keyPrefix: newKey.keyPrefix,
+        apiKey: rawApiKey,
         scopes: newKey.scopes,
         createdAt: newKey.createdAt,
       },
