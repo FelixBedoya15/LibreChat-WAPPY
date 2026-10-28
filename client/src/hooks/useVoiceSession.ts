@@ -63,6 +63,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const isStartingAudioRef = useRef(false);
     const listeningStartTimeRef = useRef(0);
     const noiseFloorRef = useRef<number>(0.004);
+    const speechPeakRmsRef = useRef<number>(0);
     const lastVoiceTimeRef = useRef<number>(0);
     const speechStartTimeRef = useRef<number>(0);
     const preRollChunksRef = useRef<Float32Array[]>([]);
@@ -123,7 +124,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 if (sharedCtx && sharedCtx.state !== 'closed') {
                     console.log('[VoiceSession] Reutilizando AudioContext 16kHz existente, estado:', sharedCtx.state);
                     audioContext = sharedCtx;
-                    workletAlreadyLoaded = !!(window as any).sharedAudioWorkletLoaded;
+                    workletAlreadyLoaded = !!(window as any).sharedAudioWorkletFastLoaded;
                 } else {
                     console.log('[VoiceSession] Creando nuevo AudioContext (16kHz o nativo)');
                     try {
@@ -132,12 +133,12 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                         console.log('[VoiceSession] sampleRate 16000 no admitido directamente en este navegador, usando tasa nativa del dispositivo');
                         audioContext = new AudioContextClass();
                     }
-                    (window as any).sharedAudioWorkletLoaded = false;
+                    (window as any).sharedAudioWorkletFastLoaded = false;
                 }
                 audioContextRef.current = audioContext;
                 (window as any).sharedAudioContext16k = audioContext;
             } else {
-                workletAlreadyLoaded = !!(window as any).sharedAudioWorkletLoaded;
+                workletAlreadyLoaded = !!(window as any).sharedAudioWorkletFastLoaded;
             }
 
             if (!audioContext) throw new Error('AudioContext no disponible después de la inicialización');
@@ -243,7 +244,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 }
                 if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
-                // ── Voice Activity Detection (VAD) / Supresor de Ruido Inteligente ──
+                // ── Voice Activity Detection (VAD) con Seguimiento de Pico Vocal y Cierre Rápido ──
                 // Calcular energía RMS (Root Mean Square) del chunk de audio
                 let sumSquare = 0;
                 for (let k = 0; k < float32Array.length; k++) {
@@ -252,26 +253,38 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 }
                 const rms = Math.sqrt(sumSquare / float32Array.length);
 
-                // Umbral de activación vocal dinámico (sensible a sílabas suaves pero inmune a respiración/ruido de sala)
-                const voiceThreshold = Math.max(0.011, noiseFloorRef.current * 2.15);
                 const now = Date.now();
                 const continuousSpeechMs = isTransmittingSpeechRef.current && speechStartTimeRef.current
                     ? (now - speechStartTimeRef.current)
                     : 0;
 
-                // Solo considerar ruido estacionario si el canal lleva > 20s abierto de forma ininterrumpida con energía muy baja casi idéntica al umbral
-                const isSteadyBackgroundNoise = continuousSpeechMs > 20000 && rms < voiceThreshold * 1.3;
-                const isSpeechNow = rms >= voiceThreshold && !isSteadyBackgroundNoise;
+                // Umbral dinámico sensible al inicio pero inmune al AGC del navegador cuando el usuario calla:
+                // Al terminar de hablar, el autoGainControl del navegador suele elevar el piso de sala a ~0.012-0.018.
+                // Exigir que la continuación de voz supere al menos el 24% del pico vocal reciente (tope 0.042)
+                // garantiza que en cuanto el usuario deja de hablar, isSpeechNow pase a false en 0ms sin quedarse pegado 10s.
+                const baseThreshold = Math.max(0.012, noiseFloorRef.current * 2.2);
+                const continuationFloor = isTransmittingSpeechRef.current
+                    ? Math.max(baseThreshold, Math.min(0.042, speechPeakRmsRef.current * 0.24))
+                    : Math.max(0.013, noiseFloorRef.current * 2.35);
+
+                const isSteadyBackgroundNoise = continuousSpeechMs > 12000 && rms < continuationFloor * 1.25;
+                const isSpeechNow = rms >= continuationFloor && !isSteadyBackgroundNoise;
+
+                if (isSpeechNow) {
+                    speechPeakRmsRef.current = Math.max(rms, speechPeakRmsRef.current * 0.992);
+                } else if (isTransmittingSpeechRef.current) {
+                    speechPeakRmsRef.current = speechPeakRmsRef.current * 0.985;
+                }
 
                 // Adaptación asimétrica del piso de ruido:
                 if (rms < noiseFloorRef.current) {
                     // Baja rápido hacia el silencio real
-                    noiseFloorRef.current = noiseFloorRef.current * 0.85 + rms * 0.15;
+                    noiseFloorRef.current = noiseFloorRef.current * 0.82 + rms * 0.18;
                 } else if (!isSpeechNow) {
-                    // Ruido de fondo por debajo del umbral: sube suavemente
-                    noiseFloorRef.current = noiseFloorRef.current * 0.96 + rms * 0.04;
+                    // Ruido de fondo por debajo del umbral: se adapta ágilmente al piso del AGC
+                    noiseFloorRef.current = noiseFloorRef.current * 0.92 + rms * 0.08;
                 } else {
-                    // Durante voz activa: casi fijo (0.995) para NO elevar el umbral mientras el usuario habla frases largas
+                    // Durante voz activa: casi fijo
                     noiseFloorRef.current = noiseFloorRef.current * 0.995 + rms * 0.005;
                 }
                 noiseFloorRef.current = Math.min(0.035, Math.max(0.001, noiseFloorRef.current));
@@ -280,37 +293,41 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     lastVoiceTimeRef.current = now;
                     if (!isTransmittingSpeechRef.current) {
                         speechStartTimeRef.current = now;
+                        speechPeakRmsRef.current = rms;
                     }
                 }
 
-                // Hangover inteligente en 2 etapas:
-                // Etapa A (0 - 380ms tras voz): se transmite la cola acústica natural de las consonantes finales (-s, -d, -r, -n).
-                // Etapa B (380ms - 1050ms tras voz): ventana de tolerancia de pausa (NO cierra el turno ni envía speech_end aún,
-                // pero NO envía ruido ambiental crudo a Google para evitar alucinaciones de subtítulos/películas en el ASR).
+                // Hangover ultra-ágil en 2 etapas (~560ms totales tras la última sílaba):
+                // Etapa A (0 - 240ms tras voz): transmite la cola acústica natural de las consonantes finales (-s, -d, -r, -n).
+                // Etapa B (240ms - 560ms tras voz): envía silencio digital puro (0.0) para que el reloj VAD de Google avance
+                // inmediatamente sin ruido ambiental (0 alucinaciones), y a los 560ms dispara speech_end (audioStreamEnd).
                 const timeSinceLastVoice = now - lastVoiceTimeRef.current;
-                const isInNaturalTail = !isSteadyBackgroundNoise && timeSinceLastVoice < 380;
-                const isInPauseWindow = !isSteadyBackgroundNoise && timeSinceLastVoice >= 380 && timeSinceLastVoice < 1050;
+                const isInNaturalTail = !isSteadyBackgroundNoise && timeSinceLastVoice < 240;
+                const isInPauseWindow = !isSteadyBackgroundNoise && timeSinceLastVoice >= 240 && timeSinceLastVoice < 560;
                 const shouldTransmitAudio = isSpeechNow || isInNaturalTail;
 
                 if (!shouldTransmitAudio) {
-                    // Guardar siempre los últimos 4 chunks (~240ms) en pre-roll para que si el usuario retoma la voz tras una pausa no se corte la primera sílaba
+                    // Guardar siempre los últimos 4 chunks (~250ms) en pre-roll para no cortar la primera sílaba
                     preRollChunksRef.current.push(new Float32Array(float32Array));
                     if (preRollChunksRef.current.length > 4) {
                         preRollChunksRef.current.shift();
                     }
 
-                    // Si aún estamos dentro de la ventana de pausa (< 1050ms), mantener el turno abierto sin enviar ruido a Google
+                    // Durante la ventana corta de pausa (240ms - 560ms), inyectar silencio digital limpio (ceros)
+                    // para que el VAD de Gemini Live detecte el silencio de inmediato sin esperar timeout
                     if (isInPauseWindow && isTransmittingSpeechRef.current) {
+                        encodeAndSend(new Float32Array(float32Array.length));
                         return;
                     }
 
-                    // Pasados 1050ms de silencio real: avisar al backend UNA sola vez para que Google cierre el turno limpio
+                    // Pasados 560ms de silencio real: avisar al backend UNA sola vez para que Google responda al instante
                     if (isTransmittingSpeechRef.current) {
                         isTransmittingSpeechRef.current = false;
                         speechStartTimeRef.current = 0;
+                        speechPeakRmsRef.current = 0;
                         try {
                             wsRef.current.send(JSON.stringify({ type: 'speech_end' }));
-                            console.log('[VoiceSession] Fin de voz detectado → speech_end enviado');
+                            console.log('[VoiceSession] Fin de voz detectado (560ms) → speech_end enviado');
                         } catch (e) {
                             console.warn('[VoiceSession] No se pudo enviar speech_end:', e);
                         }
@@ -373,10 +390,10 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 try {
                     if (!workletAlreadyLoaded) {
                         const workletCode = `
-                            class PCMProcessor extends AudioWorkletProcessor {
+                            class PCMProcessorFast extends AudioWorkletProcessor {
                                 constructor() {
                                     super();
-                                    this.bufferSize = 2048;
+                                    this.bufferSize = 1024;
                                     this.buffer = new Float32Array(this.bufferSize);
                                     this.bufferIndex = 0;
                                 }
@@ -394,19 +411,19 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                                     return true;
                                 }
                             }
-                            registerProcessor('pcm-processor', PCMProcessor);
+                            registerProcessor('pcm-processor-fast', PCMProcessorFast);
                         `;
                         const blob = new Blob([workletCode], { type: 'application/javascript' });
                         const workletUrl = URL.createObjectURL(blob);
                         await audioContext.audioWorklet.addModule(workletUrl);
                         URL.revokeObjectURL(workletUrl);
-                        (window as any).sharedAudioWorkletLoaded = true;
-                        console.log('[VoiceSession] AudioWorklet cargado exitosamente');
+                        (window as any).sharedAudioWorkletFastLoaded = true;
+                        console.log('[VoiceSession] AudioWorklet low-latency (1024) cargado exitosamente');
                     } else {
-                        console.log('[VoiceSession] Reutilizando AudioWorklet ya cargado');
+                        console.log('[VoiceSession] Reutilizando AudioWorklet low-latency ya cargado');
                     }
 
-                    const workletNode = new AudioWorkletNode(audioContext, 'pcm-processor');
+                    const workletNode = new AudioWorkletNode(audioContext, 'pcm-processor-fast');
                     workletNode.port.onmessage = (event) => {
                         sendPCMChunk(new Float32Array(event.data));
                     };
@@ -426,8 +443,8 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
 
             if (!useWorklet) {
                 // Fallback: ScriptProcessorNode (funciona en todos los browsers incluyendo Safari)
-                console.log('[VoiceSession] Usando ScriptProcessorNode (fallback)');
-                const bufferSize = 2048;
+                console.log('[VoiceSession] Usando ScriptProcessorNode (fallback 1024)');
+                const bufferSize = 1024;
                 const scriptProcessor = audioContext.createScriptProcessor(bufferSize, 1, 1);
                 scriptProcessor.onaudioprocess = (event) => {
                     const inputData = event.inputBuffer.getChannelData(0);

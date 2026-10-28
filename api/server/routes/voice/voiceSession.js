@@ -2929,9 +2929,15 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes gen
                         const startOfTomorrow = new Date(endOfToday.getTime() + 1);
                         const endOfTomorrow = new Date(endOfToday.getTime() + 24 * 3600 * 1000);
 
-                        // Consultar Google Calendar en vivo con timeout rápido (1800ms) para no retrasar el arranque
+                        // Consultar Google Calendar con caché compartida (0ms si /briefing ya lo cargó) y timeout de 600ms
                         const fetchGoogleCalendarEvents = async () => {
                             try {
+                                global.__wappyGcalBriefingCache = global.__wappyGcalBriefingCache || new Map();
+                                const cacheKey = `${String(targetUserId)}:${colNowStr}`;
+                                const cached = global.__wappyGcalBriefingCache.get(cacheKey);
+                                if (cached && Date.now() - cached.ts < 90000) {
+                                    return cached.items;
+                                }
                                 const cal = await getCalendarClient(String(targetUserId));
                                 if (!cal) return [];
                                 const resCal = await cal.events.list({
@@ -2942,7 +2948,9 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes gen
                                     orderBy: 'startTime',
                                     maxResults: 15,
                                 });
-                                return resCal?.data?.items || [];
+                                const items = resCal?.data?.items || [];
+                                global.__wappyGcalBriefingCache.set(cacheKey, { ts: Date.now(), items });
+                                return items;
                             } catch (_calErr) {
                                 return [];
                             }
@@ -2950,7 +2958,7 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes gen
 
                         const calendarPromiseWithTimeout = Promise.race([
                             fetchGoogleCalendarEvents(),
-                            new Promise((resolve) => setTimeout(() => resolve([]), 1800)),
+                            new Promise((resolve) => setTimeout(() => resolve([]), 600)),
                         ]);
 
                         const [

@@ -6917,6 +6917,12 @@ router.get('/briefing', requireApiKeyOrJwt, async (req, res) => {
 
     const fetchGcal = async () => {
       try {
+        global.__wappyGcalBriefingCache = global.__wappyGcalBriefingCache || new Map();
+        const cacheKey = `${String(targetUserId)}:${colNowStr}`;
+        const cached = global.__wappyGcalBriefingCache.get(cacheKey);
+        if (cached && Date.now() - cached.ts < 90000) {
+          return cached.items;
+        }
         const cal = await getCalendarClient(String(targetUserId));
         if (!cal) return [];
         const resCal = await cal.events.list({
@@ -6927,7 +6933,9 @@ router.get('/briefing', requireApiKeyOrJwt, async (req, res) => {
           orderBy: 'startTime',
           maxResults: 15,
         });
-        return resCal?.data?.items || [];
+        const items = resCal?.data?.items || [];
+        global.__wappyGcalBriefingCache.set(cacheKey, { ts: Date.now(), items });
+        return items;
       } catch (_e) {
         return [];
       }
@@ -6935,7 +6943,7 @@ router.get('/briefing', requireApiKeyOrJwt, async (req, res) => {
 
     const gcalWithTimeout = Promise.race([
       fetchGcal(),
-      new Promise((resolve) => setTimeout(() => resolve([]), 1800)),
+      new Promise((resolve) => setTimeout(() => resolve([]), 900)),
     ]);
 
     const [

@@ -290,13 +290,12 @@ ${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.c
                 inputAudioTranscription: {},
                 outputAudioTranscription: {},
                 // VAD del servidor (spec oficial RealtimeInputConfig.AutomaticActivityDetection):
-                // END_SENSITIVITY_LOW + 1800ms de silencio real permite pausas naturales al pensar o respirar
-                // sin cortar al usuario a las 6 o 7 palabras.
+                // Respuesta ultra-rápida (~550ms de silencio) sincronizada con el detector de fin de voz del cliente.
                 realtimeInputConfig: {
                     automaticActivityDetection: {
-                        endOfSpeechSensitivity: 'END_SENSITIVITY_LOW',
-                        silenceDurationMs: 1800,
-                        prefixPaddingMs: 250,
+                        endOfSpeechSensitivity: 'END_SENSITIVITY_HIGH',
+                        silenceDurationMs: 550,
+                        prefixPaddingMs: 200,
                     },
                 },
                 // Standard Tools support

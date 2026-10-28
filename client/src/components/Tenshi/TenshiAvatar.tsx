@@ -32,6 +32,7 @@ export interface TenshiAvatarProps {
   showHaloEffect?: boolean;
   showHUD?: boolean;
   statusText?: string; // Texto de estado opcional estilo píldora Coucou
+  statusPlacement?: 'bottom' | 'below-dock' | 'above-dock';
 }
 
 interface Particle {
@@ -167,6 +168,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
   showHaloEffect = true,
   showHUD = true,
   statusText,
+  statusPlacement = 'bottom',
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [tilt, setTilt] = useState({
@@ -1146,7 +1148,16 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
 
       {/* Píldora de Estado Flotante */}
       {statusText && (
-        <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 z-50 whitespace-nowrap rounded-full bg-zinc-900/95 backdrop-blur-md px-3.5 py-1 text-xs sm:text-[11px] font-semibold text-emerald-300 border border-emerald-500/40 shadow-lg pointer-events-none transition-all duration-300">
+        <div
+          className={cn(
+            'absolute left-1/2 -translate-x-1/2 z-50 whitespace-nowrap rounded-full bg-zinc-900/95 backdrop-blur-md px-3.5 py-1 text-xs sm:text-[11px] font-semibold text-emerald-300 border border-emerald-500/40 shadow-lg pointer-events-none transition-all duration-300',
+            statusPlacement === 'below-dock'
+              ? '-bottom-14'
+              : statusPlacement === 'above-dock'
+              ? '-top-14'
+              : '-bottom-6'
+          )}
+        >
           {statusText}
         </div>
       )}

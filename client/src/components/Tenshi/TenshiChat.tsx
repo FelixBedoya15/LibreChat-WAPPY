@@ -4329,8 +4329,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       const tenshiH = tenshiRef.current?.offsetHeight || 92;
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
+      const isMobile = viewportWidth < 768;
+      const bottomMargin = isMobile ? 96 : 56;
       newX = Math.max(8, Math.min(newX, viewportWidth - tenshiW - 8));
-      newY = Math.max(8, Math.min(newY, viewportHeight - tenshiH - 8));
+      newY = Math.max(48, Math.min(newY, viewportHeight - tenshiH - bottomMargin));
 
       setPosition({ x: newX, y: newY });
     };
@@ -4354,9 +4356,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
       const isMobile = viewportWidth < 768;
-      const bottomMargin = isMobile ? 86 : 8;
+      const bottomMargin = isMobile ? 96 : 56;
       newX = Math.max(8, Math.min(newX, viewportWidth - tenshiW - 8));
-      newY = Math.max(8, Math.min(newY, viewportHeight - tenshiH - bottomMargin));
+      newY = Math.max(48, Math.min(newY, viewportHeight - tenshiH - bottomMargin));
 
       setPosition({ x: newX, y: newY });
     };
@@ -4392,10 +4394,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
         const isMobile = viewportWidth < 768;
-        const bottomMargin = isMobile ? 86 : 8;
+        const bottomMargin = isMobile ? 96 : 56;
         return {
           x: Math.max(8, Math.min(prev.x, viewportWidth - tenshiW - 8)),
-          y: Math.max(8, Math.min(prev.y, viewportHeight - tenshiH - bottomMargin)),
+          y: Math.max(48, Math.min(prev.y, viewportHeight - tenshiH - bottomMargin)),
         };
       });
     };
@@ -8353,42 +8355,59 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       )}
 
       {/* 2. 🌟 COMPAÑERO TENSHI FLOTANTE PURO (Posición fija en pantalla) */}
-      <div
-        ref={tenshiRef}
-        onMouseDown={handleMouseDown}
-        onTouchStart={handleTouchStart}
-        onClick={handleTenshiInteraction}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        style={
-          position
-            ? {
-                position: 'fixed',
-                left: `${position.x}px`,
-                top: `${position.y}px`,
-                zIndex: 2147483645,
-              }
-            : {
-                position: 'fixed',
-                right: '20px',
-                bottom: isMobileScreen ? '96px' : '20px',
-                zIndex: 2147483645,
-              }
-        }
-        className="group relative cursor-grab active:cursor-grabbing select-none transition-transform duration-200 md:hover:scale-105 md:active:scale-95 pointer-events-auto"
-      >
-        {/* Micro-dock flotante en Hover (Desktop) o Siempre Visible en Móvil */}
-        <div
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-          className={cn(
-            'absolute -top-12 sm:-top-10 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-40 transition-all duration-200 select-none',
-            'bg-zinc-900/90 backdrop-blur-md px-2.5 py-1 rounded-full border border-emerald-500/30 shadow-xl',
-            'before:absolute before:-bottom-3 before:inset-x-0 before:h-4 before:content-[""]',
-            'opacity-100 pointer-events-auto scale-100 md:opacity-0 md:pointer-events-none md:scale-95 md:group-hover:opacity-100 md:group-hover:pointer-events-auto md:group-hover:scale-100',
-            (isMobileScreen || isHoveringTenshi) ? 'md:opacity-100 md:pointer-events-auto md:scale-100' : ''
-          )}
-        >
+      {(() => {
+        // Garantizar que SIEMPRE una aparezca ARRIBA de Tenshi y la otra ABAJO de Tenshi para que jamás se tapen:
+        // - Por defecto (mitad inferior o media de la pantalla): Tarjeta de Información ARRIBA (bottom-full mb-3) y Botonera ABAJO (top-full mt-1.5).
+        // - Si el usuario arrastra a Tenshi cerca del borde superior (y < 220px): Botonera ARRIBA (bottom-full mb-1.5) y Tarjeta de Información ABAJO (top-full mt-3).
+        const isFloatingNearTop = Boolean(position && position.y < 220);
+        const isFloatingNearLeft = Boolean(position && position.x < 280);
+        const floatingCardPositionClass = cn(
+          'absolute w-80 sm:w-72 rounded-2xl border border-emerald-500/40 bg-zinc-900/95 backdrop-blur-xl p-3.5 text-zinc-100 shadow-2xl z-[1000010] animate-in fade-in duration-200 cursor-default',
+          isFloatingNearTop
+            ? 'top-full mt-3 slide-in-from-top-2'
+            : 'bottom-full mb-3 slide-in-from-bottom-2',
+          isFloatingNearLeft ? 'left-0' : 'right-0',
+        );
+
+        return (
+          <div
+            ref={tenshiRef}
+            onMouseDown={handleMouseDown}
+            onTouchStart={handleTouchStart}
+            onClick={handleTenshiInteraction}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            style={
+              position
+                ? {
+                    position: 'fixed',
+                    left: `${position.x}px`,
+                    top: `${position.y}px`,
+                    zIndex: 2147483645,
+                  }
+                : {
+                    position: 'fixed',
+                    right: '20px',
+                    bottom: isMobileScreen ? '108px' : '58px',
+                    zIndex: 2147483645,
+                  }
+            }
+            className="group relative cursor-grab active:cursor-grabbing select-none transition-transform duration-200 md:hover:scale-105 md:active:scale-95 pointer-events-auto"
+          >
+            {/* Micro-dock flotante: SIEMPRE del lado opuesto a la tarjeta informativa (Abajo por defecto, Arriba solo si Tenshi está pegado al techo) */}
+            <div
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              className={cn(
+                'absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-40 transition-all duration-200 select-none',
+                isFloatingNearTop
+                  ? 'bottom-full mb-1.5 before:absolute before:-bottom-3 before:inset-x-0 before:h-4 before:content-[""]'
+                  : 'top-full mt-1.5 before:absolute before:-top-3 before:inset-x-0 before:h-4 before:content-[""]',
+                'bg-zinc-900/90 backdrop-blur-md px-2.5 py-1 rounded-full border border-emerald-500/30 shadow-xl',
+                'opacity-100 pointer-events-auto scale-100 md:opacity-0 md:pointer-events-none md:scale-95 md:group-hover:opacity-100 md:group-hover:pointer-events-auto md:group-hover:scale-100',
+                (isMobileScreen || isHoveringTenshi) ? 'md:opacity-100 md:pointer-events-auto md:scale-100' : ''
+              )}
+            >
           {/* Botón 1: Chat de texto */}
           <button
             type="button"
@@ -8533,7 +8552,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           <div
             onClick={(e) => e.stopPropagation()}
             onTouchEnd={(e) => e.stopPropagation()}
-            className="absolute bottom-28 right-0 w-80 sm:w-72 rounded-2xl border border-emerald-500/40 bg-zinc-900/95 backdrop-blur-xl p-3.5 text-zinc-100 shadow-2xl z-[1000010] animate-in fade-in slide-in-from-bottom-2 duration-200 cursor-default"
+            className={floatingCardPositionClass}
           >
             <div className="flex items-center justify-between gap-2 mb-2">
               <div className="flex items-center gap-1.5 min-w-0">
@@ -8606,7 +8625,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           <div
             onClick={(e) => e.stopPropagation()}
             onTouchEnd={(e) => e.stopPropagation()}
-            className="absolute bottom-28 right-0 w-80 sm:w-72 rounded-2xl border border-emerald-500/40 bg-zinc-900/95 backdrop-blur-xl p-3.5 text-zinc-100 shadow-2xl z-[1000010] animate-in fade-in slide-in-from-bottom-2 duration-200 cursor-default"
+            className={floatingCardPositionClass}
           >
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
@@ -8671,7 +8690,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           <div
             onClick={(e) => e.stopPropagation()}
             onTouchEnd={(e) => e.stopPropagation()}
-            className="absolute bottom-28 right-0 w-80 sm:w-72 rounded-2xl border border-emerald-500/40 bg-zinc-900/95 backdrop-blur-xl p-3.5 text-zinc-100 shadow-2xl z-[1000010] animate-in fade-in slide-in-from-bottom-2 duration-200 cursor-default"
+            className={floatingCardPositionClass}
           >
             <div className="flex items-start justify-between gap-2">
               <p className="text-xs sm:text-[11px] font-semibold text-zinc-100 leading-relaxed">
@@ -8720,11 +8739,14 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           isVoiceActive={isVoiceActive}
           isTyping={isTyping || isChatSubmitting || isWaitingConsultation || Boolean(tenshiStatus)}
           statusText={liveActionPill || tenshiStatus || undefined}
+          statusPlacement={isFloatingNearTop ? 'above-dock' : 'below-dock'}
           interactive={false}
           showHaloEffect={true}
           showHUD={true}
         />
       </div>
+        );
+      })()}
     </>
   )}
 </>
