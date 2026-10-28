@@ -452,6 +452,34 @@ async function getCombinedKeysForRequest(req, bodyCustomKeys) {
     logger.debug(`[WappyStudio] No user/system keys resolved: ${err.message}`);
   }
 
+  // Garantizar que el pool completo de claves de los administradores del sistema esté disponible
+  // incluso cuando se invoca desde /wappystudio sin token en localStorage o cuando getSystemGoogleKey() solo devolvió 1 clave
+  if (systemOrUserKeys.length <= 1) {
+    try {
+      const mongoose = require('mongoose');
+      const { getUserKey } = require('~/server/services/UserService');
+      const User = mongoose.models?.User || mongoose.model('User');
+      const admins = await User.find({ role: 'ADMIN' }).select('_id').lean();
+      for (const admin of admins || []) {
+        for (const keyName of ['google', 'tenshi_google']) {
+          try {
+            const stored = await getUserKey({ userId: String(admin._id), name: keyName });
+            const extracted = geminiPoolManager.extractCleanApiKeys(stored);
+            for (const ak of extracted) {
+              if (ak && !systemOrUserKeys.includes(ak)) {
+                systemOrUserKeys.push(ak);
+              }
+            }
+          } catch (_) {
+            /* ignore */
+          }
+        }
+      }
+    } catch (poolErr) {
+      logger.debug(`[WappyStudio] Admin pool expansion skipped: ${poolErr.message}`);
+    }
+  }
+
   const envFallbackRaw = [process.env.GOOGLE_KEY, process.env.GEMINI_API_KEY]
     .filter(Boolean)
     .join(',');
@@ -752,6 +780,94 @@ function resolveCompatibleVoice(voiceName, modelId) {
 }
 
 /**
+ * Construye las partes (`contents[0].parts`) compatibles al 100% con el esquema Protobuf REST v1beta de Gemini TTS:
+ * - En modo 1 Voz (Single-Speaker): envía `[{ text }]` limpio sin `speech_metadata` (evita el error 400 y ahorra 1 round-trip completo).
+ * - En modo 2 Voces (Multi-Speaker): asigna `speech_metadata: { speaker }` a cada intervención de `Alex` / `Sam`
+ *   (y si el usuario dejó activo el modo diálogo en un texto normal sin prefijos `Alex:`/`Sam:`, alterna las oraciones automáticamente entre ambos hablantes para que jamás falle con error 400).
+ */
+function buildGeminiTtsPayloadParts(
+  cleanText,
+  { multiSpeaker = false, speaker1Name = 'Alex', speaker2Name = 'Sam', supportsMultiSpeaker = true } = {},
+) {
+  if (!multiSpeaker || !supportsMultiSpeaker) {
+    return {
+      useMultiSpeaker: false,
+      parts: [{ text: cleanText }],
+      inlineText: cleanText,
+    };
+  }
+
+  const s1 = (speaker1Name || 'Alex').trim();
+  const s2 = (speaker2Name || 'Sam').trim();
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const turnRegex = new RegExp(
+    `(?:^|\\n)\\s*(${esc(s1)}|${esc(s2)}|Hablante\\s*1|Hablante\\s*2|Speaker\\s*1|Speaker\\s*2)\\s*:\\s*`,
+    'gi',
+  );
+
+  const turns = [];
+  const matches = Array.from(cleanText.matchAll(turnRegex));
+
+  if (matches.length > 0) {
+    // Si hay texto previo antes de la primera etiqueta de hablante, asignarlo al hablante 1
+    const firstIdx = matches[0].index || 0;
+    const leadingText = cleanText.slice(0, firstIdx).trim();
+    if (leadingText) {
+      turns.push({ speaker: s1, text: leadingText });
+    }
+    for (let i = 0; i < matches.length; i++) {
+      const m = matches[i];
+      const rawSpeaker = (m[1] || '').trim().toLowerCase();
+      const speaker =
+        rawSpeaker === s2.toLowerCase() || rawSpeaker.endsWith('2') ? s2 : s1;
+      const start = (m.index || 0) + m[0].length;
+      const end = i + 1 < matches.length ? matches[i + 1].index || cleanText.length : cleanText.length;
+      const segmentText = cleanText.slice(start, end).trim();
+      if (segmentText) {
+        turns.push({ speaker, text: segmentText });
+      }
+    }
+  } else {
+    // El usuario activó Modo Diálogo (2 Voces) sobre un guion sin etiquetas Alex:/Sam::
+    // dividir por oraciones y alternar entre Alex y Sam automáticamente
+    const sentences = cleanText
+      .split(/(?<=[.!?…])\s+|\n+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (sentences.length <= 1) {
+      return {
+        useMultiSpeaker: false,
+        parts: [{ text: cleanText }],
+        inlineText: cleanText,
+      };
+    }
+    sentences.forEach((sentence, idx) => {
+      turns.push({
+        speaker: idx % 2 === 0 ? s1 : s2,
+        text: sentence,
+      });
+    });
+  }
+
+  if (turns.length === 0) {
+    return {
+      useMultiSpeaker: false,
+      parts: [{ text: cleanText }],
+      inlineText: cleanText,
+    };
+  }
+
+  return {
+    useMultiSpeaker: true,
+    parts: turns.map((t) => ({
+      text: t.text,
+      speech_metadata: { speaker: t.speaker },
+    })),
+    inlineText: turns.map((t) => `${t.speaker}: ${t.text}`).join('\n'),
+  };
+}
+
+/**
  * Sintetiza un fragmento de texto en Gemini TTS con rotación automática de claves y modelos (desde GOOGLE_MODELS)
  */
 async function synthesizeChunkWithFailover({
@@ -763,6 +879,7 @@ async function synthesizeChunkWithFailover({
   speaker1 = { name: 'Alex', voiceName: 'Puck' },
   speaker2 = { name: 'Sam', voiceName: 'Kore' },
   keys = [],
+  preferredKeyOffset = 0,
   onFailover,
 }) {
   if (!keys || keys.length === 0) {
@@ -790,16 +907,26 @@ async function synthesizeChunkWithFailover({
   for (let mIdx = 0; mIdx < modelsToTry.length; mIdx++) {
     const currentModel = modelsToTry[mIdx];
 
-    for (let kIdx = 0; kIdx < keys.length; kIdx++) {
+    for (let kStep = 0; kStep < keys.length; kStep++) {
+      const kIdx = (Math.max(0, preferredKeyOffset) + kStep) % keys.length;
       const apiKey = keys[kIdx];
       try {
+        const s1Name = speaker1?.name || 'Alex';
+        const s2Name = speaker2?.name || 'Sam';
+        const payloadSpec = buildGeminiTtsPayloadParts(cleanText, {
+          multiSpeaker,
+          speaker1Name: s1Name,
+          speaker2Name: s2Name,
+          supportsMultiSpeaker: !currentModel.includes('lite'),
+        });
+
         let speechConfig;
-        if (multiSpeaker && !currentModel.includes('lite')) {
+        if (payloadSpec.useMultiSpeaker) {
           speechConfig = {
             multiSpeakerVoiceConfig: {
               speakerVoiceConfigs: [
                 {
-                  speaker: speaker1?.name || 'Alex',
+                  speaker: s1Name,
                   voiceConfig: {
                     prebuiltVoiceConfig: {
                       voiceName: resolveCompatibleVoice(speaker1?.voiceName || 'Puck', currentModel),
@@ -807,7 +934,7 @@ async function synthesizeChunkWithFailover({
                   },
                 },
                 {
-                  speaker: speaker2?.name || 'Sam',
+                  speaker: s2Name,
                   voiceConfig: {
                     prebuiltVoiceConfig: {
                       voiceName: resolveCompatibleVoice(speaker2?.voiceName || 'Kore', currentModel),
@@ -818,10 +945,11 @@ async function synthesizeChunkWithFailover({
             },
           };
         } else {
+          const fallbackVoice = multiSpeaker ? speaker1?.voiceName || voiceName : voiceName;
           speechConfig = {
             voiceConfig: {
               prebuiltVoiceConfig: {
-                voiceName: resolveCompatibleVoice(voiceName, currentModel),
+                voiceName: resolveCompatibleVoice(fallbackVoice, currentModel),
               },
             },
           };
@@ -829,21 +957,12 @@ async function synthesizeChunkWithFailover({
 
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent`;
 
-        // Construir la parte de texto sin contaminar el guión con frases de estilo leídas en voz alta
-        const part = { text: cleanText };
-        if (stylePrompt && stylePrompt.trim()) {
-          part.speech_metadata = {
-            type: 'speech_metadata',
-            style: stylePrompt.trim(),
-          };
-        }
-
         let response;
         try {
           response = await axios.post(
             url,
             {
-              contents: [{ role: 'user', parts: [part] }],
+              contents: [{ role: 'user', parts: payloadSpec.parts }],
               generationConfig: {
                 responseModalities: ['AUDIO'],
                 speechConfig,
@@ -854,7 +973,7 @@ async function synthesizeChunkWithFailover({
                 'Content-Type': 'application/json',
                 'x-goog-api-key': apiKey,
               },
-              timeout: 65000,
+              timeout: 55000,
             },
           );
         } catch (apiErr) {
@@ -862,33 +981,59 @@ async function synthesizeChunkWithFailover({
           const apiMsg = apiErr.response?.data?.error?.message || apiErr.message || '';
           const msgLow = apiMsg.toLowerCase();
 
-          // Si el modelo rechaza speech_metadata por esquema estricto antiguo, reintentar con el texto limpio sin metadata
+          // Si un modelo específico (ej. 2.5) rechaza speech_metadata.speaker en multiSpeaker, reintentar con texto en línea o voz primaria
           if (
             apiStatus === 400 &&
-            part.speech_metadata &&
-            (msgLow.includes('speech_metadata') || msgLow.includes('unknown') || msgLow.includes('invalid json'))
+            payloadSpec.useMultiSpeaker &&
+            (msgLow.includes('speech_metadata') || msgLow.includes('multi-speaker') || msgLow.includes('speaker'))
           ) {
             logger.warn(
-              `[WappyStudio TTS] Modelo ${currentModel} no aceptó speech_metadata en REST. Reintentando con texto limpio...`,
+              `[WappyStudio TTS] Ajustando formato multi-speaker en ${currentModel} para compatibilidad inmediata...`,
             );
-            delete part.speech_metadata;
-            response = await axios.post(
-              url,
-              {
-                contents: [{ role: 'user', parts: [part] }],
-                generationConfig: {
-                  responseModalities: ['AUDIO'],
-                  speechConfig,
+            try {
+              response = await axios.post(
+                url,
+                {
+                  contents: [{ role: 'user', parts: [{ text: payloadSpec.inlineText }] }],
+                  generationConfig: {
+                    responseModalities: ['AUDIO'],
+                    speechConfig,
+                  },
                 },
-              },
-              {
-                headers: {
-                  'Content-Type': 'application/json',
-                  'x-goog-api-key': apiKey,
+                {
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'x-goog-api-key': apiKey,
+                  },
+                  timeout: 55000,
                 },
-                timeout: 65000,
-              },
-            );
+              );
+            } catch (_) {
+              const singleVoiceConfig = {
+                voiceConfig: {
+                  prebuiltVoiceConfig: {
+                    voiceName: resolveCompatibleVoice(speaker1?.voiceName || voiceName, currentModel),
+                  },
+                },
+              };
+              response = await axios.post(
+                url,
+                {
+                  contents: [{ role: 'user', parts: [{ text: cleanText.replace(/^(Alex|Sam):\s*/gim, '') }] }],
+                  generationConfig: {
+                    responseModalities: ['AUDIO'],
+                    speechConfig: singleVoiceConfig,
+                  },
+                },
+                {
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'x-goog-api-key': apiKey,
+                  },
+                  timeout: 55000,
+                },
+              );
+            }
           } else {
             throw apiErr;
           }
@@ -1250,69 +1395,90 @@ function emitJobEvent(job, eventName, data) {
 }
 
 async function processJobAsync(job) {
-  for (let i = 0; i < job.chunks.length; i++) {
-    // Verificar si fue cancelado
-    if (job.status === 'cancelled') {
-      return;
+  let nextIdx = 0;
+  let aborted = false;
+  const concurrency = Math.min(2, Math.max(1, job.keys.length), job.chunks.length);
+
+  async function runChunkWorker() {
+    while (!aborted) {
+      if (job.status === 'cancelled' || job.status === 'failed') {
+        aborted = true;
+        return;
+      }
+
+      while (job.status === 'paused') {
+        await new Promise((r) => setTimeout(r, 600));
+        if (job.status === 'cancelled' || job.status === 'failed') {
+          aborted = true;
+          return;
+        }
+      }
+
+      const i = nextIdx++;
+      if (i >= job.chunks.length) {
+        return;
+      }
+
+      const chunk = job.chunks[i];
+      if (!chunk || chunk.status === 'completed') continue;
+
+      job.currentChunkIndex = i;
+      chunk.status = 'processing';
+      emitJobEvent(job, 'chunk_start', { chunkIndex: i });
+
+      try {
+        const synthResult = await synthesizeChunkWithFailover({
+          text: chunk.text,
+          voiceName: job.voiceName,
+          stylePrompt: job.stylePrompt,
+          model: job.model,
+          multiSpeaker: job.multiSpeaker,
+          speaker1: job.speaker1,
+          speaker2: job.speaker2,
+          keys: job.keys,
+          preferredKeyOffset: i,
+          onFailover: (notice) => {
+            job.failoverNotice = { ...notice, timestamp: Date.now() };
+            emitJobEvent(job, 'api_key_failover', job.failoverNotice);
+          },
+        });
+
+        chunk.status = 'completed';
+        chunk.durationSeconds = synthResult.durationSeconds;
+        chunk.pcmBuffer = synthResult.pcmBuffer;
+        chunk.audioBase64 = synthResult.audioBase64;
+
+        job.completedChunks = job.chunks.filter((c) => c.status === 'completed').length;
+        job.generatedTotalSeconds =
+          Math.round(
+            job.chunks
+              .filter((c) => c.status === 'completed')
+              .reduce((sum, c) => sum + (c.durationSeconds || 0), 0) * 10,
+          ) / 10;
+        job.progressPercent = Math.round((job.completedChunks / job.totalChunks) * 100);
+
+        emitJobEvent(job, 'chunk_complete', {
+          chunkIndex: i,
+          durationSeconds: chunk.durationSeconds,
+          audioBase64: chunk.audioBase64,
+          progressPercent: job.progressPercent,
+          generatedTotalSeconds: job.generatedTotalSeconds,
+        });
+      } catch (err) {
+        aborted = true;
+        chunk.status = 'failed';
+        job.status = 'failed';
+        job.error = err.message || 'Fallo al sintetizar fragmento';
+        emitJobEvent(job, 'job_failed', { error: job.error, chunkIndex: i });
+        return;
+      }
     }
+  }
 
-    // Esperar mientras esté en pausa
-    while (job.status === 'paused') {
-      await new Promise((r) => setTimeout(r, 600));
-      if (job.status === 'cancelled') return;
-    }
+  await Promise.all(Array.from({ length: concurrency }, () => runChunkWorker()));
 
-    const chunk = job.chunks[i];
-    if (chunk.status === 'completed') continue;
-
-    job.currentChunkIndex = i;
-    chunk.status = 'processing';
-    emitJobEvent(job, 'chunk_start', { chunkIndex: i });
-
-    try {
-      const synthResult = await synthesizeChunkWithFailover({
-        text: chunk.text,
-        voiceName: job.voiceName,
-        stylePrompt: job.stylePrompt,
-        model: job.model,
-        multiSpeaker: job.multiSpeaker,
-        speaker1: job.speaker1,
-        speaker2: job.speaker2,
-        keys: job.keys,
-        onFailover: (notice) => {
-          job.failoverNotice = { ...notice, timestamp: Date.now() };
-          emitJobEvent(job, 'api_key_failover', job.failoverNotice);
-        },
-      });
-
-      chunk.status = 'completed';
-      chunk.durationSeconds = synthResult.durationSeconds;
-      chunk.pcmBuffer = synthResult.pcmBuffer;
-      chunk.audioBase64 = synthResult.audioBase64;
-
-      job.completedChunks = job.chunks.filter((c) => c.status === 'completed').length;
-      job.generatedTotalSeconds =
-        Math.round(
-          job.chunks
-            .filter((c) => c.status === 'completed')
-            .reduce((sum, c) => sum + (c.durationSeconds || 0), 0) * 10,
-        ) / 10;
-      job.progressPercent = Math.round((job.completedChunks / job.totalChunks) * 100);
-
-      emitJobEvent(job, 'chunk_complete', {
-        chunkIndex: i,
-        durationSeconds: chunk.durationSeconds,
-        audioBase64: chunk.audioBase64,
-        progressPercent: job.progressPercent,
-        generatedTotalSeconds: job.generatedTotalSeconds,
-      });
-    } catch (err) {
-      chunk.status = 'failed';
-      job.status = 'failed';
-      job.error = err.message || 'Fallo al sintetizar fragmento';
-      emitJobEvent(job, 'job_failed', { error: job.error, chunkIndex: i });
-      return;
-    }
+  if (job.status === 'cancelled' || job.status === 'failed') {
+    return;
   }
 
   // Todos los fragmentos completados: ensamblar archivo WAV maestro continuo y libre de chasquidos

@@ -8,6 +8,7 @@ import {
   Play,
   Pause,
   RotateCcw,
+  RotateCw,
   Volume2,
   VolumeX,
   Download,
@@ -1347,7 +1348,7 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
   );
   const [voiceActiveFilter, setVoiceActiveFilter] = useState<'only_active' | 'all'>('only_active');
   const [voiceSearchQuery, setVoiceSearchQuery] = useState<string>('');
-  const [showAdvancedChunking, setShowAdvancedChunking] = useState<boolean>(false);
+  const [showAdvancedChunking, setShowAdvancedChunking] = useState<boolean>(true);
 
   // Reproductor Maestro de Audio
   const [currentAudio, setCurrentAudio] = useState<{
@@ -1909,10 +1910,24 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
 
   const handleSynthesizePreview = async () => {
     if (!scriptText.trim()) return;
+    const snippet = scriptText.trim().slice(0, 850);
+    const snippetWords = snippet.split(/\s+/).filter(Boolean).length;
+    const estSeconds = Math.max(3, Math.round((snippetWords / 145) * 60));
+    const previewJobId = `preview_${Date.now()}`;
     try {
       setIsPreviewing(true);
       setStatusBanner(null);
-      const snippet = scriptText.trim().slice(0, 750);
+      setActiveJob({
+        id: previewJobId,
+        status: 'processing',
+        totalChunks: 1,
+        currentChunkIndex: 0,
+        completedChunks: 0,
+        estimatedTotalSeconds: estSeconds,
+        generatedTotalSeconds: 0,
+        progressPercent: 0,
+        chunks: [{ index: 0, wordCount: snippetWords, status: 'processing' }],
+      });
       const resp = await fetch('/api/studio/tts/synthesize', {
         method: 'POST',
         headers: getAuthHeaders(token),
@@ -1930,21 +1945,42 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
       if (!resp.ok || !data.success) {
         throw new Error(data.error || 'Error al sintetizar vista previa.');
       }
+      const previewUrl = `data:audio/wav;base64,${data.audioBase64}`;
+      setActiveJob({
+        id: previewJobId,
+        status: 'completed',
+        totalChunks: 1,
+        currentChunkIndex: 0,
+        completedChunks: 1,
+        estimatedTotalSeconds: estSeconds,
+        generatedTotalSeconds: data.durationSeconds || estSeconds,
+        progressPercent: 100,
+        downloadUrl: previewUrl,
+        chunks: [
+          {
+            index: 0,
+            wordCount: snippetWords,
+            status: 'completed',
+            durationSeconds: data.durationSeconds,
+            audioBase64: data.audioBase64,
+          },
+        ],
+      });
       setCurrentAudio({
         base64: data.audioBase64,
-        title: `Vista Previa: ${snippet.slice(0, 38)}...`,
+        title: `Audio Completo: ${snippet.slice(0, 42)}...`,
         durationSeconds: data.durationSeconds,
-        voiceName: selectedVoice,
+        voiceName: multiSpeaker ? `${speaker1Voice} + ${speaker2Voice}` : selectedVoice,
         scriptText: snippet,
       });
       const newItem: LibraryItem = {
         id: Date.now().toString(),
         title: `Vista Previa: ${snippet.slice(0, 42)}...`,
         createdAt: Date.now(),
-        voiceName: selectedVoice,
+        voiceName: multiSpeaker ? `${speaker1Voice} + ${speaker2Voice}` : selectedVoice,
         model: data.usedModel || selectedModel,
         durationSeconds: data.durationSeconds,
-        wordCount: snippet.split(/\s+/).filter(Boolean).length,
+        wordCount: snippetWords,
         stylePrompt,
         scriptText: snippet,
       };
@@ -1957,6 +1993,9 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
         text: 'Audio generado y cargado en el reproductor. Puedes descargarlo en WAV o enviarlo al Compositor de Video.',
       });
     } catch (err: any) {
+      setActiveJob((prev) =>
+        prev ? { ...prev, status: 'failed', error: err.message || 'Error sintetizando fragmento.' } : null,
+      );
       setStatusBanner({ type: 'error', text: err.message || 'Error sintetizando fragmento.' });
     } finally {
       setIsPreviewing(false);
@@ -2147,7 +2186,7 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
         setActiveJob((prev) => (prev ? { ...prev, status: d.status } : null));
       });
 
-      es.addEventListener('key_failover', (ev: MessageEvent) => {
+      const handleFailoverEvent = (ev: MessageEvent) => {
         try {
           const d = JSON.parse(ev.data);
           setActiveJob((prev) =>
@@ -2156,14 +2195,18 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
                   ...prev,
                   failoverNotice:
                     d.message ||
-                    'Cuota 429 detectada en la clave anterior. Rotación automática a clave de respaldo activada.',
+                    (d.label
+                      ? `Salto automático a ${d.label} (${d.reason || '429'})`
+                      : 'Cuota 429 detectada en la clave anterior. Rotación automática a clave de respaldo activada.'),
                 }
               : null,
           );
         } catch {
           /* ignore */
         }
-      });
+      };
+      es.addEventListener('key_failover', handleFailoverEvent);
+      es.addEventListener('api_key_failover', handleFailoverEvent);
     } catch (err: any) {
       setStatusBanner({ type: 'error', text: err.message || 'Error iniciando trabajo.' });
     }
@@ -3520,6 +3563,37 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
         {/* ==================================================================== */}
         {activeTab === 'tts' && (
           <div className="space-y-6 animate-in fade-in duration-200">
+            {/* Monitor de Trabajo Asíncrono por Capas (Justo debajo del Reproductor Maestro, idéntico al diseño de referencia) */}
+            {activeJob && (
+              <AsyncJobMonitorCard
+                job={activeJob}
+                onPause={() => handleControlJob('pause')}
+                onResume={() => handleControlJob('resume')}
+                onCancel={() => handleControlJob('cancel')}
+                onPlayChunk={(chunk) => {
+                  if (chunk.audioBase64) {
+                    setCurrentAudio({
+                      base64: chunk.audioBase64,
+                      title: `Fragmento #${chunk.index + 1} (${chunk.durationSeconds || 0}s)`,
+                      durationSeconds: chunk.durationSeconds,
+                      voiceName: multiSpeaker ? `${speaker1Voice} + ${speaker2Voice}` : selectedVoice,
+                    });
+                  }
+                }}
+                onLoadMaster={() => {
+                  if (activeJob.downloadUrl) {
+                    setCurrentAudio({
+                      url: activeJob.downloadUrl,
+                      title: `Audio Completo: ${scriptText.trim().slice(0, 42)}...`,
+                      durationSeconds: activeJob.generatedTotalSeconds,
+                      voiceName: multiSpeaker ? `${speaker1Voice} + ${speaker2Voice}` : selectedVoice,
+                      scriptText,
+                    });
+                  }
+                }}
+              />
+            )}
+
             {/* Barra Interactiva de Flujo Creativo en 3 Pasos (Estilo WAPPY Fluido & Innovador) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-gradient-to-r from-teal-500/10 via-emerald-500/5 to-indigo-500/10 dark:from-teal-950/40 dark:via-zinc-900/80 dark:to-indigo-950/40 border border-teal-500/25 dark:border-teal-500/20 rounded-2xl p-3 sm:p-3.5 shadow-2xs">
               <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white/90 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
@@ -3545,11 +3619,11 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-[11px] font-extrabold uppercase tracking-wider text-amber-700 dark:text-amber-300">
-                    Guion Expresivo & Bursts
+                    Capas de ~1 Min & Bursts
                   </div>
                   <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
                     {wordCount} palabras • ~{estimatedMinutes} min ({chunkCount}{' '}
-                    {chunkCount === 1 ? 'fragmento' : 'fragmentos'})
+                    {chunkCount === 1 ? 'capa de ~1m' : 'capas de ~1m'})
                   </div>
                 </div>
               </div>
@@ -3575,37 +3649,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 <Film className="w-4 h-4 text-purple-500 shrink-0 group-hover:translate-x-0.5 transition-transform" />
               </button>
             </div>
-
-            {/* Monitor de Trabajo Asíncrono de Larga Duración */}
-            {activeJob && (
-              <AsyncJobMonitorCard
-                job={activeJob}
-                onPause={() => handleControlJob('pause')}
-                onResume={() => handleControlJob('resume')}
-                onCancel={() => handleControlJob('cancel')}
-                onPlayChunk={(chunk) => {
-                  if (chunk.audioBase64) {
-                    setCurrentAudio({
-                      base64: chunk.audioBase64,
-                      title: `Fragmento #${chunk.index + 1} (${chunk.durationSeconds || 0}s)`,
-                      durationSeconds: chunk.durationSeconds,
-                      voiceName: selectedVoice,
-                    });
-                  }
-                }}
-                onLoadMaster={() => {
-                  if (activeJob.downloadUrl) {
-                    setCurrentAudio({
-                      url: activeJob.downloadUrl,
-                      title: `Master Completo (${selectedVoice})`,
-                      durationSeconds: activeJob.generatedTotalSeconds,
-                      voiceName: selectedVoice,
-                      scriptText,
-                    });
-                  }
-                }}
-              />
-            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               {/* COLUMNA IZQUIERDA (5 cols): Modelos, Presets, Modo Diálogo y Catálogo de 14 Voces */}
@@ -4069,40 +4112,66 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   />
                 </div>
 
-                {/* 6. Configuración Avanzada de Segmentación (Chunking para 1 Hora) */}
+                {/* 6. Motor de Capas de Audio (~1 Minuto por Capa) y Ensamblado Master WAV */}
                 <div>
                   <button
                     type="button"
                     onClick={() => setShowAdvancedChunking(!showAdvancedChunking)}
-                    className="flex items-center justify-between w-full text-xs text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white font-bold py-1 transition cursor-pointer"
+                    className="flex items-center justify-between w-full text-xs text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white font-extrabold py-1 transition cursor-pointer"
                   >
                     <span className="flex items-center gap-1.5">
                       <Sliders className="w-3.5 h-3.5 text-teal-500" />
-                      Configuración Avanzada de Segmentación (Chunking)
+                      Motor de Capas de Audio (~1 min por capa) & Unión Master
                     </span>
                     <span>{showAdvancedChunking ? '▲' : '▼'}</span>
                   </button>
                   {showAdvancedChunking && (
-                    <div className="mt-2 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
-                      <div className="flex justify-between">
+                    <div className="mt-2 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2.5 text-xs">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                        {[
+                          { words: 110, label: '~45 seg', sub: '110 pal.' },
+                          { words: 150, label: '~1 min ★', sub: '150 pal. (Óptimo)' },
+                          { words: 220, label: '~1.5 min', sub: '220 pal.' },
+                          { words: 280, label: '~2 min', sub: '280 pal.' },
+                        ].map((preset) => {
+                          const active = Math.abs(wordsPerChunk - preset.words) <= 10;
+                          return (
+                            <button
+                              key={preset.words}
+                              type="button"
+                              onClick={() => setWordsPerChunk(preset.words)}
+                              className={cn(
+                                'px-2 py-1.5 rounded-lg border text-center transition cursor-pointer',
+                                active
+                                  ? 'bg-teal-500/15 border-teal-500 text-teal-800 dark:text-teal-200 font-extrabold shadow-2xs'
+                                  : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-zinc-300 hover:border-teal-400',
+                              )}
+                            >
+                              <div className="text-[11px] font-bold">{preset.label}</div>
+                              <div className="text-[9px] opacity-80">{preset.sub}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="flex justify-between items-center">
                         <span className="text-slate-600 dark:text-zinc-400">
-                          Palabras por fragmento
+                          Tamaño de cada capa de audio:
                         </span>
                         <span className="font-mono font-bold text-teal-600 dark:text-teal-400">
-                          {wordsPerChunk} palabras
+                          {wordsPerChunk} palabras (~{Math.max(20, Math.round((wordsPerChunk / 145) * 60))}s)
                         </span>
                       </div>
                       <input
                         type="range"
                         min={80}
-                        max={250}
+                        max={280}
                         step={10}
                         value={wordsPerChunk}
                         onChange={(e) => setWordsPerChunk(parseInt(e.target.value, 10))}
                         className="w-full h-1.5 bg-slate-200 dark:bg-zinc-700 rounded appearance-none cursor-pointer accent-teal-600"
                       />
-                      <p className="text-[10px] text-slate-500 dark:text-zinc-400">
-                        Fragmentos de ~150 palabras (~55s de audio) garantizan fluidez continua para audiolibros de hasta 60 minutos.
+                      <p className="text-[10px] text-slate-600 dark:text-zinc-400 leading-relaxed">
+                        <strong>Recomendado (~1 min / 150 palabras):</strong> Cada capa se genera en ~4 segundos sin saturar la API, permite preescuchar cada fragmento al instante y une todas las capas en un solo <strong>WAV Master 24kHz</strong> con micro-fades sin cortes.
                       </p>
                     </div>
                   )}
@@ -6128,7 +6197,7 @@ function StudioAudioPlayer({
   if (!src) return null;
 
   return (
-    <div className="bg-white dark:bg-slate-900/95 border border-teal-500/40 rounded-2xl p-4 sm:p-5 shadow-md space-y-3">
+    <div className="bg-white dark:bg-gradient-to-b dark:from-slate-900 dark:via-slate-900/95 dark:to-slate-950 border border-indigo-500/25 dark:border-indigo-500/25 rounded-2xl p-5 shadow-xl space-y-3.5">
       <audio
         ref={audioRef}
         src={src}
@@ -6146,138 +6215,76 @@ function StudioAudioPlayer({
         }}
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <button
-            type="button"
-            onClick={() => skipSeconds(-10)}
-            title="Retroceder 10 segundos"
-            className="px-2 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-zinc-700 border border-slate-200 dark:border-slate-700 text-[11px] font-mono font-bold text-slate-700 dark:text-zinc-200 transition cursor-pointer shrink-0"
-          >
-            -10s
-          </button>
-
-          <button
-            type="button"
-            onClick={togglePlay}
-            className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-teal-600 to-emerald-500 hover:from-teal-500 hover:to-emerald-400 text-white flex items-center justify-center shadow-md transition active:scale-95 shrink-0 cursor-pointer"
-          >
-            {isPlaying ? (
-              <Pause className="w-5 h-5 fill-white" />
-            ) : (
-              <Play className="w-5 h-5 fill-white ml-0.5" />
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => skipSeconds(10)}
-            title="Adelantar 10 segundos"
-            className="px-2 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-zinc-700 border border-slate-200 dark:border-slate-700 text-[11px] font-mono font-bold text-slate-700 dark:text-zinc-200 transition cursor-pointer shrink-0"
-          >
-            +10s
-          </button>
-
-          <div className="min-w-0 ml-1">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0" />
-              <h3 className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
-                {title}
-              </h3>
-            </div>
-            <p className="text-xs text-teal-700 dark:text-teal-400 font-semibold">
-              Voz: {voiceName || 'Kore'} • WAV 24kHz Alta Fidelidad ({formatTime(currentTime)} /{' '}
-              {formatTime(duration)})
-            </p>
+      {/* Fila 1: Cabecera del Reproductor (Punto verde + Título + Voz/WAV a la izquierda, Acciones a la derecha) */}
+      <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate max-w-xs sm:max-w-xl">
+              {title}
+            </h3>
           </div>
+          <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-0.5 truncate">
+            Voz:{' '}
+            <span className="font-semibold text-slate-700 dark:text-slate-200">
+              {voiceName || 'Kore'}
+            </span>{' '}
+            • Formato WAV 24kHz
+          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
-          {/* Control de Volumen */}
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+        <div className="flex items-center gap-2 shrink-0">
+          {audioBase64 && (
             <button
               type="button"
-              onClick={toggleMute}
-              title={isMuted ? 'Activar sonido' : 'Silenciar'}
-              className="text-slate-600 dark:text-zinc-300 hover:text-teal-600 cursor-pointer"
-            >
-              {isMuted || volume === 0 ? (
-                <VolumeX className="w-3.5 h-3.5 text-rose-500" />
-              ) : (
-                <Volume2 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-              )}
-            </button>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.05}
-              value={isMuted ? 0 : volume}
-              onChange={(e) => {
-                const v = parseFloat(e.target.value);
-                setVolume(v);
-                setIsMuted(v === 0);
-                if (audioRef.current) {
-                  audioRef.current.volume = v;
-                  audioRef.current.muted = v === 0;
-                }
-              }}
-              className="w-16 h-1 accent-teal-500 cursor-pointer"
-            />
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              const rates = [0.75, 1, 1.25, 1.5, 2];
-              const next = rates[(rates.indexOf(playbackRate) + 1) % rates.length];
-              setPlaybackRate(next);
-              if (audioRef.current) audioRef.current.playbackRate = next;
-            }}
-            className="px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-teal-700 dark:text-teal-300 cursor-pointer"
-          >
-            {playbackRate}x
-          </button>
-
-          <ExpandableButton
-            size="sm"
-            icon={<Film />}
-            label="Llevar al Video"
-            variant="purple"
-            onClick={onSendToVideo}
-          />
-
-          {audioBase64 && (
-            <ExpandableButton
-              size="sm"
-              icon={copied ? <Check /> : <Copy />}
-              label={copied ? 'Copiado' : 'Copiar Base64'}
-              variant="fuchsia"
               onClick={() => {
                 navigator.clipboard.writeText(audioBase64);
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
               }}
-            />
+              title="Copiar Base64"
+              className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
+            >
+              {copied ? (
+                <Check className="w-4 h-4 text-emerald-500" />
+              ) : (
+                <Copy className="w-4 h-4" />
+              )}
+            </button>
           )}
 
-          <ExpandableButton
-            size="sm"
-            icon={<Download />}
-            label="Descargar WAV"
-            variant="green"
+          <button
+            type="button"
+            onClick={onSendToVideo}
+            title="Vincular locución al Compositor de Video"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30 rounded-lg text-xs font-semibold transition shrink-0 cursor-pointer"
+          >
+            <Film className="w-3.5 h-3.5" />
+            <span>Llevar al Video</span>
+          </button>
+
+          <button
+            type="button"
             onClick={handleDownload}
-          />
+            title="Descargar archivo WAV completo"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold shadow-md shadow-indigo-600/25 transition shrink-0 cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Descargar WAV</span>
+          </button>
         </div>
       </div>
 
-      {/* Visualizador de Onda Interactivo */}
-      <div className="flex items-center justify-between gap-1 h-10 bg-slate-50 dark:bg-slate-950 rounded-xl px-3 py-1.5 border border-slate-200/80 dark:border-slate-800 overflow-hidden">
-        {Array.from({ length: 44 }).map((_, idx) => {
+      {/* Fila 2: Visualizador de Onda Interactivo (42 barras) */}
+      <div className="flex items-center justify-between gap-1 h-12 bg-slate-100/90 dark:bg-slate-950/80 rounded-xl px-4 py-2 border border-slate-200/90 dark:border-slate-800/90 overflow-hidden">
+        {Array.from({ length: 42 }).map((_, idx) => {
           const progress = duration > 0 ? currentTime / duration : 0;
-          const barRatio = idx / 44;
+          const barRatio = idx / 42;
           const isPlayed = barRatio <= progress;
-          const baseHeight = 22 + Math.sin(idx * 0.45) * 16 + Math.cos(idx * 0.9) * 12;
+          const baseHeight = 20 + Math.sin(idx * 0.4) * 15 + Math.cos(idx * 0.9) * 12;
+          const dynamicHeight = isPlaying
+            ? Math.max(15, baseHeight * (0.8 + Math.sin(Date.now() / 200 + idx) * 0.4))
+            : baseHeight;
           return (
             <div
               key={idx}
@@ -6288,23 +6295,20 @@ function StudioAudioPlayer({
                   setCurrentTime(target);
                 }
               }}
-              style={{ height: `${Math.max(18, Math.min(95, baseHeight))}%` }}
+              style={{ height: `${Math.max(16, Math.min(95, dynamicHeight))}%` }}
               className={cn(
                 'w-1 rounded-full cursor-pointer transition-all duration-150',
                 isPlayed
-                  ? 'bg-gradient-to-t from-teal-500 to-emerald-400'
-                  : 'bg-slate-300 dark:bg-slate-800 hover:bg-teal-400/50',
+                  ? 'bg-gradient-to-t from-indigo-500 to-amber-400'
+                  : 'bg-slate-300 dark:bg-slate-800 hover:bg-slate-400 dark:hover:bg-slate-700',
               )}
             />
           );
         })}
       </div>
 
-      {/* Control Deslizante de Tiempo (Seek Scrubber) */}
-      <div className="flex items-center gap-2.5 px-1">
-        <span className="text-[11px] font-mono font-bold text-slate-600 dark:text-zinc-400 w-11">
-          {formatTime(currentTime)}
-        </span>
+      {/* Fila 3: Barra Deslizante de Tiempo Completa + Tiempos Debajo */}
+      <div className="space-y-1">
         <input
           type="range"
           min={0}
@@ -6318,19 +6322,108 @@ function StudioAudioPlayer({
             }
             setCurrentTime(target);
           }}
-          className="flex-1 h-1.5 rounded-lg accent-teal-500 cursor-pointer"
+          className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500 hover:accent-indigo-400"
         />
-        <span className="text-[11px] font-mono font-bold text-slate-600 dark:text-zinc-400 w-11 text-right">
-          {formatTime(duration)}
-        </span>
+        <div className="flex justify-between text-[11px] font-mono text-slate-500 dark:text-slate-400">
+          <span>{formatTime(currentTime)}</span>
+          <span>{formatTime(duration)}</span>
+        </div>
+      </div>
+
+      {/* Fila 4: Controles de Transporte (Velocidad a la izquierda, ↺ ▶ ↻ al centro, Volumen a la derecha) */}
+      <div className="flex items-center justify-between gap-2 pt-0.5">
+        <button
+          type="button"
+          onClick={() => {
+            const rates = [0.75, 1, 1.25, 1.5, 2];
+            const next = rates[(rates.indexOf(playbackRate) + 1) % rates.length];
+            setPlaybackRate(next);
+            if (audioRef.current) audioRef.current.playbackRate = next;
+          }}
+          title="Cambiar velocidad de reproducción"
+          className="px-2.5 py-1 text-xs font-mono font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-indigo-700 dark:text-indigo-300 rounded-lg border border-slate-200 dark:border-slate-700 transition shrink-0 cursor-pointer"
+        >
+          {playbackRate}x
+        </button>
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            type="button"
+            onClick={() => skipSeconds(-10)}
+            title="Retroceder 10 segundos"
+            className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition cursor-pointer"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </button>
+
+          <button
+            type="button"
+            onClick={togglePlay}
+            className="w-11 h-11 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-600/30 transition transform active:scale-95 shrink-0 cursor-pointer"
+          >
+            {isPlaying ? (
+              <Pause className="w-5 h-5 fill-white" />
+            ) : (
+              <Play className="w-5 h-5 fill-white ml-0.5" />
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => skipSeconds(10)}
+            title="Adelantar 10 segundos"
+            className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition cursor-pointer"
+          >
+            <RotateCw className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={toggleMute}
+            title={isMuted ? 'Activar sonido' : 'Silenciar'}
+            className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition cursor-pointer"
+          >
+            {isMuted || volume === 0 ? (
+              <VolumeX className="w-4 h-4 text-rose-500" />
+            ) : (
+              <Volume2 className="w-4 h-4" />
+            )}
+          </button>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={isMuted ? 0 : volume}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value);
+              setVolume(v);
+              setIsMuted(v === 0);
+              if (audioRef.current) {
+                audioRef.current.volume = v;
+                audioRef.current.muted = v === 0;
+              }
+            }}
+            className="hidden sm:block w-20 h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+          />
+        </div>
       </div>
     </div>
   );
 }
 
 // ============================================================================
-// SUBCOMPONENTE: MONITOR DE TRABAJO ASÍNCRONO (HASTA 60 MINUTOS)
+// SUBCOMPONENTE: MONITOR DE TRABAJO ASÍNCRONO POR CAPAS (HASTA 60 MINUTOS)
 // ============================================================================
+
+function formatMinutesSecondsLabel(seconds: number): string {
+  const total = Math.max(0, Math.round(seconds || 0));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}m ${s.toString().padStart(2, '0')}s`;
+}
 
 function AsyncJobMonitorCard({
   job,
@@ -6353,81 +6446,181 @@ function AsyncJobMonitorCard({
   const isPaused = job.status === 'paused';
 
   return (
-    <div className="bg-white dark:bg-slate-900/95 border border-teal-500/40 rounded-2xl p-5 shadow-md space-y-4">
+    <div className="bg-white dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+      {/* Cabecera del Monitor */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-300 flex items-center justify-center">
+          <div
+            className={cn(
+              'w-10 h-10 rounded-xl flex items-center justify-center border shrink-0',
+              isCompleted
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500'
+                : isFailed
+                  ? 'bg-rose-500/10 border-rose-500/30 text-rose-500'
+                  : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-500 dark:text-indigo-400',
+            )}
+          >
             {isProcessing ? (
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : isCompleted ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+              <CheckCircle2 className="w-5 h-5" />
+            ) : isFailed ? (
+              <AlertCircle className="w-5 h-5" />
             ) : (
               <Sparkles className="w-5 h-5" />
             )}
           </div>
           <div>
-            <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">
-              {isCompleted
-                ? '¡Audio Maestro de Larga Duración Completado!'
-                : isFailed
-                  ? 'Error en la Generación'
-                  : isPaused
-                    ? 'Generación en Pausa'
-                    : `Sintetizando fragmento ${job.currentChunkIndex + 1} de ${job.totalChunks}...`}
-            </h4>
-            <p className="text-xs text-slate-600 dark:text-zinc-400">
-              Generados {Math.round(job.generatedTotalSeconds)}s de ~{job.estimatedTotalSeconds}s estimados ({job.progressPercent}%)
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                {isCompleted
+                  ? '¡Audio de Larga Duración Completado!'
+                  : isFailed
+                    ? 'Error en la Generación'
+                    : isPaused
+                      ? 'Generación Pausada'
+                      : `Generando fragmento ${job.currentChunkIndex + 1} de ${job.totalChunks}...`}
+              </h4>
+              <span
+                className={cn(
+                  'text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider border',
+                  isCompleted
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25'
+                    : isFailed
+                      ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/25'
+                      : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/25 animate-pulse',
+                )}
+              >
+                {job.status}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Generados {formatMinutesSecondsLabel(job.generatedTotalSeconds)} de ~
+              {formatMinutesSecondsLabel(job.estimatedTotalSeconds)} estimados
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           {isProcessing && (
-            <ExpandableButton
-              size="sm"
-              icon={<Pause />}
-              label="Pausar"
-              variant="amber"
+            <button
+              type="button"
               onClick={onPause}
-            />
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+            >
+              <Pause className="w-3.5 h-3.5" />
+              <span>Pausar</span>
+            </button>
           )}
           {isPaused && (
-            <ExpandableButton
-              size="sm"
-              icon={<Play />}
-              label="Reanudar"
-              variant="teal"
+            <button
+              type="button"
               onClick={onResume}
-            />
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg shadow-md transition cursor-pointer"
+            >
+              <Play className="w-3.5 h-3.5 fill-white" />
+              <span>Reanudar</span>
+            </button>
           )}
           {!isCompleted && !isFailed && (
-            <ExpandableButton
-              size="sm"
-              icon={<X />}
-              label="Cancelar"
-              variant="danger"
+            <button
+              type="button"
               onClick={onCancel}
-            />
+              title="Cancelar tarea"
+              className="p-1.5 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
           )}
           {isCompleted && (
-            <>
-              <ExpandableButton
-                size="sm"
-                icon={<Play />}
-                label="Cargar Master"
-                variant="teal"
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
                 onClick={onLoadMaster}
-              />
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg shadow-md shadow-indigo-600/25 transition cursor-pointer"
+              >
+                <Play className="w-3.5 h-3.5 fill-white" />
+                <span>Cargar en Reproductor</span>
+              </button>
               <a
                 href={job.downloadUrl || `/api/studio/tts/jobs/${job.id}/download`}
-                download
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-300 text-xs font-bold hover:bg-green-500/20 transition"
+                download={`wappy-master-${job.id}.wav`}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shadow-md shadow-emerald-600/25 transition"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Descargar WAV Master</span>
               </a>
-            </>
+            </div>
           )}
+        </div>
+      </div>
+
+      {/* Barra de Progreso General */}
+      <div className="space-y-1.5">
+        <div className="flex justify-between text-xs font-medium">
+          <span className="text-slate-500 dark:text-slate-400">Progreso general</span>
+          <span className="text-indigo-600 dark:text-indigo-400 font-mono font-bold">
+            {job.progressPercent}%
+          </span>
+        </div>
+        <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-950 rounded-full overflow-hidden border border-slate-200 dark:border-slate-800">
+          <div
+            className={cn(
+              'h-full transition-all duration-300',
+              isCompleted
+                ? 'bg-emerald-500'
+                : isFailed
+                  ? 'bg-rose-500'
+                  : 'bg-gradient-to-r from-indigo-500 to-violet-500',
+            )}
+            style={{ width: `${Math.min(100, Math.max(0, job.progressPercent))}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Fragmentos del Audio (Preescucha por Capas) */}
+      <div>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Fragmentos del Audio ({job.completedChunks} / {job.totalChunks})
+          </span>
+          <span className="text-[11px] text-slate-500 dark:text-slate-500">
+            Haz clic en un fragmento listo para preescucharlo
+          </span>
+        </div>
+        <div className="grid grid-cols-6 sm:grid-cols-10 md:grid-cols-14 lg:grid-cols-18 gap-1.5 p-2.5 bg-slate-50 dark:bg-slate-950/70 rounded-xl border border-slate-200/90 dark:border-slate-800/80 max-h-36 overflow-y-auto">
+          {job.chunks.map((c) => {
+            const done = c.status === 'completed';
+            const busy = c.status === 'processing';
+            const failed = c.status === 'failed';
+            return (
+              <button
+                key={c.index}
+                type="button"
+                disabled={!done}
+                onClick={() => onPlayChunk(c)}
+                title={`Fragmento #${c.index + 1}${c.wordCount ? ` (${c.wordCount} palabras)` : ''}${done ? ` - ${c.durationSeconds || 0}s [Haz clic para escuchar]` : ''}`}
+                className={cn(
+                  'h-7 rounded-md text-[10px] font-mono font-bold flex items-center justify-center transition-all border',
+                  done
+                    ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/35 hover:bg-emerald-500/30 cursor-pointer shadow-2xs'
+                    : busy
+                      ? 'bg-indigo-500/25 text-indigo-700 dark:text-indigo-200 border-indigo-500/50 animate-pulse'
+                      : failed
+                        ? 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/40'
+                        : 'bg-slate-200/60 dark:bg-slate-800/50 text-slate-500 border-slate-300/60 dark:border-slate-800 opacity-60',
+                )}
+              >
+                {done ? (
+                  <Volume2 className="w-3.5 h-3.5" />
+                ) : busy ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  c.index + 1
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -6447,47 +6640,6 @@ function AsyncJobMonitorCard({
           <span>{job.error}</span>
         </div>
       )}
-
-      {/* Barra de progreso */}
-      <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 transition-all duration-300"
-          style={{ width: `${Math.min(100, Math.max(2, job.progressPercent))}%` }}
-        />
-      </div>
-
-      {/* Rejilla de Fragmentos */}
-      <div className="grid grid-cols-6 sm:grid-cols-10 md:grid-cols-14 gap-1.5 p-2.5 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200/80 dark:border-slate-800 max-h-32 overflow-y-auto">
-        {job.chunks.map((c) => {
-          const done = c.status === 'completed';
-          const busy = c.status === 'processing';
-          return (
-            <button
-              key={c.index}
-              type="button"
-              disabled={!done}
-              onClick={() => onPlayChunk(c)}
-              title={`Fragmento #${c.index + 1}`}
-              className={cn(
-                'h-7 rounded-lg text-[10px] font-mono font-bold flex items-center justify-center border transition',
-                done
-                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/25 cursor-pointer'
-                  : busy
-                    ? 'bg-teal-500/20 text-teal-700 dark:text-teal-300 border-teal-500/40 animate-pulse'
-                    : 'bg-slate-200/50 dark:bg-slate-900 text-slate-600 dark:text-zinc-400 border-transparent opacity-60',
-              )}
-            >
-              {done ? (
-                <Volume2 className="w-3 h-3" />
-              ) : busy ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : (
-                c.index + 1
-              )}
-            </button>
-          );
-        })}
-      </div>
     </div>
   );
 }

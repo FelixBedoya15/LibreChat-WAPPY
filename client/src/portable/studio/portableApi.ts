@@ -232,7 +232,62 @@ interface SynthOpts {
   multiSpeaker?: boolean;
   speaker1?: { name?: string; voiceName?: string };
   speaker2?: { name?: string; voiceName?: string };
+  preferredKeyOffset?: number;
   onFailover?: (n: any) => void;
+}
+
+function buildGeminiTtsPayloadParts(
+  cleanText: string,
+  opts: { multiSpeaker?: boolean; speaker1Name?: string; speaker2Name?: string; supportsMultiSpeaker?: boolean },
+) {
+  if (!opts.multiSpeaker || !opts.supportsMultiSpeaker) {
+    return { useMultiSpeaker: false, parts: [{ text: cleanText }], inlineText: cleanText };
+  }
+  const s1 = (opts.speaker1Name || 'Alex').trim();
+  const s2 = (opts.speaker2Name || 'Sam').trim();
+  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const turnRegex = new RegExp(
+    `(?:^|\\n)\\s*(${esc(s1)}|${esc(s2)}|Hablante\\s*1|Hablante\\s*2|Speaker\\s*1|Speaker\\s*2)\\s*:\\s*`,
+    'gi',
+  );
+  const turns: { speaker: string; text: string }[] = [];
+  const matches = Array.from(cleanText.matchAll(turnRegex));
+
+  if (matches.length > 0) {
+    const firstIdx = matches[0].index || 0;
+    const leadingText = cleanText.slice(0, firstIdx).trim();
+    if (leadingText) turns.push({ speaker: s1, text: leadingText });
+    for (let i = 0; i < matches.length; i++) {
+      const m = matches[i];
+      const rawSpeaker = (m[1] || '').trim().toLowerCase();
+      const speaker = rawSpeaker === s2.toLowerCase() || rawSpeaker.endsWith('2') ? s2 : s1;
+      const start = (m.index || 0) + m[0].length;
+      const end = i + 1 < matches.length ? matches[i + 1].index || cleanText.length : cleanText.length;
+      const segmentText = cleanText.slice(start, end).trim();
+      if (segmentText) turns.push({ speaker, text: segmentText });
+    }
+  } else {
+    const sentences = cleanText
+      .split(/(?<=[.!?…])\s+|\n+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (sentences.length <= 1) {
+      return { useMultiSpeaker: false, parts: [{ text: cleanText }], inlineText: cleanText };
+    }
+    sentences.forEach((sentence, idx) => {
+      turns.push({ speaker: idx % 2 === 0 ? s1 : s2, text: sentence });
+    });
+  }
+
+  if (turns.length === 0) {
+    return { useMultiSpeaker: false, parts: [{ text: cleanText }], inlineText: cleanText };
+  }
+
+  return {
+    useMultiSpeaker: true,
+    parts: turns.map((t) => ({ text: t.text, speech_metadata: { speaker: t.speaker } })),
+    inlineText: turns.map((t) => `${t.speaker}: ${t.text}`).join('\n'),
+  };
 }
 
 async function synthesizeChunk(opts: SynthOpts) {
@@ -245,30 +300,43 @@ async function synthesizeChunk(opts: SynthOpts) {
   let lastError: Error | null = null;
 
   for (const model of modelsToTry) {
-    for (let k = 0; k < keys.length; k++) {
-      const speechConfig =
-        opts.multiSpeaker && !model.includes('lite')
-          ? {
-              multiSpeakerVoiceConfig: {
-                speakerVoiceConfigs: [
-                  { speaker: opts.speaker1?.name || 'Alex', voiceConfig: { prebuiltVoiceConfig: { voiceName: compatibleVoice(opts.speaker1?.voiceName || 'Puck', model) } } },
-                  { speaker: opts.speaker2?.name || 'Sam', voiceConfig: { prebuiltVoiceConfig: { voiceName: compatibleVoice(opts.speaker2?.voiceName || 'Kore', model) } } },
-                ],
+    for (let kStep = 0; kStep < keys.length; kStep++) {
+      const k = (Math.max(0, opts.preferredKeyOffset || 0) + kStep) % keys.length;
+      const s1Name = opts.speaker1?.name || 'Alex';
+      const s2Name = opts.speaker2?.name || 'Sam';
+      const payloadSpec = buildGeminiTtsPayloadParts(cleanText, {
+        multiSpeaker: opts.multiSpeaker,
+        speaker1Name: s1Name,
+        speaker2Name: s2Name,
+        supportsMultiSpeaker: !model.includes('lite'),
+      });
+      const speechConfig = payloadSpec.useMultiSpeaker
+        ? {
+            multiSpeakerVoiceConfig: {
+              speakerVoiceConfigs: [
+                { speaker: s1Name, voiceConfig: { prebuiltVoiceConfig: { voiceName: compatibleVoice(opts.speaker1?.voiceName || 'Puck', model) } } },
+                { speaker: s2Name, voiceConfig: { prebuiltVoiceConfig: { voiceName: compatibleVoice(opts.speaker2?.voiceName || 'Kore', model) } } },
+              ],
+            },
+          }
+        : {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: compatibleVoice((opts.multiSpeaker ? opts.speaker1?.voiceName : opts.voiceName) || 'Kore', model),
               },
-            }
-          : { voiceConfig: { prebuiltVoiceConfig: { voiceName: compatibleVoice(opts.voiceName || 'Kore', model) } } };
-      const part: any = { text: cleanText };
-      if (opts.stylePrompt?.trim()) part.speech_metadata = { type: 'speech_metadata', style: opts.stylePrompt.trim() };
-      const body = () => ({ contents: [{ role: 'user', parts: [part] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig } });
+            },
+          };
 
       try {
-        let r = await geminiPost(model, keys[k], body());
-        if (!r.ok && r.status === 400 && part.speech_metadata) {
-          const m = String(r.data?.error?.message || '').toLowerCase();
-          if (m.includes('speech_metadata') || m.includes('unknown') || m.includes('invalid json')) {
-            delete part.speech_metadata;
-            r = await geminiPost(model, keys[k], body());
-          }
+        let r = await geminiPost(model, keys[k], {
+          contents: [{ role: 'user', parts: payloadSpec.parts }],
+          generationConfig: { responseModalities: ['AUDIO'], speechConfig },
+        });
+        if (!r.ok && r.status === 400 && payloadSpec.useMultiSpeaker) {
+          r = await geminiPost(model, keys[k], {
+            contents: [{ role: 'user', parts: [{ text: payloadSpec.inlineText }] }],
+            generationConfig: { responseModalities: ['AUDIO'], speechConfig },
+          });
         }
         if (!r.ok) {
           const err: any = new Error(r.data?.error?.message || `Error ${r.status} en Gemini TTS`);
@@ -295,7 +363,7 @@ async function synthesizeChunk(opts: SynthOpts) {
         const keyErr = status === 429 || status === 403 || (status === 400 && (msg.includes('api_key') || msg.includes('key not valid')));
         const modelErr = status === 404 || status === 503 || msg.includes('not found') || msg.includes('overloaded') || msg.includes('not supported') || e?.name === 'AbortError';
         if (keyErr) {
-          if (k + 1 < keys.length) opts.onFailover?.({ fromIndex: k, toIndex: k + 1, label: `Clave #${k + 2}`, reason: status === 429 ? 'Límite de cuota 429 alcanzado' : `Estado ${status}` });
+          if (kStep + 1 < keys.length) opts.onFailover?.({ fromIndex: k, toIndex: (k + 1) % keys.length, label: `Clave #${((k + 1) % keys.length) + 1}`, reason: status === 429 ? 'Límite de cuota 429 alcanzado' : `Estado ${status}` });
           continue;
         }
         if (modelErr || (status === 400 && msg.includes('voice'))) break;
@@ -343,7 +411,7 @@ async function processJob(job: LocalJob) {
     chunk.status = 'processing';
     emit(job, 'chunk_start', { chunkIndex: i });
     try {
-      const r = await synthesizeChunk({ ...job.opts, text: chunk.text, onFailover: (n) => emit(job, 'api_key_failover', { ...n, timestamp: Date.now() }) });
+      const r = await synthesizeChunk({ ...job.opts, text: chunk.text, preferredKeyOffset: i, onFailover: (n) => emit(job, 'api_key_failover', { ...n, timestamp: Date.now() }) });
       chunk.status = 'completed';
       chunk.durationSeconds = r.durationSeconds;
       chunk.pcm = r.pcm;
