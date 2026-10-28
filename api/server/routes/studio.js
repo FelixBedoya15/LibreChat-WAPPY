@@ -1718,8 +1718,172 @@ Devuelve ÚNICAMENTE el texto del guion mejorado, sin comentarios adicionales ni
 });
 
 // ============================================================================
-// ENDPOINTS DE COMPOSICIÓN DE VIDEO HTML / GSAP (ESTILO CLAUDE / HYPERFRAMES)
+// ENDPOINTS DE COMPOSICIÓN DE VIDEO HTML / GSAP (ESTILO WAPPY IA / HYPERFRAMES)
 // ============================================================================
+
+const WAPPY_ASSET_CACHE = new Map();
+function getPublicAssetDataUri(relPath, mime = 'image/png') {
+  if (WAPPY_ASSET_CACHE.has(relPath)) return WAPPY_ASSET_CACHE.get(relPath);
+  const candidates = [
+    path.join(process.cwd(), 'client', 'public', relPath),
+    path.join(process.cwd(), 'client', 'dist', relPath),
+    path.join(__dirname, '..', '..', '..', 'client', 'public', relPath),
+    path.join(__dirname, '..', '..', '..', 'client', 'dist', relPath),
+  ];
+  for (const fullPath of candidates) {
+    try {
+      if (fs.existsSync(fullPath)) {
+        const b64 = fs.readFileSync(fullPath).toString('base64');
+        const uri = `data:${mime};base64,${b64}`;
+        WAPPY_ASSET_CACHE.set(relPath, uri);
+        return uri;
+      }
+    } catch (_) {}
+  }
+  return '';
+}
+
+function inlineWappyPublicAssetsInHtml(rawHtml) {
+  if (!rawHtml || typeof rawHtml !== 'string') return '';
+  let html = rawHtml;
+  const assetMap = [
+    { regex: /(["'(])(?:\.\/|\/)?assets\/(?:wappy\/)?tenshi\.png(["')])/gi, rel: 'assets/wappy/tenshi.png' },
+    { regex: /(["'(])(?:\.\/|\/)?assets\/(?:wappy\/)?felix_avatar_3d\.png(["')])/gi, rel: 'assets/wappy/felix_avatar_3d.png' },
+    { regex: /(["'(])(?:\.\/|\/)?assets\/(?:wappy\/)?wappy-cat-logo\.png(["')])/gi, rel: 'assets/wappy/wappy-cat-logo.png' },
+    { regex: /(["'(])(?:\.\/|\/)?assets\/(?:wappy\/)?antigravity_logo\.png(["')])/gi, rel: 'assets/wappy/antigravity_logo.png' },
+    { regex: /(["'(])(?:\.\/|\/)?assets\/Wappy\.png(["')])/gi, rel: 'assets/Wappy.png' },
+  ];
+  for (const item of assetMap) {
+    const dataUri = getPublicAssetDataUri(item.rel, 'image/png');
+    if (dataUri) {
+      html = html.replace(item.regex, (_, q1, q2) => `${q1}${dataUri}${q2}`);
+    }
+  }
+  return html;
+}
+
+/**
+ * Calcula el mapa exacto de tiempos (Beats + Palabras ponderadas por sílabas y pausas)
+ * para que las escenas visuales y los subtítulos sincronicen al milisegundo con la voz.
+ */
+function computeServerScriptTimelineMap(scriptText, totalDurationSeconds = 30) {
+  const safeTotal = Math.max(4, Number(totalDurationSeconds) || 30);
+  const raw = String(scriptText || '')
+    .replace(/^(Alex|Sam|Hablante\s*\d+|Speaker\s*\d+):\s*/gim, '')
+    .trim();
+
+  const rawSegments = raw
+    .split(/(?<=[.!?…])\s+|\n+|<breath>/gi)
+    .map((s) =>
+      s
+        .replace(/<[^>]+>/g, '')
+        .replace(/\|[^|]+\|/g, '')
+        .trim(),
+    )
+    .filter(Boolean);
+
+  if (rawSegments.length === 0) {
+    rawSegments.push('Prevención inteligente y seguridad en el trabajo con WAPPY IA.');
+  }
+
+  // Unir exclamaciones muy cortas (ej: "¡Atención!") con la frase siguiente
+  const merged = [];
+  for (let i = 0; i < rawSegments.length; i++) {
+    const seg = rawSegments[i];
+    if (seg.length < 18 && i + 1 < rawSegments.length) {
+      rawSegments[i + 1] = `${seg} ${rawSegments[i + 1]}`;
+    } else {
+      merged.push(seg);
+    }
+  }
+
+  // Agrupar en máximo 7 beats visuales para mantener ritmo cinematográfico limpio
+  const maxBeats = 7;
+  const beatsRaw = [];
+  if (merged.length <= maxBeats) {
+    beatsRaw.push(...merged);
+  } else {
+    const groupSize = Math.ceil(merged.length / maxBeats);
+    for (let i = 0; i < merged.length; i += groupSize) {
+      beatsRaw.push(merged.slice(i, i + groupSize).join(' '));
+    }
+  }
+
+  const wordTimings = [];
+  const beatObjects = [];
+  let totalWeight = 0;
+
+  const tempBeats = beatsRaw.map((text, bIdx) => {
+    const words = text.split(/\s+/).filter(Boolean);
+    const wList = words.map((w) => {
+      const cleanLen = w.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ0-9]/g, '').length;
+      let weight = Math.max(2, cleanLen);
+      if (/[,;:]$/.test(w)) weight += 4;
+      if (/[.!?…]$/.test(w)) weight += 9;
+      return { word: w, weight };
+    });
+    // Pausa natural de cierre de frase / respiración entre beats
+    if (wList.length > 0) {
+      wList[wList.length - 1].weight += 7;
+    }
+    const beatWeight = wList.reduce((acc, item) => acc + item.weight, 0) || 10;
+    totalWeight += beatWeight;
+    return { text, bIdx, wList, beatWeight };
+  });
+
+  let accWeight = 0;
+  for (let i = 0; i < tempBeats.length; i++) {
+    const b = tempBeats[i];
+    const startPct = accWeight / Math.max(1, totalWeight);
+    const endPct = (accWeight + b.beatWeight) / Math.max(1, totalWeight);
+    const startSec = Number((startPct * safeTotal).toFixed(2));
+    const endSec = Number((endPct * safeTotal).toFixed(2));
+    const durationSec = Number(Math.max(0.8, endSec - startSec).toFixed(2));
+
+    let wordAcc = accWeight;
+    for (const wItem of b.wList) {
+      const wStartPct = wordAcc / Math.max(1, totalWeight);
+      wordAcc += wItem.weight;
+      const wEndPct = wordAcc / Math.max(1, totalWeight);
+      wordTimings.push({
+        word: wItem.word,
+        startPct: Number(wStartPct.toFixed(4)),
+        endPct: Number(wEndPct.toFixed(4)),
+        beatIndex: i,
+      });
+    }
+    accWeight += b.beatWeight;
+
+    beatObjects.push({
+      index: i + 1,
+      text: b.text,
+      startSec,
+      endSec,
+      durationSec,
+      startPct: Number(startPct.toFixed(4)),
+      endPct: Number(endPct.toFixed(4)),
+    });
+  }
+
+  return { beats: beatObjects, wordTimings, totalDurationSeconds: safeTotal };
+}
+
+function postProcessGeneratedVideoHtml(rawHtml, timelineMap) {
+  let html = inlineWappyPublicAssetsInHtml(rawHtml);
+  // Corregir bug común de LLMs: subtitles.reverse() muta el arreglo en cada frame de GSAP onUpdate
+  html = html.replace(/subtitles\.reverse\(\)/g, 'subtitles.slice().reverse()');
+  // Inyectar mapa de palabras ponderadas para que el reproductor y el renderizador MP4 sincronicen al milisegundo
+  const syncHelper = `<script id="wappy-beat-sync-helper">
+  window.__wappyTimelineBeats = ${JSON.stringify(timelineMap.beats)};
+  window.__wappyWordTimings = ${JSON.stringify(timelineMap.wordTimings)};
+</script>`;
+  if (html.includes('</head>')) {
+    html = html.replace('</head>', `${syncHelper}\n</head>`);
+  } else {
+    html = `${syncHelper}\n${html}`;
+  }
+  return html;
+}
 
 /**
  * POST /api/studio/video/generate-html
@@ -1750,54 +1914,65 @@ router.post('/video/generate-html', studioAuth, async (req, res) => {
     const isVertical = aspectRatio === '9:16';
     const width = isVertical ? 1080 : 1920;
     const height = isVertical ? 1920 : 1080;
+    const safeDuration = Math.max(6, Math.min(180, Number(durationSeconds) || 30));
+    const effectiveScript =
+      scriptText ||
+      prompt ||
+      'La prevención y la inteligencia artificial transforman la seguridad en el trabajo con WAPPY IA.';
+    const timelineMap = computeServerScriptTimelineMap(effectiveScript, safeDuration);
+    const beatsScheduleText = timelineMap.beats
+      .map(
+        (b) =>
+          `  * ESCENA #scene-${b.index} [Desde ${b.startSec}s hasta ${b.endSec}s (duración ${b.durationSec}s)]: "${b.text}"`,
+      )
+      .join('\n');
 
-    const systemInstruction = `Eres un Director de Motion Graphics Senior experto en el sistema de diseño cinematográfico HyperFrames (SKILL hyperframes-motion-design), GSAP 3, Tailwind CSS y animaciones virales estilo Claude / HeyGen.
-Tu objetivo es crear una página HTML5 autocontenida, fluida, editable y cinematográfica con relación de aspecto ${aspectRatio} (${width}x${height}) lista para reproducirse en cualquier tamaño de pantalla (normal o pantalla completa) sin desbordarse jamás.
+    const systemInstruction = `Eres el Director de Motion Graphics Senior de WAPPY IA, experto en los sistemas oficiales "animaciones-17-efectos-reels", "animaciones-wappy-brand", "animaciones-dark-tech-hud", "animaciones-explicativas-sst" y "hyperframes-motion-design" (GSAP 3 + Tailwind CSS + SVG Duotone + HUD Táctico).
+Tu objetivo es crear una composición HTML5 autocontenida, cinematográfica y 100% sincronizada segundo a segundo con la voz para relación de aspecto ${aspectRatio} (${width}x${height}).
 
-REGLAS ESTRICTAS DE ARQUITECTURA VISUAL Y RESPONSIVIDAD (PROHIBIDO DESBORDAR EL LIENZO):
+REGLAS ESTRICTAS DE ARQUITECTURA VISUAL, IDENTIDAD WAPPY Y SINCRONIZACIÓN DE VOZ:
 1. Devuelve ÚNICAMENTE el código HTML completo (desde <!DOCTYPE html> hasta </html>), sin bloques markdown (\`\`\`html).
 2. Incluye en el <head>:
    - <script src="https://cdn.tailwindcss.com"></script>
    - <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-   - Google Fonts: 'Plus Jakarta Sans', 'Syne' y 'JetBrains Mono'.
-3. GEOMETRÍA AUTO-AJUSTABLE Y CENTRADA (CERO CORRIMIENTO EN PANTALLA COMPLETA O NORMAL):
-   - PROHIBIDO usar \`width: 1920px\` o \`width: 1080px\` fijos en \`body\` o contenedores que causen recorte o corrimiento horizontal.
-   - \`html, body\` DEBEN tener: \`width: 100vw; height: 100vh; max-width: 100%; max-height: 100%; margin: 0; padding: 0; overflow: hidden; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;\`
-   - Envuelve el contenido visual dentro de un contenedor maestro \`<div id="stage" class="relative w-full h-full flex flex-col justify-between p-5 sm:p-8 overflow-hidden box-border">\` con unidades relativas (\`w-full\`, \`max-w-4xl mx-auto\`, \`clamp()\`, \`grid\`, \`flex\`) para que se vea 100% centrado tanto en vista previa pequeña como en Pantalla Completa.
-4. TRANSPARENCIA PARA CAPA DE VIDEO BASE:
-   - Si hasBaseVideo es true (${hasBaseVideo}), el <body> DEBE tener \`background: transparent;\` para que el video grabado a cámara del usuario en la capa inferior se vea nítidamente, y tus gráficos/tarjetas/badges se superpongan con glassmorphism (\`backdrop-filter: blur(16px)\`, \`background: rgba(10, 18, 30, 0.78)\`, bordes luminosos).
-   - Si hasBaseVideo es false, crea un fondo oscuro animado de alto impacto (\`#060d14\`) con orbes de luz flotantes, rejilla técnica sutil (grid) y viñeta cinematográfica.
-5. SISTEMA DE DISEÑO HYPERFRAMES MOTION DESIGN (GSAP TIMELINE MAESTRO SIN BUCLE INFINITO Y COMPATIBLE CON WHATSAPP):
-   - Crea SIEMPRE la línea de tiempo maestra asignada a \`window.mainTimeline = gsap.timeline({ repeat: 0 });\`. PROHIBIDO usar \`repeat: -1\` en \`window.mainTimeline\` para que la animación termine exactamente junto con el audio y se detenga en la escena final de cierre (NUNCA apagues con \`opacity: 0\` la escena final de cierre en el último segundo).
-   - PROHIBIDO poner la clase \`opacity-0\` o \`style="opacity:0"\` en el HTML estático del encabezado (\`#header-hud\`) ni de la primera escena (\`#scene-1\` y sus hijos). La primera escena DEBE ser 100% visible por defecto en el HTML estático para que al abrir el archivo en el visor de WhatsApp móvil se vea inmediatamente el diseño completo (usa \`master.from("#sc1-card", { opacity: 0, y: 20, ... })\` en lugar de ocultar con \`opacity-0\` en el HTML).
-   - Desarrolla una coreografía multicapa de ${durationSeconds} segundos dividida en beats visuales claros (Entrada con impacto, Desarrollo de tarjetas/reglas numeradas, Métricas/HUD y Cierre que permanece visible al terminar).
-   - Usa curvas elásticas y expresivas: \`back.out(1.7)\`, \`expo.out\`, \`elastic.out(1, 0.5)\`, \`power3.out\`.
-   - Añade atributos \`data-editable="true"\` en todas las tarjetas, insignias y textos importantes para que el editor visual de WAPPY Studio pueda moverlos y editarlos con el mouse.
-   - Deja libre la franja inferior (\`padding-bottom: 64px\`) para que los subtítulos dinámicos palabra a palabra no tapen las tarjetas.
+   - Google Fonts: 'Outfit' (800, 900), 'Plus Jakarta Sans' (500, 700, 800) y 'JetBrains Mono' (600, 700).
+3. IDENTIDAD VISUAL OFICIAL DE WAPPY IA (ESTILO REELS OFICIALES GTC-45 Y PLATAFORMA WAPPY):
+   - Paleta oficial: Verde Lima Eléctrico (\`#c7f303\`), Turquesa SST (\`#14b8a6\` / \`#0d9488\`), Cian HUD (\`#06b6d4\`), Ámbar Alerta (\`#f59e0b\`) y Cosmos Oscuro (\`#050d0a\` a \`#060d14\`).
+   - Titulares Cinéticos en 'Outfit' ExtraBold/Black con píldoras de resaltado luminoso: usa \`<span class="inline-block px-3 py-0.5 rounded-xl bg-[#c7f303] text-[#0a1004] font-black shadow-[0_0_24px_rgba(199,243,3,0.45)]">PALABRA CLAVE</span>\` o cian/ámbar según la escena.
+   - TOP HUD TÁCTICO (#header-hud): Barra superior estilo cristal con:
+     * Izquierda: Ecualizador animado de 4 barras cian/lima + insignia con punto pulsante (\`ECOSISTEMA IA • SG-SST\` / \`${companyName}\`).
+     * Derecha: Radar holográfico SVG giratorio o píldora \`• WAPPY.CLUB\`.
+   - RIQUEZA VISUAL OBLIGATORIA (PROHIBIDO HACER CAJAS DE TEXTO PLANAS):
+     * Cada escena DEBE incluir componentes visuales ricos: Tarjetas comparativas (Método Tradicional Rojo vs Con WAPPY IA Verde Lima), Mockup de Celular con Dynamic Island y checklist lateral con firmas/controles SVG animados, Telemetría HUD con barras de progreso y ángulos/indicadores, e Iconos SVG Duotone grandes con trazos animados (\`stroke-dasharray\`) y anillos orbitales.
+     * En la parte inferior del escenario (encima del área de subtítulos), incluye una tarjeta de presentador WAPPY con el avatar oficial \`<img src="/assets/wappy/tenshi.png" class="w-11 h-11 rounded-xl object-cover border border-[#c7f303]/50" />\` o \`<img src="/assets/wappy/felix_avatar_3d.png" class="w-12 h-12 rounded-xl object-cover border border-teal-400/50" />\`, mostrando el resumen ejecutivo en vivo.
+4. SINCRONIZACIÓN EXACTA ESCENA POR ESCENA CON LA VOZ (PROHIBIDO DESINCRONIZAR):
+   - Tienes ${timelineMap.beats.length} escenas obligatorias que DEBEN aparecer y ocultarse exactamente en los segundos indicados del mapa de locución:
+${beatsScheduleText}
+   - En \`window.mainTimeline = gsap.timeline({ repeat: 0 });\`:
+     * Posiciona cada \`#scene-i\` usando el tiempo absoluto exacto \`startSec\` en el timeline maestro (\`master.add(tlScene, startSec)\`).
+     * La primera escena (\`#scene-1\`) DEBE estar visible por defecto en el HTML estático (sin \`opacity-0\` en el contenedor \`#scene-1\`) para que al abrir en WhatsApp se vea de inmediato.
+     * Al terminar cada escena (en su \`endSec\`), haz transición rápida y dinámica (Zoom-Through, Giro 3D \`rotationY\`, Frame Break o Slide Elástico) hacia la siguiente escena, EXCEPTO la última escena (\`#scene-${timelineMap.beats.length}\`), la cual NUNCA debe ocultarse al final para que el cierre permanezca visible.
+   - PROHIBIDO crear un \`<footer id="subtitle-container">\` propio ni usar \`subtitles.reverse()\` (el reproductor de WAPPY Studio ya renderiza los subtítulos oficiales sincronizados palabra por palabra). Deja \`padding-bottom: 78px\` en \`#stage\`.
+5. GEOMETRÍA RESPONSIVA Y TRANSPARENCIA:
+   - \`html, body { width: 100vw; height: 100vh; margin: 0; padding: 0; overflow: hidden; }\`
+   - Si hasBaseVideo es true (${hasBaseVideo}), \`body\` debe tener \`background: transparent;\`. Si es false, incluye fondo oscuro cósmico con red de partículas en \`<canvas id="bg-particles">\` + rejilla técnica sutil.
 6. API DE CONTROL EXTERNO (OBLIGATORIA):
-   - Escucha mensajes \`window.addEventListener('message', (e) => { ... })\` para soportar:
-     - \`{ type: 'STUDIO_PLAY' }\` -> \`window.mainTimeline?.play(); gsap.globalTimeline.play();\`
-     - \`{ type: 'STUDIO_PAUSE' }\` -> \`window.mainTimeline?.pause(); gsap.globalTimeline.pause();\`
-     - \`{ type: 'STUDIO_RESTART' }\` -> \`window.mainTimeline?.restart(); gsap.globalTimeline.restart();\`
-     - \`{ type: 'STUDIO_SEEK', progress: 0..1 }\` -> \`window.mainTimeline?.progress(e.data.progress);\``;
+   - Escucha \`window.addEventListener('message', (e) => { ... })\` para \`STUDIO_PLAY\`, \`STUDIO_PAUSE\`, \`STUDIO_RESTART\` y \`STUDIO_SEEK\` (\`window.mainTimeline?.progress(e.data.progress)\`).`;
 
-    const userPrompt = `Diseña una composición animada en HTML + GSAP con estas especificaciones:
+    const userPrompt = `Diseña una composición animada de nivel estudio en HTML + GSAP sincronizada exactamente con este mapa de locución:
 - Formato: ${aspectRatio} (${width}x${height})
-- Duración objetivo: ${durationSeconds} segundos
+- Duración exacta del audio: ${safeDuration} segundos
 - Empresa / Marca: ${companyName}
-- Paleta / Tema: ${theme}
-- ¿Tiene video base del usuario debajo?: ${hasBaseVideo ? 'SÍ (usar fondo transparente y tarjetas superpuestas en tercio superior e inferior sin tapar el rostro central)' : 'NO (diseñar escena completa a pantalla completa con fondo cinematográfico)'}
-- ¿Mostrar barra de subtítulos dinámicos?: ${showSubtitles ? 'SÍ' : 'NO'}
-- Instrucción creativa del usuario: ${prompt || 'Cápsula de alto impacto visual con estadísticas, insignias animadas y puntos clave.'}
-- Guion / Texto de locución para sincronizar las escenas y subtítulos:
-"""
-${scriptText || prompt || 'La prevención y la inteligencia artificial transforman la seguridad en el trabajo.'}
-"""
+- Tema visual: ${theme}
+- ¿Tiene video base debajo?: ${hasBaseVideo ? 'SÍ (fondo transparente)' : 'NO (fondo cósmico WAPPY Dark Tech + partículas)'}
+- Instrucción creativa del usuario: ${prompt || 'Reel estilo WAPPY IA oficial con tarjetas interactivas, iconos SVG duotone animados, telemetría HUD y presentador Tenshi/Félix.'}
+- MAPA EXACTO DE ESCENAS Y TIEMPOS DE VOZ (OBLIGATORIO RESPETAR CADA SEGUNDO):
+${beatsScheduleText}
 
-Recuerda devolver SOLO el código HTML puro empezando por <!DOCTYPE html>.`;
+Devuelve SOLO el código HTML puro empezando por <!DOCTYPE html>.`;
 
     const aiResult = await generateWithKeyRotation(
-      { model: preferredTextModel, generationConfig: { temperature: 0.4 } },
+      { model: preferredTextModel, generationConfig: { temperature: 0.35 } },
       req.user,
       userPrompt,
       { systemInstruction },
@@ -1814,9 +1989,12 @@ Recuerda devolver SOLO el código HTML puro empezando por <!DOCTYPE html>.`;
       throw new Error('El modelo no devolvió un documento HTML válido.');
     }
 
+    htmlCode = postProcessGeneratedVideoHtml(htmlCode, timelineMap);
+
     res.json({
       success: true,
       htmlCode,
+      timelineMap,
     });
   } catch (error) {
     logger.error('[WappyStudio Video] Error generating HTML composition:', error);
@@ -1907,25 +2085,24 @@ router.post('/video/render-mp4', studioAuth, async (req, res) => {
       fs.writeFileSync(audioFilePath, Buffer.from(cleanBase64, 'base64'));
     }
 
-    // Inyectar controlador determinista de fotogramas y subtítulos dinámicos palabra a palabra
-    const cleanWords = String(scriptText || '')
-      .replace(/<[^>]+>/g, '')
-      .replace(/\|[^|]+\|/g, '')
-      .replace(/^(Alex|Sam):\s*/gim, '')
-      .split(/\s+/)
-      .filter(Boolean);
+    // Inyectar controlador determinista de fotogramas y subtítulos dinámicos ponderados por sílabas y pausas
+    const timelineMap = computeServerScriptTimelineMap(scriptText, safeDuration);
+    const cleanWords = timelineMap.wordTimings.map((w) => w.word);
 
     const renderHarnessScript = `
 <style id="wappy-mp4-render-styles">
-  ${showSubtitles && cleanWords.length > 0 ? '#subtitle-footer, #subtitle-card { display: none !important; }' : ''}
+  ${showSubtitles && cleanWords.length > 0 ? '#subtitle-footer, #subtitle-card, #subtitle-container, #subtitle-box, footer[id*="subtitle"] { display: none !important; }' : ''}
   #orb-1, #orb-2, #orb-3, [class*="blur-"] { filter: blur(18px) !important; }
   .glass-panel, .glass-card, .glass-panel-amber { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 </style>
 <script id="wappy-mp4-render-harness">
   window.__wappyWords = ${JSON.stringify(cleanWords)};
+  window.__wappyWordTimings = ${JSON.stringify(timelineMap.wordTimings)};
   window.__wappyShowSubs = ${Boolean(showSubtitles && cleanWords.length > 0)};
   window.__wappySubPos = ${JSON.stringify(subtitlePosition || 'bottom')};
   window.__wappyDuration = ${safeDuration};
+  window.__wappyVoicePlaying = true;
+  window.__wappyCurrentTime = 0;
 
   function ensureSubOverlay() {
     if (window.__wappyShowSubs && !document.getElementById('wappy-mp4-sub-overlay')) {
@@ -1933,11 +2110,11 @@ router.post('/video/render-mp4', studioAuth, async (req, res) => {
         ? 'top: 56px;'
         : window.__wappySubPos === 'center'
           ? 'top: 50%; transform: translateY(-50%);'
-          : 'bottom: 24px;';
+          : 'bottom: 20px;';
       const subWrap = document.createElement('div');
       subWrap.id = 'wappy-mp4-sub-overlay';
       subWrap.style.cssText = 'position:fixed;left:16px;right:16px;z-index:9999;display:flex;justify-content:center;pointer-events:none;' + posStyle;
-      subWrap.innerHTML = '<div id="wappy-mp4-sub-box" style="background:rgba(6,13,20,0.9);border:1px solid rgba(45,212,191,0.35);padding:10px 16px;border-radius:16px;text-align:center;max-width:94%;display:flex;flex-wrap:wrap;justify-content:center;gap:6px;font-family:Plus Jakarta Sans,sans-serif;box-shadow:0 12px 32px rgba(0,0,0,0.6);"></div>';
+      subWrap.innerHTML = '<div id="wappy-mp4-sub-box" style="background:rgba(5,12,18,0.92);border:1px solid rgba(199,243,3,0.45);padding:9px 15px;border-radius:15px;text-align:center;max-width:94%;display:flex;flex-wrap:wrap;justify-content:center;gap:6px;font-family:Plus Jakarta Sans,sans-serif;box-shadow:0 12px 32px rgba(0,0,0,0.65);"></div>';
       document.body.appendChild(subWrap);
     }
   }
@@ -1946,39 +2123,58 @@ router.post('/video/render-mp4', studioAuth, async (req, res) => {
 
   window.__wappySeekTo = function(timeSec) {
     ensureSubOverlay();
+    window.__wappyCurrentTime = timeSec;
+    window.__wappyVoicePlaying = true;
+    const progress = Math.max(0, Math.min(0.9999, timeSec / Math.max(1, window.__wappyDuration)));
     try {
-      if (window.mainTimeline && typeof window.mainTimeline.time === 'function') {
-        const tlDur = window.mainTimeline.duration() || window.__wappyDuration || 12;
-        window.mainTimeline.time(timeSec % tlDur, false);
+      if (window.mainTimeline && typeof window.mainTimeline.progress === 'function') {
+        window.mainTimeline.progress(progress, false);
       }
       if (window.gsap && window.gsap.globalTimeline) {
-        window.gsap.globalTimeline.time(timeSec, false);
+        const gDur = window.gsap.globalTimeline.duration() || window.__wappyDuration;
+        window.gsap.globalTimeline.time(Math.min(timeSec, gDur), false);
+      }
+      if (typeof window.__wappyRenderTick === 'function') {
+        window.__wappyRenderTick(timeSec, window.__wappyDuration);
       }
     } catch (e) {}
 
     if (window.__wappyShowSubs && window.__wappyWords.length > 0) {
       const box = document.getElementById('wappy-mp4-sub-box');
       if (box) {
-        const progress = Math.max(0, Math.min(0.999, timeSec / Math.max(1, window.__wappyDuration)));
-        const activeIdx = Math.floor(progress * window.__wappyWords.length);
+        const timings = window.__wappyWordTimings || [];
+        let activeIdx = -1;
+        for (let i = 0; i < timings.length; i++) {
+          if (progress >= timings[i].startPct && progress <= timings[i].endPct) {
+            activeIdx = i;
+            break;
+          }
+        }
+        if (activeIdx === -1) {
+          activeIdx = Math.min(window.__wappyWords.length - 1, Math.floor(progress * window.__wappyWords.length));
+        }
         const winSize = 5;
         const winStart = Math.floor(activeIdx / winSize) * winSize;
         const slice = window.__wappyWords.slice(winStart, winStart + winSize);
         const activeOffset = activeIdx - winStart;
         box.innerHTML = slice.map((w, i) => {
           if (i === activeOffset) {
-            return '<span style="font-size:15px;font-weight:900;text-transform:uppercase;color:#fcd34d;background:rgba(20,184,166,0.32);padding:2px 7px;border-radius:7px;border:1px solid rgba(45,212,191,0.55);">' + w + '</span>';
+            return '<span style="font-size:15px;font-weight:900;text-transform:uppercase;color:#080c04;background:#c7f303;padding:2px 8px;border-radius:7px;box-shadow:0 0 14px rgba(199,243,3,0.45);">' + w + '</span>';
           }
-          return '<span style="font-size:15px;font-weight:800;text-transform:uppercase;color:rgba(255,255,255,0.95);">' + w + '</span>';
+          return '<span style="font-size:15px;font-weight:800;text-transform:uppercase;color:rgba(255,255,255,0.96);">' + w + '</span>';
         }).join(' ');
       }
     }
   };
 </script>`;
 
-    const instrumentedHtml = htmlCode.includes('</body>')
-      ? htmlCode.replace('</body>', `${renderHarnessScript}\n</body>`)
-      : `${htmlCode}\n${renderHarnessScript}`;
+    const safeHtml = inlineWappyPublicAssetsInHtml(htmlCode).replace(
+      /subtitles\.reverse\(\)/g,
+      'subtitles.slice().reverse()',
+    );
+    const instrumentedHtml = safeHtml.includes('</body>')
+      ? safeHtml.replace('</body>', `${renderHarnessScript}\n</body>`)
+      : `${safeHtml}\n${renderHarnessScript}`;
 
     const puppeteer = require('puppeteer');
     const launchOptions = {

@@ -495,63 +495,173 @@ class PortableJobEventSource {
 }
 
 // ─── Generación de escenas HTML con IA (espejo de /video/generate-html) ─────
+function computePortableScriptTimelineMap(scriptText: string, totalDurationSeconds = 30) {
+  const safeTotal = Math.max(4, Number(totalDurationSeconds) || 30);
+  const raw = String(scriptText || '')
+    .replace(/^(Alex|Sam|Hablante\s*\d+|Speaker\s*\d+):\s*/gim, '')
+    .trim();
+
+  const rawSegments = raw
+    .split(/(?<=[.!?…])\s+|\n+|<breath>/gi)
+    .map((s) =>
+      s
+        .replace(/<[^>]+>/g, '')
+        .replace(/\|[^|]+\|/g, '')
+        .trim(),
+    )
+    .filter(Boolean);
+
+  if (rawSegments.length === 0) {
+    rawSegments.push('Prevención inteligente y seguridad en el trabajo con WAPPY IA.');
+  }
+
+  const merged: string[] = [];
+  for (let i = 0; i < rawSegments.length; i++) {
+    const seg = rawSegments[i];
+    if (seg.length < 18 && i + 1 < rawSegments.length) {
+      rawSegments[i + 1] = `${seg} ${rawSegments[i + 1]}`;
+    } else {
+      merged.push(seg);
+    }
+  }
+
+  const maxBeats = 7;
+  const beatsRaw: string[] = [];
+  if (merged.length <= maxBeats) {
+    beatsRaw.push(...merged);
+  } else {
+    const groupSize = Math.ceil(merged.length / maxBeats);
+    for (let i = 0; i < merged.length; i += groupSize) {
+      beatsRaw.push(merged.slice(i, i + groupSize).join(' '));
+    }
+  }
+
+  const wordTimings: { word: string; startPct: number; endPct: number; beatIndex: number }[] = [];
+  const beatObjects: {
+    index: number;
+    text: string;
+    startSec: number;
+    endSec: number;
+    durationSec: number;
+    startPct: number;
+    endPct: number;
+  }[] = [];
+  let totalWeight = 0;
+
+  const tempBeats = beatsRaw.map((text, bIdx) => {
+    const words = text.split(/\s+/).filter(Boolean);
+    const wList = words.map((w) => {
+      const cleanLen = w.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ0-9]/g, '').length;
+      let weight = Math.max(2, cleanLen);
+      if (/[,;:]$/.test(w)) weight += 4;
+      if (/[.!?…]$/.test(w)) weight += 9;
+      return { word: w, weight };
+    });
+    if (wList.length > 0) wList[wList.length - 1].weight += 7;
+    const beatWeight = wList.reduce((acc, item) => acc + item.weight, 0) || 10;
+    totalWeight += beatWeight;
+    return { text, bIdx, wList, beatWeight };
+  });
+
+  let accWeight = 0;
+  for (let i = 0; i < tempBeats.length; i++) {
+    const b = tempBeats[i];
+    const startPct = accWeight / Math.max(1, totalWeight);
+    const endPct = (accWeight + b.beatWeight) / Math.max(1, totalWeight);
+    const startSec = Number((startPct * safeTotal).toFixed(2));
+    const endSec = Number((endPct * safeTotal).toFixed(2));
+    const durationSec = Number(Math.max(0.8, endSec - startSec).toFixed(2));
+
+    let wordAcc = accWeight;
+    for (const wItem of b.wList) {
+      const wStartPct = wordAcc / Math.max(1, totalWeight);
+      wordAcc += wItem.weight;
+      const wEndPct = wordAcc / Math.max(1, totalWeight);
+      wordTimings.push({
+        word: wItem.word,
+        startPct: Number(wStartPct.toFixed(4)),
+        endPct: Number(wEndPct.toFixed(4)),
+        beatIndex: i,
+      });
+    }
+    accWeight += b.beatWeight;
+
+    beatObjects.push({
+      index: i + 1,
+      text: b.text,
+      startSec,
+      endSec,
+      durationSec,
+      startPct: Number(startPct.toFixed(4)),
+      endPct: Number(endPct.toFixed(4)),
+    });
+  }
+
+  return { beats: beatObjects, wordTimings, totalDurationSeconds: safeTotal };
+}
+
 function buildHtmlPrompts(b: any) {
   const aspectRatio = b.aspectRatio || '9:16';
   const isVertical = aspectRatio === '9:16';
   const width = isVertical ? 1080 : 1920;
   const height = isVertical ? 1920 : 1080;
   const hasBaseVideo = Boolean(b.hasBaseVideo);
-  const durationSeconds = b.durationSeconds || 30;
-  const systemInstruction = `Eres un Director de Motion Graphics Senior experto en el sistema de diseño cinematográfico HyperFrames (SKILL hyperframes-motion-design), GSAP 3, Tailwind CSS y animaciones virales estilo Claude / HeyGen.
-Tu objetivo es crear una página HTML5 autocontenida, fluida, editable y cinematográfica con relación de aspecto ${aspectRatio} (${width}x${height}) lista para reproducirse en cualquier tamaño de pantalla (normal o pantalla completa) sin desbordarse jamás.
+  const durationSeconds = Math.max(6, Math.min(180, Number(b.durationSeconds) || 30));
+  const companyName = b.companyName || 'WAPPY IA';
+  const effectiveScript =
+    b.scriptText ||
+    b.prompt ||
+    'La prevención y la inteligencia artificial transforman la seguridad en el trabajo con WAPPY IA.';
+  const timelineMap = computePortableScriptTimelineMap(effectiveScript, durationSeconds);
+  const beatsScheduleText = timelineMap.beats
+    .map(
+      (beat) =>
+        `  * ESCENA #scene-${beat.index} [Desde ${beat.startSec}s hasta ${beat.endSec}s (duración ${beat.durationSec}s)]: "${beat.text}"`,
+    )
+    .join('\n');
 
-REGLAS ESTRICTAS DE ARQUITECTURA VISUAL Y RESPONSIVIDAD (PROHIBIDO DESBORDAR EL LIENZO):
+  const systemInstruction = `Eres el Director de Motion Graphics Senior de WAPPY IA, experto en los sistemas oficiales "animaciones-17-efectos-reels", "animaciones-wappy-brand", "animaciones-dark-tech-hud", "animaciones-explicativas-sst" y "hyperframes-motion-design" (GSAP 3 + Tailwind CSS + SVG Duotone + HUD Táctico).
+Tu objetivo es crear una composición HTML5 autocontenida, cinematográfica y 100% sincronizada segundo a segundo con la voz para relación de aspecto ${aspectRatio} (${width}x${height}).
+
+REGLAS ESTRICTAS DE ARQUITECTURA VISUAL, IDENTIDAD WAPPY Y SINCRONIZACIÓN DE VOZ:
 1. Devuelve ÚNICAMENTE el código HTML completo (desde <!DOCTYPE html> hasta </html>), sin bloques markdown (\`\`\`html).
 2. Incluye en el <head>:
    - <script src="https://cdn.tailwindcss.com"></script>
    - <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-   - Google Fonts: 'Plus Jakarta Sans', 'Syne' y 'JetBrains Mono'.
-3. GEOMETRÍA AUTO-AJUSTABLE Y CENTRADA (CERO CORRIMIENTO EN PANTALLA COMPLETA O NORMAL):
-   - PROHIBIDO usar \`width: 1920px\` o \`width: 1080px\` fijos en \`body\` o contenedores que causen recorte o corrimiento horizontal.
-   - \`html, body\` DEBEN tener: \`width: 100vw; height: 100vh; max-width: 100%; max-height: 100%; margin: 0; padding: 0; overflow: hidden; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;\`
-   - Envuelve el contenido visual dentro de un contenedor maestro \`<div id="stage" class="relative w-full h-full flex flex-col justify-between p-5 sm:p-8 overflow-hidden box-border">\` con unidades relativas (\`w-full\`, \`max-w-4xl mx-auto\`, \`clamp()\`, \`grid\`, \`flex\`) para que se vea 100% centrado tanto en vista previa pequeña como en Pantalla Completa.
-4. TRANSPARENCIA PARA CAPA DE VIDEO BASE:
-   - Si hasBaseVideo es true (${hasBaseVideo}), el <body> DEBE tener \`background: transparent;\` para que el video grabado a cámara del usuario en la capa inferior se vea nítidamente, y tus gráficos/tarjetas/badges se superpongan con glassmorphism (\`backdrop-filter: blur(16px)\`, \`background: rgba(10, 18, 30, 0.78)\`, bordes luminosos).
-   - Si hasBaseVideo es false, crea un fondo oscuro animado de alto impacto (\`#060d14\`) con orbes de luz flotantes, rejilla técnica sutil (grid) y viñeta cinematográfica.
-5. SISTEMA DE DISEÑO HYPERFRAMES MOTION DESIGN (GSAP TIMELINE MAESTRO SIN BUCLE INFINITO Y COMPATIBLE CON WHATSAPP):
-   - Crea SIEMPRE la línea de tiempo maestra asignada a \`window.mainTimeline = gsap.timeline({ repeat: 0 });\`. PROHIBIDO usar \`repeat: -1\` en \`window.mainTimeline\` para que la animación termine exactamente junto con el audio y se detenga en la escena final de cierre (NUNCA apagues con \`opacity: 0\` la escena final de cierre en el último segundo).
-   - PROHIBIDO poner la clase \`opacity-0\` o \`style="opacity:0"\` en el HTML estático del encabezado (\`#header-hud\`) ni de la primera escena (\`#scene-1\` y sus hijos). La primera escena DEBE ser 100% visible por defecto en el HTML estático para que al abrir el archivo en el visor de WhatsApp móvil se vea inmediatamente el diseño completo (usa \`master.from("#sc1-card", { opacity: 0, y: 20, ... })\` en lugar de ocultar con \`opacity-0\` en el HTML).
-   - Desarrolla una coreografía multicapa de ${durationSeconds} segundos dividida en beats visuales claros (Entrada con impacto, Desarrollo de tarjetas/reglas numeradas, Métricas/HUD y Cierre que permanece visible al terminar).
-   - Usa curvas elásticas y expresivas: \`back.out(1.7)\`, \`expo.out\`, \`elastic.out(1, 0.5)\`, \`power3.out\`.
-   - Añade atributos \`data-editable="true"\` en todas las tarjetas, insignias y textos importantes para que el editor visual de WAPPY Studio pueda moverlos y editarlos con el mouse.
-   - Deja libre la franja inferior (\`padding-bottom: 64px\`) para que los subtítulos dinámicos palabra a palabra no tapen las tarjetas.
-6. API DE CONTROL EXTERNO (OBLIGATORIA):
-   - Escucha mensajes \`window.addEventListener('message', (e) => { ... })\` para soportar:
-     - \`{ type: 'STUDIO_PLAY' }\` -> \`window.mainTimeline?.play(); gsap.globalTimeline.play();\`
-     - \`{ type: 'STUDIO_PAUSE' }\` -> \`window.mainTimeline?.pause(); gsap.globalTimeline.pause();\`
-     - \`{ type: 'STUDIO_RESTART' }\` -> \`window.mainTimeline?.restart(); gsap.globalTimeline.restart();\`
-     - \`{ type: 'STUDIO_SEEK', progress: 0..1 }\` -> \`window.mainTimeline?.progress(e.data.progress);\``;
+   - Google Fonts: 'Outfit' (800, 900), 'Plus Jakarta Sans' (500, 700, 800) y 'JetBrains Mono' (600, 700).
+3. IDENTIDAD VISUAL OFICIAL DE WAPPY IA:
+   - Paleta oficial: Verde Lima Eléctrico (\`#c7f303\`), Turquesa SST (\`#14b8a6\` / \`#0d9488\`), Cian HUD (\`#06b6d4\`), Ámbar Alerta (\`#f59e0b\`) y Cosmos Oscuro (\`#050d0a\` a \`#060d14\`).
+   - Titulares Cinéticos en 'Outfit' ExtraBold/Black con píldoras de resaltado luminoso: \`<span class="inline-block px-3 py-0.5 rounded-xl bg-[#c7f303] text-[#0a1004] font-black shadow-[0_0_24px_rgba(199,243,3,0.45)]">PALABRA CLAVE</span>\`.
+   - TOP HUD TÁCTICO (#header-hud): Ecualizador animado + insignia \`ECOSISTEMA IA • SG-SST\` + radar SVG giratorio o \`• WAPPY.CLUB\`.
+   - RIQUEZA VISUAL OBLIGATORIA: Cada escena debe incluir tarjetas comparativas (Tradicional Rojo vs WAPPY IA Lima), Mockup de Celular con Dynamic Island, Telemetría HUD con barras de progreso, e Iconos SVG Duotone grandes animados.
+4. SINCRONIZACIÓN EXACTA ESCENA POR ESCENA CON LA VOZ:
+   - Tienes ${timelineMap.beats.length} escenas obligatorias sincronizadas con la voz:
+${beatsScheduleText}
+   - En \`window.mainTimeline = gsap.timeline({ repeat: 0 });\`:
+     * Posiciona cada \`#scene-i\` en su \`startSec\` exacto.
+     * \`#scene-1\` DEBE estar visible por defecto en el HTML estático (sin \`opacity-0\`).
+     * La última escena (\`#scene-${timelineMap.beats.length}\`) NUNCA debe ocultarse al terminar.
+   - PROHIBIDO crear un \`<footer id="subtitle-container">\` propio ni usar \`subtitles.reverse()\`. Deja \`padding-bottom: 78px\` en \`#stage\`.
+5. API DE CONTROL EXTERNO:
+   - Escucha \`window.addEventListener('message', (e) => { ... })\` para \`STUDIO_PLAY\`, \`STUDIO_PAUSE\`, \`STUDIO_RESTART\` y \`STUDIO_SEEK\` (\`window.mainTimeline?.progress(e.data.progress)\`).`;
 
-  const userPrompt = `Diseña una composición animada en HTML + GSAP con estas especificaciones:
+  const userPrompt = `Diseña una composición animada de nivel estudio en HTML + GSAP sincronizada exactamente con este mapa de locución:
 - Formato: ${aspectRatio} (${width}x${height})
-- Duración objetivo: ${durationSeconds} segundos
-- Empresa / Marca: ${b.companyName || 'WAPPY IA'}
-- Paleta / Tema: ${b.theme || 'wappy-emerald'}
-- ¿Tiene video base del usuario debajo?: ${hasBaseVideo ? 'SÍ (usar fondo transparente y tarjetas superpuestas en tercio superior e inferior sin tapar el rostro central)' : 'NO (diseñar escena completa a pantalla completa con fondo cinematográfico)'}
-- ¿Mostrar barra de subtítulos dinámicos?: ${b.showSubtitles !== false ? 'SÍ' : 'NO'}
-- Instrucción creativa del usuario: ${b.prompt || 'Cápsula de alto impacto visual con estadísticas, insignias animadas y puntos clave.'}
-- Guion / Texto de locución para sincronizar las escenas y subtítulos:
-"""
-${b.scriptText || b.prompt || 'La prevención y la inteligencia artificial transforman la seguridad en el trabajo.'}
-"""
+- Duración exacta del audio: ${durationSeconds} segundos
+- Empresa / Marca: ${companyName}
+- Tema visual: ${b.theme || 'wappy-emerald'}
+- ¿Tiene video base debajo?: ${hasBaseVideo ? 'SÍ (fondo transparente)' : 'NO (fondo cósmico WAPPY Dark Tech + partículas)'}
+- Instrucción creativa del usuario: ${b.prompt || 'Reel estilo WAPPY IA oficial con tarjetas interactivas, iconos SVG duotone animados y telemetría HUD.'}
+- MAPA EXACTO DE ESCENAS Y TIEMPOS DE VOZ:
+${beatsScheduleText}
 
-Recuerda devolver SOLO el código HTML puro empezando por <!DOCTYPE html>.`;
-  return { systemInstruction, userPrompt };
+Devuelve SOLO el código HTML puro empezando por <!DOCTYPE html>.`;
+  return { systemInstruction, userPrompt, timelineMap };
 }
 
 async function generateHtml(b: any) {
   const keys = requireKeys();
-  const { systemInstruction, userPrompt } = buildHtmlPrompts(b);
+  const { systemInstruction, userPrompt, timelineMap } = buildHtmlPrompts(b);
   const envIds = textModelIds();
   const preferred = String(b.modelName || envIds[0]).replace('models/', '').trim();
   const models = [preferred, ...envIds.filter((m) => m !== preferred)];
@@ -561,12 +671,15 @@ async function generateHtml(b: any) {
       const r = await geminiPost(model, key, {
         systemInstruction: { parts: [{ text: systemInstruction }] },
         contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-        generationConfig: { temperature: 0.4 },
+        generationConfig: { temperature: 0.35 },
       }, 180000).catch((e) => ({ ok: false, status: 0, data: { error: { message: e?.message } } }) as any);
       if (r.ok) {
         let html = (r.data?.candidates?.[0]?.content?.parts || []).map((p: any) => p.text || '').join('');
         html = html.replace(/^```html\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
         if (!html.toLowerCase().includes('<html')) throw new Error('El modelo no devolvió un documento HTML válido.');
+        html = html.replace(/subtitles\.reverse\(\)/g, 'subtitles.slice().reverse()');
+        const syncHelper = `<script id="wappy-beat-sync-helper">window.__wappyTimelineBeats=${JSON.stringify(timelineMap.beats)};window.__wappyWordTimings=${JSON.stringify(timelineMap.wordTimings)};</script>`;
+        html = html.includes('</head>') ? html.replace('</head>', `${syncHelper}\n</head>`) : `${syncHelper}\n${html}`;
         return html;
       }
       lastErr = r.data?.error?.message || `Error ${r.status}`;

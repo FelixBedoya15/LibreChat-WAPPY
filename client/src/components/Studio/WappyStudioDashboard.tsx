@@ -617,38 +617,267 @@ const STUDIO_SCENE_TEMPLATES: {
 }[] = [
   {
     id: 'golden-rules',
-    name: '⚡ Reglas de Oro Glass',
-    badge: 'Estilo Claude',
-    description: 'Tarjeta hero con barra de progreso e indicadores clave en cristal.',
+    name: '🔥 Reel WAPPY + Félix 3D',
+    badge: 'Oficial GTC-45',
+    description: 'Multi-escena con Félix 3D lip-sync, Mockup celular, VS y tarjetas sincronizadas con la voz.',
   },
   {
     id: 'kpi-hud',
-    name: '📊 Dashboard KPIs & HUD',
-    badge: 'Ejecutivo',
-    description: 'Métricas ejecutivas animadas con barras comparativas y telemetría.',
+    name: '🚀 Ecosistema + Tenshi IA',
+    badge: 'Plataforma 40s',
+    description: 'Constelación IA, telemetría 3D en vivo, comparativa VS y tarjeta oráculo Tenshi.',
   },
   {
     id: 'alert-sst',
-    name: '🚨 Alerta & Checklist 1-2-3',
-    badge: 'Prevención',
-    description: 'Pasos numerados de seguridad con entrada secuencial elástica.',
+    name: '📜 Expediente & Reglas SST',
+    badge: 'Normativo',
+    description: 'Visor normativo con resaltador fluorescente, checklist secuencial 1-2-3 y radar.',
   },
   {
     id: 'camera-overlay',
     name: '🎬 Lower-Third (Video Propio)',
     badge: 'Transparente',
-    description: 'Capas limpias en tercio superior e inferior para dejar libre tu rostro.',
+    description: 'Capas dinámicas por frase en tercio superior e inferior sin tapar tu rostro.',
   },
 ];
+
+interface ScriptBeatItem {
+  index: number;
+  text: string;
+  startSec: number;
+  endSec: number;
+  durationSec: number;
+  startPct: number;
+  endPct: number;
+  badge: string;
+  titleLead: string;
+  titleHighlight: string;
+  pillColor: 'lime' | 'cyan' | 'amber';
+  iconType: 'bolt' | 'lock' | 'radar' | 'shield' | 'alert' | 'chart';
+  gesture: 'wave' | 'pointLeft' | 'pointRight' | 'bothUp';
+}
+
+interface ScriptWordTiming {
+  word: string;
+  startPct: number;
+  endPct: number;
+  beatIndex: number;
+}
+
+function computeClientScriptTimelineMap(
+  scriptText: string,
+  totalDurationSeconds = 28,
+): {
+  beats: ScriptBeatItem[];
+  wordTimings: ScriptWordTiming[];
+  totalDurationSeconds: number;
+} {
+  const safeTotal = Math.max(4, Number(totalDurationSeconds) || 28);
+  const raw = String(scriptText || '')
+    .replace(/^(Alex|Sam|Hablante\s*\d+|Speaker\s*\d+):\s*/gim, '')
+    .trim();
+
+  const rawSegments = raw
+    .split(/(?<=[.!?…])\s+|\n+|<breath>/gi)
+    .map((s) =>
+      s
+        .replace(/<[^>]+>/g, '')
+        .replace(/\|[^|]+\|/g, '')
+        .trim(),
+    )
+    .filter(Boolean);
+
+  if (rawSegments.length === 0) {
+    rawSegments.push('Prevención inteligente y seguridad en el trabajo con WAPPY IA.');
+  }
+
+  const merged: string[] = [];
+  for (let i = 0; i < rawSegments.length; i++) {
+    const seg = rawSegments[i];
+    if (seg.length < 18 && i + 1 < rawSegments.length) {
+      rawSegments[i + 1] = `${seg} ${rawSegments[i + 1]}`;
+    } else {
+      merged.push(seg);
+    }
+  }
+
+  const maxBeats = 7;
+  const beatsRaw: string[] = [];
+  if (merged.length <= maxBeats) {
+    beatsRaw.push(...merged);
+  } else {
+    const groupSize = Math.ceil(merged.length / maxBeats);
+    for (let i = 0; i < merged.length; i += groupSize) {
+      beatsRaw.push(merged.slice(i, i + groupSize).join(' '));
+    }
+  }
+
+  const wordTimings: ScriptWordTiming[] = [];
+  const beatObjects: ScriptBeatItem[] = [];
+  let totalWeight = 0;
+
+  const tempBeats = beatsRaw.map((text, bIdx) => {
+    const words = text.split(/\s+/).filter(Boolean);
+    const wList = words.map((w) => {
+      const cleanLen = w.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ0-9]/g, '').length;
+      let weight = Math.max(2, cleanLen);
+      if (/[,;:]$/.test(w)) weight += 4;
+      if (/[.!?…]$/.test(w)) weight += 9;
+      return { word: w, weight };
+    });
+    if (wList.length > 0) wList[wList.length - 1].weight += 7;
+    const beatWeight = wList.reduce((acc, item) => acc + item.weight, 0) || 10;
+    totalWeight += beatWeight;
+    return { text, bIdx, wList, beatWeight };
+  });
+
+  const gestures: ('wave' | 'pointLeft' | 'pointRight' | 'bothUp')[] = [
+    'wave',
+    'pointLeft',
+    'pointRight',
+    'bothUp',
+  ];
+  const pillColors: ('lime' | 'cyan' | 'amber')[] = ['lime', 'cyan', 'amber'];
+
+  let accWeight = 0;
+  for (let i = 0; i < tempBeats.length; i++) {
+    const b = tempBeats[i];
+    const startPct = accWeight / Math.max(1, totalWeight);
+    const endPct = (accWeight + b.beatWeight) / Math.max(1, totalWeight);
+    const startSec = Number((startPct * safeTotal).toFixed(2));
+    const endSec = Number((endPct * safeTotal).toFixed(2));
+    const durationSec = Number(Math.max(0.8, endSec - startSec).toFixed(2));
+
+    let wordAcc = accWeight;
+    for (const wItem of b.wList) {
+      const wStartPct = wordAcc / Math.max(1, totalWeight);
+      wordAcc += wItem.weight;
+      const wEndPct = wordAcc / Math.max(1, totalWeight);
+      wordTimings.push({
+        word: wItem.word,
+        startPct: Number(wStartPct.toFixed(4)),
+        endPct: Number(wEndPct.toFixed(4)),
+        beatIndex: i,
+      });
+    }
+    accWeight += b.beatWeight;
+
+    const cleanWords = b.text
+      .replace(/^[¡!¿?]+/, '')
+      .split(/\s+/)
+      .filter(Boolean);
+    const colonIdx = b.text.indexOf(':');
+    let badge =
+      i === 0
+        ? '⚡ IMPACTO INICIAL • WAPPY IA'
+        : i === tempBeats.length - 1
+          ? '🛡️ CIERRE EJECUTIVO • SOMOS SST'
+          : `PUNTO CLAVE 0${i}`;
+    if (/^(primero|1\b)/i.test(b.text)) badge = '⚡ REGLA DE ORO 01';
+    else if (/^(segundo|2\b)/i.test(b.text)) badge = '🔒 REGLA DE ORO 02';
+    else if (/^(tercero|3\b)/i.test(b.text)) badge = '📡 REGLA DE ORO 03';
+    else if (/^(cuarto|4\b)/i.test(b.text)) badge = '🛡️ REGLA DE ORO 04';
+    else if (/^(quinto|5\b)/i.test(b.text)) badge = '🚨 REGLA DE ORO 05';
+
+    let titleWords = cleanWords.slice(0, Math.min(5, cleanWords.length));
+    if (colonIdx > 0 && colonIdx < 16) {
+      const afterColon = b.text
+        .slice(colonIdx + 1)
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+      if (afterColon.length >= 2) {
+        titleWords = afterColon.slice(0, Math.min(5, afterColon.length));
+      }
+    }
+    const splitAt = Math.max(1, Math.ceil(titleWords.length * 0.55));
+    const titleLead = titleWords.slice(0, splitAt).join(' ').replace(/[,;:.!?]+$/, '');
+    const titleHighlight =
+      titleWords
+        .slice(splitAt)
+        .join(' ')
+        .replace(/[,;:.!?]+$/, '') || 'WAPPY IA';
+
+    const lower = b.text.toLowerCase();
+    let iconType: 'bolt' | 'lock' | 'radar' | 'shield' | 'alert' | 'chart' = 'bolt';
+    if (/bloqueo|tarjeteo|candado|loto|aislar/.test(lower)) iconType = 'lock';
+    else if (/verificar|ausencia|medir|auditor|inspecci|radar|pose|telemetr/.test(lower)) iconType = 'radar';
+    else if (/tierra|cortocircuito|protecci|epp|casco|seguridad|prevenci/.test(lower)) iconType = 'shield';
+    else if (/señalizar|delimitar|alerta|peligro|error|riesgo/.test(lower)) iconType = 'alert';
+    else if (/matriz|gtc|excel|informe|indicador|semana|minuto/.test(lower)) iconType = 'chart';
+
+    beatObjects.push({
+      index: i + 1,
+      text: b.text,
+      startSec,
+      endSec,
+      durationSec,
+      startPct: Number(startPct.toFixed(4)),
+      endPct: Number(endPct.toFixed(4)),
+      badge,
+      titleLead,
+      titleHighlight,
+      pillColor: pillColors[i % pillColors.length],
+      iconType,
+      gesture: gestures[i % gestures.length],
+    });
+  }
+
+  return { beats: beatObjects, wordTimings, totalDurationSeconds: safeTotal };
+}
+
+function getDuotoneSvgMarkup(iconType: string, accentColor: string): string {
+  if (iconType === 'lock') {
+    return `<svg viewBox="0 0 64 64" class="w-11 h-11 shrink-0" fill="none">
+      <rect x="12" y="28" width="40" height="28" rx="8" fill="${accentColor}" fill-opacity="0.22" stroke="${accentColor}" stroke-width="2.8"/>
+      <path d="M20 28V20C20 13.3726 25.3726 8 32 8C38.6274 8 44 13.3726 44 20V28" stroke="#c7f303" stroke-width="3.2" stroke-linecap="round"/>
+      <circle cx="32" cy="42" r="4" fill="#c7f303"/>
+    </svg>`;
+  }
+  if (iconType === 'radar') {
+    return `<svg viewBox="0 0 64 64" class="w-11 h-11 shrink-0" fill="none">
+      <circle cx="32" cy="32" r="24" fill="${accentColor}" fill-opacity="0.16" stroke="${accentColor}" stroke-width="2.5" stroke-dasharray="6 4"/>
+      <circle cx="32" cy="32" r="14" stroke="#c7f303" stroke-width="2" stroke-opacity="0.7"/>
+      <path d="M32 32L48 18" stroke="#c7f303" stroke-width="3.2" stroke-linecap="round"/>
+      <circle cx="32" cy="32" r="4" fill="#c7f303"/>
+    </svg>`;
+  }
+  if (iconType === 'shield') {
+    return `<svg viewBox="0 0 64 64" class="w-11 h-11 shrink-0" fill="none">
+      <path d="M32 6L10 15V31C10 45.5 19.4 57.6 32 61C44.6 57.6 54 45.5 54 31V15L32 6Z" fill="${accentColor}" fill-opacity="0.2" stroke="${accentColor}" stroke-width="2.8"/>
+      <path d="M22 33L29 40L43 25" stroke="#c7f303" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+  }
+  if (iconType === 'alert') {
+    return `<svg viewBox="0 0 64 64" class="w-11 h-11 shrink-0" fill="none">
+      <path d="M32 8L6 54H58L32 8Z" fill="#f59e0b" fill-opacity="0.22" stroke="#f59e0b" stroke-width="2.8" stroke-linejoin="round"/>
+      <path d="M32 24V38" stroke="#c7f303" stroke-width="3.6" stroke-linecap="round"/>
+      <circle cx="32" cy="46" r="2.8" fill="#c7f303"/>
+    </svg>`;
+  }
+  if (iconType === 'chart') {
+    return `<svg viewBox="0 0 64 64" class="w-11 h-11 shrink-0" fill="none">
+      <rect x="10" y="34" width="10" height="20" rx="3" fill="${accentColor}" fill-opacity="0.35" stroke="${accentColor}" stroke-width="2"/>
+      <rect x="27" y="22" width="10" height="32" rx="3" fill="${accentColor}" fill-opacity="0.55" stroke="${accentColor}" stroke-width="2"/>
+      <rect x="44" y="12" width="10" height="42" rx="3" fill="#c7f303" fill-opacity="0.85" stroke="#c7f303" stroke-width="2"/>
+    </svg>`;
+  }
+  return `<svg viewBox="0 0 64 64" class="w-11 h-11 shrink-0" fill="none">
+    <circle cx="32" cy="32" r="25" fill="${accentColor}" fill-opacity="0.16" stroke="${accentColor}" stroke-width="2"/>
+    <path d="M35 8L14 35H31L28 56L50 28H33L35 8Z" fill="#c7f303" stroke="#c7f303" stroke-width="2" stroke-linejoin="round"/>
+  </svg>`;
+}
 
 function buildDefaultHtmlComposition({
   aspectRatio = '9:16',
   hasBaseVideo = false,
-  badgeText = 'CÁPSULA INTERACTIVA WAPPY',
+  badgeText = 'ECOSISTEMA IA • SG-SST',
   headline = '5 Reglas de Oro en Seguridad',
   subheadline = 'Prevención inteligente en tiempo real con WAPPY Studio',
   accentColor = '#14b8a6',
   templateId = 'golden-rules',
+  scriptText = '',
+  durationSeconds = 28,
 }: {
   aspectRatio?: '9:16' | '16:9';
   hasBaseVideo?: boolean;
@@ -657,118 +886,275 @@ function buildDefaultHtmlComposition({
   subheadline?: string;
   accentColor?: string;
   templateId?: StudioSceneTemplateId;
+  scriptText?: string;
+  durationSeconds?: number;
 }) {
   const isVertical = aspectRatio === '9:16';
-  const safeBadge = badgeText.replace(/</g, '&lt;');
-  const safeHeadline = headline.replace(/</g, '&lt;');
-  const safeSubheadline = subheadline.replace(/</g, '&lt;');
+  const safeBadge = (badgeText || 'ECOSISTEMA IA • SG-SST').replace(/</g, '&lt;');
+  const safeHeadline = (headline || 'Prevención Inteligente WAPPY IA').replace(/</g, '&lt;');
+  const safeSubheadline = (subheadline || 'Sincronización neural en vivo').replace(/</g, '&lt;');
   const useTransparentBg = hasBaseVideo || templateId === 'camera-overlay';
 
-  let centerMarkup = '';
-  if (templateId === 'kpi-hud') {
-    centerMarkup = `
-      <div id="hero-card" data-editable="true" class="w-full glass-card rounded-3xl ${isVertical ? 'p-5' : 'p-4'} border-t-2" style="border-top-color: ${accentColor};">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-[11px] font-mono uppercase tracking-wider text-teal-400">📊 TELEMETRÍA PREVENTIVA</span>
-          <span class="text-[11px] font-mono font-bold text-emerald-400">▲ +98.4% EFECTIVIDAD</span>
-        </div>
-        <h1 class="${isVertical ? 'text-xl sm:text-2xl' : 'text-lg sm:text-xl'} font-black leading-tight text-white">
-          ${safeHeadline}
-        </h1>
-        <p class="text-xs text-slate-300 mt-1">${safeSubheadline}</p>
-        <div class="mt-4 space-y-2.5">
-          <div>
-            <div class="flex justify-between text-[11px] font-bold mb-1">
-              <span class="text-slate-300">Controles Operativos Verificados</span>
-              <span class="text-teal-300 font-mono">96%</span>
-            </div>
-            <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-              <div id="accent-bar" class="h-full rounded-full" style="width: 96%; background: linear-gradient(90deg, ${accentColor}, #34d399);"></div>
-            </div>
-          </div>
-          <div>
-            <div class="flex justify-between text-[11px] font-bold mb-1">
-              <span class="text-slate-300">Reducción de Incidentes Críticos</span>
-              <span class="text-amber-300 font-mono">100%</span>
-            </div>
-            <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-              <div class="h-full rounded-full" style="width: 100%; background: linear-gradient(90deg, #f59e0b, #10b981);"></div>
-            </div>
-          </div>
-        </div>
-      </div>`;
-  } else if (templateId === 'alert-sst') {
-    centerMarkup = `
-      <div id="hero-card" data-editable="true" class="w-full glass-card rounded-3xl ${isVertical ? 'p-5' : 'p-4'} border-l-4" style="border-left-color: #f59e0b;">
-        <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] font-black uppercase tracking-wider mb-2">
-          ⚠️ PROTOCOLO OBLIGATORIO EN PLANTA
-        </div>
-        <h1 class="${isVertical ? 'text-xl sm:text-2xl' : 'text-lg sm:text-xl'} font-black leading-tight text-white">
-          ${safeHeadline}
-        </h1>
-        <p class="text-xs text-slate-300 mt-1">${safeSubheadline}</p>
-      </div>
-      <div class="w-full grid grid-cols-1 gap-2" id="metrics-row">
-        <div data-editable="true" class="metric-item glass-card rounded-2xl p-3 flex items-center gap-3">
-          <span class="w-7 h-7 rounded-xl bg-teal-500/20 border border-teal-400/40 text-teal-300 font-mono font-black text-xs flex items-center justify-center shrink-0">01</span>
-          <span class="text-xs font-bold text-white">Aislar y bloquear todas las fuentes de energía (LOTO)</span>
-        </div>
-        <div data-editable="true" class="metric-item glass-card rounded-2xl p-3 flex items-center gap-3">
-          <span class="w-7 h-7 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-300 font-mono font-black text-xs flex items-center justify-center shrink-0">02</span>
-          <span class="text-xs font-bold text-white">Verificar ausencia de tensión con equipo calibrado</span>
-        </div>
-        <div data-editable="true" class="metric-item glass-card rounded-2xl p-3 flex items-center gap-3">
-          <span class="w-7 h-7 rounded-xl bg-indigo-500/20 border border-indigo-400/40 text-indigo-300 font-mono font-black text-xs flex items-center justify-center shrink-0">03</span>
-          <span class="text-xs font-bold text-white">Delimitar, señalizar y autorizar permiso de trabajo</span>
-        </div>
-      </div>`;
-  } else if (templateId === 'camera-overlay') {
-    centerMarkup = `
-      <div class="my-auto"></div>
-      <div id="hero-card" data-editable="true" class="w-full glass-card rounded-2xl p-4 border-l-4" style="border-left-color: ${accentColor};">
-        <div class="text-[10px] font-mono uppercase tracking-widest text-teal-300 font-extrabold">${safeBadge}</div>
-        <h1 class="text-lg sm:text-xl font-black text-white leading-snug mt-0.5">${safeHeadline}</h1>
-        <p class="text-xs text-slate-300 mt-0.5">${safeSubheadline}</p>
-      </div>`;
-  } else {
-    centerMarkup = `
-      <div id="hero-card" data-editable="true" class="w-full glass-card rounded-3xl ${isVertical ? 'p-5 sm:p-6' : 'p-4 sm:p-5'} border-l-4" style="border-left-color: ${accentColor};">
-        <div class="text-xs font-mono uppercase tracking-wider text-teal-400 mb-1">⚡ PUNTO CLAVE EN VIVO</div>
-        <h1 class="${isVertical ? 'text-xl sm:text-2xl' : 'text-lg sm:text-xl'} font-black leading-tight tracking-tight text-white">
-          ${safeHeadline}
-        </h1>
-        <p class="text-xs sm:text-sm text-slate-300 mt-1.5 leading-relaxed font-medium">
-          ${safeSubheadline}
-        </p>
-        <div class="mt-3.5 h-1.5 w-full bg-slate-800/90 rounded-full overflow-hidden">
-          <div id="accent-bar" class="h-full rounded-full" style="width: 100%; background: linear-gradient(90deg, ${accentColor}, #fbbf24);"></div>
-        </div>
-      </div>
+  const effectiveScript =
+    (scriptText || '').trim() ||
+    `${safeHeadline}. ${safeSubheadline}. Primero: Identifica y controla los peligros críticos en terreno. Segundo: Verifica cada protocolo con inteligencia artificial. Tercero: Protege la vida de tu equipo con WAPPY IA.`;
+  const timelineMap = computeClientScriptTimelineMap(effectiveScript, durationSeconds);
+  const beats = timelineMap.beats;
 
-      <div class="w-full grid grid-cols-3 gap-2 sm:gap-2.5" id="metrics-row">
-        <div data-editable="true" class="metric-item glass-card rounded-2xl ${isVertical ? 'p-2.5 sm:p-3' : 'p-2.5'} text-center">
-          <div class="${isVertical ? 'text-base sm:text-lg' : 'text-sm sm:text-base'} font-black text-emerald-400">100%</div>
-          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-300 mt-0.5">Cumplimiento</div>
+  const pillClass = (c: 'lime' | 'cyan' | 'amber') => {
+    if (c === 'cyan') {
+      return 'background:linear-gradient(135deg,#06b6d4,#14b8a6);color:#041318;box-shadow:0 0 22px rgba(6,182,212,0.45);';
+    }
+    if (c === 'amber') {
+      return 'background:linear-gradient(135deg,#f97316,#f59e0b);color:#180902;box-shadow:0 0 22px rgba(245,158,11,0.45);';
+    }
+    return 'background:#c7f303;color:#0a1103;box-shadow:0 0 24px rgba(199,243,3,0.5);';
+  };
+
+  // Construir una escena visual rica por cada Beat del guion para sincronía 1:1 con la voz
+  const scenesHtml = beats
+    .map((beat, idx) => {
+      const isFirst = idx === 0;
+      const isLast = idx === beats.length - 1;
+      const escText = beat.text.replace(/</g, '&lt;');
+      const escLead = (isFirst && headline ? safeHeadline.split(/\s+/).slice(0, 3).join(' ') : beat.titleLead).replace(/</g, '&lt;');
+      const escHigh = (
+        isFirst && headline && headline.split(/\s+/).length > 3
+          ? headline.split(/\s+/).slice(3).join(' ')
+          : beat.titleHighlight
+      ).replace(/</g, '&lt;');
+      const svgIcon = getDuotoneSvgMarkup(beat.iconType, accentColor);
+
+      if (templateId === 'camera-overlay') {
+        return `
+        <div id="scene-${beat.index}" class="scene-layer ${isFirst ? '' : 'opacity-0 pointer-events-none'} absolute inset-x-0 bottom-2 flex flex-col justify-end">
+          <div data-editable="true" class="sc-card glass-card rounded-2xl p-3.5 sm:p-4 border-l-4" style="border-left-color:#c7f303;">
+            <div class="flex items-center justify-between gap-2 mb-1">
+              <span class="text-[10px] font-mono uppercase tracking-widest text-[#c7f303] font-extrabold">${beat.badge}</span>
+              <span class="text-[10px] font-mono text-teal-300 font-bold">ESCENA 0${beat.index}/0${beats.length}</span>
+            </div>
+            <div class="flex items-center gap-3">
+              ${svgIcon}
+              <div>
+                <h2 class="text-base sm:text-lg font-black text-white leading-tight font-display">
+                  ${escLead} <span class="inline-block px-2 py-0.5 rounded-lg" style="${pillClass(beat.pillColor)}">${escHigh}</span>
+                </h2>
+                <p class="text-xs text-slate-200 mt-1 leading-snug">${escText}</p>
+              </div>
+            </div>
+          </div>
+        </div>`;
+      }
+
+      // ESCENA 1: HOOK DE ALTO IMPACTO + TARJETAS COMPARATIVAS VS (Estilo GTC-45 & Plataforma 40s)
+      if (isFirst) {
+        return `
+        <div id="scene-1" class="scene-layer absolute inset-0 flex flex-col justify-center gap-2.5 sm:gap-3">
+          <div data-editable="true" class="sc-head text-center space-y-1.5">
+            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/35 text-[#c7f303] text-[10px] font-mono font-extrabold uppercase tracking-widest">
+              <span class="w-2 h-2 rounded-full bg-[#c7f303] animate-ping"></span>
+              <span>${beat.badge}</span>
+            </div>
+            <h1 class="${isVertical ? 'text-2xl sm:text-3xl' : 'text-xl sm:text-2xl'} font-black tracking-tight text-white leading-none font-display">
+              ${escLead} <span class="inline-block px-2.5 py-0.5 rounded-xl mt-0.5" style="${pillClass('amber')}">${escHigh}</span>
+            </h1>
+            <p class="text-xs sm:text-sm text-slate-200 font-semibold max-w-md mx-auto leading-snug">${escText}</p>
+          </div>
+
+          <div class="grid grid-cols-1 gap-2 sm:gap-2.5 mt-1">
+            <div data-editable="true" class="sc-item glass-card rounded-2xl p-3 border border-rose-500/40 bg-rose-950/25 flex items-center justify-between gap-2.5">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <div class="w-9 h-9 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 font-black text-sm shrink-0">✕</div>
+                <div class="min-w-0">
+                  <div class="text-xs sm:text-sm font-black text-white truncate">Práctica Improvisada / Sin Control</div>
+                  <div class="text-[11px] text-rose-200/90 leading-tight">Fallas operativas, exceso de confianza y alto riesgo de accidente</div>
+                </div>
+              </div>
+              <span class="px-2.5 py-1 rounded-full bg-rose-500/20 border border-rose-400/40 text-rose-300 text-[9px] font-mono font-extrabold shrink-0">RIESGO SST</span>
+            </div>
+
+            <div data-editable="true" class="sc-item glass-card rounded-2xl p-3 border border-[#c7f303]/60 bg-emerald-950/30 flex items-center justify-between gap-2.5" style="box-shadow:0 0 28px rgba(199,243,3,0.14);">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <div class="w-9 h-9 rounded-xl bg-[#c7f303]/20 border border-[#c7f303]/50 flex items-center justify-center text-[#c7f303] font-black text-sm shrink-0">⚡</div>
+                <div class="min-w-0">
+                  <div class="text-xs sm:text-sm font-black text-white truncate">Estándar Verificado ${safeBadge}</div>
+                  <div class="text-[11px] text-emerald-200/95 leading-tight">${safeSubheadline}</div>
+                </div>
+              </div>
+              <span class="px-2.5 py-1 rounded-full bg-[#c7f303] text-[#091004] text-[9px] font-mono font-black shrink-0">100% SEGURO</span>
+            </div>
+          </div>
+        </div>`;
+      }
+
+      // ESCENA 2: MOCKUP CELULAR CON DYNAMIC ISLAND + CHECKLIST LATERAL (Estilo Reel GTC-45)
+      if (idx === 1 && beats.length >= 3) {
+        return `
+        <div id="scene-${beat.index}" class="scene-layer opacity-0 pointer-events-none absolute inset-0 flex flex-col justify-center gap-2.5">
+          <div data-editable="true" class="sc-head text-center space-y-1">
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-400/35 text-cyan-300 text-[10px] font-mono font-extrabold uppercase tracking-widest">
+              <span>• ${beat.badge}</span>
+            </div>
+            <h2 class="${isVertical ? 'text-xl sm:text-2xl' : 'text-lg sm:text-xl'} font-black text-white leading-tight font-display">
+              ${escLead} <span class="inline-block px-2.5 py-0.5 rounded-xl" style="${pillClass('cyan')}">${escHigh}</span>
+            </h2>
+          </div>
+
+          <div class="grid grid-cols-12 gap-2.5 items-stretch">
+            <!-- Phone Mockup con Dynamic Island -->
+            <div data-editable="true" class="sc-item col-span-5 rounded-3xl p-2.5 bg-slate-900/95 border-2 border-cyan-400/45 shadow-2xl flex flex-col justify-between">
+              <div class="mx-auto px-2.5 py-0.5 rounded-full bg-black border border-white/15 flex items-center gap-1.5 mb-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-[#c7f303]"></span>
+                <span class="text-[8px] font-mono font-bold text-white uppercase tracking-wider">CONTROL LIVE</span>
+              </div>
+              <div class="rounded-2xl bg-slate-950/90 border border-white/10 p-2.5 flex-1 flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                  ${svgIcon}
+                  <span class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-[#c7f303] text-[8px] font-mono font-bold">ACTIVO</span>
+                </div>
+                <div class="my-1.5">
+                  <div class="text-[9px] font-mono uppercase text-cyan-300 font-bold">VERIFICACIÓN IA</div>
+                  <div class="text-xs font-black text-white leading-tight mt-0.5">${escLead} ${escHigh}</div>
+                </div>
+                <div class="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                  <div class="h-full bg-gradient-to-r from-[#14b8a6] to-[#c7f303] w-full"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tarjetas de Verificación / Firma Digital -->
+            <div class="col-span-7 flex flex-col justify-between gap-2">
+              <div data-editable="true" class="sc-item glass-card rounded-2xl p-2.5 border border-cyan-400/35">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[10px] font-extrabold text-cyan-300 uppercase font-mono">📋 DIRECTRIZ EN CAMPO</span>
+                  <span class="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[8px] font-mono font-bold">✓ VALIDADO</span>
+                </div>
+                <p class="text-xs font-bold text-white leading-snug">${escText}</p>
+              </div>
+
+              <div data-editable="true" class="sc-item glass-card rounded-2xl p-2.5 border border-[#c7f303]/40">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[10px] font-extrabold text-[#c7f303] uppercase font-mono">✍️ TRAZABILIDAD SG-SST</span>
+                  <span class="px-2 py-0.5 rounded-full bg-[#c7f303]/20 text-[#c7f303] text-[8px] font-mono font-bold">100% CUMPLIDO</span>
+                </div>
+                <svg viewBox="0 0 180 24" class="w-full h-5" fill="none">
+                  <path d="M6 18C22 6 34 20 52 11C70 2 84 19 106 9C124 2 142 16 174 7" stroke="#c7f303" stroke-width="2.6" stroke-linecap="round"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>`;
+      }
+
+      // ESCENA FINAL: CIERRE EJECUTIVO & EMBLEMA WAPPY IA (Permanece 100% visible al terminar)
+      if (isLast && beats.length >= 2) {
+        return `
+        <div id="scene-${beat.index}" class="scene-layer opacity-0 pointer-events-none absolute inset-0 flex flex-col justify-center gap-2.5">
+          <div data-editable="true" class="sc-head text-center space-y-1">
+            <div class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#c7f303]/20 border border-[#c7f303]/50 text-[#c7f303] text-[10px] font-mono font-extrabold uppercase tracking-widest">
+              <span>${beat.badge}</span>
+            </div>
+            <h2 class="${isVertical ? 'text-2xl sm:text-3xl' : 'text-xl sm:text-2xl'} font-black text-white leading-none font-display">
+              ${escLead} <span class="inline-block px-2.5 py-0.5 rounded-xl mt-0.5" style="${pillClass('lime')}">${escHigh}</span>
+            </h2>
+          </div>
+
+          <div data-editable="true" class="sc-item glass-card rounded-3xl p-4 border-2 border-[#c7f303]/60 text-center space-y-2.5" style="box-shadow:0 0 35px rgba(199,243,3,0.18);">
+            <div class="flex justify-center">${svgIcon}</div>
+            <p class="text-xs sm:text-sm font-extrabold text-white leading-relaxed">${escText}</p>
+            <div class="pt-1 flex flex-wrap items-center justify-center gap-2">
+              <span class="px-3 py-1 rounded-xl bg-[#c7f303] text-[#091004] text-[10px] font-black uppercase tracking-wider">⚡ WAPPY IA • SOMOS SST</span>
+              <span class="px-3 py-1 rounded-xl bg-teal-500/20 border border-teal-400/40 text-teal-300 text-[10px] font-mono font-bold">✓ CERO ACCIDENTES</span>
+            </div>
+          </div>
+        </div>`;
+      }
+
+      // ESCENAS INTERMEDIAS (3..N-1): TARJETA TÁCTICA + TELEMETRÍA EN VIVO / EXPEDIENTE NORMATIVO
+      return `
+      <div id="scene-${beat.index}" class="scene-layer opacity-0 pointer-events-none absolute inset-0 flex flex-col justify-center gap-2.5">
+        <div data-editable="true" class="sc-head text-center space-y-1">
+          <div class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-teal-500/15 border border-teal-400/40 text-teal-300 text-[10px] font-mono font-extrabold uppercase tracking-widest">
+            <span>• ${beat.badge} • PASO 0${beat.index}</span>
+          </div>
+          <h2 class="${isVertical ? 'text-xl sm:text-2xl' : 'text-lg sm:text-xl'} font-black text-white leading-tight font-display">
+            ${escLead} <span class="inline-block px-2.5 py-0.5 rounded-xl" style="${pillClass(beat.pillColor)}">${escHigh}</span>
+          </h2>
         </div>
-        <div data-editable="true" class="metric-item glass-card rounded-2xl ${isVertical ? 'p-2.5 sm:p-3' : 'p-2.5'} text-center">
-          <div class="${isVertical ? 'text-base sm:text-lg' : 'text-sm sm:text-base'} font-black text-amber-400">60 FPS</div>
-          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-300 mt-0.5">Motion HTML</div>
-        </div>
-        <div data-editable="true" class="metric-item glass-card rounded-2xl ${isVertical ? 'p-2.5 sm:p-3' : 'p-2.5'} text-center">
-          <div class="${isVertical ? 'text-base sm:text-lg' : 'text-sm sm:text-base'} font-black text-indigo-400">IA 3.8</div>
-          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-300 mt-0.5">Voz Neural</div>
+
+        <div data-editable="true" class="sc-item glass-card rounded-3xl p-3.5 sm:p-4 border-l-4" style="border-left-color:#c7f303;">
+          <div class="flex items-start gap-3">
+            <div class="p-2 rounded-2xl bg-slate-900/90 border border-white/10 shrink-0">
+              ${svgIcon}
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center justify-between gap-2 mb-1">
+                <span class="text-[10px] font-mono uppercase tracking-wider text-[#c7f303] font-extrabold">PROTOCOLO VERIFICADO</span>
+                <span class="text-[10px] font-mono font-bold text-emerald-400">NIVEL ÓPTIMO • 100%</span>
+              </div>
+              <p class="text-xs sm:text-sm font-bold text-white leading-relaxed">${escText}</p>
+            </div>
+          </div>
+
+          <div class="mt-3 grid grid-cols-3 gap-2 pt-2.5 border-t border-white/10">
+            <div class="rounded-xl bg-slate-900/80 px-2.5 py-1.5 border border-teal-500/30">
+              <div class="text-[9px] font-mono text-slate-400 uppercase">ESTADO</div>
+              <div class="text-xs font-black text-emerald-400">✓ ACTIVO</div>
+            </div>
+            <div class="rounded-xl bg-slate-900/80 px-2.5 py-1.5 border border-cyan-500/30">
+              <div class="text-[9px] font-mono text-slate-400 uppercase">PRECISIÓN IA</div>
+              <div class="text-xs font-black text-cyan-300">99.8%</div>
+            </div>
+            <div class="rounded-xl bg-slate-900/80 px-2.5 py-1.5 border border-[#c7f303]/40">
+              <div class="text-[9px] font-mono text-slate-400 uppercase">NORMATIVA</div>
+              <div class="text-xs font-black text-[#c7f303]">SG-SST</div>
+            </div>
+          </div>
         </div>
       </div>`;
-  }
+    })
+    .join('\n');
+
+  // Personaje presentador inferior (Félix 3D Voxel lip-sync en vivo o Tarjeta Oráculo Tenshi IA)
+  const bottomHostMarkup =
+    useTransparentBg
+      ? ''
+      : templateId === 'kpi-hud'
+        ? `
+      <!-- TARJETA INFERIOR ORÁCULO TENSHI IA (Estilo WAPPY_IA_Plataforma_40s) -->
+      <div id="host-stage" data-editable="true" class="relative z-10 w-full ${isVertical ? 'max-w-md' : 'max-w-2xl'} mx-auto glass-card rounded-2xl p-2.5 px-3.5 border border-teal-400/35 flex items-center gap-3 shrink-0">
+        <div class="relative w-11 h-11 rounded-xl overflow-hidden bg-gradient-to-br from-teal-500/30 to-emerald-500/20 border border-[#c7f303]/60 shrink-0 flex items-center justify-center">
+          <img src="/assets/wappy/tenshi.png" alt="Tenshi IA" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-[10px] font-mono font-extrabold uppercase tracking-wider text-teal-300">TENSHI • ORIENTADOR Y ORQUESTADOR SST</span>
+            <span class="text-[9px] font-mono text-[#c7f303] font-bold">EN VIVO</span>
+          </div>
+          <p id="host-live-caption" class="text-xs font-bold text-white truncate mt-0.5">${beats[0]?.text.replace(/</g, '&lt;') || safeSubheadline}</p>
+        </div>
+      </div>`
+        : `
+      <!-- PRESENTADOR FÉLIX 3D VOXEL CON LIP-SYNC Y GESTOS (Estilo Reel Matriz GTC-45 Oficial) -->
+      <div id="host-stage" data-editable="true" class="relative z-10 w-full ${isVertical ? 'max-w-md' : 'max-w-2xl'} mx-auto flex items-center justify-center gap-3 shrink-0">
+        <canvas id="wappy-felix-voxel" width="150" height="126" class="${isVertical ? 'w-[122px] h-[102px]' : 'w-[96px] h-[80px]'} shrink-0 drop-shadow-[0_10px_20px_rgba(0,0,0,0.65)]"></canvas>
+        <div class="glass-card rounded-2xl p-2.5 px-3 border border-[#c7f303]/40 flex-1 min-w-0">
+          <div class="flex items-center justify-between gap-1.5 mb-0.5">
+            <span id="host-live-badge" class="text-[9px] font-mono font-black uppercase tracking-wider text-[#c7f303]">${beats[0]?.badge || 'WAPPY IA • SOMOS SST'}</span>
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+          </div>
+          <p id="host-live-caption" class="text-[11px] font-bold text-slate-100 line-clamp-2 leading-snug">${beats[0]?.text.replace(/</g, '&lt;') || safeSubheadline}</p>
+        </div>
+      </div>`;
 
   return `<!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-wappy-template="true">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800;900&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@800;900&family=Plus+Jakarta+Sans:wght@500;700;800;900&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
@@ -776,60 +1162,338 @@ function buildDefaultHtmlComposition({
       height: 100%;
       overflow: hidden;
       font-family: 'Plus Jakarta Sans', sans-serif;
-      background: ${useTransparentBg ? 'transparent' : '#060d14'};
+      background: ${useTransparentBg ? 'transparent' : '#050c12'};
       color: #ffffff;
     }
+    .font-display { font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif; }
     .grid-bg {
-      background-image: radial-gradient(rgba(20, 184, 166, 0.16) 1px, transparent 1px);
-      background-size: 28px 28px;
+      background-image:
+        linear-gradient(rgba(20, 184, 166, 0.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(20, 184, 166, 0.07) 1px, transparent 1px);
+      background-size: 32px 32px;
     }
     .glass-card {
-      background: rgba(10, 18, 30, 0.82);
+      background: rgba(8, 16, 26, 0.84);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border: 1px solid rgba(255, 255, 255, 0.14);
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+      box-shadow: 0 18px 44px rgba(0, 0, 0, 0.52);
+    }
+    @keyframes radarSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .radar-sweep {
+      transform-origin: 18px 18px;
+      animation: radarSpin 3.2s linear infinite;
     }
   </style>
 </head>
-<body class="relative w-full h-full flex flex-col justify-between items-center ${isVertical ? 'p-4 sm:p-5' : 'p-4 sm:p-6'} select-none overflow-hidden">
+<body class="relative w-full h-full flex flex-col justify-between items-center ${isVertical ? 'p-3.5 sm:p-4' : 'p-3.5 sm:p-5'} select-none overflow-hidden">
+  <!-- Barra superior de progreso Verde Lima WAPPY -->
+  <div class="absolute top-0 left-0 right-0 h-1 bg-slate-900/80 z-30 overflow-hidden">
+    <div id="wappy-top-progress" class="h-full bg-gradient-to-r from-[#c7f303] via-[#14b8a6] to-[#06b6d4]" style="width: 8%;"></div>
+  </div>
+
   ${
     useTransparentBg
-      ? '<!-- Fondo transparente para dejar ver el video base del usuario -->'
+      ? '<!-- Fondo transparente para video base del usuario -->'
       : `<div class="absolute inset-0 overflow-hidden pointer-events-none">
            <div class="absolute inset-0 grid-bg"></div>
-           <div id="orb-1" class="absolute -top-16 -left-16 w-64 h-64 rounded-full blur-3xl opacity-35" style="background: ${accentColor};"></div>
-           <div id="orb-2" class="absolute bottom-8 -right-16 w-72 h-72 rounded-full blur-3xl opacity-25" style="background: #6366f1;"></div>
+           <canvas id="wappy-bg-canvas" class="absolute inset-0 w-full h-full opacity-75"></canvas>
+           <div id="orb-1" class="absolute -top-16 -left-16 w-64 h-64 rounded-full blur-3xl opacity-30" style="background: ${accentColor};"></div>
+           <div id="orb-2" class="absolute bottom-8 -right-16 w-72 h-72 rounded-full blur-3xl opacity-25" style="background: #c7f303;"></div>
          </div>`
   }
 
-  <!-- TOP HUD BAR (100% centrado con ancho completo de contenedor) -->
-  <div id="top-bar" data-editable="true" class="relative z-10 w-full ${isVertical ? 'max-w-md' : 'max-w-2xl'} mx-auto flex items-center justify-between gap-2 shrink-0">
-    <div class="glass-card px-3.5 py-1.5 rounded-full inline-flex items-center gap-2 whitespace-nowrap">
-      <span class="w-2.5 h-2.5 rounded-full animate-ping shrink-0" style="background: ${accentColor};"></span>
-      <span class="text-[11px] font-extrabold tracking-widest uppercase text-teal-300">${safeBadge}</span>
+  <!-- TOP HUD TÁCTICO WAPPY (Ecualizador + Insignia + Radar Holográfico) -->
+  <div id="header-hud" data-editable="true" class="relative z-10 w-full ${isVertical ? 'max-w-md' : 'max-w-2xl'} mx-auto flex items-center justify-between gap-2 shrink-0 pt-1">
+    <div class="glass-card px-3 py-1.5 rounded-full inline-flex items-center gap-2 whitespace-nowrap border border-teal-500/30">
+      <div class="flex items-end gap-0.5 h-3.5" id="hud-eq">
+        <span class="eq-bar w-1 bg-cyan-400 rounded-full" style="height:60%"></span>
+        <span class="eq-bar w-1 bg-[#c7f303] rounded-full" style="height:100%"></span>
+        <span class="eq-bar w-1 bg-teal-400 rounded-full" style="height:45%"></span>
+        <span class="eq-bar w-1 bg-cyan-300 rounded-full" style="height:80%"></span>
+      </div>
+      <span class="text-[10px] font-extrabold tracking-widest uppercase text-teal-300">${safeBadge}</span>
     </div>
-    <div class="glass-card px-3 py-1.5 rounded-full text-[11px] font-mono font-bold text-slate-300 whitespace-nowrap shrink-0">
-      WAPPY STUDIO • IA
+
+    <div class="flex items-center gap-2 shrink-0">
+      <div class="glass-card px-2.5 py-1 rounded-full inline-flex items-center gap-1.5 text-[10px] font-mono font-bold text-[#c7f303] border border-[#c7f303]/35">
+        <span class="w-2 h-2 rounded-full bg-[#c7f303] animate-pulse"></span>
+        <span>WAPPY.CLUB</span>
+      </div>
+      <svg viewBox="0 0 36 36" class="w-8 h-8 shrink-0">
+        <circle cx="18" cy="18" r="16" fill="rgba(8,18,28,0.85)" stroke="rgba(20,184,166,0.45)" stroke-width="1.2" stroke-dasharray="3 2"/>
+        <circle cx="18" cy="18" r="10" fill="none" stroke="rgba(199,243,3,0.3)" stroke-width="1"/>
+        <line x1="18" y1="18" x2="31" y2="10" stroke="#c7f303" stroke-width="1.8" stroke-linecap="round" class="radar-sweep"/>
+        <circle cx="18" cy="18" r="2" fill="#c7f303"/>
+      </svg>
     </div>
   </div>
 
-  <!-- ESCENA CENTRAL: TARJETAS ANIMADAS (100% centrado matemáticamente con max-w y mx-auto) -->
-  <div class="relative z-10 my-auto w-full ${isVertical ? 'max-w-md' : 'max-w-2xl'} mx-auto flex flex-col gap-3 sm:gap-3.5 items-stretch">
-    ${centerMarkup}
+  <!-- ESCENARIO MULTI-ESCENA SINCRONIZADO FRASE A FRASE CON LA VOZ -->
+  <div id="scenes-wrapper" class="relative z-10 my-auto w-full ${isVertical ? 'max-w-md min-h-[270px]' : 'max-w-2xl min-h-[210px]'} mx-auto flex-1 flex flex-col justify-center">
+    ${scenesHtml}
   </div>
+
+  ${bottomHostMarkup}
 
   <!-- ESPACIO INFERIOR RESERVADO PARA SUBTÍTULOS DINÁMICOS -->
-  <div class="relative z-10 ${isVertical ? 'h-14' : 'h-12'} shrink-0 w-full"></div>
+  <div class="relative z-10 ${isVertical ? 'h-12' : 'h-10'} shrink-0 w-full"></div>
 
   <script>
-    const tl = gsap.timeline({ repeat: 0 });
-    window.mainTimeline = tl;
+    window.__wappyTimelineBeats = ${JSON.stringify(beats)};
+    window.__wappyWordTimings = ${JSON.stringify(timelineMap.wordTimings)};
+    window.__wappyVoicePlaying = true;
+    window.__wappyCurrentGesture = 'wave';
 
-    tl.from("#top-bar", { y: -25, opacity: 0, duration: 0.55, ease: "back.out(1.7)" })
-      .from("#hero-card", { scale: 0.94, y: 24, opacity: 0, duration: 0.65, ease: "back.out(1.5)" }, "-=0.25")
-      .from(".metric-item", { y: 20, opacity: 0, stagger: 0.12, duration: 0.5, ease: "back.out(1.7)" }, "-=0.35")
-      .to("#hero-card", { y: -4, duration: 2.2, ease: "sine.inOut", yoyo: true, repeat: 3 });
+    (function() {
+      var beats = window.__wappyTimelineBeats || [];
+      var totalDur = ${timelineMap.totalDurationSeconds};
+      var master = gsap.timeline({
+        repeat: 0,
+        onUpdate: function() {
+          var p = master.progress();
+          var progBar = document.getElementById('wappy-top-progress');
+          if (progBar) progBar.style.width = Math.max(4, Math.round(p * 100)) + '%';
+        }
+      });
+      window.mainTimeline = master;
+
+      // Entrada inicial del HUD y primera escena
+      master.from("#header-hud", { y: -18, opacity: 0, duration: 0.45, ease: "back.out(1.6)" }, 0);
+      master.from("#scene-1 .sc-head", { y: 18, scale: 0.95, opacity: 0, duration: 0.45, ease: "back.out(1.6)" }, 0.05);
+      master.from("#scene-1 .sc-item", { y: 20, opacity: 0, stagger: 0.1, duration: 0.45, ease: "back.out(1.5)" }, 0.18);
+
+      // Coreografía exacta segundo a segundo para cada escena del guion
+      for (var i = 1; i < beats.length; i++) {
+        (function(idx) {
+          var prevBeat = beats[idx - 1];
+          var curBeat = beats[idx];
+          var prevSel = "#scene-" + prevBeat.index;
+          var curSel = "#scene-" + curBeat.index;
+          var tSwitch = Math.max(0.5, curBeat.startSec);
+
+          // Transición de salida de la escena anterior
+          master.to(prevSel, {
+            opacity: 0,
+            scale: 0.92,
+            y: -16,
+            duration: 0.32,
+            ease: "power2.in",
+            pointerEvents: "none"
+          }, Math.max(0.2, tSwitch - 0.32));
+
+          // Actualizar texto en vivo de la tarjeta del presentador (Félix / Tenshi)
+          master.call(function() {
+            window.__wappyCurrentGesture = curBeat.gesture || 'pointRight';
+            var cap = document.getElementById('host-live-caption');
+            var bdg = document.getElementById('host-live-badge');
+            if (cap) cap.textContent = curBeat.text;
+            if (bdg) bdg.textContent = curBeat.badge;
+          }, null, tSwitch);
+
+          // Entrada dinámica de la nueva escena (Zoom-Through / Giro 3D / Slide Elástico)
+          master.fromTo(curSel,
+            { opacity: 0, scale: idx % 2 === 0 ? 1.08 : 0.9, rotationY: idx % 2 === 1 ? -18 : 0, y: 22 },
+            { opacity: 1, scale: 1, rotationY: 0, y: 0, duration: 0.46, ease: "back.out(1.55)", pointerEvents: "auto" },
+            tSwitch
+          );
+          master.fromTo(curSel + " .sc-item",
+            { y: 18, opacity: 0 },
+            { y: 0, opacity: 1, stagger: 0.09, duration: 0.38, ease: "power3.out" },
+            tSwitch + 0.08
+          );
+        })(i);
+      }
+
+      // Mantener la línea de tiempo exactamente hasta el segundo final sin apagar la última escena
+      master.to({}, { duration: 0.1 }, totalDur);
+
+      // Red de partículas estilo Constelación WAPPY + Renderizado Voxel 3D de Félix con Lip-Sync
+      var bgCanvas = document.getElementById('wappy-bg-canvas');
+      var bgCtx = bgCanvas ? bgCanvas.getContext('2d') : null;
+      var nodes = [];
+      for (var n = 0; n < 22; n++) {
+        nodes.push({
+          x: Math.random() * 400,
+          y: Math.random() * 600,
+          vx: (Math.random() - 0.5) * 0.45,
+          vy: (Math.random() - 0.5) * 0.45,
+          r: 1.5 + Math.random() * 2
+        });
+      }
+
+      var felixCanvas = document.getElementById('wappy-felix-voxel');
+      var fCtx = felixCanvas ? felixCanvas.getContext('2d') : null;
+
+      function drawSceneFrame(timeSec) {
+        // 1) Ecualizador reactivo a la voz
+        var eqBars = document.querySelectorAll('#hud-eq .eq-bar');
+        for (var b = 0; b < eqBars.length; b++) {
+          var h = window.__wappyVoicePlaying
+            ? 30 + Math.abs(Math.sin(timeSec * 10 + b * 1.7)) * 70
+            : 25;
+          eqBars[b].style.height = Math.round(h) + '%';
+        }
+
+        // 2) Constelación de partículas de fondo
+        if (bgCanvas && bgCtx) {
+          var cw = bgCanvas.width = bgCanvas.clientWidth || 380;
+          var ch = bgCanvas.height = bgCanvas.clientHeight || 600;
+          bgCtx.clearRect(0, 0, cw, ch);
+          for (var i = 0; i < nodes.length; i++) {
+            var p1 = nodes[i];
+            p1.x = (p1.x + p1.vx + cw) % cw;
+            p1.y = (p1.y + p1.vy + ch) % ch;
+            bgCtx.beginPath();
+            bgCtx.arc(p1.x, p1.y, p1.r, 0, Math.PI * 2);
+            bgCtx.fillStyle = i % 3 === 0 ? 'rgba(199,243,3,0.55)' : 'rgba(20,184,166,0.45)';
+            bgCtx.fill();
+            for (var j = i + 1; j < nodes.length; j++) {
+              var p2 = nodes[j];
+              var dx = p1.x - p2.x, dy = p1.y - p2.y;
+              var dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist < 95) {
+                bgCtx.beginPath();
+                bgCtx.moveTo(p1.x, p1.y);
+                bgCtx.lineTo(p2.x, p2.y);
+                bgCtx.strokeStyle = 'rgba(20,184,166,' + ((1 - dist / 95) * 0.18).toFixed(3) + ')';
+                bgCtx.lineWidth = 1;
+                bgCtx.stroke();
+              }
+            }
+          }
+        }
+
+        // 3) Avatar Voxel 3D de Félix (con camisa de cuadros amarilla WAPPY, gafas, barba y lip-sync)
+        if (felixCanvas && fCtx) {
+          var w = felixCanvas.width, h = felixCanvas.height;
+          fCtx.clearRect(0, 0, w, h);
+          var bob = Math.sin(timeSec * 3.6) * 2.2;
+          var headTilt = Math.sin(timeSec * 2.1) * 0.035;
+          var talkOpen = window.__wappyVoicePlaying
+            ? Math.max(1.5, Math.abs(Math.sin(timeSec * 14.5) * Math.cos(timeSec * 6.2)) * 6.5)
+            : 1.5;
+          var blink = (Math.floor(timeSec * 2.5) % 9 === 0) && ((timeSec * 10) % 10 < 1.8);
+          var g = window.__wappyCurrentGesture || 'wave';
+
+          fCtx.save();
+          fCtx.translate(w / 2, h - 6 + bob);
+
+          // Torso — Camisa a cuadros amarilla/negra oficial WAPPY + camiseta blanca interna
+          fCtx.fillStyle = '#eab308';
+          fCtx.fillRect(-30, -44, 60, 44);
+          fCtx.fillStyle = '#1e293b';
+          for (var gx = -30; gx < 30; gx += 12) {
+            fCtx.fillRect(gx, -44, 4, 44);
+          }
+          for (var gy = -42; gy < 0; gy += 11) {
+            fCtx.fillRect(-30, gy, 60, 3);
+          }
+          // Camiseta blanca central
+          fCtx.fillStyle = '#f1f5f9';
+          fCtx.fillRect(-9, -44, 18, 44);
+          // Bolsillo amarillo con logo W
+          fCtx.fillStyle = '#facc15';
+          fCtx.fillRect(11, -28, 13, 13);
+          fCtx.fillStyle = '#0f172a';
+          fCtx.font = '900 9px monospace';
+          fCtx.fillText('W', 13.5, -18);
+
+          // Brazos con gestos naturales según la escena
+          var leftArmAngle = g === 'wave' || g === 'bothUp' ? -0.55 + Math.sin(timeSec * 6) * 0.18 : 0.12;
+          var rightArmAngle = g === 'pointRight' || g === 'bothUp' ? 0.55 - Math.sin(timeSec * 6) * 0.18 : -0.12;
+
+          fCtx.save();
+          fCtx.translate(-32, -38);
+          fCtx.rotate(leftArmAngle);
+          fCtx.fillStyle = '#eab308';
+          fCtx.fillRect(-10, 0, 11, 24);
+          fCtx.fillStyle = '#d6a374';
+          fCtx.fillRect(-9, 24, 9, 10);
+          fCtx.restore();
+
+          fCtx.save();
+          fCtx.translate(32, -38);
+          fCtx.rotate(rightArmAngle);
+          fCtx.fillStyle = '#eab308';
+          fCtx.fillRect(-1, 0, 11, 24);
+          fCtx.fillStyle = '#d6a374';
+          fCtx.fillRect(0, 24, 9, 10);
+          fCtx.restore();
+
+          // Cabeza Voxel 3D
+          fCtx.save();
+          fCtx.translate(0, -48);
+          fCtx.rotate(headTilt);
+
+          // Sombra lateral 3D de la cabeza
+          fCtx.fillStyle = '#b9855a';
+          fCtx.fillRect(-29, -54, 58, 52);
+          // Rostro frontal
+          fCtx.fillStyle = '#d6a374';
+          fCtx.fillRect(-26, -54, 52, 50);
+
+          // Cabello castaño oscuro voxelizado
+          fCtx.fillStyle = '#2d1c12';
+          fCtx.fillRect(-28, -64, 56, 15);
+          fCtx.fillRect(-28, -54, 6, 22);
+          fCtx.fillRect(22, -54, 6, 22);
+
+          // Barba y bigote en bajo relieve
+          fCtx.fillStyle = '#2b1b12';
+          fCtx.fillRect(-26, -22, 52, 18);
+          fCtx.fillRect(-16, -26, 32, 6);
+
+          // Gafas negras cuadradas características
+          fCtx.strokeStyle = '#0f172a';
+          fCtx.lineWidth = 3.2;
+          fCtx.strokeRect(-21, -44, 17, 13);
+          fCtx.strokeRect(4, -44, 17, 13);
+          fCtx.fillStyle = '#0f172a';
+          fCtx.fillRect(-4, -40, 8, 3);
+
+          // Ojos con parpadeo natural
+          if (blink) {
+            fCtx.fillStyle = '#2d1c12';
+            fCtx.fillRect(-17, -38, 9, 2.5);
+            fCtx.fillRect(8, -38, 9, 2.5);
+          } else {
+            fCtx.fillStyle = '#ffffff';
+            fCtx.fillRect(-17, -41, 9, 7);
+            fCtx.fillRect(8, -41, 9, 7);
+            fCtx.fillStyle = '#1e293b';
+            fCtx.fillRect(-13, -39, 4, 5);
+            fCtx.fillRect(11, -39, 4, 5);
+          }
+
+          // Boca sincronizada con la voz (Lip-Sync en vivo)
+          fCtx.fillStyle = '#180d08';
+          fCtx.fillRect(-9, -18, 18, Math.max(2, talkOpen));
+          fCtx.fillStyle = '#f87171';
+          fCtx.fillRect(-6, -17 + Math.max(1, talkOpen * 0.45), 12, Math.max(1, talkOpen * 0.45));
+
+          fCtx.restore();
+          fCtx.restore();
+        }
+      }
+
+      window.__wappyRenderTick = function(tSec) {
+        drawSceneFrame(tSec || 0);
+      };
+
+      var startPerf = performance.now();
+      function loop(now) {
+        var t = typeof window.__wappyCurrentTime === 'number'
+          ? window.__wappyCurrentTime
+          : (now - startPerf) / 1000;
+        drawSceneFrame(t);
+        requestAnimationFrame(loop);
+      }
+      requestAnimationFrame(loop);
+    })();
   </script>
 </body>
 </html>`;
@@ -849,7 +1513,7 @@ interface SelectedCanvasElementInfo {
 /**
  * Inyecta el puente interactivo de WAPPY Studio dentro de cualquier HTML (por defecto o generado por IA):
  * 1) Auto-ajuste limpio únicamente para contenedores con píxeles fijos grandes (1920px/1080px), sin deformar nunca el body.
- * 2) Control universal de GSAP (Play, Pause, Restart, Seek) interceptando timelines.
+ * 2) Control universal de GSAP (Play, Pause, Restart, Seek y STUDIO_SYNC_TIME bloqueado al audio).
  * 3) Editor Visual en Vivo: arrastrar cajas con el mouse, editar textos con doble clic o desde el inspector.
  */
 function injectStudioRuntimeBridge(rawHtml: string): string {
@@ -888,6 +1552,10 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
     margin: 0 !important;
     overflow: hidden !important;
     box-sizing: border-box !important;
+  }
+  /* Ocultar contenedores de subtítulos internos duplicados creados por LLMs para que solo se vea el HUD oficial sincronizado */
+  #subtitle-footer, #subtitle-card, #subtitle-container, #subtitle-box, footer[id*="subtitle"] {
+    display: none !important;
   }
   body.wappy-visual-edit-active * {
     cursor: grab;
@@ -1078,27 +1746,47 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
 
   window.addEventListener('message', function(event) {
     var data = event.data || {};
-    var tl = window.mainTimeline || (window.gsap && window.gsap.globalTimeline);
 
     if (data.type === 'STUDIO_PLAY') {
+      window.__wappyVoicePlaying = true;
       if (window.mainTimeline) window.mainTimeline.play();
       if (window.gsap && window.gsap.globalTimeline) window.gsap.globalTimeline.play();
     } else if (data.type === 'STUDIO_PAUSE') {
+      window.__wappyVoicePlaying = false;
       if (window.mainTimeline) window.mainTimeline.pause();
       if (window.gsap && window.gsap.globalTimeline) window.gsap.globalTimeline.pause();
     } else if (data.type === 'STUDIO_RESTART') {
+      window.__wappyVoicePlaying = true;
+      window.__wappyCurrentTime = 0;
       if (window.mainTimeline) window.mainTimeline.restart();
       else if (window.gsap && window.gsap.globalTimeline) window.gsap.globalTimeline.restart();
     } else if (data.type === 'STUDIO_SEEK') {
       var p = Math.max(0, Math.min(1, Number(data.progress || 0)));
+      if (typeof data.time === 'number') window.__wappyCurrentTime = data.time;
       if (window.mainTimeline && typeof window.mainTimeline.progress === 'function') {
         window.mainTimeline.progress(p);
       } else if (window.gsap && window.gsap.globalTimeline && typeof data.time === 'number') {
         window.gsap.globalTimeline.time(data.time);
       }
+    } else if (data.type === 'STUDIO_SYNC_TIME') {
+      var curT = Number(data.currentTime || 0);
+      var durT = Math.max(0.5, Number(data.duration || 20));
+      var prog = Math.max(0, Math.min(0.9999, curT / durT));
+      window.__wappyCurrentTime = curT;
+      window.__wappyVoicePlaying = Boolean(data.playing);
+      if (window.mainTimeline && typeof window.mainTimeline.progress === 'function') {
+        var tlDur = window.mainTimeline.duration();
+        if (tlDur > 0.5 && typeof window.mainTimeline.timeScale === 'function') {
+          window.mainTimeline.timeScale(tlDur / durT);
+        }
+        if (Math.abs(window.mainTimeline.progress() - prog) > 0.015) {
+          window.mainTimeline.progress(prog, false);
+        }
+      }
     } else if (data.type === 'STUDIO_SET_EDIT_MODE') {
       editMode = Boolean(data.enabled);
       if (editMode) {
+        window.__wappyVoicePlaying = false;
         document.body.classList.add('wappy-visual-edit-active');
         if (window.mainTimeline) window.mainTimeline.pause();
         if (window.gsap && window.gsap.globalTimeline) window.gsap.globalTimeline.pause();
@@ -1167,7 +1855,7 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
 })();
 </script>`;
 
-  let output = rawHtml;
+  let output = rawHtml.replace(/subtitles\.reverse\(\)/g, 'subtitles.slice().reverse()');
   if (output.includes('<head>')) {
     output = output.replace('<head>', `<head>\n${headHook}`);
   } else {
@@ -1402,11 +2090,13 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
     buildDefaultHtmlComposition({
       aspectRatio: '9:16',
       hasBaseVideo: false,
-      badgeText: 'CÁPSULA INTERACTIVA WAPPY',
+      badgeText: 'ECOSISTEMA IA • SG-SST',
       headline: '5 Reglas de Oro en Riesgo Eléctrico',
       subheadline: 'Prevención inteligente y locución neural sincronizada',
       accentColor: '#14b8a6',
       templateId: 'golden-rules',
+      scriptText: SCRIPT_TEMPLATES[0].text,
+      durationSeconds: 28,
     }),
   );
 
@@ -2290,6 +2980,8 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
     nextRatio = aspectRatio,
     nextHasVideo = Boolean(baseVideoUrl),
     nextTemplateId = selectedSceneTemplate,
+    customScript?: string,
+    customDur?: number,
   ) => {
     setHtmlCode(
       buildDefaultHtmlComposition({
@@ -2300,6 +2992,11 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
         subheadline: subheadlineOverlayText,
         accentColor,
         templateId: nextTemplateId,
+        scriptText: customScript ?? (currentAudio?.scriptText || scriptText),
+        durationSeconds: Math.max(
+          5,
+          Math.round(customDur ?? (currentAudio?.durationSeconds || videoDuration || 28)),
+        ),
       }),
     );
   };
@@ -2353,6 +3050,16 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
       if (data.durationSeconds && data.durationSeconds > 1) {
         setVideoDuration(data.durationSeconds);
       }
+      // Si el lienzo usa una plantilla WAPPY, reconstruir las escenas con el guion y duración exacta de la voz
+      if (htmlCode.includes('data-wappy-template="true"')) {
+        handleRebuildDefaultTemplate(
+          aspectRatio,
+          Boolean(baseVideoUrl),
+          selectedSceneTemplate,
+          textToRead,
+          data.durationSeconds,
+        );
+      }
       setVideoCurrentTime(0);
       setIsVideoPlaying(true);
       setTimeout(() => {
@@ -2362,7 +3069,7 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
       }, 120);
       setStatusBanner({
         type: 'success',
-        text: `¡Locución neural (${selectedVoice}) sincronizada automáticamente con el lienzo de video!`,
+        text: `¡Locución neural (${selectedVoice} • ${data.durationSeconds}s) sincronizada frase a frase con las escenas del video!`,
       });
     } catch (err: any) {
       setStatusBanner({
@@ -2437,8 +3144,8 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
     return '';
   }, [customAudioUrl, currentAudio]);
 
-  // Reloj maestro de reproducción a 250ms (4 Hz) para que el botón Play/Pause y los subtítulos
-  // palabra a palabra avancen fluidamente sin provocar re-renderizados excesivos ni titileo en botones
+  // Reloj maestro de reproducción a 120ms para que el botón Play/Pause, la línea de tiempo GSAP
+  // y los subtítulos ponderados por sílabas y pausas avancen en perfecta sincronía con la voz
   useEffect(() => {
     if (activeTab !== 'video' || !isVideoPlaying || isVisualEditMode) return;
     let lastTick = performance.now();
@@ -2451,11 +3158,29 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
       const videoEl = baseVideoRef.current;
 
       if (audioEl && activeStageAudioSrc && !audioEl.paused && !audioEl.ended) {
-        setVideoCurrentTime(audioEl.currentTime);
+        const curT = audioEl.currentTime;
+        const durT =
+          audioEl.duration && !isNaN(audioEl.duration) && audioEl.duration > 1
+            ? audioEl.duration
+            : Math.max(1, videoDuration || 20);
+        setVideoCurrentTime(curT);
+        iframeRef.current?.contentWindow?.postMessage(
+          { type: 'STUDIO_SYNC_TIME', currentTime: curT, duration: durT, playing: true },
+          '*',
+        );
         return;
       }
       if (videoEl && baseVideoUrl && !videoEl.paused && !videoEl.ended) {
-        setVideoCurrentTime(videoEl.currentTime);
+        const curT = videoEl.currentTime;
+        const durT =
+          videoEl.duration && !isNaN(videoEl.duration) && videoEl.duration > 1
+            ? videoEl.duration
+            : Math.max(1, videoDuration || 20);
+        setVideoCurrentTime(curT);
+        iframeRef.current?.contentWindow?.postMessage(
+          { type: 'STUDIO_SYNC_TIME', currentTime: curT, duration: durT, playing: true },
+          '*',
+        );
         return;
       }
 
@@ -2467,9 +3192,13 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
           iframeRef.current?.contentWindow?.postMessage({ type: 'STUDIO_PAUSE' }, '*');
           return dur;
         }
+        iframeRef.current?.contentWindow?.postMessage(
+          { type: 'STUDIO_SYNC_TIME', currentTime: next, duration: dur, playing: true },
+          '*',
+        );
         return next;
       });
-    }, 250);
+    }, 120);
 
     return () => clearInterval(interval);
   }, [activeTab, isVideoPlaying, isVisualEditMode, videoDuration, activeStageAudioSrc, baseVideoUrl]);
@@ -2597,21 +3326,34 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
     }
   };
 
-  // Cálculo de Subtítulos Dinámicos Palabra a Palabra (Estilo Hormozi / Claude)
-  const cleanSubtitleWords = useMemo(() => {
+  // Cálculo de Subtítulos Dinámicos Ponderados por Sílabas y Pausas (Sincronización Real con la Voz)
+  const scriptTimelineMap = useMemo(() => {
     const sourceText = currentAudio?.scriptText || scriptText || '';
-    return sourceText
-      .replace(/<[^>]+>/g, '')
-      .replace(/\|[^|]+\|/g, '')
-      .replace(/^(Alex|Sam):\s*/gim, '')
-      .split(/\s+/)
-      .filter(Boolean);
-  }, [currentAudio?.scriptText, scriptText]);
+    return computeClientScriptTimelineMap(sourceText, Math.max(4, videoDuration || 25));
+  }, [currentAudio?.scriptText, scriptText, videoDuration]);
+
+  const cleanSubtitleWords = useMemo(
+    () => scriptTimelineMap.wordTimings.map((w) => w.word),
+    [scriptTimelineMap],
+  );
 
   const currentSubtitleWindow = useMemo(() => {
     if (!showDynamicSubtitles || cleanSubtitleWords.length === 0) return null;
-    const progress = Math.max(0, Math.min(0.999, videoCurrentTime / Math.max(1, videoDuration)));
-    const activeWordIndex = Math.floor(progress * cleanSubtitleWords.length);
+    const progress = Math.max(0, Math.min(0.9999, videoCurrentTime / Math.max(1, videoDuration)));
+    const timings = scriptTimelineMap.wordTimings;
+    let activeWordIndex = -1;
+    for (let i = 0; i < timings.length; i++) {
+      if (progress >= timings[i].startPct && progress <= timings[i].endPct) {
+        activeWordIndex = i;
+        break;
+      }
+    }
+    if (activeWordIndex === -1) {
+      activeWordIndex = Math.min(
+        cleanSubtitleWords.length - 1,
+        Math.floor(progress * cleanSubtitleWords.length),
+      );
+    }
     const windowSize = 5;
     const windowStart = Math.floor(activeWordIndex / windowSize) * windowSize;
     const slice = cleanSubtitleWords.slice(windowStart, windowStart + windowSize);
@@ -2619,7 +3361,7 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
       words: slice,
       activeOffset: activeWordIndex - windowStart,
     };
-  }, [showDynamicSubtitles, cleanSubtitleWords, videoCurrentTime, videoDuration]);
+  }, [showDynamicSubtitles, cleanSubtitleWords, scriptTimelineMap, videoCurrentTime, videoDuration]);
 
   // Auxiliar: Obtiene la pista de locución activa en Base64 (desde síntesis directa, trabajo largo o archivo subido)
   const resolveCurrentAudioBase64 = async (): Promise<string | null> => {
@@ -2721,12 +3463,28 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
    * 3) Garantiza que la primera escena sea visible aunque el visor bloquee JavaScript.
    */
   const makeHtmlWhatsAppSafe = async (rawHtml: string): Promise<string> => {
-    let html = rawHtml;
+    let html = rawHtml.replace(/subtitles\.reverse\(\)/g, 'subtitles.slice().reverse()');
     const escapeInlineScript = (code: string) => code.replace(/<\/script/gi, '<\\/script');
     const fetchText = async (url: string) => {
       try {
         const r = await fetch(url, { cache: 'force-cache' });
         return r.ok ? await r.text() : '';
+      } catch {
+        return '';
+      }
+    };
+    const fetchDataUri = async (url: string) => {
+      try {
+        const r = await fetch(url, { cache: 'force-cache' });
+        if (!r.ok) return '';
+        const buf = await r.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        let bin = '';
+        const chunk = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunk) {
+          bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)));
+        }
+        return `data:image/png;base64,${window.btoa(bin)}`;
       } catch {
         return '';
       }
@@ -2748,12 +3506,38 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
       compiledCss = '';
     }
 
-    const [gsapCode, tailwindCode] = await Promise.all([
+    const [gsapCode, tailwindCode, tenshiUri, felixUri, catLogoUri] = await Promise.all([
       /gsap(\.min)?\.js/i.test(html) ? fetchText('/assets/gsap.min.js') : Promise.resolve(''),
       /cdn\.tailwindcss\.com|tailwind-cdn\.js/i.test(html)
         ? fetchText('/assets/tailwind-cdn.js')
         : Promise.resolve(''),
+      /tenshi\.png/i.test(html) ? fetchDataUri('/assets/wappy/tenshi.png') : Promise.resolve(''),
+      /felix_avatar_3d\.png/i.test(html)
+        ? fetchDataUri('/assets/wappy/felix_avatar_3d.png')
+        : Promise.resolve(''),
+      /wappy-cat-logo\.png/i.test(html)
+        ? fetchDataUri('/assets/wappy/wappy-cat-logo.png')
+        : Promise.resolve(''),
     ]);
+
+    if (tenshiUri) {
+      html = html.replace(
+        /(["'(])(?:\.\/|\/)?assets\/(?:wappy\/)?tenshi\.png(["')])/gi,
+        (_, q1, q2) => `${q1}${tenshiUri}${q2}`,
+      );
+    }
+    if (felixUri) {
+      html = html.replace(
+        /(["'(])(?:\.\/|\/)?assets\/(?:wappy\/)?felix_avatar_3d\.png(["')])/gi,
+        (_, q1, q2) => `${q1}${felixUri}${q2}`,
+      );
+    }
+    if (catLogoUri) {
+      html = html.replace(
+        /(["'(])(?:\.\/|\/)?assets\/(?:wappy\/)?wappy-cat-logo\.png(["')])/gi,
+        (_, q1, q2) => `${q1}${catLogoUri}${q2}`,
+      );
+    }
 
     // 2) Reemplazar scripts externos por código en línea (función de reemplazo para no interpretar '$')
     if (gsapCode) {
@@ -2840,7 +3624,7 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
     box-sizing: border-box !important;
   }
   /* Ocultar subtítulo duplicado interno del HTML para que solo se vea el subtítulo palabra a palabra sincronizado */
-  ${showDynamicSubtitles && cleanSubtitleWords.length > 0 ? '#subtitle-footer, #subtitle-card { display: none !important; }' : ''}
+  #subtitle-footer, #subtitle-card, #subtitle-container, #subtitle-box, footer[id*="subtitle"] { display: none !important; }
   #stage {
     padding-bottom: 112px !important;
     transform-origin: top center !important;
@@ -2948,7 +3732,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
   <button type="button" id="wappy-mobile-tap-btn">🔊 Tocar para Reproducir Cápsula con Voz</button>
 </div>
 <div id="wappy-capsule-subtitles" style="display:${showDynamicSubtitles && cleanSubtitleWords.length > 0 ? 'flex' : 'none'};">
-  <div id="wappy-capsule-sub-box" style="background:rgba(4,10,18,0.9);backdrop-filter:blur(10px);border:1px solid rgba(45,212,191,0.35);padding:7px 13px;border-radius:13px;text-align:center;max-width:95%;display:flex;flex-wrap:wrap;justify-content:center;gap:5px;"></div>
+  <div id="wappy-capsule-sub-box" style="background:rgba(4,10,18,0.92);backdrop-filter:blur(10px);border:1px solid rgba(199,243,3,0.45);padding:7px 13px;border-radius:13px;text-align:center;max-width:95%;display:flex;flex-wrap:wrap;justify-content:center;gap:5px;"></div>
 </div>
 <div id="wappy-capsule-controls">
   <button type="button" id="wappy-btn-play">⏸ Pausar</button>
@@ -2959,6 +3743,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 <script id="wappy-academy-capsule-runtime">
 (function() {
   var words = ${JSON.stringify(cleanSubtitleWords)};
+  var wordTimings = ${JSON.stringify(scriptTimelineMap.wordTimings)};
   var showSubs = ${Boolean(showDynamicSubtitles && cleanSubtitleWords.length > 0)};
   var duration = ${dur};
   var currentTime = 0;
@@ -2990,18 +3775,44 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
   function renderSubtitles(t) {
     if (!showSubs || !subBox || !words.length) return;
-    var p = Math.max(0, Math.min(0.999, t / Math.max(1, duration)));
-    var activeIdx = Math.floor(p * words.length);
+    var p = Math.max(0, Math.min(0.9999, t / Math.max(1, duration)));
+    var activeIdx = -1;
+    for (var k = 0; k < wordTimings.length; k++) {
+      if (p >= wordTimings[k].startPct && p <= wordTimings[k].endPct) {
+        activeIdx = k;
+        break;
+      }
+    }
+    if (activeIdx === -1) {
+      activeIdx = Math.min(words.length - 1, Math.floor(p * words.length));
+    }
     var winSize = 5;
     var winStart = Math.floor(activeIdx / winSize) * winSize;
     var slice = words.slice(winStart, winStart + winSize);
     var activeOffset = activeIdx - winStart;
     subBox.innerHTML = slice.map(function(w, i) {
       if (i === activeOffset) {
-        return '<span style="font-size:clamp(12px,3.4vw,14px);font-weight:900;text-transform:uppercase;color:#fcd34d;background:rgba(20,184,166,0.32);padding:2px 6px;border-radius:6px;border:1px solid rgba(45,212,191,0.55);">' + w + '</span>';
+        return '<span style="font-size:clamp(12px,3.4vw,14px);font-weight:900;text-transform:uppercase;color:#080c04;background:#c7f303;padding:2px 7px;border-radius:6px;box-shadow:0 0 12px rgba(199,243,3,0.45);">' + w + '</span>';
       }
-      return '<span style="font-size:clamp(12px,3.4vw,14px);font-weight:800;text-transform:uppercase;color:rgba(255,255,255,0.94);">' + w + '</span>';
+      return '<span style="font-size:clamp(12px,3.4vw,14px);font-weight:800;text-transform:uppercase;color:rgba(255,255,255,0.95);">' + w + '</span>';
     }).join(' ');
+  }
+
+  function syncTimelineToTime(t, isVoiceActive) {
+    window.__wappyCurrentTime = t;
+    window.__wappyVoicePlaying = Boolean(isVoiceActive);
+    try {
+      if (window.mainTimeline && typeof window.mainTimeline.progress === 'function') {
+        var prog = Math.max(0, Math.min(0.9999, t / Math.max(0.5, duration)));
+        var tlDur = window.mainTimeline.duration();
+        if (tlDur > 0.5 && typeof window.mainTimeline.timeScale === 'function') {
+          window.mainTimeline.timeScale(tlDur / Math.max(0.5, duration));
+        }
+        if (Math.abs(window.mainTimeline.progress() - prog) > 0.015) {
+          window.mainTimeline.progress(prog, false);
+        }
+      }
+    } catch (e) {}
   }
 
   function updateUi(t) {
@@ -3012,6 +3823,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
   }
 
   function stopMasterTimeline() {
+    window.__wappyVoicePlaying = false;
     try {
       if (window.mainTimeline && typeof window.mainTimeline.repeat === 'function') {
         window.mainTimeline.repeat(0);
@@ -3026,6 +3838,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
   }
 
   function playMasterTimeline(fromStart) {
+    window.__wappyVoicePlaying = true;
     try {
       if (window.mainTimeline && typeof window.mainTimeline.repeat === 'function') {
         window.mainTimeline.repeat(0);
@@ -3034,6 +3847,10 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
         window.gsap.globalTimeline.play();
       }
       if (window.mainTimeline) {
+        var tlDur = window.mainTimeline.duration();
+        if (tlDur > 0.5 && typeof window.mainTimeline.timeScale === 'function') {
+          window.mainTimeline.timeScale(tlDur / Math.max(0.5, duration));
+        }
         if (fromStart) window.mainTimeline.restart();
         else window.mainTimeline.play();
       }
@@ -3049,6 +3866,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
       audioEl.currentTime = 0;
       audioEl.play().catch(function(){});
     }
+    syncTimelineToTime(0, true);
     updateUi(0);
   }
 
@@ -3066,17 +3884,22 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
   if (audioEl) {
     audioEl.addEventListener('loadedmetadata', function() {
-      if (audioEl.duration && !isNaN(audioEl.duration)) {
+      if (audioEl.duration && !isNaN(audioEl.duration) && audioEl.duration > 1) {
         duration = audioEl.duration;
         if (seekEl) seekEl.max = String(duration);
+        syncTimelineToTime(audioEl.currentTime || 0, !audioEl.paused);
       }
     });
     audioEl.addEventListener('timeupdate', function() {
+      syncTimelineToTime(audioEl.currentTime, !audioEl.paused && !audioEl.ended);
       updateUi(audioEl.currentTime);
     });
     audioEl.addEventListener('ended', function() {
       playing = false;
       stopMasterTimeline();
+      if (window.mainTimeline && typeof window.mainTimeline.progress === 'function') {
+        window.mainTimeline.progress(0.999, false);
+      }
       updateUi(duration);
       if (btnPlay) btnPlay.textContent = '▶ Volver a Reproducir';
     });
@@ -3091,8 +3914,12 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
   setInterval(function() {
     if (!playing) return;
-    if (audioEl && !audioEl.paused) return;
-    var next = currentTime + 0.2;
+    if (audioEl && !audioEl.paused && !audioEl.ended) {
+      syncTimelineToTime(audioEl.currentTime, true);
+      updateUi(audioEl.currentTime);
+      return;
+    }
+    var next = currentTime + 0.12;
     if (next >= duration) {
       playing = false;
       stopMasterTimeline();
@@ -3100,13 +3927,13 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
       if (btnPlay) btnPlay.textContent = '▶ Volver a Reproducir';
       return;
     }
+    syncTimelineToTime(next, true);
     updateUi(next);
-  }, 200);
+  }, 120);
 
   if (btnPlay) {
     btnPlay.addEventListener('click', function() {
       if (tapOverlay) tapOverlay.style.display = 'none';
-      // Si ya había terminado, al darle Play vuelve a empezar desde 0.0s con el audio y la animación unidos
       if (!playing && (currentTime >= duration - 0.3 || (audioEl && audioEl.ended))) {
         startCapsuleWithSound();
         return;
@@ -3132,9 +3959,8 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
       var val = parseFloat(e.target.value) || 0;
       updateUi(val);
       if (audioEl) audioEl.currentTime = val;
-      if (window.mainTimeline) {
-        var tlDur = window.mainTimeline.duration() || duration;
-        window.mainTimeline.time(val % tlDur);
+      if (window.mainTimeline && typeof window.mainTimeline.progress === 'function') {
+        window.mainTimeline.progress(Math.max(0, Math.min(0.9999, val / Math.max(0.5, duration))), false);
       }
     });
   }
@@ -5016,7 +5842,21 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         src={activeStageAudioSrc}
                         preload="metadata"
                         onTimeUpdate={(e) => {
-                          setVideoCurrentTime(e.currentTarget.currentTime);
+                          const curT = e.currentTarget.currentTime;
+                          const durT =
+                            e.currentTarget.duration && !isNaN(e.currentTarget.duration)
+                              ? e.currentTarget.duration
+                              : videoDuration || 20;
+                          setVideoCurrentTime(curT);
+                          iframeRef.current?.contentWindow?.postMessage(
+                            {
+                              type: 'STUDIO_SYNC_TIME',
+                              currentTime: curT,
+                              duration: durT,
+                              playing: !e.currentTarget.paused && !e.currentTarget.ended,
+                            },
+                            '*',
+                          );
                         }}
                         onLoadedMetadata={(e) => {
                           if (e.currentTarget.duration && !isNaN(e.currentTarget.duration)) {
@@ -5104,7 +5944,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                               : 'bottom-5',
                         )}
                       >
-                        <div className="bg-black/85 backdrop-blur-md border border-white/20 px-4 py-2.5 rounded-2xl shadow-2xl text-center max-w-[94%]">
+                        <div className="bg-[#050c12]/90 backdrop-blur-md border border-[#c7f303]/40 px-4 py-2.5 rounded-2xl shadow-2xl text-center max-w-[94%]">
                           <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1">
                             {currentSubtitleWindow.words.map((word, idx) => {
                               const isActiveWord = idx === currentSubtitleWindow.activeOffset;
@@ -5114,8 +5954,8 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                                   className={cn(
                                     'text-sm sm:text-base font-black uppercase tracking-wide transition-all duration-150',
                                     isActiveWord
-                                      ? 'text-amber-300 scale-110 bg-teal-500/30 px-1.5 py-0.5 rounded-lg border border-teal-400/50'
-                                      : 'text-white/90',
+                                      ? 'text-[#080c04] scale-110 bg-[#c7f303] px-2 py-0.5 rounded-lg shadow-[0_0_14px_rgba(199,243,3,0.45)]'
+                                      : 'text-white/95',
                                   )}
                                 >
                                   {word}
