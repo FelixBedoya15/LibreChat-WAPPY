@@ -288,6 +288,71 @@ export const a: React.ElementType = memo(({ href, children }: TAnchorProps) => {
     if (href && href.includes('/api/notebooklm/download/')) {
       return <NotebookLMArtifactPlayer href={href} children={children} />;
     }
+    const isMp4Video =
+      href &&
+      (/\.mp4(?:$|\?)/i.test(href) || href.includes('/images/flow_vid_'));
+    if (isMp4Video) {
+      const childText =
+        typeof children === 'string'
+          ? children
+          : Array.isArray(children)
+            ? children.map((c) => (typeof c === 'string' ? c : '')).join('')
+            : '';
+      const isDownloadLink = /descargar|download/i.test(childText);
+      const cleanVideoSrc = href.split('?')[0];
+      let posterUrl = '';
+      try {
+        const qIndex = href.indexOf('?');
+        if (qIndex !== -1) {
+          const sp = new URLSearchParams(href.slice(qIndex + 1));
+          posterUrl = sp.get('poster') || '';
+        }
+      } catch {
+        // ignore URLSearchParams error
+      }
+      if (isDownloadLink) {
+        return (
+          <a
+            href={cleanVideoSrc}
+            download
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-green-500/30 bg-green-500/10 px-3 py-1.5 text-xs font-bold text-green-700 transition-all hover:bg-green-500/20 dark:text-green-300"
+          >
+            {children}
+          </a>
+        );
+      }
+      return (
+        <span className="my-3 block overflow-hidden rounded-2xl border border-purple-500/30 bg-purple-500/5 p-3 shadow-lg">
+          <video
+            controls
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="metadata"
+            src={cleanVideoSrc}
+            poster={posterUrl || undefined}
+            className="mb-2.5 max-h-[520px] w-full rounded-xl bg-black object-contain"
+          />
+          <span className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-bold text-purple-700 dark:text-purple-300">
+              🎬 Google Flow Studio (Veo 3.1 Lite)
+            </span>
+            <a
+              href={cleanVideoSrc}
+              download
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-green-500/30 bg-green-500/10 px-3 py-1.5 text-xs font-bold text-green-700 transition-all hover:bg-green-500/20 dark:text-green-300"
+            >
+              ⬇ Descargar Video MP4
+            </a>
+          </span>
+        </span>
+      );
+    }
     return (
       <a href={href} {...props}>
         {children}

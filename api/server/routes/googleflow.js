@@ -671,20 +671,72 @@ async function executeFlowNativeStudioAction({
 
       const rawText = browserFetch?.result?.value || '';
       if (!rawText.includes(mediaId)) {
-        throw new Error('No se pudo iniciar la generación del video con Veo 3.1 Lite en Google Flow.');
+        throw new Error(`No se pudo iniciar la generación del video con Veo 3.1 Lite en Google Flow: ${rawText.slice(0, 240)}`);
       }
 
-      return {
-        ok: true,
-        mediaId,
-        workflowId,
-        projectId,
-        at: tokenInfo.at,
-        fSid: tokenInfo.fSid,
-        bl: tokenInfo.bl,
-        cookieHeader,
-        modelLabel: 'Google Flow Studio (🎬 Veo 3.1 Lite • veo_3_1_t2v_lite)',
-      };
+      // Poll Iyc41d (/FlowService.BatchGetMedia) directly inside the authenticated Chromium page
+      for (let attempt = 0; attempt < 34; attempt++) {
+        await new Promise((r) => setTimeout(r, 3500));
+        const pollFReq = JSON.stringify([
+          [['Iyc41d', JSON.stringify([[mediaId]]), null, 'generic']],
+        ]);
+        const pollEval = await cdpRequest(ws, 700 + attempt, 'Runtime.evaluate', {
+          expression: `(async () => {
+            const params = new URLSearchParams({
+              rpcids: "Iyc41d",
+              "source-path": "/",
+              bl: ${JSON.stringify(tokenInfo.bl)},
+              "f.sid": ${JSON.stringify(tokenInfo.fSid)},
+              hl: "es-419",
+              rt: "c"
+            });
+            const body = new URLSearchParams({ "f.req": ${JSON.stringify(pollFReq)}, at: ${JSON.stringify(tokenInfo.at)} });
+            const r = await fetch("/_/AiSandboxAngularFrontend/data/batchexecute?" + params.toString(), {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+              body: body.toString()
+            });
+            return await r.text();
+          })()`,
+          awaitPromise: true,
+          returnByValue: true,
+        }).catch(() => null);
+
+        const rawPoll = pollEval?.result?.value || '';
+        const vidUrlMatch = rawPoll.match(/https:\/\/flow-content\.google\/video\/[^"]+/);
+        if (vidUrlMatch && vidUrlMatch[0]) {
+          const signedVideoUrl = vidUrlMatch[0]
+            .replace(/\\\\u003d/g, '=')
+            .replace(/\\\\u0026/g, '&')
+            .replace(/\\u003d/g, '=')
+            .replace(/\\u0026/g, '&')
+            .replace(/\\+$/g, '');
+
+          let signedPosterUrl = null;
+          const imgUrlMatch = rawPoll.match(/https:\/\/flow-content\.google\/image\/[^"]+/);
+          if (imgUrlMatch && imgUrlMatch[0]) {
+            signedPosterUrl = imgUrlMatch[0]
+              .replace(/\\\\u003d/g, '=')
+              .replace(/\\\\u0026/g, '&')
+              .replace(/\\u003d/g, '=')
+              .replace(/\\u0026/g, '&')
+              .replace(/\\+$/g, '');
+          }
+
+          return {
+            ok: true,
+            signedVideoUrl,
+            signedPosterUrl,
+            mediaId,
+            workflowId,
+            projectId,
+            cookieHeader,
+            modelLabel: 'Google Flow Studio (🎬 Veo 3.1 Lite • veo_3_1_t2v_lite)',
+          };
+        }
+      }
+
+      throw new Error('Tiempo de espera agotado renderizando el video con Veo 3.1 Lite en Google Flow.');
     }
   } finally {
     try {
@@ -947,49 +999,28 @@ async function executeFlowVideoGeneration({
         aspectRatio: cleanRatio,
       });
 
-      if (nativeVid.ok && nativeVid.mediaId) {
+      if (nativeVid.ok && nativeVid.signedVideoUrl) {
         const ua =
           'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
-        for (let attempt = 0; attempt < 28; attempt++) {
-          await new Promise((r) => setTimeout(r, 3500));
-          const fReq = JSON.stringify([
-            [['Iyc41d', JSON.stringify([[nativeVid.mediaId]]), null, 'generic']],
-          ]);
-          const params = new URLSearchParams({
-            rpcids: 'Iyc41d',
-            'source-path': '/',
-            bl: nativeVid.bl,
-            'f.sid': nativeVid.fSid,
-            hl: 'es-419',
-            rt: 'c',
-          });
-          const body = new URLSearchParams({ 'f.req': fReq, at: nativeVid.at }).toString();
-          const pollRes = await axios.post(
-            `https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute?${params.toString()}`,
-            body,
-            {
-              headers: {
-                Cookie: nativeVid.cookieHeader,
-                'User-Agent': ua,
-                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-                Origin: 'https://flow.google.com',
-                Referer: 'https://flow.google.com/',
-              },
-              timeout: 12000,
-            }
-          );
-          const rawPoll = typeof pollRes.data === 'string' ? pollRes.data : '';
-          const vidUrlMatch = rawPoll.match(/https:\/\/flow-content\.google\/video\/[^"]+/);
-          if (vidUrlMatch && vidUrlMatch[0]) {
-            const signedVideoUrl = vidUrlMatch[0]
-              .replace(/\\\\u003d/g, '=')
-              .replace(/\\\\u0026/g, '&')
-              .replace(/\\u003d/g, '=')
-              .replace(/\\u0026/g, '&')
-              .replace(/\\+$/g, '');
-            const dlVid = await axios.get(signedVideoUrl, {
+        const dlVid = await axios.get(nativeVid.signedVideoUrl, {
+          responseType: 'arraybuffer',
+          timeout: 45000,
+          headers: {
+            Cookie: nativeVid.cookieHeader,
+            Referer: 'https://flow.google.com/',
+            Origin: 'https://flow.google.com',
+            'User-Agent': ua,
+          },
+        });
+        if (dlVid.data && dlVid.data.byteLength > 5000) {
+          videoBuffer = Buffer.from(dlVid.data);
+          modelUsed = nativeVid.modelLabel;
+        }
+        if (nativeVid.signedPosterUrl) {
+          try {
+            const dlPoster = await axios.get(nativeVid.signedPosterUrl, {
               responseType: 'arraybuffer',
-              timeout: 45000,
+              timeout: 20000,
               headers: {
                 Cookie: nativeVid.cookieHeader,
                 Referer: 'https://flow.google.com/',
@@ -997,40 +1028,14 @@ async function executeFlowVideoGeneration({
                 'User-Agent': ua,
               },
             });
-            if (dlVid.data && dlVid.data.byteLength > 5000) {
-              videoBuffer = Buffer.from(dlVid.data);
-              modelUsed = nativeVid.modelLabel;
+            if (dlPoster.data && dlPoster.data.byteLength > 1000) {
+              posterBuffer = Buffer.from(dlPoster.data);
             }
-            const imgUrlMatch = rawPoll.match(/https:\/\/flow-content\.google\/image\/[^"]+/);
-            if (imgUrlMatch && imgUrlMatch[0]) {
-              try {
-                const signedPosterUrl = imgUrlMatch[0]
-                  .replace(/\\\\u003d/g, '=')
-                  .replace(/\\\\u0026/g, '&')
-                  .replace(/\\u003d/g, '=')
-                  .replace(/\\u0026/g, '&')
-                  .replace(/\\+$/g, '');
-                const dlPoster = await axios.get(signedPosterUrl, {
-                  responseType: 'arraybuffer',
-                  timeout: 20000,
-                  headers: {
-                    Cookie: nativeVid.cookieHeader,
-                    Referer: 'https://flow.google.com/',
-                    Origin: 'https://flow.google.com',
-                    'User-Agent': ua,
-                  },
-                });
-                if (dlPoster.data && dlPoster.data.byteLength > 1000) {
-                  posterBuffer = Buffer.from(dlPoster.data);
-                }
-              } catch (_) {}
-            }
-            break;
-          }
+          } catch (_) {}
         }
       }
     } catch (flowVidErr) {
-      logger.warn('[GoogleFlow] Aviso en generación de video en flow.google.com:', flowVidErr.message);
+      logger.warn(`[GoogleFlow] Aviso en generación de video en flow.google.com: ${flowVidErr.message}`);
     }
   }
 
@@ -1115,6 +1120,12 @@ async function executeFlowVideoGeneration({
     }
   }
 
+  if (!videoBuffer) {
+    throw new Error(
+      'No fue posible completar el renderizado del video con Veo 3.1 Lite en Google Flow. Verifica tu sesión de Google Flow en Mi Cuenta -> Integraciones.'
+    );
+  }
+
   await fs.promises.mkdir(OUTPUT_MEDIA_DIR, { recursive: true });
   const fileId = uuidv4();
   const filename = `flow_vid_${fileId}.mp4`;
@@ -1122,28 +1133,12 @@ async function executeFlowVideoGeneration({
   const publicUrl = `/images/${filename}`;
   let posterUrl = null;
 
-  if (videoBuffer) {
-    await fs.promises.writeFile(fullPath, videoBuffer);
-    if (posterBuffer) {
-      const posterName = `flow_poster_${fileId}.jpg`;
-      const posterPath = path.join(OUTPUT_MEDIA_DIR, posterName);
-      await fs.promises.writeFile(posterPath, posterBuffer);
-      posterUrl = `/images/${posterName}`;
-    }
-  } else {
-    // Fallback Cinematográfico Garantizado: Fotograma Maestro Google Imagen + Cámara Flow en MP4 H.264
-    logger.info(
-      '[GoogleFlow] Generando secuencia de video cinematográfica a partir de fotograma maestro de Google Imagen...'
-    );
-    const imgResult = await executeFlowImageGeneration({
-      userId,
-      prompt: enhancedPrompt,
-      aspectRatio: cleanRatio,
-      style: 'fotorrealista',
-    });
-    posterUrl = imgResult.publicUrl;
-    await renderCinematicMp4FromImage(imgResult.fullPath, fullPath, cleanRatio, cameraMotion);
-    modelUsed = `${imgResult.model} + Google Flow Camera Motion (MP4 60fps)`;
+  await fs.promises.writeFile(fullPath, videoBuffer);
+  if (posterBuffer) {
+    const posterName = `flow_poster_${fileId}.jpg`;
+    const posterPath = path.join(OUTPUT_MEDIA_DIR, posterName);
+    await fs.promises.writeFile(posterPath, posterBuffer);
+    posterUrl = `/images/${posterName}`;
   }
 
   logger.info(`[GoogleFlow] Video MP4 guardado con éxito en ${publicUrl} (${modelUsed})`);

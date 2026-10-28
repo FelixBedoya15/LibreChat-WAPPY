@@ -88,12 +88,14 @@ class GoogleFlow extends Tool {
         });
 
         const markdown = `### 🎬 Video Generado con Google Flow Studio
-<video src="${vidRes.publicUrl}" ${vidRes.posterUrl ? `poster="${vidRes.posterUrl}"` : ''} controls autoplay loop playsinline style="max-width: 100%; border-radius: 14px; margin: 10px 0;"></video>
+[🎬 Reproducir Video (${vidRes.filename})](${vidRes.publicUrl}${vidRes.posterUrl ? `?poster=${encodeURIComponent(vidRes.posterUrl)}` : ''})
 
 * **Prompt:** ${prompt}
 * **Motor:** ${vidRes.model}
 * **Formato:** \`${vidRes.aspectRatio}\` (${movimiento_camara})
-* **Descargar MP4:** [⬇ Descargar Video (${vidRes.filename})](${vidRes.publicUrl})`;
+* **Descargar MP4:** [⬇ Descargar Video (${vidRes.filename})](${vidRes.publicUrl})
+
+*(INSTRUCCIÓN AL AGENTE: Incluye este enlace Markdown del video \`[🎬 Reproducir Video](${vidRes.publicUrl})\` exactamente así en tu respuesta; NO uses etiquetas HTML \`<video>\` crudas porque el reproductor de WAPPY renderiza automáticamente los enlaces \`.mp4\`).*`;
 
         return this.returnValue(markdown);
       } else {

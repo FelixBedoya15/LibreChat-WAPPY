@@ -32,7 +32,22 @@ const Markdown = memo(({ content = '', isLatestMessage }: TContentProps) => {
     if (isInitializing) {
       return '';
     }
-    return LaTeXParsing ? preprocessLaTeX(content) : content;
+    const base = LaTeXParsing ? preprocessLaTeX(content) : content;
+    if (!base.includes('<video')) {
+      return base;
+    }
+    return base.replace(/<video\b([^>]*)>(?:[\s\S]*?<\/video>)?/gi, (_match, attrs = '') => {
+      const srcMatch = String(attrs).match(/\bsrc=["']([^"']+)["']/i);
+      if (!srcMatch?.[1]) {
+        return _match;
+      }
+      const posterMatch = String(attrs).match(/\bposter=["']([^"']+)["']/i);
+      const srcUrl = srcMatch[1];
+      const finalUrl = posterMatch?.[1]
+        ? `${srcUrl}${srcUrl.includes('?') ? '&' : '?'}poster=${encodeURIComponent(posterMatch[1])}`
+        : srcUrl;
+      return `\n\n[🎬 Video Generado con Google Flow Studio](${finalUrl})\n\n`;
+    });
   }, [content, LaTeXParsing, isInitializing]);
 
   const rehypePlugins = useMemo(
