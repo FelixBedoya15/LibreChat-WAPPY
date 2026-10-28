@@ -749,6 +749,9 @@ async function executeFlowImageGeneration({
           responseType: 'arraybuffer',
           timeout: 35000,
           headers: {
+            Cookie: buildFlowCookieHeader(creds.cookies),
+            Referer: 'https://flow.google.com/',
+            Origin: 'https://flow.google.com',
             'User-Agent':
               'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
           },
@@ -981,7 +984,12 @@ async function executeFlowVideoGeneration({
             const dlVid = await axios.get(signedVideoUrl, {
               responseType: 'arraybuffer',
               timeout: 45000,
-              headers: { 'User-Agent': ua },
+              headers: {
+                Cookie: nativeVid.cookieHeader,
+                Referer: 'https://flow.google.com/',
+                Origin: 'https://flow.google.com',
+                'User-Agent': ua,
+              },
             });
             if (dlVid.data && dlVid.data.byteLength > 5000) {
               videoBuffer = Buffer.from(dlVid.data);
@@ -996,7 +1004,12 @@ async function executeFlowVideoGeneration({
                 const dlPoster = await axios.get(signedPosterUrl, {
                   responseType: 'arraybuffer',
                   timeout: 20000,
-                  headers: { 'User-Agent': ua },
+                  headers: {
+                    Cookie: nativeVid.cookieHeader,
+                    Referer: 'https://flow.google.com/',
+                    Origin: 'https://flow.google.com',
+                    'User-Agent': ua,
+                  },
                 });
                 if (dlPoster.data && dlPoster.data.byteLength > 1000) {
                   posterBuffer = Buffer.from(dlPoster.data);
