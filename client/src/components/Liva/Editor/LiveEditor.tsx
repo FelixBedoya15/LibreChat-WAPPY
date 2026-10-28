@@ -1202,29 +1202,78 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
     const increaseFontSize = () => changeFontSize('up');
     const decreaseFontSize = () => changeFontSize('down');
 
+    const insertQuickCorporateTable = () => {
+      editorRef.current?.focus();
+      const tableHtml = `
+        <div class="table-responsive" style="margin: 14px 0;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <thead>
+              <tr>
+                <th style="background-color: #0f766e; color: white; padding: 9px 12px; text-align: left;">Ítem / Requisito</th>
+                <th style="background-color: #0f766e; color: white; padding: 9px 12px; text-align: left;">Descripción Técnica / Evidencia</th>
+                <th style="background-color: #0f766e; color: white; padding: 9px 12px; text-align: left;">Responsable</th>
+                <th style="background-color: #0f766e; color: white; padding: 9px 12px; text-align: center;">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">01</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">Describir control o hallazgo verificable</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">Responsable SG-SST</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #059669; font-weight: bold;">Cumplido</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">02</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">Seguimiento e inspección periódica</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">COPASST / Brigada</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #d97706; font-weight: bold;">En Proceso</td>
+              </tr>
+            </tbody>
+          </table>
+        </div><p><br/></p>`;
+      document.execCommand('insertHTML', false, tableHtml);
+      safeUpdate();
+    };
+
+    const insertQuickCallout = () => {
+      editorRef.current?.focus();
+      const calloutHtml = `
+        <div style="background-color: #f0fdfa; border-left: 4px solid #0d9488; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; color: #134e4a; font-size: 12.5px;">
+          <strong>Nota Normativa SG-SST:</strong> Escribe aquí la directriz técnica, artículo del Decreto 1072 de 2015 o recomendación prioritaria.
+        </div><p><br/></p>`;
+      document.execCommand('insertHTML', false, calloutHtml);
+      safeUpdate();
+    };
+
     const ToolbarButton = ({
       icon: Icon,
       command,
       value,
       label,
       onClick,
+      accentClass,
     }: {
       icon: any;
       command?: string;
       value?: string;
       label: string;
       onClick?: () => void;
+      accentClass?: string;
     }) => (
       <motion.button
         whileTap={{ scale: 0.95 }}
         onClick={onClick ? onClick : () => command && execCmd(command, value)}
-        className="border-border-medium/50 group relative flex h-7.5 w-7.5 sm:h-8 sm:w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border bg-surface-primary text-text-primary shadow-xs outline-none transition-all duration-200 hover:border-teal-400 hover:bg-surface-hover active:scale-95"
+        className={`group relative flex h-8 min-w-[32px] px-2 shrink-0 cursor-pointer items-center justify-center rounded-xl border outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 ${
+          accentClass ||
+          'border-border-medium/60 bg-surface-primary text-text-primary hover:border-teal-500/40 hover:bg-teal-500/10 hover:text-teal-700 dark:hover:text-teal-300 shadow-xs'
+        }`}
         type="button"
         aria-label={label}
+        title={label}
       >
-        <Icon size={15} className="sm:h-4 sm:w-4" />
-        <div className="pointer-events-none absolute left-1/2 top-full z-[110] mt-1.5 hidden max-w-0 -translate-x-1/2 items-center overflow-hidden whitespace-nowrap rounded-md border border-teal-500/50 bg-teal-600 px-2 py-0.5 text-white opacity-0 shadow-xl transition-all duration-300 ease-in-out group-hover:max-w-[150px] group-hover:opacity-100 sm:flex">
-          <span className="text-[9px] font-bold uppercase tracking-wider">{label}</span>
+        <Icon size={15} className="sm:h-4 sm:w-4 shrink-0" />
+        <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[160px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
+          <span className="text-[11px] font-bold tracking-wide">{label}</span>
         </div>
       </motion.button>
     );
@@ -1233,16 +1282,16 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
       {
         id: 'fontsize',
         buttons: [
-          { icon: AArrowUp, label: 'Aumentar texto', onClick: increaseFontSize },
-          { icon: AArrowDown, label: 'Reducir texto', onClick: decreaseFontSize },
+          { icon: AArrowUp, label: 'Aumentar', onClick: increaseFontSize },
+          { icon: AArrowDown, label: 'Reducir', onClick: decreaseFontSize },
         ],
       },
       {
         id: 'format',
         buttons: [
-          { icon: Bold, command: 'bold', label: localize('com_ui_bold') },
-          { icon: Italic, command: 'italic', label: localize('com_ui_italic') },
-          { icon: Underline, command: 'underline', label: localize('com_ui_underline') },
+          { icon: Bold, command: 'bold', label: localize('com_ui_bold') || 'Negrita' },
+          { icon: Italic, command: 'italic', label: localize('com_ui_italic') || 'Cursiva' },
+          { icon: Underline, command: 'underline', label: localize('com_ui_underline') || 'Subrayado' },
         ],
       },
       {
@@ -1252,40 +1301,66 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
             icon: Heading1,
             command: 'formatBlock',
             value: 'H1',
-            label: localize('com_ui_heading_1'),
+            label: 'Título 1',
           },
           {
             icon: Heading2,
             command: 'formatBlock',
             value: 'H2',
-            label: localize('com_ui_heading_2'),
+            label: 'Título 2',
           },
         ],
       },
       {
         id: 'lists',
         buttons: [
-          { icon: List, command: 'insertUnorderedList', label: localize('com_ui_bullet_list') },
+          { icon: List, command: 'insertUnorderedList', label: 'Viñetas' },
           {
             icon: ListOrdered,
             command: 'insertOrderedList',
-            label: localize('com_ui_numbered_list'),
+            label: 'Numeración',
           },
         ],
       },
       {
         id: 'align',
         buttons: [
-          { icon: AlignLeft, command: 'justifyLeft', label: localize('com_ui_align_left') },
-          { icon: AlignCenter, command: 'justifyCenter', label: localize('com_ui_align_center') },
-          { icon: AlignRight, command: 'justifyRight', label: localize('com_ui_align_right') },
+          { icon: AlignLeft, command: 'justifyLeft', label: 'Izquierda' },
+          { icon: AlignCenter, command: 'justifyCenter', label: 'Centrar' },
+          { icon: AlignRight, command: 'justifyRight', label: 'Derecha' },
         ],
       },
       {
         id: 'media',
         buttons: [
-          { icon: ImageIcon, label: 'Imagen', onClick: () => fileInputRef.current?.click() },
-          { icon: PenTool, label: 'Firma', onClick: () => setIsSignatureModalOpen(true) },
+          {
+            icon: TableIcon,
+            label: 'Tabla SST',
+            onClick: insertQuickCorporateTable,
+            accentClass:
+              'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs',
+          },
+          {
+            icon: Layout,
+            label: 'Nota Legal',
+            onClick: insertQuickCallout,
+            accentClass:
+              'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 shadow-xs',
+          },
+          {
+            icon: ImageIcon,
+            label: 'Imagen',
+            onClick: () => fileInputRef.current?.click(),
+            accentClass:
+              'bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 shadow-xs',
+          },
+          {
+            icon: PenTool,
+            label: 'Firmar',
+            onClick: () => setIsSignatureModalOpen(true),
+            accentClass:
+              'bg-fuchsia-500/10 border-fuchsia-500/30 text-fuchsia-700 dark:text-fuchsia-300 hover:bg-fuchsia-500/20 shadow-xs',
+          },
         ],
       },
       {
@@ -1297,6 +1372,8 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
                   icon: History,
                   label: localize('com_ui_history') || 'Historial',
                   onClick: onHistory,
+                  accentClass:
+                    'bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs',
                 },
               ]
             : []),
@@ -1304,8 +1381,10 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
             ? [
                 {
                   icon: Save,
-                  label: localize('com_ui_save_report') || 'Guardar Informe',
+                  label: localize('com_ui_save_report') || 'Guardar',
                   onClick: onSave,
+                  accentClass:
+                    'bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs',
                 },
               ]
             : []),
@@ -1313,8 +1392,10 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
             ? [
                 {
                   icon: isFullScreen ? Minimize : Maximize,
-                  label: isFullScreen ? 'Salir Pantalla Completa' : 'Pantalla Completa',
+                  label: isFullScreen ? 'Salir' : 'Expandir',
                   onClick: toggleFullScreen,
+                  accentClass:
+                    'bg-slate-500/10 dark:bg-zinc-800/80 border-slate-300/60 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-500/20 shadow-xs',
                 },
               ]
             : []),

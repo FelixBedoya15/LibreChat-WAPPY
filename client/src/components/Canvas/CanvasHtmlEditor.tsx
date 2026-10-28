@@ -25,6 +25,7 @@ import {
 import { useAuthContext } from '~/hooks/AuthContext';
 import { PREMIUM_SST_COMPONENTS } from './sstTemplates';
 import CanvasWorkspaceBridge from './CanvasWorkspaceBridge';
+import { ExpandableButton } from '~/components/Common/ExpandableButton';
 
 interface CanvasHtmlEditorProps {
   initialContent: string;
@@ -1060,221 +1061,195 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
   return (
     <div ref={containerRef} className="flex-1 h-full flex overflow-hidden relative bg-surface-primary border border-border-medium rounded-2xl shadow-sm">
       
-      {/* Mobile Sidebar Backdrop Overlay */}
-      {isMaximized && sidebarOpen && (
+      {/* Sidebar Backdrop Overlay for Side-Panel or Mobile */}
+      {sidebarOpen && (
         <div 
-          className="sm:hidden absolute inset-0 bg-black/30 backdrop-blur-[2px] z-[440] transition-opacity duration-300 animate-in fade-in"
+          className={`${isMaximized ? 'sm:hidden' : ''} absolute inset-0 bg-black/30 backdrop-blur-[2px] z-[440] transition-opacity duration-300 animate-in fade-in`}
           onClick={() => setSidebarOpen(false)}
         />
       )}
       
-      {/* Left Column: SST Component Library Sidebar */}
-      {isMaximized && (
-        <div 
-          className={`flex-shrink-0 border-r border-border-medium bg-surface-secondary flex flex-col transition-all duration-300 absolute inset-y-0 left-0 z-[450] sm:relative sm:z-0 ${
-            sidebarOpen ? 'w-[280px] sm:w-[320px]' : 'w-0 overflow-hidden border-r-0'
-          }`}
-        >
-          {/* Header */}
-          <div className="p-4 border-b border-border-medium flex items-center justify-between shrink-0 bg-surface-primary">
-            <div className="flex items-center gap-2">
-              <Layers className="h-5 w-5 text-teal-600 animate-pulse" />
-              <span className="text-sm font-bold bg-gradient-to-r from-teal-600 to-emerald-500 bg-clip-text text-transparent">Biblioteca SST</span>
-            </div>
-            <span className="text-[10px] bg-teal-500/10 text-teal-600 px-2 py-0.5 rounded-full font-bold">HTML5</span>
+      {/* Left Column: SST Component Library Sidebar (Available in BOTH Side-Panel & Maximized modes!) */}
+      <div 
+        className={`flex-shrink-0 border-r border-border-medium bg-surface-secondary flex flex-col transition-all duration-300 absolute inset-y-0 left-0 z-[450] ${isMaximized ? 'sm:relative sm:z-0' : 'shadow-2xl'} ${
+          sidebarOpen ? 'w-[280px] sm:w-[320px]' : 'w-0 overflow-hidden border-r-0'
+        }`}
+      >
+        {/* Header */}
+        <div className="p-3.5 border-b border-border-medium flex items-center justify-between shrink-0 bg-surface-primary">
+          <div className="flex items-center gap-2">
+            <Layers className="h-4 w-4 text-teal-600 animate-pulse" />
+            <span className="text-xs font-extrabold bg-gradient-to-r from-teal-600 to-emerald-500 bg-clip-text text-transparent">Biblioteca Aplicativos SST</span>
           </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-surface-secondary hover:bg-surface-hover text-text-secondary cursor-pointer"
+          >
+            Cerrar
+          </button>
+        </div>
 
-          {/* scrolling list of codes to insert */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-thin">
-            <div className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider px-1 mb-2 flex items-center gap-1">
-              <Sparkles className="h-3 w-3 text-yellow-500" />
-              Aplicativos Inyectables
-            </div>
-            
-            <div className="space-y-3">
-              {PREMIUM_SST_COMPONENTS.map((comp) => (
-                <button
-                  key={comp.id}
-                  onClick={() => {
-                    if (!isPro) {
-                      alert('Este aplicativo premium es exclusivo para usuarios Pro de Wappy. Por favor actualice su suscripción.');
+        {/* Scrolling list of interactive SST apps to insert */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-2.5 scrollbar-thin">
+          <div className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider px-1 mb-1 flex items-center gap-1">
+            <Sparkles className="h-3 w-3 text-amber-500" />
+            Simuladores y Calculadoras SST
+          </div>
+          
+          <div className="space-y-2.5">
+            {PREMIUM_SST_COMPONENTS.map((comp) => (
+              <button
+                key={comp.id}
+                onClick={() => {
+                  if (!isPro) {
+                    alert('Este aplicativo premium es exclusivo para usuarios Pro de Wappy. Por favor actualice su suscripción.');
+                    return;
+                  }
+                  if (code && code.trim() !== '' && !code.includes('Prototipo de Código WAPPY') && !code.includes('Prototipo Interactivo WAPPY')) {
+                    if (!window.confirm(`¿Deseas reemplazar el código actual por el aplicativo "${comp.title}"? Se perderán las modificaciones no guardadas.`)) {
                       return;
                     }
-                    if (code && code.trim() !== '' && !code.includes('Prototipo de Código WAPPY')) {
-                      if (!window.confirm(`¿Deseas reemplazar el código actual por el aplicativo "${comp.title}"? Se perderán las modificaciones no guardadas.`)) {
-                        return;
-                      }
-                    }
-                    setCode(comp.code);
-                    onUpdate(comp.code);
-                  }}
-                  className="w-full text-left rounded-xl border border-border-medium/60 p-3 bg-surface-primary hover:border-teal-500/40 hover:shadow-md hover:shadow-teal-500/5 transition-all duration-300 group flex items-start gap-2.5 cursor-pointer animate-in fade-in duration-200"
-                >
-                  <div className="h-8 w-8 rounded-lg bg-surface-secondary flex items-center justify-center border border-border-medium/40 shrink-0 group-hover:scale-105 transition-transform">
-                    {renderIcon(comp.iconType, comp.color)}
+                  }
+                  setCode(comp.code);
+                  onUpdate(comp.code);
+                  if (!isMaximized) setSidebarOpen(false);
+                }}
+                className="w-full text-left rounded-xl border border-border-medium/60 p-3 bg-surface-primary hover:border-teal-500/40 hover:shadow-md hover:shadow-teal-500/5 transition-all duration-300 group flex items-start gap-2.5 cursor-pointer animate-in fade-in duration-200"
+              >
+                <div className="h-8 w-8 rounded-lg bg-surface-secondary flex items-center justify-center border border-border-medium/40 shrink-0 group-hover:scale-105 transition-transform">
+                  {renderIcon(comp.iconType, comp.color)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-text-primary group-hover:text-teal-600 transition-colors">
+                      {comp.title}
+                    </h4>
+                    {!isPro ? (
+                      <span className="flex items-center gap-1 text-[8px] font-bold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 shrink-0">
+                        <Lock className="h-2 w-2" />
+                        PRO
+                      </span>
+                    ) : (
+                      <span className="text-[8px] font-bold text-teal-500 bg-teal-500/5 px-1 py-0.2 rounded border border-teal-500/10 opacity-0 group-hover:opacity-100 transition-opacity">
+                        + Insertar
+                      </span>
+                    )}
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-bold text-text-primary group-hover:text-teal-600 transition-colors">
-                        {comp.title}
-                      </h4>
-                      {!isPro ? (
-                        <span className="flex items-center gap-1 text-[8px] font-bold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 shrink-0">
-                          <Lock className="h-2 w-2" />
-                          PRO
-                        </span>
-                      ) : (
-                        <span className="text-[8px] font-bold text-teal-500 bg-teal-500/5 px-1 py-0.2 rounded border border-teal-500/10 opacity-0 group-hover:opacity-100 transition-opacity">
-                          + Insertar
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-text-tertiary mt-1 leading-snug line-clamp-2">
-                      {comp.description}
-                    </p>
-                  </div>
-                </button>
-              ))}
-            </div>
+                  <p className="text-[10px] text-text-tertiary mt-1 leading-snug line-clamp-2">
+                    {comp.description}
+                  </p>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
-      )}
-
-      {/* Floating Toggle Button for Sidebar - ONLY visible when maximized */}
-      {isMaximized && (
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className={`absolute top-1/2 -translate-y-1/2 z-[460] h-14 w-5 bg-surface-primary border border-border-medium hover:bg-surface-hover shadow-md rounded-r-lg flex items-center justify-center transition-all duration-300 ${
-            sidebarOpen 
-              ? 'left-[279px] sm:left-[319px]' 
-              : 'left-0 border-l-0'
-          }`}
-          title={sidebarOpen ? 'Contraer Panel Lateral' : 'Expandir Panel Lateral'}
-        >
-          {sidebarOpen ? (
-            <ChevronLeft className="h-3.5 w-3.5 text-text-secondary" />
-          ) : (
-            <ChevronRight className="h-3.5 w-3.5 text-text-secondary" />
-          )}
-        </button>
-      )}
+      </div>
 
       {/* Right Column: Code Editor & Iframe Preview Container */}
       <div className="flex-1 flex flex-col h-full bg-surface-primary text-text-primary overflow-hidden">
-        {/* Editor Menu & Controls */}
-        <div className="flex items-center justify-between p-3 border-b border-border-medium bg-surface-secondary">
-          {/* Split/Code/Preview tabs switcher */}
-          <div className="flex items-center gap-1 bg-surface-primary border border-border-medium rounded-xl p-1 shadow-sm">
-            {isMaximized && (
+        {/* Editor Menu & Controls (WAPPY 14-Group Design System — All buttons expand on hover & collapse to icon) */}
+        <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border-medium bg-surface-secondary flex-wrap">
+          <div className="flex items-center gap-1.5">
+            {/* Biblioteca Aplicativos SST Toggle (Group 8: Amber) */}
+            <ExpandableButton
+              onClick={() => setSidebarOpen((prev) => !prev)}
+              icon={<Layers className="h-4 w-4" />}
+              label="Biblioteca SST"
+              title="Abrir simuladores, calculadoras y componentes interactivos SST"
+              variant="amber"
+              size="sm"
+              isActive={sidebarOpen}
+            />
+
+            {/* Split/Code/Preview tabs switcher */}
+            <div className="flex items-center gap-1 bg-surface-primary border border-border-medium rounded-xl p-1 shadow-xs">
+              {isMaximized && (
+                <button
+                  onClick={() => setActiveTab('split')}
+                  className={`hidden sm:flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg transition-all duration-300 cursor-pointer ${
+                    activeTab === 'split'
+                      ? 'bg-teal-500/15 text-teal-700 dark:text-teal-300 border border-teal-500/30 font-extrabold'
+                      : 'text-text-secondary hover:bg-surface-hover'
+                  }`}
+                >
+                  <Split className="h-3.5 w-3.5" />
+                  <span>Dividido</span>
+                </button>
+              )}
               <button
-                onClick={() => setActiveTab('split')}
-                className={`hidden sm:flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-300 hover:scale-105 hover:-rotate-1 ${
-                  activeTab === 'split' ? 'bg-surface-secondary text-text-primary shadow-inner font-extrabold' : 'text-text-secondary hover:bg-surface-hover'
+                onClick={() => setActiveTab('code')}
+                className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg transition-all duration-300 cursor-pointer ${
+                  activeTab === 'code'
+                    ? 'bg-teal-500/15 text-teal-700 dark:text-teal-300 border border-teal-500/30 font-extrabold'
+                    : 'text-text-secondary hover:bg-surface-hover'
                 }`}
               >
-                <Split className="h-3.5 w-3.5" />
-                <span>Dividido</span>
+                <Code2 className="h-3.5 w-3.5" />
+                <span>Código</span>
               </button>
-            )}
-            <button
-              onClick={() => setActiveTab('code')}
-              className={`flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-300 hover:scale-105 hover:-rotate-1 ${
-                activeTab === 'code' ? 'bg-surface-secondary text-text-primary shadow-inner font-extrabold' : 'text-text-secondary hover:bg-surface-hover'
-              }`}
-            >
-              <Code2 className="h-3.5 w-3.5" />
-              <span>Código</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('preview')}
-              className={`flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-300 hover:scale-105 hover:-rotate-1 ${
-                activeTab === 'preview' ? 'bg-surface-secondary text-text-primary shadow-inner font-extrabold' : 'text-text-secondary hover:bg-surface-hover'
-              }`}
-            >
-              <Eye className="h-3.5 w-3.5" />
-              <span>Vista Previa</span>
-            </button>
+              <button
+                onClick={() => setActiveTab('preview')}
+                className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg transition-all duration-300 cursor-pointer ${
+                  activeTab === 'preview'
+                    ? 'bg-teal-500/15 text-teal-700 dark:text-teal-300 border border-teal-500/30 font-extrabold'
+                    : 'text-text-secondary hover:bg-surface-hover'
+                }`}
+              >
+                <Eye className="h-3.5 w-3.5" />
+                <span>Vista Previa</span>
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
+          <div className="flex items-center gap-1.5">
+            <ExpandableButton
               onClick={() => setIsBridgeOpen(true)}
-              className="group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs"
-              title="Insertar imágenes, videos o infografías de Google Flow y NotebookLM (30 días)"
-            >
-              <div className="relative flex-shrink-0 flex items-center justify-center">
-                <Sparkles className="h-4 w-4" />
-              </div>
-              <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[240px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                <span className="text-xs font-bold tracking-wide">
-                  Flow & NotebookLM
-                </span>
-              </div>
-            </button>
+              icon={<Sparkles className="h-4 w-4" />}
+              label="Conectar Recursos IA"
+              title="Insertar imágenes, videos o infografías de Google Flow y NotebookLM"
+              variant="purple"
+              size="sm"
+            />
 
             {(activeTab === 'preview' || activeTab === 'split') && (
               <>
-                <button
+                <ExpandableButton
                   onClick={() => setIframeKey((prev) => prev + 1)}
-                  className="group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   border rounded-xl bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 shadow-xs "
-                  title="Recargar vista previa"
-                >
-                  <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
-                    <RotateCw className="h-4 w-4 text-text-primary" />
-                  </div>
-                  <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                    <span className="text-xs font-bold tracking-wide text-text-primary">
-                      Recargar
-                    </span>
-                  </div>
-                </button>
+                  icon={<RotateCw className="h-4 w-4" />}
+                  label="Recargar Vista"
+                  title="Recargar vista previa interactiva"
+                  variant="cyan"
+                  size="sm"
+                />
 
-                <button
+                <ExpandableButton
                   onClick={handleOpenInNewTab}
-                  className="group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   border rounded-xl bg-fuchsia-500/10 border-fuchsia-500/30 text-fuchsia-700 dark:text-fuchsia-300 hover:bg-fuchsia-500/20 shadow-xs "
-                  title="Abrir en pestaña nueva (presentación completa)"
-                >
-                  <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
-                    <ExternalLink className="h-4 w-4 text-text-primary" />
-                  </div>
-                  <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                    <span className="text-xs font-bold tracking-wide text-text-primary">
-                      Abrir en pestaña
-                    </span>
-                  </div>
-                </button>
+                  icon={<ExternalLink className="h-4 w-4" />}
+                  label="Abrir en Pestaña"
+                  title="Abrir aplicativo en una pestaña nueva del navegador"
+                  variant="fuchsia"
+                  size="sm"
+                />
 
-                <button
+                <ExpandableButton
                   onClick={toggleFullscreen}
-                  className="group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl   border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs "
+                  icon={isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+                  label={isFullscreen ? 'Salir' : 'Pantalla Completa'}
                   title={isFullscreen ? 'Salir Pantalla Completa' : 'Pantalla Completa'}
-                >
-                  <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
-                    {isFullscreen ? <Minimize className="h-4 w-4 text-text-primary" /> : <Maximize className="h-4 w-4 text-text-primary" />}
-                  </div>
-                  <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                    <span className="text-xs font-bold tracking-wide text-text-primary">
-                      {isFullscreen ? 'Salir Pantalla Completa' : 'Pantalla Completa'}
-                    </span>
-                  </div>
-                </button>
+                  variant="neutral"
+                  size="sm"
+                />
               </>
             )}
 
-            <button
+            <ExpandableButton
               onClick={handleDownloadHtml}
-              className="group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl   border rounded-xl bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 shadow-xs "
-              aria-label="Descargar HTML"
-            >
-              <div className="relative flex-shrink-0 flex items-center justify-center text-text-primary">
-                <Download className="h-4 w-4 text-text-primary" />
-              </div>
-              <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                <span className="text-xs font-bold tracking-wide text-text-primary">
-                  Descargar HTML
-                </span>
-              </div>
-            </button>
+              icon={<Download className="h-4 w-4" />}
+              label="Descargar Aplicativo"
+              title="Descargar aplicativo interactivo autocontenido"
+              variant="green"
+              size="sm"
+            />
           </div>
         </div>
 

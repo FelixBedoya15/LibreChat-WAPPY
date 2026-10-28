@@ -45,6 +45,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import CanvasWorkspaceBridge from './CanvasWorkspaceBridge';
+import { ExpandableButton } from '~/components/Common/ExpandableButton';
 
 export type SlideThemeKey =
   | 'wappy-dark'
@@ -764,7 +765,7 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({
 }) => {
   const [slides, setSlides] = useState<Slide[]>([]);
   const [activeIndex, setActiveIndex] = useState<number>(0);
-  const [showSettings, setShowSettings] = useState<boolean>(true);
+  const [showSettings, setShowSettings] = useState<boolean>(false);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const [showTemplateMenu, setShowTemplateMenu] = useState<boolean>(false);
   const [isExportingPptx, setIsExportingPptx] = useState<boolean>(false);
@@ -2383,7 +2384,7 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({
               className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border bg-green-500/20 border-green-500/40 text-green-300 hover:bg-green-500/30 cursor-pointer"
             >
               <Download className="h-3.5 w-3.5" />
-              <span>.PPTX</span>
+              <span>Descargar</span>
             </button>
             <button
               onClick={() => setShowLaser(!showLaser)}
@@ -2579,41 +2580,40 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({
             })}
           </div>
 
-          {/* Sidebar Actions (WAPPY 14-Group Design System) */}
-          <div className="p-3 border-t border-border-medium bg-surface-primary flex flex-col gap-2 shrink-0">
-            <button
+          {/* Sidebar Actions (WAPPY 14-Group Design System — Expand on Hover / Collapse to Icon) */}
+          <div className="p-3 border-t border-border-medium bg-surface-primary flex items-center justify-center gap-2 shrink-0">
+            <ExpandableButton
               onClick={addSlide}
-              className="group flex items-center justify-center gap-2 h-9 px-3 rounded-xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition-all duration-300 sm:hover:-rotate-2 sm:hover:scale-[1.02] active:scale-95 cursor-pointer text-xs font-bold"
-            >
-              <Plus className="h-4 w-4 shrink-0" />
-              <span>Nueva Diapositiva</span>
-            </button>
-            <div className="grid grid-cols-2 gap-1.5">
-              <button
-                onClick={duplicateSlide}
-                className="flex items-center justify-center gap-1.5 h-9 px-2 rounded-xl border bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 transition-all duration-300 cursor-pointer text-xs font-bold"
-                title="Duplicar lámina"
-              >
-                <Copy className="h-3.5 w-3.5" />
-                <span>Duplicar</span>
-              </button>
-              <button
-                onClick={deleteSlide}
-                disabled={slides.length <= 1}
-                className="flex items-center justify-center gap-1.5 h-9 px-2 rounded-xl border bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 disabled:opacity-40 transition-all duration-300 cursor-pointer text-xs font-bold"
-                title="Eliminar lámina"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                <span>Eliminar</span>
-              </button>
-            </div>
+              icon={<Plus className="h-4 w-4" />}
+              label="Nueva Lámina"
+              title="Añadir nueva diapositiva"
+              variant="emerald"
+              size="sm"
+            />
+            <ExpandableButton
+              onClick={duplicateSlide}
+              icon={<Copy className="h-4 w-4" />}
+              label="Duplicar"
+              title="Duplicar diapositiva actual"
+              variant="teal"
+              size="sm"
+            />
+            <ExpandableButton
+              onClick={deleteSlide}
+              disabled={slides.length <= 1}
+              icon={<Trash2 className="h-4 w-4" />}
+              label="Eliminar"
+              title="Eliminar diapositiva actual"
+              variant="danger"
+              size="sm"
+            />
           </div>
         </div>
       )}
 
       {/* Main Interactive Slide Workspace */}
       <div className="flex-1 flex flex-col bg-surface-secondary/30 overflow-hidden">
-        {/* Top Action Bar (WAPPY 14-Group Design System) */}
+        {/* Top Action Bar (WAPPY 14-Group Design System — All buttons expand on hover & collapse to icon) */}
         <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 border-b border-border-medium bg-surface-primary shrink-0 z-30">
           {/* Left: Slide Navigation & Templates */}
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -2640,25 +2640,47 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({
             </div>
 
             {/* Add Slide (Group 4: Emerald) */}
-            <button
+            <ExpandableButton
               onClick={addSlide}
-              className="group flex h-9 min-w-[36px] px-2.5 items-center justify-center rounded-xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 cursor-pointer"
-              title="Nueva Diapositiva"
-            >
-              <Plus className="h-4 w-4 shrink-0" />
-              <span className="hidden md:inline ml-1.5 text-xs font-bold">Lámina</span>
-            </button>
+              icon={<Plus className="h-4 w-4" />}
+              label="Nueva Lámina"
+              title="Añadir nueva diapositiva"
+              variant="emerald"
+              size="sm"
+            />
 
-            {/* Templates Dropdown (Group 1: Amber) */}
+            {/* Duplicate Slide (Group 3: Teal) */}
+            <ExpandableButton
+              onClick={duplicateSlide}
+              icon={<Copy className="h-4 w-4" />}
+              label="Duplicar"
+              title="Duplicar diapositiva actual"
+              variant="teal"
+              size="sm"
+            />
+
+            {/* Delete Slide (Group 13: Rose) */}
+            <ExpandableButton
+              onClick={deleteSlide}
+              disabled={slides.length <= 1}
+              icon={<Trash2 className="h-4 w-4" />}
+              label="Eliminar"
+              title="Eliminar diapositiva actual"
+              variant="danger"
+              size="sm"
+            />
+
+            {/* Templates Dropdown (Group 8: Amber) */}
             <div className="relative">
-              <button
+              <ExpandableButton
                 onClick={() => setShowTemplateMenu((prev) => !prev)}
-                className="group flex h-9 min-w-[36px] px-2.5 items-center justify-center rounded-xl border bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 shadow-xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 cursor-pointer"
-                title="Plantillas Ejecutivas SST"
-              >
-                <Layers className="h-4 w-4 shrink-0" />
-                <span className="hidden lg:inline ml-1.5 text-xs font-bold">Plantillas SST</span>
-              </button>
+                icon={<Layers className="h-4 w-4" />}
+                label="Plantillas SST"
+                title="Plantillas Ejecutivas SG-SST"
+                variant="amber"
+                size="sm"
+                isActive={showTemplateMenu}
+              />
               {showTemplateMenu && (
                 <div className="absolute left-0 mt-2 w-72 rounded-2xl border border-border-medium bg-surface-primary shadow-2xl p-2 z-50 space-y-1 animate-in fade-in zoom-in-95 duration-150">
                   <div className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-text-tertiary">
@@ -2681,91 +2703,123 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({
             </div>
 
             {/* Smart Transform Layout (Group 6: Purple IA) */}
-            <button
+            <ExpandableButton
               onClick={handleSmartTransformSlide}
               disabled={isEnhancingSlide}
-              className="group flex h-9 min-w-[36px] px-2.5 items-center justify-center rounded-xl border bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 cursor-pointer"
-              title="Transformar diseño de lámina automáticamente (KPIs / Columnas / PHVA / Cita)"
-            >
-              <Sparkles className={`h-4 w-4 shrink-0 ${isEnhancingSlide ? 'animate-spin' : ''}`} />
-              <span className="hidden xl:inline ml-1.5 text-xs font-bold">Transformar Layout</span>
-            </button>
+              icon={<Sparkles className={`h-4 w-4 ${isEnhancingSlide ? 'animate-spin' : ''}`} />}
+              label="Transformar Diseño"
+              title="Transformar estructura visual automáticamente (KPIs / Columnas / PHVA / Cita)"
+              variant="purple"
+              size="sm"
+            />
           </div>
 
-          {/* Right: Connect, Present, Export PPTX & PDF */}
+          {/* Right: Inspector Toggle, Connect, Present, Export */}
           <div className="flex items-center gap-1.5">
+            {/* Design & Content Inspector Toggle (Group 12: Orange) */}
+            <ExpandableButton
+              onClick={() => setShowSettings((prev) => !prev)}
+              icon={<Palette className="h-4 w-4" />}
+              label={showSettings ? 'Ocultar Diseño' : 'Diseño y Tema'}
+              title="Abrir u ocultar el panel de estructuras, temas y notas"
+              variant="orange"
+              size="sm"
+              isActive={showSettings}
+            />
+
             {/* Connect Workspace Bridge (Group 3: Teal) */}
-            <button
+            <ExpandableButton
               onClick={() => setIsBridgeOpen(true)}
-              className="group flex h-9 min-w-[36px] px-2.5 items-center justify-center rounded-xl border bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 cursor-pointer"
-              title="Conectar con Excel, Word o Galería Google Flow"
-            >
-              <Link2 className="h-4 w-4 shrink-0" />
-              <span className="hidden md:inline ml-1.5 text-xs font-bold">Conectar</span>
-            </button>
+              icon={<Link2 className="h-4 w-4" />}
+              label="Conectar Recursos"
+              title="Conectar con Hoja de Cálculo, Documento o Galería Google Flow"
+              variant="teal"
+              size="sm"
+            />
 
             {/* Fullscreen Presentation (Group 5: Cyan) */}
-            <button
+            <ExpandableButton
               onClick={() => setIsPresenting(true)}
-              className="group flex h-9 min-w-[36px] px-2.5 items-center justify-center rounded-xl border bg-cyan-500/10 border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 shadow-xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 cursor-pointer"
+              icon={<MonitorPlay className="h-4 w-4" />}
+              label="Presentar"
               title="Iniciar Presentación Pantalla Completa"
-            >
-              <MonitorPlay className="h-4 w-4 shrink-0" />
-              <span className="hidden sm:inline ml-1.5 text-xs font-bold">Presentar</span>
-            </button>
+              variant="cyan"
+              size="sm"
+            />
 
-            {/* Export Native PowerPoint .PPTX (Group 10: Green) */}
-            <button
+            {/* Export Native Presentation (Group 10: Green) */}
+            <ExpandableButton
               onClick={handleDownloadPptx}
               disabled={isExportingPptx}
-              className="group flex h-9 min-w-[36px] px-3 items-center justify-center rounded-xl border bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-300 hover:bg-green-500/20 shadow-xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-50"
-              title="Descargar archivo PowerPoint (.pptx) editable"
-            >
-              <Download className={`h-4 w-4 shrink-0 ${isExportingPptx ? 'animate-bounce' : ''}`} />
-              <span className="ml-1.5 text-xs font-extrabold">
-                {isExportingPptx ? 'Generando...' : 'PowerPoint .PPTX'}
-              </span>
-            </button>
+              icon={<Download className={`h-4 w-4 ${isExportingPptx ? 'animate-bounce' : ''}`} />}
+              label={isExportingPptx ? 'Generando...' : 'Descargar Presentación'}
+              title="Descargar presentación editable"
+              variant="green"
+              size="sm"
+            />
 
-            {/* Print PDF 16:9 (Group 14: Neutral) */}
-            <button
+            {/* Print 16:9 (Group 14: Neutral) */}
+            <ExpandableButton
               onClick={handleDownloadPdf}
-              className="group flex h-9 min-w-[36px] px-2.5 items-center justify-center rounded-xl border bg-slate-500/10 dark:bg-zinc-800/80 border-slate-300/60 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-500/20 shadow-xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 cursor-pointer"
-              title="Imprimir o Guardar como PDF Horizontal 16:9"
-            >
-              <Printer className="h-4 w-4 shrink-0" />
-              <span className="hidden xl:inline ml-1.5 text-xs font-bold">PDF</span>
-            </button>
+              icon={<Printer className="h-4 w-4" />}
+              label="Imprimir"
+              title="Imprimir presentación en formato horizontal 16:9"
+              variant="neutral"
+              size="sm"
+            />
           </div>
         </div>
 
         {/* Scrollable Slide Canvas + Inspector */}
         {activeSlide ? (
-          <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-4 scrollbar-thin">
-            {/* Horizontal Thumbnail Strip when in Side-Panel (!isMaximized) */}
-            {!isMaximized && (
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
-                {slides.map((s, idx) => {
-                  const isAct = idx === activeIndex;
+          <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-3 scrollbar-thin">
+            {/* Horizontal Thumbnail Strip + Quick Layout/Theme Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              {!isMaximized && (
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-thin">
+                  {slides.map((s, idx) => {
+                    const isAct = idx === activeIndex;
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => setActiveIndex(idx)}
+                        className={`shrink-0 px-2.5 py-1 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-1.5 ${
+                          isAct
+                            ? 'bg-teal-500/15 border-teal-500/40 text-teal-600 dark:text-teal-300 font-extrabold shadow-xs'
+                            : 'bg-surface-primary border-border-medium text-text-secondary hover:border-teal-500/30'
+                        }`}
+                      >
+                        <span className="text-[10px] font-mono font-black opacity-75">0{idx + 1}</span>
+                        <span className="text-[11px] truncate max-w-[100px]">{stripHtmlTags(s.title)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Compact Quick Pill Selector for Layouts (Always visible, 1-line) */}
+              <div className="flex items-center gap-1 overflow-x-auto pb-0.5 scrollbar-none ml-auto">
+                {LAYOUT_OPTIONS.map((l) => {
+                  const isSelected = (activeSlide.layout || 'bullets') === l.key;
                   return (
                     <button
-                      key={idx}
-                      onClick={() => setActiveIndex(idx)}
-                      className={`shrink-0 px-2.5 py-1.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-1.5 ${
-                        isAct
-                          ? 'bg-teal-500/15 border-teal-500/40 text-teal-600 dark:text-teal-300 font-extrabold shadow-xs'
-                          : 'bg-surface-primary border-border-medium text-text-secondary hover:border-teal-500/30'
+                      key={l.key}
+                      onClick={() => updateSlide(activeIndex, { layout: l.key })}
+                      className={`shrink-0 py-1 px-2 text-[10px] font-bold border rounded-lg transition-all cursor-pointer ${
+                        isSelected
+                          ? 'border-teal-500/50 bg-teal-500/15 text-teal-700 dark:text-teal-300 shadow-xs'
+                          : 'border-border-medium bg-surface-primary hover:bg-surface-hover text-text-secondary'
                       }`}
+                      title={l.desc}
                     >
-                      <span className="text-[10px] font-mono font-black opacity-75">0{idx + 1}</span>
-                      <span className="text-[11px] truncate max-w-[110px]">{stripHtmlTags(s.title)}</span>
+                      {l.label}
                     </button>
                   );
                 })}
               </div>
-            )}
+            </div>
 
-            {/* 16:9 Interactive Slide Stage */}
+            {/* 16:9 Interactive Slide Stage — Full Centerpiece */}
             <div
               className={`aspect-[16/9] w-full rounded-2xl shadow-xl border ${activeTheme.bg} ${activeTheme.border} p-5 sm:p-7 flex flex-col justify-between relative overflow-hidden transition-all`}
             >
@@ -2806,28 +2860,49 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({
               </div>
             </div>
 
-            {/* Quick Design & Content Inspector (Available in both modes!) */}
-            <div className="bg-surface-primary border border-border-medium rounded-2xl p-4 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
+            {/* Collapsible Design & Content Inspector */}
+            <div className="bg-surface-primary border border-border-medium rounded-2xl p-3 sm:p-4 shadow-sm space-y-3">
+              <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-extrabold text-text-primary uppercase tracking-wider flex items-center gap-1.5">
                   <Palette className="h-4 w-4 text-teal-500" />
                   Diseño Ejecutivo, Tema y Contenido de la Lámina
                 </span>
-                <button
-                  onClick={() => setShowSettings(!showSettings)}
-                  className="text-xs font-bold text-teal-600 dark:text-teal-400 hover:underline cursor-pointer"
-                >
-                  {showSettings ? 'Contraer panel' : 'Expandir panel'}
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <ExpandableButton
+                    onClick={() => setIsImageModalOpen(true)}
+                    icon={<Camera className="h-4 w-4" />}
+                    label="Evidencia / Imagen"
+                    title="Agregar fotografía o evidencia visual a la diapositiva"
+                    variant="blue"
+                    size="sm"
+                  />
+                  <ExpandableButton
+                    onClick={addBullet}
+                    icon={<Plus className="h-4 w-4" />}
+                    label="Añadir Punto"
+                    title="Añadir nuevo punto clave a la diapositiva"
+                    variant="emerald"
+                    size="sm"
+                  />
+                  <ExpandableButton
+                    onClick={() => setShowSettings(!showSettings)}
+                    icon={showSettings ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    label={showSettings ? 'Contraer Panel' : 'Expandir Panel'}
+                    title={showSettings ? 'Contraer opciones avanzadas' : 'Expandir opciones de temas, puntos y notas'}
+                    variant="neutral"
+                    size="sm"
+                    isActive={showSettings}
+                  />
+                </div>
               </div>
 
               {showSettings && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-1">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-1 border-t border-border-light">
                   {/* Left: 10 Layouts + Bullets Editor */}
                   <div className="space-y-3">
                     <div>
                       <span className="text-[11px] font-bold text-text-secondary uppercase block mb-1.5">
-                        Estructura Visual (10 Layouts Ejecutivos)
+                        Estructura Visual (10 Estructuras Ejecutivas)
                       </span>
                       <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
                         {LAYOUT_OPTIONS.map((l) => {
@@ -2856,22 +2931,6 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({
                         <span className="text-[11px] font-bold text-text-secondary uppercase">
                           Puntos Clave de la Diapositiva ({activeSlide.bullets.length})
                         </span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setIsImageModalOpen(true)}
-                            className="flex items-center gap-1 text-[11px] font-bold text-cyan-600 dark:text-cyan-400 hover:underline cursor-pointer"
-                          >
-                            <Camera className="h-3 w-3" />
-                            <span>Imagen</span>
-                          </button>
-                          <button
-                            onClick={addBullet}
-                            className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
-                          >
-                            <Plus className="h-3 w-3" />
-                            <span>Añadir punto</span>
-                          </button>
-                        </div>
                       </div>
                       <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1 scrollbar-thin">
                         {activeSlide.bullets.map((bullet, bIdx) => (
@@ -2931,7 +2990,7 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({
                     <div className="space-y-1">
                       <label className="text-[11px] font-bold text-text-secondary uppercase flex items-center gap-1">
                         <FileText className="h-3 w-3 text-teal-500" />
-                        Notas del Orador (Se incluyen al exportar a PowerPoint .PPTX)
+                        Notas del Orador (Guion de Exposición)
                       </label>
                       <textarea
                         rows={2}

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Trash2, FileSpreadsheet, Download, RefreshCw, Grid, BarChart2, TrendingUp, Sparkles, Copy, X, PieChart, Info, Maximize, Minimize } from 'lucide-react';
+import { Plus, Trash2, FileSpreadsheet, Download, RefreshCw, Grid, BarChart2, TrendingUp, Sparkles, Copy, X, PieChart, Info, Maximize, Minimize, Layers, Calculator } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
+import { ExpandableButton } from '~/components/Common/ExpandableButton';
 
 interface CanvasExcelEditorProps {
   initialContent: string | any[][];
@@ -160,6 +161,8 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
   const gridRef = useRef<HTMLDivElement>(null);
   const excelWrapperRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [showTemplateMenu, setShowTemplateMenu] = useState<boolean>(false);
+  const [showFormulaMenu, setShowFormulaMenu] = useState<boolean>(false);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -635,170 +638,222 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
           </div>
         </div>
 
-        {/* Action Toolbar — WAPPY 14-Group Design System */}
+        {/* Action Toolbar — WAPPY 14-Group Design System (All buttons expand on hover & collapse to icon) */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 flex-wrap">
             {/* Add Row (Group 4: Emerald) */}
-            <button
+            <ExpandableButton
               onClick={addRow}
-              className="group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-xs shrink-0 cursor-pointer border outline-none rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20"
-              aria-label="Agregar Fila"
-            >
-              <div className="relative flex-shrink-0 flex items-center justify-center">
-                <Plus className="h-4 w-4" />
-              </div>
-              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                <span className="text-xs font-bold tracking-wide">+ Fila</span>
-              </div>
-            </button>
+              icon={<Plus className="h-4 w-4" />}
+              label="Agregar Fila"
+              title="Añadir nueva fila al final"
+              variant="emerald"
+              size="sm"
+            />
 
             {/* Delete Row (Group 13: Rose) */}
-            <button
+            <ExpandableButton
               onClick={deleteRow}
               disabled={data.length <= 1}
-              className="group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-xs shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed border outline-none rounded-xl bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20"
-              aria-label="Quitar Fila"
-            >
-              <div className="relative flex-shrink-0 flex items-center justify-center">
-                <Trash2 className="h-4 w-4" />
-              </div>
-              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                <span className="text-xs font-bold tracking-wide">Quitar Fila</span>
-              </div>
-            </button>
+              icon={<Trash2 className="h-4 w-4" />}
+              label="Quitar Fila"
+              title="Eliminar fila seleccionada o última fila"
+              variant="danger"
+              size="sm"
+            />
 
-            <div className="h-6 w-px bg-border-medium" />
+            <div className="h-5 w-px bg-border-medium" />
 
             {/* Add Column (Group 4: Emerald) */}
-            <button
+            <ExpandableButton
               onClick={addColumn}
-              className="group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-xs shrink-0 cursor-pointer border outline-none rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20"
-              aria-label="Agregar Columna"
-            >
-              <div className="relative flex-shrink-0 flex items-center justify-center">
-                <Plus className="h-4 w-4" />
-              </div>
-              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                <span className="text-xs font-bold tracking-wide">+ Columna</span>
-              </div>
-            </button>
+              icon={<Plus className="h-4 w-4" />}
+              label="Agregar Columna"
+              title="Añadir nueva columna a la derecha"
+              variant="emerald"
+              size="sm"
+            />
 
             {/* Delete Column (Group 13: Rose) */}
-            <button
+            <ExpandableButton
               onClick={deleteColumn}
               disabled={data[0]?.length <= 1}
-              className="group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-xs shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed border outline-none rounded-xl bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20"
-              aria-label="Quitar Columna"
-            >
-              <div className="relative flex-shrink-0 flex items-center justify-center">
-                <Trash2 className="h-4 w-4" />
-              </div>
-              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                <span className="text-xs font-bold tracking-wide">Quitar Col</span>
-              </div>
-            </button>
+              icon={<Trash2 className="h-4 w-4" />}
+              label="Quitar Columna"
+              title="Eliminar columna seleccionada o última columna"
+              variant="danger"
+              size="sm"
+            />
 
-            <div className="h-6 w-px bg-border-medium hidden sm:block" />
+            <div className="h-5 w-px bg-border-medium hidden sm:block" />
 
-            {/* Quick SST Excel Templates Selector */}
-            <select
-              onChange={(e) => {
-                const val = e.target.value;
-                if (!val) return;
-                if (val === 'gtc45') {
-                  updateSheets([
-                    ['Proceso / Área', 'Peligro (GTC-45)', 'Clasificación', 'ND', 'NE', 'NP (ND*NE)', 'NC', 'NR (NP*NC)', 'Control de Ingeniería / Medio'],
-                    ['Operaciones / Planta', 'Levantamiento manual de cargas', 'Biomecánico', '6', '4', '=D2*E2', '25', '=F2*G2', 'Ayudas mecánicas hidráulicas'],
-                    ['Mantenimiento', 'Trabajos en alturas > 2.0m', 'Condiciones de Seguridad', '6', '3', '=D3*E3', '60', '=F3*G3', 'Línea de vida certificada Res. 4272'],
-                    ['Producción', 'Ruido continuo > 85 dBA', 'Físico', '2', '4', '=D4*E4', '25', '=F4*G4', 'Encapsulamiento acústico en fuente'],
-                    ['Administración', 'Carga mental y pantallas PVD', 'Psicosocial', '2', '3', '=D5*E5', '10', '=F5*G5', 'Pausas activas y ajuste ergonómico'],
-                    ['PROMEDIO / MÁXIMO RIESGO', '-', '-', '=PROMEDIO(D2:D5)', '=PROMEDIO(E2:E5)', '=PROMEDIO(F2:F5)', '=MAX(G2:G5)', '=MAX(H2:H5)', 'Intervención Prioritaria'],
-                  ]);
-                } else if (val === 'presupuesto') {
-                  updateSheets([
-                    ['Rubro SG-SST (Dec. 1072)', 'Presupuesto Asignado ($)', 'Ejecutado Q1 ($)', 'Ejecutado Q2 ($)', 'Total Ejecutado ($)', 'Saldo Disponible ($)'],
-                    ['Medicina Preventiva y EMO', '4500000', '1200000', '1800000', '=C2+D2', '=B2-E2'],
-                    ['Elementos de Protección EPP', '6800000', '2500000', '2900000', '=C3+D3', '=B3-E3'],
-                    ['Capacitación y Brigadas', '3200000', '900000', '1400000', '=C4+D4', '=B4-E4'],
-                    ['Mediciones Higiénicas', '5000000', '0', '3500000', '=C5+D5', '=B5-E5'],
-                    ['TOTAL PRESUPUESTO SST', '=SUMA(B2:B5)', '=SUMA(C2:C5)', '=SUMA(D2:D5)', '=SUMA(E2:E5)', '=SUMA(F2:F5)'],
-                  ]);
-                } else if (val === 'indicadores0312') {
-                  updateSheets([
-                    ['Indicador Resolución 0312/2019', 'Meta (%)', 'Enero', 'Febrero', 'Marzo', 'Promedio Trimestral'],
-                    ['Frecuencia de Accidentalidad', '0', '0', '1', '0', '=PROMEDIO(C2:E2)'],
-                    ['Severidad de Accidentalidad', '0', '0', '3', '0', '=PROMEDIO(C3:E3)'],
-                    ['Cumplimiento Plan de Trabajo', '95', '90', '94', '98', '=PROMEDIO(C4:E4)'],
-                    ['Cobertura Inducción SST', '100', '100', '100', '100', '=PROMEDIO(C5:E5)'],
-                  ]);
-                }
-                e.target.value = '';
-              }}
-              defaultValue=""
-              className="h-9 sm:h-10 px-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 text-xs font-bold outline-none cursor-pointer hover:bg-amber-500/20 transition-all"
-            >
-              <option value="" disabled>
-                ⚡ Plantillas Excel SST...
-              </option>
-              <option value="gtc45">📋 Matriz de Peligros GTC-45 (Fórmulas NR)</option>
-              <option value="presupuesto">💰 Presupuesto Anual SG-SST</option>
-              <option value="indicadores0312">📊 Indicadores Resolución 0312/2019</option>
-            </select>
+            {/* Quick SST Templates Popover (Group 8: Amber) */}
+            <div className="relative">
+              <ExpandableButton
+                onClick={() => {
+                  setShowTemplateMenu((prev) => !prev);
+                  setShowFormulaMenu(false);
+                }}
+                icon={<Layers className="h-4 w-4" />}
+                label="Plantillas SST"
+                title="Cargar matrices y presupuestos SG-SST con fórmulas automáticas"
+                variant="amber"
+                size="sm"
+                isActive={showTemplateMenu}
+              />
+              {showTemplateMenu && (
+                <div className="absolute left-0 mt-2 w-72 rounded-2xl border border-border-medium bg-surface-primary shadow-2xl p-2 z-50 space-y-1 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-text-tertiary">
+                    Matrices y Hojas de Cálculo SG-SST
+                  </div>
+                  <button
+                    onClick={() => {
+                      updateSheets([
+                        ['Proceso / Área', 'Peligro (GTC-45)', 'Clasificación', 'ND', 'NE', 'NP (ND*NE)', 'NC', 'NR (NP*NC)', 'Control de Ingeniería / Medio'],
+                        ['Operaciones / Planta', 'Levantamiento manual de cargas', 'Biomecánico', '6', '4', '=D2*E2', '25', '=F2*G2', 'Ayudas mecánicas hidráulicas'],
+                        ['Mantenimiento', 'Trabajos en alturas > 2.0m', 'Condiciones de Seguridad', '6', '3', '=D3*E3', '60', '=F3*G3', 'Línea de vida certificada Res. 4272'],
+                        ['Producción', 'Ruido continuo > 85 dBA', 'Físico', '2', '4', '=D4*E4', '25', '=F4*G4', 'Encapsulamiento acústico en fuente'],
+                        ['Administración', 'Carga mental y pantallas PVD', 'Psicosocial', '2', '3', '=D5*E5', '10', '=F5*G5', 'Pausas activas y ajuste ergonómico'],
+                        ['PROMEDIO / MÁXIMO RIESGO', '-', '-', '=PROMEDIO(D2:D5)', '=PROMEDIO(E2:E5)', '=PROMEDIO(F2:F5)', '=MAX(G2:G5)', '=MAX(H2:H5)', 'Intervención Prioritaria'],
+                      ]);
+                      setShowTemplateMenu(false);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-teal-500/10 transition-colors flex flex-col gap-0.5 cursor-pointer"
+                  >
+                    <span className="text-xs font-bold text-text-primary">Matriz de Peligros GTC-45</span>
+                    <span className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold">
+                      Cálculo automático de NP (ND*NE) y Nivel de Riesgo NR
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      updateSheets([
+                        ['Rubro SG-SST (Dec. 1072)', 'Presupuesto Asignado ($)', 'Ejecutado Q1 ($)', 'Ejecutado Q2 ($)', 'Total Ejecutado ($)', 'Saldo Disponible ($)'],
+                        ['Medicina Preventiva y EMO', '4500000', '1200000', '1800000', '=C2+D2', '=B2-E2'],
+                        ['Elementos de Protección EPP', '6800000', '2500000', '2900000', '=C3+D3', '=B3-E3'],
+                        ['Capacitación y Brigadas', '3200000', '900000', '1400000', '=C4+D4', '=B4-E4'],
+                        ['Mediciones Higiénicas', '5000000', '0', '3500000', '=C5+D5', '=B5-E5'],
+                        ['TOTAL PRESUPUESTO SST', '=SUMA(B2:B5)', '=SUMA(C2:C5)', '=SUMA(D2:D5)', '=SUMA(E2:E5)', '=SUMA(F2:F5)'],
+                      ]);
+                      setShowTemplateMenu(false);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-teal-500/10 transition-colors flex flex-col gap-0.5 cursor-pointer"
+                  >
+                    <span className="text-xs font-bold text-text-primary">Presupuesto Anual SG-SST</span>
+                    <span className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold">
+                      Control de ejecución trimestral y saldo disponible
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      updateSheets([
+                        ['Indicador Resolución 0312/2019', 'Meta (%)', 'Enero', 'Febrero', 'Marzo', 'Promedio Trimestral'],
+                        ['Frecuencia de Accidentalidad', '0', '0', '1', '0', '=PROMEDIO(C2:E2)'],
+                        ['Severidad de Accidentalidad', '0', '0', '3', '0', '=PROMEDIO(C3:E3)'],
+                        ['Cumplimiento Plan de Trabajo', '95', '90', '94', '98', '=PROMEDIO(C4:E4)'],
+                        ['Cobertura Inducción SST', '100', '100', '100', '100', '=PROMEDIO(C5:E5)'],
+                      ]);
+                      setShowTemplateMenu(false);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-teal-500/10 transition-colors flex flex-col gap-0.5 cursor-pointer"
+                  >
+                    <span className="text-xs font-bold text-text-primary">Indicadores Resolución 0312</span>
+                    <span className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold">
+                      Frecuencia, severidad y cumplimiento trimestral
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Formula Injector (Group 6: Purple) */}
+            <div className="relative">
+              <ExpandableButton
+                onClick={() => {
+                  setShowFormulaMenu((prev) => !prev);
+                  setShowTemplateMenu(false);
+                }}
+                icon={<Calculator className="h-4 w-4" />}
+                label="Insertar Fórmula"
+                title="Insertar fórmula automática en la celda activa (=SUMA, =PROMEDIO, =MAX, =MIN)"
+                variant="purple"
+                size="sm"
+                isActive={showFormulaMenu}
+              />
+              {showFormulaMenu && (
+                <div className="absolute left-0 mt-2 w-60 rounded-2xl border border-border-medium bg-surface-primary shadow-2xl p-2 z-50 space-y-1 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-text-tertiary">
+                    Fórmulas en Celda Activa
+                  </div>
+                  {[
+                    { fn: '=SUMA(B2:B5)', desc: 'Suma de rango vertical' },
+                    { fn: '=PROMEDIO(B2:B5)', desc: 'Promedio aritmético' },
+                    { fn: '=MAX(B2:B5)', desc: 'Valor máximo del rango' },
+                    { fn: '=MIN(B2:B5)', desc: 'Valor mínimo del rango' },
+                    { fn: '=CONTAR(B2:B5)', desc: 'Conteo de registros' },
+                  ].map((item) => (
+                    <button
+                      key={item.fn}
+                      onClick={() => {
+                        const targetRow = selectedCell?.row ?? data.length - 1;
+                        const targetCol = selectedCell?.col ?? 1;
+                        updateCell(targetRow, targetCol, item.fn);
+                        setFormulaValue(item.fn);
+                        setShowFormulaMenu(false);
+                      }}
+                      className="w-full text-left px-3 py-1.5 rounded-xl hover:bg-purple-500/10 transition-colors flex items-center justify-between cursor-pointer"
+                    >
+                      <span className="text-xs font-mono font-bold text-purple-600 dark:text-purple-400">{item.fn}</span>
+                      <span className="text-[10px] text-text-tertiary">{item.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-1.5">
+            {/* Copy Table HTML (Group 11: Fuchsia) */}
+            <ExpandableButton
+              onClick={copyTableAsHtml}
+              icon={<Copy className="h-4 w-4" />}
+              label="Copiar Tabla"
+              title="Copiar tabla formateada para pegar en un Documento o Informe"
+              variant="fuchsia"
+              size="sm"
+            />
+
             {/* Analytics & Charts (Group 12: Orange) */}
-            <button
+            <ExpandableButton
               onClick={() => setIsChartPanelOpen(!isChartPanelOpen)}
-              className={`group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-xs shrink-0 cursor-pointer border outline-none rounded-xl ${
-                isChartPanelOpen
-                  ? 'bg-orange-500/20 border-orange-500/50 text-orange-700 dark:text-orange-300 ring-1 ring-orange-500/30'
-                  : 'bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20'
-              }`}
-              aria-label="Analizar datos"
-            >
-              <div className="relative flex-shrink-0 flex items-center justify-center">
-                <BarChart2 className="h-4 w-4" />
-              </div>
-              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                <span className="text-xs font-bold tracking-wide">
-                  Analizar y Graficar
-                </span>
-              </div>
-            </button>
+              icon={<BarChart2 className="h-4 w-4" />}
+              label="Analizar y Graficar"
+              title="Abrir centro de análisis estadístico y gráficos interactivos"
+              variant="orange"
+              size="sm"
+              isActive={isChartPanelOpen}
+            />
 
             {isMaximized && (
-              <button
+              <ExpandableButton
                 onClick={toggleFullscreen}
-                className="group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-xs shrink-0 cursor-pointer border outline-none rounded-xl bg-slate-500/10 dark:bg-zinc-800/80 border-slate-300/60 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-500/20"
+                icon={isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+                label={isFullscreen ? 'Salir' : 'Pantalla Completa'}
                 title={isFullscreen ? 'Salir Pantalla Completa' : 'Pantalla Completa'}
-              >
-                <div className="relative flex-shrink-0 flex items-center justify-center">
-                  {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
-                </div>
-                <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                  <span className="text-xs font-bold tracking-wide">
-                    {isFullscreen ? 'Salir' : 'Pantalla Completa'}
-                  </span>
-                </div>
-              </button>
+                variant="neutral"
+                size="sm"
+              />
             )}
 
-            {/* Download Excel .XLSX (Group 10: Green) */}
-            <button
+            {/* Download Spreadsheet (Group 10: Green) */}
+            <ExpandableButton
               onClick={handleExportExcel}
-              className="group flex flex-shrink-0 items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-xs shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-300 hover:bg-green-500/20"
-              aria-label="Descargar Excel"
-            >
-              <div className="relative flex-shrink-0 flex items-center justify-center">
-                <Download className="h-4 w-4" />
-              </div>
-              <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                <span className="text-xs font-bold tracking-wide">
-                  Descargar Excel .XLSX
-                </span>
-              </div>
-            </button>
+              icon={<Download className="h-4 w-4" />}
+              label="Descargar Hoja"
+              title="Descargar hoja de cálculo con formato corporativo"
+              variant="green"
+              size="sm"
+            />
           </div>
         </div>
       </div>
@@ -892,9 +947,19 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
               })}
             </div>
 
-            {/* Controles de hojas */}
-            <div className="flex items-center gap-1">
-              <button
+            {/* Controles de hojas + Resumen Estadístico en Vivo */}
+            <div className="flex items-center gap-2">
+              {conteo > 0 && (
+                <div className="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-xl border border-teal-500/20 bg-teal-500/5 text-[10px] font-mono font-bold text-text-secondary">
+                  <span>Suma: <strong className="text-teal-600 dark:text-teal-400">{suma.toLocaleString()}</strong></span>
+                  <span className="opacity-30">|</span>
+                  <span>Prom: <strong className="text-emerald-600 dark:text-emerald-400">{(Math.round(promedio * 100) / 100).toLocaleString()}</strong></span>
+                  <span className="opacity-30">|</span>
+                  <span>Filas: <strong>{data.length}</strong></span>
+                </div>
+              )}
+
+              <ExpandableButton
                 onClick={() => {
                   const newSheetName = `Hoja ${Object.keys(sheets).length + 1}`;
                   const newSheets = {
@@ -906,14 +971,15 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
                   setSelectedCell(null);
                   onUpdate(JSON.stringify(newSheets));
                 }}
-                title="Añadir nueva pestaña"
-                className="p-1.5 rounded-lg text-text-secondary hover:text-teal-500 dark:hover:text-teal-400 hover:bg-black/5 dark:hover:bg-white/5 transition-all active:scale-95 cursor-pointer"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
+                icon={<Plus className="h-4 w-4" />}
+                label="Nueva Hoja"
+                title="Añadir nueva pestaña de cálculo"
+                variant="emerald"
+                size="sm"
+              />
               
               {Object.keys(sheets).length > 1 && (
-                <button
+                <ExpandableButton
                   onClick={() => {
                     const keys = Object.keys(sheets);
                     const currentIndex = keys.indexOf(activeSheet);
@@ -933,11 +999,12 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
                       onUpdate(JSON.stringify(updatedSheets[nextActiveSheet]));
                     }
                   }}
+                  icon={<Trash2 className="h-4 w-4" />}
+                  label="Eliminar Hoja"
                   title="Eliminar pestaña actual"
-                  className="p-1.5 rounded-lg text-text-secondary hover:text-rose-500 dark:hover:text-rose-400 hover:bg-black/5 dark:hover:bg-white/5 transition-all active:scale-95 cursor-pointer"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                  variant="danger"
+                  size="sm"
+                />
               )}
             </div>
           </div>

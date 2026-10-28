@@ -1422,10 +1422,10 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                 aria-label="Descargar archivo"
                 title={
                   fileType === 'presentation'
-                    ? 'Descargar presentación editable en PowerPoint (.pptx)'
+                    ? 'Descargar presentación ejecutiva'
                     : fileType === 'excel'
-                      ? 'Descargar hoja de cálculo en Excel (.xlsx)'
-                      : 'Descargar aplicativo (.html)'
+                      ? 'Descargar hoja de cálculo'
+                      : 'Descargar aplicativo interactivo'
                 }
               >
                 <div className="relative flex flex-shrink-0 items-center justify-center">
@@ -1434,10 +1434,10 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                 <div className="hidden sm:flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
                   <span className="text-xs font-bold tracking-wide">
                     {fileType === 'presentation'
-                      ? 'Descargar .PPTX'
+                      ? 'Descargar Presentación'
                       : fileType === 'excel'
-                        ? 'Descargar .XLSX'
-                        : 'Descargar .HTML'}
+                        ? 'Descargar Hoja'
+                        : 'Descargar Aplicativo'}
                   </span>
                 </div>
               </button>
@@ -1565,8 +1565,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                   El lienzo está listo
                 </h3>
                 <p className="text-xs sm:text-sm leading-relaxed text-text-secondary">
-                  Crea documentos normativos, matrices de cálculo, presentaciones ejecutivas con descarga nativa en{' '}
-                  <span className="font-bold text-text-primary">PowerPoint (.PPTX)</span> y aplicativos interactivos en tiempo real.
+                  Crea documentos normativos, matrices de cálculo, presentaciones ejecutivas y aplicativos interactivos en tiempo real.
                 </p>
               </div>
 
@@ -1577,29 +1576,65 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                   onClick={() => {
                     const initialContent = appendSignatureIfMissing(`
 <div style="font-family: 'Inter', Arial, sans-serif; color: #1e293b; line-height: 1.6;">
-  <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; border: 1px solid #cbd5e1;">
+  <div style="background: linear-gradient(135deg, #042f2e 0%, #0f766e 100%); color: #ffffff; padding: 20px 24px; border-radius: 12px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center;">
+    <div>
+      <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.14em; color: #5eead4; text-transform: uppercase; margin-bottom: 4px;">SISTEMA DE GESTIÓN SG-SST · DECRETO 1072 DE 2015</div>
+      <div style="font-size: 19px; font-weight: 800; color: #ffffff; letter-spacing: -0.01em;">DOCUMENTO EJECUTIVO Y NORMATIVO SG-SST</div>
+      <div style="font-size: 12px; color: #ccfbf1; margin-top: 2px;">Política Corporativa, Acta Oficial o Procedimiento Operativo Normalizado</div>
+    </div>
+  </div>
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden;">
     <tr>
-      <td style="width: 25%; padding: 12px; border: 1px solid #cbd5e1; background: #f8fafc; font-weight: bold; font-size: 12px; text-align: center;">
-        SISTEMA DE GESTIÓN SG-SST<br/><span style="font-size: 10px; color: #0d9488;">DECRETO 1072 DE 2015</span>
+      <td style="width: 25%; padding: 10px 12px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 11px;">
+        <strong>Código:</strong> SST-DOC-001
       </td>
-      <td style="width: 50%; padding: 12px; border: 1px solid #cbd5e1; text-align: center;">
-        <div style="font-size: 15px; font-weight: 800; color: #0f172a;">DOCUMENTO CORPORATIVO SG-SST</div>
-        <div style="font-size: 11px; color: #64748b;">Política, Acta o Procedimiento Operativo Normalizado</div>
+      <td style="width: 25%; padding: 10px 12px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 11px;">
+        <strong>Versión:</strong> 01 Vigente
       </td>
-      <td style="width: 25%; padding: 12px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 11px;">
-        <strong>Código:</strong> SST-DOC-001<br/>
-        <strong>Versión:</strong> 01<br/>
+      <td style="width: 25%; padding: 10px 12px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 11px;">
+        <strong>Norma:</strong> Res. 0312/2019
+      </td>
+      <td style="width: 25%; padding: 10px 12px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 11px;">
         <strong>Fecha:</strong> ${new Date().toLocaleDateString('es-CO')}
       </td>
     </tr>
   </table>
-  <h2 style="font-size: 16px; font-weight: bold; color: #0d9488; border-bottom: 2px solid #0d9488; padding-bottom: 4px; margin-top: 16px;">1. OBJETIVO Y ALCANCE</h2>
-  <p style="font-size: 13px;">Establecer los lineamientos normativos y técnicos de Seguridad y Salud en el Trabajo conforme al Decreto 1072 de 2015 y la Resolución 0312 de 2019. Haz clic aquí para redactar o selecciona una de las <strong>15 Plantillas SST</strong> en la barra superior.</p>
-  <h2 style="font-size: 16px; font-weight: bold; color: #0d9488; border-bottom: 2px solid #0d9488; padding-bottom: 4px; margin-top: 20px;">2. DESARROLLO Y COMPROMISOS</h2>
-  <ul>
-    <li style="font-size: 13px;">Identificación de peligros, evaluación y valoración de riesgos (GTC-45).</li>
-    <li style="font-size: 13px;">Cumplimiento de estándares mínimos y mejora continua del ciclo PHVA.</li>
-  </ul>
+  <div style="background: #f0fdfa; border-left: 4px solid #0d9488; padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 20px; font-size: 12.5px; color: #134e4a;">
+    <strong>Directriz Técnica:</strong> Usa los botones superiores <strong>Plantillas SST</strong> y <strong>Bloques Rápidos</strong> para insertar formatos oficiales (Actas COPASST, Matriz Legal, Investigación ATEL, Reglamento Higiene, Tarjetas KPI o Bloques de Firma Digital).
+  </div>
+  <h2 style="font-size: 15px; font-weight: 800; color: #0f766e; border-bottom: 2px solid #0d9488; padding-bottom: 4px; margin-top: 16px;">1. OBJETIVO Y ALCANCE NORMATIVO</h2>
+  <p style="font-size: 13px;">Establecer los lineamientos técnicos, administrativos y legales de Seguridad y Salud en el Trabajo conforme al Decreto Único Reglamentario 1072 de 2015 y los Estándares Mínimos de la Resolución 0312 de 2019, aplicables a todos los centros de trabajo, contratistas y partes interesadas.</p>
+  <h2 style="font-size: 15px; font-weight: 800; color: #0f766e; border-bottom: 2px solid #0d9488; padding-bottom: 4px; margin-top: 20px;">2. LINEAMIENTOS Y CONTROLES OPERATIVOS</h2>
+  <table style="width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 12px;">
+    <thead>
+      <tr>
+        <th style="background: #0f766e; color: #ffffff; padding: 9px 12px; text-align: left;">Fase PHVA</th>
+        <th style="background: #0f766e; color: #ffffff; padding: 9px 12px; text-align: left;">Actividad Estratégica</th>
+        <th style="background: #0f766e; color: #ffffff; padding: 9px 12px; text-align: left;">Evidencia / Entregable</th>
+        <th style="background: #0f766e; color: #ffffff; padding: 9px 12px; text-align: center;">Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">PLANEAR</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">Identificación de peligros y valoración GTC-45</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">Matriz IPEVR actualizada y socializada</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #059669; font-weight: bold;">Cumplido</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">HACER</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">Vigilancia epidemiológica y exámenes ocupacionales</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">Profesiograma y certificados de aptitud</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #059669; font-weight: bold;">En ejecución</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">VERIFICAR</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">Auditoría interna e inspección gerencial</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">Informe de hallazgos COPASST</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #d97706; font-weight: bold;">Programado</td>
+      </tr>
+    </tbody>
+  </table>
 </div>`);
                     if (!conversationId || conversationId === 'new') {
                       initializeConvoAndSave('text', initialContent, 'Informe Técnico SG-SST');
@@ -1622,15 +1657,15 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                       <FileEdit className="h-5 w-5" />
                     </div>
                     <span className="rounded-lg border border-teal-500/30 bg-teal-500/10 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-teal-700 dark:text-teal-300">
-                      .DOC / .PDF
+                      NORMATIVO
                     </span>
                   </div>
                   <div className="mt-3 space-y-1">
                     <div className="text-sm font-extrabold text-text-primary group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
-                      Documento Word
+                      Documento Corporativo
                     </div>
                     <p className="text-[11px] leading-snug text-text-secondary">
-                      Políticas, actas COPASST, procedimientos, RIT y formatos oficiales con firma digital.
+                      Políticas, actas COPASST, procedimientos, matrices legales e informes con firma digital.
                     </p>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-1 border-t border-border-light pt-2.5">
@@ -1675,7 +1710,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                       <FileSpreadsheet className="h-5 w-5" />
                     </div>
                     <span className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
-                      .XLSX NATIVO
+                      ANALÍTICO
                     </span>
                   </div>
                   <div className="mt-3 space-y-1">
@@ -1696,7 +1731,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                   </div>
                 </button>
 
-                {/* 3. Presentación Ejecutiva PowerPoint */}
+                {/* 3. Presentación Ejecutiva */}
                 <button
                   onClick={() => {
                     const initialContent = JSON.stringify([
@@ -1795,8 +1830,8 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3">
                       <MonitorPlay className="h-5 w-5" />
                     </div>
-                    <span className="rounded-lg border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-green-700 dark:text-green-300">
-                      .PPTX EDITABLE
+                    <span className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                      EJECUTIVO
                     </span>
                   </div>
                   <div className="mt-3 space-y-1">
@@ -1804,12 +1839,12 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                       Presentación Ejecutiva
                     </div>
                     <p className="text-[11px] leading-snug text-text-secondary">
-                      10 layouts ejecutivos (KPIs, columnas, PHVA, tablas, gráficos) y exportación a PowerPoint.
+                      10 estructuras visuales (KPIs, columnas, ruta PHVA, tablas, gráficos) para Alta Dirección.
                     </p>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-1 border-t border-border-light pt-2.5">
                     <span className="rounded-md bg-surface-primary px-2 py-0.5 text-[9px] font-semibold text-text-tertiary">
-                      PowerPoint .PPTX
+                      10 Estructuras
                     </span>
                     <span className="rounded-md bg-surface-primary px-2 py-0.5 text-[9px] font-semibold text-text-tertiary">
                       8 Temas Pro
@@ -1848,10 +1883,10 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
       </svg>
     </div>
     <h1 class="text-2xl font-black bg-gradient-to-r from-teal-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent mb-3">
-      Prototipo de Código WAPPY
+      Prototipo Interactivo WAPPY
     </h1>
     <p class="text-xs text-slate-400 leading-relaxed mb-6">
-      Bienvenido al sandbox interactivo de prototipos en HTML. Inserta componentes premium de SST desde la barra lateral izquierda y observa cómo cobran vida en tiempo real en la vista previa.
+      Bienvenido al estudio interactivo de aplicativos SST. Inserta calculadoras, simuladores y tableros en vivo desde la Biblioteca SST superior.
     </p>
     <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/25">
       <span class="h-2 w-2 rounded-full bg-teal-500 animate-ping"></span>
@@ -1861,16 +1896,16 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 </body>
 </html>`;
                     if (!conversationId || conversationId === 'new') {
-                      initializeConvoAndSave('html', initialContent, 'Prototipo de Código');
+                      initializeConvoAndSave('html', initialContent, 'Prototipo Interactivo');
                     } else {
                       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
                       muteAutoSave(1500);
                       setFileType('html');
                       setContent(initialContent);
-                      setTitle('Prototipo de Código');
+                      setTitle('Prototipo Interactivo');
                       fileTypeRef.current = 'html';
                       contentRef.current = initialContent;
-                      titleRef.current = 'Prototipo de Código';
+                      titleRef.current = 'Prototipo Interactivo';
                       saveSession();
                     }
                   }}
@@ -1881,20 +1916,20 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                       <Code2 className="h-5 w-5" />
                     </div>
                     <span className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-blue-700 dark:text-blue-300">
-                      .HTML5 APP
+                      INTERACTIVO
                     </span>
                   </div>
                   <div className="mt-3 space-y-1">
                     <div className="text-sm font-extrabold text-text-primary group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                      Código Prototipo
+                      Prototipo Interactivo
                     </div>
                     <p className="text-[11px] leading-snug text-text-secondary">
-                      Calculadoras SST, simuladores, tableros interactivos y páginas web autocontenidas.
+                      Calculadoras SST, simuladores, tableros interactivos y aplicativos autocontenidos.
                     </p>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-1 border-t border-border-light pt-2.5">
                     <span className="rounded-md bg-surface-primary px-2 py-0.5 text-[9px] font-semibold text-text-tertiary">
-                      Sandbox en Vivo
+                      Vista en Vivo
                     </span>
                     <span className="rounded-md bg-surface-primary px-2 py-0.5 text-[9px] font-semibold text-text-tertiary">
                       Componentes SST

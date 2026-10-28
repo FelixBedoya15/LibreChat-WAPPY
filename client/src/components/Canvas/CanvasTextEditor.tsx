@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
+import { ExpandableButton } from '~/components/Common/ExpandableButton';
 import { ritTemplateTradicional } from './rit_template_tradicional';
 import { ritTemplateHumanista } from './rit_template_humanista';
 import CanvasWorkspaceBridge from './CanvasWorkspaceBridge';
@@ -1408,136 +1409,163 @@ const CanvasTextEditor: React.FC<CanvasTextEditorProps> = ({ initialContent, onU
   return (
     <div className="flex-1 h-full flex overflow-hidden relative bg-surface-primary border border-border-medium rounded-2xl shadow-sm">
       
-      {/* Mobile Sidebar Backdrop Overlay */}
-      {isMaximized && sidebarOpen && (
+      {/* Sidebar Backdrop Overlay for Side-Panel or Mobile */}
+      {sidebarOpen && (
         <div 
-          className="sm:hidden absolute inset-0 bg-black/30 backdrop-blur-[2px] z-[440] transition-opacity duration-300 animate-in fade-in"
+          className={`${isMaximized ? 'sm:hidden' : ''} absolute inset-0 bg-black/30 backdrop-blur-[2px] z-[440] transition-opacity duration-300 animate-in fade-in`}
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* SST Template Center Sidebar */}
-      {isMaximized && (
-        <div 
-          className={`flex-shrink-0 border-r border-border-medium bg-surface-secondary flex flex-col transition-all duration-300 absolute inset-y-0 left-0 z-[450] sm:relative sm:z-0 ${
-            sidebarOpen ? 'w-[280px] sm:w-[320px]' : 'w-0 overflow-hidden border-r-0'
-          }`}
-        >
-          {/* Header */}
-          <div className="p-4 border-b border-border-medium flex items-center justify-between shrink-0 bg-surface-primary">
-            <div className="flex items-center gap-2">
-              <Layers className="h-5 w-5 text-teal-600 animate-pulse" />
-              <span className="text-sm font-bold bg-gradient-to-r from-teal-600 to-emerald-500 bg-clip-text text-transparent">Plantillas SST</span>
-            </div>
-            <span className="text-[10px] bg-teal-500/10 text-teal-600 px-2 py-0.5 rounded-full font-bold">PRO</span>
+      {/* SST Template & Inlays Drawer / Sidebar (Available in BOTH Side-Panel & Maximized modes!) */}
+      <div 
+        className={`flex-shrink-0 border-r border-border-medium bg-surface-secondary flex flex-col transition-all duration-300 absolute inset-y-0 left-0 z-[450] ${isMaximized ? 'sm:relative sm:z-0' : 'shadow-2xl'} ${
+          sidebarOpen ? 'w-[280px] sm:w-[320px]' : 'w-0 overflow-hidden border-r-0'
+        }`}
+      >
+        {/* Header */}
+        <div className="p-3.5 border-b border-border-medium flex items-center justify-between shrink-0 bg-surface-primary">
+          <div className="flex items-center gap-2">
+            <Layers className="h-4 w-4 text-teal-600 animate-pulse" />
+            <span className="text-xs font-extrabold bg-gradient-to-r from-teal-600 to-emerald-500 bg-clip-text text-transparent">
+              Biblioteca Normativa SST
+            </span>
           </div>
-
-          {/* Navigation Tabs */}
-          <div className="flex p-1.5 bg-surface-primary/60 border-b border-border-medium/60 shrink-0">
-            <button
-              onClick={() => setActiveTab('templates')}
-              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                activeTab === 'templates' 
-                  ? 'bg-surface-primary text-text-primary shadow-sm font-extrabold border border-border-medium/30' 
-                  : 'text-text-secondary hover:bg-surface-hover'
-              }`}
-            >
-              Documentos
-            </button>
-            <button
-              onClick={() => setActiveTab('inlays')}
-              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                activeTab === 'inlays' 
-                  ? 'bg-surface-primary text-text-primary shadow-sm font-extrabold border border-border-medium/30' 
-                  : 'text-text-secondary hover:bg-surface-hover'
-              }`}
-            >
-              Bloques Rápidos
-            </button>
-          </div>
-
-          {/* Scrolling Content List */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-thin">
-            {activeTab === 'templates' ? (
-              <div className="space-y-3">
-                <div className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider px-1">Estructuras Completas</div>
-                {TEMPLATES.map((tpl) => (
-                  <button
-                    key={tpl.id}
-                    onClick={() => handleApplyTemplate(tpl.html, tpl.title)}
-                    className="w-full text-left rounded-xl border border-border-medium/60 p-3 bg-surface-primary hover:border-teal-500/40 hover:shadow-md hover:shadow-teal-500/5 transition-all duration-300 group flex items-start gap-2.5"
-                  >
-                    <div className="h-8 w-8 rounded-lg bg-surface-secondary flex items-center justify-center border border-border-medium/40 shrink-0 group-hover:scale-105 transition-transform">
-                      {tpl.icon}
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="text-xs font-bold text-text-primary group-hover:text-teal-600 transition-colors">{tpl.title}</h4>
-                      <p className="text-[10px] text-text-tertiary mt-1 leading-snug line-clamp-2">{tpl.description}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider px-1">Inyectores de Posición</div>
-                {INLAYS.map((inl) => (
-                  <button
-                    key={inl.id}
-                    onClick={() => handleInsertInlay(inl.html)}
-                    className="w-full text-left rounded-xl border border-border-medium/60 p-3 bg-surface-primary hover:border-emerald-500/40 hover:shadow-md hover:shadow-emerald-500/5 transition-all duration-300 group flex items-start gap-2.5"
-                  >
-                    <div className="h-8 w-8 rounded-lg bg-surface-secondary flex items-center justify-center border border-border-medium/40 shrink-0 group-hover:scale-105 transition-transform">
-                      {inl.icon}
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="text-xs font-bold text-text-primary group-hover:text-emerald-600 transition-colors">{inl.title}</h4>
-                      <p className="text-[10px] text-text-tertiary mt-1 leading-snug line-clamp-2">{inl.description}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-surface-secondary hover:bg-surface-hover text-text-secondary cursor-pointer"
+          >
+            Cerrar
+          </button>
         </div>
-      )}
 
-      {/* Floating Toggle Button for Sidebar - ONLY visible when maximized */}
-      {isMaximized && (
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className={`absolute top-1/2 -translate-y-1/2 z-[460] h-14 w-5 bg-surface-primary border border-border-medium hover:bg-surface-hover shadow-md rounded-r-lg flex items-center justify-center transition-all duration-300 ${
-            sidebarOpen 
-              ? 'left-[279px] sm:left-[319px]' 
-              : 'left-0 border-l-0'
-          }`}
-          title={sidebarOpen ? 'Contraer Panel Lateral' : 'Expandir Panel Lateral'}
-        >
-          {sidebarOpen ? (
-            <ChevronLeft className="h-3.5 w-3.5 text-text-secondary" />
+        {/* Navigation Tabs */}
+        <div className="flex p-1.5 bg-surface-primary/60 border-b border-border-medium/60 shrink-0 gap-1">
+          <button
+            onClick={() => setActiveTab('templates')}
+            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+              activeTab === 'templates' 
+                ? 'bg-teal-500/15 text-teal-700 dark:text-teal-300 shadow-xs font-extrabold border border-teal-500/30' 
+                : 'text-text-secondary hover:bg-surface-hover'
+            }`}
+          >
+            15 Plantillas SST
+          </button>
+          <button
+            onClick={() => setActiveTab('inlays')}
+            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+              activeTab === 'inlays' 
+                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 shadow-xs font-extrabold border border-emerald-500/30' 
+                : 'text-text-secondary hover:bg-surface-hover'
+            }`}
+          >
+            Bloques Rápidos
+          </button>
+        </div>
+
+        {/* Scrolling Content List */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-2.5 scrollbar-thin">
+          {activeTab === 'templates' ? (
+            <div className="space-y-2.5">
+              <div className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider px-1">
+                Formatos y Políticas Oficiales
+              </div>
+              {TEMPLATES.map((tpl) => (
+                <button
+                  key={tpl.id}
+                  onClick={() => {
+                    handleApplyTemplate(tpl.html, tpl.title);
+                    if (!isMaximized) setSidebarOpen(false);
+                  }}
+                  className="w-full text-left rounded-xl border border-border-medium/60 p-3 bg-surface-primary hover:border-teal-500/40 hover:shadow-md hover:shadow-teal-500/5 transition-all duration-300 group flex items-start gap-2.5 cursor-pointer"
+                >
+                  <div className="h-8 w-8 rounded-lg bg-surface-secondary flex items-center justify-center border border-border-medium/40 shrink-0 group-hover:scale-105 transition-transform">
+                    {tpl.icon}
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-xs font-bold text-text-primary group-hover:text-teal-600 transition-colors">{tpl.title}</h4>
+                    <p className="text-[10px] text-text-tertiary mt-1 leading-snug line-clamp-2">{tpl.description}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
           ) : (
-            <ChevronRight className="h-3.5 w-3.5 text-text-secondary" />
+            <div className="space-y-2.5">
+              <div className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider px-1">
+                Inyectores en el Cursor
+              </div>
+              {INLAYS.map((inl) => (
+                <button
+                  key={inl.id}
+                  onClick={() => {
+                    handleInsertInlay(inl.html);
+                    if (!isMaximized) setSidebarOpen(false);
+                  }}
+                  className="w-full text-left rounded-xl border border-border-medium/60 p-3 bg-surface-primary hover:border-emerald-500/40 hover:shadow-md hover:shadow-emerald-500/5 transition-all duration-300 group flex items-start gap-2.5 cursor-pointer"
+                >
+                  <div className="h-8 w-8 rounded-lg bg-surface-secondary flex items-center justify-center border border-border-medium/40 shrink-0 group-hover:scale-105 transition-transform">
+                    {inl.icon}
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-xs font-bold text-text-primary group-hover:text-emerald-600 transition-colors">{inl.title}</h4>
+                    <p className="text-[10px] text-text-tertiary mt-1 leading-snug line-clamp-2">{inl.description}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
           )}
-        </button>
-      )}
+        </div>
+      </div>
 
       {/* Live WYSIWYG Word Editor Wrapper */}
       <div className="flex-1 h-full overflow-hidden relative flex flex-col">
-        {/* Connection Top Bar / Header */}
-        <div className="px-4 py-2.5 border-b border-border-medium bg-surface-secondary/40 flex items-center justify-between shrink-0">
+        {/* WAPPY 14-Group Executive Action Bar (All buttons expand on hover & collapse to icon) */}
+        <div className="px-3 py-2 border-b border-border-medium bg-surface-secondary/50 flex items-center justify-between gap-2 shrink-0 flex-wrap">
           <div className="flex items-center gap-1.5">
-            <span className="text-xs font-semibold text-text-secondary">Documento de Texto</span>
+            <ExpandableButton
+              onClick={() => {
+                setActiveTab('templates');
+                setSidebarOpen((prev) => (activeTab === 'templates' ? !prev : true));
+              }}
+              icon={<Layers className="h-4 w-4" />}
+              label="Plantillas SST"
+              title="Abrir 15 Plantillas Normativas SG-SST"
+              variant="amber"
+              size="sm"
+              isActive={sidebarOpen && activeTab === 'templates'}
+            />
+            <ExpandableButton
+              onClick={() => {
+                setActiveTab('inlays');
+                setSidebarOpen((prev) => (activeTab === 'inlays' ? !prev : true));
+              }}
+              icon={<Plus className="h-4 w-4" />}
+              label="Bloques Rápidos"
+              title="Insertar Tarjetas KPI, Citas Legales, Tablas de Acción o Firmas"
+              variant="emerald"
+              size="sm"
+              isActive={sidebarOpen && activeTab === 'inlays'}
+            />
+            <ExpandableButton
+              onClick={() => handleInsertInlay(DEFAULT_SIGNATURE_BLOCK)}
+              icon={<PenTool className="h-4 w-4" />}
+              label="Insertar Firmas"
+              title="Insertar bloque de firmas digitales al documento"
+              variant="fuchsia"
+              size="sm"
+            />
           </div>
-          <div className="flex items-center gap-2">
-            <button
+
+          <div className="flex items-center gap-1.5">
+            <ExpandableButton
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold border border-border-medium bg-surface-primary hover:bg-surface-hover text-text-primary rounded-xl transition-all duration-300 cursor-pointer shadow-sm disabled:opacity-50"
-              title="Cargar archivo Word (.docx, .doc) respetando el diseño"
-            >
-              <Upload className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">{isUploading ? 'Cargando...' : 'Cargar Word'}</span>
-              <span className="sm:hidden">{isUploading ? '...' : 'Cargar'}</span>
-            </button>
+              icon={<Upload className="h-4 w-4" />}
+              label={isUploading ? 'Importando...' : 'Importar Documento'}
+              title="Importar documento externo conservando el formato"
+              variant="blue"
+              size="sm"
+            />
             <input
               type="file"
               ref={fileInputRef}
@@ -1546,15 +1574,14 @@ const CanvasTextEditor: React.FC<CanvasTextEditorProps> = ({ initialContent, onU
               onChange={handleWordUpload}
             />
 
-            <button
+            <ExpandableButton
               onClick={() => setIsBridgeOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold border border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-300 hover:bg-purple-500/20 rounded-xl transition-all duration-300 cursor-pointer shadow-sm"
-              title="Insertar recursos de Google Flow, NotebookLM (30 días) o tablas de Excel"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Flow, NotebookLM & Lienzos</span>
-              <span className="sm:hidden">Recursos IA</span>
-            </button>
+              icon={<Sparkles className="h-4 w-4" />}
+              label="Conectar Recursos IA"
+              title="Insertar tablas de Hoja de Cálculo o recursos de Google Flow y NotebookLM"
+              variant="purple"
+              size="sm"
+            />
           </div>
         </div>
 
@@ -1565,9 +1592,9 @@ const CanvasTextEditor: React.FC<CanvasTextEditorProps> = ({ initialContent, onU
             onUpdate={onUpdate}
             reportType="general"
             paperMode={true}
-            hideFullscreen={false} // Fullscreen button enabled in the editor toolbar
+            hideFullscreen={false}
             reportSourceData={reportSourceData}
-            hideToolbarWhenCollapsed={!isMaximized}
+            hideToolbarWhenCollapsed={false}
           />
         </div>
       </div>
