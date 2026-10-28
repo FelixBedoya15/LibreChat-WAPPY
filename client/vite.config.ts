@@ -268,37 +268,6 @@ export default defineConfig(({ command }) => ({
           ) {
             return 'sgsst-assets';
           }
-          if (normalizedId.includes('/src/components/SGSST/')) {
-            return 'sgsst-modules';
-          }
-          if (
-            normalizedId.includes('/src/components/Training/') ||
-            normalizedId.includes('/src/components/RutaAprendizaje/') ||
-            normalizedId.includes('/src/components/Academia/')
-          ) {
-            return 'lms-modules';
-          }
-          if (normalizedId.includes('/src/components/Blog/')) {
-            return 'blog-modules';
-          }
-          if (normalizedId.includes('/src/components/Marketing/')) {
-            return 'marketing-pages';
-          }
-          if (normalizedId.includes('/src/components/Auditoria/')) {
-            return 'auditoria-modules';
-          }
-          if (normalizedId.includes('/src/components/EventsMeet/')) {
-            return 'events-modules';
-          }
-          if (normalizedId.includes('/src/components/Plans/')) {
-            return 'plans-module';
-          }
-          if (normalizedId.includes('/src/components/Ambassadors/')) {
-            return 'ambassadors-module';
-          }
-          if (normalizedId.includes('/src/components/Kanban/')) {
-            return 'kanban-module';
-          }
           // Let Rollup decide automatically for any other files.
           return null;
         },
