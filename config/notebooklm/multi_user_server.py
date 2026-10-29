@@ -129,7 +129,7 @@ def _normalize_cookie(c: Dict[str, Any]) -> Dict[str, Any]:
         same_site = "Lax"
     elif same_site not in ("Strict", "Lax", "None"):
         same_site = "Lax"
-    return {
+    res: Dict[str, Any] = {
         "name": str(c.get("name", "")).strip(),
         "value": str(c.get("value", "")).strip(),
         "domain": str(c.get("domain", ".google.com")),
@@ -138,6 +138,10 @@ def _normalize_cookie(c: Dict[str, Any]) -> Dict[str, Any]:
         "httpOnly": bool(c.get("httpOnly", True)),
         "sameSite": same_site,
     }
+    exp = c.get("expires", c.get("expirationDate"))
+    if isinstance(exp, (int, float)) and exp > 0:
+        res["expires"] = float(exp)
+    return res
 
 
 def _safe_parse_cookies(raw_auth: str) -> List[Dict[str, Any]]:
@@ -202,7 +206,7 @@ def _merge_preserving_rotated_cookies(
     incoming: List[Dict[str, Any]],
     existing: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
-    """Si la sesión (SID) es la misma, conserva las cookies rotadas en disco (__Secure-1PSIDTS, etc.) que no vengan en incoming."""
+    """Si la sesión (SID) es la misma, conserva las cookies rotadas en disco (__Secure-1PSIDTS, SIDCC) y cookies OSID por dominio que no vengan en incoming."""
     if not existing:
         return incoming
     inc_sid = _extract_sid(incoming)
@@ -211,34 +215,104 @@ def _merge_preserving_rotated_cookies(
         return incoming
 
     inc_names = {c.get("name") for c in incoming if isinstance(c, dict)}
+    inc_name_domains = {(c.get("name"), str(c.get("domain", "")).lower()) for c in incoming if isinstance(c, dict)}
     rotated_names = {
         "__Secure-1PSIDTS",
         "__Secure-3PSIDTS",
         "SIDCC",
         "__Secure-1PSIDCC",
         "__Secure-3PSIDCC",
-        "OSID",
-        "__Secure-OSID",
     }
+    domain_scoped_names = {"OSID", "__Secure-OSID"}
+
     merged = list(incoming)
     for ex_c in existing:
-        if isinstance(ex_c, dict):
-            cname = ex_c.get("name")
-            if cname in rotated_names and cname not in inc_names and ex_c.get("value"):
-                merged.append(ex_c)
-                inc_names.add(cname)
+        if not isinstance(ex_c, dict) or not ex_c.get("value"):
+            continue
+        cname = ex_c.get("name")
+        cdom = str(ex_c.get("domain", "")).lower()
+        if cname in rotated_names and cname not in inc_names:
+            merged.append(ex_c)
+            inc_names.add(cname)
+        elif cname in domain_scoped_names and (cname, cdom) not in inc_name_domains:
+            merged.append(ex_c)
+            inc_name_domains.add((cname, cdom))
     return merged
 
 
-def _ensure_psidts_ready(storage_file: Path) -> None:
-    """Si storage_state.json aún no tiene __Secure-1PSIDTS, limpia cualquier rate-limit en memoria y ejecuta RotateCookies."""
+def _sync_disk_cookies_to_mongo(user_id: str, user_email: str, storage_file: Path) -> None:
+    """Sincroniza de vuelta hacia MongoDB (NotebookSession y GoogleFlowSession) las cookies rotadas en disco."""
+    if not user_id or not storage_file.exists() or storage_file.stat().st_size == 0:
+        return
     try:
-        if not storage_file.exists() or storage_file.stat().st_size == 0:
-            return
         data = json.loads(storage_file.read_text())
         cookies = data.get("cookies", [])
-        if _has_psidts(cookies):
+        if not cookies or not _has_psidts(cookies):
             return
+        email = user_email or data.get("notebooklm", {}).get("account", {}).get("email") or ""
+        payload = json.dumps({"cookies": cookies, "email": email}).encode("utf-8")
+        import urllib.request
+        for base_host in ["http://LibreChat:3080", "http://api:3080", "http://localhost:3080"]:
+            try:
+                url = f"{base_host}/api/notebooklm/internal/session/{user_id}"
+                req = urllib.request.Request(
+                    url,
+                    data=payload,
+                    headers={"Content-Type": "application/json", "User-Agent": "NotebookLM-MCP/1.0"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=3) as resp:
+                    if resp.status == 200:
+                        logger.info(f"[PSIDTS Sync] Cookies rotadas sincronizadas en MongoDB para '{user_id}' ({len(cookies)} cookies).")
+                        break
+            except Exception:
+                continue
+    except Exception as e:
+        logger.debug(f"[PSIDTS Sync] No se pudo sincronizar hacia MongoDB: {e}")
+
+
+def _ensure_psidts_ready(storage_file: Path, force_refresh: bool = False) -> bool:
+    """Garantiza que __Secure-1PSIDTS esté fresco en disco rotándolo bajo demanda con las Master Cookies (SID, OSID, SAPISID)."""
+    try:
+        if not storage_file.exists() or storage_file.stat().st_size == 0:
+            return False
+        import time
+        now_ts = time.time()
+        data = json.loads(storage_file.read_text())
+        cookies = data.get("cookies", [])
+        nb_meta = data.get("notebooklm", {}) if isinstance(data.get("notebooklm"), dict) else {}
+        last_rotated = float(nb_meta.get("lastRotatedAt", 0) or 0)
+
+        has_psidts = _has_psidts(cookies)
+        psidts_expired_or_untagged = False
+        for c in cookies:
+            if isinstance(c, dict) and c.get("name") == "__Secure-1PSIDTS":
+                exp = c.get("expires")
+                if not isinstance(exp, (int, float)) or exp <= now_ts + 300:
+                    psidts_expired_or_untagged = True
+                break
+
+        needs_rotation = (
+            force_refresh
+            or not has_psidts
+            or psidts_expired_or_untagged
+            or (now_ts - last_rotated > 600)
+        )
+        if not needs_rotation:
+            return False
+
+        backup_psidts = [
+            c for c in cookies
+            if isinstance(c, dict) and c.get("name") in ("__Secure-1PSIDTS", "__Secure-3PSIDTS")
+        ]
+        if backup_psidts:
+            stripped_cookies = [
+                c for c in cookies
+                if not (isinstance(c, dict) and c.get("name") in ("__Secure-1PSIDTS", "__Secure-3PSIDTS"))
+            ]
+            data["cookies"] = stripped_cookies
+            storage_file.write_text(json.dumps(data, indent=2))
+
         from notebooklm._auth import keepalive, psidts_recovery
         try:
             rot_state = keepalive.RotationState.process_default()
@@ -246,14 +320,49 @@ def _ensure_psidts_ready(storage_file: Path) -> None:
                 rot_state._last_attempt_monotonic.clear()
         except Exception:
             pass
+
         healed = psidts_recovery._recover_psidts_inline(storage_file)
         if healed:
-            logger.info(f"[PSIDTS Auto-Heal] __Secure-1PSIDTS generado y persistido automáticamente en {storage_file}.")
+            try:
+                healed_data = json.loads(storage_file.read_text())
+                if not isinstance(healed_data.get("notebooklm"), dict):
+                    healed_data["notebooklm"] = {}
+                healed_data["notebooklm"]["lastRotatedAt"] = now_ts
+                serialized = json.dumps(healed_data, indent=2)
+                storage_file.write_text(serialized)
+                try:
+                    persist_file = Path.home() / ".notebooklm" / "profiles" / storage_file.parent.name / "storage_state.json"
+                    persist_file.parent.mkdir(parents=True, exist_ok=True)
+                    persist_file.write_text(serialized)
+                except Exception:
+                    pass
+            except Exception:
+                pass
+            logger.info(f"[PSIDTS Auto-Heal] __Secure-1PSIDTS rotado y persistido bajo demanda en {storage_file}.")
+            return True
+        elif backup_psidts:
+            # Restaurar las cookies originales si RotateCookies no emitió reemplazo
+            try:
+                cur_data = json.loads(storage_file.read_text())
+                cur_cookies = cur_data.get("cookies", [])
+                cur_names = {c.get("name") for c in cur_cookies if isinstance(c, dict)}
+                for bc in backup_psidts:
+                    if bc.get("name") not in cur_names:
+                        cur_cookies.append(bc)
+                cur_data["cookies"] = cur_cookies
+                if not isinstance(cur_data.get("notebooklm"), dict):
+                    cur_data["notebooklm"] = {}
+                cur_data["notebooklm"]["lastRotatedAt"] = now_ts
+                storage_file.write_text(json.dumps(cur_data, indent=2))
+            except Exception:
+                pass
+        return False
     except Exception as e:
         logger.debug(f"[PSIDTS Auto-Heal] Advertencia: {e}")
+        return False
 
 
-async def get_client_for_request() -> NotebookLMClient:
+async def get_client_for_request(force_reinit: bool = False) -> NotebookLMClient:
     """Resuelve o crea el cliente de NotebookLM adecuado para la petición en curso."""
     headers: Dict[str, str] = {}
     try:
@@ -451,8 +560,16 @@ async def get_client_for_request() -> NotebookLMClient:
             "ve a Mi Cuenta -> Integraciones -> Google NotebookLM."
         )
 
-    # Garantizar que __Secure-1PSIDTS exista en disco (ejecutando RotateCookies si aún no estaba presente)
-    await asyncio.to_thread(_ensure_psidts_ready, active_storage_file)
+    # Garantizar que __Secure-1PSIDTS exista y esté fresco en disco (ejecutando RotateCookies bajo demanda)
+    healed = await asyncio.to_thread(_ensure_psidts_ready, active_storage_file, force_reinit)
+    if healed:
+        async with _CACHE_LOCK:
+            _CLIENT_CACHE.pop(selected_profile, None)
+        if user_id:
+            await asyncio.to_thread(_sync_disk_cookies_to_mongo, user_id, user_email, active_storage_file)
+    elif force_reinit:
+        async with _CACHE_LOCK:
+            _CLIENT_CACHE.pop(selected_profile, None)
 
     active_sid = ""
     try:
@@ -532,6 +649,7 @@ def _handle_tool_error(tool_name: str, e: Exception) -> None:
 async def notebook_list(
     input: Optional[Any] = None,
     query: Optional[str] = None,
+    dummy: Optional[Any] = None,
 ) -> List[Dict[str, Any]]:
     """Lista todos los cuadernos disponibles para el usuario actual (incluyendo los compartidos con la cuenta)."""
     try:
@@ -1976,6 +2094,72 @@ async def studio_manage(
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+@mcp.custom_route("/api/refresh-cookies", methods=["POST"])
+async def refresh_cookies_handler(request: Request) -> JSONResponse:
+    """
+    Endpoint interno bajo demanda para refrescar __Secure-1PSIDTS y SIDCC
+    usando las Master Cookies (SID, OSID, SAPISID) tanto para NotebookLM como para Google Flow.
+    """
+    try:
+        body = await request.json()
+        user_id = str(body.get("user_id") or request.headers.get("x-user-id") or "").strip()
+        user_email = str(body.get("email") or request.headers.get("x-user-email") or "").strip()
+        incoming_cookies = body.get("cookies") or []
+
+        safe_profile = f"user_{''.join(c for c in user_id if c.isalnum() or c in ('_', '-'))}" if user_id else "default"
+        target_profile_dir = PROFILES_DIR / safe_profile
+        target_profile_dir.mkdir(parents=True, exist_ok=True)
+        user_storage_file = target_profile_dir / "storage_state.json"
+
+        if incoming_cookies and isinstance(incoming_cookies, list):
+            normalized_inc = [_normalize_cookie(c) for c in incoming_cookies if isinstance(c, dict) and c.get("name") and c.get("value")]
+            existing_cookies: List[Dict[str, Any]] = []
+            if user_storage_file.exists() and user_storage_file.stat().st_size > 0:
+                try:
+                    existing_cookies = json.loads(user_storage_file.read_text()).get("cookies", [])
+                except Exception:
+                    pass
+            merged = _merge_preserving_rotated_cookies(normalized_inc, existing_cookies)
+            from datetime import datetime, timezone
+            storage_data = {
+                "cookies": merged,
+                "origins": [],
+                "notebooklm": {
+                    "version": 1,
+                    "updatedAt": datetime.now(timezone.utc).isoformat(),
+                    "account": {
+                        "authuser": 0,
+                        "email": user_email or f"{user_id or 'default'}@wappy.internal",
+                    },
+                },
+            }
+            user_storage_file.write_text(json.dumps(storage_data, indent=2))
+
+        healed = await asyncio.to_thread(_ensure_psidts_ready, user_storage_file, True)
+        if healed:
+            async with _CACHE_LOCK:
+                _CLIENT_CACHE.pop(safe_profile, None)
+            if user_id:
+                await asyncio.to_thread(_sync_disk_cookies_to_mongo, user_id, user_email, user_storage_file)
+
+        final_cookies: List[Dict[str, Any]] = []
+        if user_storage_file.exists() and user_storage_file.stat().st_size > 0:
+            try:
+                final_cookies = json.loads(user_storage_file.read_text()).get("cookies", [])
+            except Exception:
+                pass
+
+        return JSONResponse({
+            "success": True,
+            "healed": healed,
+            "cookies": final_cookies,
+            "hasPsidts": _has_psidts(final_cookies),
+        })
+    except Exception as e:
+        logger.error(f"[Refresh Cookies] Error: {e}", exc_info=True)
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
 @mcp.custom_route("/api/direct-tool", methods=["POST"])
 async def direct_tool_handler(request: Request) -> JSONResponse:
     """
@@ -1986,7 +2170,8 @@ async def direct_tool_handler(request: Request) -> JSONResponse:
     try:
         body = await request.json()
         tool_name = body.get("name") or body.get("tool") or ""
-        tool_args = body.get("arguments") or body.get("args") or {}
+        raw_args = body.get("arguments") or body.get("args") or {}
+        tool_args = dict(raw_args) if isinstance(raw_args, dict) else {}
 
         # Mapeo de las 35 herramientas disponibles
         tools_map = {
@@ -2034,6 +2219,32 @@ async def direct_tool_handler(request: Request) -> JSONResponse:
                 status_code=400,
             )
 
+        # Normalizar alias comunes en español enviados por Tenshi Voice / Gemini Live
+        alias_map = {
+            "cuaderno": "notebook",
+            "pregunta": "query",
+            "consulta": "query",
+            "titulo": "title",
+            "nuevo_titulo": "new_title",
+            "tipo_artefacto": "artifact_type",
+            "instrucciones": "instructions",
+            "tipo_fuente": "source_type",
+            "texto": "text",
+            "modo": "mode",
+        }
+        for es_key, en_key in alias_map.items():
+            if es_key in tool_args and en_key not in tool_args:
+                tool_args[en_key] = tool_args.pop(es_key)
+
+        tool_args.pop("dummy", None)
+
+        # Filtrar argumentos contra la firma real de la función para evitar TypeError por kwargs inesperados
+        import inspect
+        sig = inspect.signature(func)
+        accepts_var_kw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
+        if not accepts_var_kw:
+            tool_args = {k: v for k, v in tool_args.items() if k in sig.parameters}
+
         # Propagar cabeceras y user_id mediante ContextVar para get_client_for_request()
         ctx_dict = {}
         for k, v in request.headers.items():
@@ -2045,8 +2256,16 @@ async def direct_tool_handler(request: Request) -> JSONResponse:
 
         token = _CURRENT_USER_CONTEXT.set(ctx_dict)
         try:
-            # Invocamos la función directamente
-            result = await func(**tool_args)
+            try:
+                result = await func(**tool_args)
+            except Exception as first_err:
+                err_lower = str(first_err).lower()
+                if any(t in err_lower for t in ("autenticación", "csrf", "snlm0e", "401", "403", "cookie", "expired", "caducado")):
+                    logger.info(f"[Direct Tool] Reintentando '{tool_name}' tras rotación forzada de PSIDTS...")
+                    await get_client_for_request(force_reinit=True)
+                    result = await func(**tool_args)
+                else:
+                    raise
             return JSONResponse({"success": True, "result": result})
         finally:
             _CURRENT_USER_CONTEXT.reset(token)

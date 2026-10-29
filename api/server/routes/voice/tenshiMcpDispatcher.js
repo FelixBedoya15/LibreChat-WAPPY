@@ -297,15 +297,18 @@ const TOOL_ROUTES = {
   wappy_consultar_ordenes_antigravity: { method: 'GET', path: '/antigravity/ordenes' },
   wappy_completar_orden_antigravity: { method: 'POST', path: '/antigravity/completar' },
 
-  // 13. Google NotebookLM / Gemini Notebook (35 herramientas)
+  // 13. Google NotebookLM / Gemini Notebook (35 herramientas + alias de voz)
   notebook_list: { isNotebookLM: true, tool: 'notebook_list' },
   notebook_list_mcp_notebooklm: { isNotebookLM: true, tool: 'notebook_list' },
+  notebooklm_listar_cuadernos: { isNotebookLM: true, tool: 'notebook_list' },
   wappy_notebooklm_listar: { isNotebookLM: true, tool: 'notebook_list' },
   wappy_consultar_cuadernos: { isNotebookLM: true, tool: 'notebook_list' },
   notebook_create: { isNotebookLM: true, tool: 'notebook_create' },
   notebook_create_mcp_notebooklm: { isNotebookLM: true, tool: 'notebook_create' },
+  notebooklm_crear_cuaderno: { isNotebookLM: true, tool: 'notebook_create' },
   notebook_rename: { isNotebookLM: true, tool: 'notebook_rename' },
   notebook_rename_mcp_notebooklm: { isNotebookLM: true, tool: 'notebook_rename' },
+  notebooklm_renombrar_cuaderno: { isNotebookLM: true, tool: 'notebook_rename' },
   wappy_notebooklm_renombrar: { isNotebookLM: true, tool: 'notebook_rename' },
   notebook_get_summary: { isNotebookLM: true, tool: 'notebook_get_summary' },
   notebook_get_summary_mcp_notebooklm: { isNotebookLM: true, tool: 'notebook_get_summary' },
@@ -319,14 +322,17 @@ const TOOL_ROUTES = {
   notebook_share_mcp_notebooklm: { isNotebookLM: true, tool: 'notebook_share' },
   chat_ask: { isNotebookLM: true, tool: 'chat_ask' },
   chat_ask_mcp_notebooklm: { isNotebookLM: true, tool: 'chat_ask' },
+  notebooklm_consultar: { isNotebookLM: true, tool: 'chat_ask' },
   wappy_notebooklm_consultar: { isNotebookLM: true, tool: 'chat_ask' },
   wappy_consultar_cuaderno: { isNotebookLM: true, tool: 'chat_ask' },
   chat_configure: { isNotebookLM: true, tool: 'chat_configure' },
   chat_configure_mcp_notebooklm: { isNotebookLM: true, tool: 'chat_configure' },
   source_list: { isNotebookLM: true, tool: 'source_list' },
   source_list_mcp_notebooklm: { isNotebookLM: true, tool: 'source_list' },
+  notebooklm_listar_fuentes: { isNotebookLM: true, tool: 'source_list' },
   source_add: { isNotebookLM: true, tool: 'source_add' },
   source_add_mcp_notebooklm: { isNotebookLM: true, tool: 'source_add' },
+  notebooklm_agregar_fuente: { isNotebookLM: true, tool: 'source_add' },
   source_add_file: { isNotebookLM: true, tool: 'source_add_file' },
   source_add_file_mcp_notebooklm: { isNotebookLM: true, tool: 'source_add_file' },
   source_add_drive: { isNotebookLM: true, tool: 'source_add_drive' },
@@ -357,12 +363,16 @@ const TOOL_ROUTES = {
   note_delete_mcp_notebooklm: { isNotebookLM: true, tool: 'note_delete' },
   studio_generate: { isNotebookLM: true, tool: 'studio_generate' },
   studio_generate_mcp_notebooklm: { isNotebookLM: true, tool: 'studio_generate' },
+  notebooklm_generar_studio: { isNotebookLM: true, tool: 'studio_generate' },
   studio_status: { isNotebookLM: true, tool: 'studio_status' },
   studio_status_mcp_notebooklm: { isNotebookLM: true, tool: 'studio_status' },
+  notebooklm_estado_studio: { isNotebookLM: true, tool: 'studio_status' },
   studio_download: { isNotebookLM: true, tool: 'studio_download' },
   studio_download_mcp_notebooklm: { isNotebookLM: true, tool: 'studio_download' },
+  notebooklm_descargar_artefacto: { isNotebookLM: true, tool: 'studio_download' },
   studio_list: { isNotebookLM: true, tool: 'studio_list' },
   studio_list_mcp_notebooklm: { isNotebookLM: true, tool: 'studio_list' },
+  notebooklm_listar_artefactos: { isNotebookLM: true, tool: 'studio_list' },
   studio_export: { isNotebookLM: true, tool: 'studio_export' },
   studio_export_mcp_notebooklm: { isNotebookLM: true, tool: 'studio_export' },
   studio_revise_slide: { isNotebookLM: true, tool: 'studio_revise_slide' },
@@ -371,8 +381,10 @@ const TOOL_ROUTES = {
   studio_manage_mcp_notebooklm: { isNotebookLM: true, tool: 'studio_manage' },
   research_start: { isNotebookLM: true, tool: 'research_start' },
   research_start_mcp_notebooklm: { isNotebookLM: true, tool: 'research_start' },
+  notebooklm_investigar_web: { isNotebookLM: true, tool: 'research_start' },
   research_import: { isNotebookLM: true, tool: 'research_import' },
   research_import_mcp_notebooklm: { isNotebookLM: true, tool: 'research_import' },
+  notebooklm_importar_investigacion: { isNotebookLM: true, tool: 'research_import' },
 
   // Google Flow & Studio (Veo & Imagen)
   google_flow_generar_imagen: { isGoogleFlow: true, type: 'image' },
@@ -422,10 +434,50 @@ async function executeTenshiMcpTool(toolName, args = {}, userId) {
         };
       }
 
+      const cleanArgs = { ...(args || {}) };
+      delete cleanArgs.dummy;
+      if (cleanArgs.cuaderno && !cleanArgs.notebook) {
+        cleanArgs.notebook = cleanArgs.cuaderno;
+        delete cleanArgs.cuaderno;
+      }
+      if ((cleanArgs.pregunta || cleanArgs.question || cleanArgs.consulta) && !cleanArgs.query) {
+        cleanArgs.query = cleanArgs.pregunta || cleanArgs.question || cleanArgs.consulta;
+        delete cleanArgs.pregunta;
+        delete cleanArgs.question;
+        delete cleanArgs.consulta;
+      }
+      if (cleanArgs.titulo && !cleanArgs.title) {
+        cleanArgs.title = cleanArgs.titulo;
+        delete cleanArgs.titulo;
+      }
+      if (cleanArgs.nuevo_titulo && !cleanArgs.new_title) {
+        cleanArgs.new_title = cleanArgs.nuevo_titulo;
+        delete cleanArgs.nuevo_titulo;
+      }
+      if (cleanArgs.tipo_artefacto && !cleanArgs.artifact_type) {
+        cleanArgs.artifact_type = cleanArgs.tipo_artefacto;
+        delete cleanArgs.tipo_artefacto;
+      }
+      if (cleanArgs.instrucciones && !cleanArgs.instructions) {
+        cleanArgs.instructions = cleanArgs.instrucciones;
+        delete cleanArgs.instrucciones;
+      }
+      if (cleanArgs.tipo_fuente && !cleanArgs.source_type) {
+        cleanArgs.source_type = cleanArgs.tipo_fuente;
+        delete cleanArgs.tipo_fuente;
+      }
+      if (cleanArgs.texto && !cleanArgs.text) {
+        cleanArgs.text = cleanArgs.texto;
+        delete cleanArgs.texto;
+      }
+      if (cleanArgs.modo && !cleanArgs.mode) {
+        cleanArgs.mode = cleanArgs.modo;
+        delete cleanArgs.modo;
+      }
+
       const nbHeaders = {
         'Content-Type': 'application/json',
         'x-user-id': String(userId || ''),
-        'x-notebooklm-auth': JSON.stringify(sessionDoc.cookies),
       };
       if (sessionDoc.email) {
         nbHeaders['x-user-email'] = String(sessionDoc.email);
@@ -436,12 +488,14 @@ async function executeTenshiMcpTool(toolName, args = {}, userId) {
         headers: nbHeaders,
         body: JSON.stringify({
           name: targetTool,
-          arguments: args,
+          arguments: cleanArgs,
+          user_id: String(userId || ''),
+          user_email: String(sessionDoc.email || ''),
         }),
       });
 
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
+      if (!response.ok || data?.error) {
         const errMsg = data?.error || `Error HTTP ${response.status}: ${response.statusText}`;
         logger.error(`[Tenshi MCP] Error en NotebookLM "${targetTool}": ${errMsg}`);
         return { error: errMsg };

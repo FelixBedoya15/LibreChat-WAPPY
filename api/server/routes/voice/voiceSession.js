@@ -3632,8 +3632,9 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                             data: { status: 'loading', message: `Consultando Google NotebookLM (${fc.name.replace(/_/g, ' ')})...` }
                         });
                         try {
-                            let mappedTool = 'notebook_list';
+                            let mappedTool = fc.name;
                             let mappedArgs = { ...(fc.args || {}) };
+                            delete mappedArgs.dummy;
                             if (fc.name === 'notebooklm_listar_cuadernos' || fc.name === 'notebook_list') {
                                 mappedTool = 'notebook_list';
                                 mappedArgs = {};

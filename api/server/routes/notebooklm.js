@@ -123,6 +123,40 @@ function findCachedNotebookArtifact(artifactId, type = '', format = '') {
 }
 
 /**
+ * Fusiona dos listas de cookies de Google de la misma cuenta (mismo SID),
+ * preservando cookies rotadas (__Secure-1PSIDTS, SIDCC) y cookies OSID específicas por dominio
+ * (notebooklm.google.com, notebook.google.com, flow.google.com, myaccount.google.com).
+ */
+function mergeGoogleCookiesByDomain(incoming = [], existing = []) {
+  if (!Array.isArray(existing) || existing.length === 0) return incoming;
+  if (!Array.isArray(incoming) || incoming.length === 0) return existing;
+
+  const getSid = (list) =>
+    list.find((c) => c && c.name === 'SID' && c.value)?.value ||
+    list.find((c) => c && c.name === '__Secure-1PSID' && c.value)?.value ||
+    '';
+
+  const incSid = getSid(incoming);
+  const exSid = getSid(existing);
+  if (incSid && exSid && incSid !== exSid) {
+    return incoming;
+  }
+
+  const byKey = new Map();
+  for (const c of existing) {
+    if (!c || !c.name || !c.value) continue;
+    const key = `${c.name}@@${String(c.domain || '.google.com').toLowerCase()}`;
+    byKey.set(key, c);
+  }
+  for (const c of incoming) {
+    if (!c || !c.name || !c.value) continue;
+    const key = `${c.name}@@${String(c.domain || '.google.com').toLowerCase()}`;
+    byKey.set(key, c);
+  }
+  return Array.from(byKey.values());
+}
+
+/**
  * GET /api/notebooklm/internal/session/:userId
  * Endpoint interno para que el contenedor notebooklm-mcp pueda obtener la sesión
  * del usuario directamente desde MongoDB sin depender de montajes de disco.
@@ -156,6 +190,62 @@ router.get('/internal/session/:userId', async (req, res) => {
 });
 
 /**
+ * POST /api/notebooklm/internal/session/:userId
+ * Endpoint interno para que notebooklm-mcp persista de vuelta en MongoDB
+ * las cookies rotadas (__Secure-1PSIDTS, SIDCC, OSID) tras ejecutar RotateCookies.
+ */
+router.post('/internal/session/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!userId || userId.startsWith('{{')) {
+      return res.status(400).json({ error: 'ID de usuario inválido' });
+    }
+    const incomingCookies = parseIncomingCookies(req.body?.cookies || []);
+    if (incomingCookies.length === 0) {
+      return res.status(400).json({ error: 'Sin cookies para actualizar' });
+    }
+
+    const existingNb = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
+    const mergedNb = mergeGoogleCookiesByDomain(incomingCookies, existingNb?.cookies || []);
+    const effectiveEmail = req.body?.email || existingNb?.email || `${userId}@wappy.internal`;
+
+    await NotebookSession.findOneAndUpdate(
+      { user: userId },
+      {
+        email: effectiveEmail,
+        cookies: mergedNb,
+        cookieCount: mergedNb.length,
+        isValid: true,
+        lastTestedAt: new Date(),
+      },
+      { upsert: true, new: true }
+    );
+
+    try {
+      const GoogleFlowSession = require('~/models/GoogleFlowSession');
+      const existingFlow = await GoogleFlowSession.findOne({ user: userId }).lean().catch(() => null);
+      const mergedFlow = mergeGoogleCookiesByDomain(mergedNb, existingFlow?.cookies || []);
+      await GoogleFlowSession.findOneAndUpdate(
+        { user: userId },
+        {
+          email: existingFlow?.email || effectiveEmail,
+          cookies: mergedFlow,
+          cookieCount: mergedFlow.length,
+          isValid: true,
+          lastTestedAt: new Date(),
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+    } catch (_) {}
+
+    return res.json({ success: true, cookieCount: mergedNb.length });
+  } catch (err) {
+    logger.error('[NotebookLM Internal] Error updating rotated session:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * Obtiene el nombre seguro del perfil según el ID del usuario
  */
 function getSafeProfileName(userId) {
@@ -179,7 +269,7 @@ function getStoragePaths(userId) {
 }
 
 /**
- * Normaliza una cookie al formato estándar requerido por notebooklm-py
+ * Normaliza una cookie al formato estándar requerido por notebooklm-py (preservando expires)
  */
 function normalizeCookie(raw) {
   if (!raw || typeof raw !== 'object') return null;
@@ -199,7 +289,7 @@ function normalizeCookie(raw) {
     sameSite = 'Lax';
   }
 
-  return {
+  const normalized = {
     name,
     value,
     domain: String(raw.domain || '.google.com'),
@@ -208,6 +298,11 @@ function normalizeCookie(raw) {
     httpOnly: Boolean(raw.httpOnly ?? true),
     sameSite,
   };
+  const exp = raw.expires ?? raw.expirationDate;
+  if (typeof exp === 'number' && Number.isFinite(exp) && exp > 0) {
+    normalized.expires = exp;
+  }
+  return normalized;
 }
 
 /**
@@ -390,9 +485,45 @@ router.post('/session', requireJwtAuth, async (req, res) => {
 
     const effectiveEmail = clientEmail || userEmail || `${userId}@wappy.internal`;
 
-    // 1. Guardar en disco
+    // Fusionar con cookies existentes de la misma cuenta (para no perder OSID de flow.google.com ni __Secure-1PSIDTS rotados)
+    const existingNb = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
+    let mergedCookies = mergeGoogleCookiesByDomain(cookies, existingNb?.cookies || []);
+
+    // 1. Guardar inicialmente en MongoDB antes de llamar a notebooklm-mcp (así si notebooklm-mcp rota y hace POST /internal/session/:userId, no lo pisamos)
+    await NotebookSession.findOneAndUpdate(
+      { user: userId },
+      {
+        email: effectiveEmail,
+        cookies: mergedCookies,
+        cookieCount: mergedCookies.length,
+        isValid: true,
+        lastTestedAt: new Date(),
+        source,
+      },
+      { upsert: true, new: true }
+    );
+
+    try {
+      const GoogleFlowSession = require('~/models/GoogleFlowSession');
+      const existingFlow = await GoogleFlowSession.findOne({ user: userId }).lean().catch(() => null);
+      const mergedFlow = mergeGoogleCookiesByDomain(mergedCookies, existingFlow?.cookies || []);
+      await GoogleFlowSession.findOneAndUpdate(
+        { user: userId },
+        {
+          email: effectiveEmail,
+          cookies: mergedFlow,
+          cookieCount: mergedFlow.length,
+          isValid: true,
+          lastTestedAt: new Date(),
+          source: source || 'extension',
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+    } catch (_) {}
+
+    // 2. Guardar en disco
     const storageData = {
-      cookies,
+      cookies: mergedCookies,
       origins: [],
       notebooklm: {
         version: 1,
@@ -417,8 +548,8 @@ router.post('/session', requireJwtAuth, async (req, res) => {
       }
     }
 
-    // 2. Probar conexión en vivo contra Google y sincronizar en caliente con notebooklm-mcp
-    let testResult = validateCookiesLocally(cookies);
+    // 3. Probar conexión en vivo contra Google y rotar/sincronizar en caliente con notebooklm-mcp
+    let testResult = validateCookiesLocally(mergedCookies);
     let notebooksCount = null;
     if (testResult.success) {
       try {
@@ -429,7 +560,7 @@ router.post('/session', requireJwtAuth, async (req, res) => {
             'Content-Type': 'application/json',
             'x-user-id': String(userId),
             'x-user-email': String(effectiveEmail),
-            'x-notebooklm-auth': JSON.stringify(cookies),
+            'x-notebooklm-auth': JSON.stringify(mergedCookies),
           },
           body: JSON.stringify({ name: 'notebook_list', arguments: {} }),
         });
@@ -447,40 +578,21 @@ router.post('/session', requireJwtAuth, async (req, res) => {
       }
     }
 
-    // 3. Guardar en MongoDB (y sincronizar sesión de Google con GoogleFlowSession si existe el modelo)
     await NotebookSession.findOneAndUpdate(
       { user: userId },
       {
-        email: effectiveEmail,
-        cookies,
-        cookieCount: cookies.length,
         isValid: testResult.success,
         lastTestedAt: new Date(),
-        source,
-      },
-      { upsert: true, new: true }
+      }
     );
 
-    try {
-      const GoogleFlowSession = require('~/models/GoogleFlowSession');
-      await GoogleFlowSession.findOneAndUpdate(
-        { user: userId },
-        {
-          email: effectiveEmail,
-          cookies,
-          cookieCount: cookies.length,
-          isValid: true,
-          lastTestedAt: new Date(),
-          source: source || 'extension',
-        },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
-      );
-    } catch (_) {}
+    const latestNb = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
+    const finalCount = latestNb?.cookieCount || mergedCookies.length;
 
     return res.json({
       success: true,
       email: effectiveEmail,
-      cookieCount: cookies.length,
+      cookieCount: finalCount,
       isValid: testResult.success,
       notebooksCount,
       testWarning: testResult.success ? null : testResult.reason,
@@ -537,9 +649,13 @@ router.post('/test', requireJwtAuth, async (req, res) => {
             'Content-Type': 'application/json',
             'x-user-id': String(userId),
             'x-user-email': String(effectiveEmail),
-            'x-notebooklm-auth': JSON.stringify(cookies),
           },
-          body: JSON.stringify({ name: 'notebook_list', arguments: {} }),
+          body: JSON.stringify({
+            name: 'notebook_list',
+            arguments: {},
+            user_id: String(userId),
+            user_email: String(effectiveEmail),
+          }),
         });
         const mcpData = await mcpRes.json().catch(() => ({}));
         if (!mcpRes.ok || mcpData?.error) {
@@ -958,20 +1074,33 @@ async function uploadCookies(cookies, email = '') {
       const names = new Set(googleCookies.map((c) => c.name));
 
       if (names.has('SID') && (names.has('__Secure-1PSID') || names.has('__Secure-1PSIDTS'))) {
-        const osidCookie = googleCookies.find((c) => c.name === 'OSID');
+        try {
+          await cdpSend(nbPage.webSocketDebuggerUrl, 'Target.createTarget', {
+            url: 'https://flow.google.com/',
+            background: true,
+          });
+          await new Promise((r) => setTimeout(r, 2500));
+          const stRes2 = await cdpSend(nbPage.webSocketDebuggerUrl, 'Storage.getCookies').catch(() => null);
+          const refreshed = stRes2?.result?.cookies || [];
+          if (refreshed.length > allCookies.length) {
+            allCookies = refreshed;
+          }
+        } catch (_) {}
+
+        const finalGoogleCookies = allCookies.filter((c) => c.domain && c.domain.includes('google.com'));
+        const osidCookie = finalGoogleCookies.find((c) => c.name === 'OSID');
         if (osidCookie) {
-          const hasNotebookDomain = googleCookies.some(
+          const hasNotebookDomain = finalGoogleCookies.some(
             (c) => c.name === 'OSID' && c.domain && c.domain.includes('notebook.google.com')
           );
           if (!hasNotebookDomain) {
-            googleCookies.push({ ...osidCookie, domain: '.notebook.google.com' });
+            finalGoogleCookies.push({ ...osidCookie, domain: '.notebook.google.com' });
           }
         }
         console.log('✨ Sesión detectada. Verificando y guardando en tu perfil de WAPPY...');
-        const result = await uploadCookies(googleCookies);
+        const result = await uploadCookies(finalGoogleCookies);
         if (result.ok) {
           console.log('✅ ' + (result.data.message || '¡Módulo conectado con éxito!'));
-          try { await cdpSend(nbPage.webSocketDebuggerUrl, 'Browser.close'); } catch (_) {}
           try { if (child) child.kill(); } catch (_) {}
           process.exit(0);
         }

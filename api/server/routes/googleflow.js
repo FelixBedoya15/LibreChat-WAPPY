@@ -36,7 +36,7 @@ function normalizeCookie(raw) {
     sameSite = 'Lax';
   }
 
-  return {
+  const normalized = {
     name,
     value,
     domain: String(raw.domain || '.google.com'),
@@ -45,6 +45,76 @@ function normalizeCookie(raw) {
     httpOnly: Boolean(raw.httpOnly ?? true),
     sameSite,
   };
+  const exp = raw.expires ?? raw.expirationDate;
+  if (typeof exp === 'number' && Number.isFinite(exp) && exp > 0) {
+    normalized.expires = exp;
+  }
+  return normalized;
+}
+
+/**
+ * Fusiona dos listas de cookies de Google de la misma cuenta (mismo SID),
+ * preservando cookies rotadas (__Secure-1PSIDTS, SIDCC) y cookies OSID específicas por dominio
+ * (flow.google.com, notebooklm.google.com, notebook.google.com, myaccount.google.com).
+ */
+function mergeGoogleCookiesByDomain(incoming = [], existing = []) {
+  if (!Array.isArray(existing) || existing.length === 0) return incoming;
+  if (!Array.isArray(incoming) || incoming.length === 0) return existing;
+
+  const getSid = (list) =>
+    list.find((c) => c && c.name === 'SID' && c.value)?.value ||
+    list.find((c) => c && c.name === '__Secure-1PSID' && c.value)?.value ||
+    '';
+
+  const incSid = getSid(incoming);
+  const exSid = getSid(existing);
+  if (incSid && exSid && incSid !== exSid) {
+    return incoming;
+  }
+
+  const byKey = new Map();
+  for (const c of existing) {
+    if (!c || !c.name || !c.value) continue;
+    const key = `${c.name}@@${String(c.domain || '.google.com').toLowerCase()}`;
+    byKey.set(key, c);
+  }
+  for (const c of incoming) {
+    if (!c || !c.name || !c.value) continue;
+    const key = `${c.name}@@${String(c.domain || '.google.com').toLowerCase()}`;
+    byKey.set(key, c);
+  }
+  return Array.from(byKey.values());
+}
+
+/**
+ * Refresca bajo demanda __Secure-1PSIDTS y SIDCC usando las Master Cookies (SID, OSID, SAPISID)
+ * a través del motor de rotación de notebooklm-mcp y sincroniza en MongoDB.
+ */
+async function refreshGoogleCookiesOnDemand(userId, cookies = [], email = '') {
+  if (!Array.isArray(cookies) || cookies.length === 0) return cookies;
+  try {
+    const notebooklmUrl = process.env.NOTEBOOKLM_URL || 'http://notebooklm-mcp:9420';
+    const res = await fetch(`${notebooklmUrl}/api/refresh-cookies`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-id': String(userId || ''),
+        'x-user-email': String(email || ''),
+      },
+      body: JSON.stringify({
+        user_id: String(userId || ''),
+        email: String(email || ''),
+        cookies,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && Array.isArray(data?.cookies) && data.cookies.length > 0) {
+      return mergeGoogleCookiesByDomain(data.cookies, cookies);
+    }
+  } catch (err) {
+    logger.debug('[GoogleFlow] Advertencia refrescando cookies vía MCP:', err.message);
+  }
+  return cookies;
 }
 
 /**
@@ -284,101 +354,30 @@ async function resolveGoogleFlowCredentials(userId) {
     notebookSession = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
   }
 
-  let cookies =
-    flowSession?.cookies?.length > 0
-      ? flowSession.cookies
-      : notebookSession?.cookies?.length > 0
-      ? notebookSession.cookies
-      : [];
-
-  // Si la sesión del usuario no contiene tanto __Secure-1PSIDTS como OSID de flow.google.com,
-  // buscar si existe otra sesión válida con el mismo email o una sesión maestra activa de Flow en el servidor
-  const hasPsidTs = cookies.some((c) => c && c.name === '__Secure-1PSIDTS' && c.value);
-  const hasFlowOsid = cookies.some(
-    (c) => c && c.name === 'OSID' && String(c.domain || '').toLowerCase().includes('flow.google.com')
+  let cookies = mergeGoogleCookiesByDomain(
+    flowSession?.cookies || [],
+    notebookSession?.cookies || []
   );
-  if (!hasPsidTs || !hasFlowOsid) {
-    try {
-      const targetEmail = flowSession?.email || notebookSession?.email;
-      let fallbackFlow = null;
-      if (targetEmail) {
-        fallbackFlow = await GoogleFlowSession.findOne({
-          email: targetEmail,
-          cookies: {
-            $all: [
-              { $elemMatch: { name: '__Secure-1PSIDTS' } },
-              { $elemMatch: { name: 'OSID', domain: /flow\.google\.com/i } },
-            ],
-          },
-        })
-          .sort({ updatedAt: -1 })
-          .lean();
-      }
-      if (!fallbackFlow) {
-        fallbackFlow = await GoogleFlowSession.findOne({
-          cookies: {
-            $all: [
-              { $elemMatch: { name: '__Secure-1PSIDTS' } },
-              { $elemMatch: { name: 'OSID', domain: /flow\.google\.com/i } },
-            ],
-          },
-        })
-          .sort({ updatedAt: -1 })
-          .lean();
-      }
-      if (fallbackFlow?.cookies?.length > 0) {
-        cookies = fallbackFlow.cookies;
-        if (userId) {
-          await GoogleFlowSession.findOneAndUpdate(
-            { user: userId },
-            {
-              cookies: fallbackFlow.cookies,
-              cookieCount: fallbackFlow.cookies.length,
-              email: fallbackFlow.email || targetEmail || 'Cuenta vinculada',
-              isValid: true,
-              lastTestedAt: new Date(),
-            },
-            { upsert: true }
-          ).catch(() => {});
-        }
-      }
-    } catch (_) {}
+
+  const targetEmail = flowSession?.email || notebookSession?.email || '';
+  if (cookies.length > 0) {
+    const nowSec = Date.now() / 1000;
+    const psidtsCookie = cookies.find((c) => c && c.name === '__Secure-1PSIDTS' && c.value);
+    const psidtsNeedsRefresh =
+      !psidtsCookie ||
+      typeof psidtsCookie.expires !== 'number' ||
+      psidtsCookie.expires <= nowSec + 300;
+
+    if (psidtsNeedsRefresh) {
+      cookies = await refreshGoogleCookiesOnDemand(userId, cookies, targetEmail);
+    }
   }
 
   const allCandidateCookieSets = [];
-  const seenSignatures = new Set();
-  const pushCookieSet = (cs) => {
-    if (!Array.isArray(cs) || cs.length === 0) return;
-    const osidVal = cs.find((c) => c && c.name === 'OSID' && String(c.domain || '').includes('flow'))?.value || '';
-    const sidVal = cs.find((c) => c && c.name === 'SID')?.value || '';
-    const psidVal = cs.find((c) => c && c.name === '__Secure-1PSID')?.value || '';
-    const sig = `${(sidVal || psidVal).slice(0, 20)}:${osidVal.slice(0, 20)}`;
-    if (!sig || sig === ':' || seenSignatures.has(sig)) return;
-    seenSignatures.add(sig);
-    allCandidateCookieSets.push(cs);
-  };
-
-  pushCookieSet(cookies);
-  try {
-    const allFlows = await GoogleFlowSession.find({
-      'cookies.0': { $exists: true },
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
-    for (const fDoc of allFlows) {
-      pushCookieSet(fDoc.cookies);
-    }
-    const allNotebooks = await NotebookSession.find({
-      'cookies.0': { $exists: true },
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
-    for (const nDoc of allNotebooks) {
-      pushCookieSet(nDoc.cookies);
-    }
-  } catch (_) {}
-
-  const fallbackCookies = allCandidateCookieSets[1] || allCandidateCookieSets[0] || null;
+  if (cookies.length > 0) {
+    allCandidateCookieSets.push(cookies);
+  }
+  const fallbackCookies = allCandidateCookieSets[0] || null;
 
   let apiKeys = [];
   if (flowSession?.apiKey) {
@@ -610,20 +609,6 @@ async function executeFlowNativeStudioAction({
 
     await cdpRequest(ws, 1, 'Network.enable');
     await cdpRequest(ws, 2, 'Page.enable');
-    await cdpRequest(ws, 3, 'Page.addScriptToEvaluateOnNewDocument', {
-      source: `
-        Object.defineProperty(navigator, "webdriver", { get: () => undefined });
-        const origDefProp = Object.defineProperty;
-        Object.defineProperty = function(obj, prop, desc) {
-          if (prop === "execute" && desc && typeof desc.value === "function") {
-            window.__origRecapExec = obj.execute ? obj.execute.bind(obj) : desc.value;
-            return obj;
-          }
-          return origDefProp.call(this, obj, prop, desc);
-        };
-      `,
-    });
-
     for (let i = 0; i < filtered.length; i++) {
       const c = filtered[i];
       const rawDom = String(c.domain || '.google.com').toLowerCase();
@@ -645,6 +630,20 @@ async function executeFlowNativeStudioAction({
       }
       await cdpRequest(ws, 10 + i, 'Network.setCookie', cookieParam).catch(() => {});
     }
+
+    await cdpRequest(ws, 3, 'Page.addScriptToEvaluateOnNewDocument', {
+      source: `
+        Object.defineProperty(navigator, "webdriver", { get: () => undefined });
+        const origDefProp = Object.defineProperty;
+        Object.defineProperty = function(obj, prop, desc) {
+          if (prop === "execute" && desc && typeof desc.value === "function") {
+            window.__origRecapExec = obj.execute ? obj.execute.bind(obj) : desc.value;
+            return obj;
+          }
+          return origDefProp.call(this, obj, prop, desc);
+        };
+      `,
+    });
 
     await cdpRequest(ws, 200, 'Page.navigate', { url: 'https://flow.google.com/' });
 
@@ -677,12 +676,22 @@ async function executeFlowNativeStudioAction({
       }).catch(() => null);
 
       const val = evalRes?.result?.value;
-      if (val === 'NEEDS_OSID_REFRESH' && !triedCookieRefresh && i >= 3) {
+      if (val === 'NEEDS_OSID_REFRESH' && !triedCookieRefresh && i >= 2) {
         triedCookieRefresh = true;
         await cdpRequest(ws, 250, 'Network.deleteCookies', { name: 'OSID', domain: 'flow.google.com' }).catch(() => {});
         await cdpRequest(ws, 251, 'Network.deleteCookies', { name: '__Secure-OSID', domain: 'flow.google.com' }).catch(() => {});
-        await cdpRequest(ws, 252, 'Page.navigate', {
-          url: 'https://accounts.google.com/ServiceLogin?passive=true&continue=https%3A%2F%2Fflow.google.com%2F',
+        await cdpRequest(ws, 252, 'Runtime.evaluate', {
+          expression: `(() => {
+            const btn = Array.from(document.querySelectorAll('a, button')).find((el) =>
+              /create with google flow|try in google flow|try google flow/i.test((el.innerText || '').trim())
+            );
+            if (btn) {
+              btn.click();
+              return true;
+            }
+            return false;
+          })()`,
+          returnByValue: true,
         }).catch(() => {});
         continue;
       }
@@ -1594,10 +1603,18 @@ router.post('/session', requireJwtAuth, async (req, res) => {
     let detectedEmail = '';
 
     if (cookies.length > 0) {
+      const existingFlow = await GoogleFlowSession.findOne({ user: userId }).lean().catch(() => null);
+      const existingNb = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
+      cookies = mergeGoogleCookiesByDomain(
+        cookies,
+        mergeGoogleCookiesByDomain(existingFlow?.cookies || [], existingNb?.cookies || [])
+      );
+
       testResult = validateCookiesLocally(cookies);
       if (!testResult.success && !apiKey) {
         return res.status(400).json({ error: testResult.reason });
       }
+      cookies = await refreshGoogleCookiesOnDemand(userId, cookies, clientEmail || userEmail || '');
       const fxCheck = await fetchLabsFxSession(cookies);
       if (fxCheck.email) {
         detectedEmail = fxCheck.email;
@@ -1630,12 +1647,14 @@ router.post('/session', requireJwtAuth, async (req, res) => {
 
     if (cookies.length > 0) {
       try {
+        const existingNb = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
+        const mergedNbCookies = mergeGoogleCookiesByDomain(cookies, existingNb?.cookies || []);
         await NotebookSession.findOneAndUpdate(
           { user: userId },
           {
             email: effectiveEmail,
-            cookies,
-            cookieCount: cookies.length,
+            cookies: mergedNbCookies,
+            cookieCount: mergedNbCookies.length,
             isValid: true,
             lastTestedAt: new Date(),
             source: source || 'googleflow-sync',
@@ -1686,7 +1705,13 @@ router.post('/test', requireJwtAuth, async (req, res) => {
         isValid = false;
         message = cookieCheck.reason;
       } else {
-        const fxCheck = await fetchLabsFxSession(session.cookies);
+        let fxCheck = await fetchLabsFxSession(session.cookies);
+        if (!fxCheck.ok) {
+          const refreshed = await refreshGoogleCookiesOnDemand(userId, session.cookies, session.email || '');
+          session.cookies = refreshed;
+          session.cookieCount = refreshed.length;
+          fxCheck = await fetchLabsFxSession(session.cookies);
+        }
         if (fxCheck.email && fxCheck.email !== session.email) {
           session.email = fxCheck.email;
         }
@@ -2134,11 +2159,24 @@ async function uploadCookies(cookies, email = '') {
       );
 
       if (names.has('SID') && (names.has('__Secure-1PSID') || names.has('__Secure-1PSIDTS')) && hasFlowOsid) {
+        try {
+          await cdpSend(flowPage.webSocketDebuggerUrl, 'Target.createTarget', {
+            url: 'https://notebooklm.google.com/',
+            background: true,
+          });
+          await new Promise((r) => setTimeout(r, 2500));
+          const cdpRes2 = await cdpSend(flowPage.webSocketDebuggerUrl, 'Network.getAllCookies').catch(() => null);
+          const refreshed = cdpRes2?.result?.cookies || [];
+          if (refreshed.length > allCookies.length) {
+            allCookies = refreshed;
+          }
+        } catch (_) {}
+
+        const finalGoogleCookies = allCookies.filter((c) => c.domain && c.domain.includes('google.com'));
         console.log('✨ Sesión detectada. Verificando y vinculando con Google Flow en WAPPY...');
-        const result = await uploadCookies(googleCookies);
+        const result = await uploadCookies(finalGoogleCookies);
         if (result.ok) {
           console.log('✅ ' + (result.data.message || '¡Módulo conectado con éxito!'));
-          try { await cdpSend(flowPage.webSocketDebuggerUrl, 'Browser.close'); } catch (_) {}
           try { if (child) child.kill(); } catch (_) {}
           process.exit(0);
         }
