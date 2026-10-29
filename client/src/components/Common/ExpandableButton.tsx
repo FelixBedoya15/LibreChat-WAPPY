@@ -25,6 +25,7 @@ export interface ExpandableButtonProps
   variant?: ExpandableButtonVariant;
   isActive?: boolean;
   size?: 'sm' | 'md';
+  alwaysExpanded?: boolean;
 }
 
 export const WAPPY_SEMANTIC_BUTTON_STYLES: Record<
@@ -148,6 +149,7 @@ export const ExpandableButton = React.forwardRef<HTMLButtonElement, ExpandableBu
       variant,
       isActive = false,
       size = 'md',
+      alwaysExpanded = false,
       className,
       disabled,
       title,
@@ -157,8 +159,8 @@ export const ExpandableButton = React.forwardRef<HTMLButtonElement, ExpandableBu
     ref,
   ) => {
     const resolvedVariant =
-      variant === 'white'
-        ? 'white'
+      variant && variant !== 'neutral'
+        ? variant
         : resolveSemanticVariant(`${label} ${title || ''}`, variant);
     const config = WAPPY_SEMANTIC_BUTTON_STYLES[resolvedVariant] || WAPPY_SEMANTIC_BUTTON_STYLES.neutral;
     const currentStyle = isActive ? config.active : config.idle;
@@ -191,7 +193,13 @@ export const ExpandableButton = React.forwardRef<HTMLButtonElement, ExpandableBu
         <div className="relative flex-shrink-0 flex items-center justify-center [&>svg]:h-4 [&>svg]:w-4">
           {icon}
         </div>
-        <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+        <div
+          className={
+            alwaysExpanded
+              ? 'flex items-center ml-2 whitespace-nowrap'
+              : 'hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap'
+          }
+        >
           <span className={textClasses}>{label}</span>
         </div>
       </button>

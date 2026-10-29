@@ -12,11 +12,20 @@ const { logger } = require('~/config');
 const { resolveApiKeys, generateWithKeyRotation } = require('./sgsst/sgsstGemini');
 const geminiPoolManager = require('~/server/services/GeminiPoolManager');
 const {
+  ARCHETYPE_ROTATION,
+  resolveArchetypeFromEffect,
   alignTimelineMapWithWavBuffer,
   buildSmartScenePlanFromScript,
   generateCreativeScenePlanWithAi,
   compileAntigravityMasterReelHtml,
 } = require('./wappyReelEngine');
+
+let mcpBridge = null;
+try {
+  mcpBridge = require('./mcpBridge');
+} catch (_) {
+  /* optional bridge reference */
+}
 
 /**
  * Middleware de autenticación flexible para WAPPY Studio:
@@ -446,10 +455,17 @@ async function getCombinedKeysForRequest(req, bodyCustomKeys) {
     }
   }
 
-  if (Array.isArray(bodyCustomKeys)) {
-    for (const k of bodyCustomKeys) {
-      if (typeof k === 'string' && k.trim().length > 8 && !customList.includes(k.trim())) {
-        customList.push(k.trim());
+  const candidateArrays = [
+    bodyCustomKeys,
+    req.body?.customKeys,
+    req.body?.apiKeys,
+  ];
+  for (const arr of candidateArrays) {
+    if (Array.isArray(arr)) {
+      for (const k of arr) {
+        if (typeof k === 'string' && k.trim().length > 8 && !customList.includes(k.trim())) {
+          customList.push(k.trim());
+        }
       }
     }
   }
@@ -1997,23 +2013,405 @@ router.post('/video/compile-master-reel', studioAuth, async (req, res) => {
 });
 
 /**
- * POST /api/studio/video/generate-html
+ * Catálogo Oficial de las 5 Skills de Video de Google Antigravity + 4 Direcciones de Arte + 19 Efectos Virales
+ */
+const ANTIGRAVITY_VIDEO_SKILLS_CATALOG = [
+  {
+    id: 'protocolo-produccion-videos',
+    name: 'Sistema de las 7 Piezas + Brandbook WAPPY IA',
+    description:
+      'Portada magnética de 0.00s a 2.00s con badge 🔥 ¡GRATIS!, guión segundo a segundo, Avatar 3D Voxel y 3 vistas previas.',
+  },
+  {
+    id: 'animaciones-17-efectos-reels',
+    name: '19 Efectos Virales & Transiciones 60 FPS',
+    description:
+      'Orbit 3D, Frame Break, UI World, Digital Zoom Reticle, iPhone Dynamic Island, Headline Wall, Zoom-Through, Chart Grow, Signature Pad y CTA Bubbles.',
+  },
+  {
+    id: 'animaciones-wappy-brand',
+    name: 'Identidad Visual Oficial WAPPY IA',
+    description:
+      'Verde Lima Eléctrico (#C7F303), Negro Oliva (#0E1300), Turquesa SST (#0D9488), Cielo Cloud (#5BB8F5) y Crema Editorial (#F6F5EF).',
+  },
+  {
+    id: 'animaciones-dark-tech-hud',
+    name: 'Dark Tech Cyberpunk & HUD Glassmorphism',
+    description:
+      'Escenario cósmico #0C192E -> #020409, retícula de escaneo láser, radar holográfico y tarjetas HUD con esquinas técnicas.',
+  },
+  {
+    id: 'animaciones-explicativas-sst',
+    name: 'Explicativos Normativos & SST para Dummies',
+    description:
+      'Análisis técnico de decretos, resoluciones (Res. 0312, Dec. 1072, GTC 45, RETIE) y contraste de mitos vs realidad legal.',
+  },
+];
+
+const ANTIGRAVITY_ART_DIRECTIONS = [
+  {
+    id: 'dark-tech-hud',
+    name: 'Dark Tech HUD Cyberpunk',
+    palette: ['#0C192E', '#020409', '#22D3EE', '#C7F303'],
+  },
+  {
+    id: 'wappy-lima-oliva',
+    name: 'WAPPY Brand Lima & Oliva',
+    palette: ['#1D2D04', '#0E1300', '#C7F303', '#0D9488'],
+  },
+  {
+    id: 'cielo-wappy-cloud',
+    name: 'Cielo WAPPY Cloud & Turquesa',
+    palette: ['#0D3B66', '#030D1A', '#5BB8F5', '#C7F303'],
+  },
+  {
+    id: 'crema-editorial-sst',
+    name: 'Editorial SST Normativo',
+    palette: ['#132A2E', '#040B0D', '#0D9488', '#F6F5EF'],
+  },
+];
+
+const ANTIGRAVITY_EFFECTS_CATALOG = [
+  { id: '01-orbit-3d', name: '01 Orbit 3D Pentágono', archetype: 'pentagon-orbital' },
+  { id: '02-frame-break', name: '02 Frame Break 3D', archetype: 'tenshi-specialists-grid' },
+  { id: '03-ui-world', name: '03 UI World & Tenshi Grid', archetype: 'tenshi-specialists-grid' },
+  { id: '04-digital-zoom', name: '04 Digital Zoom con Retícula', archetype: 'chart-grow-math' },
+  { id: '05-phone-island', name: '05 iPhone Mockup Dynamic Island', archetype: 'iphone-split-showcase' },
+  { id: '06-headline-wall', name: '06 Headline Wall & VS Hook', archetype: 'hook-vs-wall' },
+  { id: '07-zoom-through', name: '07 Zoom-Through Inmersivo', archetype: 'pentagon-orbital' },
+  { id: '08-chart-grow', name: '08 Chart Grow & Motor Analítico', archetype: 'chart-grow-math' },
+  { id: '09-doodle-boil', name: '09 Doodle / Firma SVG en Vivo', archetype: 'signature-pad-live' },
+  { id: '10-glass-type', name: '10 Glass Type HUD', archetype: 'tenshi-specialists-grid' },
+  { id: '11-giro-3d', name: '11 Giro 3D Orbital', archetype: 'pentagon-orbital' },
+  { id: '12-couch-wall', name: '12 Social Bubbles & CTA Viral', archetype: 'cta-viral-bubbles' },
+  { id: '13-checklist-live', name: '13 Checklist & Pad LOTO', archetype: 'signature-pad-live' },
+  { id: '14-corte-zoom', name: '14 Corte con Zoom & Contraste', archetype: 'hook-vs-wall' },
+  { id: '15-zoom-out', name: '15 Zoom Out Panorámico', archetype: 'cta-viral-bubbles' },
+  { id: '16-green-screen', name: '16 Split Showcase & QR Scan', archetype: 'iphone-split-showcase' },
+  { id: '17-paper-cut', name: '17 Expediente Legal & Firma', archetype: 'signature-pad-live' },
+  { id: '18-vertigo-dolly', name: '18 Vértigo Dolly Zoom', archetype: 'pentagon-orbital' },
+  { id: '19-cover-story', name: '19 Portada Magnética 2s', archetype: 'hook-vs-wall' },
+];
+
+function getAntigravityBridgeStatus(req) {
+  let activeListeners = 0;
+  let userListeners = 0;
+  try {
+    const clientsMap = mcpBridge?.antigravityStreamClients;
+    if (clientsMap && typeof clientsMap.forEach === 'function') {
+      clientsMap.forEach((set, uid) => {
+        const count = set?.size || 0;
+        activeListeners += count;
+        if (req?.user && String(req.user._id || req.user.id) === String(uid)) {
+          userListeners += count;
+        }
+      });
+    }
+  } catch (_) {}
+
+  return {
+    connected: true,
+    daemonListening: activeListeners > 0,
+    activeListeners,
+    userListeners,
+    engine: 'antigravity-master-reel-60fps',
+    skillsLoaded: ANTIGRAVITY_VIDEO_SKILLS_CATALOG.length,
+    effectsCount: ANTIGRAVITY_EFFECTS_CATALOG.length,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+function notifyStudioAntigravityBridge(req, eventType, payload = {}) {
+  const status = getAntigravityBridgeStatus(req);
+  try {
+    if (mcpBridge && typeof mcpBridge.broadcastAntigravityEvent === 'function') {
+      const targetUserId = req?.user ? String(req.user._id || req.user.id || '') : '';
+      const eventData = {
+        source: 'wappy-studio',
+        eventType,
+        timestamp: new Date().toISOString(),
+        ...payload,
+      };
+      if (targetUserId) {
+        mcpBridge.broadcastAntigravityEvent(targetUserId, 'studio_antigravity_event', eventData);
+      } else if (mcpBridge.antigravityStreamClients && typeof mcpBridge.antigravityStreamClients.keys === 'function') {
+        for (const uid of mcpBridge.antigravityStreamClients.keys()) {
+          mcpBridge.broadcastAntigravityEvent(uid, 'studio_antigravity_event', eventData);
+        }
+      }
+    }
+  } catch (err) {
+    logger.debug(`[WappyStudio Antigravity] SSE broadcast skipped: ${err.message}`);
+  }
+  return status;
+}
+
+/**
+ * GET /api/studio/antigravity/status
+ * Devuelve el estado en tiempo real del puente Google Antigravity + catálogo de las 5 Skills y 19 Efectos.
+ */
+router.get('/antigravity/status', studioAuth, (req, res) => {
+  const bridge = getAntigravityBridgeStatus(req);
+  return res.json({
+    ok: true,
+    success: true,
+    bridge,
+    skills: ANTIGRAVITY_VIDEO_SKILLS_CATALOG,
+    artDirections: ANTIGRAVITY_ART_DIRECTIONS,
+    effectsCatalog: ANTIGRAVITY_EFFECTS_CATALOG,
+  });
+});
+
+/**
+ * POST /api/studio/antigravity/super-prompt
+ * Construye el Super-Prompt Maestro de las 7 Piezas + Guión Estructurado por Escenas (60 FPS)
+ * integrando las 5 Skills oficiales de video de WAPPY IA y Google Antigravity.
+ */
+router.post('/antigravity/super-prompt', studioAuth, async (req, res) => {
+  try {
+    const {
+      idea = '',
+      prompt = '',
+      scriptText = '',
+      scriptSteps = [],
+      selectedArtDirection = 'dark-tech-hud',
+      theme = '',
+      selectedSkillEffects = [],
+      selectedEffects = [],
+      effects = [],
+      aspectRatio = '9:16',
+      durationSeconds = 30,
+      badgeText = '🔥 ¡GRATIS!',
+      headlineText = '',
+      subtitleText = '',
+      voiceName = 'Puck',
+      companyName = 'WAPPY IA',
+      modelName,
+      customKeys,
+      apiKeys,
+    } = req.body || {};
+
+    const artDirection = selectedArtDirection || theme || 'dark-tech-hud';
+    const chosenEffects =
+      Array.isArray(selectedSkillEffects) && selectedSkillEffects.length > 0
+        ? selectedSkillEffects
+        : Array.isArray(selectedEffects) && selectedEffects.length > 0
+          ? selectedEffects
+          : Array.isArray(effects) && effects.length > 0
+            ? effects
+            : ['19-cover-story', '05-phone-island', '13-checklist-live', '08-chart-grow', '01-orbit-3d', '12-couch-wall'];
+
+    const safeDuration = Math.max(8, Math.min(180, Number(durationSeconds) || 30));
+    const seedTopic =
+      String(scriptText || idea || prompt || headlineText || '').trim() ||
+      'Las 5 Reglas de Oro y prevención inteligente en Seguridad y Salud en el Trabajo con WAPPY IA';
+
+    const { allKeys } = await getCombinedKeysForRequest(req, customKeys || apiKeys);
+    const envTextModels = getStudioTextModelsFromEnv();
+    const preferredTextModel =
+      (modelName || '').replace('models/', '').trim() ||
+      req.user?.personalization?.geminiModels?.sstManagement ||
+      envTextModels[0] ||
+      'gemini-3.8-flash';
+
+    let structuredScript = String(scriptText || '').trim();
+
+    // Si el usuario solo dio una idea corta o aún no tiene un guión completo por pasos, generarlo con Gemini
+    if (!structuredScript || structuredScript.split(/\s+/).length < 18) {
+      const targetWords = Math.max(35, Math.round(safeDuration * 2.4));
+      const scriptPrompt = `Eres el Director Creativo de WAPPY IA y Google Antigravity.
+Escribe un guión de locución en español de aproximadamente ${targetWords} palabras (para ${safeDuration} segundos), dividido en 5 a 6 párrafos cortos separados por salto de línea, sobre: "${seedTopic}".
+Reglas obligatorias:
+1. El primer párrafo (0.00s - 3.50s) debe ser un gancho magnético de alto impacto.
+2. Los párrafos intermedios deben empezar con conectores claros ("Primero:", "Segundo:", "Tercero:", "Cuarto:") explicando acciones concretas y normativa verificada (SG-SST, Resolución 0312, Decreto 1072 o GTC 45).
+3. El último párrafo debe ser un cierre inspirador con llamado a la acción ("SOMOS SST con WAPPY IA").
+4. Devuelve ÚNICAMENTE el texto limpio de la locución separado por saltos de línea, sin títulos ni acotaciones entre corchetes.`;
+
+      if (allKeys.length > 0) {
+        const modelsToTry = Array.from(new Set([preferredTextModel, ...envTextModels]));
+        outerLoop: for (const key of allKeys) {
+          for (const mId of modelsToTry) {
+            try {
+              const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(mId)}:generateContent?key=${encodeURIComponent(key)}`;
+              const resp = await axios.post(
+                url,
+                {
+                  contents: [{ role: 'user', parts: [{ text: scriptPrompt }] }],
+                  generationConfig: { temperature: 0.45 },
+                },
+                { timeout: 18000 },
+              );
+              const candidate =
+                resp.data?.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || '';
+              if (candidate.trim().length > 30) {
+                structuredScript = stripVoiceStyleLeakageFromScript(candidate.trim());
+                break outerLoop;
+              }
+            } catch (_) {
+              /* try next key/model */
+            }
+          }
+        }
+      }
+
+      if (!structuredScript || structuredScript.split(/\s+/).length < 18) {
+        structuredScript = [
+          `¿Sabías que el exceso de confianza es el enemigo número uno en terreno? Hoy activamos el blindaje inteligente de ${companyName} para proteger tu vida.`,
+          `Primero: Verifica el aislamiento total y aplica bloqueo certificado antes de intervenir cualquier equipo crítico.`,
+          `Segundo: Escanea en vivo el permiso de trabajo y valida el estándar técnico con trazabilidad digital al cien por ciento.`,
+          `Tercero: Comprueba ausencia de riesgo residual con instrumentos calibrados y señalización perimetral activa.`,
+          `Porque en ${companyName} tu familia te espera sana y salva en casa. Comenta SOMOS SST y transforma tu gestión preventiva hoy mismo.`,
+        ].join('\n\n');
+      }
+    }
+
+    const timelineMap = computeServerScriptTimelineMap(structuredScript, safeDuration);
+    const scenesBreakdown = buildSmartScenePlanFromScript(structuredScript, timelineMap.beats, {
+      companyName,
+      selectedEffects: chosenEffects,
+      scriptSteps,
+      badgeText,
+      headlineText,
+      subtitleText,
+    });
+
+    const normalizedSteps = scenesBreakdown.map((sc, idx) => ({
+      id: `step-${idx + 1}`,
+      stepNumber: idx + 1,
+      type: idx === 0 ? 'HOOK' : idx === scenesBreakdown.length - 1 ? 'CTA' : 'BODY',
+      tag: sc.eyebrow,
+      badgeText: idx === 0 ? badgeText || '🔥 ¡GRATIS!' : sc.eyebrow,
+      headlineText: `${sc.titleBefore} ${sc.titleHighlight}`.trim(),
+      titleBefore: sc.titleBefore,
+      titleHighlight: sc.titleHighlight,
+      voiceover: sc.subtitle,
+      text: sc.subtitle,
+      startSec: sc.startSec,
+      endSec: sc.endSec,
+      durationSec: sc.durationSec,
+      archetype: sc.archetype,
+      effect: chosenEffects[idx % chosenEffects.length] || sc.archetype,
+    }));
+
+    const sevenPieces = {
+      piece1_artDirection: {
+        aspectRatio,
+        resolution: aspectRatio === '16:9' ? '1920x1080' : '1080x1920',
+        fps: 60,
+        artDirection,
+      },
+      piece2_brandIdentity: {
+        primaryLime: '#C7F303',
+        deepOlive: '#0E1300',
+        sstTeal: '#0D9488',
+        cyberDark: '#0C192E',
+        typography: 'Outfit ExtraBold + Plus Jakarta Sans + JetBrains Mono',
+        avatar: 'Félix / Mauricio 3D Minecraft Voxel (WappyAvatarVoxel3D Three.js)',
+      },
+      piece3_audienceAndNorms: {
+        audience: 'Líderes SG-SST, Ingenieros HSEQ, Prevencionistas y Gerentes',
+        regulations: ['Resolución 0312 de 2019', 'Decreto 1072 de 2015', 'GTC 45', 'Estándar LOTO / RETIE'],
+      },
+      piece4_magneticCoverAndScript: {
+        coverWindow: '0.00s - 2.00s',
+        badgeText: badgeText || '🔥 ¡GRATIS!',
+        headlineText: headlineText || normalizedSteps[0]?.headlineText || 'BLINDAJE SG-SST EN VIVO',
+        subtitleText: subtitleText || normalizedSteps[0]?.voiceover || '',
+        totalScenes: normalizedSteps.length,
+      },
+      piece5_motionGraphics60fps: {
+        engine: 'Deterministic 60-FPS E.spring + GSAP Timeline + 7 Kinetic Archetypes',
+        selectedEffects: chosenEffects,
+        archetypesSequence: scenesBreakdown.map((s) => s.archetype),
+      },
+      piece6_soundDesign: {
+        voiceName,
+        lipSyncEngine: 'PCM16 RMS 60-FPS Envelope + Real Silence Boundary Alignment',
+      },
+      piece7_renderPreviews: {
+        previewTimestampsSec: [
+          0.8,
+          Number((safeDuration * 0.5).toFixed(1)),
+          Number(Math.max(1.5, safeDuration - 1.2).toFixed(1)),
+        ],
+      },
+    };
+
+    const superPrompt = [
+      `# SUPER-PROMPT MAESTRO GOOGLE ANTIGRAVITY · WAPPY STUDIO (60 FPS)`,
+      `- **Formato:** ${aspectRatio} (${sevenPieces.piece1_artDirection.resolution} a 60 FPS deterministas)`,
+      `- **Dirección de Arte:** \`${artDirection}\` (Skills: \`protocolo-produccion-videos\`, \`animaciones-17-efectos-reels\`, \`animaciones-wappy-brand\`, \`animaciones-dark-tech-hud\`, \`animaciones-explicativas-sst\`)`,
+      `- **Portada Magnética (0.00s - 2.00s):** Badge \`${sevenPieces.piece4_magneticCoverAndScript.badgeText}\` | Titular: "${sevenPieces.piece4_magneticCoverAndScript.headlineText}"`,
+      `- **Avatar 3D:** \`WappyAvatarVoxel3D\` (Three.js Voxel 3D con Lip-Sync reactivo a envolvente PCM16 y gesto de apuntado a tarjetas en los primeros 3.6s de cada escena)`,
+      `- **Efectos Cinéticos Seleccionados:** ${chosenEffects.join(', ')}`,
+      ``,
+      `## Escaleta Sincronizada Segundo a Segundo (${normalizedSteps.length} Escenas)`,
+      ...normalizedSteps.map(
+        (st) =>
+          `${st.stepNumber}. **[${st.startSec}s - ${st.endSec}s | Arquetipo: \`${st.archetype}\` | Efecto: \`${st.effect}\`]**\n   - *Titular HUD:* ${st.tag} — ${st.headlineText}\n   - *Locución:* "${st.voiceover}"`,
+      ),
+    ].join('\n');
+
+    const bridge = notifyStudioAntigravityBridge(req, 'super_prompt_generated', {
+      aspectRatio,
+      artDirection,
+      durationSeconds: safeDuration,
+      scenesCount: normalizedSteps.length,
+    });
+
+    return res.json({
+      ok: true,
+      success: true,
+      superPrompt,
+      structuredScript,
+      scriptText: structuredScript,
+      scriptSteps: normalizedSteps,
+      scenesBreakdown,
+      sevenPieces,
+      timelineMap,
+      bridge,
+    });
+  } catch (error) {
+    logger.error('[WappyStudio Antigravity] Error generating super-prompt:', error);
+    return res.status(500).json({
+      ok: false,
+      success: false,
+      error: error.message || 'Error generando el Super-Prompt de Antigravity.',
+    });
+  }
+});
+
+/**
+ * Handler compartido para POST /api/studio/video/generate-html y POST /api/studio/antigravity/generate-html
  * Genera una composición animada con el Motor Maestro 60-FPS de Antigravity (HyperFrames + Three.js WappyAvatarVoxel3D + 7 Arquetipos Dinámicos)
  * sincronizada milimétricamente con las pausas reales de la voz WAV y envolvente RMS de lip-sync.
  */
-router.post('/video/generate-html', studioAuth, async (req, res) => {
+async function handleGenerateMasterReelHtml(req, res) {
   try {
     const {
       prompt = '',
+      superPrompt = '',
       scriptText = '',
+      scriptSteps = [],
+      scenesBreakdown = [],
+      effects = [],
+      selectedEffects = [],
+      selectedSkillEffects = [],
       aspectRatio = '9:16',
-      theme = 'wappy-emerald',
+      theme = 'dark-tech-hud',
+      selectedArtDirection = '',
       hasBaseVideo = false,
       showSubtitles = true,
       durationSeconds = 30,
       companyName = 'WAPPY IA',
+      badgeText = '',
+      headlineText = '',
+      subtitleText = '',
+      accentColor = '',
       modelName,
       audioBase64,
+      customKeys,
+      apiKeys,
     } = req.body || {};
 
     const envTextModels = getStudioTextModelsFromEnv();
@@ -2024,9 +2422,14 @@ router.post('/video/generate-html', studioAuth, async (req, res) => {
       'gemini-3.8-flash';
 
     const safeDuration = Math.max(6, Math.min(180, Number(durationSeconds) || 30));
+    const stepsScript = Array.isArray(scriptSteps) && scriptSteps.length > 0
+      ? scriptSteps.map((s) => (typeof s === 'string' ? s : s?.voiceover || s?.text || '')).filter(Boolean).join('\n\n')
+      : '';
     const effectiveScript =
       scriptText ||
+      stepsScript ||
       prompt ||
+      superPrompt ||
       'La prevención y la inteligencia artificial transforman la seguridad en el trabajo con WAPPY IA.';
 
     let timelineMap = computeServerScriptTimelineMap(effectiveScript, safeDuration);
@@ -2042,7 +2445,7 @@ router.post('/video/generate-html', studioAuth, async (req, res) => {
       }
     }
 
-    const { allKeys } = await getCombinedKeysForRequest(req, []);
+    const { allKeys } = await getCombinedKeysForRequest(req, customKeys || apiKeys);
 
     const aiGeneratorFn = async (planPrompt) => {
       if (allKeys.length > 0) {
@@ -2081,10 +2484,29 @@ router.post('/video/generate-html', studioAuth, async (req, res) => {
       return (aiResult?.response?.text?.() || '').trim();
     };
 
+    const chosenEffects =
+      Array.isArray(selectedSkillEffects) && selectedSkillEffects.length > 0
+        ? selectedSkillEffects
+        : Array.isArray(selectedEffects) && selectedEffects.length > 0
+          ? selectedEffects
+          : Array.isArray(effects)
+            ? effects
+            : [];
+    const effectiveTheme = selectedArtDirection || theme || 'dark-tech-hud';
+
     const scenePlan = await generateCreativeScenePlanWithAi(
       effectiveScript,
       timelineMap.beats,
-      { companyName, prompt, theme },
+      {
+        companyName,
+        prompt: superPrompt || prompt,
+        theme: effectiveTheme,
+        selectedEffects: chosenEffects,
+        scriptSteps: Array.isArray(scriptSteps) && scriptSteps.length > 0 ? scriptSteps : scenesBreakdown,
+        badgeText,
+        headlineText,
+        subtitleText,
+      },
       aiGeneratorFn,
     );
 
@@ -2093,31 +2515,259 @@ router.post('/video/generate-html', studioAuth, async (req, res) => {
       hasBaseVideo,
       companyName,
       showSubtitles,
+      theme: effectiveTheme,
+      selectedArtDirection: effectiveTheme,
+      accentColor,
     });
 
     htmlCode = postProcessGeneratedVideoHtml(htmlCode, timelineMap);
 
-    res.json({
+    const bridge = notifyStudioAntigravityBridge(req, 'html_generated', {
+      aspectRatio,
+      theme: effectiveTheme,
+      scenesCount: scenePlan.length,
+      durationSeconds: timelineMap.totalDurationSeconds,
+    });
+
+    return res.json({
+      ok: true,
       success: true,
+      engine: 'antigravity-master-reel-60fps',
       htmlCode,
       timelineMap,
       scenePlan,
+      scenesBreakdown: scenePlan,
+      bridge,
     });
   } catch (error) {
     logger.error('[WappyStudio Video] Error generating HTML composition:', error);
-    res.status(500).json({
+    return res.status(500).json({
+      ok: false,
       success: false,
       error: error.message || 'Error generando la animación HTML con IA.',
+    });
+  }
+}
+
+router.post('/video/generate-html', studioAuth, handleGenerateMasterReelHtml);
+router.post('/antigravity/generate-html', studioAuth, handleGenerateMasterReelHtml);
+
+/**
+ * POST /api/studio/antigravity/edit-html
+ * Aplica correcciones y ajustes en vivo sobre el HTML 60-FPS generado (colores, dirección de arte,
+ * tamaños tipográficos, textos de tarjetas, arquetipos o CSS personalizado) preservando el motor
+ * determinista (window.__wappySeekTo, window.__wappyRenderTick, WappyAvatarVoxel3D y sincronización WAV).
+ */
+router.post('/antigravity/edit-html', studioAuth, async (req, res) => {
+  try {
+    const {
+      htmlCode = '',
+      currentHtml = '',
+      editInstruction = '',
+      correctionPrompt = '',
+      prompt = '',
+      superPrompt = '',
+      scriptText = '',
+      scriptSteps = [],
+      scenesBreakdown = [],
+      durationSeconds = 30,
+      audioBase64,
+      aspectRatio = '9:16',
+      showSubtitles = true,
+      theme = '',
+      selectedArtDirection = '',
+      effects = [],
+      selectedEffects = [],
+      selectedSkillEffects = [],
+      badgeText = '',
+      headlineText = '',
+      subtitleText = '',
+      accentColor = '',
+      companyName = 'WAPPY IA',
+      customKeys,
+      apiKeys,
+      modelName,
+    } = req.body || {};
+
+    const instruction = String(editInstruction || correctionPrompt || prompt || '').trim();
+    const sourceHtml = String(htmlCode || currentHtml || '').trim();
+
+    if (!instruction && !sourceHtml && !scriptText) {
+      return res.status(400).json({
+        ok: false,
+        success: false,
+        error: 'Se requiere una instrucción de edición (editInstruction) o el código HTML actual.',
+      });
+    }
+
+    const lowerInst = instruction.toLowerCase();
+    let detectedTheme = selectedArtDirection || theme || 'dark-tech-hud';
+    if (/cielo|azul|sky|cloud|claro/.test(lowerInst)) {
+      detectedTheme = 'cielo-wappy-cloud';
+    } else if (/crema|editorial|papel|dummies/.test(lowerInst)) {
+      detectedTheme = 'crema-editorial-sst';
+    } else if (/lima|oliva|verde|brand/.test(lowerInst)) {
+      detectedTheme = 'wappy-lima-oliva';
+    } else if (/dark|cyber|hud|oscuro/.test(lowerInst)) {
+      detectedTheme = 'dark-tech-hud';
+    }
+
+    let detectedAspect = aspectRatio;
+    if (/16:9|horizontal|youtube/.test(lowerInst)) {
+      detectedAspect = '16:9';
+    } else if (/9:16|vertical|reel|tiktok/.test(lowerInst)) {
+      detectedAspect = '9:16';
+    }
+
+    // Construir reglas CSS adicionales según la instrucción del usuario
+    const customCssRules = [];
+    if (/grande|gigante|aumenta.*t[ií]tulo|m[aá]s grande/.test(lowerInst)) {
+      customCssRules.push('.title-hero { font-size: 72px !important; } .sub-hero { font-size: 31px !important; }');
+    }
+    if (/peque[ñn]o|reduce.*t[ií]tulo/.test(lowerInst)) {
+      customCssRules.push('.title-hero { font-size: 52px !important; } .sub-hero { font-size: 24px !important; }');
+    }
+    if (/ocultar.*avatar|sin.*avatar|quitar.*avatar/.test(lowerInst)) {
+      customCssRules.push('#avatar-host-container { display: none !important; }');
+    }
+    if (/avatar.*grande|agrandar.*avatar/.test(lowerInst)) {
+      customCssRules.push('#avatar-host-container { transform: scale(1.18) !important; }');
+    }
+
+    const chosenEffects =
+      Array.isArray(selectedSkillEffects) && selectedSkillEffects.length > 0
+        ? selectedSkillEffects
+        : Array.isArray(selectedEffects) && selectedEffects.length > 0
+          ? selectedEffects
+          : Array.isArray(effects)
+            ? effects
+            : [];
+
+    const safeDuration = Math.max(6, Math.min(180, Number(durationSeconds) || 30));
+    const effectiveScript =
+      scriptText ||
+      (Array.isArray(scriptSteps) && scriptSteps.length > 0
+        ? scriptSteps.map((s) => (typeof s === 'string' ? s : s?.voiceover || s?.text || '')).filter(Boolean).join('\n\n')
+        : '') ||
+      'La prevención y la inteligencia artificial transforman la seguridad en el trabajo con WAPPY IA.';
+
+    let timelineMap = computeServerScriptTimelineMap(effectiveScript, safeDuration);
+    if (audioBase64 && typeof audioBase64 === 'string') {
+      try {
+        const cleanB64 = audioBase64.replace(/^data:audio\/[^;]+;base64,/, '');
+        const wavBuf = Buffer.from(cleanB64, 'base64');
+        timelineMap = alignTimelineMapWithWavBuffer(timelineMap, wavBuf);
+      } catch (_) {}
+    }
+
+    const { allKeys } = await getCombinedKeysForRequest(req, customKeys || apiKeys);
+    const envTextModels = getStudioTextModelsFromEnv();
+    const preferredTextModel =
+      (modelName || '').replace('models/', '').trim() ||
+      req.user?.personalization?.geminiModels?.sstManagement ||
+      envTextModels[0] ||
+      'gemini-3.8-flash';
+
+    const aiGeneratorFn = async (planPrompt) => {
+      const enrichedPrompt = `${planPrompt}\n\nINSTRUCCIÓN PRIORITARIA DE CORRECCIÓN DEL USUARIO: "${instruction}". Aplica exactamente este cambio en los textos, títulos, badges o datos de las escenas.`;
+      if (allKeys.length > 0) {
+        const modelsToTry = Array.from(new Set([preferredTextModel, ...envTextModels]));
+        for (const key of allKeys) {
+          for (const mId of modelsToTry) {
+            try {
+              const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(mId)}:generateContent?key=${encodeURIComponent(key)}`;
+              const resp = await axios.post(
+                url,
+                {
+                  contents: [{ role: 'user', parts: [{ text: enrichedPrompt }] }],
+                  generationConfig: {
+                    temperature: 0.35,
+                    responseMimeType: 'application/json',
+                  },
+                },
+                { timeout: 22000 },
+              );
+              const candidateText =
+                resp.data?.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || '';
+              if (candidateText.trim()) {
+                return candidateText.trim();
+              }
+            } catch (_) {
+              /* try next */
+            }
+          }
+        }
+      }
+      return '';
+    };
+
+    const scenePlan = await generateCreativeScenePlanWithAi(
+      effectiveScript,
+      timelineMap.beats,
+      {
+        companyName,
+        prompt: `${superPrompt || ''}\nEdición solicitada: ${instruction}`,
+        theme: detectedTheme,
+        selectedEffects: chosenEffects,
+        scriptSteps: Array.isArray(scriptSteps) && scriptSteps.length > 0 ? scriptSteps : scenesBreakdown,
+        badgeText,
+        headlineText,
+        subtitleText,
+      },
+      aiGeneratorFn,
+    );
+
+    let updatedHtml = compileAntigravityMasterReelHtml(scenePlan, timelineMap, {
+      aspectRatio: detectedAspect,
+      companyName,
+      showSubtitles,
+      theme: detectedTheme,
+      selectedArtDirection: detectedTheme,
+      accentColor,
+      customCss: customCssRules.join('\n'),
+    });
+
+    updatedHtml = postProcessGeneratedVideoHtml(updatedHtml, timelineMap);
+
+    const summaryOfChanges = [
+      `Instrucción aplicada: "${instruction || 'Actualización de escenas y dirección de arte'}"`,
+      `Dirección de arte activa: ${detectedTheme} (${detectedAspect})`,
+      `Escenas sincronizadas a 60 FPS: ${scenePlan.length}`,
+    ].join(' • ');
+
+    const bridge = notifyStudioAntigravityBridge(req, 'html_edited', {
+      instruction,
+      theme: detectedTheme,
+      aspectRatio: detectedAspect,
+      scenesCount: scenePlan.length,
+    });
+
+    return res.json({
+      ok: true,
+      success: true,
+      htmlCode: updatedHtml,
+      summaryOfChanges,
+      timelineMap,
+      scenePlan,
+      scenesBreakdown: scenePlan,
+      bridge,
+    });
+  } catch (error) {
+    logger.error('[WappyStudio Antigravity] Error editing HTML composition:', error);
+    return res.status(500).json({
+      ok: false,
+      success: false,
+      error: error.message || 'Error aplicando la edición sobre la animación HTML.',
     });
   }
 });
 
 /**
- * POST /api/studio/video/render-mp4
- * Opción B: Renderizado MP4 (H.264 + AAC) en servidor mediante Headless Chromium (Puppeteer) + FFmpeg.
+ * Handler compartido para POST /api/studio/video/render-mp4 y POST /api/studio/antigravity/render-mp4
+ * Renderizado MP4 (H.264 + AAC) en servidor mediante Headless Chromium (Puppeteer) + FFmpeg.
  * Une la composición HTML/GSAP + Subtítulos Dinámicos Palabra a Palabra + Pista de Voz WAV en un archivo .mp4 universal.
  */
-router.post('/video/render-mp4', studioAuth, async (req, res) => {
+async function handleRenderMasterReelMp4(req, res) {
   const { spawn } = require('child_process');
   let browser = null;
   let tempDir = null;
@@ -2135,6 +2785,7 @@ router.post('/video/render-mp4', studioAuth, async (req, res) => {
 
     if (!htmlCode || typeof htmlCode !== 'string') {
       return res.status(400).json({
+        ok: false,
         success: false,
         error: 'Se requiere el código HTML de la composición para renderizar el MP4.',
       });
@@ -2173,7 +2824,7 @@ router.post('/video/render-mp4', studioAuth, async (req, res) => {
       ffmpegBin = 'ffmpeg';
     }
 
-    const isVertical = aspectRatio === '9:16';
+    const isVertical = aspectRatio !== '16:9';
     const width = isVertical ? 540 : 960;
     const height = isVertical ? 960 : 540;
     let safeDuration = Math.min(60, Math.max(3, Number(durationSeconds) || 12));
@@ -2310,7 +2961,6 @@ router.post('/video/render-mp4', studioAuth, async (req, res) => {
       ],
     };
 
-    // Detectar ruta de Chromium en Alpine Linux / Docker (igual que WhatsAppManager.js) o variable de entorno
     if (process.env.PUPPETEER_EXECUTABLE_PATH && fs.existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
       launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
     } else if (fs.existsSync('/usr/bin/chromium-browser')) {
@@ -2405,18 +3055,46 @@ router.post('/video/render-mp4', studioAuth, async (req, res) => {
     const mp4Buffer = fs.readFileSync(outputMp4Path);
     const videoBase64 = mp4Buffer.toString('base64');
 
+    // Guardar copia pública en client/public/images/ para descarga directa y proyección en Tenshi / Antigravity
+    let downloadUrl = '';
+    const fileName = `studio_reel_${Date.now()}.mp4`;
+    try {
+      const publicImagesDir = path.join(process.cwd(), 'client', 'public', 'images');
+      if (!fs.existsSync(publicImagesDir)) {
+        fs.mkdirSync(publicImagesDir, { recursive: true });
+      }
+      const publicFilePath = path.join(publicImagesDir, fileName);
+      fs.writeFileSync(publicFilePath, mp4Buffer);
+      downloadUrl = `/images/${fileName}`;
+    } catch (saveErr) {
+      logger.debug(`[WappyStudio Render MP4] Public copy skipped: ${saveErr.message}`);
+    }
+
     try {
       fs.rmSync(tempDir, { recursive: true, force: true });
     } catch (_) {}
 
+    const bridge = notifyStudioAntigravityBridge(req, 'mp4_rendered', {
+      downloadUrl,
+      fileName,
+      durationSeconds: safeDuration,
+      aspectRatio,
+      width,
+      height,
+    });
+
     return res.json({
+      ok: true,
       success: true,
       videoBase64,
+      downloadUrl,
+      fileName,
       mimeType: 'video/mp4',
       durationSeconds: safeDuration,
       fps: targetFps,
       width,
       height,
+      bridge,
     });
   } catch (error) {
     if (browser) {
@@ -2431,11 +3109,15 @@ router.post('/video/render-mp4', studioAuth, async (req, res) => {
     }
     logger.error('[WappyStudio Render MP4] Error rendering MP4:', error);
     return res.status(500).json({
+      ok: false,
       success: false,
       error: error.message || 'Error renderizando el video MP4 en el servidor.',
     });
   }
-});
+}
+
+router.post('/video/render-mp4', studioAuth, handleRenderMasterReelMp4);
+router.post('/antigravity/render-mp4', studioAuth, handleRenderMasterReelMp4);
 
 /**
  * POST /api/studio/video/render-serverless

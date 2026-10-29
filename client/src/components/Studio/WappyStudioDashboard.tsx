@@ -578,7 +578,7 @@ Este avance permitirá simular moléculas complejas para nuevos medicamentos y o
 Los expertos señalan que las primeras aplicaciones industriales comenzarán a desplegarse durante el próximo trimestre.`,
   },
   {
-    title: 'Reel Viral Estilo Claude: Cómo la IA transforma el SG-SST',
+    title: 'Reel Viral Antigravity 60-FPS: Cómo WAPPY IA transforma el SG-SST',
     text: `¿Todavía llevas tu matriz de peligros y tus inspecciones en hojas de cálculo infinitas? <breath>
 
 Mira cómo cambia todo cuando conectas Inteligencia Artificial en tiempo real. En menos de diez segundos, analizamos los riesgos bajo la guía GTC 45, generamos controles operativos y notificamos a cada trabajador en su celular. <breath>
@@ -640,6 +640,238 @@ const STUDIO_SCENE_TEMPLATES: {
     description: 'Capas dinámicas por frase en tercio superior e inferior sin tapar tu rostro.',
   },
 ];
+
+export interface AntigravityEffectItem {
+  id: string;
+  label: string;
+  category: '3D & Avatares' | 'Transiciones Reels' | 'Elementos SST' | 'Sonido & Portada';
+  description: string;
+}
+
+export const ANTIGRAVITY_EFFECTS_CATALOG: AntigravityEffectItem[] = [
+  {
+    id: '19-cover-2s',
+    label: '19 Portada Magnética 2s 🔥 ¡GRATIS!',
+    category: 'Sonido & Portada',
+    description: 'Miniatura de alto impacto (0.0s-2.0s) con badge gigante ¡GRATIS! y gancho visual.',
+  },
+  {
+    id: 'felix-voxel-3d',
+    label: 'Félix Voxel 3D Lip-Sync',
+    category: '3D & Avatares',
+    description: 'Presentador Voxel 3D con camisa amarilla WAPPY, gestos y sincronía labial con el audio.',
+  },
+  {
+    id: 'tenshi-3d',
+    label: 'Tenshi 3D',
+    category: '3D & Avatares',
+    description: 'Oráculo IA flotante con halo esmeralda/cyan y telemetría reactiva.',
+  },
+  {
+    id: '01-orbit',
+    label: '01 Órbita 3D',
+    category: '3D & Avatares',
+    description: 'Anillo orbital 3D de insignias e iconos gravitatorios alrededor del concepto central.',
+  },
+  {
+    id: '02-frame-break',
+    label: '02 Frame Break',
+    category: 'Transiciones Reels',
+    description: 'Ruptura de marco con profundidad 3D y desborde fuera de la tarjeta.',
+  },
+  {
+    id: '04-digital-zoom',
+    label: '04 Digital Zoom',
+    category: 'Transiciones Reels',
+    description: 'Acercamiento táctico con retícula HUD y mira de precisión sobre datos críticos.',
+  },
+  {
+    id: '05-phone-mockup',
+    label: '05 Mockup iPhone',
+    category: 'Elementos SST',
+    description: 'Celular 3D con Dynamic Island mostrando alertas y controles SST en vivo.',
+  },
+  {
+    id: '07-zoom-through',
+    label: '07 Zoom-Through',
+    category: 'Transiciones Reels',
+    description: 'Transición inmersiva sin corte atravesando la escena hacia el siguiente punto.',
+  },
+  {
+    id: '08-chart-grow',
+    label: '08 Chart Grow',
+    category: 'Elementos SST',
+    description: 'Barras e indicadores KPI que crecen dinámicamente con rebote spring.',
+  },
+  {
+    id: '10-glass-type',
+    label: '10 Cristal 3D',
+    category: '3D & Avatares',
+    description: 'Tipografía y tarjetas Glassmorphism con refracción translúcida y borde luminoso.',
+  },
+  {
+    id: '11-giro-3d',
+    label: '11 Giro 3D',
+    category: 'Transiciones Reels',
+    description: 'Rotación en perspectiva Y/X con destello neón al cambiar de escena.',
+  },
+  {
+    id: '13-checklist-sst',
+    label: '13 Checklist SST',
+    category: 'Elementos SST',
+    description: 'Lista secuencial 1-2-3 con verificación animada y sello de cumplimiento.',
+  },
+  {
+    id: '17-paper-cut',
+    label: '17 Paper Cut',
+    category: 'Transiciones Reels',
+    description: 'Recorte editorial en capas con textura y sombra proyectada.',
+  },
+  {
+    id: '18-dolly-zoom',
+    label: '18 Dolly Zoom',
+    category: 'Transiciones Reels',
+    description: 'Efecto vértigo cinematográfico contrayendo el fondo mientras destaca el titular.',
+  },
+  {
+    id: 'visor-normativo',
+    label: 'Visor Normativo Subrayado',
+    category: 'Elementos SST',
+    description: 'Expediente legal (Decreto 1072 / Res. 0312) con resaltador fluorescente en vivo.',
+  },
+  {
+    id: 'pentagono-gtc45',
+    label: 'Pentágono GTC-45',
+    category: 'Elementos SST',
+    description: 'Radar pentagonal de peligros y valoración de riesgos GTC-45.',
+  },
+  {
+    id: 'sfx-pack',
+    label: 'SFX Whoosh+Pop+Ding',
+    category: 'Sonido & Portada',
+    description: 'Diseño sonoro sincronizado: whoosh en transiciones, pop en tarjetas y ding en checks.',
+  },
+];
+
+export const ANTIGRAVITY_ART_DIRECTIONS = [
+  {
+    id: 'dark-tech-hud',
+    label: 'Dark Tech HUD',
+    colors: '#0C192E + #00D4FF + #C7F303',
+    description: 'Fondo cósmico oscuro con HUD cian, verde lima eléctrico y tarjetas de cristal.',
+  },
+  {
+    id: 'wappy-lima-oliva',
+    label: 'WAPPY Lima & Oliva',
+    colors: '#C7F303 + #0E1300',
+    description: 'Identidad oficial wappy.club con alto contraste verde lima y negro oliva.',
+  },
+  {
+    id: 'crema-editorial-sst',
+    label: 'Crema Editorial SST',
+    colors: '#F6F5EF + #0D9488',
+    description: 'Estilo documental SST para Dummies con papel cálido, turquesa y subrayado.',
+  },
+  {
+    id: 'cielo-wappy-cloud',
+    label: 'Cielo WAPPY Cloud',
+    colors: '#5BB8F5 → #EAF6FE',
+    description: 'Atmósfera luminosa WAPPY Cloud con degradado celeste y tarjetas flotantes.',
+  },
+] as const;
+
+export const PAUSE_AND_EMPHASIS_TAGS = [
+  { tag: '[pausa 0.5s]', label: 'Pausa 0.5s', desc: 'Breve silencio rítmico entre ideas' },
+  { tag: '[pausa 1.0s]', label: 'Pausa 1.0s', desc: 'Pausa dramática de cambio de escena' },
+  { tag: '[énfasis]', label: 'Énfasis Vocal', desc: 'Mayor fuerza e intención en la frase' },
+  { tag: '<breath>', label: 'Respiración <breath>', desc: 'Toma de aire orgánica' },
+  { tag: '<laugh>', label: 'Risa <laugh>', desc: 'Reacción cercana y carismática' },
+  { tag: '<gasp>', label: 'Sorpresa <gasp>', desc: 'Inhalación de asombro o alerta' },
+  { tag: '|mhm|', label: 'Asentir |mhm|', desc: 'Confirmación natural en diálogo' },
+  { tag: '|yeah|', label: 'Acuerdo |yeah|', desc: 'Expresión dinámica de apoyo' },
+] as const;
+
+export interface ScriptStepScene {
+  id: string;
+  timeRange: string;
+  title: string;
+  narration: string;
+  visualEffect: string;
+}
+
+export const DEFAULT_SCRIPT_STEPS: ScriptStepScene[] = [
+  {
+    id: 'step-1',
+    timeRange: '0.0s-2.0s',
+    title: 'Portada Magnética 🔥 ¡GRATIS!',
+    narration: '¡Atención equipo! Tu vida depende de las Cinco Reglas de Oro en riesgo eléctrico. <breath>',
+    visualEffect: '19 Portada Magnética 2s 🔥 ¡GRATIS!',
+  },
+  {
+    id: 'step-2',
+    timeRange: '2.0s-8.0s',
+    title: 'Reglas 1 y 2: Corte Visible y Bloqueo LOTO',
+    narration: '[pausa 0.5s] Primero: Cortar todas las fuentes de tensión. Segundo: Bloquear y etiquetar con tu candado personal LOTO. <breath>',
+    visualEffect: '05 Mockup iPhone',
+  },
+  {
+    id: 'step-3',
+    timeRange: '8.0s-16.0s',
+    title: 'Reglas 3 y 4: Ausencia de Tensión y Puesta a Tierra',
+    narration: '[pausa 0.5s] Tercero: Verificar ausencia de tensión con detector calibrado. Cuarto: Poner a tierra y en cortocircuito. <breath>',
+    visualEffect: '13 Checklist SST',
+  },
+  {
+    id: 'step-4',
+    timeRange: '16.0s-24.0s',
+    title: 'Regla 5 y Cierre WAPPY IA',
+    narration: 'Y quinto: Delimitar y señalizar la zona de trabajo. En WAPPY IA cuidamos que regreses sano y salvo a casa.',
+    visualEffect: 'Félix Voxel 3D Lip-Sync',
+  },
+];
+
+function playStudioSfxPreview(kind: 'whoosh' | 'pop' | 'ding') {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    if (kind === 'whoosh') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(160, now);
+      osc.frequency.exponentialRampToValueAtTime(640, now + 0.14);
+      osc.frequency.exponentialRampToValueAtTime(95, now + 0.32);
+      gain.gain.setValueAtTime(0.01, now);
+      gain.gain.linearRampToValueAtTime(0.22, now + 0.12);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.34);
+      osc.start(now);
+      osc.stop(now + 0.35);
+    } else if (kind === 'pop') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.exponentialRampToValueAtTime(780, now + 0.08);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+      osc.start(now);
+      osc.stop(now + 0.12);
+    } else {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.setValueAtTime(1318.5, now + 0.09);
+      gain.gain.setValueAtTime(0.22, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+      osc.start(now);
+      osc.stop(now + 0.46);
+    }
+  } catch {
+    /* ignore audio context restrictions */
+  }
+}
 
 interface ScriptBeatItem {
   index: number;
@@ -2088,10 +2320,25 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
     'Prevención inteligente y locución neural sincronizada',
   );
   const [accentColor, setAccentColor] = useState<string>('#14b8a6');
+  const [selectedArtDirection, setSelectedArtDirection] = useState<string>('dark-tech-hud');
+  const [selectedSkillEffects, setSelectedSkillEffects] = useState<string[]>([
+    '19-cover-2s',
+    'felix-voxel-3d',
+    '05-phone-mockup',
+    '07-zoom-through',
+    '13-checklist-sst',
+    'sfx-pack',
+  ]);
+  const [scriptSteps, setScriptSteps] = useState<ScriptStepScene[]>(() => DEFAULT_SCRIPT_STEPS);
+  const [showStepAssistant, setShowStepAssistant] = useState<boolean>(true);
+  const [isGeneratingSuperPrompt, setIsGeneratingSuperPrompt] = useState<boolean>(false);
   const [aiScenePrompt, setAiScenePrompt] = useState<string>(
-    'Crea una animación estilo Claude con tarjetas de cristal sobre las 5 reglas de oro de riesgo eléctrico, iconos luminosos y barras de progreso.',
+    'Crea una animación cinematográfica con el Motor Antigravity 60-FPS y tarjetas de cristal WAPPY IA sobre las 5 reglas de oro de riesgo eléctrico, con Portada Magnética 2s 🔥 ¡GRATIS!, Félix Voxel 3D lip-sync, iconos luminosos y barras de progreso.',
   );
   const [isGeneratingHtmlAi, setIsGeneratingHtmlAi] = useState<boolean>(false);
+  const [videoCorrectionPrompt, setVideoCorrectionPrompt] = useState<string>('');
+  const [isApplyingCorrection, setIsApplyingCorrection] = useState<boolean>(false);
+  const [libraryFilter, setLibraryFilter] = useState<'all' | 'audio' | 'video'>('all');
   const [showCodeEditor, setShowCodeEditor] = useState<boolean>(false);
   const [htmlCode, setHtmlCode] = useState<string>(() =>
     buildDefaultHtmlComposition({
@@ -2403,7 +2650,7 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
 
   // Sincronizar modelos TTS desde endpointsConfig (GOOGLE_MODELS en .env) y catálogo del backend
   useEffect(() => {
-    const googleEnvModels = endpointsConfig?.[EModelEndpoint.google]?.models;
+    const googleEnvModels = (endpointsConfig?.[EModelEndpoint.google] as any)?.models;
     if (Array.isArray(googleEnvModels) && googleEnvModels.length > 0) {
       const envTtsIds = googleEnvModels
         .map((m: any) =>
@@ -3134,21 +3381,173 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
     }
   };
 
+  const toggleSkillEffect = (effectId: string) => {
+    setSelectedSkillEffects((prev) =>
+      prev.includes(effectId) ? prev.filter((id) => id !== effectId) : [...prev, effectId],
+    );
+  };
+
+  const handleAutoStructureScriptSteps = () => {
+    const dur = Math.max(8, Math.round(currentAudio?.durationSeconds || videoDuration || 24));
+    const map = computeClientScriptTimelineMap(scriptText, dur);
+    const activeEffectLabels = selectedSkillEffects
+      .map((id) => ANTIGRAVITY_EFFECTS_CATALOG.find((e) => e.id === id)?.label)
+      .filter(Boolean) as string[];
+    const fallbackEffects =
+      activeEffectLabels.length > 0
+        ? activeEffectLabels
+        : ANTIGRAVITY_EFFECTS_CATALOG.map((e) => e.label);
+
+    const nextSteps: ScriptStepScene[] = map.beats.map((b, idx) => {
+      const startLabel = idx === 0 ? '0.0s' : `${b.startSec.toFixed(1)}s`;
+      const endLabel =
+        idx === 0 && b.endSec < 2.2 ? '2.0s' : `${Math.max(b.startSec + 1.5, b.endSec).toFixed(1)}s`;
+      const pausePrefix = idx > 0 && !b.text.includes('[pausa') ? '[pausa 0.5s] ' : '';
+      const breathSuffix = !b.text.includes('<breath>') ? ' <breath>' : '';
+      return {
+        id: `step-${Date.now()}-${idx}`,
+        timeRange: `${startLabel}-${endLabel}`,
+        title:
+          idx === 0
+            ? 'Portada Magnética 2s 🔥 ¡GRATIS!'
+            : `${b.titleLead} ${b.titleHighlight}`.trim() || `Escena 0${idx + 1}`,
+        narration: `${pausePrefix}${b.text}${breathSuffix}`.trim(),
+        visualEffect:
+          idx === 0
+            ? '19 Portada Magnética 2s 🔥 ¡GRATIS!'
+            : fallbackEffects[idx % fallbackEffects.length] || '07 Zoom-Through',
+      };
+    });
+    setScriptSteps(nextSteps);
+    setStatusBanner({
+      type: 'success',
+      text: `¡Guion estructurado en ${nextSteps.length} escenas con tiempos (${dur}s), pausas y efectos de las Skills de Antigravity!`,
+    });
+  };
+
+  const applyScriptStepsToScriptText = () => {
+    if (!Array.isArray(scriptSteps) || scriptSteps.length === 0) return;
+    const joined = scriptSteps
+      .map((s) => (s.narration || '').replace(/\[pausa\s+[\d.]+s\]/gi, '<breath>').trim())
+      .filter(Boolean)
+      .join('\n\n');
+    if (joined) {
+      setScriptText(joined);
+      setStatusBanner({
+        type: 'success',
+        text: '¡Escenas y pausas sincronizadas con el Guion Principal!',
+      });
+    }
+  };
+
+  const buildLocalSuperPromptText = () => {
+    const dur = Math.max(6, Math.round(currentAudio?.durationSeconds || videoDuration || 24));
+    const artObj =
+      ANTIGRAVITY_ART_DIRECTIONS.find((a) => a.id === selectedArtDirection) ||
+      ANTIGRAVITY_ART_DIRECTIONS[0];
+    const effectNames = selectedSkillEffects
+      .map((id) => ANTIGRAVITY_EFFECTS_CATALOG.find((e) => e.id === id)?.label || id)
+      .join(', ');
+    const stepsSummary = (Array.isArray(scriptSteps) ? scriptSteps : [])
+      .map(
+        (s, i) =>
+          `• Escena ${i + 1} (${s.timeRange}) [${s.visualEffect}] — "${s.title}": ${s.narration}`,
+      )
+      .join('\n');
+
+    return [
+      `[SUPER-PROMPT OFICIAL ANTIGRAVITY 60-FPS • SISTEMA DE LAS 7 PIEZAS WAPPY IA]`,
+      `1. FORMATO Y DURACIÓN: ${aspectRatio === '9:16' ? 'Vertical 9:16 (1080x1920 Reels/TikTok/WhatsApp)' : 'Horizontal 16:9 (1920x1080 YouTube/LMS)'} • Duración sincronizada al audio: ${dur}s (${currentAudio ? `Voz activa: ${currentAudio.voiceName || selectedVoice}` : 'Locución lista'}).`,
+      `2. DIRECCIÓN DE ARTE (${artObj.label}): Paleta ${artObj.colors} • Insignia: "${badgeOverlayText}" • Titular: "${headlineOverlayText}" • Subtítulo: "${subheadlineOverlayText}" • Acento: ${accentColor}.`,
+      `3. EFECTOS DE SKILLS ANTIGRAVITY ACTIVOS: ${effectNames || '19 Portada Magnética 2s 🔥 ¡GRATIS!, Félix Voxel 3D Lip-Sync, 07 Zoom-Through, 13 Checklist SST'}.`,
+      `4. ESCALETA SEGUNDO A SEGUNDO Y PAUSAS SINCRONIZADAS CON LA VOZ:`,
+      stepsSummary || `• 0.0s-${dur}s: ${scriptText.slice(0, 360)}`,
+      `5. REGLAS TÉCNICAS: Incluir de 0.0s a 2.0s la Miniatura/Portada Magnética con badge 🔥 ¡GRATIS!, sincronizar transiciones GSAP con window.mainTimeline y el reloj de voz, mantener última escena visible al cierre y cero desbordes de texto.`,
+    ].join('\n');
+  };
+
+  // PASO 1: Generar Super-Prompt para Antigravity
+  const handleBuildAntigravitySuperPrompt = async () => {
+    try {
+      setIsGeneratingSuperPrompt(true);
+      setStatusBanner(null);
+      const dur = Math.max(6, Math.round(currentAudio?.durationSeconds || videoDuration || 24));
+      const localPrompt = buildLocalSuperPromptText();
+
+      try {
+        const resp = await fetch('/api/studio/antigravity/super-prompt', {
+          method: 'POST',
+          headers: getAuthHeaders(token),
+          body: JSON.stringify({
+            scriptText,
+            scriptSteps,
+            aspectRatio,
+            durationSeconds: dur,
+            badgeText: badgeOverlayText,
+            headlineText: headlineOverlayText,
+            subtitleText: subheadlineOverlayText,
+            accentColor,
+            artDirection: selectedArtDirection,
+            selectedEffects: selectedSkillEffects,
+            voiceName: currentAudio?.voiceName || selectedVoice,
+            modelName: selectedAiModel,
+          }),
+        });
+        if (resp.ok) {
+          const data = await parseStudioJson(resp);
+          if (data?.success && data.superPrompt) {
+            setAiScenePrompt(data.superPrompt);
+            if (Array.isArray(data.scriptSteps) && data.scriptSteps.length > 0) {
+              setScriptSteps(data.scriptSteps);
+            }
+            setStatusBanner({
+              type: 'success',
+              text: '¡Paso 1 completado! Super-Prompt de Antigravity generado con tus tiempos, pausas y efectos. Ahora pulsa el Paso 2 para enviar al Generador de Video.',
+            });
+            return;
+          }
+        }
+      } catch {
+        /* Fallback inmediato al Super-Prompt determinista local */
+      }
+
+      setAiScenePrompt(localPrompt);
+      setStatusBanner({
+        type: 'success',
+        text: '¡Paso 1 completado! Super-Prompt estructurado con tus escenas, tiempos, pausas y efectos de las Skills de Antigravity. Ahora pulsa el Paso 2.',
+      });
+    } finally {
+      setIsGeneratingSuperPrompt(false);
+    }
+  };
+
+  // PASO 2: Enviar Super-Prompt + Audio al Generador de Video (Antigravity)
   const handleGenerateHtmlWithAi = async () => {
     try {
       setIsGeneratingHtmlAi(true);
       setStatusBanner(null);
+      const effectivePrompt = (aiScenePrompt || '').trim() || buildLocalSuperPromptText();
+      if (!aiScenePrompt.trim()) {
+        setAiScenePrompt(effectivePrompt);
+      }
       const audioBase64 = await resolveCurrentAudioBase64();
+      const targetDuration = Math.max(
+        6,
+        Math.round(currentAudio?.durationSeconds || videoDuration || 25),
+      );
       const resp = await fetch('/api/studio/video/generate-html', {
         method: 'POST',
         headers: getAuthHeaders(token),
         body: JSON.stringify({
-          prompt: aiScenePrompt,
+          prompt: effectivePrompt,
           scriptText,
+          scriptSteps,
           aspectRatio,
+          theme: selectedArtDirection,
+          effects: selectedSkillEffects,
           hasBaseVideo: Boolean(baseVideoUrl),
           showSubtitles: showDynamicSubtitles,
-          durationSeconds: Math.round(currentAudio?.durationSeconds || videoDuration || 25),
+          durationSeconds: targetDuration,
           companyName: user?.name || 'WAPPY IA',
           modelName: selectedAiModel,
           audioBase64: audioBase64 || undefined,
@@ -3156,23 +3555,142 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
       });
       const data = await parseStudioJson(resp);
       if (!resp.ok || !data.success) {
-        throw new Error(data.error || 'Error generando composición HTML con IA.');
+        throw new Error(data.error || 'Error generando composición HTML con Antigravity.');
       }
       if (data.timelineMap?.totalDurationSeconds && data.timelineMap.totalDurationSeconds > 2) {
         setVideoDuration(data.timelineMap.totalDurationSeconds);
       }
+      latestEditedHtmlRef.current = '';
       setHtmlCode(data.htmlCode);
+      // Guardar automáticamente en la Biblioteca (tenga o no tenga audio)
+      await saveVideoProjectToLibrary({ htmlOverride: data.htmlCode }, true);
+      setVideoCurrentTime(0);
+      setIsVideoPlaying(true);
+      setTimeout(() => {
+        iframeRef.current?.contentWindow?.postMessage({ type: 'STUDIO_RESTART' }, '*');
+        stageAudioRef.current?.play().catch(() => {});
+        baseVideoRef.current?.play().catch(() => {});
+      }, 140);
       setStatusBanner({
         type: 'success',
-        text: '¡Motor Maestro 60-FPS de Antigravity (7 Arquetipos + Avatar 3D Voxel) generado y sincronizado con la voz!',
+        text: '¡Paso 2 completado! Video HTML 60-FPS generado por Antigravity, cargado en el Lienzo en sincronía con el audio y guardado en tu Biblioteca.',
       });
     } catch (err: any) {
       setStatusBanner({
         type: 'error',
-        text: err.message || 'No se pudo generar la escena HTML con IA.',
+        text: err.message || 'No se pudo generar la escena HTML con Antigravity.',
       });
     } finally {
       setIsGeneratingHtmlAi(false);
+    }
+  };
+
+  // PASO 3: Enviar Correcciones a Antigravity sobre el HTML en pantalla
+  const handleSendCorrectionsToAntigravity = async () => {
+    if (!videoCorrectionPrompt.trim()) {
+      setStatusBanner({
+        type: 'info',
+        text: 'Escribe primero qué detalle deseas corregir o ajustar en el video HTML (colores, textos, tamaños, efectos o tiempos).',
+      });
+      return;
+    }
+    try {
+      setIsApplyingCorrection(true);
+      setStatusBanner(null);
+      const audioBase64 = await resolveCurrentAudioBase64();
+      const targetDuration = Math.max(
+        6,
+        Math.round(currentAudio?.durationSeconds || videoDuration || 25),
+      );
+      const currentHtml = latestEditedHtmlRef.current || htmlCode;
+      let updatedHtml = '';
+
+      try {
+        const editResp = await fetch('/api/studio/antigravity/edit-html', {
+          method: 'POST',
+          headers: getAuthHeaders(token),
+          body: JSON.stringify({
+            currentHtml,
+            correctionPrompt: videoCorrectionPrompt.trim(),
+            superPrompt: aiScenePrompt,
+            scriptText,
+            scriptSteps,
+            aspectRatio,
+            durationSeconds: targetDuration,
+            badgeText: badgeOverlayText,
+            headlineText: headlineOverlayText,
+            subtitleText: subheadlineOverlayText,
+            accentColor,
+            theme: selectedArtDirection,
+            effects: selectedSkillEffects,
+            modelName: selectedAiModel,
+            audioBase64: audioBase64 || undefined,
+          }),
+        });
+        if (editResp.ok) {
+          const editData = await parseStudioJson(editResp);
+          if (editData?.success && editData.htmlCode) {
+            updatedHtml = editData.htmlCode;
+            if (
+              editData.timelineMap?.totalDurationSeconds &&
+              editData.timelineMap.totalDurationSeconds > 2
+            ) {
+              setVideoDuration(editData.timelineMap.totalDurationSeconds);
+            }
+          }
+        }
+      } catch {
+        /* Fallback al motor maestro generate-html con la corrección inyectada */
+      }
+
+      if (!updatedHtml) {
+        const combinedPrompt = `${aiScenePrompt}\n\n[CORRECCIÓN OBLIGATORIA SOLICITADA POR EL USUARIO SOBRE EL LIENZO ACTUAL]: ${videoCorrectionPrompt.trim()}`;
+        const genResp = await fetch('/api/studio/video/generate-html', {
+          method: 'POST',
+          headers: getAuthHeaders(token),
+          body: JSON.stringify({
+            prompt: combinedPrompt,
+            scriptText,
+            scriptSteps,
+            aspectRatio,
+            theme: selectedArtDirection,
+            effects: selectedSkillEffects,
+            hasBaseVideo: Boolean(baseVideoUrl),
+            showSubtitles: showDynamicSubtitles,
+            durationSeconds: targetDuration,
+            companyName: user?.name || 'WAPPY IA',
+            modelName: selectedAiModel,
+            audioBase64: audioBase64 || undefined,
+          }),
+        });
+        const genData = await parseStudioJson(genResp);
+        if (!genResp.ok || !genData.success || !genData.htmlCode) {
+          throw new Error(genData.error || 'No se pudieron aplicar las correcciones al HTML.');
+        }
+        updatedHtml = genData.htmlCode;
+      }
+
+      latestEditedHtmlRef.current = '';
+      setHtmlCode(updatedHtml);
+      await saveVideoProjectToLibrary({ htmlOverride: updatedHtml }, true);
+      setVideoCurrentTime(0);
+      setIsVideoPlaying(true);
+      setTimeout(() => {
+        iframeRef.current?.contentWindow?.postMessage({ type: 'STUDIO_RESTART' }, '*');
+        stageAudioRef.current?.play().catch(() => {});
+        baseVideoRef.current?.play().catch(() => {});
+      }, 140);
+      setStatusBanner({
+        type: 'success',
+        text: '¡Paso 3 completado! Correcciones aplicadas por Antigravity sobre el HTML manteniendo la sincronía con el audio y actualizadas en la Biblioteca.',
+      });
+    } catch (err: any) {
+      setStatusBanner({
+        type: 'error',
+        text: err.message || 'Error aplicando correcciones con Antigravity.',
+      });
+    } finally {
+      setIsApplyingCorrection(false);
     }
   };
 
@@ -4061,11 +4579,11 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
    */
   const lastVideoProjectRef = useRef<{ id: string; signature: string } | null>(null);
   const saveVideoProjectToLibrary = async (
-    extra: { mp4Blob?: Blob; capsuleHtml?: string } = {},
+    extra: { mp4Blob?: Blob; capsuleHtml?: string; htmlOverride?: string } = {},
     silent = true,
   ) => {
     try {
-      const html = latestEditedHtmlRef.current || htmlCode;
+      const html = extra.htmlOverride || latestEditedHtmlRef.current || htmlCode;
       const audioRef = currentAudio?.mediaKey || activeStageAudioSrc || 'sin-audio';
       const signature = `${html.length}:${html.slice(-200)}:${audioRef}:${aspectRatio}`;
       const reuse =
@@ -4076,7 +4594,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
       const htmlKey = `html-${id}`;
       await putMediaBlob(htmlKey, new Blob([html], { type: 'text/html' }));
 
-      // Audio: reutilizar el de la biblioteca o guardar una copia
+      // Audio: reutilizar el de la biblioteca o guardar una copia (opcional: funciona con o sin audio)
       let mediaKey = currentAudio?.mediaKey;
       if (!mediaKey && activeStageAudioSrc) {
         const b64 = await resolveCurrentAudioBase64();
@@ -4097,8 +4615,9 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
         await putMediaBlob(capsuleKey, new Blob([extra.capsuleHtml], { type: 'text/html' }));
       }
 
-      const titleSource = (currentAudio?.scriptText || scriptText || headlineOverlayText || '')
+      const titleSource = (currentAudio?.scriptText || scriptText || headlineOverlayText || 'Animación Antigravity')
         .replace(/<[^>]+>/g, '')
+        .replace(/\[[^\]]+\]/g, '')
         .trim();
       setLibraryItems((prev) => {
         const existing = prev.find((x) => x.id === id);
@@ -4106,13 +4625,14 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
           ...(existing || {}),
           id,
           kind: 'video',
-          title: existing?.title || `Video ${aspectRatio}: ${titleSource.slice(0, 40)}...`,
+          title: existing?.title || `Video HTML ${aspectRatio}: ${titleSource.slice(0, 42)}...`,
           createdAt: existing?.createdAt || Date.now(),
-          voiceName: currentAudio?.voiceName || selectedVoice,
+          voiceName: mediaKey ? currentAudio?.voiceName || selectedVoice : 'Sin Audio (Solo HTML)',
           model: selectedAiModel,
-          durationSeconds: Math.round((videoDuration || 0) * 10) / 10,
+          durationSeconds: Math.round((currentAudio?.durationSeconds || videoDuration || 20) * 10) / 10,
           wordCount: titleSource.split(/\s+/).filter(Boolean).length,
           scriptText: currentAudio?.scriptText || scriptText,
+          stylePrompt: aiScenePrompt ? aiScenePrompt.slice(0, 180) : undefined,
           htmlKey,
           mediaKey: mediaKey || existing?.mediaKey,
           mp4Key: mp4Key || existing?.mp4Key,
@@ -4127,7 +4647,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
       if (!silent) {
         setStatusBanner({
           type: 'success',
-          text: '¡Video guardado en la Biblioteca! Puedes reabrirlo, editarlo o descargarlo cuando quieras.',
+          text: '¡Video HTML guardado en la Biblioteca! Puedes reabrirlo en el editor, descargar el .HTML al instante o renderizar el .MP4 con Antigravity.',
         });
       }
     } catch (err: any) {
@@ -5130,22 +5650,18 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       </p>
                     </div>
                   </div>
-                  <button
-                    type="button"
+                  <ExpandableButton
+                    size="sm"
+                    alwaysExpanded
+                    icon={<Key />}
+                    label={activeCustomKeyCount > 0 ? 'Administrar Claves' : 'Configurar Claves'}
+                    variant="fuchsia"
                     onClick={() => {
                       setKeyValidationMsg('');
                       setApiKeyModalTab('keys');
                       setIsApiKeyModalOpen(true);
                     }}
-                    className={cn(
-                      'px-3 py-1.5 rounded-xl text-xs font-extrabold border transition shrink-0 cursor-pointer',
-                      activeCustomKeyCount > 0
-                        ? 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-800 dark:text-emerald-200 border-emerald-500/30'
-                        : 'bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-800 dark:text-indigo-200 border-indigo-500/30',
-                    )}
-                  >
-                    {activeCustomKeyCount > 0 ? 'Administrar claves' : 'Configurar claves'}
-                  </button>
+                  />
                 </div>
 
                 {/* Cabecera del Editor + Selector de Plantilla + Botón Mejorar con IA */}
@@ -5182,6 +5698,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
                     <ExpandableButton
                       size="sm"
+                      alwaysExpanded
                       icon={isEnhancingScript ? <Loader2 className="animate-spin" /> : <Wand2 />}
                       label={isEnhancingScript ? 'Enriqueciendo...' : 'Mejorar Guion con IA'}
                       variant="purple"
@@ -5202,18 +5719,34 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   </div>
                 </div>
 
-                {/* Barra de Inserción Rápida de Vocal Bursts y Hablantes */}
+                {/* Barra de Inserción Rápida de Vocal Bursts, Pausas y Hablantes */}
                 <div className="p-3 bg-slate-50 dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 rounded-xl space-y-2">
                   <div className="flex items-center justify-between text-[11px]">
                     <span className="font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-1">
                       <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                      Insertar Efectos Vocales (Vocal Bursts) en el cursor:
+                      Insertar Pausas, Énfasis y Efectos Vocales (Vocal Bursts) en el cursor:
                     </span>
                     <span className="font-mono text-[10px] text-teal-700 dark:text-teal-400 font-bold">
                       {selectedModel}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
+                    {PAUSE_AND_EMPHASIS_TAGS.slice(0, 3).map((p) => (
+                      <button
+                        key={p.tag}
+                        type="button"
+                        onClick={() => insertTagIntoEditor(` ${p.tag} `)}
+                        title={p.desc}
+                        className="px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-xs font-mono transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                      >
+                        <span className="text-indigo-700 dark:text-indigo-300 font-bold">
+                          {p.tag}
+                        </span>
+                        <span className="text-slate-600 dark:text-zinc-400 text-[10px] font-sans">
+                          ({p.label})
+                        </span>
+                      </button>
+                    ))}
                     {vocalBursts.map((b) => (
                       <button
                         key={b.tag}
@@ -5250,12 +5783,153 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 {/* Área de Texto Principal */}
                 <textarea
                   id="wappy-studio-tts-editor"
-                  rows={12}
+                  rows={10}
                   value={scriptText}
                   onChange={(e) => setScriptText(e.target.value)}
                   placeholder="Escribe o pega aquí el guion para tu cápsula SST, curso de Academia WAPPY, podcast o audiolibro de hasta 1 hora..."
-                  className="w-full bg-white dark:bg-slate-950/90 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 leading-relaxed resize-y min-h-[260px] shadow-inner"
+                  className="w-full bg-white dark:bg-slate-950/90 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 leading-relaxed resize-y min-h-[210px] shadow-inner"
                 />
+
+                {/* ASISTENTE PASO A PASO DE GUION POR TIEMPOS, PAUSAS Y EFECTOS (SKILLS DE ANTIGRAVITY) */}
+                <div className="p-3.5 bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-teal-500/5 border border-indigo-500/25 rounded-2xl space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <span className="text-xs font-extrabold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
+                        <Layers className="w-4 h-4 text-indigo-500" />
+                        Asistente Paso a Paso: Escenas por Tiempos, Pausas & Efectos Antigravity
+                      </span>
+                      <p className="text-[11px] text-slate-600 dark:text-zinc-400">
+                        Estructura cada tramo (`0.0s-2.0s` Portada 🔥 ¡GRATIS!, `2.0s-8.0s`...) con pausas y efectos visuales.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <ExpandableButton
+                        size="sm"
+                        alwaysExpanded
+                        icon={<Wand2 />}
+                        label="Auto-Estructurar por Tiempos"
+                        variant="purple"
+                        onClick={handleAutoStructureScriptSteps}
+                      />
+                      <ExpandableButton
+                        size="sm"
+                        alwaysExpanded
+                        icon={<Check />}
+                        label="Aplicar Escenas al Guion"
+                        variant="teal"
+                        onClick={applyScriptStepsToScriptText}
+                      />
+                      <ExpandableButton
+                        size="sm"
+                        icon={<Plus />}
+                        label="Añadir Escena"
+                        variant="emerald"
+                        onClick={() =>
+                          setScriptSteps((prev) => [
+                            ...prev,
+                            {
+                              id: `step-${Date.now()}`,
+                              timeRange: `${prev.length * 5}.0s-${(prev.length + 1) * 5}.0s`,
+                              title: `Escena 0${prev.length + 1}`,
+                              narration: '[pausa 0.5s] Nueva frase sincronizada con la voz. <breath>',
+                              visualEffect: '07 Zoom-Through',
+                            },
+                          ])
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+                    {(Array.isArray(scriptSteps) ? scriptSteps : []).map((step, sIdx) => (
+                      <div
+                        key={step.id}
+                        className="p-2.5 rounded-xl bg-white dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 space-y-2"
+                      >
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                          <div className="sm:col-span-3">
+                            <input
+                              type="text"
+                              value={step.timeRange}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setScriptSteps((prev) =>
+                                  prev.map((item, idx) =>
+                                    idx === sIdx ? { ...item, timeRange: val } : item,
+                                  ),
+                                );
+                              }}
+                              placeholder="0.0s-2.0s"
+                              className="w-full px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-[11px] font-mono font-extrabold text-indigo-700 dark:text-indigo-300"
+                            />
+                          </div>
+                          <div className="sm:col-span-4">
+                            <input
+                              type="text"
+                              value={step.title}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setScriptSteps((prev) =>
+                                  prev.map((item, idx) =>
+                                    idx === sIdx ? { ...item, title: val } : item,
+                                  ),
+                                );
+                              }}
+                              placeholder="Título de la escena..."
+                              className="w-full px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white"
+                            />
+                          </div>
+                          <div className="sm:col-span-4">
+                            <select
+                              value={step.visualEffect}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setScriptSteps((prev) =>
+                                  prev.map((item, idx) =>
+                                    idx === sIdx ? { ...item, visualEffect: val } : item,
+                                  ),
+                                );
+                              }}
+                              className="w-full px-2 py-1 rounded-lg bg-purple-500/10 border border-purple-500/30 text-[11px] font-bold text-purple-700 dark:text-purple-300"
+                            >
+                              {ANTIGRAVITY_EFFECTS_CATALOG.map((ef) => (
+                                <option key={ef.id} value={ef.label}>
+                                  {ef.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="sm:col-span-1 flex justify-end">
+                            <ExpandableButton
+                              size="sm"
+                              icon={<Trash2 />}
+                              label="Quitar"
+                              variant="danger"
+                              disabled={scriptSteps.length <= 1}
+                              onClick={() =>
+                                setScriptSteps((prev) => prev.filter((_, idx) => idx !== sIdx))
+                              }
+                            />
+                          </div>
+                        </div>
+                        <input
+                          type="text"
+                          value={step.narration}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setScriptSteps((prev) =>
+                              prev.map((item, idx) =>
+                                idx === sIdx ? { ...item, narration: val } : item,
+                              ),
+                            );
+                          }}
+                          placeholder="Locución de este tramo con pausas ([pausa 0.5s], <breath>)..."
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
                 {/* Barra de Métricas y Estimación */}
                 <div className="bg-slate-50 dark:bg-slate-900/90 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2">
@@ -5296,43 +5970,39 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   </div>
                 </div>
 
-                {/* Botones de Acción Principales */}
+                {/* Botones de Acción Principales (WAPPY 14-Group Design System) */}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
-                  <button
-                    type="button"
-                    onClick={handleSynthesizePreview}
+                  <ExpandableButton
+                    alwaysExpanded
+                    icon={isPreviewing ? <Loader2 className="animate-spin" /> : <Zap />}
+                    label="Vista Previa Rápida (~1er fragmento)"
+                    variant="amber"
                     disabled={
                       isPreviewing || activeJob?.status === 'processing' || !scriptText.trim()
                     }
-                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-slate-700 shadow-xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-                  >
-                    {isPreviewing ? (
-                      <Loader2 className="w-4 h-4 animate-spin text-teal-500" />
-                    ) : (
-                      <Zap className="w-4 h-4 text-amber-500" />
-                    )}
-                    <span>Vista Previa Rápida (~1er fragmento)</span>
-                  </button>
+                    onClick={handleSynthesizePreview}
+                  />
 
-                  <button
-                    type="button"
-                    onClick={handleStartFullJob}
+                  <ExpandableButton
+                    alwaysExpanded
+                    icon={
+                      activeJob?.status === 'processing' ? (
+                        <Loader2 className="animate-spin" />
+                      ) : (
+                        <Play />
+                      )
+                    }
+                    label={
+                      chunkCount > 1
+                        ? `Generar Audio Completo (${chunkCount} fragmentos • ~${estimatedMinutes} min)`
+                        : 'Generar Audio Completo'
+                    }
+                    variant="teal"
                     disabled={
                       activeJob?.status === 'processing' || isPreviewing || !scriptText.trim()
                     }
-                    className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-                  >
-                    {activeJob?.status === 'processing' ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Play className="w-4 h-4 fill-white" />
-                    )}
-                    <span>
-                      {chunkCount > 1
-                        ? `Generar Audio Completo (${chunkCount} fragmentos • ~${estimatedMinutes} min)`
-                        : 'Generar Audio Completo'}
-                    </span>
-                  </button>
+                    onClick={handleStartFullJob}
+                  />
                 </div>
               </div>
             </div>
@@ -5340,7 +6010,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
         )}
 
         {/* ==================================================================== */}
-        {/* PESTAÑA 2: COMPOSITOR DE VIDEO HTML & CAPAS (ESTILO CLAUDE)          */}
+        {/* PESTAÑA 2: COMPOSITOR DE VIDEO HTML & CAPAS (ANTIGRAVITY 60-FPS)     */}
         {/* ==================================================================== */}
         {activeTab === 'video' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start animate-in fade-in duration-200">
@@ -5350,10 +6020,10 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 <div>
                   <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                     <Film className="w-5 h-5 text-purple-500" />
-                    Estudio de Capas & Motion Graphics HTML
+                    Estudio de Capas & Motion Graphics HTML (Antigravity 60-FPS)
                   </h2>
                   <p className="text-xs text-slate-600 dark:text-slate-300">
-                    Sube tu propio video grabado a cámara o genera animaciones estilo Claude/HeyGen sincronizadas con tu voz.
+                    Sube tu propio video grabado a cámara o genera animaciones Antigravity 60-FPS / HyperFrames sincronizadas con tu voz.
                   </p>
                 </div>
               </div>
@@ -5538,7 +6208,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 </div>
               </div>
 
-              {/* 3. Textos Rápidos de Superposición y Subtítulos Estilo Hormozi/Claude */}
+              {/* 3. Textos Rápidos de Superposición y Subtítulos Dinámicos WAPPY IA */}
               <div className="p-4 bg-slate-50 dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white">
@@ -5641,6 +6311,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     icon={<RefreshCw />}
                     label="Aplicar al Lienzo"
                     variant="cyan"
+                    alwaysExpanded
                     onClick={() =>
                       handleRebuildDefaultTemplate(aspectRatio, Boolean(baseVideoUrl))
                     }
@@ -5648,49 +6319,272 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 </div>
               </div>
 
-              {/* 4. Generador con IA de Motion Graphics HTML/GSAP (Estilo Claude) */}
-              <div className="p-4 bg-purple-500/5 border border-purple-500/25 rounded-2xl space-y-3">
-                <div className="flex items-center justify-between">
+              {/* 4. FLUJO EN 3 PASOS CON ANTIGRAVITY (SUPER-PROMPT -> GENERADOR HTML -> CORRECCIONES) */}
+              <div className="p-4 bg-purple-500/5 border border-purple-500/25 rounded-2xl space-y-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-xs font-extrabold uppercase tracking-wider text-purple-700 dark:text-purple-300 flex items-center gap-1.5">
                     <Wand2 className="w-4 h-4 text-purple-500" />
-                    Generador IA de Animación HTML + GSAP (Estilo Claude)
+                    4. Motor Antigravity HTML + GSAP (Flujo en 3 Pasos)
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowCodeEditor(!showCodeEditor)}
-                    className="text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <Code2 className="w-3.5 h-3.5" />
-                    {showCodeEditor ? 'Ocultar Código HTML' : 'Editar Código HTML'}
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <ExpandableButton
+                      size="sm"
+                      icon={<Layers />}
+                      label={showStepAssistant ? 'Ocultar Escaleta' : 'Tiempos & Escaleta'}
+                      variant="amber"
+                      isActive={showStepAssistant}
+                      onClick={() => setShowStepAssistant(!showStepAssistant)}
+                    />
+                    <ExpandableButton
+                      size="sm"
+                      icon={<Code2 />}
+                      label={showCodeEditor ? 'Ocultar HTML' : 'Código HTML'}
+                      variant="neutral"
+                      isActive={showCodeEditor}
+                      onClick={() => setShowCodeEditor(!showCodeEditor)}
+                    />
+                  </div>
                 </div>
 
-                <textarea
-                  rows={2}
-                  value={aiScenePrompt}
-                  onChange={(e) => setAiScenePrompt(e.target.value)}
-                  placeholder="Describe qué gráficos animados, tarjetas, alertas o diagramas quieres que la IA programe en HTML + GSAP..."
-                  className="w-full bg-white dark:bg-slate-900 border border-purple-500/30 rounded-xl p-3 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500 resize-none"
-                />
+                {/* Selector de Dirección de Arte (4 Paletas Oficiales Brandbook WAPPY IA) */}
+                <div className="space-y-1.5">
+                  <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                    Dirección de Arte Oficial (Brandbook WAPPY IA):
+                  </span>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {ANTIGRAVITY_ART_DIRECTIONS.map((art) => {
+                      const active = selectedArtDirection === art.id;
+                      return (
+                        <button
+                          key={art.id}
+                          type="button"
+                          onClick={() => setSelectedArtDirection(art.id)}
+                          className={cn(
+                            'p-2 rounded-xl border text-left transition cursor-pointer flex items-center justify-between gap-1.5',
+                            active
+                              ? 'bg-purple-500/15 border-purple-500/50 text-purple-900 dark:text-purple-200 ring-1 ring-purple-500/30'
+                              : 'bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-purple-400',
+                          )}
+                        >
+                          <div className="min-w-0">
+                            <div className="text-[11px] font-extrabold truncate">{art.label}</div>
+                            <div className="text-[9px] opacity-75 truncate">{art.colors}</div>
+                          </div>
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 shrink-0">
+                            60 FPS
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
 
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={handleGenerateHtmlWithAi}
-                    disabled={isGeneratingHtmlAi}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white disabled:opacity-50 cursor-pointer"
-                  >
-                    {isGeneratingHtmlAi ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="w-4 h-4" />
-                    )}
-                    <span>
-                      {isGeneratingHtmlAi
-                        ? 'Diseñando Escena HTML + GSAP...'
-                        : 'Generar Animación HTML con IA'}
+                {/* Selector de Efectos de las Skills de Antigravity (18 Efectos) */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                      Efectos Visuales Antigravity Activos ({selectedSkillEffects.length}):
                     </span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => handleTabChange('lab')}
+                      className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                    >
+                      Ver catálogo completo en Laboratorio →
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1.5 rounded-xl bg-white/70 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800">
+                    {ANTIGRAVITY_EFFECTS_CATALOG.map((ef) => {
+                      const active = selectedSkillEffects.includes(ef.id);
+                      return (
+                        <button
+                          key={ef.id}
+                          type="button"
+                          onClick={() => toggleSkillEffect(ef.id)}
+                          title={`${ef.category} — ${ef.description}`}
+                          className={cn(
+                            'px-2 py-1 rounded-lg text-[10px] font-bold border transition cursor-pointer flex items-center gap-1',
+                            active
+                              ? 'bg-indigo-500/15 border-indigo-500/40 text-indigo-700 dark:text-indigo-300'
+                              : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-indigo-400',
+                          )}
+                        >
+                          <span>{ef.label}</span>
+                          {active && <Check className="w-2.5 h-2.5 text-emerald-500" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Escaleta Paso a Paso Desplegable dentro del Compositor de Video */}
+                {showStepAssistant && (
+                  <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/25 space-y-2 animate-in fade-in duration-150">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-extrabold text-amber-800 dark:text-amber-300">
+                        Escaleta de Tiempos, Pausas y Escenas ({scriptSteps.length} tramos)
+                      </span>
+                      <ExpandableButton
+                        size="sm"
+                        icon={<Wand2 />}
+                        label="Auto-Dividir Guion"
+                        variant="amber"
+                        alwaysExpanded
+                        onClick={handleAutoStructureScriptSteps}
+                      />
+                    </div>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                      {scriptSteps.map((st, idx) => (
+                        <div
+                          key={st.id}
+                          className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1"
+                        >
+                          <div className="flex items-center justify-between gap-1.5">
+                            <span className="text-[10px] font-mono font-bold text-amber-600 dark:text-amber-400">
+                              #{idx + 1} • {st.timeRange}
+                            </span>
+                            <select
+                              value={st.visualEffect}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setScriptSteps((prev) =>
+                                  prev.map((item, i) =>
+                                    i === idx ? { ...item, visualEffect: val } : item,
+                                  ),
+                                );
+                              }}
+                              className="text-[10px] font-bold bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-1.5 py-0.5 text-indigo-700 dark:text-indigo-300"
+                            >
+                              {ANTIGRAVITY_EFFECTS_CATALOG.map((ef) => (
+                                <option key={ef.id} value={ef.label}>
+                                  {ef.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <input
+                            type="text"
+                            value={st.narration}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setScriptSteps((prev) =>
+                                prev.map((item, i) =>
+                                  i === idx ? { ...item, narration: val } : item,
+                                ),
+                              );
+                            }}
+                            className="w-full text-[11px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-slate-900 dark:text-white"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* PASO 1: Botón Generar Super-Prompt + Textarea del Super-Prompt */}
+                <div className="space-y-2 pt-1 border-t border-purple-500/20">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-[11px] font-extrabold text-indigo-700 dark:text-indigo-300">
+                      Paso 1: Construir Super-Prompt Técnico (7 Piezas + Timings + Efectos)
+                    </span>
+                    <ExpandableButton
+                      size="sm"
+                      icon={
+                        isGeneratingSuperPrompt ? (
+                          <Loader2 className="animate-spin" />
+                        ) : (
+                          <Wand2 />
+                        )
+                      }
+                      label={
+                        isGeneratingSuperPrompt
+                          ? 'Construyendo Super-Prompt...'
+                          : '1. Generar Super-Prompt'
+                      }
+                      variant="indigo"
+                      alwaysExpanded
+                      disabled={isGeneratingSuperPrompt}
+                      onClick={handleBuildAntigravitySuperPrompt}
+                    />
+                  </div>
+
+                  <textarea
+                    rows={4}
+                    value={aiScenePrompt}
+                    onChange={(e) => setAiScenePrompt(e.target.value)}
+                    placeholder="Haz clic en '1. Generar Super-Prompt' o escribe aquí las instrucciones de escenas, tiempos y efectos que Antigravity programará en HTML5 + GSAP..."
+                    className="w-full bg-white dark:bg-slate-900 border border-purple-500/30 rounded-xl p-3 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500 resize-y font-mono leading-relaxed"
+                  />
+                </div>
+
+                {/* PASO 2: Enviar al Generador de Video (Antigravity) */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-purple-500/20">
+                  <span className="text-[11px] font-extrabold text-purple-700 dark:text-purple-300">
+                    Paso 2: Programar Video HTML5 + GSAP y Guardar en Biblioteca
+                  </span>
+                  <ExpandableButton
+                    size="md"
+                    icon={
+                      isGeneratingHtmlAi ? (
+                        <Loader2 className="animate-spin" />
+                      ) : (
+                        <Sparkles />
+                      )
+                    }
+                    label={
+                      isGeneratingHtmlAi
+                        ? 'Antigravity Programando HTML + GSAP...'
+                        : '2. Enviar al Generador de Video (Antigravity)'
+                    }
+                    variant="purple"
+                    alwaysExpanded
+                    disabled={isGeneratingHtmlAi}
+                    onClick={handleGenerateHtmlWithAi}
+                  />
+                </div>
+
+                {/* PASO 3: Panel de Correcciones / Ajustes sobre el Video Generado */}
+                <div className="p-3 rounded-xl bg-cyan-500/5 border border-cyan-500/25 space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-[11px] font-extrabold text-cyan-800 dark:text-cyan-300 flex items-center gap-1.5">
+                      <RefreshCw className="w-3.5 h-3.5 text-cyan-500" />
+                      Paso 3: ¿Algo no te gustó del video? Pide correcciones a Antigravity
+                    </span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <input
+                      type="text"
+                      value={videoCorrectionPrompt}
+                      onChange={(e) => setVideoCorrectionPrompt(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendCorrectionsToAntigravity();
+                        }
+                      }}
+                      placeholder="Ej: Haz los textos más grandes, agrega un gráfico de barras en el segundo 4, cambia el fondo a azul oscuro..."
+                      className="flex-1 bg-white dark:bg-slate-900 border border-cyan-500/30 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-cyan-500"
+                    />
+                    <ExpandableButton
+                      size="sm"
+                      icon={
+                        isApplyingCorrection ? (
+                          <Loader2 className="animate-spin" />
+                        ) : (
+                          <Wand2 />
+                        )
+                      }
+                      label={
+                        isApplyingCorrection
+                          ? 'Aplicando Correcciones...'
+                          : '3. Enviar Correcciones a Antigravity'
+                      }
+                      variant="cyan"
+                      alwaysExpanded
+                      disabled={isApplyingCorrection || !videoCorrectionPrompt.trim()}
+                      onClick={handleSendCorrectionsToAntigravity}
+                    />
+                  </div>
                 </div>
 
                 {showCodeEditor && (
@@ -6013,7 +6907,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       )}
                     />
 
-                    {/* CAPA 3: Subtítulos Dinámicos Sincronizados Palabra a Palabra (Estilo Hormozi / Claude) */}
+                    {/* CAPA 3: Subtítulos Dinámicos Sincronizados Palabra a Palabra (Estilo WAPPY IA / Antigravity) */}
                     {showDynamicSubtitles && currentSubtitleWindow && (
                       <div
                         className={cn(
@@ -6191,63 +7085,85 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 {/* ============================================================== */}
                 <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {/* OPCIÓN B: RENDERIZADO MP4 EN SERVIDOR (WHATSAPP / CELULAR / REELS / TIKTOK) */}
-                  <button
-                    type="button"
-                    disabled={isRenderingServerMp4}
-                    onClick={handleRenderServerMp4}
-                    className="p-3 rounded-xl border bg-teal-500/10 border-teal-500/30 hover:bg-teal-500/20 text-teal-800 dark:text-teal-200 text-left transition-all cursor-pointer disabled:opacity-50 flex flex-col justify-between gap-1.5"
-                  >
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-teal-500/20">
-                        WhatsApp • Celular • Redes
-                      </span>
-                      {isRenderingServerMp4 ? (
-                        <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                      ) : (
+                  <div className="p-3 rounded-xl border bg-teal-500/10 border-teal-500/30 text-teal-800 dark:text-teal-200 flex flex-col justify-between gap-2">
+                    <div>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-teal-500/20">
+                          WhatsApp • Celular • Redes
+                        </span>
                         <Film className="w-4 h-4 shrink-0" />
-                      )}
+                      </div>
+                      <div className="text-xs font-extrabold leading-tight mt-1.5">
+                        Renderizado .MP4 Antigravity (60 FPS + Voz)
+                      </div>
+                      <div className="text-[10px] opacity-85 leading-snug mt-0.5">
+                        Une Animación HTML + Subtítulos + Voz IA en un archivo .MP4 listo para WhatsApp o Reels
+                      </div>
                     </div>
-                    <div className="text-xs font-extrabold leading-tight mt-0.5">
-                      {isRenderingServerMp4
-                        ? 'Renderizando Video MP4...'
-                        : 'Descargar Video .MP4 (Todo Unido)'}
-                    </div>
-                    <div className="text-[10px] opacity-85 leading-snug">
-                      Une Animación + Subtítulos + Voz IA en un archivo .MP4 listo para enviar por WhatsApp o subir a Reels
-                    </div>
-                  </button>
+                    <ExpandableButton
+                      size="sm"
+                      icon={
+                        isRenderingServerMp4 ? (
+                          <Loader2 className="animate-spin" />
+                        ) : (
+                          <Film />
+                        )
+                      }
+                      label={
+                        isRenderingServerMp4
+                          ? 'Renderizando Video MP4...'
+                          : 'Descargar Video .MP4 (Todo Unido)'
+                      }
+                      variant="teal"
+                      alwaysExpanded
+                      disabled={isRenderingServerMp4}
+                      onClick={handleRenderServerMp4}
+                      className="w-full justify-center"
+                    />
+                  </div>
 
                   {/* OPCIÓN C: CÁPSULA INTERACTIVA HTML5 RESPONSIVE PARA ACADEMIA WAPPY (LMS) */}
-                  <div className="p-3 rounded-xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-200 flex flex-col justify-between gap-1.5">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/20">
-                        Academia WAPPY • LMS Responsive
-                      </span>
-                      <BookOpen className="w-4 h-4 shrink-0" />
+                  <div className="p-3 rounded-xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-200 flex flex-col justify-between gap-2">
+                    <div>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/20">
+                          Descarga Instantánea • Offline
+                        </span>
+                        <BookOpen className="w-4 h-4 shrink-0" />
+                      </div>
+                      <div className="text-xs font-extrabold leading-tight mt-1.5">
+                        Cápsula Interactiva HTML5 (Móvil & Web)
+                      </div>
+                      <div className="text-[10px] opacity-85 leading-snug mt-0.5">
+                        Descarga inmediata del archivo .HTML con animación y audio integrados
+                      </div>
                     </div>
-                    <div className="text-xs font-extrabold leading-tight">
-                      Cápsula Interactiva HTML5 (Móvil & Web)
-                    </div>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <button
-                        type="button"
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <ExpandableButton
+                        size="sm"
+                        icon={
+                          isBuildingAcademyHtml ? (
+                            <Loader2 className="animate-spin" />
+                          ) : (
+                            <Download />
+                          )
+                        }
+                        label="Descargar .HTML"
+                        variant="green"
+                        alwaysExpanded
                         disabled={isBuildingAcademyHtml}
                         onClick={handleDownloadHtmlBundle}
-                        className="flex-1 py-1.5 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-extrabold flex items-center justify-center gap-1 cursor-pointer transition"
-                      >
-                        <Download className="w-3 h-3" />
-                        <span>Descargar .HTML</span>
-                      </button>
-                      <button
-                        type="button"
+                        className="flex-1 justify-center"
+                      />
+                      <ExpandableButton
+                        size="sm"
+                        icon={<Copy />}
+                        label="Copiar LMS"
+                        variant="fuchsia"
+                        alwaysExpanded
                         disabled={isBuildingAcademyHtml}
                         onClick={handleCopyLmsEmbed}
-                        title="Copiar código <iframe srcdoc> para lección de Academia WAPPY"
-                        className="py-1.5 px-2.5 rounded-lg bg-white/80 dark:bg-slate-800 hover:bg-white text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-[10px] font-extrabold flex items-center justify-center gap-1 cursor-pointer transition"
-                      >
-                        <Copy className="w-3 h-3" />
-                        <span>Copiar LMS</span>
-                      </button>
+                      />
                     </div>
                   </div>
                 </div>
@@ -6382,22 +7298,50 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
         )}
 
         {/* ==================================================================== */}
-        {/* PESTAÑA 3: LABORATORIO DE EXPRESIVIDAD & VOCAL BURSTS                */}
+        {/* PESTAÑA 3: LABORATORIO DE EXPRESIVIDAD, VOCAL BURSTS & SKILLS FX     */}
         {/* ==================================================================== */}
         {activeTab === 'lab' && (
           <div className="space-y-6 animate-in fade-in duration-200">
             {/* Tarjeta de Cabecera del Laboratorio */}
-            <div className="bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 flex items-center gap-4 shadow-xs">
-              <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-300 shrink-0">
-                <Sparkles className="w-5 h-5" />
+            <div className="bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 flex items-center justify-between flex-wrap gap-4 shadow-xs">
+              <div className="flex items-center gap-4">
+                <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-300 shrink-0">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
+                    Laboratorio de Voces, Pausas, Vocal Bursts & Efectos Antigravity
+                  </h2>
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                    Escucha y prueba las 30 voces en vivo, construye pausas/respiraciones y selecciona los efectos visuales de las Skills de Antigravity para tu video.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
-                  Laboratorio de Expresividad y Vocal Bursts
-                </h2>
-                <p className="text-xs text-slate-600 dark:text-slate-300">
-                  Explora las capacidades de Gemini TTS: respiraciones orgánicas, risas, susurros y dirección de estilo en tiempo real
-                </p>
+              <div className="flex items-center gap-2">
+                <ExpandableButton
+                  size="sm"
+                  icon={<Volume2 />}
+                  label="SFX Whoosh"
+                  variant="cyan"
+                  alwaysExpanded
+                  onClick={() => playStudioSfxPreview('whoosh')}
+                />
+                <ExpandableButton
+                  size="sm"
+                  icon={<Volume2 />}
+                  label="SFX Pop"
+                  variant="amber"
+                  alwaysExpanded
+                  onClick={() => playStudioSfxPreview('pop')}
+                />
+                <ExpandableButton
+                  size="sm"
+                  icon={<Volume2 />}
+                  label="SFX Ding"
+                  variant="emerald"
+                  alwaysExpanded
+                  onClick={() => playStudioSfxPreview('ding')}
+                />
               </div>
             </div>
 
@@ -6435,9 +7379,16 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
             {/* SECCIÓN 1: Efectos Vocales Orgánicos Integrados */}
             <div className="bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 space-y-4 shadow-xs">
-              <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
-                Efectos Vocales Orgánicos Integrados
-              </h3>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                    1. Efectos Vocales Orgánicos (Vocal Bursts en Vivo)
+                  </h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                    Escucha cómo suena cada etiqueta con la voz actual ({selectedVoice}) o insértala en tu frase de prueba.
+                  </p>
+                </div>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {vocalBursts.map((b) => {
@@ -6454,60 +7405,95 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         <p className="text-xs font-bold text-slate-900 dark:text-white mt-0.5">{b.label}</p>
                         <p className="text-[11px] text-slate-600 dark:text-slate-300">{b.description}</p>
                       </div>
-                      <button
-                        type="button"
-                        disabled={isPlayingThis}
-                        onClick={async () => {
-                          try {
-                            setPlayingBurstTag(b.tag);
-                            const resp = await fetch('/api/studio/tts/synthesize', {
-                              method: 'POST',
-                              headers: getAuthHeaders(token),
-                              body: JSON.stringify({
-                                voiceName: selectedVoice,
-                                model: 'gemini-3.8-flash-tts',
-                                stylePrompt: 'Voz muy expresiva y natural.',
-                                text: `Escucha cómo suena este efecto natural en medio de una frase: ${b.tag} ¡Suena totalmente humano!`,
-                              }),
-                            });
-                            const data = await parseStudioJson(resp);
-                            if (data.audioBase64) {
-                              setCurrentAudio({
-                                base64: data.audioBase64,
-                                title: `Efecto ${b.tag} (${selectedVoice})`,
-                                durationSeconds: data.durationSeconds,
-                                voiceName: selectedVoice,
-                              });
-                            }
-                          } catch (err: any) {
-                            setStatusBanner({ type: 'error', text: err.message });
-                          } finally {
-                            setPlayingBurstTag(null);
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <ExpandableButton
+                          size="sm"
+                          icon={<Plus />}
+                          label="Insertar"
+                          variant="amber"
+                          onClick={() => {
+                            setLabTestText((prev) => `${prev.trim()} ${b.tag} `);
+                          }}
+                        />
+                        <ExpandableButton
+                          size="sm"
+                          icon={
+                            isPlayingThis ? (
+                              <Loader2 className="animate-spin" />
+                            ) : (
+                              <Play />
+                            )
                           }
-                        }}
-                        className="w-9 h-9 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 border border-indigo-500/30 flex items-center justify-center shrink-0 transition cursor-pointer"
-                      >
-                        {isPlayingThis ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Play className="w-4 h-4 fill-current" />
-                        )}
-                      </button>
+                          label="Probar"
+                          variant="indigo"
+                          disabled={isPlayingThis}
+                          onClick={async () => {
+                            try {
+                              setPlayingBurstTag(b.tag);
+                              const resp = await fetch('/api/studio/tts/synthesize', {
+                                method: 'POST',
+                                headers: getAuthHeaders(token),
+                                body: JSON.stringify({
+                                  voiceName: selectedVoice,
+                                  model: 'gemini-3.8-flash-tts',
+                                  stylePrompt: 'Voz muy expresiva y natural.',
+                                  text: `Escucha cómo suena este efecto natural en medio de una frase: ${b.tag} ¡Suena totalmente humano!`,
+                                }),
+                              });
+                              const data = await parseStudioJson(resp);
+                              if (data.audioBase64) {
+                                setCurrentAudio({
+                                  base64: data.audioBase64,
+                                  title: `Efecto ${b.tag} (${selectedVoice})`,
+                                  durationSeconds: data.durationSeconds,
+                                  voiceName: selectedVoice,
+                                });
+                              }
+                            } catch (err: any) {
+                              setStatusBanner({ type: 'error', text: err.message });
+                            } finally {
+                              setPlayingBurstTag(null);
+                            }
+                          }}
+                        />
+                      </div>
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            {/* SECCIÓN 2: Probador Libre de Prosodia y Dirección de Voz */}
+            {/* SECCIÓN 2: Probador Libre de Prosodia, Pausas y Dirección de Voz */}
             <div className="bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 space-y-4 shadow-xs">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
-                  Probador Libre de Prosodia y Dirección de Voz
-                </h3>
-                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-                  Voces activas: {activeVoicesCount} de {voices.length}
-                </span>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                    2. Probador de Voces en Vivo y Constructor de Pausas / Énfasis
+                  </h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                    Selecciona cualquier voz, escucha su timbre al instante, agrega pausas y envía tu configuración al Estudio de Voz o al Editor de Video.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                    Voces activas: {activeVoicesCount} de {voices.length}
+                  </span>
+                  <ExpandableButton
+                    size="sm"
+                    icon={
+                      auditioningVoiceId === selectedVoice ? (
+                        <Loader2 className="animate-spin" />
+                      ) : (
+                        <Volume2 />
+                      )
+                    }
+                    label={`Escuchar ${selectedVoice}`}
+                    variant="teal"
+                    alwaysExpanded
+                    disabled={auditioningVoiceId === selectedVoice}
+                    onClick={() => handleAuditionVoice(selectedVoice)}
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -6527,9 +7513,9 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           setSelectedVoice(v.id);
                         }}
                         className={cn(
-                          'px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center gap-1',
+                          'px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center gap-1.5',
                           isSelected
-                            ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
+                            ? 'bg-teal-500/15 text-teal-800 dark:text-teal-200 border-teal-500/50 ring-1 ring-teal-500/30'
                             : 'bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border-slate-200 dark:border-slate-800 hover:border-teal-400',
                           !supported && 'opacity-55',
                         )}
@@ -6537,7 +7523,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         <span>
                           {v.name} ({v.gender})
                         </span>
-                        {supported && <Check className="w-3 h-3 text-emerald-400" />}
+                        {supported && <Check className="w-3 h-3 text-emerald-500" />}
                       </button>
                     );
                   })}
@@ -6556,6 +7542,26 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 />
               </div>
 
+              {/* Chips para insertar Pausas, Respiración y Énfasis en el Laboratorio */}
+              <div className="space-y-1.5">
+                <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                  Insertar Pausas, Respiración y Énfasis en el Texto de Prueba:
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {PAUSE_AND_EMPHASIS_TAGS.map((p) => (
+                    <button
+                      key={p.tag}
+                      type="button"
+                      onClick={() => setLabTestText((prev) => `${prev.trim()} ${p.tag} `)}
+                      title={p.desc}
+                      className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-[11px] font-bold transition cursor-pointer"
+                    >
+                      + {p.label} <span className="font-mono opacity-75">({p.tag})</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div>
                 <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
                   Texto de Prueba
@@ -6568,27 +7574,169 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 />
               </div>
 
-              <div>
-                <button
-                  type="button"
-                  onClick={handleSynthesizeInLab}
+              <div className="flex flex-wrap items-center gap-2.5">
+                <ExpandableButton
+                  size="md"
+                  icon={
+                    isSynthesizingLab ? (
+                      <Loader2 className="animate-spin" />
+                    ) : (
+                      <Sparkles />
+                    )
+                  }
+                  label={
+                    isSynthesizingLab
+                      ? 'Sintetizando en el Laboratorio...'
+                      : 'Sintetizar en el Laboratorio'
+                  }
+                  variant="indigo"
+                  alwaysExpanded
                   disabled={isSynthesizingLab || !labTestText.trim()}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-                >
-                  {isSynthesizingLab ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="w-4 h-4" />
-                  )}
-                  <span>Sintetizar en el Laboratorio</span>
-                </button>
+                  onClick={handleSynthesizeInLab}
+                />
+
+                <ExpandableButton
+                  size="md"
+                  icon={<MicVocal />}
+                  label="Llevar Frase y Voz al Estudio TTS"
+                  variant="teal"
+                  alwaysExpanded
+                  onClick={() => {
+                    setScriptText(labTestText);
+                    setStylePrompt(labStylePrompt);
+                    handleTabChange('tts');
+                  }}
+                />
+
+                <ExpandableButton
+                  size="md"
+                  icon={<Film />}
+                  label="Llevar al Editor de Video"
+                  variant="purple"
+                  alwaysExpanded
+                  onClick={() => {
+                    setScriptText(labTestText);
+                    setStylePrompt(labStylePrompt);
+                    handleTabChange('video');
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* SECCIÓN 3: Catálogo de Efectos Visuales de las Skills de Antigravity (18 Efectos + 4 Direcciones de Arte) */}
+            <div className="bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 space-y-4 shadow-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Wand2 className="w-4 h-4 text-purple-500" />
+                    3. Catálogo de Efectos Visuales & Motion Graphics (Skills de Antigravity)
+                  </h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                    Selecciona los efectos y transiciones que Antigravity encadenará a 60 FPS en tu video HTML + GSAP ({selectedSkillEffects.length} activos).
+                  </p>
+                </div>
+                <ExpandableButton
+                  size="sm"
+                  icon={<Film />}
+                  label={`Ir al Editor de Video (${selectedSkillEffects.length} efectos)`}
+                  variant="purple"
+                  alwaysExpanded
+                  onClick={() => handleTabChange('video')}
+                />
+              </div>
+
+              {/* 4 Direcciones de Arte Oficiales */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {ANTIGRAVITY_ART_DIRECTIONS.map((art) => {
+                  const isSelected = selectedArtDirection === art.id;
+                  return (
+                    <div
+                      key={art.id}
+                      className={cn(
+                        'p-3.5 rounded-xl border flex flex-col justify-between gap-2.5 transition',
+                        isSelected
+                          ? 'bg-purple-500/10 border-purple-500/50 ring-1 ring-purple-500/30'
+                          : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800',
+                      )}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-xs font-extrabold text-slate-900 dark:text-white">
+                            {art.label}
+                          </span>
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30">
+                            60 FPS
+                          </span>
+                        </div>
+                        <p className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 mt-1">
+                          {art.colors}
+                        </p>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1">
+                          {art.description}
+                        </p>
+                      </div>
+                      <ExpandableButton
+                        size="sm"
+                        icon={isSelected ? <Check /> : <Sparkles />}
+                        label={isSelected ? 'Dirección Activa' : 'Usar Dirección de Arte'}
+                        variant={isSelected ? 'teal' : 'purple'}
+                        alwaysExpanded
+                        onClick={() => setSelectedArtDirection(art.id)}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* 18 Efectos Virales de las Skills */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {ANTIGRAVITY_EFFECTS_CATALOG.map((ef) => {
+                  const active = selectedSkillEffects.includes(ef.id);
+                  return (
+                    <div
+                      key={ef.id}
+                      className={cn(
+                        'p-3.5 rounded-xl border flex flex-col justify-between gap-2.5 transition',
+                        active
+                          ? 'bg-indigo-500/10 border-indigo-500/45 ring-1 ring-indigo-500/30'
+                          : 'bg-slate-50 dark:bg-slate-900/90 border-slate-200/80 dark:border-slate-800',
+                      )}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-1.5">
+                          <span className="text-xs font-extrabold text-slate-900 dark:text-white">
+                            {ef.label}
+                          </span>
+                          <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-600 dark:text-slate-300 border border-slate-300/50 dark:border-slate-700">
+                            {ef.category}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1 leading-snug">
+                          {ef.description}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 pt-1">
+                        <ExpandableButton
+                          size="sm"
+                          icon={active ? <Check /> : <Plus />}
+                          label={
+                            active ? 'Activo en Editor de Video' : 'Agregar al Editor de Video'
+                          }
+                          variant={active ? 'teal' : 'indigo'}
+                          alwaysExpanded
+                          onClick={() => toggleSkillEffect(ef.id)}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
         )}
 
         {/* ==================================================================== */}
-        {/* PESTAÑA 4: BIBLIOTECA DE AUDIOS GENERADOS                            */}
+        {/* PESTAÑA 4: BIBLIOTECA DE AUDIOS Y VIDEOS HTML GENERADOS              */}
         {/* ==================================================================== */}
         {activeTab === 'library' && (
           <div className="space-y-5 animate-in fade-in duration-200">
@@ -6596,158 +7744,230 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               <div>
                 <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                   <BookOpen className="w-5 h-5 text-indigo-500" />
-                  Biblioteca de Audios y Videos
+                  Biblioteca de Audios y Videos HTML
                 </h2>
                 <p className="text-xs text-slate-600 dark:text-slate-300">
-                  Tus locuciones y videos (HTML + voz) quedan guardados permanentemente en este navegador para reproducir, reabrir, editar o descargar.
+                  Tus locuciones WAV y tus videos HTML5 + GSAP quedan guardados permanentemente para reabrir en el editor, descargar el .HTML al instante o renderizar el .MP4 con Antigravity.
                 </p>
               </div>
-              {libraryItems.length > 0 && (
-                <ExpandableButton
-                  icon={<Trash2 />}
-                  label="Limpiar Historial"
-                  variant="danger"
-                  onClick={() => {
-                    if (!window.confirm('¿Borrar todos los audios y videos guardados?')) return;
-                    setLibraryItems([]);
-                    clearMediaBlobs();
-                  }}
-                />
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Filtros de Biblioteca: Todos / Audios / Videos HTML */}
+                <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                  {(
+                    [
+                      { id: 'all', label: `Todos (${libraryItems.length})` },
+                      {
+                        id: 'audio',
+                        label: `🎙️ Audios (${libraryItems.filter((i) => i.kind !== 'video').length})`,
+                      },
+                      {
+                        id: 'video',
+                        label: `🎬 Videos HTML (${libraryItems.filter((i) => i.kind === 'video').length})`,
+                      },
+                    ] as const
+                  ).map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => setLibraryFilter(f.id)}
+                      className={cn(
+                        'px-2.5 py-1 rounded-lg text-xs font-extrabold transition cursor-pointer',
+                        libraryFilter === f.id
+                          ? 'bg-teal-500/15 text-teal-800 dark:text-teal-300 border border-teal-500/40'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white',
+                      )}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+
+                {libraryItems.length > 0 && (
+                  <ExpandableButton
+                    size="sm"
+                    icon={<Trash2 />}
+                    label="Limpiar Historial"
+                    variant="danger"
+                    alwaysExpanded
+                    onClick={() => {
+                      if (!window.confirm('¿Borrar todos los audios y videos guardados?')) return;
+                      setLibraryItems([]);
+                      clearMediaBlobs();
+                    }}
+                  />
+                )}
+              </div>
             </div>
 
             {libraryItems.length === 0 ? (
               <div className="bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-12 text-center space-y-2">
                 <MicVocal className="w-10 h-10 mx-auto text-slate-400" />
                 <p className="text-sm font-bold text-slate-900 dark:text-white">
-                  Aún no hay audios en tu biblioteca
+                  Aún no hay audios ni videos en tu biblioteca
                 </p>
                 <p className="text-xs text-slate-600 dark:text-slate-300 max-w-md mx-auto">
-                  Genera una locución en la pestaña "Estudio de Voz (TTS)" o en "Voces & Bursts" y aparecerá aquí automáticamente.
+                  Genera una locución en "Estudio de Voz (TTS)" o un video en "Compositor de Video HTML" y aparecerán aquí automáticamente.
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {libraryItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-xs"
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <h4 className="text-sm font-extrabold text-slate-900 dark:text-white line-clamp-1">
-                          {item.title}
-                        </h4>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {item.kind === 'video' && (
-                            <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-md bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/30">
-                              🎬 VIDEO {item.aspectRatio || ''}
+                {libraryItems
+                  .filter((item) => {
+                    if (libraryFilter === 'video') return item.kind === 'video';
+                    if (libraryFilter === 'audio') return item.kind !== 'video';
+                    return true;
+                  })
+                  .map((item) => (
+                    <div
+                      key={item.id}
+                      className="bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-xs"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <h4 className="text-sm font-extrabold text-slate-900 dark:text-white line-clamp-1">
+                            {item.title}
+                          </h4>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {item.kind === 'video' && (
+                              <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-md bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/30">
+                                🎬 VIDEO HTML {item.aspectRatio || ''}
+                              </span>
+                            )}
+                            <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border border-indigo-500/30">
+                              {item.voiceName}
                             </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2.5 text-xs text-slate-600 dark:text-slate-300">
+                          <span>⏱ {formatDurationBadge(item.durationSeconds)}</span>
+                          <span>•</span>
+                          <span>{item.wordCount} palabras</span>
+                          <span>•</span>
+                          <span>{formatLibraryDate(item.createdAt)}</span>
+                        </div>
+                        {item.stylePrompt && (
+                          <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/70 dark:border-slate-800 text-[11px] italic text-slate-600 dark:text-slate-300 line-clamp-2">
+                            "{item.stylePrompt}"
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-200/60 dark:border-slate-800">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {item.kind === 'video' ? (
+                            <ExpandableButton
+                              size="sm"
+                              icon={<Edit3 />}
+                              label="Abrir en Editor"
+                              variant="orange"
+                              alwaysExpanded
+                              onClick={() => openLibraryVideo(item)}
+                            />
+                          ) : (
+                            <>
+                              <ExpandableButton
+                                size="sm"
+                                icon={<Play />}
+                                label="Reproducir"
+                                variant="teal"
+                                alwaysExpanded
+                                onClick={() => openLibraryAudio(item)}
+                              />
+                              <ExpandableButton
+                                size="sm"
+                                icon={<Film />}
+                                label="Usar en Video"
+                                variant="purple"
+                                alwaysExpanded
+                                onClick={() => openLibraryAudio(item, true)}
+                              />
+                            </>
                           )}
-                          <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border border-indigo-500/30">
-                            {item.voiceName}
-                          </span>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2.5 text-xs text-slate-600 dark:text-slate-300">
-                        <span>⏱ {formatDurationBadge(item.durationSeconds)}</span>
-                        <span>•</span>
-                        <span>{item.wordCount} palabras</span>
-                        <span>•</span>
-                        <span>{formatLibraryDate(item.createdAt)}</span>
-                      </div>
-                      {item.stylePrompt && (
-                        <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/70 dark:border-slate-800 text-[11px] italic text-slate-600 dark:text-slate-300 line-clamp-2">
-                          "{item.stylePrompt}"
-                        </div>
-                      )}
-                    </div>
 
-                    <div className="flex items-center justify-between pt-3 border-t border-slate-200/60 dark:border-slate-800">
-                      <div className="flex items-center gap-1.5">
-                        {item.kind === 'video' ? (
-                          <ExpandableButton
-                            size="sm"
-                            icon={<Edit3 />}
-                            label="Abrir en Compositor"
-                            variant="orange"
-                            onClick={() => openLibraryVideo(item)}
-                          />
-                        ) : (
-                          <>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {item.kind === 'video' && (
+                            <>
+                              <ExpandableButton
+                                size="sm"
+                                icon={<Download />}
+                                label="Descargar .HTML"
+                                variant="green"
+                                alwaysExpanded
+                                onClick={async () => {
+                                  if (item.capsuleKey) {
+                                    const b = await getMediaBlob(item.capsuleKey);
+                                    if (b) {
+                                      downloadBlobFile(b, `wappy-video-${item.id}.html`);
+                                      return;
+                                    }
+                                  }
+                                  if (item.htmlKey) {
+                                    const b = await getMediaBlob(item.htmlKey);
+                                    if (b) {
+                                      downloadBlobFile(b, `wappy-video-${item.id}.html`);
+                                      return;
+                                    }
+                                  }
+                                  setStatusBanner({
+                                    type: 'error',
+                                    text: 'No se encontró el archivo HTML guardado para este elemento.',
+                                  });
+                                }}
+                              />
+                              <ExpandableButton
+                                size="sm"
+                                icon={<Film />}
+                                label={item.mp4Key ? 'Descargar .MP4' : 'Renderizar .MP4'}
+                                variant="teal"
+                                alwaysExpanded
+                                onClick={async () => {
+                                  if (item.mp4Key) {
+                                    const b = await getMediaBlob(item.mp4Key);
+                                    if (b) {
+                                      downloadBlobFile(b, `wappy-studio-reel-${item.id}.mp4`);
+                                      return;
+                                    }
+                                  }
+                                  await openLibraryVideo(item);
+                                  setTimeout(() => {
+                                    handleRenderServerMp4();
+                                  }, 250);
+                                }}
+                              />
+                            </>
+                          )}
+                          {item.kind !== 'video' && (
                             <ExpandableButton
                               size="sm"
-                              icon={<Play />}
-                              label="Reproducir"
-                              variant="teal"
-                              onClick={() => openLibraryAudio(item)}
+                              icon={<Download />}
+                              label="Descargar WAV"
+                              variant="green"
+                              alwaysExpanded
+                              onClick={async () => {
+                                const b = await loadLibraryAudioBlob(item);
+                                if (!b) {
+                                  setStatusBanner({
+                                    type: 'error',
+                                    text: 'Este audio ya no está disponible (se generó antes del guardado permanente). Vuelve a generarlo.',
+                                  });
+                                  return;
+                                }
+                                downloadBlobFile(b, `wappy-audio-${item.id}.wav`);
+                              }}
                             />
-                            <ExpandableButton
-                              size="sm"
-                              icon={<Film />}
-                              label="Usar en Video"
-                              variant="purple"
-                              onClick={() => openLibraryAudio(item, true)}
-                            />
-                          </>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        {item.kind === 'video' && item.mp4Key && (
+                          )}
                           <ExpandableButton
                             size="sm"
-                            icon={<Film />}
-                            label="Descargar MP4"
-                            variant="green"
-                            onClick={async () => {
-                              const b = await getMediaBlob(item.mp4Key as string);
-                              if (b) downloadBlobFile(b, `wappy-studio-reel-${item.id}.mp4`);
-                            }}
+                            icon={<Trash2 />}
+                            label="Eliminar"
+                            variant="danger"
+                            onClick={() => deleteLibraryItem(item)}
                           />
-                        )}
-                        {item.kind === 'video' && item.capsuleKey && (
-                          <ExpandableButton
-                            size="sm"
-                            icon={<Download />}
-                            label="Descargar Cápsula HTML"
-                            variant="green"
-                            onClick={async () => {
-                              const b = await getMediaBlob(item.capsuleKey as string);
-                              if (b) downloadBlobFile(b, `wappy-academia-capsula-${item.id}.html`);
-                            }}
-                          />
-                        )}
-                        {item.kind !== 'video' && (
-                          <ExpandableButton
-                            size="sm"
-                            icon={<Download />}
-                            label="Descargar WAV"
-                            variant="green"
-                            onClick={async () => {
-                              const b = await loadLibraryAudioBlob(item);
-                              if (!b) {
-                                setStatusBanner({
-                                  type: 'error',
-                                  text: 'Este audio ya no está disponible (se generó antes del guardado permanente). Vuelve a generarlo.',
-                                });
-                                return;
-                              }
-                              downloadBlobFile(b, `wappy-audio-${item.id}.wav`);
-                            }}
-                          />
-                        )}
-                        <ExpandableButton
-                          size="sm"
-                          icon={<Trash2 />}
-                          label="Eliminar"
-                          variant="danger"
-                          onClick={() => deleteLibraryItem(item)}
-                        />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             )}
           </div>
@@ -7156,43 +8376,36 @@ function StudioAudioPlayer({
 
         <div className="flex items-center gap-2 shrink-0">
           {audioBase64 && (
-            <button
-              type="button"
+            <ExpandableButton
+              size="sm"
+              icon={copied ? <Check /> : <Copy />}
+              label={copied ? 'Copiado' : 'Copiar Base64'}
+              variant="fuchsia"
               onClick={() => {
                 navigator.clipboard.writeText(audioBase64);
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
               }}
-              title="Copiar Base64"
-              className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
-            >
-              {copied ? (
-                <Check className="w-4 h-4 text-emerald-500" />
-              ) : (
-                <Copy className="w-4 h-4" />
-              )}
-            </button>
+            />
           )}
 
-          <button
-            type="button"
+          <ExpandableButton
+            size="sm"
+            icon={<Film />}
+            label="Llevar al Video"
+            variant="purple"
+            alwaysExpanded
             onClick={onSendToVideo}
-            title="Vincular locución al Compositor de Video"
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30 rounded-lg text-xs font-semibold transition shrink-0 cursor-pointer"
-          >
-            <Film className="w-3.5 h-3.5" />
-            <span>Llevar al Video</span>
-          </button>
+          />
 
-          <button
-            type="button"
+          <ExpandableButton
+            size="sm"
+            icon={<Download />}
+            label="Descargar WAV"
+            variant="green"
+            alwaysExpanded
             onClick={handleDownload}
-            title="Descargar archivo WAV completo"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold shadow-md shadow-indigo-600/25 transition shrink-0 cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Descargar WAV</span>
-          </button>
+          />
         </div>
       </div>
 
@@ -7424,51 +8637,50 @@ function AsyncJobMonitorCard({
 
         <div className="flex items-center gap-2">
           {isProcessing && (
-            <button
-              type="button"
+            <ExpandableButton
+              size="sm"
+              icon={<Pause />}
+              label="Pausar"
+              variant="amber"
+              alwaysExpanded
               onClick={onPause}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 transition cursor-pointer"
-            >
-              <Pause className="w-3.5 h-3.5" />
-              <span>Pausar</span>
-            </button>
+            />
           )}
           {isPaused && (
-            <button
-              type="button"
+            <ExpandableButton
+              size="sm"
+              icon={<Play />}
+              label="Reanudar"
+              variant="teal"
+              alwaysExpanded
               onClick={onResume}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg shadow-md transition cursor-pointer"
-            >
-              <Play className="w-3.5 h-3.5 fill-white" />
-              <span>Reanudar</span>
-            </button>
+            />
           )}
           {!isCompleted && !isFailed && (
-            <button
-              type="button"
+            <ExpandableButton
+              size="sm"
+              icon={<X />}
+              label="Cancelar"
+              variant="danger"
               onClick={onCancel}
-              title="Cancelar tarea"
-              className="p-1.5 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            />
           )}
           {isCompleted && (
             <div className="flex items-center gap-2 flex-wrap">
-              <button
-                type="button"
+              <ExpandableButton
+                size="sm"
+                icon={<Play />}
+                label="Cargar en Reproductor"
+                variant="indigo"
+                alwaysExpanded
                 onClick={onLoadMaster}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg shadow-md shadow-indigo-600/25 transition cursor-pointer"
-              >
-                <Play className="w-3.5 h-3.5 fill-white" />
-                <span>Cargar en Reproductor</span>
-              </button>
+              />
               <a
                 href={job.downloadUrl || `/api/studio/tts/jobs/${job.id}/download`}
                 download={`wappy-master-${job.id}.wav`}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shadow-md shadow-emerald-600/25 transition"
+                className="inline-flex items-center gap-1.5 h-8 px-2.5 sm:h-9 sm:px-3 rounded-xl bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-700 dark:text-green-300 text-xs font-bold tracking-wide transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
               >
-                <Download className="w-3.5 h-3.5" />
+                <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span>Descargar WAV Master</span>
               </a>
             </div>

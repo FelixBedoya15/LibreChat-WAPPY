@@ -16,6 +16,34 @@ const ARCHETYPE_ROTATION = [
   'cta-viral-bubbles',
 ];
 
+/**
+ * Mapea los identificadores de efectos de la skill `animaciones-17-efectos-reels`
+ * a los 7 Arquetipos Cinéticos de Antigravity.
+ */
+function resolveArchetypeFromEffect(effectId, idx = 0, isFirst = false, isLast = false) {
+  const clean = String(effectId || '').toLowerCase().trim();
+  if (ARCHETYPE_ROTATION.includes(clean)) return clean;
+
+  if (/hook|wall|06|headline|19|cover|vs|14|corte/.test(clean)) return 'hook-vs-wall';
+  if (/phone|05|iphone|island|16|green/.test(clean)) return 'iphone-split-showcase';
+  if (/check|13|firma|signature|09|doodle|17|paper/.test(clean)) return 'signature-pad-live';
+  if (/chart|08|grow|math|04|reticula|digital-zoom/.test(clean)) return 'chart-grow-math';
+  if (/orbit|01|pentagon|11|giro|07|zoom-through|18|vertigo/.test(clean)) return 'pentagon-orbital';
+  if (/ui-world|03|grid|tenshi|10|glass|02|frame/.test(clean)) return 'tenshi-specialists-grid';
+  if (/couch|12|cta|bubble|15|zoom-out/.test(clean)) return 'cta-viral-bubbles';
+
+  if (isFirst) return 'hook-vs-wall';
+  if (isLast) return 'cta-viral-bubbles';
+  const midArchetypes = [
+    'iphone-split-showcase',
+    'signature-pad-live',
+    'chart-grow-math',
+    'pentagon-orbital',
+    'tenshi-specialists-grid',
+  ];
+  return midArchetypes[Math.max(0, idx - 1) % midArchetypes.length];
+}
+
 function escapeHtml(str) {
   return String(str || '')
     .replace(/&/g, '&amp;')
@@ -241,12 +269,32 @@ function alignTimelineMapWithWavBuffer(timelineMap, wavBuffer) {
 function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
   const companyName = options.companyName || 'WAPPY IA';
   const totalBeats = beats.length || 1;
+  const userEffects = Array.isArray(options.selectedEffects)
+    ? options.selectedEffects
+    : Array.isArray(options.selectedSkillEffects)
+      ? options.selectedSkillEffects
+      : Array.isArray(options.effects)
+        ? options.effects
+        : [];
+  const customSteps = Array.isArray(options.scriptSteps)
+    ? options.scriptSteps
+    : Array.isArray(options.scenesBreakdown)
+      ? options.scenesBreakdown
+      : [];
 
   return beats.map((beat, idx) => {
     const isFirst = idx === 0;
     const isLast = idx === totalBeats - 1 && totalBeats > 1;
+    const stepMeta = customSteps[idx] && typeof customSteps[idx] === 'object' ? customSteps[idx] : null;
+    const effectCandidate =
+      stepMeta?.archetype ||
+      stepMeta?.effect ||
+      (userEffects.length > 0 ? userEffects[idx % userEffects.length] : '');
+
     let archetype;
-    if (isFirst) {
+    if (effectCandidate) {
+      archetype = resolveArchetypeFromEffect(effectCandidate, idx, isFirst, isLast);
+    } else if (isFirst) {
       archetype = 'hook-vs-wall';
     } else if (isLast) {
       archetype = 'cta-viral-bubbles';
@@ -261,7 +309,7 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
       archetype = midArchetypes[(idx - 1) % midArchetypes.length];
     }
 
-    const rawText = String(beat.text || '').trim();
+    const rawText = String(stepMeta?.voiceover || stepMeta?.text || beat.text || '').trim();
     const cleanWords = rawText.split(/\s+/).filter(Boolean);
 
     // Extraer prefijos ordinales (ej. "Primero:", "Segundo:", "Tercero:")
@@ -276,15 +324,22 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
     }
 
     const bodyWords = bodyText.split(/\s+/).filter(Boolean);
-    const titleBefore = stepPrefix
+    const defaultTitleBefore = stepPrefix
       ? `${idx}. ${bodyWords.slice(0, 2).join(' ')}`
       : bodyWords.slice(0, Math.min(3, Math.max(1, Math.floor(bodyWords.length * 0.25)))).join(' ');
-    const titleHighlight = stepPrefix
+    const defaultTitleHighlight = stepPrefix
       ? bodyWords.slice(2, Math.min(5, bodyWords.length)).join(' ') || stepPrefix
       : bodyWords.slice(-Math.min(3, bodyWords.length)).join(' ').replace(/[.,;:!?]+$/, '');
 
+    const titleBefore =
+      stepMeta?.titleBefore ||
+      (isFirst && options.headlineText ? String(options.headlineText).split(/\s+/).slice(0, 3).join(' ') : defaultTitleBefore);
+    const titleHighlight =
+      stepMeta?.titleHighlight ||
+      (isFirst && options.headlineText ? String(options.headlineText).split(/\s+/).slice(3, 6).join(' ') || defaultTitleHighlight : defaultTitleHighlight);
+
     const highlightStyles = ['lime', 'cyan', 'lime', 'cyan', 'lime', 'cyan', 'lime'];
-    const highlightStyle = isFirst ? 'lime' : highlightStyles[idx % highlightStyles.length];
+    const highlightStyle = stepMeta?.highlightStyle || (isFirst ? 'lime' : highlightStyles[idx % highlightStyles.length]);
 
     // Extraer frases cortas del beat para alimentar las tarjetas dinámicas
     const clauses = bodyText
@@ -302,17 +357,21 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
       endSec: beat.endSec,
       durationSec: beat.durationSec,
       archetype,
-      eyebrow: stepPrefix
-        ? `REGLA DE ORO #${idx} • ${stepPrefix}`
-        : isFirst
-          ? `ALERTA CRÍTICA • ${companyName}`
-          : isLast
-            ? `CULTURA PREVENTIVA • ${companyName}`
-            : `ESTÁNDAR TÉCNICO • PASO 0${idx + 1}`,
-      titleBefore: titleBefore.slice(0, 24),
-      titleHighlight: titleHighlight.slice(0, 24),
+      eyebrow:
+        stepMeta?.eyebrow ||
+        (isFirst && options.badgeText
+          ? String(options.badgeText).toUpperCase().slice(0, 32)
+          : stepPrefix
+            ? `REGLA DE ORO #${idx} • ${stepPrefix}`
+            : isFirst
+              ? `🔥 ¡GRATIS! • ${companyName}`
+              : isLast
+                ? `CULTURA PREVENTIVA • ${companyName}`
+                : `ESTÁNDAR TÉCNICO • PASO 0${idx + 1}`),
+      titleBefore: String(titleBefore || 'ESTÁNDAR').slice(0, 24),
+      titleHighlight: String(titleHighlight || 'WAPPY IA').slice(0, 24),
       highlightStyle,
-      subtitle: rawText,
+      subtitle: isFirst && options.subtitleText ? String(options.subtitleText) : rawText,
       badCardTitle: 'Práctica sin Protocolo',
       badCardDesc: 'Alto riesgo de accidente grave por exceso de confianza o improvisación',
       badCardBadge: 'RIESGO CRÍTICO',
@@ -1004,6 +1063,31 @@ function getVoxelAvatarInlineJs() {
 function compileAntigravityMasterReelHtml(scenePlan, timelineMap, options = {}) {
   const totalDur = Math.max(4, Number(timelineMap.totalDurationSeconds) || 30);
   const hasBaseVideo = Boolean(options.hasBaseVideo);
+  const aspectRatio = String(options.aspectRatio || '9:16').trim() === '16:9' ? '16:9' : '9:16';
+  const isHorizontal = aspectRatio === '16:9';
+  const stageW = isHorizontal ? 1920 : 1080;
+  const stageH = isHorizontal ? 1080 : 1920;
+
+  const rawTheme = String(options.theme || options.selectedArtDirection || 'dark-tech-hud').toLowerCase();
+  let stageBgGradient = 'radial-gradient(circle at 50% 18%, #0c192e 0%, #050a14 58%, #020409 100%)';
+  let bodyBgColor = '#020409';
+  if (rawTheme.includes('lima') || rawTheme.includes('oliva') || rawTheme.includes('wappy-dark')) {
+    stageBgGradient = 'radial-gradient(circle at 50% 18%, #1d2d04 0%, #0e1300 62%, #070a00 100%)';
+    bodyBgColor = '#070a00';
+  } else if (rawTheme.includes('cielo') || rawTheme.includes('sky') || rawTheme.includes('cloud')) {
+    stageBgGradient = 'radial-gradient(circle at 50% 18%, #0d3b66 0%, #071e36 58%, #030d1a 100%)';
+    bodyBgColor = '#030d1a';
+  } else if (rawTheme.includes('crema') || rawTheme.includes('cream') || rawTheme.includes('editorial') || rawTheme.includes('dummies')) {
+    stageBgGradient = 'radial-gradient(circle at 50% 18%, #132a2e 0%, #09171a 60%, #040b0d 100%)';
+    bodyBgColor = '#040b0d';
+  }
+
+  const customLime =
+    typeof options.accentColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(options.accentColor.trim())
+      ? options.accentColor.trim()
+      : '#c7f303';
+  const customCssBlock = options.customCss ? `\n/* Custom Studio AI Edits */\n${options.customCss}\n` : '';
+
   const scenesMarkup = scenePlan.map((sc, idx) => renderSceneMarkup(sc, idx)).join('\n');
   const voxelAvatarJs = getVoxelAvatarInlineJs();
 
@@ -1021,7 +1105,7 @@ function compileAntigravityMasterReelHtml(scenePlan, timelineMap, options = {}) 
   const vozDataJson = JSON.stringify(timelineMap.vozData || []);
 
   return `<!doctype html>
-<html lang="es" data-wappy-template="true" data-wappy-master-reel="true">
+<html lang="es" data-wappy-template="true" data-wappy-master-reel="true" data-aspect-ratio="${aspectRatio}" data-art-direction="${escapeHtml(rawTheme)}">
 <head>
 <meta charset="utf-8">
 <title>WAPPY IA · Reel Dinámico Antigravity 60 FPS</title>
@@ -1038,7 +1122,7 @@ function compileAntigravityMasterReelHtml(scenePlan, timelineMap, options = {}) 
 </script>
 <style>
 :root {
-  --w-lime: #c7f303;
+  --w-lime: ${customLime};
   --w-lime-glow: rgba(199, 243, 3, 0.45);
   --w-teal: #0d9488;
   --w-teal-bright: #2dd4bf;
@@ -1047,7 +1131,7 @@ function compileAntigravityMasterReelHtml(scenePlan, timelineMap, options = {}) 
   --w-amber: #f59e0b;
   --w-red: #ef4444;
   --w-green: #22c55e;
-  --w-bg-dark: #020409;
+  --w-bg-dark: ${bodyBgColor};
   --sans: 'Outfit', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --mono: 'JetBrains Mono', monospace;
 }
@@ -1056,7 +1140,7 @@ function compileAntigravityMasterReelHtml(scenePlan, timelineMap, options = {}) 
 html, body {
   width: 100vw; height: 100vh;
   overflow: hidden;
-  background: ${hasBaseVideo ? 'transparent' : '#020409'};
+  background: ${hasBaseVideo ? 'transparent' : bodyBgColor};
   font-family: var(--sans);
   color: #fff;
   -webkit-font-smoothing: antialiased;
@@ -1070,9 +1154,9 @@ html, body {
 
 #stage {
   position: relative;
-  width: 1080px; height: 1920px;
+  width: ${stageW}px; height: ${stageH}px;
   overflow: hidden;
-  background: ${hasBaseVideo ? 'transparent' : 'radial-gradient(circle at 50% 18%, #0c192e 0%, #050a14 58%, #020409 100%)'};
+  background: ${hasBaseVideo ? 'transparent' : stageBgGradient};
   flex: none;
   perspective: 1400px;
   transform-origin: center center;
@@ -1586,11 +1670,29 @@ html, body {
   z-index: 30;
   background: transparent;
 }
+
+/* ADAPTACIÓN HORIZONTAL 16:9 (1920x1080) */
+html[data-aspect-ratio="16:9"] .header-box {
+  top: 28px; left: 60px; right: 480px; align-items: flex-start; text-align: left;
+}
+html[data-aspect-ratio="16:9"] .title-hero {
+  font-size: 52px; max-width: 1320px;
+}
+html[data-aspect-ratio="16:9"] .sub-hero {
+  font-size: 24px; max-width: 1280px; -webkit-line-clamp: 1;
+}
+html[data-aspect-ratio="16:9"] .middle-container {
+  top: 215px; left: 60px; right: 500px; height: 810px;
+}
+html[data-aspect-ratio="16:9"] #avatar-host-container {
+  left: auto; right: -30px; top: 340px; width: 640px; height: 740px;
+}
+${customCssBlock}
 </style>
 </head>
 <body>
 <div id="viewport">
-  <div id="stage" data-wappy-master-reel="true">
+  <div id="stage" data-wappy-master-reel="true" data-aspect-ratio="${aspectRatio}">
     ${hasBaseVideo ? '' : '<div class="bg-cyber-grid"></div><div class="ambient-orb orb-teal"></div><div class="ambient-orb orb-cyan"></div><div class="ambient-orb orb-lime"></div>'}
     <div id="top-progress-bar"></div>
     <div class="scanline-beam" id="scanline"></div>
@@ -1656,14 +1758,17 @@ ${voxelAvatarJs}
     }
   };
 
-  // Escalar el escenario 1080x1920 automáticamente al viewport de cualquier pantalla o iframe
+  var STAGE_W = ${stageW};
+  var STAGE_H = ${stageH};
+
+  // Escalar el escenario automáticamente al viewport de cualquier pantalla o iframe
   function fitStageToViewport() {
     var vp = document.getElementById('viewport');
     var st = document.getElementById('stage');
     if (!vp || !st) return;
-    var w = vp.clientWidth || window.innerWidth || 1080;
-    var h = vp.clientHeight || window.innerHeight || 1920;
-    var scale = Math.min(w / 1080, h / 1920);
+    var w = vp.clientWidth || window.innerWidth || STAGE_W;
+    var h = vp.clientHeight || window.innerHeight || STAGE_H;
+    var scale = Math.min(w / STAGE_W, h / STAGE_H);
     st.style.transform = 'scale(' + scale.toFixed(5) + ')';
   }
   window.addEventListener('resize', fitStageToViewport);
@@ -2269,6 +2374,7 @@ ${voxelAvatarJs}
 
 module.exports = {
   ARCHETYPE_ROTATION,
+  resolveArchetypeFromEffect,
   alignTimelineMapWithWavBuffer,
   buildSmartScenePlanFromScript,
   generateCreativeScenePlanWithAi,
