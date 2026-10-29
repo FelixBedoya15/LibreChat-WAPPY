@@ -59,6 +59,7 @@ export default function LandingPage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [configuredPlans, setConfiguredPlans] = useState<any[]>([]);
   const [selectedPlanTab, setSelectedPlanTab] = useState<'pro' | 'vital'>('pro');
+  const [billingInterval, setBillingInterval] = useState<'monthly' | 'quarterly' | 'semiannual' | 'annual'>('quarterly');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     try {
       return localStorage.getItem('wappy_theme_mode') === 'dark';
@@ -247,28 +248,41 @@ export default function LandingPage() {
     vitalSemSavings,
     vitalSemPct,
     vitalAnnualSavings,
+    currentProPrice,
+    currentProDisplayPrice,
+    currentProPromo,
+    currentProMonthlyPrice,
+    currentVitalPrice,
+    currentVitalDisplayPrice,
+    currentVitalPromo,
+    currentVitalMonthlyPrice,
+    maxDiscounts,
   } = React.useMemo(() => {
     const proConfig = configuredPlans.find((p) => p.planId === 'pro');
     const vitalConfig = configuredPlans.find((p) => p.planId === 'ipevar' || p.planId === 'vital');
 
-    const pPrices = {
+    const pPrices: Record<string, number> = {
       monthly: proConfig?.prices?.monthly || 179000,
+      quarterly: proConfig?.prices?.quarterly || 518600,
       semiannual: proConfig?.prices?.semiannual || 1005000,
-      annual: proConfig?.prices?.annual || 1200000,
+      annual: proConfig?.prices?.annual || 1790000,
     };
-    const pPromos = {
+    const pPromos: Record<string, any> = {
       monthly: proConfig?.promotions?.monthly,
+      quarterly: proConfig?.promotions?.quarterly,
       semiannual: proConfig?.promotions?.semiannual,
       annual: proConfig?.promotions?.annual,
     };
 
-    const vPrices = {
+    const vPrices: Record<string, number> = {
       monthly: vitalConfig?.prices?.monthly || 119000,
+      quarterly: vitalConfig?.prices?.quarterly || 345000,
       semiannual: vitalConfig?.prices?.semiannual || 669000,
       annual: vitalConfig?.prices?.annual || 1190000,
     };
-    const vPromos = {
+    const vPromos: Record<string, any> = {
       monthly: vitalConfig?.promotions?.monthly,
+      quarterly: vitalConfig?.promotions?.quarterly,
       semiannual: vitalConfig?.promotions?.semiannual,
       annual: vitalConfig?.promotions?.annual,
     };
@@ -285,6 +299,40 @@ export default function LandingPage() {
     const vSemP = vPrices.monthly * 6 > 0 ? Math.round((vSemSav / (vPrices.monthly * 6)) * 100) : 0;
     const vAnnSav = Math.max(0, vPrices.monthly * 12 - vPrices.annual);
 
+    // Current selection calculations
+    const rawPro = pPrices[billingInterval] || 0;
+    const promoPro = pPromos[billingInterval];
+    let regularProBase = rawPro;
+    if (promoPro && promoPro.active && promoPro.discountPercentage > 0 && rawPro > 0) {
+      regularProBase = Math.round(rawPro / (1 - promoPro.discountPercentage / 100));
+    }
+    const displayProBase = '$' + regularProBase.toLocaleString('es-CO');
+    const monthsDivisor = billingInterval === 'quarterly' ? 3 : billingInterval === 'semiannual' ? 6 : billingInterval === 'annual' ? 12 : 1;
+    const monthlyPro = rawPro / monthsDivisor;
+
+    const rawVital = vPrices[billingInterval] || 0;
+    const promoVital = vPromos[billingInterval];
+    let regularVitalBase = rawVital;
+    if (promoVital && promoVital.active && promoVital.discountPercentage > 0 && rawVital > 0) {
+      regularVitalBase = Math.round(rawVital / (1 - promoVital.discountPercentage / 100));
+    }
+    const displayVitalBase = '$' + regularVitalBase.toLocaleString('es-CO');
+    const monthlyVital = rawVital / monthsDivisor;
+
+    // Max discounts per interval
+    const intervals = ['monthly', 'quarterly', 'semiannual', 'annual'] as const;
+    const maxDisc: Record<string, number> = {};
+    intervals.forEach((intId) => {
+      let maxD = 0;
+      if (proConfig?.promotions?.[intId]?.active) {
+        maxD = Math.max(maxD, proConfig.promotions[intId].discountPercentage || 0);
+      }
+      if (vitalConfig?.promotions?.[intId]?.active) {
+        maxD = Math.max(maxD, vitalConfig.promotions[intId].discountPercentage || 0);
+      }
+      maxDisc[intId] = maxD;
+    });
+
     return {
       proPrices: pPrices,
       proPromos: pPromos,
@@ -300,8 +348,17 @@ export default function LandingPage() {
       vitalSemSavings: vSemSav,
       vitalSemPct: vSemP,
       vitalAnnualSavings: vAnnSav,
+      currentProPrice: rawPro,
+      currentProDisplayPrice: displayProBase,
+      currentProPromo: promoPro,
+      currentProMonthlyPrice: monthlyPro,
+      currentVitalPrice: rawVital,
+      currentVitalDisplayPrice: displayVitalBase,
+      currentVitalPromo: promoVital,
+      currentVitalMonthlyPrice: monthlyVital,
+      maxDiscounts: maxDisc,
     };
-  }, [configuredPlans]);
+  }, [configuredPlans, billingInterval]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -3893,691 +3950,621 @@ export default function LandingPage() {
             </p>
           </div>
 
-          {/* Switcher de Planes: Wappy Pro vs Wappy Vital */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 32 }}>
+          {/* Selector de Temporalidad (Igual que en /planes) */}
+          <div style={{ maxWidth: 860, margin: '0 auto 40px', padding: '0 16px' }}>
             <div
               style={{
-                display: 'inline-flex',
-                background: 'var(--surface)',
-                padding: '6px',
-                borderRadius: '16px',
-                border: '1px solid var(--line)',
-                gap: '8px',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.04)',
-                maxWidth: '100%',
-                flexWrap: 'wrap',
-                justifyContent: 'center',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                gap: 12,
+                width: '100%',
               }}
             >
-              <button
-                type="button"
-                onClick={() => setSelectedPlanTab('pro')}
-                style={{
-                  padding: '10px 22px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontWeight: 700,
-                  fontSize: '14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'all 0.25s ease',
-                  background: selectedPlanTab === 'pro' ? 'var(--ink)' : 'transparent',
-                  color: selectedPlanTab === 'pro' ? '#ffffff' : 'var(--ink2)',
-                  boxShadow: selectedPlanTab === 'pro' ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',
-                }}
-              >
-                <span>⭐</span>
-                <span>{lang === 'es' ? 'Plan Wappy Pro (Somos SST Completo)' : 'Wappy Pro Plan (Full SST)'}</span>
-                <span
-                  style={{
-                    fontSize: '10px',
-                    padding: '2px 8px',
-                    borderRadius: '9999px',
-                    background: selectedPlanTab === 'pro' ? 'var(--lime)' : 'rgba(0,0,0,0.06)',
-                    color: '#0E1300',
-                    fontWeight: 800,
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {lang === 'es' ? '8 Hitos' : '8 Milestones'}
-                </span>
-              </button>
+              {[
+                { id: 'monthly', label: lang === 'es' ? 'Mensual' : 'Monthly' },
+                { id: 'quarterly', label: lang === 'es' ? 'Trimestral' : 'Quarterly' },
+                { id: 'semiannual', label: lang === 'es' ? 'Semestral' : 'Semiannual' },
+                { id: 'annual', label: lang === 'es' ? 'Anual' : 'Annual' },
+              ].map((interval) => {
+                const isSelected = billingInterval === interval.id;
+                const maxDiscount = maxDiscounts[interval.id] || 0;
 
-              <button
-                type="button"
-                onClick={() => setSelectedPlanTab('vital')}
-                style={{
-                  padding: '10px 22px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontWeight: 700,
-                  fontSize: '14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'all 0.25s ease',
-                  background: selectedPlanTab === 'vital' ? '#0D9488' : 'transparent',
-                  color: selectedPlanTab === 'vital' ? '#ffffff' : 'var(--ink2)',
-                  boxShadow: selectedPlanTab === 'vital' ? '0 4px 12px rgba(13,148,136,0.3)' : 'none',
-                }}
-              >
-                <span>🌿</span>
-                <span>{lang === 'es' ? 'Plan Wappy Vital (Huella Biocéntrica)' : 'Wappy Vital Plan (Biocentric)'}</span>
-                <span
-                  style={{
-                    fontSize: '10px',
-                    padding: '2px 8px',
-                    borderRadius: '9999px',
-                    background: selectedPlanTab === 'vital' ? '#ccff00' : 'rgba(0,0,0,0.06)',
-                    color: '#0E1300',
-                    fontWeight: 800,
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {lang === 'es' ? 'Bio-IPEVR' : 'Bio-IPEVR'}
-                </span>
-              </button>
+                return (
+                  <button
+                    key={interval.id}
+                    type="button"
+                    onClick={() => setBillingInterval(interval.id as any)}
+                    style={{
+                      position: 'relative',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: 18,
+                      border: isSelected ? '2px solid #0D9488' : '1.5px solid var(--line)',
+                      background: isSelected ? (isDarkMode ? 'rgba(13, 148, 136, 0.18)' : '#f0fdfa') : 'var(--surface)',
+                      padding: '16px 8px',
+                      cursor: 'pointer',
+                      transition: 'all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)',
+                      boxShadow: isSelected ? '0 8px 24px rgba(13, 148, 136, 0.18)' : 'none',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 15,
+                        fontWeight: 700,
+                        color: isSelected ? '#0D9488' : 'var(--ink)',
+                      }}
+                    >
+                      {interval.label}
+                    </span>
+
+                    {maxDiscount > 0 ? (
+                      <span
+                        style={{
+                          marginTop: 8,
+                          borderRadius: 9999,
+                          padding: '3px 10px',
+                          fontSize: 11,
+                          fontWeight: 800,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                          background: isSelected ? '#0D9488' : (isDarkMode ? 'rgba(16, 185, 129, 0.2)' : '#dcfce7'),
+                          color: isSelected ? '#ffffff' : (isDarkMode ? '#34d399' : '#15803d'),
+                        }}
+                      >
+                        {lang === 'es' ? `Ahorra ${maxDiscount}%` : `Save ${maxDiscount}%`}
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          marginTop: 8,
+                          fontSize: 11,
+                          fontWeight: 500,
+                          color: 'var(--muted)',
+                        }}
+                      >
+                        {lang === 'es' ? 'Precio base' : 'Base price'}
+                      </span>
+                    )}
+
+                    {isSelected && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: -7,
+                          right: -7,
+                          width: 22,
+                          height: 22,
+                          borderRadius: 9999,
+                          background: '#0D9488',
+                          color: '#ffffff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                          fontSize: 12,
+                          fontWeight: 900,
+                        }}
+                      >
+                        ✓
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {selectedPlanTab === 'pro' ? (
-            /* =================== TAB 1: PLANES WAPPY PRO =================== */
-            <div className="price">
-              {/* Wappy Pro Mensual */}
-              <div className="pcard">
-                <span
-                  className="pbadge"
-                  style={{
-                    position: 'static',
-                    alignSelf: 'flex-start',
-                    marginBottom: 14,
-                    background: '#F1F5F9',
-                    color: '#475569',
-                    border: '1px solid #CBD5E1',
-                  }}
-                >
-                  {proPromos.monthly?.active && proPromos.monthly?.text
-                    ? proPromos.monthly.text
-                    : (lang === 'es' ? 'Flexibilidad Mensual' : 'Monthly Flexibility')}
-                </span>
-                <div className="pn">{lang === 'es' ? 'Wappy Pro Mensual' : 'Wappy Pro Monthly'}</div>
-                <div className="pp">
-                  ${proPrices.monthly.toLocaleString('es-CO')}
-                  <span>{lang === 'es' ? ' COP /mes' : ' COP/mo'}</span>
-                </div>
-                <div style={{ fontSize: 13, color: '#9A9AA8', marginBottom: 4 }}>
-                  {lang === 'es' ? 'Flexibilidad mes a mes · Cancela en cualquier momento' : 'Month-to-month flexibility · Cancel anytime'}
-                </div>
-                <div className="ptrial">
-                  <span style={{ width: 6, height: 6, borderRadius: 9999, background: '#1E8E3E', display: 'inline-block' }}></span>
-                  {lang === 'es' ? 'Prueba gratis de 7 días' : '7-day free trial'}
-                </div>
-                <ul>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? 'Somos SST completo (50+ aplicativos en los 8 hitos)' : 'Full Somos SST (50+ apps across 8 milestones)'}
-                  </li>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? 'Conversaciones ilimitadas con +20 Agentes IA' : 'Unlimited chats with 20+ specialized AI agents'}
-                  </li>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? 'Análisis Biomecánico en Vivo con Visión IA (MediaPipe)' : 'Live Biomechanical Vision Analysis (MediaPipe)'}
-                  </li>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? 'Matriz IPEVR (GTC 45) y Bio-IPEVR interconectadas' : 'Interconnected GTC 45 and Bio-IPEVR matrices'}
-                  </li>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? 'Actos predictivos en ATEL & Termómetro Psicosocial' : 'Predictive ATEL incidents & Psychosocial thermometer'}
-                  </li>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? 'Portales Públicos QR para colaboradores sin contraseñas' : 'Passwordless public QR portals for workers'}
-                  </li>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? '3 GB de almacenamiento (+1 GB por sede adicional)' : '3 GB storage (+1 GB per extra branch)'}
-                  </li>
-                </ul>
-                <button
-                  className="btn btn-glass btn-sm"
-                  style={{ marginTop: 'auto', justifyContent: 'center', border: '1px solid var(--line)' }}
-                  onClick={() => handleGoToPlanes('pro', 'monthly')}
-                >
-                  {lang === 'es' ? 'Elegir Pro Mensual' : 'Choose Pro Monthly'}
-                </button>
+          {/* Grilla Unificada de los 2 Planes (Wappy Pro y Wappy Vital) */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+              gap: 28,
+              maxWidth: 1040,
+              margin: '0 auto',
+            }}
+          >
+            {/* =================== CARD 1: WAPPY PRO =================== */}
+            <div
+              className="pcard"
+              style={{
+                borderColor: 'rgba(245, 158, 11, 0.35)',
+                boxShadow: isDarkMode ? '0 12px 36px rgba(245, 158, 11, 0.08)' : '0 12px 36px rgba(245, 158, 11, 0.05)',
+                display: 'flex',
+                flexDirection: 'column',
+                borderRadius: 28,
+                padding: '32px 28px',
+                position: 'relative',
+              }}
+            >
+              <div
+                style={{
+                  position: 'absolute',
+                  top: -14,
+                  left: 24,
+                  whiteSpace: 'nowrap',
+                  borderRadius: 9999,
+                  background: 'linear-gradient(90deg, #F59E0B, #EA580C)',
+                  padding: '4px 14px',
+                  fontSize: 11.5,
+                  fontWeight: 800,
+                  color: '#ffffff',
+                  boxShadow: '0 4px 14px rgba(234, 88, 12, 0.3)',
+                }}
+              >
+                ⭐ {lang === 'es' ? 'Plan Profesional Todo Incluido' : 'All-Inclusive Professional Plan'}
               </div>
 
-              {/* Wappy Pro Semestral */}
-              <div className="pcard">
-                <span
-                  className="pbadge"
+              {currentProPromo && currentProPromo.active && currentProPromo.discountPercentage > 0 && (
+                <div
                   style={{
-                    position: 'static',
-                    alignSelf: 'flex-start',
-                    marginBottom: 14,
-                    background: '#0D9488',
-                    color: '#fff',
+                    position: 'absolute',
+                    top: 20,
+                    right: 20,
+                    whiteSpace: 'nowrap',
+                    borderRadius: 9999,
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    background: '#ccff00',
+                    padding: '4px 12px',
+                    fontSize: 11,
+                    fontWeight: 900,
+                    color: '#0E1300',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                   }}
                 >
-                  {proPromos.semiannual?.active && proPromos.semiannual?.text
-                    ? proPromos.semiannual.text
-                    : (lang === 'es'
-                        ? `Ahorro Semestral · ${proSemPct > 0 ? `${proSemPct}% DCTO` : 'Tarifa Preferencial'}`
-                        : `Biannual Savings · ${proSemPct > 0 ? `${proSemPct}% OFF` : 'Best Value'}`)}
-                </span>
-                <div className="pn">{lang === 'es' ? 'Wappy Pro Semestral' : 'Wappy Pro Semiannual'}</div>
-                <div className="pp">
-                  ${proPrices.semiannual.toLocaleString('es-CO')}
-                  <span>{lang === 'es' ? ' COP /semestre' : ' COP/6 mo'}</span>
+                  -{currentProPromo.discountPercentage}% {lang === 'es' ? 'primera compra' : 'first purchase'}
                 </div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#0D9488', marginTop: 1, marginBottom: 4 }}>
-                  {lang === 'es'
-                    ? `⚡ Equivalente a $${proEqMonthly.toLocaleString('es-CO')} COP/mes`
-                    : `⚡ $${proEqMonthly.toLocaleString('es-CO')} COP/mo equivalent`}
-                </div>
-                <div style={{ fontSize: 13, color: '#9A9AA8', marginBottom: 4 }}>
-                  {lang === 'es' ? 'Compromiso semestral con tarifa reducida para tu empresa' : 'Semiannual commitment with reduced monthly fee'}
-                </div>
-                <div className="ptrial">
-                  <span style={{ width: 6, height: 6, borderRadius: 9999, background: '#1E8E3E', display: 'inline-block' }}></span>
-                  {lang === 'es' ? 'Prueba gratis de 7 días' : '7-day free trial'}
-                </div>
-                <ul>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    <strong>{lang === 'es' ? 'Todo lo del Plan Pro, facturado semestralmente' : 'Full Pro suite billed every 6 months'}</strong>
-                  </li>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? 'Ahorro directo en la tarifa mensual de tu SG-SST' : 'Direct savings on your monthly safety budget'}
-                  </li>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? '50+ aplicativos del SG-SST 100% habilitados' : 'All 50+ safety management applications active'}
-                  </li>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? '+20 Agentes IA: Médico, Abogado, Fisioterapeuta, Higienista' : '20+ AI Agents: Doctor, Legal, Physio, Hygienist'}
-                  </li>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? 'Visión artificial y diagnóstico postural MediaPipe en vivo' : 'Computer vision live ergonomic MediaPipe pose checks'}
-                  </li>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? 'Votación secreta COPASST y firmas electrónicas en actas' : 'Secret COPASST voting and electronic digital signatures'}
-                  </li>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? 'Soporte técnico preferencial y acompañamiento de inicio' : 'Priority technical support & onboarding assistance'}
-                  </li>
-                </ul>
-                <button
-                  className="btn btn-glass btn-sm"
-                  style={{ marginTop: 'auto', justifyContent: 'center', border: '1px solid var(--line)' }}
-                  onClick={() => handleGoToPlanes('pro', 'semiannual')}
-                >
-                  {lang === 'es' ? 'Elegir Pro Semestral' : 'Choose Pro Semiannual'}
-                </button>
-              </div>
+              )}
 
-              {/* Wappy Pro Anual (Más Popular / Máximo Ahorro) */}
-              <div className="pcard feat-plan">
-                <span className="pbadge" style={{ position: 'static', alignSelf: 'flex-start', marginBottom: 14 }}>
-                  {proPromos.annual?.active && proPromos.annual?.text
-                    ? proPromos.annual.text
-                    : (lang === 'es' ? 'Más popular · Máximo ahorro' : 'Most Popular · Max Savings')}
-                </span>
-                <div className="pn">{lang === 'es' ? 'Wappy Pro Anual' : 'Wappy Pro Annual'}</div>
-                <div className="pp">
-                  ${proPrices.annual.toLocaleString('es-CO')}
-                  <span>{lang === 'es' ? ' COP /año' : ' COP/yr'}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20, marginTop: 4 }}>
+                <div
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 16,
+                    background: 'rgba(245, 158, 11, 0.12)',
+                    color: '#F59E0B',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 22,
+                  }}
+                >
+                  👑
                 </div>
-                <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--lime)', marginTop: 1, marginBottom: 4 }}>
-                  {lang === 'es'
-                    ? `🌟 Solo $${proEqAnnual.toLocaleString('es-CO')} COP/mes${proAnnualSavings > 0 ? ` (Ahorras $${proAnnualSavings.toLocaleString('es-CO')}/año)` : ''}`
-                    : `🌟 Only $${proEqAnnual.toLocaleString('es-CO')} COP/mo${proAnnualSavings > 0 ? ` (Save $${proAnnualSavings.toLocaleString('es-CO')}/yr)` : ''}`}
-                </div>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', marginBottom: 4 }}>
-                  {lang === 'es' ? 'La elección preferida por empresas: máxima economía y continuidad SG-SST' : 'Preferred by businesses: maximum savings and continuous OHS compliance'}
-                </div>
-                <div className="ptrial">
-                  <span style={{ width: 6, height: 6, borderRadius: 9999, background: 'var(--lime)', display: 'inline-block' }}></span>
-                  {lang === 'es' ? 'Prueba gratis de 7 días' : '7-day free trial'}
-                </div>
-                <ul>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    <strong>{lang === 'es' ? 'Todo lo del ecosistema Wappy Pro con tarifa preferencial' : 'Full Wappy Pro ecosystem at frozen best rate'}</strong>
-                  </li>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
+                <div>
+                  <div className="pn" style={{ fontSize: 24, fontWeight: 800 }}>Wappy Pro</div>
+                  <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ink2)', lineHeight: 1.35 }}>
                     {lang === 'es'
-                      ? `Paga solo $${proEqAnnual.toLocaleString('es-CO')} COP/mes con facturación anual única`
-                      : `Pay only $${proEqAnnual.toLocaleString('es-CO')} COP/mo with single annual billing`}
-                  </li>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
+                      ? 'Ecosistema integral ilimitado con IA avanzada, 50+ aplicativos en los 8 Hitos SG-SST y Automatizaciones 24/7'
+                      : 'Comprehensive unlimited SST ecosystem with advanced AI, 50+ apps across 8 Milestones and 24/7 Automations'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Bloque de Precios con Tachado */}
+              <div style={{ marginBottom: 20, minHeight: 140, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <div>
+                  {currentProPromo && currentProPromo.active && currentProPromo.discountPercentage > 0 ? (
+                    <span
+                      style={{
+                        fontSize: 15,
+                        fontWeight: 700,
+                        color: 'var(--muted)',
+                        textDecoration: 'line-through',
+                        textDecorationColor: '#ef4444',
+                        textDecorationThickness: '2px',
+                        display: 'block',
+                        marginBottom: 2,
+                      }}
+                    >
+                      {currentProDisplayPrice}
                     </span>
-                    {lang === 'es' ? 'Somos SST integral: 50+ aplicativos en los 8 hitos normativos' : 'Complete Somos SST: 50+ apps in all 8 milestones'}
-                  </li>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
+                  ) : (
+                    <span style={{ fontSize: 15, fontWeight: 700, visibility: 'hidden', display: 'block', marginBottom: 2 }}>
+                      &nbsp;
                     </span>
-                    {lang === 'es' ? '+20 Agentes IA autónomos y orquestador Tenshi 24/7' : '20+ autonomous AI agents & Tenshi orchestrator 24/7'}
-                  </li>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
+                  )}
+
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                    <span
+                      style={{
+                        fontFamily: 'var(--display)',
+                        fontSize: 42,
+                        fontWeight: 900,
+                        letterSpacing: '-0.03em',
+                        color: '#F59E0B',
+                        lineHeight: 1,
+                      }}
+                    >
+                      ${Math.round(currentProPrice).toLocaleString('es-CO')}
                     </span>
-                    {lang === 'es' ? 'Visión IA MediaPipe para evaluación ergonómica de puestos' : 'MediaPipe AI vision for ergonomic workstation audits'}
-                  </li>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink2)' }}>
+                      /
+                      {billingInterval === 'monthly'
+                        ? (lang === 'es' ? 'mes' : 'mo')
+                        : billingInterval === 'quarterly'
+                          ? (lang === 'es' ? 'trim.' : 'quarter')
+                          : billingInterval === 'semiannual'
+                            ? (lang === 'es' ? 'sem.' : 'semester')
+                            : (lang === 'es' ? 'año' : 'year')}
                     </span>
-                    {lang === 'es' ? 'Creación de Agentes de IA propios a la medida de tu empresa' : 'Custom tailored AI agents for your business'}
-                  </li>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? 'Acompañamiento prioritario en migración de matrices y datos' : 'Priority assistance with data & matrix migrations'}
-                  </li>
-                </ul>
+                  </div>
+                </div>
+
+                <div style={{ width: '100%', marginTop: 8 }}>
+                  <div style={{ minHeight: 32, display: 'flex', alignItems: 'center' }}>
+                    {currentProPromo && currentProPromo.active && currentProPromo.discountPercentage > 0 ? (
+                      <p style={{ margin: 0, fontSize: 11.5, color: isDarkMode ? '#fbbf24' : '#d97706', fontWeight: 600, lineHeight: 1.35 }}>
+                        🎁 {lang === 'es'
+                          ? `Precio especial primera compra · Renovación posterior a valor regular (${currentProDisplayPrice})`
+                          : `Special first-purchase price · Subsequent renewal at regular price (${currentProDisplayPrice})`}
+                      </p>
+                    ) : (
+                      <p style={{ margin: 0, fontSize: 11.5, color: 'var(--ink2)', fontWeight: 600, lineHeight: 1.35 }}>
+                        {lang === 'es' ? 'Acceso ilimitado a todo el ecosistema WAPPY' : 'Unlimited access to the full WAPPY ecosystem'}
+                      </p>
+                    )}
+                  </div>
+
+                  {billingInterval !== 'monthly' ? (
+                    <div style={{ marginTop: 4, fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>
+                      ${Math.round(currentProMonthlyPrice).toLocaleString('es-CO')}{' '}
+                      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink2)' }}>
+                        {lang === 'es' ? '/mes (facturado en total)' : '/mo (billed in full)'}
+                      </span>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: 4, fontSize: 13.5, fontWeight: 700, visibility: 'hidden' }}>
+                      &nbsp;
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Botón CTA Pro */}
+              <div style={{ marginBottom: 20 }}>
                 <button
-                  className="btn btn-lime btn-sm"
-                  style={{ marginTop: 'auto', justifyContent: 'center' }}
-                  onClick={() => handleGoToPlanes('pro', 'annual')}
+                  type="button"
+                  onClick={() => handleGoToPlanes('pro', billingInterval)}
+                  style={{
+                    width: '100%',
+                    padding: '14px 20px',
+                    borderRadius: 16,
+                    border: 'none',
+                    background: 'linear-gradient(90deg, #F59E0B, #EA580C)',
+                    color: '#ffffff',
+                    fontSize: 15,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    boxShadow: '0 8px 20px rgba(245, 158, 11, 0.25)',
+                    transition: 'all 0.25s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                  }}
+                  onMouseOver={(e) => (e.currentTarget.style.transform = 'translateY(-2px)')}
+                  onMouseOut={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
                 >
-                  {lang === 'es' ? 'Elegir Wappy Pro Anual' : 'Choose Wappy Pro Annual'}
+                  <span>{lang === 'es' ? 'Adquirir Wappy Pro' : 'Get Wappy Pro'}</span>
+                  <span>→</span>
                 </button>
               </div>
+
+              <div style={{ borderTop: '1px solid var(--line)', margin: '4px 0 16px' }} />
+
+              {/* Features Pro */}
+              <ul style={{ margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 12, flex: 1, listStyle: 'none' }}>
+                {[
+                  { text: lang === 'es' ? 'Todo el ecosistema WAPPY IA sin restricciones' : 'Full unrestricted WAPPY AI ecosystem' },
+                  { text: lang === 'es' ? 'Somos SST Completo (8 Hitos de Gestión): 50+ aplicativos especializados (Diagnóstico 0312, Cronograma, Comités COPASST/COCOLAB/Brigadas, Huella Biocéntrica, PESV Res. 40595, Matriz Legal, Vulnerabilidad & PAE, Matriz Bio-IPEVR GTC-45, EPT, ATS, OWAS, Permisos de Alturas Res. 4272, Química SGA, Equipos de Alturas, Entrega EPP con firma digital, Reporte de Actos, Indicadores e Investigaciones ATEL, Auditoría Integral y Alta Dirección)' : 'Full Somos SST (8 Milestones): 50+ specialized apps (0312, GTC-45, PESV, Legal, PPE, Inspections)' },
+                  { text: lang === 'es' ? 'Módulo Huella Biocéntrica integrado: Perfiles de Cargo, Perfil Sociodemográfico, Condiciones de Salud, Oráculo Predictivo de Ausentismo y Matriz Bio-IPEVR Bioindividual' : 'Integrated Biocentric Module: Job profiles, Sociodemographics, Health & Absenteeism Oracle' },
+                  { text: lang === 'es' ? 'Centro de Control SST 360°: Tablero de Acciones ACPM, Automatizaciones IA 24/7 (con envío a correo y WhatsApp), Historial & Reportes de Ejecución y gestión de Sub-Usuarios (1 sub-usuario incluido)' : '360° Control Center: ACPM Board, 24/7 Automations (Email & WhatsApp), Sub-Users included' },
+                  { text: lang === 'es' ? 'Portal de Gamificación 360° con Códigos QR para Trabajadores: Pasaporte SST, puntos, ranking, reportes de actos, inspecciones preoperacionales, ATS, pausas activas, buzón de convivencia y encuestas' : '360° Gamification & QR Portal for Workers: Points, ranking, pre-op checks, hazard reports' },
+                  { text: lang === 'es' ? 'Academia WAPPY Completa: Cursos Abiertos con certificados verificables, Plan Empresa (Rutas de Aprendizaje corporativas y seguimiento), Clases en Vivo y Blog Técnico SST' : 'Full WAPPY Academy: Verified certificates, Corporate Learning Tracks, Live Classes' },
+                  { text: lang === 'es' ? 'Orquestador Tenshi (Voz y Chat en Tiempo Real) con navegación autónoma, Page Controller interactivo y +20 Agentes Especialistas en SST' : 'Tenshi Orchestrator (Live Voice & Chat) with Page Controller and 20+ SST Specialists' },
+                  { text: lang === 'es' ? 'Conversaciones ilimitadas y creación ilimitada de tus propios Agentes de IA personalizados' : 'Unlimited chats and unlimited custom AI agents creation' },
+                  { text: lang === 'es' ? 'Chat Live y Análisis en Vivo con Visión IA y MediaPipe: Laboratorio Biomecánico con exoesqueleto óptico en tiempo real, Alturas, Eléctrico, 5S e Inspección General' : 'Live Vision AI & MediaPipe: Real-time biomechanical analysis, Heights, Electrical, 5S audits' },
+                  { text: lang === 'es' ? 'Skills Interactivas y Editor Documental con IA: Canvas (Word, Hojas de Cálculo, Presentaciones, Código), Editor RIT, Matriz IPEVR y descargas ilimitadas (Word, PDF, Excel)' : 'Interactive AI Canvas & Doc Editor: Word, Sheets, Presentations, Code, unlimited downloads' },
+                  { text: lang === 'es' ? 'Conexiones MCP & Ecosistema: Google Workspace (Drive, Sheets, Docs, Calendar, Gmail), NotebookLM MCP, n8n, alertas climáticas y Tienda SST' : 'MCP Integrations: Google Workspace, NotebookLM MCP, weather alerts & SST Store' },
+                  { text: lang === 'es' ? '1 empresa base (ampliable hasta 10 empresas en el pago) y 3 GB de almacenamiento seguro (+1 GB por cada empresa adicional)' : '1 base company (expandable up to 10) and 3 GB secure storage (+1 GB per extra branch)' },
+                ].map((feat, idx) => (
+                  <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13, lineHeight: 1.45, color: 'var(--ink)' }}>
+                    <span
+                      style={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: 9999,
+                        background: 'rgba(245, 158, 11, 0.2)',
+                        color: '#F59E0B',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        marginTop: 1,
+                        fontSize: 11,
+                        fontWeight: 900,
+                      }}
+                    >
+                      ✓
+                    </span>
+                    <span>{feat.text}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
-          ) : (
-            /* =================== TAB 2: PLANES WAPPY VITAL =================== */
-            <div className="price">
-              {/* Wappy Vital Mensual */}
-              <div className="pcard">
-                <span
-                  className="pbadge"
-                  style={{
-                    position: 'static',
-                    alignSelf: 'flex-start',
-                    marginBottom: 14,
-                    background: '#F1F5F9',
-                    color: '#475569',
-                    border: '1px solid #CBD5E1',
-                  }}
-                >
-                  {vitalPromos.monthly?.active && vitalPromos.monthly?.text
-                    ? vitalPromos.monthly.text
-                    : (lang === 'es' ? 'Flexibilidad Mensual' : 'Monthly Flexibility')}
-                </span>
-                <div className="pn">{lang === 'es' ? 'Wappy Vital Mensual' : 'Wappy Vital Monthly'}</div>
-                <div className="pp">
-                  ${vitalPrices.monthly.toLocaleString('es-CO')}
-                  <span>{lang === 'es' ? ' COP /mes' : ' COP/mo'}</span>
-                </div>
-                <div style={{ fontSize: 13, color: '#9A9AA8', marginBottom: 4 }}>
-                  {lang === 'es'
-                    ? 'Huella Biocéntrica y Matriz Bio-IPEVR mes a mes · Cancela en cualquier momento'
-                    : 'Month-to-month Biocentric Footprint & Bio-IPEVR · Cancel anytime'}
-                </div>
-                <div className="ptrial">
-                  <span style={{ width: 6, height: 6, borderRadius: 9999, background: '#1E8E3E', display: 'inline-block' }}></span>
-                  {lang === 'es' ? 'Prueba gratis de 7 días' : '7-day free trial'}
-                </div>
-                <ul>
-                  <li>
-                    <span className="pck" style={{ background: 'rgba(16, 185, 129, 0.25)' }}>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    <strong>{lang === 'es' ? 'Acceso integral a IA de WAPPY con Huella Biocéntrica' : 'Full WAPPY AI access with Biocentric Footprint'}</strong>
-                  </li>
-                  <li>
-                    <span className="pck" style={{ background: 'rgba(16, 185, 129, 0.25)' }}>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? 'Perfiles de Cargo, Perfil Sociodemográfico y Condiciones de Salud' : 'Job Profiles, Sociodemographic & Health Records'}
-                  </li>
-                  <li>
-                    <span className="pck" style={{ background: 'rgba(16, 185, 129, 0.25)' }}>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? 'Matriz Bio-IPEVR Bioindividual y Oráculo de Ausentismo' : 'Bio-IPEVR Matrix & Absenteeism Predictive Oracle'}
-                  </li>
-                  <li>
-                    <span className="pck" style={{ background: 'rgba(16, 185, 129, 0.25)' }}>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? 'Portal QR de Trabajadores para Perfil Sociodemográfico' : 'Workers QR Portal for Sociodemographic updates'}
-                  </li>
-                  <li>
-                    <span className="pck" style={{ background: 'rgba(16, 185, 129, 0.25)' }}>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? 'Centro de Control SST: Tablero ACPM y 1 sub-usuario incluido' : 'Control Center: ACPM Board and 1 sub-user included'}
-                  </li>
-                  <li>
-                    <span className="pck" style={{ background: 'rgba(16, 185, 129, 0.25)' }}>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? '+20 Agentes IA: Médico, Abogado, Fisioterapeuta y Tenshi' : '20+ AI Specialists: Doctor, Legal, Physio and Tenshi'}
-                  </li>
-                  <li>
-                    <span className="pck" style={{ background: 'rgba(16, 185, 129, 0.25)' }}>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? '3 GB de almacenamiento seguro (+1 GB por sede adicional)' : '3 GB storage (+1 GB per extra branch)'}
-                  </li>
-                </ul>
-                <button
-                  className="btn btn-glass btn-sm"
-                  style={{ marginTop: 'auto', justifyContent: 'center', border: '1px solid var(--line)' }}
-                  onClick={() => handleGoToPlanes('vital', 'monthly')}
-                >
-                  {lang === 'es' ? 'Elegir Vital Mensual' : 'Choose Vital Monthly'}
-                </button>
+
+            {/* =================== CARD 2: WAPPY VITAL =================== */}
+            <div
+              className="pcard"
+              style={{
+                borderColor: 'rgba(16, 185, 129, 0.35)',
+                boxShadow: isDarkMode ? '0 12px 36px rgba(16, 185, 129, 0.08)' : '0 12px 36px rgba(16, 185, 129, 0.05)',
+                display: 'flex',
+                flexDirection: 'column',
+                borderRadius: 28,
+                padding: '32px 28px',
+                position: 'relative',
+              }}
+            >
+              <div
+                style={{
+                  position: 'absolute',
+                  top: -14,
+                  left: 24,
+                  whiteSpace: 'nowrap',
+                  borderRadius: 9999,
+                  background: 'linear-gradient(90deg, #10B981, #0D9488)',
+                  padding: '4px 14px',
+                  fontSize: 11.5,
+                  fontWeight: 800,
+                  color: '#ffffff',
+                  boxShadow: '0 4px 14px rgba(13, 148, 136, 0.3)',
+                }}
+              >
+                🌿 {lang === 'es' ? 'Plan Wappy Vital · Huella Biocéntrica' : 'Wappy Vital Plan · Biocentric Footprint'}
               </div>
 
-              {/* Wappy Vital Semestral */}
-              <div className="pcard">
-                <span
-                  className="pbadge"
+              {currentVitalPromo && currentVitalPromo.active && currentVitalPromo.discountPercentage > 0 && (
+                <div
                   style={{
-                    position: 'static',
-                    alignSelf: 'flex-start',
-                    marginBottom: 14,
-                    background: '#0D9488',
-                    color: '#fff',
+                    position: 'absolute',
+                    top: 20,
+                    right: 20,
+                    whiteSpace: 'nowrap',
+                    borderRadius: 9999,
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    background: '#ccff00',
+                    padding: '4px 12px',
+                    fontSize: 11,
+                    fontWeight: 900,
+                    color: '#0E1300',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                   }}
                 >
-                  {vitalPromos.semiannual?.active && vitalPromos.semiannual?.text
-                    ? vitalPromos.semiannual.text
-                    : (lang === 'es'
-                        ? `Ahorro Semestral · ${vitalSemPct > 0 ? `${vitalSemPct}% DCTO` : 'Tarifa Reducida'}`
-                        : `Biannual Savings · ${vitalSemPct > 0 ? `${vitalSemPct}% OFF` : 'Best Value'}`)}
-                </span>
-                <div className="pn">{lang === 'es' ? 'Wappy Vital Semestral' : 'Wappy Vital Semiannual'}</div>
-                <div className="pp">
-                  ${vitalPrices.semiannual.toLocaleString('es-CO')}
-                  <span>{lang === 'es' ? ' COP /semestre' : ' COP/6 mo'}</span>
+                  -{currentVitalPromo.discountPercentage}% {lang === 'es' ? 'primera compra' : 'first purchase'}
                 </div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#0D9488', marginTop: 1, marginBottom: 4 }}>
-                  {lang === 'es'
-                    ? `⚡ Equivalente a $${vitalEqMonthly.toLocaleString('es-CO')} COP/mes`
-                    : `⚡ $${vitalEqMonthly.toLocaleString('es-CO')} COP/mo equivalent`}
-                </div>
-                <div style={{ fontSize: 13, color: '#9A9AA8', marginBottom: 4 }}>
-                  {lang === 'es'
-                    ? 'Compromiso semestral con tarifa reducida en Huella Biocéntrica'
-                    : 'Semiannual commitment with reduced rate in Biocentric Footprint'}
-                </div>
-                <div className="ptrial">
-                  <span style={{ width: 6, height: 6, borderRadius: 9999, background: '#1E8E3E', display: 'inline-block' }}></span>
-                  {lang === 'es' ? 'Prueba gratis de 7 días' : '7-day free trial'}
-                </div>
-                <ul>
-                  <li>
-                    <span className="pck" style={{ background: 'rgba(16, 185, 129, 0.25)' }}>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    <strong>{lang === 'es' ? 'Todo lo del Plan Wappy Vital, facturado semestralmente' : 'Full Wappy Vital suite billed every 6 months'}</strong>
-                  </li>
-                  <li>
-                    <span className="pck" style={{ background: 'rgba(16, 185, 129, 0.25)' }}>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? 'Ahorro directo en la tarifa mensual de Huella Biocéntrica' : 'Direct savings on your monthly health budget'}
-                  </li>
-                  <li>
-                    <span className="pck" style={{ background: 'rgba(16, 185, 129, 0.25)' }}>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? 'Módulo completo de Huella Biocéntrica y Matriz Bio-IPEVR' : 'Full Biocentric Footprint & Bio-IPEVR Matrix'}
-                  </li>
-                  <li>
-                    <span className="pck" style={{ background: 'rgba(16, 185, 129, 0.25)' }}>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? 'Portal QR para colaboradores y encuestas sociodemográficas' : 'QR portal for workers and demographic surveys'}
-                  </li>
-                  <li>
-                    <span className="pck" style={{ background: 'rgba(16, 185, 129, 0.25)' }}>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? 'Laboratorio Biomecánico y Ergonomía MediaPipe en vivo' : 'Computer vision live ergonomic MediaPipe pose checks'}
-                  </li>
-                  <li>
-                    <span className="pck" style={{ background: 'rgba(16, 185, 129, 0.25)' }}>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? 'Centro de Control con Tablero ACPM y seguimiento' : 'Control Center with ACPM action tracking'}
-                  </li>
-                  <li>
-                    <span className="pck" style={{ background: 'rgba(16, 185, 129, 0.25)' }}>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? 'Soporte técnico preferencial y acompañamiento de inicio' : 'Priority technical support & onboarding assistance'}
-                  </li>
-                </ul>
-                <button
-                  className="btn btn-glass btn-sm"
-                  style={{ marginTop: 'auto', justifyContent: 'center', border: '1px solid var(--line)' }}
-                  onClick={() => handleGoToPlanes('vital', 'semiannual')}
-                >
-                  {lang === 'es' ? 'Elegir Vital Semestral' : 'Choose Vital Semiannual'}
-                </button>
-              </div>
+              )}
 
-              {/* Wappy Vital Anual (Más Popular / Máximo Ahorro) */}
-              <div className="pcard feat-plan">
-                <span className="pbadge" style={{ position: 'static', alignSelf: 'flex-start', marginBottom: 14 }}>
-                  {vitalPromos.annual?.active && vitalPromos.annual?.text
-                    ? vitalPromos.annual.text
-                    : (lang === 'es' ? 'Más popular · Máximo ahorro' : 'Most Popular · Max Savings')}
-                </span>
-                <div className="pn">{lang === 'es' ? 'Wappy Vital Anual' : 'Wappy Vital Annual'}</div>
-                <div className="pp">
-                  ${vitalPrices.annual.toLocaleString('es-CO')}
-                  <span>{lang === 'es' ? ' COP /año' : ' COP/yr'}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20, marginTop: 4 }}>
+                <div
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 16,
+                    background: 'rgba(16, 185, 129, 0.12)',
+                    color: '#10B981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 22,
+                  }}
+                >
+                  🌿
                 </div>
-                <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--lime)', marginTop: 1, marginBottom: 4 }}>
-                  {lang === 'es'
-                    ? `🌟 Solo $${vitalEqAnnual.toLocaleString('es-CO')} COP/mes${vitalAnnualSavings > 0 ? ` (Ahorras $${vitalAnnualSavings.toLocaleString('es-CO')}/año)` : ''}`
-                    : `🌟 Only $${vitalEqAnnual.toLocaleString('es-CO')} COP/mo${vitalAnnualSavings > 0 ? ` (Save $${vitalAnnualSavings.toLocaleString('es-CO')}/yr)` : ''}`}
-                </div>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', marginBottom: 4 }}>
-                  {lang === 'es'
-                    ? 'La opción más económica para automatizar Huella Biocéntrica y Salud en el Trabajo'
-                    : 'Most economical choice to automate Biocentric Footprint & Occupational Health'}
-                </div>
-                <div className="ptrial">
-                  <span style={{ width: 6, height: 6, borderRadius: 9999, background: 'var(--lime)', display: 'inline-block' }}></span>
-                  {lang === 'es' ? 'Prueba gratis de 7 días' : '7-day free trial'}
-                </div>
-                <ul>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    <strong>{lang === 'es' ? 'Todo el ecosistema Wappy Vital con tarifa anual preferencial' : 'Full Wappy Vital ecosystem at frozen best rate'}</strong>
-                  </li>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
+                <div>
+                  <div className="pn" style={{ fontSize: 24, fontWeight: 800 }}>Wappy Vital</div>
+                  <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ink2)', lineHeight: 1.35 }}>
                     {lang === 'es'
-                      ? `Paga solo $${vitalEqAnnual.toLocaleString('es-CO')} COP/mes con facturación anual única`
-                      : `Pay only $${vitalEqAnnual.toLocaleString('es-CO')} COP/mo with single annual billing`}
-                  </li>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
+                      ? 'Ecosistema SST con IA, Huella Biocéntrica y Matriz Bio-IPEVR'
+                      : 'SST ecosystem with AI, Biocentric Footprint and Bio-IPEVR Matrix'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Bloque de Precios con Tachado */}
+              <div style={{ marginBottom: 20, minHeight: 140, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <div>
+                  {currentVitalPromo && currentVitalPromo.active && currentVitalPromo.discountPercentage > 0 ? (
+                    <span
+                      style={{
+                        fontSize: 15,
+                        fontWeight: 700,
+                        color: 'var(--muted)',
+                        textDecoration: 'line-through',
+                        textDecorationColor: '#ef4444',
+                        textDecorationThickness: '2px',
+                        display: 'block',
+                        marginBottom: 2,
+                      }}
+                    >
+                      {currentVitalDisplayPrice}
                     </span>
-                    {lang === 'es' ? 'Huella Biocéntrica continua: Perfiles de cargo y diagnósticos sociodemográficos' : 'Continuous Biocentric Footprint & Sociodemographic diagnostics'}
-                  </li>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
+                  ) : (
+                    <span style={{ fontSize: 15, fontWeight: 700, visibility: 'hidden', display: 'block', marginBottom: 2 }}>
+                      &nbsp;
                     </span>
-                    {lang === 'es' ? 'Matriz Bio-IPEVR predictiva y oráculo de ausentismo ilimitados' : 'Predictive Bio-IPEVR Matrix & unlimited absenteeism oracle'}
-                  </li>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
+                  )}
+
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                    <span
+                      style={{
+                        fontFamily: 'var(--display)',
+                        fontSize: 42,
+                        fontWeight: 900,
+                        letterSpacing: '-0.03em',
+                        color: '#10B981',
+                        lineHeight: 1,
+                      }}
+                    >
+                      ${Math.round(currentVitalPrice).toLocaleString('es-CO')}
                     </span>
-                    {lang === 'es' ? '+20 Agentes IA autónomos y orquestador Tenshi 24/7' : '20+ autonomous AI agents & Tenshi orchestrator 24/7'}
-                  </li>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink2)' }}>
+                      /
+                      {billingInterval === 'monthly'
+                        ? (lang === 'es' ? 'mes' : 'mo')
+                        : billingInterval === 'quarterly'
+                          ? (lang === 'es' ? 'trim.' : 'quarter')
+                          : billingInterval === 'semiannual'
+                            ? (lang === 'es' ? 'sem.' : 'semester')
+                            : (lang === 'es' ? 'año' : 'year')}
                     </span>
-                    {lang === 'es' ? 'Visión IA MediaPipe para ergonomía y puestos de trabajo' : 'MediaPipe AI vision for ergonomic workstation audits'}
-                  </li>
-                  <li>
-                    <span className="pck">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                    {lang === 'es' ? 'Portal QR para trabajadores con actualización en tiempo real' : 'Workers QR Portal with real-time updates'}
-                  </li>
-                </ul>
+                  </div>
+                </div>
+
+                <div style={{ width: '100%', marginTop: 8 }}>
+                  <div style={{ minHeight: 32, display: 'flex', alignItems: 'center' }}>
+                    {currentVitalPromo && currentVitalPromo.active && currentVitalPromo.discountPercentage > 0 ? (
+                      <p style={{ margin: 0, fontSize: 11.5, color: isDarkMode ? '#34d399' : '#059669', fontWeight: 600, lineHeight: 1.35 }}>
+                        🎁 {lang === 'es'
+                          ? `Precio especial primera compra · Renovación posterior a valor regular (${currentVitalDisplayPrice})`
+                          : `Special first-purchase price · Subsequent renewal at regular price (${currentVitalDisplayPrice})`}
+                      </p>
+                    ) : (
+                      <p style={{ margin: 0, fontSize: 11.5, color: 'var(--ink2)', fontWeight: 600, lineHeight: 1.35 }}>
+                        {lang === 'es' ? 'Acceso a IA de WAPPY y módulo Huella Biocéntrica' : 'Access to WAPPY AI and Biocentric Footprint module'}
+                      </p>
+                    )}
+                  </div>
+
+                  {billingInterval !== 'monthly' ? (
+                    <div style={{ marginTop: 4, fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>
+                      ${Math.round(currentVitalMonthlyPrice).toLocaleString('es-CO')}{' '}
+                      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink2)' }}>
+                        {lang === 'es' ? '/mes (facturado en total)' : '/mo (billed in full)'}
+                      </span>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: 4, fontSize: 13.5, fontWeight: 700, visibility: 'hidden' }}>
+                      &nbsp;
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Botón CTA Vital */}
+              <div style={{ marginBottom: 20 }}>
                 <button
-                  className="btn btn-lime btn-sm"
-                  style={{ marginTop: 'auto', justifyContent: 'center' }}
-                  onClick={() => handleGoToPlanes('vital', 'annual')}
+                  type="button"
+                  onClick={() => handleGoToPlanes('vital', billingInterval)}
+                  style={{
+                    width: '100%',
+                    padding: '14px 20px',
+                    borderRadius: 16,
+                    border: 'none',
+                    background: 'linear-gradient(90deg, #10B981, #0D9488)',
+                    color: '#ffffff',
+                    fontSize: 15,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    boxShadow: '0 8px 20px rgba(13, 148, 136, 0.25)',
+                    transition: 'all 0.25s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                  }}
+                  onMouseOver={(e) => (e.currentTarget.style.transform = 'translateY(-2px)')}
+                  onMouseOut={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
                 >
-                  {lang === 'es' ? 'Elegir Wappy Vital Anual' : 'Choose Wappy Vital Annual'}
+                  <span>{lang === 'es' ? 'Adquirir Wappy Vital' : 'Get Wappy Vital'}</span>
+                  <span>→</span>
                 </button>
               </div>
+
+              <div style={{ borderTop: '1px solid var(--line)', margin: '4px 0 16px' }} />
+
+              {/* Features Vital */}
+              <ul style={{ margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 12, flex: 1, listStyle: 'none' }}>
+                {[
+                  { text: lang === 'es' ? 'Acceso integral a la IA de WAPPY con gestión de Huella Biocéntrica' : 'Full WAPPY AI access with Biocentric Footprint management', included: true },
+                  { text: lang === 'es' ? 'Módulo exclusivo Huella Biocéntrica: Perfiles de Cargo, Perfil Sociodemográfico, Condiciones de Salud, Oráculo Predictivo de Ausentismo y Matriz Bio-IPEVR Bioindividual' : 'Exclusive Biocentric Module: Job profiles, Sociodemographics, Health, Ausentism Oracle & Bio-IPEVR', included: true },
+                  { text: lang === 'es' ? 'Portal QR para Trabajadores: Acceso directo por código QR al formulario de actualización de Perfil Sociodemográfico' : 'Workers QR Portal: Direct QR form for Sociodemographic updates', included: true },
+                  { text: lang === 'es' ? 'Centro de Control SST: Tablero de Acciones Correctivas y Preventivas (ACPM) y gestión de Sub-Usuarios (1 sub-usuario incluido)' : 'SST Control Center: ACPM Board & Sub-Users (1 included)', included: true },
+                  { text: lang === 'es' ? 'Academia WAPPY: Cursos Abiertos con certificados verificables, Clases en Vivo y Blog Técnico SST' : 'WAPPY Academy: Verified certificates, Live Classes and Tech Blog', included: true },
+                  { text: lang === 'es' ? 'Orquestador Tenshi (Voz y Chat en Tiempo Real) con Page Controller interactivo y +20 Agentes Especialistas en SST' : 'Tenshi Orchestrator (Live Voice & Chat) with Page Controller & 20+ Specialists', included: true },
+                  { text: lang === 'es' ? 'Conversaciones ilimitadas y creación ilimitada de tus propios Agentes de IA personalizados' : 'Unlimited chats and custom AI agents creation', included: true },
+                  { text: lang === 'es' ? 'Chat Live y Análisis en Vivo con Visión IA y MediaPipe: Laboratorio Biomecánico en tiempo real, Alturas, Eléctrico, 5S e Inspección General' : 'Live Vision AI: Real-time biomechanical analysis, Heights, Electrical & 5S audits', included: true },
+                  { text: lang === 'es' ? 'Skills Interactivas y Editor Documental con IA: Canvas (Word, Excel, Presentaciones, Código), Editor RIT, Matriz IPEVR y descargas ilimitadas' : 'Interactive AI Canvas: Word, Excel, Presentations, Code & unlimited downloads', included: true },
+                  { text: lang === 'es' ? 'Conexiones MCP & Ecosistema: Google Workspace, NotebookLM MCP, alertas climáticas y Tienda SST' : 'MCP Connections: Google Workspace, NotebookLM MCP, weather alerts & Store', included: true },
+                  { text: lang === 'es' ? '1 empresa base (ampliable hasta 10 empresas en el pago) y 3 GB de almacenamiento seguro (+1 GB por cada empresa adicional)' : '1 base company (expandable up to 10) & 3 GB secure storage (+1 GB per extra branch)', included: true },
+                  { text: lang === 'es' ? 'Somos SST Completo (50+ aplicativos en los 8 Hitos de gestión)' : 'Full Somos SST (50+ apps in all 8 Milestones)', included: false },
+                  { text: lang === 'es' ? 'Portal completo de Gamificación de Trabajadores (solo incluye QR de Perfil Sociodemográfico)' : 'Full Workers Gamification Portal (only includes Sociodemographic QR)', included: false },
+                  { text: lang === 'es' ? 'Plan Empresa (Rutas de aprendizaje corporativas) en Academia WAPPY' : 'Corporate Learning Tracks in WAPPY Academy', included: false },
+                  { text: lang === 'es' ? 'Automatizaciones IA 24/7 ni Historial y Reportes en el Centro de Control' : '24/7 AI Automations and Execution History in Control Center', included: false },
+                ].map((feat, idx) => (
+                  <li
+                    key={idx}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 10,
+                      fontSize: 13,
+                      lineHeight: 1.45,
+                      color: feat.included ? 'var(--ink)' : 'var(--muted)',
+                      textDecoration: feat.included ? 'none' : 'line-through',
+                      opacity: feat.included ? 1 : 0.5,
+                    }}
+                  >
+                    {feat.included ? (
+                      <span
+                        style={{
+                          width: 18,
+                          height: 18,
+                          borderRadius: 9999,
+                          background: 'rgba(16, 185, 129, 0.2)',
+                          color: '#10B981',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                          marginTop: 1,
+                          fontSize: 11,
+                          fontWeight: 900,
+                        }}
+                      >
+                        ✓
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          width: 18,
+                          height: 18,
+                          borderRadius: 9999,
+                          background: 'rgba(239, 68, 68, 0.1)',
+                          color: '#ef4444',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                          marginTop: 1,
+                          fontSize: 11,
+                          fontWeight: 900,
+                        }}
+                      >
+                        ✕
+                      </span>
+                    )}
+                    <span>{feat.text}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
-          )}
+          </div>
+
 
           {/* Banner Plan Empresas / Asesores / ARL */}
           <div style={{ marginTop: 24, padding: '20px 24px', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 20, display: 'flex', flexDirection: 'column', md: { flexDirection: 'row' }, alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>

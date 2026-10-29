@@ -2246,12 +2246,14 @@ export default function PlansPage() {
                       }
                     }
 
-                    // Smart discount: discounts only apply to first-time purchases
-                    let discountedPrice = 0;
-                    if (!isRenewal && promotion && rawPrice > 0) {
-                      discountedPrice = rawPrice - rawPrice * (promotion.discountPercentage / 100);
+                    // Smart discount & regular base price comparison
+                    let regularBasePrice = rawPrice;
+                    let discountedPrice = rawPrice;
+                    if (promotion && promotion.discountPercentage > 0 && rawPrice > 0) {
+                      regularBasePrice = Math.round(rawPrice / (1 - promotion.discountPercentage / 100));
+                      discountedPrice = rawPrice;
+                      displayPrice = String.fromCharCode(36) + regularBasePrice.toLocaleString('es-CO');
                     }
-
                     const isNotMonthly = billingInterval !== 'monthly';
                     const monthsDivisor =
                       billingInterval === 'quarterly'
@@ -2261,9 +2263,7 @@ export default function PlansPage() {
                           : billingInterval === 'annual'
                             ? 12
                             : 1;
-                    const totalToBill = !isRenewal && promotion && promotion.discountPercentage > 0
-                        ? discountedPrice
-                        : rawPrice;
+                    const totalToBill = rawPrice;
                     const pricePerMonth = totalToBill / monthsDivisor;
 
                     return (
@@ -2274,7 +2274,7 @@ export default function PlansPage() {
                           ⭐ Plan Profesional Todo Incluido
                         </div>
 
-                        {!isRenewal && promotion && promotion.discountPercentage > 0 && (
+                        {promotion && promotion.discountPercentage > 0 && (
                           <div className="absolute right-6 top-6 z-10 whitespace-nowrap rounded-full border border-amber-500/30 bg-[#ccff00] px-3.5 py-1.5 text-xs font-black text-black shadow-sm">
                             -{promotion.discountPercentage}% primera compra
                           </div>
@@ -2292,7 +2292,7 @@ export default function PlansPage() {
 
                         <div className="mb-6 flex flex-col items-start justify-between min-h-[148px] sm:min-h-[152px]">
                           <div>
-                            {!isRenewal && promotion && promotion.discountPercentage > 0 ? (
+                            {promotion && promotion.discountPercentage > 0 ? (
                               <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2 block">
                                 {displayPrice}
                               </span>
@@ -2321,7 +2321,7 @@ export default function PlansPage() {
 
                           <div className="w-full">
                             <div className="min-h-[34px] flex items-center">
-                              {!isRenewal && promotion && promotion.discountPercentage > 0 ? (
+                              {promotion && promotion.discountPercentage > 0 ? (
                                 <p className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold leading-tight">
                                   🎁 Precio especial primera compra · Renovación posterior a valor regular ({displayPrice})
                                 </p>
@@ -2425,12 +2425,14 @@ export default function PlansPage() {
                       displayPrice = '$' + rawPrice.toLocaleString('es-CO');
                     }
 
-                    // Smart discount: discounts only apply to first-time purchases
-                    let discountedPrice = 0;
-                    if (!isRenewal && promotion && rawPrice > 0) {
-                      discountedPrice = rawPrice - rawPrice * (promotion.discountPercentage / 100);
+                    // Smart discount & regular base price comparison
+                    let regularBasePrice = rawPrice;
+                    let discountedPrice = rawPrice;
+                    if (promotion && promotion.discountPercentage > 0 && rawPrice > 0) {
+                      regularBasePrice = Math.round(rawPrice / (1 - promotion.discountPercentage / 100));
+                      discountedPrice = rawPrice;
+                      displayPrice = String.fromCharCode(36) + regularBasePrice.toLocaleString('es-CO');
                     }
-
                     const isNotMonthly = billingInterval !== 'monthly';
                     const monthsDivisor =
                       billingInterval === 'quarterly'
@@ -2440,9 +2442,7 @@ export default function PlansPage() {
                           : billingInterval === 'annual'
                             ? 12
                             : 1;
-                    const totalToBill = !isRenewal && promotion && promotion.discountPercentage > 0
-                      ? discountedPrice
-                      : rawPrice;
+                    const totalToBill = rawPrice;
                     const pricePerMonth = totalToBill / monthsDivisor;
                     const isAvailableInInterval = rawPrice > 0;
 
@@ -2458,7 +2458,7 @@ export default function PlansPage() {
                           🌿 Plan Wappy Vital · Huella Biocéntrica
                         </div>
 
-                        {!isRenewal && promotion && promotion.discountPercentage > 0 && isAvailableInInterval && (
+                        {promotion && promotion.discountPercentage > 0 && isAvailableInInterval && (
                           <div className="absolute right-6 top-6 z-10 whitespace-nowrap rounded-full border border-emerald-500/30 bg-[#ccff00] px-3.5 py-1.5 text-xs font-black text-black shadow-sm">
                             -{promotion.discountPercentage}% primera compra
                           </div>
@@ -2478,8 +2478,8 @@ export default function PlansPage() {
                           {isAvailableInInterval ? (
                             <>
                               <div>
-                                {!isRenewal && promotion && promotion.discountPercentage > 0 ? (
-                                  <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2 block">
+                                {promotion && promotion.discountPercentage > 0 ? (
+                              <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2 block">
                                     {displayPrice}
                                   </span>
                                 ) : (
@@ -2507,7 +2507,7 @@ export default function PlansPage() {
 
                               <div className="w-full">
                                 <div className="min-h-[34px] flex items-center">
-                                  {!isRenewal && promotion && promotion.discountPercentage > 0 ? (
+                                  {promotion && promotion.discountPercentage > 0 ? (
                                     <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold leading-tight">
                                       🎁 Precio especial primera compra · Renovación posterior a valor regular ({displayPrice})
                                     </p>
@@ -2629,9 +2629,13 @@ export default function PlansPage() {
                       }
                     }
 
-                    let discountedPrice = 0;
-                    if (!isRenewal && promotion && rawPrice > 0) {
-                      discountedPrice = rawPrice - rawPrice * (promotion.discountPercentage / 100);
+                    // Smart discount & regular base price comparison
+                    let regularBasePrice = rawPrice;
+                    let discountedPrice = rawPrice;
+                    if (promotion && promotion.discountPercentage > 0 && rawPrice > 0) {
+                      regularBasePrice = Math.round(rawPrice / (1 - promotion.discountPercentage / 100));
+                      discountedPrice = rawPrice;
+                      displayPrice = String.fromCharCode(36) + regularBasePrice.toLocaleString('es-CO');
                     }
 
                     const isNotMonthly = billingInterval !== 'monthly';
@@ -2643,9 +2647,7 @@ export default function PlansPage() {
                           : billingInterval === 'annual'
                             ? 12
                             : 1;
-                    const totalToBill = !isRenewal && promotion && promotion.discountPercentage > 0
-                        ? discountedPrice
-                        : rawPrice;
+                    const totalToBill = rawPrice;
                     const pricePerMonth = totalToBill / monthsDivisor;
 
                     return (
@@ -2656,7 +2658,7 @@ export default function PlansPage() {
                           ⭐ Plan Profesional Todo Incluido
                         </div>
 
-                        {!isRenewal && promotion && promotion.discountPercentage > 0 && (
+                        {promotion && promotion.discountPercentage > 0 && (
                           <div className="absolute right-6 top-6 z-10 whitespace-nowrap rounded-full border border-amber-500/30 bg-[#ccff00] px-3.5 py-1.5 text-xs font-black text-black shadow-sm">
                             -{promotion.discountPercentage}% primera compra
                           </div>
@@ -2673,7 +2675,7 @@ export default function PlansPage() {
                         </div>
 
                         <div className="mb-6 flex flex-col items-start gap-1 min-h-[105px]">
-                          {!isRenewal && promotion && promotion.discountPercentage > 0 && (
+                          {promotion && promotion.discountPercentage > 0 && (
                             <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2">
                               {displayPrice}
                             </span>
@@ -2695,8 +2697,8 @@ export default function PlansPage() {
                             </span>
                           </div>
 
-                          {!isRenewal && promotion && promotion.discountPercentage > 0 ? (
-                            <p className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold mt-1">
+                          {promotion && promotion.discountPercentage > 0 ? (
+                                <p className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold mt-1">
                               🎁 Precio especial primera compra · Renovación posterior a valor regular ({displayPrice})
                             </p>
                           ) : (
