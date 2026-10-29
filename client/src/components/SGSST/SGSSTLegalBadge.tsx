@@ -80,38 +80,43 @@ export const ISO_45001_MAPPING: Record<string, { isoClause: string; isoTitle: st
 };
 
 function resolveISO45001Info(
-  standardCode: string,
-  rawLabel: string,
-  rawTooltip: string,
+  standardCode?: string,
+  rawLabel?: string,
+  rawTooltip?: string,
   isoClauseProp?: string
 ) {
+  const safeLabel = String(rawLabel || 'Estándar SG-SST').trim();
+  const safeTooltip = String(rawTooltip || safeLabel).trim();
+
   // Si el label ya inicia con ISO 45001, respetarlo
-  if (rawLabel.trim().toUpperCase().startsWith('ISO 45001')) {
+  if (safeLabel.toUpperCase().startsWith('ISO 45001')) {
     return {
-      displayLabel: rawLabel,
-      displayTooltip: rawTooltip,
+      displayLabel: safeLabel,
+      displayTooltip: safeTooltip,
     };
   }
 
-  const cleanCode = String(standardCode).replace(/^(est\.|art\.|estándar|numeral)\s*/i, '').trim();
+  const cleanCode = String(standardCode || '5.1.1')
+    .replace(/^(est\.|art\.|estándar|numeral)\s*/i, '')
+    .trim();
   const mapping = ISO_45001_MAPPING[cleanCode];
   const isoClause = isoClauseProp || (mapping ? mapping.isoClause : 'Num. 9.1.2');
   const isoTitle = mapping ? mapping.isoTitle : '';
 
   // Formatear label con ISO 45001 DE PRIMERA
-  let formattedLabel = rawLabel;
-  if (rawLabel.includes('CUMPLE')) {
-    const prefix = rawLabel.replace(/:\s*CUMPLE.*$/i, '').trim();
+  let formattedLabel = safeLabel;
+  if (safeLabel.includes('CUMPLE')) {
+    const prefix = safeLabel.replace(/:\s*CUMPLE.*$/i, '').trim();
     formattedLabel = `ISO 45001 ${isoClause} · ${prefix}: CUMPLE`;
   } else {
-    formattedLabel = `ISO 45001 ${isoClause} · ${rawLabel}`;
+    formattedLabel = `ISO 45001 ${isoClause} · ${safeLabel}`;
   }
 
   // Formatear tooltip con ISO 45001 DE PRIMERA
-  let formattedTooltip = rawTooltip;
-  if (!rawTooltip.toUpperCase().includes('ISO 45001')) {
+  let formattedTooltip = safeTooltip;
+  if (!safeTooltip.toUpperCase().includes('ISO 45001')) {
     const isoPrefix = `ISO 45001:2018 ${isoClause}${isoTitle ? ` (${isoTitle})` : ''} · `;
-    formattedTooltip = `${isoPrefix}${rawTooltip}`;
+    formattedTooltip = `${isoPrefix}${safeTooltip}`;
   }
 
   return {
@@ -121,9 +126,11 @@ function resolveISO45001Info(
 }
 
 interface SGSSTLegalBadgeProps {
-  standardCode: string;
-  label: string;
-  tooltip: string;
+  standardCode?: string;
+  label?: string;
+  tooltip?: string;
+  norm?: string;
+  rationale?: string;
   moduleName?: string;
   className?: string;
   iconOnly?: boolean;
@@ -131,9 +138,11 @@ interface SGSSTLegalBadgeProps {
 }
 
 export const SGSSTLegalBadge: React.FC<SGSSTLegalBadgeProps> = ({
-  standardCode,
+  standardCode = '5.1.1',
   label,
   tooltip,
+  norm,
+  rationale,
   moduleName,
   className = '',
   isoClause,
@@ -143,7 +152,15 @@ export const SGSSTLegalBadge: React.FC<SGSSTLegalBadgeProps> = ({
   const [isCompliant, setIsCompliant] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const { displayLabel, displayTooltip } = resolveISO45001Info(standardCode, label, tooltip, isoClause);
+  const effectiveLabel = label || norm || 'Estándar SG-SST';
+  const effectiveTooltip = tooltip || rationale || effectiveLabel;
+
+  const { displayLabel, displayTooltip } = resolveISO45001Info(
+    standardCode,
+    effectiveLabel,
+    effectiveTooltip,
+    isoClause
+  );
 
   // Consultar estado inicial en DiagnosticoData
   const checkStatus = useCallback(async () => {

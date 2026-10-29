@@ -1144,8 +1144,11 @@ const PlanEmergenciasWorkspace: React.FC = () => {
               </p>
               <div className="mt-2.5">
                 <SGSSTLegalBadge
-                  norm="Dec. 1072/2015 Art. 2.2.4.6.25 · Res. 0312/2019 Est. 1.1.11 y 5.1.1 · ISO 45001:2018 Cl. 8.2 · Ley 1523/2012"
-                  rationale="Integra la preparación ante amenazas naturales, tecnológicas y sociales con la protección prioritaria del bioindividuo, la brigada de emergencias y la cadena de socorro MEDEVAC."
+                  standardCode="5.1.1"
+                  isoClause="Num. 8.2"
+                  label="Est. 5.1.1 Res. 0312 · Art. 2.2.4.6.25 Dec. 1072: CUMPLE"
+                  tooltip="Integra la preparación ante amenazas naturales, tecnológicas y sociales con la protección prioritaria del bioindividuo, la brigada de emergencias, PONs y la cadena de socorro MEDEVAC."
+                  moduleName="Plan de Emergencias y Contingencias (PPRE)"
                 />
               </div>
             </div>
