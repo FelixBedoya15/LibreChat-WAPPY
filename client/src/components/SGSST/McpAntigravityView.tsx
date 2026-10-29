@@ -1184,9 +1184,33 @@ Por favor usa tus herramientas de lectura y edición de archivos para guardarlo 
         },
         {
           name: 'wappy_consultar_agentes_y_automatizaciones',
-          desc: 'Consulta los agentes de IA configurados en tu cuenta y las tareas autónomas programadas (cron).',
+          desc: 'Consulta todos los agentes de IA, catálogo de herramientas/skills y las tareas autónomas programadas.',
           icon: Bot,
           color: 'text-emerald-600',
+        },
+        {
+          name: 'wappy_crear_agente',
+          desc: 'Crea agentes de IA completos con nombre, instrucciones, modelo, skills y todas las herramientas de Google y WAPPY SST.',
+          icon: Plus,
+          color: 'text-teal-500',
+        },
+        {
+          name: 'wappy_actualizar_agente',
+          desc: 'Modifica cualquier agente de tu cuenta (instrucciones, modelo, herramientas activas, skills o cadena de agentes).',
+          icon: Edit3,
+          color: 'text-blue-500',
+        },
+        {
+          name: 'wappy_eliminar_agente',
+          desc: 'Elimina un agente personalizado creado en tu cuenta de WAPPY.',
+          icon: Trash2,
+          color: 'text-rose-500',
+        },
+        {
+          name: 'wappy_ejecutar_accion_usuario',
+          desc: 'Ejecutor universal de cualquier acción o módulo dentro de tu cuenta conectada (memorias, chats, Canvas o rutas internas).',
+          icon: Zap,
+          color: 'text-orange-500',
         },
         {
           name: 'wappy_programar_automatizacion',

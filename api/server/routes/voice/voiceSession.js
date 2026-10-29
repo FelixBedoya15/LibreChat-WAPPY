@@ -567,6 +567,8 @@ class VoiceSession {
         this.pendingAgentForConsultation = null; // Memoria de especialista solicitado en turnos previos
         this.pendingAgentTimestamp = 0;
         this.lastGeneratedCanvasFile = null; // Entregable Canvas generado durante el turno para adjuntar al mensaje final
+        this.pendingHangupAfterTurn = false; // Cierre diferido tras terminar locución de despedida
+        this.pendingHangupTimer = null;
 
         logger.info(`[VoiceSession] Created for user: ${userId}, conversationId: ${conversationId || 'NULL'}`);
 
@@ -596,14 +598,14 @@ class VoiceSession {
                         },
                         {
                             name: "wappy_controlar_videollamada",
-                            description: "Controla la cámara, la videollamada o cuelga la llamada de Tenshi. DEBES invocar esta herramienta cuando el usuario te diga explícitamente: 'activa videollamada', 'activa video', 'enciende la cámara', 'activa la cámara', 'apaga la cámara', 'desactiva video', 'cuelga la llamada', 'colgar', 'terminar llamada' o 'finalizar llamada'. PROHIBICIÓN ESTRICTA: NUNCA uses 'colgar_llamada' si el usuario solo te pide callar, parar de hablar o hacer una pausa (ej: 'para', 'detente', 'espera', 'un momento', 'silencio', 'cállate', 'basta', 'no sigas', 'ya').",
+                            description: "Controla la cámara, la videollamada o cuelga/desactiva el modo Live de Tenshi. DEBES invocar esta herramienta cuando el usuario te diga explícitamente: 'activa videollamada', 'activa video', 'enciende la cámara', 'activa la cámara', 'apaga la cámara', 'desactiva video', 'cuelga la llamada', 'colgar', 'terminar llamada', 'finalizar llamada', o cuando el usuario se despida verbalmente para finalizar la conversación (ej: 'hasta luego', 'gracias por todo', 'muchas gracias por todo', 'eso es todo por hoy', 'eso era todo, gracias', 'chao', 'adiós', 'nos vemos', 'hasta pronto', 'hasta mañana'). PROHIBICIÓN ESTRICTA: NUNCA uses 'colgar_llamada' si el usuario solo te pide callar, parar de hablar o hacer una pausa (ej: 'para', 'detente', 'espera', 'un momento', 'silencio', 'cállate', 'basta', 'no sigas', 'ya').",
                             parameters: {
                                 type: "object",
                                 properties: {
                                     accion: {
                                         type: "string",
                                         enum: ["activar_camara", "apagar_camara", "colgar_llamada"],
-                                        description: "Acción a ejecutar: 'activar_camara' (enciende la cámara o videollamada en vivo), 'apagar_camara' (apaga la cámara y sigue la llamada solo por voz), 'colgar_llamada' (termina y cuelga la llamada por completo SOLO si el usuario pide explícitamente colgar o terminar la llamada, NUNCA cuando dice 'para' o 'espera')."
+                                        description: "Acción a ejecutar: 'activar_camara' (enciende la cámara o videollamada en vivo), 'apagar_camara' (apaga la cámara y sigue la llamada solo por voz), 'colgar_llamada' (termina y desactiva el modo Live cuando el usuario pide colgar/finalizar la llamada o cuando se despide diciendo 'hasta luego', 'gracias por todo', 'chao', 'adiós', 'nos vemos' o 'eso es todo', NUNCA cuando dice 'para' o 'espera')."
                                     }
                                 },
                                 required: ["accion"]
@@ -855,13 +857,13 @@ class VoiceSession {
                         },
                         {
                             name: "wappy_mcp_sst",
-                            description: "Suite oficial de operaciones y consultas MCP del SG-SST de WAPPY (las 41 herramientas). Permite consultar o alimentar de forma autónoma: diagnóstico 360°, empresa, trabajadores, matriz GTC45, matriz PESV, matriz legal, estándares 0312, comités (COPASST, Convivencia, Brigadas), químicos SGA, vehículos, EPP, reportes de actos y condiciones, perfiles de cargo, casos ATEL, cronograma y tareas, capacitaciones, auditorías y automatizaciones.",
+                            description: "Suite oficial de operaciones y consultas MCP de WAPPY. Permite consultar o alimentar de forma autónoma: diagnóstico 360°, empresa, trabajadores, matriz GTC45, matriz PESV, matriz legal, estándares 0312, comités (COPASST, Convivencia, Brigadas), químicos SGA, vehículos, EPP, reportes de actos y condiciones, perfiles de cargo, casos ATEL, cronograma y tareas, capacitaciones, auditorías, creación/actualización/eliminación de agentes de IA (wappy_crear_agente, wappy_actualizar_agente, wappy_eliminar_agente), automatizaciones y cualquier acción dentro del usuario conectado (wappy_ejecutar_accion_usuario).",
                             parameters: {
                                 type: "object",
                                 properties: {
                                     herramienta: {
                                         type: "string",
-                                        description: "Nombre exacto de la herramienta MCP a ejecutar: 'wappy_resumen_general_360', 'wappy_consultar_perfil_empresa', 'wappy_actualizar_perfil_empresa', 'wappy_consultar_matriz_gtc45', 'wappy_alimentar_matriz_gtc45', 'wappy_consultar_matriz_pesv', 'wappy_alimentar_matriz_pesv', 'wappy_consultar_matriz_legal', 'wappy_registrar_requisito_legal', 'wappy_consultar_diagnostico_0312', 'wappy_evaluar_estandar_0312', 'wappy_consultar_trabajadores', 'wappy_registrar_trabajador', 'wappy_actualizar_trabajador', 'wappy_eliminar_trabajador', 'wappy_consultar_comites', 'wappy_registrar_miembro_comite', 'wappy_consultar_epp', 'wappy_registrar_entrega_epp', 'wappy_consultar_perfiles_cargo', 'wappy_guardar_perfil_cargo', 'wappy_consultar_inventario_quimico', 'wappy_registrar_producto_quimico', 'wappy_consultar_vehiculos', 'wappy_registrar_vehiculo', 'wappy_consultar_reportes_actos_condiciones', 'wappy_registrar_reporte_acto_condicion', 'wappy_consultar_casos_atel', 'wappy_registrar_caso_atel', 'wappy_consultar_cronograma_sst', 'wappy_crear_actividad_cronograma', 'wappy_actualizar_estado_tarea', 'wappy_consultar_capacitaciones', 'wappy_programar_capacitacion', 'wappy_consultar_auditorias', 'wappy_registrar_hallazgo_auditoria', 'wappy_consultar_agentes_y_automatizaciones', 'wappy_programar_automatizacion', 'wappy_consultar_conversaciones', 'wappy_consultar_mensajes_conversacion', 'wappy_consultar_archivos'."
+                                        description: "Nombre exacto de la herramienta MCP a ejecutar: 'wappy_resumen_general_360', 'wappy_consultar_perfil_empresa', 'wappy_actualizar_perfil_empresa', 'wappy_consultar_matriz_gtc45', 'wappy_alimentar_matriz_gtc45', 'wappy_consultar_matriz_pesv', 'wappy_alimentar_matriz_pesv', 'wappy_consultar_matriz_legal', 'wappy_registrar_requisito_legal', 'wappy_consultar_diagnostico_0312', 'wappy_evaluar_estandar_0312', 'wappy_consultar_trabajadores', 'wappy_registrar_trabajador', 'wappy_actualizar_trabajador', 'wappy_eliminar_trabajador', 'wappy_consultar_comites', 'wappy_registrar_miembro_comite', 'wappy_consultar_epp', 'wappy_registrar_entrega_epp', 'wappy_consultar_perfiles_cargo', 'wappy_guardar_perfil_cargo', 'wappy_consultar_inventario_quimico', 'wappy_registrar_producto_quimico', 'wappy_consultar_vehiculos', 'wappy_registrar_vehiculo', 'wappy_consultar_reportes_actos_condiciones', 'wappy_registrar_reporte_acto_condicion', 'wappy_consultar_casos_atel', 'wappy_registrar_caso_atel', 'wappy_consultar_cronograma_sst', 'wappy_crear_actividad_cronograma', 'wappy_actualizar_estado_tarea', 'wappy_consultar_capacitaciones', 'wappy_programar_capacitacion', 'wappy_consultar_auditorias', 'wappy_registrar_hallazgo_auditoria', 'wappy_consultar_agentes_y_automatizaciones', 'wappy_crear_agente', 'wappy_actualizar_agente', 'wappy_eliminar_agente', 'wappy_ejecutar_accion_usuario', 'wappy_programar_automatizacion', 'wappy_consultar_conversaciones', 'wappy_consultar_mensajes_conversacion', 'wappy_consultar_archivos'."
                                     },
                                     parametros: {
                                         type: "object",
@@ -2297,7 +2299,7 @@ class VoiceSession {
 [CONTROL DE VIDEOLLAMADA Y COLGAR POR VOZ]:
 - Si el usuario te pide: "activa videollamada", "activa la cámara", "activa video", "inicia videollamada", "enciende la cámara", "pon la cámara", invoca DE INMEDIATO la herramienta 'wappy_controlar_videollamada' con accion: 'activar_camara' y confirma en una sola frase breve: "¡Listo! Iniciando videollamada en vivo."
 - Si el usuario te pide: "apaga la cámara", "desactiva el video", "apaga videollamada", invoca 'wappy_controlar_videollamada' con accion: 'apagar_camara' y confirma: "Cámara apagada, continuamos por voz."
-- Si el usuario te pide explícitamente: "cuelga la llamada", "colgar", "terminar llamada", "finalizar llamada", invoca DE INMEDIATO 'wappy_controlar_videollamada' con accion: 'colgar_llamada' y despídete amablemente: "¡Con gusto! Que tengas un excelente día."
+- Si el usuario te pide explícitamente colgar ("cuelga la llamada", "colgar", "terminar llamada", "finalizar llamada") O se despide para dar por terminada la conversación ("hasta luego", "gracias por todo", "muchas gracias por todo", "eso es todo por hoy", "eso era todo, gracias", "chao", "adiós", "nos vemos", "hasta pronto", "hasta mañana"): invoca DE INMEDIATO 'wappy_controlar_videollamada' con accion: 'colgar_llamada' y despídete amablemente en una sola frase breve: "¡Hasta luego! Fue un gusto ayudarte hoy, que tengas un excelente día."
 - DIFERENCIA CRÍTICA ENTRE INTERRUMPIR/PAUSAR Y COLGAR LA LLAMADA: Si el usuario te interrumpe diciendo "para", "detente", "espera", "un momento", "silencio", "cállate", "basta", "no sigas", "ya" o "para ahí", significa que quiere que dejes de hablar de ese tema y lo escuches. En ese caso, DETÉN tu explicación de inmediato, ESTÁ TERMINANTEMENTE PROHIBIDO invocar 'wappy_controlar_videollamada' (NUNCA cuelgues la llamada) y responde únicamente con una frase ultra-corta como: "De acuerdo, te escucho." o "Listo, dime."
 - PROHIBICIÓN ESTRICTA DE ACTIVACIÓN NO SOLICITADA DE CÁMARA O VIDEOLLAMADA:
   * NUNCA actives la cámara ni la videollamada por tu cuenta.
@@ -3963,11 +3965,13 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         }
 
                         // GUARDIA DE SEGURIDAD ESTRICTA 2: NUNCA colgar la llamada cuando el usuario solo pide pausar el habla ("para", "espera", "detente", "silencio", etc.)
+                        // Cuando sí es una despedida o solicitud de colgar, diferir el cierre hasta que Tenshi termine de pronunciar su frase de despedida.
                         if (accion === 'colgar_llamada') {
-                            const explicitHangupKeywords = /\b(cuelga|colgar|termina(r)?\s+(la\s+)?(llamada|sesi[oó]n|comunicaci[oó]n)|finaliza(r)?\s+(la\s+)?(llamada|sesi[oó]n|comunicaci[oó]n)|corta(r)?\s+(la\s+)?llamada|desconecta(r)?(\s+la\s+llamada)?|apaga(r)?\s+tenshi|adi[oó]s\s+tenshi|chao\s+tenshi|hasta\s+luego)\b/i;
-                            const isPauseSpeechOnly = /^(para|p[aá]rate|detente|espera|esp[eé]rate|un\s+momento|momento|silencio|c[aá]llate|basta|ya|no\s+sigas|para\s+ah[ií]|aguanta|alto|pausa)[.!?,]*$/i.test(this.userTranscriptionText?.trim() || '');
+                            const currentTrimmed = (this.userTranscriptionText || '').trim();
+                            const isPauseSpeechOnly = /^(para|p[aá]rate|detente|espera|esp[eé]rate|un\s+momento|momento|silencio|c[aá]llate|basta|ya|no\s+sigas|para\s+ah[ií]|aguanta|alto|pausa)[.!?,]*$/i.test(currentTrimmed);
+                            const explicitHangupOrFarewell = /\b(cuelga|colgar|termina(r)?\s+(la\s+)?(llamada|sesi[oó]n|comunicaci[oó]n|conversaci[oó]n)|finaliza(r)?\s+(la\s+)?(llamada|sesi[oó]n|comunicaci[oó]n|conversaci[oó]n)|corta(r)?\s+(la\s+)?llamada|desconecta(r)?(\s+la\s+llamada)?|apaga(r)?\s+tenshi|hasta\s+(luego|pronto|ma[ñn]ana|la\s+pr[oó]xima)|nos\s+vemos|(muchas\s+)?gracias\s+por\s+todo|eso\s+(es|era|fue)\s+todo(\s+por\s+hoy|\s*,?\s*gracias)?|nada\s+m[aá]s\s+por\s+(hoy|ahora)|adi[oó]s|chao|chau|bye|feliz\s+(noche|tarde|d[ií]a)|buenas\s+noches|descansa\s+tenshi)\b/i;
 
-                            if (isPauseSpeechOnly || !explicitHangupKeywords.test(recentUserText)) {
+                            if (isPauseSpeechOnly || (currentTrimmed.length > 3 && !explicitHangupOrFarewell.test(recentUserText))) {
                                 logger.warn(`[VoiceSession] RECHAZADO colgar_llamada porque el usuario solo pidió detener el habla (NO colgar). Texto: "${recentUserText}"`);
                                 if (this.geminiClient) {
                                     this.sendGeminiToolResponse([{
@@ -3980,6 +3984,35 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                 }
                                 continue;
                             }
+
+                            this.pendingHangupAfterTurn = true;
+                            if (this.pendingHangupTimer) {
+                                clearTimeout(this.pendingHangupTimer);
+                            }
+                            this.pendingHangupTimer = setTimeout(() => {
+                                if (this.pendingHangupAfterTurn) {
+                                    this.pendingHangupAfterTurn = false;
+                                    this.sendToClient({
+                                        type: 'wappy_action',
+                                        data: {
+                                            id: fc.id || `hangup-timeout-${Date.now()}`,
+                                            name: 'wappy_controlar_videollamada',
+                                            args: { accion: 'colgar_llamada' }
+                                        }
+                                    });
+                                }
+                            }, 5500);
+
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: {
+                                        result: "Llamada lista para cerrarse automáticamente al terminar tu respuesta. Despídete ahora mismo del usuario en español con una sola frase breve y cálida (ej. '¡Hasta luego! Fue un gusto ayudarte hoy.') para finalizar la sesión."
+                                    }
+                                }]);
+                            }
+                            continue;
                         }
 
                         this.sendToClient({
@@ -8540,6 +8573,26 @@ ${workerSubHeaderHtml}
      */
     handleTenshiVoiceFailsafe(currentUserText = '', currentAiText = '') {
         if (this.config.mode !== 'tenshi_voice') return;
+
+        // Si ya se programó un cierre de llamada tras el toolCall de despedida, emitirlo ahora que el turno de voz de Tenshi concluyó
+        if (this.pendingHangupAfterTurn) {
+            this.pendingHangupAfterTurn = false;
+            if (this.pendingHangupTimer) {
+                clearTimeout(this.pendingHangupTimer);
+                this.pendingHangupTimer = null;
+            }
+            logger.info('[VoiceSession] Despachando colgar_llamada tras concluir turno de despedida de Tenshi.');
+            this.sendToClient({
+                type: 'wappy_action',
+                data: {
+                    id: `hangup-turn-complete-${Date.now()}`,
+                    name: 'wappy_controlar_videollamada',
+                    args: { accion: 'colgar_llamada' }
+                }
+            });
+            return;
+        }
+
         if (this.toolCalledThisTurn) {
             logger.debug('[VoiceSession] [Tenshi Voice Failsafe] Tool was properly called by Gemini. No failsafe needed.');
             return;
@@ -8548,22 +8601,23 @@ ${workerSubHeaderHtml}
         const userText = (currentUserText || '').trim();
         if (!userText || userText.includes('[SISTEMA INTERNO WAPPY')) return;
         const userLower = userText.toLowerCase();
+        const aiLower = (currentAiText || '').trim().toLowerCase();
 
-        // 0. Filtro estricto de frases conversacionales cortas: NUNCA disparan delegación de agentes
-        const isConversationalCheck = /^(¿?\s*(me\s+escuchas?|me\s+o[yi]es?|est[aá]s\s+ah[ií]|qu[eé]\s+dijo|qu[eé]\s+respondi[oó]|ya\s+respondi[oó]|hola|buenas|gracias|ok|listo|entendido)\s*\??)$/i.test(userLower);
-        if (isConversationalCheck) {
-            logger.debug(`[VoiceSession] [Tenshi Voice Failsafe] Ignorando frase puramente conversacional: "${userLower}"`);
-            return;
-        }
+        // 0.1. Failsafe prioritario para videollamada y despedida/colgar por voz (evaluado ANTES del filtro conversacional corto)
+        const isPauseWord = /^(para|p[aá]rate|detente|espera|esp[eé]rate|un\s+momento|momento|silencio|c[aá]llate|basta|ya|no\s+sigas|para\s+ah[ií]|aguanta|alto|pausa)[.!?,]*$/i.test(userLower.trim());
 
-        // 0.1. Failsafe prioritario para videollamada y colgar por voz
         const isActivarVideo = /\b(activa|activar|enciende|encender|inicia|iniciar|pon|poner|prende|prender|abre|abrir)\s+(la\s+)?(videollamada|c[aá]mara|video|visi[oó]n)\b/i.test(userLower) ||
             /\b(videollamada|activa\s+c[aá]mara|activa\s+video)\b/i.test(userLower);
 
         const isApagarVideo = /\b(apaga|apagar|desactiva|desactivar|quita|quitar|cierra|cerrar)\s+(la\s+)?(c[aá]mara|video|videollamada)\b/i.test(userLower);
 
-        const isColgarLlamada = /\b(cuelga|colgar|termina|terminar|finaliza|finalizar|corta|cortar|desconecta|desconectar)\s+(la\s+)?(llamada|comunicaci[oó]n|sesi[oó]n|conversaci[oó]n)\b/i.test(userLower) ||
-            /^(cuelga|colgar|terminar\s+llamada|finalizar\s+llamada)$/i.test(userLower.trim());
+        const isColgarLlamada = !isPauseWord && (
+            /\b(cuelga|colgar|termina|terminar|finaliza|finalizar|corta|cortar|desconecta|desconectar)\s+(la\s+)?(llamada|comunicaci[oó]n|sesi[oó]n|conversaci[oó]n)\b/i.test(userLower) ||
+            /\b(apaga(r)?\s+tenshi|hasta\s+(luego|pronto|ma[ñn]ana|la\s+pr[oó]xima)|nos\s+vemos|(muchas\s+)?gracias\s+por\s+todo|eso\s+(es|era|fue)\s+todo(\s+por\s+hoy|\s*,?\s*gracias)?|nada\s+m[aá]s\s+por\s+(hoy|ahora))\b/i.test(userLower) ||
+            /^(cuelga|colgar|terminar\s+llamada|finalizar\s+llamada|adi[oó]s(\s+tenshi)?|chao(\s+tenshi)?|chau(\s+tenshi)?|bye(\s+tenshi)?|hasta\s+luego(\s+tenshi)?|nos\s+vemos(\s+tenshi)?|(muchas\s+)?gracias\s+por\s+todo(\s+tenshi)?|feliz\s+(noche|tarde|d[ií]a)\s*(,?\s*(tenshi|hasta\s+luego|gracias|chao|adi[oó]s))?|buenas\s+noches\s*(,?\s*(tenshi|hasta\s+luego|gracias|descansa))?)[.!?,]*$/i.test(userLower.trim()) ||
+            (/\b(muchas\s+gracias|gracias\s+tenshi|listo\s*,?\s*gracias|perfecto\s*,?\s*gracias)\b/i.test(userLower) &&
+                /\b(hasta\s+(luego|pronto|ma[ñn]ana)|nos\s+vemos|que\s+tengas\s+un\s+(excelente|buen|feliz)\s+(d[ií]a|tarde|noche|resto)|feliz\s+(d[ií]a|tarde|noche))\b/i.test(aiLower))
+        );
 
         if (isActivarVideo) {
             logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Activando videollamada por voz: "${userText}"`);
@@ -8588,7 +8642,7 @@ ${workerSubHeaderHtml}
             });
             return;
         } else if (isColgarLlamada) {
-            logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Colgando llamada por voz: "${userText}"`);
+            logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Despedida / Colgando llamada por voz: "${userText}"`);
             this.sendToClient({
                 type: 'wappy_action',
                 data: {
@@ -8597,6 +8651,13 @@ ${workerSubHeaderHtml}
                     args: { accion: 'colgar_llamada' }
                 }
             });
+            return;
+        }
+
+        // 0. Filtro estricto de frases conversacionales cortas: NUNCA disparan delegación de agentes
+        const isConversationalCheck = /^(¿?\s*(me\s+escuchas?|me\s+o[yi]es?|est[aá]s\s+ah[ií]|qu[eé]\s+dijo|qu[eé]\s+respondi[oó]|ya\s+respondi[oó]|hola|buenas|gracias|ok|listo|entendido)\s*\??)$/i.test(userLower);
+        if (isConversationalCheck) {
+            logger.debug(`[VoiceSession] [Tenshi Voice Failsafe] Ignorando frase puramente conversacional: "${userLower}"`);
             return;
         }
 
@@ -9699,6 +9760,11 @@ Has asumido el rol de la Especialista en Ergonomía y Fisioterapeuta Laboral en 
     async stop() {
         if (!this.isActive) return;
         this.isActive = false;
+        this.pendingHangupAfterTurn = false;
+        if (this.pendingHangupTimer) {
+            clearTimeout(this.pendingHangupTimer);
+            this.pendingHangupTimer = null;
+        }
 
         logger.info(`[VoiceSession] Stopping session for user: ${this.userId}...`);
 

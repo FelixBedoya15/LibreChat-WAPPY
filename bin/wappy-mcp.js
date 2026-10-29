@@ -3136,6 +3136,106 @@ server.tool(
   }
 );
 
+server.tool(
+  'wappy_crear_agente',
+  {
+    name: z.string().describe('Nombre del nuevo agente de IA'),
+    description: z.string().optional().describe('Descripción breve de la especialidad del agente'),
+    instructions: z.string().optional().describe('Instrucciones del sistema (System Prompt) detalladas para el agente'),
+    category: z.string().optional().describe('Categoría del agente (ej. general, sgsst, legal, medicina)'),
+    provider: z.string().optional().describe('Proveedor de IA (por defecto: google)'),
+    model: z.string().optional().describe('Modelo de IA (por defecto: gemini-3.5-flash-lite)'),
+    temperature: z.number().optional().describe('Temperatura creativa del modelo (0.0 a 1.0, por defecto 0.2)'),
+    incluirTodasLasHerramientas: z.boolean().optional().describe('Si es true (por defecto), equipa automáticamente al agente con TODAS las herramientas de Google (Antigravity, NotebookLM, Flow, Drive, Gmail, Calendar, Docs, Sheets, Slides) y de WAPPY SST (Canvas, Editor Live, Matriz GTC-45, PESV, Químicos, Búsqueda Web, Código, etc.)'),
+    tools: z.array(z.string()).optional().describe('Lista opcional de herramientas específicas o atajos ("todas", "google", "notebooklm", "sst", "google_antigravity", "google_flow", "canvas", "matriz_ipevar", "matriz_pesv", "web_search", etc.)'),
+    skills: z.union([z.array(z.string()), z.string()]).optional().describe('Lista de IDs de skills o "todas" para activar todas las habilidades disponibles'),
+    conversation_starters: z.array(z.string()).optional().describe('Frases iniciadoras de conversación sugeridas en el chat'),
+    agent_ids: z.array(z.string()).optional().describe('IDs de otros agentes para encadenar en equipo (Agent Chain, máx. 10)'),
+    avatar_url: z.string().optional().describe('URL o ruta de imagen del avatar del agente (ej. /images/tenshi.png)'),
+  },
+  async (params) => {
+    try {
+      const data = await wappyRequest('/agentes', {
+        method: 'POST',
+        body: JSON.stringify(params),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_actualizar_agente',
+  {
+    id: z.string().describe('ID (agent_...) o nombre actual del agente a modificar'),
+    nuevo_nombre: z.string().optional().describe('Nuevo nombre para el agente'),
+    description: z.string().optional().describe('Nueva descripción'),
+    instructions: z.string().optional().describe('Nuevas instrucciones del sistema (System Prompt)'),
+    model: z.string().optional().describe('Nuevo modelo de IA'),
+    temperature: z.number().optional().describe('Nueva temperatura (0.0 a 1.0)'),
+    tools: z.array(z.string()).optional().describe('Reemplazar lista completa de herramientas (admite "todas", "google", "notebooklm", "sst")'),
+    agregar_herramientas: z.array(z.string()).optional().describe('Herramientas adicionales para agregar sin borrar las actuales'),
+    quitar_herramientas: z.array(z.string()).optional().describe('Herramientas a desactivar del agente'),
+    skills: z.union([z.array(z.string()), z.string()]).optional().describe('Actualizar skills del agente (lista de IDs o "todas")'),
+    conversation_starters: z.array(z.string()).optional().describe('Actualizar frases iniciadoras de conversación'),
+    agent_ids: z.array(z.string()).optional().describe('Actualizar agentes encadenados (Agent Chain)'),
+    avatar_url: z.string().optional().describe('Nueva URL o ruta de avatar'),
+  },
+  async ({ id, ...rest }) => {
+    try {
+      const data = await wappyRequest(`/agentes/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body: JSON.stringify({ id, ...rest }),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_eliminar_agente',
+  {
+    id: z.string().describe('ID (agent_...) o nombre exacto del agente propio a eliminar'),
+  },
+  async ({ id }) => {
+    try {
+      const data = await wappyRequest(`/agentes/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_ejecutar_accion_usuario',
+  {
+    ruta: z.string().optional().describe('Ruta interna de la API de WAPPY a invocar en nombre del usuario conectado (ej. "/api/agents", "/api/convos", "/api/messages", "/api/memories", "/api/prompts", "/api/presets", "/api/sgsst/...", "/api/sub-users", "/api/canvas/...", "/api/files")'),
+    metodo: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']).optional().describe('Método HTTP cuando se especifica "ruta" (por defecto GET)'),
+    modulo: z.string().optional().describe('Módulo directo de la cuenta del usuario si no se usa "ruta" ("memorias", "conversaciones", "canvas")'),
+    operacion: z.string().optional().describe('Operación sobre el módulo ("listar", "crear", "actualizar", "eliminar")'),
+    id: z.string().optional().describe('ID del recurso o conversación sobre el cual operar'),
+    datos: z.record(z.any()).optional().describe('Cuerpo de datos (body/query) para enviar en la acción solicitada'),
+  },
+  async (params) => {
+    try {
+      const data = await wappyRequest('/accion-universal', {
+        method: 'POST',
+        body: JSON.stringify(params),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
   return server;
 }
 

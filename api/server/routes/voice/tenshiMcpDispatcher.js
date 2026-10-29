@@ -151,6 +151,16 @@ const TOOL_ROUTES = {
   wappy_actualizar_hallazgo_auditoria: { method: 'PUT', path: (args) => `/auditorias/${encodeURIComponent(args.id || '')}` },
   wappy_eliminar_hallazgo_auditoria: { method: 'DELETE', path: (args) => `/auditorias/${encodeURIComponent(args.id || '')}` },
   wappy_consultar_agentes_y_automatizaciones: { method: 'GET', path: '/agentes-automatizaciones' },
+  wappy_crear_agente: { method: 'POST', path: '/agentes' },
+  wappy_actualizar_agente: {
+    method: 'PUT',
+    path: (args) => `/agentes/${encodeURIComponent(args.id || args.agentId || args.nombre || args.name || '')}`,
+  },
+  wappy_eliminar_agente: {
+    method: 'DELETE',
+    path: (args) => `/agentes/${encodeURIComponent(args.id || args.agentId || args.nombre || args.name || '')}`,
+  },
+  wappy_ejecutar_accion_usuario: { method: 'POST', path: '/accion-universal' },
   wappy_programar_automatizacion: { method: 'POST', path: '/agentes-automatizaciones' },
   wappy_actualizar_automatizacion: {
     method: 'PUT',

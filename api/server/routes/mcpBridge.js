@@ -3727,6 +3727,170 @@ router.delete('/auditorias/:id', requireApiKeyOrJwt, async (req, res) => {
 
 // ─── 18. AGENTES Y AUTOMATIZACIONES ────────────────────────────────────────
 
+const ALL_NOTEBOOKLM_MCP_TOOLS = [
+  'notebook_list_mcp_notebooklm',
+  'notebook_create_mcp_notebooklm',
+  'notebook_rename_mcp_notebooklm',
+  'notebook_get_summary_mcp_notebooklm',
+  'notebook_suggest_prompts_mcp_notebooklm',
+  'notebook_copy_mcp_notebooklm',
+  'notebook_delete_mcp_notebooklm',
+  'notebook_share_mcp_notebooklm',
+  'source_list_mcp_notebooklm',
+  'source_add_mcp_notebooklm',
+  'source_add_file_mcp_notebooklm',
+  'source_add_drive_mcp_notebooklm',
+  'source_add_urls_batch_mcp_notebooklm',
+  'source_get_fulltext_mcp_notebooklm',
+  'source_get_guide_mcp_notebooklm',
+  'source_search_mcp_notebooklm',
+  'source_rename_mcp_notebooklm',
+  'source_append_text_mcp_notebooklm',
+  'source_refresh_mcp_notebooklm',
+  'source_delete_mcp_notebooklm',
+  'note_list_mcp_notebooklm',
+  'note_create_mcp_notebooklm',
+  'note_update_mcp_notebooklm',
+  'note_delete_mcp_notebooklm',
+  'chat_ask_mcp_notebooklm',
+  'chat_configure_mcp_notebooklm',
+  'studio_generate_mcp_notebooklm',
+  'studio_status_mcp_notebooklm',
+  'studio_download_mcp_notebooklm',
+  'studio_list_mcp_notebooklm',
+  'studio_export_mcp_notebooklm',
+  'studio_revise_slide_mcp_notebooklm',
+  'studio_manage_mcp_notebooklm',
+  'research_start_mcp_notebooklm',
+  'research_import_mcp_notebooklm',
+];
+
+const ALL_GOOGLE_AGENT_TOOLS = [
+  'google_antigravity',
+  'google_flow',
+  'google_drive',
+  'google_gmail',
+  'google_calendar',
+  'google_docs',
+  'google_sheets',
+  'google_slides',
+];
+
+const ALL_WAPPY_SST_AGENT_TOOLS = [
+  'web_search',
+  'file_search',
+  'execute_code',
+  'canvas',
+  'editor_live',
+  'editor_rit',
+  'matriz_ipevar',
+  'matriz_pesv',
+  'matriz_compatibilidad',
+  'somos_sst',
+  'gestor_automatizaciones',
+  'consultar_agente_especializado',
+  'consultar_analitica_psicosocial',
+  'consultar_analitica_actos_condiciones',
+  'blog_editor',
+  'generar_imagen_sst',
+  'wappy_renderizar_widget_interactivo',
+  'wappy_memoria_procedimental',
+  'context',
+  'calculator',
+];
+
+function expandAgentToolsList(rawTools, includeAllByDefault = true) {
+  if (!rawTools || (Array.isArray(rawTools) && rawTools.length === 0)) {
+    if (includeAllByDefault) {
+      return Array.from(
+        new Set([
+          ...ALL_WAPPY_SST_AGENT_TOOLS,
+          ...ALL_GOOGLE_AGENT_TOOLS,
+          ...ALL_NOTEBOOKLM_MCP_TOOLS,
+        ]),
+      );
+    }
+    return [
+      'web_search',
+      'file_search',
+      'google_antigravity',
+      'google_flow',
+      'canvas',
+      'wappy_renderizar_widget_interactivo',
+      'wappy_memoria_procedimental',
+      ...ALL_NOTEBOOKLM_MCP_TOOLS,
+    ];
+  }
+
+  const inputArr = Array.isArray(rawTools)
+    ? rawTools
+    : String(rawTools)
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+  const expanded = new Set([
+    'wappy_renderizar_widget_interactivo',
+    'wappy_memoria_procedimental',
+  ]);
+
+  for (const item of inputArr) {
+    const lower = String(item).trim().toLowerCase();
+    if (lower === 'todas' || lower === 'all' || lower === '*') {
+      ALL_WAPPY_SST_AGENT_TOOLS.forEach((t) => expanded.add(t));
+      ALL_GOOGLE_AGENT_TOOLS.forEach((t) => expanded.add(t));
+      ALL_NOTEBOOKLM_MCP_TOOLS.forEach((t) => expanded.add(t));
+    } else if (lower === 'notebooklm' || lower === 'google_notebooklm') {
+      ALL_NOTEBOOKLM_MCP_TOOLS.forEach((t) => expanded.add(t));
+    } else if (lower === 'google' || lower === 'google_suite') {
+      ALL_GOOGLE_AGENT_TOOLS.forEach((t) => expanded.add(t));
+      ALL_NOTEBOOKLM_MCP_TOOLS.forEach((t) => expanded.add(t));
+    } else if (lower === 'sst' || lower === 'wappy_sst') {
+      ALL_WAPPY_SST_AGENT_TOOLS.forEach((t) => expanded.add(t));
+    } else if (lower === 'antigravity') {
+      expanded.add('google_antigravity');
+    } else if (lower === 'flow') {
+      expanded.add('google_flow');
+    } else {
+      expanded.add(String(item).trim());
+    }
+  }
+
+  return Array.from(expanded);
+}
+
+function loadAvailableAgentSkills() {
+  try {
+    const fs = require('fs');
+    const yaml = require('js-yaml');
+    const skillsDir = path.resolve(__dirname, '../../../config/skills');
+    if (!fs.existsSync(skillsDir)) return [];
+    const files = fs.readdirSync(skillsDir);
+    const list = [];
+    for (const file of files) {
+      if (!file.endsWith('.md')) continue;
+      const id = file.replace(/\.md$/, '');
+      const raw = fs.readFileSync(path.join(skillsDir, file), 'utf8');
+      const match = raw.match(/^---([\s\S]*?)---/);
+      let meta = {};
+      if (match) {
+        try {
+          meta = yaml.load(match[1]) || {};
+        } catch (_) {}
+      }
+      if (meta.scope === 'tenshi') continue;
+      list.push({
+        id,
+        name: meta.name || id,
+        description: meta.description || '',
+      });
+    }
+    return list;
+  } catch (_) {
+    return [];
+  }
+}
+
 router.get('/agentes-automatizaciones', requireApiKeyOrJwt, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -3734,18 +3898,46 @@ router.get('/agentes-automatizaciones', requireApiKeyOrJwt, async (req, res) => 
     const company = await getActiveCompany(userId);
     const companyId = company?._id?.toString();
 
-    const [agentes, automations] = await Promise.all([
-      Agent ? Agent.find({ author: userId }).select('id name description avatar model').lean() : [],
-      Automation.find(companyId ? { $or: [{ companyId }, { user: userId }] } : { user: userId }).sort({ createdAt: -1 }).lean(),
+    const [allAgents, automations] = await Promise.all([
+      Agent
+        ? Agent.find({})
+            .select('id name description instructions avatar model provider category tools skills conversation_starters agent_ids author')
+            .lean()
+        : [],
+      Automation.find(companyId ? { $or: [{ companyId }, { user: userId }] } : { user: userId })
+        .sort({ createdAt: -1 })
+        .lean(),
     ]);
 
+    const agentesPropios = allAgents.filter((a) => String(a.author) === String(userId));
+    const agentesSistema = allAgents.filter((a) => String(a.author) !== String(userId));
+    const skillsDisponibles = loadAvailableAgentSkills();
+
     return res.json({
-      totalAgentes: agentes.length,
-      agentes: agentes.map((a) => ({
+      totalAgentes: allAgents.length,
+      totalAgentesPropios: agentesPropios.length,
+      agentes: allAgents.map((a) => ({
         id: a.id,
         name: a.name,
         description: a.description || '',
+        instructions: a.instructions ? String(a.instructions).slice(0, 600) : '',
+        model: a.model || 'gemini-3.5-flash-lite',
+        provider: a.provider || 'google',
+        category: a.category || 'general',
+        esPropio: String(a.author) === String(userId),
+        totalHerramientas: Array.isArray(a.tools) ? a.tools.length : 0,
+        tools: Array.isArray(a.tools) ? a.tools.filter((t) => !t.includes('_mcp_notebooklm')) : [],
+        tieneNotebookLM: Array.isArray(a.tools) && a.tools.some((t) => t.includes('_mcp_notebooklm')),
+        skills: a.skills || [],
+        conversation_starters: a.conversation_starters || [],
+        agent_ids: a.agent_ids || [],
       })),
+      catalogoHerramientasDisponibles: {
+        google: [...ALL_GOOGLE_AGENT_TOOLS, 'notebooklm (35 herramientas)'],
+        wappySst: ALL_WAPPY_SST_AGENT_TOOLS,
+        atajos: ['todas', 'google', 'notebooklm', 'sst'],
+      },
+      catalogoSkillsDisponibles: skillsDisponibles,
       totalAutomatizaciones: automations.length,
       automatizaciones: automations.map((au) => ({
         id: au._id.toString(),
@@ -3843,6 +4035,510 @@ router.delete('/agentes-automatizaciones/:id', requireApiKeyOrJwt, async (req, r
   } catch (error) {
     logger.error('[MCP Bridge] DELETE /agentes-automatizaciones/:id error:', error);
     return res.status(500).json({ error: 'Error al eliminar automatización.' });
+  }
+});
+
+// ─── 18.B GESTIÓN COMPLETA DE AGENTES DE IA (CREAR / ACTUALIZAR / ELIMINAR) ─
+
+router.post('/agentes', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const body = req.body || {};
+    const name = String(body.name || body.nombre || '').trim();
+    if (!name) {
+      return res.status(400).json({ error: 'El nombre del agente ("name" o "nombre") es obligatorio.' });
+    }
+
+    const { nanoid } = require('nanoid');
+    const { createAgent } = require('~/models/Agent');
+    const { grantPermission } = require('~/server/services/PermissionService');
+    const { ResourceType, AccessRoleIds, PrincipalType } = require('librechat-data-provider');
+
+    const description = String(body.description || body.descripcion || '').trim();
+    const instructions = String(
+      body.instructions ||
+        body.instrucciones ||
+        body.prompt ||
+        body.systemPrompt ||
+        `Eres ${name}, un agente especialista de WAPPY IA.${description ? ' ' + description : ''}`,
+    ).trim();
+    const category = String(body.category || body.categoria || 'general').trim();
+    const provider = String(body.provider || body.proveedor || 'google').trim();
+    const model = String(
+      body.model || body.modelo || process.env.DEFAULT_AGENT_MODEL || 'gemini-3.5-flash-lite',
+    ).trim();
+    const temperature =
+      body.temperature !== undefined
+        ? Number(body.temperature)
+        : body.temperatura !== undefined
+        ? Number(body.temperatura)
+        : 0.2;
+
+    const includeAllTools =
+      body.incluirTodasLasHerramientas !== undefined
+        ? Boolean(body.incluirTodasLasHerramientas)
+        : body.includeAllTools !== undefined
+        ? Boolean(body.includeAllTools)
+        : true;
+
+    const rawTools = body.tools || body.herramientas;
+    const finalTools = expandAgentToolsList(rawTools, includeAllTools);
+
+    let finalSkills = [];
+    const rawSkills = body.skills || body.habilidades;
+    const availableSkills = loadAvailableAgentSkills();
+    if (
+      rawSkills === 'todas' ||
+      rawSkills === 'all' ||
+      (Array.isArray(rawSkills) && rawSkills.some((s) => s === 'todas' || s === 'all'))
+    ) {
+      finalSkills = availableSkills.map((s) => s.id);
+    } else if (Array.isArray(rawSkills)) {
+      finalSkills = rawSkills.map((s) => String(s).trim()).filter(Boolean);
+    }
+
+    const conversationStarters = Array.isArray(body.conversation_starters || body.iniciadores)
+      ? (body.conversation_starters || body.iniciadores).map((s) => String(s).trim()).filter(Boolean)
+      : [];
+
+    const chainedAgentIds = Array.isArray(body.agent_ids || body.agentes_encadenados)
+      ? (body.agent_ids || body.agentes_encadenados).map((s) => String(s).trim()).filter(Boolean).slice(0, 10)
+      : [];
+
+    const avatarUrl = body.avatar_url || body.avatarUrl || (typeof body.avatar === 'string' ? body.avatar : body.avatar?.filepath);
+    const avatarObj = avatarUrl
+      ? { filepath: String(avatarUrl).trim(), source: 'local' }
+      : { filepath: '/images/tenshi.png', source: 'local' };
+
+    const agentData = {
+      id: `agent_${nanoid()}`,
+      name,
+      description,
+      instructions,
+      category,
+      provider,
+      model,
+      model_parameters: {
+        ...(body.model_parameters || {}),
+        temperature: Number.isFinite(temperature) ? temperature : 0.2,
+      },
+      tools: finalTools,
+      skills: finalSkills,
+      conversation_starters: conversationStarters,
+      agent_ids: chainedAgentIds,
+      avatar: avatarObj,
+      author: userId,
+    };
+
+    const created = await createAgent(agentData);
+
+    try {
+      await grantPermission({
+        principalType: PrincipalType.USER,
+        principalId: userId,
+        resourceType: ResourceType.AGENT,
+        resourceId: created._id,
+        accessRoleId: AccessRoleIds.AGENT_OWNER,
+        grantedBy: userId,
+      });
+    } catch (permErr) {
+      logger.warn(`[MCP Bridge] Error asignando permisos AGENT_OWNER a ${created.id}:`, permErr.message);
+    }
+
+    return res.status(201).json({
+      exito: true,
+      mensaje: `Agente "${created.name}" creado exitosamente con todas sus características y herramientas activas.`,
+      agente: {
+        id: created.id,
+        _id: created._id.toString(),
+        name: created.name,
+        description: created.description,
+        instructions: created.instructions,
+        provider: created.provider,
+        model: created.model,
+        category: created.category,
+        totalHerramientas: created.tools?.length || 0,
+        tools: (created.tools || []).filter((t) => !t.includes('_mcp_notebooklm')),
+        tieneNotebookLM: (created.tools || []).some((t) => t.includes('_mcp_notebooklm')),
+        skills: created.skills || [],
+        conversation_starters: created.conversation_starters || [],
+        agent_ids: created.agent_ids || [],
+        avatar: created.avatar,
+      },
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] POST /agentes error:', error);
+    return res.status(500).json({ error: `Error al crear agente: ${error.message}` });
+  }
+});
+
+const handleUpdateAgentMcp = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const isAdmin = req.user.role === 'ADMIN';
+    const body = req.body || {};
+    const targetIdentifier = String(
+      req.params.id || body.id || body.agentId || body.agente_id || body.nombre_actual || body.name || body.nombre || '',
+    ).trim();
+
+    if (!targetIdentifier) {
+      return res.status(400).json({ error: 'Debes proporcionar el "id" o "nombre" del agente a actualizar.' });
+    }
+
+    const Agent = mongoose.models.Agent;
+    const { updateAgent } = require('~/models/Agent');
+
+    const baseFilter = isAdmin ? {} : { author: userId };
+    let existing = await Agent.findOne({ ...baseFilter, id: targetIdentifier }).lean();
+    if (!existing && mongoose.Types.ObjectId.isValid(targetIdentifier)) {
+      existing = await Agent.findOne({ ...baseFilter, _id: targetIdentifier }).lean();
+    }
+    if (!existing) {
+      existing = await Agent.findOne({
+        ...baseFilter,
+        name: { $regex: new RegExp(`^${targetIdentifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+      }).lean();
+    }
+    if (!existing) {
+      return res.status(404).json({
+        error: `No se encontró un agente editable con identificador o nombre "${targetIdentifier}" en tu cuenta.`,
+      });
+    }
+
+    const updatePayload = {};
+    if (body.nuevo_nombre || (body.name && body.name !== existing.name) || (body.nombre && body.nombre !== existing.name)) {
+      updatePayload.name = String(body.nuevo_nombre || body.name || body.nombre).trim();
+    }
+    if (body.description !== undefined || body.descripcion !== undefined) {
+      updatePayload.description = String(body.description ?? body.descripcion).trim();
+    }
+    if (body.instructions !== undefined || body.instrucciones !== undefined || body.prompt !== undefined) {
+      updatePayload.instructions = String(body.instructions ?? body.instrucciones ?? body.prompt).trim();
+    }
+    if (body.category !== undefined || body.categoria !== undefined) {
+      updatePayload.category = String(body.category ?? body.categoria).trim();
+    }
+    if (body.provider !== undefined || body.proveedor !== undefined) {
+      updatePayload.provider = String(body.provider ?? body.proveedor).trim();
+    }
+    if (body.model !== undefined || body.modelo !== undefined) {
+      updatePayload.model = String(body.model ?? body.modelo).trim();
+    }
+    if (body.temperature !== undefined || body.temperatura !== undefined || body.model_parameters !== undefined) {
+      const temp = body.temperature ?? body.temperatura;
+      updatePayload.model_parameters = {
+        ...(existing.model_parameters || {}),
+        ...(body.model_parameters || {}),
+        ...(temp !== undefined ? { temperature: Number(temp) } : {}),
+      };
+    }
+
+    let currentTools = new Set(Array.isArray(existing.tools) ? existing.tools : []);
+    if (body.tools !== undefined || body.herramientas !== undefined) {
+      currentTools = new Set(expandAgentToolsList(body.tools ?? body.herramientas, false));
+    }
+    if (body.agregar_herramientas || body.addTools) {
+      const toAdd = expandAgentToolsList(body.agregar_herramientas || body.addTools, false);
+      toAdd.forEach((t) => currentTools.add(t));
+    }
+    if (body.quitar_herramientas || body.removeTools) {
+      const rawRemove = body.quitar_herramientas || body.removeTools;
+      const toRemove = Array.isArray(rawRemove) ? rawRemove : String(rawRemove).split(',').map((s) => s.trim());
+      toRemove.forEach((t) => currentTools.delete(t));
+    }
+    updatePayload.tools = Array.from(currentTools);
+
+    if (body.skills !== undefined || body.habilidades !== undefined) {
+      const rawSkills = body.skills ?? body.habilidades;
+      if (rawSkills === 'todas' || rawSkills === 'all') {
+        updatePayload.skills = loadAvailableAgentSkills().map((s) => s.id);
+      } else if (Array.isArray(rawSkills)) {
+        updatePayload.skills = rawSkills.map((s) => String(s).trim()).filter(Boolean);
+      }
+    }
+
+    if (body.conversation_starters !== undefined || body.iniciadores !== undefined) {
+      const rawStarters = body.conversation_starters ?? body.iniciadores;
+      if (Array.isArray(rawStarters)) {
+        updatePayload.conversation_starters = rawStarters.map((s) => String(s).trim()).filter(Boolean);
+      }
+    }
+
+    if (body.agent_ids !== undefined || body.agentes_encadenados !== undefined) {
+      const rawChain = body.agent_ids ?? body.agentes_encadenados;
+      if (Array.isArray(rawChain)) {
+        updatePayload.agent_ids = rawChain.map((s) => String(s).trim()).filter(Boolean).slice(0, 10);
+      }
+    }
+
+    const avatarUrl = body.avatar_url || body.avatarUrl || (typeof body.avatar === 'string' ? body.avatar : undefined);
+    if (avatarUrl) {
+      updatePayload.avatar = { filepath: String(avatarUrl).trim(), source: 'local' };
+    }
+
+    const updated = await updateAgent({ id: existing.id }, updatePayload, {
+      updatingUserId: userId,
+      skipVersioning: false,
+    });
+
+    return res.json({
+      exito: true,
+      mensaje: `Agente "${updated.name}" actualizado exitosamente.`,
+      agente: {
+        id: updated.id,
+        name: updated.name,
+        description: updated.description,
+        instructions: updated.instructions,
+        provider: updated.provider,
+        model: updated.model,
+        category: updated.category,
+        totalHerramientas: updated.tools?.length || 0,
+        tools: (updated.tools || []).filter((t) => !t.includes('_mcp_notebooklm')),
+        tieneNotebookLM: (updated.tools || []).some((t) => t.includes('_mcp_notebooklm')),
+        skills: updated.skills || [],
+        conversation_starters: updated.conversation_starters || [],
+        agent_ids: updated.agent_ids || [],
+      },
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] PUT/PATCH /agentes error:', error);
+    return res.status(500).json({ error: `Error al actualizar agente: ${error.message}` });
+  }
+};
+
+router.put('/agentes/:id', requireApiKeyOrJwt, handleUpdateAgentMcp);
+router.patch('/agentes/:id', requireApiKeyOrJwt, handleUpdateAgentMcp);
+router.put('/agentes', requireApiKeyOrJwt, handleUpdateAgentMcp);
+router.patch('/agentes', requireApiKeyOrJwt, handleUpdateAgentMcp);
+
+const handleDeleteAgentMcp = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const isAdmin = req.user.role === 'ADMIN';
+    const targetIdentifier = String(
+      req.params.id || req.body?.id || req.body?.agentId || req.body?.nombre || req.body?.name || '',
+    ).trim();
+
+    if (!targetIdentifier) {
+      return res.status(400).json({ error: 'Debes proporcionar el "id" o "nombre" del agente a eliminar.' });
+    }
+
+    const Agent = mongoose.models.Agent;
+    const { deleteAgent } = require('~/models/Agent');
+    const baseFilter = isAdmin ? {} : { author: userId };
+
+    let existing = await Agent.findOne({ ...baseFilter, id: targetIdentifier }).lean();
+    if (!existing && mongoose.Types.ObjectId.isValid(targetIdentifier)) {
+      existing = await Agent.findOne({ ...baseFilter, _id: targetIdentifier }).lean();
+    }
+    if (!existing) {
+      existing = await Agent.findOne({
+        ...baseFilter,
+        name: { $regex: new RegExp(`^${targetIdentifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+      }).lean();
+    }
+    if (!existing) {
+      return res.status(404).json({
+        error: `No se encontró un agente propio con identificador o nombre "${targetIdentifier}" para eliminar.`,
+      });
+    }
+
+    await deleteAgent({ id: existing.id });
+
+    return res.json({
+      exito: true,
+      mensaje: `Agente "${existing.name}" (${existing.id}) eliminado exitosamente.`,
+      deletedId: existing.id,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] DELETE /agentes error:', error);
+    return res.status(500).json({ error: `Error al eliminar agente: ${error.message}` });
+  }
+};
+
+router.delete('/agentes/:id', requireApiKeyOrJwt, handleDeleteAgentMcp);
+router.delete('/agentes', requireApiKeyOrJwt, handleDeleteAgentMcp);
+
+// ─── 18.C EJECUTOR UNIVERSAL DE ACCIONES DEL USUARIO CONECTADO ─────────────
+
+router.post('/accion-universal', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const isAdmin = req.user.role === 'ADMIN';
+    const body = req.body || {};
+
+    const rawPath = body.ruta || body.path || body.endpoint;
+    const rawMethod = String(body.metodo || body.method || 'GET').toUpperCase().trim();
+    const rawPayload = body.datos || body.data || body.body || {};
+    const rawModule = String(body.modulo || body.module || '').toLowerCase().trim();
+    const rawOperation = String(body.operacion || body.operation || body.accion || 'listar').toLowerCase().trim();
+    const targetId = body.id || body.recurso_id || rawPayload?.id || rawPayload?._id;
+
+    // Modo 1: Invocación directa a cualquier endpoint interno /api/... autenticado como el usuario conectado
+    if (rawPath && typeof rawPath === 'string') {
+      let cleanPath = rawPath.trim();
+      if (!cleanPath.startsWith('/')) cleanPath = `/${cleanPath}`;
+      if (!cleanPath.startsWith('/api/')) cleanPath = `/api${cleanPath}`;
+
+      // Proteger rutas exclusivas de super-administración global si el usuario no es ADMIN
+      if (!isAdmin && /^\/api\/(admin|roles|ban|users\/delete-all)/i.test(cleanPath)) {
+        return res.status(403).json({
+          error: 'Esta ruta administrativa global requiere rol ADMIN. Puedes ejecutar cualquier acción dentro de tu propio usuario y empresas conectadas.',
+        });
+      }
+
+      const jwt = require('jsonwebtoken');
+      const internalToken = jwt.sign(
+        {
+          id: String(req.user.id),
+          email: req.user.email || '',
+          role: req.user.role || 'USER',
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: '10m' },
+      );
+
+      const port = process.env.PORT || 3080;
+      let targetUrl = `http://127.0.0.1:${port}${cleanPath}`;
+      if (rawMethod === 'GET' && rawPayload && typeof rawPayload === 'object' && Object.keys(rawPayload).length > 0) {
+        const qs = new URLSearchParams();
+        for (const [k, v] of Object.entries(rawPayload)) {
+          if (v !== undefined && v !== null) qs.set(k, String(v));
+        }
+        const qsStr = qs.toString();
+        if (qsStr) {
+          targetUrl += (targetUrl.includes('?') ? '&' : '?') + qsStr;
+        }
+      }
+
+      const fetchOpts = {
+        method: rawMethod,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${internalToken}`,
+        },
+      };
+      if (rawMethod !== 'GET' && rawMethod !== 'HEAD') {
+        fetchOpts.body = JSON.stringify(rawPayload);
+      }
+
+      const resp = await fetch(targetUrl, fetchOpts);
+      const text = await resp.text();
+      let parsedData = text;
+      try {
+        parsedData = JSON.parse(text);
+      } catch (_) {}
+
+      return res.status(resp.status).json({
+        exito: resp.ok,
+        status: resp.status,
+        metodo: rawMethod,
+        ruta: cleanPath,
+        resultado: parsedData,
+      });
+    }
+
+    // Modo 2: Operaciones directas sobre módulos de la cuenta del usuario conectado
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id ? String(company._id) : null;
+
+    if (rawModule === 'memorias' || rawModule === 'memoria' || rawModule === 'memories') {
+      const MemoryEntry = mongoose.models.MemoryEntry;
+      if (!MemoryEntry) {
+        return res.status(500).json({ error: 'Modelo MemoryEntry no disponible.' });
+      }
+      if (rawOperation === 'listar' || rawOperation === 'consultar' || rawOperation === 'get') {
+        const items = await MemoryEntry.find({ userId }).sort({ updated_at: -1 }).lean();
+        return res.json({ exito: true, total: items.length, memorias: items });
+      }
+      if (rawOperation === 'crear' || rawOperation === 'guardar' || rawOperation === 'actualizar' || rawOperation === 'set') {
+        const key = String(rawPayload.key || rawPayload.clave || rawPayload.titulo || `memoria_${Date.now()}`).trim();
+        const value = String(rawPayload.value || rawPayload.valor || rawPayload.contenido || '').trim();
+        const tokenCount = Tokenizer?.getTokenCount ? Tokenizer.getTokenCount(value, 'o200k_base') || 0 : 0;
+        await setMemory({ userId, agentId: rawPayload.agentId || 'global', key, value, tokenCount });
+        return res.json({ exito: true, mensaje: `Memoria "${key}" guardada en tu cuenta.`, key, value });
+      }
+      if (rawOperation === 'eliminar' || rawOperation === 'delete') {
+        const key = rawPayload.key || rawPayload.clave || targetId;
+        const del = await MemoryEntry.deleteMany(
+          mongoose.Types.ObjectId.isValid(key) ? { userId, _id: key } : { userId, key },
+        );
+        return res.json({ exito: true, eliminados: del.deletedCount });
+      }
+    }
+
+    if (rawModule === 'conversaciones' || rawModule === 'convos' || rawModule === 'chats') {
+      const Conversation = mongoose.models.Conversation;
+      const Message = mongoose.models.Message;
+      if (rawOperation === 'listar' || rawOperation === 'consultar') {
+        const items = await Conversation.find({ user: String(userId) })
+          .sort({ updatedAt: -1 })
+          .limit(Number(rawPayload.limit) || 30)
+          .select('conversationId title endpoint agent_id model createdAt updatedAt')
+          .lean();
+        return res.json({ exito: true, total: items.length, conversaciones: items });
+      }
+      if (rawOperation === 'actualizar' || rawOperation === 'renombrar') {
+        const convoId = targetId || rawPayload.conversationId;
+        const nuevoTitulo = rawPayload.title || rawPayload.titulo || rawPayload.name;
+        const updated = await Conversation.findOneAndUpdate(
+          { user: String(userId), conversationId: convoId },
+          { $set: { title: nuevoTitulo } },
+          { new: true },
+        ).lean();
+        return res.json({ exito: true, conversacion: updated });
+      }
+      if (rawOperation === 'eliminar' || rawOperation === 'delete') {
+        const convoId = targetId || rawPayload.conversationId;
+        await Conversation.deleteOne({ user: String(userId), conversationId: convoId });
+        if (Message) {
+          await Message.deleteMany({ user: String(userId), conversationId: convoId });
+        }
+        return res.json({ exito: true, mensaje: `Conversación ${convoId} eliminada.` });
+      }
+    }
+
+    if (rawModule === 'canvas' || rawModule === 'lienzo') {
+      const CanvasSession = require('~/models/CanvasSession');
+      if (rawOperation === 'listar' || rawOperation === 'consultar') {
+        const items = await CanvasSession.find({ user: userId }).sort({ updatedAt: -1 }).limit(20).lean();
+        return res.json({ exito: true, total: items.length, sesionesCanvas: items });
+      }
+      if (rawOperation === 'crear' || rawOperation === 'guardar' || rawOperation === 'actualizar') {
+        const convoId = rawPayload.conversationId || targetId || `canvas-${Date.now()}`;
+        const doc = await CanvasSession.findOneAndUpdate(
+          { user: userId, conversationId: convoId },
+          {
+            $set: {
+              title: rawPayload.title || rawPayload.titulo || 'Documento WAPPY',
+              content: rawPayload.content || rawPayload.contenido || '',
+              fileType: rawPayload.fileType || rawPayload.formato || 'text',
+              companyId: companyId || undefined,
+              updatedAt: new Date(),
+            },
+          },
+          { upsert: true, new: true },
+        ).lean();
+        return res.json({ exito: true, canvas: doc });
+      }
+      if (rawOperation === 'eliminar' || rawOperation === 'delete') {
+        const convoId = targetId || rawPayload.conversationId;
+        await CanvasSession.deleteOne(
+          mongoose.Types.ObjectId.isValid(convoId)
+            ? { user: userId, _id: convoId }
+            : { user: userId, conversationId: convoId },
+        );
+        return res.json({ exito: true, mensaje: 'Sesión de Canvas eliminada.' });
+      }
+    }
+
+    return res.status(400).json({
+      error:
+        'Para usar wappy_ejecutar_accion_usuario, envía "ruta" (ej. "/api/agents", "/api/convos", "/api/memories", "/api/sgsst/...", "/api/sub-users") + "metodo" ("GET", "POST", "PUT", "PATCH", "DELETE") + "datos", o bien "modulo" ("memorias", "conversaciones", "canvas") + "operacion" ("listar", "crear", "actualizar", "eliminar").',
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] POST /accion-universal error:', error);
+    return res.status(500).json({ error: `Error ejecutando acción del usuario: ${error.message}` });
   }
 });
 

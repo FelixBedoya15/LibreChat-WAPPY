@@ -2214,13 +2214,13 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
             const wappyMcpSstDeclaration = {
                 name: 'wappy_mcp_sst',
-                description: 'Suite oficial de operaciones y consultas MCP del SG-SST de WAPPY (las 41 herramientas). Permite consultar o alimentar de forma autónoma: diagnóstico 360°, empresa, trabajadores, matriz GTC45, matriz PESV, matriz legal, estándares 0312, comités (COPASST, Convivencia, Brigadas), químicos SGA, vehículos, EPP, reportes de actos y condiciones, perfiles de cargo, casos ATEL, cronograma y tareas, capacitaciones, auditorías y automatizaciones.',
+                description: 'Suite oficial de operaciones y consultas MCP de WAPPY. Permite consultar o ejecutar de forma autónoma: diagnóstico 360°, empresa, trabajadores, matriz GTC45, matriz PESV, matriz legal, estándares 0312, comités (COPASST, Convivencia, Brigadas), químicos SGA, vehículos, EPP, reportes de actos y condiciones, perfiles de cargo, casos ATEL, cronograma y tareas, capacitaciones, auditorías, creación/edición/eliminación de agentes de IA (wappy_crear_agente, wappy_actualizar_agente, wappy_eliminar_agente), automatizaciones y cualquier acción del usuario conectado (wappy_ejecutar_accion_usuario).',
                 parameters: {
                     type: 'OBJECT',
                     properties: {
                         herramienta: {
                             type: 'STRING',
-                            description: 'Nombre de la herramienta MCP a ejecutar (ej: wappy_resumen_general_360, wappy_consultar_matriz_gtc45, wappy_consultar_comites, etc.).'
+                            description: 'Nombre de la herramienta MCP a ejecutar (ej: wappy_resumen_general_360, wappy_crear_agente, wappy_actualizar_agente, wappy_eliminar_agente, wappy_ejecutar_accion_usuario, wappy_consultar_matriz_gtc45, etc.).'
                         },
                         parametros: {
                             type: 'OBJECT',
