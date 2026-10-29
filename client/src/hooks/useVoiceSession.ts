@@ -64,6 +64,8 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const listeningStartTimeRef = useRef(0);
     const noiseFloorRef = useRef<number>(0.004);
     const speechPeakRmsRef = useRef<number>(0);
+    const bargeInFramesRef = useRef<number>(0);
+    const bargeInIgnoreAudioUntilRef = useRef<number>(0);
     const lastVoiceTimeRef = useRef<number>(0);
     const speechStartTimeRef = useRef<number>(0);
     const preRollChunksRef = useRef<Float32Array[]>([]);
@@ -232,19 +234,25 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             };
 
             const sendPCMChunk = (float32Array: Float32Array) => {
-                // Silenciar envío mientras el backend aún no está listo en escucha activa ('listening' o 'ready')
-                if (statusRef.current !== 'listening' && statusRef.current !== 'ready') return;
+                // Permitir ejecución en 'listening', 'ready' y también en 'speaking' para detectar interrupción natural (Barge-In)
+                if (
+                    statusRef.current !== 'listening' &&
+                    statusRef.current !== 'ready' &&
+                    statusRef.current !== 'speaking'
+                ) {
+                    return;
+                }
                 // Grace period: descartar primeros 200ms de captura para abrir el canal de audio con silencio limpio sin pops
                 if (listeningStartTimeRef.current && (Date.now() - listeningStartTimeRef.current < 200)) return;
-                // Silenciar envío mientras la IA reproduce voz para evitar eco acústico del altavoz y tartamudeo
-                if (isHardwareMutedRef.current || isPlayingAudioRef.current || isAutoMutedRef.current) {
-                    // La IA tomó el turno: la locución del usuario ya terminó, no se emite speech_end
+                // Si el usuario silenció manualmente su micrófono (Mute físico/botón), no procesar ni interrumpir
+                if (isHardwareMutedRef.current) {
                     isTransmittingSpeechRef.current = false;
+                    bargeInFramesRef.current = 0;
                     return;
                 }
                 if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
-                // ── Voice Activity Detection (VAD) con Seguimiento de Pico Vocal y Cierre Rápido ──
+                // ── Voice Activity Detection (VAD) con Barge-In Anti-Eco y Cierre Rápido ──
                 // Calcular energía RMS (Root Mean Square) del chunk de audio
                 let sumSquare = 0;
                 for (let k = 0; k < float32Array.length; k++) {
@@ -252,6 +260,47 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     sumSquare += sample * sample;
                 }
                 const rms = Math.sqrt(sumSquare / float32Array.length);
+
+                // Si Tenshi está hablando actualmente, evaluar Barge-In (interrupción natural por voz del usuario)
+                if (isPlayingAudioRef.current || isAutoMutedRef.current) {
+                    // Conservar los últimos 5 chunks (~320ms) en pre-roll para no perder la primera sílaba al interrumpir
+                    preRollChunksRef.current.push(new Float32Array(float32Array));
+                    if (preRollChunksRef.current.length > 5) {
+                        preRollChunksRef.current.shift();
+                    }
+
+                    // Umbral anti-eco: exige voz humana clara por encima del residuo de cancelación de eco durante 3 chunks (~190ms)
+                    const bargeInThreshold = Math.max(0.032, noiseFloorRef.current * 3.2);
+                    if (rms >= bargeInThreshold) {
+                        bargeInFramesRef.current += 1;
+                    } else {
+                        bargeInFramesRef.current = Math.max(0, bargeInFramesRef.current - 1);
+                    }
+
+                    if (bargeInFramesRef.current < 3) {
+                        return;
+                    }
+
+                    // 🗣️ Barge-In confirmado: callar a Tenshi en 0ms y abrir el canal para la nueva frase del usuario
+                    console.log('[VoiceSession] 🗣️ Barge-in detectado → deteniendo voz de Tenshi y escuchando al usuario');
+                    bargeInFramesRef.current = 0;
+                    serverFinishedRef.current = true;
+                    isPlayingAudioRef.current = false;
+                    isAutoMutedRef.current = false;
+                    bargeInIgnoreAudioUntilRef.current = Date.now() + 1400;
+                    if (autoMuteTimeoutRef.current) {
+                        clearTimeout(autoMuteTimeoutRef.current);
+                        autoMuteTimeoutRef.current = null;
+                    }
+                    statusRef.current = 'listening';
+                    setStatus('listening');
+                    try {
+                        wsRef.current.send(JSON.stringify({ type: 'barge_in' }));
+                    } catch (_) {}
+                    optionsRef.current.onStatusChange?.('interrupted');
+                } else {
+                    bargeInFramesRef.current = 0;
+                }
 
                 const now = Date.now();
                 const continuousSpeechMs = isTransmittingSpeechRef.current && speechStartTimeRef.current
@@ -325,6 +374,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                         isTransmittingSpeechRef.current = false;
                         speechStartTimeRef.current = 0;
                         speechPeakRmsRef.current = 0;
+                        bargeInIgnoreAudioUntilRef.current = 0;
                         try {
                             wsRef.current.send(JSON.stringify({ type: 'speech_end' }));
                             console.log('[VoiceSession] Fin de voz detectado (560ms) → speech_end enviado');
@@ -697,6 +747,13 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         switch (message.type) {
             case 'audio':
                 if (message.data.audioData) {
+                    // Si el usuario acaba de interrumpir (barge-in) o sigue hablando, descartar paquetes residuales en tránsito del turno viejo
+                    if (
+                        isTransmittingSpeechRef.current ||
+                        (bargeInIgnoreAudioUntilRef.current && Date.now() < bargeInIgnoreAudioUntilRef.current)
+                    ) {
+                        break;
+                    }
                     statusRef.current = 'speaking';
                     setStatus('speaking');
                     isAutoMutedRef.current = true;

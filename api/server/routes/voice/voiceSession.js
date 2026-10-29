@@ -3328,6 +3328,9 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
 
         // Listen for AUDIO from Gemini (AI voice response)
         this.geminiClient.on('audio', (audioData) => {
+            if (this.bargeInSuppressAiAudioUntil && Date.now() < this.bargeInSuppressAiAudioUntil) {
+                return;
+            }
             this.isAiSpeaking = true;
             this.turnHadAiOutput = true;
             this.suppressClientAudioUntil = null;
@@ -3349,6 +3352,8 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
 
         // Listen for USER transcription (what the user says)
         this.geminiClient.on('userTranscription', (text) => {
+            this.bargeInSuppressAiAudioUntil = 0;
+            this.isAiSpeaking = false;
             const safeChunk = sanitizeStreamingChunk(text);
             if (!safeChunk || !safeChunk.trim()) {
                 return;
@@ -6100,14 +6105,26 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                 }
                 break;
 
+            case 'barge_in':
+                logger.info('[VoiceSession] 🗣️ Barge-in recibido del cliente → interrumpiendo salida de IA y habilitando voz del usuario');
+                this.isAiSpeaking = false;
+                this.suppressClientAudioUntil = null;
+                this.bargeInSuppressAiAudioUntil = Date.now() + 1200;
+                if (this.aiSpeakingTimeout) {
+                    clearTimeout(this.aiSpeakingTimeout);
+                    this.aiSpeakingTimeout = null;
+                }
+                break;
+
             case 'audio':
                 // Do not process audio if session is stopped or geminiClient is not ready or setup not complete
                 if (!this.isActive || !this.geminiClient || !this.geminiClient.setupCompleted) {
                     break;
                 }
-                // Do not forward client mic audio to Gemini while AI is speaking (prevents speaker echo)
+                // Si el cliente envía audio (ya filtrado por el Barge-In Anti-Eco del navegador),
+                // liberar isAiSpeaking para que Gemini Live reciba la interrupción en vivo (Full-Duplex)
                 if (this.isAiSpeaking) {
-                    break;
+                    this.isAiSpeaking = false;
                 }
                 // Suprimir reenvío de audio del micrófono brevemente tras inyección de texto para permitir que Gemini Live sintetice la respuesta sin ser cancelado por ruido ambiental
                 if (this.suppressClientAudioUntil && Date.now() < this.suppressClientAudioUntil) {
@@ -6129,9 +6146,8 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                 if (!this.isActive || !this.geminiClient || !this.geminiClient.setupCompleted) {
                     break;
                 }
-                if (this.isAiSpeaking) {
-                    break;
-                }
+                this.isAiSpeaking = false;
+                this.bargeInSuppressAiAudioUntil = 0;
                 if (typeof this.geminiClient.sendAudioStreamEnd === 'function') {
                     this.geminiClient.sendAudioStreamEnd();
                 }
