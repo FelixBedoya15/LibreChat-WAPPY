@@ -439,15 +439,204 @@ function resolveAgentApiBinary() {
   return process.platform === 'win32' ? 'agentapi.bat' : 'agentapi';
 }
 
+let cachedLiveLs = null;
+
+/**
+ * Descubre en tiempo real el puerto dinámico (ANTIGRAVITY_LS_ADDRESS) y el token CSRF
+ * (ANTIGRAVITY_CSRF_TOKEN) del proceso `language_server` activo de Antigravity en macOS, Windows o Linux.
+ * Esto garantiza que cuando el PC se apaga y se vuelve a prender (y el daemon arranca por LaunchAgents
+ * o Windows Startup sin variables de entorno de sesión), encuentre siempre la instancia viva de Antigravity.
+ */
+function discoverLiveLanguageServer() {
+  const candidates = [];
+  const execPaths = '/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin';
+  const baseEnv = { ...process.env, PATH: `${process.env.PATH || ''}${path.delimiter}${execPaths}` };
+
+  if (process.platform === 'darwin' || process.platform === 'linux') {
+    try {
+      const psBin = fs.existsSync('/bin/ps') ? '/bin/ps' : 'ps';
+      const lsofBin = fs.existsSync('/usr/sbin/lsof') ? '/usr/sbin/lsof' : 'lsof';
+      const psOut = execFileSync(psBin, ['-ax', '-o', 'pid=,command='], {
+        encoding: 'utf8',
+        timeout: 4000,
+        env: baseEnv,
+      });
+
+      for (const line of psOut.split(/\r?\n/)) {
+        if (!line.includes('language_server') || line.includes('grep') || line.includes('agentapi')) continue;
+        const mPid = line.trim().match(/^(\d+)\s+(.*)$/);
+        if (!mPid) continue;
+        const pid = mPid[1];
+        const cmd = mPid[2];
+        const mCsrf = cmd.match(/--csrf_token[=\s]+([0-9a-fA-F-]{32,64})/);
+        if (!mCsrf) continue;
+        const csrfToken = mCsrf[1];
+        const isHub = cmd.includes('--subclient_type hub') || cmd.includes('/Resources/bin/language_server');
+
+        try {
+          const lsofOut = execFileSync(lsofBin, ['-nP', '-a', '-p', pid, '-iTCP', '-sTCP:LISTEN'], {
+            encoding: 'utf8',
+            timeout: 4000,
+            env: baseEnv,
+          });
+          const ports = [];
+          for (const l of lsofOut.split(/\r?\n/)) {
+            const mp = l.match(/:(\d+)\s+\(LISTEN\)/);
+            if (mp && !ports.includes(mp[1])) ports.push(mp[1]);
+          }
+          // El servidor gRPC de agentapi suele abrirse en el segundo puerto (el más alto)
+          for (const port of ports.reverse()) {
+            candidates.push({
+              pid,
+              port,
+              address: `localhost:${port}`,
+              csrfToken,
+              isHub,
+            });
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+  } else if (process.platform === 'win32') {
+    try {
+      const psOut = execFileSync(
+        'powershell.exe',
+        [
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          "Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'language_server' } | Select-Object ProcessId,CommandLine | ConvertTo-Json -Compress",
+        ],
+        { encoding: 'utf8', timeout: 5000, windowsHide: true }
+      );
+      let procs = [];
+      if (psOut && psOut.trim()) {
+        const parsed = JSON.parse(psOut.trim());
+        procs = Array.isArray(parsed) ? parsed : [parsed];
+      }
+      const netstatOut = execFileSync('netstat.exe', ['-ano'], {
+        encoding: 'utf8',
+        timeout: 4000,
+        windowsHide: true,
+      });
+
+      for (const proc of procs) {
+        const pid = String(proc?.ProcessId || '').trim();
+        const cmd = String(proc?.CommandLine || '');
+        if (!pid || !cmd || cmd.includes('agentapi')) continue;
+        const mCsrf = cmd.match(/--csrf_token[=\s]+([0-9a-fA-F-]{32,64})/);
+        if (!mCsrf) continue;
+        const csrfToken = mCsrf[1];
+        const isHub = cmd.includes('--subclient_type hub') || cmd.includes('\\resources\\bin\\language_server');
+
+        const ports = [];
+        const pidRegex = new RegExp(`127\\.0\\.0\\.1:(\\d+)\\s+[^\\r\\n]+LISTENING\\s+${pid}\\b`, 'g');
+        let match;
+        while ((match = pidRegex.exec(netstatOut)) !== null) {
+          if (!ports.includes(match[1])) ports.push(match[1]);
+        }
+        for (const port of ports.reverse()) {
+          candidates.push({
+            pid,
+            port,
+            address: `localhost:${port}`,
+            csrfToken,
+            isHub,
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  candidates.sort((a, b) => (b.isHub ? 1 : 0) - (a.isHub ? 1 : 0));
+  return candidates;
+}
+
 function runAgentApi(bin, subArgs, opts = {}) {
   const isLanguageServer = /language_server/i.test(bin);
   const fullArgs = isLanguageServer ? ['agentapi', ...subArgs] : subArgs;
   const isBatch = /\.(bat|cmd)$/i.test(bin);
-  return execFileSync(bin, fullArgs, {
-    windowsHide: true,
-    ...opts,
-    ...(isBatch ? { shell: true } : {}),
-  });
+  const extraPath = `${path.join(AGY_DIR, 'bin')}${path.delimiter}/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin`;
+
+  const envCandidates = [];
+  const seenKey = new Set();
+  const addCand = (address, csrfToken) => {
+    if (!address || !csrfToken) return;
+    const k = `${address}|${csrfToken}`;
+    if (seenKey.has(k)) return;
+    seenKey.add(k);
+    envCandidates.push({ address, csrfToken });
+  };
+
+  if (cachedLiveLs) {
+    addCand(cachedLiveLs.address, cachedLiveLs.csrfToken);
+  }
+  if (process.env.ANTIGRAVITY_LS_ADDRESS && process.env.ANTIGRAVITY_CSRF_TOKEN) {
+    addCand(process.env.ANTIGRAVITY_LS_ADDRESS, process.env.ANTIGRAVITY_CSRF_TOKEN);
+  }
+  for (const live of discoverLiveLanguageServer()) {
+    addCand(live.address, live.csrfToken);
+  }
+
+  // Si Antigravity aún no estaba abierto cuando llegó la orden de Tenshi, intentar abrirlo en segundo plano (macOS)
+  if (envCandidates.length === 0 && process.platform === 'darwin' && subArgs[0] === 'new-conversation') {
+    try {
+      execFileSync('/usr/bin/open', ['-g', '-a', 'Antigravity'], { timeout: 4000 });
+      execFileSync('/bin/sleep', ['3']);
+      for (const live of discoverLiveLanguageServer()) {
+        addCand(live.address, live.csrfToken);
+      }
+    } catch (_) {}
+  }
+
+  // Si no hay candidatos descubiertos, intentar una vez con el entorno actual
+  if (envCandidates.length === 0) {
+    envCandidates.push({
+      address: process.env.ANTIGRAVITY_LS_ADDRESS || '',
+      csrfToken: process.env.ANTIGRAVITY_CSRF_TOKEN || '',
+    });
+  }
+
+  let lastErr = null;
+  for (const cand of envCandidates) {
+    try {
+      const mergedEnv = {
+        ...process.env,
+        ...(opts.env || {}),
+        PATH: `${(opts.env && opts.env.PATH) || process.env.PATH || ''}${path.delimiter}${extraPath}`,
+        ...(cand.address ? { ANTIGRAVITY_LS_ADDRESS: cand.address } : {}),
+        ...(cand.csrfToken ? { ANTIGRAVITY_CSRF_TOKEN: cand.csrfToken } : {}),
+      };
+      const out = execFileSync(bin, fullArgs, {
+        windowsHide: true,
+        ...opts,
+        env: mergedEnv,
+        ...(isBatch ? { shell: true } : {}),
+      });
+      const text = typeof out === 'string' ? out : (out ? out.toString('utf8') : '');
+      if (
+        text &&
+        (text.includes('"ANTIGRAVITY_LS_ADDRESS is not set"') ||
+          text.includes('missing CSRF token') ||
+          text.includes('code = Unauthenticated') ||
+          text.includes('connection refused'))
+      ) {
+        lastErr = new Error(text.trim());
+        continue;
+      }
+      if (cand.address && cand.csrfToken) {
+        cachedLiveLs = cand;
+      }
+      return out;
+    } catch (err) {
+      const stderrText = err?.stderr ? String(err.stderr).trim() : '';
+      const stdoutText = err?.stdout ? String(err.stdout).trim() : '';
+      const detail = stderrText || stdoutText || err.message;
+      lastErr = new Error(`Command failed (${cand.address || 'no-ls-addr'}): ${detail}`);
+    }
+  }
+
+  throw lastErr || new Error('No se pudo conectar al language_server activo de Antigravity.');
 }
 
 /**

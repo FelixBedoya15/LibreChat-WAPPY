@@ -622,6 +622,32 @@ router.get('/connect-script', (req, res) => {
   const host = req.headers['x-forwarded-host'] || req.get('host') || 'app.wappy.club';
   const serverOrigin = `${proto}://${host}`;
 
+  if (token === 'wappy_daemon_autoupdate') {
+    const updateScript = `#!/usr/bin/env node
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const { spawnSync } = require('child_process');
+const daemonUrl = ${JSON.stringify(serverOrigin)} + '/api/mcp-bridge/antigravity/daemon.js';
+fetch(daemonUrl)
+  .then((r) => r.text())
+  .then((code) => {
+    if (!code || !code.includes('startSseWorker')) process.exit(0);
+    const agyDir = path.join(os.homedir(), '.gemini', 'antigravity');
+    fs.mkdirSync(agyDir, { recursive: true });
+    const dest = path.join(agyDir, 'wappy-push-daemon.js');
+    fs.writeFileSync(dest, code, { encoding: 'utf8', mode: 0o755 });
+    const listenerDest = path.join(agyDir, 'wappy-tenshi-listener.js');
+    fs.writeFileSync(listenerDest, code, { encoding: 'utf8', mode: 0o755 });
+    spawnSync(process.execPath, [dest, '--install'], { stdio: 'ignore' });
+    process.exit(0);
+  })
+  .catch(() => process.exit(0));
+`;
+    res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+    return res.status(200).send(updateScript);
+  }
+
   const script = `#!/usr/bin/env node
 /**
  * WAPPY IA — Conector Local Multiplataforma (Windows / Mac / Linux)
