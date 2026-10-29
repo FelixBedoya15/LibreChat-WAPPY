@@ -9219,6 +9219,45 @@ router.post('/contexto', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
+// 40.6.b Riesgos del Sistema y Oportunidades SST (ISO 45001 Cl. 6.1)
+router.get('/oportunidades', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    const companyId = company ? company._id : null;
+    const OportunidadesData = mongoose.models.OportunidadesData || require('~/models/OportunidadesData');
+    const doc = await OportunidadesData.findOne(companyScope(req.user.id, companyId)).lean();
+    return res.json(doc || { oportunidades: [], riesgosSistema: [], lastGeneratedReport: '' });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error GET /oportunidades:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/oportunidades', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    const companyId = company ? company._id : null;
+    const OportunidadesData = mongoose.models.OportunidadesData || require('~/models/OportunidadesData');
+    const update = {
+      user: req.user.id,
+      companyId,
+      updatedAt: new Date(),
+    };
+    if (req.body.oportunidades !== undefined) update.oportunidades = req.body.oportunidades;
+    if (req.body.riesgosSistema !== undefined) update.riesgosSistema = req.body.riesgosSistema;
+    if (req.body.lastGeneratedReport !== undefined) update.lastGeneratedReport = req.body.lastGeneratedReport;
+    const saved = await OportunidadesData.findOneAndUpdate(
+      companyScope(req.user.id, companyId),
+      { $set: update },
+      { upsert: true, new: true }
+    ).lean();
+    return res.json({ success: true, data: saved });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error POST /oportunidades:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 // 40.7 Estadísticas e Indicadores Mínimos ATEL / Ausentismo (Res. 0312 Art. 30)
 router.get('/estadisticas-atel', requireApiKeyOrJwt, async (req, res) => {
   try {

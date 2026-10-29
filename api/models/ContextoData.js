@@ -12,6 +12,11 @@ const DofaItemSchema = new mongoose.Schema(
     source: { type: String, enum: ['interno', 'externo'], required: true },
     impact: { type: String, default: 'alto' },
     strategicAction: { type: String, default: '' },
+    category: { type: String, default: 'Gobernanza / SST' },
+    originModule: { type: String, default: 'Contexto Organizacional' },
+    responsible: { type: String, default: 'Responsable SG-SST' },
+    status: { type: String, default: 'En Plan de Acción' },
+    sentToKanban: { type: Boolean, default: false },
   },
   { _id: false }
 );
@@ -20,10 +25,13 @@ const StakeholderItemSchema = new mongoose.Schema(
   {
     id: { type: String, required: true },
     parte: { type: String, required: true },
+    type: { type: String, default: 'Interno' },
     necesidades: { type: String, required: true },
     expectativas: { type: String, default: '' },
     requisito: { type: String, default: '' },
     control: { type: String, default: '' },
+    communicationChannel: { type: String, default: 'Comités SST / Cartelera Digital WAPPY' },
+    frequency: { type: String, default: 'Mensual' },
     impactLevel: { type: String, default: 'alto' },
   },
   { _id: false }

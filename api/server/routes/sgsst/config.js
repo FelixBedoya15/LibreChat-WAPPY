@@ -32,6 +32,21 @@ router.get('/', requireJwtAuth, async (req, res) => {
                 config.set('seededEmergencyAppsV4', true, { strict: false });
                 await SgsstConfig.updateOne({ _id: config._id }, { $set: { disabledApps: merged, seededEmergencyAppsV4: true } }, { strict: false });
             }
+
+            // One-time migration: Ensure Contexto de la Organización and Oportunidades SST are ACTIVE
+            const enabledContexto = config.get('enabledContextoOportunidadesV1');
+            if (!enabledContexto) {
+                const filtered = (config.disabledApps || []).filter(
+                    (id) => id !== 'contexto_organizacion' && id !== 'oportunidades_sst'
+                );
+                config.disabledApps = filtered;
+                config.set('enabledContextoOportunidadesV1', true, { strict: false });
+                await SgsstConfig.updateOne(
+                    { _id: config._id },
+                    { $set: { disabledApps: filtered, enabledContextoOportunidadesV1: true } },
+                    { strict: false }
+                );
+            }
         }
         res.json(config);
     } catch (error) {

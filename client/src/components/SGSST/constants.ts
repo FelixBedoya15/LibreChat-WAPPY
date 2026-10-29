@@ -4,8 +4,7 @@ export const PHASE_CATEGORIES = {
         { 
             id: 'contexto_organizacion', title: 'Contexto y Partes Interesadas (DOFA / Stakeholders)', icon: 'Compass',
             bioRationale: 'Evaluación del contexto interno/externo (DOFA/PESTEL) y matriz de expectativas de partes interesadas (trabajadores, contratistas, comunidad y entes de control) para cimentar la gobernanza de SST.', 
-            normativity: 'Hito 1: Gobernanza y Cimiento Legal (ISO 45001 Num. 4.1 y 4.2 • Res. 0312)',
-            defaultDisabled: true
+            normativity: 'Hito 1: Gobernanza y Cimiento Legal (ISO 45001 Num. 4.1 y 4.2 • Res. 0312)'
         },
         { 
             id: 'diagnostico', title: 'Diagnóstico Inicial', icon: 'Stethoscope',
@@ -67,8 +66,7 @@ export const PHASE_CATEGORIES = {
         { 
             id: 'oportunidades_sst', title: 'Riesgos del Sistema y Oportunidades SST', icon: 'Sparkles',
             bioRationale: 'Identificación planificada de oportunidades de innovación, ergonomía y bienestar en SST, y gestión de riesgos estratégicos para el SG-SST.', 
-            normativity: 'Hito 1: Gobernanza y Cimiento Legal (ISO 45001 Num. 6.1.1 y 6.1.2.3 • Res. 0312 Est. 2.4.1)',
-            defaultDisabled: true
+            normativity: 'Hito 1: Gobernanza y Cimiento Legal (ISO 45001 Num. 6.1.1 y 6.1.2.3 • Res. 0312 Est. 2.4.1)'
         },
         { 
             id: 'vulnerabilidad', title: 'Análisis de Vulnerabilidad', icon: 'Target',
@@ -332,8 +330,6 @@ export const DEFAULT_CONSTRUCTION_APPS = [
     'plan_emergencias',
     'equipos_emergencia',
     'simulacros_emergencia',
-    'contexto_organizacion',
-    'oportunidades_sst',
     'gestion_cambio',
     'contratistas_proveedores',
     'compras_sst',

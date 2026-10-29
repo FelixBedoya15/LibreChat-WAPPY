@@ -318,6 +318,7 @@ const startServer = async () => {
   app.use('/api/sgsst/convivencia', routes.sgsst.convivencia);
   app.use('/api/sgsst/brigada', routes.sgsst.brigada);
   app.use('/api/sgsst/contexto', routes.sgsst.contexto);
+  app.use('/api/sgsst/oportunidades', routes.sgsst.oportunidades);
   app.use('/api/live-editor', routes.sgsst.liveEditor);
   app.use('/api/live-analysis', routes.sgsst.liveEditor);
   app.use('/api/training', routes.training);
