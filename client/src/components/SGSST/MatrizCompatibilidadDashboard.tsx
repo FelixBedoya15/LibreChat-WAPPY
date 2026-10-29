@@ -87,7 +87,14 @@ export default function MatrizCompatibilidadDashboard({
       for (let j = i + 1; j < totalProducts; j++) {
         const prodA = matrixRows[i];
         const prodB = matrixRows[j];
-        const res = getChemicalCompatibility(prodA.clasificacion_onu, prodB.clasificacion_onu);
+        const res = getChemicalCompatibility(
+          prodA.clasificacion_onu,
+          prodB.clasificacion_onu,
+          prodA.nombre,
+          prodB.nombre,
+          prodA.incompatibilidades,
+          prodB.incompatibilidades,
+        );
 
         if (res.status === 'incompatible') incompatible++;
         else if (res.status === 'caution') caution++;

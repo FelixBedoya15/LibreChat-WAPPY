@@ -1827,7 +1827,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
             const matrizPESVDeclaration = {
                 name: 'matriz_pesv',
-                description: 'Lee, añade, evalúa o actualiza riesgos viales en la Matriz PESV (Plan Estratégico de Seguridad Vial - Res. 20223040040595).',
+                description: 'Lee, añade, evalúa o actualiza riesgos viales en la Matriz PESV (Plan Estratégico de Seguridad Vial - Res. 20223040040595 Paso 6, 8, 16 y 17 / ISO 39001).',
                 parameters: {
                     type: 'OBJECT',
                     properties: {
@@ -1848,6 +1848,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                     rol_via: { type: 'STRING' },
                                     factor_riesgo: { type: 'STRING' },
                                     peligro_descripcion: { type: 'STRING' },
+                                    programa_paso8: { type: 'STRING', description: 'Programa de gestión de riesgos críticos Paso 8 Res. 20223040040595.' },
                                     np_cualitativo: { type: 'STRING' },
                                     ne_cualitativo: { type: 'STRING' },
                                     nc_cualitativo: { type: 'STRING' },
@@ -1874,11 +1875,11 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
             const matrizCompatibilidadDeclaration = {
                 name: 'matriz_compatibilidad',
-                description: 'Lee, añade, evalúa o actualiza inventarios de productos químicos en la Matriz de Compatibilidad y Almacenamiento Seguro SGA.',
+                description: 'Lee, añade, evalúa, enriquece con PubChem NIH GHS o actualiza inventarios de productos químicos en la Matriz de Compatibilidad y Almacenamiento Seguro SGA (Decreto 1496 de 2018, Res. 773 de 2021, NTC 3966).',
                 parameters: {
                     type: 'OBJECT',
                     properties: {
-                        accion: { type: 'STRING', description: 'consultar_contexto_sgsst, leer, escribir, borrar' },
+                        accion: { type: 'STRING', description: 'consultar_contexto_sgsst, leer, escribir, enriquecer_pubchem, borrar' },
                         filtro_nombre: { type: 'STRING' },
                         filtro_ubicacion: { type: 'STRING' },
                         filtro_clase: { type: 'STRING' },
@@ -1892,11 +1893,16 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                     fabricante: { type: 'STRING' },
                                     estado_fisico: { type: 'STRING' },
                                     clasificacion_onu: { type: 'STRING' },
+                                    numero_onu: { type: 'STRING' },
+                                    cas: { type: 'STRING' },
+                                    palabra_advertencia: { type: 'STRING' },
                                     pictogramas_sga: { type: 'ARRAY', items: { type: 'STRING' } },
                                     cantidad_almacenada: { type: 'STRING' },
                                     ubicacion: { type: 'STRING' },
                                     tiene_fds: { type: 'STRING' },
                                     tiene_rotulo: { type: 'STRING' },
+                                    frases_h: { type: 'STRING' },
+                                    consejos_p: { type: 'STRING' },
                                     incompatibilidades: { type: 'STRING' },
                                     requisitos_almacenamiento: { type: 'STRING' }
                                 },

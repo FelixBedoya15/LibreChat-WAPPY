@@ -50,6 +50,7 @@ import CollapsibleReportBox from './CollapsibleReportBox';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
 import ImportMethodModal from './ImportMethodModal';
 import { MATRIZ_COMPATIBILIDAD_FIELDS } from './moduleFieldDefinitions';
+import { ExpandableButton } from '~/components/Common/ExpandableButton';
 
 const PICTOGRAMAS_SGA_LIST = SGA_PICTOGRAMS;
 
@@ -386,6 +387,8 @@ export default function MatrizCompatibilidadTable({
   const [isPromoting, setIsPromoting] = useState(false);
   const [isSyncingKanban, setIsSyncingKanban] = useState(false);
   const [isSyncingHito5, setIsSyncingHito5] = useState(false);
+  const [isEnrichingPubchem, setIsEnrichingPubchem] = useState(false);
+  const [isQueryingPubchemCard, setIsQueryingPubchemCard] = useState(false);
   const [aiRowLoading, setAiRowLoading] = useState<number | null>(null);
   
   // Analítica & Reporte
@@ -446,6 +449,14 @@ export default function MatrizCompatibilidadTable({
 
   useEffect(() => {
     fetchMatrix();
+  }, [fetchMatrix]);
+
+  useEffect(() => {
+    const handleOfficialUpdated = () => {
+      fetchMatrix();
+    };
+    window.addEventListener('chemical-official-updated', handleOfficialUpdated);
+    return () => window.removeEventListener('chemical-official-updated', handleOfficialUpdated);
   }, [fetchMatrix]);
 
   useEffect(() => {
@@ -591,6 +602,120 @@ export default function MatrizCompatibilidadTable({
     }
   };
 
+  // Enriquecer toda la matriz con API Oficial PubChem NIH (GHS/SGA)
+  const handlePubchemEnrichAll = async () => {
+    if (matrixRows.length === 0) {
+      showToast({ message: 'Registra al menos un producto químico para consultar en PubChem NIH.', status: 'warning' });
+      return;
+    }
+    setIsEnrichingPubchem(true);
+    try {
+      const res = await fetch('/api/sgsst/chemical-compatibility/pubchem-enrich', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ conversationId: conversationId || 'official' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        if (Array.isArray(data.matrixRows) && data.matrixRows.length > 0) {
+          setMatrixRows(data.matrixRows);
+        } else {
+          await fetchMatrix();
+        }
+        if (onRefreshOfficialList) onRefreshOfficialList();
+        window.dispatchEvent(new CustomEvent('chemical-official-updated'));
+        showToast({
+          message:
+            data.message ||
+            `¡${data.enrichedCount ?? matrixRows.length} sustancias enriquecidas con datos oficiales de PubChem NIH (GHS/SGA)!`,
+          status: 'success',
+        });
+      } else {
+        showToast({
+          message: data.error || 'No se pudo completar el enriquecimiento con PubChem NIH.',
+          status: 'warning',
+        });
+      }
+    } catch (e) {
+      console.error('[MatrizCompatibilidadTable] Error enriching from PubChem NIH:', e);
+      showToast({ message: 'Error al conectar con la API PubChem NIH.', status: 'error' });
+    } finally {
+      setIsEnrichingPubchem(false);
+    }
+  };
+
+  // Consultar un producto individual en GET /api/sgsst/chemical-compatibility/pubchem?q=<nombre>
+  const handleQueryPubchemSingle = async (idx: number) => {
+    const row = matrixRows[idx];
+    const queryName = String(row?.nombre || '').trim();
+    if (!queryName) {
+      showToast({ message: 'Escribe primero el nombre de la sustancia química.', status: 'warning' });
+      return;
+    }
+    setIsQueryingPubchemCard(true);
+    try {
+      const res = await fetch(
+        `/api/sgsst/chemical-compatibility/pubchem?q=${encodeURIComponent(queryName)}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.found) {
+        const updated = [...matrixRows];
+        const current = updated[idx];
+        const nextPictos =
+          Array.isArray(data.wappyPictograms) && data.wappyPictograms.length > 0
+            ? data.wappyPictograms
+            : current.pictogramas_sga;
+        const nextH =
+          Array.isArray(data.hazardStatements) && data.hazardStatements.length > 0
+            ? data.hazardStatements.join(' | ')
+            : typeof data.hazardStatements === 'string' && data.hazardStatements
+              ? data.hazardStatements
+              : current.frases_h;
+        const nextP =
+          Array.isArray(data.precautionaryStatements) && data.precautionaryStatements.length > 0
+            ? data.precautionaryStatements.join(', ')
+            : typeof data.precautionaryStatements === 'string' && data.precautionaryStatements
+              ? data.precautionaryStatements
+              : current.consejos_p;
+
+        updated[idx] = {
+          ...current,
+          pubchem_cid: data.cid ?? current.pubchem_cid,
+          cas: data.cas || current.cas,
+          palabra_advertencia: data.signalWord || current.palabra_advertencia,
+          pictogramas_sga: nextPictos,
+          frases_h: nextH,
+          consejos_p: nextP,
+          tiene_rotulo: 'Sí',
+        };
+        setMatrixRows(updated);
+        await saveMatrix(updated, false);
+        showToast({
+          message: `🔬 Datos oficiales GHS/SGA sincronizados desde PubChem NIH (CID #${data.cid})`,
+          status: 'success',
+        });
+      } else {
+        showToast({
+          message:
+            data.message ||
+            `No se halló ficha exacta en PubChem NIH para "${queryName}". Puedes usar Autocompletar con IA.`,
+          status: 'warning',
+        });
+      }
+    } catch (e) {
+      console.error('[MatrizCompatibilidadTable] Error querying single PubChem product:', e);
+      showToast({ message: 'Error al consultar PubChem NIH.', status: 'error' });
+    } finally {
+      setIsQueryingPubchemCard(false);
+    }
+  };
+
   // Datos de prueba (Dummy)
   const handleFillDummy = () => {
     setMatrixRows(DUMMY_CHEMICAL_ROWS);
@@ -665,7 +790,14 @@ export default function MatrizCompatibilidadTable({
       .filter((other) => other.id !== prod.id && other.nombre && other.nombre !== prod.nombre)
       .map((other) => ({
         other,
-        compat: getChemicalCompatibility(prod.clasificacion_onu, other.clasificacion_onu),
+        compat: getChemicalCompatibility(
+          prod.clasificacion_onu,
+          other.clasificacion_onu,
+          prod.nombre,
+          other.nombre,
+          prod.incompatibilidades,
+          other.incompatibilidades,
+        ),
       }))
       .filter((x) => x.compat.status === 'incompatible' || x.compat.status === 'caution');
 
@@ -1562,7 +1694,14 @@ export default function MatrizCompatibilidadTable({
                       {rowI.nombre}
                     </td>
                     {matrixRows.map((rowJ) => {
-                      const compat = getChemicalCompatibility(rowI.clasificacion_onu, rowJ.clasificacion_onu);
+                      const compat = getChemicalCompatibility(
+                        rowI.clasificacion_onu,
+                        rowJ.clasificacion_onu,
+                        rowI.nombre,
+                        rowJ.nombre,
+                        rowI.incompatibilidades,
+                        rowJ.incompatibilidades,
+                      );
                       let bgClass = 'bg-emerald-500 hover:bg-emerald-600';
                       if (compat.status === 'incompatible') bgClass = 'bg-red-500 hover:bg-red-600';
                       else if (compat.status === 'caution') bgClass = 'bg-amber-500 hover:bg-amber-600';
@@ -1687,7 +1826,14 @@ export default function MatrizCompatibilidadTable({
       .filter((other, i) => i !== idx && other.nombre && other.nombre.trim() !== '')
       .map((other) => ({
         other,
-        compat: getChemicalCompatibility(prod.clasificacion_onu, other.clasificacion_onu),
+        compat: getChemicalCompatibility(
+          prod.clasificacion_onu,
+          other.clasificacion_onu,
+          prod.nombre,
+          other.nombre,
+          prod.incompatibilidades,
+          other.incompatibilidades,
+        ),
       }))
       .filter((x) => x.compat.status === 'incompatible' || x.compat.status === 'caution');
 
@@ -1745,23 +1891,44 @@ export default function MatrizCompatibilidadTable({
                   className="w-full rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm font-bold text-slate-900 dark:text-zinc-100 focus:border-orange-500 outline-none"
                 />
               </div>
-              <button
-                type="button"
-                onClick={() => handleAiUpdateRow(idx)}
-                disabled={aiRowLoading === idx || !prod.nombre.trim()}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white disabled:opacity-50"
-              >
-                {aiRowLoading === idx ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Sparkles className="w-4 h-4" />
-                )}
-                <span>
-                  {aiRowLoading === idx
-                    ? 'Consultando PubChem NIH + IA...'
-                    : 'Autocompletar Tarjeta SGA (API PubChem + IA)'}
-                </span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <ExpandableButton
+                  variant="cyan"
+                  size="sm"
+                  onClick={() => handleQueryPubchemSingle(idx)}
+                  disabled={isQueryingPubchemCard || !String(prod.nombre || '').trim()}
+                  icon={
+                    isQueryingPubchemCard ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Beaker className="w-3.5 h-3.5" />
+                    )
+                  }
+                  label={
+                    isQueryingPubchemCard
+                      ? 'Consultando PubChem…'
+                      : '🔬 Consultar en PubChem NIH (GHS)'
+                  }
+                  title="Consultar directamente la API oficial de PubChem NIH (GHS/SGA: CID, CAS, Pictogramas, Palabra de Advertencia y Frases H/P)"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleAiUpdateRow(idx)}
+                  disabled={aiRowLoading === idx || !String(prod.nombre || '').trim()}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white disabled:opacity-50"
+                >
+                  {aiRowLoading === idx ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )}
+                  <span>
+                    {aiRowLoading === idx
+                      ? 'Consultando PubChem NIH + IA...'
+                      : 'Autocompletar Tarjeta SGA (API PubChem + IA)'}
+                  </span>
+                </button>
+              </div>
             </div>
 
             {/* Vista Previa Visual de Pictogramas Oficiales SGA (API PubChem NIH) */}
@@ -1778,7 +1945,7 @@ export default function MatrizCompatibilidadTable({
                 </div>
                 {prod.pubchem_cid && (
                   <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
-                    ✓ Verificado PubChem CID #{prod.pubchem_cid}
+                    🔬 PubChem NIH · CID #{prod.pubchem_cid}
                   </span>
                 )}
               </div>
@@ -2121,6 +2288,13 @@ export default function MatrizCompatibilidadTable({
           analyzeLabel="Auditar Matriz Química con IA"
           aiButtons={[
             {
+              id: 'btn-pubchem-enrich',
+              label: isEnrichingPubchem ? 'Consultando PubChem NIH…' : 'PubChem NIH (GHS)',
+              onClick: handlePubchemEnrichAll,
+              isLoading: isEnrichingPubchem,
+              icon: Beaker,
+            },
+            {
               id: 'btn-mount-sga-card',
               label: 'Montar Producto con Tarjeta SGA (PubChem + IA)',
               onClick: addRowAndOpenCard,
@@ -2171,7 +2345,23 @@ export default function MatrizCompatibilidadTable({
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <ExpandableButton
+                variant="cyan"
+                size="sm"
+                onClick={handlePubchemEnrichAll}
+                disabled={isEnrichingPubchem || matrixRows.length === 0}
+                icon={
+                  isEnrichingPubchem ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Beaker className="w-3.5 h-3.5" />
+                  )
+                }
+                label={isEnrichingPubchem ? 'Enriqueciendo…' : 'PubChem NIH (GHS)'}
+                title="Enriquecer todos los productos químicos con datos oficiales de PubChem NIH (CID, CAS, Pictogramas SGA, Palabra de Advertencia y Frases H/P)"
+              />
+
               {/* Selector de vista interna: Inventario vs Cuadrícula Cruzada */}
               <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700">
                 <button
@@ -2409,7 +2599,7 @@ export default function MatrizCompatibilidadTable({
             <button
               onClick={handlePromoteToOfficial}
               disabled={isPromoting || matrixRows.length === 0}
-              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs "
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
               title="Fijar esta matriz como la Matriz Oficial de Compatibilidad Química en el Hito 1"
             >
               {isPromoting ? (
@@ -2423,11 +2613,27 @@ export default function MatrizCompatibilidadTable({
             </button>
           )}
 
+          {/* PubChem NIH (GHS) Bulk Enrich */}
+          <ExpandableButton
+            variant="cyan"
+            onClick={handlePubchemEnrichAll}
+            disabled={isEnrichingPubchem || matrixRows.length === 0}
+            icon={
+              isEnrichingPubchem ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+              ) : (
+                <Beaker className="h-4 w-4 shrink-0" />
+              )
+            }
+            label={isEnrichingPubchem ? 'Consultando…' : 'PubChem NIH (GHS)'}
+            title="Enriquecer sustancias químicas con la API oficial de PubChem NIH (GHS/SGA)"
+          />
+
           {/* Sincronizar Controles con Centro de Control */}
           <button
             onClick={handleSyncControlesQuimicos}
             disabled={isSyncingKanban || matrixRows.length === 0}
-            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-cyan-500/10 border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 shadow-xs "
+            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-cyan-500/10 border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 shadow-xs transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
             title="Sincronizar controles de almacenamiento y brechas FDS/Rótulo con el Centro de Control"
           >
             {isSyncingKanban ? (
@@ -2443,7 +2649,7 @@ export default function MatrizCompatibilidadTable({
           {/* Añadir Producto */}
           <button
             onClick={addRow}
-            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs "
+            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
           >
             <Plus className="h-4 w-4 shrink-0" />
             <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
@@ -2455,7 +2661,7 @@ export default function MatrizCompatibilidadTable({
           <button
             onClick={handleAnalyzeMatrix}
             disabled={isAnalyzing || matrixRows.length === 0}
-            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
+            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
           >
             {isAnalyzing ? (
               <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
@@ -2471,7 +2677,7 @@ export default function MatrizCompatibilidadTable({
           <button
             onClick={triggerExcelImport}
             disabled={isAiImportLoading}
-            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 shadow-xs "
+            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 shadow-xs transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
           >
             {isAiImportLoading ? (
               <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
@@ -2503,7 +2709,7 @@ export default function MatrizCompatibilidadTable({
           <button
             onClick={() => saveMatrix()}
             disabled={isSaving}
-            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs "
+            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
           >
             {isSaving ? (
               <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
@@ -2518,7 +2724,7 @@ export default function MatrizCompatibilidadTable({
           {/* Maximizar */}
           <button
             onClick={() => setIsMaximized(!isMaximized)}
-            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs "
+            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
           >
             {isMaximized ? (
               <Minimize2 className="h-4 w-4 shrink-0" />

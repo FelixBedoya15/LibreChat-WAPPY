@@ -54,14 +54,12 @@ export const PHASE_CATEGORIES = {
         { 
             id: 'matriz_pesv_oficial', title: 'Matriz de Riesgos Viales (PESV)', icon: 'Car',
             bioRationale: 'Identificación, evaluación y valoración de riesgos de seguridad vial por actor vial y factor de riesgo (Humano, Vehicular, Infraestructura y Entorno), sincronizada con Perfiles de Cargo, Flota y ACPM.', 
-            normativity: 'Hito 1: Gobernanza y Cimiento Legal (Res. 20223040040595 Paso 6 • ISO 39001)',
-            defaultDisabled: true
+            normativity: 'Hito 1: Gobernanza y Cimiento Legal (Res. 20223040040595 Paso 6 y Paso 8 • ISO 39001 • Res. 0312 Art. 32)'
         },
         { 
             id: 'matriz_compatibilidad_oficial', title: 'Matriz de Compatibilidad Química (SGA)', icon: 'FlaskConical',
             bioRationale: 'Evaluación técnica de compatibilidad, segregación de sustancias químicas, clasificación ONU y auditoría de Fichas de Seguridad (FDS) y rotulado SGA, sincronizada con el Inventario Químico del Hito 5 y el Centro de Control.', 
-            normativity: 'Hito 1: Gobernanza y Cimiento Legal (Decreto 1496 de 2018 • SGA / GHS • NTC 3966)',
-            defaultDisabled: true
+            normativity: 'Hito 1: Gobernanza y Cimiento Legal (Decreto 1496 de 2018 • Res. 773 de 2021 • SGA / NTC 3966 • Res. 0312 Est. 4.1.3)'
         },
         { 
             id: 'oportunidades_sst', title: 'Riesgos del Sistema y Oportunidades SST', icon: 'Sparkles',
@@ -324,8 +322,6 @@ export const PHASE_CATEGORIES = {
 };
 
 export const DEFAULT_CONSTRUCTION_APPS = [
-    'matriz_pesv_oficial',
-    'matriz_compatibilidad_oficial',
     'equipos_emergencia',
     'simulacros_emergencia',
     'gestion_cambio',

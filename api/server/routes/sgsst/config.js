@@ -5,8 +5,6 @@ const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const SgsstConfig = require('~/models/SgsstConfig');
 
 const DEFAULT_CONSTRUCTION_APPS = [
-    'matriz_pesv_oficial',
-    'matriz_compatibilidad_oficial',
     'comite_pesv',
     'brigada_emergencias',
     'equipos_emergencia',
@@ -58,6 +56,21 @@ router.get('/', requireJwtAuth, async (req, res) => {
                 await SgsstConfig.updateOne(
                     { _id: config._id },
                     { $set: { disabledApps: filtered, enabledPlanEmergenciasV1: true } },
+                    { strict: false }
+                );
+            }
+
+            // One-time migration: Ensure Matriz PESV Oficial and Matriz de Compatibilidad Química Oficial are ACTIVE
+            const enabledPesvCompat = config.get('enabledPesvCompatibilidadV1');
+            if (!enabledPesvCompat) {
+                const filtered = (config.disabledApps || []).filter(
+                    (id) => id !== 'matriz_pesv_oficial' && id !== 'matriz_compatibilidad_oficial'
+                );
+                config.disabledApps = filtered;
+                config.set('enabledPesvCompatibilidadV1', true, { strict: false });
+                await SgsstConfig.updateOne(
+                    { _id: config._id },
+                    { $set: { disabledApps: filtered, enabledPesvCompatibilidadV1: true } },
                     { strict: false }
                 );
             }

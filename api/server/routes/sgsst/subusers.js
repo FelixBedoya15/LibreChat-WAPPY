@@ -60,7 +60,13 @@ const ALL_SGSST_OPERATIONAL_PERMS = [
     'sgsst:matriz_peligros',
     'sgsst:matriz_legal',
     'sgsst:matriz_pesv',
+    'sgsst:matriz_pesv_oficial',
     'sgsst:matriz_compatibilidad',
+    'sgsst:matriz_compatibilidad_oficial',
+    'matriz_pesv',
+    'matriz_pesv_oficial',
+    'matriz_compatibilidad',
+    'matriz_compatibilidad_oficial',
     // Verificación, Auditoría & ACPM
     'audit:checklist',
     'kanban:acpm',

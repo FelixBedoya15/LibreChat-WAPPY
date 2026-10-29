@@ -42,6 +42,7 @@ import {
   ESTADO_OPCIONES,
   TRATAMIENTO_ACCION_OPCIONES,
   CONTROLES_TIPO_OPCIONES,
+  PROGRAMAS_PASO8_OPCIONES,
   mapNPCualitativoToNum,
   mapNECualitativoToNum,
   mapNCCualitativoToNum,
@@ -62,6 +63,7 @@ import SGSSTToolbar from './SGSSTToolbar';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
 import ImportMethodModal from './ImportMethodModal';
 import { MATRIZ_PESV_FIELDS } from './moduleFieldDefinitions';
+import { ExpandableButton } from '~/components/Common/ExpandableButton';
 
 const toSentenceCase = (str: string): string => {
   if (!str) return '';
@@ -1097,14 +1099,15 @@ export default function MatrizPESVTable({
         controles_existentes_tipo: 'INDIVIDUO',
         np_cualitativo: 'MUY PROBABLE',
         np_cuantitativo: 5,
-        ne_cualitativo: 'CONTINUA',
+        ne_cualitativo: 'CONSTANTE',
         ne_cuantitativo: 5,
-        nc_cualitativo: 'GRAVE',
+        nc_cualitativo: 'CRITICO',
         nc_cuantitativo: 5,
         calificacion: 15,
         nivel_riesgo: 'NIVEL DE RIESGO ALTO o CRITICO',
         aceptabilidad: 'NO ACEPTABLE',
         tratamiento_accion: 'MODIFICAR LOS FACTORES DE EXPOSICION',
+        programa_paso8: 'Prevención de la Fatiga (Paso 8.2)',
         plan_accion_medio:
           'Reprogramación de turnos y establecimiento de puntos seguros de descanso obligatorio cada 2 horas (Paso 18)',
         plan_accion_vehiculo:
@@ -1116,7 +1119,7 @@ export default function MatrizPESVTable({
         responsable: 'Líder del PESV / Jefe de Transporte',
         fecha_programacion: 'Inmediato / Mensual',
         estado: 'PLANEADA',
-        observaciones: 'Riesgo crítico prioritario bajo Resolución 20223040040595 Paso 6 y Paso 16',
+        observaciones: 'Riesgo crítico prioritario bajo Resolución 20223040040595 Paso 6 y Paso 8.2 (Prevención de Fatiga)',
       },
       {
         id: Date.now().toString() + '-2',
@@ -1131,16 +1134,17 @@ export default function MatrizPESVTable({
         controles_existentes_tipo: 'INDIVIDUO',
         np_cualitativo: 'MUY PROBABLE',
         np_cuantitativo: 5,
-        ne_cualitativo: 'CONTINUA',
+        ne_cualitativo: 'CONSTANTE',
         ne_cuantitativo: 5,
-        nc_cualitativo: 'GRAVE',
+        nc_cualitativo: 'CRITICO',
         nc_cuantitativo: 5,
         calificacion: 15,
         nivel_riesgo: 'NIVEL DE RIESGO ALTO o CRITICO',
         aceptabilidad: 'NO ACEPTABLE',
         tratamiento_accion: 'IMPLEMENTAR CONTROLES EN LA FUENTE Y EL MEDIO',
+        programa_paso8: 'Gestión de la Velocidad Segura (Paso 8.1)',
         plan_accion_medio:
-          'Monitoreo GPS de telemetría con alertas de velocidad máxima permitida (50 km/h urbano) según Paso 16',
+          'Monitoreo GPS de telemetría con alertas de velocidad máxima permitida (50 km/h urbano) según Paso 8.1',
         plan_accion_vehiculo:
           'Mantenimiento preventivo de sistema de frenos CBS/ABS y llantas de alto agarre en piso húmedo',
         plan_accion_individuo:
@@ -1150,7 +1154,7 @@ export default function MatrizPESVTable({
         responsable: 'Líder del PESV / Coordinador SST',
         fecha_programacion: 'Trimestral',
         estado: 'PLANEADA',
-        observaciones: 'Integrado con telemetría vehicular y programa de gestión de la velocidad',
+        observaciones: 'Integrado con telemetría vehicular y programa de gestión de la velocidad (Paso 8.1) y cero tolerancia a alcohol/SPA (Paso 8.4)',
       },
       {
         id: Date.now().toString() + '-3',
@@ -1165,14 +1169,15 @@ export default function MatrizPESVTable({
         controles_existentes_tipo: 'VEHICULO',
         np_cualitativo: 'PROBABLE',
         np_cuantitativo: 3,
-        ne_cualitativo: 'CONTINUA',
+        ne_cualitativo: 'CONSTANTE',
         ne_cuantitativo: 5,
-        nc_cualitativo: 'GRAVE',
+        nc_cualitativo: 'CRITICO',
         nc_cuantitativo: 5,
         calificacion: 13,
         nivel_riesgo: 'NIVEL DE RIESGO ALTO o CRITICO',
         aceptabilidad: 'NO ACEPTABLE',
         tratamiento_accion: 'IMPLEMENTAR CONTROLES EN LA FUENTE Y EL MEDIO',
+        programa_paso8: 'Seguridad Vehicular e Infraestructura (Paso 16-17)',
         plan_accion_medio:
           'Bloqueo automático de orden de salida si el vehículo presenta hallazgos críticos en la inspección diaria',
         plan_accion_vehiculo:
@@ -1207,6 +1212,7 @@ export default function MatrizPESVTable({
         nivel_riesgo: 'NIVEL DE RIESGO MEDIO o MODERADO',
         aceptabilidad: 'ACEPTABLE CON CONTROL ESPECIFICO',
         tratamiento_accion: 'MODIFICAR LOS FACTORES DE EXPOSICION',
+        programa_paso8: 'Prevención de la Distracción (Paso 8.3)',
         plan_accion_medio:
           'Protocolo de cero llamadas operativas durante desplazamientos reportados en agenda comercial',
         plan_accion_vehiculo:
@@ -1217,7 +1223,7 @@ export default function MatrizPESVTable({
         responsable: 'Líder del PESV / Talento Humano',
         fecha_programacion: 'Semestral',
         estado: 'PLANEADA',
-        observaciones: 'Cumplimiento política de prevención de la distracción (Paso 8)',
+        observaciones: 'Cumplimiento política de prevención de la distracción (Paso 8.3)',
       },
       {
         id: Date.now().toString() + '-5',
@@ -1240,6 +1246,7 @@ export default function MatrizPESVTable({
         nivel_riesgo: 'NIVEL DE RIESGO MEDIO o MODERADO',
         aceptabilidad: 'ACEPTABLE CON CONTROL ESPECIFICO',
         tratamiento_accion: 'IMPLEMENTAR CONTROLES EN LA FUENTE Y EL MEDIO',
+        programa_paso8: 'Protección de Actores Viales Vulnerables (Paso 8.5)',
         plan_accion_medio:
           'Socialización de rutas seguras casa-trabajo (In itinere) y puntos seguros de cruce peatonal',
         plan_accion_vehiculo:
@@ -2656,87 +2663,23 @@ export default function MatrizPESVTable({
                 </div>
               </div>
 
-              {/* Añadir Riesgo */}
-              <button
-                type="button"
-                onClick={addRow}
+              {/* Añadir Riesgo Vial */}
+              <ExpandableButton
+                variant="emerald"
+                icon={<Plus className="h-4 w-4" />}
+                label="Añadir Riesgo Vial"
                 title="Añadir Riesgo Vial"
-                aria-label="Añadir Riesgo Vial"
-                className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
-              >
-                <div className="relative flex flex-shrink-0 items-center justify-center">
-                  <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-                </div>
-                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
-                  <span className="text-xs font-bold tracking-wide">Añadir Riesgo</span>
-                </div>
-              </button>
-
-              {/* Importar Excel */}
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                title="Importar Excel"
-                aria-label="Importar Excel"
-                className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium/40 border rounded-xl bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 shadow-xs "
-              >
-                <div className="relative flex flex-shrink-0 items-center justify-center">
-                  <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-                </div>
-                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
-                  <span className="text-xs font-bold tracking-wide">Importar Excel</span>
-                </div>
-              </button>
-
-              {/* Exportar Excel / Plantilla */}
-              <ExportDropdown
-                content={reportContent || ''}
-                fileName={`Informe_PESV_Res40595_${new Date().toISOString().slice(0, 10)}`}
-                reportType="general"
-                onExportExcel={handleExportExcel}
-                onDownloadTemplate={handleExportTemplate}
+                onClick={addRow}
               />
 
-              {/* Asignar Cargos IA */}
-              {matrixRows.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => handleAutoAssignCargos()}
-                  disabled={isAutoAssigningCargos}
-                  title="Auto-asignar cargos con IA según los perfiles de la empresa"
-                  aria-label="Asignar Cargos con IA"
-                  className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
-                >
-                  <div className="relative flex flex-shrink-0 items-center justify-center">
-                    {isAutoAssigningCargos ? (
-                      <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 animate-spin text-teal-600 dark:text-teal-400" />
-                    ) : (
-                      <Briefcase className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 text-teal-600 dark:text-teal-400" />
-                    )}
-                  </div>
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
-                    <span className="text-xs font-bold tracking-wide">
-                      {isAutoAssigningCargos ? 'Asignando Cargos…' : 'Asignar Cargos IA'}
-                    </span>
-                  </div>
-                </button>
-              )}
-
               {/* Pantalla Completa */}
-              <button
-                type="button"
-                onClick={() => setIsMaximized(true)}
+              <ExpandableButton
+                variant="orange"
+                icon={<Maximize2 className="h-4 w-4" />}
+                label="Pantalla Completa"
                 title="Pantalla Completa"
-                aria-label="Pantalla Completa"
-                className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
-              >
-                <div className="relative flex flex-shrink-0 items-center justify-center">
-                  <Maximize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-                </div>
-                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
-                  <span className="text-xs font-bold tracking-wide">Pantalla Completa</span>
-                </div>
-              </button>
+                onClick={() => setIsMaximized(true)}
+              />
             </div>
           </div>
         ) : (
@@ -2777,7 +2720,7 @@ export default function MatrizPESVTable({
                 type="button"
                 onClick={addRow}
                 title="Añadir Riesgo Vial"
-                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs "
+                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
               >
                 <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                 <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
@@ -2791,7 +2734,7 @@ export default function MatrizPESVTable({
                 onClick={handleAnalyzeMatrix}
                 disabled={isAnalyzing || matrixRows.length === 0}
                 title="Análisis PESV con IA"
-                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
+                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
               >
                 {isAnalyzing ? (
                   <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 animate-spin" />
@@ -2808,7 +2751,7 @@ export default function MatrizPESVTable({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 title="Importar Excel"
-                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 shadow-xs "
+                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 shadow-xs transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
               >
                 <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                 <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
@@ -2832,7 +2775,7 @@ export default function MatrizPESVTable({
                   onClick={() => handleAutoAssignCargos()}
                   disabled={isAutoAssigningCargos}
                   title="Auto-asignar cargos con IA a todas las filas según los perfiles de la empresa"
-                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
+                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
                 >
                   {isAutoAssigningCargos ? (
                     <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 animate-spin text-teal-600 dark:text-teal-400" />
@@ -2852,7 +2795,7 @@ export default function MatrizPESVTable({
                   onClick={handleSyncControlesPESV}
                   disabled={isSyncingControles}
                   title="Sincronizar Planes de Acción PESV con el Centro de Control (Kanban ACPM)"
-                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-cyan-500/10 border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 shadow-xs "
+                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-cyan-500/10 border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 shadow-xs transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
                 >
                   {isSyncingControles ? (
                     <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 animate-spin text-indigo-600 dark:text-indigo-400" />
@@ -2872,7 +2815,7 @@ export default function MatrizPESVTable({
                 type="button"
                 onClick={() => saveMatrixData(matrixRows)}
                 title="Guardar Matriz PESV"
-                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs "
+                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
               >
                 <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                 <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
@@ -2906,7 +2849,7 @@ export default function MatrizPESVTable({
                     onClick={handleSetAsOfficial}
                     disabled={isSettingOfficial}
                     title="Fijar en el Aplicativo SG-SST (Hito 1)"
-                    className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium/40 border rounded-xl bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs "
+                    className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
                   >
                     {isSettingOfficial ? (
                       <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 animate-spin text-amber-500" />
@@ -2924,7 +2867,7 @@ export default function MatrizPESVTable({
                 type="button"
                 onClick={() => setIsMaximized((m) => !m)}
                 title={isMaximized ? 'Restaurar pantalla' : 'Pantalla completa'}
-                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs "
+                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 shadow-xs transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
               >
                 {isMaximized ? (
                   <Minimize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
@@ -3104,7 +3047,9 @@ export default function MatrizPESVTable({
                         </th>
                         <th className="min-w-[140px] px-4 py-3 text-center">DESPLAZAMIENTO</th>
                         <th className="min-w-[180px] px-4 py-3 text-left">ROL EN LA VÍA</th>
-                        <th className="min-w-[160px] px-4 py-3 text-left">FACTOR RIESGO</th>
+                        <th className="min-w-[210px] px-4 py-3 text-left">
+                          FACTOR RIESGO &amp; PROGRAMA PASO 8
+                        </th>
                         <th className="min-w-[220px] border-l-2 border-teal-500/20 px-4 py-3 text-left">
                           DESCRIPCIÓN PELIGRO
                         </th>
@@ -3239,21 +3184,38 @@ export default function MatrizPESVTable({
                               </select>
                             </td>
 
-                            {/* Factor Riesgo */}
+                            {/* Factor Riesgo & Programa Crítico Paso 8 ANSV */}
                             <td className="px-4 py-3">
-                              <select
-                                className="w-full min-w-[140px] border-transparent bg-transparent text-xs outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200 cursor-pointer"
-                                value={row.factor_riesgo || 'Factor Humano'}
-                                onChange={(e) =>
-                                  handleCellChange(idx, 'factor_riesgo', e.target.value)
-                                }
-                              >
-                                {FACTORES_RIESGO.map((fr) => (
-                                  <option key={fr} value={fr}>
-                                    {fr}
-                                  </option>
-                                ))}
-                              </select>
+                              <div className="flex flex-col gap-1.5 min-w-[195px]">
+                                <select
+                                  className="w-full border-transparent bg-transparent text-xs font-semibold outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200 cursor-pointer"
+                                  value={row.factor_riesgo || 'Factor Humano'}
+                                  onChange={(e) =>
+                                    handleCellChange(idx, 'factor_riesgo', e.target.value)
+                                  }
+                                >
+                                  {FACTORES_RIESGO.map((fr) => (
+                                    <option key={fr} value={fr}>
+                                      {fr}
+                                    </option>
+                                  ))}
+                                </select>
+                                <select
+                                  title="Programa de Gestión de Riesgos Críticos (Paso 8 Res. 20223040040595)"
+                                  className="w-full rounded-lg border border-teal-500/30 bg-teal-500/10 px-2 py-1 text-[10px] font-bold text-teal-700 dark:text-teal-300 outline-none focus:border-teal-500 cursor-pointer"
+                                  value={row.programa_paso8 || ''}
+                                  onChange={(e) =>
+                                    handleCellChange(idx, 'programa_paso8', e.target.value)
+                                  }
+                                >
+                                  <option value="">🎯 Programa Paso 8 (Seleccionar)…</option>
+                                  {PROGRAMAS_PASO8_OPCIONES.map((prog) => (
+                                    <option key={prog} value={prog}>
+                                      {prog}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
                             </td>
 
                             {/* Descripción Peligro */}

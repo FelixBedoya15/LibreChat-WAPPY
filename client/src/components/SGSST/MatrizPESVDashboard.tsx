@@ -108,7 +108,7 @@ const ConclusionField = ({ chartType, chartStats, matrixRows, conversationId, to
         rows={3}
       />
       <button onClick={generate} disabled={loading || !conversationId}
-        className="group flex items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs ">
+        className="group flex items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95">
         {loading ? <Loader2 className="h-4 w-4 animate-spin shrink-0" />
           : <Sparkles className="h-4 w-4 shrink-0" />}
         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-1.5 text-xs font-bold">
@@ -341,7 +341,7 @@ export default function MatrizPESVDashboard({
               </span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-zinc-400 font-normal truncate mt-0.5">
-              Paso 8: Caracterización y valoración de factores viales (Humano, Vehículo, Vía y Entorno)
+              Paso 6 y Paso 8: Caracterización, valoración de factores viales (Humano, Vehículo, Vía y Entorno) y 5 Programas Críticos ANSV
             </p>
           </div>
         </div>

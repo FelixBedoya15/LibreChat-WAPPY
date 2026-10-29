@@ -22,6 +22,8 @@ export interface MatrixRow {
   pubchem_cid?: number | string;
 }
 
+export type ChemicalProductRow = MatrixRow;
+
 export const CLASES_ONU = [
   "Clase 1: Explosivos",
   "Clase 2.1: Gases Inflamables",
@@ -171,7 +173,14 @@ export interface CompatibilityResult {
   recommendation: string;
 }
 
-export function getChemicalCompatibility(classA: string, classB: string): CompatibilityResult {
+export function getChemicalCompatibility(
+  classA: string,
+  classB: string,
+  nameA?: string,
+  nameB?: string,
+  incompA?: string,
+  incompB?: string,
+): CompatibilityResult {
   if (!classA || !classB || classA === 'No Peligroso' || classB === 'No Peligroso') {
     return {
       status: 'compatible',
@@ -180,8 +189,51 @@ export function getChemicalCompatibility(classA: string, classB: string): Compat
     };
   }
 
-  const cA = classA.split(':')[0].trim();
-  const cB = classB.split(':')[0].trim();
+  const cA = String(classA || '').split(':')[0].trim();
+  const cB = String(classB || '').split(':')[0].trim();
+  const nA = String(nameA || '').trim();
+  const nB = String(nameB || '').trim();
+  const incA = String(incompA || '').trim();
+  const incB = String(incompB || '').trim();
+
+  // Verificación crítica Ácido vs Base / Alcalino / Hipoclorito / Amoníaco (especialmente en Clase 8)
+  const acidRegex = /(\b[aá]cido\b|muri[aá]tico|clorh[ií]drico|sulf[uú]rico|n[ií]trico|fosf[oó]rico|ac[eé]tico|f[oó]rmico)/i;
+  const baseRegex = /(hipoclorito|cloro|blanqueador|l[ií]mpido|hidr[oó]xido|soda|c[aá]ustica|potasa|amon[ií]aco|alcalin|\bbase\b)/i;
+
+  if (cA === 'Clase 8' || cB === 'Clase 8' || (nA && nB)) {
+    const aIsAcid = acidRegex.test(nA);
+    const bIsAcid = acidRegex.test(nB);
+    const aIsBase = baseRegex.test(nA);
+    const bIsBase = baseRegex.test(nB);
+
+    if ((aIsAcid && bIsBase) || (aIsBase && bIsAcid)) {
+      return {
+        status: 'incompatible',
+        reason:
+          'PELIGRO CRÍTICO ÁCIDO vs BASE / HIPOCLORITO: La mezcla de ácidos (ej. ácido clorhídrico/muriático) con hipocloritos o bases fuertes (ej. soda cáustica) genera liberación inmediata de gas cloro (Cl₂) letal y/o reacción exotérmica violenta con proyecciones corrosivas.',
+        recommendation:
+          'SEGREGACIÓN FÍSICA ESTRICTA (NTC 3966): Prohibido almacenar en el mismo gabinete o compartir cubeto/dique de contención. Mantener separación mínima de 3 metros en compartimentos anticorrosivos independientes.',
+      };
+    }
+
+    // Si en las incompatibilidades declaradas de A se menciona explícitamente el producto B (y son productos distintos)
+    if (nA && nB && nA.toLowerCase() !== nB.toLowerCase()) {
+      if (
+        (aIsAcid && /([aá]cido)/i.test(incB)) ||
+        (bIsAcid && /([aá]cido)/i.test(incA)) ||
+        (aIsBase && /(hipoclorito|base|hidr[oó]xido|soda|alcalin)/i.test(incB)) ||
+        (bIsBase && /(hipoclorito|base|hidr[oó]xido|soda|alcalin)/i.test(incA))
+      ) {
+        return {
+          status: 'incompatible',
+          reason:
+            'PELIGRO CRÍTICO ÁCIDO vs BASE / HIPOCLORITO: La mezcla de ácidos (ej. ácido clorhídrico/muriático) con hipocloritos o bases fuertes (ej. soda cáustica) genera liberación inmediata de gas cloro (Cl₂) letal y/o reacción exotérmica violenta con proyecciones corrosivas.',
+          recommendation:
+            'SEGREGACIÓN FÍSICA ESTRICTA (NTC 3966): Prohibido almacenar en el mismo gabinete o compartir cubeto/dique de contención. Mantener separación mínima de 3 metros en compartimentos anticorrosivos independientes.',
+        };
+      }
+    }
+  }
 
   // Mismos grupos
   if (cA === cB) {
@@ -229,13 +281,30 @@ export function getChemicalCompatibility(classA: string, classB: string): Compat
     };
   }
 
-  // Clase 3 (Líquidos Inflamables) vs Clase 5 (Comburentes / Peróxidos)
-  if ((cA === 'Clase 3' && (cB === 'Clase 5.1' || cB === 'Clase 5.2')) ||
-      (cB === 'Clase 3' && (cA === 'Clase 5.1' || cA === 'Clase 5.2'))) {
+  const isOxidizer = (c: string) => c === 'Clase 5.1' || c === 'Clase 5.2';
+  const isFlammableSolid = (c: string) => c === 'Clase 4.1' || c === 'Clase 4.2' || c === 'Clase 4.3';
+
+  // Clase 5.1 / 5.2 (Comburentes / Peróxidos) vs Clase 3, Clase 6.1, Clase 4.1/4.2/4.3, Clase 2.1 o Clase 8
+  if (
+    (isOxidizer(cA) && (cB === 'Clase 3' || cB === 'Clase 6.1' || isFlammableSolid(cB) || cB === 'Clase 2.1' || cB === 'Clase 8')) ||
+    (isOxidizer(cB) && (cA === 'Clase 3' || cA === 'Clase 6.1' || isFlammableSolid(cA) || cA === 'Clase 2.1' || cA === 'Clase 8'))
+  ) {
     return {
       status: 'incompatible',
-      reason: 'La combinación de un combustible (Líquido Inflamable) y un comburente (Oxidante) causa incendios de alta intensidad y explosiones aceleradas.',
-      recommendation: 'Segregación total. Separar por muros corta-fuego de 2 horas o almacenar en gabinetes ignífugos separados por una distancia mínima de 5 metros.'
+      reason: 'La combinación de comburentes o peróxidos orgánicos (Clase 5.1/5.2) con inflamables, gases, sólidos reactivos, tóxicos o corrosivos desencadena incendios violentos, deflagración o reacciones exotérmicas severas.',
+      recommendation: 'Segregación física obligatoria (NTC 3966). Separar por muros cortafuego o almacenar en gabinetes certificados independientes con distancia mínima de 3 a 5 metros.'
+    };
+  }
+
+  // Clase 2.1 (Gases Inflamables) vs Clase 2.3 (Gases Tóxicos), Clase 3 (Líquidos Inflamables) o Clase 8 (Corrosivos)
+  if (
+    (cA === 'Clase 2.1' && (cB === 'Clase 2.3' || cB === 'Clase 3' || cB === 'Clase 8')) ||
+    (cB === 'Clase 2.1' && (cA === 'Clase 2.3' || cA === 'Clase 3' || cA === 'Clase 8'))
+  ) {
+    return {
+      status: 'incompatible',
+      reason: 'Gases inflamables bajo presión (Clase 2.1) presentan riesgo crítico de BLEVE, explosión y dispersión de nubes tóxicas o corrosivas ante fugas o incendios.',
+      recommendation: 'Segregación de cilindros (NTC 3966). Almacenar a una distancia mínima de 5 a 6 metros o con muro divisorio cortafuegos alejado de líquidos inflamables, corrosivos y gases tóxicos.'
     };
   }
 
@@ -248,15 +317,6 @@ export function getChemicalCompatibility(classA: string, classB: string): Compat
     };
   }
 
-  // Clase 5.1 (Comburentes) vs Clase 8 (Corrosivos)
-  if ((cA === 'Clase 5.1' && cB === 'Clase 8') || (cB === 'Clase 5.1' && cA === 'Clase 8')) {
-    return {
-      status: 'incompatible',
-      reason: 'Las sustancias comburentes reaccionan de manera inestable y violenta con ácidos corrosivos.',
-      recommendation: 'Segregación. Almacenar de forma independiente con contención de derrames separada.'
-    };
-  }
-
   // Clase 4.3 (Reaccionan con agua) vs Líquidos o Corrosivos
   if (cA === 'Clase 4.3' || cB === 'Clase 4.3') {
     if (cA === 'Clase 3' || cB === 'Clase 3' || cA === 'Clase 8' || cB === 'Clase 8') {
@@ -266,15 +326,6 @@ export function getChemicalCompatibility(classA: string, classB: string): Compat
         recommendation: 'Segregación total. Mantener en áreas herméticamente cerradas libres de humedad y alejadas de líquidos inflamables y corrosivos.'
       };
     }
-  }
-
-  // Clase 2.1 (Gases Inflamables) vs Clase 5.1 (Comburentes)
-  if ((cA === 'Clase 2.1' && cB === 'Clase 5.1') || (cB === 'Clase 2.1' && cA === 'Clase 5.1')) {
-    return {
-      status: 'incompatible',
-      reason: 'Riesgo de ignición súbita y combustión violenta de gases.',
-      recommendation: 'Segregación de cilindros. Almacenar a una distancia mínima de 6 metros o usar un muro divisorio cortafuegos no combustible de al menos 1.5 metros de alto.'
-    };
   }
 
   // Clase 6.1 (Tóxicos) o Clase 9 (Misceláneos)

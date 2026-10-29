@@ -39,11 +39,24 @@ export interface MatrixRow {
   plan_accion_vehiculo?: string; // Controles - VEHICULO
   plan_accion_individuo?: string; // Controles - INDIVIDUO
   plan_accion_infraestructura?: string; // Controles - INFRAESTRUCTURA
+  programa_paso8?: string; // Programa de Gestión de Riesgos Críticos (Paso 8 ANSV)
   responsable: string;
   fecha_programacion?: string; // Fecha programación
   estado?: 'PLANEADA' | 'CERRADA' | 'EN PROCESO' | 'VENCIDA' | '';
   observaciones?: string;
+  probabilidad_frecuencia?: string | number;
+  impacto_severidad?: string | number;
+  nivel_riesgo_residual?: string;
 }
+
+export const PROGRAMAS_PASO8_OPCIONES = [
+  'Gestión de la Velocidad Segura (Paso 8.1)',
+  'Prevención de la Fatiga (Paso 8.2)',
+  'Prevención de la Distracción (Paso 8.3)',
+  'Cero Tolerancia a Alcohol y SPA (Paso 8.4)',
+  'Protección de Actores Viales Vulnerables (Paso 8.5)',
+  'Seguridad Vehicular e Infraestructura (Paso 16-17)',
+];
 
 export const ACTORES_VIALES = [
   'Conductor de vehículo pesado',
@@ -89,11 +102,12 @@ export const NC_CUALITATIVO_OPCIONES = [
 export const ESTADO_OPCIONES = ['PLANEADA', 'CERRADA', 'EN PROCESO', 'VENCIDA', ''];
 
 export const TRATAMIENTO_ACCION_OPCIONES = [
-  'ACEPTARLO',
-  'EVITARLO',
-  'ELIMINAR LA FUENTE QUE OCACIONA',
   'MODIFICAR LOS FACTORES DE EXPOSICION',
-  'Ninguno'
+  'ELIMINAR LA FUENTE QUE OCASIONA',
+  'IMPLEMENTAR CONTROLES EN LA FUENTE Y EL MEDIO',
+  'EVITARLO',
+  'ACEPTARLO',
+  'Ninguno',
 ];
 
 export const CONTROLES_TIPO_OPCIONES = [
@@ -130,7 +144,7 @@ export const mapNPCualitativoToNum = (lbl: string): number => {
 
 export const mapNECualitativoToNum = (lbl: string): number => {
   const normalized = (lbl || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  if (normalized.includes('CONSTANTE')) return 5;
+  if (normalized.includes('CONSTANTE') || normalized.includes('CONTINUA')) return 5;
   if (normalized.includes('FRECUENTE')) return 4;
   if (normalized.includes('OCASIONAL')) return 3;
   if (normalized.includes('ESPORADICO')) return 2;
@@ -140,7 +154,7 @@ export const mapNECualitativoToNum = (lbl: string): number => {
 
 export const mapNCCualitativoToNum = (lbl: string): number => {
   const normalized = (lbl || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  if (normalized.includes('CRITICO')) return 5;
+  if (normalized.includes('CRITICO') || normalized.includes('GRAVE') || normalized.includes('CATASTROFICO')) return 5;
   if (normalized.includes('PELIGROSO')) return 4;
   if (normalized.includes('MODERADO')) return 3;
   if (normalized.includes('MARGINAL')) return 2;
