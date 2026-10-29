@@ -291,24 +291,37 @@ async function resolveGoogleFlowCredentials(userId) {
       ? notebookSession.cookies
       : [];
 
-  // Si la sesión del usuario no contiene __Secure-1PSIDTS (necesario para flow.google.com) o está incompleta,
+  // Si la sesión del usuario no contiene tanto __Secure-1PSIDTS como OSID de flow.google.com,
   // buscar si existe otra sesión válida con el mismo email o una sesión maestra activa de Flow en el servidor
   const hasPsidTs = cookies.some((c) => c && c.name === '__Secure-1PSIDTS' && c.value);
-  if (!hasPsidTs) {
+  const hasFlowOsid = cookies.some(
+    (c) => c && c.name === 'OSID' && String(c.domain || '').toLowerCase().includes('flow.google.com')
+  );
+  if (!hasPsidTs || !hasFlowOsid) {
     try {
       const targetEmail = flowSession?.email || notebookSession?.email;
       let fallbackFlow = null;
       if (targetEmail) {
         fallbackFlow = await GoogleFlowSession.findOne({
           email: targetEmail,
-          'cookies.name': '__Secure-1PSIDTS',
+          cookies: {
+            $all: [
+              { $elemMatch: { name: '__Secure-1PSIDTS' } },
+              { $elemMatch: { name: 'OSID', domain: /flow\.google\.com/i } },
+            ],
+          },
         })
           .sort({ updatedAt: -1 })
           .lean();
       }
       if (!fallbackFlow) {
         fallbackFlow = await GoogleFlowSession.findOne({
-          'cookies.name': '__Secure-1PSIDTS',
+          cookies: {
+            $all: [
+              { $elemMatch: { name: '__Secure-1PSIDTS' } },
+              { $elemMatch: { name: 'OSID', domain: /flow\.google\.com/i } },
+            ],
+          },
         })
           .sort({ updatedAt: -1 })
           .lean();
@@ -331,6 +344,23 @@ async function resolveGoogleFlowCredentials(userId) {
       }
     } catch (_) {}
   }
+
+  let fallbackCookies = null;
+  try {
+    const masterFlow = await GoogleFlowSession.findOne({
+      cookies: {
+        $all: [
+          { $elemMatch: { name: '__Secure-1PSIDTS' } },
+          { $elemMatch: { name: 'OSID', domain: /flow\.google\.com/i } },
+        ],
+      },
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
+    if (masterFlow?.cookies?.length > 0) {
+      fallbackCookies = masterFlow.cookies;
+    }
+  } catch (_) {}
 
   let apiKeys = [];
   if (flowSession?.apiKey) {
@@ -374,6 +404,7 @@ async function resolveGoogleFlowCredentials(userId) {
 
   return {
     cookies,
+    fallbackCookies,
     apiKey,
     apiKeys,
     email: flowSession?.email || notebookSession?.email || '',
@@ -904,11 +935,15 @@ async function executeFlowImageGeneration({
   let modelUsed = '';
 
   // INTENTO 1: Generación Nativa en Google Flow Studio (flow.google.com • Nano Banana 2 Lite / 2.1)
-  if (creds.cookies && creds.cookies.length > 0) {
+  const cookieSetsToTry = [creds.cookies, creds.fallbackCookies].filter(
+    (cs, idx, arr) => Array.isArray(cs) && cs.length > 0 && arr.indexOf(cs) === idx
+  );
+  for (const activeCookieSet of cookieSetsToTry) {
+    if (imageBuffer) break;
     try {
       logger.info('[GoogleFlow] Ejecutando generación nativa en flow.google.com (Nano Banana 2 Lite / 2.1)...');
       const nativeRes = await executeFlowNativeStudioAction({
-        cookies: creds.cookies,
+        cookies: activeCookieSet,
         actionType: 'IMAGE_GENERATION',
         prompt: enhancedPrompt,
         aspectRatio: cleanRatio,
@@ -919,7 +954,7 @@ async function executeFlowImageGeneration({
           responseType: 'arraybuffer',
           timeout: 35000,
           headers: {
-            Cookie: buildFlowCookieHeader(creds.cookies),
+            Cookie: buildFlowCookieHeader(activeCookieSet),
             Referer: 'https://flow.google.com/',
             Origin: 'https://flow.google.com',
             'User-Agent':
@@ -1104,11 +1139,15 @@ async function executeFlowVideoGeneration({
   let modelUsed = '';
 
   // INTENTO 1: Generación Nativa en Google Flow Studio (flow.google.com • Veo 3.1 Lite)
-  if (creds.cookies && creds.cookies.length > 0) {
+  const vidCookieSetsToTry = [creds.cookies, creds.fallbackCookies].filter(
+    (cs, idx, arr) => Array.isArray(cs) && cs.length > 0 && arr.indexOf(cs) === idx
+  );
+  for (const activeCookieSet of vidCookieSetsToTry) {
+    if (videoBuffer) break;
     try {
       logger.info('[GoogleFlow] Iniciando generación nativa de video en flow.google.com (Veo 3.1 Lite)...');
       const nativeVid = await executeFlowNativeStudioAction({
-        cookies: creds.cookies,
+        cookies: activeCookieSet,
         actionType: 'VIDEO_GENERATION',
         prompt: enhancedPrompt,
         aspectRatio: cleanRatio,
@@ -1387,13 +1426,29 @@ router.post('/sync-from-notebooklm', requireJwtAuth, async (req, res) => {
 
     const fxSession = await fetchLabsFxSession(nbSession.cookies);
     const effectiveEmail = fxSession.email || nbSession.email || req.user.email || 'Cuenta vinculada';
+    let finalCookies = [...nbSession.cookies];
+
+    // Si en NotebookSession no viene OSID para flow.google.com, clonarla desde OSID existente para que flow.google.com autentique directo
+    const hasFlowOsid = finalCookies.some(
+      (c) => c && c.name === 'OSID' && String(c.domain || '').toLowerCase().includes('flow.google.com')
+    );
+    if (!hasFlowOsid) {
+      const anyOsid = finalCookies.find((c) => c && c.name === 'OSID' && c.value);
+      const anySecOsid = finalCookies.find((c) => c && c.name === '__Secure-OSID' && c.value);
+      if (anyOsid) {
+        finalCookies.push({ ...anyOsid, domain: 'flow.google.com' });
+      }
+      if (anySecOsid) {
+        finalCookies.push({ ...anySecOsid, domain: 'flow.google.com' });
+      }
+    }
 
     await GoogleFlowSession.findOneAndUpdate(
       { user: userId },
       {
         email: effectiveEmail,
-        cookies: nbSession.cookies,
-        cookieCount: nbSession.cookies.length,
+        cookies: finalCookies,
+        cookieCount: finalCookies.length,
         isValid: true,
         lastTestedAt: new Date(),
         source: 'notebooklm-sync',
@@ -1922,7 +1977,7 @@ async function uploadCookies(cookies, email = '') {
   console.log('🌐 Abriendo ventana en primer plano en tu computador (' + path.basename(browserBin) + ')...');
   console.log('⏳ Detectando tu sesión (si ya iniciaste sesión antes, se cerrará sola en 3 segundos)...\\n');
 
-  const targetUrl = 'https://labs.google/fx/tools/flow';
+  const targetUrl = 'https://flow.google.com/';
   const child = launchBrowserVisible(browserBin, flowProfileDir, debugPort, targetUrl);
 
   const maxWaitMs = 180000;
@@ -1944,7 +1999,7 @@ async function uploadCookies(cookies, email = '') {
         (p) =>
           p.webSocketDebuggerUrl &&
           p.url &&
-          (p.url.includes('labs.google') || p.url.includes('flow.google.com')) &&
+          p.url.includes('flow.google.com') &&
           !p.url.includes('accounts.google.com') &&
           !p.url.includes('/signin') &&
           !p.url.includes('/about')
@@ -1960,7 +2015,7 @@ async function uploadCookies(cookies, email = '') {
         });
         isFlowAuthed = Boolean(authCheck?.result?.result?.value);
       } catch (_) {}
-      if (!isFlowAuthed && flowPage.url.includes('flow.google.com')) continue;
+      if (!isFlowAuthed) continue;
 
       let allCookies = [];
       try {
@@ -1976,8 +2031,11 @@ async function uploadCookies(cookies, email = '') {
 
       const googleCookies = allCookies.filter((c) => c.domain && c.domain.includes('google.com'));
       const names = new Set(googleCookies.map((c) => c.name));
+      const hasFlowOsid = googleCookies.some(
+        (c) => c.name === 'OSID' && String(c.domain || '').toLowerCase().includes('flow.google.com')
+      );
 
-      if (names.has('SID') && names.has('__Secure-1PSID') && names.has('__Secure-1PSIDTS')) {
+      if (names.has('SID') && (names.has('__Secure-1PSID') || names.has('__Secure-1PSIDTS')) && hasFlowOsid) {
         console.log('✨ Sesión detectada. Verificando y vinculando con Google Flow en WAPPY...');
         const result = await uploadCookies(googleCookies);
         if (result.ok) {
