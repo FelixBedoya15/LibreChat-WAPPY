@@ -181,6 +181,78 @@ def _safe_parse_cookies(raw_auth: str) -> List[Dict[str, Any]]:
     return cookies
 
 
+def _extract_sid(cookies: List[Dict[str, Any]]) -> str:
+    for c in cookies:
+        if isinstance(c, dict) and c.get("name") == "SID" and c.get("value"):
+            return str(c.get("value")).strip()
+    for c in cookies:
+        if isinstance(c, dict) and c.get("name") == "__Secure-1PSID" and c.get("value"):
+            return str(c.get("value")).strip()
+    return ""
+
+
+def _has_psidts(cookies: List[Dict[str, Any]]) -> bool:
+    return any(
+        isinstance(c, dict) and c.get("name") == "__Secure-1PSIDTS" and c.get("value")
+        for c in cookies
+    )
+
+
+def _merge_preserving_rotated_cookies(
+    incoming: List[Dict[str, Any]],
+    existing: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Si la sesión (SID) es la misma, conserva las cookies rotadas en disco (__Secure-1PSIDTS, etc.) que no vengan en incoming."""
+    if not existing:
+        return incoming
+    inc_sid = _extract_sid(incoming)
+    ex_sid = _extract_sid(existing)
+    if not inc_sid or not ex_sid or inc_sid != ex_sid:
+        return incoming
+
+    inc_names = {c.get("name") for c in incoming if isinstance(c, dict)}
+    rotated_names = {
+        "__Secure-1PSIDTS",
+        "__Secure-3PSIDTS",
+        "SIDCC",
+        "__Secure-1PSIDCC",
+        "__Secure-3PSIDCC",
+        "OSID",
+        "__Secure-OSID",
+    }
+    merged = list(incoming)
+    for ex_c in existing:
+        if isinstance(ex_c, dict):
+            cname = ex_c.get("name")
+            if cname in rotated_names and cname not in inc_names and ex_c.get("value"):
+                merged.append(ex_c)
+                inc_names.add(cname)
+    return merged
+
+
+def _ensure_psidts_ready(storage_file: Path) -> None:
+    """Si storage_state.json aún no tiene __Secure-1PSIDTS, limpia cualquier rate-limit en memoria y ejecuta RotateCookies."""
+    try:
+        if not storage_file.exists() or storage_file.stat().st_size == 0:
+            return
+        data = json.loads(storage_file.read_text())
+        cookies = data.get("cookies", [])
+        if _has_psidts(cookies):
+            return
+        from notebooklm._auth import keepalive, psidts_recovery
+        try:
+            rot_state = keepalive.RotationState.process_default()
+            with rot_state._lock:
+                rot_state._last_attempt_monotonic.clear()
+        except Exception:
+            pass
+        healed = psidts_recovery._recover_psidts_inline(storage_file)
+        if healed:
+            logger.info(f"[PSIDTS Auto-Heal] __Secure-1PSIDTS generado y persistido automáticamente en {storage_file}.")
+    except Exception as e:
+        logger.debug(f"[PSIDTS Auto-Heal] Advertencia: {e}")
+
+
 async def get_client_for_request() -> NotebookLMClient:
     """Resuelve o crea el cliente de NotebookLM adecuado para la petición en curso."""
     headers: Dict[str, str] = {}
@@ -220,27 +292,34 @@ async def get_client_for_request() -> NotebookLMClient:
     target_profile_dir.mkdir(parents=True, exist_ok=True)
     user_storage_file = target_profile_dir / "storage_state.json"
 
-    # Si el usuario suministró credenciales privadas en la cabecera, actualizamos su perfil solo si las cookies cambiaron
+    # Si el usuario suministró credenciales privadas en la cabecera, actualizamos su perfil solo si la sesión cambió
     if user_auth:
         cookies = _safe_parse_cookies(user_auth)
         if cookies:
             cookies_changed = True
+            existing_cookies: List[Dict[str, Any]] = []
             if user_storage_file.exists() and user_storage_file.stat().st_size > 0:
                 try:
                     existing_json = json.loads(user_storage_file.read_text())
                     existing_cookies = existing_json.get("cookies", [])
-                    old_pairs = {(c.get("name"), c.get("value")) for c in existing_cookies if isinstance(c, dict)}
-                    new_pairs = {(c.get("name"), c.get("value")) for c in cookies if isinstance(c, dict)}
-                    if old_pairs and old_pairs == new_pairs:
+                    ex_sid = _extract_sid(existing_cookies)
+                    new_sid = _extract_sid(cookies)
+                    if ex_sid and ex_sid == new_sid and _has_psidts(existing_cookies):
                         cookies_changed = False
+                    else:
+                        old_pairs = {(c.get("name"), c.get("value")) for c in existing_cookies if isinstance(c, dict)}
+                        new_pairs = {(c.get("name"), c.get("value")) for c in cookies if isinstance(c, dict)}
+                        if old_pairs and old_pairs == new_pairs:
+                            cookies_changed = False
                 except Exception:
                     cookies_changed = True
 
             if cookies_changed:
+                merged_cookies = _merge_preserving_rotated_cookies(cookies, existing_cookies)
                 from datetime import datetime, timezone
                 now_iso = datetime.now(timezone.utc).isoformat()
                 storage_data = {
-                    "cookies": cookies,
+                    "cookies": merged_cookies,
                     "origins": [],
                     "notebooklm": {
                         "version": 1,
@@ -264,7 +343,7 @@ async def get_client_for_request() -> NotebookLMClient:
                     (persist_dir / "storage_state.json").write_text(serialized)
                 except Exception:
                     pass
-                logger.info(f"Perfil guardado para '{safe_profile}' con {len(cookies)} cookies en {user_storage_file}.")
+                logger.info(f"Perfil guardado para '{safe_profile}' con {len(merged_cookies)} cookies en {user_storage_file}.")
                 async with _CACHE_LOCK:
                     _CLIENT_CACHE.pop(safe_profile, None)
 
@@ -298,25 +377,38 @@ async def get_client_for_request() -> NotebookLMClient:
                         fetched_cookies = session_json.get("cookies", [])
                         remote_updated_at = str(session_json.get("updatedAt") or "")
                         if fetched_cookies:
-                            # Comprobar si el archivo en disco no existe o si las cookies en MongoDB son distintas
+                            # Comprobar si el archivo en disco no existe o si el usuario vinculó una sesión NUEVA en MongoDB
                             needs_write = not user_storage_file.exists() or user_storage_file.stat().st_size == 0
+                            existing_cookies_disk: List[Dict[str, Any]] = []
                             if not needs_write:
                                 try:
                                     existing_data = json.loads(user_storage_file.read_text())
-                                    existing_cookies = existing_data.get("cookies", [])
-                                    if len(existing_cookies) == 0:
+                                    existing_cookies_disk = existing_data.get("cookies", [])
+                                    existing_updated_at = str(existing_data.get("notebooklm", {}).get("updatedAt") or "")
+                                    if len(existing_cookies_disk) == 0:
                                         needs_write = True
                                     else:
-                                        old_pairs = {(c.get("name"), c.get("value")) for c in existing_cookies if isinstance(c, dict)}
-                                        new_pairs = {(c.get("name"), c.get("value")) for c in fetched_cookies if isinstance(c, dict)}
-                                        if old_pairs != new_pairs:
-                                            needs_write = True
+                                        ex_sid = _extract_sid(existing_cookies_disk)
+                                        rem_sid = _extract_sid(fetched_cookies)
+                                        # Si es la misma sesión (mismo SID o mismo updatedAt) y en disco ya tenemos __Secure-1PSIDTS rotado, NO sobrescribir
+                                        if ex_sid and ex_sid == rem_sid and (
+                                            _has_psidts(existing_cookies_disk) or existing_updated_at == remote_updated_at
+                                        ):
+                                            needs_write = False
+                                        elif remote_updated_at and existing_updated_at == remote_updated_at:
+                                            needs_write = False
+                                        else:
+                                            old_pairs = {(c.get("name"), c.get("value")) for c in existing_cookies_disk if isinstance(c, dict)}
+                                            new_pairs = {(c.get("name"), c.get("value")) for c in fetched_cookies if isinstance(c, dict)}
+                                            if old_pairs != new_pairs:
+                                                needs_write = True
                                 except Exception:
                                     needs_write = True
 
                             if needs_write:
+                                merged_sync_cookies = _merge_preserving_rotated_cookies(fetched_cookies, existing_cookies_disk)
                                 sync_data = {
-                                    "cookies": fetched_cookies,
+                                    "cookies": merged_sync_cookies,
                                     "origins": [],
                                     "notebooklm": {
                                         "version": 1,
@@ -340,7 +432,9 @@ async def get_client_for_request() -> NotebookLMClient:
                                     (persist_dir / "storage_state.json").write_text(serialized_sync)
                                 except Exception:
                                     pass
-                                logger.info(f"Sesión sincronizada dinámicamente para '{safe_profile}' desde {base_host} ({len(fetched_cookies)} cookies).")
+                                logger.info(f"Sesión sincronizada dinámicamente para '{safe_profile}' desde {base_host} ({len(merged_sync_cookies)} cookies).")
+                                async with _CACHE_LOCK:
+                                    _CLIENT_CACHE.pop(safe_profile, None)
                         break
             except Exception as ex:
                 logger.debug(f"No se pudo consultar {base_host} para sesión de usuario: {ex}")
@@ -357,16 +451,21 @@ async def get_client_for_request() -> NotebookLMClient:
             "ve a Mi Cuenta -> Integraciones -> Google NotebookLM."
         )
 
-    # Obtener o instanciar cliente desde el cache (con verificación de mtime)
-    current_mtime = active_storage_file.stat().st_mtime if active_storage_file.exists() else 0
+    # Garantizar que __Secure-1PSIDTS exista en disco (ejecutando RotateCookies si aún no estaba presente)
+    await asyncio.to_thread(_ensure_psidts_ready, active_storage_file)
+
+    active_sid = ""
+    try:
+        active_sid = _extract_sid(json.loads(active_storage_file.read_text()).get("cookies", []))
+    except Exception:
+        pass
 
     async with _CACHE_LOCK:
         if selected_profile in _CLIENT_CACHE:
-            client, old_ctx, cached_mtime = _CLIENT_CACHE[selected_profile]
-            if current_mtime == cached_mtime:
+            client, old_ctx, cached_sid = _CLIENT_CACHE[selected_profile]
+            if not active_sid or active_sid == cached_sid:
                 return client
-            # Archivo actualizado en disco: invalidar sesión previa sin abortar descargas en vuelo
-            logger.info(f"Perfil '{selected_profile}' actualizado en disco. Reinicializando cliente...")
+            logger.info(f"Sesión SID cambiada para '{selected_profile}'. Reinicializando cliente...")
             _CLIENT_CACHE.pop(selected_profile, None)
 
         logger.info(f"Inicializando NotebookLMClient para perfil '{selected_profile}' desde '{active_storage_file}'...")
@@ -380,7 +479,7 @@ async def get_client_for_request() -> NotebookLMClient:
                 ctx = NotebookLMClient.from_storage(profile=selected_profile)
 
         client_instance = await ctx.__aenter__()
-        _CLIENT_CACHE[selected_profile] = (client_instance, ctx, current_mtime)
+        _CLIENT_CACHE[selected_profile] = (client_instance, ctx, active_sid)
         return client_instance
 
 
@@ -643,26 +742,6 @@ async def chat_ask(
         _handle_tool_error("chat_ask", e)
 
 
-@mcp.tool()
-async def studio_generate(
-    notebook: str,
-    artifact_type: str,
-    instructions: Optional[str] = None,
-    language: Optional[str] = "es",
-    input: Optional[Any] = None,
-) -> Dict[str, Any]:
-    """
-    Genera contenido pedagógico o multimedia en el Studio de NotebookLM a partir de las fuentes:
-    - 'audio' / 'podcast': Podcast explicativo (Audio Overview a dos voces).
-    - 'quiz' / 'cuestionario': Cuestionario de evaluación y preguntas.
-    - 'report' / 'informe': Informe detallado o resumen ejecutivo (briefing doc).
-    - 'flashcards' / 'fichas': Tarjetas de estudio.
-    - 'mind_map' / 'mapa_conceptual': Mapa conceptual / resumen esquemático.
-    - 'study_guide' / 'guia_estudio': Guía de estudio integral.
-    """
-    client = await get_client_for_request()
-    nb_id = await _resolve_notebook_id(client, notebook)
-
 def _get_active_user_id() -> str:
     try:
         from fastmcp.server.dependencies import get_http_headers
@@ -819,18 +898,18 @@ async def studio_generate(
     - 'report' / 'study_guide': Informe ejecutivo o guía de estudio en Markdown.
     Entrega automáticamente el contenido y el enlace directo de descarga ('wappy_download_url') para enviárselo al usuario en el chat.
     """
-    client = await get_client_for_request()
-    nb_id = await _resolve_notebook_id(client, notebook)
-
-    if isinstance(input, dict):
-        artifact_type = input.get("artifact_type") or artifact_type
-        instructions = input.get("instructions") or instructions
-        language = input.get("language") or language
-
-    t = (artifact_type or "").lower().strip()
-    uid = _get_active_user_id()
-
     try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+
+        if isinstance(input, dict):
+            artifact_type = input.get("artifact_type") or artifact_type
+            instructions = input.get("instructions") or instructions
+            language = input.get("language") or language
+
+        t = (artifact_type or "").lower().strip()
+        uid = _get_active_user_id()
+
         if t in ("audio", "podcast", "audio_overview"):
             res = await client.artifacts.generate_audio(
                 nb_id,
