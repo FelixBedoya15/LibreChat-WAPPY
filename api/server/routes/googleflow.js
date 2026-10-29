@@ -351,8 +351,9 @@ async function resolveGoogleFlowCredentials(userId) {
     if (!Array.isArray(cs) || cs.length === 0) return;
     const osidVal = cs.find((c) => c && c.name === 'OSID' && String(c.domain || '').includes('flow'))?.value || '';
     const sidVal = cs.find((c) => c && c.name === 'SID')?.value || '';
-    const sig = `${sidVal.slice(0, 20)}:${osidVal.slice(0, 20)}`;
-    if (!sig || seenSignatures.has(sig)) return;
+    const psidVal = cs.find((c) => c && c.name === '__Secure-1PSID')?.value || '';
+    const sig = `${(sidVal || psidVal).slice(0, 20)}:${osidVal.slice(0, 20)}`;
+    if (!sig || sig === ':' || seenSignatures.has(sig)) return;
     seenSignatures.add(sig);
     allCandidateCookieSets.push(cs);
   };
@@ -360,12 +361,20 @@ async function resolveGoogleFlowCredentials(userId) {
   pushCookieSet(cookies);
   try {
     const allFlows = await GoogleFlowSession.find({
-      cookies: { $elemMatch: { name: 'OSID', domain: /flow\.google\.com/i } },
+      'cookies.0': { $exists: true },
     })
       .sort({ updatedAt: -1 })
       .lean();
     for (const fDoc of allFlows) {
       pushCookieSet(fDoc.cookies);
+    }
+    const allNotebooks = await NotebookSession.find({
+      'cookies.0': { $exists: true },
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
+    for (const nDoc of allNotebooks) {
+      pushCookieSet(nDoc.cookies);
     }
   } catch (_) {}
 
@@ -640,6 +649,7 @@ async function executeFlowNativeStudioAction({
     await cdpRequest(ws, 200, 'Page.navigate', { url: 'https://flow.google.com/' });
 
     let tokenInfo = null;
+    let triedCookieRefresh = false;
     for (let i = 0; i < 24; i++) {
       await new Promise((r) => setTimeout(r, 750));
       const evalRes = await cdpRequest(ws, 300 + i, 'Runtime.evaluate', {
@@ -657,6 +667,9 @@ async function executeFlowNativeStudioAction({
               });
             }
           }
+          if (location.pathname && location.pathname.startsWith("/about") && !window.WIZ_global_data?.SNlM0e) {
+            return "NEEDS_OSID_REFRESH";
+          }
           return null;
         })()`,
         awaitPromise: true,
@@ -664,6 +677,15 @@ async function executeFlowNativeStudioAction({
       }).catch(() => null);
 
       const val = evalRes?.result?.value;
+      if (val === 'NEEDS_OSID_REFRESH' && !triedCookieRefresh && i >= 3) {
+        triedCookieRefresh = true;
+        await cdpRequest(ws, 250, 'Network.deleteCookies', { name: 'OSID', domain: 'flow.google.com' }).catch(() => {});
+        await cdpRequest(ws, 251, 'Network.deleteCookies', { name: '__Secure-OSID', domain: 'flow.google.com' }).catch(() => {});
+        await cdpRequest(ws, 252, 'Page.navigate', {
+          url: 'https://accounts.google.com/ServiceLogin?passive=true&continue=https%3A%2F%2Fflow.google.com%2F',
+        }).catch(() => {});
+        continue;
+      }
       if (typeof val === 'string' && val.startsWith('{')) {
         tokenInfo = JSON.parse(val);
         break;
@@ -676,8 +698,26 @@ async function executeFlowNativeStudioAction({
       );
     }
 
+    let refreshedCookies = null;
+    try {
+      const cdpCookiesRes = await cdpRequest(ws, 290, 'Network.getAllCookies').catch(() => null);
+      if (Array.isArray(cdpCookiesRes?.cookies) && cdpCookiesRes.cookies.length > 5) {
+        refreshedCookies = cdpCookiesRes.cookies
+          .filter((c) => c && c.name && c.value && String(c.domain || '').includes('google'))
+          .map((c) => ({
+            name: c.name,
+            value: c.value,
+            domain: c.domain || '.google.com',
+            path: c.path || '/',
+            secure: Boolean(c.secure),
+            httpOnly: Boolean(c.httpOnly),
+          }));
+      }
+    } catch (_) {}
+    const activeCookieHeader = refreshedCookies ? buildFlowCookieHeader(refreshedCookies) : cookieHeader;
+
     const projectId =
-      (await resolveFlowProjectId(cookieHeader, tokenInfo.at, tokenInfo.fSid, tokenInfo.bl)) ||
+      (await resolveFlowProjectId(activeCookieHeader, tokenInfo.at, tokenInfo.fSid, tokenInfo.bl)) ||
       '98397ce4-4aa7-4eac-a03b-fe62aa9d04d6';
     const sessionId = `;${Date.now()}`;
     const mediaId = uuidv4();
@@ -781,6 +821,8 @@ async function executeFlowNativeStudioAction({
             mediaId,
             workflowId,
             projectId,
+            cookieHeader: activeCookieHeader,
+            refreshedCookies,
             modelLabel: fm.label,
           };
         }
@@ -891,7 +933,8 @@ async function executeFlowNativeStudioAction({
             mediaId: activeMediaId,
             workflowId,
             projectId,
-            cookieHeader,
+            cookieHeader: activeCookieHeader,
+            refreshedCookies,
             modelLabel: 'Google Flow Studio (🎬 Veo 3.1 Lite • veo_3_1_t2v_lite)',
           };
         }
@@ -976,7 +1019,7 @@ async function executeFlowImageGeneration({
           responseType: 'arraybuffer',
           timeout: 35000,
           headers: {
-            Cookie: buildFlowCookieHeader(activeCookieSet),
+            Cookie: nativeRes.cookieHeader || buildFlowCookieHeader(activeCookieSet),
             Referer: 'https://flow.google.com/',
             Origin: 'https://flow.google.com',
             'User-Agent':
@@ -987,10 +1030,19 @@ async function executeFlowImageGeneration({
           imageBuffer = Buffer.from(dlRes.data);
           mimeType = dlRes.headers['content-type'] || 'image/jpeg';
           modelUsed = nativeRes.modelLabel;
-          if (userId && activeCookieSet !== creds.cookies) {
+          const cookiesToPersist =
+            Array.isArray(nativeRes.refreshedCookies) && nativeRes.refreshedCookies.length > 5
+              ? nativeRes.refreshedCookies
+              : activeCookieSet;
+          if (userId) {
             await GoogleFlowSession.findOneAndUpdate(
               { user: userId },
-              { cookies: activeCookieSet, cookieCount: activeCookieSet.length, isValid: true, lastTestedAt: new Date() },
+              {
+                cookies: cookiesToPersist,
+                cookieCount: cookiesToPersist.length,
+                isValid: true,
+                lastTestedAt: new Date(),
+              },
               { upsert: true }
             ).catch(() => {});
           }
@@ -1199,10 +1251,19 @@ async function executeFlowVideoGeneration({
         if (dlVid.data && dlVid.data.byteLength > 5000) {
           videoBuffer = Buffer.from(dlVid.data);
           modelUsed = nativeVid.modelLabel;
-          if (userId && activeCookieSet !== creds.cookies) {
+          const cookiesToPersist =
+            Array.isArray(nativeVid.refreshedCookies) && nativeVid.refreshedCookies.length > 5
+              ? nativeVid.refreshedCookies
+              : activeCookieSet;
+          if (userId) {
             await GoogleFlowSession.findOneAndUpdate(
               { user: userId },
-              { cookies: activeCookieSet, cookieCount: activeCookieSet.length, isValid: true, lastTestedAt: new Date() },
+              {
+                cookies: cookiesToPersist,
+                cookieCount: cookiesToPersist.length,
+                isValid: true,
+                lastTestedAt: new Date(),
+              },
               { upsert: true }
             ).catch(() => {});
           }
