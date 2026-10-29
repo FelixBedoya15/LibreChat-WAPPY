@@ -29,17 +29,45 @@ try {
 
 /**
  * Middleware de autenticación flexible para WAPPY Studio:
- * - Acepta token en header Authorization o query ?token= (para EventSource SSE)
+ * - Acepta token JWT en header Authorization o query ?token= (para EventSource SSE)
+ * - Acepta claves de Antigravity por usuario (`wpy_live_...`) o visitante (`wpy_guest_...`) vía header/query/body
  * - Si el token es válido hidrata req.user; si aún se está refrescando, permite usar las claves del sistema (resolveApiKeys) y nunca devuelve texto plano "Unauthorized".
  */
 const studioAuth = (req, res, next) => {
   if (!req.headers.authorization && req.query && req.query.token) {
     req.headers.authorization = `Bearer ${req.query.token}`;
   }
-  passport.authenticate('jwt', { session: false }, (err, user) => {
+  passport.authenticate('jwt', { session: false }, async (err, user) => {
     if (!err && user) {
+      user.id = String(user._id || user.id);
       req.user = user;
+      return next();
     }
+
+    // Si es visitante o pasa su clave wpy_live_... / wpy_guest_... en header, query o body
+    const authHeader = req.headers.authorization || '';
+    const bearerWpy = authHeader.toLowerCase().startsWith('bearer wpy_')
+      ? authHeader.slice(7).trim()
+      : null;
+    const rawWpyKey =
+      req.headers['x-antigravity-api-key'] ||
+      req.headers['x-api-key'] ||
+      (typeof req.query?.apiKey === 'string' ? req.query.apiKey.trim() : null) ||
+      (typeof req.body?.antigravityApiKey === 'string' ? req.body.antigravityApiKey.trim() : null) ||
+      (typeof req.body?.apiKey === 'string' && req.body.apiKey.trim().startsWith('wpy_') ? req.body.apiKey.trim() : null) ||
+      (typeof req.body?.guestKey === 'string' && req.body.guestKey.trim().startsWith('wpy_guest_') ? req.body.guestKey.trim() : null) ||
+      bearerWpy;
+
+    if (rawWpyKey && mcpBridge && typeof mcpBridge.authenticateApiKey === 'function') {
+      try {
+        const keyAuth = await mcpBridge.authenticateApiKey(rawWpyKey);
+        if (keyAuth && keyAuth.user) {
+          req.user = keyAuth.user;
+          req.apiKey = keyAuth.apiKey;
+        }
+      } catch (_) {}
+    }
+
     return next();
   })(req, res, next);
 };
@@ -2013,38 +2041,57 @@ router.post('/video/compile-master-reel', studioAuth, async (req, res) => {
 });
 
 /**
- * Catálogo Oficial de las 5 Skills de Video de Google Antigravity + 4 Direcciones de Arte + 19 Efectos Virales
+ * Catálogo Oficial de las 7 Skills de Diseño UI/UX y Producción de Video de Google Antigravity + 4 Direcciones de Arte + 19 Efectos Virales
  */
 const ANTIGRAVITY_VIDEO_SKILLS_CATALOG = [
   {
     id: 'protocolo-produccion-videos',
     name: 'Sistema de las 7 Piezas + Brandbook WAPPY IA',
+    category: 'Producción & Dirección',
     description:
       'Portada magnética de 0.00s a 2.00s con badge 🔥 ¡GRATIS!, guión segundo a segundo, Avatar 3D Voxel y 3 vistas previas.',
   },
   {
     id: 'animaciones-17-efectos-reels',
     name: '19 Efectos Virales & Transiciones 60 FPS',
+    category: 'Motion Graphics 60-FPS',
     description:
       'Orbit 3D, Frame Break, UI World, Digital Zoom Reticle, iPhone Dynamic Island, Headline Wall, Zoom-Through, Chart Grow, Signature Pad y CTA Bubbles.',
   },
   {
     id: 'animaciones-wappy-brand',
     name: 'Identidad Visual Oficial WAPPY IA',
+    category: 'Brand & Avatares 3D',
     description:
       'Verde Lima Eléctrico (#C7F303), Negro Oliva (#0E1300), Turquesa SST (#0D9488), Cielo Cloud (#5BB8F5) y Crema Editorial (#F6F5EF).',
   },
   {
     id: 'animaciones-dark-tech-hud',
     name: 'Dark Tech Cyberpunk & HUD Glassmorphism',
+    category: 'HUD & Telemetría',
     description:
       'Escenario cósmico #0C192E -> #020409, retícula de escaneo láser, radar holográfico y tarjetas HUD con esquinas técnicas.',
   },
   {
     id: 'animaciones-explicativas-sst',
     name: 'Explicativos Normativos & SST para Dummies',
+    category: 'Normativa & Legal SST',
     description:
       'Análisis técnico de decretos, resoluciones (Res. 0312, Dec. 1072, GTC 45, RETIE) y contraste de mitos vs realidad legal.',
+  },
+  {
+    id: 'hyperframes-motion-design',
+    name: 'HyperFrames Motion Design & GSAP Cinematográfico',
+    category: 'Motor Determinista GSAP',
+    description:
+      'Coreografía cinematográfica con suavizado elástico E.spring, jerarquía tipográfica XL y sincronización de fotogramas a 60 FPS.',
+  },
+  {
+    id: 'wappy-ui-design-system',
+    name: 'WAPPY 14-Group UI Design System & Glassmorphism',
+    category: 'Diseño UI/UX Premium',
+    description:
+      'Los 14 grupos semánticos de color, tarjetas Glassmorphism de alto contraste, micro-animaciones SVG y geometría sin desbordamiento.',
   },
 ];
 
@@ -2093,16 +2140,66 @@ const ANTIGRAVITY_EFFECTS_CATALOG = [
   { id: '19-cover-story', name: '19 Portada Magnética 2s', archetype: 'hook-vs-wall' },
 ];
 
-function getAntigravityBridgeStatus(req) {
+/**
+ * Resuelve el userId objetivo para Antigravity tanto si el usuario tiene sesión JWT (`req.user`)
+ * como si envía su clave `antigravityApiKey` (`wpy_live_...` o `wpy_guest_...`).
+ */
+async function resolveStudioTargetUser(req) {
+  const explicitKey =
+    req.headers?.['x-antigravity-api-key'] ||
+    req.headers?.['x-api-key'] ||
+    (typeof req.query?.apiKey === 'string' ? req.query.apiKey.trim() : '') ||
+    (typeof req.body?.antigravityApiKey === 'string' ? req.body.antigravityApiKey.trim() : '') ||
+    (typeof req.body?.apiKey === 'string' && req.body.apiKey.trim().startsWith('wpy_') ? req.body.apiKey.trim() : '') ||
+    (typeof req.body?.guestKey === 'string' && req.body.guestKey.trim().startsWith('wpy_guest_') ? req.body.guestKey.trim() : '');
+
+  if (explicitKey && mcpBridge && typeof mcpBridge.authenticateApiKey === 'function') {
+    try {
+      const auth = await mcpBridge.authenticateApiKey(explicitKey);
+      if (auth?.user) {
+        const uid = String((auth.user.isSubUser && auth.user.parentUser) ? auth.user.parentUser : (auth.user._id || auth.user.id));
+        return {
+          userId: uid,
+          isGuest: Boolean(auth.user.isGuest),
+          apiKey: explicitKey,
+          user: auth.user,
+        };
+      }
+    } catch (_) {}
+  }
+
+  if (req?.user && (req.user._id || req.user.id)) {
+    const uid = String((req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : (req.user._id || req.user.id));
+    return {
+      userId: uid,
+      isGuest: Boolean(req.user.isGuest),
+      apiKey: req.apiKey?.rawKey || explicitKey || null,
+      user: req.user,
+    };
+  }
+
+  return {
+    userId: '',
+    isGuest: true,
+    apiKey: null,
+    user: null,
+  };
+}
+
+function getAntigravityBridgeStatus(req, explicitUserId = '') {
   let activeListeners = 0;
   let userListeners = 0;
+  const targetUid = String(
+    explicitUserId ||
+      (req?.user ? ((req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : (req.user._id || req.user.id || '')) : ''),
+  );
   try {
     const clientsMap = mcpBridge?.antigravityStreamClients;
     if (clientsMap && typeof clientsMap.forEach === 'function') {
       clientsMap.forEach((set, uid) => {
         const count = set?.size || 0;
         activeListeners += count;
-        if (req?.user && String(req.user._id || req.user.id) === String(uid)) {
+        if (targetUid && String(uid) === targetUid) {
           userListeners += count;
         }
       });
@@ -2110,10 +2207,12 @@ function getAntigravityBridgeStatus(req) {
   } catch (_) {}
 
   return {
-    connected: true,
-    daemonListening: activeListeners > 0,
+    connected: userListeners > 0,
+    daemonListening: userListeners > 0 || activeListeners > 0,
+    userDaemonConnected: userListeners > 0,
     activeListeners,
     userListeners,
+    userId: targetUid || null,
     engine: 'antigravity-master-reel-60fps',
     skillsLoaded: ANTIGRAVITY_VIDEO_SKILLS_CATALOG.length,
     effectsCount: ANTIGRAVITY_EFFECTS_CATALOG.length,
@@ -2121,11 +2220,14 @@ function getAntigravityBridgeStatus(req) {
   };
 }
 
-function notifyStudioAntigravityBridge(req, eventType, payload = {}) {
-  const status = getAntigravityBridgeStatus(req);
+function notifyStudioAntigravityBridge(req, eventType, payload = {}, explicitUserId = '') {
+  const status = getAntigravityBridgeStatus(req, explicitUserId);
   try {
     if (mcpBridge && typeof mcpBridge.broadcastAntigravityEvent === 'function') {
-      const targetUserId = req?.user ? String(req.user._id || req.user.id || '') : '';
+      const targetUserId = String(
+        explicitUserId ||
+          (req?.user ? ((req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : (req.user._id || req.user.id || '')) : ''),
+      );
       const eventData = {
         source: 'wappy-studio',
         eventType,
@@ -2134,10 +2236,6 @@ function notifyStudioAntigravityBridge(req, eventType, payload = {}) {
       };
       if (targetUserId) {
         mcpBridge.broadcastAntigravityEvent(targetUserId, 'studio_antigravity_event', eventData);
-      } else if (mcpBridge.antigravityStreamClients && typeof mcpBridge.antigravityStreamClients.keys === 'function') {
-        for (const uid of mcpBridge.antigravityStreamClients.keys()) {
-          mcpBridge.broadcastAntigravityEvent(uid, 'studio_antigravity_event', eventData);
-        }
       }
     }
   } catch (err) {
@@ -2147,14 +2245,404 @@ function notifyStudioAntigravityBridge(req, eventType, payload = {}) {
 }
 
 /**
- * GET /api/studio/antigravity/status
- * Devuelve el estado en tiempo real del puente Google Antigravity + catálogo de las 5 Skills y 19 Efectos.
+ * Si el usuario o visitante (`wpy_live_...` o `wpy_guest_...`) tiene un daemon de Antigravity conectado
+ * en `mcpBridge.antigravityStreamClients`, registra la orden en `KanbanTask` y emite `event: nueva_orden`
+ * para que su Antigravity local la procese con las 7 Skills y al llamar `/api/mcp-bridge/antigravity/completar`
+ * actualice la pantalla en vivo vía SSE (`orden_completada`).
  */
-router.get('/antigravity/status', studioAuth, (req, res) => {
-  const bridge = getAntigravityBridgeStatus(req);
+async function delegateStudioOrderToAntigravityIfConnected(req, targetUserId, orderSpec = {}) {
+  if (!targetUserId || req.body?.delegateToDaemon === false) {
+    return null;
+  }
+  try {
+    const mongoose = require('mongoose');
+    const KanbanTask = mongoose.models.KanbanTask || require('~/models/KanbanTask');
+    const clientsMap = mcpBridge?.antigravityStreamClients;
+    const userSet = clientsMap && typeof clientsMap.get === 'function' ? clientsMap.get(String(targetUserId)) : null;
+    const listenerCount = userSet?.size || 0;
+
+    if (listenerCount === 0 && !req.body?.forceDelegateOrder) {
+      return { delegated: false, listeners: 0 };
+    }
+
+    const title = orderSpec.title || 'Wappy Studio · Producción de Reel 60-FPS en Antigravity';
+    const instruction = orderSpec.instruction || 'Generar composición HTML5 animada a 60 FPS aplicando las 7 Skills de WAPPY IA.';
+    const outputType = orderSpec.outputType || 'html';
+
+    let kanbanTask = null;
+    if (mongoose.Types.ObjectId.isValid(String(targetUserId))) {
+      kanbanTask = await KanbanTask.create({
+        user: new mongoose.Types.ObjectId(String(targetUserId)),
+        title,
+        description: `[DELEGADO DESDE WAPPY STUDIO A ANTIGRAVITY]\nInstrucción: ${instruction}\nRecurso Objetivo: Wappy Studio 60-FPS Reel Engine\nFormato Esperado: ${outputType}`,
+        status: 'todo',
+        dueDate: new Date(Date.now() + 2 * 3600 * 1000),
+        type: 'antigravity_delegation',
+        priority: 'alta',
+        sourceModule: 'wappy_studio',
+      });
+    }
+
+    const ordenId = kanbanTask?._id ? kanbanTask._id.toString() : `studio-agy-${Date.now()}`;
+    const orderPushPayload = {
+      id: ordenId,
+      ordenId,
+      titulo: title,
+      instruccion: instruction,
+      descripcion: kanbanTask?.description || instruction,
+      recursoObjetivo: 'Wappy Studio 60-FPS Reel Engine (7 Skills)',
+      formatoEntregable: outputType,
+      estado: 'todo',
+      prioridad: 'alta',
+      origen: 'wappy_studio',
+      fechaCreacion: kanbanTask?.createdAt || new Date().toISOString(),
+    };
+
+    const pushed =
+      mcpBridge && typeof mcpBridge.broadcastAntigravityEvent === 'function'
+        ? mcpBridge.broadcastAntigravityEvent(String(targetUserId), 'nueva_orden', orderPushPayload)
+        : 0;
+
+    return {
+      delegated: pushed > 0 || Boolean(kanbanTask),
+      ordenId,
+      listeners: pushed,
+    };
+  } catch (err) {
+    logger.debug(`[WappyStudio Antigravity] Order delegation skipped: ${err.message}`);
+    return null;
+  }
+}
+
+/**
+ * Lee en vivo los 7 archivos SKILL.md oficiales desde `.agents/skills/` para empaquetarlos e instalarlos en Antigravity.
+ */
+function buildWappySkillsBundlePayload(originUrl = 'https://wappy.club') {
+  const skillsBaseDirs = [
+    path.join(process.cwd(), '.agents', 'skills'),
+    path.resolve(__dirname, '..', '..', '..', '.agents', 'skills'),
+  ];
+
+  const skillsPayload = ANTIGRAVITY_VIDEO_SKILLS_CATALOG.map((meta) => {
+    let markdownContent = '';
+    for (const baseDir of skillsBaseDirs) {
+      const skillFile = path.join(baseDir, meta.id, 'SKILL.md');
+      try {
+        if (fs.existsSync(skillFile)) {
+          markdownContent = fs.readFileSync(skillFile, 'utf8');
+          break;
+        }
+      } catch (_) {}
+    }
+    return {
+      id: meta.id,
+      name: meta.name,
+      category: meta.category,
+      description: meta.description,
+      relativePath: `${meta.id}/SKILL.md`,
+      targetDirs: [
+        `~/.gemini/config/skills/${meta.id}/SKILL.md`,
+        `~/.gemini/antigravity/skills/${meta.id}/SKILL.md`,
+      ],
+      content: markdownContent,
+    };
+  });
+
+  return {
+    ok: true,
+    success: true,
+    bundleName: 'WAPPY IA · Pack Oficial de 7 Skills de Diseño UI/UX y Video 60-FPS para Google Antigravity',
+    version: '2.0.0',
+    generatedAt: new Date().toISOString(),
+    originUrl,
+    totalSkills: skillsPayload.length,
+    installTargets: [
+      '~/.gemini/config/skills',
+      '~/.gemini/antigravity/skills',
+    ],
+    installCommand: `curl -fsSL "${originUrl}/api/studio/antigravity/skills-installer.js" | node`,
+    brandbookSummary: {
+      colors: {
+        electricLime: '#C7F303',
+        deepOlive: '#0E1300',
+        sstTeal: '#0D9488',
+        editorialCream: '#F6F5EF',
+        darkTechHud: '#0C192E',
+        cyberCyan: '#22D3EE',
+      },
+      fonts: ['Outfit ExtraBold', 'Plus Jakarta Sans', 'JetBrains Mono'],
+      sevenPiecesRule:
+        '1. Dirección de Arte (9:16 o 16:9), 2. Identidad WAPPY + Avatar 3D Voxel, 3. Normativa SST verificada, 4. Portada Magnética 0-2s con badge 🔥 ¡GRATIS!, 5. Motion Graphics 60-FPS E.spring, 6. Diseño Sonoro Lip-Sync PCM16, 7. Vistas Previas y Render MP4.',
+    },
+    installInstructions: {
+      quickOneLineCommand: `curl -fsSL "${originUrl}/api/studio/antigravity/skills-installer.js" | node`,
+      promptForAntigravity:
+        'Instala en mi entorno local de Google Antigravity las 7 Skills oficiales de Diseño UI/UX y Producción de Video 60-FPS de WAPPY IA contenidas en este archivo JSON (guardando cada `content` en `~/.gemini/config/skills/<id>/SKILL.md` y `~/.gemini/antigravity/skills/<id>/SKILL.md`) y úsalas siempre que diseñemos o animemos reels para Wappy Studio.',
+    },
+    skills: skillsPayload,
+  };
+}
+
+/**
+ * POST /api/studio/antigravity/guest-key (y GET /api/studio/antigravity/guest-key)
+ * - Si el usuario tiene sesión JWT activa (`req.user` registrado), busca o crea su `UserApiKey` real (`wpy_live_...`).
+ * - Si es un visitante sin cuenta (o envía `guestKey: "wpy_guest_..."`), valida o genera una clave única `wpy_guest_<24_hex>`
+ *   y calcula su `userId` determinista (`ObjectId` de 24 hex) para que su puente SSE y órdenes funcionen aislados de otros usuarios.
+ */
+async function handleStudioAntigravityGuestOrUserKey(req, res) {
+  try {
+    const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const host = req.headers['x-forwarded-host'] || req.get('host') || 'wappy.club';
+    const originUrl = `${proto}://${host}`.replace(/https?:\/\/wappy-ia\.com/gi, 'https://wappy.club');
+
+    // Caso 1: Usuario registrado autenticado con JWT real
+    if (req.user && (req.user._id || req.user.id) && !req.user.isGuest) {
+      const UserApiKey = require('~/models/UserApiKey');
+      const targetUserId = String((req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : (req.user._id || req.user.id));
+
+      let existingKeyDoc = await UserApiKey.findOne({
+        user: targetUserId,
+        isActive: true,
+        rawKey: { $exists: true, $nin: [null, ''] },
+      })
+        .sort({ createdAt: -1 })
+        .lean();
+
+      if (!existingKeyDoc || !existingKeyDoc.rawKey || existingKeyDoc.rawKey.includes('...')) {
+        const randomHex = crypto.randomBytes(24).toString('hex');
+        const rawApiKey = `wpy_live_${randomHex}`;
+        const keyPrefix = `wpy_live_${randomHex.slice(0, 6)}...`;
+        const keyHash = crypto.createHash('sha256').update(rawApiKey).digest('hex');
+
+        const created = await UserApiKey.create({
+          user: targetUserId,
+          name: 'Wappy Studio & Antigravity Key',
+          keyPrefix,
+          keyHash,
+          rawKey: rawApiKey,
+          scopes: ['mcp:read', 'mcp:write', 'sgsst', 'profile'],
+          isActive: true,
+        });
+        existingKeyDoc = created.toObject();
+      }
+
+      const bridge = getAntigravityBridgeStatus(req, targetUserId);
+      const oneLineCommand = `curl -fsSL "${originUrl}/api/studio/antigravity/skills-installer.js" | node - --key=${existingKeyDoc.rawKey} --url=${originUrl}`;
+
+      return res.json({
+        ok: true,
+        success: true,
+        isGuest: false,
+        apiKey: existingKeyDoc.rawKey,
+        userId: targetUserId,
+        connected: bridge.userDaemonConnected,
+        activeListeners: bridge.userListeners,
+        oneLineCommand,
+        bridge,
+      });
+    }
+
+    // Caso 2: Visitante sin cuenta (o clave wpy_guest_ existente)
+    const incomingGuestKey = String(
+      req.body?.guestKey ||
+        req.body?.antigravityApiKey ||
+        req.body?.apiKey ||
+        req.query?.guestKey ||
+        req.query?.apiKey ||
+        req.headers['x-antigravity-api-key'] ||
+        req.headers['x-api-key'] ||
+        '',
+    ).trim();
+
+    let guestKey = incomingGuestKey;
+    if (!guestKey.startsWith('wpy_guest_') || guestKey.length < 20 || !/^wpy_guest_[a-zA-Z0-9_-]{10,}$/.test(guestKey)) {
+      guestKey = `wpy_guest_${crypto.randomBytes(12).toString('hex')}`;
+    }
+
+    const derivedObjectId = crypto.createHash('md5').update(guestKey).digest('hex').slice(0, 24);
+    const bridge = getAntigravityBridgeStatus(req, derivedObjectId);
+    const oneLineCommand = `curl -fsSL "${originUrl}/api/studio/antigravity/skills-installer.js" | node - --key=${guestKey} --url=${originUrl}`;
+
+    return res.json({
+      ok: true,
+      success: true,
+      isGuest: true,
+      apiKey: guestKey,
+      guestKey,
+      userId: derivedObjectId,
+      connected: bridge.userDaemonConnected,
+      activeListeners: bridge.userListeners,
+      oneLineCommand,
+      bridge,
+    });
+  } catch (error) {
+    logger.error('[WappyStudio Antigravity] Error in guest-key endpoint:', error);
+    return res.status(500).json({
+      ok: false,
+      success: false,
+      error: error.message || 'Error generando clave de conexión para Antigravity.',
+    });
+  }
+}
+
+router.post('/antigravity/guest-key', studioAuth, handleStudioAntigravityGuestOrUserKey);
+router.get('/antigravity/guest-key', studioAuth, handleStudioAntigravityGuestOrUserKey);
+
+/**
+ * GET /api/studio/antigravity/skills-bundle.json
+ * Devuelve el Pack Oficial de las 7 Skills de Diseño UI/UX y Video 60-FPS de WAPPY IA listas para importar en Google Antigravity.
+ */
+router.get('/antigravity/skills-bundle.json', (req, res) => {
+  try {
+    const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const host = req.headers['x-forwarded-host'] || req.get('host') || 'wappy.club';
+    const originUrl = `${proto}://${host}`.replace(/https?:\/\/wappy-ia\.com/gi, 'https://wappy.club');
+    const payload = buildWappySkillsBundlePayload(originUrl);
+
+    if (req.query.download === '1' || req.query.download === 'true') {
+      res.setHeader('Content-Disposition', 'attachment; filename="WAPPY-Skills-Diseno-y-Video-Antigravity.json"');
+    }
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    return res.send(JSON.stringify(payload, null, 2));
+  } catch (error) {
+    logger.error('[WappyStudio Antigravity] Error serving skills-bundle.json:', error);
+    return res.status(500).json({ ok: false, error: 'Error construyendo el paquete de 7 Skills.' });
+  }
+});
+
+/**
+ * GET /api/studio/antigravity/skills-installer.js
+ * Script Node.js auto-contenido que instala las 7 Skills de Diseño y Video en ~/.gemini/config/skills/ y ~/.gemini/antigravity/skills/,
+ * y si recibe --key=wpy_... descarga e inicia automáticamente el puente reactivo wappy-push-daemon.js.
+ */
+router.get('/antigravity/skills-installer.js', (req, res) => {
+  const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+  const host = req.headers['x-forwarded-host'] || req.get('host') || 'wappy.club';
+  const defaultOrigin = `${proto}://${host}`.replace(/https?:\/\/wappy-ia\.com/gi, 'https://wappy.club');
+
+  const installerScript = `#!/usr/bin/env node
+/**
+ * WAPPY IA · Instalador Oficial de las 7 Skills de Diseño y Video 60-FPS + Puente Reactivo Google Antigravity
+ */
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const https = require('https');
+const http = require('http');
+const { spawn } = require('child_process');
+
+const args = process.argv.slice(2);
+let apiKey = process.env.WAPPY_API_KEY || '';
+let originUrl = process.env.WAPPY_URL || ${JSON.stringify(defaultOrigin)};
+
+for (const arg of args) {
+  if (arg.startsWith('--key=')) apiKey = arg.slice(6).trim();
+  else if (arg.startsWith('--url=')) originUrl = arg.slice(6).trim();
+}
+
+function fetchUrl(urlStr) {
+  return new Promise((resolve, reject) => {
+    const client = urlStr.startsWith('https') ? https : http;
+    client.get(urlStr, (resp) => {
+      if (resp.statusCode >= 300 && resp.statusCode < 400 && resp.headers.location) {
+        return resolve(fetchUrl(resp.headers.location));
+      }
+      if (resp.statusCode < 200 || resp.statusCode >= 300) {
+        return reject(new Error('HTTP ' + resp.statusCode + ' al descargar ' + urlStr));
+      }
+      const chunks = [];
+      resp.on('data', (c) => chunks.push(c));
+      resp.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    }).on('error', reject);
+  });
+}
+
+(async () => {
+  try {
+    console.log('\\n🚀 [WAPPY IA <-> Google Antigravity] Descargando Pack Oficial de 7 Skills de Diseño y Video 60-FPS...');
+    const bundleRaw = await fetchUrl(originUrl.replace(/\\/$/, '') + '/api/studio/antigravity/skills-bundle.json');
+    const bundle = JSON.parse(bundleRaw);
+    const skills = Array.isArray(bundle.skills) ? bundle.skills : [];
+
+    const targetRoots = [
+      path.join(os.homedir(), '.gemini', 'config', 'skills'),
+      path.join(os.homedir(), '.gemini', 'antigravity', 'skills'),
+    ];
+
+    for (const rootDir of targetRoots) {
+      fs.mkdirSync(rootDir, { recursive: true });
+      for (const sk of skills) {
+        if (!sk.id || !sk.content) continue;
+        const skDir = path.join(rootDir, sk.id);
+        fs.mkdirSync(skDir, { recursive: true });
+        fs.writeFileSync(path.join(skDir, 'SKILL.md'), sk.content, 'utf8');
+      }
+    }
+
+    console.log('✅ ' + skills.length + ' Skills instaladas en ~/.gemini/config/skills y ~/.gemini/antigravity/skills:');
+    for (const sk of skills) {
+      console.log('   • ' + sk.id + ' (' + sk.name + ')');
+    }
+
+    if (apiKey && apiKey.startsWith('wpy_')) {
+      console.log('\\n🔌 Configurando Puente Reactivo WAPPY <-> Antigravity para clave ' + apiKey.slice(0, 14) + '...');
+      const agyDir = path.join(os.homedir(), '.gemini', 'antigravity');
+      fs.mkdirSync(agyDir, { recursive: true });
+
+      const envPath = path.join(agyDir, 'wappy-env.json');
+      let currentEnv = {};
+      try {
+        if (fs.existsSync(envPath)) currentEnv = JSON.parse(fs.readFileSync(envPath, 'utf8'));
+      } catch (_) {}
+      currentEnv.WAPPY_API_KEY = apiKey;
+      currentEnv.WAPPY_URL = originUrl.replace(/\\/$/, '');
+      fs.writeFileSync(envPath, JSON.stringify(currentEnv, null, 2), 'utf8');
+
+      const daemonCode = await fetchUrl(originUrl.replace(/\\/$/, '') + '/api/mcp-bridge/antigravity/daemon.js');
+      const daemonPath = path.join(agyDir, 'wappy-push-daemon.js');
+      if (daemonCode && daemonCode.length > 200) {
+        fs.writeFileSync(daemonPath, daemonCode, 'utf8');
+        try { fs.chmodSync(daemonPath, 0o755); } catch (_) {}
+      }
+
+      if (fs.existsSync(daemonPath)) {
+        const child = spawn(process.execPath, [daemonPath, '--daemon'], {
+          detached: true,
+          stdio: 'ignore',
+          env: { ...process.env, WAPPY_API_KEY: apiKey, WAPPY_URL: originUrl.replace(/\\/$/, '') },
+        });
+        child.unref();
+        console.log('✅ Daemon Reactivo SSE iniciado en segundo plano (PID: ' + child.pid + '). ¡Wappy Studio ya está conectado!');
+      }
+    } else {
+      console.log('\\n💡 Tip: Pasa --key=wpy_... para conectar también el Daemon Reactivo en tiempo real.');
+    }
+  } catch (err) {
+    console.error('❌ Error en el instalador de WAPPY Studio:', err.message);
+    process.exit(1);
+  }
+})();
+`;
+
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache');
+  return res.send(installerScript);
+});
+
+/**
+ * GET /api/studio/antigravity/status
+ * Devuelve el estado en tiempo real del puente Google Antigravity + catálogo de las 7 Skills y 19 Efectos.
+ */
+router.get('/antigravity/status', studioAuth, async (req, res) => {
+  const resolved = await resolveStudioTargetUser(req);
+  const bridge = getAntigravityBridgeStatus(req, resolved.userId);
   return res.json({
     ok: true,
     success: true,
+    isGuest: resolved.isGuest,
+    userId: resolved.userId || null,
     bridge,
     skills: ANTIGRAVITY_VIDEO_SKILLS_CATALOG,
     artDirections: ANTIGRAVITY_ART_DIRECTIONS,
@@ -2352,12 +2840,18 @@ Reglas obligatorias:
       ),
     ].join('\n');
 
-    const bridge = notifyStudioAntigravityBridge(req, 'super_prompt_generated', {
-      aspectRatio,
-      artDirection,
-      durationSeconds: safeDuration,
-      scenesCount: normalizedSteps.length,
-    });
+    const resolvedTarget = await resolveStudioTargetUser(req);
+    const bridge = notifyStudioAntigravityBridge(
+      req,
+      'super_prompt_generated',
+      {
+        aspectRatio,
+        artDirection,
+        durationSeconds: safeDuration,
+        scenesCount: normalizedSteps.length,
+      },
+      resolvedTarget.userId,
+    );
 
     return res.json({
       ok: true,
@@ -2522,12 +3016,25 @@ async function handleGenerateMasterReelHtml(req, res) {
 
     htmlCode = postProcessGeneratedVideoHtml(htmlCode, timelineMap);
 
-    const bridge = notifyStudioAntigravityBridge(req, 'html_generated', {
-      aspectRatio,
-      theme: effectiveTheme,
-      scenesCount: scenePlan.length,
-      durationSeconds: timelineMap.totalDurationSeconds,
+    const resolvedTarget = await resolveStudioTargetUser(req);
+    const delegation = await delegateStudioOrderToAntigravityIfConnected(req, resolvedTarget.userId, {
+      title: `Wappy Studio · Generar Animación 60-FPS (${aspectRatio})`,
+      instruction: `${superPrompt || prompt || effectiveScript}\n\n[Nota para Antigravity]: Aplica las 7 Skills de Diseño y Video 60-FPS de WAPPY IA y completa la orden con formato="html".`,
+      outputType: 'html',
     });
+
+    const bridge = notifyStudioAntigravityBridge(
+      req,
+      'html_generated',
+      {
+        aspectRatio,
+        theme: effectiveTheme,
+        scenesCount: scenePlan.length,
+        durationSeconds: timelineMap.totalDurationSeconds,
+        ordenId: delegation?.ordenId || null,
+      },
+      resolvedTarget.userId,
+    );
 
     return res.json({
       ok: true,
@@ -2537,6 +3044,7 @@ async function handleGenerateMasterReelHtml(req, res) {
       timelineMap,
       scenePlan,
       scenesBreakdown: scenePlan,
+      delegation,
       bridge,
     });
   } catch (error) {
@@ -2735,12 +3243,25 @@ router.post('/antigravity/edit-html', studioAuth, async (req, res) => {
       `Escenas sincronizadas a 60 FPS: ${scenePlan.length}`,
     ].join(' • ');
 
-    const bridge = notifyStudioAntigravityBridge(req, 'html_edited', {
-      instruction,
-      theme: detectedTheme,
-      aspectRatio: detectedAspect,
-      scenesCount: scenePlan.length,
+    const resolvedTarget = await resolveStudioTargetUser(req);
+    const delegation = await delegateStudioOrderToAntigravityIfConnected(req, resolvedTarget.userId, {
+      title: `Wappy Studio · Editar Animación 60-FPS (${detectedAspect})`,
+      instruction: `Edición solicitada en Wappy Studio: "${instruction}".\nDirección de arte: ${detectedTheme}.\nGuión base:\n${effectiveScript}`,
+      outputType: 'html',
     });
+
+    const bridge = notifyStudioAntigravityBridge(
+      req,
+      'html_edited',
+      {
+        instruction,
+        theme: detectedTheme,
+        aspectRatio: detectedAspect,
+        scenesCount: scenePlan.length,
+        ordenId: delegation?.ordenId || null,
+      },
+      resolvedTarget.userId,
+    );
 
     return res.json({
       ok: true,
@@ -2750,6 +3271,7 @@ router.post('/antigravity/edit-html', studioAuth, async (req, res) => {
       timelineMap,
       scenePlan,
       scenesBreakdown: scenePlan,
+      delegation,
       bridge,
     });
   } catch (error) {
@@ -3074,14 +3596,27 @@ async function handleRenderMasterReelMp4(req, res) {
       fs.rmSync(tempDir, { recursive: true, force: true });
     } catch (_) {}
 
-    const bridge = notifyStudioAntigravityBridge(req, 'mp4_rendered', {
-      downloadUrl,
-      fileName,
-      durationSeconds: safeDuration,
-      aspectRatio,
-      width,
-      height,
+    const resolvedTarget = await resolveStudioTargetUser(req);
+    const delegation = await delegateStudioOrderToAntigravityIfConnected(req, resolvedTarget.userId, {
+      title: `Wappy Studio · Render MP4 Finalizado (${aspectRatio})`,
+      instruction: `Video MP4 renderizado desde Wappy Studio (${safeDuration}s, ${width}x${height}). URL pública: ${downloadUrl}`,
+      outputType: 'respuesta',
     });
+
+    const bridge = notifyStudioAntigravityBridge(
+      req,
+      'mp4_rendered',
+      {
+        downloadUrl,
+        fileName,
+        durationSeconds: safeDuration,
+        aspectRatio,
+        width,
+        height,
+        ordenId: delegation?.ordenId || null,
+      },
+      resolvedTarget.userId,
+    );
 
     return res.json({
       ok: true,
@@ -3094,6 +3629,7 @@ async function handleRenderMasterReelMp4(req, res) {
       fps: targetFps,
       width,
       height,
+      delegation,
       bridge,
     });
   } catch (error) {

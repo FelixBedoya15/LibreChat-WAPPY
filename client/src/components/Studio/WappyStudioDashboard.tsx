@@ -39,6 +39,7 @@ import {
   Save,
   Key,
   ExternalLink,
+  Terminal,
 } from 'lucide-react';
 import {
   putMediaBlob,
@@ -2224,7 +2225,20 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
     'gemini-3.8-flash',
   );
   const [isEnhancingScript, setIsEnhancingScript] = useState<boolean>(false);
-  const [apiKeyModalTab, setApiKeyModalTab] = useState<'keys' | 'models'>('keys');
+  const [apiKeyModalTab, setApiKeyModalTab] = useState<'antigravity' | 'keys' | 'models'>(
+    'antigravity',
+  );
+  const [antigravityBridgeKey, setAntigravityBridgeKey] = useState<string>(() => {
+    try {
+      return localStorage.getItem('wappy_antigravity_bridge_key') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [antigravityStreamConnected, setAntigravityStreamConnected] = useState<boolean>(false);
+  const [copiedBridgeItem, setCopiedBridgeItem] = useState<
+    'key' | 'prompt' | 'terminal' | null
+  >(null);
 
   // Catálogo precargado inmediatamente (14 voces, 4 modelos, 9 presets y 5 vocal bursts siempre visibles)
   const [models, setModels] = useState<StudioModel[]>(() =>
@@ -3491,6 +3505,7 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
             selectedEffects: selectedSkillEffects,
             voiceName: currentAudio?.voiceName || selectedVoice,
             modelName: selectedAiModel,
+            antigravityApiKey: antigravityBridgeKey,
           }),
         });
         if (resp.ok) {
@@ -3551,6 +3566,7 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
           companyName: user?.name || 'WAPPY IA',
           modelName: selectedAiModel,
           audioBase64: audioBase64 || undefined,
+          antigravityApiKey: antigravityBridgeKey,
         }),
       });
       const data = await parseStudioJson(resp);
@@ -3625,6 +3641,7 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
             effects: selectedSkillEffects,
             modelName: selectedAiModel,
             audioBase64: audioBase64 || undefined,
+            antigravityApiKey: antigravityBridgeKey,
           }),
         });
         if (editResp.ok) {
@@ -3661,6 +3678,7 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
             companyName: user?.name || 'WAPPY IA',
             modelName: selectedAiModel,
             audioBase64: audioBase64 || undefined,
+            antigravityApiKey: antigravityBridgeKey,
           }),
         });
         const genData = await parseStudioJson(genResp);
@@ -3988,6 +4006,7 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
           aspectRatio,
           durationSeconds: targetDuration,
           fps: targetFps,
+          antigravityApiKey: antigravityBridgeKey,
         }),
       });
 
@@ -4658,6 +4677,204 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
     }
   };
 
+  // ============================================================================
+  // ENLACE PERSONAL ANTIGRAVITY (USUARIO wpy_... O VISITANTE wpy_guest_...) + SSE
+  // ============================================================================
+  const syncAntigravityBridgeKey = async (forceRefresh = false) => {
+    try {
+      const storedKey = localStorage.getItem('wappy_antigravity_bridge_key') || '';
+      const resp = await fetch('/api/studio/antigravity/guest-key', {
+        method: 'POST',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify({
+          guestKey: forceRefresh ? '' : storedKey,
+        }),
+      });
+      if (resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        const resolvedKey = String(data.apiKey || data.guestKey || data.key || '').trim();
+        if (resolvedKey) {
+          setAntigravityBridgeKey(resolvedKey);
+          localStorage.setItem('wappy_antigravity_bridge_key', resolvedKey);
+          return resolvedKey;
+        }
+      }
+    } catch {
+      /* Fallback local */
+    }
+    const existing = localStorage.getItem('wappy_antigravity_bridge_key') || '';
+    if (existing && !forceRefresh) {
+      setAntigravityBridgeKey(existing);
+      return existing;
+    }
+    const generated = `wpy_guest_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
+    setAntigravityBridgeKey(generated);
+    try {
+      localStorage.setItem('wappy_antigravity_bridge_key', generated);
+    } catch {
+      /* ignore */
+    }
+    return generated;
+  };
+
+  useEffect(() => {
+    syncAntigravityBridgeKey(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  // Conexión reactiva en vivo (EventSource) al Antigravity personal del usuario o visitante
+  useEffect(() => {
+    const cleanKey = (antigravityBridgeKey || '').trim();
+    if (!cleanKey) return;
+
+    let es: EventSource | null = null;
+    try {
+      const streamUrl = `/api/mcp-bridge/antigravity/stream?apiKey=${encodeURIComponent(cleanKey)}`;
+      es = new EventSource(streamUrl);
+
+      const handleCompletedOrderPayload = async (rawPayload: any) => {
+        if (!rawPayload || typeof rawPayload !== 'object') return;
+        const payload = rawPayload.orden || rawPayload.data || rawPayload;
+        const formato = String(payload.formato || payload.formatoEntregable || '').toLowerCase();
+        const rawContent = String(
+          payload.contenido || payload.htmlCode || payload.resultado || '',
+        ).trim();
+
+        // 1) Si Antigravity envió un video HTML5 / GSAP directo al Estudio:
+        if (
+          formato === 'html' ||
+          /<!doctype html|<html\b|<div[^>]+id=["']stage["']/i.test(rawContent)
+        ) {
+          const cleanHtml = rawContent
+            .replace(/^```html\s*/i, '')
+            .replace(/^```\s*/i, '')
+            .replace(/```\s*$/i, '')
+            .trim();
+          if (cleanHtml.length > 60) {
+            latestEditedHtmlRef.current = '';
+            setHtmlCode(cleanHtml);
+            await saveVideoProjectToLibrary({ htmlOverride: cleanHtml }, true);
+            setVideoCurrentTime(0);
+            setIsVideoPlaying(true);
+            setActiveTab('video');
+            setTimeout(() => {
+              iframeRef.current?.contentWindow?.postMessage({ type: 'STUDIO_RESTART' }, '*');
+              stageAudioRef.current?.play().catch(() => {});
+            }, 150);
+            setStatusBanner({
+              type: 'success',
+              text: '🚀 ¡Tu Antigravity envió el video HTML directo al Lienzo y quedó guardado en la Biblioteca!',
+            });
+          }
+        }
+
+        // 2) Si Antigravity envió un archivo .MP4 renderizado:
+        const mp4Url =
+          payload.archivoOriginal?.publicUrl ||
+          payload.media?.url ||
+          payload.mp4Url ||
+          payload.downloadUrl ||
+          '';
+        if (mp4Url && /\.mp4(\?|$)/i.test(mp4Url)) {
+          try {
+            const r = await fetch(mp4Url);
+            if (r.ok) {
+              const mp4Blob = await r.blob();
+              await saveVideoProjectToLibrary({ mp4Blob }, true);
+              downloadBlobFile(mp4Blob, `wappy-antigravity-video-${Date.now()}.mp4`);
+              setStatusBanner({
+                type: 'success',
+                text: '🎬 ¡Tu Antigravity terminó de renderizar el video .MP4 y se descargó automáticamente!',
+              });
+            }
+          } catch {
+            window.open(mp4Url, '_blank', 'noopener,noreferrer');
+          }
+        }
+      };
+
+      es.onopen = () => {
+        setAntigravityStreamConnected(true);
+      };
+      es.onerror = () => {
+        setAntigravityStreamConnected(false);
+      };
+      es.onmessage = (ev) => {
+        try {
+          const parsed = JSON.parse(ev.data);
+          if (parsed?.type === 'orden_completada' || parsed?.event === 'orden_completada') {
+            handleCompletedOrderPayload(parsed);
+          }
+        } catch {
+          /* ignore ping */
+        }
+      };
+      es.addEventListener('orden_completada', (ev: MessageEvent) => {
+        try {
+          const parsed = JSON.parse(ev.data);
+          handleCompletedOrderPayload(parsed);
+        } catch {
+          /* ignore */
+        }
+      });
+    } catch {
+      setAntigravityStreamConnected(false);
+    }
+
+    return () => {
+      if (es) es.close();
+      setAntigravityStreamConnected(false);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [antigravityBridgeKey]);
+
+  const studioOriginUrl =
+    typeof window !== 'undefined' ? window.location.origin : 'https://wappy.club';
+
+  const buildAntigravitySkillsInstallCmd = (keyOverride?: string) => {
+    const activeKey = (keyOverride || antigravityBridgeKey || '').trim();
+    return `node -e "fetch('${studioOriginUrl}/api/studio/antigravity/skills-installer.js?key=${encodeURIComponent(activeKey)}').then(r=>r.text()).then(c=>{const fs=require('fs'),p=require('path').join(require('os').homedir(),'.gemini','antigravity','wappy-skills-installer.js');fs.mkdirSync(require('path').dirname(p),{recursive:true});fs.writeFileSync(p,c);require('child_process').spawnSync(process.execPath,[p,'--install','--url=${studioOriginUrl}','--key=${activeKey}'],{stdio:'inherit'})})"`;
+  };
+
+  const buildAntigravitySkillsChatPrompt = (keyOverride?: string) => {
+    const activeKey = (keyOverride || antigravityBridgeKey || '').trim();
+    const cmd = buildAntigravitySkillsInstallCmd(activeKey);
+    return `Hola Antigravity, conecta mi instancia de WAPPY Studio (Clave personal: ${activeKey}) e instala el Pack Oficial de las 7 Skills de Diseño y Video de WAPPY IA (protocolo-produccion-videos, animaciones-17-efectos-reels, animaciones-wappy-brand, animaciones-dark-tech-hud, animaciones-explicativas-sst, hyperframes-motion-design y wappy-ui-design-system) más el puente reactivo wappy-push-daemon.js ejecutando este comando oficial con run_command:\n\n${cmd}\n\nConfírmame apenas las 7 Skills y el puente en tiempo real queden activos.`;
+  };
+
+  const handleDownloadSkillsBundleJson = () => {
+    const downloadUrl = `/api/studio/antigravity/skills-bundle.json?download=1&key=${encodeURIComponent(antigravityBridgeKey)}`;
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = 'wappy-antigravity-7-skills-pack.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setStatusBanner({
+      type: 'success',
+      text: '📦 Descargando Pack Oficial de las 7 Skills de Diseño y Video WAPPY IA (.JSON Importable)...',
+    });
+  };
+
+  const handleDownloadAntigravitySkillsInstaller = async () => {
+    const activeKey =
+      (antigravityBridgeKey || '').trim() || (await syncAntigravityBridgeKey(false));
+    const cmdLine = buildAntigravitySkillsInstallCmd(activeKey);
+    const isWin = typeof navigator !== 'undefined' && /win/i.test(navigator.userAgent);
+    const fileName = isWin
+      ? 'Instalar-Antigravity-Skills-Wappy.bat'
+      : 'Instalar-Antigravity-Skills-Wappy.command';
+    const content = isWin
+      ? `@echo off\r\ntitle Instalador Oficial WAPPY Studio - 7 Skills + Puente Antigravity\r\necho Instalando las 7 Skills de Video/Diseno WAPPY IA y conectando tu Antigravity (${activeKey})...\r\n${cmdLine}\r\necho.\r\necho Pack de 7 Skills y Puente Antigravity instalados. Ya puedes cerrar esta ventana.\r\npause\r\n`
+      : `#!/bin/bash\necho "Instalando las 7 Skills de Video/Diseño WAPPY IA y conectando tu Antigravity (${activeKey})..."\n${cmdLine}\necho ""\necho "✅ Pack de 7 Skills y Puente Antigravity instalados. Ya puedes cerrar esta ventana."\n`;
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    downloadBlobFile(blob, fileName);
+    setStatusBanner({
+      type: 'success',
+      text: `⚡ Instalador 1-Clic (${fileName}) descargado. Ábrelo para instalar las 7 Skills de Diseño/Video y enlazar tu Antigravity en 2 segundos.`,
+    });
+  };
+
   /** Reabre un video guardado en el Compositor (HTML + voz + formato). */
   const openLibraryVideo = async (item: LibraryItem) => {
     const htmlBlob = item.htmlKey ? await getMediaBlob(item.htmlKey) : null;
@@ -4901,11 +5118,25 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               />
 
               <ExpandableButton
+                icon={<Terminal />}
+                label="Conectar mi Antigravity & Skills"
+                variant="purple"
+                alwaysExpanded
+                onClick={() => {
+                  setKeyValidationMsg('');
+                  setApiKeyModalTab('antigravity');
+                  setIsApiKeyModalOpen(true);
+                }}
+                title="Conectar tu propio Antigravity (con o sin cuenta) y descargar el Pack de 7 Skills de Video y Diseño"
+              />
+
+              <ExpandableButton
                 icon={<Key />}
                 label={`Claves IA (${activeCustomKeyCount})`}
                 variant="fuchsia"
                 onClick={() => {
                   setKeyValidationMsg('');
+                  setApiKeyModalTab('keys');
                   setIsApiKeyModalOpen(true);
                 }}
                 title="Configurar hasta 3 claves Google Gemini con rotación inteligente"
@@ -6326,7 +6557,19 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     <Wand2 className="w-4 h-4 text-purple-500" />
                     4. Motor Antigravity HTML + GSAP (Flujo en 3 Pasos)
                   </span>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <ExpandableButton
+                      size="sm"
+                      icon={<Terminal />}
+                      label="Conectar mi Antigravity & Skills"
+                      variant="purple"
+                      alwaysExpanded
+                      onClick={() => {
+                        setKeyValidationMsg('');
+                        setApiKeyModalTab('antigravity');
+                        setIsApiKeyModalOpen(true);
+                      }}
+                    />
                     <ExpandableButton
                       size="sm"
                       icon={<Layers />}
@@ -7974,21 +8217,21 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
         )}
       </main>
 
-      {/* MODAL DE CLAVES API GOOGLE GEMINI & ECOSISTEMA GOOGLE_MODELS (2 PESTAÑAS) */}
+      {/* MODAL DE CONEXIÓN ANTIGRAVITY + SKILLS DE VIDEO & CLAVES API GOOGLE GEMINI (3 PESTAÑAS) */}
       {isApiKeyModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-3xl w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-xl bg-fuchsia-500/10 border border-fuchsia-500/30 flex items-center justify-center text-fuchsia-600 dark:text-fuchsia-300 shrink-0">
-                  <Key className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-600 dark:text-purple-300 shrink-0">
+                  <Terminal className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
-                    Gestor de Claves API & Ecosistema GOOGLE_MODELS
+                    Enlace Personal Antigravity, Pack de 7 Skills & Claves IA
                   </h3>
                   <p className="text-xs text-slate-600 dark:text-zinc-400">
-                    Rotación inteligente anti-429 y catálogo completo de modelos oficiales de WAPPY.
+                    Conecta tu propio Antigravity (con o sin cuenta en WAPPY), instala las 7 Skills de Video/Diseño y gestiona tus claves Gemini.
                   </p>
                 </div>
               </div>
@@ -8001,8 +8244,21 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               </button>
             </div>
 
-            {/* Pestañas del Modal */}
-            <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+            {/* Pestañas del Modal (3 Pestañas) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setApiKeyModalTab('antigravity')}
+                className={cn(
+                  'py-2 px-3 rounded-lg text-xs font-extrabold transition cursor-pointer flex items-center justify-center gap-1.5',
+                  apiKeyModalTab === 'antigravity'
+                    ? 'bg-white dark:bg-slate-800 text-purple-700 dark:text-purple-300 shadow-2xs'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white',
+                )}
+              >
+                <Terminal className="w-3.5 h-3.5" />
+                <span>🔌 Mi Antigravity & Skills</span>
+              </button>
               <button
                 type="button"
                 onClick={() => setApiKeyModalTab('keys')}
@@ -8031,7 +8287,228 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               </button>
             </div>
 
-            {apiKeyModalTab === 'keys' ? (
+            {apiKeyModalTab === 'antigravity' ? (
+              <div className="space-y-4">
+                {/* 1. Clave de Enlace Personal (Usuario wpy_... o Visitante wpy_guest_...) */}
+                <div className="p-4 rounded-2xl bg-purple-500/5 border border-purple-500/25 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <span className="text-xs font-extrabold uppercase tracking-wider text-purple-700 dark:text-purple-300 flex items-center gap-1.5">
+                        <Key className="w-3.5 h-3.5" />
+                        1. Tu Clave de Enlace Personal Antigravity
+                      </span>
+                      <p className="text-[11px] text-slate-600 dark:text-zinc-400 mt-0.5">
+                        {antigravityBridgeKey.startsWith('wpy_guest_')
+                          ? 'Clave automática de visitante (sin necesidad de cuenta). También puedes pegar aquí tu clave wpy_... si tienes cuenta en WAPPY.'
+                          : 'Clave personal vinculada a tu cuenta de WAPPY IA.'}
+                      </p>
+                    </div>
+                    <span
+                      className={cn(
+                        'text-[10px] font-extrabold px-2.5 py-1 rounded-xl border flex items-center gap-1.5',
+                        antigravityStreamConnected
+                          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                          : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          'w-2 h-2 rounded-full',
+                          antigravityStreamConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500',
+                        )}
+                      />
+                      {antigravityStreamConnected ? 'Stream SSE Activo' : 'Listo para Enlazar'}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <input
+                      type="text"
+                      value={antigravityBridgeKey}
+                      onChange={(e) => {
+                        const val = e.target.value.trim();
+                        setAntigravityBridgeKey(val);
+                        try {
+                          localStorage.setItem('wappy_antigravity_bridge_key', val);
+                        } catch {
+                          /* ignore */
+                        }
+                      }}
+                      placeholder="wpy_... o wpy_guest_..."
+                      className="flex-1 px-3 py-2 rounded-xl border border-purple-500/30 bg-white dark:bg-slate-950 text-xs font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
+                    />
+                    <div className="flex items-center gap-1.5">
+                      <ExpandableButton
+                        size="sm"
+                        icon={copiedBridgeItem === 'key' ? <Check /> : <Copy />}
+                        label={copiedBridgeItem === 'key' ? '¡Copiada!' : 'Copiar Clave'}
+                        variant="fuchsia"
+                        alwaysExpanded
+                        onClick={() => {
+                          navigator.clipboard.writeText(antigravityBridgeKey);
+                          setCopiedBridgeItem('key');
+                          setTimeout(() => setCopiedBridgeItem(null), 2000);
+                        }}
+                      />
+                      <ExpandableButton
+                        size="sm"
+                        icon={<RefreshCw />}
+                        label="Sincronizar"
+                        variant="cyan"
+                        onClick={() => syncAntigravityBridgeKey(true)}
+                        title="Generar o sincronizar clave de enlace Antigravity"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Pack Importable de las 7 Skills de Diseño y Video WAPPY IA */}
+                <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/25 space-y-3.5">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <span className="text-xs font-extrabold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
+                        <Sparkles className="w-4 h-4 text-indigo-500" />
+                        2. 📦 Pack Importable de las 7 Skills de Diseño y Video WAPPY IA
+                      </span>
+                      <p className="text-[11px] text-slate-600 dark:text-zinc-400 mt-0.5 leading-relaxed">
+                        Instala en tu propio Antigravity las <strong>7 Skills Oficiales de Producción Audiovisual y UI de WAPPY IA</strong> junto con el puente reactivo <code className="font-mono">wappy-push-daemon.js</code> para que tu Antigravity programe videos HTML5 + GSAP a 60 FPS y los envíe directo a este Lienzo:
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Lista compacta de las 7 Skills */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px]">
+                    {[
+                      {
+                        id: 'protocolo-produccion-videos',
+                        desc: 'Sistema de las 7 Piezas + Portada Magnética 2s 🔥 ¡GRATIS!',
+                      },
+                      {
+                        id: 'animaciones-17-efectos-reels',
+                        desc: '19 Efectos Virales y Transiciones 3D a 60 FPS',
+                      },
+                      {
+                        id: 'animaciones-wappy-brand',
+                        desc: 'Identidad WAPPY Lima #C7F303, Félix Voxel 3D y Tenshi',
+                      },
+                      {
+                        id: 'animaciones-dark-tech-hud',
+                        desc: 'HUD Cyberpunk #0C192E + #00D4FF y Tarjetas de Cristal',
+                      },
+                      {
+                        id: 'animaciones-explicativas-sst',
+                        desc: 'Visor Normativo Subrayado (Decreto 1072 / Res. 0312 / GTC-45)',
+                      },
+                      {
+                        id: 'hyperframes-motion-design',
+                        desc: 'Motor GSAP Determinista y Sincronización Palabra a Palabra',
+                      },
+                      {
+                        id: 'wappy-ui-design-system',
+                        desc: 'Sistema de 14 Grupos Semánticos y Glassmorphism',
+                      },
+                    ].map((sk) => (
+                      <div
+                        key={sk.id}
+                        className="p-2 rounded-xl bg-white/80 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800 flex items-start gap-2"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                        <div className="min-w-0">
+                          <div className="font-mono font-bold text-[10px] text-indigo-700 dark:text-indigo-300 truncate">
+                            {sk.id}
+                          </div>
+                          <div className="text-[10px] text-slate-600 dark:text-zinc-400 truncate">
+                            {sk.desc}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Los 3 Botones Oficiales de Descarga e Instalación */}
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <ExpandableButton
+                      size="sm"
+                      icon={<Download />}
+                      label="Descargar Pack de Skills (.JSON Importable)"
+                      variant="green"
+                      alwaysExpanded
+                      onClick={handleDownloadSkillsBundleJson}
+                    />
+
+                    <ExpandableButton
+                      size="sm"
+                      icon={copiedBridgeItem === 'prompt' ? <Check /> : <Copy />}
+                      label={
+                        copiedBridgeItem === 'prompt'
+                          ? '¡Prompt Copiado al Portapapeles!'
+                          : 'Copiar Prompt para Enviar Skills a Antigravity'
+                      }
+                      variant="indigo"
+                      alwaysExpanded
+                      onClick={() => {
+                        navigator.clipboard.writeText(buildAntigravitySkillsChatPrompt());
+                        setCopiedBridgeItem('prompt');
+                        setTimeout(() => setCopiedBridgeItem(null), 2500);
+                        setStatusBanner({
+                          type: 'success',
+                          text: '📋 ¡Prompt copiado! Pégalo en el chat de tu Antigravity para instalar automáticamente las 7 Skills y conectar el puente en vivo.',
+                        });
+                      }}
+                    />
+
+                    <ExpandableButton
+                      size="sm"
+                      icon={<Terminal />}
+                      label="Descargar Instalador 1-Clic (.command Mac / .bat Windows)"
+                      variant="teal"
+                      alwaysExpanded
+                      onClick={handleDownloadAntigravitySkillsInstaller}
+                    />
+                  </div>
+
+                  {/* Vista previa del Prompt / Comando para pegar en Antigravity */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-zinc-400">
+                      <span>
+                        Prompt listo para pegar en el Chat de tu Antigravity (incluye tu clave{' '}
+                        <code className="font-mono text-purple-600 dark:text-purple-400">
+                          {antigravityBridgeKey}
+                        </code>
+                        ):
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(buildAntigravitySkillsInstallCmd());
+                          setCopiedBridgeItem('terminal');
+                          setTimeout(() => setCopiedBridgeItem(null), 2000);
+                        }}
+                        className="text-teal-600 dark:text-teal-400 hover:underline cursor-pointer"
+                      >
+                        {copiedBridgeItem === 'terminal'
+                          ? '✓ Comando Terminal copiado'
+                          : 'Copiar solo comando Terminal'}
+                      </button>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-slate-950 text-emerald-300 font-mono text-[10px] border border-slate-800 max-h-28 overflow-y-auto whitespace-pre-wrap select-all">
+                      {buildAntigravitySkillsChatPrompt()}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2 border-t border-slate-200 dark:border-slate-800">
+                  <ExpandableButton
+                    size="sm"
+                    icon={<Check />}
+                    label="Listo"
+                    variant="teal"
+                    alwaysExpanded
+                    onClick={() => setIsApiKeyModalOpen(false)}
+                  />
+                </div>
+              </div>
+            ) : apiKeyModalTab === 'keys' ? (
               <>
                 <div className="p-3 rounded-xl bg-teal-500/10 border border-teal-500/25 text-xs text-teal-900 dark:text-teal-200 leading-relaxed">
                   Obtén gratis tus claves en{' '}

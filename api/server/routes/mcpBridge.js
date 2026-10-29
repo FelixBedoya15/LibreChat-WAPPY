@@ -21,7 +21,65 @@ try {
     } catch (_) {}
   }
 } catch (_) {}
-const { requireApiKeyOrJwt, authenticateApiKey } = require('~/server/middleware/requireApiKeyAuth');
+const crypto = require('crypto');
+const { requireApiKeyOrJwt: baseRequireApiKeyOrJwt, authenticateApiKey: baseAuthenticateApiKey } = require('~/server/middleware/requireApiKeyAuth');
+
+/**
+ * Resuelve tanto claves de usuario registrado (`wpy_live_...`) como claves de visitante (`wpy_guest_<hex>`)
+ * a un objeto `{ user, apiKey }` con un `ObjectId` determinista válido para MongoDB (`KanbanTask`) y SSE (`antigravityStreamClients`).
+ */
+async function authenticateApiKey(rawKey) {
+  if (!rawKey || typeof rawKey !== 'string') {
+    return null;
+  }
+  const cleanKey = rawKey.trim();
+  if (cleanKey.startsWith('wpy_guest_') && cleanKey.length >= 20 && /^wpy_guest_[a-zA-Z0-9_-]{10,}$/.test(cleanKey)) {
+    const guestIdHex = crypto.createHash('md5').update(cleanKey).digest('hex').slice(0, 24);
+    const guestObjId = new mongoose.Types.ObjectId(guestIdHex);
+    return {
+      user: {
+        _id: guestObjId,
+        id: guestIdHex,
+        isGuest: true,
+        role: 'USER',
+        name: 'Visitante Wappy Studio',
+        email: `guest-${guestIdHex.slice(0, 8)}@wappy.club`,
+      },
+      apiKey: {
+        _id: guestObjId,
+        user: guestObjId,
+        name: 'Guest Antigravity Key',
+        keyPrefix: `${cleanKey.slice(0, 16)}...`,
+        rawKey: cleanKey,
+        isGuest: true,
+        isActive: true,
+      },
+    };
+  }
+  return baseAuthenticateApiKey(cleanKey);
+}
+
+const requireApiKeyOrJwt = async (req, res, next) => {
+  const authHeader = req.headers.authorization || '';
+  const bearerKey = authHeader.toLowerCase().startsWith('bearer wpy_')
+    ? authHeader.slice(7).trim()
+    : null;
+  const candidateKey =
+    req.headers['x-api-key'] ||
+    (typeof req.query?.apiKey === 'string' && req.query.apiKey.trim().startsWith('wpy_') ? req.query.apiKey.trim() : null) ||
+    bearerKey ||
+    (typeof req.body?.apiKey === 'string' && req.body.apiKey.trim().startsWith('wpy_') ? req.body.apiKey.trim() : null);
+
+  if (candidateKey && candidateKey.startsWith('wpy_guest_')) {
+    const guestAuth = await authenticateApiKey(candidateKey);
+    if (guestAuth) {
+      req.user = guestAuth.user;
+      req.apiKey = guestAuth.apiKey;
+      return next();
+    }
+  }
+  return baseRequireApiKeyOrJwt(req, res, next);
+};
 const sseTransports = new Map();
 const CompanyInfo = require('~/models/CompanyInfo');
 const GTC45WorkspaceSession = require('~/models/GTC45WorkspaceSession');
@@ -10183,6 +10241,7 @@ router.broadcastAntigravityEvent = broadcastAntigravityEvent;
 router.resolveAntigravityOutputFormat = resolveAntigravityOutputFormat;
 router.getActiveCompany = getActiveCompany;
 router.antigravityStreamClients = antigravityStreamClients;
+router.authenticateApiKey = authenticateApiKey;
 
 module.exports = router;
 

@@ -5,7 +5,7 @@ const requireJwtAuth = require('./requireJwtAuth');
 const { logger } = require('~/config');
 
 /**
- * Validates a raw API key string (e.g. wpy_live_abc123...)
+ * Validates a raw API key string (e.g. wpy_live_abc123... or wpy_guest_abc123...)
  * Returns { user, apiKey } or null if invalid.
  */
 async function authenticateApiKey(rawKey) {
@@ -13,6 +13,32 @@ async function authenticateApiKey(rawKey) {
     return null;
   }
   const cleanKey = rawKey.trim();
+
+  // Support deterministic guest keys (wpy_guest_<hex>) for Wappy Studio visitors without account
+  if (cleanKey.startsWith('wpy_guest_') && cleanKey.length >= 20 && /^wpy_guest_[a-zA-Z0-9_-]{10,}$/.test(cleanKey)) {
+    const guestIdHex = crypto.createHash('md5').update(cleanKey).digest('hex').slice(0, 24);
+    const guestObjId = new mongoose.Types.ObjectId(guestIdHex);
+    return {
+      user: {
+        _id: guestObjId,
+        id: guestIdHex,
+        isGuest: true,
+        role: 'USER',
+        name: 'Visitante Wappy Studio',
+        email: `guest-${guestIdHex.slice(0, 8)}@wappy.club`,
+      },
+      apiKey: {
+        _id: guestObjId,
+        user: guestObjId,
+        name: 'Guest Antigravity Key',
+        keyPrefix: `${cleanKey.slice(0, 16)}...`,
+        rawKey: cleanKey,
+        isGuest: true,
+        isActive: true,
+      },
+    };
+  }
+
   if (!cleanKey.startsWith('wpy_live_')) {
     return null;
   }
@@ -45,7 +71,7 @@ const requireApiKeyAuth = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   const rawApiKey =
     req.headers['x-api-key'] ||
-    (authHeader?.toLowerCase().startsWith('bearer wpy_live_')
+    (authHeader?.toLowerCase().startsWith('bearer wpy_')
       ? authHeader.slice(7).trim()
       : null);
 
@@ -73,7 +99,7 @@ const requireApiKeyAuth = async (req, res, next) => {
 };
 
 /**
- * Hybrid middleware: accepts either an API Key (wpy_live_...) or standard JWT session.
+ * Hybrid middleware: accepts either an API Key (wpy_live_... or wpy_guest_...) or standard JWT session.
  */
 const requireApiKeyOrJwt = async (req, res, next) => {
   // Support for internal server services (like Tenshi Voice Session)
@@ -94,8 +120,8 @@ const requireApiKeyOrJwt = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   const rawApiKey =
     req.headers['x-api-key'] ||
-    (typeof req.query?.apiKey === 'string' && req.query.apiKey.startsWith('wpy_live_') ? req.query.apiKey.trim() : null) ||
-    (authHeader?.toLowerCase().startsWith('bearer wpy_live_')
+    (typeof req.query?.apiKey === 'string' && req.query.apiKey.trim().startsWith('wpy_') ? req.query.apiKey.trim() : null) ||
+    (authHeader?.toLowerCase().startsWith('bearer wpy_')
       ? authHeader.slice(7).trim()
       : null);
 

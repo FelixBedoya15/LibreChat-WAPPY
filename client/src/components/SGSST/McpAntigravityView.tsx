@@ -72,6 +72,7 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
   const [copiedPrompt, setCopiedPrompt] = useState(false);
   const [copiedVerify, setCopiedVerify] = useState(false);
   const [copiedCron, setCopiedCron] = useState(false);
+  const [copiedSkillsPrompt, setCopiedSkillsPrompt] = useState(false);
   const [copiedLocal, setCopiedLocal] = useState(false);
   const [showAdvancedLocal, setShowAdvancedLocal] = useState(false);
   const [activeTab, setActiveTab] = useState<'config' | 'tools' | 'keys'>('config');
@@ -1485,6 +1486,77 @@ Por favor usa tus herramientas de lectura y edición de archivos para guardarlo 
 
             <div className="p-3.5 rounded-xl bg-emerald-50/40 dark:bg-zinc-950 text-slate-800 dark:text-zinc-200 font-mono text-xs border border-emerald-200/60 dark:border-zinc-800 leading-relaxed whitespace-pre-wrap select-all max-h-56 overflow-y-auto">
               {cronOnlyPrompt}
+            </div>
+          </div>
+
+          {/* TARJETA DESTACADA: Pack Importable de las 7 Skills de Diseño & Video (WAPPY Studio) */}
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-500/10 via-indigo-500/5 to-teal-500/10 dark:from-purple-950/30 dark:via-zinc-900 dark:to-teal-950/20 border border-purple-500/30 flex flex-col gap-3 shadow-sm">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-600 dark:text-purple-300 font-black text-xs shrink-0">
+                  🎬
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-slate-900 dark:text-zinc-100">
+                      Pack Importable de Skills de Diseño & Video (WAPPY Studio)
+                    </span>
+                    <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-purple-600 text-white shadow-2xs">
+                      7 Skills Oficiales • 60 FPS
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+                    Importa en tu Antigravity las 7 Skills de producción audiovisual y diseño UI de WAPPY IA (<code className="font-mono">protocolo-produccion-videos</code>, <code className="font-mono">animaciones-17-efectos-reels</code>, <code className="font-mono">animaciones-wappy-brand</code>, <code className="font-mono">animaciones-dark-tech-hud</code>, <code className="font-mono">animaciones-explicativas-sst</code>, <code className="font-mono">hyperframes-motion-design</code> y <code className="font-mono">wappy-ui-design-system</code>):
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <ExpandingButton
+                  onClick={() => {
+                    const a = document.createElement('a');
+                    a.href = `/api/studio/antigravity/skills-bundle.json?download=1`;
+                    a.download = 'wappy-antigravity-7-skills-pack.json';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    showToast({
+                      message: 'Descargando Pack Oficial de las 7 Skills (.JSON Importable)...',
+                      status: 'success',
+                    });
+                  }}
+                  icon={Download}
+                  label="Descargar Pack de Skills (.JSON)"
+                  variant="green"
+                  title="Descargar el archivo JSON importable con las 7 Skills de Diseño y Video de WAPPY IA"
+                />
+                <ExpandingButton
+                  onClick={async () => {
+                    let keyToUse = newKeyGenerated || fullKeyFromList;
+                    if (!keyToUse) {
+                      keyToUse = await handleCreateKey();
+                    }
+                    const finalKey = keyToUse || effectiveKey;
+                    const installCmd = `node -e "fetch('${originUrl}/api/studio/antigravity/skills-installer.js?key=${encodeURIComponent(finalKey)}').then(r=>r.text()).then(c=>{const fs=require('fs'),p=require('path').join(require('os').homedir(),'.gemini','antigravity','wappy-skills-installer.js');fs.mkdirSync(require('path').dirname(p),{recursive:true});fs.writeFileSync(p,c);require('child_process').spawnSync(process.execPath,[p,'--install','--url=${originUrl}','--key=${finalKey}'],{stdio:'inherit'})})"`;
+                    const skillsPrompt = `Hola Antigravity, instala el Pack Oficial de las 7 Skills de Diseño y Video de WAPPY IA (protocolo-produccion-videos, animaciones-17-efectos-reels, animaciones-wappy-brand, animaciones-dark-tech-hud, animaciones-explicativas-sst, hyperframes-motion-design y wappy-ui-design-system) y conecta mi puente reactivo ejecutando este comando con run_command:\n\n${installCmd}\n\nConfírmame apenas queden instaladas las 7 Skills.`;
+                    navigator.clipboard.writeText(skillsPrompt);
+                    setCopiedSkillsPrompt(true);
+                    setTimeout(() => setCopiedSkillsPrompt(false), 2500);
+                    showToast({
+                      message: 'Prompt de instalación de las 7 Skills copiado al portapapeles',
+                      status: 'success',
+                    });
+                  }}
+                  icon={copiedSkillsPrompt ? Check : Sparkles}
+                  label={
+                    copiedSkillsPrompt
+                      ? '¡Prompt de Skills Copiado!'
+                      : 'Copiar Prompt de Instalación de Skills'
+                  }
+                  variant="purple"
+                  title="Copiar prompt para pegar en el chat de Antigravity e instalar automáticamente las 7 Skills"
+                />
+              </div>
             </div>
           </div>
 
