@@ -518,21 +518,20 @@ async function executeFlowNativeStudioAction({
       const cookieUrl = rawDom.includes('accounts.google.com')
         ? 'https://accounts.google.com/'
         : 'https://www.google.com/';
-      await cdpRequest(ws, 10 + i, 'Network.setCookie', {
+      const cookieParam = {
         name: c.name,
         value: c.value,
         url: cookieUrl,
-        domain: c.domain || '.google.com',
         path: c.path || '/',
         secure: true,
         httpOnly: Boolean(c.httpOnly),
-      }).catch(() => {});
+      };
+      if (!c.name.startsWith('__Host-')) {
+        cookieParam.domain = c.domain || '.google.com';
+      }
+      await cdpRequest(ws, 10 + i, 'Network.setCookie', cookieParam).catch(() => {});
     }
 
-    await cdpRequest(ws, 199, 'Page.navigate', {
-      url: 'https://accounts.google.com/ServiceLogin?passive=true&continue=https%3A%2F%2Fflow.google.com%2F',
-    });
-    await new Promise((r) => setTimeout(r, 2500));
     await cdpRequest(ws, 200, 'Page.navigate', { url: 'https://flow.google.com/' });
 
     let tokenInfo = null;
