@@ -109,8 +109,8 @@ export default function useChatHelpers(index = 0, paramId?: string) {
 
   const stopGenerating = () => clearAllSubmissions();
 
-  const handleStopGenerating = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
+  const handleStopGenerating = (e?: React.MouseEvent<HTMLButtonElement>) => {
+    e?.preventDefault();
     stopGenerating();
   };
 

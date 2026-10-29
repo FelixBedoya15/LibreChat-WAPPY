@@ -18,7 +18,8 @@ import type {
   AgentListResponse,
 } from 'librechat-data-provider';
 import type { ZodAny } from 'zod';
-import { getConvoSwitchLogic, getModelSpecIconURL, removeUnavailableTools, logger } from '~/utils';
+import { clearDraft, getConvoSwitchLogic, getModelSpecIconURL, removeUnavailableTools, logger } from '~/utils';
+import { isAutoSubmitInFlight, markAutoSubmitStarted } from '~/utils/tenshiSubmitGuard';
 import { useAuthContext, useAgentsMap, useDefaultConvo, useSubmitMessage } from '~/hooks';
 import { useChatContext, useChatFormContext } from '~/Providers';
 import { useGetAgentByIdQuery } from '~/data-provider';
@@ -293,6 +294,15 @@ export default function useQueryParams({
       return;
     }
 
+    const textToSend = promptTextRef.current;
+
+    if (isAutoSubmitInFlight(textToSend, 3000) && isSubmittingRef.current) {
+      console.log('[useQueryParams] Prompt ya en curso de envío; omitiendo duplicado.');
+      submissionHandledRef.current = true;
+      pendingSubmitRef.current = false;
+      return;
+    }
+
     submissionHandledRef.current = true;
     pendingSubmitRef.current = false;
     if (settingsTimeoutRef.current) {
@@ -300,18 +310,9 @@ export default function useQueryParams({
       settingsTimeoutRef.current = null;
     }
 
-    const textToSend = promptTextRef.current;
+    markAutoSubmitStarted(textToSend);
 
-    // 1. Establecer valor de inmediato en React Hook Form y textarea físico
-    methods.setValue('text', textToSend, { shouldValidate: true });
-    if (textAreaRef.current) {
-      textAreaRef.current.value = textToSend;
-      textAreaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
-      textAreaRef.current.dispatchEvent(new Event('change', { bubbles: true }));
-      textAreaRef.current.focus();
-    }
-
-    // 2. Si la conversación está ocupada / generando, detenerla
+    // 1. Si la conversación está ocupada por una respuesta ANTERIOR distinta, detenerla primero
     if (isSubmittingRef.current) {
       console.log('[useQueryParams] Deteniendo respuesta previa antes de enviar consulta URL...');
       try {
@@ -322,70 +323,79 @@ export default function useQueryParams({
     }
 
     const executeSend = () => {
-      console.log('[useQueryParams] Ejecutando auto-envío multicanal para:', textToSend);
+      console.log('[useQueryParams] Ejecutando auto-envío canónico para:', textToSend);
+      markAutoSubmitStarted(textToSend);
 
-      // 1. Despacho directo vía submitMessage
+      // Establecer valor en React Hook Form justo antes de despachar
+      methods.setValue('text', textToSend, { shouldValidate: true });
+
+      // Despacho canónico único vía submitMessage (NO llamar sendBtn.click() en el mismo tick para no abortar el SSE)
       try {
         submitMessage({ text: textToSend });
       } catch (err) {
         console.warn('[useQueryParams] Error en submitMessage directo:', err);
       }
 
-      // 2. Despacho alternativo vía click en SendButton
-      try {
-        const sendBtn = (document.getElementById('send-button') ||
-          document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
-        if (sendBtn && !sendBtn.disabled) {
-          sendBtn.click();
-        }
-      } catch (_) {}
+      // Limpiar inmediatamente borrador y textarea físico para que useAutoSave no restaure el prompt al pasar a PENDING_CONVO
+      clearDraft(Constants.NEW_CONVO);
+      clearDraft(conversation?.conversationId);
+      methods.setValue('text', '');
+      if (textAreaRef.current) {
+        textAreaRef.current.value = '';
+      }
 
-      // 3. Watchdog de verificación activa: NUNCA borrar el textarea a ciegas.
-      // Si el texto sigue en el textarea después de 350ms y no ha empezado a enviar, reintentar.
-      // Una vez que isSubmitting pase a true O que el texto haya sido limpiado naturalmente por LibreChat,
-      // remover los query params de la URL silenciosamente.
+      // Watchdog de verificación activa: si tras 450ms no ha iniciado isSubmitting, reintentar
       let retries = 0;
       const watchdog = setInterval(() => {
         retries++;
-        const currentVal = textAreaRef.current?.value || methods.getValues('text');
 
-        // Caso de éxito: el mensaje ya está enviándose o LibreChat ya limpió el formulario
-        if (isSubmittingRef.current || !currentVal) {
+        // Caso de éxito: el mensaje ya está enviándose en el stream SSE
+        if (isSubmittingRef.current) {
           clearInterval(watchdog);
+          clearDraft(Constants.NEW_CONVO);
+          clearDraft(conversation?.conversationId);
+          methods.setValue('text', '');
+          if (textAreaRef.current) {
+            textAreaRef.current.value = '';
+          }
           const cleanUrl = window.location.pathname + (window.location.hash || '');
           window.history.replaceState({}, '', cleanUrl);
           return;
         }
 
-        // Si alcanzamos el límite de reintentos, detener watchdog sin borrar el texto del usuario
+        // Si alcanzamos el límite de reintentos sin que iniciara el stream, dejar el texto visible para el usuario
         if (retries >= 6) {
           clearInterval(watchdog);
-          console.warn('[useQueryParams] Watchdog completó reintentos; el texto permanece en el textarea para el usuario.');
+          console.warn('[useQueryParams] Watchdog completó reintentos; restaurando texto en el textarea para el usuario.');
+          methods.setValue('text', textToSend, { shouldValidate: true });
+          if (textAreaRef.current) {
+            textAreaRef.current.value = textToSend;
+          }
           const cleanUrl = window.location.pathname + (window.location.hash || '');
           window.history.replaceState({}, '', cleanUrl);
           return;
         }
 
         console.log(`[useQueryParams] Watchdog reintento #${retries} para auto-envío...`);
+        markAutoSubmitStarted(textToSend);
+        methods.setValue('text', textToSend, { shouldValidate: true });
         try {
           submitMessage({ text: textToSend });
         } catch (_) {}
-        try {
-          const sendBtn = (document.getElementById('send-button') ||
-            document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
-          if (sendBtn && !sendBtn.disabled) {
-            sendBtn.click();
-          }
-        } catch (_) {}
-      }, 350);
+        clearDraft(Constants.NEW_CONVO);
+        methods.setValue('text', '');
+        if (textAreaRef.current) {
+          textAreaRef.current.value = '';
+        }
+      }, 450);
     };
 
     if (isSubmittingRef.current) {
-      setTimeout(executeSend, 200);
+      setTimeout(executeSend, 250);
     } else {
       executeSend();
     }
-  }, [methods, submitMessage, textAreaRef, handleStopGenerating]);
+  }, [methods, submitMessage, textAreaRef, handleStopGenerating, conversation?.conversationId]);
 
   useEffect(() => {
     const searchString = searchParams.toString();
@@ -459,14 +469,19 @@ export default function useQueryParams({
         validSettingsRef.current = validSettings;
       }
 
-      // Escribir INMEDIATAMENTE el texto en el formulario y en el textarea para que sea visible
+      // Guardar el texto objetivo; solo poblar el textarea si NO es auto-envío inmediato
+      // (para evitar que useAutoSave persista el prompt como borrador en /c/new antes del envío)
       if (decodedPrompt) {
         promptTextRef.current = decodedPrompt;
-        methods.setValue('text', decodedPrompt, { shouldValidate: true });
-        if (textAreaRef.current) {
-          textAreaRef.current.value = decodedPrompt;
-          textAreaRef.current.focus();
-          textAreaRef.current.setSelectionRange(decodedPrompt.length, decodedPrompt.length);
+        if (shouldAutoSubmit) {
+          markAutoSubmitStarted(decodedPrompt);
+        } else {
+          methods.setValue('text', decodedPrompt, { shouldValidate: true });
+          if (textAreaRef.current) {
+            textAreaRef.current.value = decodedPrompt;
+            textAreaRef.current.focus();
+            textAreaRef.current.setSelectionRange(decodedPrompt.length, decodedPrompt.length);
+          }
         }
       }
 

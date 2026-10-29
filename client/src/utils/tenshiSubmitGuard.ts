@@ -9,11 +9,33 @@
  * Solo el primero en reclamar un prompt dentro de la ventana de tiempo lo envía.
  */
 
-const DEDUPE_WINDOW_MS = 1200;
+const DEDUPE_WINDOW_MS = 4000;
 
 let lastClaim: { prompt: string; time: number } | null = null;
 
 const normalize = (text: string) => (text || '').trim().replace(/\s+/g, ' ');
+
+/**
+ * Registra que un prompt delegado por Tenshi acaba de iniciar su proceso de auto-envío.
+ */
+export function markAutoSubmitStarted(prompt: string): void {
+  const normalized = normalize(prompt);
+  if (!normalized) {
+    return;
+  }
+  lastClaim = { prompt: normalized, time: Date.now() };
+}
+
+/**
+ * Verifica si el mismo prompt delegado ya fue reclamado/enviado recientemente.
+ */
+export function isAutoSubmitInFlight(prompt: string, windowMs = DEDUPE_WINDOW_MS): boolean {
+  const normalized = normalize(prompt);
+  if (!normalized || !lastClaim) {
+    return false;
+  }
+  return lastClaim.prompt === normalized && Date.now() - lastClaim.time < windowMs;
+}
 
 /**
  * Intenta reclamar el auto-envío de un prompt.

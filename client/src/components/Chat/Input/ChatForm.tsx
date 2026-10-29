@@ -26,7 +26,8 @@ import useRolePermissions from '~/hooks/Roles/useRolePermissions';
 import { mainTextareaId, BadgeItem } from '~/common';
 import AttachFileChat from './Files/AttachFileChat';
 import FileFormChat from './Files/FileFormChat';
-import { cn, removeFocusRings } from '~/utils';
+import { clearDraft, cn, removeFocusRings } from '~/utils';
+import { isAutoSubmitInFlight, markAutoSubmitStarted } from '~/utils/tenshiSubmitGuard';
 import TextareaHeader from './TextareaHeader';
 import PromptsCommand from './PromptsCommand';
 import AudioRecorder from './AudioRecorder';
@@ -231,18 +232,18 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
     isSubmittingRef.current = isSubmitting;
   }, [isSubmitting]);
 
-  /** Coloca el texto en el formulario y ejecuta el envío DIRECTO vía click / submitMessage */
+  /** Coloca el texto en el formulario y ejecuta el envío DIRECTO vía submitMessage */
   const sendDelegatedPrompt = useCallback(
     (prompt: string) => {
-      methods.setValue('text', prompt, { shouldValidate: true });
-      if (textAreaRef.current) {
-        textAreaRef.current.value = prompt;
-        textAreaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
-        textAreaRef.current.dispatchEvent(new Event('change', { bubbles: true }));
-        textAreaRef.current.focus();
+      if (isAutoSubmitInFlight(prompt, 3000) && isSubmittingRef.current) {
+        console.log('[ChatForm] Consulta delegada ya está en curso de envío; omitiendo duplicado:', prompt);
+        return;
       }
 
-      console.log('[ChatForm] Enviando consulta delegada (despacho multicanal):', prompt);
+      markAutoSubmitStarted(prompt);
+      methods.setValue('text', prompt, { shouldValidate: true });
+
+      console.log('[ChatForm] Enviando consulta delegada (despacho canónico):', prompt);
 
       try {
         submitMessage({ text: prompt });
@@ -250,42 +251,51 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         console.warn('[ChatForm] Error en submitMessage directo:', err);
       }
 
-      try {
-        const sendBtn = (document.getElementById('send-button') ||
-          document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
-        if (sendBtn && !sendBtn.disabled) {
-          sendBtn.click();
-        }
-      } catch (_) {}
+      // Limpiar inmediatamente borrador y textarea físico para evitar que useAutoSave restaure el prompt al pasar a PENDING_CONVO
+      clearDraft(Constants.NEW_CONVO);
+      clearDraft(conversation?.conversationId);
+      methods.setValue('text', '');
+      if (textAreaRef.current) {
+        textAreaRef.current.value = '';
+      }
 
-      // Watchdog de verificación: NUNCA borrar el textarea a ciegas.
-      // Si el texto sigue visible después de 300ms y no ha empezado a enviar, reintentar.
+      // Watchdog de verificación: si tras 450ms el envío SSE no ha iniciado, reintentar
       let retries = 0;
       const watchdog = setInterval(() => {
         retries++;
-        const currentVal = textAreaRef.current?.value || methods.getValues('text');
-        if (isSubmittingRef.current || !currentVal) {
+        if (isSubmittingRef.current) {
           clearInterval(watchdog);
+          clearDraft(Constants.NEW_CONVO);
+          clearDraft(conversation?.conversationId);
+          methods.setValue('text', '');
+          if (textAreaRef.current) {
+            textAreaRef.current.value = '';
+          }
           return;
         }
         if (retries >= 5) {
           clearInterval(watchdog);
+          methods.setValue('text', prompt, { shouldValidate: true });
+          if (textAreaRef.current) {
+            textAreaRef.current.value = prompt;
+          }
           return;
         }
         console.log(`[ChatForm] Watchdog reintento #${retries} para consulta delegada...`);
+        markAutoSubmitStarted(prompt);
+        methods.setValue('text', prompt, { shouldValidate: true });
         try {
           submitMessage({ text: prompt });
         } catch (_) {}
-        try {
-          const sendBtn = (document.getElementById('send-button') ||
-            document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
-          if (sendBtn && !sendBtn.disabled) {
-            sendBtn.click();
-          }
-        } catch (_) {}
-      }, 300);
+        clearDraft(Constants.NEW_CONVO);
+        clearDraft(conversation?.conversationId);
+        methods.setValue('text', '');
+        if (textAreaRef.current) {
+          textAreaRef.current.value = '';
+        }
+      }, 450);
     },
-    [methods, submitMessage, textAreaRef],
+    [methods, submitMessage, textAreaRef, conversation?.conversationId],
   );
 
   // Ejecutor robusto de auto-envío para consultas delegadas por Tenshi
@@ -293,6 +303,15 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
     async (promptToSend: string, agentId?: string) => {
       if (!promptToSend || !promptToSend.trim()) return;
       const prompt = promptToSend.trim();
+
+      // Si useQueryParams ya reclamó o está enviando este mismo prompt, NO interferir ni abortar la generación en curso
+      if (
+        isAutoSubmitInFlight(prompt, 4000) &&
+        (isSubmittingRef.current || window.location.search.includes('submit=true'))
+      ) {
+        console.log('[ChatForm] Consulta delegada ya gestionada por useQueryParams / en vuelo; omitiendo colisión:', prompt);
+        return;
+      }
 
       console.log('[ChatForm] triggerTenshiSend ejecutando para:', prompt, {
         agentId,
@@ -333,10 +352,16 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         return;
       }
 
-      // 2. Si el sistema está actualmente respondiendo / generando, detenerlo primero y esperar liberación
+      // 2. Si el sistema está actualmente respondiendo a una consulta ANTERIOR distinta, detenerlo primero y esperar liberación
       if (isSubmitting || isSubmittingAdded) {
+        if (isAutoSubmitInFlight(prompt, 4000)) {
+          console.log('[ChatForm] El sistema ya está procesando esta misma consulta delegada; no se detiene.');
+          return;
+        }
         console.log('[ChatForm] Conversación ocupada por respuesta previa. Deteniendo generación y esperando liberación...');
-        handleStopGenerating();
+        try {
+          handleStopGenerating();
+        } catch (_) {}
         let waitCount = 0;
         const waitInterval = setInterval(() => {
           waitCount++;
@@ -351,7 +376,7 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
       // 3. El agente ya es el correcto y el canal está libre: enviar de inmediato
       sendDelegatedPrompt(prompt);
     },
-    [onSelectAgent, conversation?.agent_id, sendDelegatedPrompt, isSubmitting, isSubmittingAdded, handleStopGenerating],
+    [onSelectAgent, conversation?.agent_id, conversation?.conversationId, navigate, sendDelegatedPrompt, isSubmitting, isSubmittingAdded, handleStopGenerating],
   );
 
   // Efecto que ejecuta la consulta pendiente tan pronto como el agente objetivo se asiente en la conversación

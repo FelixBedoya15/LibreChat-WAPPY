@@ -2551,18 +2551,25 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 setTimeout(() => {
                   navigate(`/c/new?${params.toString()}`, { replace: true, state: { focusChat: true } });
 
-                  // 4. Doble canal de garantía: emitir evento diferido tenshi-submit-agent-prompt
+                  // 4. Canal de respaldo diferido (2200ms): SOLO disparar si useQueryParams no inició el envío por sí mismo
                   setTimeout(() => {
-                    window.dispatchEvent(
-                      new CustomEvent('tenshi-submit-agent-prompt', {
-                        detail: {
-                          agentId: targetAgentId,
-                          prompt: pregunta,
-                          nuevoChat: true,
-                        },
-                      })
-                    );
-                  }, 400);
+                    if (
+                      pendingAgentConsultationRef.current?.active &&
+                      !pendingAgentConsultationRef.current.hadStarted &&
+                      !isChatSubmittingRef.current
+                    ) {
+                      console.log('[TenshiChat] Respaldo diferido (2.2s): useQueryParams aún no despachó; emitiendo tenshi-submit-agent-prompt');
+                      window.dispatchEvent(
+                        new CustomEvent('tenshi-submit-agent-prompt', {
+                          detail: {
+                            agentId: targetAgentId,
+                            prompt: pregunta,
+                            nuevoChat: true,
+                          },
+                        })
+                      );
+                    }
+                  }, 2200);
                 }, 450);
 
                 resultMsg = matchedAgent
@@ -4069,33 +4076,24 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           const consultation = pendingAgentConsultationRef.current;
           const timeSinceStart = Date.now() - (consultation?.startedAt || Date.now());
 
-          // 1. WATCHDOG DE AUTO-ENVÍO: Si pasaron más de 3 segundos, el especialista no ha empezado a generar
-          // y el prompt sigue escrito en el input/textarea sin enviarse, forzar el envío del formulario.
-          if (consultation?.active && !consultation.hadStarted && !isStillStreaming && timeSinceStart >= 3000) {
-            const formEl =
-              document.querySelector<HTMLFormElement>('form[data-testid="chat-form"]') ||
-              document.querySelector<HTMLFormElement>('form');
+          // 1. WATCHDOG DE AUTO-ENVÍO: Si pasaron más de 3 segundos, el especialista no está generando
+          // y el prompt delegado sigue escrito en el input/textarea sin enviarse (o fue restaurado a /c/new), forzar el envío.
+          if (consultation?.active && !isStillStreaming && timeSinceStart >= 3000 && timeSinceStart <= 12000) {
             const textArea =
+              document.querySelector<HTMLTextAreaElement>('textarea[data-testid="text-input"]') ||
               document.querySelector<HTMLTextAreaElement>('textarea[data-testid="chat-input"]') ||
               document.querySelector<HTMLTextAreaElement>('textarea');
-            if (textArea && textArea.value && textArea.value.trim().length > 0) {
-              console.log('[Tenshi Watchdog] Prompt aún en textarea tras 3s. Forzando click o submit en formulario...');
-              textArea.dispatchEvent(new Event('input', { bubbles: true }));
-              textArea.dispatchEvent(new Event('change', { bubbles: true }));
-              const sendBtn = (document.getElementById('send-button') ||
-                document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
-              if (sendBtn && !sendBtn.disabled) {
-                sendBtn.click();
-              } else if (formEl) {
-                try {
-                  formEl.requestSubmit();
-                } catch {
-                  if (sendBtn) {
-                    sendBtn.disabled = false;
-                    sendBtn.click();
-                  }
-                }
-              }
+            if (textArea && textArea.value && textArea.value.trim().length >= 15) {
+              console.log('[Tenshi Watchdog] Prompt aún en textarea tras 3s sin generación activa. Re-despachando consulta...');
+              consultation.hadStarted = false;
+              window.dispatchEvent(
+                new CustomEvent('tenshi-submit-agent-prompt', {
+                  detail: {
+                    agentId: activeConsultationAgentIdRef.current || conversation?.agent_id,
+                    prompt: consultation.question || textArea.value.trim(),
+                  },
+                })
+              );
             }
           }
 

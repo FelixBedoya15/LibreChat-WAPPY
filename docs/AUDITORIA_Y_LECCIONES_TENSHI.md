@@ -776,3 +776,28 @@ Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el 
 - **Tenshi:** el nombre técnico de la herramienta **NO cambia** (`gestor_automatizaciones`). Se actualizaron descripciones en `tenshi.js`, `voiceSession.js` (herramienta, lista de módulos de `wappy_navegar`, descripción del módulo actual y failsafe de voz "abre tareas/automatizaciones"), `GestorAutomatizaciones.js`, `manifest.json`, `syncAgents.js`, `restore-and-sync-all.js` y la skill `skill-automatizaciones-agentes.md`. Frontend: `WAPPY_NAV_MAP` con claves `tareas`, `tareas_programadas`, `automatizaciones`, `historial_tareas`, etc.
 - **Failsafe de voz:** "tareas" solo navega a `/tareas` si la frase NO menciona cronograma, ACPM, Kanban, control o tareas críticas (esas siguen yendo al Centro de Control).
 - **RAM del VPS:** `automationScheduler.js` ahora aplica un tope GLOBAL de agentes simultáneos (`AUTOMATION_MAX_CONCURRENCY`, por defecto 2) — antes cada tick de 1 min podía abrir un nuevo pool de 4 sin contar los que seguían corriendo —, evita ticks solapados y usa consultas `.lean()` con proyección.
+
+---
+
+### LECCIÓN 30 (2026-10-28): Colisión de Doble Canal en `/c/new`, Cancelación Prematura del Stream SSE y Restauración del Prompt en `<textarea>` (`useAutoSave` / `finalHandler`)
+
+- **Síntoma Reportado:**
+  > *"en algun momento tenshi dejo de enviar la consultas a los agentes chat las deja en campo de mensaje antes siempre las enviaba y espera la respuesta para decirmela"*
+- **Causas Raíces Auditadas (Logs VPS `22:11:16`–`22:11:19` + Commit `c8c3324943` & `16da1f2bc5`):**
+  1. **Colisión de Doble Canal en `CASO B` (`TenshiChat.tsx` + `useQueryParams.ts` + `ChatForm.tsx`):**
+     - En `c8c3324943` se removió `claimAutoSubmit` (`tenshiSubmitGuard.ts`) de `ChatForm.tsx` y `useQueryParams.ts`.
+     - Luego, en `16da1f2bc5`, `TenshiChat.tsx` (`CASO B`) navegaba a `/c/new?agent_id=...&prompt=...&submit=true` (Canal 1: `useQueryParams`) y **400ms después** emitía incondicionalmente `tenshi-submit-agent-prompt` (Canal 2: `ChatForm`).
+     - A los `100ms`, `useQueryParams.ts` iniciaba el envío real a `/api/agents/chat` (`isSubmitting = true`). A los `400ms`, `ChatForm.tsx` recibía `tenshi-submit-agent-prompt`, veía `isSubmitting === true` (o divergencia temporal de `agent_id` que invocaba `onSelectAgent` -> `agentQuery.refetch()` -> `newConversation` -> `setSubmission({})`), e interpretaba erróneamente su propio envío en vuelo como una "respuesta previa", abortando el stream SSE activo (`[AgentController] HTTP connection closed by client`).
+  2. **Restauración del Prompt en `<textarea>` al Abortar en `/c/new` (`useEventHandlers.ts` líneas 500–518 y `useAutoSave.ts`):**
+     - Cuando el segundo canal reemplazaba o cancelaba `submission` antes del primer token del servidor (`!conversation.conversationId && hasNoResponse`), `abortConversation` -> `finalHandler` ejecutaba `setFinalMessages('new', [])` (devolviendo la pantalla al estado inicial vacío de `/c/new`), `setDraft({ id: 'new', value: requestMessage.text })` (reescribiendo el prompt delegado de vuelta en el `<textarea>`) y `setIsSubmitting(false)` (habilitando el botón verde de enviar sin enviar nada).
+     - Además, escribir en `textAreaRef.current.value` y disparar `new Event('input')` sin limpiar el borrador antes de `submitMessage` hacía que `useAutoSave.ts` guardara el texto en `localStorage` (`text_draft_new`) al transicionar a `PENDING_CONVO`.
+  3. **Doble Disparo Síncrono (`submitMessage` + `sendBtn.click()` en el mismo tick):**
+     - Llamar `submitMessage({ text })` y en la línea siguiente `sendBtn.click()` antes de que React re-renderizara `isSubmitting = true` provocaba un segundo `setSubmission`, cerrando el primer stream SSE.
+  4. **Firma de `handleStopGenerating(e)` sin Parámetro Opcional (`useChatHelpers.ts`):**
+     - `handleStopGenerating` ejecutaba `e.preventDefault()` sin `e?.preventDefault()`, lanzando `TypeError` al ser invocado programáticamente sin evento de ratón.
+- **Regla y Solución Obligatoria Implementada:**
+  1. **Coordinación vía `tenshiSubmitGuard.ts` (`markAutoSubmitStarted` / `isAutoSubmitInFlight`):** `useQueryParams.ts` marca el prompt como en vuelo desde que detecta `submit=true`. Si `ChatForm.tsx` recibe `tenshi-submit-agent-prompt` para un prompt que ya está en vuelo (`isAutoSubmitInFlight`), omite cualquier `handleStopGenerating()`, `onSelectAgent()` o re-envío.
+  2. **Respaldo Diferido Condicional en `TenshiChat.tsx` (`CASO B`):** Al navegar a `/c/new?...&submit=true`, el evento de respaldo `tenshi-submit-agent-prompt` espera `2200ms` y **solo** se emite si `!pendingAgentConsultationRef.current.hadStarted && !isChatSubmittingRef.current`.
+  3. **Blindaje en `useSelectAgent.ts`:** Cuando `agentQuery.refetch()` termina en segundo plano, verifica `!isSubmittingRef.current` antes de llamar `updateConversation`, impidiendo que un refetch tardío llame `newConversation` (`setSubmission({})`) y aborte una consulta en curso.
+  4. **Despacho Canónico Único + Limpieza Inmediata de Draft (`clearDraft`):** Se elimina el `sendBtn.click()` síncrono tras `submitMessage({ text })` y se limpia inmediatamente `clearDraft(Constants.NEW_CONVO)` y `textAreaRef.current.value = ''` para que `useAutoSave` nunca restaure el prompt enviado en la caja de texto.
+  5. **`e?.preventDefault()` en `useChatHelpers.ts`:** `handleStopGenerating` acepta llamadas programáticas sin evento sin lanzar excepción.

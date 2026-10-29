@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Constants,
@@ -16,7 +16,11 @@ import { logger } from '~/utils';
 export default function useSelectAgent() {
   const queryClient = useQueryClient();
   const getDefaultConversation = useDefaultConvo();
-  const { conversation, newConversation } = useChatContext();
+  const { conversation, newConversation, isSubmitting } = useChatContext();
+  const isSubmittingRef = useRef(isSubmitting);
+  useEffect(() => {
+    isSubmittingRef.current = isSubmitting;
+  }, [isSubmitting]);
   const agentsMap = useAgentsMapContext();
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(
     conversation?.agent_id ?? null,
@@ -76,7 +80,7 @@ export default function useSelectAgent() {
         );
 
         const { data: fullAgent } = await agentQuery.refetch();
-        if (fullAgent) {
+        if (fullAgent && !isSubmittingRef.current) {
           updateConversation(fullAgent, { ...template, agent_id: fullAgent.id });
         }
       } catch (error) {
@@ -85,7 +89,9 @@ export default function useSelectAgent() {
           return;
         }
         console.error('Error fetching full agent data:', error);
-        updateConversation({}, { ...template, agent_id: undefined });
+        if (!isSubmittingRef.current) {
+          updateConversation({}, { ...template, agent_id: undefined });
+        }
       }
     },
     [agentsMap, updateConversation, queryClient, agentQuery],
