@@ -142,14 +142,22 @@ function buildFlowCookieHeader(cookies) {
     return (
       dom === '.google.com' ||
       dom === 'google.com' ||
+      dom === 'flow.google.com' ||
+      dom === '.flow.google.com' ||
       dom === 'accounts.google.com' ||
       dom === '.accounts.google.com'
     );
   });
   const source = filtered.length > 0 ? filtered : cookies;
   const dedup = new Map();
+  // Primero las de .google.com / accounts.google.com, y al final flow.google.com para que OSID de flow prevalezca
   for (const c of source) {
-    if (c && c.name && c.value) {
+    if (c && c.name && c.value && !String(c.domain || '').toLowerCase().includes('flow.google.com')) {
+      dedup.set(c.name, c.value);
+    }
+  }
+  for (const c of source) {
+    if (c && c.name && c.value && String(c.domain || '').toLowerCase().includes('flow.google.com')) {
       dedup.set(c.name, c.value);
     }
   }
@@ -437,6 +445,8 @@ async function executeFlowNativeStudioAction({
     return (
       dom === '.google.com' ||
       dom === 'google.com' ||
+      dom === 'flow.google.com' ||
+      dom === '.flow.google.com' ||
       dom === 'accounts.google.com' ||
       dom === '.accounts.google.com'
     );
@@ -517,6 +527,8 @@ async function executeFlowNativeStudioAction({
       const rawDom = String(c.domain || '.google.com').toLowerCase();
       const cookieUrl = rawDom.includes('accounts.google.com')
         ? 'https://accounts.google.com/'
+        : rawDom.includes('flow.google.com')
+        ? 'https://flow.google.com/'
         : 'https://www.google.com/';
       const cookieParam = {
         name: c.name,
@@ -880,7 +892,7 @@ async function executeFlowImageGeneration({
         }
       }
     } catch (flowErr) {
-      logger.warn('[GoogleFlow] Aviso en generación nativa flow.google.com:', flowErr.message);
+      logger.warn(`[GoogleFlow] Aviso en generación nativa flow.google.com: ${flowErr.message}`);
     }
   }
 
