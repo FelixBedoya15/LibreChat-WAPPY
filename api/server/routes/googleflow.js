@@ -538,6 +538,13 @@ async function executeFlowNativeStudioAction({
       '--disable-gpu',
       '--disable-dev-shm-usage',
       '--disable-extensions',
+      '--disable-component-extensions-with-background-pages',
+      '--disable-background-networking',
+      '--disable-sync',
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--password-store=basic',
+      '--use-mock-keychain',
       '--disable-blink-features=AutomationControlled',
       '--window-size=1440,900',
       '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
@@ -545,16 +552,20 @@ async function executeFlowNativeStudioAction({
       `--user-data-dir=${profileDir}`,
       'about:blank',
     ],
-    { stdio: 'ignore', detached: true }
+    {
+      stdio: 'ignore',
+      detached: true,
+      env: { ...process.env, DBUS_SESSION_BUS_ADDRESS: 'disabled:' },
+    }
   );
 
   let ws = null;
   try {
     let pageTarget = null;
-    for (let i = 0; i < 25; i++) {
-      await new Promise((r) => setTimeout(r, 350));
+    for (let i = 0; i < 45; i++) {
+      await new Promise((r) => setTimeout(r, 400));
       try {
-        const listRes = await axios.get(`http://127.0.0.1:${port}/json/list`, { timeout: 2000 });
+        const listRes = await axios.get(`http://127.0.0.1:${port}/json/list`, { timeout: 3000 });
         pageTarget = Array.isArray(listRes.data)
           ? listRes.data.find(
               (t) =>

@@ -3636,6 +3636,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                             let mappedArgs = { ...(fc.args || {}) };
                             if (fc.name === 'notebooklm_listar_cuadernos' || fc.name === 'notebook_list') {
                                 mappedTool = 'notebook_list';
+                                mappedArgs = {};
                             } else if (fc.name === 'notebooklm_crear_cuaderno' || fc.name === 'notebook_create') {
                                 mappedTool = 'notebook_create';
                                 mappedArgs = { title: fc.args?.titulo || fc.args?.title || 'Nuevo Cuaderno SST' };
