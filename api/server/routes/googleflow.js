@@ -384,6 +384,14 @@ async function resolveGoogleFlowCredentials(userId) {
     apiKeys.push(...String(flowSession.apiKey).split(',').map((k) => k.trim()).filter(Boolean));
   }
 
+  try {
+    const { resolveApiKeys } = require('~/server/routes/sgsst/sgsstGemini');
+    const resolvedPoolKeys = await resolveApiKeys(userId);
+    if (Array.isArray(resolvedPoolKeys)) {
+      apiKeys.push(...resolvedPoolKeys);
+    }
+  } catch (_) {}
+
   if (userId) {
     try {
       const { getUserKey } = require('~/server/services/UserService');
@@ -416,7 +424,13 @@ async function resolveGoogleFlowCredentials(userId) {
     }
   } catch (_) {}
 
-  apiKeys = Array.from(new Set(apiKeys.filter((k) => k && k.startsWith('AIza'))));
+  apiKeys = Array.from(
+    new Set(
+      apiKeys.filter(
+        (k) => typeof k === 'string' && k.length > 10 && k !== 'user_provided'
+      )
+    )
+  );
   const apiKey = apiKeys[0] || null;
 
   return {
@@ -648,8 +662,7 @@ async function executeFlowNativeStudioAction({
     await cdpRequest(ws, 200, 'Page.navigate', { url: 'https://flow.google.com/' });
 
     let tokenInfo = null;
-    let triedCookieRefresh = false;
-    for (let i = 0; i < 24; i++) {
+    for (let i = 0; i < 9; i++) {
       await new Promise((r) => setTimeout(r, 750));
       const evalRes = await cdpRequest(ws, 300 + i, 'Runtime.evaluate', {
         expression: `(async () => {
@@ -667,7 +680,7 @@ async function executeFlowNativeStudioAction({
             }
           }
           if (location.pathname && location.pathname.startsWith("/about") && !window.WIZ_global_data?.SNlM0e) {
-            return "NEEDS_OSID_REFRESH";
+            return "ON_ABOUT_PAGE";
           }
           return null;
         })()`,
@@ -676,24 +689,8 @@ async function executeFlowNativeStudioAction({
       }).catch(() => null);
 
       const val = evalRes?.result?.value;
-      if (val === 'NEEDS_OSID_REFRESH' && !triedCookieRefresh && i >= 2) {
-        triedCookieRefresh = true;
-        await cdpRequest(ws, 250, 'Network.deleteCookies', { name: 'OSID', domain: 'flow.google.com' }).catch(() => {});
-        await cdpRequest(ws, 251, 'Network.deleteCookies', { name: '__Secure-OSID', domain: 'flow.google.com' }).catch(() => {});
-        await cdpRequest(ws, 252, 'Runtime.evaluate', {
-          expression: `(() => {
-            const btn = Array.from(document.querySelectorAll('a, button')).find((el) =>
-              /create with google flow|try in google flow|try google flow/i.test((el.innerText || '').trim())
-            );
-            if (btn) {
-              btn.click();
-              return true;
-            }
-            return false;
-          })()`,
-          returnByValue: true,
-        }).catch(() => {});
-        continue;
+      if (val === 'ON_ABOUT_PAGE' && i >= 2) {
+        break;
       }
       if (typeof val === 'string' && val.startsWith('{')) {
         tokenInfo = JSON.parse(val);
@@ -1062,16 +1059,17 @@ async function executeFlowImageGeneration({
     }
   }
 
-  // INTENTO 2: Google Gemini Native Image API (gemini-3.1-flash-lite-image / gemini-3.1-flash-image / gemini-2.5-flash-image)
+  // INTENTO 2: Google Gemini Native Image API (gemini-3.1-flash-lite-image / gemini-nano-banana-2.1 / gemini-3.1-flash-image / gemini-2.5-flash-image)
   if (!imageBuffer && creds.apiKeys && creds.apiKeys.length > 0) {
     const geminiImgModels = [
       'gemini-3.1-flash-lite-image',
+      'gemini-nano-banana-2.1',
       'gemini-3.1-flash-image',
       'gemini-2.5-flash-image',
     ];
     for (const gm of geminiImgModels) {
       if (imageBuffer) break;
-      for (const keyCandidate of creds.apiKeys.slice(0, 3)) {
+      for (const keyCandidate of creds.apiKeys.slice(0, 5)) {
         if (imageBuffer) break;
         try {
           logger.info(`[GoogleFlow] Generando imagen con Google ${gm}...`);
@@ -1094,7 +1092,7 @@ async function executeFlowImageGeneration({
             if (imagePart?.inlineData?.data) {
               imageBuffer = Buffer.from(imagePart.inlineData.data, 'base64');
               mimeType = imagePart.inlineData.mimeType || 'image/png';
-              modelUsed = `Google Flow (${gm})`;
+              modelUsed = `Google Flow Studio (🍌 Nano Banana 2 Lite • ${gm})`;
             }
           }
         } catch (err2) {
