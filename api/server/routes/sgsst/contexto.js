@@ -17,12 +17,61 @@ const {
 const router = express.Router();
 
 /**
- * Obtener empresa activa del usuario
+ * Resuelve el usuario propietario efectivo y la empresa asignada (soporta Admin, Pro, Usuario de Pruebas y Subusuarios)
  */
-async function getActiveCompany(userId) {
-  let active = await CompanyInfo.findOne({ user: userId, isActive: true }).lean();
-  if (!active) active = await CompanyInfo.findOne({ user: userId }).lean();
-  return active;
+async function resolveUserAndCompany(userOrId, explicitCompanyId = null) {
+  let rawUserId = userOrId;
+  let isSubUser = false;
+  let parentUser = null;
+  let assignedCompany = explicitCompanyId;
+
+  if (userOrId && typeof userOrId === 'object' && !mongoose.isValidObjectId(userOrId)) {
+    rawUserId = userOrId.id || userOrId._id;
+    isSubUser = Boolean(userOrId.isSubUser);
+    parentUser = userOrId.parentUser || userOrId.parentUserId || null;
+    assignedCompany = explicitCompanyId || userOrId.assignedCompany || userOrId.assignedCompanyId || null;
+  } else if (rawUserId) {
+    try {
+      const User = mongoose.models.User || mongoose.model('User');
+      const uDoc = await User.findById(rawUserId)
+        .select('isSubUser parentUser parentUserId assignedCompany assignedCompanyId')
+        .lean();
+      if (uDoc?.isSubUser) {
+        isSubUser = true;
+        parentUser = uDoc.parentUser || uDoc.parentUserId || null;
+        assignedCompany = explicitCompanyId || uDoc.assignedCompany || uDoc.assignedCompanyId || null;
+      }
+    } catch (_) {
+      // Fallback silencioso
+    }
+  }
+
+  const targetUserId = isSubUser && parentUser ? parentUser : rawUserId;
+  let company = null;
+
+  if (assignedCompany) {
+    company = await CompanyInfo.findById(assignedCompany).lean();
+  }
+  if (!company && targetUserId) {
+    company = await CompanyInfo.findOne({ user: targetUserId, isActive: true }).lean();
+    if (!company) {
+      company = await CompanyInfo.findOne({ user: targetUserId }).lean();
+    }
+  }
+
+  return {
+    targetUserId: company?.user || targetUserId,
+    company,
+    companyId: company?._id || assignedCompany || null,
+  };
+}
+
+/**
+ * Obtener empresa activa del usuario (compatible con subusuarios y cuentas de prueba)
+ */
+async function getActiveCompany(userOrId) {
+  const { company } = await resolveUserAndCompany(userOrId);
+  return company;
 }
 
 /**
@@ -89,20 +138,14 @@ function ensureEcosystemModelsRegistered() {
  * 15. Auditoría Interna SG-SST Decreto 1072 (AuditoriaData) y Revisión por la Alta Dirección (AltaDireccionData)
  * 16. Investigación de Incidentes/ATEL, Estadísticas ATEL, Centro ACPM Kanban y Oportunidades Cl. 6.1 (InvestigacionAtelData / ATELAnnualData / KanbanTask / OportunidadesData)
  */
-async function gatherCompanyFullContext(userId, companyId) {
+async function gatherCompanyFullContext(userIdOrUser, companyId) {
   ensureEcosystemModelsRegistered();
 
-  const baseFilter = { user: userId, ...(companyId ? { companyId } : {}) };
-
-  // 1. Perfil corporativo de la empresa
-  let company = null;
-  if (companyId) {
-    company = await CompanyInfo.findById(companyId).lean();
-  }
-  if (!company) {
-    company = await getActiveCompany(userId);
-  }
-  const effectiveCompanyId = company?._id || companyId;
+  const resolved = await resolveUserAndCompany(userIdOrUser, companyId);
+  const userId = resolved.targetUserId;
+  const company = resolved.company;
+  const effectiveCompanyId = resolved.companyId;
+  const baseFilter = { user: userId, ...(effectiveCompanyId ? { companyId: effectiveCompanyId } : {}) };
   const companyOrUserFilter = effectiveCompanyId
     ? { user: userId, companyId: effectiveCompanyId }
     : { user: userId };
@@ -816,9 +859,7 @@ async function gatherCompanyFullContext(userId, companyId) {
  */
 router.get('/data', requireJwtAuth, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const company = await getActiveCompany(userId);
-    const companyId = company?._id;
+    const { targetUserId: userId, company, companyId } = await resolveUserAndCompany(req.user);
 
     const [data, context] = await Promise.all([
       ContextoData.findOne({
@@ -875,9 +916,7 @@ router.get('/data', requireJwtAuth, async (req, res) => {
  */
 router.post('/data', requireJwtAuth, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const company = await getActiveCompany(userId);
-    const companyId = company?._id;
+    const { targetUserId: userId, company, companyId } = await resolveUserAndCompany(req.user);
 
     const {
       dofaList,
@@ -922,9 +961,7 @@ router.post('/data', requireJwtAuth, async (req, res) => {
  */
 router.post('/sync-ecosystem', requireJwtAuth, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const company = await getActiveCompany(userId);
-    const companyId = company?._id;
+    const { targetUserId: userId, company, companyId } = await resolveUserAndCompany(req.user);
     const filter = { user: userId, ...(companyId ? { companyId } : {}) };
 
     const [existingDoc, context] = await Promise.all([
@@ -1784,9 +1821,7 @@ Devuelve ÚNICAMENTE un objeto JSON válido:
  */
 router.post('/send-to-oportunidades', requireJwtAuth, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const company = await getActiveCompany(userId);
-    const companyId = company?._id;
+    const { targetUserId: userId, company, companyId } = await resolveUserAndCompany(req.user);
     const filter = { user: userId, ...(companyId ? { companyId } : {}) };
 
     const contextoDoc = await ContextoData.findOne(filter).lean();
@@ -2039,9 +2074,7 @@ router.post('/send-to-kanban', requireJwtAuth, async (req, res) => {
  */
 router.post('/generate-report', requireJwtAuth, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const company = await getActiveCompany(userId);
-    const companyId = company?._id;
+    const { targetUserId: userId, company, companyId } = await resolveUserAndCompany(req.user);
     const context = await gatherCompanyFullContext(userId, companyId);
     const em = context.ecosystemMetrics;
 
@@ -2381,3 +2414,5 @@ router.post('/generate-report', requireJwtAuth, async (req, res) => {
 
 module.exports = router;
 module.exports.gatherCompanyFullContext = gatherCompanyFullContext;
+module.exports.resolveUserAndCompany = resolveUserAndCompany;
+module.exports.getActiveCompany = getActiveCompany;

@@ -76,8 +76,7 @@ export const PHASE_CATEGORIES = {
         { 
             id: 'plan_emergencias', title: 'Plan de Emergencias y Contingencias (PPRE)', icon: 'ShieldAlert',
             bioRationale: 'Consolida las amenazas del Diamante, la Brigada (Hito 3), el inventario de equipos (Hito 5) y los simulacros (Hito 6) en el Documento Maestro de Prevención, Preparación y Respuesta ante Emergencias, MEDEVAC y PONs.', 
-            normativity: 'Hito 1: Gobernanza y Cimiento Legal (Dec. 1072 Art. 2.2.4.6.25 • Res. 0312 E1.1.11)',
-            defaultDisabled: true
+            normativity: 'Hito 1: Gobernanza y Cimiento Legal (Dec. 1072 Art. 2.2.4.6.25 • Res. 0312 E1.1.11)'
         }
     ],
 
@@ -327,7 +326,6 @@ export const PHASE_CATEGORIES = {
 export const DEFAULT_CONSTRUCTION_APPS = [
     'matriz_pesv_oficial',
     'matriz_compatibilidad_oficial',
-    'plan_emergencias',
     'equipos_emergencia',
     'simulacros_emergencia',
     'gestion_cambio',

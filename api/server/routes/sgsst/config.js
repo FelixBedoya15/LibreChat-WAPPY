@@ -7,7 +7,6 @@ const SgsstConfig = require('~/models/SgsstConfig');
 const DEFAULT_CONSTRUCTION_APPS = [
     'matriz_pesv_oficial',
     'matriz_compatibilidad_oficial',
-    'plan_emergencias',
     'comite_pesv',
     'brigada_emergencias',
     'equipos_emergencia',
@@ -44,6 +43,21 @@ router.get('/', requireJwtAuth, async (req, res) => {
                 await SgsstConfig.updateOne(
                     { _id: config._id },
                     { $set: { disabledApps: filtered, enabledContextoOportunidadesV1: true } },
+                    { strict: false }
+                );
+            }
+
+            // One-time migration: Ensure Plan de Emergencias y Contingencias (PPRE) is ACTIVE
+            const enabledPlanEmergencias = config.get('enabledPlanEmergenciasV1');
+            if (!enabledPlanEmergencias) {
+                const filtered = (config.disabledApps || []).filter(
+                    (id) => id !== 'plan_emergencias'
+                );
+                config.disabledApps = filtered;
+                config.set('enabledPlanEmergenciasV1', true, { strict: false });
+                await SgsstConfig.updateOne(
+                    { _id: config._id },
+                    { $set: { disabledApps: filtered, enabledPlanEmergenciasV1: true } },
                     { strict: false }
                 );
             }

@@ -69,6 +69,9 @@ import ContratistasWorkspace from './ContratistasWorkspace';
 import ComunicacionesWorkspace from './ComunicacionesWorkspace';
 import OportunidadesWorkspace from './OportunidadesWorkspace';
 import ComprasWorkspace from './ComprasWorkspace';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
+import SGSSTLegalBadge from './SGSSTLegalBadge';
+import { ExpandableButton } from '~/components/Common/ExpandableButton';
 
 // Manual Icon Map to avoid dynamic import issues
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -266,8 +269,8 @@ const PhaseDetail = ({
         matriz_ipevar_oficial: ['sgsst:matriz_peligros'],
         matriz_pesv_oficial: ['sgsst:matriz_pesv'],
         matriz_compatibilidad_oficial: ['sgsst:matriz_compatibilidad'],
-        vulnerabilidad: ['sgsst:brigada'],
-        plan_emergencias: ['sgsst:brigada'],
+        vulnerabilidad: ['sgsst:brigada', 'sgsst:emergencias_equipos', 'sgsst:politica_objetivos'],
+        plan_emergencias: ['sgsst:brigada', 'sgsst:emergencias_equipos', 'sgsst:politica_objetivos'],
 
         // Hito 2 & Huella Biocéntrica
         perfil_cargo: ['sgsst:perfil_sociodemografico_all'],
@@ -581,25 +584,7 @@ const PhaseDetail = ({
 
                                 {/* Category Content */}
                                 {isExpanded && (
-                                    <div key={`${category.id}-${activeCompanyId}`} className="px-5 md:px-7 pb-7 pt-5 border-t border-border-light dark:border-white/5 bg-gradient-to-b from-surface-secondary/10 to-transparent">
-                                        {/* Bio Rationale y Normatividad */}
-                                        {(category as any).bioRationale && (
-                                            <div className="mb-6 bg-surface-primary/60 dark:bg-black/20 rounded-2xl p-5 border border-border-light dark:border-white/5 shadow-inner">
-                                                <div className="flex flex-col md:flex-row md:items-start gap-4">
-                                                    <div className="flex-1">
-                                                        <h4 className="text-[11px] font-black text-teal-600 dark:text-teal-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                                                            <Activity className="w-3.5 h-3.5" /> Visión del Bioindividuo
-                                                        </h4>
-                                                        <p className="text-sm font-medium text-text-primary/90 leading-relaxed">
-                                                            {(category as any).bioRationale}
-                                                        </p>
-                                                    </div>
-                                                    
-
-                                                </div>
-                                            </div>
-                                        )}
-
+                                    <div key={`${category.id}-${activeCompanyId}`} data-sgsst-category-body={category.id} className="px-5 md:px-7 pb-7 pt-5 border-t border-border-light dark:border-white/5 bg-gradient-to-b from-surface-secondary/10 to-transparent">
                                         {!hasAccessToSGSST ? (
                                             <UpgradeWall
                                                 isPopup={true}
@@ -867,34 +852,39 @@ const PhaseDetail = ({
 
                                                  {/* Show Ruta de Aprendizaje for ruta_aprendizaje category */}
                                                  {category.id === 'ruta_aprendizaje' && (
-                                                     <div className="mb-6 p-6 rounded-2xl bg-gradient-to-br from-emerald-950/20 via-surface-secondary to-surface-primary border border-border-light dark:border-white/10 shadow-xl space-y-6">
-                                                         <div className="flex items-start gap-4">
-                                                             <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl">
-                                                                 <GraduationCap className="w-8 h-8" />
-                                                             </div>
-                                                             <div className="space-y-1">
-                                                                 <h3 className="font-extrabold text-xl text-white">Ruta de Aprendizaje</h3>
-                                                                 <p className="text-sm text-text-secondary">
-                                                                     Administra el programa oficial de capacitación interna de tu empresa. Configura cursos con IA, sube lecciones en video y evalúa a tus trabajadores de forma 100% personalizada.
-                                                                 </p>
-                                                             </div>
-                                                         </div>
-                                                         
-                                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                                                             <button
-                                                                 onClick={() => navigate('/ruta-aprendizaje/admin')}
-                                                                 className="flex items-center justify-center gap-2.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white rounded-xl py-3.5 font-bold text-sm tracking-wide transition-all shadow-lg shadow-blue-900/10 hover:scale-[1.02]"
-                                                             >
-                                                                 <Shield className="w-4 h-4" /> Administrar Rutas y Cursos
-                                                             </button>
-                                                             
-                                                             <button
-                                                                 onClick={() => navigate('/ruta-aprendizaje')}
-                                                                 className="flex items-center justify-center gap-2.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-white border border-slate-700 rounded-xl py-3.5 font-bold text-sm tracking-wide transition-all hover:scale-[1.02]"
-                                                             >
-                                                                 <Eye className="w-4 h-4" /> Ver Portal del Aula
-                                                             </button>
-                                                         </div>
+                                                     <div className="mb-6">
+                                                         <SGSSTHeroHeader
+                                                             categoryId="ruta_aprendizaje"
+                                                             icon={<GraduationCap className="h-7 w-7" />}
+                                                             title="Rutas de Aprendizaje (LMS)"
+                                                             description="Administra el programa oficial de capacitación interna de tu empresa. Configura cursos con IA, sube lecciones en video y evalúa a tus trabajadores de forma 100% personalizada."
+                                                             badges={
+                                                                 <SGSSTLegalBadge
+                                                                     standardCode="capacitaciones"
+                                                                     label="Dec. 1072 Art. 2.2.4.6.11 · Res. 0312 Est. 1.2.1"
+                                                                     tooltip="Programa de capacitación anual en SST y evaluación de competencias (Dec. 1072/2015 Art. 2.2.4.6.11)"
+                                                                     moduleName="Rutas de Aprendizaje (LMS)"
+                                                                 />
+                                                             }
+                                                             actions={
+                                                                 <>
+                                                                     <ExpandableButton
+                                                                         onClick={() => navigate('/ruta-aprendizaje/admin')}
+                                                                         variant="purple"
+                                                                         icon={<Shield className="h-4 w-4" />}
+                                                                         label="Administrar Rutas y Cursos"
+                                                                         title="Configurar cursos, módulos y evaluaciones del LMS"
+                                                                     />
+                                                                     <ExpandableButton
+                                                                         onClick={() => navigate('/ruta-aprendizaje')}
+                                                                         variant="teal"
+                                                                         icon={<Eye className="h-4 w-4" />}
+                                                                         label="Ver Portal del Aula"
+                                                                         title="Abrir portal de aprendizaje para trabajadores"
+                                                                     />
+                                                                 </>
+                                                             }
+                                                         />
                                                      </div>
                                                  )}
                                                  

@@ -85,5 +85,6 @@ module.exports = {
     brigada: require('./brigada'),
     contexto: require('./contexto'),
     oportunidades: require('./oportunidades'),
+    planEmergencias: require('./planEmergencias'),
 };
 

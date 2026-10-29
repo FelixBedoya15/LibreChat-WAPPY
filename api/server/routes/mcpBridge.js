@@ -9418,6 +9418,63 @@ router.post('/notebooklm/tool', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
+// 40.11 Plan de Prevención, Preparación y Respuesta ante Emergencias (PPRE - Dec. 1072 Art. 2.2.4.6.25 / Res. 0312 Est. 1.1.11 y 5.1.1)
+router.get('/plan-emergencias', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    const companyId = company ? company._id : null;
+    const PlanEmergenciasData = mongoose.models.PlanEmergenciasData || require('~/models/PlanEmergenciasData');
+    const doc = await PlanEmergenciasData.findOne(companyScope(req.user.id, companyId)).lean();
+    return res.json(doc || {
+      sedeData: {},
+      escenariosAmenaza: [],
+      estructuraSci: [],
+      procedimientosPon: [],
+      recursosEquipos: [],
+      directoriosExternos: [],
+      simulacrosPlan: [],
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error GET /plan-emergencias:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/plan-emergencias', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    const companyId = company ? company._id : null;
+    const PlanEmergenciasData = mongoose.models.PlanEmergenciasData || require('~/models/PlanEmergenciasData');
+    const update = {
+      user: req.user.id,
+      companyId,
+      updatedAt: new Date(),
+    };
+    const fields = [
+      'sedeData',
+      'escenariosAmenaza',
+      'estructuraSci',
+      'procedimientosPon',
+      'recursosEquipos',
+      'directoriosExternos',
+      'simulacrosPlan',
+      'lastGeneratedReport',
+    ];
+    for (const f of fields) {
+      if (req.body[f] !== undefined) update[f] = req.body[f];
+    }
+    const saved = await PlanEmergenciasData.findOneAndUpdate(
+      companyScope(req.user.id, companyId),
+      { $set: update },
+      { upsert: true, new: true }
+    ).lean();
+    return res.json({ success: true, data: saved });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error POST /plan-emergencias:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 router.broadcastAntigravityEvent = broadcastAntigravityEvent;
 router.resolveAntigravityOutputFormat = resolveAntigravityOutputFormat;
 router.getActiveCompany = getActiveCompany;

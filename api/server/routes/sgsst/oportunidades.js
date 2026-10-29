@@ -7,7 +7,7 @@ const ContextoData = require('~/models/ContextoData');
 const OportunidadesData = require('~/models/OportunidadesData');
 const KanbanTask = require('~/models/KanbanTask');
 const { generateWithKeyRotation } = require('./sgsstGemini');
-const { gatherCompanyFullContext } = require('./contexto');
+const { gatherCompanyFullContext, resolveUserAndCompany } = require('./contexto');
 const {
   buildStandardHeader,
   buildCompanyContextString,
@@ -17,12 +17,11 @@ const {
 const router = express.Router();
 
 /**
- * Obtener empresa activa del usuario
+ * Obtener empresa activa del usuario (soporta Admin, Pro, Usuario de Pruebas y Subusuarios)
  */
-async function getActiveCompany(userId) {
-  let active = await CompanyInfo.findOne({ user: userId, isActive: true }).lean();
-  if (!active) active = await CompanyInfo.findOne({ user: userId }).lean();
-  return active;
+async function getActiveCompany(userOrId) {
+  const { company } = await resolveUserAndCompany(userOrId);
+  return company;
 }
 
 /**
@@ -64,9 +63,7 @@ function computeSystemRiskLevel(impacto = 'Alto', probabilidad = 'Media') {
  */
 router.get('/data', requireJwtAuth, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const company = await getActiveCompany(userId);
-    const companyId = company?._id;
+    const { targetUserId: userId, company, companyId } = await resolveUserAndCompany(req.user);
     const filter = { user: userId, ...(companyId ? { companyId } : {}) };
 
     const [doc, ctxDoc, fullContext] = await Promise.all([
@@ -116,9 +113,7 @@ router.get('/data', requireJwtAuth, async (req, res) => {
  */
 router.post('/data', requireJwtAuth, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const company = await getActiveCompany(userId);
-    const companyId = company?._id;
+    const { targetUserId: userId, company, companyId } = await resolveUserAndCompany(req.user);
 
     const {
       oportunidades,
@@ -479,9 +474,7 @@ Devuelve ÚNICAMENTE un objeto JSON válido con todos sus controles y plan de mi
  */
 router.post('/sync-from-contexto', requireJwtAuth, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const company = await getActiveCompany(userId);
-    const companyId = company?._id;
+    const { targetUserId: userId, company, companyId } = await resolveUserAndCompany(req.user);
     const filter = { user: userId, ...(companyId ? { companyId } : {}) };
 
     const [ctxDoc, fullContext] = await Promise.all([
@@ -877,9 +870,7 @@ router.post('/send-to-kanban', requireJwtAuth, async (req, res) => {
  */
 router.post('/generate-report', requireJwtAuth, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const company = await getActiveCompany(userId);
-    const companyId = company?._id;
+    const { targetUserId: userId, company, companyId } = await resolveUserAndCompany(req.user);
     const context = await gatherCompanyFullContext(userId, companyId);
     const em = context.ecosystemMetrics;
 
