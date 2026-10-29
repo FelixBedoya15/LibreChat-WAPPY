@@ -345,22 +345,31 @@ async function resolveGoogleFlowCredentials(userId) {
     } catch (_) {}
   }
 
-  let fallbackCookies = null;
+  const allCandidateCookieSets = [];
+  const seenSignatures = new Set();
+  const pushCookieSet = (cs) => {
+    if (!Array.isArray(cs) || cs.length === 0) return;
+    const osidVal = cs.find((c) => c && c.name === 'OSID' && String(c.domain || '').includes('flow'))?.value || '';
+    const sidVal = cs.find((c) => c && c.name === 'SID')?.value || '';
+    const sig = `${sidVal.slice(0, 20)}:${osidVal.slice(0, 20)}`;
+    if (!sig || seenSignatures.has(sig)) return;
+    seenSignatures.add(sig);
+    allCandidateCookieSets.push(cs);
+  };
+
+  pushCookieSet(cookies);
   try {
-    const masterFlow = await GoogleFlowSession.findOne({
-      cookies: {
-        $all: [
-          { $elemMatch: { name: '__Secure-1PSIDTS' } },
-          { $elemMatch: { name: 'OSID', domain: /flow\.google\.com/i } },
-        ],
-      },
+    const allFlows = await GoogleFlowSession.find({
+      cookies: { $elemMatch: { name: 'OSID', domain: /flow\.google\.com/i } },
     })
       .sort({ updatedAt: -1 })
       .lean();
-    if (masterFlow?.cookies?.length > 0) {
-      fallbackCookies = masterFlow.cookies;
+    for (const fDoc of allFlows) {
+      pushCookieSet(fDoc.cookies);
     }
   } catch (_) {}
+
+  const fallbackCookies = allCandidateCookieSets[1] || allCandidateCookieSets[0] || null;
 
   let apiKeys = [];
   if (flowSession?.apiKey) {
@@ -405,6 +414,7 @@ async function resolveGoogleFlowCredentials(userId) {
   return {
     cookies,
     fallbackCookies,
+    allCandidateCookieSets,
     apiKey,
     apiKeys,
     email: flowSession?.email || notebookSession?.email || '',
@@ -946,9 +956,10 @@ async function executeFlowImageGeneration({
   let modelUsed = '';
 
   // INTENTO 1: Generación Nativa en Google Flow Studio (flow.google.com • Nano Banana 2 Lite / 2.1)
-  const cookieSetsToTry = [creds.cookies, creds.fallbackCookies].filter(
-    (cs, idx, arr) => Array.isArray(cs) && cs.length > 0 && arr.indexOf(cs) === idx
-  );
+  const cookieSetsToTry =
+    Array.isArray(creds.allCandidateCookieSets) && creds.allCandidateCookieSets.length > 0
+      ? creds.allCandidateCookieSets
+      : [creds.cookies, creds.fallbackCookies].filter((cs) => Array.isArray(cs) && cs.length > 0);
   for (const activeCookieSet of cookieSetsToTry) {
     if (imageBuffer) break;
     try {
@@ -976,6 +987,13 @@ async function executeFlowImageGeneration({
           imageBuffer = Buffer.from(dlRes.data);
           mimeType = dlRes.headers['content-type'] || 'image/jpeg';
           modelUsed = nativeRes.modelLabel;
+          if (userId && activeCookieSet !== creds.cookies) {
+            await GoogleFlowSession.findOneAndUpdate(
+              { user: userId },
+              { cookies: activeCookieSet, cookieCount: activeCookieSet.length, isValid: true, lastTestedAt: new Date() },
+              { upsert: true }
+            ).catch(() => {});
+          }
         }
       }
     } catch (flowErr) {
@@ -1150,9 +1168,10 @@ async function executeFlowVideoGeneration({
   let modelUsed = '';
 
   // INTENTO 1: Generación Nativa en Google Flow Studio (flow.google.com • Veo 3.1 Lite)
-  const vidCookieSetsToTry = [creds.cookies, creds.fallbackCookies].filter(
-    (cs, idx, arr) => Array.isArray(cs) && cs.length > 0 && arr.indexOf(cs) === idx
-  );
+  const vidCookieSetsToTry =
+    Array.isArray(creds.allCandidateCookieSets) && creds.allCandidateCookieSets.length > 0
+      ? creds.allCandidateCookieSets
+      : [creds.cookies, creds.fallbackCookies].filter((cs) => Array.isArray(cs) && cs.length > 0);
   for (const activeCookieSet of vidCookieSetsToTry) {
     if (videoBuffer) break;
     try {
@@ -1180,6 +1199,13 @@ async function executeFlowVideoGeneration({
         if (dlVid.data && dlVid.data.byteLength > 5000) {
           videoBuffer = Buffer.from(dlVid.data);
           modelUsed = nativeVid.modelLabel;
+          if (userId && activeCookieSet !== creds.cookies) {
+            await GoogleFlowSession.findOneAndUpdate(
+              { user: userId },
+              { cookies: activeCookieSet, cookieCount: activeCookieSet.length, isValid: true, lastTestedAt: new Date() },
+              { upsert: true }
+            ).catch(() => {});
+          }
         }
         if (nativeVid.signedPosterUrl) {
           try {
