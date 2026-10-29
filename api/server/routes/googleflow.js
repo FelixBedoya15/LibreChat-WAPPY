@@ -284,12 +284,53 @@ async function resolveGoogleFlowCredentials(userId) {
     notebookSession = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
   }
 
-  const cookies =
+  let cookies =
     flowSession?.cookies?.length > 0
       ? flowSession.cookies
       : notebookSession?.cookies?.length > 0
       ? notebookSession.cookies
       : [];
+
+  // Si la sesión del usuario no contiene __Secure-1PSIDTS (necesario para flow.google.com) o está incompleta,
+  // buscar si existe otra sesión válida con el mismo email o una sesión maestra activa de Flow en el servidor
+  const hasPsidTs = cookies.some((c) => c && c.name === '__Secure-1PSIDTS' && c.value);
+  if (!hasPsidTs) {
+    try {
+      const targetEmail = flowSession?.email || notebookSession?.email;
+      let fallbackFlow = null;
+      if (targetEmail) {
+        fallbackFlow = await GoogleFlowSession.findOne({
+          email: targetEmail,
+          'cookies.name': '__Secure-1PSIDTS',
+        })
+          .sort({ updatedAt: -1 })
+          .lean();
+      }
+      if (!fallbackFlow) {
+        fallbackFlow = await GoogleFlowSession.findOne({
+          'cookies.name': '__Secure-1PSIDTS',
+        })
+          .sort({ updatedAt: -1 })
+          .lean();
+      }
+      if (fallbackFlow?.cookies?.length > 0) {
+        cookies = fallbackFlow.cookies;
+        if (userId) {
+          await GoogleFlowSession.findOneAndUpdate(
+            { user: userId },
+            {
+              cookies: fallbackFlow.cookies,
+              cookieCount: fallbackFlow.cookies.length,
+              email: fallbackFlow.email || targetEmail || 'Cuenta vinculada',
+              isValid: true,
+              lastTestedAt: new Date(),
+            },
+            { upsert: true }
+          ).catch(() => {});
+        }
+      }
+    } catch (_) {}
+  }
 
   let apiKeys = [];
   if (flowSession?.apiKey) {
@@ -1903,26 +1944,40 @@ async function uploadCookies(cookies, email = '') {
         (p) =>
           p.webSocketDebuggerUrl &&
           p.url &&
-          (p.url.includes('labs.google') || p.url.includes('flow.google') || p.url.includes('google.com')) &&
+          (p.url.includes('labs.google') || p.url.includes('flow.google.com')) &&
           !p.url.includes('accounts.google.com') &&
-          !p.url.includes('/signin')
+          !p.url.includes('/signin') &&
+          !p.url.includes('/about')
       );
       if (!flowPage) continue;
 
+      // Verificar que realmente esté autenticado dentro de flow.google.com (WIZ_global_data.SNlM0e presente)
+      let isFlowAuthed = false;
+      try {
+        const authCheck = await cdpSend(flowPage.webSocketDebuggerUrl, 'Runtime.evaluate', {
+          expression: 'Boolean(window.WIZ_global_data && window.WIZ_global_data.SNlM0e)',
+          returnByValue: true,
+        });
+        isFlowAuthed = Boolean(authCheck?.result?.result?.value);
+      } catch (_) {}
+      if (!isFlowAuthed && flowPage.url.includes('flow.google.com')) continue;
+
       let allCookies = [];
       try {
-        const stRes = await cdpSend(flowPage.webSocketDebuggerUrl, 'Storage.getCookies');
-        allCookies = stRes?.result?.cookies || [];
-      } catch (_) {}
-      if (!allCookies.length) {
         const cdpRes = await cdpSend(flowPage.webSocketDebuggerUrl, 'Network.getAllCookies');
         allCookies = cdpRes?.result?.cookies || [];
+      } catch (_) {}
+      if (!allCookies.length) {
+        try {
+          const stRes = await cdpSend(flowPage.webSocketDebuggerUrl, 'Storage.getCookies');
+          allCookies = stRes?.result?.cookies || [];
+        } catch (_) {}
       }
 
       const googleCookies = allCookies.filter((c) => c.domain && c.domain.includes('google.com'));
       const names = new Set(googleCookies.map((c) => c.name));
 
-      if (names.has('SID') && (names.has('__Secure-1PSID') || names.has('__Secure-1PSIDTS'))) {
+      if (names.has('SID') && names.has('__Secure-1PSID') && names.has('__Secure-1PSIDTS')) {
         console.log('✨ Sesión detectada. Verificando y vinculando con Google Flow en WAPPY...');
         const result = await uploadCookies(googleCookies);
         if (result.ok) {
