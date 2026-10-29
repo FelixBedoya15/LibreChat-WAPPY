@@ -595,14 +595,14 @@ class VoiceSession {
                         },
                         {
                             name: "wappy_controlar_videollamada",
-                            description: "Controla la cámara, la videollamada o cuelga la llamada de Tenshi. DEBES invocar esta herramienta cuando el usuario te diga: 'activa videollamada', 'activa video', 'enciende la cámara', 'activa la cámara', 'apaga la cámara', 'desactiva video', 'cuelga', 'colgar', 'terminar llamada' o 'finalizar llamada'.",
+                            description: "Controla la cámara, la videollamada o cuelga la llamada de Tenshi. DEBES invocar esta herramienta cuando el usuario te diga explícitamente: 'activa videollamada', 'activa video', 'enciende la cámara', 'activa la cámara', 'apaga la cámara', 'desactiva video', 'cuelga la llamada', 'colgar', 'terminar llamada' o 'finalizar llamada'. PROHIBICIÓN ESTRICTA: NUNCA uses 'colgar_llamada' si el usuario solo te pide callar, parar de hablar o hacer una pausa (ej: 'para', 'detente', 'espera', 'un momento', 'silencio', 'cállate', 'basta', 'no sigas', 'ya').",
                             parameters: {
                                 type: "object",
                                 properties: {
                                     accion: {
                                         type: "string",
                                         enum: ["activar_camara", "apagar_camara", "colgar_llamada"],
-                                        description: "Acción a ejecutar: 'activar_camara' (enciende la cámara o videollamada en vivo), 'apagar_camara' (apaga la cámara y sigue la llamada solo por voz), 'colgar_llamada' (termina y cuelga la llamada por completo)."
+                                        description: "Acción a ejecutar: 'activar_camara' (enciende la cámara o videollamada en vivo), 'apagar_camara' (apaga la cámara y sigue la llamada solo por voz), 'colgar_llamada' (termina y cuelga la llamada por completo SOLO si el usuario pide explícitamente colgar o terminar la llamada, NUNCA cuando dice 'para' o 'espera')."
                                     }
                                 },
                                 required: ["accion"]
@@ -2286,7 +2286,8 @@ class VoiceSession {
 [CONTROL DE VIDEOLLAMADA Y COLGAR POR VOZ]:
 - Si el usuario te pide: "activa videollamada", "activa la cámara", "activa video", "inicia videollamada", "enciende la cámara", "pon la cámara", invoca DE INMEDIATO la herramienta 'wappy_controlar_videollamada' con accion: 'activar_camara' y confirma en una sola frase breve: "¡Listo! Iniciando videollamada en vivo."
 - Si el usuario te pide: "apaga la cámara", "desactiva el video", "apaga videollamada", invoca 'wappy_controlar_videollamada' con accion: 'apagar_camara' y confirma: "Cámara apagada, continuamos por voz."
-- Si el usuario te pide: "cuelga", "colgar", "terminar llamada", "finalizar llamada", "chao", "hasta luego", invoca DE INMEDIATO 'wappy_controlar_videollamada' con accion: 'colgar_llamada' y despídete amablemente: "¡Con gusto! Que tengas un excelente día."
+- Si el usuario te pide explícitamente: "cuelga la llamada", "colgar", "terminar llamada", "finalizar llamada", invoca DE INMEDIATO 'wappy_controlar_videollamada' con accion: 'colgar_llamada' y despídete amablemente: "¡Con gusto! Que tengas un excelente día."
+- DIFERENCIA CRÍTICA ENTRE INTERRUMPIR/PAUSAR Y COLGAR LA LLAMADA: Si el usuario te interrumpe diciendo "para", "detente", "espera", "un momento", "silencio", "cállate", "basta", "no sigas", "ya" o "para ahí", significa que quiere que dejes de hablar de ese tema y lo escuches. En ese caso, DETÉN tu explicación de inmediato, ESTÁ TERMINANTEMENTE PROHIBIDO invocar 'wappy_controlar_videollamada' (NUNCA cuelgues la llamada) y responde únicamente con una frase ultra-corta como: "De acuerdo, te escucho." o "Listo, dime."
 - PROHIBICIÓN ESTRICTA DE ACTIVACIÓN NO SOLICITADA DE CÁMARA O VIDEOLLAMADA:
   * NUNCA actives la cámara ni la videollamada por tu cuenta.
   * Solo puedes invocar 'wappy_controlar_videollamada' con accion: 'activar_camara' si el usuario te lo solicita EXPLÍCITAMENTE con frases inequívocas como "activa la cámara", "enciende la cámara" o "inicia videollamada".
@@ -3926,20 +3927,41 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         const accion = fc.args?.accion || 'activar_camara';
                         logger.info(`[VoiceSession] Gemini Live invoked tool "${fc.name}" with accion: ${accion}`);
 
-                        // GUARDIA DE SEGURIDAD ESTRICTA: La cámara NUNCA debe encenderse sin orden explícita del usuario
+                        const recentUserText = `${this.userTranscriptionText || ''} ${this.lastUserTranscription || ''} ${this.lastUserRequest || ''}`.toLowerCase().trim();
+
+                        // GUARDIA DE SEGURIDAD ESTRICTA 1: La cámara NUNCA debe encenderse sin orden explícita del usuario
                         if (accion === 'activar_camara') {
-                            const recentUserText = `${this.userTranscriptionText || ''} ${this.lastUserTranscription || ''} ${this.lastUserRequest || ''}`.toLowerCase();
                             const explicitCameraKeywords = /\b(activa|activar|enciende|encender|inicia|iniciar|pon|poner|prende|prender|abre|abrir|mostrar|ver)\s+(la\s+)?(c[aá]mara|videollamada|video|visi[oó]n)\b|\b(videollamada|c[aá]mara\s+en\s+vivo|activa\s+c[aá]mara|activa\s+video|prende\s+c[aá]mara)\b/i;
                             const isExplicitCamera = explicitCameraKeywords.test(recentUserText);
 
                             if (!isExplicitCamera) {
-                                logger.warn(`[VoiceSession] RECHAZADA activación alucinada de cámara. Texto del usuario: "${recentUserText.trim()}"`);
+                                logger.warn(`[VoiceSession] RECHAZADA activación alucinada de cámara. Texto del usuario: "${recentUserText}"`);
                                 if (this.geminiClient) {
                                     this.sendGeminiToolResponse([{
                                         id: fc.id,
                                         name: fc.name,
                                         response: {
                                             error: "Cámara NO activada: La cámara y videollamada requieren una orden explícita del usuario (ej: 'activa la cámara', 'enciende la cámara', 'inicia videollamada'). NUNCA actives la cámara por tu cuenta ante menciones casuales, refranes o de objetos sin orden explícita."
+                                        }
+                                    }]);
+                                }
+                                continue;
+                            }
+                        }
+
+                        // GUARDIA DE SEGURIDAD ESTRICTA 2: NUNCA colgar la llamada cuando el usuario solo pide pausar el habla ("para", "espera", "detente", "silencio", etc.)
+                        if (accion === 'colgar_llamada') {
+                            const explicitHangupKeywords = /\b(cuelga|colgar|termina(r)?\s+(la\s+)?(llamada|sesi[oó]n|comunicaci[oó]n)|finaliza(r)?\s+(la\s+)?(llamada|sesi[oó]n|comunicaci[oó]n)|corta(r)?\s+(la\s+)?llamada|desconecta(r)?(\s+la\s+llamada)?|apaga(r)?\s+tenshi|adi[oó]s\s+tenshi|chao\s+tenshi|hasta\s+luego)\b/i;
+                            const isPauseSpeechOnly = /^(para|p[aá]rate|detente|espera|esp[eé]rate|un\s+momento|momento|silencio|c[aá]llate|basta|ya|no\s+sigas|para\s+ah[ií]|aguanta|alto|pausa)[.!?,]*$/i.test(this.userTranscriptionText?.trim() || '');
+
+                            if (isPauseSpeechOnly || !explicitHangupKeywords.test(recentUserText)) {
+                                logger.warn(`[VoiceSession] RECHAZADO colgar_llamada porque el usuario solo pidió detener el habla (NO colgar). Texto: "${recentUserText}"`);
+                                if (this.geminiClient) {
+                                    this.sendGeminiToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: {
+                                            result: "El usuario solo pidió detener tu explicación actual ('para'/'espera'), NO colgar la llamada. La sesión de voz permanece ACTIVA. Responde únicamente con una frase ultra-corta como 'De acuerdo, te escucho.' y espera su siguiente pregunta."
                                         }
                                     }]);
                                 }
@@ -5890,6 +5912,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
         this.geminiClient.on('turnComplete', () => {
             logger.info('[VoiceSession] ========== TURN COMPLETE ==========');
             this.isAiSpeaking = false;
+            this.bargeInSuppressAiAudioUntil = 0;
             this.turnHadAiOutput = false;
             this.suppressClientAudioUntil = null;
             if (this.aiSpeakingTimeout) {
@@ -5908,8 +5931,8 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
         // Listen for Interrupted (User Barge-In)
         this.geminiClient.on('interrupted', () => {
             logger.info('[VoiceSession] ========== USER INTERRUPTED RESPONSE ==========');
-            this.toolCalledThisTurn = false;
             this.isAiSpeaking = false;
+            this.bargeInSuppressAiAudioUntil = 0;
             this.suppressClientAudioUntil = null;
             if (this.aiSpeakingTimeout) {
                 clearTimeout(this.aiSpeakingTimeout);
@@ -5917,10 +5940,6 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
             }
             this.sendToClient({ type: 'status', data: { status: 'interrupted' } });
             this.sendToClient({ type: 'interrupted', data: {} });
-            // Reset temporary AI response buffers for this turn
-            this.aiResponseText = '';
-            this.aiTranscriptionBuffer = '';
-            this.aiAudioChunkCount = 0;
         });
 
         // Handle Gemini connection close/error to avoid zombie state
@@ -6109,7 +6128,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                 logger.info('[VoiceSession] 🗣️ Barge-in recibido del cliente → interrumpiendo salida de IA y habilitando voz del usuario');
                 this.isAiSpeaking = false;
                 this.suppressClientAudioUntil = null;
-                this.bargeInSuppressAiAudioUntil = Date.now() + 1200;
+                this.bargeInSuppressAiAudioUntil = Date.now() + 900;
                 if (this.aiSpeakingTimeout) {
                     clearTimeout(this.aiSpeakingTimeout);
                     this.aiSpeakingTimeout = null;
@@ -6121,10 +6140,9 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                 if (!this.isActive || !this.geminiClient || !this.geminiClient.setupCompleted) {
                     break;
                 }
-                // Si el cliente envía audio (ya filtrado por el Barge-In Anti-Eco del navegador),
-                // liberar isAiSpeaking para que Gemini Live reciba la interrupción en vivo (Full-Duplex)
+                // No reenviar audio mientras la IA habla salvo que el cliente haya emitido previamente 'barge_in'
                 if (this.isAiSpeaking) {
-                    this.isAiSpeaking = false;
+                    break;
                 }
                 // Suprimir reenvío de audio del micrófono brevemente tras inyección de texto para permitir que Gemini Live sintetice la respuesta sin ser cancelado por ruido ambiental
                 if (this.suppressClientAudioUntil && Date.now() < this.suppressClientAudioUntil) {
@@ -6146,7 +6164,9 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                 if (!this.isActive || !this.geminiClient || !this.geminiClient.setupCompleted) {
                     break;
                 }
-                this.isAiSpeaking = false;
+                if (this.isAiSpeaking) {
+                    break;
+                }
                 this.bargeInSuppressAiAudioUntil = 0;
                 if (typeof this.geminiClient.sendAudioStreamEnd === 'function') {
                     this.geminiClient.sendAudioStreamEnd();
@@ -8529,8 +8549,8 @@ ${workerSubHeaderHtml}
 
         const isApagarVideo = /\b(apaga|apagar|desactiva|desactivar|quita|quitar|cierra|cerrar)\s+(la\s+)?(c[aá]mara|video|videollamada)\b/i.test(userLower);
 
-        const isColgarLlamada = /\b(cuelga|colgar|termina|terminar|finaliza|finalizar|corta|cortar|desconecta|desconectar|pausa|pausar)\s+(la\s+)?(llamada|comunicaci[oó]n|sesi[oó]n|conversaci[oó]n)\b/i.test(userLower) ||
-            /^(cuelga|colgar|terminar\s+llamada|adi[oó]s|chao|hasta\s+luego|hasta\s+pronto)$/i.test(userLower.trim());
+        const isColgarLlamada = /\b(cuelga|colgar|termina|terminar|finaliza|finalizar|corta|cortar|desconecta|desconectar)\s+(la\s+)?(llamada|comunicaci[oó]n|sesi[oó]n|conversaci[oó]n)\b/i.test(userLower) ||
+            /^(cuelga|colgar|terminar\s+llamada|finalizar\s+llamada)$/i.test(userLower.trim());
 
         if (isActivarVideo) {
             logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Activando videollamada por voz: "${userText}"`);

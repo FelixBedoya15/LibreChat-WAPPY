@@ -2269,17 +2269,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             pendingForceNewChatRef.current = true;
           }
 
-          // Solo considerar interrupción genuina del usuario si Tenshi NO está reproduciendo su propio audio
-          // y si el texto tiene suficiente longitud para no ser ruido acústico o eco del altavoz
+          // Si llega transcripción del usuario mientras aún quedaba cola de audio local, vaciarla sin enviar clientContent(turnComplete:false) para no abortar la respuesta que Gemini ya está generando
           const trimmed = (text || '').trim();
-          const wordCount = trimmed.split(/\s+/).length;
-          const isRealSpeech = wordCount >= 3;
-
-          // Solo interrumpir el audio en curso si es habla real intencionada del usuario (3 o más palabras)
-          if (isRealSpeech && (activeSourcesRef.current.length > 0 || isTenshiSpeaking)) {
-            console.log('[Tenshi Voice] Interrupción intencional del usuario detectada:', text);
+          if (trimmed.length >= 2 && (activeSourcesRef.current.length > 0 || isTenshiSpeaking)) {
+            console.log('[Tenshi Voice] Transcripción de interrupción del usuario recibida, limpiando cola de audio local:', text);
             clearAudioQueue();
-            sendVoiceInterruptRef.current();
           }
 
           setVoiceStatusText('Tenshi procesando...');
