@@ -2345,6 +2345,9 @@ export default function WappyStudioDashboard({ portable = false }: { portable?: 
   ]);
   const [scriptSteps, setScriptSteps] = useState<ScriptStepScene[]>(() => DEFAULT_SCRIPT_STEPS);
   const [showStepAssistant, setShowStepAssistant] = useState<boolean>(true);
+  const [videoStudioSubTab, setVideoStudioSubTab] = useState<
+    'style' | 'timeline' | 'layers' | 'code'
+  >('style');
   const [isGeneratingSuperPrompt, setIsGeneratingSuperPrompt] = useState<boolean>(false);
   const [aiScenePrompt, setAiScenePrompt] = useState<string>(
     'Crea una animación cinematográfica con el Motor Antigravity 60-FPS y tarjetas de cristal WAPPY IA sobre las 5 reglas de oro de riesgo eléctrico, con Portada Magnética 2s 🔥 ¡GRATIS!, Félix Voxel 3D lip-sync, iconos luminosos y barras de progreso.',
@@ -6241,81 +6244,132 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
         )}
 
         {/* ==================================================================== */}
-        {/* PESTAÑA 2: COMPOSITOR DE VIDEO HTML & CAPAS (ANTIGRAVITY 60-FPS)     */}
+        {/* PESTAÑA 2: COMPOSITOR DE VIDEO HTML & CAPAS (ARQUITECTURA HORIZONTAL) */}
         {/* ==================================================================== */}
         {activeTab === 'video' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start animate-in fade-in duration-200">
-            {/* COLUMNA IZQUIERDA (6 cols): Capas de Video, Audio, Subtítulos e IA HTML */}
-            <div className="lg:col-span-6 space-y-5 bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs [content-visibility:auto] [contain-intrinsic-size:auto_500px_auto_780px] [contain:layout_style_paint]">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                    <Film className="w-5 h-5 text-purple-500" />
-                    Estudio de Capas & Motion Graphics HTML (Antigravity 60-FPS)
-                  </h2>
-                  <p className="text-xs text-slate-600 dark:text-slate-300">
-                    Sube tu propio video grabado a cámara o genera animaciones Antigravity 60-FPS / HyperFrames sincronizadas con tu voz.
-                  </p>
+          <div className="space-y-5 animate-in fade-in duration-200">
+            {/* ================================================================ */}
+            {/* BLOQUE 1: CONSOLA PANORÁMICA SUPERIOR (HEADER + 4 HYPERFRAMES)   */}
+            {/* ================================================================ */}
+            <div className="relative overflow-hidden rounded-2xl border border-emerald-500/35 dark:border-[#C7F303]/30 bg-gradient-to-r from-white via-emerald-50/40 to-teal-50/40 dark:from-[#0C192E] dark:via-[#091426] dark:to-[#0d2238] p-4 sm:p-5 shadow-md">
+              {/* Halos Ambientales WAPPY IA */}
+              <div className="pointer-events-none absolute -top-20 -right-16 w-64 h-64 rounded-full bg-[#C7F303]/15 blur-3xl" />
+              <div className="pointer-events-none absolute -bottom-20 -left-16 w-64 h-64 rounded-full bg-[#0D9488]/15 blur-3xl" />
+
+              {/* Fila Superior: Identidad + Estado SSE + Selector 9:16 / 16:9 + Botón Antigravity */}
+              <div className="relative flex flex-col xl:flex-row xl:items-center justify-between gap-3.5 pb-4 border-b border-slate-200/80 dark:border-white/10">
+                <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#C7F303]/25 via-emerald-500/15 to-teal-500/20 border border-emerald-500/40 dark:border-[#C7F303]/45 flex items-center justify-center shrink-0 shadow-inner">
+                    <Film className="w-6 h-6 text-teal-700 dark:text-[#C7F303]" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[#0E1300] text-[#C7F303] border border-[#C7F303]/40 text-[10px] font-mono font-extrabold uppercase tracking-wider">
+                        <span className="w-2 h-2 rounded-full bg-[#C7F303] animate-ping" />
+                        <span>⚡ WAPPY VIDEO STUDIO • ANTIGRAVITY 60-FPS ENGINE</span>
+                      </span>
+                      <span
+                        className={cn(
+                          'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[10px] font-mono font-bold border',
+                          antigravityStreamConnected
+                            ? 'bg-emerald-500/15 border-emerald-500/35 text-emerald-700 dark:text-emerald-300'
+                            : 'bg-purple-500/15 border-purple-500/35 text-purple-700 dark:text-purple-300',
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            'w-1.5 h-1.5 rounded-full',
+                            antigravityStreamConnected ? 'bg-emerald-400 animate-pulse' : 'bg-purple-400',
+                          )}
+                        />
+                        <span>
+                          {antigravityStreamConnected ? 'SSE En Vivo' : 'Puente Listo'} •{' '}
+                          {(antigravityBridgeKey || 'wpy_studio').slice(0, 14)}…
+                        </span>
+                      </span>
+                    </div>
+                    <h2 className="text-base sm:text-lg font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-teal-700 to-emerald-600 dark:from-white dark:via-[#C7F303] dark:to-cyan-300 bg-clip-text text-transparent mt-1">
+                      Estudio Horizontal de Capas, Avatares 3D & Motion Graphics Sincronizados
+                    </h2>
+                    <p className="text-xs text-slate-600 dark:text-slate-300">
+                      Elige una plantilla HyperFrames, personaliza tus 4 módulos en horizontal y compila en vivo con tu Antigravity.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Controles Horizontales Derecha: Selector 9:16 vs 16:9 + Botón Antigravity */}
+                <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                  <div className="inline-flex items-center p-1 rounded-xl bg-slate-100/90 dark:bg-slate-900/90 border border-slate-200/90 dark:border-white/10">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAspectRatio('9:16');
+                        handleRebuildDefaultTemplate('9:16', Boolean(baseVideoUrl), selectedSceneTemplate);
+                      }}
+                      className={cn(
+                        'px-3 py-1.5 rounded-lg text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer',
+                        aspectRatio === '9:16'
+                          ? 'bg-[#0E1300] text-[#C7F303] border border-[#C7F303]/40 shadow-xs'
+                          : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white',
+                      )}
+                    >
+                      <span>📱 Vertical 9:16</span>
+                      <span className="text-[10px] opacity-80 hidden sm:inline">Reels/TikTok</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAspectRatio('16:9');
+                        handleRebuildDefaultTemplate('16:9', Boolean(baseVideoUrl), selectedSceneTemplate);
+                      }}
+                      className={cn(
+                        'px-3 py-1.5 rounded-lg text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer',
+                        aspectRatio === '16:9'
+                          ? 'bg-[#0E1300] text-[#C7F303] border border-[#C7F303]/40 shadow-xs'
+                          : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white',
+                      )}
+                    >
+                      <span>🖥️ Horizontal 16:9</span>
+                      <span className="text-[10px] opacity-80 hidden sm:inline">YouTube/LMS</span>
+                    </button>
+                  </div>
+
+                  <ExpandableButton
+                    size="sm"
+                    icon={<Terminal />}
+                    label="Conectar mi Antigravity & Skills"
+                    variant="purple"
+                    alwaysExpanded
+                    onClick={() => {
+                      setKeyValidationMsg('');
+                      setApiKeyModalTab('antigravity');
+                      setIsApiKeyModalOpen(true);
+                    }}
+                  />
                 </div>
               </div>
 
-              {/* 1. Formato del Video (9:16 vs 16:9) */}
-              <div className="grid grid-cols-2 gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAspectRatio('9:16');
-                    handleRebuildDefaultTemplate('9:16', Boolean(baseVideoUrl), selectedSceneTemplate);
-                  }}
-                  className={cn(
-                    'p-3 rounded-xl border text-left transition cursor-pointer',
-                    aspectRatio === '9:16'
-                      ? 'bg-teal-50/80 dark:bg-teal-950/40 border-teal-500 ring-1 ring-teal-500/30'
-                      : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800',
-                  )}
-                >
-                  <div className="text-xs font-extrabold text-slate-900 dark:text-white">
-                    📱 Vertical 9:16 (Reels / TikTok)
-                  </div>
-                  <div className="text-[10px] text-slate-600 dark:text-slate-300 mt-0.5">
-                    1080 × 1920 px • Ideal para redes y WhatsApp
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAspectRatio('16:9');
-                    handleRebuildDefaultTemplate('16:9', Boolean(baseVideoUrl), selectedSceneTemplate);
-                  }}
-                  className={cn(
-                    'p-3 rounded-xl border text-left transition cursor-pointer',
-                    aspectRatio === '16:9'
-                      ? 'bg-teal-50/80 dark:bg-teal-950/40 border-teal-500 ring-1 ring-teal-500/30'
-                      : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800',
-                  )}
-                >
-                  <div className="text-xs font-extrabold text-slate-900 dark:text-white">
-                    🖥️ Horizontal 16:9 (YouTube / LMS)
-                  </div>
-                  <div className="text-[10px] text-slate-600 dark:text-slate-300 mt-0.5">
-                    1920 × 1080 px • Ideal para cursos Academia WAPPY
-                  </div>
-                </button>
-              </div>
-
-              {/* Selector Rápido de Plantillas de Escena Motion Graphics */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-teal-500" />
-                    Plantillas Visuales Instantáneas (HyperFrames)
+              {/* Fila Media: Las 4 Plantillas Visuales Instantáneas (HyperFrames) en 4 Columnas Horizontales */}
+              <div className="relative pt-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-teal-600 dark:text-[#C7F303]" />
+                    Plantillas Visuales Instantáneas (HyperFrames 60-FPS • Clic para aplicar al Lienzo)
                   </span>
-                  <span className="text-[10px] text-slate-600 dark:text-slate-300">Clic para aplicar</span>
+                  <span className="text-[10px] font-mono text-teal-700 dark:text-teal-300 font-bold">
+                    Sincronización automática 1:1 con tu guion de voz
+                  </span>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {STUDIO_SCENE_TEMPLATES.map((tpl) => {
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {STUDIO_SCENE_TEMPLATES.map((tpl, idx) => {
                     const isSelected = selectedSceneTemplate === tpl.id;
+                    const accentStyles = [
+                      'from-amber-500/15 to-emerald-500/10 border-amber-500/30',
+                      'from-cyan-500/15 to-indigo-500/10 border-cyan-500/30',
+                      'from-teal-500/15 to-emerald-500/10 border-teal-500/30',
+                      'from-purple-500/15 to-fuchsia-500/10 border-purple-500/30',
+                    ];
                     return (
                       <button
                         key={tpl.id}
@@ -6325,21 +6379,36 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           handleRebuildDefaultTemplate(aspectRatio, Boolean(baseVideoUrl), tpl.id);
                         }}
                         className={cn(
-                          'p-2.5 rounded-xl border text-left transition cursor-pointer',
+                          'group relative p-3.5 rounded-xl border text-left transition-all duration-300 cursor-pointer flex flex-col justify-between gap-2 hover:-translate-y-0.5',
                           isSelected
-                            ? 'bg-teal-50/80 dark:bg-teal-950/40 border-teal-500 ring-1 ring-teal-500/30'
-                            : 'bg-slate-50/70 dark:bg-slate-900/70 border-slate-200 dark:border-slate-800 hover:border-teal-400',
+                            ? 'bg-gradient-to-br from-emerald-500/15 via-teal-500/15 to-cyan-500/10 dark:from-[#C7F303]/15 dark:via-teal-500/15 dark:to-slate-900 border-emerald-500 dark:border-[#C7F303] ring-2 ring-emerald-500/25 dark:ring-[#C7F303]/30 shadow-md'
+                            : cn(
+                                'bg-white/85 dark:bg-slate-900/80 hover:border-teal-500/50 dark:hover:border-[#C7F303]/50',
+                                accentStyles[idx % accentStyles.length],
+                              ),
                         )}
                       >
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="text-xs font-extrabold text-slate-900 dark:text-white truncate">
-                            {tpl.name}
-                          </span>
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20 shrink-0">
-                            {tpl.badge}
-                          </span>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="text-xs font-extrabold text-slate-900 dark:text-white truncate">
+                              {tpl.name}
+                            </div>
+                            <span className="inline-block mt-1 text-[9px] font-mono font-extrabold px-2 py-0.5 rounded-md bg-teal-500/15 text-teal-800 dark:text-[#C7F303] border border-teal-500/30 dark:border-[#C7F303]/30">
+                              {tpl.badge}
+                            </span>
+                          </div>
+                          <div
+                            className={cn(
+                              'w-6 h-6 rounded-lg flex items-center justify-center shrink-0 text-[10px] font-mono font-black border transition',
+                              isSelected
+                                ? 'bg-[#C7F303] text-[#0E1300] border-[#C7F303] shadow-xs'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700',
+                            )}
+                          >
+                            {isSelected ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : `0${idx + 1}`}
+                          </div>
                         </div>
-                        <p className="text-[10px] text-slate-600 dark:text-slate-300 mt-0.5 line-clamp-1">
+                        <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2 leading-snug">
                           {tpl.description}
                         </p>
                       </button>
@@ -6347,424 +6416,1468 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   })}
                 </div>
               </div>
+            </div>
 
-              {/* 2. CAPA 1 y 2: Subir Video Propio y/o Audio Propio */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-3">
-                <div className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
-                  <Layers className="w-4 h-4 text-teal-500" />
-                  Capas Base Multimedia (Video a Cámara + Locución)
+            {/* ================================================================ */}
+            {/* BLOQUE 2: ESCENARIO HORIZONTAL (MÓDULOS IZQ + MONITOR DER)       */}
+            {/* ================================================================ */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+              {/* COLUMNA IZQUIERDA (7 cols): Estación Modular WAPPY con 4 Sub-Tabs Horizontales */}
+              <div className="lg:col-span-7 flex flex-col justify-between bg-white dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+                <div className="space-y-4">
+                  {/* Barra de Navegación Horizontal de los 4 Módulos */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-200/80 dark:border-slate-800">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 w-full">
+                      {(
+                        [
+                          {
+                            id: 'style',
+                            label: '🎨 Estilo & Efectos',
+                            badge: `${selectedSkillEffects.length} FX`,
+                            activeClass:
+                              'bg-gradient-to-r from-purple-500/15 to-indigo-500/15 border-purple-500 text-purple-800 dark:text-purple-200',
+                          },
+                          {
+                            id: 'timeline',
+                            label: '⏱️ Escaleta & Tiempos',
+                            badge: `${scriptSteps.length} esc.`,
+                            activeClass:
+                              'bg-gradient-to-r from-amber-500/15 to-orange-500/15 border-amber-500 text-amber-800 dark:text-amber-200',
+                          },
+                          {
+                            id: 'layers',
+                            label: '🎙️ Capas & Textos',
+                            badge: showDynamicSubtitles ? 'Subs ON' : 'Capas',
+                            activeClass:
+                              'bg-gradient-to-r from-teal-500/15 to-emerald-500/15 border-teal-500 text-teal-800 dark:text-teal-200',
+                          },
+                          {
+                            id: 'code',
+                            label: '</> Código HTML',
+                            badge: 'GSAP',
+                            activeClass:
+                              'bg-gradient-to-r from-cyan-500/15 to-sky-500/15 border-cyan-500 text-cyan-800 dark:text-cyan-200',
+                          },
+                        ] as const
+                      ).map((tab) => {
+                        const isAct = videoStudioSubTab === tab.id;
+                        return (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => setVideoStudioSubTab(tab.id)}
+                            className={cn(
+                              'px-3 py-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-1.5',
+                              isAct
+                                ? cn(tab.activeClass, 'font-extrabold shadow-xs ring-1 ring-current/20')
+                                : 'bg-slate-50/90 dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-teal-500/40',
+                            )}
+                          >
+                            <span className="text-xs font-extrabold truncate">{tab.label}</span>
+                            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 shrink-0">
+                              {tab.badge}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* ============================================================ */}
+                  {/* SUB-TAB 1: ESTILO DE ARTE & 18 EFECTOS VIRALES ANTIGRAVITY   */}
+                  {/* ============================================================ */}
+                  {videoStudioSubTab === 'style' && (
+                    <div className="space-y-4 animate-in fade-in duration-150">
+                      {/* 4 Direcciones de Arte del Brandbook en Tarjetas Horizontales con Swatches */}
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-purple-500" />
+                            1. Dirección de Arte Oficial (Brandbook WAPPY IA)
+                          </span>
+                          <span className="text-[10px] font-mono text-purple-600 dark:text-purple-300 font-bold">
+                            Paleta activa: {selectedArtDirection}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {ANTIGRAVITY_ART_DIRECTIONS.map((art) => {
+                            const active = selectedArtDirection === art.id;
+                            const swatchMap: Record<string, string[]> = {
+                              'dark-tech-hud': ['#0C192E', '#00D4FF', '#C7F303'],
+                              'wappy-lima-oliva': ['#C7F303', '#0E1300', '#0D9488'],
+                              'crema-editorial-sst': ['#F6F5EF', '#0D9488', '#F59E0B'],
+                              'cielo-wappy-cloud': ['#5BB8F5', '#EAF6FE', '#0D9488'],
+                            };
+                            const swatches = swatchMap[art.id] || ['#0C192E', '#C7F303'];
+                            return (
+                              <button
+                                key={art.id}
+                                type="button"
+                                onClick={() => setSelectedArtDirection(art.id)}
+                                className={cn(
+                                  'p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2',
+                                  active
+                                    ? 'bg-purple-500/12 border-purple-500 text-slate-900 dark:text-white ring-2 ring-purple-500/25 shadow-xs'
+                                    : 'bg-slate-50/80 dark:bg-slate-900/90 border-slate-200 dark:border-slate-800 hover:border-purple-400',
+                                )}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div className="flex items-center -space-x-1 shrink-0">
+                                      {swatches.map((hex) => (
+                                        <span
+                                          key={hex}
+                                          style={{ backgroundColor: hex }}
+                                          className="w-4 h-4 rounded-full border border-white/60 dark:border-slate-700 shadow-2xs"
+                                        />
+                                      ))}
+                                    </div>
+                                    <span className="text-xs font-extrabold truncate">
+                                      {art.label}
+                                    </span>
+                                  </div>
+                                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30 shrink-0">
+                                    {active ? '✓ ACTIVO' : '60 FPS'}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-snug">
+                                  {art.description}
+                                </p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Catálogo Interactivo de los Efectos Virales de las Skills de Antigravity */}
+                      <div className="space-y-2.5 pt-2 border-t border-slate-200/80 dark:border-slate-800">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
+                              <Wand2 className="w-3.5 h-3.5 text-indigo-500" />
+                              2. Catálogo de Efectos Virales Antigravity ({selectedSkillEffects.length} seleccionados)
+                            </span>
+                            <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                              Activa los efectos 3D, avatares y transiciones que se inyectarán en el Super-Prompt.
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (selectedSkillEffects.length === ANTIGRAVITY_EFFECTS_CATALOG.length) {
+                                  setSelectedSkillEffects(['19-cover-2s']);
+                                } else {
+                                  setSelectedSkillEffects(ANTIGRAVITY_EFFECTS_CATALOG.map((e) => e.id));
+                                }
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-500/15 text-[10px] font-extrabold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 cursor-pointer transition"
+                            >
+                              {selectedSkillEffects.length === ANTIGRAVITY_EFFECTS_CATALOG.length
+                                ? 'Deseleccionar todos'
+                                : 'Seleccionar todos'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleTabChange('lab')}
+                              className="text-[10px] font-extrabold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                            >
+                              Laboratorio FX →
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 max-h-[340px] overflow-y-auto pr-1">
+                          {ANTIGRAVITY_EFFECTS_CATALOG.map((ef) => {
+                            const active = selectedSkillEffects.includes(ef.id);
+                            return (
+                              <button
+                                key={ef.id}
+                                type="button"
+                                onClick={() => toggleSkillEffect(ef.id)}
+                                className={cn(
+                                  'p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1.5',
+                                  active
+                                    ? 'bg-gradient-to-br from-indigo-500/15 via-purple-500/10 to-teal-500/10 border-indigo-500/60 text-slate-900 dark:text-white ring-1 ring-indigo-500/30 shadow-2xs'
+                                    : 'bg-slate-50/70 dark:bg-slate-900/70 border-slate-200/90 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-400',
+                                )}
+                              >
+                                <div className="flex items-start justify-between gap-1.5">
+                                  <span className="text-[11px] font-extrabold leading-tight">
+                                    {ef.label}
+                                  </span>
+                                  <span
+                                    className={cn(
+                                      'w-4 h-4 rounded-md flex items-center justify-center shrink-0 border',
+                                      active
+                                        ? 'bg-[#C7F303] text-[#0E1300] border-[#C7F303]'
+                                        : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700',
+                                    )}
+                                  >
+                                    {active && <Check className="w-3 h-3 stroke-[3]" />}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20">
+                                    {ef.category}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-tight">
+                                  {ef.description}
+                                </p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ============================================================ */}
+                  {/* SUB-TAB 2: ESCALETA HORIZONTAL POR TIEMPOS & PAUSAS          */}
+                  {/* ============================================================ */}
+                  {videoStudioSubTab === 'timeline' && (
+                    <div className="space-y-3.5 animate-in fade-in duration-150">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <span className="text-xs font-extrabold uppercase tracking-wider text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                            <Layers className="w-4 h-4 text-amber-500" />
+                            Escaleta de Escenas por Tiempos ({scriptSteps.length} tramos)
+                          </span>
+                          <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                            Define qué suena y qué efecto visual aparece en cada tramo (`0.0s-2.0s` Portada 🔥 ¡GRATIS!, etc.).
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <ExpandableButton
+                            size="sm"
+                            icon={<Wand2 />}
+                            label="Auto-Dividir Guion"
+                            variant="amber"
+                            alwaysExpanded
+                            onClick={handleAutoStructureScriptSteps}
+                          />
+                          <ExpandableButton
+                            size="sm"
+                            icon={<Check />}
+                            label="Sincronizar al Guion TTS"
+                            variant="teal"
+                            alwaysExpanded
+                            onClick={applyScriptStepsToScriptText}
+                          />
+                          <ExpandableButton
+                            size="sm"
+                            icon={<Plus />}
+                            label="Añadir Escena"
+                            variant="emerald"
+                            alwaysExpanded
+                            onClick={() =>
+                              setScriptSteps((prev) => [
+                                ...prev,
+                                {
+                                  id: `step-${Date.now()}`,
+                                  timeRange: `${prev.length * 5}.0s-${(prev.length + 1) * 5}.0s`,
+                                  title: `Escena 0${prev.length + 1}`,
+                                  narration: '[pausa 0.5s] Nueva frase sincronizada con la voz. <breath>',
+                                  visualEffect: '07 Zoom-Through',
+                                },
+                              ])
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      {/* Barra Rápida de Etiquetas de Pausa y Respiración */}
+                      <div className="p-2.5 rounded-xl bg-amber-500/5 border border-amber-500/25 flex flex-wrap items-center gap-1.5">
+                        <span className="text-[10px] font-extrabold text-amber-800 dark:text-amber-300 mr-1">
+                          Insertar en última escena:
+                        </span>
+                        {PAUSE_AND_EMPHASIS_TAGS.map((p) => (
+                          <button
+                            key={p.tag}
+                            type="button"
+                            onClick={() => {
+                              setScriptSteps((prev) =>
+                                prev.map((st, idx) =>
+                                  idx === prev.length - 1
+                                    ? { ...st, narration: `${st.narration.trim()} ${p.tag}` }
+                                    : st,
+                                ),
+                              );
+                            }}
+                            title={p.desc}
+                            className="px-2 py-0.5 rounded-lg bg-white dark:bg-slate-900 border border-amber-500/30 text-[10px] font-mono font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-500/15 cursor-pointer transition"
+                          >
+                            {p.tag}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Tarjetas Horizontales de Escenas */}
+                      <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                        {scriptSteps.map((st, idx) => (
+                          <div
+                            key={st.id}
+                            className="p-3 rounded-xl bg-slate-50/90 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2 hover:border-amber-500/40 transition"
+                          >
+                            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                              <div className="sm:col-span-3 flex items-center gap-1.5">
+                                <span className="px-2 py-1 rounded-lg bg-amber-500/15 text-amber-800 dark:text-amber-300 font-mono text-[10px] font-extrabold shrink-0">
+                                  #{idx + 1}
+                                </span>
+                                <input
+                                  type="text"
+                                  value={st.timeRange}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setScriptSteps((prev) =>
+                                      prev.map((item, i) =>
+                                        i === idx ? { ...item, timeRange: val } : item,
+                                      ),
+                                    );
+                                  }}
+                                  className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-950 border border-amber-500/30 text-[11px] font-mono font-extrabold text-amber-700 dark:text-amber-300"
+                                />
+                              </div>
+
+                              <div className="sm:col-span-4">
+                                <input
+                                  type="text"
+                                  value={st.title}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setScriptSteps((prev) =>
+                                      prev.map((item, i) =>
+                                        i === idx ? { ...item, title: val } : item,
+                                      ),
+                                    );
+                                  }}
+                                  placeholder="Título de escena..."
+                                  className="w-full px-2.5 py-1 rounded-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white"
+                                />
+                              </div>
+
+                              <div className="sm:col-span-4">
+                                <select
+                                  value={st.visualEffect}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setScriptSteps((prev) =>
+                                      prev.map((item, i) =>
+                                        i === idx ? { ...item, visualEffect: val } : item,
+                                      ),
+                                    );
+                                  }}
+                                  className="w-full text-[11px] font-bold bg-indigo-500/10 border border-indigo-500/30 rounded-lg px-2 py-1 text-indigo-700 dark:text-indigo-300"
+                                >
+                                  {ANTIGRAVITY_EFFECTS_CATALOG.map((ef) => (
+                                    <option key={ef.id} value={ef.label}>
+                                      {ef.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              <div className="sm:col-span-1 flex justify-end">
+                                <ExpandableButton
+                                  size="sm"
+                                  icon={<Trash2 />}
+                                  label="Quitar"
+                                  variant="danger"
+                                  disabled={scriptSteps.length <= 1}
+                                  onClick={() =>
+                                    setScriptSteps((prev) => prev.filter((_, i) => i !== idx))
+                                  }
+                                />
+                              </div>
+                            </div>
+
+                            <input
+                              type="text"
+                              value={st.narration}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setScriptSteps((prev) =>
+                                  prev.map((item, i) =>
+                                    i === idx ? { ...item, narration: val } : item,
+                                  ),
+                                );
+                              }}
+                              placeholder="Locución sincronizada de este tramo..."
+                              className="w-full text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-900 dark:text-white"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ============================================================ */}
+                  {/* SUB-TAB 3: CAPAS MULTIMEDIA (VIDEO + VOZ) & TEXTOS EN CAPA   */}
+                  {/* ============================================================ */}
+                  {videoStudioSubTab === 'layers' && (
+                    <div className="space-y-4 animate-in fade-in duration-150">
+                      {/* Fila Horizontal 2 Columnas: Video Base + Audio Sincronizado */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {/* Subir Video Base */}
+                        <div className="p-3.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-2.5">
+                          <div>
+                            <div className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
+                              <Film className="w-3.5 h-3.5 text-blue-500" />
+                              1. Tu Video Base a Cámara (Opcional)
+                            </div>
+                            <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5">
+                              {baseVideoName
+                                ? `Activo: ${baseVideoName}`
+                                : 'Sube un MP4/WebM tuyo para superponerle capas HTML 60-FPS.'}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <label className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 text-xs font-bold cursor-pointer transition">
+                              <Upload className="w-3.5 h-3.5" />
+                              <span>Subir Video MP4</span>
+                              <input
+                                type="file"
+                                accept="video/mp4,video/webm,video/quicktime"
+                                onChange={handleBaseVideoUpload}
+                                className="hidden"
+                              />
+                            </label>
+                            {baseVideoUrl && (
+                              <ExpandableButton
+                                size="sm"
+                                icon={<Trash2 />}
+                                label="Quitar"
+                                variant="danger"
+                                onClick={() => {
+                                  URL.revokeObjectURL(baseVideoUrl);
+                                  setBaseVideoUrl(null);
+                                  setBaseVideoName('');
+                                  handleRebuildDefaultTemplate(aspectRatio, false);
+                                }}
+                              />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Pista de Audio / Locución */}
+                        <div className="p-3.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-2.5">
+                          <div>
+                            <div className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
+                              <MicVocal className="w-3.5 h-3.5 text-emerald-500" />
+                              2. Audio / Locución Sincronizada
+                            </div>
+                            <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5">
+                              {customAudioName
+                                ? `Archivo: ${customAudioName}`
+                                : currentAudio
+                                  ? `Vinculado: ${currentAudio.title}`
+                                  : 'Usa el audio del Estudio TTS o sube un WAV/MP3.'}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <label className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 text-xs font-bold cursor-pointer transition">
+                              <Upload className="w-3.5 h-3.5" />
+                              <span>Subir Audio WAV/MP3</span>
+                              <input
+                                type="file"
+                                accept="audio/*"
+                                onChange={handleCustomAudioUpload}
+                                className="hidden"
+                              />
+                            </label>
+                            {customAudioUrl && (
+                              <ExpandableButton
+                                size="sm"
+                                icon={<Trash2 />}
+                                label="Quitar"
+                                variant="danger"
+                                onClick={() => {
+                                  URL.revokeObjectURL(customAudioUrl);
+                                  setCustomAudioUrl(null);
+                                  setCustomAudioName('');
+                                }}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Textos de Superposición y Subtítulos Dinámicos WAPPY IA */}
+                      <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white">
+                            3. Textos de Capa y Subtítulos Palabra a Palabra
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <label className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-600 dark:text-teal-400 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={showDynamicSubtitles}
+                                onChange={(e) => setShowDynamicSubtitles(e.target.checked)}
+                                className="rounded accent-teal-600"
+                              />
+                              Subtítulos Activos
+                            </label>
+                            {showDynamicSubtitles && (
+                              <div className="inline-flex items-center gap-0.5 bg-white dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 text-[10px]">
+                                {(
+                                  [
+                                    { id: 'bottom', label: 'Abajo' },
+                                    { id: 'center', label: 'Centro' },
+                                    { id: 'top', label: 'Arriba' },
+                                  ] as const
+                                ).map((pos) => (
+                                  <button
+                                    key={pos.id}
+                                    type="button"
+                                    onClick={() => setSubtitlePosition(pos.id)}
+                                    className={cn(
+                                      'px-2 py-0.5 rounded transition cursor-pointer',
+                                      subtitlePosition === pos.id
+                                        ? 'bg-teal-600 text-white font-bold'
+                                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:text-white',
+                                    )}
+                                  >
+                                    {pos.label}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                              Insignia Superior (Badge)
+                            </label>
+                            <input
+                              type="text"
+                              value={badgeOverlayText}
+                              onChange={(e) => setBadgeOverlayText(e.target.value)}
+                              className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                              Color de Acento WAPPY
+                            </label>
+                            <div className="flex items-center gap-2 pt-0.5">
+                              {['#c7f303', '#14b8a6', '#10b981', '#6366f1', '#f59e0b', '#f43f5e'].map(
+                                (col) => (
+                                  <button
+                                    key={col}
+                                    type="button"
+                                    onClick={() => setAccentColor(col)}
+                                    style={{ backgroundColor: col }}
+                                    className={cn(
+                                      'w-6 h-6 rounded-lg border-2 transition cursor-pointer',
+                                      accentColor === col
+                                        ? 'border-white ring-2 ring-teal-500 scale-110'
+                                        : 'border-transparent opacity-80',
+                                    )}
+                                  />
+                                ),
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                              Titular Principal en Pantalla
+                            </label>
+                            <input
+                              type="text"
+                              value={headlineOverlayText}
+                              onChange={(e) => setHeadlineOverlayText(e.target.value)}
+                              className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white font-bold"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                              Subtítulo Secundario
+                            </label>
+                            <input
+                              type="text"
+                              value={subheadlineOverlayText}
+                              onChange={(e) => setSubheadlineOverlayText(e.target.value)}
+                              placeholder="Subtítulo secundario..."
+                              className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end pt-1">
+                          <ExpandableButton
+                            size="sm"
+                            icon={<RefreshCw />}
+                            label="Aplicar Textos y Capas al Lienzo"
+                            variant="cyan"
+                            alwaysExpanded
+                            onClick={() =>
+                              handleRebuildDefaultTemplate(aspectRatio, Boolean(baseVideoUrl))
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ============================================================ */}
+                  {/* SUB-TAB 4: EDITOR DE CÓDIGO HTML5 / TAILWIND / GSAP EN VIVO  */}
+                  {/* ============================================================ */}
+                  {videoStudioSubTab === 'code' && (
+                    <div className="space-y-3 animate-in fade-in duration-150">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <span className="text-xs font-extrabold uppercase tracking-wider text-cyan-700 dark:text-cyan-300 flex items-center gap-1.5">
+                            <Code2 className="w-4 h-4 text-cyan-500" />
+                            Código Fuente HTML5 / Tailwind / GSAP en Vivo
+                          </span>
+                          <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                            Cualquier cambio aquí actualiza inmediatamente el Lienzo Interactivo de la derecha.
+                          </p>
+                        </div>
+                        <ExpandableButton
+                          size="sm"
+                          icon={<RefreshCw />}
+                          label="Restaurar Plantilla Actual"
+                          variant="amber"
+                          alwaysExpanded
+                          onClick={() =>
+                            handleRebuildDefaultTemplate(
+                              aspectRatio,
+                              Boolean(baseVideoUrl),
+                              selectedSceneTemplate,
+                            )
+                          }
+                        />
+                      </div>
+                      <textarea
+                        rows={15}
+                        value={htmlCode}
+                        onChange={(e) => setHtmlCode(e.target.value)}
+                        className="w-full bg-[#070d17] text-emerald-300 font-mono text-[11px] p-3.5 rounded-xl border border-slate-800 focus:outline-none focus:border-teal-500 leading-relaxed"
+                      />
+                    </div>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* Subir Video Base */}
-                  <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-2">
-                    <div>
-                      <div className="text-xs font-bold text-slate-900 dark:text-white">
-                        1. Tu Video Base (Opcional)
-                      </div>
-                      <p className="text-[11px] text-slate-600 dark:text-slate-300">
-                        {baseVideoName
-                          ? `Activo: ${baseVideoName}`
-                          : 'Sube un MP4/WebM tuyo para montarle capas HTML encima.'}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <label className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 text-xs font-bold cursor-pointer transition">
-                        <Upload className="w-3.5 h-3.5" />
-                        <span>Subir Video MP4</span>
-                        <input
-                          type="file"
-                          accept="video/mp4,video/webm,video/quicktime"
-                          onChange={handleBaseVideoUpload}
-                          className="hidden"
-                        />
-                      </label>
-                      {baseVideoUrl && (
-                        <ExpandableButton
-                          size="sm"
-                          icon={<Trash2 />}
-                          label="Quitar"
-                          variant="danger"
-                          onClick={() => {
-                            URL.revokeObjectURL(baseVideoUrl);
-                            setBaseVideoUrl(null);
-                            setBaseVideoName('');
-                            handleRebuildDefaultTemplate(aspectRatio, false);
-                          }}
-                        />
-                      )}
-                    </div>
+                {/* Pie de la Estación Modular: Barra de Estado Rápido + Acceso Directo al Pipeline */}
+                <div className="pt-3 border-t border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                  <div className="flex flex-wrap items-center gap-2 text-slate-600 dark:text-slate-300">
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-mono font-bold">
+                      {aspectRatio}
+                    </span>
+                    <span>•</span>
+                    <span>
+                      Arte: <strong className="text-slate-900 dark:text-white">{selectedArtDirection}</strong>
+                    </span>
+                    <span>•</span>
+                    <span>
+                      Efectos: <strong className="text-indigo-600 dark:text-indigo-300">{selectedSkillEffects.length}</strong>
+                    </span>
+                    <span>•</span>
+                    <span>
+                      Escenas: <strong className="text-amber-600 dark:text-amber-300">{scriptSteps.length}</strong>
+                    </span>
                   </div>
-
-                  {/* Pista de Audio / Locución */}
-                  <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-2">
-                    <div>
-                      <div className="text-xs font-bold text-slate-900 dark:text-white">
-                        2. Audio / Locución Sincronizada
-                      </div>
-                      <p className="text-[11px] text-slate-600 dark:text-slate-300">
-                        {customAudioName
-                          ? `Archivo: ${customAudioName}`
-                          : currentAudio
-                            ? `Vinculado: ${currentAudio.title}`
-                            : 'Usa el audio del Estudio TTS o sube un WAV/MP3.'}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <label className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 text-xs font-bold cursor-pointer transition">
-                        <Upload className="w-3.5 h-3.5" />
-                        <span>Subir Audio WAV/MP3</span>
-                        <input
-                          type="file"
-                          accept="audio/*"
-                          onChange={handleCustomAudioUpload}
-                          className="hidden"
-                        />
-                      </label>
-                      {customAudioUrl && (
-                        <ExpandableButton
-                          size="sm"
-                          icon={<Trash2 />}
-                          label="Quitar"
-                          variant="danger"
-                          onClick={() => {
-                            URL.revokeObjectURL(customAudioUrl);
-                            setCustomAudioUrl(null);
-                            setCustomAudioName('');
-                          }}
-                        />
-                      )}
-                    </div>
-                  </div>
+                  <ExpandableButton
+                    size="sm"
+                    icon={isGeneratingSuperPrompt ? <Loader2 className="animate-spin" /> : <Wand2 />}
+                    label="Actualizar Super-Prompt"
+                    variant="indigo"
+                    alwaysExpanded
+                    disabled={isGeneratingSuperPrompt}
+                    onClick={handleBuildAntigravitySuperPrompt}
+                  />
                 </div>
               </div>
 
-              {/* 3. Textos Rápidos de Superposición y Subtítulos Dinámicos WAPPY IA */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white">
-                    3. Textos de Capa y Subtítulos Dinámicos
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <label className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-600 dark:text-teal-400 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={showDynamicSubtitles}
-                        onChange={(e) => setShowDynamicSubtitles(e.target.checked)}
-                        className="rounded accent-teal-600"
+              {/* COLUMNA DERECHA (5 cols): Monitor Cinematográfico WAPPY + Transporte + Exportación */}
+              <div className="lg:col-span-5 flex flex-col justify-between space-y-3.5 bg-white dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs">
+                {/* Barra Superior del Lienzo */}
+                <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      className={cn(
+                        'w-2.5 h-2.5 rounded-full shrink-0',
+                        isVisualEditMode
+                          ? 'bg-amber-500 animate-ping'
+                          : isVideoPlaying
+                            ? 'bg-[#C7F303] animate-pulse'
+                            : 'bg-slate-400',
+                      )}
+                    />
+                    <h3 className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
+                      {isVisualEditMode
+                        ? `Editor Visual (${aspectRatio})`
+                        : `Monitor en Vivo (${aspectRatio})`}
+                    </h3>
+                  </div>
+
+                  {/* Botonera WAPPY (100% ExpandableButton 14-Group Design System) */}
+                  <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                    <ExpandableButton
+                      size="sm"
+                      icon={
+                        isSyncingVoiceToVideo ? (
+                          <Loader2 className="animate-spin" />
+                        ) : (
+                          <MicVocal />
+                        )
+                      }
+                      label="Sincronizar Voz IA"
+                      variant="purple"
+                      disabled={isSyncingVoiceToVideo}
+                      onClick={handleSyncVoiceToVideo}
+                    />
+
+                    <ExpandableButton
+                      size="sm"
+                      icon={<Edit3 />}
+                      label={isVisualEditMode ? 'Salir de Edición' : 'Editar Lienzo'}
+                      variant="orange"
+                      isActive={isVisualEditMode}
+                      onClick={toggleVisualEditMode}
+                    />
+
+                    <ExpandableButton
+                      size="sm"
+                      icon={isRenderingServerMp4 ? <Loader2 className="animate-spin" /> : <Film />}
+                      label="Descargar MP4"
+                      variant="teal"
+                      disabled={isRenderingServerMp4}
+                      onClick={handleRenderServerMp4}
+                    />
+
+                    <ExpandableButton
+                      size="sm"
+                      icon={isBuildingAcademyHtml ? <Loader2 className="animate-spin" /> : <Download />}
+                      label="Cápsula HTML5"
+                      variant="green"
+                      disabled={isBuildingAcademyHtml}
+                      onClick={handleDownloadHtmlBundle}
+                    />
+
+                    <ExpandableButton
+                      size="sm"
+                      icon={<Save />}
+                      label="Guardar en Biblioteca"
+                      variant="teal"
+                      onClick={() => saveVideoProjectToLibrary({}, false)}
+                    />
+
+                    <ExpandableButton
+                      size="sm"
+                      icon={<Maximize2 />}
+                      label="Pantalla Completa"
+                      variant="neutral"
+                      onClick={toggleStageFullscreen}
+                    />
+                  </div>
+                </div>
+
+                {/* Barra de Herramientas Rápidas del Modo Editor Visual */}
+                {isVisualEditMode && (
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2.5 animate-in fade-in duration-150">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                      <span className="font-bold text-amber-800 dark:text-amber-200 flex items-center gap-1.5">
+                        <Move className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                        Arrastra cualquier elemento con el mouse • Doble clic para editar texto
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleSaveVisualEdits}
+                        className="px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-500 text-white font-bold text-[11px] flex items-center gap-1 cursor-pointer shadow-2xs"
+                      >
+                        <Check className="w-3 h-3" />
+                        Guardar Cambios
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          iframeRef.current?.contentWindow?.postMessage(
+                            { type: 'STUDIO_ADD_ELEMENT', kind: 'text' },
+                            '*',
+                          )
+                        }
+                        className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-900 dark:text-white hover:border-teal-500 flex items-center gap-1 cursor-pointer"
+                      >
+                        <Plus className="w-3 h-3 text-teal-500" />
+                        <Type className="w-3 h-3 text-teal-500" />
+                        <span>+ Texto</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          iframeRef.current?.contentWindow?.postMessage(
+                            { type: 'STUDIO_ADD_ELEMENT', kind: 'card' },
+                            '*',
+                          )
+                        }
+                        className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-900 dark:text-white hover:border-teal-500 flex items-center gap-1 cursor-pointer"
+                      >
+                        <Plus className="w-3 h-3 text-purple-500" />
+                        <Layers className="w-3 h-3 text-purple-500" />
+                        <span>+ Caja / Tarjeta</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          iframeRef.current?.contentWindow?.postMessage(
+                            { type: 'STUDIO_SELECT_PARENT' },
+                            '*',
+                          )
+                        }
+                        disabled={!selectedCanvasElement}
+                        className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-900 dark:text-white hover:border-teal-500 disabled:opacity-40 cursor-pointer"
+                      >
+                        Caja Padre
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          iframeRef.current?.contentWindow?.postMessage(
+                            { type: 'STUDIO_DUPLICATE_SELECTED' },
+                            '*',
+                          )
+                        }
+                        disabled={!selectedCanvasElement}
+                        className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-900 dark:text-white hover:border-teal-500 disabled:opacity-40 cursor-pointer flex items-center gap-1"
+                      >
+                        <Copy className="w-3 h-3 text-indigo-500" />
+                        <span>Duplicar</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          iframeRef.current?.contentWindow?.postMessage(
+                            { type: 'STUDIO_DELETE_SELECTED' },
+                            '*',
+                          )
+                        }
+                        disabled={!selectedCanvasElement}
+                        className="px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/30 text-[11px] font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 disabled:opacity-40 cursor-pointer flex items-center gap-1"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Eliminar</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* ESCENARIO MULTI-CAPA (VIDEO BASE + IFRAME HTML/GSAP + SUBTÍTULOS + CONTROLES FULLSCREEN) */}
+                <div className="flex justify-center items-center bg-[#060d18] rounded-2xl p-2.5 sm:p-3.5 border border-slate-800 shadow-inner overflow-hidden min-h-[410px]">
+                  <div
+                    ref={stageContainerRef}
+                    className={cn(
+                      'relative overflow-hidden bg-slate-950 shadow-2xl border border-white/10 transition-all duration-300',
+                      isStageFullscreen
+                        ? 'w-screen h-screen rounded-none border-0 flex flex-col items-center justify-between p-4 sm:p-6'
+                        : cn(
+                            'rounded-2xl mx-auto flex items-center justify-center',
+                            aspectRatio === '9:16'
+                              ? 'w-full max-w-[330px] aspect-[9/16] max-h-[560px]'
+                              : 'w-full aspect-[16/9] max-h-[520px] min-h-[280px]',
+                          ),
+                    )}
+                  >
+                    {/* Marco interno centrado que mantiene la proporción exacta en Pantalla Completa sin correrse */}
+                    <div
+                      className={cn(
+                        'relative overflow-hidden bg-slate-950',
+                        isStageFullscreen
+                          ? aspectRatio === '9:16'
+                            ? 'h-[calc(100vh-100px)] aspect-[9/16] max-w-[95vw] rounded-2xl border border-white/15 shadow-2xl mx-auto my-auto'
+                            : 'w-[min(94vw,calc((100vh-100px)*1.7778))] aspect-[16/9] max-h-[calc(100vh-100px)] rounded-2xl border border-white/15 shadow-2xl mx-auto my-auto'
+                          : 'w-full h-full',
+                      )}
+                    >
+                      {/* Pista de Audio Oculta para Locución */}
+                      {activeStageAudioSrc && (
+                        <audio
+                          ref={stageAudioRef}
+                          src={activeStageAudioSrc}
+                          preload="metadata"
+                          onTimeUpdate={(e) => {
+                            const curT = e.currentTarget.currentTime;
+                            const durT =
+                              e.currentTarget.duration && !isNaN(e.currentTarget.duration)
+                                ? e.currentTarget.duration
+                                : videoDuration || 20;
+                            setVideoCurrentTime(curT);
+                            iframeRef.current?.contentWindow?.postMessage(
+                              {
+                                type: 'STUDIO_SYNC_TIME',
+                                currentTime: curT,
+                                duration: durT,
+                                playing: !e.currentTarget.paused && !e.currentTarget.ended,
+                              },
+                              '*',
+                            );
+                          }}
+                          onLoadedMetadata={(e) => {
+                            if (e.currentTarget.duration && !isNaN(e.currentTarget.duration)) {
+                              setVideoDuration(e.currentTarget.duration);
+                            }
+                          }}
+                          onEnded={() => {
+                            setIsVideoPlaying(false);
+                            iframeRef.current?.contentWindow?.postMessage(
+                              { type: 'STUDIO_PAUSE' },
+                              '*',
+                            );
+                            baseVideoRef.current?.pause();
+                          }}
+                        />
+                      )}
+
+                      {/* CAPA 1: Video Base Subido por el Usuario */}
+                      {baseVideoUrl && (
+                        <video
+                          ref={baseVideoRef}
+                          src={baseVideoUrl}
+                          width={aspectRatio === '9:16' ? 1080 : 1920}
+                          height={aspectRatio === '9:16' ? 1920 : 1080}
+                          muted={muteBaseVideo}
+                          playsInline
+                          loop
+                          preload="metadata"
+                          onTimeUpdate={(e) => {
+                            if (!activeStageAudioSrc) {
+                              setVideoCurrentTime(e.currentTarget.currentTime);
+                            }
+                          }}
+                          onLoadedMetadata={(e) => {
+                            if (
+                              !activeStageAudioSrc &&
+                              e.currentTarget.duration &&
+                              !isNaN(e.currentTarget.duration)
+                            ) {
+                              setVideoDuration(e.currentTarget.duration);
+                            }
+                          }}
+                          className="absolute inset-0 w-full h-full object-cover z-0"
+                        />
+                      )}
+
+                      {/* CAPA 2: Composición Animada HTML5 + GSAP con Puente Interactivo */}
+                      <iframe
+                        ref={iframeRef}
+                        title="WAPPY Studio HTML Canvas"
+                        srcDoc={bridgedHtmlCode}
+                        sandbox="allow-scripts allow-same-origin"
+                        onLoad={() => {
+                          iframeRef.current?.contentWindow?.postMessage(
+                            { type: 'STUDIO_FIT_VIEWPORT' },
+                            '*',
+                          );
+                          if (isVisualEditMode) {
+                            iframeRef.current?.contentWindow?.postMessage(
+                              { type: 'STUDIO_SET_EDIT_MODE', enabled: true },
+                              '*',
+                            );
+                          } else if (!isVideoPlaying) {
+                            iframeRef.current?.contentWindow?.postMessage(
+                              { type: 'STUDIO_PAUSE' },
+                              '*',
+                            );
+                          }
+                        }}
+                        className={cn(
+                          'absolute inset-0 w-full h-full border-0 z-10',
+                          isVisualEditMode ? 'pointer-events-auto' : 'pointer-events-none',
+                        )}
                       />
-                      Subtítulos
-                    </label>
-                    {showDynamicSubtitles && (
-                      <div className="inline-flex items-center gap-0.5 bg-white dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 text-[10px]">
-                        {(
-                          [
-                            { id: 'bottom', label: 'Abajo' },
-                            { id: 'center', label: 'Centro' },
-                            { id: 'top', label: 'Arriba' },
-                          ] as const
-                        ).map((pos) => (
-                          <button
-                            key={pos.id}
-                            type="button"
-                            onClick={() => setSubtitlePosition(pos.id)}
-                            className={cn(
-                              'px-1.5 py-0.5 rounded transition cursor-pointer',
-                              subtitlePosition === pos.id
-                                ? 'bg-teal-600 text-white font-bold'
-                                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:text-white',
-                            )}
-                          >
-                            {pos.label}
-                          </button>
-                        ))}
+
+                      {/* CAPA 3: Subtítulos Dinámicos Sincronizados Palabra a Palabra */}
+                      {showDynamicSubtitles && currentSubtitleWindow && (
+                        <div
+                          className={cn(
+                            'absolute inset-x-3 z-20 flex justify-center pointer-events-none',
+                            subtitlePosition === 'top'
+                              ? 'top-16'
+                              : subtitlePosition === 'center'
+                                ? 'top-1/2 -translate-y-1/2'
+                                : 'bottom-5',
+                          )}
+                        >
+                          <div className="bg-[#050c12]/90 backdrop-blur-md border border-[#c7f303]/40 px-4 py-2.5 rounded-2xl shadow-2xl text-center max-w-[94%]">
+                            <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1">
+                              {currentSubtitleWindow.words.map((word, idx) => {
+                                const isActiveWord = idx === currentSubtitleWindow.activeOffset;
+                                return (
+                                  <span
+                                    key={`${word}-${idx}`}
+                                    className={cn(
+                                      'text-sm sm:text-base font-black uppercase tracking-wide transition-all duration-150',
+                                      isActiveWord
+                                        ? 'text-[#080c04] scale-110 bg-[#c7f303] px-2 py-0.5 rounded-lg shadow-[0_0_14px_rgba(199,243,3,0.45)]'
+                                        : 'text-white/95',
+                                    )}
+                                  >
+                                    {word}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* BARRA DE CONTROL FLOTANTE EN PANTALLA COMPLETA */}
+                    {isStageFullscreen && (
+                      <div className="w-full max-w-3xl mx-auto mt-3 px-4 py-2.5 rounded-2xl bg-slate-900/95 backdrop-blur-md border border-white/15 flex items-center gap-3 z-30 shadow-2xl">
+                        <button
+                          type="button"
+                          onClick={toggleStagePlayback}
+                          title={isVideoPlaying ? 'Pausar / Parar' : 'Reproducir'}
+                          className="px-3.5 h-9 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer shrink-0"
+                        >
+                          {isVideoPlaying ? (
+                            <>
+                              <Pause className="w-4 h-4 fill-white" />
+                              <span>Pausar</span>
+                            </>
+                          ) : (
+                            <>
+                              <Play className="w-4 h-4 fill-white" />
+                              <span>Play</span>
+                            </>
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={restartStagePlayback}
+                          title="Reiniciar animación"
+                          className="p-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 hover:text-white transition cursor-pointer shrink-0"
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                        </button>
+
+                        <input
+                          type="range"
+                          min={0}
+                          max={videoDuration || 20}
+                          step={0.1}
+                          value={videoCurrentTime}
+                          onChange={(e) => handleStageSeek(parseFloat(e.target.value))}
+                          className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-teal-500"
+                        />
+
+                        <span className="text-xs font-mono font-bold text-slate-200 shrink-0">
+                          {videoCurrentTime.toFixed(1)}s / {(videoDuration || 20).toFixed(1)}s
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={toggleVisualEditMode}
+                          className={cn(
+                            'px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1 cursor-pointer transition shrink-0',
+                            isVisualEditMode
+                              ? 'bg-amber-500/20 border-amber-400 text-amber-300'
+                              : 'bg-slate-800 border-slate-700 text-slate-200 hover:text-white',
+                          )}
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>{isVisualEditMode ? 'Editando' : 'Editar'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={toggleStageFullscreen}
+                          className="px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-200 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shrink-0"
+                        >
+                          <Minimize2 className="w-3.5 h-3.5" />
+                          <span>Salir</span>
+                        </button>
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
-                      Insignia Superior (Badge)
-                    </label>
-                    <input
-                      type="text"
-                      value={badgeOverlayText}
-                      onChange={(e) => setBadgeOverlayText(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
-                      Color de Acento
-                    </label>
-                    <div className="flex items-center gap-2">
-                      {['#14b8a6', '#10b981', '#6366f1', '#f59e0b', '#f43f5e'].map((col) => (
-                        <button
-                          key={col}
-                          type="button"
-                          onClick={() => setAccentColor(col)}
-                          style={{ backgroundColor: col }}
-                          className={cn(
-                            'w-6 h-6 rounded-full border-2 transition cursor-pointer',
-                            accentColor === col
-                              ? 'border-white ring-2 ring-teal-500 scale-110'
-                              : 'border-transparent opacity-80',
-                          )}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
-                    Titular Principal en Pantalla
-                  </label>
-                  <input
-                    type="text"
-                    value={headlineOverlayText}
-                    onChange={(e) => setHeadlineOverlayText(e.target.value)}
-                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white font-bold"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between gap-2">
-                  <input
-                    type="text"
-                    value={subheadlineOverlayText}
-                    onChange={(e) => setSubheadlineOverlayText(e.target.value)}
-                    placeholder="Subtítulo secundario..."
-                    className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white"
-                  />
-                  <ExpandableButton
-                    icon={<RefreshCw />}
-                    label="Aplicar al Lienzo"
-                    variant="cyan"
-                    alwaysExpanded
-                    onClick={() =>
-                      handleRebuildDefaultTemplate(aspectRatio, Boolean(baseVideoUrl))
-                    }
-                  />
-                </div>
-              </div>
-
-              {/* 4. FLUJO EN 3 PASOS CON ANTIGRAVITY (SUPER-PROMPT -> GENERADOR HTML -> CORRECCIONES) */}
-              <div className="p-4 bg-purple-500/5 border border-purple-500/25 rounded-2xl space-y-3.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-purple-700 dark:text-purple-300 flex items-center gap-1.5">
-                    <Wand2 className="w-4 h-4 text-purple-500" />
-                    4. Motor Antigravity HTML + GSAP (Flujo en 3 Pasos)
-                  </span>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <ExpandableButton
-                      size="sm"
-                      icon={<Terminal />}
-                      label="Conectar mi Antigravity & Skills"
-                      variant="purple"
-                      alwaysExpanded
-                      onClick={() => {
-                        setKeyValidationMsg('');
-                        setApiKeyModalTab('antigravity');
-                        setIsApiKeyModalOpen(true);
-                      }}
-                    />
-                    <ExpandableButton
-                      size="sm"
-                      icon={<Layers />}
-                      label={showStepAssistant ? 'Ocultar Escaleta' : 'Tiempos & Escaleta'}
-                      variant="amber"
-                      isActive={showStepAssistant}
-                      onClick={() => setShowStepAssistant(!showStepAssistant)}
-                    />
-                    <ExpandableButton
-                      size="sm"
-                      icon={<Code2 />}
-                      label={showCodeEditor ? 'Ocultar HTML' : 'Código HTML'}
-                      variant="neutral"
-                      isActive={showCodeEditor}
-                      onClick={() => setShowCodeEditor(!showCodeEditor)}
-                    />
-                  </div>
-                </div>
-
-                {/* Selector de Dirección de Arte (4 Paletas Oficiales Brandbook WAPPY IA) */}
-                <div className="space-y-1.5">
-                  <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
-                    Dirección de Arte Oficial (Brandbook WAPPY IA):
-                  </span>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {ANTIGRAVITY_ART_DIRECTIONS.map((art) => {
-                      const active = selectedArtDirection === art.id;
-                      return (
-                        <button
-                          key={art.id}
-                          type="button"
-                          onClick={() => setSelectedArtDirection(art.id)}
-                          className={cn(
-                            'p-2 rounded-xl border text-left transition cursor-pointer flex items-center justify-between gap-1.5',
-                            active
-                              ? 'bg-purple-500/15 border-purple-500/50 text-purple-900 dark:text-purple-200 ring-1 ring-purple-500/30'
-                              : 'bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-purple-400',
-                          )}
-                        >
-                          <div className="min-w-0">
-                            <div className="text-[11px] font-extrabold truncate">{art.label}</div>
-                            <div className="text-[9px] opacity-75 truncate">{art.colors}</div>
-                          </div>
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 shrink-0">
-                            60 FPS
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Selector de Efectos de las Skills de Antigravity (18 Efectos) */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
-                      Efectos Visuales Antigravity Activos ({selectedSkillEffects.length}):
-                    </span>
+                {/* Controles de Línea de Tiempo y Exportación Rápida */}
+                <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2.5">
+                  <div className="flex items-center gap-2.5">
                     <button
                       type="button"
-                      onClick={() => handleTabChange('lab')}
-                      className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                      onClick={toggleStagePlayback}
+                      title={
+                        isVideoPlaying
+                          ? 'Pausar animación y subtítulos'
+                          : 'Reproducir animación y subtítulos'
+                      }
+                      className="px-3 h-8 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition cursor-pointer shrink-0"
                     >
-                      Ver catálogo completo en Laboratorio →
+                      {isVideoPlaying ? (
+                        <>
+                          <Pause className="w-3.5 h-3.5 fill-white" />
+                          <span>Pausar</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-3.5 h-3.5 fill-white ml-0.5" />
+                          <span>Play</span>
+                        </>
+                      )}
                     </button>
+
+                    <button
+                      type="button"
+                      onClick={restartStagePlayback}
+                      title="Reiniciar animación"
+                      className="p-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:text-white transition cursor-pointer shrink-0"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
+
+                    <input
+                      type="range"
+                      min={0}
+                      max={videoDuration || 20}
+                      step={0.1}
+                      value={videoCurrentTime}
+                      onChange={(e) => handleStageSeek(parseFloat(e.target.value))}
+                      className="flex-1 h-1.5 bg-slate-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-teal-600"
+                    />
+
+                    <span className="text-[11px] font-mono font-bold text-slate-600 dark:text-slate-300 shrink-0 tabular-nums">
+                      {videoCurrentTime.toFixed(1)}s / {(videoDuration || 20).toFixed(1)}s
+                    </span>
+
+                    {baseVideoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setMuteBaseVideo(!muteBaseVideo)}
+                        title={
+                          muteBaseVideo
+                            ? 'Activar audio del video original'
+                            : 'Silenciar video original'
+                        }
+                        className="p-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:text-white transition cursor-pointer"
+                      >
+                        {muteBaseVideo ? (
+                          <VolumeX className="w-3.5 h-3.5 text-rose-500" />
+                        ) : (
+                          <Volume2 className="w-3.5 h-3.5 text-teal-500" />
+                        )}
+                      </button>
+                    )}
                   </div>
-                  <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1.5 rounded-xl bg-white/70 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800">
-                    {ANTIGRAVITY_EFFECTS_CATALOG.map((ef) => {
-                      const active = selectedSkillEffects.includes(ef.id);
-                      return (
-                        <button
-                          key={ef.id}
-                          type="button"
-                          onClick={() => toggleSkillEffect(ef.id)}
-                          title={`${ef.category} — ${ef.description}`}
-                          className={cn(
-                            'px-2 py-1 rounded-lg text-[10px] font-bold border transition cursor-pointer flex items-center gap-1',
-                            active
-                              ? 'bg-indigo-500/15 border-indigo-500/40 text-indigo-700 dark:text-indigo-300'
-                              : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-indigo-400',
-                          )}
-                        >
-                          <span>{ef.label}</span>
-                          {active && <Check className="w-2.5 h-2.5 text-emerald-500" />}
-                        </button>
-                      );
-                    })}
+
+                  {/* Tarjetas Horizontales de Exportación Multimodal */}
+                  <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="p-2.5 rounded-xl border bg-teal-500/10 border-teal-500/30 text-teal-800 dark:text-teal-200 flex flex-col justify-between gap-2">
+                      <div>
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-teal-500/20">
+                            WhatsApp • Reels
+                          </span>
+                          <Film className="w-3.5 h-3.5 shrink-0" />
+                        </div>
+                        <div className="text-[11px] font-extrabold leading-tight mt-1">
+                          Video .MP4 (60 FPS + Voz)
+                        </div>
+                      </div>
+                      <ExpandableButton
+                        size="sm"
+                        icon={
+                          isRenderingServerMp4 ? (
+                            <Loader2 className="animate-spin" />
+                          ) : (
+                            <Film />
+                          )
+                        }
+                        label={
+                          isRenderingServerMp4
+                            ? 'Renderizando MP4...'
+                            : 'Descargar .MP4'
+                        }
+                        variant="teal"
+                        alwaysExpanded
+                        disabled={isRenderingServerMp4}
+                        onClick={handleRenderServerMp4}
+                        className="w-full justify-center"
+                      />
+                    </div>
+
+                    <div className="p-2.5 rounded-xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-200 flex flex-col justify-between gap-2">
+                      <div>
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/20">
+                            Instantáneo • LMS
+                          </span>
+                          <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                        </div>
+                        <div className="text-[11px] font-extrabold leading-tight mt-1">
+                          Cápsula Interactiva HTML5
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <ExpandableButton
+                          size="sm"
+                          icon={
+                            isBuildingAcademyHtml ? (
+                              <Loader2 className="animate-spin" />
+                            ) : (
+                              <Download />
+                            )
+                          }
+                          label=".HTML"
+                          variant="green"
+                          alwaysExpanded
+                          disabled={isBuildingAcademyHtml}
+                          onClick={handleDownloadHtmlBundle}
+                          className="flex-1 justify-center"
+                        />
+                        <ExpandableButton
+                          size="sm"
+                          icon={<Copy />}
+                          label="LMS"
+                          variant="fuchsia"
+                          alwaysExpanded
+                          disabled={isBuildingAcademyHtml}
+                          onClick={handleCopyLmsEmbed}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Escaleta Paso a Paso Desplegable dentro del Compositor de Video */}
-                {showStepAssistant && (
-                  <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/25 space-y-2 animate-in fade-in duration-150">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-extrabold text-amber-800 dark:text-amber-300">
-                        Escaleta de Tiempos, Pausas y Escenas ({scriptSteps.length} tramos)
+                {/* INSPECTOR VISUAL DEL ELEMENTO SELECCIONADO EN EL LIENZO */}
+                {isVisualEditMode && selectedCanvasElement && (
+                  <div className="p-3.5 bg-slate-50 dark:bg-slate-900/95 rounded-2xl border border-teal-500/40 space-y-2.5 animate-in fade-in duration-150">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-extrabold uppercase tracking-wider text-teal-700 dark:text-teal-300 flex items-center gap-1.5">
+                        <Edit3 className="w-3.5 h-3.5" />
+                        Elemento Seleccionado (&lt;{selectedCanvasElement.tagName}&gt;)
                       </span>
-                      <ExpandableButton
-                        size="sm"
-                        icon={<Wand2 />}
-                        label="Auto-Dividir Guion"
-                        variant="amber"
-                        alwaysExpanded
-                        onClick={handleAutoStructureScriptSteps}
-                      />
+                      <button
+                        type="button"
+                        onClick={() => updateSelectedCanvasElement({ dx: 0, dy: 0, scale: 1 })}
+                        className="text-[11px] font-bold text-teal-600 dark:text-teal-400 hover:underline cursor-pointer"
+                      >
+                        Restablecer posición
+                      </button>
                     </div>
-                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                      {scriptSteps.map((st, idx) => (
-                        <div
-                          key={st.id}
-                          className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1"
-                        >
-                          <div className="flex items-center justify-between gap-1.5">
-                            <span className="text-[10px] font-mono font-bold text-amber-600 dark:text-amber-400">
-                              #{idx + 1} • {st.timeRange}
-                            </span>
-                            <select
-                              value={st.visualEffect}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setScriptSteps((prev) =>
-                                  prev.map((item, i) =>
-                                    i === idx ? { ...item, visualEffect: val } : item,
-                                  ),
-                                );
-                              }}
-                              className="text-[10px] font-bold bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-1.5 py-0.5 text-indigo-700 dark:text-indigo-300"
-                            >
-                              {ANTIGRAVITY_EFFECTS_CATALOG.map((ef) => (
-                                <option key={ef.id} value={ef.label}>
-                                  {ef.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <input
-                            type="text"
-                            value={st.narration}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setScriptSteps((prev) =>
-                                prev.map((item, i) =>
-                                  i === idx ? { ...item, narration: val } : item,
-                                ),
-                              );
-                            }}
-                            className="w-full text-[11px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-slate-900 dark:text-white"
-                          />
+
+                    <textarea
+                      rows={2}
+                      value={selectedCanvasElement.text}
+                      onChange={(e) => updateSelectedCanvasElement({ text: e.target.value })}
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-2 text-xs text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-teal-500 resize-none"
+                    />
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-center">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                          Letra ({selectedCanvasElement.fontSize}px)
+                        </label>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateSelectedCanvasElement({
+                                fontSize: Math.max(10, selectedCanvasElement.fontSize - 2),
+                              })
+                            }
+                            className="flex-1 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer"
+                          >
+                            A-
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateSelectedCanvasElement({
+                                fontSize: Math.min(96, selectedCanvasElement.fontSize + 2),
+                              })
+                            }
+                            className="flex-1 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer"
+                          >
+                            A+
+                          </button>
                         </div>
-                      ))}
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                          Escala ({selectedCanvasElement.scale}x)
+                        </label>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateSelectedCanvasElement({
+                                scale: Math.max(
+                                  0.5,
+                                  Number((selectedCanvasElement.scale - 0.1).toFixed(2)),
+                                ),
+                              })
+                            }
+                            className="flex-1 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer"
+                          >
+                            -
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateSelectedCanvasElement({
+                                scale: Math.min(
+                                  2.5,
+                                  Number((selectedCanvasElement.scale + 0.1).toFixed(2)),
+                                ),
+                              })
+                            }
+                            className="flex-1 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                          Texto
+                        </label>
+                        <input
+                          type="color"
+                          value={selectedCanvasElement.color}
+                          onChange={(e) => updateSelectedCanvasElement({ color: e.target.value })}
+                          className="w-full h-7 rounded-lg cursor-pointer bg-transparent border border-slate-200 dark:border-slate-700"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                          Fondo
+                        </label>
+                        <input
+                          type="color"
+                          value={selectedCanvasElement.backgroundColor}
+                          onChange={(e) =>
+                            updateSelectedCanvasElement({ backgroundColor: e.target.value })
+                          }
+                          className="w-full h-7 rounded-lg cursor-pointer bg-transparent border border-slate-200 dark:border-slate-700"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
 
-                {/* PASO 1: Botón Generar Super-Prompt + Textarea del Super-Prompt */}
-                <div className="space-y-2 pt-1 border-t border-purple-500/20">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-[11px] font-extrabold text-indigo-700 dark:text-indigo-300">
-                      Paso 1: Construir Super-Prompt Técnico (7 Piezas + Timings + Efectos)
-                    </span>
-                    <ExpandableButton
-                      size="sm"
-                      icon={
-                        isGeneratingSuperPrompt ? (
-                          <Loader2 className="animate-spin" />
-                        ) : (
-                          <Wand2 />
-                        )
-                      }
-                      label={
-                        isGeneratingSuperPrompt
-                          ? 'Construyendo Super-Prompt...'
-                          : '1. Generar Super-Prompt'
-                      }
-                      variant="indigo"
-                      alwaysExpanded
-                      disabled={isGeneratingSuperPrompt}
-                      onClick={handleBuildAntigravitySuperPrompt}
+            {/* ================================================================ */}
+            {/* BLOQUE 3: PIPELINE HORIZONTAL DE 3 PASOS CON ANTIGRAVITY         */}
+            {/* ================================================================ */}
+            <div className="relative overflow-hidden rounded-2xl border border-purple-500/35 dark:border-purple-500/40 bg-gradient-to-r from-indigo-50/50 via-purple-50/40 to-cyan-50/40 dark:from-[#0a1324] dark:via-[#11122c] dark:to-[#091c29] p-4 sm:p-5 shadow-md space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <span className="px-2.5 py-1 rounded-lg bg-purple-500/20 border border-purple-500/40 text-purple-800 dark:text-purple-200 font-mono text-[10px] font-extrabold uppercase tracking-wider">
+                    🚀 PIPELINE HORIZONTAL ANTIGRAVITY • 3 PASOS
+                  </span>
+                  <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">
+                    De tu Guion y Efectos al Video HTML5 + GSAP en Vivo
+                  </h3>
+                </div>
+                <span className="text-[11px] text-slate-600 dark:text-slate-300 font-semibold">
+                  PASO 01 (Super-Prompt) → PASO 02 (Generar Video) → PASO 03 (Correcciones en Vivo)
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
+                {/* TARJETA HORIZONTAL 1: PASO 01 - SUPER-PROMPT TÉCNICO */}
+                <div className="rounded-2xl border border-indigo-500/35 bg-white/90 dark:bg-slate-900/90 p-4 flex flex-col justify-between gap-3 shadow-xs">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="px-2 py-0.5 rounded-md bg-indigo-500/15 border border-indigo-500/30 text-indigo-700 dark:text-indigo-300 font-mono text-[10px] font-extrabold">
+                        PASO 01 • ARQUITECTURA 7 PIEZAS
+                      </span>
+                      <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
+                        {selectedSkillEffects.length} FX • {scriptSteps.length} escenas
+                      </span>
+                    </div>
+                    <h4 className="text-xs font-extrabold text-slate-900 dark:text-white">
+                      Construir Super-Prompt Técnico (Timings + Efectos)
+                    </h4>
+                    <textarea
+                      rows={4}
+                      value={aiScenePrompt}
+                      onChange={(e) => setAiScenePrompt(e.target.value)}
+                      placeholder="Haz clic en '1. Generar Super-Prompt' para ensamblar las 7 Piezas, tiempos y efectos seleccionados..."
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-indigo-500/30 rounded-xl p-2.5 text-[11px] text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 resize-y font-mono leading-relaxed"
                     />
                   </div>
-
-                  <textarea
-                    rows={4}
-                    value={aiScenePrompt}
-                    onChange={(e) => setAiScenePrompt(e.target.value)}
-                    placeholder="Haz clic en '1. Generar Super-Prompt' o escribe aquí las instrucciones de escenas, tiempos y efectos que Antigravity programará en HTML5 + GSAP..."
-                    className="w-full bg-white dark:bg-slate-900 border border-purple-500/30 rounded-xl p-3 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500 resize-y font-mono leading-relaxed"
+                  <ExpandableButton
+                    size="sm"
+                    icon={
+                      isGeneratingSuperPrompt ? (
+                        <Loader2 className="animate-spin" />
+                      ) : (
+                        <Wand2 />
+                      )
+                    }
+                    label={
+                      isGeneratingSuperPrompt
+                        ? 'Construyendo Super-Prompt...'
+                        : '1. Generar Super-Prompt'
+                    }
+                    variant="indigo"
+                    alwaysExpanded
+                    disabled={isGeneratingSuperPrompt}
+                    onClick={handleBuildAntigravitySuperPrompt}
+                    className="w-full justify-center"
                   />
                 </div>
 
-                {/* PASO 2: Enviar al Generador de Video (Antigravity) */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-purple-500/20">
-                  <span className="text-[11px] font-extrabold text-purple-700 dark:text-purple-300">
-                    Paso 2: Programar Video HTML5 + GSAP y Guardar en Biblioteca
-                  </span>
+                {/* TARJETA HORIZONTAL 2: PASO 02 - COMPILAR VIDEO CON ANTIGRAVITY */}
+                <div className="rounded-2xl border border-purple-500/45 bg-gradient-to-b from-purple-500/10 via-white/95 to-teal-500/10 dark:from-purple-950/35 dark:via-slate-900/95 dark:to-teal-950/25 p-4 flex flex-col justify-between gap-3 shadow-xs ring-1 ring-purple-500/20">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="px-2 py-0.5 rounded-md bg-purple-500/20 border border-purple-500/40 text-purple-800 dark:text-[#C7F303] font-mono text-[10px] font-extrabold">
+                        PASO 02 • MOTOR 60-FPS + VOZ
+                      </span>
+                      <span className="text-[10px] font-mono font-bold text-teal-600 dark:text-teal-300">
+                        {(videoDuration || 20).toFixed(1)}s sincronizados
+                      </span>
+                    </div>
+                    <h4 className="text-xs font-extrabold text-slate-900 dark:text-white">
+                      Programar Video HTML5 + GSAP y Enviar al Lienzo
+                    </h4>
+                    <div className="p-2.5 rounded-xl bg-white/80 dark:bg-slate-950/80 border border-purple-500/25 space-y-1.5 text-[11px]">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500 dark:text-slate-400">Formato & Arte:</span>
+                        <span className="font-mono font-bold text-slate-900 dark:text-white">
+                          {aspectRatio} • {selectedArtDirection}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500 dark:text-slate-400">Audio vinculado:</span>
+                        <span className="font-bold text-teal-700 dark:text-teal-300 truncate max-w-[160px]">
+                          {customAudioName || currentAudio?.title || `Voz ${selectedVoice}`}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500 dark:text-slate-400">Destino automático:</span>
+                        <span className="font-bold text-purple-700 dark:text-purple-300">
+                          Lienzo en Vivo + Biblioteca
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                   <ExpandableButton
                     size="md"
                     icon={
@@ -6776,25 +7889,49 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     }
                     label={
                       isGeneratingHtmlAi
-                        ? 'Antigravity Programando HTML + GSAP...'
+                        ? 'Antigravity Programando Video...'
                         : '2. Enviar al Generador de Video (Antigravity)'
                     }
                     variant="purple"
                     alwaysExpanded
                     disabled={isGeneratingHtmlAi}
                     onClick={handleGenerateHtmlWithAi}
+                    className="w-full justify-center"
                   />
                 </div>
 
-                {/* PASO 3: Panel de Correcciones / Ajustes sobre el Video Generado */}
-                <div className="p-3 rounded-xl bg-cyan-500/5 border border-cyan-500/25 space-y-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-[11px] font-extrabold text-cyan-800 dark:text-cyan-300 flex items-center gap-1.5">
+                {/* TARJETA HORIZONTAL 3: PASO 03 - CORRECCIONES EN VIVO CON ANTIGRAVITY */}
+                <div className="rounded-2xl border border-cyan-500/35 bg-white/90 dark:bg-slate-900/90 p-4 flex flex-col justify-between gap-3 shadow-xs">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="px-2 py-0.5 rounded-md bg-cyan-500/15 border border-cyan-500/30 text-cyan-800 dark:text-cyan-300 font-mono text-[10px] font-extrabold">
+                        PASO 03 • REFINAMIENTO EN VIVO
+                      </span>
                       <RefreshCw className="w-3.5 h-3.5 text-cyan-500" />
-                      Paso 3: ¿Algo no te gustó del video? Pide correcciones a Antigravity
-                    </span>
-                  </div>
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    </div>
+                    <h4 className="text-xs font-extrabold text-slate-900 dark:text-white">
+                      ¿Deseas ajustar algo del video? Pide correcciones
+                    </h4>
+
+                    {/* Chips rápidos de corrección */}
+                    <div className="flex flex-wrap gap-1">
+                      {[
+                        'Agranda los títulos en verde lima #C7F303',
+                        'Añade Giro 3D en la escena 2',
+                        'Fondo Dark Tech HUD #0C192E',
+                        'Resalta más el badge 🔥 ¡GRATIS!',
+                      ].map((chip) => (
+                        <button
+                          key={chip}
+                          type="button"
+                          onClick={() => setVideoCorrectionPrompt(chip)}
+                          className="px-2 py-0.5 rounded-md bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/25 text-[10px] font-semibold text-cyan-800 dark:text-cyan-300 cursor-pointer transition"
+                        >
+                          + {chip}
+                        </button>
+                      ))}
+                    </div>
+
                     <input
                       type="text"
                       value={videoCorrectionPrompt}
@@ -6805,737 +7942,33 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           handleSendCorrectionsToAntigravity();
                         }
                       }}
-                      placeholder="Ej: Haz los textos más grandes, agrega un gráfico de barras en el segundo 4, cambia el fondo a azul oscuro..."
-                      className="flex-1 bg-white dark:bg-slate-900 border border-cyan-500/30 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-cyan-500"
-                    />
-                    <ExpandableButton
-                      size="sm"
-                      icon={
-                        isApplyingCorrection ? (
-                          <Loader2 className="animate-spin" />
-                        ) : (
-                          <Wand2 />
-                        )
-                      }
-                      label={
-                        isApplyingCorrection
-                          ? 'Aplicando Correcciones...'
-                          : '3. Enviar Correcciones a Antigravity'
-                      }
-                      variant="cyan"
-                      alwaysExpanded
-                      disabled={isApplyingCorrection || !videoCorrectionPrompt.trim()}
-                      onClick={handleSendCorrectionsToAntigravity}
+                      placeholder="Escribe qué quieres cambiar y presiona Enter..."
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-cyan-500/30 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-cyan-500"
                     />
                   </div>
-                </div>
 
-                {showCodeEditor && (
-                  <div className="pt-2">
-                    <label className="block text-[10px] font-mono uppercase text-slate-600 dark:text-slate-300 mb-1">
-                      Código Fuente HTML5 / Tailwind / GSAP en Vivo:
-                    </label>
-                    <textarea
-                      rows={10}
-                      value={htmlCode}
-                      onChange={(e) => setHtmlCode(e.target.value)}
-                      className="w-full bg-slate-950 text-emerald-300 font-mono text-[11px] p-3 rounded-xl border border-slate-800 focus:outline-none focus:border-teal-500"
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* COLUMNA DERECHA (6 cols): Reproductor en Vivo Multi-Capa + Editor Visual + Exportación */}
-            <div className="lg:col-span-6 space-y-4 bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs [content-visibility:auto] [contain-intrinsic-size:auto_500px_auto_780px] [contain:layout_style_paint]">
-              {/* Barra Superior del Lienzo (sin flex-wrap para evitar salto de línea y titileo al expandir botones) */}
-              <div className="flex items-center justify-between gap-2 flex-nowrap">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span
-                    className={cn(
-                      'w-2.5 h-2.5 rounded-full shrink-0',
-                      isVisualEditMode
-                        ? 'bg-amber-500 animate-ping'
-                        : isVideoPlaying
-                          ? 'bg-emerald-500 animate-pulse'
-                          : 'bg-slate-400',
-                    )}
-                  />
-                  <h3 className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
-                    {isVisualEditMode
-                      ? `Editor Visual (${aspectRatio})`
-                      : `Lienzo Interactivo (${aspectRatio})`}
-                  </h3>
-                </div>
-
-                {/* Botonera WAPPY (100% ExpandableButton 14-Group Design System, flex-nowrap) */}
-                <div className="flex items-center gap-1.5 shrink-0 flex-nowrap">
                   <ExpandableButton
                     size="sm"
                     icon={
-                      isSyncingVoiceToVideo ? (
+                      isApplyingCorrection ? (
                         <Loader2 className="animate-spin" />
                       ) : (
-                        <MicVocal />
+                        <Wand2 />
                       )
                     }
-                    label="Sincronizar Voz IA"
-                    variant="purple"
-                    disabled={isSyncingVoiceToVideo}
-                    onClick={handleSyncVoiceToVideo}
-                  />
-
-                  <ExpandableButton
-                    size="sm"
-                    icon={<Edit3 />}
-                    label={isVisualEditMode ? 'Salir de Edición' : 'Editar Lienzo'}
-                    variant="orange"
-                    isActive={isVisualEditMode}
-                    onClick={toggleVisualEditMode}
-                  />
-
-                  <ExpandableButton
-                    size="sm"
-                    icon={isRenderingServerMp4 ? <Loader2 className="animate-spin" /> : <Film />}
-                    label="Descargar MP4 (WhatsApp/Celular)"
-                    variant="teal"
-                    disabled={isRenderingServerMp4}
-                    onClick={handleRenderServerMp4}
-                  />
-
-                  <ExpandableButton
-                    size="sm"
-                    icon={isBuildingAcademyHtml ? <Loader2 className="animate-spin" /> : <Download />}
-                    label="Cápsula Academia (HTML5)"
-                    variant="green"
-                    disabled={isBuildingAcademyHtml}
-                    onClick={handleDownloadHtmlBundle}
-                  />
-
-                  <ExpandableButton
-                    size="sm"
-                    icon={<Save />}
-                    label="Guardar en Biblioteca"
-                    variant="teal"
-                    onClick={() => saveVideoProjectToLibrary({}, false)}
-                  />
-
-                  <ExpandableButton
-                    size="sm"
-                    icon={<Maximize2 />}
-                    label="Pantalla Completa"
-                    variant="neutral"
-                    onClick={toggleStageFullscreen}
+                    label={
+                      isApplyingCorrection
+                        ? 'Aplicando Correcciones...'
+                        : '3. Enviar Correcciones a Antigravity'
+                    }
+                    variant="cyan"
+                    alwaysExpanded
+                    disabled={isApplyingCorrection || !videoCorrectionPrompt.trim()}
+                    onClick={handleSendCorrectionsToAntigravity}
+                    className="w-full justify-center"
                   />
                 </div>
               </div>
-
-              {/* Barra de Herramientas Rápidas del Modo Editor Visual */}
-              {isVisualEditMode && (
-                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2.5 animate-in fade-in duration-150">
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
-                    <span className="font-bold text-amber-800 dark:text-amber-200 flex items-center gap-1.5">
-                      <Move className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                      Arrastra cualquier caja o título con el mouse para moverlo • Doble clic para escribir
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleSaveVisualEdits}
-                      className="px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-500 text-white font-bold text-[11px] flex items-center gap-1 cursor-pointer shadow-2xs"
-                    >
-                      <Check className="w-3 h-3" />
-                      Guardar Cambios
-                    </button>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        iframeRef.current?.contentWindow?.postMessage(
-                          { type: 'STUDIO_ADD_ELEMENT', kind: 'text' },
-                          '*',
-                        )
-                      }
-                      className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-900 dark:text-white hover:border-teal-500 flex items-center gap-1 cursor-pointer"
-                    >
-                      <Plus className="w-3 h-3 text-teal-500" />
-                      <Type className="w-3 h-3 text-teal-500" />
-                      <span>+ Texto</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        iframeRef.current?.contentWindow?.postMessage(
-                          { type: 'STUDIO_ADD_ELEMENT', kind: 'card' },
-                          '*',
-                        )
-                      }
-                      className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-900 dark:text-white hover:border-teal-500 flex items-center gap-1 cursor-pointer"
-                    >
-                      <Plus className="w-3 h-3 text-purple-500" />
-                      <Layers className="w-3 h-3 text-purple-500" />
-                      <span>+ Caja / Tarjeta</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        iframeRef.current?.contentWindow?.postMessage(
-                          { type: 'STUDIO_SELECT_PARENT' },
-                          '*',
-                        )
-                      }
-                      disabled={!selectedCanvasElement}
-                      className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-900 dark:text-white hover:border-teal-500 disabled:opacity-40 cursor-pointer"
-                    >
-                      Seleccionar Caja Contenedora
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        iframeRef.current?.contentWindow?.postMessage(
-                          { type: 'STUDIO_DUPLICATE_SELECTED' },
-                          '*',
-                        )
-                      }
-                      disabled={!selectedCanvasElement}
-                      className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-900 dark:text-white hover:border-teal-500 disabled:opacity-40 cursor-pointer flex items-center gap-1"
-                    >
-                      <Copy className="w-3 h-3 text-indigo-500" />
-                      <span>Duplicar</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        iframeRef.current?.contentWindow?.postMessage(
-                          { type: 'STUDIO_DELETE_SELECTED' },
-                          '*',
-                        )
-                      }
-                      disabled={!selectedCanvasElement}
-                      className="px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/30 text-[11px] font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 disabled:opacity-40 cursor-pointer flex items-center gap-1"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      <span>Eliminar</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* ESCENARIO MULTI-CAPA (VIDEO BASE + IFRAME HTML/GSAP + SUBTÍTULOS + CONTROLES FULLSCREEN) */}
-              <div className="flex justify-center items-center bg-slate-950 rounded-2xl p-2.5 sm:p-4 border border-slate-800 shadow-inner overflow-hidden min-h-[460px]">
-                <div
-                  ref={stageContainerRef}
-                  className={cn(
-                    'relative overflow-hidden bg-slate-950 shadow-2xl border border-white/10 transition-all duration-300',
-                    isStageFullscreen
-                      ? 'w-screen h-screen rounded-none border-0 flex flex-col items-center justify-between p-4 sm:p-6'
-                      : cn(
-                          'rounded-2xl mx-auto flex items-center justify-center',
-                          aspectRatio === '9:16'
-                            ? 'w-full max-w-[390px] aspect-[9/16] max-h-[660px]'
-                            : 'w-full aspect-[16/9] max-h-[660px] min-h-[340px]',
-                        ),
-                  )}
-                >
-                  {/* Marco interno centrado que mantiene la proporción exacta en Pantalla Completa sin correrse */}
-                  <div
-                    className={cn(
-                      'relative overflow-hidden bg-slate-950',
-                      isStageFullscreen
-                        ? aspectRatio === '9:16'
-                          ? 'h-[calc(100vh-100px)] aspect-[9/16] max-w-[95vw] rounded-2xl border border-white/15 shadow-2xl mx-auto my-auto'
-                          : 'w-[min(94vw,calc((100vh-100px)*1.7778))] aspect-[16/9] max-h-[calc(100vh-100px)] rounded-2xl border border-white/15 shadow-2xl mx-auto my-auto'
-                        : 'w-full h-full',
-                    )}
-                  >
-                    {/* Pista de Audio Oculta para Locución */}
-                    {activeStageAudioSrc && (
-                      <audio
-                        ref={stageAudioRef}
-                        src={activeStageAudioSrc}
-                        preload="metadata"
-                        onTimeUpdate={(e) => {
-                          const curT = e.currentTarget.currentTime;
-                          const durT =
-                            e.currentTarget.duration && !isNaN(e.currentTarget.duration)
-                              ? e.currentTarget.duration
-                              : videoDuration || 20;
-                          setVideoCurrentTime(curT);
-                          iframeRef.current?.contentWindow?.postMessage(
-                            {
-                              type: 'STUDIO_SYNC_TIME',
-                              currentTime: curT,
-                              duration: durT,
-                              playing: !e.currentTarget.paused && !e.currentTarget.ended,
-                            },
-                            '*',
-                          );
-                        }}
-                        onLoadedMetadata={(e) => {
-                          if (e.currentTarget.duration && !isNaN(e.currentTarget.duration)) {
-                            setVideoDuration(e.currentTarget.duration);
-                          }
-                        }}
-                        onEnded={() => {
-                          setIsVideoPlaying(false);
-                          iframeRef.current?.contentWindow?.postMessage(
-                            { type: 'STUDIO_PAUSE' },
-                            '*',
-                          );
-                          baseVideoRef.current?.pause();
-                        }}
-                      />
-                    )}
-
-                    {/* CAPA 1: Video Base Subido por el Usuario (con dimensiones explícitas según modern-web-guidance) */}
-                    {baseVideoUrl && (
-                      <video
-                        ref={baseVideoRef}
-                        src={baseVideoUrl}
-                        width={aspectRatio === '9:16' ? 1080 : 1920}
-                        height={aspectRatio === '9:16' ? 1920 : 1080}
-                        muted={muteBaseVideo}
-                        playsInline
-                        loop
-                        preload="metadata"
-                        onTimeUpdate={(e) => {
-                          if (!activeStageAudioSrc) {
-                            setVideoCurrentTime(e.currentTarget.currentTime);
-                          }
-                        }}
-                        onLoadedMetadata={(e) => {
-                          if (
-                            !activeStageAudioSrc &&
-                            e.currentTarget.duration &&
-                            !isNaN(e.currentTarget.duration)
-                          ) {
-                            setVideoDuration(e.currentTarget.duration);
-                          }
-                        }}
-                        className="absolute inset-0 w-full h-full object-cover z-0"
-                      />
-                    )}
-
-                    {/* CAPA 2: Composición Animada HTML5 + GSAP con Puente Interactivo */}
-                    <iframe
-                      ref={iframeRef}
-                      title="WAPPY Studio HTML Canvas"
-                      srcDoc={bridgedHtmlCode}
-                      sandbox="allow-scripts allow-same-origin"
-                      onLoad={() => {
-                        iframeRef.current?.contentWindow?.postMessage(
-                          { type: 'STUDIO_FIT_VIEWPORT' },
-                          '*',
-                        );
-                        if (isVisualEditMode) {
-                          iframeRef.current?.contentWindow?.postMessage(
-                            { type: 'STUDIO_SET_EDIT_MODE', enabled: true },
-                            '*',
-                          );
-                        } else if (!isVideoPlaying) {
-                          iframeRef.current?.contentWindow?.postMessage(
-                            { type: 'STUDIO_PAUSE' },
-                            '*',
-                          );
-                        }
-                      }}
-                      className={cn(
-                        'absolute inset-0 w-full h-full border-0 z-10',
-                        isVisualEditMode ? 'pointer-events-auto' : 'pointer-events-none',
-                      )}
-                    />
-
-                    {/* CAPA 3: Subtítulos Dinámicos Sincronizados Palabra a Palabra (Estilo WAPPY IA / Antigravity) */}
-                    {showDynamicSubtitles && currentSubtitleWindow && (
-                      <div
-                        className={cn(
-                          'absolute inset-x-3 z-20 flex justify-center pointer-events-none',
-                          subtitlePosition === 'top'
-                            ? 'top-16'
-                            : subtitlePosition === 'center'
-                              ? 'top-1/2 -translate-y-1/2'
-                              : 'bottom-5',
-                        )}
-                      >
-                        <div className="bg-[#050c12]/90 backdrop-blur-md border border-[#c7f303]/40 px-4 py-2.5 rounded-2xl shadow-2xl text-center max-w-[94%]">
-                          <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1">
-                            {currentSubtitleWindow.words.map((word, idx) => {
-                              const isActiveWord = idx === currentSubtitleWindow.activeOffset;
-                              return (
-                                <span
-                                  key={`${word}-${idx}`}
-                                  className={cn(
-                                    'text-sm sm:text-base font-black uppercase tracking-wide transition-all duration-150',
-                                    isActiveWord
-                                      ? 'text-[#080c04] scale-110 bg-[#c7f303] px-2 py-0.5 rounded-lg shadow-[0_0_14px_rgba(199,243,3,0.45)]'
-                                      : 'text-white/95',
-                                  )}
-                                >
-                                  {word}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* BARRA DE CONTROL FLOTANTE EN PANTALLA COMPLETA (PLAY / PAUSE / SEEK / SALIR) */}
-                  {isStageFullscreen && (
-                    <div className="w-full max-w-3xl mx-auto mt-3 px-4 py-2.5 rounded-2xl bg-slate-900/95 backdrop-blur-md border border-white/15 flex items-center gap-3 z-30 shadow-2xl">
-                      <button
-                        type="button"
-                        onClick={toggleStagePlayback}
-                        title={isVideoPlaying ? 'Pausar / Parar' : 'Reproducir'}
-                        className="px-3.5 h-9 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer shrink-0"
-                      >
-                        {isVideoPlaying ? (
-                          <>
-                            <Pause className="w-4 h-4 fill-white" />
-                            <span>Pausar</span>
-                          </>
-                        ) : (
-                          <>
-                            <Play className="w-4 h-4 fill-white" />
-                            <span>Play</span>
-                          </>
-                        )}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={restartStagePlayback}
-                        title="Reiniciar animación"
-                        className="p-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 hover:text-white transition cursor-pointer shrink-0"
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                      </button>
-
-                      <input
-                        type="range"
-                        min={0}
-                        max={videoDuration || 20}
-                        step={0.1}
-                        value={videoCurrentTime}
-                        onChange={(e) => handleStageSeek(parseFloat(e.target.value))}
-                        className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-teal-500"
-                      />
-
-                      <span className="text-xs font-mono font-bold text-slate-200 shrink-0">
-                        {videoCurrentTime.toFixed(1)}s / {(videoDuration || 20).toFixed(1)}s
-                      </span>
-
-                      <button
-                        type="button"
-                        onClick={toggleVisualEditMode}
-                        className={cn(
-                          'px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1 cursor-pointer transition shrink-0',
-                          isVisualEditMode
-                            ? 'bg-amber-500/20 border-amber-400 text-amber-300'
-                            : 'bg-slate-800 border-slate-700 text-slate-200 hover:text-white',
-                        )}
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                        <span>{isVisualEditMode ? 'Editando' : 'Editar'}</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={toggleStageFullscreen}
-                        className="px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-200 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shrink-0"
-                      >
-                        <Minimize2 className="w-3.5 h-3.5" />
-                        <span>Salir</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Controles de Línea de Tiempo del Escenario (Vista Normal) */}
-              <div className="p-3.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2.5">
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={toggleStagePlayback}
-                    title={isVideoPlaying ? 'Pausar animación y subtítulos' : 'Reproducir animación y subtítulos'}
-                    className="px-3 h-9 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition cursor-pointer shrink-0"
-                  >
-                    {isVideoPlaying ? (
-                      <>
-                        <Pause className="w-4 h-4 fill-white" />
-                        <span>Pausar</span>
-                      </>
-                    ) : (
-                      <>
-                        <Play className="w-4 h-4 fill-white ml-0.5" />
-                        <span>Play</span>
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={restartStagePlayback}
-                    title="Reiniciar animación"
-                    className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:text-white transition cursor-pointer shrink-0"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                  </button>
-
-                  <input
-                    type="range"
-                    min={0}
-                    max={videoDuration || 20}
-                    step={0.1}
-                    value={videoCurrentTime}
-                    onChange={(e) => handleStageSeek(parseFloat(e.target.value))}
-                    className="flex-1 h-1.5 bg-slate-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-teal-600"
-                  />
-
-                  <span className="text-xs font-mono font-bold text-slate-600 dark:text-slate-300 shrink-0">
-                    {videoCurrentTime.toFixed(1)}s / {(videoDuration || 20).toFixed(1)}s
-                  </span>
-
-                  {baseVideoUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setMuteBaseVideo(!muteBaseVideo)}
-                      title={
-                        muteBaseVideo
-                          ? 'Activar audio del video original'
-                          : 'Silenciar video original'
-                      }
-                      className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:text-white transition cursor-pointer"
-                    >
-                      {muteBaseVideo ? (
-                        <VolumeX className="w-4 h-4 text-rose-500" />
-                      ) : (
-                        <Volume2 className="w-4 h-4 text-teal-500" />
-                      )}
-                    </button>
-                  )}
-                </div>
-
-                {/* ============================================================== */}
-                {/* PANEL DE EXPORTACIÓN MULTIMODAL (MP4 PARA WHATSAPP Y HTML LMS) */}
-                {/* ============================================================== */}
-                <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {/* OPCIÓN B: RENDERIZADO MP4 EN SERVIDOR (WHATSAPP / CELULAR / REELS / TIKTOK) */}
-                  <div className="p-3 rounded-xl border bg-teal-500/10 border-teal-500/30 text-teal-800 dark:text-teal-200 flex flex-col justify-between gap-2">
-                    <div>
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-teal-500/20">
-                          WhatsApp • Celular • Redes
-                        </span>
-                        <Film className="w-4 h-4 shrink-0" />
-                      </div>
-                      <div className="text-xs font-extrabold leading-tight mt-1.5">
-                        Renderizado .MP4 Antigravity (60 FPS + Voz)
-                      </div>
-                      <div className="text-[10px] opacity-85 leading-snug mt-0.5">
-                        Une Animación HTML + Subtítulos + Voz IA en un archivo .MP4 listo para WhatsApp o Reels
-                      </div>
-                    </div>
-                    <ExpandableButton
-                      size="sm"
-                      icon={
-                        isRenderingServerMp4 ? (
-                          <Loader2 className="animate-spin" />
-                        ) : (
-                          <Film />
-                        )
-                      }
-                      label={
-                        isRenderingServerMp4
-                          ? 'Renderizando Video MP4...'
-                          : 'Descargar Video .MP4 (Todo Unido)'
-                      }
-                      variant="teal"
-                      alwaysExpanded
-                      disabled={isRenderingServerMp4}
-                      onClick={handleRenderServerMp4}
-                      className="w-full justify-center"
-                    />
-                  </div>
-
-                  {/* OPCIÓN C: CÁPSULA INTERACTIVA HTML5 RESPONSIVE PARA ACADEMIA WAPPY (LMS) */}
-                  <div className="p-3 rounded-xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-200 flex flex-col justify-between gap-2">
-                    <div>
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/20">
-                          Descarga Instantánea • Offline
-                        </span>
-                        <BookOpen className="w-4 h-4 shrink-0" />
-                      </div>
-                      <div className="text-xs font-extrabold leading-tight mt-1.5">
-                        Cápsula Interactiva HTML5 (Móvil & Web)
-                      </div>
-                      <div className="text-[10px] opacity-85 leading-snug mt-0.5">
-                        Descarga inmediata del archivo .HTML con animación y audio integrados
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <ExpandableButton
-                        size="sm"
-                        icon={
-                          isBuildingAcademyHtml ? (
-                            <Loader2 className="animate-spin" />
-                          ) : (
-                            <Download />
-                          )
-                        }
-                        label="Descargar .HTML"
-                        variant="green"
-                        alwaysExpanded
-                        disabled={isBuildingAcademyHtml}
-                        onClick={handleDownloadHtmlBundle}
-                        className="flex-1 justify-center"
-                      />
-                      <ExpandableButton
-                        size="sm"
-                        icon={<Copy />}
-                        label="Copiar LMS"
-                        variant="fuchsia"
-                        alwaysExpanded
-                        disabled={isBuildingAcademyHtml}
-                        onClick={handleCopyLmsEmbed}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* INSPECTOR VISUAL DEL ELEMENTO SELECCIONADO EN EL LIENZO */}
-              {isVisualEditMode && selectedCanvasElement && (
-                <div className="p-4 bg-slate-50 dark:bg-slate-900/95 rounded-2xl border border-teal-500/40 space-y-3 animate-in fade-in duration-150">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-extrabold uppercase tracking-wider text-teal-700 dark:text-teal-300 flex items-center gap-1.5">
-                      <Edit3 className="w-3.5 h-3.5" />
-                      Propiedades del Elemento Seleccionado (&lt;{selectedCanvasElement.tagName}&gt;)
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => updateSelectedCanvasElement({ dx: 0, dy: 0, scale: 1 })}
-                      className="text-[11px] font-bold text-teal-600 dark:text-teal-400 hover:underline cursor-pointer"
-                    >
-                      Restablecer posición
-                    </button>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
-                      Texto del elemento (edita aquí o con doble clic en el video):
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={selectedCanvasElement.text}
-                      onChange={(e) => updateSelectedCanvasElement({ text: e.target.value })}
-                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-teal-500 resize-none"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 items-center">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-1">
-                        Tamaño Letra ({selectedCanvasElement.fontSize}px)
-                      </label>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateSelectedCanvasElement({
-                              fontSize: Math.max(10, selectedCanvasElement.fontSize - 2),
-                            })
-                          }
-                          className="flex-1 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer"
-                        >
-                          A-
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateSelectedCanvasElement({
-                              fontSize: Math.min(96, selectedCanvasElement.fontSize + 2),
-                            })
-                          }
-                          className="flex-1 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer"
-                        >
-                          A+
-                        </button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-1">
-                        Escala Caja ({selectedCanvasElement.scale}x)
-                      </label>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateSelectedCanvasElement({
-                              scale: Math.max(
-                                0.5,
-                                Number((selectedCanvasElement.scale - 0.1).toFixed(2)),
-                              ),
-                            })
-                          }
-                          className="flex-1 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer"
-                        >
-                          -
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateSelectedCanvasElement({
-                              scale: Math.min(
-                                2.5,
-                                Number((selectedCanvasElement.scale + 0.1).toFixed(2)),
-                              ),
-                            })
-                          }
-                          className="flex-1 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-1">
-                        Color de Texto
-                      </label>
-                      <input
-                        type="color"
-                        value={selectedCanvasElement.color}
-                        onChange={(e) => updateSelectedCanvasElement({ color: e.target.value })}
-                        className="w-full h-7 rounded-lg cursor-pointer bg-transparent border border-slate-200 dark:border-slate-700"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-1">
-                        Color de Fondo
-                      </label>
-                      <input
-                        type="color"
-                        value={selectedCanvasElement.backgroundColor}
-                        onChange={(e) =>
-                          updateSelectedCanvasElement({ backgroundColor: e.target.value })
-                        }
-                        className="w-full h-7 rounded-lg cursor-pointer bg-transparent border border-slate-200 dark:border-slate-700"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         )}
