@@ -467,7 +467,13 @@ async function executeFlowNativeStudioAction({
       try {
         const listRes = await axios.get(`http://127.0.0.1:${port}/json/list`, { timeout: 2000 });
         pageTarget = Array.isArray(listRes.data)
-          ? listRes.data.find((t) => t.type === 'page' && t.webSocketDebuggerUrl)
+          ? listRes.data.find(
+              (t) =>
+                t.type === 'page' &&
+                t.webSocketDebuggerUrl &&
+                !String(t.url || '').startsWith('chrome-extension://') &&
+                !String(t.url || '').startsWith('devtools://')
+            )
           : null;
         if (pageTarget) break;
       } catch (_) {}
