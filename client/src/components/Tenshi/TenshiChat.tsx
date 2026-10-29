@@ -3001,9 +3001,34 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               stopVision();
               resultMsg = 'Cámara apagada con éxito.';
             } else if (accion === 'colgar_llamada') {
-              tenshiAudio.playBlip();
+              setIsMicMuted(true);
               stopVision();
-              stopVoiceMode();
+              setVoiceStatusText('Despidiéndose...');
+              const ctx = audioContextRef.current;
+              const remainingAudioMs =
+                ctx && nextStartTimeRef.current > ctx.currentTime
+                  ? Math.round((nextStartTimeRef.current - ctx.currentTime) * 1000)
+                  : 0;
+              const waitMs = Math.min(
+                6500,
+                Math.max(remainingAudioMs + 400, activeSourcesRef.current.length > 0 ? 650 : 400),
+              );
+              setTimeout(() => {
+                const ctxNow = audioContextRef.current;
+                const extraRemainingMs =
+                  ctxNow && nextStartTimeRef.current > ctxNow.currentTime
+                    ? Math.min(2500, Math.round((nextStartTimeRef.current - ctxNow.currentTime) * 1000) + 300)
+                    : 0;
+                if (extraRemainingMs > 150) {
+                  setTimeout(() => {
+                    tenshiAudio.playBlip();
+                    stopVoiceMode();
+                  }, extraRemainingMs);
+                } else {
+                  tenshiAudio.playBlip();
+                  stopVoiceMode();
+                }
+              }, waitMs);
               resultMsg = 'Llamada finalizada y colgada.';
             }
           } else if (action.name === 'wappy_enviar_correo') {

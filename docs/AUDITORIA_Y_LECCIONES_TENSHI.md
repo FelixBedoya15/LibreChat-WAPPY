@@ -823,3 +823,18 @@ Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el 
      - Se importó `TenshiMessage` en `api/server/routes/voice/voiceSession.js` y se normalizó `role: 'assistant'` en widgets de memoria procedimental y Generative UI.
      - Se añadió el manejador `action.name.startsWith('google_flow_')` en `onWappyAction` (`TenshiChat.tsx`) para renderizar imágenes y videos de Google Flow Studio en tiempo real durante sesiones de voz.
      - En `wappy_retirar_trabajador`, si la acción requiere aprobación HITL (`widgetType === 'hitl_approval'`), Tenshi informa que la tarjeta de autorización está lista en lugar de anunciar el retiro como ya ejecutado.
+
+---
+
+### LECCIÓN 32 (2026-10-29): Cierre Automático Natural del Modo Live al Despedirse por Voz ("hasta luego", "gracias por todo", "chao", "nos vemos") sin Cortar la Despedida de Tenshi
+
+- **Requerimiento del Usuario:**
+  > *"deseo que Tenshi al decirle hasta luego, gracias por todo o al finalizar una conversacion que yo le diga con voz el solo se desactive el modo live, literal cuando nos despidamos"*
+- **Causas Raíces por las que antes no colgaba al despedirse o cortaba el audio:**
+  1. `explicitHangupKeywords` en `voiceSession.js` solo permitía `"hasta luego"`, `"adiós tenshi"`, `"chao tenshi"` y comandos técnicos (`"cuelga la llamada"`), rechazando frases naturales como *"gracias por todo"*, *"muchas gracias por todo"*, *"eso es todo por hoy"*, *"nos vemos"*, *"chao"* o *"adiós"*.
+  2. Además, en `handleTenshiVoiceFailsafe`, el filtro conversacional corto (`isConversationalCheck`) se evaluaba antes de `isColgarLlamada`, y `isColgarLlamada` solo contenía `"cuelga la llamada"` / `"terminar llamada"`, por lo que cuando Gemini Live respondía verbalmente *"¡Hasta luego! Que tengas un excelente día"* sin emitir el tool call, la sesión quedaba abierta indefinidamente.
+  3. Por último, cuando Gemini Live sí invocaba `wappy_controlar_videollamada({ accion: 'colgar_llamada' })`, `voiceSession.js` enviaba `wappy_action` al navegador **antes** de que Gemini pronunciara su despedida, y `TenshiChat.tsx` ejecutaba `stopVoiceMode()` en `0ms`, cortando a Tenshi en seco sin dejarla despedirse.
+- **Solución Implementada (`voiceSession.js` + `TenshiChat.tsx`):**
+  1. **Cierre Diferido Fin de Turno (`this.pendingHangupAfterTurn`) en `voiceSession.js`:** Cuando Gemini Live invoca `colgar_llamada` (validando que no sea una orden de pausa como `"para"` o `"espera"`), el backend marca `this.pendingHangupAfterTurn = true` y le pide a Gemini que pronuncie su frase breve de despedida. Al terminar el turno (`turnComplete` -> `saveCurrentTurn` -> `handleTenshiVoiceFailsafe`), o tras un watchdog de `5.5s`, emite `wappy_action` (`colgar_llamada`) al cliente cuando todos los paquetes de audio ya fueron enviados.
+  2. **Failsafe Determinista de Despedidas en `handleTenshiVoiceFailsafe`:** Cubre todas las expresiones naturales de despedida (*"hasta luego"*, *"hasta pronto"*, *"hasta mañana"*, *"nos vemos"*, *"gracias por todo"*, *"muchas gracias por todo"*, *"eso es todo por hoy"*, *"eso era todo, gracias"*, *"nada más por hoy"*, *"chao"*, *"adiós"*, *"feliz noche/tarde/día"*, o agradecimiento final acompañado de despedida de Tenshi).
+  3. **Drenaje Inteligente de la Cola de Audio en `TenshiChat.tsx`:** Al recibir `colgar_llamada`, el cliente silencia el micrófono (`setIsMicMuted(true)`), muestra `"Despidiéndose..."`, calcula los milisegundos exactos de voz restantes en el `AudioContext` (`nextStartTimeRef.current - ctx.currentTime` + margen de `400ms`) y ejecuta `stopVoiceMode()` justo después de que Tenshi termina de pronunciar su última sílaba.
