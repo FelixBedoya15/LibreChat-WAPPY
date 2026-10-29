@@ -184,20 +184,17 @@ export const PHASE_CATEGORIES = {
         { 
             id: 'compras_sst', title: 'Compras y Adquisiciones en SST', icon: 'ShoppingBag',
             bioRationale: 'Control previo y verificación de especificaciones de seguridad en la adquisición de materias primas, insumos químicos, maquinaria, herramientas y EPP.', 
-            normativity: 'Hito 5: Dinámica Operativa y Terreno (ISO 45001 Num. 8.1.4.1 • Dec. 1072 Art. 2.2.4.6.27)',
-            defaultDisabled: true
+            normativity: 'Hito 5: Dinámica Operativa y Terreno (Dec. 1072 Art. 2.2.4.6.27 • Res. 0312 Est. 2.9.1 • ISO 45001 Num. 8.1.4.1)'
         },
         { 
             id: 'contratistas_proveedores', title: 'Control y Gestión de Contratistas', icon: 'Briefcase',
             bioRationale: 'Padrón, calificación técnica, inducción y verificación en terreno de seguridad social (PILA), certificaciones y cumplimiento de normas SST para contratistas y terceros.', 
-            normativity: 'Hito 5: Dinámica Operativa y Terreno (ISO 45001 Num. 8.1.4.2 • Dec. 1072 Art. 2.2.4.6.28)',
-            defaultDisabled: true
+            normativity: 'Hito 5: Dinámica Operativa y Terreno (Dec. 1072 Art. 2.2.4.6.28 • Res. 0312 Est. 2.10.1 • ISO 45001 Num. 8.1.4.2)'
         },
         { 
             id: 'gestion_cambio', title: 'Gestión del Cambio en SST (MOC)', icon: 'GitMerge',
             bioRationale: 'Procedimiento y flujo sistemático para evaluar, aprobar y controlar los impactos en SST antes de implementar cambios locativos, técnicos, normativos o de personal en la organización.', 
-            normativity: 'Hito 5: Dinámica Operativa y Terreno (ISO 45001 Num. 8.1.3 • Dec. 1072 Art. 2.2.4.6.26)',
-            defaultDisabled: true
+            normativity: 'Hito 5: Dinámica Operativa y Terreno (Dec. 1072 Art. 2.2.4.6.26 • Res. 0312 Est. 2.11.1 • ISO 45001 Num. 8.1.3)'
         },
         { 
             id: 'analisis_trabajo_seguro', title: 'Análisis de Trabajo Seguro (ATS)', icon: 'ShieldAlert',
@@ -324,9 +321,6 @@ export const PHASE_CATEGORIES = {
 export const DEFAULT_CONSTRUCTION_APPS = [
     'equipos_emergencia',
     'simulacros_emergencia',
-    'gestion_cambio',
-    'contratistas_proveedores',
-    'compras_sst',
     'comunicaciones_sst',
 ];
 

@@ -36,6 +36,7 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import ExportDropdown from './ExportDropdown';
 import SGSSTToolbar from './SGSSTToolbar';
 import SGSSTLegalBadge from './SGSSTLegalBadge';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
 import SingleSelect from './SingleSelect';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
@@ -1026,64 +1027,41 @@ const InvestigacionATEL = () => {
     return (
         <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* ─── BANNER DE ESTADO Y MÉTRICAS CONECTADAS ─── */}
-            <div className="relative overflow-hidden rounded-3xl border border-teal-500/20 bg-gradient-to-r from-teal-500/5 via-teal-500/10 to-transparent p-4 sm:p-5">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    {/* Lado Izquierdo: Título y Badges */}
-                    <div className="flex items-center gap-3.5">
-                        <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm">
-                            <ShieldAlert className="h-6 w-6 sm:h-7 sm:w-7" />
-                        </div>
-                        <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <h1 className="text-lg sm:text-xl font-black text-text-primary tracking-tight">
-                                    Investigación de Accidentes e Incidentes (ATEL)
-                                </h1>
-                                <span className="inline-flex text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-teal-500 text-white shrink-0">
-                                    Oficial
+            <SGSSTHeroHeader
+                categoryId="investigacion_atel"
+                icon={<ShieldAlert className="h-7 w-7" />}
+                title="Investigación de Accidentes e Incidentes (ATEL)"
+                badges={
+                    <>
+                        {/* Estado Documento */}
+                        <div
+                            title={editorContentRef.current || generatedObjectives ? 'Informe de Investigación Generado' : 'Formulario de Investigación en Progreso'}
+                            className={`group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 ${
+                                editorContentRef.current || generatedObjectives
+                                    ? 'border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300'
+                                    : 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                            }`}
+                        >
+                            <div className="relative flex flex-shrink-0 items-center justify-center">
+                                <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                            </div>
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
+                                <span className="text-xs font-bold tracking-wide">
+                                    {editorContentRef.current || generatedObjectives ? 'Informe Generado' : 'Borrador en Proceso'}
                                 </span>
                             </div>
-                            <div className="flex flex-wrap items-center gap-2 pt-1">
-                                {/* Estado Documento */}
-                                <div
-                                    title={editorContentRef.current || generatedObjectives ? 'Informe de Investigación Generado' : 'Formulario de Investigación en Progreso'}
-                                    className={`group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 ${
-                                        editorContentRef.current || generatedObjectives
-                                            ? 'border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300'
-                                            : 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                                    }`}
-                                >
-                                    <div className="relative flex flex-shrink-0 items-center justify-center">
-                                        <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-                                    </div>
-                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
-                                        <span className="text-xs font-bold tracking-wide">
-                                            {editorContentRef.current || generatedObjectives ? 'Informe Generado' : 'Borrador en Proceso'}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* ISO 45001 Num. 10.2 · Res. 0312 Est. 3.2.2: CUMPLE */}
-                                <SGSSTLegalBadge
-                                    standardCode="3.2.2"
-                                    label="ISO 45001 Num. 10.2 · Res. 0312 Est. 3.2.2: CUMPLE"
-                                    tooltip="ISO 45001:2018 Num. 10.2 (Investigación de incidentes y no conformidades) · Res. 0312/2019 Estándar 3.2.2 y Res. 1401/2007 (Investigación ATEL con COPASST)"
-                                    moduleName="Investigación de Incidentes y ATEL"
-                                />
-                            </div>
                         </div>
-                    </div>
 
-                    {/* Lado Derecho */}
-                    <div className="flex md:flex-col items-end justify-center gap-1 shrink-0">
-                        <span className="text-xs font-bold text-text-primary">
-                            Res. 0312 / Res. 1401
-                        </span>
-                        <span className="text-[10px] text-text-tertiary">
-                            Estándar 3.2.1 & 3.2.2 SG-SST
-                        </span>
-                    </div>
-                </div>
-            </div>
+                        {/* ISO 45001 Num. 10.2 · Res. 0312 Est. 3.2.2: CUMPLE */}
+                        <SGSSTLegalBadge
+                            standardCode="3.2.2"
+                            label="ISO 45001 Num. 10.2 · Res. 0312 Est. 3.2.2: CUMPLE"
+                            tooltip="ISO 45001:2018 Num. 10.2 (Investigación de incidentes y no conformidades) · Res. 0312/2019 Estándar 3.2.2 y Res. 1401/2007 (Investigación ATEL con COPASST)"
+                            moduleName="Investigación de Incidentes y ATEL"
+                        />
+                    </>
+                }
+            />
 
                 <SGSSTToolbar
                     onHistory={() => setIsHistoryOpen(!isHistoryOpen)}

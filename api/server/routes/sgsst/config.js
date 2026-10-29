@@ -74,6 +74,21 @@ router.get('/', requireJwtAuth, async (req, res) => {
                     { strict: false }
                 );
             }
+
+            // One-time migration: Ensure Hito 5 apps (Compras SST, Contratistas y Proveedores, Gestión del Cambio MOC) are ACTIVE
+            const enabledHito5 = config.get('enabledHito5ComprasContratistasCambioV1');
+            if (!enabledHito5) {
+                const filtered = (config.disabledApps || []).filter(
+                    (id) => id !== 'compras_sst' && id !== 'contratistas_proveedores' && id !== 'gestion_cambio'
+                );
+                config.disabledApps = filtered;
+                config.set('enabledHito5ComprasContratistasCambioV1', true, { strict: false });
+                await SgsstConfig.updateOne(
+                    { _id: config._id },
+                    { $set: { disabledApps: filtered, enabledHito5ComprasContratistasCambioV1: true } },
+                    { strict: false }
+                );
+            }
         }
         res.json(config);
     } catch (error) {

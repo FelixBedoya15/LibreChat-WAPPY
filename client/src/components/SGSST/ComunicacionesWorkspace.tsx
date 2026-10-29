@@ -23,6 +23,7 @@ import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/Live
 import ExportDropdown from './ExportDropdown';
 import SGSSTToolbar from './SGSSTToolbar';
 import SGSSTLegalBadge from './SGSSTLegalBadge';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import ExpandingButton from './ExpandingButton';
 import { useAutoLoadReport } from './useAutoLoadReport';
@@ -250,66 +251,51 @@ export const ComunicacionesWorkspace: React.FC = () => {
   return (
     <div className="flex flex-col gap-6 w-full">
       {/* ─── BANNER PRINCIPAL COMUNICACIONES (WAPPY DESIGN SYSTEM) ─── */}
-      <div className="relative overflow-hidden rounded-3xl border border-teal-500/30 bg-gradient-to-br from-surface-primary via-surface-secondary to-teal-500/5 p-6 shadow-xl backdrop-blur-md">
-        <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-teal-500/10 blur-3xl dark:bg-teal-400/10" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-teal-600 to-indigo-500 text-white shadow-lg shadow-teal-500/20">
-              <Megaphone className="h-7 w-7" />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-black tracking-tight text-text-primary">
-                  Plan y Matriz de Comunicaciones SST (Internas y Externas)
-                </h2>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                  <Hammer className="w-3 h-3" /> En construcción
+      <SGSSTHeroHeader
+        categoryId="comunicaciones_sst"
+        icon={<Megaphone className="h-7 w-7" />}
+        title="Plan y Matriz de Comunicaciones SST (Internas y Externas)"
+        badges={
+          <>
+            <div
+              title={`${countInternas} Canales de Comunicación Interna`}
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+            >
+              <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  {countInternas} Canales Internos
                 </span>
               </div>
+            </div>
 
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <div
-                  title={`${countInternas} Canales de Comunicación Interna`}
-                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm transition-all duration-300 sm:hover:scale-105"
-                >
-                  <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                    <span className="text-xs font-bold tracking-wide">
-                      {countInternas} Canales Internos
-                    </span>
-                  </div>
-                </div>
-
-                <div
-                  title={`${countExternas} Protocolos de Comunicación Externa`}
-                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-amber-500/30 bg-surface-primary text-amber-700 dark:text-amber-300 px-2 sm:px-2.5 shadow-sm transition-all duration-300 sm:hover:scale-105"
-                >
-                  <Globe className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                    <span className="text-xs font-bold tracking-wide">
-                      {countExternas} Protocolos Externos
-                    </span>
-                  </div>
-                </div>
-
-                {/* ISO 45001 Num. 7.4 · Res. 0312 Est. 2.8.1: CUMPLE */}
-                <SGSSTLegalBadge
-                  standardCode="2.8.1"
-                  label="ISO 45001 Num. 7.4 · Res. 0312 Est. 2.8.1: CUMPLE"
-                  tooltip="ISO 45001:2018 Cláusula 7.4 (Comunicación interna y externa) · Dec. 1072/15 Art. 2.2.4.6.14 y Res. 0312/2019 Estándar 2.8.1"
-                  moduleName="Plan y Matriz de Comunicaciones SST"
-                />
+            <div
+              title={`${countExternas} Protocolos de Comunicación Externa`}
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-amber-500/30 bg-surface-primary text-amber-700 dark:text-amber-300 px-2 sm:px-2.5 shadow-sm transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+            >
+              <Globe className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  {countExternas} Protocolos Externos
+                </span>
               </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+            {/* ISO 45001 Num. 7.4 · Res. 0312 Est. 2.8.1: CUMPLE */}
+            <SGSSTLegalBadge
+              standardCode="2.8.1"
+              label="ISO 45001 Num. 7.4 · Res. 0312 Est. 2.8.1: CUMPLE"
+              tooltip="ISO 45001:2018 Cláusula 7.4 (Comunicación interna y externa) · Dec. 1072/15 Art. 2.2.4.6.14 y Res. 0312/2019 Estándar 2.8.1"
+              moduleName="Plan y Matriz de Comunicaciones SST"
+            />
+          </>
+        }
+        actions={
+          <>
             <ExpandingButton
               onClick={() => setIsFormOpen(!isFormOpen)}
               icon={Plus}
-              label={isFormOpen ? "Cerrar Formulario" : "Nuevo Canal"}
+              label={isFormOpen ? 'Cerrar Formulario' : 'Nuevo Canal'}
               variant="teal"
             />
             <ExpandingButton
@@ -319,9 +305,9 @@ export const ComunicacionesWorkspace: React.FC = () => {
               variant="outline-teal"
               isLoading={isSavingLocal}
             />
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* ─── BANNER ELEGANTE EN CONSTRUCCIÓN / VISTA PREVIA ACTIVA ─── */}
       <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-4 flex items-start sm:items-center gap-3.5 shadow-sm">

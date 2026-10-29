@@ -47,6 +47,8 @@ import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import SGSSTToolbar from './SGSSTToolbar';
 import SGSSTLegalBadge from './SGSSTLegalBadge';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
+import ExpandableButton from '~/components/Common/ExpandableButton';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { cn } from '~/utils';
 import { useAutoLoadReport } from './useAutoLoadReport';
@@ -1078,80 +1080,58 @@ const DashboardPredictivo = () => {
             `}</style>
 
             {/* ═══ Header / Toolbar ═══ */}
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-teal-950 via-teal-900 to-slate-900 p-6 sm:p-8 text-white shadow-2xl border border-teal-500/20">
-                <div className="absolute inset-0 opacity-20 pointer-events-none">
-                    <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-teal-400 blur-[100px] -mr-20 -mt-20 animate-pulse-slow" />
-                    <div className="absolute bottom-0 left-0 w-80 h-80 rounded-full bg-indigo-500 blur-[80px] -ml-20 -mb-20 animate-pulse-slow" />
-                </div>
-                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-teal-400/10 backdrop-blur-md border border-teal-400/20 flex items-center justify-center shrink-0 shadow-lg shadow-teal-500/10">
-                            <BrainCircuit className="w-6 h-6 text-teal-300 animate-pulse" />
-                        </div>
-                        <div>
-                            <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
-                                <h1 className="text-xl sm:text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-pink-300 via-teal-200 to-indigo-200">
-                                    Centro de Inteligencia Predictiva · WAPPY
-                                </h1>
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-pink-500/15 text-pink-400 border border-pink-500/30 shadow-sm">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-pink-400 animate-ping" />
-                                    🧠 Hito 07 · El Pináculo de WAPPY
-                                </span>
-                                <SGSSTLegalBadge
-                                    standardCode="6.1.4"
-                                    label="ISO 45001 Num. 9.1.1 · Res. 0312 Est. 6.1.4: CUMPLE"
-                                    tooltip="ISO 45001:2018 Num. 9.1.1 (Analítica y evaluación del desempeño) · Res. 0312/2019 Estándar 6.1.4 y Dec. 1072/15 Art. 2.2.4.6.20 — Indicadores de Gestión, Causalidad Predictiva y Mejora Continua"
-                                    moduleName="Centro de Inteligencia Predictiva"
-                                />
-                                {forecast?.activeCompany?.name && (
-                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-teal-500/20 text-teal-200 border border-teal-400/30 shadow-sm backdrop-blur-md">
-                                        <Building2 className="w-3 h-3 text-teal-300" />
-                                        <span>Empresa Activa: <strong className="text-white">{forecast.activeCompany.name}</strong>{forecast.activeCompany.nit ? ` · NIT: ${forecast.activeCompany.nit}` : ''}</span>
-                                    </span>
-                                )}
-                            </div>
-                            <p className="text-teal-100/80 text-xs max-w-2xl leading-relaxed font-medium">
-                                Cúspide de analítica predictiva y Machine Learning. Pronóstico estocástico de siniestralidad a 1 y 12 meses, radar anatómico de lesiones y prescripción proactiva de controles para proteger la vida de cada colaborador.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="relative z-10 mt-6 pt-5 border-t border-white/10 w-full">
-                    <SGSSTToolbar
-                        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
-                        isHistoryOpen={isHistoryOpen}
-                        aiButtons={[
-                            {
-                                id: 'generate-predictive',
-                                onClick: handleGenerate,
-                                disabled: isGenerating,
-                                title: "Generar Pronóstico IA 360°",
-                                label: "Generar Pronóstico IA",
-                                icon: "sparkles",
-                                variant: "ai",
-                                isLoading: isGenerating
-                            }
-                        ]}
-                        selectedModel={selectedModel}
-                        onSelectModel={setSelectedModel}
-                        hasContent={!!(editorContentRef.current || generatedReport)}
-                        exportContent={editorContentRef.current || generatedReport || ''}
-                        exportFileName={`Pronostico_Predictivo_BioSeguridad_IA_${new Date().toISOString().split('T')[0]}`}
-                        customSections={[
-                            <button
-                                key="btn-refresh"
-                                onClick={() => { fetchForecast(); fetchBiocentricData(); }}
-                                disabled={isLoadingForecast || loadingData}
-                                className="group flex items-center justify-center h-10 px-3 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-xl transition-all duration-300 shadow-lg shrink-0 font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed outline-none hover:-rotate-2 hover:scale-105"
-                            >
-                                <RefreshCw className={cn("h-4 w-4 text-teal-300", (isLoadingForecast || loadingData) && "animate-spin")} />
-                                <span className="ml-2 font-bold tracking-wide uppercase">Actualizar</span>
-                            </button>
-                        ]}
+            <SGSSTHeroHeader
+                categoryId="predictivo"
+                icon={<BrainCircuit className="h-7 w-7" />}
+                title="Centro de Inteligencia Predictiva · WAPPY"
+                companyName={forecast?.activeCompany?.name}
+                description="Cúspide de analítica predictiva y Machine Learning. Pronóstico estocástico de siniestralidad a 1 y 12 meses, radar anatómico de lesiones y prescripción proactiva de controles para proteger la vida de cada colaborador."
+                badges={
+                    <>
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-500/30 shadow-sm">
+                            <span className="h-1.5 w-1.5 rounded-full bg-pink-500 animate-ping" />
+                            🧠 Hito 07 · El Pináculo de WAPPY
+                        </span>
+                        <SGSSTLegalBadge
+                            standardCode="6.1.4"
+                            label="ISO 45001 Num. 9.1.1 · Res. 0312 Est. 6.1.4: CUMPLE"
+                            tooltip="ISO 45001:2018 Num. 9.1.1 (Analítica y evaluación del desempeño) · Res. 0312/2019 Estándar 6.1.4 y Dec. 1072/15 Art. 2.2.4.6.20 — Indicadores de Gestión, Causalidad Predictiva y Mejora Continua"
+                            moduleName="Centro de Inteligencia Predictiva"
+                        />
+                    </>
+                }
+                actions={
+                    <ExpandableButton
+                        onClick={() => { fetchForecast(); fetchBiocentricData(); }}
+                        disabled={isLoadingForecast || loadingData}
+                        variant="cyan"
+                        icon={<RefreshCw className={cn("h-4 w-4", (isLoadingForecast || loadingData) && "animate-spin")} />}
+                        label="Actualizar"
                     />
-                </div>
-            </div>
+                }
+            />
+
+            <SGSSTToolbar
+                onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                isHistoryOpen={isHistoryOpen}
+                aiButtons={[
+                    {
+                        id: 'generate-predictive',
+                        onClick: handleGenerate,
+                        disabled: isGenerating,
+                        title: "Generar Pronóstico IA 360°",
+                        label: "Generar Pronóstico IA",
+                        icon: "sparkles",
+                        variant: "ai",
+                        isLoading: isGenerating
+                    }
+                ]}
+                selectedModel={selectedModel}
+                onSelectModel={setSelectedModel}
+                hasContent={!!(editorContentRef.current || generatedReport)}
+                exportContent={editorContentRef.current || generatedReport || ''}
+                exportFileName={`Pronostico_Predictivo_BioSeguridad_IA_${new Date().toISOString().split('T')[0]}`}
+            />
 
             {/* ═══ Report History ═══ */}
             {isHistoryOpen && (

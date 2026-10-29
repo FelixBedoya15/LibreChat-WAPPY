@@ -8,6 +8,9 @@ import { Button, useToastContext } from '@librechat/client';
 import * as XLSX from 'xlsx';
 import { cn } from '~/utils';
 import { useAuthContext } from '~/hooks';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
+import SGSSTLegalBadge from './SGSSTLegalBadge';
+import ExpandableButton from '~/components/Common/ExpandableButton';
 
 interface WappyBlock {
     uid: string;
@@ -578,6 +581,75 @@ export default function AppBuilder() {
         </svg>
     );
 
+    const heroHeader = (
+        <SGSSTHeroHeader
+            categoryId="app_builder"
+            icon={<Blocks className="h-7 w-7" />}
+            title="Creador de Aplicativos (App Builder)"
+            description="Diseña herramientas a la medida uniendo la potencia analítica de la Inteligencia Artificial con los cuatro lienzos interactivos de Canvas (documentos, matrices, diapositivas y código). ¡Ensambla y automatiza tus flujos de seguridad y salud en minutos!"
+            badges={
+                <>
+                    <div
+                        title={`${apps.length} Aplicativos en Bóveda`}
+                        className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                    >
+                        <div className="relative flex flex-shrink-0 items-center justify-center">
+                            <Blocks className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                            <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                                {apps.length}
+                            </span>
+                        </div>
+                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                            <span className="text-xs font-bold tracking-wide">
+                                {apps.length} Aplicativos
+                            </span>
+                        </div>
+                    </div>
+                    <SGSSTLegalBadge
+                        standardCode="2.5.1"
+                        label="ISO 45001 Num. 7.5 · Res. 0312 Est. 2.5.1: CUMPLE"
+                        tooltip="ISO 45001:2018 Num. 7.5 (Información documentada y digitalización) · Res. 0312/2019 Estándar 2.5.1 y Dec. 1072/15 Art. 2.2.4.6.12 — Innovación, automatización y gestión digital de aplicativos SST"
+                        moduleName="Creador de Aplicativos (App Builder)"
+                    />
+                </>
+            }
+            actions={
+                <>
+                    <ExpandableButton
+                        onClick={() => {
+                            setIsBuilding(false);
+                            setPlayMode(false);
+                        }}
+                        variant="teal"
+                        isActive={!isBuilding}
+                        icon={<Blocks className="h-4 w-4" />}
+                        label="Catálogo"
+                    />
+                    <ExpandableButton
+                        onClick={handleNewApp}
+                        variant="purple"
+                        icon={<Sparkles className="h-4 w-4" />}
+                        label="Crear con IA"
+                    />
+                    <ExpandableButton
+                        onClick={() => {
+                            if (!activeApp) {
+                                handleNewApp();
+                            } else {
+                                setIsBuilding(true);
+                                setPlayMode(false);
+                            }
+                        }}
+                        variant="emerald"
+                        isActive={isBuilding && !playMode}
+                        icon={<PlusCircle className="h-4 w-4" />}
+                        label="Constructor Manual"
+                    />
+                </>
+            }
+        />
+    );
+
     // ─── VIEW 1: PORTFOLIO / LIST ───
     if (!isBuilding) {
         return (
@@ -586,33 +658,8 @@ export default function AppBuilder() {
                 <div className="absolute top-0 right-0 -mr-16 -mt-16 w-96 h-96 bg-green-500/10 rounded-full blur-3xl pointer-events-none" />
                 <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-                {/* Hero Showcase Banner */}
-                <div className="relative z-10 w-full rounded-3xl border border-green-500/20 bg-gradient-to-br from-green-500/5 via-emerald-500/5 to-cyan-500/5 p-8 flex flex-col md:flex-row items-center justify-between gap-8 shadow-inner overflow-hidden">
-                    <div className="flex-1 flex flex-col gap-4 text-left">
-                        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-green-500/10 border border-green-500/20 rounded-full text-xs font-black uppercase tracking-wider text-green-600 dark:text-green-400">
-                            <Sparkles className="w-3.5 h-3.5 animate-pulse" /> WAPPY No-Code Engine
-                        </div>
-                        <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-green-500 via-emerald-500 to-cyan-500 bg-clip-text text-transparent leading-none">
-                            Creador de Aplicativos Inteligentes
-                        </h2>
-                        <p className="text-sm font-medium text-text-secondary leading-relaxed max-w-xl">
-                            Diseña herramientas a la medida uniendo la potencia analítica de la Inteligencia Artificial con los cuatro lienzos interactivos de Canvas (documentos, matrices, diapositivas y código). ¡Ensambla y automatiza tus flujos de seguridad y salud en minutos!
-                        </p>
-                        <div className="mt-2">
-                            <button 
-                                onClick={handleNewApp} 
-                                className="group relative flex items-center justify-center gap-3 px-6 py-3 font-extrabold text-white transition-all duration-300 ease-in-out bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl shadow-lg hover:shadow-green-500/20 hover:scale-[1.03] outline-none active:scale-95"
-                            >
-                                <PlusCircle className="w-5 h-5 text-white group-hover:rotate-90 transition-transform duration-300" />
-                                <span className="tracking-wide">
-                                    Nuevo Aplicativo Nativo
-                                </span>
-                            </button>
-                        </div>
-                    </div>
-                    <div className="shrink-0 flex items-center justify-center">
-                        <WappyEnginesSVG />
-                    </div>
+                <div className="relative z-10 w-full">
+                    {heroHeader}
                 </div>
 
                 {/* Portfolio Section */}
@@ -696,6 +743,10 @@ export default function AppBuilder() {
         return (
             <div className="relative w-full flex flex-col gap-6 p-6 md:p-8 animate-in fade-in zoom-in-95 duration-500 bg-surface-primary rounded-[2.5rem] border border-border-medium/30 shadow-2xl overflow-hidden min-h-[85vh]">
                 <div className="absolute top-0 right-0 -mr-16 -mt-16 w-96 h-96 bg-green-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                <div className="relative z-10 w-full">
+                    {heroHeader}
+                </div>
 
                 {/* Play Header */}
                 <div className="relative z-10 w-full flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border-medium/30 pb-4">
@@ -1259,10 +1310,15 @@ export default function AppBuilder() {
 
     // ─── VIEW 3: CANVAS BUILD MODE ───
     return (
-        <div className="relative w-full flex flex-col lg:flex-row gap-6 p-6 md:p-8 animate-in fade-in duration-500 bg-surface-primary rounded-[2.5rem] border border-border-medium/30 shadow-2xl min-h-[85vh]">
+        <div className="relative w-full flex flex-col gap-6 p-6 md:p-8 animate-in fade-in duration-500 bg-surface-primary rounded-[2.5rem] border border-border-medium/30 shadow-2xl min-h-[85vh]">
             {/* Ambient backlight glow */}
             <div className="absolute top-0 right-0 -mr-16 -mt-16 w-96 h-96 bg-green-500/5 rounded-full blur-3xl pointer-events-none" />
 
+            <div className="relative z-10 w-full">
+                {heroHeader}
+            </div>
+
+            <div className="flex flex-col lg:flex-row gap-6 flex-1 relative z-10">
             {/* Sidebar: Bloques Disponibles */}
             <div className="w-full lg:w-80 shrink-0 bg-surface-primary border border-border-medium/40 rounded-[2rem] shadow-xl flex flex-col overflow-hidden relative z-10">
                 <div className="p-5 border-b border-border-medium/30 bg-surface-secondary/40 text-left">
@@ -1527,6 +1583,7 @@ export default function AppBuilder() {
                         )}
                     </div>
                 </div>
+            </div>
             </div>
         </div>
     );

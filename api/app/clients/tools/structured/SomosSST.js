@@ -87,7 +87,7 @@ class SomosSST extends Tool {
       nombre_aplicativo: z
         .string()
         .optional()
-        .describe('Nombre del aplicativo o módulo a editar (ej: "empresa", "cargos" (perfiles de cargo), "estudio_puesto" (EPT), "auditoria", "diagnostico", "epp", "alturas", "ats", "vehiculos", "capacitaciones", "gtc45", "owas", "actos", "vulnerabilidad", "quimicos", "kanban", "politica", "matriz_legal", "rhs", "rit").'),
+        .describe('Nombre del aplicativo o módulo a editar (ej: "empresa", "cargos" (perfiles de cargo), "estudio_puesto" (EPT), "auditoria", "diagnostico", "epp", "alturas", "ats", "vehiculos", "capacitaciones", "gtc45", "owas", "actos", "vulnerabilidad", "plan_emergencias", "contexto", "oportunidades", "compras", "contratistas", "gestion_cambio", "quimicos", "kanban", "politica", "matriz_legal", "rhs", "rit").'),
       identificador_o_filtro: z
         .string()
         .optional()
@@ -1931,6 +1931,24 @@ Correo: ${company.email || 'N/A'}`;
         } else if (appName.includes('investigacion')) {
           modelObj = modelLoader('InvestigacionAtelData', '~/server/routes/sgsst/investigacionAtel');
           modelPath = 'Investigación Forense ATEL';
+        } else if (appName.includes('compra') || appName.includes('adquisicion')) {
+          modelObj = modelLoader('SgsstComprasData', '~/models/SgsstComprasData');
+          modelPath = 'Compras y Adquisiciones en SST (Hito 5)';
+        } else if (appName.includes('contratista') || appName.includes('proveedor')) {
+          modelObj = modelLoader('SgsstContratistasData', '~/models/SgsstContratistasData');
+          modelPath = 'Control y Gestión de Contratistas y Proveedores (Hito 5)';
+        } else if (appName.includes('cambio') || appName.includes('moc') || appName.includes('gestion_cambio')) {
+          modelObj = modelLoader('SgsstGestionCambioData', '~/models/SgsstGestionCambioData');
+          modelPath = 'Gestión del Cambio en SST - MOC (Hito 5)';
+        } else if (appName.includes('contexto') || appName.includes('dofa')) {
+          modelObj = modelLoader('ContextoData', '~/models/ContextoData');
+          modelPath = 'Contexto de la Organización y Partes Interesadas';
+        } else if (appName.includes('oportunidad')) {
+          modelObj = modelLoader('OportunidadesData', '~/models/OportunidadesData');
+          modelPath = 'Oportunidades para la SST (ISO 45001 Cl. 6.1.2.3)';
+        } else if (appName.includes('plan_emergencia') || appName.includes('ppre')) {
+          modelObj = modelLoader('PlanEmergenciasData', '~/models/PlanEmergenciasData');
+          modelPath = 'Plan de Prevención, Preparación y Respuesta ante Emergencias (PPRE)';
         } else {
           modelObj = PerfilSocioModel;
           modelPath = 'Perfil Sociodemográfico / Ecosistema General';
@@ -2010,6 +2028,11 @@ Correo: ${company.email || 'N/A'}`;
           if (doc.trabajadores) doc.markModified('trabajadores');
           if (doc.statuses) doc.markModified('statuses');
           if (doc.seguimientos) doc.markModified('seguimientos');
+          if (doc.compras) doc.markModified('compras');
+          if (doc.criteriosMatriz) doc.markModified('criteriosMatriz');
+          if (doc.contratistas) doc.markModified('contratistas');
+          if (doc.checklistRequisitos) doc.markModified('checklistRequisitos');
+          if (doc.mocList) doc.markModified('mocList');
           await doc.save();
 
           return JSON.stringify({

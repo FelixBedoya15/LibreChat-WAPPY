@@ -23,6 +23,7 @@ import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar from './SGSSTToolbar';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import SGSSTLegalBadge from './SGSSTLegalBadge';
 
@@ -366,49 +367,37 @@ const ReglamentoInterno = () => {
     return (
         <div className="flex flex-col gap-4">
             {/* ─── BANNER DE ESTADO Y MÉTRICAS CONECTADAS ─── */}
-            <div className="relative overflow-hidden rounded-3xl border border-teal-500/20 bg-gradient-to-r from-teal-500/5 via-teal-500/10 to-transparent p-4 sm:p-5">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div className="flex items-center gap-3.5">
-                        <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm">
-                            <Briefcase className="h-6 w-6 sm:h-7 sm:w-7" />
-                        </div>
-                        <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <h1 className="text-lg sm:text-xl font-black text-text-primary tracking-tight">
-                                    Reglamento Interno de Trabajo (RIT)
-                                </h1>
-                                <span className="inline-flex text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-teal-500 text-white shrink-0">
-                                    Gobernanza
+            <SGSSTHeroHeader
+                categoryId="rit"
+                icon={<Briefcase className="h-7 w-7" />}
+                title="Reglamento Interno de Trabajo (RIT)"
+                badges={
+                    <>
+                        {/* Estado Documento */}
+                        <div
+                            title={generatedDocument ? "RIT Generado" : "Pendiente de Generar"}
+                            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                        >
+                            <div className="relative flex flex-shrink-0 items-center justify-center">
+                                <ScrollText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                            </div>
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                                <span className="text-xs font-bold tracking-wide">
+                                    {generatedDocument ? "Documento Generado" : "8 Capítulos Listos"}
                                 </span>
                             </div>
-                            <div className="flex flex-wrap items-center gap-2 pt-1">
-                                {/* Estado Documento */}
-                                <div
-                                    title={generatedDocument ? "RIT Generado" : "Pendiente de Generar"}
-                                    className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                                >
-                                    <div className="relative flex flex-shrink-0 items-center justify-center">
-                                        <ScrollText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
-                                    </div>
-                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
-                                        <span className="text-xs font-bold tracking-wide">
-                                            {generatedDocument ? "Documento Generado" : "8 Capítulos Listos"}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* ISO 45001 Num. 7.5 · Res. 0312 / CST Art. 104: CUMPLE */}
-                                <SGSSTLegalBadge
-                                    standardCode="1.1.3"
-                                    label="ISO 45001 Num. 7.5 · Res. 0312 / CST Art. 104: CUMPLE"
-                                    tooltip="ISO 45001:2018 Num. 7.5 (Información documentada) · Código Sustantivo del Trabajo Art. 104 a 125 y Res. 0312/2019 Estándar 1.1.3 — Reglamento Interno de Trabajo (RIT)"
-                                    moduleName="Reglamento Interno de Trabajo (RIT)"
-                                />
-                            </div>
                         </div>
-                    </div>
-                </div>
-            </div>
+
+                        {/* ISO 45001 Num. 7.5 · Res. 0312 / CST Art. 104: CUMPLE */}
+                        <SGSSTLegalBadge
+                            standardCode="1.1.3"
+                            label="ISO 45001 Num. 7.5 · Res. 0312 / CST Art. 104: CUMPLE"
+                            tooltip="ISO 45001:2018 Num. 7.5 (Información documentada) · Código Sustantivo del Trabajo Art. 104 a 125 y Res. 0312/2019 Estándar 1.1.3 — Reglamento Interno de Trabajo (RIT)"
+                            moduleName="Reglamento Interno de Trabajo (RIT)"
+                        />
+                    </>
+                }
+            />
 
             <SGSSTToolbar
                 onHistory={() => setIsHistoryOpen(!isHistoryOpen)}

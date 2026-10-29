@@ -86,5 +86,8 @@ module.exports = {
     contexto: require('./contexto'),
     oportunidades: require('./oportunidades'),
     planEmergencias: require('./planEmergencias'),
+    compras: require('./compras'),
+    contratistas: require('./contratistas'),
+    gestionCambio: require('./gestionCambio'),
 };
 

@@ -53,6 +53,7 @@ import { exportEppToExcel, type EppInventoryItem } from './exportEpp';
 import { saveAs } from 'file-saver';
 import { SGSSTToolbar, ToolbarButton } from './SGSSTToolbar';
 import SGSSTLegalBadge from './SGSSTLegalBadge';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
 import ImportMethodModal from './ImportMethodModal';
 import { read, utils } from 'xlsx';
@@ -1510,81 +1511,58 @@ export default function EPPWorkspace() {
   return (
     <div className="w-full space-y-6">
       {/* ─── BANNER DE ESTADO Y MÉTRICAS CONECTADAS ─── */}
-      <div className="relative overflow-hidden rounded-3xl border border-teal-500/20 bg-gradient-to-r from-teal-500/5 via-teal-500/10 to-transparent p-4 sm:p-5">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          {/* Lado Izquierdo: Título y Badges */}
-          <div className="flex items-center gap-3.5">
-            <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm">
-              <Shield className="h-6 w-6 sm:h-7 sm:w-7" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-lg sm:text-xl font-black text-text-primary tracking-tight">
-                  Control y Suministro de EPP
-                </h1>
-                <span className="inline-flex text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-teal-500 text-white shrink-0">
-                  Oficial
+      <SGSSTHeroHeader
+        categoryId="epp_delivery"
+        icon={<Shield className="h-7 w-7" />}
+        title="Control y Suministro de EPP"
+        badges={
+          <>
+            {/* Trabajadores */}
+            <div
+              title={`${workers.length} Trabajadores Registrados con Dotación`}
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+            >
+              <div className="relative flex flex-shrink-0 items-center justify-center">
+                <UserCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                  {workers.length}
                 </span>
               </div>
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                {/* Trabajadores */}
-                <div
-                  title={`${workers.length} Trabajadores Registrados con Dotación`}
-                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                >
-                  <div className="relative flex flex-shrink-0 items-center justify-center">
-                    <UserCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
-                    <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
-                      {workers.length}
-                    </span>
-                  </div>
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                    <span className="text-xs font-bold tracking-wide">
-                      {workers.length} {workers.length === 1 ? 'Trabajador' : 'Trabajadores'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Stock Almacén */}
-                <div
-                  title={`${inventoryItems.length} Referencias de EPP en Almacén`}
-                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                >
-                  <div className="relative flex flex-shrink-0 items-center justify-center">
-                    <Boxes className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
-                    <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
-                      {inventoryItems.length}
-                    </span>
-                  </div>
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                    <span className="text-xs font-bold tracking-wide">
-                      {inventoryItems.length} Referencias en Almacén
-                    </span>
-                  </div>
-                </div>
-
-                {/* ISO 45001 Num. 8.1.2 · Res. 0312 Est. 4.2.4: CUMPLE */}
-                <SGSSTLegalBadge
-                  standardCode="4.2.4"
-                  label="ISO 45001 Num. 8.1.2 · Res. 0312 Est. 4.2.4: CUMPLE"
-                  tooltip="ISO 45001:2018 Num. 8.1.2 (Jerarquía de controles y EPP) · Res. 0312/2019 Estándar 4.2.4 (Dec. 1072/15 Art. 2.2.4.6.24)"
-                  moduleName="Suministro y Control de EPP"
-                />
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  {workers.length} {workers.length === 1 ? 'Trabajador' : 'Trabajadores'}
+                </span>
               </div>
             </div>
-          </div>
 
-          {/* Lado Derecho */}
-          <div className="flex md:flex-col items-end justify-center gap-1 shrink-0">
-            <span className="text-xs font-bold text-text-primary">
-              Res. 0312 / Dec. 1072
-            </span>
-            <span className="text-[10px] text-text-tertiary">
-              Estándar 4.2.4 SG-SST
-            </span>
-          </div>
-        </div>
-      </div>
+            {/* Stock Almacén */}
+            <div
+              title={`${inventoryItems.length} Referencias de EPP en Almacén`}
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+            >
+              <div className="relative flex flex-shrink-0 items-center justify-center">
+                <Boxes className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                  {inventoryItems.length}
+                </span>
+              </div>
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  {inventoryItems.length} Referencias en Almacén
+                </span>
+              </div>
+            </div>
+
+            {/* ISO 45001 Num. 8.1.2 · Res. 0312 Est. 4.2.4: CUMPLE */}
+            <SGSSTLegalBadge
+              standardCode="4.2.4"
+              label="ISO 45001 Num. 8.1.2 · Res. 0312 Est. 4.2.4: CUMPLE"
+              tooltip="ISO 45001:2018 Num. 8.1.2 (Jerarquía de controles y EPP) · Res. 0312/2019 Estándar 4.2.4 (Dec. 1072/15 Art. 2.2.4.6.24)"
+              moduleName="Suministro y Control de EPP"
+            />
+          </>
+        }
+      />
       
       {/* ─── TOOLBAR SUPERIOR ESTÁNDAR SGSST CON BOTONES EXPANDIBLES ──────── */}
       <SGSSTToolbar

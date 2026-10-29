@@ -26,6 +26,7 @@ import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import SGSSTToolbar, { ToolbarButton } from './SGSSTToolbar';
 import SGSSTLegalBadge from './SGSSTLegalBadge';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import QRCode from 'qrcode';
 import CollapsibleReportBox from './CollapsibleReportBox';
@@ -504,63 +505,41 @@ export default function AltaDireccionChecklist() {
     return (
         <div className="flex flex-col gap-6">
             {/* ─── BANNER DE ESTADO Y MÉTRICAS CONECTADAS ─── */}
-            <div className="relative overflow-hidden rounded-3xl border border-teal-500/20 bg-gradient-to-r from-teal-500/5 via-teal-500/10 to-transparent p-4 sm:p-5">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    {/* Lado Izquierdo: Título y Badges */}
-                    <div className="flex items-center gap-3.5">
-                        <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm">
-                            <ClipboardCheck className="h-6 w-6 sm:h-7 sm:w-7" />
-                        </div>
-                        <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <h1 className="text-lg sm:text-xl font-black text-text-primary tracking-tight">
-                                    Revisión por la Alta Dirección SG-SST
-                                </h1>
-                                <span className="inline-flex text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-teal-500 text-white shrink-0">
-                                    Oficial
+            <SGSSTHeroHeader
+                categoryId="alta_direccion"
+                icon={<ClipboardCheck className="h-7 w-7" />}
+                title="Revisión por la Alta Dirección SG-SST"
+                companyName={companyInfo?.companyName}
+                badges={
+                    <>
+                        {/* Aspectos Evaluados */}
+                        <div
+                            title={`${completedCount} de ${ALTA_DIRECCION_ITEMS.length} Aspectos Evaluados`}
+                            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                        >
+                            <div className="relative flex flex-shrink-0 items-center justify-center">
+                                <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                                <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                                    {completedCount}
                                 </span>
                             </div>
-                            <div className="flex flex-wrap items-center gap-2 pt-1">
-                                {/* Aspectos Evaluados */}
-                                <div
-                                    title={`${completedCount} de ${ALTA_DIRECCION_ITEMS.length} Aspectos Evaluados`}
-                                    className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                                >
-                                    <div className="relative flex flex-shrink-0 items-center justify-center">
-                                        <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
-                                        <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
-                                            {completedCount}
-                                        </span>
-                                    </div>
-                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                                        <span className="text-xs font-bold tracking-wide">
-                                            {completedCount} de {ALTA_DIRECCION_ITEMS.length} Aspectos
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* ISO 45001 Num. 9.3 · Res. 0312 Est. 6.1.3: CUMPLE */}
-                                <SGSSTLegalBadge
-                                    standardCode="6.1.3"
-                                    label="ISO 45001 Num. 9.3 · Res. 0312 Est. 6.1.3: CUMPLE"
-                                    tooltip="ISO 45001:2018 Num. 9.3 (Revisión por la dirección) · Res. 0312/2019 Estándar 6.1.3 — Revisión anual del SG-SST por la Alta Dirección y comunicación a COPASST (Dec. 1072/15 Art. 2.2.4.6.31)"
-                                    moduleName="Revisión por la Alta Dirección"
-                                />
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                                <span className="text-xs font-bold tracking-wide">
+                                    {completedCount} de {ALTA_DIRECCION_ITEMS.length} Aspectos
+                                </span>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Lado Derecho */}
-                    <div className="flex md:flex-col items-end justify-center gap-1 shrink-0">
-                        <span className="text-xs font-bold text-text-primary">
-                            Res. 0312 / Dec. 1072
-                        </span>
-                        <span className="text-[10px] text-text-tertiary">
-                            Estándar 6.1.3 & 6.1.4 SG-SST
-                        </span>
-                    </div>
-                </div>
-            </div>
+                        {/* ISO 45001 Num. 9.3 · Res. 0312 Est. 6.1.3: CUMPLE */}
+                        <SGSSTLegalBadge
+                            standardCode="6.1.3"
+                            label="ISO 45001 Num. 9.3 · Res. 0312 Est. 6.1.3: CUMPLE"
+                            tooltip="ISO 45001:2018 Num. 9.3 (Revisión por la dirección) · Res. 0312/2019 Estándar 6.1.3 — Revisión anual del SG-SST por la Alta Dirección y comunicación a COPASST (Dec. 1072/15 Art. 2.2.4.6.31)"
+                            moduleName="Revisión por la Alta Dirección"
+                        />
+                    </>
+                }
+            />
 
             <div className="rounded-xl border border-amber-200/60 bg-gradient-to-r from-amber-50/50 via-orange-50/30 to-teal-50/50 p-5">
                 <div className="flex items-start gap-4">

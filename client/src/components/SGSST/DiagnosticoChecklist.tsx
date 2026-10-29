@@ -55,6 +55,7 @@ import { useAuthContext } from '~/hooks';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import SGSSTToolbar from './SGSSTToolbar';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SingleSelect from './SingleSelect';
 import CollapsibleReportBox from './CollapsibleReportBox';
@@ -956,28 +957,20 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
   return (
     <div className="flex flex-col gap-6">
       {/* Header Diagnóstico Inicial */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-teal-600 text-white shadow-inner">
-            <Stethoscope className="w-6 h-6" />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <h2 className="text-base sm:text-lg font-black tracking-tight text-text-primary flex items-center gap-2">
-                Diagnóstico Inicial del SG-SST
-              </h2>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <SGSSTLegalBadge
-                standardCode="2.3.1"
-                label="ISO 45001 Num. 9.1.2 · Res. 0312 Est. 2.3.1: CUMPLE"
-                tooltip="ISO 45001:2018 Num. 9.1.2 (Evaluación del cumplimiento) · Res. 0312/2019 Est. 2.3.1 — Evaluación Inicial e identificación de prioridades (Dec. 1072/15 Art. 2.2.4.6.16)"
-                moduleName="Diagnóstico Inicial"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+      <SGSSTHeroHeader
+        categoryId="diagnostico"
+        icon={<Stethoscope className="h-7 w-7" />}
+        title="Diagnóstico Inicial del SG-SST"
+        companyName={scanSummary?.companyName}
+        badges={
+          <SGSSTLegalBadge
+            standardCode="2.3.1"
+            label="ISO 45001 Num. 9.1.2 · Res. 0312 Est. 2.3.1: CUMPLE"
+            tooltip="ISO 45001:2018 Num. 9.1.2 (Evaluación del cumplimiento) · Res. 0312/2019 Est. 2.3.1 — Evaluación Inicial e identificación de prioridades (Dec. 1072/15 Art. 2.2.4.6.16)"
+            moduleName="Diagnóstico Inicial"
+          />
+        }
+      />
 
       {/* Auto-Compliance Sync Banner */}
       {scanSummary && scanSummary.compliantCount > 0 && (

@@ -8,7 +8,9 @@ import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/Live
 import ReportHistory from '~/components/Liva/ReportHistory';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
+import ExpandableButton from '~/components/Common/ExpandableButton';
 import SGSSTLegalBadge from './SGSSTLegalBadge';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
 
 const SCORE_COLOR = (s: number) => {
     if (s >= 80) return { ring: 'border-green-400', text: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20', badge: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' };
@@ -481,45 +483,35 @@ export default function OraculoPredictivoH1() {
     return (
         <div className="space-y-6">
             {/* Hero Banner */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-teal-900 via-teal-800 to-cyan-900 p-8 text-white shadow-2xl">
-                <div className="absolute inset-0 opacity-10">
-                    <div className="absolute top-0 right-0 w-80 h-80 rounded-full bg-teal-400 blur-3xl -mr-20 -mt-20" />
-                    <div className="absolute bottom-0 left-0 w-60 h-60 rounded-full bg-cyan-400 blur-3xl -ml-10 -mb-10" />
-                </div>
-                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div>
-                        <div className="flex items-center gap-3 mb-2 flex-wrap">
-                            <div className="w-10 h-10 rounded-xl bg-teal-400/20 backdrop-blur-sm border border-teal-400/30 flex items-center justify-center">
-                                <Sparkles className="w-5 h-5 text-teal-300" />
-                            </div>
-                            <h1 className="text-2xl font-black tracking-tight">Oráculo Predictivo H1</h1>
-                            <SGSSTLegalBadge
-                                standardCode="3.1.4"
-                                label="ISO 45001 Num. 9.1.1 · Res. 0312 Est. 3.1.4: CUMPLE"
-                                tooltip="ISO 45001:2018 Num. 9.1.1 (Compatibilidad médica y aptitud laboral) · Res. 0312/2019 Estándar 3.1.4 — Dictámenes de Compatibilidad Cargo-Persona"
-                                moduleName="Dictamen de Compatibilidad Cargo-Persona"
-                            />
-                        </div>
-                        <p className="text-teal-100/80 text-sm max-w-2xl leading-relaxed">
-                            Motor Bio-Fit WAPPY · Cruza datos clínicos con exigencias del rol para emitir dictámenes de aptitud laboral basados en evidencia.
-                        </p>
-                    </div>
-                    <div className="shrink-0 flex items-center gap-3">
-                        <button
+            <SGSSTHeroHeader
+                categoryId="oraculo_h1"
+                icon={<Sparkles className="h-7 w-7" />}
+                title="Oráculo Predictivo H1"
+                description="Motor Bio-Fit WAPPY · Cruza datos clínicos con exigencias del rol para emitir dictámenes de aptitud laboral basados en evidencia."
+                badges={
+                    <SGSSTLegalBadge
+                        standardCode="3.1.4"
+                        label="ISO 45001 Num. 9.1.1 · Res. 0312 Est. 3.1.4: CUMPLE"
+                        tooltip="ISO 45001:2018 Num. 9.1.1 (Compatibilidad médica y aptitud laboral) · Res. 0312/2019 Estándar 3.1.4 — Dictámenes de Compatibilidad Cargo-Persona"
+                        moduleName="Dictamen de Compatibilidad Cargo-Persona"
+                    />
+                }
+                actions={
+                    <>
+                        <ExpandableButton
+                            variant="orange"
+                            icon={<History className="h-4 w-4" />}
+                            label="Historial General"
+                            title="Ver todos los dictámenes predictivos guardados"
                             onClick={() => {
                                 setHistoryWorkerId(null);
                                 setIsHistoryOpen(true);
                             }}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors border border-white/20 backdrop-blur-sm shadow-sm"
-                            title="Ver todos los dictámenes predictivos guardados"
-                        >
-                            <History className="w-4 h-4" />
-                            <span>Historial General</span>
-                        </button>
+                        />
                         <DummyGenerateButton onClick={handleLoadDummyData} />
-                    </div>
-                </div>
-            </div>
+                    </>
+                }
+            />
 
             <div className="space-y-5">
                 {workers.map(worker => {

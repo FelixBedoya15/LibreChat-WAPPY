@@ -19,6 +19,7 @@ import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import SGSSTToolbar from './SGSSTToolbar';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import SGSSTLegalBadge from './SGSSTLegalBadge';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
 
 const InvestigacionProfunda = () => {
     const { t } = useTranslation();
@@ -149,49 +150,37 @@ const InvestigacionProfunda = () => {
     return (
         <div className="w-full space-y-6">
             {/* ─── BANNER DE ESTADO Y MÉTRICAS CONECTADAS ─── */}
-            <div className="relative overflow-hidden rounded-3xl border border-teal-500/20 bg-gradient-to-r from-teal-500/5 via-teal-500/10 to-transparent p-4 sm:p-5">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div className="flex items-center gap-3.5">
-                        <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm">
-                            <Search className="h-6 w-6 sm:h-7 sm:w-7" />
-                        </div>
-                        <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <h1 className="text-lg sm:text-xl font-black text-text-primary tracking-tight">
-                                    Investigación Profunda SST
-                                </h1>
-                                <span className="inline-flex text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-teal-500 text-white shrink-0">
-                                    Doctrina Legal
+            <SGSSTHeroHeader
+                categoryId="investigacion_profunda"
+                icon={<Search className="h-7 w-7" />}
+                title="Investigación Profunda SST"
+                badges={
+                    <>
+                        {/* Estado Documento */}
+                        <div
+                            title={generatedReport ? "Investigación Generada" : "Listo para Investigar"}
+                            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                        >
+                            <div className="relative flex flex-shrink-0 items-center justify-center">
+                                <BrainCircuit className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                            </div>
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                                <span className="text-xs font-bold tracking-wide">
+                                    {generatedReport ? "Dictamen Elaborado" : "IA Jurídica SST"}
                                 </span>
                             </div>
-                            <div className="flex flex-wrap items-center gap-2 pt-1">
-                                {/* Estado Documento */}
-                                <div
-                                    title={generatedReport ? "Investigación Generada" : "Listo para Investigar"}
-                                    className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                                >
-                                    <div className="relative flex flex-shrink-0 items-center justify-center">
-                                        <BrainCircuit className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
-                                    </div>
-                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
-                                        <span className="text-xs font-bold tracking-wide">
-                                            {generatedReport ? "Dictamen Elaborado" : "IA Jurídica SST"}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* ISO 45001 Num. 10.2 · Res. 0312 / Dec. 1072: CUMPLE */}
-                                <SGSSTLegalBadge
-                                    standardCode="3.2.2"
-                                    label="ISO 45001 Num. 10.2 · Res. 0312 / Dec. 1072: CUMPLE"
-                                    tooltip="ISO 45001:2018 Num. 10.2 (Investigación y causas de raíz) · Dec. 1072/2015 Art. 2.2.4.6.32 y Res. 0312/2019 Estándar 3.2.2 — Investigación Profunda, Doctrina y Marco Jurídico en SST"
-                                    moduleName="Investigación Profunda SST"
-                                />
-                            </div>
                         </div>
-                    </div>
-                </div>
-            </div>
+
+                        {/* ISO 45001 Num. 10.2 · Res. 0312 / Dec. 1072: CUMPLE */}
+                        <SGSSTLegalBadge
+                            standardCode="3.2.2"
+                            label="ISO 45001 Num. 10.2 · Res. 0312 / Dec. 1072: CUMPLE"
+                            tooltip="ISO 45001:2018 Num. 10.2 (Investigación y causas de raíz) · Dec. 1072/2015 Art. 2.2.4.6.32 y Res. 0312/2019 Estándar 3.2.2 — Investigación Profunda, Doctrina y Marco Jurídico en SST"
+                            moduleName="Investigación Profunda SST"
+                        />
+                    </>
+                }
+            />
 
             <SGSSTToolbar
                 onHistory={() => setIsHistoryOpen(!isHistoryOpen)}

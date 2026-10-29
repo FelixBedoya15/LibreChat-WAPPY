@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
 import SGSSTLegalBadge from './SGSSTLegalBadge';
 import {
   Award,
@@ -812,49 +813,62 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
 
   return (
     <div className="w-full space-y-6">
-      {/* ═══ Header de Gobernanza Paritaria ═══ */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md p-6 shadow-sm">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="p-3.5 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">
-              <Award className="w-8 h-8" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-xl md:text-2xl font-black tracking-tight text-slate-800 dark:text-zinc-100">
-                  {isVigia ? 'Vigía de Seguridad y Salud en el Trabajo' : 'COPASST (Comité Paritario SST)'}
-                </h2>
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">
-                  {isVigia ? 'Menos de 10 Trabajadores' : `${config?.company?.workerCount || 0} Trabajadores • ${config?.company?.representantesPorParte || 1} Miembro(s) por parte`}
-                </span>
-                {/* ISO 45001 Num. 5.4 · Res. 0312 Est. 1.1.6: CUMPLE */}
-                <SGSSTLegalBadge
-                  standardCode="1.1.6"
-                  label="ISO 45001 Num. 5.4 · Res. 0312 Est. 1.1.6: CUMPLE"
-                  tooltip="ISO 45001:2018 Num. 5.4 (Consulta y participación de los trabajadores) · Res. 0312/2019 Estándar 1.1.6 — Conformación del COPASST / Vigía SST"
-                  moduleName="COPASST / Vigía SST"
-                />
+      {/* ═══ Header de Gobernanza Paritaria (SGSSTHeroHeader) ═══ */}
+      <SGSSTHeroHeader
+        categoryId="copasst"
+        companyName={config?.company?.companyName}
+        icon={<Award className="h-7 w-7" />}
+        title={isVigia ? 'Vigía de Seguridad y Salud en el Trabajo' : 'COPASST (Comité Paritario SST)'}
+        description="Órgano paritario de promoción, vigilancia y consulta de la salud laboral • Resolución 2013/1986 • Dec. 1072/2015 Art. 2.2.4.6.8 • Res. 0312/2019"
+        badges={
+          <>
+            <div
+              title={
+                isVigia
+                  ? 'Vigía SST: Menos de 10 Trabajadores'
+                  : `${config?.company?.workerCount || 0} Trabajadores • ${config?.company?.representantesPorParte || 1} Miembro(s) por parte`
+              }
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+            >
+              <div className="relative flex flex-shrink-0 items-center justify-center">
+                <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
               </div>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-                Órgano paritario de promoción, vigilancia y consulta de la salud laboral • Resolución 2013/1986 • Dec. 1072/2015 Art. 2.2.4.6.8 • Res. 0312/2019
-              </p>
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[280px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  {isVigia
+                    ? 'Menos de 10 Trabajadores'
+                    : `${config?.company?.workerCount || 0} Trabajadores • ${config?.company?.representantesPorParte || 1} Miembro(s) por parte`}
+                </span>
+              </div>
             </div>
-          </div>
 
-          {/* Cumplimiento Anual Badge */}
-          <div className="flex items-center gap-3 bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700/80 px-4 py-2.5 rounded-2xl">
-            <div className="text-right">
-              <p className="text-[10px] uppercase font-bold text-slate-400 dark:text-zinc-400 tracking-wider">Actas Anuales</p>
-              <p className="text-base font-black text-teal-600 dark:text-teal-400">
-                {config?.actasCompletadas || 0} / 12 ({config?.porcentajeCumplimiento || 0}%)
-              </p>
+            <div
+              title={`Cumplimiento Anual: ${config?.actasCompletadas || 0} / 12 (${config?.porcentajeCumplimiento || 0}%)`}
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+            >
+              <div className="relative flex flex-shrink-0 items-center justify-center">
+                <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                  {config?.actasCompletadas || 0}/12
+                </span>
+              </div>
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  Actas Anuales: {config?.actasCompletadas || 0} / 12 ({config?.porcentajeCumplimiento || 0}%)
+                </span>
+              </div>
             </div>
-            <div className="h-9 w-9 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-600 dark:text-teal-400 font-black text-xs">
-              ✓
-            </div>
-          </div>
-        </div>
-      </div>
+
+            {/* ISO 45001 Num. 5.4 · Res. 0312 Est. 1.1.6: CUMPLE */}
+            <SGSSTLegalBadge
+              standardCode="1.1.6"
+              label="ISO 45001 Num. 5.4 · Res. 0312 Est. 1.1.6: CUMPLE"
+              tooltip="ISO 45001:2018 Num. 5.4 (Consulta y participación de los trabajadores) · Res. 0312/2019 Estándar 1.1.6 — Conformación del COPASST / Vigía SST"
+              moduleName="COPASST / Vigía SST"
+            />
+          </>
+        }
+      />
 
       {/* ═══ Botonera Flotante Cápsula / Toolbar (WAPPY Design System) ═══ */}
       <SGSSTToolbar

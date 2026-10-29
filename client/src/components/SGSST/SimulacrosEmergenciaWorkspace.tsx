@@ -16,6 +16,7 @@ import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/Live
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ExportDropdown from './ExportDropdown';
 import SGSSTToolbar from './SGSSTToolbar';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
 import SGSSTLegalBadge from './SGSSTLegalBadge';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import ExpandingButton from './ExpandingButton';
@@ -207,84 +208,60 @@ const SimulacrosEmergenciaWorkspace: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 w-full">
-      {/* ─── BANNER DE CONTROL DE SIMULACROS (ESTILO WAPPY) ─── */}
-      <div className="relative overflow-hidden rounded-3xl border border-teal-500/30 bg-gradient-to-br from-surface-primary via-surface-secondary to-teal-500/5 p-6 shadow-xl backdrop-blur-md">
-        <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-teal-500/10 blur-3xl dark:bg-teal-400/10" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-500 to-teal-500 text-white shadow-lg shadow-teal-500/20">
-              <Activity className="h-7 w-7" />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-black tracking-tight text-text-primary">
-                  Gestión y Evaluación de Simulacros de Emergencia
-                </h2>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                  <Hammer className="w-3 h-3" /> En construcción
+      {/* ─── HERO HEADER UNIFICADO WAPPY ─── */}
+      <SGSSTHeroHeader
+        categoryId="simulacros_emergencia"
+        icon={<Activity className="h-7 w-7" />}
+        title="Gestión y Evaluación de Simulacros de Emergencia"
+        badges={
+          <>
+            <div
+              title={`${simulacros.length} Simulacros Registrados`}
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+            >
+              <div className="relative flex flex-shrink-0 items-center justify-center">
+                <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                  {simulacros.length}
                 </span>
               </div>
-
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <div
-                  title={`${simulacros.length} Simulacros Registrados`}
-                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                >
-                  <div className="relative flex flex-shrink-0 items-center justify-center">
-                    <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
-                    <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
-                      {simulacros.length}
-                    </span>
-                  </div>
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                    <span className="text-xs font-bold tracking-wide">
-                      {simulacros.length} Simulacros Registrados
-                    </span>
-                  </div>
-                </div>
-
-                {/* ISO 45001 Num. 8.2 · Res. 0312 Est. 5.1.1: CUMPLE */}
-                <SGSSTLegalBadge
-                  standardCode="5.1.1"
-                  label="ISO 45001 Num. 8.2 · Res. 0312 Est. 5.1.1: CUMPLE"
-                  tooltip="ISO 45001:2018 Num. 8.2 (Pruebas periódicas y simulacros de emergencia) · Res. 0312/2019 Estándar 5.1.1 — Simulacros de Emergencia y Evacuación anuales (Dec. 1072/15 Art. 2.2.4.6.25)"
-                  moduleName="Simulacros de Emergencia"
-                />
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  {simulacros.length} Simulacros Registrados
+                </span>
               </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <ExpandingButton
-              onClick={() =>
-                setSimulacros([
-                  ...simulacros,
-                  {
-                    fecha: new Date().toISOString().split('T')[0],
-                    hipotesis: '',
-                    tipo: 'Avisado',
-                    tiempoTotal: '',
-                    evacuados: '',
-                    hallazgos: '',
-                  },
-                ])
-              }
-              icon={Plus}
-              label="Nuevo Simulacro"
-              variant="teal"
+            {/* ISO 45001 Num. 8.2 · Res. 0312 Est. 5.1.1: CUMPLE */}
+            <SGSSTLegalBadge
+              standardCode="5.1.1"
+              label="ISO 45001 Num. 8.2 · Res. 0312 Est. 5.1.1: CUMPLE"
+              tooltip="ISO 45001:2018 Num. 8.2 (Pruebas periódicas y simulacros de emergencia) · Res. 0312/2019 Estándar 5.1.1 — Simulacros de Emergencia y Evacuación anuales (Dec. 1072/15 Art. 2.2.4.6.25)"
+              moduleName="Simulacros de Emergencia"
             />
-            <ExpandingButton
-              onClick={handleSaveLocal}
-              icon={Save}
-              label="Guardar Simulacros"
-              variant="outline-teal"
-              isLoading={isSavingLocal}
-            />
-          </div>
-        </div>
-      </div>
+          </>
+        }
+        actions={
+          <ExpandingButton
+            onClick={() =>
+              setSimulacros([
+                ...simulacros,
+                {
+                  fecha: new Date().toISOString().split('T')[0],
+                  hipotesis: '',
+                  tipo: 'Avisado',
+                  tiempoTotal: '',
+                  evacuados: '',
+                  hallazgos: '',
+                },
+              ])
+            }
+            icon={Plus}
+            label="Nuevo Simulacro"
+            variant="teal"
+          />
+        }
+      />
 
       {/* ─── TOOLBAR FLOTANTE CÁPSULA WAPPY ─── */}
       <SGSSTToolbar

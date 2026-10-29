@@ -47,6 +47,7 @@ import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar, { ToolbarButton } from './SGSSTToolbar';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
 import SGSSTLegalBadge from './SGSSTLegalBadge';
 import cn from '~/utils/cn';
 import { exportPerfilSociodemograficoToExcel, type LicenciaConduccionItem } from './exportPerfilSociodemografico';
@@ -1357,63 +1358,41 @@ const CondicionesSalud = () => {
         )}
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* ─── BANNER DE ESTADO Y MÉTRICAS CONECTADAS ─── */}
-            <div className="relative overflow-hidden rounded-3xl border border-teal-500/20 bg-gradient-to-r from-teal-500/5 via-teal-500/10 to-transparent p-4 sm:p-5">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    {/* Lado Izquierdo: Título y Badges */}
-                    <div className="flex items-center gap-3.5">
-                        <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm">
-                            <Stethoscope className="h-6 w-6 sm:h-7 sm:w-7" />
-                        </div>
-                        <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <h1 className="text-lg sm:text-xl font-black text-text-primary tracking-tight">
-                                    Diagnóstico de Condiciones de Salud y EMOs
-                                </h1>
-                                <span className="inline-flex text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-teal-500 text-white shrink-0">
-                                    Oficial
+            <SGSSTHeroHeader
+                categoryId="salud"
+                icon={<Stethoscope className="h-7 w-7" />}
+                title="Diagnóstico de Condiciones de Salud y EMOs"
+                description="Seguimiento médico-clínico y vigilancia epidemiológica. Registra signos vitales, diagnósticos de ingreso/periódicos, recomendaciones y restricciones biomecánicas del trabajador."
+                badges={
+                    <>
+                        {/* Exámenes Registrados */}
+                        <div
+                            title={`${trabajadores.length} Exámenes Médicos / Trabajadores`}
+                            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                        >
+                            <div className="relative flex flex-shrink-0 items-center justify-center">
+                                <HeartPulse className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                                <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                                    {trabajadores.length}
                                 </span>
                             </div>
-                            <div className="flex flex-wrap items-center gap-2 pt-1">
-                                {/* Exámenes Registrados */}
-                                <div
-                                    title={`${trabajadores.length} Exámenes Médicos / Trabajadores`}
-                                    className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                                >
-                                    <div className="relative flex flex-shrink-0 items-center justify-center">
-                                        <HeartPulse className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
-                                        <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
-                                            {trabajadores.length}
-                                        </span>
-                                    </div>
-                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                                        <span className="text-xs font-bold tracking-wide">
-                                            {trabajadores.length} {trabajadores.length === 1 ? 'Concepto Médico' : 'Conceptos Médicos'}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* ISO 45001 Num. 9.1.1 · Res. 0312 Est. 3.1.4: CUMPLE */}
-                                <SGSSTLegalBadge
-                                    standardCode="3.1.4"
-                                    label="ISO 45001 Num. 9.1.1 · Res. 0312 Est. 3.1.4: CUMPLE"
-                                    tooltip="ISO 45001:2018 Num. 9.1.1 (Evaluaciones médicas y salud ocupacional) · Res. 0312/2019 Estándar 3.1.4 (Dec. 1072/15 Art. 2.2.4.6.24)"
-                                    moduleName="Condiciones de Salud y EMOs"
-                                />
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                                <span className="text-xs font-bold tracking-wide">
+                                    {trabajadores.length} {trabajadores.length === 1 ? 'Concepto Médico' : 'Conceptos Médicos'}
+                                </span>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Lado Derecho */}
-                    <div className="flex md:flex-col items-end justify-center gap-1 shrink-0">
-                        <span className="text-xs font-bold text-text-primary">
-                            Res. 0312 / Dec. 1072
-                        </span>
-                        <span className="text-[10px] text-text-tertiary">
-                            Estándar 3.1.3 & 3.1.4 SG-SST
-                        </span>
-                    </div>
-                </div>
-            </div>
+                        {/* ISO 45001 Num. 9.1.1 · Res. 0312 Est. 3.1.4: CUMPLE */}
+                        <SGSSTLegalBadge
+                            standardCode="3.1.4"
+                            label="ISO 45001 Num. 9.1.1 · Res. 0312 Est. 3.1.4: CUMPLE"
+                            tooltip="ISO 45001:2018 Num. 9.1.1 (Evaluaciones médicas y salud ocupacional) · Res. 0312/2019 Estándar 3.1.4 (Dec. 1072/15 Art. 2.2.4.6.24)"
+                            moduleName="Condiciones de Salud y EMOs"
+                        />
+                    </>
+                }
+            />
 
             <SGSSTToolbar
                 onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
@@ -1453,25 +1432,6 @@ const CondicionesSalud = () => {
                     </div>
                 ]}
             />
-
-            {/* Hero Banner */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-teal-900 via-teal-800 to-cyan-900 p-8 text-white shadow-2xl">
-                <div className="absolute inset-0 opacity-10">
-                    <div className="absolute top-0 right-0 w-80 h-80 rounded-full bg-teal-400 blur-3xl -mr-20 -mt-20 opacity-10" />
-                    <div className="absolute bottom-0 left-0 w-60 h-60 rounded-full bg-cyan-400 blur-3xl -ml-10 -mb-10 opacity-10" />
-                </div>
-                <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-xl bg-teal-400/20 backdrop-blur-sm border border-teal-400/30 flex items-center justify-center">
-                            <HeartPulse className="w-5 h-5 text-teal-300" />
-                        </div>
-                        <h1 className="text-2xl font-black tracking-tight">Condiciones de Salud (Huella Biocéntrica)</h1>
-                    </div>
-                    <p className="text-teal-100/80 text-sm max-w-2xl leading-relaxed">
-                        Seguimiento médico-clínico y vigilancia epidemiológica. Registra signos vitales, diagnósticos de ingreso/periódicos, recomendaciones y restricciones biomecánicas del trabajador.
-                    </p>
-                </div>
-            </div>
 
             {/* ═══ Inbox Panel: Pending Profile Updates ═══ */}
             {showInboxPerfil && ReactDOM.createPortal(

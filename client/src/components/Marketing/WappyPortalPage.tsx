@@ -23,7 +23,7 @@ interface WappyAppCardItem {
   description: string;
   normative: string;
   image?: string;
-  visualType?: 'matriz-ipvr' | 'wappy-studio' | 'soon';
+  visualType?: 'matriz-ipvr' | 'wappy-studio' | 'wappy-podcast' | 'soon';
   icon: string;
   tags: string[];
   href?: string;
@@ -46,6 +46,60 @@ export default function WappyPortalPage() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [serverAdminVerified, setServerAdminVerified] = useState(false);
+
+  const adminEmails = ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com'];
+  const isContextAdmin = Boolean(
+    isAuthenticated &&
+      user &&
+      (user.role === 'ADMIN' ||
+        user.role === 'admin' ||
+        adminEmails.includes((user.email || '').toLowerCase())),
+  );
+  const isPreviewAdmin =
+    typeof window !== 'undefined' &&
+    (new URLSearchParams(window.location.search).get('admin') === '1' ||
+      localStorage.getItem('wappy_dots_admin') === '1');
+  const isAdmin = isContextAdmin || serverAdminVerified || isPreviewAdmin;
+
+  useEffect(() => {
+    let cancelled = false;
+    async function checkAdmin() {
+      if (isContextAdmin) {
+        setServerAdminVerified(true);
+        return;
+      }
+      try {
+        const r = await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' });
+        if (r.ok) {
+          const d = await r.json();
+          const u = d?.user;
+          if (
+            u &&
+            (u.role === 'ADMIN' ||
+              u.role === 'admin' ||
+              adminEmails.includes((u.email || '').toLowerCase()))
+          ) {
+            if (!cancelled) setServerAdminVerified(true);
+            return;
+          }
+        }
+      } catch (_e) {}
+      try {
+        const r2 = await fetch('/api/comunidad/is-admin', { credentials: 'include' });
+        if (r2.ok) {
+          const d2 = await r2.json();
+          if (d2?.isAdmin === true && !cancelled) {
+            setServerAdminVerified(true);
+          }
+        }
+      } catch (_e) {}
+    }
+    checkAdmin();
+    return () => {
+      cancelled = true;
+    };
+  }, [isContextAdmin]);
 
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     try {
@@ -198,11 +252,31 @@ export default function WappyPortalPage() {
     requireFollowBeforeOpen(app, executeOpenPortalApp);
   };
 
+  const handleOpenWappyDots = () => {
+    setIsMobileMenuOpen(false);
+    if (isAdmin) {
+      navigate('/wappy-dots');
+      return;
+    }
+    showToast('🔒 Wappy Dots estará disponible muy pronto · Acceso exclusivo para Administradores');
+  };
+
   /* Catálogo único compartido con la vista interna /aplicaciones (ver wappyAppsCatalog.ts) */
-  const wappyAppsCatalog: WappyAppCardItem[] = WAPPY_APPS_CATALOG.map((app) => ({
-    ...app,
-    onOpen: app.badgeTone === 'active' && app.path ? handleOpenAppItem(app) : undefined,
-  }));
+  const wappyAppsCatalog: WappyAppCardItem[] = WAPPY_APPS_CATALOG.map((app) => {
+    if (app.id === 'wappy-dots') {
+      return {
+        ...app,
+        badge: isAdmin ? '🔓 ACCESO ADMIN · DESCARGAR .ZIP' : '🔒 MUY PRONTO · BLOQUEADO',
+        badgeTone: isAdmin ? 'active' : 'soon',
+        ctaLabel: isAdmin ? 'Entrar a Wappy Dots (Admin)' : '🔒 Muy Pronto · Bloqueado',
+        onOpen: () => handleOpenWappyDots(),
+      };
+    }
+    return {
+      ...app,
+      onOpen: app.badgeTone === 'active' && app.path ? handleOpenAppItem(app) : undefined,
+    };
+  });
 
   return (
     <div className={`mkt wappy-portal-page ${isDarkMode ? 'mkt-dark' : ''}`}>
@@ -249,6 +323,10 @@ export default function WappyPortalPage() {
           width: 100%;
           padding-top: 118px;
           padding-bottom: 72px;
+        }
+
+        .portal-main-shell .wrap {
+          max-width: 1380px !important;
         }
 
         .portal-eyebrow {
@@ -312,11 +390,23 @@ export default function WappyPortalPage() {
 
         .portal-main-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
-          gap: 28px;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 22px;
           inline-size: 100%;
-          max-inline-size: 1080px;
+          max-inline-size: 1340px;
           margin-inline: auto;
+        }
+
+        @media (max-width: 960px) {
+          .portal-main-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+
+        @media (max-width: 680px) {
+          .portal-main-grid {
+            grid-template-columns: minmax(0, 1fr);
+          }
         }
 
         .portal-choice-card {
@@ -352,15 +442,20 @@ export default function WappyPortalPage() {
           box-shadow: 0 28px 65px -12px rgba(245, 158, 11, 0.26), 0 0 0 4px rgba(251, 191, 36, 0.24);
         }
 
+        .portal-choice-card.card-dots:hover {
+          border-color: #a855f7;
+          box-shadow: 0 28px 65px -12px rgba(168, 85, 247, 0.28), 0 0 0 4px rgba(199, 243, 3, 0.25);
+        }
+
         .portal-stage {
           position: relative;
-          min-block-size: 315px;
+          min-block-size: 300px;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: space-between;
           overflow: hidden;
-          padding: 16px 18px 14px;
+          padding: 14px 14px 12px;
         }
 
         .portal-stage-ia {
@@ -373,6 +468,12 @@ export default function WappyPortalPage() {
           background:
             radial-gradient(circle at 50% 45%, rgba(251, 191, 36, 0.28) 0%, rgba(14, 165, 233, 0.2) 42%, rgba(15, 23, 42, 0) 74%),
             linear-gradient(145deg, #0b192c 0%, #102a43 52%, #1e293b 100%);
+        }
+
+        .portal-stage-dots {
+          background:
+            radial-gradient(circle at 50% 42%, rgba(168, 85, 247, 0.32) 0%, rgba(16, 185, 129, 0.22) 42%, rgba(9, 13, 36, 0) 76%),
+            linear-gradient(145deg, #090d24 0%, #15193b 52%, #071e26 100%);
         }
 
         .portal-stage-grid {
@@ -430,14 +531,14 @@ export default function WappyPortalPage() {
           display: flex;
           flex-direction: column;
           justify-content: space-between;
-          padding: 26px 28px 28px;
+          padding: 22px 22px 24px;
         }
 
         .portal-card-kicker {
           display: inline-flex;
           align-items: center;
           gap: 6px;
-          font-size: 11.5px;
+          font-size: 11px;
           font-weight: 800;
           text-transform: uppercase;
           letter-spacing: 0.05em;
@@ -449,13 +550,13 @@ export default function WappyPortalPage() {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 10px;
+          gap: 8px;
           flex-wrap: wrap;
           margin-bottom: 12px;
         }
 
         .portal-card-title {
-          font-size: clamp(26px, 5.5vw, 32px);
+          font-size: clamp(23px, 2.5vw, 30px);
           font-weight: 900;
           color: #0e1300;
           margin: 0;
@@ -870,6 +971,15 @@ export default function WappyPortalPage() {
             >
               Wappy APPs
             </a>
+            <a
+              href="/wappy-dots"
+              onClick={(e) => {
+                e.preventDefault();
+                handleOpenWappyDots();
+              }}
+            >
+              Wappy Dots {isAdmin ? '🔓' : '🔒'}
+            </a>
           </div>
 
           {/* Botones de Acción + Selector de Tema Claro/Oscuro + Menú Hamburguesa Móvil */}
@@ -992,8 +1102,9 @@ export default function WappyPortalPage() {
                 <h1 className="display portal-hero-title">¿A dónde deseas ingresar hoy?</h1>
                 <p className="portal-hero-sub">
                   Selecciona entre nuestra plataforma central de Inteligencia Artificial con{' '}
-                  <strong>Tenshi IA</strong> o nuestra suite de aplicaciones interactivas directas en{' '}
-                  <strong>Wappy APPs</strong>.
+                  <strong>Tenshi IA</strong>, nuestra suite de aplicaciones interactivas en{' '}
+                  <strong>Wappy APPs</strong> o la isla inteligente de escritorio{' '}
+                  <strong>Wappy Dots</strong>.
                 </p>
               </div>
 
@@ -1100,7 +1211,7 @@ export default function WappyPortalPage() {
 
                       <div className="portal-card-title-row">
                         <h2 className="display portal-card-title">
-                          Wappy <span style={{ color: '#22c55e' }}>IA</span>
+                          Somos <span style={{ color: '#22c55e' }}>SST</span>
                         </h2>
                         <span
                           className="portal-card-status-pill"
@@ -1151,7 +1262,7 @@ export default function WappyPortalPage() {
                         handleGoToWappyIA();
                       }}
                     >
-                      <span>Ingresar a Wappy IA</span>
+                      <span>Ingresar a Somos SST</span>
                       <span className="pip" style={{ width: 34, height: 34, flexShrink: 0 }}>
                         <svg
                           width="16"
@@ -1346,6 +1457,258 @@ export default function WappyPortalPage() {
                           <line x1="5" y1="12" x2="19" y2="12"></line>
                           <polyline points="12 5 19 12 12 19"></polyline>
                         </svg>
+                      </span>
+                    </button>
+                  </div>
+                </article>
+
+                {/* ============================================================
+                    TARJETA 3: WAPPY DOTS (Isla en el Notch + Tenshi Voz 24kHz)
+                   ============================================================ */}
+                <article
+                  className="portal-choice-card card-dots"
+                  onClick={handleOpenWappyDots}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Wappy Dots - Isla Inteligente en tu Computador con Tenshi IA"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleOpenWappyDots();
+                    }
+                  }}
+                >
+                  {/* Stage Visual Superior con Notch Dinámico + Tenshi */}
+                  <div className="portal-stage portal-stage-dots">
+                    <div className="portal-stage-grid" />
+
+                    <div className="portal-stage-top-bar">
+                      <div
+                        className="portal-stage-pill"
+                        style={{
+                          background: 'rgba(168, 85, 247, 0.22)',
+                          border: '1px solid rgba(192, 132, 252, 0.5)',
+                          color: '#e9d5ff',
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: '50%',
+                            background: '#c7f303',
+                            boxShadow: '0 0 8px #c7f303',
+                            flexShrink: 0,
+                          }}
+                        />
+                        <span>ISLA NOTCH · VOZ 24KHZ</span>
+                      </div>
+
+                      <div
+                        className="portal-stage-pill"
+                        style={{
+                          background: isAdmin
+                            ? 'rgba(16, 185, 129, 0.24)'
+                            : 'rgba(245, 158, 11, 0.22)',
+                          border: isAdmin
+                            ? '1px solid rgba(52, 211, 153, 0.55)'
+                            : '1px solid rgba(251, 191, 36, 0.55)',
+                          color: isAdmin ? '#a7f3d0' : '#fde68a',
+                        }}
+                      >
+                        <span className="portal-label-desktop">
+                          {isAdmin ? '🔓 Admin · Descargar .ZIP' : '🔒 Muy Pronto · Bloqueado'}
+                        </span>
+                        <span className="portal-label-mobile">
+                          {isAdmin ? '🔓 Admin' : '🔒 Muy Pronto'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Cápsula Notch Hardware Mockup encima de Tenshi */}
+                    <div
+                      style={{
+                        position: 'relative',
+                        zIndex: 25,
+                        background: 'rgba(3, 7, 18, 0.92)',
+                        border: '1px solid rgba(199, 243, 3, 0.4)',
+                        borderRadius: 9999,
+                        padding: '4px 12px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        boxShadow: '0 8px 22px rgba(0,0,0,0.55)',
+                        marginTop: 2,
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 7,
+                          height: 7,
+                          borderRadius: '50%',
+                          background: '#c7f303',
+                          boxShadow: '0 0 8px #c7f303',
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 800,
+                          color: '#f8fafc',
+                          letterSpacing: '0.02em',
+                        }}
+                      >
+                        «Oye Tenshi» · Hermes Core · Mac / Win / Linux
+                      </span>
+                    </div>
+
+                    <div
+                      style={{
+                        position: 'relative',
+                        zIndex: 20,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginTop: -4,
+                      }}
+                    >
+                      <TenshiAvatar
+                        size={195}
+                        mood="idle"
+                        showHaloEffect={true}
+                        showHUD={true}
+                        interactive={false}
+                      />
+                    </div>
+
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: 8,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        width: 170,
+                        height: 20,
+                        borderRadius: '50%',
+                        background:
+                          'radial-gradient(ellipse at center, rgba(168, 85, 247, 0.5) 0%, rgba(16, 185, 129, 0) 75%)',
+                        filter: 'blur(6px)',
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  </div>
+
+                  {/* Cuerpo de la Tarjeta Wappy Dots */}
+                  <div className="portal-card-body">
+                    <div>
+                      <div className="portal-card-kicker" style={{ color: '#a855f7' }}>
+                        <span>🟣 ISLA INTELIGENTE EN TU COMPUTADOR · MULTI-OS</span>
+                      </div>
+
+                      <div className="portal-card-title-row">
+                        <h2 className="display portal-card-title">
+                          Wappy <span style={{ color: '#a855f7' }}>Dots</span>
+                        </h2>
+                        <span
+                          className="portal-card-status-pill"
+                          style={{
+                            background: isAdmin
+                              ? 'rgba(16, 185, 129, 0.16)'
+                              : isDarkMode
+                                ? 'rgba(168, 85, 247, 0.2)'
+                                : '#faf5ff',
+                            color: isAdmin
+                              ? '#059669'
+                              : isDarkMode
+                                ? '#e9d5ff'
+                                : '#7e22ce',
+                            border: isAdmin
+                              ? '1px solid rgba(16, 185, 129, 0.45)'
+                              : isDarkMode
+                                ? '1px solid rgba(192, 132, 252, 0.45)'
+                                : '1px solid #e9d5ff',
+                          }}
+                        >
+                          {isAdmin ? '🔓 Admin ( Muy Pronto )' : '🔒 Muy Pronto'}
+                        </span>
+                      </div>
+
+                      <p className="portal-card-desc">
+                        Lleva a <strong>Tenshi IA</strong> en el Notch de tu computador con{' '}
+                        <strong>Voz Viva 24 kHz (Gemini Live)</strong>,{' '}
+                        <strong>Memoria Dual y Auto-Aprendizaje de Skills</strong> (estilo Hermes &
+                        OpenClaw), <strong>Team de Agentes Autónomos</strong> en paralelo y puente en
+                        vivo con <strong>Antigravity IDE, Siigo ERP, Google Workspace</strong> y{' '}
+                        <strong>Portal Móvil QR</strong>.
+                      </p>
+
+                      <div className="portal-chips-wrap">
+                        {[
+                          '🎙️ Voz Viva 24kHz («Oye Tenshi»)',
+                          '🧠 Memoria & Skills (Hermes Core)',
+                          '🤝 Team de 4 Agentes en Paralelo',
+                          '🔌 Antigravity · Siigo · Google · QR',
+                        ].map((chip) => (
+                          <span
+                            key={chip}
+                            className="portal-chip"
+                            style={{
+                              background: isDarkMode ? 'rgba(168, 85, 247, 0.14)' : '#faf5ff',
+                              border: isDarkMode
+                                ? '1px solid rgba(192, 132, 252, 0.35)'
+                                : '1px solid #e9d5ff',
+                              color: isDarkMode ? '#e9d5ff' : '#581c87',
+                            }}
+                          >
+                            {chip}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="btn portal-cta-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenWappyDots();
+                      }}
+                      style={{
+                        background: isAdmin
+                          ? 'linear-gradient(135deg, #0e1300 0%, #1e1b4b 100%)'
+                          : isDarkMode
+                            ? 'rgba(30, 41, 59, 0.9)'
+                            : '#f1f5f9',
+                        color: isAdmin ? '#c7f303' : isDarkMode ? '#cbd5e1' : '#334155',
+                        border: isAdmin
+                          ? '2px solid #c7f303'
+                          : isDarkMode
+                            ? '2px solid rgba(148, 163, 184, 0.35)'
+                            : '2px solid #cbd5e1',
+                        borderRadius: 9999,
+                      }}
+                    >
+                      <span>
+                        {isAdmin
+                          ? '🔓 Descargar Wappy Dots (Admin)'
+                          : '🔒 Muy Pronto · Bloqueado'}
+                      </span>
+                      <span
+                        style={{
+                          width: 34,
+                          height: 34,
+                          borderRadius: 9999,
+                          background: isAdmin ? '#c7f303' : '#0e1300',
+                          color: isAdmin ? '#0e1300' : '#c7f303',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                          fontSize: 14,
+                        }}
+                      >
+                        {isAdmin ? '⬇️' : '🔒'}
                       </span>
                     </button>
                   </div>
@@ -1619,6 +1982,125 @@ export default function WappyPortalPage() {
                               }}
                             >
                               <span>⚡ Acceso Directo · Exportación .WAV y .HTML</span>
+                            </div>
+                          </div>
+                        ) : app.visualType === 'wappy-podcast' ? (
+                          <div
+                            style={{
+                              position: 'relative',
+                              aspectRatio: '16 / 9',
+                              width: '100%',
+                              background:
+                                'radial-gradient(circle at 50% 30%, rgba(168, 85, 247, 0.35) 0%, rgba(199, 243, 3, 0.15) 50%, rgba(14, 19, 0, 0.98) 100%), linear-gradient(135deg, #090e01 0%, #0c192e 50%, #1e1035 100%)',
+                              overflow: 'hidden',
+                              borderBottom: isDarkMode ? '1px solid rgba(51,65,85,0.8)' : '1px solid #e2e8f0',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '14px 16px 12px',
+                            }}
+                          >
+                            {/* Glows ambientales */}
+                            <div style={{ position: 'absolute', top: -20, left: -20, width: 90, height: 90, borderRadius: '50%', background: '#c7f303', filter: 'blur(40px)', opacity: 0.25, pointerEvents: 'none' }} />
+                            <div style={{ position: 'absolute', bottom: -20, right: -20, width: 100, height: 100, borderRadius: '50%', background: '#a855f7', filter: 'blur(45px)', opacity: 0.3, pointerEvents: 'none' }} />
+
+                            {/* Header de la Tarjeta */}
+                            <div style={{ textAlign: 'center', zIndex: 2 }}>
+                              <div
+                                style={{
+                                  fontSize: 'clamp(14px, 2.8vw, 18px)',
+                                  fontWeight: 900,
+                                  color: '#c7f303',
+                                  letterSpacing: '0.04em',
+                                  lineHeight: 1.1,
+                                  textShadow: '0 0 15px rgba(199,243,3,0.3)',
+                                }}
+                              >
+                                WAPPY PODCAST · AUDIO IA
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: 10,
+                                  color: '#d8b4fe',
+                                  fontWeight: 700,
+                                  marginTop: 2,
+                                  letterSpacing: '0.02em',
+                                }}
+                              >
+                                Podcasts Duales · Host 1 & 2 · Master WAV 24kHz
+                              </div>
+                            </div>
+
+                            {/* Consola Central de Audio Broadcast */}
+                            <div
+                              style={{
+                                zIndex: 2,
+                                width: '100%',
+                                maxWidth: 290,
+                                background: 'rgba(15, 23, 42, 0.88)',
+                                border: '1px solid rgba(168, 85, 247, 0.4)',
+                                borderRadius: 14,
+                                padding: '8px 12px',
+                                boxShadow: '0 12px 30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.1)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 6,
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                                <span style={{ fontSize: 9.5, fontWeight: 800, color: '#f8fafc', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                                  <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#ef4444', boxShadow: '0 0 8px #ef4444' }} />
+                                  <span>ON-AIR · DUAL 24kHz</span>
+                                </span>
+                                <div style={{ display: 'flex', gap: 4 }}>
+                                  <span style={{ fontSize: 8.5, fontWeight: 800, padding: '1.5px 5px', borderRadius: 6, background: '#c7f303', color: '#0e1300' }}>
+                                    HOST 1
+                                  </span>
+                                  <span style={{ fontSize: 8.5, fontWeight: 800, padding: '1.5px 5px', borderRadius: 6, background: '#a855f7', color: '#ffffff' }}>
+                                    HOST 2
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Onda Sonora Estéreo L / R */}
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2.5, height: 26, padding: '2px 0' }}>
+                                {[35, 75, 50, 95, 40, 85, 100, 65, 30, 90, 70, 88, 45, 80, 55, 92, 40, 68, 30].map((h, idx) => (
+                                  <span
+                                    key={idx}
+                                    style={{
+                                      flex: 1,
+                                      height: `${h}%`,
+                                      borderRadius: 9999,
+                                      background:
+                                        idx % 2 === 0
+                                          ? 'linear-gradient(to top, #c7f303, #84cc16)'
+                                          : 'linear-gradient(to top, #a855f7, #c084fc)',
+                                      boxShadow: idx % 3 === 0 ? '0 0 6px rgba(199,243,3,0.5)' : 'none',
+                                    }}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Badge Inferior */}
+                            <div
+                              style={{
+                                zIndex: 2,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                padding: '2.5px 10px',
+                                borderRadius: 9999,
+                                background: 'rgba(168, 85, 247, 0.18)',
+                                border: '1px solid rgba(192, 132, 252, 0.4)',
+                                color: '#e9d5ff',
+                                fontSize: 9.5,
+                                fontWeight: 800,
+                                letterSpacing: '0.02em',
+                              }}
+                            >
+                              <span>🎙️ 100% Audio Puro · Actuación & Show Notes IA</span>
                             </div>
                           </div>
                         ) : (

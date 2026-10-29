@@ -18,6 +18,7 @@ import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/Live
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ExportDropdown from './ExportDropdown';
 import SGSSTToolbar from './SGSSTToolbar';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
 import SGSSTLegalBadge from './SGSSTLegalBadge';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import ExpandingButton from './ExpandingButton';
@@ -275,95 +276,71 @@ const BrigadaEmergenciasWorkspace: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 w-full">
-      {/* ─── BANNER DE CONTROL DE BRIGADA (ESTILO WAPPY) ─── */}
-      <div className="relative overflow-hidden rounded-3xl border border-teal-500/30 bg-gradient-to-br from-surface-primary via-surface-secondary to-teal-500/5 p-6 shadow-xl backdrop-blur-md">
-        <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-teal-500/10 blur-3xl dark:bg-teal-400/10" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-teal-500 to-emerald-400 text-white shadow-lg shadow-teal-500/20">
-              <Award className="h-7 w-7" />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-black tracking-tight text-text-primary">
-                  Brigada de Emergencias & Sistema Comando de Incidentes (SCI)
-                </h2>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                  <ShieldCheck className="w-3 h-3" /> Hito 3 Activo
+      {/* ─── HERO HEADER UNIFICADO WAPPY ─── */}
+      <SGSSTHeroHeader
+        categoryId="brigada_emergencias"
+        icon={<Award className="h-7 w-7" />}
+        title="Brigada de Emergencias & Sistema Comando de Incidentes (SCI)"
+        badges={
+          <>
+            <div
+              title={`${brigadistas.length} Brigadistas Registrados`}
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+            >
+              <div className="relative flex flex-shrink-0 items-center justify-center">
+                <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                  {brigadistas.length}
                 </span>
               </div>
-
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <div
-                  title={`${brigadistas.length} Brigadistas Registrados`}
-                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                >
-                  <div className="relative flex flex-shrink-0 items-center justify-center">
-                    <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
-                    <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
-                      {brigadistas.length}
-                    </span>
-                  </div>
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
-                    <span className="text-xs font-bold tracking-wide">
-                      {brigadistas.length} Brigadistas en Nómina
-                    </span>
-                  </div>
-                </div>
-
-                <div
-                  title="Unidades: Primeros Auxilios, Contra Incendios, Evacuación"
-                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2 sm:px-2.5 shadow-sm transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                >
-                  <Flame className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-rose-500 shrink-0" />
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
-                    <span className="text-xs font-bold tracking-wide">
-                      Incendios • Auxilios • Evacuación
-                    </span>
-                  </div>
-                </div>
-
-                {/* ISO 45001 Num. 8.2 · Res. 0312 Est. 5.1.2: CUMPLE */}
-                <SGSSTLegalBadge
-                  standardCode="5.1.2"
-                  label="ISO 45001 Num. 8.2 · Res. 0312 Est. 5.1.2: CUMPLE"
-                  tooltip="ISO 45001:2018 Num. 8.2 (Preparación y respuesta ante emergencias) · Res. 0312/2019 Estándar 5.1.2 — Brigada de Emergencias (Dec. 1072/15 Art. 2.2.4.6.25)"
-                  moduleName="Brigada de Emergencias"
-                />
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  {brigadistas.length} Brigadistas en Nómina
+                </span>
               </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <ExpandingButton
-              onClick={() =>
-                setBrigadistas([
-                  ...brigadistas,
-                  {
-                    nombre: '',
-                    cedula: '',
-                    cargo: '',
-                    especialidad: 'Primeros Auxilios',
-                    rolSCI: 'Brigadista Operativo',
-                  },
-                ])
-              }
-              icon={Plus}
-              label="Añadir Brigadista"
-              variant="teal"
+            <div
+              title="Unidades: Primeros Auxilios, Contra Incendios, Evacuación"
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2 sm:px-2.5 shadow-sm transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+            >
+              <Flame className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-rose-500 shrink-0" />
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  Incendios • Auxilios • Evacuación
+                </span>
+              </div>
+            </div>
+
+            {/* ISO 45001 Num. 8.2 · Res. 0312 Est. 5.1.2: CUMPLE */}
+            <SGSSTLegalBadge
+              standardCode="5.1.2"
+              label="ISO 45001 Num. 8.2 · Res. 0312 Est. 5.1.2: CUMPLE"
+              tooltip="ISO 45001:2018 Num. 8.2 (Preparación y respuesta ante emergencias) · Res. 0312/2019 Estándar 5.1.2 — Brigada de Emergencias (Dec. 1072/15 Art. 2.2.4.6.25)"
+              moduleName="Brigada de Emergencias"
             />
-            <ExpandingButton
-              onClick={handleSaveLocal}
-              icon={Save}
-              label="Guardar Brigada"
-              variant="outline-teal"
-              isLoading={isSavingLocal}
-            />
-          </div>
-        </div>
-      </div>
+          </>
+        }
+        actions={
+          <ExpandingButton
+            onClick={() =>
+              setBrigadistas([
+                ...brigadistas,
+                {
+                  nombre: '',
+                  cedula: '',
+                  cargo: '',
+                  especialidad: 'Primeros Auxilios',
+                  rolSCI: 'Brigadista Operativo',
+                },
+              ])
+            }
+            icon={Plus}
+            label="Añadir Brigadista"
+            variant="teal"
+          />
+        }
+      />
 
       {/* ─── TOOLBAR FLOTANTE CÁPSULA WAPPY ─── */}
       <SGSSTToolbar

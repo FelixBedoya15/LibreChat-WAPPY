@@ -16,6 +16,7 @@ import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/Live
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ExportDropdown from './ExportDropdown';
 import SGSSTToolbar from './SGSSTToolbar';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
 import SGSSTLegalBadge from './SGSSTLegalBadge';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
 import ImportMethodModal from './ImportMethodModal';
@@ -368,83 +369,59 @@ const EquiposEmergenciaWorkspace: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 w-full">
-      {/* ─── BANNER DE CONTROL DE EQUIPOS DE EMERGENCIA (ESTILO WAPPY) ─── */}
-      <div className="relative overflow-hidden rounded-3xl border border-teal-500/30 bg-gradient-to-br from-surface-primary via-surface-secondary to-teal-500/5 p-6 shadow-xl backdrop-blur-md">
-        <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-teal-500/10 blur-3xl dark:bg-teal-400/10" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-sky-500 to-teal-500 text-white shadow-lg shadow-teal-500/20">
-              <Wrench className="h-7 w-7" />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-black tracking-tight text-text-primary">
-                  Inventario e Inspección de Equipos de Emergencia
-                </h2>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                  <Hammer className="w-3 h-3" /> En construcción
+      {/* ─── HERO HEADER UNIFICADO WAPPY ─── */}
+      <SGSSTHeroHeader
+        categoryId="equipos_emergencia"
+        icon={<Wrench className="h-7 w-7" />}
+        title="Inventario e Inspección de Equipos de Emergencia"
+        badges={
+          <>
+            <div
+              title={`${equipos.length} Equipos en Inventario`}
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+            >
+              <div className="relative flex flex-shrink-0 items-center justify-center">
+                <Flame className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                  {equipos.length}
                 </span>
               </div>
-
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <div
-                  title={`${equipos.length} Equipos en Inventario`}
-                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                >
-                  <div className="relative flex flex-shrink-0 items-center justify-center">
-                    <Flame className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
-                    <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
-                      {equipos.length}
-                    </span>
-                  </div>
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                    <span className="text-xs font-bold tracking-wide">
-                      {equipos.length} Recursos Registrados
-                    </span>
-                  </div>
-                </div>
-
-                {/* ISO 45001 Num. 8.2 · Res. 0312 Est. 5.1.1: CUMPLE */}
-                <SGSSTLegalBadge
-                  standardCode="5.1.1"
-                  label="ISO 45001 Num. 8.2 · Res. 0312 Est. 5.1.1: CUMPLE"
-                  tooltip="ISO 45001:2018 Num. 8.2 (Equipos para respuesta a emergencias) · Res. 0312/2019 Estándar 5.1.1 — Inspección y dotación de equipos de prevención y atención de emergencias"
-                  moduleName="Equipos de Emergencia"
-                />
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  {equipos.length} Recursos Registrados
+                </span>
               </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <ExpandingButton
-              onClick={() =>
-                setEquipos([
-                  ...equipos,
-                  {
-                    categoria: 'Extintor Multipropósito ABC',
-                    capacidad: '10 lbs',
-                    ubicacion: '',
-                    vencimiento: new Date().toISOString().split('T')[0],
-                    estado: 'Operativo',
-                  },
-                ])
-              }
-              icon={Plus}
-              label="Añadir Equipo"
-              variant="teal"
+            {/* ISO 45001 Num. 8.2 · Res. 0312 Est. 5.1.1: CUMPLE */}
+            <SGSSTLegalBadge
+              standardCode="5.1.1"
+              label="ISO 45001 Num. 8.2 · Res. 0312 Est. 5.1.1: CUMPLE"
+              tooltip="ISO 45001:2018 Num. 8.2 (Equipos para respuesta a emergencias) · Res. 0312/2019 Estándar 5.1.1 — Inspección y dotación de equipos de prevención y atención de emergencias"
+              moduleName="Equipos de Emergencia"
             />
-            <ExpandingButton
-              onClick={handleSaveLocal}
-              icon={Save}
-              label="Guardar Inventario"
-              variant="outline-teal"
-              isLoading={isSavingLocal}
-            />
-          </div>
-        </div>
-      </div>
+          </>
+        }
+        actions={
+          <ExpandingButton
+            onClick={() =>
+              setEquipos([
+                ...equipos,
+                {
+                  categoria: 'Extintor Multipropósito ABC',
+                  capacidad: '10 lbs',
+                  ubicacion: '',
+                  vencimiento: new Date().toISOString().split('T')[0],
+                  estado: 'Operativo',
+                },
+              ])
+            }
+            icon={Plus}
+            label="Añadir Equipo"
+            variant="teal"
+          />
+        }
+      />
 
       {/* ─── TOOLBAR FLOTANTE CÁPSULA WAPPY ─── */}
       <SGSSTToolbar

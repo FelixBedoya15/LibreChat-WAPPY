@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { UpgradeWall } from './UpgradeWall';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
 import SGSSTLegalBadge from './SGSSTLegalBadge';
 import {
   Loader2,
@@ -908,173 +909,108 @@ const AnalisisVulnerabilidad = () => {
 
   return (
     <div className="flex flex-col gap-6 w-full">
-      {/* ─── BANNER DE CONTROL Y ESTADO DE VULNERABILIDAD (ESTILO MATRIZ IPEVR) ─── */}
-      <div className="relative overflow-hidden rounded-3xl border border-teal-500/30 bg-gradient-to-br from-surface-primary via-surface-secondary to-teal-500/5 p-6 shadow-xl backdrop-blur-md">
-        {/* Glow de fondo */}
-        <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-teal-500/10 blur-3xl dark:bg-teal-400/10" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          {/* Lado Izquierdo: Información y Estado */}
-          <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-teal-500 to-emerald-400 text-white shadow-lg shadow-teal-500/20">
-              <Shield className="h-7 w-7" />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-black tracking-tight text-text-primary">
-                  Matriz de Vulnerabilidad (Diamante de Colores)
-                </h2>
-                {summaryStats.namedThreats > 0 ? (
-                  <div
-                    title="Evaluación Activa"
-                    className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                  >
-                    <div className="relative flex flex-shrink-0 items-center justify-center">
-                      <Star className="h-3.5 w-3.5 fill-emerald-500 text-emerald-500 shrink-0" />
-                      <span className="absolute -right-1 -top-1 flex h-2 w-2">
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
-                      </span>
-                    </div>
-                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
-                      <span className="text-xs font-black uppercase tracking-wider">Matriz Activa</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div
-                    title="Pendiente de Amenazas"
-                    className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                  >
-                    <div className="relative flex flex-shrink-0 items-center justify-center">
-                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                    </div>
-                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                      <span className="text-xs font-black uppercase tracking-wider">Sin Amenazas Definidas</span>
-                    </div>
-                  </div>
-                )}
+      {/* ─── HERO HEADER UNIFICADO WAPPY ─── */}
+      <SGSSTHeroHeader
+        categoryId="vulnerabilidad"
+        icon={<Shield className="h-7 w-7" />}
+        title="Matriz de Vulnerabilidad (Diamante de Colores)"
+        badges={
+          <>
+            {/* Amenazas Evaluadas */}
+            <div
+              title={`${summaryStats.totalThreats} Amenazas en Sesión`}
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+            >
+              <div className="relative flex flex-shrink-0 items-center justify-center">
+                <Layers className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                  {summaryStats.totalThreats}
+                </span>
               </div>
-
-              {/* Badges de Métricas Conectadas con Estilo Expansible Estándar WAPPY */}
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                {/* Amenazas Evaluadas */}
-                <div
-                  title={`${summaryStats.totalThreats} Amenazas en Sesión`}
-                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                >
-                  <div className="relative flex flex-shrink-0 items-center justify-center">
-                    <Layers className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
-                    <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
-                      {summaryStats.totalThreats}
-                    </span>
-                  </div>
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
-                    <span className="text-xs font-bold tracking-wide">
-                      {summaryStats.totalThreats}{' '}
-                      {summaryStats.totalThreats === 1 ? 'Amenaza Evaluada' : 'Amenazas Evaluadas'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Riesgo Alto */}
-                {summaryStats.highRiskCount > 0 && (
-                  <div
-                    title={`${summaryStats.highRiskCount} Amenazas en Riesgo ALTO`}
-                    className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                  >
-                    <div className="relative flex flex-shrink-0 items-center justify-center">
-                      <Flame className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-rose-500 text-rose-500 shrink-0" />
-                      <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
-                        {summaryStats.highRiskCount}
-                      </span>
-                    </div>
-                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
-                      <span className="text-xs font-bold tracking-wide">
-                        {summaryStats.highRiskCount} en Riesgo ALTO
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Evaluadores / Comité */}
-                <div
-                  title={`${summaryStats.activeEvaluators} Evaluadores del Comité`}
-                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                >
-                  <div className="relative flex flex-shrink-0 items-center justify-center">
-                    <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                    <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
-                      {summaryStats.activeEvaluators}
-                    </span>
-                  </div>
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
-                    <span className="text-xs font-bold tracking-wide">
-                      {summaryStats.activeEvaluators} Integrantes Comité
-                    </span>
-                  </div>
-                </div>
-
-                {/* Conectada al Plan de Emergencias & Oráculo Predictivo */}
-                <div
-                  title="Conectada al Plan de Emergencias y Oráculo Predictivo"
-                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                >
-                  <div className="relative flex flex-shrink-0 items-center justify-center">
-                    <BrainCircuit className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-600 dark:text-purple-400 shrink-0" />
-                  </div>
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
-                    <span className="text-xs font-bold tracking-wide">
-                      Conectada al Plan de Emergencias
-                    </span>
-                  </div>
-                </div>
-
-                {/* ISO 45001 Num. 8.2 · Res. 0312 Est. 5.1.1: CUMPLE */}
-                <SGSSTLegalBadge
-                  standardCode="5.1.1"
-                  label="ISO 45001 Num. 8.2 · Res. 0312 Est. 5.1.1: CUMPLE"
-                  tooltip="ISO 45001:2018 Num. 8.2 (Preparación y respuesta ante emergencias) · Res. 0312/2019 Estándar 5.1.1 — Análisis de Vulnerabilidad (Dec. 1072/15 Art. 2.2.4.6.25)"
-                  moduleName="Análisis de Vulnerabilidad"
-                />
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  {summaryStats.totalThreats}{' '}
+                  {summaryStats.totalThreats === 1 ? 'Amenaza Evaluada' : 'Amenazas Evaluadas'}
+                </span>
               </div>
             </div>
-          </div>
 
-          {/* Lado Derecho: Acciones Rápidas con Botones Expansibles WAPPY */}
-          <div className="flex flex-wrap md:flex-col items-end justify-center gap-2 shrink-0">
-            <div className="flex items-center gap-2">
-              <ExpandingButton
-                onClick={() => {
-                  const nid = crypto.randomUUID();
-                  setAmenazasList([{ ...emptyAmenaza(), id: nid }, ...amenazasList]);
-                  setActiveAmenazaId(nid);
-                  setIsFormExpanded(true);
-                }}
-                icon={Plus}
-                label="Añadir Amenaza"
-                variant="teal"
-              />
-              <ExpandingButton
-                onClick={() => handleSaveData(false)}
-                icon={Save}
-                label="Guardar Matriz"
-                variant="outline-teal"
-                isLoading={isSavingLocal}
-              />
-            </div>
-            {lastUpdatedAt && (
-              <span className="text-[10px] text-text-tertiary">
-                Último guardado:{' '}
-                {new Date(lastUpdatedAt).toLocaleTimeString('es-CO', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </span>
+            {/* Riesgo Alto */}
+            {summaryStats.highRiskCount > 0 && (
+              <div
+                title={`${summaryStats.highRiskCount} Amenazas en Riesgo ALTO`}
+                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+              >
+                <div className="relative flex flex-shrink-0 items-center justify-center">
+                  <Flame className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-rose-500 text-rose-500 shrink-0" />
+                  <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                    {summaryStats.highRiskCount}
+                  </span>
+                </div>
+                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
+                  <span className="text-xs font-bold tracking-wide">
+                    {summaryStats.highRiskCount} en Riesgo ALTO
+                  </span>
+                </div>
+              </div>
             )}
-          </div>
-        </div>
-      </div>
+
+            {/* Evaluadores / Comité */}
+            <div
+              title={`${summaryStats.activeEvaluators} Evaluadores del Comité`}
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+            >
+              <div className="relative flex flex-shrink-0 items-center justify-center">
+                <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                  {summaryStats.activeEvaluators}
+                </span>
+              </div>
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  {summaryStats.activeEvaluators} Integrantes Comité
+                </span>
+              </div>
+            </div>
+
+            {/* Conectada al Plan de Emergencias & Oráculo Predictivo */}
+            <div
+              title="Conectada al Plan de Emergencias y Oráculo Predictivo"
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+            >
+              <div className="relative flex flex-shrink-0 items-center justify-center">
+                <BrainCircuit className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-600 dark:text-purple-400 shrink-0" />
+              </div>
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  Conectada al Plan de Emergencias
+                </span>
+              </div>
+            </div>
+
+            {/* ISO 45001 Num. 8.2 · Res. 0312 Est. 5.1.1: CUMPLE */}
+            <SGSSTLegalBadge
+              standardCode="5.1.1"
+              label="ISO 45001 Num. 8.2 · Res. 0312 Est. 5.1.1: CUMPLE"
+              tooltip="ISO 45001:2018 Num. 8.2 (Preparación y respuesta ante emergencias) · Res. 0312/2019 Estándar 5.1.1 — Análisis de Vulnerabilidad (Dec. 1072/15 Art. 2.2.4.6.25)"
+              moduleName="Análisis de Vulnerabilidad"
+            />
+          </>
+        }
+        actions={
+          <ExpandingButton
+            onClick={() => {
+              const nid = crypto.randomUUID();
+              setAmenazasList([{ ...emptyAmenaza(), id: nid }, ...amenazasList]);
+              setActiveAmenazaId(nid);
+              setIsFormExpanded(true);
+            }}
+            icon={Plus}
+            label="Añadir Amenaza"
+            variant="teal"
+          />
+        }
+      />
 
       {/* ─── TOOLBAR FLOTANTE CÁPSULA WAPPY ─── */}
       <SGSSTToolbar

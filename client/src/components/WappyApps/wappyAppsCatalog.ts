@@ -17,7 +17,7 @@ export interface WappyAppCatalogItem {
   description: string;
   normative: string;
   image?: string;
-  visualType?: 'matriz-ipvr' | 'wappy-studio' | 'soon';
+  visualType?: 'matriz-ipvr' | 'wappy-studio' | 'wappy-podcast' | 'soon';
   icon: string;
   tags: string[];
   /** URL pública absoluta de producción (referencia / SEO). */
@@ -71,6 +71,48 @@ export const WAPPY_APPS_CATALOG: WappyAppCatalogItem[] = [
     href: 'https://wappy.club/wappystudio',
     path: '/wappystudio',
     ctaLabel: 'Ingresar a WAPPY Studio',
+  },
+  {
+    id: 'wappy-podcast',
+    badge: 'NUEVO · AUDIO IA 24kHz',
+    badgeTone: 'active',
+    title: 'APP de WAPPY Podcast',
+    subtitle: 'Estudio de Podcasts & Cápsulas de Audio Dual (2 Voces) en 24kHz con IA',
+    description:
+      'Crea episodios de podcast profesionales y cápsulas de audio formativo con voces neuronales hiperrealistas (Gemini 3.8 Flash TTS), actuación vocal orgánica (<breath>, <laugh>, pausas), guionización asistida por IA y exportación directa en WAV 24kHz estéreo con Show Notes.',
+    normative: 'Cápsulas de Audio & Podcast SST · Comunicación Efectiva',
+    visualType: 'wappy-podcast',
+    icon: '🎙️',
+    tags: [
+      'Podcast Dual (Host 1 & 2)',
+      'Locución Neural 24kHz (.WAV)',
+      'Actuación Vocal Orgánica',
+      'Show Notes & Resumen IA',
+    ],
+    href: 'https://wappy.club/wappypodcast',
+    path: '/wappypodcast',
+    ctaLabel: 'Ingresar a WAPPY Podcast',
+  },
+  {
+    id: 'wappy-dots',
+    badge: 'MUY PRONTO · ACCESO ADMIN',
+    badgeTone: 'soon',
+    title: 'Wappy Dots + Tenshi IA',
+    subtitle: 'Isla Inteligente en tu Notch · Voz Viva 24kHz, Hermes Core & Team de Agentes',
+    description:
+      'Lleva a Tenshi IA en el Notch de tu computador (macOS, Windows y Linux) con activación por voz a 24kHz (Gemini Live), Memoria Dual y Auto-Aprendizaje de Skills estilo Hermes/OpenClaw, Team de Agentes en paralelo, puente con Antigravity IDE, Siigo ERP, Google Workspace y Portal Móvil QR.',
+    normative: 'macOS (Apple Silicon & Intel) · Windows · Linux',
+    visualType: 'soon',
+    icon: '🟣',
+    tags: [
+      'Voz Viva 24kHz en Notch',
+      'Memoria & Skills Hermes',
+      'Team de 4 Agentes IA',
+      'Antigravity · Siigo · Google',
+    ],
+    href: 'https://wappy.club/wappy-dots',
+    path: '/wappy-dots',
+    ctaLabel: '🔒 Muy Pronto (Acceso Admin)',
   },
   {
     id: 'diagnostico-0312',

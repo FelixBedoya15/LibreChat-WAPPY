@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import BioIndividuoDashboard from './BioIndividuoDashboard';
 import SGSSTLegalBadge from './SGSSTLegalBadge';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface Perfil {
@@ -366,52 +367,40 @@ export default function BioIndividualHub() {
   return (
     <div className="flex flex-col gap-6 p-4">
       {/* ─── BANNER DE ESTADO Y MÉTRICAS CONECTADAS ─── */}
-      <div className="relative overflow-hidden rounded-3xl border border-teal-500/20 bg-gradient-to-r from-teal-500/5 via-teal-500/10 to-transparent p-4 sm:p-5">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3.5">
-            <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm">
-              <Dna className="h-6 w-6 sm:h-7 sm:w-7" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-lg sm:text-xl font-black text-text-primary tracking-tight">
-                  Matriz Bio-IPEVR (Hub Bio-Individual)
-                </h1>
-                <span className="inline-flex text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-teal-500 text-white shrink-0">
-                  Biocéntrico
+      <SGSSTHeroHeader
+        categoryId="compatibilidad"
+        icon={<Dna className="h-7 w-7" />}
+        title="Matriz Bio-IPEVR (Hub Bio-Individual)"
+        badges={
+          <>
+            {/* Total Trabajadores */}
+            <div
+              title={`${totalWorkers} Trabajadores Mapeados`}
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+            >
+              <div className="relative flex flex-shrink-0 items-center justify-center">
+                <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                  {totalWorkers}
                 </span>
               </div>
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                {/* Total Trabajadores */}
-                <div
-                  title={`${totalWorkers} Trabajadores Mapeados`}
-                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                >
-                  <div className="relative flex flex-shrink-0 items-center justify-center">
-                    <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
-                    <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
-                      {totalWorkers}
-                    </span>
-                  </div>
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
-                    <span className="text-xs font-bold tracking-wide">
-                      {totalWorkers} {totalWorkers === 1 ? 'Trabajador' : 'Trabajadores'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* ISO 45001 Num. 6.1.2 · Res. 0312 Est. 4.1.1: CUMPLE */}
-                <SGSSTLegalBadge
-                  standardCode="4.1.1"
-                  label="ISO 45001 Num. 6.1.2 · Res. 0312 Est. 4.1.1: CUMPLE"
-                  tooltip="ISO 45001:2018 Num. 6.1.2 (Peligros y riesgos bioindividuales) · Res. 0312/2019 Estándar 4.1.1"
-                  moduleName="Matriz Bio-IPEVR Individual"
-                />
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  {totalWorkers} {totalWorkers === 1 ? 'Trabajador' : 'Trabajadores'}
+                </span>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
+
+            {/* ISO 45001 Num. 6.1.2 · Res. 0312 Est. 4.1.1: CUMPLE */}
+            <SGSSTLegalBadge
+              standardCode="4.1.1"
+              label="ISO 45001 Num. 6.1.2 · Res. 0312 Est. 4.1.1: CUMPLE"
+              tooltip="ISO 45001:2018 Num. 6.1.2 (Peligros y riesgos bioindividuales) · Res. 0312/2019 Estándar 4.1.1"
+              moduleName="Matriz Bio-IPEVR Individual"
+            />
+          </>
+        }
+      />
 
       {/* ── Resumen ── */}
       <div className="grid grid-cols-3 gap-3">

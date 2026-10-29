@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { UpgradeWall } from './UpgradeWall';
 import SGSSTLegalBadge from './SGSSTLegalBadge';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
 import { useTranslation } from 'react-i18next';
 import {
     Sparkles,
@@ -1053,85 +1054,73 @@ const EstadisticasATEL = () => {
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header / Toolbar */}
-            <div className="flex flex-col items-start justify-center gap-4 p-4 rounded-2xl bg-surface-secondary border border-border-medium shadow-sm">
-                <div className="flex flex-wrap items-center gap-3 w-full">
-                    <div className="p-2.5 rounded-2xl bg-teal-100 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400 border border-teal-200 dark:border-teal-800">
-                        <BarChart className="h-6 w-6" />
+            <SGSSTHeroHeader
+                categoryId="estadisticas"
+                icon={<BarChart className="h-7 w-7" />}
+                title="Gestión Integral de Ausentismo, ATEL & Costos Laborales"
+                companyName={activeCompanyInfo?.name}
+                badges={
+                    <SGSSTLegalBadge
+                        standardCode="30"
+                        label="ISO 45001 Num. 9.1.1 · Res. 0312 Art. 30: CUMPLE"
+                        tooltip="ISO 45001:2018 Num. 9.1.1 (Seguimiento y evaluación del desempeño) · Res. 0312/2019 Art. 30 y Dec. 1072/15 Art. 2.2.4.6.21 — Indicadores Mínimos del SG-SST (Frecuencia, Severidad, Mortalidad y Ausentismo)"
+                        moduleName="Estadísticas e Indicadores ATEL"
+                    />
+                }
+                actions={
+                    <div className="inline-flex items-center gap-1.5 p-1 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-sm">
+                        <button
+                            type="button"
+                            onClick={() => setYear(y => y - 1)}
+                            title="Año anterior"
+                            className="w-7 h-7 flex items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all shadow-2xs active:scale-95"
+                        >
+                            <ChevronLeft className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="px-2.5 py-0.5 rounded-xl text-xs font-black font-mono tabular-nums bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 shadow-2xs">
+                            {year}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => setYear(y => y + 1)}
+                            title="Año siguiente"
+                            className="w-7 h-7 flex items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all shadow-2xs active:scale-95"
+                        >
+                            <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
                     </div>
-                    <div>
-                        <h2 className="text-lg font-black text-text-primary flex items-center gap-2">
-                            Gestión Integral de Ausentismo, ATEL & Costos Laborales
-                        </h2>
-                        <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                            <div className="inline-flex items-center gap-1.5 p-1 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-sm">
-                                <button
-                                    type="button"
-                                    onClick={() => setYear(y => y - 1)}
-                                    title="Año anterior"
-                                    className="w-7 h-7 flex items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all shadow-2xs active:scale-95"
-                                >
-                                    <ChevronLeft className="w-3.5 h-3.5" />
-                                </button>
-                                <span className="px-2.5 py-0.5 rounded-xl text-xs font-black font-mono bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 shadow-2xs">
-                                    {year}
-                                </span>
-                                <button
-                                    type="button"
-                                    onClick={() => setYear(y => y + 1)}
-                                    title="Año siguiente"
-                                    className="w-7 h-7 flex items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all shadow-2xs active:scale-95"
-                                >
-                                    <ChevronRight className="w-3.5 h-3.5" />
-                                </button>
-                            </div>
-                            <span className="text-xs text-text-secondary">| Res. 0312 Art. 30 · NTC 3793 · Factor Financiero IBC</span>
-                            {/* ISO 45001 Num. 9.1.1 · Res. 0312 Art. 30: CUMPLE */}
-                            <SGSSTLegalBadge
-                                standardCode="30"
-                                label="ISO 45001 Num. 9.1.1 · Res. 0312 Art. 30: CUMPLE"
-                                tooltip="ISO 45001:2018 Num. 9.1.1 (Seguimiento y evaluación del desempeño) · Res. 0312/2019 Art. 30 y Dec. 1072/15 Art. 2.2.4.6.21 — Indicadores Mínimos del SG-SST (Frecuencia, Severidad, Mortalidad y Ausentismo)"
-                                moduleName="Estadísticas e Indicadores ATEL"
-                            />
-                            {activeCompanyInfo?.name && (
-                                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-teal-700 dark:text-teal-300 bg-teal-500/10 dark:bg-teal-500/20 px-2.5 py-0.5 rounded-full border border-teal-500/20 shadow-xs">
-                                    <Building2 className="w-3 h-3 text-teal-500" />
-                                    <span>Empresa: <strong>{activeCompanyInfo.name}</strong>{activeCompanyInfo.nit ? ` · NIT: ${activeCompanyInfo.nit}` : ''}</span>
-                                </span>
-                            )}
-                        </div>
-                    </div>
-                </div>
+                }
+            />
 
-                <SGSSTToolbar
-                    onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
-                    isHistoryOpen={isHistoryOpen}
-                    aiButtons={[
-                        {
-                            id: 'generate-annual',
-                            onClick: () => handleGenerate('ANNUAL'),
-                            disabled: isGenerating,
-                            title: `Generar Informe Anual de Ausentismo & Costos ${year}`,
-                            label: "Generar Informe Anual",
-                            icon: "sparkles",
-                            variant: "ai",
-                            isLoading: isGenerating
-                        }
-                    ]}
-                    selectedModel={selectedModel}
-                    onSelectModel={setSelectedModel}
-                    onSaveLocal={handleSaveData}
-                    isSavingLocal={isSavingData}
-                    onImportExcel={() => fileInputRef.current?.click()}
-                    importExcelLabel="Importar Ausentismo"
-                    importExcelTitle="Homologar casillas y cargar novedades de ausentismo e incapacidades desde Excel"
-                    onExportExcel={handleExportExcel}
-                    onDownloadTemplate={handleDownloadTemplate}
-                    hasContent={!!(editorContentRef.current || generatedReport)}
-                    exportContent={editorContentRef.current || generatedReport || ''}
-                    exportFileName={`Informe_Ausentismo_ATEL_${MONTHS[currentMonthIndex]}_${year}`}
-                    onDummy={handleDummyData}
-                />
-            </div>
+            <SGSSTToolbar
+                onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                isHistoryOpen={isHistoryOpen}
+                aiButtons={[
+                    {
+                        id: 'generate-annual',
+                        onClick: () => handleGenerate('ANNUAL'),
+                        disabled: isGenerating,
+                        title: `Generar Informe Anual de Ausentismo & Costos ${year}`,
+                        label: "Generar Informe Anual",
+                        icon: "sparkles",
+                        variant: "ai",
+                        isLoading: isGenerating
+                    }
+                ]}
+                selectedModel={selectedModel}
+                onSelectModel={setSelectedModel}
+                onSaveLocal={handleSaveData}
+                isSavingLocal={isSavingData}
+                onImportExcel={() => fileInputRef.current?.click()}
+                importExcelLabel="Importar Ausentismo"
+                importExcelTitle="Homologar casillas y cargar novedades de ausentismo e incapacidades desde Excel"
+                onExportExcel={handleExportExcel}
+                onDownloadTemplate={handleDownloadTemplate}
+                hasContent={!!(editorContentRef.current || generatedReport)}
+                exportContent={editorContentRef.current || generatedReport || ''}
+                exportFileName={`Informe_Ausentismo_ATEL_${MONTHS[currentMonthIndex]}_${year}`}
+                onDummy={handleDummyData}
+            />
 
             {/* History Panel */}
             {isHistoryOpen && (

@@ -22,6 +22,7 @@ import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar from './SGSSTToolbar';
 import SGSSTLegalBadge from './SGSSTLegalBadge';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
 import SingleSelect from './SingleSelect';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import AcpmActionPlanBox, { type ActionPlanItem } from './AcpmActionPlanBox';
@@ -483,64 +484,41 @@ const AnalisisTrabajoSeguro = () => {
     return (
         <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* ─── BANNER DE ESTADO Y MÉTRICAS CONECTADAS ─── */}
-            <div className="relative overflow-hidden rounded-3xl border border-teal-500/20 bg-gradient-to-r from-teal-500/5 via-teal-500/10 to-transparent p-4 sm:p-5">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    {/* Lado Izquierdo: Título y Badges */}
-                    <div className="flex items-center gap-3.5">
-                        <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm">
-                            <ShieldCheck className="h-6 w-6 sm:h-7 sm:w-7" />
-                        </div>
-                        <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <h1 className="text-lg sm:text-xl font-black text-text-primary tracking-tight">
-                                    Análisis de Trabajo Seguro (ATS)
-                                </h1>
-                                <span className="inline-flex text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-teal-500 text-white shrink-0">
-                                    Oficial
+            <SGSSTHeroHeader
+                categoryId="ats"
+                icon={<ShieldCheck className="h-7 w-7" />}
+                title="Análisis de Trabajo Seguro (ATS)"
+                badges={
+                    <>
+                        {/* Estado Documento */}
+                        <div
+                            title={editorContentRef.current || generatedReport ? 'ATS Elaborado y Vigente' : 'Formulario de ATS Pendiente'}
+                            className={`group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 ${
+                                editorContentRef.current || generatedReport
+                                    ? 'border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300'
+                                    : 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                            }`}
+                        >
+                            <div className="relative flex flex-shrink-0 items-center justify-center">
+                                <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                            </div>
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
+                                <span className="text-xs font-bold tracking-wide">
+                                    {editorContentRef.current || generatedReport ? 'ATS Generado' : 'Borrador / Pendiente'}
                                 </span>
                             </div>
-                            <div className="flex flex-wrap items-center gap-2 pt-1">
-                                {/* Estado Documento */}
-                                <div
-                                    title={editorContentRef.current || generatedReport ? 'ATS Elaborado y Vigente' : 'Formulario de ATS Pendiente'}
-                                    className={`group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 ${
-                                        editorContentRef.current || generatedReport
-                                            ? 'border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300'
-                                            : 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                                    }`}
-                                >
-                                    <div className="relative flex flex-shrink-0 items-center justify-center">
-                                        <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-                                    </div>
-                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
-                                        <span className="text-xs font-bold tracking-wide">
-                                            {editorContentRef.current || generatedReport ? 'ATS Generado' : 'Borrador / Pendiente'}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* ISO 45001 Num. 8.1.2 · Res. 0312 Est. 4.2.3: CUMPLE */}
-                                <SGSSTLegalBadge
-                                    standardCode="4.2.3"
-                                    label="ISO 45001 Num. 8.1.2 · Res. 0312 Est. 4.2.3: CUMPLE"
-                                    tooltip="ISO 45001:2018 Num. 8.1.2 (Controles operacionales) · Res. 0312/2019 Estándar 4.2.3 — Procedimientos e Instructivos ATS (Dec. 1072/15 Art. 2.2.4.6.24)"
-                                    moduleName="Análisis de Trabajo Seguro (ATS)"
-                                />
-                            </div>
                         </div>
-                    </div>
 
-                    {/* Lado Derecho */}
-                    <div className="flex md:flex-col items-end justify-center gap-1 shrink-0">
-                        <span className="text-xs font-bold text-text-primary">
-                            Res. 0312 / Dec. 1072
-                        </span>
-                        <span className="text-[10px] text-text-tertiary">
-                            Estándar 4.2.3 Operativo
-                        </span>
-                    </div>
-                </div>
-            </div>
+                        {/* ISO 45001 Num. 8.1.2 · Res. 0312 Est. 4.2.3: CUMPLE */}
+                        <SGSSTLegalBadge
+                            standardCode="4.2.3"
+                            label="ISO 45001 Num. 8.1.2 · Res. 0312 Est. 4.2.3: CUMPLE"
+                            tooltip="ISO 45001:2018 Num. 8.1.2 (Controles operacionales) · Res. 0312/2019 Estándar 4.2.3 — Procedimientos e Instructivos ATS (Dec. 1072/15 Art. 2.2.4.6.24)"
+                            moduleName="Análisis de Trabajo Seguro (ATS)"
+                        />
+                    </>
+                }
+            />
 
                 <SGSSTToolbar
                     onHistory={() => setIsHistoryOpen(!isHistoryOpen)}

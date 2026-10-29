@@ -2887,21 +2887,6 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
         </div>
       )}
 
-      {/* ─── TOOLBAR FLOTANTE CÁPSULA WAPPY ─── */}
-      <SGSSTToolbar
-        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
-        isHistoryOpen={isHistoryOpen}
-        onAnalyze={handleCompileReport}
-        isAnalyzing={isCompilingReport}
-        selectedModel={selectedModel}
-        onSelectModel={setSelectedModel}
-        onSaveLocal={handleSaveData}
-        isSavingLocal={isSavingData}
-        hasContent={!!(editorContentRef.current || generatedReport)}
-        exportContent={editorContentRef.current || generatedReport || ''}
-        exportFileName={`Contexto_Partes_Interesadas_ISO45001_${Date.now()}`}
-      />
-
       {/* ─── MODAL DE HISTORIAL DE REPORTES (ReportHistory) ─── */}
       <ReportHistory
         onSelectReport={handleSelectReport}

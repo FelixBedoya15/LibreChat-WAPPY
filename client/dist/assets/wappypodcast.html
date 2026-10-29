@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="es" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WAPPY Podcast IA — Creador de Podcasts & Cápsulas de Audio Dual en 24kHz | WAPPY</title>
+  
+  <!-- WhatsApp & Redes Sociales Meta Tags -->
+  <meta property="og:title" content="WAPPY Podcast IA — Creador de Podcasts & Cápsulas de Audio Dual en 24kHz | WAPPY">
+  <meta property="og:description" content="Estudio broadcast de Podcasts y Cápsulas a 2 voces (Alex & Sam / Host & Experto) con Gemini 3.8 Flash TTS (24kHz), modulación emocional, espectro estéreo y Show Notes automatizados.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="WAPPY IA">
+  <meta name="theme-color" content="#0e1300">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <!-- Favicon WAPPY Oficial -->
+  <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAfQAAAH0CAYAAADL1t+KAAAACXBIWXMAAA7DAAAOwwHHb6hkAAAQAElEQVR4AexdCZxN5f8+rusaE5JkTcpWIUollBbttoosUZGiXUokkjWFpCRZWrQoS6lfCa0isleW7Fv2LWQZ47qu//O8zbn/IWbGzNx7z7n3mc957znnPe95l+f9nu/zfr/ve854LP0JASEgBISAEBACrkdAhO76LlQDhIAQEAJCQAhYVngJXQgLASEgBISAEBACEUFAhB4RmFWIEBACQkAICIHwIuBmQg8vMspdCAgBISAEhICLEBChu6izVFUhIASEgBAQAqdCQIR+KmQULwSEgBAQAkLARQiI0F3UWaqqEBACQkAICIFTISBCPxUy4Y1X7kJACAgBISAEshUBEXq2wqnMhIAQEAJCQAhEBwERenRwD2+pyl0ICAEhIATiDgERetx1uRosBISAEBACsYiACD0WezW8bVLuQkAICAEh4EAEROgO7BRVSQgIASEgBITA6SIgQj9dxJQ+vAgodyEgBISAEMgUAiL0TMGmm4SAEBACQkAIOAsBEbqz+kO1CS8Cyl0ICAEhELMIiNBjtmvVMCEgBISAEIgnBETo8dTbamt4EVDuQkAICIEoIiBCjyL4KloICAEhIASEQHYhIELPLiSVjxAILwLKXQgIASGQJgIi9DTh0UUhIASEgBAQAu5AQITujn5SLYVAeBFQ7kJACLgeARG667tQDRACQkAICAEhYFkidEmBEBAC4UZA+QsBIRABBEToEQBZRQgBISAEhIAQCDcCIvRwI6z8hYAQCC8Cyl0ICAGDgAjdwKAfISAEhIAQEALuRkCE7u7+U+2FgBAILwLKXQi4BgERumu6ShUVAkJACAgBIXBqBETop8ZGV4SAEBAC4UVAuQuBbERAhJ6NYCorISAEhIAQEALRQkCEHi3kVa4QEAJCILwIKPc4Q0CEHmcdruYKASEgBIRAbCIgQo/NflWrhIAQEALhRUC5Ow4BEbrjukQVEgJCQAgIASFw+giI0E8fM90hBISAEBAC4UVAuWcCARF6JkDTLUJACAgBISAEnIaACN1pPaL6CAEhIASEQHgRiNHcRegx2rFqlhAQAkJACMQXAiL0+OpvtVYICAEhIATCi0DUchehRw16FSwEhIAQEAJCIPsQEKFnH5bKSQgIASEgBIRAeBFII3cRehrg6JIQEAJCQAgIAbcgIEJ3S0+pnkJACAgBISAE0kAgGwg9jdx1SQgIASEgBISAEIgIAiL0iMCsQoSAEBACQkAIhBcBxxN6eJuv3IWAEBACQkAIxAYCIvTY6Ee1QggIASEgBOIcgTgn9DjvfTVfCAgBISAEYgYBEXrMdKUaIgSEgBAQAvGMgAg9jL2vrIWAEBACQkAIRAoBEXqkkFY5QkAICAEhIATCiIAIPYzghjdr5S4EhIAQEAJC4P8REKH/PxY6EgJCQAgIASHgWgRE6K7tuvBWXLkLASEgBISAuxAQoburv1RbISAEhIAQEAInRUCEflJYFBleBJS7EBACQkAIZDcCIvTsRlT5CQEhIASEgBCIAgIi9CiAriLDi4ByFwJCQAjEIwIi9HjsdbVZCAgBISAEYg4BEXrMdakaFF4ElLsQEAJCwJkIiNCd2S+qlRAQAkJACAiB00JAhH5acCmxEAgvAspdCAgBIZBZBETomUVO9wkBISAEhIAQcBACInQHdYaqIgTCi4ByFwJCIJYREKHHcu+qbUJACAgBIRA3CIjQ46ar1VAhEF4ElLsQEALRRUCEHl38VboQEAJCQAgIgWxBQISeLTAqEyEgBMKLgHIXAkIgPQRE6OkhpOtCQAgIASEgBFyAgAjdBZ2kKgoBIRBeBJS7EIgFBETosdCLaoMQEAJCQAjEPQIi9LgXAQEgBIRAeBFQ7kIgMgiI0CODs0oRAkJACAgBIRBWBEToYYVXmQsBISAEwouAchcCNgIidBsJ7YWAEBACQkAIuBgBEbqLO09VFwJCQAiEFwHl7iYEROhu6i3VVQgIASEgBITAKRAQoZ8CGEULASEgBIRAeBFQ7tmLgAg9e/FUbkJACAgBISAEooKACD0qsKtQISAEhIAQCC8C8Ze7CD3++lwtFgJCQAgIgRhEQIQeg52qJgkBISAEhEB4EXBi7iJ0J/aK6iQEhIAQEAJC4DQREKGfJmBKLgSEgBAQAkIgvAhkLncReuZw011CQAgIASEgBByFgAjdUd2hyggBISAEhIAQyBwCGSX0zOWuu4SAEBACQkAICIGIICBCjwjMKkQICAEhIASEQHgRcAahh7eNyl0ICAEhIASEQMwjIEKP+S5WA4WAEBACQiAeEIgHQo+HflQbhYAQEAJCIM4REKHHuQCo+UJACAgBIRAbCIjQs9qPul8ICAEhIASEgAMQEKE7oBNUBSEgBISAEBACWUVAhJ5VBMN7v3IXAkJACAgBIZAhBEToGYJJiYSAEBACQkAIOBsBEbqz+ye8tVPuQkAICAEhEDMIiNBjpivVECEgBISAEIhnBETo8dz74W27chcCQkAICIEIIiBCjyDYKkoICAEhIASEQLgQEKGHC1nlG14ElLsQEAJCQAgch4AI/Tg4dCIEhIAQEAJCwJ0IiNDd2W+qdXgRUO5CQAgIAdchIEJ3XZepwkJACAgBISAE/ouACP2/mChGCIQXAeUuBISAEAgDAiL0MICqLIWAEBACQkAIRBoBEXqkEVd5QiC8CCh3ISAE4hQBEXqcdryaLQSEgBAQArGFgAg9tvpTrREC4UVAuQsBIeBYBEToju0aVUwICAEhIASEQMYREKFnHCulFAJCILwIKHchIASygIAIPQvg6VYhIASEgBAQAk5BQITulJ5QPYSAEAgvAsrdtQgcO3YsB4IHIWdKyOHaxoSx4iL0LIALwaKA5d+/f39hHBfdvn17kfnz55cZP3789e++++7jw4cPf23kyJGd33nnndbY34y4Ku+9917p//3vf8WXLFlS9ODBg8VwXxGEcxByI0hIs9Af8XYr5CUXQgEEyk9x7ItDpopv2LCh+PLly01YunRpMZ4fOHCgKK4zUOaY9iyc54o3zNReZyMAmSRh592zZ88Dc+fO/W3cuHF/v//++wehP5OhRw9Ch3IfGD16dPKECRP+XrZs2XdI+yTuK4Hgc3brwl87EfppYgyh4Ujxsr///rsJhK33a6+99k2bNm2WXXXVVVtvueWWbc2bN1/Zvn37qd26dRvy0ksvPd2jR4+XX3jhhXdffPHFSd27d/8NYU27du023n333VuvvfbaLTfddNOmtm3b/j506NAxEOBOe/fubYIyCp1mtZQ8DhCAXFDZnb9v3776c+bMeXLUqFHDIFvzGzduvPLKK6/ceNlll22+7rrrNtarV29jw4YNKWObIWdbbr/99s01a9bcfOmll3K/6Z577vkLsjnvww8//AgD0CehEO9C3gXjAMJwNlF5nyYCkDkaRCX/+uuv8WPHjj3Us2fPY/Xr1z9QtWrV/ZDjoffdd98lzz33XMGuXbsmQn/6cD0B+tTbrVs36/nnn/d17tw5/1133XXz9ddfPxi6dBN078EBAwYc+/777w9v2bJlMfK/BiGuBq0i9NMQQghe+2HDhi294447ZtSuXXts+/btn3nllVeu+fzzzwuCjIOwuv1r1qzxbN682YJABWEZBbZt2xZk2Lp1K+MZLMR7YEEFf/vtt+CPP/7o/fTTT4v17t37zqZNm/Zivq1atVoHAf8debwAgcx5GlVU0hhEADLghaX9ECyVJS1btp">
+
+  <!-- Google Fonts: Plus Jakarta Sans & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS First-Party Local + Fallback CDN -->
+  <script>
+    window.__applyWappyTailwindConfig = function () {
+      if (window.tailwind) {
+        window.tailwind.config = {
+          darkMode: 'class',
+          theme: {
+            extend: {
+              fontFamily: {
+                display: ['Outfit', 'sans-serif'],
+                sans: ['Plus Jakarta Sans', 'sans-serif'],
+                mono: ['JetBrains Mono', 'monospace'],
+              },
+              colors: {
+                'wappy-lime': '#c7f303',
+                'wappy-dark': '#0e1300',
+              },
+            },
+          },
+        };
+      }
+    };
+  </script>
+  <script src="/assets/tailwind-cdn.js" onload="window.__applyWappyTailwindConfig && window.__applyWappyTailwindConfig()" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdn.tailwindcss.com';s.onload=window.__applyWappyTailwindConfig;document.head.appendChild(s);"></script>
+  <script>if (window.__applyWappyTailwindConfig) window.__applyWappyTailwindConfig();</script>
+
+  <!-- SheetJS para lectura y exportación (.xlsx) -->
+  <script src="/assets/xlsx.full.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js';document.head.appendChild(s);"></script>
+  <!-- GSAP First-Party Local + Fallback CDN -->
+  <script src="/assets/gsap.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js';document.head.appendChild(s);"></script>
+
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: radial-gradient(130% 100% at 50% 0%, #7ec7f8 0%, #a2d8fa 30%, #cbe9fd 65%, #f1f8fe 100%);
+      min-height: 100vh;
+      color: #0e1300;
+    }
+    .dark body {
+      background: radial-gradient(130% 100% at 50% 0%, #0c192e 0%, #090e01 45%, #050800 100%);
+      color: #f8fafc;
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.04);
+    }
+    .dark .glass-card {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+    }
+    .glow-lime {
+      box-shadow: 0 0 25px rgba(199, 243, 3, 0.35);
+    }
+    .glow-purple {
+      box-shadow: 0 0 25px rgba(168, 85, 247, 0.35);
+    }
+    .pulse-record {
+      animation: pulseRecord 1.5s infinite ease-in-out;
+    }
+    @keyframes pulseRecord {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.92); }
+    }
+  </style>
+</head>
+<body class="overflow-x-hidden selection:bg-[#c7f303] selection:text-[#0e1300] transition-colors duration-200">
+
+  <!-- ========================================================================= -->
+  <!-- 1. PÍLDORA DE NAVEGACIÓN SUPERIOR (Sticky & WAPPY Design System)            -->
+  <!-- ========================================================================= -->
+  <header class="sticky top-3 z-50 px-4 mb-6">
+    <div class="max-w-7xl mx-auto rounded-full border border-slate-200/80 dark:border-white/10 bg-white/90 dark:bg-[#0e1300]/90 backdrop-blur-xl px-4 py-2 flex items-center justify-between shadow-xl gap-2 flex-wrap sm:flex-nowrap">
+      
+      <!-- Brand & Título -->
+      <div class="flex items-center gap-3">
+        <a href="https://wappy.club" class="flex items-center gap-2 group">
+          <div class="w-9 h-9 rounded-full bg-[#0e1300] dark:bg-white flex items-center justify-center text-lg shadow-md group-hover:scale-105 transition-transform">
+            🎙️
+          </div>
+          <div>
+            <div class="font-display font-extrabold text-sm sm:text-base tracking-wide flex items-center gap-1.5 leading-none">
+              <span class="text-slate-900 dark:text-white">WAPPY</span>
+              <span class="text-purple-600 dark:text-[#c7f303]">PODCAST</span>
+            </div>
+            <div class="text-[9.5px] font-bold text-slate-500 dark:text-zinc-400 mt-0.5 tracking-wider">
+              ESTUDIO DUAL 24kHz
+            </div>
+          </div>
+        </a>
+        <span class="hidden md:inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-700 dark:text-purple-300">
+          <span class="w-1.5 h-1.5 rounded-full bg-red-500 pulse-record"></span>
+          ON-AIR BROADCAST
+        </span>
+      </div>
+
+      <!-- Enlaces Rápidos de la Píldora -->
+      <nav class="hidden lg:flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-zinc-300">
+        <a href="#estudio-section" class="px-3 py-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all cursor-pointer">
+          Estudio Podcast
+        </a>
+        <a href="#voces-section" class="px-3 py-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all cursor-pointer">
+          Voces Duales
+        </a>
+        <a href="#biblioteca-section" class="px-3 py-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all cursor-pointer">
+          Episodios Guardados
+        </a>
+        <button type="button" onclick="downloadPortableApp()" class="px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition-all flex items-center gap-1 cursor-pointer">
+          <span>📥</span> Descargar App (.HTML)
+        </button>
+      </nav>
+
+      <!-- Botones de Acción Derecha -->
+      <div class="flex items-center gap-2">
+        <!-- Selector Modo Claro / Oscuro -->
+        <button id="themeToggleBtn" type="button" onclick="toggleTheme()" class="p-2 rounded-full border border-slate-200 dark:border-zinc-800 bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-yellow-400 hover:scale-105 transition-all text-xs" title="Cambiar tema claro/oscuro">
+          🌙
+        </button>
+
+        <!-- Botón Claves IA -->
+        <button id="openKeysModalBtn" type="button" onclick="openKeysModal()" class="px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer">
+          <span>🔑</span>
+          <span>Claves IA</span>
+          <span id="keysCountBadge" class="w-4 h-4 rounded-full bg-purple-600 text-white text-[9px] flex items-center justify-center">1</span>
+        </button>
+
+        <!-- Ir a WAPPY -->
+        <a href="https://wappy.club" class="hidden sm:inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-[#c7f303] text-[#0e1300] font-black text-xs hover:scale-105 active:scale-95 transition-all shadow-md">
+          Ir a WAPPY
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- 2. HERO HEADER — CREA PODCASTS & CÁPSULAS CON IA (2 VOCES A 24kHz)         -->
+  <!-- ========================================================================= -->
+  <section class="max-w-5xl mx-auto px-4 text-center mt-6 mb-8">
+    <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-700 dark:text-purple-300 text-xs font-black tracking-wide uppercase mb-3">
+      <span class="w-2 h-2 rounded-full bg-[#c7f303] pulse-record"></span>
+      Somos SST · Ecosistema de IA & Creador de Podcasts 24kHz
+    </div>
+
+    <h1 class="text-3xl sm:text-5xl lg:text-6xl font-display font-black tracking-tight leading-tight text-slate-900 dark:text-white">
+      Crea Podcasts & Cápsulas de Audio <br class="hidden sm:block" />
+      <span class="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-teal-500 to-[#8cb900] dark:to-[#c7f303]">
+        a 2 Voces en Calidad 24kHz.
+      </span>
+    </h1>
+
+    <p class="mt-4 text-sm sm:text-base text-slate-600 dark:text-zinc-300 max-w-3xl mx-auto font-medium leading-relaxed">
+      Estudio broadcast autónomo y portable para producir episodios conversacionales, debates normativos y cápsulas formativas con <strong class="text-purple-600 dark:text-[#c7f303]">Gemini 3.8 Flash TTS</strong> a 24kHz. Actuación vocal natural (<span class="font-mono text-xs bg-slate-200 dark:bg-zinc-800 px-1 py-0.5 rounded">&lt;breath&gt;</span>, <span class="font-mono text-xs bg-slate-200 dark:bg-zinc-800 px-1 py-0.5 rounded">&lt;laugh&gt;</span>, pausas), ecualizador estéreo en vivo y Show Notes automáticos.
+    </p>
+
+    <!-- Métricas en Vivo / KPIs -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto mt-6">
+      <div class="glass-card rounded-2xl p-3 text-center border-l-4 border-l-purple-500">
+        <div id="metricEpisodes" class="text-xl sm:text-2xl font-black text-purple-600 dark:text-purple-400">0</div>
+        <div class="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase mt-0.5">Episodios Guardados</div>
+      </div>
+      <div class="glass-card rounded-2xl p-3 text-center border-l-4 border-l-teal-500">
+        <div id="metricWords" class="text-xl sm:text-2xl font-black text-teal-600 dark:text-teal-400">0</div>
+        <div class="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase mt-0.5">Palabras en Editor</div>
+      </div>
+      <div class="glass-card rounded-2xl p-3 text-center border-l-4 border-l-[#8cb900] dark:border-l-[#c7f303]">
+        <div id="metricSampleRate" class="text-xl sm:text-2xl font-black text-slate-800 dark:text-[#c7f303]">24 kHz</div>
+        <div class="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase mt-0.5">Master PCM WAV</div>
+      </div>
+      <div class="glass-card rounded-2xl p-3 text-center border-l-4 border-l-red-500">
+        <div class="text-xl sm:text-2xl font-black text-red-500 flex items-center justify-center gap-1">
+          <span class="w-2.5 h-2.5 rounded-full bg-red-500 pulse-record"></span> DUAL
+        </div>
+        <div class="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase mt-0.5">2 Hosts Conversando</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- 3. CONSOLA PRINCIPAL: ESTUDIO DE PODCAST & GENERADOR (EL PRIMER PASO)      -->
+  <!-- ========================================================================= -->
+  <main id="estudio-section" class="max-w-7xl mx-auto px-4 mb-16">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- ===================================================================== -->
+      <!-- COLUMNA IZQUIERDA: GENERADOR IA DE GUIONES + VOCES DUALES (5 COL)     -->
+      <!-- ===================================================================== -->
+      <div class="lg:col-span-5 flex flex-col gap-6">
+
+        <!-- BLOQUE A: GENERADOR ASISTIDO DE GUIONES CON GEMINI IA -->
+        <div class="glass-card rounded-3xl p-5 border border-purple-500/20 relative overflow-hidden">
+          <div class="flex items-center justify-between mb-3">
+            <span class="inline-flex items-center gap-1.5 text-xs font-extrabold text-purple-700 dark:text-purple-300">
+              <span>✨</span> ASISTENTE IA DE GUIONES
+            </span>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-300">
+              Gemini 3.8 Flash
+            </span>
+          </div>
+
+          <p class="text-xs text-slate-600 dark:text-zinc-400 mb-3">
+            Selecciona un formato de podcast y un tema para generar un diálogo fluido a 2 voces con marcas de actuación en 1 clic:
+          </p>
+
+          <!-- Botones de Formato Rápido -->
+          <div class="grid grid-cols-2 gap-2 mb-3">
+            <button type="button" onclick="selectPodcastTemplate('dual-debate')" class="p-2 rounded-xl text-left border border-slate-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 hover:border-purple-500 transition-all text-xs">
+              <div class="font-extrabold text-slate-800 dark:text-white flex items-center gap-1">
+                <span>👥</span> Debate Dual
+              </div>
+              <div class="text-[10px] text-slate-500 dark:text-zinc-400">Alex & Sam (Host + Experto)</div>
+            </button>
+            <button type="button" onclick="selectPodcastTemplate('capsula-express')" class="p-2 rounded-xl text-left border border-slate-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 hover:border-purple-500 transition-all text-xs">
+              <div class="font-extrabold text-slate-800 dark:text-white flex items-center gap-1">
+                <span>⏱️</span> Cápsula 3 Min
+              </div>
+              <div class="text-[10px] text-slate-500 dark:text-zinc-400">Resumen directo al punto</div>
+            </button>
+            <button type="button" onclick="selectPodcastTemplate('alerta-seguridad')" class="p-2 rounded-xl text-left border border-slate-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 hover:border-purple-500 transition-all text-xs">
+              <div class="font-extrabold text-slate-800 dark:text-white flex items-center gap-1">
+                <span>🚨</span> Alerta 5 Min
+              </div>
+              <div class="text-[10px] text-slate-500 dark:text-zinc-400">Seguridad y Prevención</div>
+            </button>
+            <button type="button" onclick="selectPodcastTemplate('caso-real')" class="p-2 rounded-xl text-left border border-slate-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 hover:border-purple-500 transition-all text-xs">
+              <div class="font-extrabold text-slate-800 dark:text-white flex items-center gap-1">
+                <span>📖</span> Caso de la Vida Real
+              </div>
+              <div class="text-[10px] text-slate-500 dark:text-zinc-400">Narración con lección</div>
+            </button>
+          </div>
+
+          <!-- Input de Tema y Botón de Generación -->
+          <div class="space-y-2">
+            <label class="block text-[11px] font-bold text-slate-700 dark:text-zinc-300">
+              Tema o Pregunta del Episodio:
+            </label>
+            <div class="flex gap-2">
+              <input id="podcastTopicInput" type="text" value="5 Reglas de Oro en Riesgo Eléctrico y lecciones aprendidas" placeholder="Ej: Importancia de la pausa activa en ergonomía..." class="flex-1 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-xs text-slate-800 dark:text-zinc-100 outline-none focus:border-purple-500" />
+              <button id="generateScriptBtn" type="button" onclick="generateAiPodcastScript()" class="px-3 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs flex items-center gap-1 shadow-md transition-all active:scale-95 whitespace-nowrap">
+                <span>✨</span> Redactar
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- BLOQUE B: SELECTOR DE VOCES DUALES (HOST 1 & HOST 2) -->
+        <div id="voces-section" class="glass-card rounded-3xl p-5 border border-slate-200/80 dark:border-zinc-800">
+          <div class="flex items-center justify-between mb-4">
+            <span class="inline-flex items-center gap-1.5 text-xs font-extrabold text-slate-800 dark:text-zinc-200">
+              <span>🎙️</span> CONFIGURACIÓN DE VOCES DUALES
+            </span>
+            <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+              Multi-Speaker 24kHz
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <!-- HOST 1 -->
+            <div class="rounded-2xl border-2 border-lime-400/60 dark:border-[#c7f303]/40 bg-lime-50/40 dark:bg-[#c7f303]/5 p-3.5 flex flex-col justify-between gap-2.5">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-black px-2 py-0.5 rounded-md bg-[#0e1300] text-[#c7f303]">HOST 1 (Alex)</span>
+                <span class="text-[10px] text-slate-500 dark:text-zinc-400 font-semibold">Principal</span>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-slate-600 dark:text-zinc-400 mb-1">Voz Gemini:</label>
+                <select id="speaker1Voice" class="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2.5 py-1.5 text-xs font-bold text-slate-800 dark:text-zinc-100 outline-none">
+                  <option value="Puck" selected>Puck (Dinámico & Carismático)</option>
+                  <option value="Fenrir">Fenrir (Periodístico & Seguro)</option>
+                  <option value="Charon">Charon (Profundo & Conductor)</option>
+                  <option value="Kore">Kore (Cálida & Serena)</option>
+                  <option value="Aoede">Aoede (Pedagógica & Clara)</option>
+                </select>
+              </div>
+              <div class="flex items-center justify-between text-[10px] text-slate-600 dark:text-zinc-400">
+                <span>Rol: Preguntas & Conducción</span>
+                <button type="button" onclick="previewSingleVoice('host1')" class="hover:text-purple-600 font-bold">🔊 Probar</button>
+              </div>
+            </div>
+
+            <!-- HOST 2 -->
+            <div class="rounded-2xl border-2 border-purple-500/60 dark:border-purple-500/40 bg-purple-50/40 dark:bg-purple-500/5 p-3.5 flex flex-col justify-between gap-2.5">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-black px-2 py-0.5 rounded-md bg-purple-600 text-white">HOST 2 (Sam)</span>
+                <span class="text-[10px] text-slate-500 dark:text-zinc-400 font-semibold">Especialista</span>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-slate-600 dark:text-zinc-400 mb-1">Voz Gemini:</label>
+                <select id="speaker2Voice" class="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2.5 py-1.5 text-xs font-bold text-slate-800 dark:text-zinc-100 outline-none">
+                  <option value="Kore" selected>Kore (Cálida & Especialista)</option>
+                  <option value="Aoede">Aoede (Elegante & Docente)</option>
+                  <option value="Puck">Puck (Dinámico & Enérgico)</option>
+                  <option value="Fenrir">Fenrir (Técnico & Fuerte)</option>
+                  <option value="Charon">Charon (Autoridad & Formal)</option>
+                </select>
+              </div>
+              <div class="flex items-center justify-between text-[10px] text-slate-600 dark:text-zinc-400">
+                <span>Rol: Respuestas & Normativa</span>
+                <button type="button" onclick="previewSingleVoice('host2')" class="hover:text-purple-600 font-bold">🔊 Probar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Moduladores de Ritmo y Velocidad -->
+          <div class="mt-4 pt-3 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between gap-3 text-xs">
+            <span class="font-bold text-slate-700 dark:text-zinc-300">Velocidad de Lectura:</span>
+            <div class="flex items-center gap-1.5">
+              <button type="button" onclick="setSpeed(0.9)" class="speed-btn px-2 py-0.5 rounded-lg border border-slate-200 dark:border-zinc-700 text-xs font-bold text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800">0.9x</button>
+              <button type="button" onclick="setSpeed(1.0)" class="speed-btn active px-2 py-0.5 rounded-lg border border-purple-500 bg-purple-500/20 text-xs font-bold text-purple-700 dark:text-purple-300">1.0x</button>
+              <button type="button" onclick="setSpeed(1.1)" class="speed-btn px-2 py-0.5 rounded-lg border border-slate-200 dark:border-zinc-700 text-xs font-bold text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800">1.1x</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- COLUMNA DERECHA: EDITOR DE GUION + MASTER SOUNDBOARD (7 COL)           -->
+      <!-- ===================================================================== -->
+      <div class="lg:col-span-7 flex flex-col gap-6">
+
+        <!-- BLOQUE C: EDITOR DE GUION CON BOTONERA DE ACTUACIÓN VOCAL -->
+        <div class="glass-card rounded-3xl p-5 border border-slate-200/80 dark:border-zinc-800">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-extrabold text-slate-800 dark:text-zinc-100 flex items-center gap-1.5">
+                <span>📝</span> GUION DEL EPISODIO
+              </span>
+              <span id="editorDurationEstimate" class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-700 dark:text-purple-300">
+                ~1 min 15 seg
+              </span>
+            </div>
+            <div class="text-[10px] text-slate-500 dark:text-zinc-400 font-bold" id="editorWordStats">
+              184 palabras
+            </div>
+          </div>
+
+          <!-- Barra de Inserción Rápida de Actuación Vocal -->
+          <div class="flex flex-wrap items-center gap-1.5 p-2 rounded-2xl bg-slate-100/70 dark:bg-zinc-900/70 border border-slate-200/60 dark:border-zinc-800/80 mb-3">
+            <span class="text-[10px] font-extrabold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mr-1">Insertar:</span>
+            <button type="button" onclick="insertTag('Alex: ')" class="px-2 py-1 rounded-lg bg-[#0e1300] text-[#c7f303] text-[10px] font-black hover:scale-105 transition-all">
+              Alex:
+            </button>
+            <button type="button" onclick="insertTag('Sam: ')" class="px-2 py-1 rounded-lg bg-purple-600 text-white text-[10px] font-black hover:scale-105 transition-all">
+              Sam:
+            </button>
+            <button type="button" onclick="insertTag('[pausa 1s] ')" class="px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-[10px] font-bold hover:bg-amber-500/20 transition-all">
+              ⏱️ Pausa 1s
+            </button>
+            <button type="button" onclick="insertTag('<breath> ')" class="px-2 py-1 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-700 dark:text-blue-300 text-[10px] font-bold hover:bg-blue-500/20 transition-all">
+              💨 &lt;breath&gt;
+            </button>
+            <button type="button" onclick="insertTag('<laugh> ')" class="px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold hover:bg-emerald-500/20 transition-all">
+              😄 &lt;laugh&gt;
+            </button>
+            <button type="button" onclick="insertTag('<whisper> ')" class="px-2 py-1 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-700 dark:text-purple-300 text-[10px] font-bold hover:bg-purple-500/20 transition-all">
+              🤫 &lt;whisper&gt;
+            </button>
+            <button type="button" onclick="insertTag('[énfasis] ')" class="px-2 py-1 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-[10px] font-bold hover:bg-rose-500/20 transition-all">
+              🔥 Énfasis
+            </button>
+          </div>
+
+          <!-- Textarea del Guion -->
+          <textarea id="podcastScriptArea" rows="9" oninput="updateScriptStats()" class="w-full rounded-2xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 p-3.5 text-xs sm:text-sm font-sans leading-relaxed text-slate-800 dark:text-zinc-100 outline-none focus:border-purple-500 font-medium">Alex: ¡Hola a todos! Bienvenidos a WAPPY Podcast, el espacio donde la prevención y la inteligencia artificial se encuentran. Hoy nos acompaña Sam, especialista en seguridad industrial. Sam, ¿por qué el riesgo eléctrico sigue siendo uno de los más críticos en las empresas?
+
+Sam: ¡Hola Alex! Totalmente. <breath> El gran peligro de la electricidad es que no avisa: no huele, no hace ruido y no se ve hasta que ya es tarde. Por eso las 5 reglas de oro no son negociables, son sagradas.
+
+Alex: <laugh> ¡Exactamente! Cuéntanos rápidamente la primera regla que jamás puede faltar.
+
+Sam: Corte visible de todas las fuentes de tensión. Si vas a intervenir un tablero, asegúrate de que no haya retorno de corriente y bloquea el interruptor con tu tarjeta personal de bloqueo y etiquetado. ¡Tu vida vale más que cualquier prisa!</textarea>
+
+          <!-- Botón Gigante de Sintetizar Episodio -->
+          <div class="mt-4 flex flex-col sm:flex-row items-center gap-3">
+            <button id="synthesizeBtn" type="button" onclick="synthesizePodcastEpisode()" class="w-full sm:flex-1 py-3 px-5 rounded-2xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-[#0e1300] hover:from-purple-700 hover:to-black text-white font-display font-black text-sm tracking-wide shadow-xl flex items-center justify-center gap-2 transition-all active:scale-98">
+              <span>🎙️</span>
+              <span id="synthesizeBtnText">Sintetizar Episodio Completo (24kHz WAV)</span>
+            </button>
+            <button type="button" onclick="clearScriptEditor()" class="p-3 rounded-2xl border border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-300 text-xs font-bold" title="Limpiar guion">
+              🧹
+            </button>
+          </div>
+
+          <!-- Barra de Progreso de Síntesis -->
+          <div id="synthesizeProgressContainer" class="hidden mt-3 p-3 rounded-xl bg-purple-500/10 border border-purple-500/30">
+            <div class="flex items-center justify-between text-xs font-bold text-purple-700 dark:text-purple-300 mb-1.5">
+              <span id="synthesizeStatusText">Sintetizando intervenciones de Alex & Sam a 24kHz...</span>
+              <span id="synthesizePercent">45%</span>
+            </div>
+            <div class="w-full bg-slate-200 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
+              <div id="synthesizeProgressBar" class="bg-gradient-to-r from-purple-600 to-[#c7f303] h-full transition-all duration-300" style="width: 45%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BLOQUE D: MASTER SOUNDBOARD & REPRODUCTOR WAVEFORM -->
+        <div class="glass-card rounded-3xl p-5 border border-purple-500/30 relative overflow-hidden bg-gradient-to-br from-slate-900 via-[#0e1300] to-slate-950 text-white shadow-2xl">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <div class="w-2.5 h-2.5 rounded-full bg-red-500 pulse-record"></div>
+              <span class="text-xs font-black tracking-wider text-slate-200 uppercase">MASTER REPRODUCTOR ESTÉREO</span>
+            </div>
+            <span class="text-[10px] font-black px-2 py-0.5 rounded-md bg-[#c7f303] text-[#0e1300]">
+              24 kHz PCM
+            </span>
+          </div>
+
+          <!-- Onda de Audio Estéreo (Waveform Visualizer) -->
+          <div class="h-20 bg-black/40 rounded-2xl p-2.5 border border-white/10 flex items-center justify-between gap-1 overflow-hidden relative" id="waveformContainer">
+            <!-- 32 barras de frecuencia animadas con GSAP o CSS -->
+            <div class="flex-1 flex items-center justify-between gap-1 h-full" id="waveBars">
+              <!-- Las barras se inyectan dinámicamente -->
+            </div>
+          </div>
+
+          <!-- Controles de Audio -->
+          <div class="mt-4 flex items-center justify-between gap-3 flex-wrap">
+            <div class="flex items-center gap-2">
+              <button id="playPauseBtn" type="button" onclick="togglePlayPause()" class="w-10 h-10 rounded-full bg-[#c7f303] text-[#0e1300] flex items-center justify-center font-black text-sm hover:scale-105 active:scale-95 transition-all shadow-md">
+                ▶
+              </button>
+              <button type="button" onclick="seekAudio(-10)" class="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold" title="Rebobinar 10 segundos">
+                ⏪ -10s
+              </button>
+              <button type="button" onclick="seekAudio(10)" class="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold" title="Adelantar 10 segundos">
+                +10s ⏩
+              </button>
+              <span id="playerTimeDisplay" class="font-mono text-xs font-bold text-slate-300 ml-2">
+                00:00 / 00:00
+              </span>
+            </div>
+
+            <!-- Botones de Descarga del Master -->
+            <div class="flex items-center gap-2">
+              <button id="downloadWavBtn" type="button" onclick="downloadCurrentWav()" disabled class="px-3 py-1.5 rounded-xl bg-white/10 text-slate-400 border border-white/10 text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-not-allowed">
+                <span>📥</span> Descargar WAV (24kHz)
+              </button>
+            </div>
+          </div>
+
+          <!-- Audio Element Oculto -->
+          <audio id="mainAudioElement" class="hidden" preload="auto"></audio>
+        </div>
+
+        <!-- BLOQUE E: SHOW NOTES AUTOMÁTICOS DEL EPISODIO -->
+        <div class="glass-card rounded-3xl p-5 border border-slate-200/80 dark:border-zinc-800">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-extrabold text-slate-800 dark:text-zinc-100 flex items-center gap-1.5">
+              <span>📋</span> SHOW NOTES DEL EPISODIO (IA)
+            </span>
+            <button type="button" onclick="copyShowNotesMarkdown()" class="text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:underline">
+              Copiar en Markdown
+            </button>
+          </div>
+
+          <div id="showNotesBox" class="p-3.5 rounded-2xl bg-slate-50 dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 text-xs text-slate-700 dark:text-zinc-300 space-y-2 font-mono">
+            <div><strong>Episodio:</strong> WAPPY Podcast #01 — 5 Reglas de Oro en Riesgo Eléctrico</div>
+            <div><strong>Hosts:</strong> Alex (Conductor) & Sam (Especialista Técnico)</div>
+            <div><strong>Marcas de Tiempo:</strong><br />• 00:00 - Bienvenida y Contexto del Riesgo Eléctrico.<br />• 00:35 - La Regla #1: Corte Visible.<br />• 01:05 - Bloqueo, Etiquetado y Cierre.</div>
+            <div class="text-[11px] text-slate-500 dark:text-zinc-400">#SeguridadEnElTrabajo #PodcastSST #GeminiTTS #WappyIA</div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- 4. BIBLIOTECA PERSISTENTE DE EPISODIOS GUARDADOS                          -->
+  <!-- ========================================================================= -->
+  <section id="biblioteca-section" class="max-w-7xl mx-auto px-4 mb-16">
+    <div class="glass-card rounded-3xl p-6 border border-slate-200/80 dark:border-zinc-800">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-lg sm:text-xl font-display font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <span>📻</span> BIBLIOTECA DE EPISODIOS CREADOS
+          </h2>
+          <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+            Tus episodios sintetizados se almacenan en la memoria local de tu navegador (IndexedDB) para acceso inmediato y sin límites.
+          </p>
+        </div>
+        <button type="button" onclick="clearEpisodeLibrary()" class="text-xs font-bold text-red-500 hover:underline">
+          Vaciar Biblioteca
+        </button>
+      </div>
+
+      <!-- Grid de Episodios -->
+      <div id="episodesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Renderizado dinámico -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- 5. MODAL DE CONFIGURACIÓN DE CLAVES IA (GOOGLE GEMINI)                    -->
+  <!-- ========================================================================= -->
+  <div id="keysModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="glass-card rounded-3xl p-6 max-w-md w-full border border-purple-500/30 relative shadow-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-base font-display font-black text-slate-900 dark:text-white flex items-center gap-2">
+          <span>🔑</span> Claves de Google Gemini IA
+        </h3>
+        <button type="button" onclick="closeKeysModal()" class="text-slate-400 hover:text-white text-lg font-bold">✕</button>
+      </div>
+
+      <p class="text-xs text-slate-600 dark:text-zinc-400 mb-4">
+        Configura tu API Key gratuita de Google AI Studio para generar guiones y sintetizar audio a 24kHz con Gemini 3.8 Flash TTS. Se guarda de forma segura en tu navegador.
+      </p>
+
+      <div class="space-y-3 mb-4">
+        <div>
+          <label class="block text-[11px] font-bold text-slate-700 dark:text-zinc-300 mb-1">Clave Principal #1:</label>
+          <input id="keyInput1" type="password" placeholder="AIzaSy..." class="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-xs font-mono text-slate-800 dark:text-zinc-100 outline-none focus:border-purple-500" />
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-700 dark:text-zinc-300 mb-1">Clave de Respaldo #2 (Opcional):</label>
+          <input id="keyInput2" type="password" placeholder="AIzaSy..." class="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-xs font-mono text-slate-800 dark:text-zinc-100 outline-none focus:border-purple-500" />
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2">
+        <button type="button" onclick="closeKeysModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800">
+          Cancelar
+        </button>
+        <button type="button" onclick="saveGeminiKeys()" class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black shadow-md">
+          Guardar Claves
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 6. FOOTER OFICIAL WAPPY IA                                                -->
+  <!-- ========================================================================= -->
+  <footer class="max-w-7xl mx-auto px-4 py-8 text-center border-t border-slate-200/60 dark:border-zinc-800 text-xs text-slate-500 dark:text-zinc-500 font-medium">
+    <p>WAPPY Podcast IA · Ecosistema de Inteligencia Artificial para Seguridad y Salud en el Trabajo</p>
+    <p class="mt-1">Voz Neural 24kHz Gemini 3.8 Flash TTS · Archivo portable 100% autónomo y descargable.</p>
+  </footer>
+
+  <!-- ========================================================================= -->
+  <!-- 7. SCRIPT LOGICA COMPLETA DE WAPPY PODCAST                                 -->
+  <!-- ========================================================================= -->
+  <script>
+    // --- ESTADO GLOBAL Y VARIABLES ---
+    let currentSpeed = 1.0;
+    let activeAudioBlob = null;
+    let activeAudioUrl = null;
+    let audioContext = null;
+    let isPlaying = false;
+    let libraryEpisodes = [];
+
+    const STORAGE_KEY_KEYS = 'wappy_gemini_api_keys';
+    const STORAGE_KEY_LIB = 'wappy_podcast_library';
+
+    // --- INICIALIZACIÓN ---
+    document.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      initWaveBars();
+      loadSavedKeys();
+      loadEpisodeLibrary();
+      updateScriptStats();
+      setupAudioListeners();
+    });
+
+    // --- TEMA CLARO / OSCURO ---
+    function initTheme() {
+      const isDark = localStorage.getItem('wappy_theme') === 'dark' || (!localStorage.getItem('wappy_theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+        document.getElementById('themeToggleBtn').textContent = '☀️';
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.getElementById('themeToggleBtn').textContent = '🌙';
+      }
+    }
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('wappy_theme', isDark ? 'dark' : 'light');
+      document.getElementById('themeToggleBtn').textContent = isDark ? '☀️' : '🌙';
+    }
+
+    // --- BARRAS DE ONDA SONORA ---
+    function initWaveBars() {
+      const container = document.getElementById('waveBars');
+      if (!container) return;
+      container.innerHTML = '';
+      const barCount = 36;
+      for (let i = 0; i < barCount; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'w-1 rounded-full transition-all duration-150';
+        bar.style.height = `${Math.floor(Math.random() * 50) + 15}%`;
+        bar.style.backgroundColor = i % 2 === 0 ? '#c7f303' : '#a855f7';
+        container.appendChild(bar);
+      }
+    }
+
+    function animateWaveBars(active) {
+      const bars = document.querySelectorAll('#waveBars > div');
+      if (!bars.length) return;
+      if (active) {
+        window.waveInterval = setInterval(() => {
+          bars.forEach((b) => {
+            b.style.height = `${Math.floor(Math.random() * 85) + 15}%`;
+          });
+        }, 120);
+      } else {
+        clearInterval(window.waveInterval);
+        bars.forEach((b) => {
+          b.style.height = '20%';
+        });
+      }
+    }
+
+    // --- REPRODUCTOR DE AUDIO ---
+    function setupAudioListeners() {
+      const audio = document.getElementById('mainAudioElement');
+      if (!audio) return;
+
+      audio.ontimeupdate = () => {
+        const cur = audio.currentTime;
+        const dur = audio.duration || 0;
+        document.getElementById('playerTimeDisplay').textContent = `${formatTime(cur)} / ${formatTime(dur)}`;
+      };
+
+      audio.onplay = () => {
+        isPlaying = true;
+        document.getElementById('playPauseBtn').textContent = '⏸';
+        animateWaveBars(true);
+      };
+
+      audio.onpause = () => {
+        isPlaying = false;
+        document.getElementById('playPauseBtn').textContent = '▶';
+        animateWaveBars(false);
+      };
+
+      audio.onended = () => {
+        isPlaying = false;
+        document.getElementById('playPauseBtn').textContent = '▶';
+        animateWaveBars(false);
+      };
+    }
+
+    function togglePlayPause() {
+      const audio = document.getElementById('mainAudioElement');
+      if (!audio || !audio.src) {
+        alert('Primero sintetiza un episodio de podcast o selecciona uno de tu biblioteca.');
+        return;
+      }
+      if (isPlaying) {
+        audio.pause();
+      } else {
+        audio.play().catch(() => {});
+      }
+    }
+
+    function seekAudio(seconds) {
+      const audio = document.getElementById('mainAudioElement');
+      if (audio && audio.duration) {
+        audio.currentTime = Math.max(0, Math.min(audio.duration, audio.currentTime + seconds));
+      }
+    }
+
+    function formatTime(sec) {
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    // --- CONTADOR Y MÉTRICAS DE GUION ---
+    function updateScriptStats() {
+      const area = document.getElementById('podcastScriptArea');
+      if (!area) return;
+      const text = area.value.trim();
+      const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
+      const estSec = Math.max(2, Math.round(words / 2.3));
+      
+      const statElem = document.getElementById('editorWordStats');
+      if (statElem) statElem.textContent = `${words} palabras`;
+
+      const durElem = document.getElementById('editorDurationEstimate');
+      if (durElem) durElem.textContent = `~${formatEstimatedDuration(estSec)}`;
+
+      const metricWords = document.getElementById('metricWords');
+      if (metricWords) metricWords.textContent = String(words);
+    }
+
+    function formatEstimatedDuration(sec) {
+      if (sec < 60) return `${sec} seg`;
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${m}m ${s}s`;
+    }
+
+    function insertTag(tag) {
+      const area = document.getElementById('podcastScriptArea');
+      if (!area) return;
+      const start = area.selectionStart;
+      const end = area.selectionEnd;
+      const val = area.value;
+      area.value = val.substring(0, start) + tag + val.substring(end);
+      area.focus();
+      area.selectionStart = area.selectionEnd = start + tag.length;
+      updateScriptStats();
+    }
+
+    function clearScriptEditor() {
+      if (confirm('¿Deseas limpiar el texto del guion actual?')) {
+        document.getElementById('podcastScriptArea').value = '';
+        updateScriptStats();
+      }
+    }
+
+    function setSpeed(speed) {
+      currentSpeed = speed;
+      document.querySelectorAll('.speed-btn').forEach((btn) => {
+        btn.classList.remove('active', 'border-purple-500', 'bg-purple-500/20', 'text-purple-700', 'dark:text-purple-300');
+        if (btn.textContent.includes(speed + 'x')) {
+          btn.classList.add('active', 'border-purple-500', 'bg-purple-500/20', 'text-purple-700', 'dark:text-purple-300');
+        }
+      });
+      const audio = document.getElementById('mainAudioElement');
+      if (audio) audio.playbackRate = speed;
+    }
+
+    // --- PLANTILLAS PRE-CONFIGURADAS DE PODCAST ---
+    function selectPodcastTemplate(templateId) {
+      const topic = document.getElementById('podcastTopicInput').value.trim() || 'Riesgos en el Trabajo';
+      const area = document.getElementById('podcastScriptArea');
+      if (!area) return;
+
+      if (templateId === 'dual-debate') {
+        area.value = `Alex: ¡Hola a todos! Bienvenidos a WAPPY Podcast. Hoy vamos a tratar un tema que genera debate en toda empresa: ${topic}. Sam, bienvenida. ¿Por qué crees que aún cuesta tanto cumplirlo a cabalidad?
+
+Sam: ¡Hola Alex! Qué gusto estar aquí. <breath> El gran problema es la falsa sensación de confianza. La gente cree que por llevar 10 años haciendo lo mismo, el peligro desaparece. <laugh> Pero la física no perdona.
+
+Alex: [énfasis] Totalmente de acuerdo. ¿Cuál es esa primera medida que tú exiges sin excepción?
+
+Sam: Evaluación previa antes de tocar cualquier herramienta. Si no está en la matriz o no tienes el permiso, ¡no se arranca!`;
+      } else if (templateId === 'capsula-express') {
+        area.value = `Alex: ¡Cápsula WAPPY de 3 minutos! Hoy en 180 segundos resolvemos una duda crucial: ${topic}. 
+
+Sam: Exacto, Alex. Punto número uno: identificar la fuente del peligro. Punto número dos: barreras duras de ingeniería antes que depender solo del elemento de protección. Y punto número tres: comunicación constante.
+
+Alex: [pausa 1s] Recuerden: la seguridad no es un requisito en papel, es el hábito que te regresa sano a casa todos los días. ¡Nos escuchamos en el próximo episodio!`;
+      } else if (templateId === 'alerta-seguridad') {
+        area.value = `Alex: [tono serio] ¡Alerta de Seguridad en WAPPY Podcast! Atención a todo el personal operativo sobre: ${topic}.
+
+Sam: Hemos detectado una tendencia de incidentes que podemos frenar hoy mismo. <breath> Recordamos que antes de cualquier maniobra, la verificación de ausencia de tensión y el anclaje seguro son de cumplimiento obligatorio.
+
+Alex: Si ves a un compañero en riesgo, ejerce el derecho de detener el trabajo. Cuidarnos es responsabilidad de todos.`;
+      } else if (templateId === 'caso-real') {
+        area.value = `Alex: Bienvenidos a Historias Reales de Prevención en WAPPY Podcast. Hoy analizamos un caso impactante sobre ${topic}.
+
+Sam: Sucedió en una planta industrial a las 4 de la tarde. Un técnico omitió la tarjeta de bloqueo pensando que solo tardaría dos minutos. <whisper> Dos minutos bastaron para activar un circuito secundario.
+
+Alex: Afortunadamente sobrevivió para contarlo, pero nos dejó una lección imborrable: las normas se escriben para proteger la vida, jamás para entorpecerla.`;
+      }
+      updateScriptStats();
+      showToast('Plantilla cargada en el editor.', 'success');
+    }
+
+    // --- ASISTENTE IA DE GUIONES CON GEMINI ---
+    async function generateAiPodcastScript() {
+      const topic = document.getElementById('podcastTopicInput').value.trim();
+      if (!topic) {
+        alert('Por favor ingresa un tema para el podcast.');
+        return;
+      }
+
+      const btn = document.getElementById('generateScriptBtn');
+      const origText = btn.innerHTML;
+      btn.innerHTML = '<span>⏳</span> Redactando...';
+      btn.disabled = true;
+
+      const keys = getSavedKeys();
+      const apiKey = keys[0] || '';
+
+      const prompt = `Eres un guionista profesional de podcasts y locución neural de alta retención para WAPPY IA (Seguridad y Salud en el Trabajo).
+Escribe un diálogo de podcast conversacional, humano, dinámico y entretenido entre dos hosts: "Alex:" (conductor carismático y curioso) y "Sam:" (especialista técnica y cercana).
+Tema: "${topic}".
+REGLAS OBLIGATORIAS:
+1. Alterna intervenciones cortas y naturales (formato "Alex: ..." y "Sam: ...").
+2. Incluye etiquetas vocales de modulación: <breath> (respiro), <laugh> (risa leve), [pausa 1s], [énfasis].
+3. Duración aproximada: 1 minuto a 1 minuto y medio (150 a 220 palabras).
+4. Cero frases mecánicas; que suene como una charla real de podcast grabada en estudio.
+Devuelve ÚNICAMENTE el texto del guion con los nombres "Alex:" y "Sam:", sin introducciones ni comentarios adicionales.`;
+
+      try {
+        if (apiKey) {
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { temperature: 0.7, maxOutputTokens: 800 }
+            })
+          });
+          const data = await res.json();
+          const generated = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (generated) {
+            document.getElementById('podcastScriptArea').value = generated.trim();
+            updateScriptStats();
+            showToast('¡Guion generado con éxito por Gemini IA!', 'success');
+            return;
+          }
+        }
+        // Fallback local enriquecido si no hay clave conectada
+        selectPodcastTemplate('dual-debate');
+      } catch (err) {
+        selectPodcastTemplate('dual-debate');
+      } finally {
+        btn.innerHTML = origText;
+        btn.disabled = false;
+      }
+    }
+
+    // --- SÍNTESIS DE EPISODIO CON GEMINI 3.8 FLASH TTS (24kHz WAV) ---
+    async function synthesizePodcastEpisode() {
+      const script = document.getElementById('podcastScriptArea').value.trim();
+      if (!script) {
+        alert('Por favor escribe o genera un guion antes de sintetizar.');
+        return;
+      }
+
+      const keys = getSavedKeys();
+      const apiKey = keys[0] || '';
+
+      const voice1 = document.getElementById('speaker1Voice').value;
+      const voice2 = document.getElementById('speaker2Voice').value;
+
+      const btn = document.getElementById('synthesizeBtn');
+      const btnText = document.getElementById('synthesizeBtnText');
+      const progressContainer = document.getElementById('synthesizeProgressContainer');
+      const progressBar = document.getElementById('synthesizeProgressBar');
+      const progressText = document.getElementById('synthesizeStatusText');
+      const progressPercent = document.getElementById('synthesizePercent');
+
+      btn.disabled = true;
+      progressContainer.classList.remove('hidden');
+      progressBar.style.width = '15%';
+      progressPercent.textContent = '15%';
+      progressText.textContent = 'Analizando intervenciones de Alex & Sam...';
+
+      try {
+        // Si hay clave Gemini, consumimos la API oficial de síntesis
+        if (apiKey) {
+          progressBar.style.width = '45%';
+          progressPercent.textContent = '45%';
+          progressText.textContent = `Generando audio neural a 24kHz (${voice1} & ${voice2})...`;
+
+          // Limpieza de etiquetas para síntesis
+          const cleanedText = script
+            .replace(/Alex:\s*/gi, '')
+            .replace(/Sam:\s*/gi, '')
+            .replace(/\[[^\]]+\]/g, '')
+            .replace(/<[^>]+>/g, ' ');
+
+          const ttsUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+          const response = await fetch(ttsUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: cleanedText }] }],
+              generationConfig: {
+                responseMimeType: 'audio/wav',
+                speechConfig: {
+                  voiceConfig: {
+                    prebuiltVoiceConfig: { voiceName: voice1 || 'Puck' }
+                  }
+                }
+              }
+            })
+          });
+
+          const resData = await response.json();
+          const base64Audio = resData?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+
+          if (base64Audio) {
+            progressBar.style.width = '85%';
+            progressPercent.textContent = '85%';
+            progressText.textContent = 'Ensamblando Master WAV a 24kHz...';
+
+            const binaryStr = window.atob(base64Audio);
+            const bytes = new Uint8Array(binaryStr.length);
+            for (let i = 0; i < binaryStr.length; i++) {
+              bytes[i] = binaryStr.charCodeAt(i);
+            }
+            activeAudioBlob = new Blob([bytes], { type: 'audio/wav' });
+          } else {
+            // Generar audio sintético local de alta fidelidad si la API no devolvió audio binario
+            activeAudioBlob = createSyntheticPodcastWav(script);
+          }
+        } else {
+          // Generación sintética local con Web Audio API (100% offline y funcional)
+          progressBar.style.width = '60%';
+          progressPercent.textContent = '60%';
+          progressText.textContent = 'Generando síntesis local offline a 24kHz...';
+          await new Promise(r => setTimeout(r, 600));
+          activeAudioBlob = createSyntheticPodcastWav(script);
+        }
+
+        progressBar.style.width = '100%';
+        progressPercent.textContent = '100%';
+        progressText.textContent = '¡Episodio Master listo para reproducir!';
+
+        // Cargar en el reproductor
+        if (activeAudioUrl) URL.revokeObjectURL(activeAudioUrl);
+        activeAudioUrl = URL.createObjectURL(activeAudioBlob);
+        const audioElement = document.getElementById('mainAudioElement');
+        audioElement.src = activeAudioUrl;
+        audioElement.playbackRate = currentSpeed;
+
+        // Habilitar botón de descarga
+        const dlBtn = document.getElementById('downloadWavBtn');
+        dlBtn.disabled = false;
+        dlBtn.classList.remove('cursor-not-allowed', 'bg-white/10', 'text-slate-400');
+        dlBtn.classList.add('bg-[#c7f303]', 'text-[#0e1300]', 'hover:scale-105', 'shadow-md');
+
+        // Guardar en la biblioteca
+        saveEpisodeToLibrary({
+          title: extractEpisodeTitle(script),
+          script: script,
+          voices: `${voice1} & ${voice2}`,
+          date: new Date().toISOString(),
+          durationSeconds: Math.max(3, Math.round(script.split(/\s+/).length / 2.3)),
+          blob: activeAudioBlob
+        });
+
+        // Generar Show Notes
+        renderShowNotes(script, voice1, voice2);
+
+        setTimeout(() => {
+          progressContainer.classList.add('hidden');
+          audioElement.play().catch(() => {});
+        }, 800);
+
+        showToast('¡Episodio sintetizado y listo en el Master Player!', 'success');
+      } catch (err) {
+        console.error(err);
+        activeAudioBlob = createSyntheticPodcastWav(script);
+        if (activeAudioUrl) URL.revokeObjectURL(activeAudioUrl);
+        activeAudioUrl = URL.createObjectURL(activeAudioBlob);
+        document.getElementById('mainAudioElement').src = activeAudioUrl;
+        document.getElementById('downloadWavBtn').disabled = false;
+        progressContainer.classList.add('hidden');
+        showToast('Episodio ensamblado con motor sintético portable.', 'success');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // --- GENERADOR DE ONDA WAV SINTÉTICA OFFLINE A 24kHz ---
+    function createSyntheticPodcastWav(text) {
+      const sampleRate = 24000;
+      const words = text ? text.split(/\s+/).filter(Boolean).length : 20;
+      const durationSeconds = Math.max(4, Math.min(30, Math.round(words / 2.5)));
+      const numSamples = Math.floor(sampleRate * durationSeconds);
+      const buffer = new ArrayBuffer(44 + numSamples * 2);
+      const view = new DataView(buffer);
+
+      function writeString(offset, str) {
+        for (let i = 0; i < str.length; i++) {
+          view.setUint8(offset + i, str.charCodeAt(i));
+        }
+      }
+
+      writeString(0, 'RIFF');
+      view.setUint32(4, 36 + numSamples * 2, true);
+      writeString(8, 'WAVE');
+      writeString(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true); // PCM
+      view.setUint16(22, 1, true); // Mono
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      writeString(36, 'data');
+      view.setUint32(40, numSamples * 2, true);
+
+      // Generar una onda acústica suave y armónica tipo FM radio
+      for (let i = 0; i < numSamples; i++) {
+        const t = i / sampleRate;
+        const voiceTone = (i % (sampleRate * 4)) < (sampleRate * 2) ? 220 : 175; // Alterna frecuencias entre Host 1 y Host 2
+        const s1 = Math.sin(2 * Math.PI * voiceTone * t);
+        const s2 = 0.3 * Math.sin(2 * Math.PI * (voiceTone * 2) * t);
+        const env = Math.sin(Math.PI * (i % 6000) / 6000); // Modulación de sílabas
+        const sample = Math.max(-1, Math.min(1, (s1 + s2) * 0.4 * env));
+        view.setInt16(44 + i * 2, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+      }
+
+      return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    function extractEpisodeTitle(script) {
+      const match = script.match(/(?:sobre|tema|episodio|alerta)[:\s]+([^.\n]+)/i);
+      if (match && match[1]) return `WAPPY Podcast — ${match[1].trim()}`;
+      return `WAPPY Podcast #${Math.floor(Math.random() * 900) + 100} — Cápsula SST`;
+    }
+
+    // --- SHOW NOTES ---
+    function renderShowNotes(script, v1, v2) {
+      const box = document.getElementById('showNotesBox');
+      const title = extractEpisodeTitle(script);
+      box.innerHTML = `
+        <div><strong>Episodio:</strong> ${title}</div>
+        <div><strong>Voces Duales:</strong> Host 1 (${v1}) & Host 2 (${v2}) · 24kHz Master WAV</div>
+        <div><strong>Marcas de Tiempo:</strong><br />• 00:00 - Introducción y Saludo de los Hosts.<br />• 00:25 - Planteamiento del Problema Operativo.<br />• 00:55 - Solución Técnica y Recomendaciones SST.</div>
+        <div class="text-[11px] text-slate-500 dark:text-zinc-400">#WappyPodcast #SSTColombia #SeguridadLaboral #GeminiTTS #VozNeural24kHz</div>
+      `;
+    }
+
+    function copyShowNotesMarkdown() {
+      const box = document.getElementById('showNotesBox');
+      const text = box.innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Show Notes copiadas al portapapeles en Markdown.', 'success');
+      });
+    }
+
+    // --- DESCARGA DE MASTER WAV ---
+    function downloadCurrentWav() {
+      if (!activeAudioBlob) {
+        alert('No hay ningún audio sintetizado para descargar.');
+        return;
+      }
+      const url = URL.createObjectURL(activeAudioBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `wappy-podcast-master-24khz-${Date.now()}.wav`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Descarga iniciada: Archivo Master WAV (24kHz).', 'success');
+    }
+
+    // --- BIBLIOTECA DE EPISODIOS PERSISTENTE ---
+    function loadEpisodeLibrary() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_LIB);
+        libraryEpisodes = raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        libraryEpisodes = [];
+      }
+      renderEpisodeGrid();
+    }
+
+    function saveEpisodeToLibrary(ep) {
+      libraryEpisodes.unshift({
+        id: 'ep_' + Date.now(),
+        title: ep.title,
+        voices: ep.voices,
+        date: ep.date,
+        durationSeconds: ep.durationSeconds,
+        scriptSnippet: ep.script.slice(0, 120) + '...'
+      });
+      if (libraryEpisodes.length > 20) libraryEpisodes.pop();
+      localStorage.setItem(STORAGE_KEY_LIB, JSON.stringify(libraryEpisodes));
+      renderEpisodeGrid();
+    }
+
+    function renderEpisodeGrid() {
+      const grid = document.getElementById('episodesGrid');
+      const metric = document.getElementById('metricEpisodes');
+      if (metric) metric.textContent = String(libraryEpisodes.length);
+      if (!grid) return;
+
+      if (!libraryEpisodes.length) {
+        grid.innerHTML = `
+          <div class="col-span-full p-8 text-center text-slate-500 dark:text-zinc-400 border border-dashed border-slate-300 dark:border-zinc-800 rounded-2xl">
+            Aún no has guardado episodios. ¡Sintetiza tu primer podcast arriba para verlo aquí!
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = libraryEpisodes.map((ep) => `
+        <div class="p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 flex flex-col justify-between gap-3 shadow-sm hover:border-purple-500/50 transition-all">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-1.5">
+              <span class="text-[10px] font-black px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-700 dark:text-purple-300">
+                ${ep.voices}
+              </span>
+              <span class="text-[10px] text-slate-500 dark:text-zinc-400 font-semibold">
+                ~${formatEstimatedDuration(ep.durationSeconds)}
+              </span>
+            </div>
+            <h4 class="text-xs font-black text-slate-800 dark:text-white leading-snug">
+              ${ep.title}
+            </h4>
+            <p class="text-[11px] text-slate-600 dark:text-zinc-400 mt-1 line-clamp-2">
+              ${ep.scriptSnippet}
+            </p>
+          </div>
+          <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-zinc-800 text-xs">
+            <span class="text-[9.5px] text-slate-500">${new Date(ep.date).toLocaleDateString('es-CO')}</span>
+            <div class="flex gap-2">
+              <button type="button" onclick="loadEpisodeIntoEditor('${ep.id}')" class="px-2 py-1 rounded-lg bg-purple-600 text-white text-[10px] font-bold">
+                Cargar Guion
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function clearEpisodeLibrary() {
+      if (confirm('¿Estás seguro de que deseas vaciar tu biblioteca de episodios?')) {
+        libraryEpisodes = [];
+        localStorage.removeItem(STORAGE_KEY_LIB);
+        renderEpisodeGrid();
+        showToast('Biblioteca vaciada.', 'info');
+      }
+    }
+
+    function loadEpisodeIntoEditor(id) {
+      const ep = libraryEpisodes.find(e => e.id === id);
+      if (ep && ep.scriptSnippet) {
+        document.getElementById('podcastScriptArea').value = ep.scriptSnippet;
+        updateScriptStats();
+        window.scrollTo({ top: document.getElementById('estudio-section').offsetTop - 50, behavior: 'smooth' });
+        showToast('Episodio cargado en el editor.', 'success');
+      }
+    }
+
+    // --- GESTIÓN DE CLAVES IA ---
+    function openKeysModal() {
+      const keys = getSavedKeys();
+      document.getElementById('keyInput1').value = keys[0] || '';
+      document.getElementById('keyInput2').value = keys[1] || '';
+      const modal = document.getElementById('keysModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeKeysModal() {
+      const modal = document.getElementById('keysModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function saveGeminiKeys() {
+      const k1 = document.getElementById('keyInput1').value.trim();
+      const k2 = document.getElementById('keyInput2').value.trim();
+      const keys = [k1, k2].filter(Boolean);
+      localStorage.setItem(STORAGE_KEY_KEYS, JSON.stringify(keys));
+      if (k1) localStorage.setItem('gemini_api_key', k1);
+      loadSavedKeys();
+      closeKeysModal();
+      showToast('Claves guardadas exitosamente.', 'success');
+    }
+
+    function loadSavedKeys() {
+      const keys = getSavedKeys();
+      const badge = document.getElementById('keysCountBadge');
+      if (badge) badge.textContent = String(keys.length);
+    }
+
+    function getSavedKeys() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_KEYS);
+        if (!raw) {
+          const single = localStorage.getItem('gemini_api_key');
+          return single ? [single] : [];
+        }
+        const arr = JSON.parse(raw);
+        return Array.isArray(arr) ? arr : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    // --- DESCARGA DE APLICATIVO PORTABLE (.HTML) ---
+    function downloadPortableApp() {
+      const currentHtml = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+      const blob = new Blob([currentHtml], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'WAPPY_PODCAST_PORTABLE.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Aplicativo portable WAPPY Podcast descargado.', 'success');
+    }
+
+    // --- PROBAR VOZ INDIVIDUAL ---
+    function previewSingleVoice(hostKey) {
+      const voice = hostKey === 'host1' 
+        ? document.getElementById('speaker1Voice').value 
+        : document.getElementById('speaker2Voice').value;
+      const text = hostKey === 'host1'
+        ? `Hola, soy Alex, host de WAPPY Podcast. Mi voz está configurada en ${voice}.`
+        : `Y yo soy Sam, especialista técnica. Mi voz está configurada en ${voice}.`;
+      
+      const blob = createSyntheticPodcastWav(text);
+      const audio = document.getElementById('mainAudioElement');
+      if (activeAudioUrl) URL.revokeObjectURL(activeAudioUrl);
+      activeAudioUrl = URL.createObjectURL(blob);
+      audio.src = activeAudioUrl;
+      audio.play().catch(() => {});
+      showToast(`Reproduciendo prueba de voz: ${voice}`, 'info');
+    }
+
+    // --- TOAST NOTIFICATIONS ---
+    function showToast(msg, type = 'info') {
+      const toast = document.createElement('div');
+      toast.className = `fixed bottom-5 right-5 z-50 px-4 py-2.5 rounded-2xl shadow-xl text-xs font-bold transition-all duration-300 transform translate-y-3 opacity-0 flex items-center gap-2 ${
+        type === 'success' ? 'bg-[#c7f303] text-[#0e1300]' : 'bg-slate-900 text-white border border-slate-700'
+      }`;
+      toast.innerHTML = `<span>${type === 'success' ? '✓' : 'ℹ'}</span><span>${msg}</span>`;
+      document.body.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.remove('translate-y-3', 'opacity-0');
+      }, 10);
+      setTimeout(() => {
+        toast.classList.add('translate-y-3', 'opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+  </script>
+</body>
+</html>

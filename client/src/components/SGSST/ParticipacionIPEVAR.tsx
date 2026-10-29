@@ -54,6 +54,7 @@ import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar, { ToolbarButton } from './SGSSTToolbar';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
 import SingleSelect from './SingleSelect';
 import CollapsibleReportBox from './CollapsibleReportBox';
 
@@ -1476,122 +1477,74 @@ const ParticipacionIPEVAR = () => {
     return (
         <div className="flex flex-col gap-6 w-full">
             {/* ─── BANNER DE CONTROL Y ESTADO DE PARTICIPACIÓN IPEVR (Estilo Matriz IPEVR) ─── */}
-            <div className="relative overflow-hidden rounded-3xl border border-teal-500/30 bg-gradient-to-br from-surface-primary via-surface-secondary to-teal-500/5 p-6 shadow-xl backdrop-blur-md">
-                {/* Glow de fondo */}
-                <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-teal-500/10 blur-3xl dark:bg-teal-400/10" />
-
-                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    {/* Lado Izquierdo: Información y Estado */}
-                    <div className="flex items-start gap-4">
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-teal-500 to-emerald-400 text-white shadow-lg shadow-teal-500/20">
-                            <Target className="h-7 w-7 stroke-[2.2]" />
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <h2 className="text-xl font-black tracking-tight text-text-primary">
-                                    Participación IPEVR & Base Estadística Colectiva
-                                </h2>
-                                <div
-                                    title="Sincronización Oficial Activa"
-                                    className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                                >
-                                    <div className="relative flex flex-shrink-0 items-center justify-center">
-                                        <Star className="h-3.5 w-3.5 fill-emerald-500 text-emerald-500 shrink-0" />
-                                        <span className="absolute -right-1 -top-1 flex h-2 w-2">
-                                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                                            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
-                                        </span>
-                                    </div>
-                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                                        <span className="text-xs font-black uppercase tracking-wider">Matriz Oficial Conectada</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Badges de Métricas Conectadas con Estilo Expansible Estándar */}
-                            <div className="flex flex-wrap items-center gap-2 pt-1">
-                                {/* Población Evaluada */}
-                                <div
-                                    title={`${bannerStats.totalWorkers} ${bannerStats.totalWorkers === 1 ? 'Colaborador Participante' : 'Colaboradores Participantes'}`}
-                                    className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                                >
-                                    <div className="relative flex flex-shrink-0 items-center justify-center">
-                                        <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
-                                        <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
-                                            {bannerStats.totalWorkers}
-                                        </span>
-                                    </div>
-                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                                        <span className="text-xs font-bold tracking-wide">
-                                            {bannerStats.totalWorkers} {bannerStats.totalWorkers === 1 ? 'Colaborador Participante' : 'Colaboradores Participantes'}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* Reportes Registrados */}
-                                <div
-                                    title={`${bannerStats.totalParticipaciones} Reportes Registrados`}
-                                    className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                                >
-                                    <div className="relative flex flex-shrink-0 items-center justify-center">
-                                        <FileSpreadsheet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-600 dark:text-blue-400 shrink-0" />
-                                        <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-blue-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
-                                            {bannerStats.totalParticipaciones}
-                                        </span>
-                                    </div>
-                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
-                                        <span className="text-xs font-bold tracking-wide">
-                                            {bannerStats.totalParticipaciones} {bannerStats.totalParticipaciones === 1 ? 'Reporte Registrado' : 'Reportes Registrados'}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* Ponderación Estadística GTC-45 Activa */}
-                                <div
-                                    title="Ponderación Estadística GTC-45 Activa"
-                                    className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                                >
-                                    <div className="relative flex flex-shrink-0 items-center justify-center">
-                                        <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-600 dark:text-purple-400 shrink-0" />
-                                    </div>
-                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                                        <span className="text-xs font-bold tracking-wide">
-                                            Ponderación GTC-45 Activa
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* ISO 45001 Num. 5.4 · Res. 0312 Est. 4.1.2: CUMPLE */}
-                                <SGSSTLegalBadge
-                                    standardCode="4.1.2"
-                                    label="ISO 45001 Num. 5.4 · Res. 0312 Est. 4.1.2: CUMPLE"
-                                    tooltip="ISO 45001:2018 Num. 5.4 (Consulta y participación de los trabajadores) · Res. 0312/2019 Estándar 4.1.2 — Identificación de Peligros con Participación (Dec. 1072/15 Art. 2.2.4.6.15)"
-                                    moduleName="Participación IPEVAR"
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Lado Derecho: Acceso al Portal QR */}
-                    <div className="flex md:flex-col items-end justify-center gap-1.5 shrink-0">
-                        <button
-                            type="button"
-                            onClick={() => setShowQrModal(true)}
-                            title="Portal Público QR"
-                            aria-label="Portal Público QR"
-                            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border rounded-xl bg-fuchsia-500/10 border-fuchsia-500/30 text-fuchsia-700 dark:text-fuchsia-300 hover:bg-fuchsia-500/20 shadow-xs "
+            <SGSSTHeroHeader
+                categoryId="participacion_ipevar"
+                icon={<Target className="h-7 w-7 stroke-[2.2]" />}
+                title="Participación IPEVR & Base Estadística Colectiva"
+                companyName={companyInfo?.companyName}
+                badges={
+                    <>
+                        {/* Población Evaluada */}
+                        <div
+                            title={`${bannerStats.totalWorkers} ${bannerStats.totalWorkers === 1 ? 'Colaborador Participante' : 'Colaboradores Participantes'}`}
+                            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
                         >
                             <div className="relative flex flex-shrink-0 items-center justify-center">
-                                <QrCode className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                                <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                                <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                                    {bannerStats.totalWorkers}
+                                </span>
                             </div>
-                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
-                                <span className="text-xs font-bold tracking-wide">Portal Público QR</span>
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                                <span className="text-xs font-bold tracking-wide">
+                                    {bannerStats.totalWorkers} {bannerStats.totalWorkers === 1 ? 'Colaborador Participante' : 'Colaboradores Participantes'}
+                                </span>
                             </div>
-                        </button>
-                    </div>
-                </div>
-            </div>
+                        </div>
+
+                        {/* Reportes Registrados */}
+                        <div
+                            title={`${bannerStats.totalParticipaciones} Reportes Registrados`}
+                            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                        >
+                            <div className="relative flex flex-shrink-0 items-center justify-center">
+                                <FileSpreadsheet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                                <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-blue-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                                    {bannerStats.totalParticipaciones}
+                                </span>
+                            </div>
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
+                                <span className="text-xs font-bold tracking-wide">
+                                    {bannerStats.totalParticipaciones} {bannerStats.totalParticipaciones === 1 ? 'Reporte Registrado' : 'Reportes Registrados'}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Ponderación Estadística GTC-45 Activa */}
+                        <div
+                            title="Ponderación Estadística GTC-45 Activa"
+                            className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                        >
+                            <div className="relative flex flex-shrink-0 items-center justify-center">
+                                <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-600 dark:text-purple-400 shrink-0" />
+                            </div>
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                                <span className="text-xs font-bold tracking-wide">
+                                    Ponderación GTC-45 Activa
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* ISO 45001 Num. 5.4 · Res. 0312 Est. 4.1.2: CUMPLE */}
+                        <SGSSTLegalBadge
+                            standardCode="4.1.2"
+                            label="ISO 45001 Num. 5.4 · Res. 0312 Est. 4.1.2: CUMPLE"
+                            tooltip="ISO 45001:2018 Num. 5.4 (Consulta y participación de los trabajadores) · Res. 0312/2019 Estándar 4.1.2 — Identificación de Peligros con Participación (Dec. 1072/15 Art. 2.2.4.6.15)"
+                            moduleName="Participación IPEVAR"
+                        />
+                    </>
+                }
+            />
 
             {/* ── 2. Barra Flotante de Herramientas SGSST ── */}
             <SGSSTToolbar

@@ -27,6 +27,7 @@ import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { cn } from '~/utils';
 import { SGSSTToolbar, ToolbarButton } from './SGSSTToolbar';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
 import SGSSTLegalBadge from './SGSSTLegalBadge';
 import ExpandingButton from './ExpandingButton';
 import { SignaturePad } from './SignaturePad';
@@ -569,130 +570,156 @@ export default function ComitePesvWorkspace() {
 
   return (
     <div className="space-y-6">
-      {/* ─── HEADER EJECUTIVO Y ESCALA NORMATIVA PESV (PASO 1 Y PASO 2) ─────────── */}
-      <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-gradient-to-br from-teal-900 via-teal-800 to-slate-900 text-white p-6 shadow-lg">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/20 border border-teal-400/30 text-teal-200 text-xs font-bold uppercase tracking-wider">
-                <Car className="w-3.5 h-3.5" /> Res. 20223040040595 Paso 1, 2 y 20 • Ley 1503/2011 • ISO 39001
+      {/* ─── HEADER EJECUTIVO Y ESCALA NORMATIVA PESV (SGSSTHeroHeader) ─────────── */}
+      <SGSSTHeroHeader
+        categoryId="comite_pesv"
+        icon={<Car className="h-7 w-7" />}
+        title="Comité de Seguridad Vial (CSV) & Líder del PESV"
+        description={
+          escala?.descripcion ||
+          'Órgano directivo y operativo del Plan Estratégico de Seguridad Vial encargado de planificar, auditar siniestros viales, evaluar indicadores trimestrales (Paso 20) y vigilar la movilidad segura.'
+        }
+        badges={
+          <>
+            {/* Nivel PESV */}
+            <div
+              title={`Nivel PESV: ${comiteForm.nivelPesv || escala?.nivel || 'Estándar'}`}
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+            >
+              <div className="relative flex flex-shrink-0 items-center justify-center">
+                <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-600 dark:text-amber-400 shrink-0" />
               </div>
-              {/* ISO 45001 Num. 5.1 · Res. 0312 Art. 32 / PESV: CUMPLE */}
-              <SGSSTLegalBadge
-                standardCode="1.1.6"
-                label="ISO 45001 Num. 5.1 · Res. 0312 Art. 32 / PESV: CUMPLE"
-                tooltip="ISO 45001:2018 Num. 5.1 (Liderazgo y compromiso) · Res. 0312/2019 Art. 32 y Res. 20223040040595 (Paso 2 — Comité de Seguridad Vial)"
-                moduleName="Comité de Seguridad Vial (PESV)"
-              />
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  Nivel {comiteForm.nivelPesv || escala?.nivel || 'Estándar'} (
+                  {comiteForm.nivelPesv === 'Básico'
+                    ? '19 Pasos'
+                    : comiteForm.nivelPesv === 'Avanzado'
+                    ? '24 Pasos'
+                    : '22 Pasos'}
+                  )
+                </span>
+              </div>
             </div>
-            <h2 className="text-2xl font-black tracking-tight flex items-center gap-2.5">
-              Comité de Seguridad Vial (CSV) & Líder del PESV
-            </h2>
-            <p className="text-xs sm:text-sm text-teal-100/90 leading-relaxed">
-              {escala?.descripcion ||
-                'Órgano directivo y operativo del Plan Estratégico de Seguridad Vial encargado de planificar, auditar siniestros viales, evaluar indicadores trimestrales (Paso 20) y vigilar la movilidad segura.'}
-            </p>
-          </div>
 
-          {/* Tarjetas Resumen de Escala PESV */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
-            <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-xl p-3 text-center">
-              <div className="text-[10px] uppercase font-bold text-teal-200">Nivel PESV</div>
-              <div className="text-lg font-black mt-0.5 text-amber-300">
-                {comiteForm.nivelPesv || escala?.nivel || 'Estándar'}
+            {/* Flota / Conductores */}
+            <div
+              title={`Flota: ${comiteForm.flotaTotal || 0} Vehículos • ${comiteForm.conductoresTotal || 0} Conductores`}
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+            >
+              <div className="relative flex flex-shrink-0 items-center justify-center">
+                <Car className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                  {comiteForm.flotaTotal || 0}
+                </span>
               </div>
-              <div className="text-[10px] text-teal-200/80">
-                {comiteForm.nivelPesv === 'Básico'
-                  ? '19 Pasos'
-                  : comiteForm.nivelPesv === 'Avanzado'
-                  ? '24 Pasos'
-                  : '22 Pasos'}
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  {comiteForm.flotaTotal || 0} Veh • {comiteForm.conductoresTotal || 0} Cond
+                </span>
               </div>
             </div>
-            <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-xl p-3 text-center">
-              <div className="text-[10px] uppercase font-bold text-teal-200">Flota / Cond.</div>
-              <div className="text-sm font-extrabold mt-1">
-                {comiteForm.flotaTotal || 0} Veh • {comiteForm.conductoresTotal || 0} Cond
-              </div>
-              <div className="text-[10px] text-teal-200/80">Mín. 3 Miembros CSV</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-xl p-3 text-center">
-              <div className="text-[10px] uppercase font-bold text-teal-200">Estado CSV</div>
-              <div className="text-sm font-extrabold mt-1 flex items-center justify-center gap-1">
+
+            {/* Estado CSV */}
+            <div
+              title={activeComite ? 'CSV Vigente' : 'CSV Sin conformar'}
+              className={cn(
+                'group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105',
+                activeComite
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                  : 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+              )}
+            >
+              <div className="relative flex flex-shrink-0 items-center justify-center">
                 {activeComite ? (
-                  <span className="text-emerald-300 flex items-center gap-1">
-                    <CheckCircle2 className="w-4 h-4" /> Vigente
-                  </span>
+                  <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 ) : (
-                  <span className="text-amber-300 flex items-center gap-1">
-                    <AlertTriangle className="w-4 h-4" /> Sin conformar
-                  </span>
+                  <AlertTriangle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-600 dark:text-amber-400 shrink-0" />
                 )}
               </div>
-              <div className="text-[10px] text-teal-200/80">
-                {activeComite?.liderPesv?.nombre ? `Líder: ${activeComite.liderPesv.nombre.split(' ')[0]}` : 'Paso 1 y 2'}
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  {activeComite ? 'CSV Vigente' : 'CSV Sin conformar'}
+                  {activeComite?.liderPesv?.nombre ? ` • ${activeComite.liderPesv.nombre.split(' ')[0]}` : ''}
+                </span>
               </div>
             </div>
-            <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-xl p-3 text-center">
-              <div className="text-[10px] uppercase font-bold text-teal-200">
-                Avance {selectedYear} ({comiteForm.frecuenciaReuniones})
+
+            {/* Avance Sesiones */}
+            <div
+              title={`Avance ${selectedYear}: ${compliancePercent}% sesiones`}
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+            >
+              <div className="relative flex flex-shrink-0 items-center justify-center">
+                <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                  {comiteForm.frecuenciaReuniones === 'Trimestral'
+                    ? `${quarterlyMonthsCompleted}/4`
+                    : `${completedMonths}/12`}
+                </span>
               </div>
-              <div className="text-xl font-black mt-0.5 text-emerald-300">
-                {comiteForm.frecuenciaReuniones === 'Trimestral'
-                  ? `${quarterlyMonthsCompleted}/4`
-                  : `${completedMonths}/12`}
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  Avance {selectedYear}: {compliancePercent}% sesiones
+                </span>
               </div>
-              <div className="text-[10px] text-teal-200/80">{compliancePercent}% sesiones</div>
             </div>
-          </div>
-        </div>
-      </div>
+
+            {/* ISO 45001 Num. 5.1 · Res. 0312 Art. 32 / PESV: CUMPLE */}
+            <SGSSTLegalBadge
+              standardCode="1.1.6"
+              label="ISO 45001 Num. 5.1 · Res. 0312 Art. 32 / PESV: CUMPLE"
+              tooltip="ISO 45001:2018 Num. 5.1 (Liderazgo y compromiso) · Res. 0312/2019 Art. 32 y Res. 20223040040595 (Paso 2 — Comité de Seguridad Vial)"
+              moduleName="Comité de Seguridad Vial (PESV)"
+            />
+          </>
+        }
+        actions={
+          activeTab === 'actas' ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-500 dark:text-zinc-400">Año Fiscal:</span>
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-zinc-200"
+              >
+                {[2024, 2025, 2026, 2027].map((yr) => (
+                  <option key={yr} value={yr}>
+                    {yr}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : undefined
+        }
+      />
 
       {/* ─── BARRA DE NAVEGACIÓN CÁPSULA WAPPY ─────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <SGSSTToolbar>
-          <ToolbarButton
-            icon={Calendar}
-            label="Actas del Comité Vial"
-            active={activeTab === 'actas'}
-            onClick={() => setActiveTab('actas')}
-            badge={completedMonths}
-            variant="teal"
-          />
-          <ToolbarButton
-            icon={Users}
-            label="Conformación CSV & Líder PESV (Paso 1 y 2)"
-            active={activeTab === 'conformacion'}
-            onClick={() => setActiveTab('conformacion')}
-            variant="teal"
-          />
-          <ToolbarButton
-            icon={Gauge}
-            label="Indicadores & Metas Viales (Paso 20)"
-            active={activeTab === 'indicadores'}
-            onClick={() => setActiveTab('indicadores')}
-            badge={comiteForm.metasAnuales?.length || 0}
-            variant="teal"
-          />
-        </SGSSTToolbar>
-
-        {activeTab === 'actas' && (
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-500 dark:text-zinc-400">Año Fiscal:</span>
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-zinc-200"
-            >
-              {[2024, 2025, 2026, 2027].map((yr) => (
-                <option key={yr} value={yr}>
-                  {yr}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-      </div>
+      <SGSSTToolbar>
+        <ToolbarButton
+          icon={Calendar}
+          label="Actas del Comité Vial"
+          active={activeTab === 'actas'}
+          onClick={() => setActiveTab('actas')}
+          badge={completedMonths}
+          variant="teal"
+        />
+        <ToolbarButton
+          icon={Users}
+          label="Conformación CSV & Líder PESV (Paso 1 y 2)"
+          active={activeTab === 'conformacion'}
+          onClick={() => setActiveTab('conformacion')}
+          variant="teal"
+        />
+        <ToolbarButton
+          icon={Gauge}
+          label="Indicadores & Metas Viales (Paso 20)"
+          active={activeTab === 'indicadores'}
+          onClick={() => setActiveTab('indicadores')}
+          badge={comiteForm.metasAnuales?.length || 0}
+          variant="teal"
+        />
+      </SGSSTToolbar>
 
       {/* ═══════════════════════════════════════════════════════════════════════════
           TAB 1: TABLERO DE ACTAS DEL COMITÉ DE SEGURIDAD VIAL (TRIMESTRALES / MENSUALES)
@@ -1303,7 +1330,7 @@ export default function ComitePesvWorkspace() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <SGSSTToolbar>
+                <SGSSTToolbar disableHeroPortal={true}>
                   <ToolbarButton
                     icon={Edit3}
                     label="Diligenciamiento"

@@ -7,6 +7,8 @@ import {
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { SGSSTToolbar, ToolbarButton } from './SGSSTToolbar';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
+import SGSSTLegalBadge from './SGSSTLegalBadge';
 import SingleSelect from './SingleSelect';
 import ModelSelector, { AI_MODELS } from './ModelSelector';
 import { exportBioIPEVARToExcel } from './exportBioIPEVAR';
@@ -589,29 +591,51 @@ export default function BioMatrizIPEVAR({ workerId, initialWorker }: BioMatrizIP
   return (
     <div className="flex flex-col gap-4">
       {/* ── Header ── */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <Dna className="h-5 w-5 text-teal-500" />
-            <h4 className="font-bold text-text-primary text-sm">
-              Índice Bio-Riesgo Individual
-              {rows.length > 0 && <span className="ml-2 text-xs font-normal text-text-secondary">({rows.length} riesgo{rows.length !== 1 ? 's' : ''})</span>}
-            </h4>
-            {hasUnsaved && <span className="text-xs text-amber-500 font-semibold">● Sin guardar</span>}
-          </div>
-          <div className="flex flex-wrap gap-2 mt-2">
-            <span className="text-xs px-2 py-0.5 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 rounded-full border border-teal-200 dark:border-teal-800">
+      <SGSSTHeroHeader
+        icon={<Dna className="h-7 w-7" />}
+        title={
+          <>
+            Índice Bio-Riesgo Individual
+            {rows.length > 0 && (
+              <span className="ml-2 text-xs font-bold text-text-secondary">
+                ({rows.length} riesgo{rows.length !== 1 ? 's' : ''})
+              </span>
+            )}
+          </>
+        }
+        titleText="Índice Bio-Riesgo Individual"
+        description="Metodología Bio-Individual WAPPY · Evaluación personalizada de susceptibilidad fisiológica, exposición y percepción del trabajador."
+        badges={
+          <>
+            <span className="text-xs font-bold px-2.5 py-0.5 bg-teal-500/10 text-teal-700 dark:text-teal-300 rounded-xl border border-teal-500/30">
               FIT {fitScore}%
             </span>
-            <span className={`text-xs px-2 py-0.5 rounded-full border ${factorReduccion > 0.1 ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800' : 'bg-surface-secondary text-text-secondary border-border-light'}`}>
+            <span
+              className={`text-xs font-bold px-2.5 py-0.5 rounded-xl border ${
+                factorReduccion > 0.1
+                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                  : 'bg-surface-secondary text-text-secondary border-border-light'
+              }`}
+            >
               Reducción percepción: {(factorReduccion * 100).toFixed(0)}%
             </span>
-            <span className="text-xs px-2 py-0.5 bg-surface-secondary text-text-secondary rounded-full border border-border-light">
+            <span className="text-xs font-bold px-2.5 py-0.5 bg-surface-secondary text-text-secondary rounded-xl border border-border-light">
               {percepcionPts} pts percepción
             </span>
-          </div>
-        </div>
-      </div>
+            {hasUnsaved && (
+              <span className="text-xs px-2.5 py-0.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 font-bold">
+                ● Sin guardar
+              </span>
+            )}
+            <SGSSTLegalBadge
+              standardCode="4.1.1"
+              label="ISO 45001 Num. 6.1.2 · Res. 0312 Est. 4.1.1: CUMPLE"
+              tooltip="ISO 45001:2018 Num. 6.1.2 · Res. 0312/2019 Estándar 4.1.1 — Identificación de Peligros y Valoración de Riesgos con enfoque Bio-Individual"
+              moduleName="Índice Bio-Riesgo Individual"
+            />
+          </>
+        }
+      />
 
       <SGSSTToolbar 
         onSaveLocal={() => saveRisks(rows)}

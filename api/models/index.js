@@ -169,5 +169,8 @@ module.exports = {
   AutomationLog: require('./AutomationLog'),
   UserApiKey: require('./UserApiKey'),
   NotebookSession: require('./NotebookSession'),
+  SgsstComprasData: require('./SgsstComprasData'),
+  SgsstContratistasData: require('./SgsstContratistasData'),
+  SgsstGestionCambioData: require('./SgsstGestionCambioData'),
 };
 

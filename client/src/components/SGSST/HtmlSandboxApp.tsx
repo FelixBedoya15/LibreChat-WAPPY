@@ -13,10 +13,14 @@ import {
     Maximize2,
     Minimize2,
     Settings,
-    Save
+    Save,
+    Sparkles,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
+import SGSSTLegalBadge from './SGSSTLegalBadge';
+import ExpandableButton from '~/components/Common/ExpandableButton';
 
 interface HtmlApp {
     id: string;
@@ -276,48 +280,57 @@ export default function HtmlSandboxApp({ phaseId, phaseTitle }: HtmlSandboxAppPr
         <div className={`w-full bg-surface-secondary/30 dark:bg-black/10 rounded-[2rem] border border-border-light dark:border-white/5 p-6 backdrop-blur-md transition-all duration-300 ${isFullscreen ? 'fixed inset-0 z-50 bg-surface-primary overflow-hidden' : ''}`}>
             
             {/* Header Toolbar */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border-light dark:border-white/5 pb-4 mb-6">
-                <div>
-                    <h3 className="text-xl font-black text-text-primary flex items-center gap-2">
-                        <Settings className="w-5 h-5 text-teal-500" />
-                        Aplicativos Personalizados HTML ({phaseTitle})
-                    </h3>
-                    <p className="text-xs font-semibold text-text-secondary mt-1">
-                        Sube o escribe código HTML interactivo. Los aplicativos se sincronizan en la nube automáticamente.
-                    </p>
-                </div>
-
-                <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-                    {/* Sync Status Badge */}
-                    <button
-                        onClick={handleManualSave}
-                        disabled={isSaving}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider bg-teal-500/10 border border-teal-500/30 text-teal-600 dark:text-teal-400 hover:bg-teal-500/20 active:scale-95 transition-all"
-                    >
-                        {isSaving ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                            <CloudLightning className="w-3.5 h-3.5" />
-                        )}
-                        {isSaving ? 'Guardando...' : 'Guardar en la Nube'}
-                    </button>
-
-                    <button
-                        onClick={handleAddApp}
-                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md hover:shadow-lg active:scale-95 transition-all"
-                    >
-                        <Plus className="w-4 h-4" />
-                        Nuevo HTML
-                    </button>
-
-                    <button
-                        onClick={() => setIsFullscreen(!isFullscreen)}
-                        className="p-2 rounded-xl border border-border-light dark:border-white/5 bg-surface-secondary text-text-primary hover:bg-surface-tertiary transition-all"
-                        title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
-                    >
-                        {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                    </button>
-                </div>
+            <div className="mb-6">
+                <SGSSTHeroHeader
+                    icon={<Sparkles className="h-7 w-7" />}
+                    title={activeApp?.title || `Aplicativos Personalizados HTML (${phaseTitle})`}
+                    description="Sube o escribe código HTML interactivo. Los aplicativos se sincronizan en la nube automáticamente."
+                    badges={
+                        <SGSSTLegalBadge
+                            standardCode="2.5.1"
+                            label="ISO 45001 Num. 7.5 · Res. 0312 Est. 2.5.1: CUMPLE"
+                            tooltip="ISO 45001:2018 Num. 7.5 · Res. 0312/2019 Estándar 2.5.1 — Digitalización y prototipado interactivo del SG-SST"
+                            moduleName="Aplicativos Personalizados HTML"
+                        />
+                    }
+                    actions={
+                        <>
+                            <ExpandableButton
+                                onClick={handleManualSave}
+                                disabled={isSaving}
+                                variant="teal"
+                                icon={
+                                    isSaving ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <CloudLightning className="h-4 w-4" />
+                                    )
+                                }
+                                label={isSaving ? 'Guardando...' : 'Guardar en la Nube'}
+                            />
+                            <ExpandableButton
+                                onClick={handleAddApp}
+                                variant="emerald"
+                                icon={<Plus className="h-4 w-4" />}
+                                label="Nuevo HTML"
+                            />
+                            <ExpandableButton
+                                onClick={() => setIsFullscreen(!isFullscreen)}
+                                variant="neutral"
+                                icon={isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                                label={isFullscreen ? 'Salir de Pantalla Completa' : 'Pantalla Completa'}
+                            />
+                            {activeApp && (
+                                <ExpandableButton
+                                    onClick={(e) => handleDeleteApp(activeApp.id, e)}
+                                    variant="danger"
+                                    icon={<Trash2 className="h-4 w-4" />}
+                                    label="Eliminar App"
+                                />
+                            )}
+                        </>
+                    }
+                />
             </div>
 
             {isLoading ? (

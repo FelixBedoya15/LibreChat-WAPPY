@@ -54,10 +54,12 @@ const ComunidadPage = lazy(() => import('~/components/Marketing/ComunidadPage'))
 const MatrizPage = lazy(() => import('~/components/Marketing/MatrizPage'));
 const MatrizIpvrPage = lazy(() => import('~/components/Marketing/MatrizIpvrPage'));
 const WappyStudioPage = lazy(() => import('~/components/Marketing/WappyStudioPage'));
+const WappyPodcastPage = lazy(() => import('~/components/Marketing/WappyPodcastPage'));
 const QuibiPage = lazy(() => import('~/components/Marketing/QuibiPage'));
 const BateriaPsicosocialPage = lazy(() => import('~/components/Marketing/BateriaPsicosocialPage'));
 const LandingPage = lazy(() => import('~/components/Marketing/LandingPage'));
 const WappyPortalPage = lazy(() => import('~/components/Marketing/WappyPortalPage'));
+const WappyDotsPage = lazy(() => import('~/components/Marketing/WappyDotsPage'));
 const AgentMarketplace = lazy(() => import('~/components/Agents/Marketplace'));
 const CourseViewer = lazy(() => import('~/components/Training/CourseViewer'));
 const TrainingAdminDashboard = lazy(() => import('~/components/Training/TrainingAdminDashboard'));
@@ -459,6 +461,66 @@ export const router = createBrowserRouter(
     {
       path: 'wappy-studio.html',
       element: withSuspense(<WappyStudioPage />),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'wappypodcast',
+      element: withSuspense(<WappyPodcastPage />),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'wappypodcast.html',
+      element: withSuspense(<WappyPodcastPage />),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'wappy-podcast',
+      element: withSuspense(<WappyPodcastPage />),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'wappy-podcast.html',
+      element: withSuspense(<WappyPodcastPage />),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'wappy-dots',
+      element: withSuspense(
+        <AuthContextProvider>
+          <WappyDotsPage />
+          <ApiErrorWatcher />
+        </AuthContextProvider>,
+      ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'wappydots',
+      element: withSuspense(
+        <AuthContextProvider>
+          <WappyDotsPage />
+          <ApiErrorWatcher />
+        </AuthContextProvider>,
+      ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'wappy-dots.html',
+      element: withSuspense(
+        <AuthContextProvider>
+          <WappyDotsPage />
+          <ApiErrorWatcher />
+        </AuthContextProvider>,
+      ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'wappydots.html',
+      element: withSuspense(
+        <AuthContextProvider>
+          <WappyDotsPage />
+          <ApiErrorWatcher />
+        </AuthContextProvider>,
+      ),
       errorElement: <RouteErrorBoundary />,
     },
     {

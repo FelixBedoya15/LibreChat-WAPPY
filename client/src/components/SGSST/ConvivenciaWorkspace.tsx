@@ -40,6 +40,7 @@ import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { QRCodeSVG } from 'qrcode.react';
 import SGSSTToolbar, { ToolbarButton } from './SGSSTToolbar';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
 import SGSSTLegalBadge from './SGSSTLegalBadge';
 import SignaturePad from './SignaturePad';
 import ExpandingButton from './ExpandingButton';
@@ -796,51 +797,56 @@ export default function ConvivenciaWorkspace() {
 
   return (
     <div className="w-full space-y-6">
-      {/* ═══ Header de Convivencia y Prevención de Acoso ═══ */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md p-6 shadow-sm">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="p-3.5 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-              <HeartHandshake className="w-8 h-8" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-xl md:text-2xl font-black tracking-tight text-slate-800 dark:text-zinc-100">
-                  Comité de Convivencia Laboral (CCL)
-                </h2>
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-                  Resolución 3461 de 2025 • Ley 2365 de 2024
+      {/* ═══ Header de Convivencia y Prevención de Acoso (SGSSTHeroHeader) ═══ */}
+      <SGSSTHeroHeader
+        categoryId="cocolab"
+        companyName={config?.company?.companyName}
+        icon={<HeartHandshake className="h-7 w-7" />}
+        title="Comité de Convivencia Laboral (CCL)"
+        description="Órgano de prevención del acoso laboral, mediación y trámite expedito en máximo 65 días calendario con ruta prioritaria para acoso sexual"
+        badges={
+          <>
+            <div
+              title={`Radicados Activos: ${config?.estadisticasCasos?.casosEnTramite || 0} en trámite`}
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+            >
+              <div className="relative flex flex-shrink-0 items-center justify-center">
+                <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                  {config?.estadisticasCasos?.casosEnTramite || 0}
                 </span>
-                {/* ISO 45001 Num. 5.4 · Res. 0312 Est. 1.1.8: CUMPLE */}
-                <SGSSTLegalBadge
-                  standardCode="1.1.8"
-                  label="ISO 45001 Num. 5.4 · Res. 0312 Est. 1.1.8: CUMPLE"
-                  tooltip="ISO 45001:2018 Num. 5.4 (Consulta y participación) · Res. 0312/2019 Estándar 1.1.8 — Comité de Convivencia Laboral (Res. 3461/25)"
-                  moduleName="Comité de Convivencia Laboral"
-                />
               </div>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-                Órgano de prevención del acoso laboral, mediación y trámite expedito en máximo 65 días calendario con ruta prioritaria para acoso sexual
-              </p>
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  {config?.estadisticasCasos?.casosEnTramite || 0} Radicados en Trámite
+                </span>
+              </div>
             </div>
-          </div>
 
-          {/* Semáforo de Casos Badge */}
-          <div className="flex items-center gap-3 bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700/80 px-4 py-2.5 rounded-2xl">
-            <div className="text-right">
-              <p className="text-[10px] uppercase font-bold text-slate-400 dark:text-zinc-400 tracking-wider">Radicados Activos</p>
-              <p className="text-base font-black text-indigo-600 dark:text-indigo-400">
-                {config?.estadisticasCasos?.casosEnTramite || 0} en trámite
-              </p>
-            </div>
             {config?.estadisticasCasos?.casosAcosoSexualUrgente > 0 && (
-              <span className="px-2 py-1 rounded-xl bg-rose-500/10 text-rose-600 border border-rose-500/20 text-[10px] font-bold flex items-center gap-1 animate-pulse">
-                <AlertOctagon className="w-3.5 h-3.5" /> Ley 2365
-              </span>
+              <div
+                title={`${config.estadisticasCasos.casosAcosoSexualUrgente} Caso(s) Prioritarios Ley 2365 de 2024`}
+                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+              >
+                <div className="relative flex flex-shrink-0 items-center justify-center">
+                  <AlertOctagon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-rose-500 animate-pulse shrink-0" />
+                </div>
+                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
+                  <span className="text-xs font-bold tracking-wide">Ruta Urgente Ley 2365</span>
+                </div>
+              </div>
             )}
-          </div>
-        </div>
-      </div>
+
+            {/* ISO 45001 Num. 5.4 · Res. 0312 Est. 1.1.8: CUMPLE */}
+            <SGSSTLegalBadge
+              standardCode="1.1.8"
+              label="ISO 45001 Num. 5.4 · Res. 0312 Est. 1.1.8: CUMPLE"
+              tooltip="ISO 45001:2018 Num. 5.4 (Consulta y participación) · Res. 0312/2019 Estándar 1.1.8 — Comité de Convivencia Laboral (Res. 3461/25)"
+              moduleName="Comité de Convivencia Laboral"
+            />
+          </>
+        }
+      />
 
       {/* ═══ Botonera Flotante Cápsula / Toolbar (WAPPY Design System) ═══ */}
       <SGSSTToolbar

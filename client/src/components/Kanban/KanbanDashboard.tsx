@@ -39,6 +39,7 @@ import UniversalColumnMapperModal from '~/components/SGSST/UniversalColumnMapper
 import { KANBAN_ACPM_FIELDS } from '~/components/SGSST/moduleFieldDefinitions';
 import { exportModuleDataToExcel } from '~/components/SGSST/columnMapperEngine';
 import SGSSTLegalBadge from '~/components/SGSST/SGSSTLegalBadge';
+import SGSSTHeroHeader from '~/components/SGSST/SGSSTHeroHeader';
 import ExpandableButton from '~/components/Common/ExpandableButton';
 import KanbanCalendarView, { CalendarTask } from './KanbanCalendarView';
 
@@ -934,130 +935,107 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
         inline ? "min-h-0 overflow-hidden" : "h-auto overflow-visible"
       } ${isLocked ? 'filter blur-[8px] pointer-events-none select-none' : ''}`}>
         {/* Upper header */}
-      <div className={`flex flex-col md:flex-row justify-between items-start md:items-center p-6 bg-white dark:bg-gray-900 border-b border-border-medium/40 gap-4 ${inline ? 'py-3.5 px-5' : ''} ${hideMainHeader ? 'py-3.5 px-6' : ''}`}>
-        {!hideMainHeader ? (
-          !inline ? (
-            <div>
-              <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl font-extrabold flex items-center gap-2.5 bg-clip-text text-transparent bg-gradient-to-r from-teal-600 to-emerald-600 dark:from-teal-400 dark:to-emerald-400">
-                  <Trello className="w-7 h-7 text-teal-500" />
-                  Centro de Control ACPM
-                </h1>
-                <SGSSTLegalBadge
-                  standardCode="7.1.1"
-                  label="ISO 45001 Num. 10.2 · Res. 0312 Est. 7.1.1: CUMPLE"
-                  tooltip="ISO 45001:2018 Num. 10.2 (Acciones preventivas, correctivas y de mejora) · Res. 0312/2019 Estándar 7.1.1 y Dec. 1072/15 Art. 2.2.4.6.33 — Acciones Preventivas, Correctivas y de Mejora (ACPM)"
-                  moduleName="Tablero Kanban de Acciones ACPM"
-                />
+      <div className="px-6 pt-6 pb-2">
+        <SGSSTHeroHeader
+          categoryId="control_acpm"
+          icon={<Trello className="h-7 w-7" />}
+          title="Tablero Kanban ACPM"
+          description="Control ágil e integral de las Acciones Correctivas, Preventivas y de Mejora generadas en el sistema."
+          badges={
+            <>
+              <div
+                title={`${totalCount} Tareas Totales · ${doneCount} Completadas · ${overdueCount} Vencidas`}
+                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+              >
+                <div className="relative flex flex-shrink-0 items-center justify-center">
+                  <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                  <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                    {totalCount}
+                  </span>
+                </div>
+                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                  <span className="text-xs font-bold tracking-wide">
+                    {doneCount}/{totalCount} Completadas ({complianceRate}%)
+                  </span>
+                </div>
               </div>
-              <p className="text-xs text-text-secondary mt-1">
-                Programación de actividades de seguridad y salud en el trabajo con control predictivo de vencimientos.
-              </p>
-            </div>
-          ) : (
-            <div>
-              <div className="flex items-center gap-3 flex-wrap">
-                <h2 className="text-base font-extrabold text-text-primary flex items-center gap-2">
-                  <Trello className="w-4.5 h-4.5 text-teal-500" />
-                  Acciones de Control ACPM
-                </h2>
-                <SGSSTLegalBadge
-                  standardCode="7.1.1"
-                  label="ISO 45001 Num. 10.2 · Res. 0312 Est. 7.1.1: CUMPLE"
-                  tooltip="ISO 45001:2018 Num. 10.2 (Acciones preventivas, correctivas y de mejora) · Res. 0312/2019 Estándar 7.1.1 y Dec. 1072/15 Art. 2.2.4.6.33 — Acciones Preventivas, Correctivas y de Mejora (ACPM)"
-                  moduleName="Tablero Kanban de Acciones ACPM"
-                />
-              </div>
-              <p className="text-[10px] text-text-tertiary mt-0.5">
-                Programación de actividades y control predictivo de vencimientos.
-              </p>
-            </div>
-          )
-        ) : (
-          <div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <h2 className="text-base font-extrabold text-text-primary flex items-center gap-2">
-                <Trello className="w-5 h-5 text-teal-500" />
-                Tablero de Acciones Correctivas, Preventivas y de Mejora
-              </h2>
               <SGSSTLegalBadge
-                standardCode="7.1.1"
-                label="ISO 45001 Num. 10.2 · Res. 0312 Est. 7.1.1: CUMPLE"
+                standardCode="7.1"
+                label="Dec. 1072 Art. 2.2.4.6.33 · Res. 0312 Est. 7.1.1: CUMPLE"
                 tooltip="ISO 45001:2018 Num. 10.2 (Acciones preventivas, correctivas y de mejora) · Res. 0312/2019 Estándar 7.1.1 y Dec. 1072/15 Art. 2.2.4.6.33 — Acciones Preventivas, Correctivas y de Mejora (ACPM)"
-                moduleName="Tablero Kanban de Acciones ACPM"
+                moduleName="Tablero Kanban ACPM"
               />
-            </div>
-            <p className="text-xs text-text-secondary mt-0.5">
-              Control predictivo de vencimientos y asignación de compromisos.
-            </p>
-          </div>
-        )}
-        <div className="flex items-center gap-2.5 shrink-0 w-full sm:w-auto justify-end">
-          <ExpandableButton
-            onClick={toggleDashboard}
-            variant="teal"
-            isActive={showDashboard}
-            icon={
-              showDashboard ? (
-                <EyeOff className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />
-              ) : (
-                <Eye className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />
-              )
-            }
-            label={showDashboard ? "Ocultar Analíticas" : "Ver Analíticas"}
-          />
+            </>
+          }
+          actions={
+            <>
+              <ExpandableButton
+                onClick={toggleDashboard}
+                variant="teal"
+                isActive={showDashboard}
+                icon={
+                  showDashboard ? (
+                    <EyeOff className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />
+                  ) : (
+                    <Eye className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />
+                  )
+                }
+                label={showDashboard ? "Ocultar Analíticas" : "Ver Analíticas"}
+              />
 
-          <ExpandableButton
-            onClick={() => {
-              setIsLoading(true);
-              fetchTasks(true);
-            }}
-            disabled={isLoading}
-            variant="teal"
-            icon={
-              <RefreshCw className={`w-4 h-4 sm:w-4.5 sm:h-4.5 text-teal-600 dark:text-teal-400 ${isLoading ? 'animate-spin' : ''}`} />
-            }
-            label="Sincronizar"
-          />
+              <ExpandableButton
+                onClick={() => {
+                  setIsLoading(true);
+                  fetchTasks(true);
+                }}
+                disabled={isLoading}
+                variant="teal"
+                icon={
+                  <RefreshCw className={`w-4 h-4 sm:w-4.5 sm:h-4.5 text-teal-600 dark:text-teal-400 ${isLoading ? 'animate-spin' : ''}`} />
+                }
+                label="Sincronizar"
+              />
 
-          <ExpandableButton
-            onClick={triggerFileInput}
-            variant="emerald"
-            icon={<Upload className="w-4 h-4 sm:w-5 sm:h-5 text-current" />}
-            label="Importar Archivo"
-          />
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            className="hidden"
-            accept=".xlsx, .xls, .pdf, .docx, .doc, .txt"
-          />
+              <ExpandableButton
+                onClick={triggerFileInput}
+                variant="emerald"
+                icon={<Upload className="w-4 h-4 sm:w-5 sm:h-5 text-current" />}
+                label="Importar Archivo"
+              />
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+                accept=".xlsx, .xls, .pdf, .docx, .doc, .txt"
+              />
 
-          <ExpandableButton
-            onClick={handleDownloadTemplate}
-            variant="teal"
-            icon={<Download className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
-            label="Descargar Formato"
-            title="Descargar Formato / Plantilla Oficial (.xlsx)"
-          />
+              <ExpandableButton
+                onClick={handleDownloadTemplate}
+                variant="teal"
+                icon={<Download className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
+                label="Descargar Formato"
+                title="Descargar Formato / Plantilla Oficial (.xlsx)"
+              />
 
-          <ExpandableButton
-            onClick={handleExportExcel}
-            variant="emerald"
-            icon={<FileSpreadsheet className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
-            label="Exportar Excel"
-            title="Exportar Actividades a Excel (.xlsx)"
-          />
+              <ExpandableButton
+                onClick={handleExportExcel}
+                variant="emerald"
+                icon={<FileSpreadsheet className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
+                label="Exportar Excel"
+                title="Exportar Actividades a Excel (.xlsx)"
+              />
 
-          <ExpandableButton
-            onClick={openCreateModal}
-            variant="teal"
-            icon={<Plus className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
-            label="Nueva Actividad"
-            title="Nueva Actividad"
-          />
-        </div>
+              <ExpandableButton
+                onClick={openCreateModal}
+                variant="teal"
+                icon={<Plus className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
+                label="Nueva Actividad"
+                title="Nueva Actividad"
+              />
+            </>
+          }
+        />
       </div>
 
       {/* Compliance Dashboard Panel */}

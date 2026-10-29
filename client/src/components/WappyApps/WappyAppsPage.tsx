@@ -38,6 +38,55 @@ function AppCardVisual({ app }: { app: WappyAppCatalogItem }) {
     );
   }
 
+  if (app.visualType === 'wappy-podcast') {
+    return (
+      <div className="relative flex h-full w-full flex-col items-center justify-between overflow-hidden bg-gradient-to-br from-[#090e01] via-[#0c192e] to-[#1e1035] p-3">
+        <div className="pointer-events-none absolute -left-4 -top-4 h-24 w-24 rounded-full bg-[#c7f303]/25 blur-2xl" />
+        <div className="pointer-events-none absolute -bottom-4 -right-4 h-28 w-28 rounded-full bg-purple-500/30 blur-2xl" />
+
+        <div className="z-10 text-center">
+          <div className="text-xs font-black tracking-wider text-[#c7f303] drop-shadow-sm sm:text-sm">
+            WAPPY PODCAST · AUDIO IA
+          </div>
+          <div className="text-[10px] font-bold text-purple-200">
+            Podcasts Duales · Host 1 & 2 · Master WAV 24kHz
+          </div>
+        </div>
+
+        <div className="z-10 w-full max-w-[280px] rounded-xl border border-purple-500/40 bg-slate-900/85 p-2 shadow-lg backdrop-blur-sm">
+          <div className="flex items-center justify-between gap-2 pb-1.5">
+            <span className="inline-flex items-center gap-1.5 text-[9px] font-extrabold text-slate-100">
+              <span className="h-1.5 w-1.5 rounded-full bg-red-500 shadow-[0_0_8px_#ef4444]" />
+              ON-AIR · DUAL 24kHz
+            </span>
+            <div className="flex gap-1">
+              <span className="rounded bg-[#c7f303] px-1.5 py-0.5 text-[8px] font-black text-[#0e1300]">HOST 1</span>
+              <span className="rounded bg-purple-500 px-1.5 py-0.5 text-[8px] font-black text-white">HOST 2</span>
+            </div>
+          </div>
+          <div className="flex h-5 items-center justify-between gap-0.5">
+            {[35, 75, 50, 95, 40, 85, 100, 65, 30, 90, 70, 88, 45, 80, 55, 92, 40, 68, 30].map((h, idx) => (
+              <span
+                key={idx}
+                style={{ height: `${h}%` }}
+                className={cn(
+                  'flex-1 rounded-full',
+                  idx % 2 === 0
+                    ? 'bg-gradient-to-t from-[#c7f303] to-lime-400'
+                    : 'bg-gradient-to-t from-purple-500 to-fuchsia-400',
+                )}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="z-10 inline-flex items-center gap-1 rounded-full border border-purple-400/40 bg-purple-500/20 px-2.5 py-0.5 text-[9px] font-bold text-purple-200">
+          <span>🎙️ 100% Audio Puro · Actuación & Show Notes IA</span>
+        </div>
+      </div>
+    );
+  }
+
   const isSoon = app.badgeTone === 'soon';
   return (
     <div

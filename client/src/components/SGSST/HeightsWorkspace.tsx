@@ -36,6 +36,7 @@ import { exportHeightsToExcel } from './exportHeights';
 import { saveAs } from 'file-saver';
 import { SGSSTToolbar, ToolbarButton } from './SGSSTToolbar';
 import SGSSTLegalBadge from './SGSSTLegalBadge';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
 import ImportMethodModal from './ImportMethodModal';
 import { read, utils } from 'xlsx';
@@ -751,63 +752,40 @@ export default function HeightsWorkspace() {
   return (
     <div className="w-full space-y-6">
       {/* ─── BANNER DE ESTADO Y MÉTRICAS CONECTADAS ─── */}
-      <div className="relative overflow-hidden rounded-3xl border border-teal-500/20 bg-gradient-to-r from-teal-500/5 via-teal-500/10 to-transparent p-4 sm:p-5">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          {/* Lado Izquierdo: Título y Badges */}
-          <div className="flex items-center gap-3.5">
-            <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm">
-              <Shield className="h-6 w-6 sm:h-7 sm:w-7" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-lg sm:text-xl font-black text-text-primary tracking-tight">
-                  Gestión y Ciclo de Equipos de Alturas (EPCC)
-                </h1>
-                <span className="inline-flex text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-teal-500 text-white shrink-0">
-                  Oficial
+      <SGSSTHeroHeader
+        categoryId="heights_equipment"
+        icon={<Shield className="h-7 w-7" />}
+        title="Gestión y Ciclo de Equipos de Alturas (EPCC)"
+        badges={
+          <>
+            {/* Total Equipos Registrados */}
+            <div
+              title={`${totalEquipos} Equipos Registrados`}
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+            >
+              <div className="relative flex flex-shrink-0 items-center justify-center">
+                <ShieldCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                  {totalEquipos}
                 </span>
               </div>
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                {/* Total Equipos Registrados */}
-                <div
-                  title={`${totalEquipos} Equipos Registrados`}
-                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                >
-                  <div className="relative flex flex-shrink-0 items-center justify-center">
-                    <ShieldCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
-                    <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
-                      {totalEquipos}
-                    </span>
-                  </div>
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                    <span className="text-xs font-bold tracking-wide">
-                      {totalEquipos} {totalEquipos === 1 ? 'Equipo Registrado' : 'Equipos Registrados'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* ISO 45001 Num. 8.1.2 · Res. 4272 / Est. 4.2.1: CUMPLE */}
-                <SGSSTLegalBadge
-                  standardCode="4.2.1"
-                  label="ISO 45001 Num. 8.1.2 · Res. 4272 / Est. 4.2.1: CUMPLE"
-                  tooltip="ISO 45001:2018 Num. 8.1.2 (Control operacional e inspección de equipos) · Res. 0312/2019 Est. 4.2.1 y Res. 4272/2021 — Inventario, Hojas de Vida e Inspección de Equipos Contra Caídas"
-                  moduleName="Equipos de Protección Contra Caídas"
-                />
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  {totalEquipos} {totalEquipos === 1 ? 'Equipo Registrado' : 'Equipos Registrados'}
+                </span>
               </div>
             </div>
-          </div>
 
-          {/* Lado Derecho */}
-          <div className="flex md:flex-col items-end justify-center gap-1 shrink-0">
-            <span className="text-xs font-bold text-text-primary">
-              Res. 0312 / Res. 4272
-            </span>
-            <span className="text-[10px] text-text-tertiary">
-              Estándar 4.2.1 Alto Riesgo
-            </span>
-          </div>
-        </div>
-      </div>
+            {/* ISO 45001 Num. 8.1.2 · Res. 4272 / Est. 4.2.1: CUMPLE */}
+            <SGSSTLegalBadge
+              standardCode="4.2.1"
+              label="ISO 45001 Num. 8.1.2 · Res. 4272 / Est. 4.2.1: CUMPLE"
+              tooltip="ISO 45001:2018 Num. 8.1.2 (Control operacional e inspección de equipos) · Res. 0312/2019 Est. 4.2.1 y Res. 4272/2021 — Inventario, Hojas de Vida e Inspección de Equipos Contra Caídas"
+              moduleName="Equipos de Protección Contra Caídas"
+            />
+          </>
+        }
+      />
       
       {/* ─── TOOLBAR SUPERIOR ESTÁNDAR SGSST CON BOTONES EXPANDIBLES ──────── */}
       <SGSSTToolbar

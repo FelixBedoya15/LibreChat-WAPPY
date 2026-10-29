@@ -15,7 +15,9 @@ import ExportDropdown from './ExportDropdown';
 import { UpgradeWall } from './UpgradeWall';
 import ModelSelector from './ModelSelector';
 import { useAutoLoadReport } from './useAutoLoadReport';
+import SGSSTHeroHeader from './SGSSTHeroHeader';
 import SGSSTLegalBadge from './SGSSTLegalBadge';
+import ExpandableButton from '~/components/Common/ExpandableButton';
 
 const stressorsList = [
   { id: 'sobrecarga', label: 'Sobrecarga de trabajo' },
@@ -661,54 +663,98 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
 
   return (
     <div className="space-y-6 animate-fadeIn text-text-primary pb-6">
-      
+      {/* ─── HERO HEADER UNIFICADO WAPPY ─── */}
+      <SGSSTHeroHeader
+        categoryId="mood_analytics"
+        companyName={companyInfo?.companyName}
+        icon={<HeartHandshake className="h-7 w-7" />}
+        title="Analítica de Estado de Ánimo"
+        description="Consolidado estadístico y tendencias de bienestar psicosocial de los colaboradores."
+        badges={
+          <>
+            <div
+              title={`${stats.total} Respuestas en los últimos ${filterDays} días`}
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+            >
+              <div className="relative flex flex-shrink-0 items-center justify-center">
+                <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                  {stats.total}
+                </span>
+              </div>
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  {stats.total} {stats.total === 1 ? 'Respuesta' : 'Respuestas'} ({filterDays}d)
+                </span>
+              </div>
+            </div>
+
+            <SGSSTLegalBadge
+              standardCode="3.1.6"
+              label="ISO 45001 Num. 6.1.2 · Res. 0312 Est. 3.1.6: CUMPLE"
+              tooltip="ISO 45001:2018 Num. 6.1.2 (Factores psicosociales) · Res. 0312/2019 Estándar 3.1.6 y Res. 2764/2022 — Riesgo Psicosocial"
+              moduleName="Termómetro Psicosocial y Analítica de Clima"
+            />
+          </>
+        }
+        actions={
+          <>
+            {[7, 30, 90].map((d) => (
+              <ExpandableButton
+                key={d}
+                icon={<Calendar className="h-4 w-4" />}
+                label={`${d} Días`}
+                variant="teal"
+                isActive={filterDays === d}
+                onClick={() => setFilterDays(d)}
+              />
+            ))}
+            <ExpandableButton
+              icon={<Printer className="h-4 w-4" />}
+              label="Imprimir Cartel QR"
+              variant="green"
+              onClick={handlePrintPoster}
+            />
+            <ExpandableButton
+              icon={<History className="h-4 w-4" />}
+              label="Historial"
+              variant="orange"
+              isActive={isHistoryOpen}
+              onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+            />
+            <ModelSelector
+              selectedModel={selectedModel}
+              onSelectModel={setSelectedModel}
+              disabled={isGenerating}
+            />
+            <ExpandableButton
+              icon={isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              label="Generar Análisis IA"
+              variant="purple"
+              disabled={isGenerating}
+              onClick={handleGenerate}
+            />
+            <ExpandableButton
+              icon={<Save className="h-4 w-4" />}
+              label="Guardar Informe"
+              variant="teal"
+              disabled={isSaving}
+              onClick={handleSave}
+            />
+            <ExportDropdown
+              content={editorContentRef.current || generatedReport || ''}
+              fileName="Informe_Termometro_Psicosocial"
+              reportType="general"
+            />
+          </>
+        }
+      />
+
       {/* Upper Grid: Overview & Poster printing */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Left 2 Cols: Title, Filters & Metrics */}
+        {/* Left 2 Cols: Metrics */}
         <div className="lg:col-span-2 space-y-6">
-          
-          {/* Header Card */}
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-950 p-6 text-white shadow-md">
-            <div className="absolute inset-0 opacity-10">
-              <div className="absolute top-0 right-0 w-80 h-80 rounded-full bg-emerald-400 blur-3xl -mr-20 -mt-20" />
-            </div>
-            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-xs font-bold text-emerald-300 tracking-wider uppercase">
-                  <Sparkles className="w-4 h-4" />
-                  Módulo de Gestión de Riesgo Psicosocial
-                </div>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <h2 className="text-2xl font-black tracking-tight text-white">Analítica de Estado de Ánimo</h2>
-                  <SGSSTLegalBadge
-                    standardCode="3.1.6"
-                    label="ISO 45001 Num. 6.1.2 · Res. 0312 Est. 3.1.6: CUMPLE"
-                    tooltip="ISO 45001:2018 Num. 6.1.2 (Factores psicosociales) · Res. 0312/2019 Estándar 3.1.6 y Res. 2764/2022 — Riesgo Psicosocial"
-                    moduleName="Termómetro Psicosocial y Analítica de Clima"
-                  />
-                </div>
-                <p className="text-xs text-emerald-100/80">Consolidado estadístico y tendencias de bienestar de los colaboradores.</p>
-              </div>
-
-              {/* Day filter buttons */}
-              <div className="inline-flex bg-emerald-950/50 border border-emerald-700/50 rounded-xl p-1 gap-1 self-start sm:self-center">
-                {[7, 30, 90].map((d) => (
-                  <button
-                    key={d}
-                    onClick={() => setFilterDays(d)}
-                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
-                      filterDays === d
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'text-emerald-200 hover:text-white hover:bg-emerald-800/50'
-                    }`}
-                  >
-                    {d} Días
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
 
           {/* Cards for metrics */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
