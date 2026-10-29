@@ -47,6 +47,13 @@
 
 ---
 
-## 5. Protocolo de Producción de Vídeos (`protocolo-produccion-videos`)
+## 5. Protocolo Obligatorio de Producción de Vídeos (`protocolo-produccion-videos` · Sistema de las 7 Piezas + Brandbook WAPPY IA)
 > [!CRITICAL]
-> **Prohibido programar o renderizar vídeos MP4 a ciegas.** Antes de codificar cualquier video o reel, activa la skill `protocolo-produccion-videos` (o delega en `wappy-video-studio`) para alinear con el usuario los **5 pasos obligatorios** (Formato, Atmósfera Visual A/B/C/D, Personajes Félix/Tenshi, Tipografía sin elementos web, y Tabla de Guión con mínimo 4 transiciones de `animaciones-17-efectos-reels` + previsualización por frames).
+> **Prohibido programar o renderizar vídeos MP4 a ciegas.** Siempre que el usuario pida crear, editar o guionizar un video o reel para WAPPY IA, **DEBES estructurar y presentar primero la propuesta siguiendo las 7 Piezas Oficiales + la Ficha de Marca (`docs/WAPPY_IA_BRANDBOOK_OFICIAL.md`) y esperar su OK antes de renderizar**:
+> 1. **Pieza 1 — Quién Eres (Rol de Dirección de Arte):** Definir el enfoque del video (Reel viral 9:16, Lanzamiento de herramienta SST, Tutorial de chat con Tenshi, Antes/Después, Datos 0312 o Intro de marca).
+> 2. **Pieza 2 — Ficha de Marca WAPPY IA (`wappy.club`):** Aplicar estrictamente los colores oficiales (`#C7F303` Verde Lima Eléctrico con texto `#0E1300` Negro Oliva; `#0D9488` Turquesa SST; `#F6F5EF` Crema Editorial; o `#0C192E` Dark Tech HUD con `#00D4FF` Cyan), tipografías (`Plus Jakarta Sans`/`Outfit ExtraBold` + `Inter` + `JetBrains Mono`), tu avatar (Chibi 3D en miniatura / Voxel 3D en esquinas seguras sin tapar texto) y cero barras de navegación web falsas.
+> 3. **Pieza 3 — Para Quién y Qué Mensaje:** Definir audiencia (prevencionistas, coordinadores SST, gerentes), objetivo y texto/locución exacta verificada (ej. GTC 45, Resolución 0312, Decreto 1072, sin inventar ni confundir normas).
+> 4. **Pieza 4 — Qué Pasa Segundo a Segundo (LA CLAVE + Miniatura 2s):** Tabla tramo por tramo que **SIEMPRE incluya de `0.00s a 2.00s` la Miniatura/Portada Magnética de Marketing** (con tu avatar, máximo 3 insignias clave y el badge gigante **`🔥 ¡GRATIS!`**), seguida de cada escena sincronizada palabra a palabra con la voz.
+> 5. **Pieza 5 — Cómo se Mueve:** Rebote elástico suave (`spring`), ágil y determinista cuadro a cuadro a `60 fps`, encadenando mínimo 4 efectos de `animaciones-17-efectos-reels` (Zoom-through, Giro 3D, Spotlight, Barrido diagonal, etc.).
+> 6. **Pieza 6 — Sonido:** Locución del usuario sincronizada + diseño sonoro sutil (`whoosh` en transiciones, `pop` en tarjetas/badges y `ding` en checks de éxito).
+> 7. **Pieza 7 — Tamaño, 3 Vistas Previas y Entrega:** Formato (`1080x1920` vertical o `1920x1080` horizontal a `60 fps`), **mostrar siempre 3 imágenes de vista previa (inicio/miniatura, mitad y cierre)** verificando que ningún texto se corte, y tras el OK del usuario entregar el MP4 final + paquete editable.
