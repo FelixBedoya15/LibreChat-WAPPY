@@ -83,10 +83,24 @@ router.get('/data', requireJwtAuth, async (req, res) => {
       riesgosSistemaCount: Array.isArray(doc?.riesgosSistema) ? doc.riesgosSistema.length : 0,
     };
 
+    const roundFloatsInText = (str) =>
+      typeof str === 'string'
+        ? str.replace(/(\d+\.\d{3,})%/g, (_, n) => `${Number(Number(n).toFixed(2))}%`)
+        : str;
+
     return res.json({
-      oportunidades: doc?.oportunidades || [],
-      riesgosSistema: doc?.riesgosSistema || [],
-      lastGeneratedReport: doc?.lastGeneratedReport || '',
+      oportunidades: (doc?.oportunidades || []).map((o) => ({
+        ...o,
+        titulo: roundFloatsInText(o.titulo),
+        beneficioEsperado: roundFloatsInText(o.beneficioEsperado),
+      })),
+      riesgosSistema: (doc?.riesgosSistema || []).map((r) => ({
+        ...r,
+        amenaza: roundFloatsInText(r.amenaza),
+        controlExistente: roundFloatsInText(r.controlExistente),
+        medidaMitigacion: roundFloatsInText(r.medidaMitigacion),
+      })),
+      lastGeneratedReport: roundFloatsInText(doc?.lastGeneratedReport || ''),
       company,
       ecosystemMetrics,
     });

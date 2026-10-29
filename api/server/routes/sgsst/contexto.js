@@ -119,7 +119,7 @@ async function gatherCompanyFullContext(userId, companyId) {
       mongoose.models.DiagnosticoData || require('~/models/DiagnosticoData');
     diagnostico = await DiagnosticoData.findOne(companyOrUserFilter).lean();
     if (diagnostico) {
-      diagnosticoScore = Number(diagnostico.score || 0);
+      diagnosticoScore = Number(Number(diagnostico.score || 0).toFixed(2));
       diagnosticoLevel =
         diagnostico.complianceLevel ||
         (diagnosticoScore >= 86
@@ -614,7 +614,9 @@ async function gatherCompanyFullContext(userId, companyId) {
     const audDoc = await AuditoriaData.findOne(companyOrUserFilter).lean();
     if (audDoc) {
       auditoriaScore = Number(
-        audDoc.compliancePercentage || audDoc.weightedPercentage || audDoc.score || 0
+        Number(
+          audDoc.compliancePercentage || audDoc.weightedPercentage || audDoc.score || 0
+        ).toFixed(2)
       );
       const statusList = Array.isArray(audDoc.statusData) ? audDoc.statusData : [];
       const noCumple = statusList.filter((i) => i.status === 'no_cumple');
@@ -627,8 +629,8 @@ async function gatherCompanyFullContext(userId, companyId) {
       if (auditoriaScore === 0 && statusList.length > 0) {
         const evaluables = statusList.filter((i) => i.status !== 'no_aplica');
         if (evaluables.length > 0) {
-          auditoriaScore = Math.round(
-            ((cumple.length + parciales.length * 0.5) / evaluables.length) * 100
+          auditoriaScore = Number(
+            (((cumple.length + parciales.length * 0.5) / evaluables.length) * 100).toFixed(2)
           );
         }
       }
@@ -827,11 +829,27 @@ router.get('/data', requireJwtAuth, async (req, res) => {
     ]);
 
     if (data) {
+      const roundFloatsInText = (str) =>
+        typeof str === 'string'
+          ? str.replace(/(\d+\.\d{3,})%/g, (_, n) => `${Number(Number(n).toFixed(2))}%`)
+          : str;
+      const cleanDofaList = (data.dofaList || []).map((item) => ({
+        ...item,
+        description: roundFloatsInText(item.description),
+        strategicAction: roundFloatsInText(item.strategicAction),
+      }));
+      const cleanStakeholders = (data.stakeholders || []).map((item) => ({
+        ...item,
+        parte: roundFloatsInText(item.parte),
+        necesidades: roundFloatsInText(item.necesidades),
+        expectativas: roundFloatsInText(item.expectativas),
+        control: roundFloatsInText(item.control),
+      }));
       return res.json({
-        dofaList: data.dofaList || [],
-        stakeholders: data.stakeholders || [],
+        dofaList: cleanDofaList,
+        stakeholders: cleanStakeholders,
         crossStrategies: data.crossStrategies || { fo: [], do: [], fa: [], da: [] },
-        lastGeneratedReport: data.lastGeneratedReport || '',
+        lastGeneratedReport: roundFloatsInText(data.lastGeneratedReport || ''),
         company,
         ecosystemMetrics: context.ecosystemMetrics,
       });

@@ -523,18 +523,18 @@ export const OportunidadesWorkspace: React.FC = () => {
     setMetrics((prev) => ({
       dofaCount: em.dofaCount ?? em.contextoFactorsCount ?? em.factoresDofa ?? prev.dofaCount,
       stakeholdersCount: em.stakeholdersCount ?? em.partesInteresadas ?? prev.stakeholdersCount,
-      score0312: em.score0312 ?? em.diagnosticoScore ?? prev.score0312,
+      score0312: Number(Number(em.score0312 ?? em.diagnosticoScore ?? prev.score0312 ?? 0).toFixed(2)),
       brechas0312: em.brechas0312 ?? em.diagnosticoGaps ?? em.diagnosticoBrechas ?? prev.brechas0312,
       matrizLegalCount: em.matrizLegalCount ?? em.requisitosLegalesCount ?? prev.matrizLegalCount,
       peligrosGtc45: em.peligrosGtc45 ?? em.totalPeligros ?? em.gtc45Total ?? prev.peligrosGtc45,
       peligrosCriticos: em.peligrosCriticos ?? em.gtc45Criticos ?? prev.peligrosCriticos,
-      avgFitScore: em.avgFitScore ?? prev.avgFitScore,
+      avgFitScore: Number(Number(em.avgFitScore ?? prev.avgFitScore ?? 0).toFixed(2)),
       totalWorkers: em.totalWorkers ?? em.trabajadoresCount ?? prev.totalWorkers,
       workersWithFitAlerts: em.workersWithFitAlerts ?? prev.workersWithFitAlerts,
       capacitacionesCompletadas: em.capacitacionesCompletadas ?? prev.capacitacionesCompletadas,
       capacitacionesTotal: em.capacitacionesTotal ?? prev.capacitacionesTotal,
-      capacitacionesCompliancePct: em.capacitacionesCompliancePct ?? prev.capacitacionesCompliancePct,
-      auditoriaScore: em.auditoriaScore ?? prev.auditoriaScore,
+      capacitacionesCompliancePct: Number(Number(em.capacitacionesCompliancePct ?? prev.capacitacionesCompliancePct ?? 0).toFixed(2)),
+      auditoriaScore: Number(Number(em.auditoriaScore ?? prev.auditoriaScore ?? 0).toFixed(2)),
       auditoriaNoConformidades: em.auditoriaNoConformidades ?? prev.auditoriaNoConformidades,
       altaDireccionCumple: em.altaDireccionCumple ?? prev.altaDireccionCumple,
       altaDireccionTotalItems: em.altaDireccionTotalItems ?? prev.altaDireccionTotalItems,
@@ -1602,8 +1602,10 @@ export const OportunidadesWorkspace: React.FC = () => {
               <ClipboardCheck className="w-4 h-4" />
             </div>
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-xl font-black text-text-primary">{metrics.auditoriaScore}%</span>
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className="text-xl font-black text-text-primary">
+              {Number(Number(metrics.auditoriaScore || 0).toFixed(2))}%
+            </span>
             <span className="text-[11px] font-bold text-purple-600 dark:text-purple-400">
               Cumplimiento
             </span>

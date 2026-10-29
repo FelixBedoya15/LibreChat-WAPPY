@@ -574,13 +574,13 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
       return;
     }
     setEcosystemMetrics((prev) => ({
-      diagnosticoScore: em.diagnosticoScore ?? em.score0312 ?? prev.diagnosticoScore,
+      diagnosticoScore: Number(Number(em.diagnosticoScore ?? em.score0312 ?? prev.diagnosticoScore ?? 0).toFixed(2)),
       diagnosticoBrechas: em.diagnosticoBrechas ?? em.diagnosticoGaps ?? em.brechas0312 ?? prev.diagnosticoBrechas,
       diagnosticoLevel: em.diagnosticoLevel ?? em.nivel0312 ?? prev.diagnosticoLevel,
       matrizLegalCount: em.matrizLegalCount ?? em.requisitosLegalesCount ?? prev.matrizLegalCount,
       totalPeligros: em.totalPeligros ?? em.gtc45Total ?? prev.totalPeligros,
       peligrosCriticos: em.peligrosCriticos ?? em.gtc45Criticos ?? prev.peligrosCriticos,
-      avgFitScore: em.avgFitScore ?? em.fitPromedio ?? prev.avgFitScore,
+      avgFitScore: Number(Number(em.avgFitScore ?? em.fitPromedio ?? prev.avgFitScore ?? 0).toFixed(2)),
       totalWorkers:
         em.totalWorkers ??
         em.trabajadoresCount ??
@@ -591,8 +591,8 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
       workersWithFitAlerts: em.workersWithFitAlerts ?? em.alertasFit ?? prev.workersWithFitAlerts,
       capacitacionesCompletadas: em.capacitacionesCompletadas ?? prev.capacitacionesCompletadas,
       capacitacionesTotal: em.capacitacionesTotal ?? prev.capacitacionesTotal,
-      capacitacionesCompliancePct: em.capacitacionesCompliancePct ?? prev.capacitacionesCompliancePct,
-      auditoriaScore: em.auditoriaScore ?? prev.auditoriaScore,
+      capacitacionesCompliancePct: Number(Number(em.capacitacionesCompliancePct ?? prev.capacitacionesCompliancePct ?? 0).toFixed(2)),
+      auditoriaScore: Number(Number(em.auditoriaScore ?? prev.auditoriaScore ?? 0).toFixed(2)),
       auditoriaNoConformidades: em.auditoriaNoConformidades ?? prev.auditoriaNoConformidades,
       altaDireccionCumple: em.altaDireccionCumple ?? prev.altaDireccionCumple,
       altaDireccionTotalItems: em.altaDireccionTotalItems ?? prev.altaDireccionTotalItems,
@@ -1888,9 +1888,9 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
               <ClipboardCheck className="w-4 h-4" />
             </div>
           </div>
-          <div className="flex items-baseline gap-2">
+          <div className="flex items-baseline gap-2 flex-wrap">
             <span className="text-xl font-black text-text-primary">
-              {ecosystemMetrics.auditoriaScore}%
+              {Number(Number(ecosystemMetrics.auditoriaScore || 0).toFixed(2))}%
             </span>
             <span className="text-[11px] font-bold text-purple-600 dark:text-purple-400">
               Cumplimiento
