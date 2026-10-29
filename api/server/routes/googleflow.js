@@ -574,6 +574,31 @@ async function executeFlowNativeStudioAction({
       ];
 
       for (const fm of flowImageModels) {
+        const freshExec = await cdpRequest(ws, 490, 'Runtime.evaluate', {
+          expression: `(async () => {
+            const execFn = window.__origRecapExec || window.grecaptcha.enterprise.execute;
+            const siteKey = window.WIZ_global_data.xZbWve || "6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV";
+            return await execFn(siteKey, { action: "IMAGE_GENERATION" });
+          })()`,
+          awaitPromise: true,
+          returnByValue: true,
+        }).catch(() => null);
+        const currentToken = freshExec?.result?.value || tokenInfo.token;
+        const currentMediaId = uuidv4();
+        const currentWorkflowId = uuidv4();
+        const currentW = [
+          null,
+          22,
+          null,
+          null,
+          null,
+          projectId,
+          null,
+          currentWorkflowId,
+          null,
+          null,
+          [currentToken, 1],
+        ];
         const za = [
           null,
           null,
@@ -582,15 +607,15 @@ async function executeFlowNativeStudioAction({
           aspectEnum,
           fm.code,
           null,
-          W,
+          currentW,
           [[[prompt]]],
           null,
           [],
           [],
-          workflowId,
-          mediaId,
+          currentWorkflowId,
+          currentMediaId,
         ];
-        const rpcPayload = [null, [za], 1, W, h];
+        const rpcPayload = [null, [za], 1, currentW, h];
         const fReq = JSON.stringify([[['ogiZ0b', JSON.stringify(rpcPayload), null, 'generic']]]);
 
         const browserFetch = await cdpRequest(ws, 500, 'Runtime.evaluate', {

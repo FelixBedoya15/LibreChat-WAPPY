@@ -136,7 +136,9 @@ class GoogleFlow extends Tool {
 * **Prompt:** ${prompt}
 * **Motor:** ${imgRes.model}
 * **Formato:** \`${imgRes.aspectRatio}\`
-* **Descargar:** [⬇ Descargar Imagen (${imgRes.filename})](${imgRes.publicUrl})`;
+* **Descargar:** [⬇ Descargar Imagen (${imgRes.filename})](${imgRes.publicUrl})
+
+*(INSTRUCCIÓN CRÍTICA AL AGENTE: Debes copiar e incluir en tu respuesta EXACTAMENTE la imagen en Markdown \`![${prompt.slice(0, 60)}](${imgRes.publicUrl})\` y el enlace de descarga \`[⬇ Descargar Imagen](${imgRes.publicUrl})\` usando la ruta exacta \`${imgRes.publicUrl}\`. PROHIBIDO inventar, modificar o sustituir la URL por dominios como \`storage.googleapis.com\` u otros; la imagen está alojada en el servidor de WAPPY en \`${imgRes.publicUrl}\`).*`;
 
         return this.returnValue(markdown);
       }

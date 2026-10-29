@@ -297,12 +297,45 @@ export const a: React.ElementType = memo(({ href, children }: TAnchorProps) => {
   const props: { target?: string; onClick?: React.MouseEventHandler } = { target: '_new' };
 
   if (!file_id || !filename) {
-    if (href && href.includes('/api/notebooklm/download/')) {
-      return <NotebookLMArtifactPlayer href={href} children={children} />;
+    let normalizedHref = href || '';
+    const hallMatch = normalizedHref.match(/\/images\/((?:flow|nlm)_[a-zA-Z0-9_-]+\.[a-z0-9]+)/i);
+    if (hallMatch && !normalizedHref.startsWith('/images/')) {
+      normalizedHref = `/images/${hallMatch[1]}`;
+    }
+
+    if (normalizedHref && normalizedHref.includes('/api/notebooklm/download/')) {
+      return <NotebookLMArtifactPlayer href={normalizedHref} children={children} />;
+    }
+    const isFlowOrNlmImage =
+      normalizedHref && /^\/images\/(?:flow_img_|nlm_infographic_)[^?]+\.(?:jpg|jpeg|png|webp)$/i.test(normalizedHref);
+    if (isFlowOrNlmImage) {
+      return (
+        <span className="my-3 block overflow-hidden rounded-2xl border border-teal-500/30 bg-teal-500/5 p-3 shadow-lg">
+          <img
+            src={normalizedHref}
+            alt="Recurso generado en Google Flow / NotebookLM"
+            className="mb-2.5 max-h-[540px] w-full rounded-xl bg-black/5 object-contain"
+          />
+          <span className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-bold text-teal-700 dark:text-teal-300">
+              ✨ Guardado en WAPPY (30 días): {normalizedHref}
+            </span>
+            <a
+              href={normalizedHref}
+              download
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-green-500/30 bg-green-500/10 px-3 py-1.5 text-xs font-bold text-green-700 transition-all hover:bg-green-500/20 dark:text-green-300"
+            >
+              ⬇ Descargar Imagen
+            </a>
+          </span>
+        </span>
+      );
     }
     const isMp4Video =
-      href &&
-      (/\.mp4(?:$|\?)/i.test(href) || href.includes('/images/flow_vid_'));
+      normalizedHref &&
+      (/\.mp4(?:$|\?)/i.test(normalizedHref) || normalizedHref.includes('/images/flow_vid_'));
     if (isMp4Video) {
       const childText =
         typeof children === 'string'
@@ -311,12 +344,12 @@ export const a: React.ElementType = memo(({ href, children }: TAnchorProps) => {
             ? children.map((c) => (typeof c === 'string' ? c : '')).join('')
             : '';
       const isDownloadLink = /descargar|download/i.test(childText);
-      const cleanVideoSrc = href.split('?')[0];
+      const cleanVideoSrc = normalizedHref.split('?')[0];
       let posterUrl = '';
       try {
-        const qIndex = href.indexOf('?');
+        const qIndex = normalizedHref.indexOf('?');
         if (qIndex !== -1) {
-          const sp = new URLSearchParams(href.slice(qIndex + 1));
+          const sp = new URLSearchParams(normalizedHref.slice(qIndex + 1));
           posterUrl = sp.get('poster') || '';
         }
       } catch {
