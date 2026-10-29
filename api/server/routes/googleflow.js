@@ -363,6 +363,7 @@ function cdpRequest(ws, id, method, params = {}) {
  */
 function findServerChromiumBinary() {
   const candidates = [
+    '/usr/lib/chromium/chromium',
     '/usr/bin/chromium',
     '/usr/bin/chromium-browser',
     '/usr/bin/google-chrome',
@@ -454,6 +455,7 @@ async function executeFlowNativeStudioAction({
       '--no-sandbox',
       '--disable-gpu',
       '--disable-dev-shm-usage',
+      '--disable-extensions',
       '--disable-blink-features=AutomationControlled',
       '--window-size=1440,900',
       '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
@@ -461,7 +463,7 @@ async function executeFlowNativeStudioAction({
       `--user-data-dir=${profileDir}`,
       'about:blank',
     ],
-    { stdio: 'ignore' }
+    { stdio: 'ignore', detached: true }
   );
 
   let ws = null;
@@ -512,9 +514,14 @@ async function executeFlowNativeStudioAction({
 
     for (let i = 0; i < filtered.length; i++) {
       const c = filtered[i];
+      const rawDom = String(c.domain || '.google.com').toLowerCase();
+      const cookieUrl = rawDom.includes('accounts.google.com')
+        ? 'https://accounts.google.com/'
+        : 'https://www.google.com/';
       await cdpRequest(ws, 10 + i, 'Network.setCookie', {
         name: c.name,
         value: c.value,
+        url: cookieUrl,
         domain: c.domain || '.google.com',
         path: c.path || '/',
         secure: true,
@@ -522,6 +529,10 @@ async function executeFlowNativeStudioAction({
       }).catch(() => {});
     }
 
+    await cdpRequest(ws, 199, 'Page.navigate', {
+      url: 'https://accounts.google.com/ServiceLogin?passive=true&continue=https%3A%2F%2Fflow.google.com%2F',
+    });
+    await new Promise((r) => setTimeout(r, 2500));
     await cdpRequest(ws, 200, 'Page.navigate', { url: 'https://flow.google.com/' });
 
     let tokenInfo = null;
@@ -789,8 +800,14 @@ async function executeFlowNativeStudioAction({
       if (ws) ws.close();
     } catch (_) {}
     try {
-      proc.kill('SIGKILL');
-    } catch (_) {}
+      if (proc && proc.pid) {
+        process.kill(-proc.pid, 'SIGKILL');
+      }
+    } catch (_) {
+      try {
+        proc.kill('SIGKILL');
+      } catch (_) {}
+    }
     try {
       await fs.promises.rm(profileDir, { recursive: true, force: true });
     } catch (_) {}
