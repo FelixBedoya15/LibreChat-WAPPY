@@ -9,7 +9,7 @@ const SgsstComprasData = require('~/models/SgsstComprasData');
 const OportunidadesData = require('~/models/OportunidadesData');
 const ContextoData = require('~/models/ContextoData');
 const GTC45WorkspaceSession = require('~/models/GTC45WorkspaceSession');
-const SgsstCopasst = require('~/models/SgsstCopasst');
+const { SgsstCopasstActa } = require('~/models/SgsstCopasst');
 const DiagnosticoData = require('~/models/DiagnosticoData');
 const AuditoriaData = require('~/models/AuditoriaData');
 const KanbanTask = require('~/models/KanbanTask');
@@ -88,7 +88,7 @@ async function gatherGestionCambioEcosystemData(userId, companyId, company) {
     ctxDoc,
     gtc45Session,
     matrizPelDoc,
-    copasstDoc,
+    copasstActas,
     capDoc,
     diagDoc,
     auditDoc,
@@ -107,7 +107,7 @@ async function gatherGestionCambioEcosystemData(userId, companyId, company) {
       .lean()
       .catch(() => null),
     MatrizPeligrosData ? MatrizPeligrosData.findOne(filter).lean().catch(() => null) : null,
-    SgsstCopasst.findOne(filter).lean().catch(() => null),
+    SgsstCopasstActa ? SgsstCopasstActa.find(filter).lean().catch(() => []) : [],
     ProgramaCapacitacionesData
       ? ProgramaCapacitacionesData.findOne(filter).lean().catch(() => null)
       : null,
@@ -170,11 +170,7 @@ async function gatherGestionCambioEcosystemData(userId, companyId, company) {
     });
   }
 
-  const copasstMeetingsCount = Array.isArray(copasstDoc?.meetings)
-    ? copasstDoc.meetings.length
-    : Array.isArray(copasstDoc?.actas)
-      ? copasstDoc.actas.length
-      : 0;
+  const copasstMeetingsCount = Array.isArray(copasstActas) ? copasstActas.length : 0;
 
   const sesionesCap = Array.isArray(capDoc?.sesiones) ? capDoc.sesiones : [];
   const capCompletadas = sesionesCap.filter(
