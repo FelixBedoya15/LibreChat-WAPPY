@@ -939,6 +939,9 @@ async function searchNormativeKnowledgeBase(query, maxResults = 5) {
     if (normQ.includes('acoso')) {
       expandedTokens.push('2365', '2209', '1010', 'acoso');
     }
+    if (normQ.includes('110') || normQ.includes('0110') || normQ.includes('inspector') || normQ.includes('advertir') || normQ.includes('aconsejar')) {
+      expandedTokens.push('0110', '110', 'advertir', 'aconsejar', 'preventiva');
+    }
 
     const uniqueTokens = [...new Set(expandedTokens)];
     const scored = [];
