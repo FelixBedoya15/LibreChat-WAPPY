@@ -139,7 +139,12 @@ function buildFlowCookieHeader(cookies) {
   if (!Array.isArray(cookies) || cookies.length === 0) return '';
   const filtered = cookies.filter((c) => {
     const dom = String(c.domain || '.google.com').toLowerCase();
-    return dom === 'flow.google.com' || dom === '.flow.google.com' || dom === '.google.com' || dom === 'google.com';
+    return (
+      dom === '.google.com' ||
+      dom === 'google.com' ||
+      dom === 'accounts.google.com' ||
+      dom === '.accounts.google.com'
+    );
   });
   const source = filtered.length > 0 ? filtered : cookies;
   const dedup = new Map();
@@ -429,10 +434,10 @@ async function executeFlowNativeStudioAction({
   const filtered = cookies.filter((c) => {
     const dom = String(c.domain || '.google.com').toLowerCase();
     return (
-      dom === 'flow.google.com' ||
-      dom === '.flow.google.com' ||
       dom === '.google.com' ||
-      dom === 'google.com'
+      dom === 'google.com' ||
+      dom === 'accounts.google.com' ||
+      dom === '.accounts.google.com'
     );
   });
 
