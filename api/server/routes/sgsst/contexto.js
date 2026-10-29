@@ -25,12 +25,21 @@ async function resolveUserAndCompany(userOrId, explicitCompanyId = null) {
   let parentUser = null;
   let assignedCompany = explicitCompanyId;
 
-  if (userOrId && typeof userOrId === 'object' && !mongoose.isValidObjectId(userOrId)) {
-    rawUserId = userOrId.id || userOrId._id;
+  const isUserObject =
+    userOrId &&
+    typeof userOrId === 'object' &&
+    !(userOrId instanceof mongoose.Types.ObjectId) &&
+    !Buffer.isBuffer(userOrId) &&
+    typeof userOrId.toHexString !== 'function';
+
+  if (isUserObject) {
+    rawUserId = String(userOrId.id || userOrId._id || '');
     isSubUser = Boolean(userOrId.isSubUser);
     parentUser = userOrId.parentUser || userOrId.parentUserId || null;
-    assignedCompany = explicitCompanyId || userOrId.assignedCompany || userOrId.assignedCompanyId || null;
+    assignedCompany =
+      explicitCompanyId || userOrId.assignedCompany || userOrId.assignedCompanyId || null;
   } else if (rawUserId) {
+    rawUserId = String(rawUserId);
     try {
       const User = mongoose.models.User || mongoose.model('User');
       const uDoc = await User.findById(rawUserId)
@@ -39,14 +48,15 @@ async function resolveUserAndCompany(userOrId, explicitCompanyId = null) {
       if (uDoc?.isSubUser) {
         isSubUser = true;
         parentUser = uDoc.parentUser || uDoc.parentUserId || null;
-        assignedCompany = explicitCompanyId || uDoc.assignedCompany || uDoc.assignedCompanyId || null;
+        assignedCompany =
+          explicitCompanyId || uDoc.assignedCompany || uDoc.assignedCompanyId || null;
       }
     } catch (_) {
       // Fallback silencioso
     }
   }
 
-  const targetUserId = isSubUser && parentUser ? parentUser : rawUserId;
+  const targetUserId = String((isSubUser && parentUser ? parentUser : rawUserId) || '');
   let company = null;
 
   if (assignedCompany) {
