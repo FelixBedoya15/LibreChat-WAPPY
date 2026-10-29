@@ -11,6 +11,7 @@ const { v4: uuidv4 } = require('uuid');
 const { generateWithKeyRotation, SGSST_FALLBACK_MODELS, LIVE_FALLBACK_MODELS } = require('../sgsst/sgsstGemini');
 const mongoose = require('mongoose');
 const CompanyInfo = require('~/models/CompanyInfo');
+const TenshiMessage = require('~/models/TenshiMessage');
 const { Course } = require('~/models/Course');
 const { BlogPost } = require('~/models/BlogPost');
 const { syncCompanyMemory } = require('../sgsst/companyInfo');
@@ -1813,7 +1814,12 @@ class VoiceSession {
                             description: "Consulta las métricas y telemetría de salud mental, estrés y bienestar del Termómetro Psicosocial de la empresa (total de check-ins, distribución de felicidad, neutralidad y estrés, factores de sobrecarga y recomendaciones preventivas SST).",
                             parameters: {
                                 type: "object",
-                                properties: {}
+                                properties: {
+                                    empresa_id: {
+                                        type: "string",
+                                        description: "ID o nombre opcional de la empresa a consultar."
+                                    }
+                                }
                             }
                         },
                         {
@@ -1821,7 +1827,12 @@ class VoiceSession {
                             description: "Consulta las estadísticas y métricas analíticas de los reportes preventivos de actos y condiciones inseguras reportados por los colaboradores (desglose por tipo, nivel de riesgo alto/medio/bajo, sedes y áreas con mayor recurrencia).",
                             parameters: {
                                 type: "object",
-                                properties: {}
+                                properties: {
+                                    empresa_id: {
+                                        type: "string",
+                                        description: "ID o nombre opcional de la empresa a consultar."
+                                    }
+                                }
                             }
                         },
                         {
@@ -4427,7 +4438,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                 try {
                                     await TenshiMessage.create({
                                         user: this.userId,
-                                        role: 'tenshi',
+                                        role: 'assistant',
                                         content: `🧠 **Memoria Procedural de Hábitos Operativos**\n${memRes.mensaje || 'Hábitos actualizados.'}`,
                                         source: 'voice',
                                         widget: memRes.widget,
@@ -4468,7 +4479,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                 try {
                                     await TenshiMessage.create({
                                         user: this.userId,
-                                        role: 'tenshi',
+                                        role: 'assistant',
                                         content: `✨ **${widget.title || 'Widget Interactivo'}**\n_${widget.subtitle || 'Interactúa directamente en la tarjeta inferior.'}_`,
                                         source: 'voice',
                                         widget,

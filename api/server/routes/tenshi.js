@@ -3194,12 +3194,16 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                         courseTitle = course.title;
                                         targetRoute = `/training/${course._id}/${sanitizeSlug(course.title)}`;
                                     }
+                                    const courseMsg = course
+                                        ? `¡De una! Abriendo el curso **${courseTitle}** en pantalla.`
+                                        : '¡De una! Abriendo el catálogo de cursos de **WAPPY Academia** en pantalla.';
                                     requestedGuiAction = {
                                         name: 'wappy_navegar',
                                         accion: 'navegar',
                                         modulo: 'training',
                                         ruta: targetRoute,
-                                        args: { ruta: targetRoute, modulo: 'training' }
+                                        args: { ruta: targetRoute, modulo: 'training' },
+                                        message: courseMsg,
                                     };
                                     toolOutput = JSON.stringify({
                                         success: true,
@@ -3215,12 +3219,16 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                         postTitle = post.title;
                                         targetRoute = `/blog/${post._id}/${sanitizeSlug(post.title)}`;
                                     }
+                                    const blogMsg = post
+                                        ? `¡De una! Abriendo el artículo **${postTitle}** en pantalla.`
+                                        : '¡De una! Abriendo el **Blog de WAPPY** en pantalla.';
                                     requestedGuiAction = {
                                         name: 'wappy_navegar',
                                         accion: 'navegar',
                                         modulo: 'blog',
                                         ruta: targetRoute,
-                                        args: { ruta: targetRoute, modulo: 'blog' }
+                                        args: { ruta: targetRoute, modulo: 'blog' },
+                                        message: blogMsg,
                                     };
                                     toolOutput = JSON.stringify({
                                         success: true,
@@ -3257,18 +3265,21 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                             break;
                                         }
                                     }
+                                    const camMsg = rawAccion === 'activar_camara'
+                                        ? 'Cámara y videollamada activadas con éxito.'
+                                        : rawAccion === 'apagar_camara'
+                                        ? 'Cámara apagada con éxito.'
+                                        : 'Llamada finalizada y colgada a petición del usuario.';
                                     requestedGuiAction = {
+                                        name: 'wappy_controlar_videollamada',
                                         action: 'wappy_controlar_videollamada',
                                         accion: rawAccion,
+                                        message: camMsg,
                                     };
                                     toolOutput = JSON.stringify({
                                         success: true,
                                         accion: rawAccion,
-                                        message: rawAccion === 'activar_camara'
-                                            ? 'Cámara y videollamada activadas con éxito.'
-                                            : rawAccion === 'apagar_camara'
-                                            ? 'Cámara apagada con éxito.'
-                                            : 'Llamada finalizada y colgada a petición del usuario.'
+                                        message: camMsg
                                     });
                                 } else if (call.name === 'operar_interfaz_visual') {
                                     const guiCalls = calls.filter(c => c.name === 'operar_interfaz_visual');
@@ -3693,7 +3704,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             const hasGuiAction = Boolean(requestedGuiAction || (requestedGuiActions && requestedGuiActions.length > 0));
                             const hasGeneratedArtifact = Boolean(capturedFile || capturedHtmlReport || capturedQrCode || capturedWidget);
                             if (hasGuiAction) {
-                                responseText = "Entendido, procedo a realizar una acción en la pantalla...";
+                                responseText = requestedGuiAction?.message || "Entendido, procedo a realizar una acción en la pantalla...";
                             } else if (hasGeneratedArtifact) {
                                 responseText = "Listo, he generado el recurso solicitado y ya lo tienes disponible aquí en pantalla.";
                             } else {
@@ -3800,11 +3811,20 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             responseText = `¡De una! Te abro en este instante el chat dedicado en pantalla con **${specLabel}** y le envío tu consulta técnica estructurada.`;
         }
 
+        const oneShotGuiActionNames = new Set([
+            'wappy_iniciar_estudio_ergonomico_vivo',
+            'wappy_abrir_chat_agente',
+            'wappy_navegar',
+            'wappy_abrir_curso',
+            'wappy_abrir_articulo_blog',
+            'wappy_diligenciar_formulario',
+            'wappy_controlar_videollamada',
+        ]);
+        const guiActionName = requestedGuiAction?.name || requestedGuiAction?.action || '';
+
         if (
             responseText &&
-            (!requestedGuiAction ||
-                requestedGuiAction.name === 'wappy_iniciar_estudio_ergonomico_vivo' ||
-                requestedGuiAction.name === 'wappy_abrir_chat_agente') &&
+            (!requestedGuiAction || oneShotGuiActionNames.has(guiActionName)) &&
             (!requestedGuiActions || requestedGuiActions.length === 0)
         ) {
             await TenshiMessage.create({

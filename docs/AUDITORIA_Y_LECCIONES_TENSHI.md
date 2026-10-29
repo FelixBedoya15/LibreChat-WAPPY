@@ -801,3 +801,25 @@ Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el 
   3. **Blindaje en `useSelectAgent.ts`:** Cuando `agentQuery.refetch()` termina en segundo plano, verifica `!isSubmittingRef.current` antes de llamar `updateConversation`, impidiendo que un refetch tardío llame `newConversation` (`setSubmission({})`) y aborte una consulta en curso.
   4. **Despacho Canónico Único + Limpieza Inmediata de Draft (`clearDraft`):** Se elimina el `sendBtn.click()` síncrono tras `submitMessage({ text })` y se limpia inmediatamente `clearDraft(Constants.NEW_CONVO)` y `textAreaRef.current.value = ''` para que `useAutoSave` nunca restaure el prompt enviado en la caja de texto.
   5. **`e?.preventDefault()` en `useChatHelpers.ts`:** `handleStopGenerating` acepta llamadas programáticas sin evento sin lanzar excepción.
+
+---
+
+### LECCIÓN 31 (2026-10-28): Auditoría Integral de Acciones de Tenshi (Extracción de `m.content[]` de Agentes, Prevención de Auto-Deadlock en `useQueryParams`, Continuidad de Chat ante `enrichTechnicalPrompt`, Persistencia de `TenshiMessage` y Paridad Voz/Texto)
+
+- **Hallazgos Detectados y Corregidos en Auditoría Integral:**
+  1. **Extracción del Dictamen de Agentes en `extractSpecialistAnswer` (`TenshiChat.tsx`):**
+     - En LibreChat, las respuestas de agentes (`endpoint === EModelEndpoint.agents`) suelen almacenar el texto dentro del arreglo estructurado `m.content` (`Array<{ type: 'text', text: string | { value: string } }>`) dejando `m.text` vacío (`""`).
+     - **Solución:** `extractSpecialistAnswer` ahora extrae tanto `m.text` como todos los bloques de texto de `Array.isArray(m.content)` tanto en React Query (`[QueryKeys.messages]`, recorriendo desde la consulta más reciente hacia atrás) como en `latestChatMessageRef.current`, y limita el dictamen inyectado a Gemini Live a `1200` caracteres (`600` de Canvas) para síntesis oral instantánea sin latencia.
+  2. **Prevención de Auto-Deadlock en `useQueryParams.ts` cuando hay una Generación Previa Activa:**
+     - Llamar `markAutoSubmitStarted(decodedPrompt)` dentro del `setInterval` *antes* de invocar `processSubmission()` hacía que, si la conversación anterior seguía generando (`isSubmittingRef.current === true`), `isAutoSubmitInFlight(textToSend) && isSubmittingRef.current` diera `true` contra sí mismo y abortara el nuevo envío antes de ejecutar `handleStopGenerating()`.
+     - **Solución:** `markAutoSubmitStarted(textToSend)` se invoca únicamente dentro de `processSubmission()` después de verificar `isAutoSubmitInFlight`.
+  3. **Preservación de Continuidad de Chat (`CASO A`) frente a `enrichTechnicalPrompt`:**
+     - `voiceSession.js` (`enrichTechnicalPrompt`) añade términos técnicos (`"estudio de puesto"`, `"matriz"`, `"dictamen"`, `"informe"`, `"actas"`) a `action.args.pregunta`. Evaluar `/\b(informe|reporte|...)\b/` sobre `pregunta` forzaba `requestedNewChat = true` (`CASO B: /c/new`) en cada repregunta al mismo especialista, rompiendo la **Regla 4.1 (`AGENTS.md`)**.
+     - **Solución:** `requestedNewChat` solo evalúa intenciones explícitas de abrir un chat nuevo (`nuevo chat`, `otra conversación`, `desde cero`, `cambiemos de tema`, `action.args.nuevo_chat` o `pendingForceNewChatRef.current`).
+  4. **Paridad Completa en Modo Texto (`runChatTurn` en `TenshiChat.tsx`):**
+     - `wappy_abrir_chat_agente` en modo texto ahora registra `pendingAgentConsultationRef.current` para capturar la respuesta del especialista y usa el respaldo diferido condicional de `2200ms` (sin colisión a los `400ms`).
+     - Las acciones de navegación de 1 paso (`wappy_navegar`, `wappy_abrir_curso`, `wappy_abrir_articulo_blog`, `wappy_controlar_videollamada`) ya no disparan un segundo turno recursivo `[RESULTADO_GUI]` innecesario cuando no hubo pasos DOM interactivos (`executeGUIAction`).
+  5. **Importación de `TenshiMessage` en `voiceSession.js` y Manejador `google_flow_*` en `TenshiChat.tsx`:**
+     - Se importó `TenshiMessage` en `api/server/routes/voice/voiceSession.js` y se normalizó `role: 'assistant'` en widgets de memoria procedimental y Generative UI.
+     - Se añadió el manejador `action.name.startsWith('google_flow_')` en `onWappyAction` (`TenshiChat.tsx`) para renderizar imágenes y videos de Google Flow Studio en tiempo real durante sesiones de voz.
+     - En `wappy_retirar_trabajador`, si la acción requiere aprobación HITL (`widgetType === 'hitl_approval'`), Tenshi informa que la tarjeta de autorización está lista en lugar de anunciar el retiro como ya ejecutado.

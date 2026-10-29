@@ -1944,6 +1944,27 @@ export default function TenshiChat() {
     const consultation = pendingAgentConsultationRef.current;
     const initialId = consultation?.initialMessageId;
 
+    const getMessageText = (m: any): string => {
+      if (!m) return '';
+      if (typeof m.text === 'string' && m.text.trim()) {
+        return m.text.trim();
+      }
+      if (Array.isArray(m.content)) {
+        return m.content
+          .map((part: any) => {
+            if (!part) return '';
+            if (part.type === 'text' || typeof part.text === 'string' || part.text?.value) {
+              return typeof part.text === 'string' ? part.text : part.text?.value || '';
+            }
+            return '';
+          })
+          .filter(Boolean)
+          .join('\n')
+          .trim();
+      }
+      return '';
+    };
+
     const isInvalid = (txt: string) => {
       if (!txt || txt.length < 35) return true;
       if (txt.includes('Pensando respuesta...')) return true;
@@ -1961,13 +1982,22 @@ export default function TenshiChat() {
       const convoId = currentConvoId || conversation?.conversationId || 'new';
       let queryMsgs = queryClient.getQueryData<any[]>([QueryKeys.messages, convoId]);
 
-      // Si no hay mensajes bajo convoId, buscar en las queries de mensajes activas de React Query
+      // Si no hay mensajes bajo convoId, buscar en las queries de mensajes activas de React Query (de la más reciente a la más antigua)
       if (!Array.isArray(queryMsgs) || queryMsgs.length === 0) {
         const allMsgQueries = queryClient.getQueriesData<any[]>([QueryKeys.messages]);
-        for (const [_, msgs] of allMsgQueries) {
+        for (let qIdx = allMsgQueries.length - 1; qIdx >= 0; qIdx--) {
+          const [queryKey, msgs] = allMsgQueries[qIdx];
+          const keyConvoId = Array.isArray(queryKey) ? queryKey[1] : undefined;
           if (Array.isArray(msgs) && msgs.length > 0) {
-            queryMsgs = msgs;
-            break;
+            const lastMsg = msgs[msgs.length - 1];
+            const lastTxt = getMessageText(lastMsg);
+            if (!lastMsg.isCreatedByUser && lastMsg.messageId !== initialId && !isInvalid(lastTxt)) {
+              queryMsgs = msgs;
+              break;
+            }
+            if (!queryMsgs && keyConvoId && keyConvoId !== 'new') {
+              queryMsgs = msgs;
+            }
           }
         }
       }
@@ -1975,12 +2005,12 @@ export default function TenshiChat() {
       if (Array.isArray(queryMsgs) && queryMsgs.length > 0) {
         for (let i = queryMsgs.length - 1; i >= 0; i--) {
           const m = queryMsgs[i];
-          if (!m.isCreatedByUser && m.text && typeof m.text === 'string') {
+          if (!m.isCreatedByUser) {
             // Ignorar el mensaje que existía antes de iniciar la consulta
             if (initialId && m.messageId === initialId) {
               continue;
             }
-            const text = m.text.trim();
+            const text = getMessageText(m);
             if (!isInvalid(text)) {
               return text;
             }
@@ -2009,10 +2039,10 @@ export default function TenshiChat() {
       }
     } catch (_) {}
 
-    // 3. Fallback a latestChatMessage (solo si es nuevo y del asistente)
+    // 3. Fallback a latestChatMessage (solo si es nuevo y del asistente, soportando m.text y m.content[])
     const latestMsg = latestChatMessageRef.current;
     if (latestMsg && !latestMsg.isCreatedByUser && latestMsg.messageId !== initialId) {
-      const recoilText = (latestMsg.text || '').trim();
+      const recoilText = getMessageText(latestMsg);
       if (!isInvalid(recoilText)) {
         return recoilText;
       }
@@ -2051,7 +2081,7 @@ export default function TenshiChat() {
           .replace(/\s+/g, ' ')
           .trim();
         if (cleanCanvasText.length > 40) {
-          canvasTextExcerpt = cleanCanvasText.substring(0, 1800);
+          canvasTextExcerpt = cleanCanvasText.substring(0, 600);
         }
       }
     } catch (_) {}
@@ -2060,12 +2090,12 @@ export default function TenshiChat() {
       ? `${finalText}\n\n[CONTENIDO DEL INFORME GENERADO EN CANVAS "${canvasTitle}"]:\n${canvasTextExcerpt}`
       : finalText;
 
-    // 1. Si el Modo Voz está activo, instruir a Tenshi Live con el dictamen técnico y el informe de Canvas
+    // 1. Si el Modo Voz está activo, instruir a Tenshi Live con el dictamen técnico y el informe de Canvas (tope 1200 chars — Lección 17.3)
     if (isVoiceActiveRef.current || isVoiceActive) {
       lastActivityRef.current = Date.now();
       clearAudioQueue();
       setVoiceStatusText(`Tenshi respondiendo sobre ${consultation.agentName}...`);
-      const condensedDictamen = combinedText.length > 2200 ? combinedText.substring(0, 2200) + '...' : combinedText;
+      const condensedDictamen = combinedText.length > 1200 ? combinedText.substring(0, 1200) + '...' : combinedText;
       const promptForTenshi = `[SISTEMA INTERNO WAPPY - RESPUESTA E INFORME TÉCNICO EMITIDO]:
 El especialista ${consultation.agentName} ha terminado de responder y generar el informe en pantalla a la consulta: "${consultation.question}".
 
@@ -2490,14 +2520,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 (activeConsultationAgentIdRef.current && targetAgentId && activeConsultationAgentIdRef.current === targetAgentId)
               );
 
-              // 3. Detección robusta de solicitud explícita de nuevo chat (por backend, turnos previos por voz o texto actual)
+              // 3. Detección robusta de solicitud explícita de nuevo chat (sin romper continuidad por palabras técnicas inyectadas en enrichTechnicalPrompt)
               const requestedNewChat = Boolean(
                 action.args?.nuevo_chat ||
                 pendingForceNewChatRef.current ||
-                /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia|cambiemos|abrir\w*\s+(un\s+)?(nuevo\s+)?chat|abrirme|ábreme)\b/i.test(rawPregunta) ||
-                /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia|cambiemos|abrir\w*\s+(un\s+)?(nuevo\s+)?chat|abrirme|ábreme)\b/i.test(action.args?.pregunta || '') ||
-                /\b(informe|reporte|estudio\s+de\s+puesto|estudio\s+ergon[oó]mico|dictamen|documento|acta|matriz)\b/i.test(rawPregunta) ||
-                /\b(informe|reporte|estudio\s+de\s+puesto|estudio\s+ergon[oó]mico|dictamen|documento|acta|matriz)\b/i.test(action.args?.pregunta || '')
+                /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia|cambiemos|abrir\w*\s+(un\s+)?(nuevo\s+)?chat|abrirme|ábreme)\b/i.test(rawPregunta)
               );
 
               // Consumir la bandera de forzar nuevo chat
@@ -2769,8 +2796,18 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               resultMsg = `Trabajador "${target}" reactivado exitosamente.`;
             }
           } else if (action.name === 'wappy_retirar_trabajador') {
-            window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
-            resultMsg = `Trabajador marcado como retirado exitosamente.`;
+            const isPendingHitl =
+              (action as any).widget?.widgetType === 'hitl_approval' ||
+              (action as any).result?.status === 'pendiente_aprobacion';
+            if (isPendingHitl) {
+              resultMsg =
+                (action as any).result?.instruccion_ia ||
+                (action as any).result?.mensaje ||
+                'Solicitud de retiro preparada en tarjeta de aprobación de seguridad. Pide al usuario que haga clic en "Autorizar y Ejecutar".';
+            } else {
+              window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
+              resultMsg = `Trabajador marcado como retirado exitosamente.`;
+            }
           } else if (
             action.name === 'wappy_importar_sociodemografico_drive' ||
             action.name === 'wappy_alimentar_sociodemografico_masivo' ||
@@ -3218,6 +3255,52 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               setIsOpen(true);
             }
             resultMsg = dataObj.message || 'Artefacto de Google NotebookLM entregado en el chat de Tenshi.';
+          } else if (action.name.startsWith('google_flow_')) {
+            tenshiAudio.playSuccess();
+            const rawRes = (action as any).result;
+            const publicUrl = (action as any).publicUrl || '';
+            const contentText =
+              typeof rawRes === 'string'
+                ? rawRes
+                : rawRes?.message || rawRes?.mensaje || 'Recurso generado en Google Flow Studio.';
+            const isVideo = action.name === 'google_flow_generar_video' || publicUrl.endsWith('.mp4');
+            const isImage = action.name === 'google_flow_generar_imagen' || /\.(png|jpg|jpeg|webp)$/i.test(publicUrl);
+
+            let flowMedia: TenshiMediaAttachment | undefined;
+            if (publicUrl && isVideo) {
+              flowMedia = {
+                name: 'Video_GoogleFlow.mp4',
+                type: 'video',
+                mimeType: 'video/mp4',
+                size: 0,
+                dataUrl: publicUrl,
+                previewUrl: publicUrl,
+              };
+            } else if (publicUrl && isImage) {
+              flowMedia = {
+                name: 'Imagen_GoogleFlow.png',
+                type: 'image',
+                mimeType: 'image/png',
+                size: 0,
+                dataUrl: publicUrl,
+                previewUrl: publicUrl,
+              };
+            }
+
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: 'assistant',
+                content: contentText,
+                media: flowMedia,
+              },
+            ]);
+            setIsOpen(true);
+            refetchHistoryRef.current?.();
+            setTimeout(() => {
+              scrollMessagesToBottom(true);
+            }, 150);
+            resultMsg = contentText;
           }
 
           // Si la acción de voz incluye un Widget Interactivo o de Gobernanza HITL (OpenBot AG-UI), mostrarlo de inmediato en el chat
@@ -5271,6 +5354,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         console.log('[Tenshi Frontend] GUI actions requested:', actions);
         let cumulativeMessages = [...currentMessages, assistantMsg];
         let lastResult: { success: boolean; message: string } | null = null;
+        let hasInteractiveDomStep = false;
         let index = 0;
 
         for (const action of actions) {
@@ -5429,6 +5513,26 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             tenshiAudio.playBlip();
             setTenshiStatus(`Abriendo chat con ${agentName}...`);
 
+            if (pregunta) {
+              if (consultationTimerRef.current) {
+                clearTimeout(consultationTimerRef.current);
+                consultationTimerRef.current = null;
+              }
+              const initialMessageId = latestChatMessageRef.current?.messageId || null;
+              const now = Date.now();
+              pendingAgentConsultationRef.current = {
+                agentName,
+                question: pregunta,
+                active: true,
+                hadStarted: false,
+                timestamp: now,
+                startedAt: now,
+                initialMessageId,
+              };
+              lastContentChangeRef.current = { text: '', time: now };
+              setIsWaitingConsultation(true);
+            }
+
             if (isSameAgentActive && !requestedNewChat) {
               activeConsultationAgentIdRef.current = targetAgentId || currentAgentId || null;
               activeConsultationAgentNameRef.current = agentName;
@@ -5461,17 +5565,24 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               }
               navigate(`/c/new?${params.toString()}`, { replace: true, state: { focusChat: true } });
               if (pregunta) {
+                // Canal de respaldo diferido (2200ms): SOLO disparar si useQueryParams no inició el envío por sí mismo (Lección 30)
                 setTimeout(() => {
-                  window.dispatchEvent(
-                    new CustomEvent('tenshi-submit-agent-prompt', {
-                      detail: {
-                        agentId: targetAgentId,
-                        prompt: pregunta,
-                        nuevoChat: true,
-                      },
-                    }),
-                  );
-                }, 400);
+                  if (
+                    pendingAgentConsultationRef.current?.active &&
+                    !pendingAgentConsultationRef.current.hadStarted &&
+                    !isChatSubmittingRef.current
+                  ) {
+                    window.dispatchEvent(
+                      new CustomEvent('tenshi-submit-agent-prompt', {
+                        detail: {
+                          agentId: targetAgentId,
+                          prompt: pregunta,
+                          nuevoChat: true,
+                        },
+                      }),
+                    );
+                  }
+                }, 2200);
               }
             }
             setTenshiStatus('');
@@ -5505,6 +5616,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           await new Promise((resolve) => setTimeout(resolve, 250));
 
           setTenshiStatus(`Desplazando e interactuando con elemento [${action.indice}]...`);
+          hasInteractiveDomStep = true;
           const actionResult = await executeGUIAction(
             action.accion,
             action.indice,
@@ -5534,16 +5646,21 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           index++;
         }
 
-        const newDOM = getDehydratedDOM();
-        const finalFeedbackMsg = {
-          role: 'user',
-          content: `[RESULTADO_GUI] Lote de acciones completado en el cliente. Último resultado: ${lastResult?.message}. Estado actual de la pantalla:\n${newDOM}`,
-        };
+        if (hasInteractiveDomStep && lastResult) {
+          const newDOM = getDehydratedDOM();
+          const finalFeedbackMsg = {
+            role: 'user',
+            content: `[RESULTADO_GUI] Lote de acciones completado en el cliente. Último resultado: ${lastResult.message}. Estado actual de la pantalla:\n${newDOM}`,
+          };
 
-        // Reanudamos la conversación de forma automática pasándole todo el historial acumulado en lote
-        console.log('[Tenshi Frontend] Sending batched feedback to backend:', finalFeedbackMsg);
-        setTenshiStatus('Enviando resultado...');
-        await runChatTurn([...cumulativeMessages, finalFeedbackMsg]);
+          // Reanudamos la conversación de forma automática pasándole todo el historial acumulado en lote
+          console.log('[Tenshi Frontend] Sending batched feedback to backend:', finalFeedbackMsg);
+          setTenshiStatus('Enviando resultado...');
+          await runChatTurn([...cumulativeMessages, finalFeedbackMsg]);
+        } else {
+          setTenshiStatus('');
+          setIsTyping(false);
+        }
       } else {
         console.log('[Tenshi Frontend] No GUI action requested. Ending turn.');
         setTenshiStatus('');

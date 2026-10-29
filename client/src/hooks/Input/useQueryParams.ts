@@ -473,9 +473,7 @@ export default function useQueryParams({
       // (para evitar que useAutoSave persista el prompt como borrador en /c/new antes del envío)
       if (decodedPrompt) {
         promptTextRef.current = decodedPrompt;
-        if (shouldAutoSubmit) {
-          markAutoSubmitStarted(decodedPrompt);
-        } else {
+        if (!shouldAutoSubmit) {
           methods.setValue('text', decodedPrompt, { shouldValidate: true });
           if (textAreaRef.current) {
             textAreaRef.current.value = decodedPrompt;
