@@ -30,6 +30,11 @@ import {
   Calendar,
   Heart,
   Star,
+  BookOpen,
+  Folder,
+  Sparkles,
+  Layers,
+  ClipboardList,
 } from 'lucide-react';
 import cn from '~/utils/cn';
 
@@ -63,7 +68,7 @@ interface CardData {
   links?: CardLink[];
   suggestions?: string[] | { label: string }[];
   footer?: string;
-  layout?: 'list' | 'grid' | 'metrics' | 'checklist';
+  layout?: 'list' | 'grid' | 'metrics' | 'checklist' | string;
   columns?: number;
 }
 
@@ -95,11 +100,16 @@ const LucideIcons: Record<string, React.ComponentType<any>> = {
   Calendar,
   Heart,
   Star,
+  BookOpen,
+  Folder,
+  Sparkles,
+  Layers,
+  ClipboardList,
 };
 
 // Convert kebab-case or custom naming to PascalCase Lucide Icon safely from our curated list
 const getIcon = (name?: string): React.ComponentType<any> => {
-  if (!name) return HelpCircle;
+  if (!name) return FileText;
 
   // Clean name and map common custom names if any
   const cleanName = name.trim();
@@ -123,13 +133,17 @@ const getIcon = (name?: string): React.ComponentType<any> => {
   }
 
   // Common fallbacks for safety
+  if (lowerName.includes('book') || lowerName.includes('notebook') || lowerName.includes('cuaderno')) return BookOpen;
+  if (lowerName.includes('folder') || lowerName.includes('project') || lowerName.includes('proyecto')) return Folder;
+  if (lowerName.includes('spark') || lowerName.includes('magic') || lowerName.includes('flow')) return Sparkles;
+  if (lowerName.includes('clip') || lowerName.includes('list') || lowerName.includes('task')) return ClipboardList;
   if (lowerName.includes('alert') || lowerName.includes('warning')) return AlertTriangle;
   if (lowerName.includes('check') || lowerName.includes('success')) return CheckCircle2;
   if (lowerName.includes('danger') || lowerName.includes('shield')) return ShieldAlert;
   if (lowerName.includes('info')) return Info;
   if (lowerName.includes('link') || lowerName.includes('url')) return ExternalLink;
 
-  return HelpCircle;
+  return FileText;
 };
 
 // Safe and highly tolerant JSON parser with backtracking truncated JSON repair
@@ -360,16 +374,160 @@ const THEMES = {
 export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
   const [isOpen, setIsOpen] = useState(true);
   const rawData = parseTolerantJson(content);
-  const data = rawData ? {
-    ...rawData,
-    items: Array.isArray(rawData.items)
-      ? rawData.items.map((item: any) => {
-          const title = item.title ?? item.tarea ?? item.item ?? item.Evento ?? item.name ?? item.text ?? item.label ?? '';
-          const description = item.description ?? item.descripcion ?? item.descripción ?? item.Acción ?? item.accion ?? item.detalles ?? item.details ?? '';
-          return { ...item, title, description };
-        })
-      : []
-  } : null;
+  const data = rawData
+    ? (() => {
+        const rawObj = rawData as any;
+        const rawLayout = String(rawObj.layout || 'list').toLowerCase().trim();
+        let normalizedLayout: 'metrics' | 'grid' | 'checklist' | 'list' = 'list';
+        if (['metrics', 'metric', 'kpi', 'kpis', 'stats'].includes(rawLayout)) {
+          normalizedLayout = 'metrics';
+        } else if (['grid', 'cards', 'columns', 'bento'].includes(rawLayout)) {
+          normalizedLayout = 'grid';
+        } else if (['checklist', 'check', 'tasks', 'todo', 'todos'].includes(rawLayout)) {
+          normalizedLayout = 'checklist';
+        } else {
+          normalizedLayout = 'list';
+        }
+
+        const candidateItems =
+          rawObj.items ??
+          rawObj.notebooks ??
+          rawObj.cuadernos ??
+          rawObj.projects ??
+          rawObj.proyectos ??
+          rawObj.bullets ??
+          rawObj.rows ??
+          rawObj.elements ??
+          rawObj.list ??
+          rawObj.data ??
+          rawObj.sections ??
+          rawObj.hallazgos ??
+          rawObj.tareas ??
+          [];
+
+        const normalizedItems = Array.isArray(candidateItems)
+          ? candidateItems
+              .map((item: any) => {
+                if (typeof item === 'string' || typeof item === 'number') {
+                  return { title: String(item), description: '' };
+                }
+                if (!item || typeof item !== 'object') {
+                  return null;
+                }
+                let title =
+                  item.title ??
+                  item.label ??
+                  item.name ??
+                  item.nombre ??
+                  item.titulo ??
+                  item.título ??
+                  item.tarea ??
+                  item.item ??
+                  item.Evento ??
+                  item.text ??
+                  item.texto ??
+                  item.notebook ??
+                  item.cuaderno ??
+                  item.project ??
+                  item.proyecto ??
+                  item.heading ??
+                  item.header ??
+                  item.value ??
+                  item.valor ??
+                  '';
+                let description =
+                  item.description ??
+                  item.descripcion ??
+                  item.descripción ??
+                  item.subtitle ??
+                  item.subtitulo ??
+                  item.subtítulo ??
+                  item.Acción ??
+                  item.accion ??
+                  item.detalles ??
+                  item.details ??
+                  item.summary ??
+                  item.resumen ??
+                  item.content ??
+                  item.contenido ??
+                  item.info ??
+                  item.nota ??
+                  item.note ??
+                  (item.sources_count !== undefined ? `${item.sources_count} fuente(s)` : undefined) ??
+                  '';
+
+                if (!title && !description) {
+                  const entries = Object.entries(item).filter(
+                    ([k, v]) =>
+                      !['icon', 'color', 'badge', 'checked', 'actions', 'id'].includes(k) &&
+                      (typeof v === 'string' || typeof v === 'number') &&
+                      String(v).trim().length > 0,
+                  );
+                  if (entries.length > 0) {
+                    title = String(entries[0][1]);
+                    if (entries.length > 1) {
+                      description = entries
+                        .slice(1)
+                        .map(([k, v]) => `${k}: ${v}`)
+                        .join(' · ');
+                    }
+                  }
+                }
+
+                const emojiPrefix = typeof item.emoji === 'string' && item.emoji.trim() ? `${item.emoji.trim()} ` : '';
+                const finalTitle =
+                  emojiPrefix && title && !String(title).startsWith(item.emoji.trim())
+                    ? `${emojiPrefix}${title}`
+                    : String(title || '');
+
+                return { ...item, title: finalTitle, description: String(description || '') };
+              })
+              .filter(Boolean)
+          : [];
+
+        const normalizedTitle =
+          rawObj.title ??
+          rawObj.titulo ??
+          rawObj.título ??
+          rawObj.name ??
+          rawObj.nombre ??
+          rawObj.heading ??
+          rawObj.header ??
+          'Información';
+
+        const normalizedSubtitle =
+          rawObj.subtitle ??
+          rawObj.subtitulo ??
+          rawObj.subtítulo ??
+          rawObj.category ??
+          rawObj.categoria ??
+          undefined;
+
+        const normalizedDescription =
+          rawObj.description ??
+          rawObj.descripcion ??
+          rawObj.descripción ??
+          rawObj.summary ??
+          rawObj.resumen ??
+          rawObj.content ??
+          rawObj.contenido ??
+          rawObj.text ??
+          rawObj.texto ??
+          rawObj.body ??
+          rawObj.mensaje ??
+          rawObj.message ??
+          undefined;
+
+        return {
+          ...rawData,
+          title: String(normalizedTitle),
+          subtitle: normalizedSubtitle ? String(normalizedSubtitle) : undefined,
+          description: normalizedDescription ? String(normalizedDescription) : undefined,
+          layout: normalizedLayout,
+          items: normalizedItems as CardItem[],
+        };
+      })()
+    : null;
 
   const { messageId, conversationId, isSubmitting } = useMessageContext();
   const { getMessages, setMessages } = useMessagesOperations();
@@ -862,17 +1020,19 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
                 </div>
               )}
 
-              {/* layout === 'list' (default) */}
-              {(!data.layout || data.layout === 'list') && (
+              {/* layout === 'list' (default fallback for any unrecognized layout like 'bullets') */}
+              {!['metrics', 'grid', 'checklist'].includes(data.layout || '') && (
                 <div className="mb-4 grid grid-cols-1 gap-2.5">
                   {data.items.map((item, idx) => {
                     const ItemIcon = getIcon(item.icon);
                     const itemTheme = item.color ? THEMES[item.color] : theme;
+                    const hasDesc = Boolean(item.description && item.description.trim().length > 0);
                     return (
                       <div
                         key={idx}
                         className={cn(
                           'group flex gap-3 rounded-xl border border-black/5 bg-white/40 p-3 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-sm dark:border-white/10 dark:bg-zinc-900/40',
+                          !hasDesc && 'items-center',
                         )}
                       >
                         <div
@@ -885,7 +1045,7 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
                           <ItemIcon className="h-4 w-4" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="mb-1 flex flex-wrap items-center gap-2">
+                          <div className={cn('flex flex-wrap items-center gap-2', hasDesc && 'mb-1')}>
                             <div className="text-xs font-semibold text-gray-800 dark:text-gray-200">
                               {item.title}
                             </div>
@@ -900,9 +1060,11 @@ export const WappyCard: React.FC<WappyCardProps> = ({ content }) => {
                               </span>
                             )}
                           </div>
-                          <div className="text-[11px] leading-normal text-gray-600 dark:text-gray-400">
-                            {item.description}
-                          </div>
+                          {hasDesc && (
+                            <div className="text-[11px] leading-normal text-gray-600 dark:text-gray-400">
+                              {item.description}
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
