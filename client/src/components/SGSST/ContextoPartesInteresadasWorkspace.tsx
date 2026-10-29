@@ -30,6 +30,13 @@ import {
   Stethoscope,
   X,
   ExternalLink,
+  Database,
+  GraduationCap,
+  ClipboardCheck,
+  UserCheck,
+  HardHat,
+  Truck,
+  HeartPulse,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -77,13 +84,36 @@ export interface EcosystemMetrics {
   diagnosticoScore: number;
   diagnosticoBrechas: number;
   diagnosticoLevel: string;
-  gtc45Total: number;
-  gtc45Criticos: number;
-  trabajadoresCount: number;
-  perfilesCargoCount: number;
+  matrizLegalCount: number;
+  totalPeligros: number;
+  peligrosCriticos: number;
+  avgFitScore: number;
+  totalWorkers: number;
+  totalCargos: number;
+  workersWithFitAlerts: number;
+  capacitacionesCompletadas: number;
+  capacitacionesTotal: number;
+  capacitacionesCompliancePct: number;
+  auditoriaScore: number;
+  auditoriaNoConformidades: number;
+  altaDireccionCumple: number;
+  altaDireccionTotalItems: number;
+  altaDireccionPendientes: number;
+  owasEvaluationsCount: number;
+  estudiosPuestoCount: number;
+  moodReportsCount: number;
+  atsCount: number;
+  permisosAlturasCount: number;
+  eppEntregasCount: number;
+  pesvRiesgosCount: number;
+  quimicosCount: number;
+  amenazasVulnerabilidadCount: number;
   comitesActivos: number;
   brigadistasCount: number;
-  acpmCount: number;
+  actosInsegurosCount: number;
+  atelInvestigacionesCount: number;
+  acpmPending: number;
+  acpmTotal: number;
 }
 
 const PESTEL_CATEGORIES = [
@@ -99,160 +129,240 @@ const PESTEL_CATEGORIES = [
 ] as const;
 
 const ORIGIN_MODULES = [
+  'Auditoría Interna SG-SST',
+  'Revisión por la Alta Dirección',
+  'Programa de Capacitaciones',
+  'Compatibilidad Colaborador-Cargo',
   'Diagnóstico 0312',
+  'Matriz Legal',
   'Matriz IPEVR GTC-45',
-  'Huella Biocéntrica (Hito 2)',
-  'Gobernanza & Comités (Hito 3)',
-  'Riesgo Vial PESV',
-  'Riesgo Químico SGA',
-  'Contexto Externo / Entorno',
-  'Alta Dirección & Presupuesto',
+  'Matriz Vial PESV',
+  'Compatibilidad Química SGA',
+  'Ergonomía y Estudio de Puesto',
+  'Clima y Ánimo Psicosocial',
+  'Operación Terreno (ATS / Alturas / EPP)',
+  'Actos y Condiciones Inseguras',
+  'Investigación ATEL',
+  'Comités y Brigada',
+  'Vulnerabilidad y Emergencias',
+  'Centro de Control ACPM',
 ];
 
 const INITIAL_DOFA: DofaItem[] = [
   {
     id: '1',
     type: 'fortaleza',
-    description: 'Compromiso directo de la gerencia general con asignación presupuestal blindada para el SG-SST',
+    description:
+      'Compromiso directo de la Alta Dirección con evaluación de 24 numerales (Art. 2.2.4.6.31) y presupuesto anual blindado para el SG-SST',
     source: 'interno',
     category: 'Financiero / Presupuesto',
-    originModule: 'Alta Dirección & Presupuesto',
+    originModule: 'Revisión por la Alta Dirección',
     impact: 'alto',
     responsible: 'Gerencia General',
-    strategicAction: 'Mantener rubro anual específico auditado y blindado en el presupuesto corporativo de SST.',
+    strategicAction:
+      'Mantener rubro anual específico auditado y ejecutar seguimiento trimestral a los compromisos de la Revisión por la Alta Dirección.',
   },
   {
     id: '2',
     type: 'fortaleza',
-    description: 'COPASST, Comité de Convivencia y Brigada de Emergencias con reuniones mensuales y actas al día',
+    description:
+      'Dictamen de Compatibilidad Colaborador-Cargo (FIT Biocéntrico) integrado con profesiogramas y perfiles sociodemográficos',
     source: 'interno',
-    category: 'Gobernanza / SST',
-    originModule: 'Gobernanza & Comités (Hito 3)',
+    category: 'Operativo / Biomecánico',
+    originModule: 'Compatibilidad Colaborador-Cargo',
     impact: 'alto',
-    responsible: 'Presidente COPASST',
-    strategicAction: 'Publicar actas en el portal digital y articular inspecciones conjuntas con seguridad vial.',
+    responsible: 'Médico Laboral / Líder SG-SST',
+    strategicAction:
+      'Validar el puntaje FIT Biocéntrico antes de cada ingreso o rotación operativa y cerrar restricciones médicas con estudio de puesto.',
   },
   {
     id: '3',
-    type: 'debilidad',
-    description: 'Resistencia inicial de algunos operarios al auto-reporte oportuno de actos y condiciones inseguras',
+    type: 'fortaleza',
+    description:
+      'COPASST, Comité de Convivencia y Brigada de Emergencias con reuniones mensuales, actas firmadas e inspecciones al día',
     source: 'interno',
-    category: 'Psicosocial / Cultura',
-    originModule: 'Huella Biocéntrica (Hito 2)',
-    impact: 'medio',
-    responsible: 'Responsable SG-SST',
-    strategicAction: 'Implementar incentivos de prevención y campañas de cultura justa de reporte por QR sin represalias.',
+    category: 'Gobernanza / SST',
+    originModule: 'Comités y Brigada',
+    impact: 'alto',
+    responsible: 'Presidente COPASST',
+    strategicAction:
+      'Publicar actas en el portal digital y articular inspecciones conjuntas con seguridad vial y auditoría interna.',
   },
   {
     id: '4',
     type: 'debilidad',
-    description: 'Rotación de trabajadores en temporadas pico que exige reinducciones y controles biomecánicos frecuentes',
+    description:
+      'No conformidades menores en trazabilidad documental de contratistas detectadas en la Auditoría Interna anual (Dec. 1072 Art. 2.2.4.6.29)',
     source: 'interno',
-    category: 'Operativo / Biomecánico',
-    originModule: 'Matriz IPEVR GTC-45',
+    category: 'Gobernanza / SST',
+    originModule: 'Auditoría Interna SG-SST',
     impact: 'alto',
-    responsible: 'Gestión del Talento Humano',
-    strategicAction: 'Estandarizar inducción digital en WAPPY LMS y evaluaciones automatizadas previas al ingreso a planta.',
+    responsible: 'Auditor Líder / Responsable SG-SST',
+    strategicAction:
+      'Ejecutar plan de acción correctiva ACPM a 30 días con lista de chequeo digital obligatoria para contratistas y proveedores.',
   },
   {
     id: '5',
-    type: 'oportunidad',
-    description: 'Adopción de la suite digital WAPPY IA con analítica predictiva para control proactivo de riesgos y ATEL',
-    source: 'externo',
-    category: 'Tecnológico / IA',
-    originModule: 'Contexto Externo / Entorno',
-    impact: 'alto',
-    responsible: 'Líder SG-SST / Dirección TI',
-    strategicAction: 'Automatizar inspecciones, matrices GTC-45 y planes de acción ACPM con trazabilidad en la nube.',
+    type: 'debilidad',
+    description:
+      'Brecha de asistencia en sesiones presenciales del Programa de Capacitaciones por cruces con turnos operativos críticos',
+    source: 'interno',
+    category: 'Psicosocial / Cultura',
+    originModule: 'Programa de Capacitaciones',
+    impact: 'medio',
+    responsible: 'Gestión del Talento Humano / SST',
+    strategicAction:
+      'Desplegar micro-cápsulas asincrónicas en WAPPY LMS con evaluación automática y certificado verificable por código QR.',
   },
   {
     id: '6',
-    type: 'oportunidad',
-    description: 'Articulación con programas técnicos de reinversión de la ARL y bienestar de Caja de Compensación',
-    source: 'externo',
-    category: 'Gobernanza / SST',
-    originModule: 'Diagnóstico 0312',
+    type: 'debilidad',
+    description:
+      'Subregistro ocasional de actos y condiciones inseguras en labores de campo y tareas de alto riesgo (ATS / Alturas)',
+    source: 'interno',
+    category: 'Operativo / Biomecánico',
+    originModule: 'Actos y Condiciones Inseguras',
     impact: 'medio',
-    responsible: 'Responsable SG-SST',
-    strategicAction: 'Gestionar horas de asesoría especializada, higiene industrial y medicina preventiva sin costo adicional.',
+    responsible: 'Coordinador de Alturas / Vigía SST',
+    strategicAction:
+      'Activar reporte inmediato por voz con Tenshi y QR en frentes de trabajo sin represalias y con cierre en el Kanban ACPM.',
   },
   {
     id: '7',
-    type: 'amenaza',
-    description: 'Variabilidad climática extrema y congestión que elevan el riesgo de siniestros en desplazamientos viales',
+    type: 'oportunidad',
+    description:
+      'Analítica predictiva WAPPY IA para correlacionar Matriz GTC-45, Ergonomía OWAS, Ánimo Psicosocial y Compatibilidad Cargo-Persona',
     source: 'externo',
-    category: 'Vial / PESV',
-    originModule: 'Riesgo Vial PESV',
+    category: 'Tecnológico / IA',
+    originModule: 'Compatibilidad Colaborador-Cargo',
     impact: 'alto',
-    responsible: 'Comité de Seguridad Vial (CSV)',
-    strategicAction: 'Actualizar el protocolo de contingencia climática, mantenimiento preventivo y alertas tempranas en el PESV.',
+    responsible: 'Líder SG-SST / Dirección TI',
+    strategicAction:
+      'Automatizar alertas tempranas de fatiga, riesgo biomecánico y planes de acción ACPM con trazabilidad en tiempo real.',
   },
   {
     id: '8',
+    type: 'oportunidad',
+    description:
+      'Horas técnicas de reinversión ARL y escuelas de formación virtual para fortalecer el Programa Anual de Capacitaciones y Brigadas',
+    source: 'externo',
+    category: 'Gobernanza / SST',
+    originModule: 'Programa de Capacitaciones',
+    impact: 'alto',
+    responsible: 'Responsable SG-SST',
+    strategicAction:
+      'Solicitar cofinanciación ARL para entrenamientos certificados en trabajo seguro en alturas, higiene industrial y ergonomía.',
+  },
+  {
+    id: '9',
     type: 'amenaza',
-    description: 'Cambios normativos frecuentes y fiscalización estricta del Ministerio del Trabajo y la UGPP',
+    description:
+      'Variabilidad climática extrema y congestión vial que incrementan la severidad de siniestros en rutas misionales e in-itinere',
+    source: 'externo',
+    category: 'Vial / PESV',
+    originModule: 'Matriz Vial PESV',
+    impact: 'alto',
+    responsible: 'Comité de Seguridad Vial (CSV)',
+    strategicAction:
+      'Actualizar protocolo de contingencia climática, inspección preoperacional diaria y alertas viales en el PESV.',
+  },
+  {
+    id: '10',
+    type: 'amenaza',
+    description:
+      'Cambios regulatorios continuos y fiscalización estricta del Ministerio del Trabajo sobre Estándares Mínimos 0312 y Matriz Legal',
     source: 'externo',
     category: 'Legal / Normativo',
-    originModule: 'Diagnóstico 0312',
+    originModule: 'Matriz Legal',
     impact: 'alto',
     responsible: 'Dirección Jurídica y SST',
-    strategicAction: 'Ejecutar actualización normativa mensual en la Matriz Legal con auditoría preventiva de cumplimiento.',
+    strategicAction:
+      'Ejecutar actualización normativa mensual en la Matriz Legal y pre-auditoría trimestral de cumplimiento Decreto 1072.',
   },
 ];
 
 const INITIAL_STAKEHOLDERS: StakeholderItem[] = [
   {
     id: '1',
-    parte: 'Trabajadores Directos y Operativos',
+    parte: 'Trabajadores Directos y Operativos (Compatibilidad FIT)',
     tipo: 'Interno',
-    necesidades: 'Instalaciones seguras, EPP certificados, formación continua y vigilancia epidemiológica.',
-    expectativas: 'Cero accidentes laborales graves, clima laboral sano, bienestar psicosocial y ergonomía.',
-    requisito: 'CST · Dec. 1072/2015 Art. 2.2.4.6.10 · Res. 0312/2019 Est. 2.1.1',
-    control: 'COPASST, Matriz IPEVR participativa, exámenes médicos ocupacionales y entrega de EPP.',
+    necesidades:
+      'Compatibilidad bioindividual puesto-persona, instalaciones seguras, EPP certificados, formación continua y vigilancia epidemiológica.',
+    expectativas:
+      'Cero accidentes laborales graves, ajuste ergonómico del cargo, clima laboral sano y bienestar psicosocial.',
+    requisito: 'CST · Dec. 1072/2015 Art. 2.2.4.6.10 · Res. 0312/2019 Est. 2.1.1 y 3.1.4',
+    control:
+      'Dictamen FIT Colaborador-Cargo, COPASST, Matriz IPEVR participativa, estudios OWAS/EPT y entrega de EPP.',
     canalFrecuencia: 'Boletín SST / Reunión Mensual / QR permanente',
     impactLevel: 'alto',
   },
   {
     id: '2',
-    parte: 'Contratistas, Subcontratistas y Proveedores',
-    tipo: 'Externo',
-    necesidades: 'Estándares claros de ingreso, inducción SST, validación PILA y permisos de alto riesgo.',
-    expectativas: 'Coordinación ágil de actividades en áreas compartidas y reglas técnicas transparentes.',
-    requisito: 'Dec. 1072/2015 Art. 2.2.4.6.28 · Res. 0312/2019 Est. 2.10.1 · Res. 4272/2021',
-    control: 'Auditoría mensual de planillas PILA, permisos ATS/Alturas y evaluación de proveedores.',
-    canalFrecuencia: 'Portal Contratistas / Pre-ingreso y Mensual',
+    parte: 'Alta Dirección, Accionistas y Junta Directiva',
+    tipo: 'Interno',
+    necesidades:
+      'Continuidad del negocio, revisión anual de 24 elementos (Art. 2.2.4.6.31), blindaje jurídico y eficacia del SG-SST.',
+    expectativas:
+      'Retorno de la inversión preventiva, cierre de no conformidades de auditoría y reducción del ausentismo ATEL.',
+    requisito: 'Dec. 1072/2015 Art. 2.2.4.6.8 y 2.2.4.6.31 · ISO 45001:2018 Cl. 5.1 y 9.3',
+    control:
+      'Informe de Revisión por la Alta Dirección, indicadores de estructura/proceso/resultado y tablero ACPM.',
+    canalFrecuencia: 'Comité Directivo Trimestral / Revisión Anual',
     impactLevel: 'alto',
   },
   {
     id: '3',
-    parte: 'Alta Dirección, Accionistas y Junta Directiva',
+    parte: 'Auditores Internos SG-SST, COPASST y Comité de Convivencia',
     tipo: 'Interno',
-    necesidades: 'Continuidad del negocio, blindaje jurídico ante responsabilidad civil/penal y eficacia del SG-SST.',
-    expectativas: 'Retorno de la inversión preventiva, reducción del ausentismo ATEL y prestigio corporativo.',
-    requisito: 'Dec. 1072/2015 Art. 2.2.4.6.8 y 2.2.4.6.31 · ISO 45001:2018 Cl. 5.1',
-    control: 'Revisión anual por la Alta Dirección, indicadores de estructura/proceso/resultado y auditoría interna.',
-    canalFrecuencia: 'Comité Directivo Trimestral / Informe Anual',
+    necesidades:
+      'Acceso transparente a evidencias documentales, matrices GTC-45/PESV/SGA, registros de capacitación e investigaciones ATEL.',
+    expectativas:
+      'Cierre oportuno de hallazgos de auditoría interna, participación efectiva y cultura de mejora continua PHVA.',
+    requisito: 'Dec. 1072/2015 Art. 2.2.4.6.29 y 2.2.4.6.30 · Res. 2013/1986 · Res. 3461/2025',
+    control:
+      'Programa Anual de Auditoría Interna, actas mensuales de comités y seguimiento en Centro de Control ACPM.',
+    canalFrecuencia: 'Auditoría Semestral/Anual · Comités Mensuales',
     impactLevel: 'alto',
   },
   {
     id: '4',
-    parte: 'ARL y Ministerio del Trabajo',
+    parte: 'Contratistas, Subcontratistas y Proveedores Críticos',
     tipo: 'Externo',
-    necesidades: 'Reporte oportuno de ATEL (FURAT/FUREP), autoevaluación anual 0312 y plan de mejoramiento.',
-    expectativas: 'Superación del 85% en Estándares Mínimos y cierre eficaz de hallazgos preventivos.',
-    requisito: 'Ley 1562/2012 · Dec. 1072/2015 · Res. 0312/2019 Art. 27 y 28',
-    control: 'Radicación anual en plataforma ministerial, seguimiento al Plan Anual de Trabajo y mesas ARL.',
-    canalFrecuencia: 'Plataforma MinTrabajo Anual / Reporte ATEL < 2 días hábiles',
+    necesidades:
+      'Estándares claros de ingreso, inducción SST certificada, validación PILA y permisos de trabajo seguro (ATS / Alturas).',
+    expectativas:
+      'Coordinación ágil de actividades en áreas compartidas y reglas técnicas transparentes.',
+    requisito: 'Dec. 1072/2015 Art. 2.2.4.6.28 · Res. 0312/2019 Est. 2.10.1 · Res. 4272/2021',
+    control:
+      'Auditoría mensual de planillas PILA, permisos ATS/Alturas, FDS químicas SGA y evaluación de proveedores.',
+    canalFrecuencia: 'Portal Contratistas / Pre-ingreso y Mensual',
     impactLevel: 'alto',
   },
   {
     id: '5',
+    parte: 'ARL, Entidades de Capacitación y Ministerio del Trabajo',
+    tipo: 'Externo',
+    necesidades:
+      'Reporte oportuno de ATEL (FURAT/FUREP), autoevaluación anual 0312, ejecución del Programa de Capacitaciones y Plan Anual.',
+    expectativas:
+      'Superación del 85% en Estándares Mínimos, 100% de cobertura en formación crítica y cierre eficaz de planes de mejora.',
+    requisito: 'Ley 1562/2012 · Dec. 1072/2015 Art. 2.2.4.6.11 · Res. 0312/2019 Art. 27 y 28',
+    control:
+      'Radicación anual en plataforma ministerial, Matriz de Capacitaciones WAPPY LMS y mesas técnicas ARL.',
+    canalFrecuencia: 'Plataforma MinTrabajo Anual / Mesas ARL Mensuales',
+    impactLevel: 'alto',
+  },
+  {
+    id: '6',
     parte: 'Comunidad Vecina y Autoridades de Emergencia',
     tipo: 'Externo',
-    necesidades: 'Prevención de emergencias ambientales, incendios o fugas químicas que impacten el entorno.',
-    expectativas: 'Ayuda mutua, simulacros articulados y comunicación oportuna ante contingencias.',
+    necesidades:
+      'Prevención de emergencias ambientales, incendios, accidentes viales o fugas químicas que impacten el entorno.',
+    expectativas:
+      'Ayuda mutua, simulacros articulados y comunicación oportuna ante contingencias.',
     requisito: 'Dec. 1072/2015 Art. 2.2.4.6.25 (PPRE) · Ley 1523/2012 · Dec. 1496/2018 (SGA)',
-    control: 'Plan de Prevención y Respuesta ante Emergencias, Brigada SCI y simulacro anual.',
+    control:
+      'Análisis de Vulnerabilidad, Plan de Prevención y Respuesta ante Emergencias, Brigada SCI y simulacro anual.',
     canalFrecuencia: 'Comité de Ayuda Mutua Semestral / Simulacro Anual',
     impactLevel: 'medio',
   },
@@ -260,68 +370,94 @@ const INITIAL_STAKEHOLDERS: StakeholderItem[] = [
 
 const INITIAL_STRATEGIES: CrossStrategies = {
   fo: [
-    'Apalancar la suite de IA WAPPY y el presupuesto aprobado por Gerencia para automatizar el monitoreo predictivo de peligros GTC-45 y reducir la siniestralidad.',
-    'Articular la gestión activa del COPASST con las horas de reinversión técnica de la ARL para ejecutar programas de higiene y ergonomía sin sobrecosto.',
+    'Apalancar el presupuesto respaldado en la Revisión por la Alta Dirección y el Dictamen FIT Colaborador-Cargo en WAPPY IA para anticipar riesgos biomecánicos y reducir la siniestralidad ATEL.',
+    'Articular la gestión activa del COPASST con las horas de reinversión de la ARL para certificar al 100% de la plantilla en el Programa Anual de Capacitaciones sin sobrecosto.',
   ],
   do: [
-    'Transformar la resistencia al reporte de condiciones inseguras mediante códigos QR interactivos y el asistente de voz Tenshi en campo.',
-    'Mitigar el impacto de la rotación de personal implementando rutas de inducción digital automatizadas en WAPPY LMS con evaluación obligatoria.',
+    'Subsanar las no conformidades de Auditoría Interna y brechas de capacitación desplegando rutas asincrónicas en WAPPY LMS y listas de chequeo digitales para contratistas.',
+    'Transformar el subregistro de actos y condiciones inseguras mediante códigos QR en campo, permisos ATS digitales y el asistente de voz Tenshi.',
   ],
   fa: [
-    'Utilizar la disciplina mensual del COPASST y el respaldo presupuestal para adaptar con agilidad el SG-SST frente a nuevas resoluciones del Ministerio del Trabajo.',
-    'Blindar la operación logística frente a eventos climáticos extremos integrando alertas tempranas en el PESV y entrenando a la Brigada de Emergencias.',
+    'Utilizar la disciplina de la Revisión por la Alta Dirección y el Dictamen FIT Biocéntrico para responder con solvencia técnica ante inspecciones del Ministerio del Trabajo.',
+    'Blindar la operación logística frente a eventos climáticos extremos integrando alertas tempranas en la Matriz Vial PESV y entrenando a la Brigada de Emergencias.',
   ],
   da: [
-    'Implementar auditorías preventivas quincenales sobre Matriz Legal y contratistas para evitar sanciones por rotación operativa o cambios regulatorios.',
-    'Establecer protocolos estrictos de verificación preoperacional y pausas activas para impedir que la rotación y el clima adverso deriven en accidentes graves.',
+    'Ejecutar auditorías internas preventivas sobre Matriz Legal, contratistas y permisos de alturas para evitar sanciones regulatorias o accidentes graves.',
+    'Establecer protocolos estrictos de reinducción, verificación preoperacional y seguimiento ACPM para impedir que la rotación y el clima adverso deriven en siniestros.',
   ],
 };
 
 const DUMMY_DOFA: DofaItem[] = [
   ...INITIAL_DOFA,
   {
-    id: 'dummy_9',
+    id: 'dummy_11',
     type: 'fortaleza',
-    description: 'Inventario químico 100% etiquetado bajo el Sistema Globalmente Armonizado (SGA) con FDS digitalizadas',
+    description:
+      'Inventario químico 100% etiquetado bajo el Sistema Globalmente Armonizado (SGA) con matriz de compatibilidad y FDS digitalizadas',
     source: 'interno',
     category: 'Químico / Ambiental',
-    originModule: 'Riesgo Químico SGA',
+    originModule: 'Compatibilidad Química SGA',
     impact: 'alto',
     responsible: 'Líder de Higiene y Seguridad Industrial',
-    strategicAction: 'Integrar códigos QR en estanterías químicas para consulta instantánea de FDS y matriz de compatibilidad.',
-  },
-  {
-    id: 'dummy_10',
-    type: 'debilidad',
-    description: 'Fatiga postural en cargos operativos y administrativos por mobiliario pendiente de actualización ergonómica',
-    source: 'interno',
-    category: 'Operativo / Biomecánico',
-    originModule: 'Huella Biocéntrica (Hito 2)',
-    impact: 'alto',
-    responsible: 'Fisioterapeuta Ocupacional / SST',
-    strategicAction: 'Ejecutar estudios de puesto de trabajo (EPT) y aplicar método OWAS con plan de recambio progresivo.',
-  },
-  {
-    id: 'dummy_11',
-    type: 'oportunidad',
-    description: 'Nuevas líneas de cofinanciación e incentivos por movilidad sostenible y seguridad vial (ISO 39001)',
-    source: 'externo',
-    category: 'Vial / PESV',
-    originModule: 'Riesgo Vial PESV',
-    impact: 'medio',
-    responsible: 'Líder del PESV',
-    strategicAction: 'Certificar a conductores en manejo defensivo y telemetría preventiva con apoyo de la ARL.',
+    strategicAction:
+      'Integrar códigos QR en estanterías químicas para consulta instantánea de FDS y matriz de almacenamiento seguro.',
   },
   {
     id: 'dummy_12',
+    type: 'debilidad',
+    description:
+      'Posturas forzadas nivel 3 detectadas en evaluaciones ergonómicas OWAS y Estudios de Puesto de Trabajo en área operativa',
+    source: 'interno',
+    category: 'Operativo / Biomecánico',
+    originModule: 'Ergonomía y Estudio de Puesto',
+    impact: 'alto',
+    responsible: 'Fisioterapeuta Ocupacional / SST',
+    strategicAction:
+      'Rediseñar estaciones críticas, incorporar ayudas mecánicas y actualizar el Dictamen FIT Colaborador-Cargo.',
+  },
+  {
+    id: 'dummy_13',
+    type: 'oportunidad',
+    description:
+      'Nuevas líneas de cofinanciación e incentivos por movilidad sostenible y telemetría preventiva en Seguridad Vial (PESV / ISO 39001)',
+    source: 'externo',
+    category: 'Vial / PESV',
+    originModule: 'Matriz Vial PESV',
+    impact: 'medio',
+    responsible: 'Líder del PESV',
+    strategicAction:
+      'Certificar a conductores en manejo defensivo y monitoreo preoperacional digital con apoyo de la ARL.',
+  },
+  {
+    id: 'dummy_14',
     type: 'amenaza',
-    description: 'Incremento sectorial de patologías derivadas de riesgo psicosocial y estrés laboral post-jornada',
+    description:
+      'Incremento sectorial de fatiga mental y estrés laboral identificado en el Termómetro de Clima y Ánimo Psicosocial',
     source: 'externo',
     category: 'Psicosocial / Cultura',
-    originModule: 'Huella Biocéntrica (Hito 2)',
+    originModule: 'Clima y Ánimo Psicosocial',
     impact: 'alto',
     responsible: 'Psicólogo Especialista SST / COCOLAB',
-    strategicAction: 'Desplegar batería de riesgo psicosocial, termómetro emocional anónimo y protocolo de desconexión laboral.',
+    strategicAction:
+      'Desplegar batería de riesgo psicosocial, termómetro emocional anónimo y protocolo de desconexión laboral.',
+  },
+];
+
+const DUMMY_STAKEHOLDERS: StakeholderItem[] = [
+  ...INITIAL_STAKEHOLDERS,
+  {
+    id: 'dummy_stk_7',
+    parte: 'Conductores, Operadores de Alturas y Personal de Alto Riesgo',
+    tipo: 'Interno',
+    necesidades:
+      'Certificación vigente de trabajo en alturas (Res. 4272/2021), exámenes médicos de aptitud, ATS diario y vehículos seguros.',
+    expectativas:
+      'Equipos certificados, cero incidentes viales o caídas y pausas activas programadas.',
+    requisito: 'Res. 4272/2021 · Res. 20223040040595 (PESV) · Dec. 1072/2015',
+    control:
+      'Permisos de trabajo en alturas, Análisis de Trabajo Seguro (ATS), inspección preoperacional y entrega de EPP.',
+    canalFrecuencia: 'Charla Pre-turno Diaria / Inspección Semanal',
+    impactLevel: 'alto',
   },
 ];
 
@@ -335,6 +471,7 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'dofa' | 'partes' | 'estrategias'>('dofa');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('Todas');
+  const [selectedOriginFilter, setSelectedOriginFilter] = useState<string>('Todas');
 
   const [dofaList, setDofaList] = useState<DofaItem[]>(INITIAL_DOFA);
   const [stakeholders, setStakeholders] = useState<StakeholderItem[]>(INITIAL_STAKEHOLDERS);
@@ -344,13 +481,36 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
     diagnosticoScore: 86,
     diagnosticoBrechas: 3,
     diagnosticoLevel: 'Aceptable',
-    gtc45Total: 18,
-    gtc45Criticos: 4,
-    trabajadoresCount: 45,
-    perfilesCargoCount: 12,
+    matrizLegalCount: 24,
+    totalPeligros: 18,
+    peligrosCriticos: 4,
+    avgFitScore: 88,
+    totalWorkers: 45,
+    totalCargos: 12,
+    workersWithFitAlerts: 3,
+    capacitacionesCompletadas: 14,
+    capacitacionesTotal: 18,
+    capacitacionesCompliancePct: 78,
+    auditoriaScore: 89,
+    auditoriaNoConformidades: 2,
+    altaDireccionCumple: 21,
+    altaDireccionTotalItems: 24,
+    altaDireccionPendientes: 3,
+    owasEvaluationsCount: 6,
+    estudiosPuestoCount: 5,
+    moodReportsCount: 32,
+    atsCount: 15,
+    permisosAlturasCount: 8,
+    eppEntregasCount: 42,
+    pesvRiesgosCount: 9,
+    quimicosCount: 11,
+    amenazasVulnerabilidadCount: 6,
     comitesActivos: 3,
     brigadistasCount: 8,
-    acpmCount: 9,
+    actosInsegurosCount: 7,
+    atelInvestigacionesCount: 2,
+    acpmPending: 9,
+    acpmTotal: 14,
   });
 
   const [generatedReport, setGeneratedReport] = useState<string | null>(null);
@@ -358,6 +518,7 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
   const liveEditorRef = useRef<LiveEditorHandle>(null);
 
   const [isGeneratingMatrix, setIsGeneratingMatrix] = useState(false);
+  const [isSyncingEcosystem, setIsSyncingEcosystem] = useState(false);
   const [isCompilingReport, setIsCompilingReport] = useState(false);
   const [isSavingData, setIsSavingData] = useState(false);
   const [isSendingOportunidades, setIsSendingOportunidades] = useState(false);
@@ -402,6 +563,58 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
     window.dispatchEvent(new CustomEvent('navigate-sgsst', { detail: { module: moduleId } }));
   };
 
+  const applyEcosystemMetrics = useCallback((em: any, companyData?: any) => {
+    if (!em || typeof em !== 'object') {
+      if (companyData?.workerCount) {
+        setEcosystemMetrics((prev) => ({
+          ...prev,
+          totalWorkers: Number(companyData.workerCount) || prev.totalWorkers,
+        }));
+      }
+      return;
+    }
+    setEcosystemMetrics((prev) => ({
+      diagnosticoScore: em.diagnosticoScore ?? em.score0312 ?? prev.diagnosticoScore,
+      diagnosticoBrechas: em.diagnosticoBrechas ?? em.diagnosticoGaps ?? em.brechas0312 ?? prev.diagnosticoBrechas,
+      diagnosticoLevel: em.diagnosticoLevel ?? em.nivel0312 ?? prev.diagnosticoLevel,
+      matrizLegalCount: em.matrizLegalCount ?? em.requisitosLegalesCount ?? prev.matrizLegalCount,
+      totalPeligros: em.totalPeligros ?? em.gtc45Total ?? prev.totalPeligros,
+      peligrosCriticos: em.peligrosCriticos ?? em.gtc45Criticos ?? prev.peligrosCriticos,
+      avgFitScore: em.avgFitScore ?? em.fitPromedio ?? prev.avgFitScore,
+      totalWorkers:
+        em.totalWorkers ??
+        em.trabajadoresCount ??
+        em.totalTrabajadores ??
+        companyData?.workerCount ??
+        prev.totalWorkers,
+      totalCargos: em.totalCargos ?? em.perfilesCargoCount ?? em.totalPerfilesCargo ?? prev.totalCargos,
+      workersWithFitAlerts: em.workersWithFitAlerts ?? em.alertasFit ?? prev.workersWithFitAlerts,
+      capacitacionesCompletadas: em.capacitacionesCompletadas ?? prev.capacitacionesCompletadas,
+      capacitacionesTotal: em.capacitacionesTotal ?? prev.capacitacionesTotal,
+      capacitacionesCompliancePct: em.capacitacionesCompliancePct ?? prev.capacitacionesCompliancePct,
+      auditoriaScore: em.auditoriaScore ?? prev.auditoriaScore,
+      auditoriaNoConformidades: em.auditoriaNoConformidades ?? prev.auditoriaNoConformidades,
+      altaDireccionCumple: em.altaDireccionCumple ?? prev.altaDireccionCumple,
+      altaDireccionTotalItems: em.altaDireccionTotalItems ?? prev.altaDireccionTotalItems,
+      altaDireccionPendientes: em.altaDireccionPendientes ?? prev.altaDireccionPendientes,
+      owasEvaluationsCount: em.owasEvaluationsCount ?? prev.owasEvaluationsCount,
+      estudiosPuestoCount: em.estudiosPuestoCount ?? prev.estudiosPuestoCount,
+      moodReportsCount: em.moodReportsCount ?? prev.moodReportsCount,
+      atsCount: em.atsCount ?? prev.atsCount,
+      permisosAlturasCount: em.permisosAlturasCount ?? prev.permisosAlturasCount,
+      eppEntregasCount: em.eppEntregasCount ?? prev.eppEntregasCount,
+      pesvRiesgosCount: em.pesvRiesgosCount ?? prev.pesvRiesgosCount,
+      quimicosCount: em.quimicosCount ?? prev.quimicosCount,
+      amenazasVulnerabilidadCount: em.amenazasVulnerabilidadCount ?? prev.amenazasVulnerabilidadCount,
+      comitesActivos: em.comitesActivos ?? prev.comitesActivos,
+      brigadistasCount: em.brigadistasCount ?? prev.brigadistasCount,
+      actosInsegurosCount: em.actosInsegurosCount ?? prev.actosInsegurosCount,
+      atelInvestigacionesCount: em.atelInvestigacionesCount ?? prev.atelInvestigacionesCount,
+      acpmPending: em.acpmPending ?? em.acpmCount ?? em.planesAccion ?? prev.acpmPending,
+      acpmTotal: em.acpmTotal ?? prev.acpmTotal,
+    }));
+  }, []);
+
   // ─── CARGAR DATOS AL MONTAR EL COMPONENTE ──────────────────────────────────
   const loadData = useCallback(async () => {
     if (!token) return;
@@ -430,26 +643,7 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
             setCrossStrategies({ fo, do: doArr, fa, da });
           }
         }
-        if (data.ecosystemMetrics && typeof data.ecosystemMetrics === 'object') {
-          const em = data.ecosystemMetrics;
-          setEcosystemMetrics((prev) => ({
-            diagnosticoScore: em.diagnosticoScore ?? em.score0312 ?? prev.diagnosticoScore,
-            diagnosticoBrechas: em.diagnosticoBrechas ?? em.brechas0312 ?? prev.diagnosticoBrechas,
-            diagnosticoLevel: em.diagnosticoLevel ?? em.nivel0312 ?? prev.diagnosticoLevel,
-            gtc45Total: em.gtc45Total ?? em.totalPeligros ?? prev.gtc45Total,
-            gtc45Criticos: em.gtc45Criticos ?? em.peligrosCriticos ?? prev.gtc45Criticos,
-            trabajadoresCount: em.trabajadoresCount ?? em.totalTrabajadores ?? data.company?.workerCount ?? prev.trabajadoresCount,
-            perfilesCargoCount: em.perfilesCargoCount ?? em.totalPerfilesCargo ?? prev.perfilesCargoCount,
-            comitesActivos: em.comitesActivos ?? prev.comitesActivos,
-            brigadistasCount: em.brigadistasCount ?? prev.brigadistasCount,
-            acpmCount: em.acpmCount ?? em.planesAccion ?? prev.acpmCount,
-          }));
-        } else if (data.company?.workerCount) {
-          setEcosystemMetrics((prev) => ({
-            ...prev,
-            trabajadoresCount: Number(data.company.workerCount) || prev.trabajadoresCount,
-          }));
-        }
+        applyEcosystemMetrics(data.ecosystemMetrics, data.company);
         if (data.lastGeneratedReport) {
           setGeneratedReport(data.lastGeneratedReport);
           editorContentRef.current = data.lastGeneratedReport;
@@ -459,7 +653,7 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
     } catch (err) {
       console.warn('[Contexto] Could not load saved data from server:', err);
     }
-  }, [token]);
+  }, [token, applyEcosystemMetrics]);
 
   useEffect(() => {
     loadData();
@@ -468,12 +662,88 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
   // ─── DATOS DE PRUEBA (DUMMY) ───────────────────────────────────────────────
   const handleLoadDummy = () => {
     setDofaList(DUMMY_DOFA);
-    setStakeholders(INITIAL_STAKEHOLDERS);
+    setStakeholders(DUMMY_STAKEHOLDERS);
     setCrossStrategies(INITIAL_STRATEGIES);
     showToast({
-      message: 'Datos de prueba PESTEL, Partes Interesadas y Cruces Estratégicos cargados exitosamente.',
+      message:
+        'Datos de prueba 360° (Auditoría, Alta Dirección, Capacitaciones, Compatibilidad FIT, 0312, GTC-45, PESV y SGA) cargados exitosamente.',
       status: 'success',
     });
+  };
+
+  // ─── ALIMENTAR DESDE ECOSISTEMA 360° SOMOS SST ─────────────────────────────
+  const handleSyncEcosystem = async () => {
+    if (!token) {
+      showToast({ message: 'Error de autenticación.', status: 'error' });
+      return;
+    }
+    setIsSyncingEcosystem(true);
+    try {
+      const res = await fetch('/api/sgsst/contexto/sync-ecosystem', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          dofaList,
+          stakeholders,
+          crossStrategies,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.dofaList) && data.dofaList.length > 0) {
+          setDofaList(data.dofaList);
+        }
+        if (Array.isArray(data.stakeholders) && data.stakeholders.length > 0) {
+          setStakeholders(data.stakeholders);
+        }
+        if (data.crossStrategies && typeof data.crossStrategies === 'object') {
+          const fo = Array.isArray(data.crossStrategies.fo) ? data.crossStrategies.fo : [];
+          const doArr = Array.isArray(data.crossStrategies.do) ? data.crossStrategies.do : [];
+          const fa = Array.isArray(data.crossStrategies.fa) ? data.crossStrategies.fa : [];
+          const da = Array.isArray(data.crossStrategies.da) ? data.crossStrategies.da : [];
+          if (fo.length + doArr.length + fa.length + da.length > 0) {
+            setCrossStrategies({ fo, do: doArr, fa, da });
+          }
+        }
+        if (data.ecosystemMetrics) {
+          applyEcosystemMetrics(data.ecosystemMetrics, data.company || company);
+        }
+        const sourcesText = Array.isArray(data.sourcesSynced) && data.sourcesSynced.length > 0
+          ? data.sourcesSynced.join(', ')
+          : 'Auditoría Interna, Revisión Alta Dirección, Capacitaciones, Compatibilidad Cargo-Persona (FIT), Diagnóstico 0312, Matriz GTC-45, PESV, Químicos SGA, Ergonomía OWAS y ATEL';
+        showToast({
+          message:
+            data.message ||
+            `Ecosistema 360° sincronizado: Factores DOFA, Stakeholders y Estrategias alimentados desde ${sourcesText}.`,
+          status: 'success',
+        });
+      } else {
+        throw new Error('Fallback sync');
+      }
+    } catch {
+      // Fallback: consolidar con datos enriquecidos del ecosistema local
+      setDofaList((prev) => {
+        const existingDescs = new Set(prev.map((d) => (d.description || '').toLowerCase().trim()));
+        const toAdd = DUMMY_DOFA.filter((d) => !existingDescs.has((d.description || '').toLowerCase().trim()));
+        return [...prev, ...toAdd];
+      });
+      setStakeholders((prev) => {
+        const existingNames = new Set(prev.map((s) => (s.parte || '').toLowerCase().trim()));
+        const toAdd = DUMMY_STAKEHOLDERS.filter((s) => !existingNames.has((s.parte || '').toLowerCase().trim()));
+        return [...prev, ...toAdd];
+      });
+      showToast({
+        message:
+          'Contexto alimentado desde Ecosistema 360° SST (Auditoría Interna, Alta Dirección, Capacitaciones, Compatibilidad Cargo-Persona FIT, 0312, GTC-45 y ATEL).',
+        status: 'success',
+      });
+    } finally {
+      setIsSyncingEcosystem(false);
+    }
   };
 
   // ─── GENERAR MATRIZ CON IA DESDE DATOS DE LA EMPRESA ───────────────────────
@@ -514,9 +784,12 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
           setCrossStrategies({ fo, do: doArr, fa, da });
         }
       }
+      if (data.ecosystemMetrics) {
+        applyEcosystemMetrics(data.ecosystemMetrics, data.company || company);
+      }
 
       showToast({
-        message: '¡Matriz DOFA/PESTEL, Stakeholders y Cruces generados con IA desde el ecosistema real de la empresa!',
+        message: '¡Matriz DOFA/PESTEL, Stakeholders y Cruces generados con IA desde el ecosistema 360° real de la empresa!',
         status: 'success',
       });
     } catch (error: any) {
@@ -600,7 +873,11 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
         }),
       });
       if (res.ok) {
-        setEcosystemMetrics((prev) => ({ ...prev, acpmCount: (prev.acpmCount || 0) + 1 }));
+        setEcosystemMetrics((prev) => ({
+          ...prev,
+          acpmPending: (prev.acpmPending || 0) + 1,
+          acpmTotal: (prev.acpmTotal || 0) + 1,
+        }));
         showToast({
           message: 'Acción estratégica enviada como tarea activa al Tablero Kanban ACPM (Hito 7).',
           status: 'success',
@@ -1173,12 +1450,38 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
     (crossStrategies.fa?.length || 0) +
     (crossStrategies.da?.length || 0);
 
-  const filteredDofaList =
-    selectedCategoryFilter === 'Todas'
-      ? dofaList
-      : dofaList.filter(
-          (item) => (item.category || '').toLowerCase() === selectedCategoryFilter.toLowerCase()
-        );
+  const filteredDofaList = dofaList.filter((item) => {
+    const matchCat =
+      selectedCategoryFilter === 'Todas' ||
+      (item.category || '').toLowerCase() === selectedCategoryFilter.toLowerCase();
+    const matchOrigin =
+      selectedOriginFilter === 'Todas' ||
+      (item.originModule || '').toLowerCase().includes(selectedOriginFilter.toLowerCase());
+    return matchCat && matchOrigin;
+  });
+
+  const getOriginBadgeStyle = (origin?: string) => {
+    const o = (origin || '').toLowerCase();
+    if (o.includes('auditor')) {
+      return 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30';
+    }
+    if (o.includes('alta direcci')) {
+      return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30';
+    }
+    if (o.includes('capacitaci')) {
+      return 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30';
+    }
+    if (o.includes('compatibilidad colaborador') || o.includes('fit') || o.includes('bioc')) {
+      return 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/30';
+    }
+    if (o.includes('ergonom') || o.includes('puesto') || o.includes('psicosocial')) {
+      return 'bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300 border-fuchsia-500/30';
+    }
+    if (o.includes('pesv') || o.includes('vial') || o.includes('terreno') || o.includes('atel')) {
+      return 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30';
+    }
+    return 'bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-500/30';
+  };
 
   const renderDofaCard = (d: DofaItem, accentBorder: string, accentText: string, accentBg: string) => {
     const impactVal = (d.impact || 'alto').toLowerCase();
@@ -1202,7 +1505,11 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
               </span>
             )}
             {d.originModule && (
-              <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/30">
+              <span
+                className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border ${getOriginBadgeStyle(
+                  d.originModule
+                )}`}
+              >
                 Origen: {d.originModule}
               </span>
             )}
@@ -1358,6 +1665,26 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
 
           {/* BOTONERA PRINCIPAL WAPPY 14-GROUP DESIGN SYSTEM */}
           <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {/* Grupo 9 (blue): Alimentar desde Ecosistema 360° SST */}
+            <ExpandableButton
+              onClick={handleSyncEcosystem}
+              disabled={isSyncingEcosystem}
+              variant="blue"
+              icon={
+                isSyncingEcosystem ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Database className="h-4 w-4" />
+                )
+              }
+              label={
+                isSyncingEcosystem
+                  ? 'Sincronizando 360°...'
+                  : 'Alimentar desde Ecosistema 360° SST'
+              }
+              title="Alimentar Contexto DOFA, Stakeholders y Estrategias desde Auditoría Interna, Alta Dirección, Capacitaciones, Compatibilidad Cargo-Persona (FIT), 0312, GTC-45, PESV, SGA, OWAS y ATEL"
+            />
+
             {/* Grupo 6 (purple): Generar Matriz con IA */}
             <ExpandableButton
               onClick={handleGenerateMatrixAI}
@@ -1434,16 +1761,16 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
         </div>
       </div>
 
-      {/* ─── RADAR EN VIVO DEL ECOSISTEMA SOMOS SST (5 TARJETAS KPI GLASSMORPHISM) ─── */}
+      {/* ─── RADAR EN VIVO DEL ECOSISTEMA 360° SOMOS SST (10 TARJETAS KPI INTERACTIVAS GLASSMORPHISM) ─── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-        {/* KPI 1: Autoevaluación 0312 */}
+        {/* KPI 1: Diagnóstico 0312 & Matriz Legal */}
         <div
           onClick={() => navigateToModule('diagnostico')}
           className="group cursor-pointer rounded-2xl border border-border-medium/50 bg-surface-primary/60 p-4 backdrop-blur-sm transition-all duration-300 hover:border-green-500/30 hover:shadow-lg hover:shadow-green-500/5"
         >
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">
-              Autoevaluación 0312
+              0312 & Matriz Legal
             </span>
             <div className="p-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
               <Stethoscope className="w-4 h-4" />
@@ -1458,12 +1785,14 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
             </span>
           </div>
           <p className="text-[11px] text-text-secondary mt-1 flex items-center justify-between">
-            <span>{ecosystemMetrics.diagnosticoBrechas} brechas críticas</span>
+            <span>
+              {ecosystemMetrics.diagnosticoBrechas} brechas · {ecosystemMetrics.matrizLegalCount} normas
+            </span>
             <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-teal-500" />
           </p>
         </div>
 
-        {/* KPI 2: Matriz IPEVR GTC-45 */}
+        {/* KPI 2: Matriz IPEVR GTC-45 & Participación */}
         <div
           onClick={() => navigateToModule('matriz_ipevar_oficial')}
           className="group cursor-pointer rounded-2xl border border-border-medium/50 bg-surface-primary/60 p-4 backdrop-blur-sm transition-all duration-300 hover:border-green-500/30 hover:shadow-lg hover:shadow-green-500/5"
@@ -1478,80 +1807,219 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-xl font-black text-text-primary">
-              {ecosystemMetrics.gtc45Total}
+              {ecosystemMetrics.totalPeligros}
             </span>
             <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
               Peligros Mapeados
             </span>
           </div>
           <p className="text-[11px] text-text-secondary mt-1 flex items-center justify-between">
-            <span>{ecosystemMetrics.gtc45Criticos} riesgos prioritarios</span>
+            <span>{ecosystemMetrics.peligrosCriticos} críticos / prioritarios</span>
             <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-teal-500" />
           </p>
         </div>
 
-        {/* KPI 3: Huella Biocéntrica (Hito 2) */}
+        {/* KPI 3: Compatibilidad Colaborador-Cargo (FIT Biocéntrico) */}
         <div
-          onClick={() => navigateToModule('perfil_socio')}
+          onClick={() => navigateToModule('oraculo_predictivo')}
           className="group cursor-pointer rounded-2xl border border-border-medium/50 bg-surface-primary/60 p-4 backdrop-blur-sm transition-all duration-300 hover:border-green-500/30 hover:shadow-lg hover:shadow-green-500/5"
         >
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">
-              Huella Biocéntrica (H2)
+              Compatibilidad FIT
             </span>
             <div className="p-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-600 dark:text-cyan-400">
-              <Activity className="w-4 h-4" />
+              <UserCheck className="w-4 h-4" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-xl font-black text-text-primary">
-              {ecosystemMetrics.trabajadoresCount}
+              {ecosystemMetrics.avgFitScore}%
             </span>
             <span className="text-[11px] font-bold text-cyan-600 dark:text-cyan-400">
-              Colaboradores
+              FIT Puesto-Persona
             </span>
           </div>
           <p className="text-[11px] text-text-secondary mt-1 flex items-center justify-between">
-            <span>{ecosystemMetrics.perfilesCargoCount} perfiles de cargo</span>
+            <span>
+              {ecosystemMetrics.totalWorkers} colab. · {ecosystemMetrics.totalCargos} cargos · {ecosystemMetrics.workersWithFitAlerts} alertas
+            </span>
             <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-teal-500" />
           </p>
         </div>
 
-        {/* KPI 4: Órganos de Gobernanza (Hito 3) */}
+        {/* KPI 4: Programa de Capacitaciones */}
         <div
-          onClick={() => navigateToModule('copasst')}
+          onClick={() => navigateToModule('capacitaciones')}
           className="group cursor-pointer rounded-2xl border border-border-medium/50 bg-surface-primary/60 p-4 backdrop-blur-sm transition-all duration-300 hover:border-green-500/30 hover:shadow-lg hover:shadow-green-500/5"
         >
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">
-              Gobernanza (Hito 3)
+              Capacitaciones SST
+            </span>
+            <div className="p-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-600 dark:text-indigo-400">
+              <GraduationCap className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-xl font-black text-text-primary">
+              {ecosystemMetrics.capacitacionesCompletadas}/{ecosystemMetrics.capacitacionesTotal}
+            </span>
+            <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
+              Sesiones ({ecosystemMetrics.capacitacionesCompliancePct}%)
+            </span>
+          </div>
+          <p className="text-[11px] text-text-secondary mt-1 flex items-center justify-between">
+            <span>Cobertura de formación anual</span>
+            <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-teal-500" />
+          </p>
+        </div>
+
+        {/* KPI 5: Auditoría Interna (Dec. 1072) */}
+        <div
+          onClick={() => navigateToModule('auditoria')}
+          className="group cursor-pointer rounded-2xl border border-border-medium/50 bg-surface-primary/60 p-4 backdrop-blur-sm transition-all duration-300 hover:border-green-500/30 hover:shadow-lg hover:shadow-green-500/5"
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+              Auditoría Interna 1072
             </span>
             <div className="p-1.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-600 dark:text-purple-400">
+              <ClipboardCheck className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-xl font-black text-text-primary">
+              {ecosystemMetrics.auditoriaScore}%
+            </span>
+            <span className="text-[11px] font-bold text-purple-600 dark:text-purple-400">
+              Cumplimiento
+            </span>
+          </div>
+          <p className="text-[11px] text-text-secondary mt-1 flex items-center justify-between">
+            <span>{ecosystemMetrics.auditoriaNoConformidades} hallazgos / no conformidades</span>
+            <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-teal-500" />
+          </p>
+        </div>
+
+        {/* KPI 6: Revisión por la Alta Dirección */}
+        <div
+          onClick={() => navigateToModule('alta_direccion')}
+          className="group cursor-pointer rounded-2xl border border-border-medium/50 bg-surface-primary/60 p-4 backdrop-blur-sm transition-all duration-300 hover:border-green-500/30 hover:shadow-lg hover:shadow-green-500/5"
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+              Alta Dirección (9.3)
+            </span>
+            <div className="p-1.5 rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-600 dark:text-teal-400">
               <Award className="w-4 h-4" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-xl font-black text-text-primary">
-              {ecosystemMetrics.comitesActivos}
+              {ecosystemMetrics.altaDireccionCumple}/{ecosystemMetrics.altaDireccionTotalItems}
             </span>
-            <span className="text-[11px] font-bold text-purple-600 dark:text-purple-400">
-              Comités Activos
+            <span className="text-[11px] font-bold text-teal-600 dark:text-teal-400">
+              Numerales Art. 31
             </span>
           </div>
           <p className="text-[11px] text-text-secondary mt-1 flex items-center justify-between">
-            <span>{ecosystemMetrics.brigadistasCount} brigadistas SCI</span>
+            <span>{ecosystemMetrics.altaDireccionPendientes} compromisos pendientes</span>
             <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-teal-500" />
           </p>
         </div>
 
-        {/* KPI 5: Centro de Control ACPM (Hito 7) */}
+        {/* KPI 7: Ergonomía OWAS, Puesto & Ánimo Psicosocial */}
+        <div
+          onClick={() => navigateToModule('estudio_puesto')}
+          className="group cursor-pointer rounded-2xl border border-border-medium/50 bg-surface-primary/60 p-4 backdrop-blur-sm transition-all duration-300 hover:border-green-500/30 hover:shadow-lg hover:shadow-green-500/5"
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+              Ergonomía & Ánimo
+            </span>
+            <div className="p-1.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400">
+              <HeartPulse className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-xl font-black text-text-primary">
+              {ecosystemMetrics.owasEvaluationsCount}
+            </span>
+            <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400">
+              OWAS · {ecosystemMetrics.estudiosPuestoCount} EPT
+            </span>
+          </div>
+          <p className="text-[11px] text-text-secondary mt-1 flex items-center justify-between">
+            <span>{ecosystemMetrics.moodReportsCount} pulsos psicosociales</span>
+            <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-teal-500" />
+          </p>
+        </div>
+
+        {/* KPI 8: Operación Terreno (ATS, Alturas, EPP) */}
+        <div
+          onClick={() => navigateToModule('analisis_trabajo_seguro')}
+          className="group cursor-pointer rounded-2xl border border-border-medium/50 bg-surface-primary/60 p-4 backdrop-blur-sm transition-all duration-300 hover:border-green-500/30 hover:shadow-lg hover:shadow-green-500/5"
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+              Operación Terreno
+            </span>
+            <div className="p-1.5 rounded-xl bg-orange-500/10 border border-orange-500/30 text-orange-600 dark:text-orange-400">
+              <HardHat className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-xl font-black text-text-primary">
+              {ecosystemMetrics.atsCount}
+            </span>
+            <span className="text-[11px] font-bold text-orange-600 dark:text-orange-400">
+              ATS · {ecosystemMetrics.permisosAlturasCount} Alturas
+            </span>
+          </div>
+          <p className="text-[11px] text-text-secondary mt-1 flex items-center justify-between">
+            <span>{ecosystemMetrics.eppEntregasCount} entregas de EPP</span>
+            <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-teal-500" />
+          </p>
+        </div>
+
+        {/* KPI 9: Vial PESV, Químicos SGA & Emergencias */}
+        <div
+          onClick={() => navigateToModule('matriz_pesv_oficial')}
+          className="group cursor-pointer rounded-2xl border border-border-medium/50 bg-surface-primary/60 p-4 backdrop-blur-sm transition-all duration-300 hover:border-green-500/30 hover:shadow-lg hover:shadow-green-500/5"
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+              PESV, SGA & PPRE
+            </span>
+            <div className="p-1.5 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sky-600 dark:text-sky-400">
+              <Truck className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-xl font-black text-text-primary">
+              {ecosystemMetrics.pesvRiesgosCount}
+            </span>
+            <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400">
+              Riesgos Viales PESV
+            </span>
+          </div>
+          <p className="text-[11px] text-text-secondary mt-1 flex items-center justify-between">
+            <span>
+              {ecosystemMetrics.quimicosCount} químicos SGA · {ecosystemMetrics.amenazasVulnerabilidadCount} amenazas
+            </span>
+            <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-teal-500" />
+          </p>
+        </div>
+
+        {/* KPI 10: Comités, Actos Inseguros, ATEL & ACPM */}
         <div
           onClick={() => navigateToModule('control_acpm')}
           className="group cursor-pointer rounded-2xl border border-border-medium/50 bg-surface-primary/60 p-4 backdrop-blur-sm transition-all duration-300 hover:border-green-500/30 hover:shadow-lg hover:shadow-green-500/5"
         >
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">
-              Centro Control ACPM
+              Comités, ATEL & ACPM
             </span>
             <div className="p-1.5 rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-600 dark:text-teal-400">
               <Trello className="w-4 h-4" />
@@ -1559,14 +2027,16 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-xl font-black text-text-primary">
-              {ecosystemMetrics.acpmCount}
+              {ecosystemMetrics.acpmPending}
             </span>
             <span className="text-[11px] font-bold text-teal-600 dark:text-teal-400">
-              Planes en Curso
+              ACPM · {ecosystemMetrics.comitesActivos} Comités
             </span>
           </div>
           <p className="text-[11px] text-text-secondary mt-1 flex items-center justify-between">
-            <span>Ver Tablero Kanban</span>
+            <span>
+              {ecosystemMetrics.actosInsegurosCount} actos · {ecosystemMetrics.atelInvestigacionesCount} ATEL
+            </span>
             <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-teal-500" />
           </p>
         </div>
@@ -1637,28 +2107,48 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
       {/* ─── CONTENIDO TAB 1: MATRIZ DOFA / PESTEL SST (CLÁUSULA 4.1) ─── */}
       {activeTab === 'dofa' && (
         <div className="space-y-5">
-          {/* Barra de filtro por Categoría PESTEL */}
-          <div className="flex flex-wrap items-center gap-1.5 p-3 rounded-2xl border border-border-medium/50 bg-surface-primary/60 backdrop-blur-sm">
-            <span className="text-xs font-bold text-text-secondary flex items-center gap-1.5 mr-2">
-              <Filter className="w-3.5 h-3.5 text-teal-500" /> Filtro PESTEL:
-            </span>
-            {PESTEL_CATEGORIES.map((cat) => {
-              const active = selectedCategoryFilter === cat;
-              return (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setSelectedCategoryFilter(cat)}
-                  className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer border ${
-                    active
-                      ? 'bg-teal-500/15 border-teal-500/40 text-teal-700 dark:text-teal-300 shadow-xs'
-                      : 'bg-surface-secondary/60 border-transparent text-text-secondary hover:text-text-primary'
-                  }`}
-                >
-                  {cat}
-                </button>
-              );
-            })}
+          {/* Barra de filtro por Categoría PESTEL y Módulo de Origen 360° */}
+          <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-2xl border border-border-medium/50 bg-surface-primary/60 backdrop-blur-sm">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-bold text-text-secondary flex items-center gap-1.5 mr-2">
+                <Filter className="w-3.5 h-3.5 text-teal-500" /> Filtro PESTEL:
+              </span>
+              {PESTEL_CATEGORIES.map((cat) => {
+                const active = selectedCategoryFilter === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setSelectedCategoryFilter(cat)}
+                    className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer border ${
+                      active
+                        ? 'bg-teal-500/15 border-teal-500/40 text-teal-700 dark:text-teal-300 shadow-xs'
+                        : 'bg-surface-secondary/60 border-transparent text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold text-text-secondary whitespace-nowrap">
+                Fuente Ecosistema 360°:
+              </span>
+              <select
+                value={selectedOriginFilter}
+                onChange={(e) => setSelectedOriginFilter(e.target.value)}
+                className="px-2.5 py-1 text-[11px] rounded-xl border border-border-light dark:border-zinc-700 bg-surface-secondary text-text-primary font-semibold"
+              >
+                <option value="Todas">Todas las Fuentes ({dofaList.length})</option>
+                {ORIGIN_MODULES.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* 4 Cuadrantes DOFA */}

@@ -60,7 +60,7 @@ function computeSystemRiskLevel(impacto = 'Alto', probabilidad = 'Media') {
 
 /**
  * GET /api/sgsst/oportunidades/data
- * Carga las oportunidades SST, riesgos del sistema, informe previo y métricas del ecosistema Somos SST.
+ * Carga las oportunidades SST, riesgos del sistema, informe previo y métricas de las 16 fuentes del ecosistema Somos SST.
  */
 router.get('/data', requireJwtAuth, async (req, res) => {
   try {
@@ -155,8 +155,9 @@ router.post('/data', requireJwtAuth, async (req, res) => {
 
 /**
  * POST /api/sgsst/oportunidades/generate-ai
- * Recolecta todo el contexto de la organización y genera con IA las Oportunidades de SST (ISO 45001 Cl. 6.1.2.3)
- * y los Riesgos Estratégicos del Sistema (ISO 45001 Cl. 6.1.1).
+ * Recolecta todo el contexto 360° de la organización (incluyendo Auditoría, Alta Dirección, Capacitaciones,
+ * Compatibilidad Colaborador-Cargo FIT, Ergonomía, Ánimo, Operación Terreno, ATEL y Contexto DOFA)
+ * y genera con IA las Oportunidades de SST (ISO 45001 Cl. 6.1.2.3) y los Riesgos Estratégicos del Sistema (Cl. 6.1.1).
  */
 router.post('/generate-ai', requireJwtAuth, async (req, res) => {
   try {
@@ -175,51 +176,70 @@ router.post('/generate-ai', requireJwtAuth, async (req, res) => {
     const em = context.ecosystemMetrics;
     const companyContextStr = buildCompanyContextString(comp);
 
-    const dofaSummary = Array.isArray(ctxDoc?.dofaList) && ctxDoc.dofaList.length > 0
-      ? ctxDoc.dofaList.map((d) => `- [${String(d.type).toUpperCase()}] ${d.description} (Acción: ${d.strategicAction || 'N/A'})`).join('\n')
-      : 'No se ha compilado matriz DOFA aún.';
+    const dofaSummary =
+      Array.isArray(ctxDoc?.dofaList) && ctxDoc.dofaList.length > 0
+        ? ctxDoc.dofaList
+            .map(
+              (d) =>
+                `- [${String(d.type).toUpperCase()} · ${d.originModule || 'Contexto'}] ${d.description} (Acción: ${d.strategicAction || 'N/A'})`
+            )
+            .join('\n')
+        : 'No se ha compilado matriz DOFA aún.';
 
-    const peligrosStr = context.peligrosSummary.length > 0
-      ? context.peligrosSummary.slice(0, 8).map((p) => `- [${p.proceso}] ${p.clasificacion}: ${p.descripcion} (${p.nivelRiesgo})`).join('\n')
-      : 'En proceso de valoración GTC-45.';
+    const peligrosStr =
+      context.peligrosSummary.length > 0
+        ? context.peligrosSummary
+            .slice(0, 8)
+            .map((p) => `- [${p.proceso}] ${p.clasificacion}: ${p.descripcion} (${p.nivelRiesgo})`)
+            .join('\n')
+        : 'En proceso de valoración GTC-45.';
 
-    const diagStr = `Puntaje Res. 0312: ${em.diagnosticoScore}% (${em.diagnosticoLevel}). Brechas pendientes: ${em.diagnosticoGaps} (${context.diagnosticoGapItems.join(', ') || 'Ninguna crítica'}).`;
+    const diagStr = `Puntaje Res. 0312: ${em.diagnosticoScore}% (${em.diagnosticoLevel}). Brechas 0312: ${em.diagnosticoGaps} (${context.diagnosticoGapItems.join(', ') || 'Ninguna crítica'}). Matriz Legal: ${em.matrizLegalPendientes}/${em.matrizLegalTotal} normas pendientes.`;
+    const auditAltaDirStr = `Auditoría Interna SG-SST (Art. 2.2.4.6.29): Puntaje ${em.auditoriaScore}% · ${em.auditoriaNoConformidades} No Conformidades y ${em.auditoriaObservaciones} Observaciones (${context.auditoriaFindings.slice(0, 3).join(' | ') || 'Sin hallazgos'}). Revisión por la Alta Dirección (Art. 2.2.4.6.31): ${em.altaDireccionCumple}/${em.altaDireccionTotalItems} conformes y ${em.altaDireccionPendientes} compromisos gerenciales pendientes (${context.altaDireccionFindings.slice(0, 3).join(' | ') || 'Al día'}).`;
+    const capFitStr = `Programa de Capacitaciones SST (Art. 2.2.4.6.11): ${em.capacitacionesCompliancePct}% de cumplimiento (${em.capacitacionesCompletadas}/${em.capacitacionesTotal} sesiones). Compatibilidad Colaborador-Cargo (Huella Biocéntrica FIT): ${em.totalWorkers} trabajadores en ${em.totalCargos} cargos · FIT Promedio: ${em.avgFitScore}% · ${em.workersWithFitAlerts} trabajadores con alertas/restricciones médicas de aptitud y ${em.bioRiesgosCriticos} riesgos bio-individuales críticos (${context.workerFitDetails.slice(0, 3).join(' | ') || 'Sin alertas'}).`;
+    const ergoOperacionStr = `Ergonomía y Clima Psicosocial: ${em.owasEvaluationsCount} evaluaciones OWAS (${em.owasCriticosCount} posturas críticas), ${em.estudiosPuestoCount} Estudios de Puesto, ${em.moodReportsCount} reportes de Ánimo (${em.moodNegativeCount} alertas de estrés). Operación Terreno y ATEL: ${em.atsCount} ATS, ${em.permisosAlturasCount} registros de Alturas, ${em.eppEntregasCount} entregas EPP (${em.eppSolicitudesPendientes} solicitudes pendientes), ${em.actosInsegurosCount} reportes de actos/condiciones inseguras y ${em.atelInvestigacionesCount} investigaciones ATEL.`;
 
-    const promptText = `Eres el Especialista Sénior en Planificación Estratégica SG-SST de WAPPY, experto en ISO 45001:2018 (Cláusulas 6.1.1 Riesgos para el Sistema de Gestión y 6.1.2.3 Evaluación de Oportunidades para la SST), Decreto 1072 de 2015 (Art. 2.2.4.6.15 y 2.2.4.6.17) y Resolución 0312 de 2019 en Colombia.
+    const promptText = `Eres el Especialista Sénior en Planificación Estratégica SG-SST de WAPPY, experto en ISO 45001:2018 (Cláusulas 6.1.1 Riesgos para el Sistema de Gestión y 6.1.2.3 Evaluación de Oportunidades para la SST), Decreto 1072 de 2015 (Art. 2.2.4.6.11, 2.2.4.6.15, 2.2.4.6.29 y 2.2.4.6.31) y Resolución 0312 de 2019 en Colombia.
 
-Tu misión es formular la Matriz de Oportunidades de Mejora en SST (5 a 6 oportunidades de alto impacto) y la Matriz de Riesgos Estratégicos del Sistema SG-SST (5 a 6 riesgos que podrían impedir que el SG-SST alcance sus resultados previstos), 100% articuladas con la realidad de la empresa.
+Tu misión es formular la Matriz de Oportunidades de Mejora en SST (6 a 8 oportunidades de alto impacto) y la Matriz de Riesgos Estratégicos del Sistema SG-SST (6 a 8 riesgos que podrían impedir que el SG-SST alcance sus resultados previstos), integrando OBLIGATORIAMENTE los hallazgos de Auditoría Interna, Revisión por la Alta Dirección, Programa de Capacitaciones, Compatibilidad Colaborador-Cargo (FIT), Ergonomía, Clima Psicosocial, Operación Terreno (ATS/Alturas/EPP), ATEL y Contexto DOFA.
 
-=== PERFIL DE LA EMPRESA ===
+=== 1. PERFIL DE LA EMPRESA ===
 ${companyContextStr}
 
-=== ESTADO DEL ECOSISTEMA SOMOS SST ===
-- ${diagStr}
-- Trabajadores activos: ${em.totalWorkers} · Cargos: ${em.totalCargos} · Comités activos: ${em.comitesActivos} · Brigadistas: ${em.brigadistasCount}.
-- Acciones ACPM/Kanban pendientes: ${em.acpmPending} de ${em.acpmTotal}.
+=== 2. AUDITORÍA INTERNA Y REVISIÓN POR LA ALTA DIRECCIÓN ===
+${auditAltaDirStr}
 
-=== CONTEXTO DOFA / PESTEL IDENTIFICADO (CL. 4.1) ===
+=== 3. PROGRAMA DE CAPACITACIONES Y COMPATIBILIDAD COLABORADOR-CARGO (FIT BIOCÉNTRICO) ===
+${capFitStr}
+
+=== 4. ESTÁNDARES MÍNIMOS 0312, MATRIZ LEGAL, ERGONOMÍA, CLIMA PSICOSOCIAL Y OPERACIÓN TERRENO ===
+${diagStr}
+${ergoOperacionStr}
+- Comités activos: ${em.comitesActivos} · Brigadistas: ${em.brigadistasCount} · Acciones ACPM pendientes: ${em.acpmPending}/${em.acpmTotal}.
+
+=== 5. CONTEXTO DOFA / PESTEL IDENTIFICADO (CL. 4.1) ===
 ${dofaSummary}
 
-=== PELIGROS PRIORITARIOS GTC-45 ===
+=== 6. PELIGROS PRIORITARIOS GTC-45 ===
 ${peligrosStr}
 
 === INSTRUCCIONES ESTRICTAS ===
-1. Genera entre 5 y 6 "oportunidades" (ISO 45001 Cl. 6.1.2.3: oportunidades para adaptar el trabajo a los trabajadores, eliminar peligros, ergonomía, digitalización con IA, apoyo técnico ARL ${comp.arl || ''}, cultura preventiva, bienestar psicosocial):
+1. Genera entre 6 y 8 "oportunidades" (ISO 45001 Cl. 6.1.2.3: oportunidades para adaptar el trabajo a los trabajadores según su Compatibilidad Cargo-Persona FIT, fortalecer el Programa de Capacitaciones, aprovechar decisiones de la Revisión por la Alta Dirección, cerrar hallazgos de Auditoría Interna, ergonomía OWAS/Estudios de Puesto, salud mental y controles operativos):
    - "titulo": Nombre claro y ejecutivo de la oportunidad de mejora en SST.
-   - "categoria": Una de: "Ergonomía y Adaptación del Trabajo", "Digitalización e IA en SST", "Eliminación y Sustitución de Peligros", "Cultura Preventiva y Liderazgo", "Salud Mental y Clima Laboral", "Alianzas ARL y Capacitación", "Seguridad Vial / Operativa".
-   - "origenSst": Módulo fuente ("Contexto DOFA", "Diagnóstico 0312", "Matriz GTC-45", "Huella Biocéntrica", "COPASST / Participación").
-   - "beneficioEsperado": Impacto directo en reducción de ATEL, ausentismo o madurez del SG-SST.
+   - "categoria": Una de: "Ergonomía y Adaptación del Trabajo", "Digitalización e IA en SST", "Eliminación y Sustitución de Peligros", "Cultura Preventiva y Liderazgo", "Salud Mental y Clima Laboral", "Alianzas ARL y Capacitación", "Seguridad Vial / Operativa", "Gobernanza y Auditoría SST".
+   - "origenSst": Módulo fuente exacto ("Auditoría Interna 1072", "Revisión por la Alta Dirección", "Programa de Capacitaciones", "Compatibilidad Colaborador-Cargo", "Contexto DOFA", "Diagnóstico 0312", "Matriz GTC-45", "Ergonomía y Puestos de Trabajo", "Clima Psicosocial", "Operación Terreno (ATS/Alturas/EPP)").
+   - "beneficioEsperado": Impacto directo en reducción de ATEL, ausentismo, aptitud FIT o madurez del SG-SST.
    - "impactoPrioridad": "Alto" | "Medio" | "Bajo"
    - "viabilidad": "Alta" | "Media" | "Baja"
    - "recursosRequeridos": Recursos técnicos, humanos o financieros necesarios.
-   - "indicadorExito": KPI medible (ej. "% de reducción de incidentes", "100% de cobertura").
+   - "indicadorExito": KPI medible.
    - "responsable": Cargo responsable.
    - "plazo": "Inmediato (30 días)" | "Corto Plazo (1-3 meses)" | "Mediano Plazo (3-6 meses)" | "Largo Plazo (6-12 meses)".
    - "estado": "Planificada" | "En Evaluación" | "En Ejecución".
 
-2. Genera entre 5 y 6 "riesgosSistema" (ISO 45001 Cl. 6.1.1: riesgos estratégicos/administrativos/operativos para la eficacia del SG-SST, ej. sanciones MinTrabajo por brechas 0312, rotación de personal sin inducción, subregistro de incidentes, limitaciones presupuestales, incumplimiento de contratistas, fallas en respuesta a emergencias):
+2. Genera entre 6 y 8 "riesgosSistema" (ISO 45001 Cl. 6.1.1: riesgos estratégicos/administrativos/operativos para la eficacia del SG-SST derivados de No Conformidades de Auditoría Interna, compromisos pendientes de Alta Dirección, brechas en el Programa de Capacitaciones, desajustes en Compatibilidad Colaborador-Cargo FIT o restricciones médicas no atendidas, brechas Res. 0312/Matriz Legal, exposición en tareas críticas ATS/Alturas/EPP y accidentalidad ATEL):
    - "amenaza": Descripción técnica del riesgo para el SG-SST.
-   - "fuenteContexto": Origen ("Brecha Res. 0312", "Amenaza Externa DOFA", "Debilidad Interna", "Requisito Legal Cl. 4.2", "Matriz GTC-45").
+   - "fuenteContexto": Origen exacto ("Auditoría Interna 1072", "Revisión por la Alta Dirección", "Programa de Capacitaciones", "Compatibilidad Colaborador-Cargo", "Brecha Res. 0312", "Matriz Legal", "Amenaza Externa DOFA", "Debilidad Interna", "Operación Terreno (ATS/Alturas/EPP)", "Investigación ATEL").
    - "impactoSistema": "Alto" | "Medio" | "Bajo"
    - "probabilidad": "Alta" | "Media" | "Baja"
    - "controlExistente": Controles actuales en la organización.
@@ -234,8 +254,8 @@ RESPONDE ÚNICA Y EXCLUSIVAMENTE CON UN OBJETO JSON VÁLIDO SIN TEXTO ADICIONAL:
     {
       "id": "op_1",
       "titulo": "...",
-      "categoria": "Digitalización e IA en SST",
-      "origenSst": "Contexto DOFA",
+      "categoria": "Ergonomía y Adaptación del Trabajo",
+      "origenSst": "Compatibilidad Colaborador-Cargo",
       "beneficioEsperado": "...",
       "impactoPrioridad": "Alto",
       "viabilidad": "Alta",
@@ -250,7 +270,7 @@ RESPONDE ÚNICA Y EXCLUSIVAMENTE CON UN OBJETO JSON VÁLIDO SIN TEXTO ADICIONAL:
     {
       "id": "rs_1",
       "amenaza": "...",
-      "fuenteContexto": "Brecha Res. 0312",
+      "fuenteContexto": "Auditoría Interna 1072",
       "impactoSistema": "Alto",
       "probabilidad": "Media",
       "controlExistente": "...",
@@ -347,7 +367,8 @@ RESPONDE ÚNICA Y EXCLUSIVAMENTE CON UN OBJETO JSON VÁLIDO SIN TEXTO ADICIONAL:
       oportunidades,
       riesgosSistema,
       ecosystemMetrics,
-      message: 'Matriz de Oportunidades SST y Riesgos del Sistema generada exitosamente con IA.',
+      message:
+        'Matriz de Oportunidades SST y Riesgos del Sistema generada exitosamente integrando las 16 fuentes del Ecosistema Somos SST.',
     });
   } catch (error) {
     logger.error('[SGSST Oportunidades] Error in generate-ai:', error);
@@ -434,8 +455,13 @@ Devuelve ÚNICAMENTE un objeto JSON válido con todos sus controles y plan de mi
 
 /**
  * POST /api/sgsst/oportunidades/sync-from-contexto
- * Importa y sincroniza hallazgos reales desde ContextoData (DOFA/Cruces/Stakeholders),
- * DiagnosticoData (Estándares 0312 pendientes) y MatrizPeligrosData (Peligros críticos GTC-45).
+ * Importa y sincroniza hallazgos reales desde:
+ * - ContextoData (DOFA / Cruces / Stakeholders)
+ * - AuditoriaData (No Conformidades y Observaciones Dec. 1072 Art. 2.2.4.6.29)
+ * - AltaDireccionData (Compromisos gerenciales Art. 2.2.4.6.31)
+ * - ProgramaCapacitacionesData (Cobertura y sesiones de formación Art. 2.2.4.6.11)
+ * - Compatibilidad Colaborador-Cargo / Huella Biocéntrica FIT (SgsstWorker / PerfilCargoData)
+ * - DiagnosticoData (Estándares 0312), MatrizLegalData, MatrizPeligrosData (GTC-45), Ergonomía OWAS/Puestos, Ánimo, Operación Terreno y ATEL.
  */
 router.post('/sync-from-contexto', requireJwtAuth, async (req, res) => {
   try {
@@ -448,6 +474,8 @@ router.post('/sync-from-contexto', requireJwtAuth, async (req, res) => {
       ContextoData.findOne(filter).lean(),
       gatherCompanyFullContext(userId, companyId),
     ]);
+
+    const em = fullContext.ecosystemMetrics;
 
     let oportDoc = await OportunidadesData.findOne(filter);
     if (!oportDoc) {
@@ -466,52 +494,80 @@ router.post('/sync-from-contexto', requireJwtAuth, async (req, res) => {
     let addedOportunidades = 0;
     let addedRiesgos = 0;
 
+    const addOportunidad = (op) => {
+      const key = norm(op.titulo);
+      if (!key || existingOpTitles.has(key)) return;
+      oportDoc.oportunidades.push({
+        id: `op_sync_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        titulo: op.titulo,
+        categoria: op.categoria || 'Innovación y Entorno SST',
+        origenSst: op.origenSst || 'Contexto DOFA',
+        beneficioEsperado:
+          op.beneficioEsperado || 'Fortalecimiento del desempeño y prevención de ATEL en el SG-SST.',
+        impactoPrioridad: op.impactoPrioridad || 'Alto',
+        viabilidad: op.viabilidad || 'Alta',
+        recursosRequeridos: op.recursosRequeridos || 'Gestión SG-SST / Apoyo ARL',
+        indicadorExito: op.indicadorExito || '100% de actividades ejecutadas según plan',
+        responsable: op.responsable || 'Responsable SG-SST',
+        plazo: op.plazo || 'Corto Plazo (1-3 meses)',
+        estado: op.estado || 'Planificada',
+        sentToKanban: false,
+      });
+      existingOpTitles.add(key);
+      addedOportunidades++;
+    };
+
+    const addRiesgo = (rk) => {
+      const key = norm(rk.amenaza);
+      if (!key || existingRiskTitles.has(key)) return;
+      const imp = rk.impactoSistema || 'Alto';
+      const prob = rk.probabilidad || 'Media';
+      oportDoc.riesgosSistema.push({
+        id: `rs_sync_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        amenaza: rk.amenaza,
+        fuenteContexto: rk.fuenteContexto || 'Ecosistema Somos SST',
+        impactoSistema: imp,
+        probabilidad: prob,
+        nivelRiesgo: computeSystemRiskLevel(imp, prob),
+        controlExistente: rk.controlExistente || 'Seguimiento en SG-SST',
+        medidaMitigacion:
+          rk.medidaMitigacion || 'Establecer plan de acción correctivo/preventivo en el PTA.',
+        responsableMonitoreo: rk.responsableMonitoreo || 'Responsable SG-SST',
+        plazo: rk.plazo || 'Inmediato (30 días)',
+        estadoControl: rk.estadoControl || 'En Tratamiento',
+        sentToKanban: false,
+      });
+      existingRiskTitles.add(key);
+      addedRiesgos++;
+    };
+
     // 1. Desde ContextoData (DOFA + Cruces)
     if (ctxDoc) {
       for (const item of ctxDoc.dofaList || []) {
         if (item.type === 'oportunidad' && item.description) {
-          const key = norm(item.description);
-          if (!existingOpTitles.has(key)) {
-            oportDoc.oportunidades.push({
-              id: `op_sync_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-              titulo: item.description,
-              categoria: item.category || 'Innovación y Entorno SST',
-              origenSst: `Contexto DOFA (${item.originModule || 'Cl. 4.1'})`,
-              beneficioEsperado:
-                item.strategicAction || 'Aprovechamiento de oportunidad externa para fortalecer el SG-SST.',
-              impactoPrioridad: String(item.impact || 'alto').toLowerCase() === 'alto' ? 'Alto' : 'Medio',
-              viabilidad: 'Alta',
-              recursosRequeridos: 'Gestión SG-SST / Apoyo ARL',
-              indicadorExito: '100% de actividades ejecutadas según plan',
-              responsable: item.responsible || 'Responsable SG-SST',
-              plazo: 'Corto Plazo (1-3 meses)',
-              estado: 'Planificada',
-            });
-            existingOpTitles.add(key);
-            addedOportunidades++;
-          }
+          addOportunidad({
+            titulo: item.description,
+            categoria: item.category || 'Innovación y Entorno SST',
+            origenSst: `Contexto DOFA (${item.originModule || 'Cl. 4.1'})`,
+            beneficioEsperado:
+              item.strategicAction ||
+              'Aprovechamiento de oportunidad externa para fortalecer el SG-SST.',
+            impactoPrioridad:
+              String(item.impact || 'alto').toLowerCase() === 'alto' ? 'Alto' : 'Medio',
+            responsable: item.responsible || 'Responsable SG-SST',
+          });
         } else if ((item.type === 'amenaza' || item.type === 'debilidad') && item.description) {
-          const key = norm(item.description);
-          if (!existingRiskTitles.has(key)) {
-            const impact = String(item.impact || 'alto').toLowerCase() === 'alto' ? 'Alto' : 'Medio';
-            const prob = item.type === 'debilidad' ? 'Alta' : 'Media';
-            oportDoc.riesgosSistema.push({
-              id: `rs_sync_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-              amenaza: item.description,
-              fuenteContexto: `Contexto DOFA (${item.type === 'amenaza' ? 'Amenaza Externa' : 'Debilidad Interna'})`,
-              impactoSistema: impact,
-              probabilidad: prob,
-              nivelRiesgo: computeSystemRiskLevel(impact, prob),
-              controlExistente: 'Seguimiento en SG-SST',
-              medidaMitigacion:
-                item.strategicAction || 'Establecer plan de acción correctivo/preventivo en el PTA.',
-              responsableMonitoreo: item.responsible || 'Responsable SG-SST',
-              plazo: 'Inmediato (30 días)',
-              estadoControl: 'En Tratamiento',
-            });
-            existingRiskTitles.add(key);
-            addedRiesgos++;
-          }
+          addRiesgo({
+            amenaza: item.description,
+            fuenteContexto: `Contexto DOFA (${item.originModule || (item.type === 'amenaza' ? 'Amenaza Externa' : 'Debilidad Interna')})`,
+            impactoSistema:
+              String(item.impact || 'alto').toLowerCase() === 'alto' ? 'Alto' : 'Medio',
+            probabilidad: item.type === 'debilidad' ? 'Alta' : 'Media',
+            medidaMitigacion:
+              item.strategicAction ||
+              'Establecer plan de acción correctivo/preventivo en el PTA.',
+            responsableMonitoreo: item.responsible || 'Responsable SG-SST',
+          });
         }
       }
 
@@ -521,90 +577,174 @@ router.post('/sync-from-contexto', requireJwtAuth, async (req, res) => {
       ];
       for (const strat of foDo) {
         const cleanStrat = String(strat || '').trim();
-        if (cleanStrat && !existingOpTitles.has(norm(cleanStrat))) {
-          oportDoc.oportunidades.push({
-            id: `op_fo_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        if (cleanStrat) {
+          addOportunidad({
             titulo: cleanStrat,
             categoria: 'Estrategia Cruzada FO/DO',
             origenSst: 'Cruces Estratégicos DOFA (Cl. 4.1)',
-            beneficioEsperado: 'Potenciación de fortalezas internas con oportunidades del entorno.',
-            impactoPrioridad: 'Alto',
-            viabilidad: 'Alta',
-            recursosRequeridos: 'Plan de Trabajo Anual SG-SST',
-            indicadorExito: 'Estrategia implementada en el período',
-            responsable: 'Responsable SG-SST',
+            beneficioEsperado:
+              'Potenciación de fortalezas internas con oportunidades del entorno.',
             plazo: 'Mediano Plazo (3-6 meses)',
-            estado: 'Planificada',
           });
-          existingOpTitles.add(norm(cleanStrat));
-          addedOportunidades++;
         }
       }
     }
 
-    // 2. Desde Diagnóstico 0312 (Brechas normativas -> Riesgos del Sistema)
-    for (const gap of (fullContext.diagnosticoGapItems || []).slice(0, 3)) {
-      const gapTitle = `Brecha en Estándar Mínimo Res. 0312/2019: ${gap}`;
-      if (!existingRiskTitles.has(norm(gapTitle))) {
-        oportDoc.riesgosSistema.push({
-          id: `rs_0312_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-          amenaza: gapTitle,
-          fuenteContexto: 'Autoevaluación Res. 0312/2019',
+    // 2. Desde Auditoría Interna SG-SST (Dec. 1072 Art. 2.2.4.6.29)
+    if (em.auditoriaNoConformidades > 0 || em.auditoriaObservaciones > 0) {
+      for (const finding of (fullContext.auditoriaFindings || []).slice(0, 2)) {
+        addRiesgo({
+          amenaza: `Hallazgo de Auditoría Interna SG-SST sin cierre eficaz: ${finding}`,
+          fuenteContexto: 'Auditoría Interna 1072 (Art. 2.2.4.6.29)',
           impactoSistema: 'Alto',
           probabilidad: 'Alta',
-          nivelRiesgo: 'Crítico',
-          controlExistente: 'Identificado en autoevaluación anual',
-          medidaMitigacion: `Diseñar y documentar evidencia de cumplimiento para el estándar ${gap} dentro del Plan de Mejora 0312.`,
-          responsableMonitoreo: 'Responsable SG-SST',
+          controlExistente: `Auditoría interna ejecutada (Puntaje: ${em.auditoriaScore}%)`,
+          medidaMitigacion:
+            'Formular plan de acción correctiva con análisis de causa raíz y verificar cierre de eficacia en el Centro ACPM.',
+          responsableMonitoreo: 'Responsable SG-SST / Auditor Interno',
           plazo: 'Inmediato (30 días)',
-          estadoControl: 'En Tratamiento',
         });
-        existingRiskTitles.add(norm(gapTitle));
-        addedRiesgos++;
       }
+    } else {
+      addOportunidad({
+        titulo: `Fortalecimiento del ciclo de Auditoría Interna SG-SST (${em.auditoriaScore > 0 ? `Puntaje actual: ${em.auditoriaScore}%` : 'Art. 2.2.4.6.29 Dec. 1072'}) con participación del COPASST`,
+        categoria: 'Gobernanza y Auditoría SST',
+        origenSst: 'Auditoría Interna 1072',
+        beneficioEsperado:
+          'Detección temprana de desviaciones del ciclo PHVA y blindaje ante inspecciones del Ministerio del Trabajo.',
+        indicadorExito: '100% del programa anual de auditoría ejecutado y hallazgos cerrados',
+      });
     }
 
-    // 3. Desde Matriz GTC-45 (Peligros críticos -> Oportunidades de intervención en fuente/medio)
+    // 3. Desde Revisión por la Alta Dirección (Dec. 1072 Art. 2.2.4.6.31)
+    if (em.altaDireccionPendientes > 0) {
+      addRiesgo({
+        amenaza: `Compromisos gerenciales pendientes en la Revisión por la Alta Dirección (${em.altaDireccionPendientes} ítems de los 24 obligatorios del Art. 2.2.4.6.31 Dec. 1072/2015)`,
+        fuenteContexto: 'Revisión por la Alta Dirección',
+        impactoSistema: 'Alto',
+        probabilidad: 'Media',
+        controlExistente: 'Evaluación gerencial registrada en plataforma',
+        medidaMitigacion:
+          'Aprobar recursos financieros y técnicos en acta gerencial para cerrar la totalidad de compromisos pendientes.',
+        responsableMonitoreo: 'Alta Dirección / Representante Legal',
+        plazo: 'Corto Plazo (1-3 meses)',
+      });
+    }
+    addOportunidad({
+      titulo:
+        'Articulación del presupuesto y metas de la Revisión por la Alta Dirección con la reducción de siniestralidad ATEL',
+      categoria: 'Cultura Preventiva y Liderazgo',
+      origenSst: 'Revisión por la Alta Dirección',
+      beneficioEsperado:
+        'Respaldo ejecutivo directo para controles de ingeniería, formación y bienestar laboral.',
+      responsable: 'Alta Dirección / Responsable SG-SST',
+    });
+
+    // 4. Desde Programa de Capacitaciones SST (Art. 2.2.4.6.11)
+    addOportunidad({
+      titulo: `Optimización del Programa Anual de Capacitaciones SST (${em.capacitacionesCompliancePct}% avance · ${em.capacitacionesTotal} sesiones) por matriz de competencias y riesgos del cargo`,
+      categoria: 'Alianzas ARL y Capacitación',
+      origenSst: 'Programa de Capacitaciones',
+      beneficioEsperado:
+        'Incremento en la percepción del riesgo de los trabajadores y reducción de accidentes por actos inseguros.',
+      indicadorExito: 'Cumplimiento >= 90% del cronograma de capacitación e inducción',
+    });
+    if (em.capacitacionesTotal === 0 || em.capacitacionesCompliancePct < 70) {
+      addRiesgo({
+        amenaza: `Baja cobertura en la ejecución del Programa Anual de Capacitaciones SST (${em.capacitacionesCompliancePct}% completado · ${em.capacitacionesPendientes} sesiones pendientes)`,
+        fuenteContexto: 'Programa de Capacitaciones (Art. 2.2.4.6.11)',
+        impactoSistema: 'Alto',
+        probabilidad: 'Media',
+        controlExistente: 'Cronograma de capacitaciones en plataforma',
+        medidaMitigacion:
+          'Reprogramar sesiones obligatorias por perfil de cargo y verificar asistencia firmada de todos los trabajadores.',
+        responsableMonitoreo: 'Responsable SG-SST / Talento Humano',
+      });
+    }
+
+    // 5. Desde Compatibilidad Colaborador-Cargo / Huella Biocéntrica FIT
+    addOportunidad({
+      titulo: `Adaptación ergonómica y funcional del trabajo al colaborador mediante el Índice de Compatibilidad Cargo-Persona (FIT Promedio: ${em.avgFitScore || 85}% en ${em.totalWorkers} trabajadores)`,
+      categoria: 'Ergonomía y Adaptación del Trabajo',
+      origenSst: 'Compatibilidad Colaborador-Cargo',
+      beneficioEsperado:
+        'Cumplimiento de ISO 45001 Cl. 6.1.2.3b (adaptar el trabajo a los trabajadores), reducción de enfermedad laboral y mayor productividad.',
+      recursosRequeridos: 'Perfiles profesiográficos, Estudios de Puesto y Medicina Preventiva',
+      indicadorExito: 'Índice FIT promedio >= 85% y 100% de restricciones médicas gestionadas',
+    });
+    if (em.workersWithFitAlerts > 0 || em.bioRiesgosCriticos > 0) {
+      addRiesgo({
+        amenaza: `Asignación de tareas críticas a colaboradores con restricciones o alertas de Compatibilidad Cargo-Persona (${em.workersWithFitAlerts} trabajadores con alertas FIT y ${em.bioRiesgosCriticos} riesgos bio-individuales críticos)`,
+        fuenteContexto: 'Compatibilidad Colaborador-Cargo (Huella Biocéntrica)',
+        impactoSistema: 'Alto',
+        probabilidad: 'Alta',
+        controlExistente: 'Bloqueador preventivo de aptitud médica en ATS y Trabajo en Alturas',
+        medidaMitigacion:
+          'Aplicar seguimiento médico-ocupacional periódico, reubicación/readaptación preventiva y controles individualizados.',
+        responsableMonitoreo: 'Médico Laboral / Responsable SG-SST',
+        plazo: 'Inmediato (30 días)',
+      });
+    }
+
+    // 6. Desde Diagnóstico 0312 y Matriz Legal (Brechas normativas -> Riesgos del Sistema)
+    for (const gap of (fullContext.diagnosticoGapItems || []).slice(0, 2)) {
+      addRiesgo({
+        amenaza: `Brecha en Estándar Mínimo Res. 0312/2019: ${gap}`,
+        fuenteContexto: 'Autoevaluación Res. 0312/2019',
+        impactoSistema: 'Alto',
+        probabilidad: 'Alta',
+        controlExistente: 'Identificado en autoevaluación anual',
+        medidaMitigacion: `Diseñar y documentar evidencia de cumplimiento para el estándar ${gap} dentro del Plan de Mejora 0312.`,
+      });
+    }
+
+    // 7. Desde Matriz GTC-45, Ergonomía OWAS y Clima Psicosocial
     const criticalHazards = (fullContext.peligrosSummary || []).filter((p) =>
       /\b(I|II)\b|cr[ií]tico|alto|no aceptable/i.test(String(p.nivelRiesgo || ''))
     );
-    for (const haz of criticalHazards.slice(0, 3)) {
-      const opTitle = `Intervención prioritaria y control de ingeniería para peligro ${haz.clasificacion}: ${haz.descripcion} (${haz.proceso})`;
-      if (!existingOpTitles.has(norm(opTitle))) {
-        oportDoc.oportunidades.push({
-          id: `op_gtc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-          titulo: opTitle,
-          categoria: 'Eliminación y Sustitución de Peligros',
-          origenSst: 'Matriz IPEVR GTC-45',
-          beneficioEsperado: `Reducción directa del nivel de riesgo (${haz.nivelRiesgo}) en el proceso ${haz.proceso}.`,
-          impactoPrioridad: 'Alto',
-          viabilidad: 'Media',
-          recursosRequeridos: 'Controles de ingeniería / PVE / Capacitación específica',
-          indicadorExito: '100% de controles implementados y revaloración del riesgo a nivel Aceptable',
-          responsable: 'Responsable SG-SST',
-          plazo: 'Corto Plazo (1-3 meses)',
-          estado: 'Planificada',
-        });
-        existingOpTitles.add(norm(opTitle));
-        addedOportunidades++;
-      }
+    for (const haz of criticalHazards.slice(0, 2)) {
+      addOportunidad({
+        titulo: `Intervención prioritaria y control de ingeniería para peligro ${haz.clasificacion}: ${haz.descripcion} (${haz.proceso})`,
+        categoria: 'Eliminación y Sustitución de Peligros',
+        origenSst: 'Matriz IPEVR GTC-45',
+        beneficioEsperado: `Reducción directa del nivel de riesgo (${haz.nivelRiesgo}) en el proceso ${haz.proceso}.`,
+      });
+    }
+
+    if (em.moodNegativeCount > 0 || em.owasCriticosCount > 0) {
+      addOportunidad({
+        titulo: `Intervención integral en Salud Mental (${em.moodNegativeCount} alertas de ánimo) y Ergonomía Postural OWAS (${em.owasCriticosCount} posturas críticas / ${em.estudiosPuestoCount} estudios de puesto)`,
+        categoria: 'Salud Mental y Clima Laboral',
+        origenSst: 'Ergonomía y Clima Psicosocial',
+        beneficioEsperado:
+          'Disminución de fatiga, prevención de desórdenes musculoesqueléticos (DME) y mejora del clima organizacional.',
+      });
     }
 
     oportDoc.updatedAt = new Date();
     await oportDoc.save();
+
+    const ecosystemMetrics = {
+      ...fullContext.ecosystemMetrics,
+      contextoFactorsCount: Array.isArray(ctxDoc?.dofaList) ? ctxDoc.dofaList.length : 0,
+      stakeholdersCount: Array.isArray(ctxDoc?.stakeholders) ? ctxDoc.stakeholders.length : 0,
+      oportunidadesCount: oportDoc.oportunidades.length,
+      riesgosSistemaCount: oportDoc.riesgosSistema.length,
+    };
 
     const addedCount = addedOportunidades + addedRiesgos;
     return res.json({
       success: true,
       oportunidades: oportDoc.oportunidades,
       riesgosSistema: oportDoc.riesgosSistema,
+      ecosystemMetrics,
       addedCount,
       addedOportunidades,
       addedRiesgos,
       message:
         addedCount > 0
-          ? `Se sincronizaron ${addedOportunidades} oportunidades y ${addedRiesgos} riesgos estratégicos desde el ecosistema Somos SST.`
-          : 'Todos los hallazgos del Contexto, Diagnóstico 0312 y GTC-45 ya se encuentran sincronizados.',
+          ? `Se sincronizaron ${addedOportunidades} oportunidades y ${addedRiesgos} riesgos estratégicos desde Auditoría, Alta Dirección, Capacitaciones, Compatibilidad Colaborador-Cargo y Contexto DOFA.`
+          : 'Todos los hallazgos de Auditoría, Alta Dirección, Capacitaciones, Compatibilidad Colaborador-Cargo y Contexto DOFA ya se encuentran sincronizados.',
     });
   } catch (error) {
     logger.error('[SGSST Oportunidades] Error in sync-from-contexto:', error);
@@ -661,7 +801,9 @@ router.post('/send-to-kanban', requireJwtAuth, async (req, res) => {
         status: 'todo',
         dueDate,
         type: 'other',
-        priority: ['alta', 'media', 'baja', 'high', 'medium', 'low'].includes(priority) ? priority : 'alta',
+        priority: ['alta', 'media', 'baja', 'high', 'medium', 'low'].includes(priority)
+          ? priority
+          : 'alta',
         actionType: ['correctiva', 'preventiva', 'mejora'].includes(actionType)
           ? actionType
           : itemType === 'riesgo'
@@ -670,7 +812,8 @@ router.post('/send-to-kanban', requireJwtAuth, async (req, res) => {
         sourceModule: 'Riesgos del Sistema y Oportunidades SST (ISO 45001 Cl. 6.1)',
         assignedTo,
         referenceId: refId,
-        referenceName: itemType === 'riesgo' ? 'Riesgo del Sistema SG-SST' : 'Oportunidad de Mejora SST',
+        referenceName:
+          itemType === 'riesgo' ? 'Riesgo del Sistema SG-SST' : 'Oportunidad de Mejora SST',
       });
     }
 
@@ -738,15 +881,16 @@ router.post('/generate-report', requireJwtAuth, async (req, res) => {
       title: 'MATRIZ Y PLAN DE GESTIÓN DE RIESGOS DEL SISTEMA Y OPORTUNIDADES SST',
       companyInfo: company,
       date: currentDate,
-      norm: 'ISO 45001:2018 Cláusulas 6.1.1 y 6.1.2.3 · Dec. 1072/2015 Art. 2.2.4.6.15 y 2.2.4.6.17 · Res. 0312/2019',
+      norm: 'ISO 45001:2018 Cláusulas 6.1.1 y 6.1.2.3 · Dec. 1072/2015 Art. 2.2.4.6.15, 2.2.4.6.29 y 2.2.4.6.31 · Res. 0312/2019',
       responsibleName: req.user?.name,
     });
 
     // Filas de Oportunidades SST
-    const oportunidadesRows = oportunidades.length > 0
-      ? oportunidades
-          .map(
-            (o, idx) => `
+    const oportunidadesRows =
+      oportunidades.length > 0
+        ? oportunidades
+            .map(
+              (o, idx) => `
         <tr style="background-color: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'}; font-size: 11px; color: #1e293b;">
           <td style="padding: 9px 10px; border: 1px solid #cbd5e1; font-weight: 700; color: #0f766e; vertical-align: top;">
             ${o.titulo}
@@ -768,9 +912,9 @@ router.post('/generate-report', requireJwtAuth, async (req, res) => {
             <span style="font-size: 10px; color: #475569;">${o.plazo || 'Corto Plazo'} · ${o.estado || 'Planificada'}</span>
           </td>
         </tr>`
-          )
-          .join('')
-      : `<tr><td colspan="5" style="padding: 14px; text-align: center; color: #94a3b8; border: 1px solid #cbd5e1;">No se han registrado oportunidades de SST</td></tr>`;
+            )
+            .join('')
+        : `<tr><td colspan="5" style="padding: 14px; text-align: center; color: #94a3b8; border: 1px solid #cbd5e1;">No se han registrado oportunidades de SST</td></tr>`;
 
     // Conteo para Mapa de Calor 3x3 (Probabilidad x Impacto)
     const countCell = (prob, imp) =>
@@ -781,19 +925,21 @@ router.post('/generate-report', requireJwtAuth, async (req, res) => {
       ).length;
 
     // Filas de Riesgos del Sistema
-    const riesgosRows = riesgosSistema.length > 0
-      ? riesgosSistema
-          .map((r, idx) => {
-            const lvl = r.nivelRiesgo || computeSystemRiskLevel(r.impactoSistema, r.probabilidad);
-            const badgeColor =
-              lvl === 'Crítico'
-                ? '#dc2626'
-                : lvl === 'Alto'
-                  ? '#d97706'
-                  : lvl === 'Medio'
-                    ? '#0284c7'
-                    : '#059669';
-            return `
+    const riesgosRows =
+      riesgosSistema.length > 0
+        ? riesgosSistema
+            .map((r, idx) => {
+              const lvl =
+                r.nivelRiesgo || computeSystemRiskLevel(r.impactoSistema, r.probabilidad);
+              const badgeColor =
+                lvl === 'Crítico'
+                  ? '#dc2626'
+                  : lvl === 'Alto'
+                    ? '#d97706'
+                    : lvl === 'Medio'
+                      ? '#0284c7'
+                      : '#059669';
+              return `
         <tr style="background-color: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'}; font-size: 11px; color: #1e293b;">
           <td style="padding: 9px 10px; border: 1px solid #cbd5e1; font-weight: 700; color: #1e293b; vertical-align: top;">
             ${r.amenaza}
@@ -816,9 +962,9 @@ router.post('/generate-report', requireJwtAuth, async (req, res) => {
             <span style="font-size: 10px; color: #475569;">${r.plazo || 'Inmediato'} · ${r.estadoControl || 'En Tratamiento'}</span>
           </td>
         </tr>`;
-          })
-          .join('')
-      : `<tr><td colspan="5" style="padding: 14px; text-align: center; color: #94a3b8; border: 1px solid #cbd5e1;">No se han registrado riesgos estratégicos del sistema</td></tr>`;
+            })
+            .join('')
+        : `<tr><td colspan="5" style="padding: 14px; text-align: center; color: #94a3b8; border: 1px solid #cbd5e1;">No se han registrado riesgos estratégicos del sistema</td></tr>`;
 
     const reportBody = `
 <div style="font-family: Arial, Helvetica, sans-serif; color: #1e293b; line-height: 1.6; max-width: 100%;">
@@ -826,17 +972,17 @@ router.post('/generate-report', requireJwtAuth, async (req, res) => {
   <!-- 1. OBJETO Y MARCO NORMATIVO -->
   <div style="margin-bottom: 22px; padding: 14px 18px; background-color: #f0fdfa; border-left: 4px solid #0f766e;">
     <h3 style="margin: 0 0 6px 0; color: #0f766e; font-size: 13.5px; font-weight: 800; text-transform: uppercase;">
-      1. Objeto y Enfoque Basado en Riesgos y Oportunidades (ISO 45001 Cláusula 6.1)
+      1. Objeto y Enfoque Basado en Riesgos y Oportunidades 360° (ISO 45001 Cláusula 6.1)
     </h3>
     <p style="margin: 0; font-size: 11.5px; color: #334155; line-height: 1.5;">
-      El presente documento establece las acciones para abordar los <strong>Riesgos Estratégicos del Sistema de Gestión (ISO 45001:2018 Cl. 6.1.1)</strong> y las <strong>Oportunidades para la Seguridad y Salud en el Trabajo (ISO 45001:2018 Cl. 6.1.2.3)</strong> de <strong>${company?.companyName || 'la Organización'}</strong>, asegurando que el SG-SST alcance sus resultados previstos, prevenga efectos no deseados y logre la mejora continua conforme al <strong>Decreto 1072 de 2015</strong> y la <strong>Resolución 0312 de 2019</strong>.
+      El presente documento establece las acciones para abordar los <strong>Riesgos Estratégicos del Sistema de Gestión (ISO 45001:2018 Cl. 6.1.1)</strong> y las <strong>Oportunidades para la Seguridad y Salud en el Trabajo (ISO 45001:2018 Cl. 6.1.2.3)</strong> de <strong>${company?.companyName || 'la Organización'}</strong>, consolidando los hallazgos de Auditoría Interna (Art. 2.2.4.6.29), Revisión por la Alta Dirección (Art. 2.2.4.6.31), Programa de Capacitaciones (Art. 2.2.4.6.11), Compatibilidad Colaborador-Cargo (FIT Biocéntrico), Diagnóstico 0312, Matriz GTC-45 y Contexto Organizacional.
     </p>
   </div>
 
-  <!-- 2. RESUMEN EJECUTIVO DE ARTICULACIÓN -->
+  <!-- 2. RESUMEN EJECUTIVO DE ARTICULACIÓN 360° -->
   <div style="margin-bottom: 24px;">
     <h3 style="color: #0f766e; font-size: 13px; font-weight: 800; text-transform: uppercase; border-bottom: 2px solid #0f766e; padding-bottom: 4px; margin-bottom: 10px;">
-      2. Indicadores de Entrada del Ecosistema Somos SST
+      2. Indicadores de Entrada del Ecosistema 360° Somos SST
     </h3>
     <table style="width: 100%; border-collapse: collapse; font-size: 11px; border: 1px solid #cbd5e1;">
       <tr style="background-color: #f8fafc;">
@@ -849,12 +995,12 @@ router.post('/generate-report', requireJwtAuth, async (req, res) => {
           <div style="font-size: 10px; color: #475569; text-transform: uppercase;">Riesgos del Sistema (Cl. 6.1.1)</div>
         </td>
         <td style="padding: 10px; border: 1px solid #cbd5e1; width: 25%; text-align: center;">
-          <div style="font-size: 18px; font-weight: 800; color: #0284c7;">${em.diagnosticoScore}%</div>
-          <div style="font-size: 10px; color: #475569; text-transform: uppercase;">Cumplimiento Res. 0312</div>
+          <div style="font-size: 18px; font-weight: 800; color: #0284c7;">${em.auditoriaScore}% / ${em.diagnosticoScore}%</div>
+          <div style="font-size: 10px; color: #475569; text-transform: uppercase;">Auditoría 1072 / Res. 0312</div>
         </td>
         <td style="padding: 10px; border: 1px solid #cbd5e1; width: 25%; text-align: center;">
-          <div style="font-size: 18px; font-weight: 800; color: #d97706;">${em.peligrosCriticos} / ${em.totalPeligros}</div>
-          <div style="font-size: 10px; color: #475569; text-transform: uppercase;">Peligros Críticos GTC-45</div>
+          <div style="font-size: 18px; font-weight: 800; color: #d97706;">FIT ${em.avgFitScore}% · Cap. ${em.capacitacionesCompliancePct}%</div>
+          <div style="font-size: 10px; color: #475569; text-transform: uppercase;">Compatibilidad Cargo / Capacitación</div>
         </td>
       </tr>
     </table>
