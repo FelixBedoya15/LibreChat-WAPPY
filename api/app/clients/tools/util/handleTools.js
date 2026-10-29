@@ -59,6 +59,7 @@ const {
   GestorAutomatizaciones,
   GenerarImagenSST,
   GoogleFlow,
+  GoogleAntigravity,
   PubChem,
   WidgetInteractivoSST,
   MemoriaProcedimentalSST,
@@ -334,6 +335,19 @@ const loadTools = async ({
         req: options.req,
         isAgent: !!agent,
         imageOutputType,
+      });
+    },
+    google_antigravity: async (toolContextMap) => {
+      toolContextMap.google_antigravity = `# \`google_antigravity\` (Conexión Bidireccional en Tiempo Real con Google Antigravity en el PC del usuario):
+- SIEMPRE que el usuario mencione "Antigravity" (ej: "pregúntale a Antigravity...", "pídele a Antigravity que revise mi carpeta...", "que Antigravity me envíe el archivo X de mi PC", "que Antigravity cree un documento/aplicativo"), DEBES invocar la herramienta \`google_antigravity\`.
+- Si es una pregunta, consulta o inspección de carpetas del PC sin pedir crear un documento, usa \`tipo_entregable: "respuesta"\`.
+- Si pide enviar/subir un archivo, imagen, video o PDF desde su computador al chat, usa \`tipo_entregable: "copia_archivo"\`.
+- Si pide redactar o crear un documento/informe en el Editor de Documentos de WAPPY (Canvas), usa \`tipo_entregable: "documento"\`.
+- Si pide crear un aplicativo interactivo o dashboard HTML, usa \`tipo_entregable: "html"\`.`;
+      return new GoogleAntigravity({
+        userId: user,
+        req: options.req,
+        isAgent: !!agent,
       });
     },
     'google-image-gen': async (_toolContextMap) => {

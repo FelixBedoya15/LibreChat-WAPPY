@@ -37,6 +37,7 @@ const GestorAutomatizaciones = require('./structured/GestorAutomatizaciones');
 const WebSearch = require('./structured/WebSearch');
 const GenerarImagenSST = require('./structured/GenerarImagenSST');
 const GoogleFlow = require('./structured/GoogleFlow');
+const GoogleAntigravity = require('./structured/GoogleAntigravity');
 const PubChem = require('./structured/PubChem');
 const {
   WidgetInteractivoSST,
@@ -63,6 +64,7 @@ module.exports = {
   GoogleImageTools,
   GenerarImagenSST,
   GoogleFlow,
+  GoogleAntigravity,
   n8nWebhook,
   MatrizIPEVAR,
   MatrizPESV,

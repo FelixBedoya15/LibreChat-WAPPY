@@ -62,7 +62,7 @@ export default function useAgentSessionOverrides({
     const { data: agent } = useGetAgentByIdQuery(agentId);
 
     const { hasWebSearch, hasFileSearch, hasCodeInterpreter, externalTools } = useMemo(() => {
-        const tools = agent?.tools ?? [];
+        const tools = Array.from(new Set([...(agent?.tools ?? []), 'google_antigravity', 'google_flow']));
         
         // Merge currently active session overrides. This ensures that if a chat already has 
         // a tool active (like matriz_ipevar), the new agent inherits the ability to use it
@@ -97,7 +97,8 @@ export default function useAgentSessionOverrides({
         const appliedKey = `${agentId}:${key}`;
         if (defaultsAppliedRef.current === appliedKey) return;
 
-        const ext = agent.tools?.filter((t) => !BUILTIN_TOOLS.has(t as Tools)) ?? [];
+        const baseAgentTools = Array.from(new Set([...(agent.tools ?? []), 'google_antigravity', 'google_flow']));
+        const ext = baseAgentTools.filter((t) => !BUILTIN_TOOLS.has(t as Tools));
 
         setEphemeralAgent((prev) => {
             const prevExt = prev as TEphemeralAgentExtended | null;

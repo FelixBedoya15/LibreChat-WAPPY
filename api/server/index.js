@@ -1182,12 +1182,13 @@ const startServer = async () => {
           'research_start_mcp_notebooklm',
           'research_import_mcp_notebooklm',
           'google_flow',
+          'google_antigravity',
         ];
         const notebooklmResult = await Agent.updateMany(
           {},
           { $addToSet: { tools: { $each: notebooklmTools } } }
         );
-        logger.info(`[Startup] Added NotebookLM & Google Flow tools to ${notebooklmResult.modifiedCount} agents`);
+        logger.info(`[Startup] Added NotebookLM, Google Flow & Google Antigravity tools to ${notebooklmResult.modifiedCount} agents`);
       }
     } catch (err) {
       logger.error('[Startup] Failed to automatically update agent tools:', err);

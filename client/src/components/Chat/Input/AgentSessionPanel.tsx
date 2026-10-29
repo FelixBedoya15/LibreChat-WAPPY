@@ -132,6 +132,21 @@ const getToolIcon = (toolId: string) => {
             return <Cpu className="h-4 w-4 text-purple-500" />;
 
         // --- Google Suite ---
+        case 'google_antigravity':
+            return (
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4 text-orange-500"
+                >
+                    <path d="M12 3 4 20l3.5-1.5L12 9l4.5 9.5L20 20 12 3z" />
+                    <path d="M8.5 15.5h7" />
+                </svg>
+            );
         case 'google_flow':
             return <Clapperboard className="h-4 w-4 text-purple-500" />;
         case 'google_drive':
@@ -216,11 +231,20 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
 
     // Filter tools into Google and General categories (excluding always-on background system tools)
     const alwaysOnHiddenTools = ['wappy_renderizar_widget_interactivo', 'wappy_memoria_procedimental', 'memory'];
-    const googleToolIds = ['google_flow', 'google_drive', 'google_calendar', 'google_gmail', 'google_sheets', 'google_docs', 'google_slides'];
-    const googleTools = externalTools.filter(id => googleToolIds.includes(id));
-    const notebookLmTools = externalTools.filter(id => id.includes('_mcp_notebooklm'));
+    const googleToolIds = [
+        'google_antigravity',
+        'google_flow',
+        'google_drive',
+        'google_gmail',
+        'google_calendar',
+        'google_docs',
+        'google_sheets',
+        'google_slides',
+    ];
+    const googleTools = googleToolIds.filter((id) => externalTools.includes(id));
+    const notebookLmTools = externalTools.filter((id) => id.includes('_mcp_notebooklm'));
     const generalExternalTools = externalTools.filter(
-        id => !googleToolIds.includes(id) && !id.includes('_mcp_notebooklm') && !alwaysOnHiddenTools.includes(id)
+        (id) => !googleToolIds.includes(id) && !id.includes('_mcp_notebooklm') && !alwaysOnHiddenTools.includes(id)
     );
     
     const isNotebookLmActive = notebookLmTools.length > 0 && notebookLmTools.some(id => (overrides as TEphemeralAgentExtended | null)?.tools?.includes(id));
@@ -255,6 +279,7 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
         consultar_analitica_psicosocial: 'Consultar Analítica Psicosocial',
         consultar_analitica_actos_condiciones: 'Analítica de Actos y Condiciones',
         gestor_automatizaciones: 'Automatizaciones',
+        google_antigravity: 'Google Antigravity',
         google_flow: 'Google Flow (Veo & Imagen)',
         google_drive: 'Google Drive',
         google_calendar: 'Google Calendar',
@@ -519,6 +544,26 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                             )}
                         >
                             <div className="py-1.5 max-h-[340px] overflow-y-auto pr-1">
+                                {googleTools.includes('google_antigravity') && (() => {
+                                    const toolId = 'google_antigravity';
+                                    const isActive = (overrides as TEphemeralAgentExtended | null)?.tools?.includes(toolId) ?? false;
+                                    const displayName = toolTranslations[toolId] ?? 'Google Antigravity';
+                                    return (
+                                        <Ariakit.MenuItem
+                                            key={toolId}
+                                            hideOnClick={false}
+                                            render={
+                                                <ToolRow
+                                                    id={`agent-session-tool-${toolId}`}
+                                                    icon={getToolIcon(toolId)}
+                                                    label={displayName}
+                                                    checked={isActive}
+                                                    onChange={() => toggleExternalTool(toolId)}
+                                                />
+                                            }
+                                        />
+                                    );
+                                })()}
                                 {notebookLmTools.length > 0 && (
                                     <Ariakit.MenuItem
                                         hideOnClick={false}
@@ -533,34 +578,36 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                         }
                                     />
                                 )}
-                                {googleTools.map((toolId) => {
-                                    const isActive = (overrides as TEphemeralAgentExtended | null)?.tools?.includes(toolId) ?? false;
-                                    const displayName = toolTranslations[toolId] ?? toolId
-                                        .split('_')
-                                        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-                                        .join(' ');
-                                    return (
-                                        <Ariakit.MenuItem
-                                            key={toolId}
-                                            hideOnClick={false}
-                                            render={
-                                                <ToolRow
-                                                    id={`agent-session-tool-${toolId}`}
-                                                    icon={getToolIcon(toolId)}
-                                                    label={displayName}
-                                                    checked={isActive}
-                                                    onChange={() => {
-                                                        if (!isActive && !isProOrAdmin) {
-                                                            setIsUpgradeModalOpen(true);
-                                                        } else {
-                                                            toggleExternalTool(toolId);
-                                                        }
-                                                    }}
-                                                />
-                                            }
-                                        />
-                                    );
-                                })}
+                                {googleTools
+                                    .filter((toolId) => toolId !== 'google_antigravity')
+                                    .map((toolId) => {
+                                        const isActive = (overrides as TEphemeralAgentExtended | null)?.tools?.includes(toolId) ?? false;
+                                        const displayName = toolTranslations[toolId] ?? toolId
+                                            .split('_')
+                                            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                                            .join(' ');
+                                        return (
+                                            <Ariakit.MenuItem
+                                                key={toolId}
+                                                hideOnClick={false}
+                                                render={
+                                                    <ToolRow
+                                                        id={`agent-session-tool-${toolId}`}
+                                                        icon={getToolIcon(toolId)}
+                                                        label={displayName}
+                                                        checked={isActive}
+                                                        onChange={() => {
+                                                            if (!isActive && !isProOrAdmin && toolId !== 'google_flow') {
+                                                                setIsUpgradeModalOpen(true);
+                                                            } else {
+                                                                toggleExternalTool(toolId);
+                                                            }
+                                                        }}
+                                                    />
+                                                }
+                                            />
+                                        );
+                                    })}
                             </div>
                         </Ariakit.Menu>
                     </Ariakit.MenuProvider>

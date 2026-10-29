@@ -410,6 +410,7 @@ Si el usuario te solicita redactar un contenido, guion, política, informe, o re
     }
 
     tools.push('google_flow');
+    tools.push('google_antigravity');
 
     tools = [...new Set(tools)];
 

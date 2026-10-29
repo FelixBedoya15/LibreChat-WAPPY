@@ -8467,12 +8467,16 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
       (nestedDeliverable.media && typeof nestedDeliverable.media === 'object' ? nestedDeliverable.media : null);
 
     let mediaPayload = undefined;
+    let savedPublicUrl = null;
     if (rawOriginalFile && (rawOriginalFile.dataUrl || rawOriginalFile.base64)) {
       const origName = String(rawOriginalFile.name || rawOriginalFile.fileName || 'archivo_original').trim();
       const origMime = String(rawOriginalFile.mimeType || 'application/octet-stream').trim();
+      const cleanBase64 = rawOriginalFile.base64
+        ? String(rawOriginalFile.base64).replace(/^data:[^;]+;base64,/, '')
+        : String(rawOriginalFile.dataUrl || '').replace(/^data:[^;]+;base64,/, '');
       const origDataUrl = rawOriginalFile.dataUrl
         ? String(rawOriginalFile.dataUrl)
-        : `data:${origMime};base64,${String(rawOriginalFile.base64).replace(/^data:[^;]+;base64,/, '')}`;
+        : `data:${origMime};base64,${cleanBase64}`;
       const origSize = Number(rawOriginalFile.size) || Math.round((origDataUrl.length * 3) / 4);
       const origType = origMime.startsWith('image/')
         ? 'image'
@@ -8481,12 +8485,28 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
         : origMime.startsWith('audio/')
         ? 'audio'
         : 'document';
+
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const paths = require('~/config/paths');
+        const outputDir = paths.imageOutput || path.resolve(__dirname, '../../../client/public/images');
+        fs.mkdirSync(outputDir, { recursive: true });
+        const safeName = origName.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const diskFileName = `antigravity_${Date.now()}_${safeName}`;
+        fs.writeFileSync(path.join(outputDir, diskFileName), Buffer.from(cleanBase64, 'base64'));
+        savedPublicUrl = `/images/${diskFileName}`;
+      } catch (diskErr) {
+        logger.warn('[MCP Bridge] No se pudo guardar copia en /images:', diskErr.message);
+      }
+
       mediaPayload = {
         name: origName,
         type: origType,
         mimeType: origMime,
         size: origSize,
         dataUrl: origDataUrl,
+        publicUrl: savedPublicUrl,
       };
     }
 
@@ -8498,7 +8518,7 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
     const rawExplicitContent =
       contenido || content || nestedDeliverable.contenido || nestedDeliverable.content || '';
     let finalContent = rawExplicitContent || resultado || result || '';
-    const finalUrl = urlDescarga || fileUrl || nestedDeliverable.urlDescarga || nestedDeliverable.fileUrl || null;
+    const finalUrl = urlDescarga || fileUrl || nestedDeliverable.urlDescarga || nestedDeliverable.fileUrl || savedPublicUrl || null;
     const completionNotes =
       resultado || result || nestedDeliverable.resumen || rawExplicitContent || 'Tarea completada exitosamente por Antigravity.';
     const completionNotesStr = typeof completionNotes === 'string' ? completionNotes : JSON.stringify(completionNotes);
@@ -8723,6 +8743,7 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
         file: filePayload,
         messageId: createdTenshiMsg?._id ? createdTenshiMsg._id.toString() : `antigravity-${Date.now()}`,
         summary: finalSummary,
+        sourceModule: task.sourceModule || 'tenshi_voice',
       });
     } catch (_) {}
 
@@ -9357,6 +9378,11 @@ router.post('/notebooklm/tool', requireApiKeyOrJwt, async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 });
+
+router.broadcastAntigravityEvent = broadcastAntigravityEvent;
+router.resolveAntigravityOutputFormat = resolveAntigravityOutputFormat;
+router.getActiveCompany = getActiveCompany;
+router.antigravityStreamClients = antigravityStreamClients;
 
 module.exports = router;
 

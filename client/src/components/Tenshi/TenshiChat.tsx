@@ -4966,6 +4966,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         formato,
         isConversationalReply: explicitConversational,
         isOriginalFileCopy: explicitOriginalFile,
+        sourceModule,
       } = e.detail || {};
       if (ordenId && deliveredAntigravityIdsRef.current.has(String(ordenId))) {
         return;
@@ -5082,7 +5083,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         ];
       });
 
-      setIsOpen(true);
+      if (sourceModule !== 'agent_tool') {
+        setIsOpen(true);
+      }
       refetchHistoryRef.current?.();
 
       // Si NO es una simple pregunta conversacional ni una copia de archivo original, y sí se generó un documento o aplicativo,

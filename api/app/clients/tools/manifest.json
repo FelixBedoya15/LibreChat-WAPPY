@@ -375,5 +375,12 @@
     "description": "Genera imágenes fotorrealistas de alta resolución con Google Imagen y clips de video cinematográficos en MP4 con Google Veo directamente en el chat.",
     "icon": "https://cdn-icons-png.flaticon.com/512/2991/2991148.png",
     "authConfig": []
+  },
+  {
+    "name": "Google Antigravity",
+    "pluginKey": "google_antigravity",
+    "description": "Conexión bidireccional en tiempo real con Google Antigravity en el computador del usuario para consultas, revisión de carpetas locales, envío de archivos originales al chat y creación de documentos en Canvas.",
+    "icon": "https://cdn-icons-png.flaticon.com/512/2991/2991148.png",
+    "authConfig": []
   }
 ]
