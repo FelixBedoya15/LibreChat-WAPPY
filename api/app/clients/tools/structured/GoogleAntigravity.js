@@ -224,12 +224,12 @@ class GoogleAntigravity extends Tool {
 
             if (mediaType === 'image') {
               return this.returnValue(
-                `### 📎 Imagen Original Enviada desde tu PC por Google Antigravity\n![${fileName}](${publicUrl})\n\n* **Archivo:** ${fileName}\n* **Resumen:** ${summaryText}\n* **Descargar:** [⬇ Descargar Archivo Original (${fileName})](${publicUrl})\n\n*(INSTRUCCIÓN CRÍTICA AL AGENTE: Incluye en tu respuesta EXACTAMENTE la imagen \`![${fileName}](${publicUrl})\` y el enlace de descarga \`[⬇ Descargar Archivo Original (${fileName})](${publicUrl})\` usando la ruta exacta \`${publicUrl}\`).*`,
+                `### 📎 Imagen Enviada desde Google Antigravity\n![${fileName}](${publicUrl})\n\n* **Archivo:** ${fileName}\n* **Resumen:** ${summaryText}\n\n*(INSTRUCCIÓN CRÍTICA AL AGENTE: Incluye en tu respuesta ÚNICAMENTE UNA SOLA VEZ la imagen \`![${fileName}](${publicUrl})\` usando la ruta exacta \`${publicUrl}\`. NO agregues un segundo enlace \`[⬇ Descargar]\` repetido porque la tarjeta visual ya incluye el botón de descarga).*`,
               );
             }
             if (mediaType === 'video') {
               return this.returnValue(
-                `### 🎬 Video Original Enviado desde tu PC por Google Antigravity\n[🎬 Reproducir Video (${fileName})](${publicUrl})\n\n* **Archivo:** ${fileName}\n* **Resumen:** ${summaryText}\n* **Descargar:** [⬇ Descargar Video (${fileName})](${publicUrl})\n\n*(INSTRUCCIÓN CRÍTICA AL AGENTE: Incluye en tu respuesta el enlace \`[🎬 Reproducir Video (${fileName})](${publicUrl})\` y \`[⬇ Descargar Video (${fileName})](${publicUrl})\`).*`,
+                `### 🎬 Video Enviado desde Google Antigravity\n[🎬 Reproducir Video (${fileName})](${publicUrl})\n\n* **Archivo:** ${fileName}\n* **Resumen:** ${summaryText}\n\n*(INSTRUCCIÓN CRÍTICA AL AGENTE: Incluye en tu respuesta ÚNICAMENTE UNA SOLA VEZ el enlace \`[🎬 Reproducir Video (${fileName})](${publicUrl})\` sin duplicar otro enlace de descarga).*`,
               );
             }
             return this.returnValue(

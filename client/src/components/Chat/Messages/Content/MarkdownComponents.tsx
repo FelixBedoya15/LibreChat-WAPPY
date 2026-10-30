@@ -298,7 +298,9 @@ export const a: React.ElementType = memo(({ href, children }: TAnchorProps) => {
 
   if (!file_id || !filename) {
     let normalizedHref = href || '';
-    const hallMatch = normalizedHref.match(/\/images\/((?:flow|nlm)_[a-zA-Z0-9_-]+\.[a-z0-9]+)/i);
+    const hallMatch = normalizedHref.match(
+      /\/images\/((?:flow|nlm|sst|antigravity)_[a-zA-Z0-9_.-]+\.[a-z0-9]+)/i,
+    );
     if (hallMatch && !normalizedHref.startsWith('/images/')) {
       normalizedHref = `/images/${hallMatch[1]}`;
     }
@@ -307,18 +309,21 @@ export const a: React.ElementType = memo(({ href, children }: TAnchorProps) => {
       return <NotebookLMArtifactPlayer href={normalizedHref} children={children} />;
     }
     const isFlowOrNlmImage =
-      normalizedHref && /^\/images\/(?:flow_img_|nlm_infographic_)[^?]+\.(?:jpg|jpeg|png|webp)$/i.test(normalizedHref);
+      normalizedHref &&
+      /^\/images\/(?:flow_img_|nlm_infographic_|sst_|antigravity_)[^?]+\.(?:jpg|jpeg|png|webp)$/i.test(
+        normalizedHref,
+      );
     if (isFlowOrNlmImage) {
       return (
         <span className="my-3 block overflow-hidden rounded-2xl border border-teal-500/30 bg-teal-500/5 p-3 shadow-lg">
           <img
             src={normalizedHref}
-            alt="Recurso generado en Google Flow / NotebookLM"
+            alt="Recurso generado en WAPPY IA"
             className="mb-2.5 max-h-[540px] w-full rounded-xl bg-black/5 object-contain"
           />
           <span className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs font-bold text-teal-700 dark:text-teal-300">
-              ✨ Guardado en WAPPY (30 días): {normalizedHref}
+              ✨ Listo para descargar
             </span>
             <a
               href={normalizedHref}
@@ -337,13 +342,6 @@ export const a: React.ElementType = memo(({ href, children }: TAnchorProps) => {
       normalizedHref &&
       (/\.mp4(?:$|\?)/i.test(normalizedHref) || normalizedHref.includes('/images/flow_vid_'));
     if (isMp4Video) {
-      const childText =
-        typeof children === 'string'
-          ? children
-          : Array.isArray(children)
-            ? children.map((c) => (typeof c === 'string' ? c : '')).join('')
-            : '';
-      const isDownloadLink = /descargar|download/i.test(childText);
       const cleanVideoSrc = normalizedHref.split('?')[0];
       let posterUrl = '';
       try {
@@ -354,19 +352,6 @@ export const a: React.ElementType = memo(({ href, children }: TAnchorProps) => {
         }
       } catch {
         // ignore URLSearchParams error
-      }
-      if (isDownloadLink) {
-        return (
-          <a
-            href={cleanVideoSrc}
-            download
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-green-500/30 bg-green-500/10 px-3 py-1.5 text-xs font-bold text-green-700 transition-all hover:bg-green-500/20 dark:text-green-300"
-          >
-            {children}
-          </a>
-        );
       }
       return (
         <span className="my-3 block overflow-hidden rounded-2xl border border-purple-500/30 bg-purple-500/5 p-3 shadow-lg">
@@ -490,4 +475,60 @@ export const table: React.ElementType = memo(({ children, ...props }: any) => {
     </div>
   );
 });
+
+export const img: React.ElementType = memo(({ src, alt, ...props }: any) => {
+  let normalizedSrc = String(src || '');
+  const hallMatch = normalizedSrc.match(
+    /\/images\/((?:flow|nlm|sst|antigravity)_[a-zA-Z0-9_.-]+\.[a-z0-9]+)/i,
+  );
+  if (hallMatch && !normalizedSrc.startsWith('/images/')) {
+    normalizedSrc = `/images/${hallMatch[1]}`;
+  }
+
+  if (normalizedSrc && normalizedSrc.includes('/api/notebooklm/download/')) {
+    return (
+      <NotebookLMArtifactPlayer
+        href={normalizedSrc}
+        children={alt || 'Descargar Infografía'}
+      />
+    );
+  }
+
+  const isWappyGeneratedImage =
+    normalizedSrc &&
+    (/^\/images\/(?:flow_img_|nlm_infographic_|sst_|antigravity_)[^?]+\.(?:jpg|jpeg|png|webp)$/i.test(
+      normalizedSrc,
+    ) ||
+      (/^\/images\/[^?]+\.(?:jpg|jpeg|png|webp)$/i.test(normalizedSrc) &&
+        !/^\/images\/(?:ghs|avatars|icons|logos|assets)\//i.test(normalizedSrc)));
+
+  if (isWappyGeneratedImage) {
+    return (
+      <span className="my-3 block overflow-hidden rounded-2xl border border-teal-500/30 bg-teal-500/5 p-3 shadow-lg">
+        <img
+          src={normalizedSrc}
+          alt={alt || 'Imagen generada en WAPPY IA'}
+          className="mb-2.5 max-h-[540px] w-full rounded-xl bg-black/5 object-contain"
+        />
+        <span className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs font-bold text-teal-700 dark:text-teal-300">
+            ✨ Listo para descargar
+          </span>
+          <a
+            href={normalizedSrc}
+            download
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-green-500/30 bg-green-500/10 px-3 py-1.5 text-xs font-bold text-green-700 transition-all hover:bg-green-500/20 dark:text-green-300"
+          >
+            ⬇ Descargar Imagen
+          </a>
+        </span>
+      </span>
+    );
+  }
+
+  return <img src={src} alt={alt} {...props} />;
+});
+
 

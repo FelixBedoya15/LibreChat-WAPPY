@@ -1046,6 +1046,7 @@ async function executeFlowImageGeneration({
   prompt,
   aspectRatio = '16:9',
   style = 'fotorrealista',
+  skipAntigravity = false,
 }) {
   if (!prompt || !String(prompt).trim()) {
     throw new Error('Debes indicar una descripción (prompt) para generar la imagen.');
@@ -1073,6 +1074,51 @@ async function executeFlowImageGeneration({
   const safeBasePrompt = sanitizePreventiveSstPrompt(prompt);
   const enhancedPrompt = `${safeBasePrompt}, ${styleSuffix}, aspect ratio ${cleanRatio}`;
   const fallbackSafePrompt = buildFallbackSafeSstPrompt(safeBasePrompt, cleanRatio);
+
+  // INTENTO 0 (PRIORIDAD #1): Si Google Antigravity está conectado en el equipo del usuario, priorizar Antigravity sobre Google Flow.
+  // Si Antigravity no está conectado o falla/no responde a tiempo, cae automáticamente a Google Flow Studio.
+  if (userId && !skipAntigravity) {
+    try {
+      const mcpBridge = require('~/server/routes/mcpBridge');
+      if (typeof mcpBridge.tryGenerateImageViaAntigravity === 'function') {
+        const agRes = await mcpBridge.tryGenerateImageViaAntigravity({
+          userId,
+          prompt: safeBasePrompt,
+          enhancedPrompt,
+          aspectRatio: cleanRatio,
+          style,
+        });
+        if (agRes?.ok && agRes.publicUrl) {
+          logger.info(
+            `[GoogleFlow] ✅ Imagen generada prioritariamente por Google Antigravity para usuario ${userId}: ${agRes.publicUrl}`
+          );
+          return {
+            success: true,
+            type: 'image',
+            fileId: agRes.fileId || uuidv4(),
+            filename: agRes.filename || agRes.publicUrl.split('/').pop(),
+            fullPath: agRes.fullPath || '',
+            publicUrl: agRes.publicUrl,
+            mimeType: agRes.mimeType || 'image/png',
+            buffer: agRes.buffer || null,
+            model: agRes.model || 'Google Antigravity Studio',
+            prompt,
+            aspectRatio: cleanRatio,
+          };
+        }
+        if (agRes?.reason && agRes.reason !== 'no_antigravity_daemon') {
+          logger.info(
+            `[GoogleFlow] 🔄 Antigravity no completó la imagen (${agRes.reason}). Activando respaldo automático en Google Flow Studio...`
+          );
+        }
+      }
+    } catch (agErr) {
+      logger.warn(
+        `[GoogleFlow] Aviso al intentar generación prioritaria con Antigravity (usando Google Flow como respaldo): ${agErr.message}`
+      );
+    }
+  }
+
   let imageBuffer = null;
   let mimeType = 'image/png';
   let modelUsed = '';
@@ -1137,13 +1183,12 @@ async function executeFlowImageGeneration({
     }
   }
 
-  // INTENTO 2: Google Gemini Native Image API (gemini-3.1-flash-lite-image / gemini-nano-banana-2.1 / gemini-3.1-flash-image / gemini-2.5-flash-image)
+  // INTENTO 2: Google Gemini Native Image API (gemini-3.1-flash-lite-image / gemini-nano-banana-2.1 / gemini-3.1-flash-image)
   if (!imageBuffer && creds.apiKeys && creds.apiKeys.length > 0) {
     const geminiImgModels = [
       'gemini-3.1-flash-lite-image',
       'gemini-nano-banana-2.1',
       'gemini-3.1-flash-image',
-      'gemini-2.5-flash-image',
     ];
     for (const gm of geminiImgModels) {
       if (imageBuffer) break;
@@ -1791,12 +1836,38 @@ router.post('/session', requireJwtAuth, async (req, res) => {
 router.post('/test', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const session = await GoogleFlowSession.findOne({ user: userId });
+    let session = await GoogleFlowSession.findOne({ user: userId });
+    const nbSession = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
+
+    // Si GoogleFlowSession no existe o no tiene cookies, pero NotebookLM sí tiene cookies, auto-sincronizar
+    if ((!session || !session.cookies || session.cookies.length === 0) && nbSession?.cookies?.length > 0) {
+      const merged = mergeGoogleCookiesByDomain(nbSession.cookies, session?.cookies || []);
+      const anyOsid = merged.find((c) => c && c.name === 'OSID' && c.value);
+      const anySecOsid = merged.find((c) => c && c.name === '__Secure-OSID' && c.value);
+      if (anyOsid && !merged.some((c) => c && c.name === 'OSID' && String(c.domain || '').includes('flow.google.com'))) {
+        merged.push({ ...anyOsid, domain: 'flow.google.com' });
+      }
+      if (anySecOsid && !merged.some((c) => c && c.name === '__Secure-OSID' && String(c.domain || '').includes('flow.google.com'))) {
+        merged.push({ ...anySecOsid, domain: 'flow.google.com' });
+      }
+      session = await GoogleFlowSession.findOneAndUpdate(
+        { user: userId },
+        {
+          email: nbSession.email || req.user.email || 'Cuenta vinculada',
+          cookies: merged,
+          cookieCount: merged.length,
+          isValid: true,
+          lastTestedAt: new Date(),
+          source: 'notebooklm-sync',
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+    }
 
     if (!session || ((!session.cookies || session.cookies.length === 0) && !session.apiKey)) {
       return res.status(404).json({
         success: false,
-        reason: 'No tienes una sesión de Google Flow ni API Key configurada.',
+        reason: 'No tienes una sesión de Google Flow vinculada. Haz clic en Reconectar para vincular tu cuenta.',
       });
     }
 
@@ -1804,6 +1875,10 @@ router.post('/test', requireJwtAuth, async (req, res) => {
     let message = `✓ ¡Conexión privada con Google Flow (${session.email || 'Cuenta activa'}) verificada y lista para generar imágenes y vídeos!`;
 
     if (session.cookies && session.cookies.length > 0) {
+      if (nbSession?.cookies?.length > 0) {
+        session.cookies = mergeGoogleCookiesByDomain(session.cookies, nbSession.cookies);
+        session.cookieCount = session.cookies.length;
+      }
       const cookieCheck = validateCookiesLocally(session.cookies);
       if (!cookieCheck.success && !session.apiKey) {
         isValid = false;
@@ -1811,7 +1886,7 @@ router.post('/test', requireJwtAuth, async (req, res) => {
       } else {
         let fxCheck = await fetchLabsFxSession(session.cookies);
         if (!fxCheck.ok) {
-          const refreshed = await refreshGoogleCookiesOnDemand(userId, session.cookies, session.email || '');
+          const refreshed = await refreshGoogleCookiesOnDemand(userId, session.cookies, session.email || '', true);
           session.cookies = refreshed;
           session.cookieCount = refreshed.length;
           fxCheck = await fetchLabsFxSession(session.cookies);
@@ -1820,9 +1895,13 @@ router.post('/test', requireJwtAuth, async (req, res) => {
           session.email = fxCheck.email;
         }
         if (fxCheck.ok) {
+          isValid = true;
           const creditsTag =
             typeof fxCheck.credits === 'number' ? ` (${fxCheck.credits} créditos activos en Flow)` : '';
           message = `✓ ¡Conexión con Google Flow (${session.email || 'Cuenta activa'}) verificada en vivo${creditsTag} y lista para generar imágenes y vídeos!`;
+        } else if (!session.apiKey) {
+          isValid = false;
+          message = 'La sesión de Google Flow ha expirado o fue cerrada. Haz clic en el botón Reconectar para volver a vincular tu cuenta.';
         }
       }
     }
@@ -1833,6 +1912,7 @@ router.post('/test', requireJwtAuth, async (req, res) => {
 
     return res.json({
       success: isValid,
+      reason: isValid ? null : message,
       message,
       lastTestedAt: session.lastTestedAt,
     });

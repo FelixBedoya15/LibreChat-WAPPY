@@ -8644,6 +8644,125 @@ function countAntigravityDaemons(userId) {
 }
 
 /**
+ * Mapa en memoria de promesas pendientes para generación prioritaria de imágenes vía Antigravity.
+ * Clave: String(ordenId) -> { resolve, timer, claimTimer }
+ */
+const pendingAntigravityImageResolvers = new Map();
+
+/**
+ * Prioridad #1 para generación de imágenes cuando Google Antigravity está conectado (countAntigravityDaemons > 0).
+ * Si Antigravity no tiene daemon conectado, no reclama la orden en 10s, reporta fallo local o excede 42s,
+ * devuelve { ok: false, reason } para que `executeFlowImageGeneration` haga respaldo automático inmediato a Google Flow Studio.
+ */
+async function tryGenerateImageViaAntigravity({
+  userId,
+  prompt,
+  enhancedPrompt,
+  aspectRatio = '16:9',
+  style = 'Fotorrealismo corporativo',
+}) {
+  const targetUserId = String(userId || '').trim();
+  if (!targetUserId) {
+    return { ok: false, reason: 'no_user_id' };
+  }
+  const daemonCount = countAntigravityDaemons(targetUserId);
+  if (daemonCount <= 0) {
+    return { ok: false, reason: 'no_antigravity_daemon' };
+  }
+
+  try {
+    const company = await getActiveCompany(targetUserId).catch(() => null);
+    const cleanPrompt = String(prompt || '').trim();
+    const finalPrompt = String(enhancedPrompt || cleanPrompt).trim();
+    const finalTitle = `Imagen Antigravity: ${cleanPrompt.slice(0, 55)}`;
+
+    const kanbanTask = await KanbanTask.create({
+      user: targetUserId,
+      companyId: company?._id ? String(company._id) : null,
+      title: finalTitle,
+      description: `[PRIORIDAD #1 GENERACIÓN DE IMAGEN VÍA ANTIGRAVITY]\nEmpresa: ${company?.companyName || 'Empresa Activa'}\nInstrucción: Genera una imagen visual de alta resolución (${aspectRatio}, estilo ${style}): ${finalPrompt}\nPrompt Original: ${cleanPrompt}\nFormato Esperado: imagen`,
+      status: 'todo',
+      dueDate: new Date(Date.now() + 30 * 60 * 1000),
+      type: 'antigravity_delegation',
+      priority: 'alta',
+      sourceModule: 'image_priority',
+    });
+
+    const ordenId = kanbanTask._id.toString();
+
+    const waitPromise = new Promise((resolve) => {
+      let settled = false;
+      const finish = (result) => {
+        if (settled) return;
+        settled = true;
+        const entry = pendingAntigravityImageResolvers.get(ordenId);
+        if (entry) {
+          if (entry.claimTimer) clearTimeout(entry.claimTimer);
+          if (entry.timer) clearTimeout(entry.timer);
+          pendingAntigravityImageResolvers.delete(ordenId);
+        }
+        resolve(result);
+      };
+
+      const claimTimer = setTimeout(async () => {
+        try {
+          const check = await KanbanTask.findById(ordenId).select('status').lean();
+          if (!check || check.status === 'todo') {
+            await KanbanTask.updateOne({ _id: ordenId }, { $set: { status: 'dismissed' } }).catch(() => {});
+            finish({
+              ok: false,
+              reason: 'El puente local de Antigravity no reclamó la solicitud de imagen en 10s (respaldo a Google Flow)',
+            });
+          }
+        } catch (_) {}
+      }, 10000);
+
+      const timer = setTimeout(async () => {
+        try {
+          await KanbanTask.updateOne(
+            { _id: ordenId, status: { $ne: 'done' } },
+            { $set: { status: 'dismissed' } }
+          ).catch(() => {});
+        } catch (_) {}
+        finish({
+          ok: false,
+          reason: 'Tiempo límite de generación en Antigravity agotado (respaldo automático a Google Flow)',
+        });
+      }, 42000);
+
+      pendingAntigravityImageResolvers.set(ordenId, {
+        resolve: finish,
+        claimTimer,
+        timer,
+      });
+    });
+
+    broadcastAntigravityEvent(targetUserId, 'nueva_orden', {
+      id: ordenId,
+      ordenId,
+      titulo: finalTitle,
+      instruccion: `Genera una imagen (${aspectRatio}, estilo ${style}): ${finalPrompt}`,
+      promptOriginal: cleanPrompt,
+      aspectRatio,
+      style,
+      descripcion: kanbanTask.description,
+      recursoObjetivo: 'Generador de Imágenes Google Antigravity',
+      formatoEntregable: 'imagen',
+      estado: 'todo',
+      prioridad: 'alta',
+      sourceModule: 'image_priority',
+      empresa: company?.companyName || 'Empresa Activa',
+      fechaCreacion: kanbanTask.createdAt || new Date().toISOString(),
+    });
+
+    return await waitPromise;
+  } catch (err) {
+    logger.warn(`[MCP Bridge] Error en tryGenerateImageViaAntigravity: ${err.message}`);
+    return { ok: false, reason: err.message };
+  }
+}
+
+/**
  * Versión oficial del daemon leída directamente del archivo servido (bin/wappy-antigravity-daemon.js),
  * para que el servidor y el daemon nunca queden desincronizados por un olvido manual.
  */
@@ -8854,11 +8973,80 @@ router.post('/antigravity/ordenes/:id/dispatch-log', requireApiKeyOrJwt, async (
     } else {
       logger.error(`[MCP Bridge] ❌ Falló despacho local de orden ${ordenId} en PC de usuario ${targetUserId} (v: ${version || 'legacy'}, OS: ${platform || 'N/A'}, bin: ${bin || 'N/A'}, cwd: ${cwd || 'N/A'}): ${error || 'Error desconocido'}`);
 
-      // Avisar al usuario en Tenshi en vez de quedarse en silencio (cierra el ciclo de la orden)
+      // Si era una solicitud prioritaria de imagen en espera, resolver de inmediato hacia el respaldo de Google Flow
+      const pendingImg = pendingAntigravityImageResolvers.get(String(ordenId));
+      if (pendingImg && typeof pendingImg.resolve === 'function') {
+        try {
+          if (mongoose.Types.ObjectId.isValid(ordenId)) {
+            await KanbanTask.updateOne({ _id: ordenId }, { $set: { status: 'dismissed' } }).catch(() => {});
+          }
+        } catch (_) {}
+        pendingImg.resolve({
+          ok: false,
+          reason: error || 'Antigravity local no pudo procesar la imagen',
+        });
+        return res.json({ ok: true, fallback: 'googleflow' });
+      }
+
+      // Avisar al usuario en Tenshi (o hacer respaldo automático a Google Flow si la orden delegada era una imagen)
       try {
         if (mongoose.Types.ObjectId.isValid(ordenId)) {
           const task = await KanbanTask.findOne({ _id: ordenId, user: targetUserId });
           if (task && task.status !== 'done' && task.status !== 'dismissed') {
+            const taskDesc = String(task.description || '');
+            const isStandaloneImageOrder =
+              /Formato Esperado:\s*imagen/i.test(taskDesc) ||
+              /\b(genera(?:r|me)?|crea(?:r|me)?|dise[ñn]a(?:r|me)?|dibuja(?:r|me)?|haz(?:me)?)\b[\s\S]{0,40}\b(imagen|ilustraci[oó]n|afiche|p[oó]ster|fotograf[ií]a)\b/i.test(
+                `${task.title || ''} ${taskDesc}`
+              );
+
+            if (isStandaloneImageOrder) {
+              try {
+                const { executeFlowImageGeneration } = require('./googleflow');
+                const mInstr = taskDesc.match(/Instrucci[oó]n:\s*([\s\S]*?)(?:\nRecurso Objetivo:|\nFormato Esperado:|$)/i);
+                const imgPrompt = (mInstr ? mInstr[1].trim() : task.title || 'Escena preventiva SG-SST').slice(0, 600);
+                logger.info(`[MCP Bridge] 🔄 Antigravity falló en orden de imagen ${ordenId}; activando respaldo automático con Google Flow Studio...`);
+                const flowImg = await executeFlowImageGeneration({
+                  userId: targetUserId,
+                  prompt: imgPrompt,
+                  skipAntigravity: true,
+                });
+                if (flowImg && flowImg.publicUrl) {
+                  const fallbackSummary = `✨ **Imagen generada automáticamente con Google Flow Studio** *(respaldo automático activado porque Google Antigravity no estuvo disponible en tu PC)*:\n\n![${imgPrompt.slice(0, 80)}](${flowImg.publicUrl})`;
+                  task.status = 'done';
+                  task.completedAt = new Date();
+                  task.deliverable = {
+                    formato: 'imagen',
+                    contenido: fallbackSummary,
+                    urlDescarga: flowImg.publicUrl,
+                    resumen: fallbackSummary,
+                    titulo: task.title,
+                  };
+                  await task.save();
+
+                  const tenshiFallbackMsg = await TenshiMessage.create({
+                    user: targetUserId,
+                    role: 'assistant',
+                    content: fallbackSummary,
+                  }).catch(() => null);
+
+                  broadcastAntigravityEvent(targetUserId, 'orden_completada', {
+                    ordenId: task._id.toString(),
+                    title: task.title,
+                    formato: 'respuesta',
+                    isConversationalReply: true,
+                    isOriginalFileCopy: false,
+                    messageId: tenshiFallbackMsg?._id ? tenshiFallbackMsg._id.toString() : `flow-fallback-${Date.now()}`,
+                    summary: fallbackSummary,
+                    sourceModule: task.sourceModule || 'tenshi_voice',
+                  });
+                  return res.json({ ok: true, fallback: 'googleflow_completed' });
+                }
+              } catch (flowFallbackErr) {
+                logger.warn('[MCP Bridge] Respaldo de Google Flow para orden de imagen también falló:', flowFallbackErr.message);
+              }
+            }
+
             const rawErr = String(error || '');
             const antigravityClosed = /no-ls-addr|connection refused|Unavailable|ANTIGRAVITY_LS_ADDRESS is not set|ECONNREFUSED/i.test(rawErr);
             const friendlyMsg = antigravityClosed
@@ -8876,7 +9064,7 @@ router.post('/antigravity/ordenes/:id/dispatch-log', requireApiKeyOrJwt, async (
             await task.save();
 
             let tenshiMsg = null;
-            if (task.sourceModule !== 'agent_tool') {
+            if (task.sourceModule !== 'agent_tool' && task.sourceModule !== 'image_priority') {
               tenshiMsg = await TenshiMessage.create({
                 user: targetUserId,
                 role: 'assistant',
@@ -8951,6 +9139,9 @@ function resolveAntigravityOutputFormat(rawType, instructionText = '', files = [
 
   if (normRaw === 'copia_archivo' || normRaw === 'archivo_original' || normRaw === 'copia') {
     return 'copia_archivo';
+  }
+  if (normRaw === 'imagen' || normRaw === 'image') {
+    return 'imagen';
   }
 
   // Detectar si el usuario pide enviar/pasar/traer una copia de un archivo original existente en su PC/computador/carpeta (sin crear uno nuevo)
@@ -9580,6 +9771,32 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
     task.description += `\n\n[RESULTADO DE ANTIGRAVITY - ${new Date().toISOString()}]\n${completionNotesStr.slice(0, 3000)}`;
     await task.save();
 
+    // Si esta orden corresponde a `tryGenerateImageViaAntigravity` (sourceModule === 'image_priority'),
+    // resolver la promesa en espera de inmediato y NO inyectar una burbuja extra en TenshiMessage (evita duplicados)
+    const pendingImgResolver = pendingAntigravityImageResolvers.get(task._id.toString());
+    if (pendingImgResolver && typeof pendingImgResolver.resolve === 'function') {
+      const resolvedUrl = savedPublicUrl || finalUrl;
+      if (resolvedUrl) {
+        pendingImgResolver.resolve({
+          ok: true,
+          publicUrl: resolvedUrl,
+          filename: mediaPayload?.name || resolvedUrl.split('/').pop() || `antigravity_${Date.now()}.png`,
+          mimeType: mediaPayload?.mimeType || 'image/png',
+          model: 'Google Antigravity Studio (Prioridad #1)',
+        });
+      } else {
+        pendingImgResolver.resolve({
+          ok: false,
+          reason: 'Antigravity completó la orden sin adjuntar un archivo de imagen válido',
+        });
+      }
+      return res.json({
+        exito: true,
+        mensaje: `Imagen prioritaria de Antigravity entregada al flujo solicitante (${resolvedUrl || 'sin URL'}).`,
+        orden: { id: task._id.toString(), titulo: task.title, status: task.status },
+      });
+    }
+
     // ── INYECCIÓN AUTOMÁTICA EN EL CHAT DE TENSHI (TenshiMessage) ───────────────
     let createdTenshiMsg = null;
     const normalizedFileType = isConversationalReply || isOriginalFileCopy
@@ -9601,33 +9818,37 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
         }
       : undefined;
 
-    try {
-      const tenshiBubbleContent = isOriginalFileCopy && mediaPayload
-        ? `📎 **Copia de Archivo Original desde tu PC (` + `${mediaPayload.name}` + `)**\n\n${finalSummary}`
-        : isConversationalReply
-        ? `⚡ **Respuesta de Google Antigravity**\n\n${finalSummary}`
-        : `✨ **¡Documento / Entregable de Google Antigravity Listo en el Editor de WAPPY!**\n\n**${task.title}**\n\n${finalSummary}${finalUrl ? `\n🔗 **Enlace de descarga:** [Descargar Archivo](${finalUrl})` : ''}`;
+    if (task.sourceModule !== 'image_priority') {
+      try {
+        const tenshiBubbleContent = isOriginalFileCopy && mediaPayload
+          ? mediaPayload.type === 'image' && savedPublicUrl
+            ? `📎 **Imagen desde Google Antigravity (${mediaPayload.name})**\n\n${finalSummary}\n\n![${mediaPayload.name}](${savedPublicUrl})`
+            : `📎 **Copia de Archivo Original desde tu PC (${mediaPayload.name})**\n\n${finalSummary}`
+          : isConversationalReply
+          ? `⚡ **Respuesta de Google Antigravity**\n\n${finalSummary}`
+          : `✨ **¡Documento / Entregable de Google Antigravity Listo en el Editor de WAPPY!**\n\n**${task.title}**\n\n${finalSummary}${finalUrl ? `\n🔗 **Enlace de descarga:** [Descargar Archivo](${finalUrl})` : ''}`;
 
-      createdTenshiMsg = await TenshiMessage.create({
-        user: targetUserId,
-        role: 'assistant',
-        content: tenshiBubbleContent,
-        htmlReport: isHtml ? finalContent : undefined,
-        file: filePayload,
-        media: mediaPayload,
-        report: isConversationalReply || isOriginalFileCopy
-          ? undefined
-          : {
-              titulo: task.title,
-              aplicativo: 'antigravity_delegation',
-              formato: finalFormat,
-              contenido: finalContent ? finalContent.slice(0, 10000) : '',
-            },
-      });
+        createdTenshiMsg = await TenshiMessage.create({
+          user: targetUserId,
+          role: 'assistant',
+          content: tenshiBubbleContent,
+          htmlReport: isHtml ? finalContent : undefined,
+          file: filePayload,
+          media: mediaPayload && mediaPayload.type === 'image' && savedPublicUrl ? undefined : mediaPayload,
+          report: isConversationalReply || isOriginalFileCopy
+            ? undefined
+            : {
+                titulo: task.title,
+                aplicativo: 'antigravity_delegation',
+                formato: finalFormat,
+                contenido: finalContent ? finalContent.slice(0, 10000) : '',
+              },
+        });
 
-      logger.info(`[MCP Bridge] Mensaje de Tenshi inyectado exitosamente (ID: ${createdTenshiMsg._id}, formato: ${finalFormat}) para orden ${task._id}`);
-    } catch (msgErr) {
-      logger.error('[MCP Bridge] Error inyectando TenshiMessage al completar orden:', msgErr);
+        logger.info(`[MCP Bridge] Mensaje de Tenshi inyectado exitosamente (ID: ${createdTenshiMsg._id}, formato: ${finalFormat}) para orden ${task._id}`);
+      } catch (msgErr) {
+        logger.error('[MCP Bridge] Error inyectando TenshiMessage al completar orden:', msgErr);
+      }
     }
 
     // ── EMISIÓN PUSH EN TIEMPO REAL AL STREAM SSE (NAVEGADOR / CELULAR / TENSHI) ─
@@ -10377,6 +10598,7 @@ router.post('/plan-emergencias', requireApiKeyOrJwt, async (req, res) => {
 
 router.broadcastAntigravityEvent = broadcastAntigravityEvent;
 router.countAntigravityDaemons = countAntigravityDaemons;
+router.tryGenerateImageViaAntigravity = tryGenerateImageViaAntigravity;
 router.resolveAntigravityOutputFormat = resolveAntigravityOutputFormat;
 router.getActiveCompany = getActiveCompany;
 router.antigravityStreamClients = antigravityStreamClients;

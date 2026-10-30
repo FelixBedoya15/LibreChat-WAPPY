@@ -116,9 +116,8 @@ class GoogleFlow extends Tool {
 * **Prompt:** ${prompt}
 * **Motor:** ${vidRes.model}
 * **Formato:** \`${vidRes.aspectRatio}\` (${movimiento_camara})
-* **Descargar MP4:** [⬇ Descargar Video (${vidRes.filename})](${vidRes.publicUrl})
 
-*(INSTRUCCIÓN AL AGENTE: Incluye este enlace Markdown del video \`[🎬 Reproducir Video](${vidRes.publicUrl})\` exactamente así en tu respuesta; NO uses etiquetas HTML \`<video>\` crudas porque el reproductor de WAPPY renderiza automáticamente los enlaces \`.mp4\`).*`;
+*(INSTRUCCIÓN CRÍTICA AL AGENTE: Incluye únicamente UNA VEZ el enlace Markdown del video \`[🎬 Reproducir Video (${vidRes.filename})](${vidRes.publicUrl})\` en tu respuesta. NO agregues un segundo enlace \`[⬇ Descargar Video]\` separado ni etiquetas \`<video>\` crudas, ya que el reproductor interactivo de WAPPY muestra el video con su propio botón de descarga integrado).*`;
 
         return this.returnValue(markdown);
       } else {
@@ -130,15 +129,14 @@ class GoogleFlow extends Tool {
           style: estilo,
         });
 
-        const markdown = `### ✨ Imagen Generada con Google Flow Studio
+        const markdown = `### ✨ Imagen Generada (${imgRes.model || 'Google Flow Studio'})
 ![${prompt.slice(0, 100)}](${imgRes.publicUrl})
 
 * **Prompt:** ${prompt}
 * **Motor:** ${imgRes.model}
 * **Formato:** \`${imgRes.aspectRatio}\`
-* **Descargar:** [⬇ Descargar Imagen (${imgRes.filename})](${imgRes.publicUrl})
 
-*(INSTRUCCIÓN CRÍTICA AL AGENTE: Debes copiar e incluir en tu respuesta EXACTAMENTE la imagen en Markdown \`![${prompt.slice(0, 60)}](${imgRes.publicUrl})\` y el enlace de descarga \`[⬇ Descargar Imagen](${imgRes.publicUrl})\` usando la ruta exacta \`${imgRes.publicUrl}\`. PROHIBIDO inventar, modificar o sustituir la URL por dominios como \`storage.googleapis.com\` u otros; la imagen está alojada en el servidor de WAPPY en \`${imgRes.publicUrl}\`).*`;
+*(INSTRUCCIÓN CRÍTICA AL AGENTE: Incluye en tu respuesta ÚNICAMENTE UNA SOLA VEZ la imagen en Markdown \`![${prompt.slice(0, 60)}](${imgRes.publicUrl})\` usando la ruta exacta \`${imgRes.publicUrl}\`. PROHIBIDO agregar un segundo enlace \`[⬇ Descargar Imagen](${imgRes.publicUrl})\` debajo porque la tarjeta visual de WAPPY ya incluye automáticamente la vista previa y el botón de descarga en una sola tarjeta).*`;
 
         return this.returnValue(markdown);
       }

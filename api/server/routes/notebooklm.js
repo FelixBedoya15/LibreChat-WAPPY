@@ -631,7 +631,9 @@ router.post('/session', requireJwtAuth, async (req, res) => {
 
 /**
  * POST /api/notebooklm/test
- * Prueba en vivo la sesión actual del usuario contra el contenedor notebooklm-mcp
+ * Prueba en vivo la sesión actual del usuario contra el contenedor notebooklm-mcp.
+ * Si la sesión local de NotebookLM está vacía o expiró pero Google Flow tiene sesión activa,
+ * sincroniza automáticamente las cookies de Google para reconectar sin pedir login de nuevo.
  */
 router.post('/test', requireJwtAuth, async (req, res) => {
   try {
@@ -639,7 +641,7 @@ router.post('/test', requireJwtAuth, async (req, res) => {
     let cookies = [];
     let effectiveEmail = req.user.email || '';
 
-    // Buscar en MongoDB primero
+    // 1. Buscar en MongoDB primero (NotebookSession)
     const session = await NotebookSession.findOne({ user: userId }).lean();
     if (session && Array.isArray(session.cookies) && session.cookies.length > 0) {
       cookies = session.cookies;
@@ -648,22 +650,68 @@ router.post('/test', requireJwtAuth, async (req, res) => {
       // Buscar en disco
       const primaryPath = getStoragePaths(userId)[0];
       if (fs.existsSync(primaryPath)) {
-        const parsed = JSON.parse(fs.readFileSync(primaryPath, 'utf8'));
-        cookies = parsed.cookies || [];
-        effectiveEmail = parsed.notebooklm?.account?.email || effectiveEmail;
+        try {
+          const parsed = JSON.parse(fs.readFileSync(primaryPath, 'utf8'));
+          cookies = parsed.cookies || [];
+          effectiveEmail = parsed.notebooklm?.account?.email || effectiveEmail;
+        } catch (_) {}
       }
     }
 
+    // 2. Si no hay cookies en NotebookLM, intentar sincronizar desde GoogleFlowSession
     if (cookies.length === 0) {
-      return res.status(404).json({
+      try {
+        const GoogleFlowSession = require('~/models/GoogleFlowSession');
+        const flowSess = await GoogleFlowSession.findOne({ user: userId }).lean();
+        if (flowSess && Array.isArray(flowSess.cookies) && flowSess.cookies.length > 0) {
+          cookies = flowSess.cookies;
+          effectiveEmail = flowSess.email || effectiveEmail;
+          await NotebookSession.findOneAndUpdate(
+            { user: userId },
+            {
+              $set: {
+                user: userId,
+                email: effectiveEmail,
+                cookies,
+                isValid: true,
+                lastTestedAt: new Date(),
+              },
+            },
+            { upsert: true }
+          );
+          const storagePayload = JSON.stringify({
+            cookies,
+            origins: [],
+            notebooklm: {
+              updatedAt: new Date().toISOString(),
+              source: 'auto_sync_from_googleflow',
+              userId: String(userId),
+              account: { email: effectiveEmail },
+            },
+          }, null, 2);
+          for (const targetPath of getStoragePaths(userId)) {
+            try {
+              fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+              fs.writeFileSync(targetPath, storagePayload, 'utf8');
+            } catch (_) {}
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (cookies.length === 0) {
+      return res.status(200).json({
+        success: false,
+        reason: 'No hay ninguna sesión privada guardada para este usuario. Usa "Conectar en 1 Clic" o el botón Reconectar.',
         error: 'No hay ninguna sesión privada guardada para este usuario.',
       });
     }
 
-    let testResult = validateCookiesLocally(cookies);
-    let notebooksCount = null;
-
-    if (testResult.success) {
+    const runLiveMcpCheck = async (cookiesToSend, emailToUse) => {
+      const localCheck = validateCookiesLocally(cookiesToSend);
+      if (!localCheck.success) {
+        return { success: false, notebooksCount: null, reason: localCheck.reason };
+      }
       try {
         const notebooklmUrl = process.env.NOTEBOOKLM_URL || 'http://notebooklm-mcp:9420';
         const mcpRes = await fetch(`${notebooklmUrl}/api/direct-tool`, {
@@ -671,44 +719,73 @@ router.post('/test', requireJwtAuth, async (req, res) => {
           headers: {
             'Content-Type': 'application/json',
             'x-user-id': String(userId),
-            'x-user-email': String(effectiveEmail),
+            'x-user-email': String(emailToUse),
+            'x-notebooklm-auth': JSON.stringify(cookiesToSend),
           },
           body: JSON.stringify({
             name: 'notebook_list',
             arguments: {},
             user_id: String(userId),
-            user_email: String(effectiveEmail),
+            user_email: String(emailToUse),
           }),
         });
         const mcpData = await mcpRes.json().catch(() => ({}));
         if (!mcpRes.ok || mcpData?.error) {
-          testResult = {
+          return {
             success: false,
+            notebooksCount: null,
             reason: mcpData?.error || `La sesión de Google NotebookLM ha expirado (HTTP ${mcpRes.status}).`,
           };
-        } else if (Array.isArray(mcpData?.result)) {
-          notebooksCount = mcpData.result.length;
         }
+        return {
+          success: true,
+          notebooksCount: Array.isArray(mcpData?.result) ? mcpData.result.length : null,
+          reason: null,
+        };
       } catch (liveErr) {
-        testResult = {
+        return {
           success: false,
+          notebooksCount: null,
           reason: `No se pudo contactar al motor NotebookLM MCP: ${liveErr.message}`,
         };
       }
+    };
+
+    let liveRes = await runLiveMcpCheck(cookies, effectiveEmail);
+
+    // 3. Si falló la verificación en vivo pero existe una sesión más reciente en GoogleFlowSession, sincronizar y reintentar
+    if (!liveRes.success) {
+      try {
+        const GoogleFlowSession = require('~/models/GoogleFlowSession');
+        const flowSess = await GoogleFlowSession.findOne({ user: userId }).lean();
+        if (flowSess && Array.isArray(flowSess.cookies) && flowSess.cookies.length > 0) {
+          const retryRes = await runLiveMcpCheck(flowSess.cookies, flowSess.email || effectiveEmail);
+          if (retryRes.success) {
+            cookies = flowSess.cookies;
+            effectiveEmail = flowSess.email || effectiveEmail;
+            liveRes = retryRes;
+            await NotebookSession.findOneAndUpdate(
+              { user: userId },
+              { $set: { cookies, email: effectiveEmail, isValid: true, lastTestedAt: new Date() } },
+              { upsert: true }
+            );
+          }
+        }
+      } catch (_) {}
     }
 
     await NotebookSession.findOneAndUpdate(
       { user: userId },
-      { isValid: testResult.success, lastTestedAt: new Date() }
+      { isValid: liveRes.success, lastTestedAt: new Date() }
     );
 
     return res.json({
-      success: testResult.success,
-      notebooksCount,
-      reason: testResult.reason || null,
-      message: testResult.success
-        ? `¡Tu sesión privada contra Google NotebookLM está ACTIVA y funcionando!${notebooksCount !== null ? ` Se detectaron ${notebooksCount} cuadernos disponibles.` : ''}`
-        : `La sesión falló la verificación en vivo: ${testResult.reason}`,
+      success: liveRes.success,
+      notebooksCount: liveRes.notebooksCount,
+      reason: liveRes.reason || null,
+      message: liveRes.success
+        ? `¡Tu sesión privada contra Google NotebookLM está ACTIVA y funcionando!${liveRes.notebooksCount !== null ? ` Se detectaron ${liveRes.notebooksCount} cuadernos disponibles.` : ''}`
+        : `La sesión falló la verificación en vivo: ${liveRes.reason}`,
     });
   } catch (error) {
     logger.error('[NotebookLM] Error probando sesión:', error);

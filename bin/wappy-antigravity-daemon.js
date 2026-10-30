@@ -33,7 +33,7 @@ const DISPATCHED_FILE = path.join(AGY_DIR, 'wappy-dispatched-orders.json');
 const ACTIVE_CONVO_FILE = path.join(AGY_DIR, 'wappy-active-conversation.txt');
 const TENSHI_THREAD_FILE = path.join(AGY_DIR, 'wappy-tenshi-thread.json');
 const TENSHI_THREAD_TTL_MS = 2 * 60 * 60 * 1000; // 2 horas de continuidad de hilo en el mismo chat de Tenshi
-const DAEMON_VERSION = '2.5.0';
+const DAEMON_VERSION = '2.5.1';
 const LOG_MAX_BYTES = 5 * 1024 * 1024; // Rotación automática del log a los 5 MB
 
 function ensureDirs() {
@@ -304,7 +304,9 @@ function log(msg) {
  */
 function parseArgs() {
   const args = {};
-  for (const arg of process.argv.slice(2)) {
+  const argv = process.argv.slice(2);
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
     if (arg.startsWith('--')) {
       const eqIdx = arg.indexOf('=');
       if (eqIdx !== -1) {
@@ -312,7 +314,14 @@ function parseArgs() {
         const v = arg.slice(eqIdx + 1).trim();
         args[k] = v;
       } else {
-        args[arg.slice(2).trim()] = true;
+        const k = arg.slice(2).trim();
+        const nextArg = argv[i + 1];
+        if (nextArg && !nextArg.startsWith('--')) {
+          args[k] = nextArg.trim();
+          i++;
+        } else {
+          args[k] = true;
+        }
       }
     }
   }
@@ -1119,8 +1128,14 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
     rawFormato === 'archivo_original' ||
     rawFormato === 'copia';
 
+  const isImageGeneration =
+    !isOriginalFileCopy &&
+    (rawFormato === 'imagen' ||
+      rawFormato === 'image');
+
   const isQuestionOnly =
     !isOriginalFileCopy &&
+    !isImageGeneration &&
     (rawFormato === 'respuesta' ||
       rawFormato === 'consulta' ||
       rawFormato === 'texto' ||
@@ -1128,6 +1143,7 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
 
   const isHtmlApp =
     !isOriginalFileCopy &&
+    !isImageGeneration &&
     (rawFormato === 'html' ||
       rawFormato === 'dashboard' ||
       rawFormato === 'aplicativo');
@@ -1143,6 +1159,17 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
       `3. Una vez localizado el archivo original en el PC, ejecuta inmediatamente en terminal (run_command):`,
       `   node "${helperScript}" --send-file="<RUTA_ABSOLUTA_DEL_ARCHIVO>" --orden-id="${ordenId}" --resumen="Aquí tienes la copia original del archivo solicitado desde tu PC."`,
       `   (Esto enviará los bytes exactos del archivo original al chat de Tenshi para descarga directa sin modificarlo).`,
+    ];
+  } else if (isImageGeneration) {
+    executionInstructions = [
+      `INSTRUCCIÓN DE GENERACIÓN DE IMAGEN PRIORITARIA CON GOOGLE ANTIGRAVITY (PRIORIDAD #1 SOBRE GOOGLE FLOW):`,
+      `1. El sistema de WAPPY detectó que Google Antigravity está conectado y te dio PRIORIDAD #1 para generar la imagen solicitada.`,
+      `2. Invoca INMEDIATAMENTE al subagente 'image-generator' (usando invoke_subagent con TypeName: "image-generator") pasándole la descripción visual solicitada.`,
+      `3. Tan pronto 'image-generator' guarde el archivo de imagen en disco, envía la imagen de inmediato a WAPPY ejecutando en terminal (run_command):`,
+      `   node "${helperScript}" --send-file="<RUTA_ABSOLUTA_DE_LA_IMAGEN>" --orden-id="${ordenId}" --resumen="Imagen generada con Google Antigravity"`,
+      `4. Si por cualquier motivo falla la generación de imagen local, ejecuta de inmediato:`,
+      `   node "${helperScript}" --fail-order="${ordenId}" --reason="Fallo local en image-generator"`,
+      `   para que WAPPY active al instante el respaldo automático con Google Flow Studio.`,
     ];
   } else if (isQuestionOnly) {
     executionInstructions = [
@@ -1190,6 +1217,8 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
     `Tipo de Solicitud: ${
       isOriginalFileCopy
         ? 'copia_archivo (Enviar Copia Exacta de Archivo Original del PC)'
+        : isImageGeneration
+        ? 'imagen (Generación Prioritaria de Imagen con Google Antigravity)'
         : isQuestionOnly
         ? 'respuesta (Pregunta / Consulta Directa en Texto Plano — Cero Archivos)'
         : isHtmlApp
@@ -2075,9 +2104,35 @@ async function sendLocalFileCopyToWappy(cliArgs) {
   process.exit(1);
 }
 
+async function failOrderCli(cliArgs) {
+  const ordenId = String(cliArgs['fail-order'] || cliArgs.failOrder || cliArgs['orden-id'] || cliArgs.ordenId || '').trim();
+  const reason = String(cliArgs.reason || cliArgs.error || 'No fue posible completar la orden en Antigravity local').trim();
+  if (!ordenId) {
+    console.error('Uso: --fail-order="<ordenId>" [--reason="..."]');
+    process.exit(1);
+  }
+  const creds = resolveAllCredentials(cliArgs);
+  for (const { wappyUrl, apiKey } of creds) {
+    const failUrl = `${wappyUrl}/api/mcp-bridge/antigravity/ordenes/${encodeURIComponent(ordenId)}/dispatch-log`;
+    const resp = await jsonRequest(failUrl, 'POST', apiKey, {
+      ok: false,
+      error: reason,
+      platform: process.platform,
+      version: DAEMON_VERSION,
+    });
+    if (resp.status === 200) {
+      console.log(`⚠️ Orden ${ordenId} notificada como fallida en Antigravity (activando respaldo automático en WAPPY).`);
+      process.exit(0);
+    }
+  }
+  process.exit(1);
+}
+
 if (require.main === module) {
   const cliArgs = parseArgs();
-  if (cliArgs['complete-order'] || cliArgs.completeOrder || cliArgs.complete) {
+  if (cliArgs['fail-order'] || cliArgs.failOrder) {
+    failOrderCli(cliArgs);
+  } else if (cliArgs['complete-order'] || cliArgs.completeOrder || cliArgs.complete) {
     completeOrderCli(cliArgs);
   } else if (cliArgs['send-file'] || cliArgs.sendFile) {
     sendLocalFileCopyToWappy(cliArgs);

@@ -98,6 +98,7 @@ export interface TenshiAttachedMedia {
   mimeType: string;
   size: number;
   dataUrl: string;
+  publicUrl?: string;
   previewUrl?: string;
   thumbnailUrl?: string;
   duration?: number;
@@ -6958,15 +6959,22 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                         )}
                       >
                         {msg.content && <Markdown content={cleanRenderContent(msg.content, Boolean(msg.widget))} />}
-                        {/* Miniatura / Render de Imagen adjunta */}
-                        {(msg.image || (msg.media?.type === 'image' && msg.media.dataUrl)) && (
+                        {/* Miniatura / Render de Imagen adjunta (evitando duplicado si el Markdown del asistente ya la incluye) */}
+                        {(msg.image || (msg.media?.type === 'image' && (msg.media.publicUrl || msg.media.dataUrl))) &&
+                          !(
+                            msg.role === 'assistant' &&
+                            msg.content &&
+                            (/!\[[^\]]*\]\([^)]+\)/.test(msg.content) ||
+                              /\/images\/(?:flow_|nlm_|sst_|antigravity_)/i.test(msg.content) ||
+                              /\/api\/notebooklm\/download\//i.test(msg.content))
+                          ) && (
                           <div className="mt-2 overflow-hidden rounded-xl border border-slate-200/80 dark:border-zinc-700 bg-black/10">
                             <img
-                              src={msg.image || msg.media?.dataUrl}
+                              src={msg.image || msg.media?.publicUrl || msg.media?.dataUrl}
                               alt={msg.media?.name || "Evidencia visual"}
                               className="max-h-60 w-full object-cover rounded-xl cursor-zoom-in hover:opacity-95 transition-opacity active:scale-[0.99]"
                               onClick={() => {
-                                const url = msg.image || msg.media?.dataUrl;
+                                const url = msg.image || msg.media?.publicUrl || msg.media?.dataUrl;
                                 if (url) {
                                   const photoMatch = msg.content?.match(/\[FOTO[^\]]*\]:\s*([^\n]+)/i);
                                   const evidenceMatch = msg.content?.match(/👁️\s*\*\*([^\*]+)\*\*/i);
@@ -6975,17 +6983,35 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                                 }
                               }}
                             />
-                            {msg.media?.name && (
-                              <div className="flex items-center justify-between px-2 py-0.5 text-[9px] text-slate-500 dark:text-zinc-400 bg-white/70 dark:bg-zinc-800/70 border-t border-slate-100 dark:border-zinc-700/60">
-                                <span className="truncate">{msg.media.name}</span>
-                                {msg.media.size > 0 && <span>{formatBytes(msg.media.size)}</span>}
+                            <div className="flex items-center justify-between gap-2 px-2 py-1 text-[9px] text-slate-500 dark:text-zinc-400 bg-white/70 dark:bg-zinc-800/70 border-t border-slate-100 dark:border-zinc-700/60">
+                              <span className="truncate">{msg.media?.name || 'Imagen generada'}</span>
+                              <div className="flex items-center gap-2 shrink-0">
+                                {msg.media?.size && msg.media.size > 0 ? <span>{formatBytes(msg.media.size)}</span> : null}
+                                {msg.role === 'assistant' && (msg.image || msg.media?.publicUrl || msg.media?.dataUrl) && (
+                                  <a
+                                    href={msg.image || msg.media?.publicUrl || msg.media?.dataUrl}
+                                    download={msg.media?.name || 'imagen-wappy.jpg'}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 rounded-lg border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[10px] font-bold text-green-700 hover:bg-green-500/20 dark:text-green-300"
+                                  >
+                                    ⬇ Descargar Imagen
+                                  </a>
+                                )}
                               </div>
-                            )}
+                            </div>
                           </div>
                         )}
 
-                        {/* Render de Video adjunto */}
-                        {msg.media?.type === 'video' && (
+                        {/* Render de Video adjunto (evitando duplicado si el Markdown del asistente ya lo incluye) */}
+                        {msg.media?.type === 'video' &&
+                          !(
+                            msg.role === 'assistant' &&
+                            msg.content &&
+                            (/\.mp4(?:$|\?|\))/i.test(msg.content) ||
+                              msg.content.includes('/images/flow_vid_') ||
+                              msg.content.includes('/api/notebooklm/download/'))
+                          ) && (
                           (() => {
                             const blobSrc = liveMediaBlobsRef.current.get(msg.media.name)?.blobUrl || msg.media.previewUrl || msg.media.dataUrl;
                             const posterSrc = msg.media.thumbnailUrl || (msg.media.dataUrl?.startsWith('data:image') ? msg.media.dataUrl : undefined);
@@ -7892,15 +7918,22 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                         ) : (
                           <>
                             {msg.content && <Markdown content={cleanRenderContent(msg.content, Boolean(msg.widget))} />}
-                            {/* Miniatura / Render de Imagen adjunta */}
-                            {(msg.image || (msg.media?.type === 'image' && msg.media.dataUrl)) && (
+                            {/* Miniatura / Render de Imagen adjunta (evitando duplicado si el Markdown del asistente ya la incluye) */}
+                            {(msg.image || (msg.media?.type === 'image' && (msg.media.publicUrl || msg.media.dataUrl))) &&
+                              !(
+                                msg.role === 'assistant' &&
+                                msg.content &&
+                                (/!\[[^\]]*\]\([^)]+\)/.test(msg.content) ||
+                                  /\/images\/(?:flow_|nlm_|sst_|antigravity_)/i.test(msg.content) ||
+                                  /\/api\/notebooklm\/download\//i.test(msg.content))
+                              ) && (
                               <div className="mt-2.5 overflow-hidden rounded-xl border border-slate-200/80 dark:border-zinc-700 bg-black/5 shadow-sm max-w-sm">
                                 <img
-                                  src={msg.image || msg.media?.dataUrl}
+                                  src={msg.image || msg.media?.publicUrl || msg.media?.dataUrl}
                                   alt={msg.media?.name || "Evidencia visual"}
                                   className="max-h-60 w-full object-cover rounded-xl cursor-zoom-in hover:opacity-95 transition-all active:scale-[0.99]"
                                   onClick={() => {
-                                    const url = msg.image || msg.media?.dataUrl;
+                                    const url = msg.image || msg.media?.publicUrl || msg.media?.dataUrl;
                                     if (url) {
                                       const photoMatch = msg.content?.match(/\[FOTO[^\]]*\]:\s*([^\n]+)/i);
                                       const evidenceMatch = msg.content?.match(/👁️\s*\*\*([^\*]+)\*\*/i);
@@ -7909,17 +7942,35 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                                     }
                                   }}
                                 />
-                                {msg.media?.name && (
-                                  <div className="flex items-center justify-between px-2.5 py-1 text-[10px] text-slate-500 dark:text-zinc-400 bg-white/70 dark:bg-zinc-800/70 border-t border-slate-100 dark:border-zinc-700/60">
-                                    <span className="truncate">{msg.media.name}</span>
-                                    {msg.media.size > 0 && <span>{formatBytes(msg.media.size)}</span>}
+                                <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 text-[10px] text-slate-500 dark:text-zinc-400 bg-white/70 dark:bg-zinc-800/70 border-t border-slate-100 dark:border-zinc-700/60">
+                                  <span className="truncate">{msg.media?.name || 'Imagen generada'}</span>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    {msg.media?.size && msg.media.size > 0 ? <span>{formatBytes(msg.media.size)}</span> : null}
+                                    {msg.role === 'assistant' && (msg.image || msg.media?.publicUrl || msg.media?.dataUrl) && (
+                                      <a
+                                        href={msg.image || msg.media?.publicUrl || msg.media?.dataUrl}
+                                        download={msg.media?.name || 'imagen-wappy.jpg'}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-1 rounded-lg border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[10px] font-bold text-green-700 hover:bg-green-500/20 dark:text-green-300"
+                                      >
+                                        ⬇ Descargar Imagen
+                                      </a>
+                                    )}
                                   </div>
-                                )}
+                                </div>
                               </div>
                             )}
 
-                            {/* Render de Video adjunto */}
-                            {msg.media?.type === 'video' && (
+                            {/* Render de Video adjunto (evitando duplicado si el Markdown del asistente ya lo incluye) */}
+                            {msg.media?.type === 'video' &&
+                              !(
+                                msg.role === 'assistant' &&
+                                msg.content &&
+                                (/\.mp4(?:$|\?|\))/i.test(msg.content) ||
+                                  msg.content.includes('/images/flow_vid_') ||
+                                  msg.content.includes('/api/notebooklm/download/'))
+                              ) && (
                               (() => {
                                 const blobSrc = liveMediaBlobsRef.current.get(msg.media.name)?.blobUrl || msg.media.previewUrl || msg.media.dataUrl;
                                 const posterSrc = msg.media.thumbnailUrl || (msg.media.dataUrl?.startsWith('data:image') ? msg.media.dataUrl : undefined);

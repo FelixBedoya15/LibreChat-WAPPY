@@ -1276,10 +1276,10 @@ async def studio_generate(
             "notebooklm_web_url": f"https://notebook.google.com/notebook/{nb_id}",
             "url": getattr(res, "url", None),
             "message": (
-                f"¡Artefacto '{norm_type}' completado! Entrégale SIEMPRE al usuario el enlace directo en Markdown para que se reproduzca en el chat: {wappy_download_url}"
+                f"¡Artefacto '{norm_type}' completado! Entrégale SIEMPRE al usuario UNA SOLA VEZ el enlace directo en Markdown para que se muestre la tarjeta descargable en el chat (NO dupliques imagen + enlace hacia la misma URL): {wappy_download_url}"
                 if is_done
                 else f"Generación de '{norm_type}' iniciada en Google NotebookLM Studio (task_id='{task_id}'). "
-                     f"IMPORTANTE: Entrégale de inmediato al usuario este enlace directo en Markdown: {wappy_download_url} — el reproductor inteligente de WAPPY monitoreará el progreso automáticamente en el chat y mostrará el video/audio/infografía apenas termine de renderizarse."
+                     f"IMPORTANTE: Entrégale de inmediato al usuario UNA SOLA VEZ este enlace directo en Markdown (sin duplicar enlaces hacia la misma URL): {wappy_download_url} — el reproductor inteligente de WAPPY monitoreará el progreso automáticamente en el chat y mostrará la tarjeta con botón de descarga apenas termine de renderizarse."
             ),
         }
     except Exception as e:

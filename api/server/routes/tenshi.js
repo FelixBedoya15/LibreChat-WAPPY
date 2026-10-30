@@ -3435,9 +3435,9 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                          modelo: mediaRes.model,
                                          formato: mediaRes.aspectRatio,
                                          markdown_para_incluir_en_tu_respuesta: isVideoCall
-                                             ? `<video src="${mediaRes.publicUrl}" controls autoplay loop playsinline style="max-width: 100%; border-radius: 12px;"></video>\n\n[⬇ Descargar Video MP4](${mediaRes.publicUrl})`
-                                             : `![${flowPrompt.slice(0, 80)}](${mediaRes.publicUrl})\n\n[⬇ Descargar Imagen PNG](${mediaRes.publicUrl})`,
-                                         instruccion: 'Incluye SIEMPRE el código markdown_para_incluir_en_tu_respuesta en tu respuesta para que el usuario vea el resultado directamente en el chat además del Canvas.',
+                                             ? `[🎬 Reproducir Video MP4](${mediaRes.publicUrl})`
+                                             : `![${flowPrompt.slice(0, 80)}](${mediaRes.publicUrl})`,
+                                         instruccion: 'Incluye SIEMPRE el código markdown_para_incluir_en_tu_respuesta UNA SOLA VEZ en tu respuesta. PROHIBIDO agregar un segundo enlace [⬇ Descargar] repetido hacia la misma URL, ya que la tarjeta visual de WAPPY ya incluye la vista previa y el botón de descarga.',
                                      });
                                  } else if (call.name === 'wappy_mcp_sst' || call.name in TOOL_ROUTES || (call.name.startsWith('wappy_') && !['wappy_navegar', 'wappy_diligenciar_formulario', 'wappy_seleccionar_empresa', 'wappy_activar_empresa'].includes(call.name))) {
                                     const targetTool = call.name === 'wappy_mcp_sst' ? (call.args?.herramienta || call.args?.tool || 'wappy_resumen_general_360') : call.name;

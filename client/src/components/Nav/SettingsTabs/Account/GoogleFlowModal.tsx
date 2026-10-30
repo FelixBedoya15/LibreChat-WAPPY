@@ -174,17 +174,51 @@ export const GoogleFlowModal: React.FC<GoogleFlowModalProps> = ({
     }
   };
 
-  const handleTestConnection = async () => {
+  const handleReconnectAndRefresh = async () => {
+    if (!token) return;
     try {
-      setIsTesting(true);
-      setFeedback(null);
+      setIsLoading(true);
+      setFeedback({
+        type: 'info',
+        message: '🔄 Verificando y sincronizando tu sesión con Google...',
+      });
       const res = await fetch('/api/googleflow/test', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.success) {
+        await fetchStatus();
+        onStatusChange?.();
+        setFeedback({
+          type: 'success',
+          message: data.message || '✓ ¡Sesión sincronizada y activa!',
+        });
+      } else {
+        await fetchStatus();
+        await handleCopyAg();
+      }
+    } catch (_) {
+      await handleCopyAg();
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-      if (res.ok && data.success) {
+  const handleTestConnection = async () => {
+    try {
+      setIsTesting(true);
+      setFeedback({
+        type: 'info',
+        message: '🔍 Probando conexión en vivo con Google Flow...',
+      });
+      const res = await fetch('/api/googleflow/test', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data?.success) {
         setFeedback({
           type: 'success',
           message: data.message || '✓ ¡Conexión privada con Google Flow verificada con éxito!',
@@ -194,7 +228,11 @@ export const GoogleFlowModal: React.FC<GoogleFlowModalProps> = ({
       } else {
         setFeedback({
           type: 'error',
-          message: data.reason || data.message || 'La sesión no superó la prueba con Google.',
+          message:
+            data?.reason ||
+            data?.error ||
+            data?.message ||
+            'Aún no hay una sesión activa vinculada o la sesión expiró. Haz clic en Reconectar o usa la Opción A.',
         });
         await fetchStatus();
         if (onStatusChange) onStatusChange();
@@ -324,45 +362,43 @@ export const GoogleFlowModal: React.FC<GoogleFlowModalProps> = ({
               <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   type="button"
-                  onClick={fetchStatus}
+                  onClick={handleReconnectAndRefresh}
                   disabled={isLoading}
                   className="group flex h-8 px-2 min-w-[32px] items-center justify-center rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:opacity-50"
-                  title="Actualizar estado"
+                  title="Reconectar / Actualizar sesión"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${isLoading ? 'animate-spin' : ''}`} />
                   <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                    <span className="text-xs font-bold tracking-wide">Estado</span>
+                    <span className="text-xs font-bold tracking-wide">Reconectar</span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleTestConnection}
+                  disabled={isTesting}
+                  className="group flex h-8 px-2 min-w-[32px] items-center justify-center rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:opacity-50"
+                  title="Probar sesión en vivo con Google"
+                >
+                  <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${isTesting ? 'animate-pulse' : ''}`} />
+                  <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                    <span className="text-xs font-bold tracking-wide">{isTesting ? 'Probando...' : 'Probar'}</span>
                   </div>
                 </button>
 
                 {isConnected && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={handleTestConnection}
-                      disabled={isTesting}
-                      className="group flex h-8 px-2 min-w-[32px] items-center justify-center rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:opacity-50"
-                      title="Probar sesión en vivo con Google"
-                    >
-                      <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${isTesting ? 'animate-pulse' : ''}`} />
-                      <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                        <span className="text-xs font-bold tracking-wide">{isTesting ? 'Probando...' : 'Probar'}</span>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleDeleteSession}
-                      disabled={isDeleting}
-                      className="group flex h-8 px-2 min-w-[32px] items-center justify-center rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:opacity-50"
-                      title="Desvincular sesión"
-                    >
-                      <Trash2 className="w-3.5 h-3.5 shrink-0" />
-                      <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                        <span className="text-xs font-bold tracking-wide">Desvincular</span>
-                      </div>
-                    </button>
-                  </>
+                  <button
+                    type="button"
+                    onClick={handleDeleteSession}
+                    disabled={isDeleting}
+                    className="group flex h-8 px-2 min-w-[32px] items-center justify-center rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:opacity-50"
+                    title="Desvincular sesión"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                    <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                      <span className="text-xs font-bold tracking-wide">Desvincular</span>
+                    </div>
+                  </button>
                 )}
               </div>
             </div>
