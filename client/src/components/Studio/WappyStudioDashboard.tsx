@@ -6765,7 +6765,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
                         <Sparkles className="w-3.5 h-3.5 text-purple-500" />
-                        1. Dirección de Arte Oficial (Brandbook WAPPY IA • 4 Estilos Horizontales)
+                        1. Dirección de Arte Oficial (Brandbook WAPPY IA • 4 Estilos)
                       </span>
                       <span className="text-[11px] font-mono text-purple-600 dark:text-purple-300 font-bold">
                         Paleta activa: {selectedArtDirection}
