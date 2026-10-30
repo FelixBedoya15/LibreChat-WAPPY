@@ -131,16 +131,30 @@ function applyDomainPhoneticCorrections(text) {
     if (!text || typeof text !== 'string') return '';
     let s = text;
 
-    // 1. Tenshi brand & greeting variations
-    s = s.replace(/\b(ventiola|venti\s+hola|tenchi\s+hola|denchi\s+hola|bencini\s+hola)\b/gi, 'Tenshi, hola');
-    s = s.replace(/\b(hola\s+)?(tenchi|denchi|densi|bencini|benchini|pensi|tensi|ten\s+si|ten\s+chi|ven\s+y\s+si|chenchi|zenchi|tenzhi)\b/gi, (_, holaPrefix) => {
+    // 1. Tenshi brand & greeting variations (including Italian/Portuguese ASR phonetic approximations like "vecchi", "vechi", "beki", "venci")
+    s = s.replace(/\b(ventiola|venti\s+hola|tenchi\s+hola|denchi\s+hola|bencini\s+hola|vecchi\s+hola|vechi\s+hola)\b/gi, 'Tenshi, hola');
+    s = s.replace(/\b(hola\s+)?(tenchi|denchi|densi|bencini|benchini|pensi|tensi|tenci|teshi|tensy|vecchi|vechi|beki|venci|ten\s+si|ten\s+chi|ven\s+y\s+si|chenchi|zenchi|tenzhi)\b/gi, (_, holaPrefix) => {
         return holaPrefix ? `${holaPrefix}Tenshi` : 'Tenshi';
     });
 
-    // 2. Antigravity brand & delegation variations
-    s = s.replace(/\b(le\s+pregunt[eé]\s+a\s+)(un\s+talento\s+que\s+habita(?:\s+y)?|talento\s+que\s+habita|anti\s*gravity|antigravite|antigraviti|anti\s*gravedad|a\s+ti\s+gravity|tigravity)\b/gi, 'pregúntale a Antigravity');
-    s = s.replace(/\b(un\s+talento\s+que\s+habita(?:\s+y)?|talento\s+que\s+habita|anti\s*gravity|antigravite|antigraviti|anti\s*gravedad|a\s+ti\s+gravity|tigravity|tigra\s+biti|antigra\s+vity)\b/gi, 'Antigravity');
+    // 2. Antigravity brand & delegation variations (including Italian/Spanish split syllables like "a te, graviti", "a ti, graviti", "ate graviti")
+    s = s.replace(/\b(le\s+pregunt[eé]\s+a\s+)(un\s+talento\s+que\s+habita(?:\s+y)?|talento\s+que\s+habita|anti\s*gravity|anti\s*graviti|antigravite|antigraviti|anti\s*gravedad|a\s+t[ei]\s*,?\s*gravit[iy]|at[ei]\s+gravit[iy]|tigravity|tigra\s+biti)\b/gi, 'pregúntale a Antigravity');
+    s = s.replace(/\b(un\s+talento\s+que\s+habita(?:\s+y)?|talento\s+que\s+habita|anti\s*gravity|anti\s*graviti|antigravite|antigraviti|anti\s*gravedad|a\s+t[ei]\s*,?\s*gravit[iy]|at[ei]\s+gravit[iy]|tigravity|tigra\s+biti|antigra\s+vit[iy])\b/gi, 'Antigravity');
     s = s.replace(/\b(preg[uú]ntale\s+a\s+Antigravity)\s+y\s+qu[eé]\b/gi, '$1 qué');
+
+    // 2b. Italian/Portuguese phonetic leaks when Gemini Live ASR transcribes Spanish speech without languageCode
+    s = s.replace(/\bperch[eé]\s+non\b/gi, 'por qué no');
+    s = s.replace(/\bperch[eé]\b/gi, 'por qué');
+    s = s.replace(/\bche\s+non\b/gi, 'que no');
+    s = s.replace(/\bnon\s+risponde\b/gi, 'no responde');
+    s = s.replace(/\brisponde\b/gi, 'responde');
+    s = s.replace(/\bnon\s+(me|te|se|le|lo|la|es|est[aá]|hay|tiene|puedo|quiero|funciona|sale|abre|env[ií]a)\b/gi, 'no $1');
+    s = s.replace(/\bche\s+(no|me|te|se|le|lo|la|los|las|es|est[aá]|son|hay|tiene|hace|dice|pasa|quiero|puedo|vamos|hago|pas[oó]|responde)\b/gi, 'que $1');
+    s = s.replace(/\bquesto\b/gi, 'esto');
+    s = s.replace(/\bquesta\b/gi, 'esta');
+    s = s.replace(/\bsempre\b/gi, 'siempre');
+    s = s.replace(/\banche\b/gi, 'también');
+    s = s.replace(/\badesso\b/gi, 'ahora');
 
     // 3. WAPPY brand variations
     s = s.replace(/\b(wappi|guapi|huapi|wap\s*pi|wapy|guapy)\b/gi, 'WAPPY');
@@ -3080,16 +3094,19 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes gen
                         ] = await Promise.all([
                             KanbanTask.find({
                                 ...taskScope,
+                                type: { $ne: 'antigravity_delegation' },
                                 status: { $nin: ['done', 'dismissed'] },
                                 dueDate: { $gte: startOfToday, $lte: endOfToday },
                             }).sort({ dueDate: 1 }).limit(5).select('title dueDate priority').lean().catch(() => []),
                             KanbanTask.find({
                                 ...taskScope,
+                                type: { $ne: 'antigravity_delegation' },
                                 status: { $nin: ['done', 'dismissed'] },
                                 dueDate: { $gte: startOfTomorrow, $lte: endOfTomorrow },
                             }).sort({ dueDate: 1 }).limit(5).select('title dueDate priority').lean().catch(() => []),
                             KanbanTask.find({
                                 ...taskScope,
+                                type: { $ne: 'antigravity_delegation' },
                                 status: { $nin: ['done', 'dismissed'] },
                                 $or: [
                                     { status: 'overdue' },
@@ -3098,10 +3115,12 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes gen
                             }).sort({ dueDate: -1 }).limit(5).select('title dueDate').lean().catch(() => []),
                             KanbanTask.find({
                                 ...taskScope,
+                                type: { $ne: 'antigravity_delegation' },
                                 status: { $in: ['todo', 'in_progress', 'due_soon'] },
                             }).sort({ updatedAt: -1 }).limit(5).select('title status dueDate').lean().catch(() => []),
                             KanbanTask.findOne({
                                 ...taskScope,
+                                type: { $ne: 'antigravity_delegation' },
                                 status: { $in: ['done', 'in_progress'] },
                             }).sort({ updatedAt: -1 }).select('title updatedAt').lean().catch(() => null),
                             Conversation.findOne({
@@ -3345,6 +3364,9 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
             if (this.bargeInSuppressAiAudioUntil && Date.now() < this.bargeInSuppressAiAudioUntil) {
                 return;
             }
+            if (!this.turnHadAiOutput) {
+                this.triggerEarlyUserTranscriptionCorrection('ai_audio_start');
+            }
             this.isAiSpeaking = true;
             this.turnHadAiOutput = true;
             this.suppressClientAudioUntil = null;
@@ -3382,6 +3404,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
             if (this.turnHadAiOutput || (silenceGapMs > 10000 && (this.userTranscriptionText || '').trim().length > 35)) {
                 this.userTranscriptionText = '';
                 this.rawUserTranscriptionStream = '';
+                this.earlyCorrectedSnapshot = null;
                 this.turnHadAiOutput = false;
             }
             this.lastUserTranscriptionAt = now;
@@ -3415,6 +3438,16 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                 type: 'text',
                 data: { text: this.lastUserTranscription, isUserTranscription: true }
             });
+
+            // Programar corrección contextual temprana (~550ms tras el último fragmento de voz del usuario)
+            // para que la burbuja del usuario se pula en ~0.5s sin esperar 15s hasta turnComplete
+            if (this.earlyCorrectionTimer) {
+                clearTimeout(this.earlyCorrectionTimer);
+            }
+            this.earlyCorrectionTimer = setTimeout(() => {
+                this.earlyCorrectionTimer = null;
+                this.triggerEarlyUserTranscriptionCorrection('user_pause');
+            }, 550);
 
             // Detección en caliente de activación de Modo Fisioterapeuta / Ergonomía / Estudio de Puesto
             const fisioTriggers = /\b(fisioterapeuta|fisioterapia|ergonom[ií]a|ergon[oó]mic[ao]|estudio\s+(de\s+)?puesto|higiene\s+postural|biomec[aá]nic[ao]|evaluaci[oó]n\s+postural)\b/i;
@@ -3452,6 +3485,9 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
 
         // Listen for AI transcription (what the AI says)
         this.geminiClient.on('aiTranscription', (text) => {
+            if (!this.aiResponseText) {
+                this.triggerEarlyUserTranscriptionCorrection('ai_transcription_start');
+            }
             const cleanText = sanitizeAiSpeech(text);
             logger.info(`[VoiceSession] AI transcription received: "${cleanText}"`);
             // Accumulate AI text (both buffers, so the trigger can find the phrase)
@@ -3510,6 +3546,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                     }
                 }
             }
+            this.triggerEarlyUserTranscriptionCorrection('tool_call');
 
             if (toolCall.functionCalls) {
                 const toolReq = {
@@ -6205,16 +6242,23 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                 break;
 
             case 'speech_end':
-                // El cliente detectó fin de voz (noise gate cerrado tras hablar). Sin esta señal,
-                // Google no recibe silencio y retiene la respuesta 10-14s (ver Lección 12).
+                // El cliente detectó fin de voz real. Solo enviamos audioStreamEnd si realmente hay transcripción
+                // acumulada del usuario en este turno y no se ha enviado recientemente (evita spamear y resetear el buffer de Gemini).
                 if (!this.isActive || !this.geminiClient || !this.geminiClient.setupCompleted) {
                     break;
                 }
-                if (this.isAiSpeaking) {
+                if (this.isAiSpeaking || this.turnHadAiOutput || this.toolCalledThisTurn) {
                     break;
                 }
                 this.bargeInSuppressAiAudioUntil = 0;
-                if (typeof this.geminiClient.sendAudioStreamEnd === 'function') {
+                this.triggerEarlyUserTranscriptionCorrection('speech_end');
+                if (
+                    this.userTranscriptionText &&
+                    this.userTranscriptionText.trim().length > 0 &&
+                    typeof this.geminiClient.sendAudioStreamEnd === 'function' &&
+                    (!this.lastAudioStreamEndAt || Date.now() - this.lastAudioStreamEndAt > 2500)
+                ) {
+                    this.lastAudioStreamEndAt = Date.now();
                     this.geminiClient.sendAudioStreamEnd();
                 }
                 break;
@@ -6826,6 +6870,65 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
      * Stop the session
      */
     /**
+     * Ejecuta corrección fonética y contextual en tiempo real (~300ms) apenas el usuario termina de hablar
+     * (en vez de esperar 15s hasta turnComplete), actualizando inmediatamente la burbuja del usuario en pantalla.
+     */
+    triggerEarlyUserTranscriptionCorrection(reason = 'stream_pause') {
+        if (this.earlyCorrectionTimer) {
+            clearTimeout(this.earlyCorrectionTimer);
+            this.earlyCorrectionTimer = null;
+        }
+        const rawSnapshot = (this.userTranscriptionText || this.rawUserTranscriptionStream || '').trim();
+        if (!rawSnapshot || rawSnapshot.length < 3 || /^\[SISTEMA INTERNO WAPPY/i.test(rawSnapshot)) {
+            return;
+        }
+        const toolCallsSnapshot = Array.isArray(this.currentTurnToolCalls) ? [...this.currentTurnToolCalls] : [];
+        const cacheKey = `${rawSnapshot}::${toolCallsSnapshot.map(t => t.name).join(',')}`;
+        if (this.earlyCorrectedSnapshot && this.earlyCorrectedSnapshot.cacheKey === cacheKey) {
+            return;
+        }
+        if (this.earlyCorrectionInFlightKey === cacheKey) {
+            return;
+        }
+        this.earlyCorrectionInFlightKey = cacheKey;
+
+        this.correctTranscription(rawSnapshot, this.aiResponseText || '', toolCallsSnapshot)
+            .then((corrected) => {
+                const cleanCorrected = (corrected || '').trim();
+                const currentActiveRaw = (this.userTranscriptionText || this.rawUserTranscriptionStream || '').trim();
+                if (!cleanCorrected) {
+                    return;
+                }
+                this.earlyCorrectedSnapshot = {
+                    raw: rawSnapshot,
+                    corrected: cleanCorrected,
+                    toolCount: toolCallsSnapshot.length,
+                    cacheKey,
+                };
+                // Si seguimos en el mismo turno de habla del usuario, actualizar en vivo la burbuja inmediatamente
+                if (currentActiveRaw === rawSnapshot && cleanCorrected !== rawSnapshot) {
+                    this.userTranscriptionText = cleanCorrected;
+                    this.lastUserTranscription = cleanCorrected;
+                    logger.info(`[VoiceSession] ⚡ Early transcription correction (${reason}): "${rawSnapshot}" -> "${cleanCorrected}"`);
+                    this.sendToClient({
+                        type: 'text',
+                        data: {
+                            text: cleanCorrected,
+                            isUserTranscription: true,
+                            replaceLastUserBubble: true,
+                        },
+                    });
+                }
+            })
+            .catch(() => {})
+            .finally(() => {
+                if (this.earlyCorrectionInFlightKey === cacheKey) {
+                    this.earlyCorrectionInFlightKey = null;
+                }
+            });
+    }
+
+    /**
      * Correct user transcription using Gemini Flash Lite with instant fast-path for common phrases
      * and ground-truth cross-checking against Gemini Live's native audio tool calls & spoken response.
      */
@@ -6902,9 +7005,10 @@ ${sanitized}
 """
 
 REGLAS ESTRICTAS DE CORRECCIÓN:
-1. El reconocedor de voz crudo suele equivocarse fonéticamente con nombres propios y términos técnicos. Usa la RESPUESTA DE LA IA y las HERRAMIENTAS EJECUTADAS para deducir qué dijo fonéticamente el usuario y corregirlo con fidelidad:
-   - "Tenchi", "Denchi", "Bencini", "Ventiola", "Pensi", "Ven y si" -> "Tenshi"
-   - "un talento que habita", "Antigravite", "anti gravity", "tigravity" -> "Antigravity"
+1. El reconocedor de voz crudo (que no recibe código de idioma fijo) a veces transcribe fonéticamente frases en español usando ortografía italiana/portuguesa o deforma nombres propios. Usa la RESPUESTA DE LA IA y las HERRAMIENTAS EJECUTADAS para reconstruir la oración exacta en español natural:
+   - "Tenchi", "Denchi", "Bencini", "Ventiola", "Pensi", "Ven y si", "vecchi", "vechi", "beki", "venci", "teshi" -> "Tenshi"
+   - "un talento que habita", "Antigravite", "anti gravity", "tigravity", "a te, graviti", "a ti, graviti", "ate graviti" -> "Antigravity"
+   - Si aparece ortografía italiana por error fonético (ej. "vecchi che non risponde a te, graviti" -> "Tenshi, ¿por qué no responde Antigravity?", "perché non" -> "por qué no", "che non risponde" -> "que no responde"), conviértela al español exacto que pronunció el usuario.
    - "Wappi", "Guapi", "Huapi" -> "WAPPY"
    - "el May colabora", "médico colabora" -> "el Médico Laboral"
    - "busquen a Web", "busca a Web" -> "busque en la web"
@@ -9313,12 +9417,17 @@ ${workerSubHeaderHtml}
     }
 
     async saveCurrentTurn(source = 'Unknown') {
+        if (this.earlyCorrectionTimer) {
+            clearTimeout(this.earlyCorrectionTimer);
+            this.earlyCorrectionTimer = null;
+        }
         const rawUserSnapshot = this.userTranscriptionText || this.rawUserTranscriptionStream || '';
         const currentUserText = sanitizeAccumulatedTranscription(rawUserSnapshot);
         const currentAiText = this.aiResponseText;
         const currentAudioCount = this.aiAudioChunkCount;
         const currentAiBufferSnapshot = this.aiTranscriptionBuffer || '';
         const turnToolCalls = Array.isArray(this.currentTurnToolCalls) ? [...this.currentTurnToolCalls] : [];
+        const earlySnapshot = this.earlyCorrectedSnapshot;
 
         // Limpiar inmediatamente los acumuladores de turno para evitar condiciones de carrera si el usuario vuelve a hablar
         this.userTranscriptionText = '';
@@ -9327,6 +9436,7 @@ ${workerSubHeaderHtml}
         this.aiTranscriptionBuffer = '';
         this.aiAudioChunkCount = 0;
         this.currentTurnToolCalls = [];
+        this.earlyCorrectedSnapshot = null;
 
         if (!currentUserText.trim() && !currentAiText.trim() && currentAudioCount === 0) {
             return;
@@ -9344,8 +9454,17 @@ ${workerSubHeaderHtml}
         if (this.config.mode === 'tenshi_voice') {
             let finalUserText = currentUserText.trim();
             if (finalUserText && !/^\[SISTEMA INTERNO WAPPY/i.test(finalUserText)) {
-                const corrected = await this.correctTranscription(finalUserText, currentAiText, turnToolCalls);
-                finalUserText = (corrected || '').trim();
+                // Si la corrección temprana ya corrigió esta misma frase y no hubo herramientas nuevas posteriores, reutilizarla al instante
+                if (
+                    earlySnapshot &&
+                    (earlySnapshot.corrected === finalUserText || earlySnapshot.raw === finalUserText) &&
+                    earlySnapshot.toolCount >= turnToolCalls.length
+                ) {
+                    finalUserText = earlySnapshot.corrected;
+                } else {
+                    const corrected = await this.correctTranscription(finalUserText, currentAiText, turnToolCalls);
+                    finalUserText = (corrected || '').trim();
+                }
                 // Si el corrector mejoró el texto respecto al streaming crudo, actualizar en vivo la burbuja del usuario en el chat de Tenshi
                 if (finalUserText && finalUserText !== currentUserText.trim()) {
                     this.lastUserTranscription = finalUserText;

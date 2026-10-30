@@ -838,3 +838,34 @@ Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el 
   1. **Cierre Diferido Fin de Turno (`this.pendingHangupAfterTurn`) en `voiceSession.js`:** Cuando Gemini Live invoca `colgar_llamada` (validando que no sea una orden de pausa como `"para"` o `"espera"`), el backend marca `this.pendingHangupAfterTurn = true` y le pide a Gemini que pronuncie su frase breve de despedida. Al terminar el turno (`turnComplete` -> `saveCurrentTurn` -> `handleTenshiVoiceFailsafe`), o tras un watchdog de `5.5s`, emite `wappy_action` (`colgar_llamada`) al cliente cuando todos los paquetes de audio ya fueron enviados.
   2. **Failsafe Determinista de Despedidas en `handleTenshiVoiceFailsafe`:** Cubre todas las expresiones naturales de despedida (*"hasta luego"*, *"hasta pronto"*, *"hasta mañana"*, *"nos vemos"*, *"gracias por todo"*, *"muchas gracias por todo"*, *"eso es todo por hoy"*, *"eso era todo, gracias"*, *"nada más por hoy"*, *"chao"*, *"adiós"*, *"feliz noche/tarde/día"*, o agradecimiento final acompañado de despedida de Tenshi).
   3. **Drenaje Inteligente de la Cola de Audio en `TenshiChat.tsx`:** Al recibir `colgar_llamada`, el cliente silencia el micrófono (`setIsMicMuted(true)`), muestra `"Despidiéndose..."`, calcula los milisegundos exactos de voz restantes en el `AudioContext` (`nextStartTimeRef.current - ctx.currentTime` + margen de `400ms`) y ejecuta `stopVoiceMode()` justo después de que Tenshi termina de pronunciar su última sílaba.
+
+---
+
+### LECCIÓN 33 (2026-10-30): Prevención de Bucle Infinito de Re-anexado de Entregables Antigravity (`unpersistedExtras` en `TenshiChat.tsx` + `image_priority` en `mcpBridge.js`/`googleflow.js`) y Corrección Fonética Instantánea de Transcripción en Vivo (`useVoiceSession.ts` + `voiceSession.js`)
+
+- **Síntomas Reportados:**
+  1. > *"Tenshi enloqueció comenzó a devolverme varias cosas de antigravity a la vez... el chat de tenshi está enloqueciendo con las solicitudes de antigravity las vuelve a traer una y otra vez"*
+  2. > *"seguimos teniendo una transcripción de mierda cuando yo hablo"* (`"vecchi che non risponde a te, graviti."`)
+- **Causas Raíces Auditadas:**
+  1. **Re-anexado Infinito cada 3.5s en `useEffect([historyData])` (`TenshiChat.tsx` líneas 4720–4833):**
+     - `useQuery(['tenshiHistory'])` refresca `/api/tenshi/history` cada `3500ms`.
+     - El filtro `unpersistedExtras` tomaba cualquier mensaje local con `m.file || m.htmlReport || m.media || m.image || m.widget` cuyo texto o `_id` no coincidiera exactamente con `historyData` (como entregables de Antigravity donde `bubbleText` difería de `tenshiBubbleContent` en `mcpBridge.js`, o tareas `image_priority` que no creaban `TenshiMessage` en MongoDB) y lo re-anexaba al final del arreglo `[...enrichedHistory, ...unpersistedExtras]` **cada 3.5 segundos**, haciendo que las respuestas de Antigravity saltaran al fondo del chat una y otra vez debajo de cada mensaje nuevo.
+  2. **Ráfaga de Órdenes `image_priority` y Re-emisión en `/antigravity/stream` y `/antigravity/completar` (`mcpBridge.js` + `googleflow.js`):**
+     - `executeFlowImageGeneration` en `googleflow.js` tenía `skipAntigravity = false` por defecto, enviando órdenes `image_priority` a Antigravity incluso cuando el usuario pedía usar Google Flow Studio.
+     - Al expirar el timeout de `tryGenerateImageViaAntigravity`, la tarea pasaba a `status: 'dismissed'`, pero `/antigravity/completar` solo rechazaba `status === 'done'` (aceptando tareas `'dismissed'` tardías y emitiendo `orden_completada` + `tenshi_report_delivered` a Tenshi).
+     - Al reconectar `/antigravity/stream`, se re-empujaban hasta 5 tareas en `'todo'` de los últimos 30 minutos.
+  3. **Recorte Acústico por Noise Gate en Cliente + Demora de 16s en Corrección de Transcripción (`useVoiceSession.ts` + `voiceSession.js`):**
+     - El umbral `voiceThreshold` (`0.011`) y la cola corta (`350ms`) en `useVoiceSession.ts` recortaban consonantes suaves iniciales (`"Tenshi"` -> `"vecchi"`, `"Antigravity"` -> `"a te, graviti"`) y enviaban `speech_end` (`sendAudioStreamEnd()`) repetidamente en turnos vacíos.
+     - `correctTranscription` solo se ejecutaba dentro de `saveCurrentTurn('TurnComplete')` (16 segundos después de que el usuario terminaba de hablar, cuando Tenshi finalizaba toda su respuesta oral).
+- **Solución Implementada:**
+  1. **Blindaje de `unpersistedExtras` y Deduplicación en `TenshiChat.tsx`:** `unpersistedExtras` excluye cualquier mensaje con `delegatedOrderId` o `_id` `antigravity-*` y exige `_localCreatedAt < 8000ms`. `handleAntigravityDelivered` ignora `sourceModule === 'image_priority'`, deduplica por `ordenId` y `messageId`, y agrupa anuncios de voz con un debounce de `900ms`.
+  2. **Blindaje de `/antigravity/stream`, `/antigravity/delegar`, `/antigravity/completar` y `googleflow.js`:**
+     - `executeFlowImageGeneration` usa `skipAntigravity = true` por defecto.
+     - `/antigravity/completar` rechaza órdenes en `'done'` o `'dismissed'` y descarta órdenes `image_priority` cuyo resolver ya expiró.
+     - `/antigravity/stream` solo reenvía máximo 1 orden reciente (`< 2 min`, excluyendo `image_priority`) y `/antigravity/delegar` descarta órdenes `'todo'` previas atascadas.
+     - `/briefing` y `voiceSession.js` excluyen `type: 'antigravity_delegation'` del Briefing Diario SG-SST.
+  3. **Audio Continuo sin Recorte + Corrección Fonética Instantánea (`0ms` + `~300ms` en `voiceSession.js`):**
+     - `useVoiceSession.ts`: umbral sensible (`0.0045`), pre-roll de 10 chunks (`~420ms`), cola continua de `900ms` seguida de `450ms` de silencio digital limpio para el VAD nativo de Google, y guardia en `voiceSession.js` para no enviar `sendAudioStreamEnd()` sin transcripción activa.
+     - `applyDomainPhoneticCorrections` repara en `0ms` distorsiones fonéticas italianas/portuguesas (`"vecchi"` -> `"Tenshi"`, `"a te, graviti"` -> `"Antigravity"`, `"che non risponde"` -> `"que no responde"`).
+     - `triggerEarlyUserTranscriptionCorrection` ejecuta `correctTranscription` (`gemini-3.5-flash-lite`) apenas el usuario hace una pausa (`550ms`) o inicia la respuesta de la IA (`toolCall` / `audio` / `aiTranscription`), reemplazando la burbuja del usuario (`replaceLastUserBubble: true`) en menos de 1 segundo.
+

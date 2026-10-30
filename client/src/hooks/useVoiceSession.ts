@@ -302,8 +302,8 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     bargeInFramesRef.current = 0;
                 }
 
-                // Umbral de activación vocal sensible (detecta voz suave desde la primera sílaba)
-                const voiceThreshold = Math.max(0.011, noiseFloorRef.current * 2.15);
+                // Umbral de activación vocal ultra-sensible (no recorta consonantes suaves iniciales como "T-", "p-", "s-")
+                const voiceThreshold = Math.max(0.0045, noiseFloorRef.current * 1.65);
                 const now = Date.now();
                 const continuousSpeechMs = isTransmittingSpeechRef.current && speechStartTimeRef.current
                     ? (now - speechStartTimeRef.current)
@@ -316,15 +316,14 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 if (rms < noiseFloorRef.current) {
                     // Baja rápido hacia el silencio real
                     noiseFloorRef.current = noiseFloorRef.current * 0.85 + rms * 0.15;
-                } else if (rms < 0.022) {
-                    // Energía baja o siseo residual del AGC al callar: se adapta suavemente (~350ms)
-                    // para que el piso del AGC nunca deje la compuerta pegada abierta tras hablar
+                } else if (rms < 0.016) {
+                    // Energía baja o siseo residual del AGC al callar: se adapta suavemente
                     noiseFloorRef.current = noiseFloorRef.current * 0.94 + rms * 0.06;
                 } else {
-                    // Durante voz clara (>= 0.022): casi fijo para NO elevar el umbral mientras el usuario habla
-                    noiseFloorRef.current = noiseFloorRef.current * 0.997 + rms * 0.003;
+                    // Durante voz clara: casi fijo para NO elevar el umbral mientras el usuario habla
+                    noiseFloorRef.current = noiseFloorRef.current * 0.998 + rms * 0.002;
                 }
-                noiseFloorRef.current = Math.min(0.014, Math.max(0.001, noiseFloorRef.current));
+                noiseFloorRef.current = Math.min(0.011, Math.max(0.001, noiseFloorRef.current));
 
                 if (isSpeechNow) {
                     lastVoiceTimeRef.current = now;
@@ -334,29 +333,29 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     }
                 }
 
-                // Hangover inteligente en 2 etapas (Lección 12: >= 600ms para no partir frases ni spamear audioStreamEnd):
-                // Etapa A (0 - 350ms tras voz): se transmite la cola acústica natural de las consonantes finales (-s, -d, -r, -n).
-                // Etapa B (350ms - 680ms tras voz): ventana de tolerancia de pausa (mantiene el turno abierto sin enviar ruido a Google).
+                // Cola acústica continua de 900ms para NO cortar pausas entre palabras dentro de una misma oración,
+                // seguida de 450ms de silencio digital limpio para que el VAD nativo de Google cierre el turno sin recortar sílabas.
                 const timeSinceLastVoice = now - lastVoiceTimeRef.current;
-                const isInNaturalTail = !isSteadyBackgroundNoise && timeSinceLastVoice < 350;
-                const isInPauseWindow = !isSteadyBackgroundNoise && timeSinceLastVoice >= 350 && timeSinceLastVoice < 680;
+                const isInNaturalTail = !isSteadyBackgroundNoise && timeSinceLastVoice < 900;
+                const isInSilenceFlushWindow = !isSteadyBackgroundNoise && timeSinceLastVoice >= 900 && timeSinceLastVoice < 1350;
                 const shouldTransmitAudio = isSpeechNow || isInNaturalTail;
 
                 if (!shouldTransmitAudio) {
-                    // Guardar siempre los últimos 6 chunks (~380ms) en pre-roll para no cortar la primera sílaba
+                    // Guardar siempre los últimos 10 chunks (~420ms) en pre-roll para no cortar nunca la primera sílaba
                     preRollChunksRef.current.push(new Float32Array(float32Array));
-                    if (preRollChunksRef.current.length > 6) {
+                    if (preRollChunksRef.current.length > 10) {
                         preRollChunksRef.current.shift();
                     }
 
-                    // Si aún estamos dentro de la ventana de pausa (< 680ms), mantener el turno abierto
-                    if (isInPauseWindow && isTransmittingSpeechRef.current) {
+                    // Mientras estamos en la ventana de cierre (900ms - 1350ms tras hablar), enviar silencio digital limpio
+                    // al VAD de Gemini Live y emitir speech_end una única vez si hubo habla real (>= 6 chunks)
+                    if (isInSilenceFlushWindow && isTransmittingSpeechRef.current) {
+                        encodeAndSend(new Float32Array(float32Array.length));
                         return;
                     }
 
-                    // Pasados 680ms de silencio real: avisar al backend UNA sola vez (solo si hubo >= 3 chunks reales de voz)
                     if (isTransmittingSpeechRef.current) {
-                        const hadRealSpeech = activeSpeechChunksRef.current >= 3;
+                        const hadRealSpeech = activeSpeechChunksRef.current >= 6;
                         isTransmittingSpeechRef.current = false;
                         speechStartTimeRef.current = 0;
                         activeSpeechChunksRef.current = 0;
@@ -364,7 +363,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                         if (hadRealSpeech) {
                             try {
                                 wsRef.current.send(JSON.stringify({ type: 'speech_end' }));
-                                console.log('[VoiceSession] Fin de voz detectado (680ms) → speech_end enviado');
+                                console.log('[VoiceSession] Fin de voz detectado → speech_end enviado');
                             } catch (e) {
                                 console.warn('[VoiceSession] No se pudo enviar speech_end:', e);
                             }

@@ -1046,7 +1046,7 @@ async function executeFlowImageGeneration({
   prompt,
   aspectRatio = '16:9',
   style = 'fotorrealista',
-  skipAntigravity = false,
+  skipAntigravity = true,
 }) {
   if (!prompt || !String(prompt).trim()) {
     throw new Error('Debes indicar una descripción (prompt) para generar la imagen.');

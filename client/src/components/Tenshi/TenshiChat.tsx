@@ -3159,12 +3159,6 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   delegatedStatus: 'todo',
                 },
               ]);
-              axios
-                .post('/api/tenshi/message', {
-                  role: 'assistant',
-                  content: bubbleContent,
-                })
-                .catch(() => {});
               setIsOpen(true);
               resultMsg = `Orden "${titulo}" delegada exitosamente a Antigravity con su instrucción.`;
 
@@ -4812,8 +4806,16 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             if (sig !== '-') historySignatures.add(sig);
           });
 
-          // 4. Filtrar archivos y medios locales que aún no hayan sido devueltos por el backend
+          // 4. Filtrar archivos y medios locales recién creados (< 8s) que aún no hayan sido devueltos por el backend.
+          // NUNCA re-anexar mensajes antiguos ni órdenes de Antigravity ya procesadas para evitar que reaparezcan al final del chat cada 3.5s.
+          const nowTs = Date.now();
           const unpersistedExtras = localExtras.filter((lf: any) => {
+            if (lf.delegatedOrderId || String(lf._id || '').startsWith('antigravity-')) {
+              return false;
+            }
+            if (!lf._localCreatedAt || nowTs - Number(lf._localCreatedAt) > 8000) {
+              return false;
+            }
             if (lf._id && historySignatures.has(String(lf._id))) return false;
             if (lf.file?.canvasId && historySignatures.has(String(lf.file.canvasId))) return false;
             if (lf.widget?.actionId && historySignatures.has(String(lf.widget.actionId))) return false;
@@ -4982,6 +4984,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
   // Escuchar entrega instantánea por WebSocket y Push SSE cuando Antigravity completa una orden delegada (Push 0-latencia)
   const deliveredAntigravityIdsRef = useRef<Set<string>>(new Set());
+  const antigravityVoiceAnnounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     const handleAntigravityDelivered = (e: any) => {
       const {
@@ -4997,11 +5000,23 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         isOriginalFileCopy: explicitOriginalFile,
         sourceModule,
       } = e.detail || {};
+
+      // Ignorar eventos internos de prioridad de imagen (manejados directamente por su propio flujo)
+      if (sourceModule === 'image_priority') {
+        return;
+      }
+
       if (ordenId && deliveredAntigravityIdsRef.current.has(String(ordenId))) {
+        return;
+      }
+      if (messageId && deliveredAntigravityIdsRef.current.has(`msg:${String(messageId)}`)) {
         return;
       }
       if (ordenId) {
         deliveredAntigravityIdsRef.current.add(String(ordenId));
+      }
+      if (messageId) {
+        deliveredAntigravityIdsRef.current.add(`msg:${String(messageId)}`);
       }
 
       const rawFormat = String(formato || file?.fileType || '').toLowerCase().trim();
@@ -5087,6 +5102,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             if (m.delegatedOrderId === ordenId) {
               return {
                 ...m,
+                _id: messageId || m._id,
                 content: bubbleText,
                 file: fileObj,
                 media: isOriginalFileCopy && media ? media : m.media,
@@ -5148,24 +5164,31 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       }
 
       if (isVoiceActiveRef.current) {
-        if (isOriginalFileCopy) {
-          sendTextMessageRef.current?.(
-            `[SISTEMA INTERNO WAPPY]: Antigravity acaba de enviar la copia original del archivo "${media?.name || finalTitle}" desde el PC del usuario al chat de Tenshi. Confírmale en una frase breve que ya tiene el archivo original adjunto en su chat listo para descargar.`
-          );
-        } else if (isConversationalReply) {
-          sendTextMessageRef.current?.(
-            `[SISTEMA INTERNO WAPPY]: Antigravity acaba de responder la consulta del usuario: "${chatSummary.slice(0, 600)}". Compártele esta respuesta de forma natural, clara y breve en voz alta.`
-          );
-        } else {
-          sendTextMessageRef.current?.(
-            `[SISTEMA INTERNO WAPPY]: Antigravity acaba de entregar el documento "${finalTitle}" directamente en el Editor de Documentos de WAPPY (Canvas). Confírmale al usuario en una sola frase breve y entusiasta que ya está abierto en su pantalla.`
-          );
+        const voicePrompt = isOriginalFileCopy
+          ? `[SISTEMA INTERNO WAPPY]: Antigravity acaba de enviar la copia original del archivo "${media?.name || finalTitle}" desde el PC del usuario al chat de Tenshi. Confírmale en una frase breve que ya tiene el archivo original adjunto en su chat listo para descargar.`
+          : isConversationalReply
+          ? `[SISTEMA INTERNO WAPPY]: Antigravity acaba de responder la consulta del usuario: "${chatSummary.slice(0, 600)}". Compártele esta respuesta de forma natural, clara y breve en voz alta.`
+          : `[SISTEMA INTERNO WAPPY]: Antigravity acaba de entregar el documento "${finalTitle}" directamente en el Editor de Documentos de WAPPY (Canvas). Confírmale al usuario en una sola frase breve y entusiasta que ya está abierto en su pantalla.`;
+
+        if (antigravityVoiceAnnounceTimerRef.current) {
+          clearTimeout(antigravityVoiceAnnounceTimerRef.current);
         }
+        antigravityVoiceAnnounceTimerRef.current = setTimeout(() => {
+          antigravityVoiceAnnounceTimerRef.current = null;
+          if (isVoiceActiveRef.current) {
+            sendTextMessageRef.current?.(voicePrompt);
+          }
+        }, 900);
       }
     };
 
     window.addEventListener('tenshi-antigravity-delivered', handleAntigravityDelivered);
-    return () => window.removeEventListener('tenshi-antigravity-delivered', handleAntigravityDelivered);
+    return () => {
+      window.removeEventListener('tenshi-antigravity-delivered', handleAntigravityDelivered);
+      if (antigravityVoiceAnnounceTimerRef.current) {
+        clearTimeout(antigravityVoiceAnnounceTimerRef.current);
+      }
+    };
   }, [navigate, setIsCanvasActive, setCanvasMaximized, setStreamingCanvas]);
 
   // Conexión Push SSE persistente (0 ms) para recibir entregables de Antigravity en tiempo real (en celular y escritorio, incluso sin voz activa)

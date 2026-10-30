@@ -7719,16 +7719,19 @@ router.get('/briefing', requireApiKeyOrJwt, async (req, res) => {
     ] = await Promise.all([
       KanbanTask.find({
         ...scopeQuery,
+        type: { $ne: 'antigravity_delegation' },
         status: { $nin: ['done', 'dismissed'] },
         dueDate: { $gte: startOfToday, $lte: endOfToday },
       }).sort({ dueDate: 1 }).limit(6).lean().catch(() => []),
       KanbanTask.find({
         ...scopeQuery,
+        type: { $ne: 'antigravity_delegation' },
         status: { $nin: ['done', 'dismissed'] },
         dueDate: { $gte: startOfTomorrow, $lte: endOfTomorrow },
       }).sort({ dueDate: 1 }).limit(6).lean().catch(() => []),
       KanbanTask.find({
         ...scopeQuery,
+        type: { $ne: 'antigravity_delegation' },
         status: { $nin: ['done', 'dismissed'] },
         $or: [
           { status: 'overdue' },
@@ -7737,6 +7740,7 @@ router.get('/briefing', requireApiKeyOrJwt, async (req, res) => {
       }).sort({ dueDate: -1 }).limit(5).lean().catch(() => []),
       KanbanTask.findOne({
         ...scopeQuery,
+        type: { $ne: 'antigravity_delegation' },
         status: { $in: ['done', 'in_progress'] },
       }).sort({ updatedAt: -1 }).select('title status updatedAt sourceModule').lean().catch(() => null),
       Conversation.findOne({
