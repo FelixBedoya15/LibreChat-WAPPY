@@ -1,22 +1,33 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   MessageSquare,
   Mic,
   MicOff,
+  Camera,
+  CameraOff,
+  SwitchCamera,
+  RefreshCw,
   Volume2,
   VolumeX,
-  FileText,
-  RotateCcw,
   X,
   ArrowUp,
+  ArrowRight,
   Sparkles,
   Laptop,
   Copy,
   Check,
   ExternalLink,
-  Volume1,
-  Square,
+  GraduationCap,
+  Plus,
+  ShieldCheck,
+  Trash2,
+  Search,
+  Rocket,
+  Globe,
+  BookOpen,
+  Film,
+  FolderOpen,
 } from 'lucide-react';
 import {
   TenshiAvatar,
@@ -33,6 +44,8 @@ interface SharedFileItem {
   format: string;
   sizeBytes?: number;
   createdAt?: string;
+  project?: string;
+  conversationId?: string;
 }
 
 interface SharedChatMessage {
@@ -41,7 +54,27 @@ interface SharedChatMessage {
   content: string;
   source?: string;
   createdAt?: string;
+  conversationId?: string;
   files?: SharedFileItem[];
+}
+
+interface WappyDotsIntegrationInfo {
+  id: string;
+  label: string;
+  fullName: string;
+  icon: string;
+  badgeColor: string;
+  description: string;
+}
+
+interface SharedChatSession {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  activeIntegration: string;
+  agentId?: string;
+  messages: SharedChatMessage[];
 }
 
 interface TunnelLinkState {
@@ -53,8 +86,110 @@ interface TunnelLinkState {
   directMobileUrl?: string;
 }
 
-type ActiveDrawer = 'none' | 'chat' | 'files';
+type ActiveDrawer = 'none' | 'chat' | 'history' | 'integration' | 'files' | 'agents' | 'tunnel';
 type PersonalityMode = 'express' | 'asistente' | 'profundo';
+type PipVisionMode = 'camera' | 'mac';
+
+const DEFAULT_INTEGRATIONS: WappyDotsIntegrationInfo[] = [
+  {
+    id: 'antigravity',
+    label: 'Antigravity',
+    fullName: 'Google Antigravity IDE',
+    icon: 'rocket',
+    badgeColor: '#C7F303',
+    description: 'Control directo de proyectos, código, agentes y terminal en tu Mac',
+  },
+  {
+    id: 'google-workspace',
+    label: 'Workspace',
+    fullName: 'Google Workspace (Gmail, Calendar, Drive)',
+    icon: 'globe',
+    badgeColor: '#38BDF8',
+    description: 'Envío de correos, agenda, documentos, hojas de cálculo y Drive',
+  },
+  {
+    id: 'notebooklm',
+    label: 'NotebookLM',
+    fullName: 'Google NotebookLM',
+    icon: 'book',
+    badgeColor: '#A78BFA',
+    description: 'Investigación profunda sobre fuentes, cuadernos y Audio Overview',
+  },
+  {
+    id: 'google-flow',
+    label: 'Google Flow',
+    fullName: 'Google Flow & Veo Studio',
+    icon: 'film',
+    badgeColor: '#F472B6',
+    description: 'Producción audiovisual cinematográfica Veo e imágenes con IA',
+  },
+  {
+    id: 'wappy-sst',
+    label: 'Somos SST',
+    fullName: 'Wappy IA Cloud · Somos SST',
+    icon: 'shield',
+    badgeColor: '#10B981',
+    description: '41 herramientas operativas SG-SST, GTC-45, PESV y Resolución 0312',
+  },
+  {
+    id: 'terminal-mac',
+    label: 'Mi Mac',
+    fullName: 'Control de Pantalla y Archivos Mac',
+    icon: 'laptop',
+    badgeColor: '#F59E0B',
+    description: 'Visión de pantalla en vivo, creación de PDF/Word/Excel/QR y automatizaciones',
+  },
+];
+
+// Icono exacto para el Panel Izquierdo (de MobileBottomNav.tsx)
+const LeftPanelIcon = ({ active }: { active: boolean }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    className={`h-5 w-5 transition-all duration-200 ${
+      active ? 'text-teal-400 scale-105' : 'text-zinc-400 hover:text-white'
+    }`}
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="4" width="18" height="16" rx="4" />
+    <path
+      d="M9 4.5v15"
+      strokeWidth="2"
+      className={active ? 'stroke-teal-400' : 'stroke-current'}
+    />
+    <circle cx="6" cy="9" r="0.9" fill="currentColor" />
+    <circle cx="6" cy="12" r="0.9" fill="currentColor" />
+    <circle cx="6" cy="15" r="0.9" fill="currentColor" />
+  </svg>
+);
+
+// Icono exacto para el Panel Derecho (de MobileBottomNav.tsx)
+const RightPanelIcon = ({ active }: { active: boolean }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    className={`h-5 w-5 transition-all duration-200 ${
+      active ? 'text-teal-400 scale-105' : 'text-zinc-400 hover:text-white'
+    }`}
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="4" width="18" height="16" rx="4" />
+    <path
+      d="M15 4.5v15"
+      strokeWidth="2"
+      className={active ? 'stroke-teal-400' : 'stroke-current'}
+    />
+    <circle cx="18" cy="9" r="0.9" fill="currentColor" />
+    <circle cx="18" cy="12" r="0.9" fill="currentColor" />
+    <circle cx="18" cy="15" r="0.9" fill="currentColor" />
+  </svg>
+);
 
 function normalizeVoiceCmd(str: string): string {
   return String(str || '')
@@ -126,17 +261,45 @@ function cleanDisplayMarkdown(raw: string): string {
     .trim();
 }
 
+function renderIntegrationIcon(iconName: string, className = 'h-4 w-4') {
+  switch (iconName) {
+    case 'rocket':
+      return <Rocket className={className} />;
+    case 'globe':
+      return <Globe className={className} />;
+    case 'book':
+      return <BookOpen className={className} />;
+    case 'film':
+      return <Film className={className} />;
+    case 'shield':
+      return <ShieldCheck className={className} />;
+    case 'laptop':
+      return <Laptop className={className} />;
+    default:
+      return <Sparkles className={className} />;
+  }
+}
+
+const DEFAULT_HERO_SUBTITLE =
+  'Soy tu copiloto universal en Wappy Dots. Tócame para hablar o pulsa el micrófono.';
+
 export default function WappyDotsMobilePage() {
   const [drawer, setDrawer] = useState<ActiveDrawer>('none');
   const [personality, setPersonality] = useState<PersonalityMode>('asistente');
   const [mood, setMood] = useState<TenshiAvatarMood>('idle');
-  const [statusPillText, setStatusPillText] = useState<string>('✨ Lista para escucharte · 24 kHz');
-  const [speechText, setSpeechText] = useState<string>(
-    '¡Hola! Soy Tenshi en Wappy Dots. Tócame o pulsa el micrófono para hablar en vivo con tu Mac, Antigravity IDE y tus aplicaciones.',
-  );
+  const [speechText, setSpeechText] = useState<string>(DEFAULT_HERO_SUBTITLE);
   const [promptInput, setPromptInput] = useState<string>('');
+  const [historySearch, setHistorySearch] = useState<string>('');
+
+  // Estado Multi-Chat e Integraciones sincronizado con Wappy Dots Backend
   const [messages, setMessages] = useState<SharedChatMessage[]>([]);
   const [files, setFiles] = useState<SharedFileItem[]>([]);
+  const [sessions, setSessions] = useState<SharedChatSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string>('chat_principal');
+  const [activeIntegration, setActiveIntegration] = useState<string>('antigravity');
+  const [integrations, setIntegrations] = useState<WappyDotsIntegrationInfo[]>(DEFAULT_INTEGRATIONS);
+
+  // Estado de Voz Live 24 kHz
   const [isListening, setIsListening] = useState<boolean>(false);
   const [isMicMuted, setIsMicMuted] = useState<boolean>(false);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
@@ -144,6 +307,16 @@ export default function WappyDotsMobilePage() {
   const [outputAmplitude, setOutputAmplitude] = useState<number>(0);
   const [isSFXMuted, setIsSFXMuted] = useState<boolean>(() => tenshiAudio.getMuted());
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Estado Picture-in-Picture (PiP: Cámara Móvil + Pantalla Mac)
+  const [isPipOpen, setIsPipOpen] = useState<boolean>(false);
+  const [pipMode, setPipMode] = useState<PipVisionMode>('camera');
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [macScreenUrl, setMacScreenUrl] = useState<string | null>(null);
+  const [isLoadingMacScreen, setIsLoadingMacScreen] = useState<boolean>(false);
+
+  // Estado del Túnel de la Mac
   const [tunnelInfo, setTunnelInfo] = useState<TunnelLinkState>({
     ok: false,
     active: false,
@@ -161,10 +334,36 @@ export default function WappyDotsMobilePage() {
   const isSpeakingRef = useRef<boolean>(false);
   const prevMsgCountRef = useRef<number>(0);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     document.title = 'Tenshi · Wappy Dots | WAPPY IA';
   }, []);
+
+  const activeIntegrationInfo = useMemo<WappyDotsIntegrationInfo>(() => {
+    return (
+      integrations.find((item) => item.id === activeIntegration) ||
+      DEFAULT_INTEGRATIONS.find((item) => item.id === activeIntegration) ||
+      DEFAULT_INTEGRATIONS[0]
+    );
+  }, [integrations, activeIntegration]);
+
+  const activeSession = useMemo<SharedChatSession | undefined>(() => {
+    return sessions.find((s) => s.id === activeSessionId) || sessions[0];
+  }, [sessions, activeSessionId]);
+
+  const filteredSessions = useMemo<SharedChatSession[]>(() => {
+    const q = historySearch?.trim().toLowerCase() || '';
+    if (!q) return sessions;
+    return sessions.filter((s) => {
+      const titleMatch = (s.title || '').toLowerCase().includes(q);
+      const msgMatch = Array.isArray(s.messages)
+        ? s.messages.some((m) => (m.content || '').toLowerCase().includes(q))
+        : false;
+      return titleMatch || msgMatch;
+    });
+  }, [sessions, historySearch]);
 
   const ensureAudioCtx = useCallback(() => {
     if (!audioCtxRef.current) {
@@ -249,7 +448,7 @@ export default function WappyDotsMobilePage() {
       for (let i = 0; i < binary.length; i++) {
         bytes[i] = binary.charCodeAt(i);
       }
-      const audioBuffer = await ctx.decodeAudioData(bytes.buffer.slice(0));
+      const audioBuffer = await ctx.decodeAudioData(bytes.buffer.slice(0) as ArrayBuffer);
       const source = ctx.createBufferSource();
       source.buffer = audioBuffer;
       if (analyserRef.current) {
@@ -264,7 +463,6 @@ export default function WappyDotsMobilePage() {
       isSpeakingRef.current = true;
       setIsSpeaking(true);
       setMood('speaking');
-      setStatusPillText('🔊 Hablando en vivo · 24 kHz');
       startAmplitudeLoop();
 
       source.onended = () => {
@@ -274,7 +472,6 @@ export default function WappyDotsMobilePage() {
           setIsSpeaking(false);
           stopAmplitudeLoop();
           setMood('idle');
-          setStatusPillText('✨ Lista para escucharte · 24 kHz');
         }
       };
 
@@ -284,44 +481,39 @@ export default function WappyDotsMobilePage() {
     [ensureAudioCtx, startAmplitudeLoop, stopAmplitudeLoop],
   );
 
-  const speakFallback = useCallback(
-    (text: string, onDone?: () => void) => {
-      if (!('speechSynthesis' in window)) {
-        onDone?.();
-        return;
-      }
-      window.speechSynthesis.cancel();
-      const clean = cleanDisplayMarkdown(text).slice(0, 280);
-      const u = new SpeechSynthesisUtterance(clean);
-      u.lang = 'es-CO';
-      u.rate = 1.05;
-      u.pitch = 1.12;
-      u.onstart = () => {
-        isSpeakingRef.current = true;
-        setIsSpeaking(true);
-        setMood('speaking');
-        setOutputAmplitude(0.55);
-        setStatusPillText('🔊 Tenshi hablando...');
-      };
-      u.onend = () => {
-        isSpeakingRef.current = false;
-        setIsSpeaking(false);
-        setOutputAmplitude(0);
-        setMood('idle');
-        setStatusPillText('✨ Lista para escucharte · 24 kHz');
-        onDone?.();
-      };
-      u.onerror = () => {
-        isSpeakingRef.current = false;
-        setIsSpeaking(false);
-        setOutputAmplitude(0);
-        setMood('idle');
-        onDone?.();
-      };
-      window.speechSynthesis.speak(u);
-    },
-    [],
-  );
+  const speakFallback = useCallback((text: string, onDone?: () => void) => {
+    if (!('speechSynthesis' in window)) {
+      onDone?.();
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const clean = cleanDisplayMarkdown(text).slice(0, 280);
+    const u = new SpeechSynthesisUtterance(clean);
+    u.lang = 'es-CO';
+    u.rate = 1.05;
+    u.pitch = 1.12;
+    u.onstart = () => {
+      isSpeakingRef.current = true;
+      setIsSpeaking(true);
+      setMood('speaking');
+      setOutputAmplitude(0.55);
+    };
+    u.onend = () => {
+      isSpeakingRef.current = false;
+      setIsSpeaking(false);
+      setOutputAmplitude(0);
+      setMood('idle');
+      onDone?.();
+    };
+    u.onerror = () => {
+      isSpeakingRef.current = false;
+      setIsSpeaking(false);
+      setOutputAmplitude(0);
+      setMood('idle');
+      onDone?.();
+    };
+    window.speechSynthesis.speak(u);
+  }, []);
 
   const stopVoiceMode = useCallback(() => {
     setIsListening(false);
@@ -334,7 +526,6 @@ export default function WappyDotsMobilePage() {
     }
     flushAudioQueue();
     setMood('idle');
-    setStatusPillText('💤 Modo Live en espera · Toca 🎙️ para hablar');
   }, [flushAudioQueue]);
 
   // Descubrimiento del túnel activo de la Mac
@@ -396,33 +587,53 @@ export default function WappyDotsMobilePage() {
     [tunnelInfo.publicUrl],
   );
 
+  const applySharedStorePayload = useCallback((data: any) => {
+    if (!data || typeof data !== 'object') return;
+    const nextMsgs: SharedChatMessage[] = Array.isArray(data.messages) ? data.messages : [];
+    const nextFiles: SharedFileItem[] = Array.isArray(data.files) ? data.files : [];
+    const nextSessions: SharedChatSession[] = Array.isArray(data.sessions) ? data.sessions : [];
+    const nextIntegrations: WappyDotsIntegrationInfo[] =
+      Array.isArray(data.integrations) && data.integrations.length > 0
+        ? data.integrations
+        : DEFAULT_INTEGRATIONS;
+
+    if (nextMsgs.length > prevMsgCountRef.current) {
+      const latest = nextMsgs[nextMsgs.length - 1];
+      if (latest && latest.role === 'assistant') {
+        const cleaned = cleanDisplayMarkdown(latest.content);
+        if (cleaned) {
+          setSpeechText(cleaned.slice(0, 220) + (cleaned.length > 220 ? '...' : ''));
+        }
+        if (prevMsgCountRef.current > 0 && latest.source !== 'mobile') {
+          triggerTenshiReaction('success', 2800, ['✨', '📄', '🚀']);
+        }
+      }
+    }
+    prevMsgCountRef.current = nextMsgs.length;
+    setMessages(nextMsgs);
+    setFiles(nextFiles);
+    if (nextSessions.length > 0) {
+      setSessions(nextSessions);
+    }
+    setIntegrations(nextIntegrations);
+    if (typeof data.activeSessionId === 'string' && data.activeSessionId) {
+      setActiveSessionId(data.activeSessionId);
+    }
+    if (typeof data.activeIntegration === 'string' && data.activeIntegration) {
+      setActiveIntegration(data.activeIntegration);
+    }
+  }, []);
+
   const refreshSharedState = useCallback(async () => {
     try {
       const res = await callMacTunnel('/api/gemini-tunnel/antigravity/shared-chat');
       if (!res.ok) return;
       const data = await res.json();
-      const nextMsgs: SharedChatMessage[] = Array.isArray(data?.messages) ? data.messages : [];
-      const nextFiles: SharedFileItem[] = Array.isArray(data?.files) ? data.files : [];
-
-      if (nextMsgs.length > prevMsgCountRef.current) {
-        const latest = nextMsgs[nextMsgs.length - 1];
-        if (latest && latest.role === 'assistant') {
-          const cleaned = cleanDisplayMarkdown(latest.content);
-          if (cleaned) {
-            setSpeechText(cleaned.slice(0, 220) + (cleaned.length > 220 ? '...' : ''));
-          }
-          if (prevMsgCountRef.current > 0 && latest.source !== 'mobile') {
-            triggerTenshiReaction('success', 2800, ['✨', '📄', '🚀']);
-          }
-        }
-      }
-      prevMsgCountRef.current = nextMsgs.length;
-      setMessages(nextMsgs);
-      setFiles(nextFiles);
+      applySharedStorePayload(data);
     } catch (_e) {
       // ignore
     }
-  }, [callMacTunnel]);
+  }, [callMacTunnel, applySharedStorePayload]);
 
   useEffect(() => {
     fetchTunnelLink().then(() => {
@@ -442,8 +653,204 @@ export default function WappyDotsMobilePage() {
     }
   }, [messages, drawer]);
 
-  const executePrompt = useCallback(
-    async (rawPrompt: string) => {
+  // =========================================================================
+  // CONTROL DE CONVERSACIONES MULTI-SESIÓN E INTEGRACIONES
+  // =========================================================================
+  const handleNewChatSession = useCallback(
+    async (openChat = true) => {
+      tenshiAudio.playBlip();
+      try {
+        const res = await callMacTunnel('/api/gemini-tunnel/antigravity/shared-chat/new', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ integrationId: activeIntegration }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          prevMsgCountRef.current = 0;
+          applySharedStorePayload(data);
+        } else {
+          setMessages([]);
+        }
+      } catch (_e) {
+        setMessages([]);
+      }
+      setSpeechText(DEFAULT_HERO_SUBTITLE);
+      if (openChat) {
+        setDrawer('chat');
+      }
+    },
+    [activeIntegration, applySharedStorePayload, callMacTunnel],
+  );
+
+  const handleSelectSession = useCallback(
+    async (sessionId: string) => {
+      tenshiAudio.playBlip();
+      try {
+        const res = await callMacTunnel('/api/gemini-tunnel/antigravity/shared-chat/select', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          prevMsgCountRef.current = Array.isArray(data?.messages) ? data.messages.length : 0;
+          applySharedStorePayload(data);
+        }
+      } catch (_e) {
+        // ignore
+      }
+      setDrawer('chat');
+    },
+    [applySharedStorePayload, callMacTunnel],
+  );
+
+  const handleDeleteSession = useCallback(
+    async (sessionId: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      tenshiAudio.playBlip();
+      try {
+        const res = await callMacTunnel(
+          `/api/gemini-tunnel/antigravity/shared-chat/session/${encodeURIComponent(sessionId)}`,
+          { method: 'DELETE' },
+        );
+        if (res.ok) {
+          const data = await res.json();
+          prevMsgCountRef.current = Array.isArray(data?.messages) ? data.messages.length : 0;
+          applySharedStorePayload(data);
+        }
+      } catch (_e) {
+        // ignore
+      }
+    },
+    [applySharedStorePayload, callMacTunnel],
+  );
+
+  const handleSelectIntegration = useCallback(
+    async (integrationId: string) => {
+      tenshiAudio.playBlip();
+      setActiveIntegration(integrationId);
+      const chosen =
+        integrations.find((i) => i.id === integrationId) ||
+        DEFAULT_INTEGRATIONS.find((i) => i.id === integrationId) ||
+        DEFAULT_INTEGRATIONS[0];
+      triggerTenshiReaction('success', 2000, ['✨', '🔗']);
+      setSpeechText(`Integración activa: ${chosen.fullName}. Lista para ejecutar tus órdenes.`);
+
+      try {
+        const res = await callMacTunnel('/api/gemini-tunnel/antigravity/shared-chat/integration', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ integrationId }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          applySharedStorePayload(data);
+        }
+      } catch (_e) {
+        // ignore
+      }
+    },
+    [applySharedStorePayload, callMacTunnel, integrations],
+  );
+
+  // =========================================================================
+  // PICTURE-IN-PICTURE (CÁMARA MÓVIL & PANTALLA EN VIVO DE MI MAC)
+  // =========================================================================
+  const stopCameraStream = useCallback(() => {
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch (_e) {
+          // ignore
+        }
+      });
+      mediaStreamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, []);
+
+  const startCameraStream = useCallback(
+    async (targetFacing: 'user' | 'environment' = facingMode) => {
+      stopCameraStream();
+      setCameraError(null);
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setCameraError('Cámara no soportada en este navegador.');
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: targetFacing },
+          audio: false,
+        });
+        mediaStreamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(() => {});
+        }
+      } catch (_err) {
+        setCameraError('Permiso de cámara no concedido.');
+      }
+    },
+    [facingMode, stopCameraStream],
+  );
+
+  const fetchMacScreen = useCallback(async (): Promise<string | null> => {
+    setIsLoadingMacScreen(true);
+    try {
+      const res = await callMacTunnel('/api/gemini-tunnel/mac-screen');
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.imageDataUrl) {
+          setMacScreenUrl(data.imageDataUrl);
+          setIsLoadingMacScreen(false);
+          return data.imageDataUrl;
+        }
+      }
+    } catch (_e) {
+      // ignore
+    }
+    setIsLoadingMacScreen(false);
+    return null;
+  }, [callMacTunnel]);
+
+  useEffect(() => {
+    if (!isPipOpen) {
+      stopCameraStream();
+      return;
+    }
+    if (pipMode === 'camera') {
+      startCameraStream(facingMode);
+    } else {
+      stopCameraStream();
+      fetchMacScreen();
+    }
+    return () => {
+      stopCameraStream();
+    };
+  }, [isPipOpen, pipMode, facingMode, startCameraStream, stopCameraStream, fetchMacScreen]);
+
+  const handleTogglePip = useCallback(() => {
+    tenshiAudio.playBlip();
+    setIsPipOpen((prev) => !prev);
+  }, []);
+
+  const handleSwitchCamera = useCallback(() => {
+    tenshiAudio.playBlip();
+    setFacingMode((prev) => (prev === 'user' ? 'environment' : 'user'));
+  }, []);
+
+  // =========================================================================
+  // ENVÍO DE MENSAJES Y ÓRDENES A TENSHI (VOZ LIVE 24KHZ + TEXTO + VISIÓN)
+  // =========================================================================
+  const sendMessage = useCallback(
+    async (
+      rawPrompt: string,
+      options?: { viaVoice?: boolean; imageDataUrl?: string; openChatDrawer?: boolean },
+    ) => {
       const text = rawPrompt?.trim() || '';
       if (!text) return;
 
@@ -451,8 +858,11 @@ export default function WappyDotsMobilePage() {
         flushAudioQueue();
         setSpeechText('⏸️ Locución pausada · Sigo activa escuchándote en vivo.');
         setMood('listening');
-        setStatusPillText('⏸️ Pausada · Sigo en línea');
         return;
+      }
+
+      if (options?.openChatDrawer) {
+        setDrawer('chat');
       }
 
       const isFarewell = isNaturalFarewellCommand(text);
@@ -461,12 +871,17 @@ export default function WappyDotsMobilePage() {
       analyzeTenshiEmotionFromText(text, 'user');
       setIsProcessing(true);
       setMood('thinking');
-      setStatusPillText(
-        isFarewell ? '👋 Despidiéndose...' : '🧠 Procesando orden con tu Mac & Antigravity...',
-      );
       setSpeechText(`«${text}»`);
 
-      setMessages((prev) => [...prev, { role: 'user', content: text, source: 'mobile' }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'user',
+          content: text,
+          source: options?.viaVoice ? 'notch-voice' : 'mobile',
+          conversationId: activeSessionId,
+        },
+      ]);
 
       const styleInstruction =
         personality === 'express'
@@ -475,33 +890,70 @@ export default function WappyDotsMobilePage() {
           ? 'MODO PROFUNDO: Analiza a fondo y estructura la solución paso a paso.'
           : 'MODO ASISTENTE UNIVERSAL: Sé cálida, ejecutiva, clara y resolutiva.';
 
+      const systemPrompt = `[INTEGRACIÓN ACTIVA: ${activeIntegrationInfo.fullName} (${activeIntegrationInfo.id}) — ${activeIntegrationInfo.description}]. Prioriza siempre las herramientas y capacidades de esta integración activa. Eres Tenshi, asistente universal en vivo de Wappy Dots, conectada en tiempo real con la Mac del usuario, Antigravity IDE, generador de documentos (PDF/Word/Excel/HTML/QR), Google Flow, NotebookLM, Google Workspace, Somos SST y automatizaciones. ${styleInstruction} Si el usuario se despide ("hasta luego", "gracias por todo", "chao", "nos vemos"), pronuncia primero una despedida corta y cálida e invoca wappy_controlar_videollamada(accion: "colgar_llamada"). NUNCA cuelgues si solo dice "para", "detente" o "espera".`;
+
+      const useLiveAudioModel = Boolean(options?.viaVoice && !options?.imageDataUrl);
+      const userMessageContent: any = options?.imageDataUrl
+        ? [
+            { type: 'text', text },
+            { type: 'image_url', image_url: { url: options.imageDataUrl } },
+          ]
+        : text;
+
       try {
-        const res = await callMacTunnel('/api/gemini-tunnel/v1/audio/live-chat', {
+        let res = await callMacTunnel('/api/gemini-tunnel/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: 'Bearer wappy-tunnel',
           },
           body: JSON.stringify({
-            model: 'gemini-3.8-live',
+            model: useLiveAudioModel ? 'gemini-3.8-live' : 'gemini-3.8-flash',
             voice: 'Aoede',
+            session_id: activeSessionId,
+            integration_id: activeIntegration,
             messages: [
-              {
-                role: 'system',
-                content: `Eres Tenshi, asistente universal en vivo de Wappy Dots, conectada en tiempo real con la Mac del usuario, Antigravity IDE, generador de documentos (PDF/Word/Excel/HTML/QR), Google Flow, NotebookLM, Google Workspace y automatizaciones. ${styleInstruction} Si el usuario se despide ("hasta luego", "gracias por todo", "chao", "nos vemos"), pronuncia primero una despedida corta y cálida e invoca wappy_controlar_videollamada(accion: "colgar_llamada"). NUNCA cuelgues si solo dice "para", "detente" o "espera".`,
-              },
-              { role: 'user', content: text },
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userMessageContent },
             ],
           }),
         });
 
-        const replyData = await res.json();
+        let replyData = await res.json();
+
+        // Si el modelo Live invocó una herramienta (tool_calls), ejecutar el turno de herramientas con gemini-3.8-flash
+        if (
+          useLiveAudioModel &&
+          (replyData?.choices?.[0]?.finish_reason === 'tool_calls' ||
+            replyData?.choices?.[0]?.message?.tool_calls?.length)
+        ) {
+          res = await callMacTunnel('/api/gemini-tunnel/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: 'Bearer wappy-tunnel',
+            },
+            body: JSON.stringify({
+              model: 'gemini-3.8-flash',
+              session_id: activeSessionId,
+              integration_id: activeIntegration,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: text },
+              ],
+            }),
+          });
+          replyData = await res.json();
+        }
+
         const rawReply =
           replyData?.text ||
           replyData?.choices?.[0]?.message?.content ||
           (isFarewell ? '¡Hasta luego! Fue un gusto ayudarte hoy.' : '¡Instrucción completada!');
         const shouldHangUp =
-          isFarewell || Boolean(replyData?.should_hang_up) || String(rawReply).includes('HANGUP_CALL');
+          isFarewell ||
+          Boolean(replyData?.should_hang_up) ||
+          String(rawReply).includes('HANGUP_CALL');
         const cleanReply =
           cleanDisplayMarkdown(String(rawReply).replace(/HANGUP_CALL:?/gi, '')) ||
           '¡Hasta luego! Fue un gusto ayudarte hoy.';
@@ -511,12 +963,15 @@ export default function WappyDotsMobilePage() {
         analyzeTenshiEmotionFromText(cleanReply, 'assistant');
         triggerTenshiReaction('success', 2600, ['✨', '💚', '🐾']);
 
-        if (replyData?.audio_wav_base64) {
-          const waitMs = await playWavBase64(replyData.audio_wav_base64);
+        const wavBase64 =
+          replyData?.audio_wav_base64 || replyData?.choices?.[0]?.message?.audio_wav_base64;
+
+        if (wavBase64) {
+          const waitMs = await playWavBase64(wavBase64);
           if (shouldHangUp) {
             setTimeout(() => stopVoiceMode(), waitMs);
           }
-        } else {
+        } else if (options?.viaVoice || isListening) {
           speakFallback(cleanReply, () => {
             if (shouldHangUp) {
               setTimeout(() => stopVoiceMode(), 400);
@@ -526,7 +981,6 @@ export default function WappyDotsMobilePage() {
       } catch (_e) {
         setIsProcessing(false);
         setMood('idle');
-        setStatusPillText('⚠️ Reintentando conexión con tu Mac...');
         setSpeechText(
           'No pude contactar el túnel de tu Mac en este instante. Verifica que Wappy Dots esté abierto.',
         );
@@ -535,8 +989,12 @@ export default function WappyDotsMobilePage() {
       await refreshSharedState();
     },
     [
+      activeIntegration,
+      activeIntegrationInfo,
+      activeSessionId,
       callMacTunnel,
       flushAudioQueue,
+      isListening,
       personality,
       playWavBase64,
       refreshSharedState,
@@ -545,7 +1003,40 @@ export default function WappyDotsMobilePage() {
     ],
   );
 
-  const toggleVoiceRecording = useCallback(() => {
+  const handleCaptureCameraAndAnalyze = useCallback(() => {
+    tenshiAudio.playBlip();
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) {
+      sendMessage('Analiza lo que estoy enfocando con mi cámara móvil.');
+      return;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.min(640, video.videoWidth);
+    canvas.height = Math.round((canvas.width / video.videoWidth) * video.videoHeight);
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+      sendMessage(
+        'Analiza esta foto capturada con la cámara de mi celular y descríbeme qué observas o cómo me puedes ayudar.',
+        { imageDataUrl: dataUrl },
+      );
+    }
+  }, [sendMessage]);
+
+  const handleAskAboutMacScreen = useCallback(async () => {
+    tenshiAudio.playBlip();
+    let img = macScreenUrl;
+    if (!img) {
+      img = await fetchMacScreen();
+    }
+    sendMessage(
+      '¿Qué hay en la pantalla activa de mi Mac en este momento? Analízala y dime cómo me puedes asistir.',
+      img ? { imageDataUrl: img } : undefined,
+    );
+  }, [fetchMacScreen, macScreenUrl, sendMessage]);
+
+  const toggleVoiceMode = useCallback(() => {
     ensureAudioCtx();
     tenshiAudio.playBlip();
     if (isSpeakingRef.current) {
@@ -569,6 +1060,7 @@ export default function WappyDotsMobilePage() {
         // ignore
       }
       setIsListening(false);
+      setMood('idle');
       return;
     }
 
@@ -583,7 +1075,7 @@ export default function WappyDotsMobilePage() {
       }
       setIsListening(true);
       setMood('listening');
-      setStatusPillText('🎙️ Escuchando tu voz en vivo...');
+      setSpeechText('Voz en vivo activa. Te estoy escuchando...');
     };
 
     r.onresult = (ev: any) => {
@@ -602,10 +1094,9 @@ export default function WappyDotsMobilePage() {
       setPromptInput((current) => {
         const trimmed = current?.trim() || '';
         if (trimmed) {
-          setTimeout(() => executePrompt(trimmed), 20);
+          setTimeout(() => sendMessage(trimmed, { viaVoice: true }), 20);
         } else {
           setMood('idle');
-          setStatusPillText('✨ Lista para escucharte · 24 kHz');
         }
         return '';
       });
@@ -614,7 +1105,6 @@ export default function WappyDotsMobilePage() {
     r.onerror = () => {
       setIsListening(false);
       setMood('idle');
-      setStatusPillText('✨ Lista para escucharte · 24 kHz');
     };
 
     recognitionRef.current = r;
@@ -623,112 +1113,76 @@ export default function WappyDotsMobilePage() {
     } catch (_e) {
       // ignore
     }
-  }, [ensureAudioCtx, executePrompt, flushAudioQueue, isListening, isMicMuted]);
+  }, [ensureAudioCtx, flushAudioQueue, isListening, isMicMuted, sendMessage]);
 
-  const handleToggleMicMute = () => {
+  const handleToggleMicMute = useCallback(() => {
     tenshiAudio.playBlip();
+    if (isSpeakingRef.current) {
+      flushAudioQueue();
+      return;
+    }
     if (!isMicMuted && isListening) {
       stopVoiceMode();
     }
     setIsMicMuted((prev) => !prev);
-  };
+  }, [flushAudioQueue, isListening, isMicMuted, stopVoiceMode]);
 
-  const handleToggleSFX = () => {
+  const handleToggleSFX = useCallback(() => {
     const nextMuted = tenshiAudio.toggleMuted();
     setIsSFXMuted(nextMuted);
     if (!nextMuted) {
       tenshiAudio.playBlip();
     }
-  };
+  }, []);
 
-  const handleCopyMessage = (text: string, id: string) => {
+  const handleCopyMessage = useCallback((text: string, id: string) => {
     navigator.clipboard?.writeText(cleanDisplayMarkdown(text)).catch(() => {});
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 1500);
-  };
-
-  const handleClearChat = async () => {
-    tenshiAudio.playBlip();
-    try {
-      await callMacTunnel('/api/gemini-tunnel/antigravity/shared-chat/clear', { method: 'POST' });
-      setMessages([]);
-    } catch (_e) {
-      setMessages([]);
-    }
-  };
+  }, []);
 
   const getSourceBadge = (m: SharedChatMessage) => {
     if (m.source === 'antigravity') return '🚀 Antigravity IDE';
     if (m.source === 'notch-voice')
-      return m.role === 'user' ? '🎙️ Isla Notch (Voz)' : '🔊 Tenshi Voz 24kHz';
+      return m.role === 'user' ? '🎙️ Voz en Vivo' : '🔊 Tenshi Voz 24kHz';
     if (m.source === 'mobile') return '📱 Wappy Dots Móvil';
     return m.role === 'user' ? '💬 Tú' : '✨ Tenshi';
   };
 
+  const heroSubtitleText = useMemo(() => {
+    if (isMicMuted) {
+      return 'Micrófono silenciado (Mute activo). Tenshi no te escucha.';
+    }
+    if (isSpeaking || isProcessing || isListening) {
+      return speechText || 'Voz en vivo activa. Te estoy escuchando...';
+    }
+    if (speechText && speechText !== DEFAULT_HERO_SUBTITLE) {
+      return speechText;
+    }
+    return DEFAULT_HERO_SUBTITLE;
+  }, [isListening, isMicMuted, isProcessing, isSpeaking, speechText]);
+
   return (
-    <div className="wappydots-mobile-shell relative flex h-[100dvh] w-full flex-col overflow-hidden bg-[#09090c] text-[#f5f6f8] select-none">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap');
-
-        .wappydots-mobile-shell {
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-          background:
-            radial-gradient(ellipse 95% 42% at 50% -6%, rgba(217, 119, 6, 0.24) 0%, rgba(120, 53, 15, 0.12) 42%, transparent 75%),
-            radial-gradient(circle at 50% 48%, rgba(99, 102, 241, 0.16) 0%, rgba(16, 185, 129, 0.08) 38%, transparent 70%),
-            linear-gradient(180deg, #0b0b0f 0%, #09090c 55%, #070709 100%);
-        }
-
-        .wappydots-font-display {
-          font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
-        }
-
-        .wappydots-stage-grid {
-          background-image:
-            linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-          background-size: 32px 32px;
-          mask-image: radial-gradient(ellipse 75% 65% at 50% 50%, black 25%, transparent 80%);
-          -webkit-mask-image: radial-gradient(ellipse 75% 65% at 50% 50%, black 25%, transparent 80%);
-        }
-
-        .wappydots-stardust {
-          background-image:
-            radial-gradient(1.5px 1.5px at 18% 22%, rgba(251, 191, 36, 0.75) 50%, transparent 100%),
-            radial-gradient(1px 1px at 76% 16%, rgba(245, 158, 11, 0.65) 50%, transparent 100%),
-            radial-gradient(1.5px 1.5px at 62% 34%, rgba(199, 243, 3, 0.55) 50%, transparent 100%),
-            radial-gradient(1px 1px at 28% 68%, rgba(168, 85, 247, 0.6) 50%, transparent 100%),
-            radial-gradient(1.5px 1.5px at 84% 62%, rgba(251, 191, 36, 0.55) 50%, transparent 100%);
-        }
-
-        @keyframes wappydotsWave {
-          0%, 100% { transform: scaleY(0.32); }
-          50% { transform: scaleY(1); }
-        }
-
-        .wappydots-eq-bar {
-          width: 3.5px;
-          border-radius: 999px;
-          background: linear-gradient(180deg, #c7f303 0%, #f59e0b 100%);
-          animation: wappydotsWave 0.95s ease-in-out infinite;
-        }
-      `}</style>
-
-      {/* Polvo estelar Ámbar/Dorado de Wappy Dots + Retícula de Escenario */}
-      <div className="wappydots-stardust pointer-events-none absolute inset-0 opacity-80" />
-      <div className="wappydots-stage-grid pointer-events-none absolute inset-0" />
-
+    <div
+      className="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-[#09090c] text-white select-none"
+      style={{
+        paddingBottom: 'calc(max(8px, calc(env(safe-area-inset-bottom, 0px) - 6px)) + 74px)',
+      }}
+    >
       {/* ===================================================================== */}
-      {/* 1. CABECERA ISLA NOTCH DE WAPPY DOTS (Dynamic Island Hardware Header)  */}
+      {/* ZONA 1 — CABECERA SUPERIOR (Idéntica a Tenshi Hero Móvil en LibreChat)*/}
       {/* ===================================================================== */}
       <header
-        className="relative z-30 flex items-center justify-between gap-2 px-3.5 sm:px-6 pb-2.5 pt-2.5 border-b border-white/[0.07] bg-[#0c0d12]/80 backdrop-blur-2xl"
-        style={{ paddingTop: 'max(10px, env(safe-area-inset-top, 10px))' }}
+        className="relative z-30 flex items-center justify-between bg-[#09090c]/90 backdrop-blur-md border-b border-white/[0.06] px-4 py-3 shrink-0"
+        style={{
+          paddingTop: 'max(12px, env(safe-area-inset-top, 12px))',
+        }}
       >
-        {/* Identidad Izquierda: Mini Tenshi + Wappy Dots */}
+        {/* Izquierda: Mini TenshiAvatar + Nombre + Insignia WAPPY DOTS + Subtítulo dinámico */}
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/20 via-purple-500/15 to-emerald-500/20 border border-amber-400/30 shadow-inner">
+          <div className="relative flex h-8 w-8 shrink-0 items-center justify-center">
             <TenshiAvatar
-              size={34}
+              size={32}
               mood={mood}
               isSpeaking={isSpeaking}
               outputAmplitude={outputAmplitude}
@@ -738,438 +1192,374 @@ export default function WappyDotsMobilePage() {
               showHUD={true}
             />
             <span
-              className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-[#0c0d12] ${
-                tunnelInfo.publicUrl ? 'bg-[#c7f303]' : 'bg-amber-400 animate-pulse'
+              className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-[#09090c] ${
+                isListening
+                  ? 'bg-[#C7F303] animate-pulse'
+                  : tunnelInfo.active
+                  ? 'bg-[#C7F303]'
+                  : 'bg-emerald-400'
               }`}
             />
           </div>
 
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <span className="wappydots-font-display text-xs sm:text-sm font-black tracking-tight text-white">
-                Wappy <span className="text-amber-400">Dots</span>
-              </span>
-              <span className="rounded-md border border-purple-400/35 bg-purple-500/15 px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-purple-200">
-                Isla Móvil
+              <h3 className="font-bold text-[15px] text-white leading-none">Tenshi</h3>
+              <span className="px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider bg-emerald-500/15 text-[#C7F303] rounded-full border border-[#C7F303]/35">
+                WAPPY DOTS
               </span>
             </div>
-            <div className="flex items-center gap-1.5 text-[10px] font-medium text-[#8e939c] truncate">
-              <span
-                className={`h-1.5 w-1.5 rounded-full shrink-0 ${
-                  tunnelInfo.publicUrl
-                    ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]'
-                    : 'bg-amber-400'
-                }`}
-              />
-              <span className="truncate">
-                {tunnelInfo.publicUrl
-                  ? 'Conectado en vivo con tu Mac · 24 kHz'
-                  : 'Sincronizando túnel con tu Mac...'}
-              </span>
-            </div>
+            <p className="mt-0.5 text-[11px] text-zinc-400 truncate">
+              {isSpeaking
+                ? 'Hablando contigo...'
+                : isListening
+                ? 'Voz en vivo activa'
+                : `Asistente WAPPY DOTS · ${activeIntegrationInfo.label}`}
+            </p>
           </div>
         </div>
 
-        {/* Cápsula Central Hardware Notch (Visible en Pantallas Medianas/Grandes) */}
-        <div className="hidden md:inline-flex items-center gap-2.5 rounded-full bg-[#050608] border border-white/15 px-4 py-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.75),0_0_20px_rgba(245,158,11,0.12)]">
-          <span className="h-2 w-2 rounded-full bg-[#c7f303] shadow-[0_0_8px_#c7f303]" />
-          <span className="text-[11px] font-extrabold tracking-wide text-slate-100">
-            «Oye Tenshi» · Hermes Core · Antigravity
-          </span>
-          <div className="flex items-center gap-0.5 h-3">
-            <span className="wappydots-eq-bar h-2.5" style={{ animationDelay: '0s' }} />
-            <span className="wappydots-eq-bar h-3.5" style={{ animationDelay: '0.15s' }} />
-            <span className="wappydots-eq-bar h-2" style={{ animationDelay: '0.3s' }} />
-            <span className="wappydots-eq-bar h-3.5" style={{ animationDelay: '0.45s' }} />
-          </div>
-        </div>
-
-        {/* Controles Derecha */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        {/* Derecha: Sonido + Botón Cápsula "Ir a Wappy →" */}
+        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={handleToggleSFX}
-            title={isSFXMuted ? 'Activar sonidos de Tenshi' : 'Silenciar sonidos de Tenshi'}
-            className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/10 active:scale-95 transition"
+            title={isSFXMuted ? 'Activar efectos de sonido' : 'Silenciar efectos de sonido'}
+            className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200 active:scale-95"
           >
             {isSFXMuted ? (
-              <VolumeX className="h-3.5 w-3.5 text-amber-400" />
+              <VolumeX className="h-4 w-4 text-emerald-400" />
             ) : (
-              <Volume2 className="h-3.5 w-3.5 text-emerald-400" />
+              <Volume2 className="h-4 w-4" />
             )}
           </button>
 
-          <Link
-            to="/wappy-dots"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-bold text-amber-200 hover:bg-amber-500/20 transition active:scale-95"
+          <button
+            type="button"
+            onClick={() => {
+              tenshiAudio.playBlip();
+              setDrawer((prev) => (prev === 'tunnel' ? 'none' : 'tunnel'));
+            }}
+            className="flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-zinc-900 border border-zinc-700/80 text-zinc-200 text-xs font-semibold active:scale-95 transition-all hover:border-zinc-600"
           >
-            <Laptop className="h-3.5 w-3.5 text-amber-400" />
-            <span className="hidden sm:inline">App Escritorio</span>
-            <span className="sm:hidden">Mac</span>
-          </Link>
+            <span>Ir a Wappy</span>
+            <ArrowRight className="h-3.5 w-3.5 text-teal-400" />
+          </button>
         </div>
       </header>
 
       {/* ===================================================================== */}
-      {/* 2. ESCENARIO HEROICO DE TENSHI (Con Aureola 3D, HUD y Colores Dots)    */}
+      {/* TARJETA FLOTANTE PICTURE-IN-PICTURE (PiP: CÁMARA MÓVIL / MI MAC)      */}
       {/* ===================================================================== */}
-      <main className="relative z-10 flex flex-1 flex-col items-center justify-between overflow-hidden px-3 sm:px-4 py-1.5 sm:py-2.5">
-        {/* Fila Superior de Insignias estilo Portal Wappy Dots */}
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-purple-400/40 bg-purple-500/15 px-3 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-purple-200 shadow-sm">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#c7f303] shadow-[0_0_8px_#c7f303]" />
-            <span>ISLA NOTCH · VOZ 24KHZ</span>
-          </div>
-
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-500/15 px-3 py-0.5 text-[10px] font-extrabold text-amber-200 shadow-sm">
-            <span>😇 Tenshi + Antigravity + +24 Agentes</span>
-          </div>
-        </div>
-
-        {/* Escenario Central con el Tenshi Real de Wappy (Aureola + Visor HUD + Física 3D) */}
-        <div className="relative flex flex-col items-center justify-center">
-          {/* Resplandor Radial Doble (Ámbar Wappy Dots + Índigo/Esmeralda) detrás de Tenshi */}
-          <div
-            className={`pointer-events-none absolute h-52 w-52 sm:h-60 sm:w-60 rounded-full blur-3xl transition-all duration-500 ${
-              isListening
-                ? 'bg-rose-500/25 scale-110'
-                : isSpeaking
-                ? 'bg-amber-500/25 scale-110'
-                : 'bg-gradient-to-tr from-purple-600/20 via-amber-500/15 to-emerald-500/20'
-            }`}
-          />
-
-          <div
-            onClick={() => {
-              tenshiAudio.playBlip();
-              toggleVoiceRecording();
-            }}
-            className="relative z-20 mt-2 cursor-pointer transition-transform duration-300 hover:scale-[1.03] active:scale-95"
-            title="Tócame para hablar o acaríciame"
-          >
-            <TenshiAvatar
-              size={195}
-              mood={mood}
-              isSpeaking={isSpeaking}
-              outputAmplitude={outputAmplitude}
-              isVoiceActive={isListening}
-              isTyping={isProcessing}
-              statusText={statusPillText}
-              interactive={true}
-              showHaloEffect={true}
-              showHUD={true}
-            />
-          </div>
-
-          {/* Pedestal de Luz Elíptica bajo los pies de Tenshi (Idéntico a Wappy Portal) */}
-          <div
-            className="pointer-events-none -mt-2 h-4 w-40 rounded-full blur-md"
-            style={{
-              background:
-                'radial-gradient(ellipse at center, rgba(199, 243, 3, 0.45) 0%, rgba(245, 158, 11, 0.25) 45%, rgba(16, 185, 129, 0) 75%)',
-            }}
-          />
-
-          {/* Saludo + Burbuja Glassmorphism de Voz en Vivo */}
-          <div className="mt-3 flex max-w-lg flex-col items-center text-center px-2">
-            <h1 className="wappydots-font-display text-base sm:text-lg font-black tracking-tight text-white">
-              ¡Hola, <span className="text-amber-400">Félix</span>!
-            </h1>
-
-            <div className="mt-1.5 relative flex items-center gap-2.5 rounded-2xl border border-white/10 bg-[#13141a]/90 px-3.5 py-2 text-xs leading-snug text-slate-200 shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur-xl">
-              <span className="line-clamp-2 text-left">{speechText}</span>
-              {isSpeaking ? (
-                <button
-                  type="button"
-                  onClick={flushAudioQueue}
-                  className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-[10px] font-bold text-rose-300 hover:bg-rose-500/20"
-                >
-                  <Square className="h-2.5 w-2.5 fill-current" />
-                  <span>Parar</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => speakFallback(speechText)}
-                  className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-300 hover:bg-amber-500/20"
-                >
-                  <Volume1 className="h-3 w-3" />
-                  <span>Oír</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* ================================================================= */}
-        {/* 3. DOCK CÁPSULA DE TENSHI + BARRA DE CHAT ESTILO NOTCH WAPPY DOTS */}
-        {/* ================================================================= */}
-        <div className="w-full max-w-2xl flex flex-col items-center gap-2 pb-0.5">
-          {/* 🌟 Botonera Cápsula de Tenshi (Idéntica a TenshiChat.tsx + Wappy Dots) */}
-          <div className="inline-flex items-center gap-2 sm:gap-3 rounded-2xl bg-[#121318]/95 px-3 py-1.5 backdrop-blur-xl border border-amber-500/30 shadow-[0_16px_40px_rgba(0,0,0,0.65)]">
-            {/* Botón Abrir Chat */}
-            <button
-              type="button"
-              onClick={() => {
-                tenshiAudio.playBlip();
-                setDrawer((prev) => (prev === 'chat' ? 'none' : 'chat'));
-              }}
-              className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-all active:scale-95 border ${
-                drawer === 'chat'
-                  ? 'border-cyan-500/40 bg-cyan-500/15 text-cyan-200'
-                  : 'border-transparent text-slate-300 hover:bg-white/10 hover:text-white'
-              }`}
-            >
-              <MessageSquare className="h-4 w-4 text-cyan-400" />
-              <span>Chat ({messages.length})</span>
-            </button>
-
-            {/* Botón Central Micrófono Live */}
-            <button
-              type="button"
-              onClick={toggleVoiceRecording}
-              className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-extrabold transition-all active:scale-95 ${
-                isListening
-                  ? 'animate-pulse border border-rose-400 bg-rose-600 text-white shadow-[0_0_20px_rgba(225,29,72,0.5)]'
-                  : 'border border-[#c7f303]/60 bg-[#c7f303] text-[#0e1300] shadow-[0_0_20px_rgba(199,243,3,0.3)] hover:bg-[#d4ff1f]'
-              }`}
-            >
-              <Mic className="h-4 w-4" />
-              <span>{isListening ? 'Escuchando...' : 'Hablar Live'}</span>
-            </button>
-
-            {/* Botón Silenciar Micrófono (Mute) */}
-            <button
-              type="button"
-              onClick={handleToggleMicMute}
-              title={isMicMuted ? 'Reactivar micrófono' : 'Silenciar micrófono'}
-              className={`rounded-xl p-2 transition-all active:scale-95 border ${
-                isMicMuted
-                  ? 'border-rose-500/40 bg-rose-500/20 text-rose-300'
-                  : 'border-transparent text-slate-400 hover:bg-white/10 hover:text-white'
-              }`}
-            >
-              <MicOff className="h-4 w-4" />
-            </button>
-
-            {/* Botón Documentos Generados */}
-            <button
-              type="button"
-              onClick={() => {
-                tenshiAudio.playBlip();
-                setDrawer((prev) => (prev === 'files' ? 'none' : 'files'));
-              }}
-              className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-all active:scale-95 border ${
-                drawer === 'files'
-                  ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200'
-                  : 'border-transparent text-slate-300 hover:bg-white/10 hover:text-white'
-              }`}
-            >
-              <FileText className="h-4 w-4 text-emerald-400" />
-              <span>Docs ({files.length})</span>
-            </button>
-          </div>
-
-          {/* Píldoras de Acción Rápida (WAPPY 14-Group Semantic Colors) */}
-          <div className="flex w-full items-center justify-start sm:justify-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
-            <button
-              type="button"
-              onClick={() =>
-                executePrompt('Consulta el estado de Antigravity, proyectos activos y chats recientes')
-              }
-              className="shrink-0 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-[11px] font-bold text-cyan-200 hover:bg-cyan-500/20 transition-all sm:hover:-rotate-2 sm:hover:scale-105 active:scale-95"
-            >
-              🚀 Estado Antigravity
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                executePrompt(
-                  'Genera un informe ejecutivo en PDF con el resumen de mis proyectos y pásalo a mi celular',
-                )
-              }
-              className="shrink-0 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[11px] font-bold text-emerald-200 hover:bg-emerald-500/20 transition-all sm:hover:-rotate-2 sm:hover:scale-105 active:scale-95"
-            >
-              📄 Crear PDF
-            </button>
-            <button
-              type="button"
-              onClick={() => executePrompt('Genera un código QR para https://wappy.club/wappydots')}
-              className="shrink-0 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/10 px-3 py-1.5 text-[11px] font-bold text-fuchsia-200 hover:bg-fuchsia-500/20 transition-all sm:hover:-rotate-2 sm:hover:scale-105 active:scale-95"
-            >
-              📱 Crear QR
-            </button>
-            <button
-              type="button"
-              onClick={() => executePrompt('Lista mis tareas y automatizaciones activas')}
-              className="shrink-0 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-[11px] font-bold text-amber-200 hover:bg-amber-500/20 transition-all sm:hover:-rotate-2 sm:hover:scale-105 active:scale-95"
-            >
-              ⚙️ Mis Tareas
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                executePrompt('¿Qué hay en la pantalla activa de mi Mac en este momento?')
-              }
-              className="shrink-0 rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 text-[11px] font-bold text-purple-200 hover:bg-purple-500/20 transition-all sm:hover:-rotate-2 sm:hover:scale-105 active:scale-95"
-            >
-              👁️ Leer Pantalla Mac
-            </button>
-          </div>
-
-          {/* Barra de Entrada idéntica al Chat del Notch de Wappy Dots */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!promptInput.trim()) return;
-              const val = promptInput;
-              setPromptInput('');
-              executePrompt(val);
-            }}
-            className="w-full rounded-2xl border border-white/15 bg-[#14151c]/95 p-2 shadow-[0_12px_36px_rgba(0,0,0,0.6),0_0_24px_rgba(99,102,241,0.12)] backdrop-blur-2xl"
-          >
-            {/* Sub-barra superior estilo Notch: Chip Antigravity + Personalidad + Modelo */}
-            <div className="mb-1.5 flex items-center justify-between gap-2 px-1.5">
-              <div className="flex items-center gap-1.5">
-                <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.07] border border-white/10 px-2.5 py-0.5 text-[10px] font-bold text-slate-200">
-                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
-                  <span>Antigravity · Mac</span>
-                </span>
-
-                <div className="hidden sm:flex items-center gap-1">
-                  {(
-                    [
-                      { id: 'express', label: '⚡ Express' },
-                      { id: 'asistente', label: '✨ Asistente' },
-                      { id: 'profundo', label: '🔬 Profundo' },
-                    ] as const
-                  ).map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => setPersonality(m.id)}
-                      className={`rounded-lg px-2 py-0.5 text-[10px] font-bold transition ${
-                        personality === m.id
-                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                          : 'text-slate-400 hover:text-slate-200'
-                      }`}
-                    >
-                      {m.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/15 border border-indigo-400/30 px-2.5 py-0.5 text-[10px] font-bold text-indigo-200">
-                <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
-                <span>gemini-3.8-live · 24kHz</span>
-              </span>
-            </div>
-
-            {/* Campo de texto + Mic + Botón Circular de Envío */}
-            <div className="flex items-center gap-2 rounded-xl bg-white/[0.04] px-3 py-1.5 border border-white/[0.07]">
-              <Sparkles className="h-4 w-4 shrink-0 text-amber-400" />
-              <input
-                type="text"
-                value={promptInput}
-                onChange={(e) => setPromptInput(e.target.value)}
-                placeholder="Pregúntame algo o envía una orden a tu Mac..."
-                className="w-full bg-transparent text-xs sm:text-sm text-white placeholder-[#8e939c] focus:outline-none"
-              />
+      {isPipOpen && (
+        <div className="fixed top-16 right-4 z-30 w-44 sm:w-52 rounded-2xl overflow-hidden border-2 border-emerald-500/50 bg-zinc-950 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+          {/* Selector de Modo PiP */}
+          <div className="flex items-center justify-between gap-1 bg-zinc-900/95 px-2 py-1.5 border-b border-white/10">
+            <div className="flex items-center gap-1">
               <button
                 type="button"
-                onClick={toggleVoiceRecording}
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition ${
-                  isListening
-                    ? 'bg-rose-600 text-white animate-pulse'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-white'
+                onClick={() => setPipMode('camera')}
+                className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition ${
+                  pipMode === 'camera'
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                    : 'text-zinc-400 hover:text-white'
                 }`}
-                title="Dictar por voz"
               >
-                <Mic className="h-4 w-4" />
+                📱 Cámara
               </button>
               <button
-                type="submit"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f5f6f8] text-[#0e0f11] hover:bg-[#c7f303] transition active:scale-90 shadow-md"
-                title="Enviar"
+                type="button"
+                onClick={() => setPipMode('mac')}
+                className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition ${
+                  pipMode === 'mac'
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
               >
-                <ArrowUp className="h-4 w-4 stroke-[2.5]" />
+                🖥️ Mi Mac
               </button>
             </div>
-          </form>
+            <button
+              type="button"
+              onClick={handleTogglePip}
+              className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10"
+              title="Cerrar vista PiP"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          {pipMode === 'camera' ? (
+            <div className="relative h-32 w-full bg-black">
+              {cameraError ? (
+                <div className="flex h-full items-center justify-center p-2 text-center text-[10px] text-zinc-400">
+                  {cameraError}
+                </div>
+              ) : (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="h-full w-full object-cover"
+                />
+              )}
+              <button
+                type="button"
+                onClick={handleSwitchCamera}
+                title="Voltear cámara"
+                className="absolute top-2 right-2 p-1.5 rounded-full bg-black/70 text-white backdrop-blur-md border border-white/20 active:scale-95"
+              >
+                <SwitchCamera className="h-3.5 w-3.5" />
+              </button>
+              <div className="absolute bottom-1.5 inset-x-1.5">
+                <button
+                  type="button"
+                  onClick={handleCaptureCameraAndAnalyze}
+                  className="w-full flex items-center justify-center gap-1 py-1 px-2 rounded-xl bg-emerald-500/90 hover:bg-emerald-500 text-zinc-950 text-[10px] font-extrabold shadow-lg active:scale-95"
+                >
+                  <Camera className="h-3 w-3" />
+                  <span>Analizar Foto</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="relative h-32 w-full bg-black flex flex-col justify-between">
+              {macScreenUrl ? (
+                <img
+                  src={macScreenUrl}
+                  alt="Pantalla de mi Mac"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center p-2 text-center text-[10px] text-zinc-400">
+                  {isLoadingMacScreen ? 'Capturando pantalla Mac...' : 'Toca refrescar para ver tu Mac'}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={fetchMacScreen}
+                title="Refrescar pantalla Mac"
+                className="absolute top-2 right-2 p-1.5 rounded-full bg-black/70 text-white backdrop-blur-md border border-white/20 active:scale-95"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isLoadingMacScreen ? 'animate-spin' : ''}`} />
+              </button>
+              <div className="absolute bottom-1.5 inset-x-1.5">
+                <button
+                  type="button"
+                  onClick={handleAskAboutMacScreen}
+                  className="w-full flex items-center justify-center gap-1 py-1 px-2 rounded-xl bg-emerald-500/90 hover:bg-emerald-500 text-zinc-950 text-[10px] font-extrabold shadow-lg active:scale-95"
+                >
+                  <Laptop className="h-3 w-3" />
+                  <span>Preguntar sobre mi pantalla</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* ZONA 2 & ZONA 3 — ESCENARIO HEROICO CENTRAL + BOTONERA CÁPSULA 4 ICONOS*/}
+      {/* ===================================================================== */}
+      <main className="relative flex-1 flex flex-col items-center justify-center px-4 py-4 -mt-2 select-none overflow-hidden">
+        {/* Halo radial muy sutil detrás de Tenshi sobre fondo negro puro #09090c */}
+        <div
+          className="pointer-events-none absolute h-72 w-72 rounded-full blur-3xl opacity-30 transition-all duration-500"
+          style={{
+            background: isListening
+              ? 'radial-gradient(circle, rgba(199,243,3,0.28) 0%, rgba(16,185,129,0.08) 60%, transparent 100%)'
+              : isSpeaking
+              ? 'radial-gradient(circle, rgba(16,185,129,0.3) 0%, rgba(20,184,166,0.08) 60%, transparent 100%)'
+              : 'radial-gradient(circle, rgba(20,184,166,0.18) 0%, rgba(245,158,11,0.08) 55%, transparent 100%)',
+          }}
+        />
+
+        {/* Avatar Grande de Tenshi (315px) — Aureola 100% despejada sin cajas encima */}
+        <div
+          className="relative z-10 flex flex-col items-center my-1 cursor-pointer transition-transform duration-300 hover:scale-105 active:scale-95"
+          onClick={toggleVoiceMode}
+          title="Tócame para hablar"
+        >
+          <TenshiAvatar
+            size={315}
+            mood={mood}
+            isSpeaking={isSpeaking}
+            outputAmplitude={outputAmplitude}
+            isVoiceActive={isListening}
+            isTyping={isProcessing}
+            interactive={true}
+            showHaloEffect={true}
+            showHUD={true}
+          />
+        </div>
+
+        {/* Saludo & Subtítulo limpio debajo de Tenshi */}
+        <div className="relative z-10 mt-6 mb-4 text-center px-6">
+          <h2 className="text-[26px] font-extrabold text-white tracking-tight mb-1.5">
+            ¡Hola, Felix!
+          </h2>
+          <p className="text-[14px] text-zinc-400 leading-relaxed max-w-[310px] mx-auto line-clamp-3">
+            {heroSubtitleText}
+          </p>
+        </div>
+
+        {/* ZONA 3 — Botonera Cápsula Central de 4 Iconos */}
+        <div className="relative z-10 inline-flex items-center gap-3 p-1.5 rounded-full bg-zinc-900/95 backdrop-blur-xl border border-emerald-500/30 shadow-2xl">
+          {/* Botón 1: Chat Activo */}
+          <button
+            type="button"
+            onClick={() => {
+              tenshiAudio.playBlip();
+              setDrawer((prev) => (prev === 'chat' ? 'none' : 'chat'));
+            }}
+            title={drawer === 'chat' ? 'Cerrar chat' : 'Abrir chat con Tenshi'}
+            className={`relative p-2.5 rounded-full transition-all active:scale-90 ${
+              drawer === 'chat'
+                ? 'text-emerald-400 bg-white/15'
+                : 'text-zinc-300 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            <MessageSquare className="h-5 w-5" />
+            {messages.length > 0 && (
+              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-[#C7F303] ring-2 ring-zinc-900" />
+            )}
+          </button>
+
+          {/* Botón 2: Micrófono / Modo Voz Live 24 kHz */}
+          <button
+            type="button"
+            onClick={toggleVoiceMode}
+            title={isListening ? 'Detener modo voz Live' : 'Activar modo voz Live 24 kHz'}
+            className={`p-2.5 rounded-full transition-all active:scale-90 ${
+              isListening
+                ? 'text-emerald-400 bg-white/20 shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-400/50 animate-pulse'
+                : 'text-zinc-300 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            <Mic className="h-5 w-5" />
+          </button>
+
+          {/* Botón 3: Silenciar Micrófono (Mute) / Callar voz de Tenshi */}
+          <button
+            type="button"
+            onClick={handleToggleMicMute}
+            title={isMicMuted ? 'Reactivar micrófono' : 'Silenciar micrófono o voz'}
+            className={`p-2.5 rounded-full transition-all active:scale-90 ${
+              isMicMuted
+                ? 'text-red-400 bg-red-500/25 border border-red-500/50 shadow-lg shadow-red-500/30'
+                : 'text-zinc-300 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            <MicOff className={`h-5 w-5 ${isMicMuted ? 'text-red-400' : 'text-zinc-400 opacity-80'}`} />
+          </button>
+
+          {/* Botón 4: Cámara / Visión PiP (Cámara Móvil + Pantalla Mac) */}
+          <button
+            type="button"
+            onClick={handleTogglePip}
+            title={isPipOpen ? 'Cerrar visión PiP' : 'Abrir cámara o pantalla de mi Mac'}
+            className={`p-2.5 rounded-full transition-all active:scale-90 ${
+              isPipOpen
+                ? 'text-emerald-400 bg-white/20 shadow-lg shadow-emerald-500/30'
+                : 'text-zinc-300 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            {isPipOpen ? <CameraOff className="h-5 w-5" /> : <Camera className="h-5 w-5" />}
+          </button>
         </div>
       </main>
 
       {/* ===================================================================== */}
-      {/* 4. PANEL DESPLEGABLE DE CHAT UNIVERSAL (Idéntico a TenshiChat.tsx)    */}
+      {/* 5. LÁMINA DESLIZABLE DE CHAT ACTIVO (drawer === 'chat')               */}
       {/* ===================================================================== */}
       {drawer === 'chat' && (
-        <div className="absolute inset-x-0 bottom-0 top-14 z-40 flex flex-col rounded-t-3xl border-t border-amber-500/30 bg-[#0d0e14]/95 backdrop-blur-2xl shadow-[0_-20px_60px_rgba(0,0,0,0.85)] animate-in slide-in-from-bottom duration-200">
-          {/* Cabecera del Chat */}
-          <div className="flex items-center justify-between border-b border-white/10 bg-[#12141c]/90 px-4 py-3 rounded-t-3xl">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-amber-400" />
-              <span className="wappydots-font-display text-sm font-extrabold text-white">
-                Chat Universal · Wappy Dots
+        <div
+          className="absolute inset-x-0 bottom-0 top-14 z-30 flex flex-col bg-zinc-950/95 backdrop-blur-2xl rounded-t-3xl border-t border-white/10 shadow-2xl animate-in slide-in-from-bottom duration-200 overflow-hidden"
+          style={{
+            paddingBottom: 'calc(max(8px, calc(env(safe-area-inset-bottom, 0px) - 6px)) + 74px)',
+          }}
+        >
+          {/* Cabecera del Chat Activo */}
+          <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-white/10 bg-zinc-900/90 shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <MessageSquare className="h-4 w-4 shrink-0 text-emerald-400" />
+              <span className="text-sm font-bold text-white truncate">
+                {activeSession?.title || 'Nueva conversación'}
               </span>
-              <span className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
-                Sincronizado con Mac
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={handleClearChat}
-                className="inline-flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-semibold text-slate-300 hover:bg-white/10"
+                onClick={() => setDrawer('integration')}
+                className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.06] px-2.5 py-0.5 text-[10px] font-bold text-zinc-200 hover:bg-white/10 transition"
+                title="Cambiar integración activa"
               >
-                <RotateCcw className="h-3.5 w-3.5" />
-                <span>Nueva</span>
+                <span
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: activeIntegrationInfo.badgeColor }}
+                />
+                <span>{activeIntegrationInfo.label}</span>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => handleNewChatSession(true)}
+                className="inline-flex items-center gap-1 rounded-xl border border-teal-500/30 bg-teal-500/10 px-2.5 py-1 text-xs font-bold text-teal-300 hover:bg-teal-500/20 active:scale-95 transition"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Nuevo</span>
               </button>
               <button
                 type="button"
                 onClick={() => setDrawer('none')}
-                className="rounded-xl border border-white/10 bg-white/5 p-1.5 text-slate-300 hover:bg-white/10"
+                className="rounded-xl border border-white/10 bg-white/5 p-1.5 text-zinc-300 hover:bg-white/10"
+                title="Cerrar y ver a Tenshi"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
           </div>
 
-          {/* Selector de Modo Universal */}
-          <div className="flex items-center justify-between gap-2 border-b border-white/[0.07] bg-[#0f1017] px-4 py-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              Modo:
-            </span>
-            <div className="flex items-center gap-1.5">
-              {(
-                [
-                  { id: 'express', label: '⚡ Express' },
-                  { id: 'asistente', label: '✨ Asistente' },
-                  { id: 'profundo', label: '🔬 Profundo' },
-                ] as const
-              ).map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => setPersonality(m.id)}
-                  className={`rounded-xl px-3 py-1 text-xs font-bold transition border ${
-                    personality === m.id
-                      ? 'border-amber-500/50 bg-amber-500/15 text-amber-200'
-                      : 'border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/10'
-                  }`}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Lista de Mensajes */}
           <div className="flex-1 space-y-3 overflow-y-auto p-4">
             {messages.length === 0 ? (
-              <div className="mt-12 text-center text-xs text-slate-400">
-                Aún no hay mensajes. Escribe o habla con Tenshi para sincronizar con tu Mac.
+              <div className="mt-8 flex flex-col items-center text-center px-4">
+                <p className="text-xs text-zinc-400 max-w-xs">
+                  Sesión conectada con <strong className="text-white">{activeIntegrationInfo.fullName}</strong>.
+                  Escribe o habla con Tenshi para ejecutar acciones en tu Mac.
+                </p>
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      sendMessage('Consulta el estado de Antigravity, proyectos activos y chats recientes')
+                    }
+                    className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20"
+                  >
+                    🚀 Estado Antigravity
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      sendMessage(
+                        'Genera un informe ejecutivo en PDF con el resumen de mis proyectos y pásalo a mi celular',
+                      )
+                    }
+                    className="rounded-xl border border-teal-500/30 bg-teal-500/10 px-3 py-1.5 text-xs font-bold text-teal-300 hover:bg-teal-500/20"
+                  >
+                    📄 Crear Informe PDF
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      sendMessage('¿Qué hay en la pantalla activa de mi Mac en este momento?')
+                    }
+                    className="rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 text-xs font-bold text-purple-300 hover:bg-purple-500/20"
+                  >
+                    🖥️ Analizar mi Mac
+                  </button>
+                </div>
               </div>
             ) : (
               messages.map((m, idx) => {
@@ -1180,19 +1570,19 @@ export default function WappyDotsMobilePage() {
                     key={msgKey}
                     className={`rounded-2xl border p-3.5 text-xs sm:text-[13px] leading-relaxed ${
                       m.role === 'user'
-                        ? 'ml-8 border-indigo-500/35 bg-indigo-500/15 text-slate-100'
-                        : 'mr-4 border-white/10 bg-[#151720] text-slate-200'
+                        ? 'ml-8 border-teal-500/35 bg-teal-500/15 text-zinc-100'
+                        : 'mr-4 border-white/10 bg-zinc-900/90 text-zinc-200'
                     }`}
                   >
                     <div className="mb-1.5 flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-400">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#C7F303]">
                         {getSourceBadge(m)}
                       </span>
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
                           onClick={() => speakFallback(cleaned)}
-                          className="rounded-md p-1 text-slate-400 hover:bg-white/10 hover:text-white"
+                          className="rounded-md p-1 text-zinc-400 hover:bg-white/10 hover:text-white"
                           title="Escuchar mensaje"
                         >
                           <Volume2 className="h-3.5 w-3.5" />
@@ -1200,7 +1590,7 @@ export default function WappyDotsMobilePage() {
                         <button
                           type="button"
                           onClick={() => handleCopyMessage(cleaned, msgKey)}
-                          className="rounded-md p-1 text-slate-400 hover:bg-white/10 hover:text-white"
+                          className="rounded-md p-1 text-zinc-400 hover:bg-white/10 hover:text-white"
                           title="Copiar"
                         >
                           {copiedId === msgKey ? (
@@ -1222,10 +1612,10 @@ export default function WappyDotsMobilePage() {
                             href={resolveFileHref(f.fileName)}
                             target="_blank"
                             rel="noreferrer"
-                            className="flex items-center justify-between rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-200 hover:bg-amber-500/20"
+                            className="flex items-center justify-between rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-200 hover:bg-emerald-500/20"
                           >
                             <span className="truncate">📲 Abrir: {f.title || f.fileName}</span>
-                            <span className="ml-2 shrink-0 rounded bg-black/40 px-1.5 py-0.5 text-[10px] uppercase text-[#c7f303]">
+                            <span className="ml-2 shrink-0 rounded bg-black/40 px-1.5 py-0.5 text-[10px] uppercase text-[#C7F303]">
                               {f.format}
                             </span>
                           </a>
@@ -1239,23 +1629,24 @@ export default function WappyDotsMobilePage() {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Barra de envío dentro del Chat */}
+          {/* Barra de envío del Chat Activo */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
               if (!promptInput.trim()) return;
               const val = promptInput;
               setPromptInput('');
-              executePrompt(val);
+              sendMessage(val);
             }}
-            className="flex items-center gap-2 border-t border-white/10 bg-[#12141c] p-3"
+            className="flex items-center gap-2 border-t border-white/10 bg-zinc-900 p-3 shrink-0"
           >
             <button
               type="button"
-              onClick={toggleVoiceRecording}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                isListening ? 'bg-rose-600 text-white' : 'bg-white/10 text-white'
+              onClick={toggleVoiceMode}
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition ${
+                isListening ? 'bg-emerald-500 text-zinc-950 animate-pulse' : 'bg-white/10 text-white'
               }`}
+              title="Dictar por voz"
             >
               <Mic className="h-4 w-4" />
             </button>
@@ -1263,43 +1654,279 @@ export default function WappyDotsMobilePage() {
               type="text"
               value={promptInput}
               onChange={(e) => setPromptInput(e.target.value)}
-              placeholder="Escribe un mensaje para Tenshi..."
-              className="flex-1 rounded-xl border border-white/15 bg-white/[0.05] px-3.5 py-2.5 text-xs text-white placeholder-slate-400 focus:outline-none"
+              placeholder={`Mensaje para Tenshi (${activeIntegrationInfo.label})...`}
+              className="flex-1 rounded-xl border border-white/15 bg-white/[0.05] px-3.5 py-2.5 text-xs text-white placeholder-zinc-400 focus:outline-none focus:border-emerald-500/50"
             />
             <button
               type="submit"
-              className="rounded-xl bg-[#c7f303] px-4 py-2.5 text-xs font-extrabold text-[#0e1300]"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#C7F303] text-[#0E1300] font-extrabold active:scale-95 transition"
+              title="Enviar"
             >
-              Enviar
+              <ArrowUp className="h-4 w-4 stroke-[2.8]" />
             </button>
           </form>
         </div>
       )}
 
       {/* ===================================================================== */}
-      {/* 5. CAJÓN DESPLEGABLE DE DOCUMENTOS GENERADOS (PDF/DOCX/XLSX/QR)       */}
+      {/* PANEL IZQUIERDO: HISTORIAL DE CHATS (drawer === 'history')            */}
       {/* ===================================================================== */}
-      {drawer === 'files' && (
-        <div className="absolute inset-x-0 bottom-0 top-14 z-40 flex flex-col rounded-t-3xl border-t border-emerald-500/30 bg-[#0d0e14]/95 backdrop-blur-2xl shadow-[0_-20px_60px_rgba(0,0,0,0.85)] animate-in slide-in-from-bottom duration-200">
-          <div className="flex items-center justify-between border-b border-white/10 bg-[#12141c]/90 px-4 py-3 rounded-t-3xl">
+      {drawer === 'history' && (
+        <div
+          className="absolute inset-x-0 bottom-0 top-14 z-30 flex flex-col bg-zinc-950/95 backdrop-blur-2xl rounded-t-3xl border-t border-white/10 shadow-2xl animate-in slide-in-from-bottom duration-200 overflow-hidden"
+          style={{
+            paddingBottom: 'calc(max(8px, calc(env(safe-area-inset-bottom, 0px) - 6px)) + 74px)',
+          }}
+        >
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-zinc-900/90">
             <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-emerald-400" />
-              <span className="wappydots-font-display text-sm font-extrabold text-white">
-                Documentos & Códigos QR ({files.length})
+              <FolderOpen className="h-4 w-4 text-teal-400" />
+              <span className="text-sm font-bold text-white">
+                Historial de Conversaciones ({sessions.length})
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleNewChatSession(true)}
+                className="inline-flex items-center gap-1 rounded-xl border border-teal-500/30 bg-teal-500/10 px-2.5 py-1 text-xs font-bold text-teal-300 hover:bg-teal-500/20"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Nuevo Chat</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDrawer('none')}
+                className="rounded-xl border border-white/10 bg-white/5 p-1.5 text-zinc-300 hover:bg-white/10"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className="p-3 border-b border-white/[0.06] bg-zinc-900/50">
+            <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+              <Search className="h-4 w-4 text-zinc-400" />
+              <input
+                type="text"
+                value={historySearch}
+                onChange={(e) => setHistorySearch(e.target.value)}
+                placeholder="Buscar conversación..."
+                className="w-full bg-transparent text-xs text-white placeholder-zinc-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="flex-1 space-y-2 overflow-y-auto p-4">
+            {filteredSessions.length === 0 ? (
+              <div className="mt-10 text-center text-xs text-zinc-400">
+                No se encontraron conversaciones.
+              </div>
+            ) : (
+              filteredSessions.map((s) => {
+                const isCurrent = s.id === activeSessionId;
+                const integ =
+                  integrations.find((i) => i.id === s.activeIntegration) ||
+                  DEFAULT_INTEGRATIONS.find((i) => i.id === s.activeIntegration) ||
+                  DEFAULT_INTEGRATIONS[0];
+                const msgCount = Array.isArray(s.messages) ? s.messages.length : 0;
+                return (
+                  <div
+                    key={s.id}
+                    onClick={() => handleSelectSession(s.id)}
+                    className={`flex items-center justify-between gap-3 rounded-2xl border p-3.5 cursor-pointer transition ${
+                      isCurrent
+                        ? 'border-teal-500/50 bg-teal-500/10'
+                        : 'border-white/10 bg-zinc-900/80 hover:border-white/20'
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-xs sm:text-sm font-bold text-white">
+                          {s.title || 'Nueva conversación'}
+                        </span>
+                        {isCurrent && (
+                          <span className="shrink-0 rounded-full bg-[#C7F303]/20 border border-[#C7F303]/40 px-2 py-0.5 text-[9px] font-extrabold text-[#C7F303]">
+                            ACTIVO
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1 flex items-center gap-2 text-[11px] text-zinc-400">
+                        <span
+                          className="inline-flex items-center gap-1 font-semibold"
+                          style={{ color: integ.badgeColor }}
+                        >
+                          <span
+                            className="h-1.5 w-1.5 rounded-full"
+                            style={{ backgroundColor: integ.badgeColor }}
+                          />
+                          {integ.label}
+                        </span>
+                        <span>·</span>
+                        <span>{msgCount} msj</span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteSession(s.id, e)}
+                      className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-2 text-rose-300 hover:bg-rose-500/20 active:scale-95"
+                      title="Eliminar conversación"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* PANEL DE INTEGRACIÓN ACTIVA (drawer === 'integration')                */}
+      {/* ===================================================================== */}
+      {drawer === 'integration' && (
+        <div
+          className="absolute inset-x-0 bottom-0 top-14 z-30 flex flex-col bg-zinc-950/95 backdrop-blur-2xl rounded-t-3xl border-t border-white/10 shadow-2xl animate-in slide-in-from-bottom duration-200 overflow-hidden"
+          style={{
+            paddingBottom: 'calc(max(8px, calc(env(safe-area-inset-bottom, 0px) - 6px)) + 74px)',
+          }}
+        >
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-zinc-900/90">
+            <div className="flex items-center gap-2">
+              <GraduationCap className="h-4 w-4 text-[#C7F303]" />
+              <span className="text-sm font-bold text-white">
+                Integración Activa con Tenshi
               </span>
             </div>
             <button
               type="button"
               onClick={() => setDrawer('none')}
-              className="rounded-xl border border-white/10 bg-white/5 p-1.5 text-slate-300 hover:bg-white/10"
+              className="rounded-xl border border-white/10 bg-white/5 p-1.5 text-zinc-300 hover:bg-white/10"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
 
           <div className="flex-1 space-y-2.5 overflow-y-auto p-4">
+            <p className="text-xs text-zinc-400 mb-2">
+              Selecciona la integración principal que Tenshi usará al hablar o chatear contigo:
+            </p>
+            {integrations.map((item) => {
+              const isSelected = item.id === activeIntegration;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleSelectIntegration(item.id)}
+                  className={`w-full flex items-center justify-between gap-3 rounded-2xl border p-3.5 text-left transition active:scale-[0.99] ${
+                    isSelected
+                      ? 'border-emerald-500/50 bg-emerald-500/10'
+                      : 'border-white/10 bg-zinc-900/80 hover:border-white/20'
+                  }`}
+                >
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/[0.05]"
+                      style={{ color: item.badgeColor }}
+                    >
+                      {renderIntegrationIcon(item.icon, 'h-5 w-5')}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white">{item.fullName}</span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-zinc-400 leading-snug">
+                        {item.description}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="shrink-0">
+                    {isSelected ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[#C7F303]/20 border border-[#C7F303]/40 px-2.5 py-1 text-[10px] font-extrabold text-[#C7F303]">
+                        <Check className="h-3 w-3" />
+                        Activa
+                      </span>
+                    ) : (
+                      <span className="text-xs font-semibold text-zinc-500">Activar</span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* CAJÓN DE DOCUMENTOS GENERADOS Y SOMOS SST (drawer === 'files')        */}
+      {/* ===================================================================== */}
+      {drawer === 'files' && (
+        <div
+          className="absolute inset-x-0 bottom-0 top-14 z-30 flex flex-col bg-zinc-950/95 backdrop-blur-2xl rounded-t-3xl border-t border-white/10 shadow-2xl animate-in slide-in-from-bottom duration-200 overflow-hidden"
+          style={{
+            paddingBottom: 'calc(max(8px, calc(env(safe-area-inset-bottom, 0px) - 6px)) + 74px)',
+          }}
+        >
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-zinc-900/90">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-400" />
+              <span className="text-sm font-bold text-white">
+                Somos SST · Documentos & QR ({files.length})
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDrawer('none')}
+              className="rounded-xl border border-white/10 bg-white/5 p-1.5 text-zinc-300 hover:bg-white/10"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Acciones Rápidas de Generación */}
+          <div className="flex items-center gap-2 overflow-x-auto px-4 py-2.5 border-b border-white/[0.06] bg-zinc-900/40 no-scrollbar shrink-0">
+            <button
+              type="button"
+              onClick={() =>
+                sendMessage(
+                  'Genera un informe ejecutivo en PDF con el resumen de mis proyectos y pásalo a mi celular',
+                  { openChatDrawer: true },
+                )
+              }
+              className="shrink-0 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20"
+            >
+              📄 Crear PDF
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                sendMessage('Genera un código QR para https://wappy.club/wappydots', {
+                  openChatDrawer: true,
+                })
+              }
+              className="shrink-0 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/10 px-3 py-1.5 text-xs font-bold text-fuchsia-300 hover:bg-fuchsia-500/20"
+            >
+              📱 Crear QR
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                handleSelectIntegration('wappy-sst');
+                sendMessage('Consulta el resumen general 360 del SG-SST en Somos SST', {
+                  openChatDrawer: true,
+                });
+              }}
+              className="shrink-0 rounded-xl border border-teal-500/30 bg-teal-500/10 px-3 py-1.5 text-xs font-bold text-teal-300 hover:bg-teal-500/20"
+            >
+              🛡️ Resumen 360 SST
+            </button>
+          </div>
+
+          <div className="flex-1 space-y-2.5 overflow-y-auto p-4">
             {files.length === 0 ? (
-              <div className="mt-12 text-center text-xs text-slate-400">
+              <div className="mt-12 text-center text-xs text-zinc-400">
                 Aún no hay archivos generados. Pídele a Tenshi un PDF, Word, Excel, HTML o código QR.
               </div>
             ) : (
@@ -1311,21 +1938,21 @@ export default function WappyDotsMobilePage() {
                     href={resolveFileHref(f.fileName)}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#151720] p-3.5 transition hover:border-amber-400/40"
+                    className="flex items-center justify-between rounded-2xl border border-white/10 bg-zinc-900/90 p-3.5 transition hover:border-emerald-400/40"
                   >
                     <div className="min-w-0 pr-3">
                       <div className="truncate text-xs sm:text-sm font-bold text-white">
                         📄 {f.title || f.fileName}
                       </div>
-                      <div className="mt-0.5 text-[11px] text-slate-400">
+                      <div className="mt-0.5 text-[11px] text-zinc-400">
                         {f.fileName} · {sizeKb} KB
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="rounded-lg border border-amber-400/40 bg-amber-500/15 px-2.5 py-1 text-[10px] font-extrabold uppercase text-amber-300">
+                      <span className="rounded-lg border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-1 text-[10px] font-extrabold uppercase text-[#C7F303]">
                         {f.format || 'DOC'}
                       </span>
-                      <ExternalLink className="h-4 w-4 text-slate-400" />
+                      <ExternalLink className="h-4 w-4 text-zinc-400" />
                     </div>
                   </a>
                 );
@@ -1334,6 +1961,321 @@ export default function WappyDotsMobilePage() {
           </div>
         </div>
       )}
+
+      {/* ===================================================================== */}
+      {/* PANEL DERECHO: AGENTES Y CONTROL MAC (drawer === 'agents')            */}
+      {/* ===================================================================== */}
+      {drawer === 'agents' && (
+        <div
+          className="absolute inset-x-0 bottom-0 top-14 z-30 flex flex-col bg-zinc-950/95 backdrop-blur-2xl rounded-t-3xl border-t border-white/10 shadow-2xl animate-in slide-in-from-bottom duration-200 overflow-hidden"
+          style={{
+            paddingBottom: 'calc(max(8px, calc(env(safe-area-inset-bottom, 0px) - 6px)) + 74px)',
+          }}
+        >
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-zinc-900/90">
+            <div className="flex items-center gap-2">
+              <Laptop className="h-4 w-4 text-teal-400" />
+              <span className="text-sm font-bold text-white">
+                Agentes & Control de mi Mac
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDrawer('none')}
+              className="rounded-xl border border-white/10 bg-white/5 p-1.5 text-zinc-300 hover:bg-white/10"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="flex-1 space-y-4 overflow-y-auto p-4">
+            {/* Selector de Modo de Respuesta */}
+            <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-3.5">
+              <div className="text-xs font-bold text-white mb-2">
+                Modo de Respuesta de Tenshi
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {(
+                  [
+                    { id: 'express', label: '⚡ Express' },
+                    { id: 'asistente', label: '✨ Asistente' },
+                    { id: 'profundo', label: '🔬 Profundo' },
+                  ] as const
+                ).map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setPersonality(m.id)}
+                    className={`rounded-xl py-2 px-2 text-xs font-bold border transition ${
+                      personality === m.id
+                        ? 'border-emerald-500/50 bg-emerald-500/15 text-[#C7F303]'
+                        : 'border-white/10 bg-white/[0.04] text-zinc-300 hover:bg-white/10'
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Control Directo de Mac & Antigravity IDE */}
+            <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-3.5 space-y-2.5">
+              <div className="text-xs font-bold text-white">
+                Órdenes Directas a tu Mac & Antigravity IDE
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setDrawer('none');
+                  setPipMode('mac');
+                  setIsPipOpen(true);
+                  fetchMacScreen();
+                }}
+                className="w-full flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs font-bold text-emerald-200 hover:bg-emerald-500/20"
+              >
+                <span>🖥️ Ver Pantalla de mi Mac en Vivo (PiP)</span>
+                <ArrowRight className="h-4 w-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  tenshiAudio.playBlip();
+                  await callMacTunnel('/api/gemini-tunnel/antigravity/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tool: 'open_window', args: {} }),
+                  }).catch(() => {});
+                  setDrawer('none');
+                  setSpeechText('Ventana de Antigravity IDE traída al frente en tu Mac.');
+                }}
+                className="w-full flex items-center justify-between rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-3 text-xs font-bold text-cyan-200 hover:bg-cyan-500/20"
+              >
+                <span>🚀 Abrir Antigravity.app en mi Mac</span>
+                <ArrowRight className="h-4 w-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  sendMessage(
+                    'Consulta el estado de Antigravity, proyectos activos y chats recientes',
+                    { openChatDrawer: true },
+                  )
+                }
+                className="w-full flex items-center justify-between rounded-xl border border-purple-500/30 bg-purple-500/10 p-3 text-xs font-bold text-purple-200 hover:bg-purple-500/20"
+              >
+                <span>📂 Listar Proyectos y Chats de Antigravity</span>
+                <ArrowRight className="h-4 w-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  sendMessage('Lista mis tareas y automatizaciones activas en Wappy Dots', {
+                    openChatDrawer: true,
+                  })
+                }
+                className="w-full flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs font-bold text-amber-200 hover:bg-amber-500/20"
+              >
+                <span>⚙️ Ver Automatizaciones y Tareas Activas</span>
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* MODAL RÁPIDO DE CONEXIÓN TÚNEL & NAVEGACIÓN ("Ir a Wappy →")          */}
+      {/* ===================================================================== */}
+      {drawer === 'tunnel' && (
+        <div
+          className="absolute inset-x-0 bottom-0 top-14 z-30 flex flex-col bg-zinc-950/95 backdrop-blur-2xl rounded-t-3xl border-t border-white/10 shadow-2xl animate-in slide-in-from-bottom duration-200 overflow-hidden"
+          style={{
+            paddingBottom: 'calc(max(8px, calc(env(safe-area-inset-bottom, 0px) - 6px)) + 74px)',
+          }}
+        >
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-zinc-900/90">
+            <div className="flex items-center gap-2">
+              <Laptop className="h-4 w-4 text-[#C7F303]" />
+              <span className="text-sm font-bold text-white">
+                Estado del Túnel Mac & Ir a Wappy
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDrawer('none')}
+              className="rounded-xl border border-white/10 bg-white/5 p-1.5 text-zinc-300 hover:bg-white/10"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="flex-1 space-y-4 overflow-y-auto p-4">
+            <div className="rounded-2xl border border-white/10 bg-zinc-900/90 p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-zinc-300">Conexión con tu Mac</span>
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-extrabold ${
+                    tunnelInfo.active
+                      ? 'bg-emerald-500/20 text-[#C7F303] border border-[#C7F303]/40'
+                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                  }`}
+                >
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      tunnelInfo.active ? 'bg-[#C7F303]' : 'bg-amber-400 animate-pulse'
+                    }`}
+                  />
+                  {tunnelInfo.active ? 'En línea · 24 kHz' : 'Vía Proxy Wappy'}
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-400 break-all">
+                Túnel público: {tunnelInfo.publicUrl || 'Conectado mediante proxy seguro de wappy.club'}
+              </p>
+              <p className="text-[11px] text-zinc-500">Red local Mac: {tunnelInfo.lanUrl}</p>
+            </div>
+
+            <div className="space-y-2.5">
+              <Link
+                to="/wappy-dots"
+                className="flex items-center justify-between rounded-2xl border border-teal-500/40 bg-teal-500/15 p-4 text-sm font-bold text-teal-200 hover:bg-teal-500/25 transition"
+              >
+                <span>💻 Ir a Wappy Dots (Versión Escritorio)</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+
+              <Link
+                to="/c/new"
+                className="flex items-center justify-between rounded-2xl border border-white/15 bg-zinc-900 p-4 text-sm font-bold text-white hover:bg-zinc-800 transition"
+              >
+                <span>✨ Ir a Wappy IA Chat Principal (/c/new)</span>
+                <ArrowRight className="h-4 w-4 text-[#C7F303]" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* ZONA 4 — BARRA FLOTANTE INFERIOR DE 5 BOTONES (MobileBottomNav Exacta)*/}
+      {/* ===================================================================== */}
+      <div
+        className="fixed bottom-0 inset-x-0 z-40 px-3 pb-2 pointer-events-none"
+        style={{
+          paddingBottom: 'max(8px, calc(env(safe-area-inset-bottom, 0px) - 4px))',
+        }}
+      >
+        <nav
+          aria-label="Navegación Wappy Dots Móvil"
+          className="relative flex items-center justify-between px-2 py-1 max-w-md mx-auto bg-zinc-900/95 text-white backdrop-blur-2xl rounded-2xl border border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.65)] pointer-events-auto"
+        >
+          {/* 1. Extremo Izquierdo: Historial de Chats (LeftPanelIcon exacto) */}
+          <button
+            type="button"
+            onClick={() => {
+              tenshiAudio.playBlip();
+              setDrawer((prev) => (prev === 'history' ? 'none' : 'history'));
+            }}
+            aria-label="Historial de chats"
+            className={`flex items-center justify-center flex-1 py-2 px-1 rounded-xl transition-all active:scale-90 ${
+              drawer === 'history' ? 'bg-teal-500/10 text-teal-400' : 'hover:bg-white/5'
+            }`}
+          >
+            <LeftPanelIcon active={drawer === 'history'} />
+          </button>
+
+          {/* 2. Mano Izquierda: Integración Activa con el Agente (GraduationCap exacto) */}
+          <button
+            type="button"
+            onClick={() => {
+              tenshiAudio.playBlip();
+              setDrawer((prev) => (prev === 'integration' ? 'none' : 'integration'));
+            }}
+            aria-label="Integración activa"
+            className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all active:scale-90 ${
+              drawer === 'integration'
+                ? 'text-teal-400 font-semibold'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            <div className="relative flex items-center justify-center h-5 w-5">
+              <GraduationCap
+                className={`h-5 w-5 transition-transform duration-150 ${
+                  drawer === 'integration' ? 'scale-110 text-teal-400' : ''
+                }`}
+              />
+              <span
+                className="absolute -top-0.5 -right-1 h-2 w-2 rounded-full ring-2 ring-zinc-900"
+                style={{ backgroundColor: activeIntegrationInfo.badgeColor }}
+              />
+            </div>
+            <span className="text-[10px] mt-0.5 tracking-tight truncate max-w-[68px] font-medium text-zinc-200">
+              {activeIntegrationInfo.label}
+            </span>
+          </button>
+
+          {/* 3. Centro Destacado Elevado: Nuevo Chat (+ Plus) */}
+          <div className="flex flex-col items-center justify-center flex-1 -mt-4">
+            <button
+              type="button"
+              onClick={() => handleNewChatSession(true)}
+              aria-label="Nuevo Chat"
+              className="relative flex items-center justify-center w-12 h-12 rounded-2xl transition-all duration-200 bg-gradient-to-tr from-teal-500 via-emerald-400 to-teal-300 text-white shadow-[0_4px_18px_rgba(20,184,166,0.45)] ring-4 ring-[#09090c] active:scale-90 group"
+            >
+              <Plus className="h-6 w-6 text-white stroke-[2.8] transition-transform duration-200 group-active:rotate-90" />
+            </button>
+            <span className="text-[10px] mt-0.5 font-semibold tracking-tight text-white">
+              Nuevo Chat
+            </span>
+          </div>
+
+          {/* 4. Mano Derecha: Somos SST & Documentos Generados (ShieldCheck exacto) */}
+          <button
+            type="button"
+            onClick={() => {
+              tenshiAudio.playBlip();
+              setDrawer((prev) => (prev === 'files' ? 'none' : 'files'));
+            }}
+            aria-label="Somos SST y Documentos"
+            className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all active:scale-90 ${
+              drawer === 'files' ? 'text-teal-400 font-semibold' : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            <div className="relative flex items-center justify-center h-5 w-5">
+              <ShieldCheck
+                className={`h-5 w-5 transition-transform duration-150 ${
+                  drawer === 'files' ? 'scale-110 text-teal-400' : ''
+                }`}
+              />
+              {files.length > 0 && (
+                <span className="absolute -top-1 -right-2 min-w-[14px] h-3.5 px-1 rounded-full bg-emerald-500 text-[9px] font-extrabold text-zinc-950 flex items-center justify-center">
+                  {files.length}
+                </span>
+              )}
+            </div>
+            <span className="text-[10px] mt-0.5 tracking-tight truncate max-w-[62px] font-medium">
+              Somos SST
+            </span>
+          </button>
+
+          {/* 5. Extremo Derecho: Agentes y Control Mac (RightPanelIcon exacto) */}
+          <button
+            type="button"
+            onClick={() => {
+              tenshiAudio.playBlip();
+              setDrawer((prev) => (prev === 'agents' ? 'none' : 'agents'));
+            }}
+            aria-label="Agentes y Control Mac"
+            className={`flex items-center justify-center flex-1 py-2 px-1 rounded-xl transition-all active:scale-90 ${
+              drawer === 'agents' ? 'bg-teal-500/10 text-teal-400' : 'hover:bg-white/5'
+            }`}
+          >
+            <RightPanelIcon active={drawer === 'agents'} />
+          </button>
+        </nav>
+      </div>
     </div>
   );
 }
