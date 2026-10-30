@@ -28,6 +28,8 @@ import {
   BookOpen,
   Film,
   FolderOpen,
+  Paperclip,
+  Settings2,
 } from 'lucide-react';
 import {
   TenshiAvatar,
@@ -283,6 +285,35 @@ function renderIntegrationIcon(iconName: string, className = 'h-4 w-4') {
 const DEFAULT_HERO_SUBTITLE =
   'Soy tu copiloto universal en Wappy Dots. Tócame para hablar o pulsa el micrófono.';
 
+const GENERAL_TOOLS_CATALOG = [
+  { id: 'web_search', label: 'Web Buscar', emoji: '🌐', defaultEnabled: true },
+  { id: 'mac_control', label: 'Control de Mi Mac y Pantalla', emoji: '💻', defaultEnabled: true },
+  { id: 'external_agents', label: 'Agentes Conectados (Claude / Codex / Gemini)', emoji: '🤖', defaultEnabled: true },
+  { id: 'consultar_agente_especializado', label: 'Consultar Especialista', emoji: '🧑‍⚕️', defaultEnabled: true },
+  { id: 'gestor_automatizaciones', label: 'Automatizaciones', emoji: '⚡', defaultEnabled: true },
+  { id: 'generar_documentos', label: 'Documentos (PDF, Word, Excel, QR)', emoji: '📄', defaultEnabled: true },
+  { id: 'somos_sst', label: 'Somos SST', emoji: '❤️', defaultEnabled: false },
+  { id: 'siigo_erp', label: 'Siigo Nube ERP', emoji: '💼', defaultEnabled: true },
+] as const;
+
+const GOOGLE_TOOLS_CATALOG = [
+  { id: 'google_antigravity', label: 'Google Antigravity', emoji: '🅰️', defaultEnabled: true },
+  { id: 'google_notebooklm', label: 'Google NotebookLM', emoji: '📓', defaultEnabled: true },
+  { id: 'google_flow', label: 'Google Flow (Veo & Imagen)', emoji: '🎬', defaultEnabled: true },
+  { id: 'google_drive', label: 'Google Drive', emoji: '☁️', defaultEnabled: true },
+  { id: 'google_gmail', label: 'Google Gmail', emoji: '✉️', defaultEnabled: true },
+  { id: 'google_calendar', label: 'Google Calendar', emoji: '📅', defaultEnabled: true },
+  { id: 'google_docs', label: 'Google Docs', emoji: '📄', defaultEnabled: true },
+  { id: 'google_sheets', label: 'Google Sheets', emoji: '📊', defaultEnabled: true },
+  { id: 'google_slides', label: 'Google Slides', emoji: '🖼️', defaultEnabled: true },
+] as const;
+
+const AVAILABLE_TEXT_MODELS = [
+  'gemini-3.5-flash-lite',
+  'gemini-3.8-flash',
+  'gemini-3.6-flash',
+] as const;
+
 export default function WappyDotsMobilePage() {
   const [drawer, setDrawer] = useState<ActiveDrawer>('none');
   const [personality, setPersonality] = useState<PersonalityMode>('asistente');
@@ -290,6 +321,50 @@ export default function WappyDotsMobilePage() {
   const [speechText, setSpeechText] = useState<string>(DEFAULT_HERO_SUBTITLE);
   const [promptInput, setPromptInput] = useState<string>('');
   const [historySearch, setHistorySearch] = useState<string>('');
+  const [selectedModel, setSelectedModel] = useState<string>('gemini-3.5-flash-lite');
+  const [composerMenu, setComposerMenu] = useState<'none' | 'attach' | 'general' | 'google'>('none');
+  const [attachedFile, setAttachedFile] = useState<{
+    name: string;
+    mimeType: string;
+    dataBase64: string;
+  } | null>(null);
+  const [enabledTools, setEnabledTools] = useState<string[]>(() => [
+    ...GENERAL_TOOLS_CATALOG.filter((t) => t.defaultEnabled).map((t) => t.id),
+    ...GOOGLE_TOOLS_CATALOG.filter((t) => t.defaultEnabled).map((t) => t.id),
+  ]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const toggleConnectedTool = useCallback((toolId: string) => {
+    tenshiAudio.playBlip();
+    setEnabledTools((prev) =>
+      prev.includes(toolId) ? prev.filter((id) => id !== toolId) : [...prev, toolId],
+    );
+  }, []);
+
+  const triggerFileSelect = useCallback((accept: string) => {
+    setComposerMenu('none');
+    if (!fileInputRef.current) return;
+    fileInputRef.current.value = '';
+    fileInputRef.current.accept = accept;
+    fileInputRef.current.click();
+  }, []);
+
+  const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : '';
+      const base64 = result.includes(',') ? result.split(',')[1] : result;
+      setAttachedFile({
+        name: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        dataBase64: base64,
+      });
+      setDrawer('chat');
+    };
+    reader.readAsDataURL(file);
+  }, []);
 
   // Estado Multi-Chat e Integraciones sincronizado con Wappy Dots Backend
   const [messages, setMessages] = useState<SharedChatMessage[]>([]);
@@ -893,6 +968,11 @@ export default function WappyDotsMobilePage() {
           ]
         : text;
 
+      const fileToSend = attachedFile;
+      if (fileToSend) {
+        setAttachedFile(null);
+      }
+
       try {
         let res = await callMacTunnel('/api/gemini-tunnel/v1/chat/completions', {
           method: 'POST',
@@ -901,10 +981,12 @@ export default function WappyDotsMobilePage() {
             Authorization: 'Bearer wappy-tunnel',
           },
           body: JSON.stringify({
-            model: useLiveAudioModel ? 'gemini-3.8-live' : 'gemini-3.8-flash',
+            model: useLiveAudioModel ? 'gemini-3.8-live' : selectedModel,
             voice: 'Aoede',
             session_id: activeSessionId,
-            integration_id: activeIntegration,
+            integration_id: 'universal',
+            enabled_tools: enabledTools,
+            ...(fileToSend ? { wappy_file: fileToSend } : {}),
             messages: [
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userMessageContent },
@@ -914,7 +996,7 @@ export default function WappyDotsMobilePage() {
 
         let replyData = await res.json();
 
-        // Si el modelo Live invocó una herramienta (tool_calls), ejecutar el turno de herramientas con gemini-3.8-flash
+        // Si el modelo Live invocó una herramienta (tool_calls), ejecutar el turno de herramientas con el modelo seleccionado
         if (
           useLiveAudioModel &&
           (replyData?.choices?.[0]?.finish_reason === 'tool_calls' ||
@@ -927,9 +1009,10 @@ export default function WappyDotsMobilePage() {
               Authorization: 'Bearer wappy-tunnel',
             },
             body: JSON.stringify({
-              model: 'gemini-3.8-flash',
+              model: selectedModel,
               session_id: activeSessionId,
-              integration_id: activeIntegration,
+              integration_id: 'universal',
+              enabled_tools: enabledTools,
               messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: text },
@@ -1612,42 +1695,233 @@ export default function WappyDotsMobilePage() {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Barra de envío del Chat Activo */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!promptInput.trim()) return;
-              const val = promptInput;
-              setPromptInput('');
-              sendMessage(val);
-            }}
-            className="flex items-center gap-2 border-t border-white/10 bg-zinc-900 p-3 shrink-0"
-          >
-            <button
-              type="button"
-              onClick={toggleVoiceMode}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition ${
-                isListening ? 'bg-emerald-500 text-zinc-950 animate-pulse' : 'bg-white/10 text-white'
-              }`}
-              title="Dictar por voz"
-            >
-              <Mic className="h-4 w-4" />
-            </button>
+          {/* Barra de envío del Chat Activo con [📎 Adjuntar], [⚙️ Integraciones Generales + Modelo IA] y [G Integraciones de Google] */}
+          <div className="relative border-t border-white/10 bg-zinc-900 p-3 shrink-0 space-y-2">
             <input
-              type="text"
-              value={promptInput}
-              onChange={(e) => setPromptInput(e.target.value)}
-              placeholder="Escribe cualquier orden o pregunta a Tenshi..."
-              className="flex-1 rounded-xl border border-white/15 bg-white/[0.05] px-3.5 py-2.5 text-xs text-white placeholder-zinc-400 focus:outline-none focus:border-emerald-500/50"
+              ref={fileInputRef}
+              type="file"
+              onChange={handleFileInputChange}
+              className="hidden"
             />
-            <button
-              type="submit"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#C7F303] text-[#0E1300] font-extrabold active:scale-95 transition"
-              title="Enviar"
+
+            {/* Popover 1: 📎 Adjuntar Imagen/Video, Documento o Archivo (Imagen 3) */}
+            {composerMenu === 'attach' && (
+              <div className="absolute bottom-16 left-3 z-50 w-72 rounded-2xl border border-white/15 bg-zinc-950/95 p-2 shadow-2xl backdrop-blur-xl space-y-1">
+                <button
+                  type="button"
+                  onClick={() => triggerFileSelect('image/*,video/*')}
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-zinc-100 hover:bg-white/10"
+                >
+                  <span>📷 Imagen / Video</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    triggerFileSelect('.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.pptx,.ppt')
+                  }
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-zinc-100 hover:bg-white/10"
+                >
+                  <span>📄 Documento (PDF, Word, Excel, Texto)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => triggerFileSelect('*/*')}
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-zinc-100 hover:bg-white/10"
+                >
+                  <span>📎 Adjunto completo (Cualquier archivo)</span>
+                </button>
+              </div>
+            )}
+
+            {/* Popover 2: ⚙️ Modelo IA + Integraciones Generales Conectadas (Imagen 5) */}
+            {composerMenu === 'general' && (
+              <div className="absolute bottom-16 left-3 z-50 w-72 rounded-2xl border border-white/15 bg-zinc-950/95 p-3 shadow-2xl backdrop-blur-xl space-y-2.5">
+                <div className="border-b border-white/10 pb-2.5">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-zinc-400 mb-1.5">
+                    <span>⚙️ Modelo IA</span>
+                    <span className="text-[10px] text-emerald-400">Prioridad + Rotación</span>
+                  </div>
+                  <select
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    className="w-full rounded-xl border border-white/15 bg-zinc-900 px-2.5 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-teal-500"
+                  >
+                    {AVAILABLE_TEXT_MODELS.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
+                  {GENERAL_TOOLS_CATALOG.map((tool) => {
+                    const checked = enabledTools.includes(tool.id);
+                    return (
+                      <div
+                        key={tool.id}
+                        onClick={() => toggleConnectedTool(tool.id)}
+                        className="flex items-center justify-between gap-2 rounded-xl px-2 py-1.5 hover:bg-white/5 cursor-pointer"
+                      >
+                        <span className="text-xs font-medium text-zinc-200 truncate">
+                          {tool.emoji} {tool.label}
+                        </span>
+                        <span
+                          className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+                            checked ? 'bg-emerald-500' : 'bg-zinc-700'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                              checked ? 'translate-x-4' : 'translate-x-0.5'
+                            }`}
+                          />
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Popover 3: G Integraciones de Google por aparte (Imagen 4) */}
+            {composerMenu === 'google' && (
+              <div className="absolute bottom-16 left-3 z-50 w-72 rounded-2xl border border-white/15 bg-zinc-950/95 p-3 shadow-2xl backdrop-blur-xl space-y-1">
+                <div className="text-[11px] font-bold text-zinc-400 pb-1.5 border-b border-white/10">
+                  Integraciones de Google
+                </div>
+                <div className="max-h-64 overflow-y-auto space-y-1 pt-1 pr-1">
+                  {GOOGLE_TOOLS_CATALOG.map((tool) => {
+                    const checked = enabledTools.includes(tool.id);
+                    return (
+                      <div
+                        key={tool.id}
+                        onClick={() => toggleConnectedTool(tool.id)}
+                        className="flex items-center justify-between gap-2 rounded-xl px-2 py-1.5 hover:bg-white/5 cursor-pointer"
+                      >
+                        <span className="text-xs font-medium text-zinc-200 truncate">
+                          {tool.emoji} {tool.label}
+                        </span>
+                        <span
+                          className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+                            checked ? 'bg-emerald-500' : 'bg-zinc-700'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                              checked ? 'translate-x-4' : 'translate-x-0.5'
+                            }`}
+                          />
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Chip de archivo adjunto */}
+            {attachedFile && (
+              <div className="flex items-center justify-between rounded-xl border border-sky-500/40 bg-sky-500/15 px-3 py-1.5 text-xs text-sky-200">
+                <span className="truncate font-semibold">📎 {attachedFile.name}</span>
+                <button
+                  type="button"
+                  onClick={() => setAttachedFile(null)}
+                  className="ml-2 text-sky-300 hover:text-white"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!promptInput.trim() && !attachedFile) return;
+                const val =
+                  promptInput.trim() ||
+                  `Analiza el archivo adjunto (${attachedFile?.name || 'archivo'}) y explícame su contenido.`;
+                setPromptInput('');
+                setComposerMenu('none');
+                sendMessage(val);
+              }}
+              className="flex items-center gap-1.5"
             >
-              <ArrowUp className="h-4 w-4 stroke-[2.8]" />
-            </button>
-          </form>
+              {/* 1. Botón 📎 Adjuntar */}
+              <button
+                type="button"
+                onClick={() =>
+                  setComposerMenu((prev) => (prev === 'attach' ? 'none' : 'attach'))
+                }
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition ${
+                  composerMenu === 'attach'
+                    ? 'border-[#C7F303]/60 bg-[#C7F303]/15 text-[#C7F303]'
+                    : 'border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10'
+                }`}
+                title="Adjuntar Imagen, Video o Documento"
+              >
+                <Paperclip className="h-4 w-4" />
+              </button>
+
+              {/* 2. Botón ⚙️ Modelo IA + Integraciones Generales */}
+              <button
+                type="button"
+                onClick={() =>
+                  setComposerMenu((prev) => (prev === 'general' ? 'none' : 'general'))
+                }
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition ${
+                  composerMenu === 'general'
+                    ? 'border-[#C7F303]/60 bg-[#C7F303]/15 text-[#C7F303]'
+                    : 'border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10'
+                }`}
+                title="Modelo IA e Integraciones Generales"
+              >
+                <Settings2 className="h-4 w-4" />
+              </button>
+
+              {/* 3. Botón G Integraciones de Google */}
+              <button
+                type="button"
+                onClick={() =>
+                  setComposerMenu((prev) => (prev === 'google' ? 'none' : 'google'))
+                }
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border font-black text-sm transition ${
+                  composerMenu === 'google'
+                    ? 'border-blue-400/60 bg-blue-500/20 text-blue-300'
+                    : 'border-white/10 bg-white/5 text-blue-400 hover:bg-white/10'
+                }`}
+                title="Integraciones de Google"
+              >
+                G
+              </button>
+
+              <input
+                type="text"
+                value={promptInput}
+                onChange={(e) => setPromptInput(e.target.value)}
+                placeholder="Mensaje a Tenshi..."
+                className="flex-1 min-w-0 rounded-xl border border-white/15 bg-white/[0.05] px-3 py-2 text-xs text-white placeholder-zinc-400 focus:outline-none focus:border-emerald-500/50"
+              />
+
+              <button
+                type="button"
+                onClick={toggleVoiceMode}
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition ${
+                  isListening ? 'bg-emerald-500 text-zinc-950 animate-pulse' : 'bg-white/10 text-white'
+                }`}
+                title="Dictar por voz"
+              >
+                <Mic className="h-4 w-4" />
+              </button>
+
+              <button
+                type="submit"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#C7F303] text-[#0E1300] font-extrabold active:scale-95 transition"
+                title="Enviar"
+              >
+                <ArrowUp className="h-4 w-4 stroke-[2.8]" />
+              </button>
+            </form>
+          </div>
         </div>
       )}
 

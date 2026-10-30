@@ -41,6 +41,7 @@ import {
   ExternalLink,
   Terminal,
   Radio,
+  ChevronDown,
 } from 'lucide-react';
 import {
   putMediaBlob,
