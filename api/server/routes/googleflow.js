@@ -2310,23 +2310,11 @@ async function uploadCookies(cookies, email = '') {
         (p) =>
           p.webSocketDebuggerUrl &&
           p.url &&
-          p.url.includes('flow.google.com') &&
+          (p.url.includes('flow.google.com') || p.url.includes('labs.google') || p.url.includes('notebook.google.com')) &&
           !p.url.includes('accounts.google.com') &&
-          !p.url.includes('/signin') &&
-          !p.url.includes('/about')
+          !p.url.includes('/signin')
       );
       if (!flowPage) continue;
-
-      // Verificar que realmente esté autenticado dentro de flow.google.com (WIZ_global_data.SNlM0e presente)
-      let isFlowAuthed = false;
-      try {
-        const authCheck = await cdpSend(flowPage.webSocketDebuggerUrl, 'Runtime.evaluate', {
-          expression: 'Boolean(window.WIZ_global_data && window.WIZ_global_data.SNlM0e)',
-          returnByValue: true,
-        });
-        isFlowAuthed = Boolean(authCheck?.result?.result?.value);
-      } catch (_) {}
-      if (!isFlowAuthed) continue;
 
       let allCookies = [];
       try {
@@ -2342,11 +2330,8 @@ async function uploadCookies(cookies, email = '') {
 
       const googleCookies = allCookies.filter((c) => c.domain && c.domain.includes('google.com'));
       const names = new Set(googleCookies.map((c) => c.name));
-      const hasFlowOsid = googleCookies.some(
-        (c) => c.name === 'OSID' && String(c.domain || '').toLowerCase().includes('flow.google.com')
-      );
 
-      if (names.has('SID') && (names.has('__Secure-1PSID') || names.has('__Secure-1PSIDTS')) && hasFlowOsid) {
+      if (names.has('SID') && (names.has('__Secure-1PSID') || names.has('__Secure-1PSIDTS'))) {
         try {
           await cdpSend(flowPage.webSocketDebuggerUrl, 'Target.createTarget', {
             url: 'https://notebooklm.google.com/',
