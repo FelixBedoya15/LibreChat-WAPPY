@@ -868,6 +868,58 @@ async function generateHtml(b: any) {
   throw new Error(lastErr);
 }
 
+function ensureSomosSstDailyBrand(
+  rawScript: string,
+  multiSpeaker = true,
+  episodeTitle = '',
+  instagramHandle = '',
+): string {
+  let clean = String(rawScript || '').trim();
+  if (!clean) return clean;
+
+  const cleanIg = String(instagramHandle || '')
+    .trim()
+    .replace(/^@+/, '')
+    .replace(/\s+/g, '');
+  const igPhrase = cleanIg ? `Síguenos en Instagram @${cleanIg}.` : '';
+
+  const hasBrand = /somos\s+sst\s+daily/i.test(clean);
+  const hasIg = cleanIg
+    ? new RegExp(`s[ií]guenos\\s+en\\s+instagram\\s+@?${cleanIg.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i').test(clean)
+    : true;
+
+  const titlePart =
+    episodeTitle && !/somos\s+sst\s+daily/i.test(episodeTitle)
+      ? `, en nuestro episodio "${episodeTitle.trim()}"`
+      : '';
+
+  if (!hasBrand) {
+    if (multiSpeaker || /^\s*(Alex|Sam)\s*:/im.test(clean)) {
+      if (/^\s*Alex\s*:\s*/i.test(clean)) {
+        clean = clean.replace(
+          /^\s*Alex\s*:\s*/i,
+          `Alex: ¡Bienvenidos a un nuevo episodio de Somos SST Daily${titlePart}! `,
+        );
+      } else {
+        clean = `Alex: ¡Bienvenidos a un nuevo episodio de Somos SST Daily${titlePart}! <breath>\n\n${clean}`;
+      }
+      if (!/somos\s+sst\s+daily/i.test(clean.slice(-220))) {
+        clean = `${clean}\n\nAlex: ¡Gracias por acompañarnos en Somos SST Daily!${igPhrase ? ` ${igPhrase}` : ' Nos escuchamos en el próximo episodio.'}`;
+        return clean.trim();
+      }
+    } else {
+      clean = `¡Bienvenidos a un nuevo episodio de Somos SST Daily${titlePart}! <breath> ${clean} ¡Gracias por escucharnos en Somos SST Daily!${igPhrase ? ` ${igPhrase}` : ''}`;
+      return clean.trim();
+    }
+  }
+
+  if (cleanIg && !hasIg) {
+    clean = `${clean.replace(/[.!\s]+$/, '')}. ¡Gracias por escucharnos en Somos SST Daily! ${igPhrase}`;
+  }
+
+  return clean.trim();
+}
+
 async function enhanceScript(opts: any) {
   const keys = requireKeys();
   const envModels = textModelIds();
@@ -875,37 +927,99 @@ async function enhanceScript(opts: any) {
     .replace('models/', '')
     .trim();
   const models = Array.from(new Set([preferred, ...envModels]));
-  const isLongPodcast = Boolean(opts.podcastOnly) || Number(opts.minMinutes) >= 5;
-  const lengthMandate = isLongPodcast
-    ? `\nREGLA OBLIGATORIA DE DURACIÓN (MÍNIMO 5 MINUTOS): El guion completo DEBE tener un mínimo estricto de 750 a 900 palabras reales (~5 a 6 minutos de locución hablada). Desarrolla el tema a profundidad con introducción magnética, análisis técnico y normativo (SG-SST, Decreto 1072, Res. 0312, GTC 45 o estándar aplicable), casos reales de campo, preguntas y respuestas entre los interlocutores, errores comunes a evitar y cierre memorable con conclusiones prácticas.`
-    : '';
-  const promptInstruction = opts.multiSpeaker
-    ? `Eres un guionista experto en podcasts y locución neural para Gemini 3.8 Flash TTS.
-Convierte, expande o mejora el siguiente texto en un episodio completo de podcast dinámico entre dos interlocutores usando exactamente las etiquetas "Alex:" y "Sam:" al inicio de cada intervención.${lengthMandate}
-Inserta efectos vocales orgánicos donde aporten naturalidad: <breath> (respiración), <laugh> (risa suave), |mhm| (asentimiento), |yeah| (acuerdo).
-Estilo solicitado: ${opts.stylePrompt || 'Conversacional, fluido y profesional'}.${opts.episodeTitle ? `\nTítulo del Episodio: ${opts.episodeTitle}` : ''}
-Devuelve ÚNICAMENTE el guion listo para sintetizar, sin introducciones ni bloques markdown.`
-    : `Eres un director de locución profesional experto en Gemini 3.8 Flash TTS.
-Mejora, expande y enriquece el siguiente guion para que suene 100% humano, envolvente y con ritmo profesional.${lengthMandate}
-Inserta etiquetas vocales orgánicas de Gemini TTS en las pausas clave: <breath> (toma de aire natural), <laugh> (si aplica), <gasp> (si aplica énfasis).
-Estilo solicitado: ${opts.stylePrompt || 'Narración profesional, clara y expresiva'}.${opts.episodeTitle ? `\nTítulo del Episodio: ${opts.episodeTitle}` : ''}
-Devuelve ÚNICAMENTE el texto del guion mejorado, sin comentarios adicionales ni comillas.`;
+  const effectiveMinutes = Math.max(
+    Number(opts.targetMinutes) || 0,
+    Number(opts.minMinutes) || 0,
+    opts.podcastOnly ? 5 : 0,
+  );
+  const isLongPodcast = Boolean(opts.podcastOnly) || effectiveMinutes >= 5;
+  const targetWords = isLongPodcast ? Math.round(effectiveMinutes * 150) : 260;
+  const minRequiredWords = isLongPodcast ? Math.round(effectiveMinutes * 145) : 120;
+  const targetTurns =
+    effectiveMinutes >= 10 ? '26 a 34' : effectiveMinutes >= 7 ? '20 a 26' : '14 a 18';
+  const userTopic = String(opts.topicInstruction || '').trim();
+  const baseText = String(opts.text || opts.scriptText || '').trim();
+  const s1Voice = opts.speaker1?.voiceName || 'Puck';
+  const s2Voice = opts.speaker2?.voiceName || 'Kore';
+  const voicesSummary = opts.multiSpeaker
+    ? `Diálogo dinámico a 2 voces entre Alex (Conductor principal • voz ${s1Voice}) y Sam (Especialista técnico SST • voz ${s2Voice})`
+    : `Locución principal a 1 voz (${opts.voiceName || 'Kore'})`;
+  const companySummary =
+    opts.companyContext && opts.companyContext.companyName
+      ? `\n- Empresa / Organización: ${opts.companyContext.companyName}${opts.companyContext.economicActivity ? ` (Sector: ${opts.companyContext.economicActivity})` : ''}${opts.companyContext.riskLevel ? ` • Nivel de Riesgo: ${opts.companyContext.riskLevel}` : ''}`
+      : '';
 
-  const rawInputText = opts.text || opts.scriptText || '';
-  const inputContent = `${promptInstruction}\n\nTEXTO O TEMA BASE:\n${rawInputText || 'Crea un episodio completo de podcast sobre cómo la Inteligencia Artificial y la cultura preventiva transforman la Seguridad y Salud en el Trabajo.'}`;
+  const lengthMandate = isLongPodcast
+    ? `\nREGLA ESTRICTA E INQUEBRANTABLE DE DURACIÓN (${effectiveMinutes} MINUTOS EXACTOS):
+- El guion completo DEBE tener entre ${targetWords} y ${targetWords + 180} palabras reales (mínimo absoluto: ${minRequiredWords} palabras, equivalentes a ${effectiveMinutes} minutos de locución hablada).
+- Si es diálogo entre Alex y Sam, escribe entre ${targetTurns} intervenciones completas y sustanciosas (de 45 a 75 palabras por turno), sin resumir ni acortar.
+- Desarrolla introducción oficial de "Somos SST Daily", caso real de campo, análisis técnico y normativo (Decreto 1072, Res. 0312, GTC 45, Res. 4272 o norma aplicable), preguntas y respuestas, herramientas accionables y cierre memorable.`
+    : '';
+
+  const cleanInstagram = String(opts.instagramHandle || '')
+    .trim()
+    .replace(/^@+/, '')
+    .replace(/\s+/g, '');
+  const brandMandate = `\nREGLA OBLIGATORIA DE MARCA Y CIERRE DE INSTAGRAM:
+- El guion SIEMPRE debe mencionar explícitamente la marca oficial "Somos SST Daily" tanto en el saludo de apertura como en la despedida de cierre.${
+    cleanInstagram
+      ? `\n- Al final del podcast, en la última frase de despedida, DEBE decir exactamente: "Síguenos en Instagram @${cleanInstagram}".`
+      : ''
+  }`;
+
+  const promptInstruction = opts.multiSpeaker
+    ? `Eres el Director Editorial y Guionista Principal de "Somos SST Daily", experto en podcasts técnicos y locución neural para Gemini 3.8 Flash TTS.
+Redacta un episodio completo de podcast dinámico entre dos interlocutores usando exactamente las etiquetas "Alex:" y "Sam:" al inicio de cada intervención.${brandMandate}${lengthMandate}
+
+PARÁMETROS SELECCIONADOS EN EL ENGRANAJE DEL ESTUDIO (ÚNELOS TODOS EN EL GUION):
+- Marca Oficial del Podcast: Somos SST Daily
+- Título del Episodio: ${opts.episodeTitle || 'Somos SST Daily'}
+- Duración Objetivo: ${effectiveMinutes || 2} minutos (~${targetWords} palabras)
+- Estilo y Plantilla Seleccionada: ${opts.presetName ? `${opts.presetName} — ` : ''}${opts.stylePrompt || 'Conversacional, fluido y profesional'}
+- Configuración de Voces: ${voicesSummary}${companySummary}
+- Instrucción del Usuario (Sobre qué tema quiere el guion y cómo debe ser): ${userTopic || 'Desarrolla a profundidad el tema del título con casos reales de Seguridad y Salud en el Trabajo, normativa aplicable y consejos prácticos.'}
+
+Inserta de forma moderada etiquetas expresivas: <breath>, <laugh>, |mhm|, |yeah|.
+Devuelve ÚNICAMENTE el guion listo para sintetizar, sin introducciones ni bloques markdown.`
+    : `Eres el Director Editorial y Guionista Principal de "Somos SST Daily", experto en locución profesional para Gemini 3.8 Flash TTS.
+Redacta o expande un episodio completo de podcast para que suene 100% humano, envolvente y con ritmo profesional.${brandMandate}${lengthMandate}
+
+PARÁMETROS SELECCIONADOS EN EL ENGRANAJE DEL ESTUDIO (ÚNELOS TODOS EN EL GUION):
+- Marca Oficial del Podcast: Somos SST Daily
+- Título del Episodio: ${opts.episodeTitle || 'Somos SST Daily'}
+- Duración Objetivo: ${effectiveMinutes || 2} minutos (~${targetWords} palabras)
+- Estilo y Plantilla Seleccionada: ${opts.presetName ? `${opts.presetName} — ` : ''}${opts.stylePrompt || 'Narración profesional, clara y expresiva'}
+- Configuración de Voz: ${voicesSummary}${companySummary}
+- Instrucción del Usuario (Sobre qué tema quiere el guion y cómo debe ser): ${userTopic || 'Desarrolla a profundidad el tema del título con casos reales de Seguridad y Salud en el Trabajo, normativa aplicable y consejos prácticos.'}
+
+Devuelve ÚNICAMENTE el texto del guion completo, sin comentarios adicionales ni comillas.`;
+
+  const contextBlock = userTopic
+    ? `INSTRUCCIÓN PRIORITARIA DEL USUARIO SOBRE EL TEMA Y ENFOQUE DEL PODCAST:\n"${userTopic}"\n\nTÍTULO DEL PODCAST: "${opts.episodeTitle || 'Somos SST Daily'}"${baseText ? `\n\nBORRADOR PREVIO EN EL EDITOR:\n${baseText.slice(0, 1800)}` : ''}`
+    : `TÍTULO DEL PODCAST: "${opts.episodeTitle || 'Somos SST Daily'}"\n\nTEXTO O TEMA BASE:\n${baseText || 'Crea un episodio completo de Somos SST Daily sobre cómo la cultura preventiva transforma la Seguridad y Salud en el Trabajo.'}`;
+
+  const inputContent = `${promptInstruction}\n\n${contextBlock}`;
 
   let lastErr = 'Error al mejorar el guion con IA.';
   for (const model of models) {
     for (const key of keys) {
       const r = await geminiPost(model, key, {
         contents: [{ role: 'user', parts: [{ text: inputContent }] }],
-        generationConfig: { temperature: 0.5 },
+        generationConfig: { temperature: 0.65, maxOutputTokens: 8192 },
       });
       if (r.ok) {
-        const text = (
+        let text = (
           r.data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text || '').join('') || ''
         ).trim();
-        if (text) return { text, model };
+        if (text) {
+          text = ensureSomosSstDailyBrand(
+            text,
+            Boolean(opts.multiSpeaker),
+            opts.episodeTitle || '',
+            cleanInstagram,
+          );
+          return { text, model };
+        }
       }
       lastErr = r.data?.error?.message || `Error ${r.status}`;
       if (r.status === 429 || r.status === 403) continue;

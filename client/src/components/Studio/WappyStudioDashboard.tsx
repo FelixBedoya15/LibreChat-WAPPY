@@ -2348,12 +2348,88 @@ export default function WappyStudioDashboard({
   const [activePodcastEpisodeTitle, setActivePodcastEpisodeTitle] = useState<string>(
     podcastOnly ? WAPPY_PODCAST_SHOWS[0].title : '',
   );
+  const [podcastTopicInstruction, setPodcastTopicInstruction] = useState<string>(
+    podcastOnly ? WAPPY_PODCAST_SHOWS[0].topicPrompt : '',
+  );
+  const [podcastInstagramHandle, setPodcastInstagramHandle] = useState<string>(() => {
+    try {
+      return localStorage.getItem('wappy_podcast_instagram_handle') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [podcastTargetMinutes, setPodcastTargetMinutes] = useState<5 | 7.5 | 10>(5);
   const [editingLibraryItemId, setEditingLibraryItemId] = useState<string | null>(null);
+
+  const handleInstagramHandleChange = (val: string) => {
+    setPodcastInstagramHandle(val);
+    try {
+      localStorage.setItem('wappy_podcast_instagram_handle', val.trim());
+    } catch {
+      /* ignore */
+    }
+  };
+
+  /**
+   * Garantiza que todo guion de podcast (generado con IA o escrito por el propio usuario)
+   * lleve siempre la marca "Somos SST Daily" y, si puso Instagram, diga al final "Síguenos en Instagram @...".
+   */
+  const ensurePodcastBrandAndInstagram = (rawScript: string, isMulti = multiSpeaker): string => {
+    let clean = String(rawScript || '').trim();
+    if (!clean) return clean;
+    const cleanIg = String(podcastInstagramHandle || '')
+      .trim()
+      .replace(/^@+/, '')
+      .replace(/\s+/g, '');
+    const igPhrase = cleanIg ? `Síguenos en Instagram @${cleanIg}.` : '';
+    const hasBrand = /somos\s+sst\s+daily/i.test(clean);
+    const hasIg = cleanIg
+      ? new RegExp(
+          `s[ií]guenos\\s+en\\s+instagram\\s+@?${cleanIg.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
+          'i',
+        ).test(clean)
+      : true;
+    const titlePart =
+      activePodcastEpisodeTitle && !/somos\s+sst\s+daily/i.test(activePodcastEpisodeTitle)
+        ? `, en nuestro episodio "${activePodcastEpisodeTitle.trim()}"`
+        : '';
+
+    if (!hasBrand) {
+      if (isMulti || /^\s*(Alex|Sam)\s*:/im.test(clean)) {
+        if (/^\s*Alex\s*:\s*/i.test(clean)) {
+          clean = clean.replace(
+            /^\s*Alex\s*:\s*/i,
+            `Alex: ¡Bienvenidos a un nuevo episodio de Somos SST Daily${titlePart}! `,
+          );
+        } else {
+          clean = `Alex: ¡Bienvenidos a un nuevo episodio de Somos SST Daily${titlePart}! <breath>\n\n${clean}`;
+        }
+        if (!/somos\s+sst\s+daily/i.test(clean.slice(-220))) {
+          clean = `${clean}\n\nAlex: ¡Gracias por acompañarnos en Somos SST Daily!${
+            igPhrase ? ` ${igPhrase}` : ' Nos escuchamos en el próximo episodio.'
+          }`;
+          return clean.trim();
+        }
+      } else {
+        clean = `¡Bienvenidos a un nuevo episodio de Somos SST Daily${titlePart}! <breath> ${clean} ¡Gracias por escucharnos en Somos SST Daily!${
+          igPhrase ? ` ${igPhrase}` : ''
+        }`;
+        return clean.trim();
+      }
+    }
+
+    if (cleanIg && !hasIg) {
+      clean = `${clean.replace(/[.!\s]+$/, '')}. ¡Gracias por escucharnos en Somos SST Daily! ${igPhrase}`;
+    }
+
+    return clean.trim();
+  };
 
   const handleSelectApplePodcastShow = (show: PodcastShowPreset, autoSynthesize = false) => {
     setSelectedApplePodcastId(show.id);
     setEditingLibraryItemId(null);
     setActivePodcastEpisodeTitle(show.title);
+    setPodcastTopicInstruction(show.topicPrompt || '');
     setMultiSpeaker(show.dualSpeaker);
     if (show.dualSpeaker) {
       setSpeaker1Voice(show.voiceId);
@@ -2362,11 +2438,12 @@ export default function WappyStudioDashboard({
       setSelectedVoice(show.voiceId);
     }
     setStylePrompt(show.stylePrompt);
-    setScriptText(show.script);
+    const brandedShowScript = ensurePodcastBrandAndInstagram(show.script, show.dualSpeaker);
+    setScriptText(brandedShowScript);
 
     if (autoSynthesize) {
       handleStartFullJob({
-        script: show.script,
+        script: brandedShowScript,
         title: show.title,
         multiSpeaker: show.dualSpeaker,
         voiceName: show.voiceId,
@@ -3136,8 +3213,12 @@ export default function WappyStudioDashboard({
   /** Guarda los cambios de título y guion sobre el podcast existente sin necesidad de esperar nueva síntesis, o prepáralo para re-síntesis. */
   const handleSaveEditedLibraryMetadata = () => {
     if (!editingLibraryItemId) return;
-    const cleanTitle = (activePodcastEpisodeTitle || '').trim() || 'Podcast SST Editado';
-    const cleanWords = scriptText.trim().split(/\s+/).filter(Boolean).length;
+    const cleanTitle = (activePodcastEpisodeTitle || '').trim() || 'Somos SST Daily';
+    const brandedScript = podcastOnly ? ensurePodcastBrandAndInstagram(scriptText) : scriptText;
+    if (brandedScript !== scriptText) {
+      setScriptText(brandedScript);
+    }
+    const cleanWords = brandedScript.trim().split(/\s+/).filter(Boolean).length;
     const effVoice = multiSpeaker ? `${speaker1Voice} + ${speaker2Voice}` : selectedVoice;
     setLibraryItems((prev) =>
       prev.map((it) =>
@@ -3145,7 +3226,7 @@ export default function WappyStudioDashboard({
           ? {
               ...it,
               title: cleanTitle,
-              scriptText,
+              scriptText: brandedScript,
               stylePrompt,
               voiceName: effVoice,
               wordCount: cleanWords,
@@ -3154,11 +3235,11 @@ export default function WappyStudioDashboard({
       ),
     );
     setCurrentAudio((prev) =>
-      prev ? { ...prev, title: cleanTitle, scriptText, voiceName: effVoice } : prev,
+      prev ? { ...prev, title: cleanTitle, scriptText: brandedScript, voiceName: effVoice } : prev,
     );
     setStatusBanner({
       type: 'success',
-      text: `✅ Cambios guardados en el podcast "${cleanTitle}". Si modificaste el texto y deseas actualizar la voz, pulsa "Generar Podcast Completo".`,
+      text: `✅ Cambios guardados en el podcast "${cleanTitle}" con sello Somos SST Daily${podcastInstagramHandle.trim() ? ` y cierre Instagram @${podcastInstagramHandle.replace(/^@+/, '').trim()}` : ''}. Si deseas actualizar la voz, pulsa "Generar Podcast Completo".`,
     });
   };
 
@@ -3424,13 +3505,19 @@ export default function WappyStudioDashboard({
     stylePrompt?: string;
   }) => {
     if (!requireActiveCompany('generar locuciones y cápsulas de audio')) return;
-    const rawScript = (override?.script ?? scriptText).trim();
-    if (!rawScript) return;
+    const effMulti = override?.multiSpeaker ?? multiSpeaker;
+    const baseRawScript = (override?.script ?? scriptText).trim();
+    if (!baseRawScript) return;
+    const rawScript = podcastOnly
+      ? ensurePodcastBrandAndInstagram(baseRawScript, effMulti)
+      : baseRawScript;
+    if (podcastOnly && !override?.script && rawScript !== scriptText) {
+      setScriptText(rawScript);
+    }
     const snippet = rawScript.slice(0, 850);
     const snippetWords = snippet.split(/\s+/).filter(Boolean).length;
     const estSeconds = Math.max(3, Math.round((snippetWords / 145) * 60));
     const previewJobId = `preview_${Date.now()}`;
-    const effMulti = override?.multiSpeaker ?? multiSpeaker;
     const effVoice = override?.voiceName || selectedVoice;
     const effSpk1 = override?.speaker1Voice || speaker1Voice;
     const effSpk2 = override?.speaker2Voice || speaker2Voice;
@@ -3592,9 +3679,15 @@ export default function WappyStudioDashboard({
     stylePrompt?: string;
   }) => {
     if (!requireActiveCompany('ensamblar podcasts y locuciones completas')) return;
-    const effScript = (override?.script ?? scriptText).trim();
-    if (!effScript) return;
     const effMulti = override?.multiSpeaker ?? multiSpeaker;
+    const baseEffScript = (override?.script ?? scriptText).trim();
+    if (!baseEffScript) return;
+    const effScript = podcastOnly
+      ? ensurePodcastBrandAndInstagram(baseEffScript, effMulti)
+      : baseEffScript;
+    if (podcastOnly && !override?.script && effScript !== scriptText) {
+      setScriptText(effScript);
+    }
     const effVoice = override?.voiceName || selectedVoice;
     const effSpk1 = override?.speaker1Voice || speaker1Voice;
     const effSpk2 = override?.speaker2Voice || speaker2Voice;
@@ -3781,33 +3874,65 @@ export default function WappyStudioDashboard({
     try {
       setIsEnhancingScript(true);
       setStatusBanner(null);
+      const selectedPresetObj = presets.find(
+        (preset) =>
+          stylePrompt === preset.style &&
+          (preset.multiSpeaker
+            ? multiSpeaker
+            : !multiSpeaker && selectedVoice === preset.voiceName),
+      );
       const resp = await fetch('/api/studio/script/enhance', {
         method: 'POST',
         headers: getAuthHeaders(token),
         body: JSON.stringify({
           text: scriptText,
           scriptText,
+          topicInstruction: podcastTopicInstruction,
+          presetName: selectedPresetObj?.name || '',
           stylePrompt,
           multiSpeaker,
+          speaker1: { name: 'Alex', voiceName: speaker1Voice },
+          speaker2: { name: 'Sam', voiceName: speaker2Voice },
+          voiceName: selectedVoice,
           podcastOnly,
-          minMinutes: podcastOnly ? 5 : 0,
+          targetMinutes: podcastOnly ? podcastTargetMinutes : 0,
+          minMinutes: podcastOnly ? podcastTargetMinutes : 0,
           episodeTitle: activePodcastEpisodeTitle,
+          instagramHandle: podcastInstagramHandle,
+          companyContext: activeCompanyInfo
+            ? {
+                companyName: activeCompanyInfo.companyName,
+                economicActivity: activeCompanyInfo.sector || activeCompanyInfo.generalActivities,
+                riskLevel: activeCompanyInfo.riskLevel,
+                workersCount: activeCompanyInfo.workerCount,
+              }
+            : null,
           modelName: selectedAiModel,
           customKeys: activeUserGeminiKeys,
         }),
       });
       const data = await parseStudioJson(resp);
-      const enhancedResult = data.scriptText || data.text;
+      let enhancedResult = data.scriptText || data.text;
       if (!resp.ok || !data.success || !enhancedResult) {
         throw new Error(data.error || 'No se pudo mejorar el guion con IA.');
       }
+      if (podcastOnly) {
+        enhancedResult = ensurePodcastBrandAndInstagram(enhancedResult, multiSpeaker);
+      }
       setScriptText(enhancedResult);
+      const finalWordCount = enhancedResult.split(/\s+/).filter(Boolean).length;
+      const cleanIg = podcastInstagramHandle.trim().replace(/^@+/, '');
       setStatusBanner({
         type: 'success',
         text: podcastOnly
-          ? `¡Guion de Podcast expandido y enriquecido a +5 minutos con expresiones vocales (<breath>, <laugh>) usando ${data.usedModel || data.model || selectedAiModel}!`
+          ? `¡Guion oficial de "Somos SST Daily" (${podcastTargetMinutes} min • ${finalWordCount} palabras${cleanIg ? ` • cierre @${cleanIg}` : ''}) creado uniendo tu título, tema, estilo y voces con ${data.usedModel || data.model || selectedAiModel}!`
           : `¡Guion enriquecido con expresiones vocales (<breath>, <laugh>) usando ${data.usedModel || data.model || selectedAiModel}!`,
       });
+      setTimeout(() => {
+        document
+          .getElementById('wappy-studio-tts-editor')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 120);
     } catch (err: any) {
       setStatusBanner({
         type: 'error',
@@ -6942,69 +7067,268 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   />
                 </div>
 
-                {/* Campo de Título de la Cápsula de Podcast (Exclusivo en podcastOnly para nombrar o editar la cápsula al pasarla al Carrusel y Walkman) */}
+                {/* Panel Maestro de Configuración del Episodio, Instagram, Duración (5 / 7.5 / 10 min) e Instrucción Temática (Exclusivo en podcastOnly) */}
                 {podcastOnly && (
-                  <div className="p-3 rounded-xl bg-slate-950/80 border border-teal-500/30 flex flex-col sm:flex-row sm:items-center gap-2.5">
-                    <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#c7f303] shrink-0 flex items-center gap-1.5">
-                      📻 {editingLibraryItemId ? 'Editando Podcast:' : 'Título de tu Podcast:'}
-                    </label>
-                    <input
-                      type="text"
-                      value={activePodcastEpisodeTitle}
-                      onChange={(e) => setActivePodcastEpisodeTitle(e.target.value)}
-                      placeholder="Ej: Charla 5 Min - Bloqueo LOTO en Planta..."
-                      className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-[#c7f303]"
-                    />
-                    {editingLibraryItemId && (
-                      <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-teal-500/35 space-y-3 shadow-lg">
+                    {/* Fila 1: Título de tu Podcast */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+                      <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#c7f303] shrink-0 flex items-center gap-1.5">
+                        📻 {editingLibraryItemId ? 'Editando Podcast:' : 'Título de tu Podcast:'}
+                      </label>
+                      <input
+                        type="text"
+                        value={activePodcastEpisodeTitle}
+                        onChange={(e) => setActivePodcastEpisodeTitle(e.target.value)}
+                        placeholder="Ej: Somos SST Daily - Bloqueo LOTO en Planta..."
+                        className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-[#c7f303]"
+                      />
+                      {editingLibraryItemId && (
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={handleSaveEditedLibraryMetadata}
+                            className="px-3 py-1.5 rounded-xl bg-[#c7f303] hover:bg-[#d8ff2a] text-[#0e1300] text-[11px] font-black uppercase tracking-wider transition cursor-pointer shadow-sm"
+                            title="Guardar nuevo título, Instagram, voces y guion sin volver a sintetizar"
+                          >
+                            💾 Guardar Cambios
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingLibraryItemId(null);
+                              setStatusBanner({
+                                type: 'info',
+                                text: 'Modo creación de nuevo podcast activado.',
+                              });
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] font-bold transition cursor-pointer"
+                            title="Salir del modo edición para crear un podcast nuevo"
+                          >
+                            + Nuevo
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Fila 2: Campo de Instagram (debajo del Título del Podcast) */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 pt-2 border-t border-slate-800/80">
+                      <label className="text-[11px] font-extrabold uppercase tracking-wider text-pink-400 shrink-0 flex items-center gap-1.5">
+                        📸 Instagram del Podcast:
+                      </label>
+                      <div className="flex-1 flex items-center bg-slate-900 border border-slate-700 rounded-xl overflow-hidden focus-within:border-pink-400">
+                        <span className="px-2.5 py-1.5 text-xs font-black text-pink-400 bg-pink-500/10 border-r border-slate-700 select-none">
+                          @
+                        </span>
+                        <input
+                          type="text"
+                          value={podcastInstagramHandle.replace(/^@+/, '')}
+                          onChange={(e) => handleInstagramHandleChange(e.target.value.replace(/^@+/, ''))}
+                          placeholder="somossst (al final dirá: Síguenos en Instagram @...)"
+                          className="flex-1 bg-transparent px-3 py-1.5 text-xs font-bold text-white focus:outline-none"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = ensurePodcastBrandAndInstagram(scriptText);
+                          setScriptText(updated);
+                          setStatusBanner({
+                            type: 'success',
+                            text: podcastInstagramHandle.trim()
+                              ? `✅ Sello "Somos SST Daily" y cierre "Síguenos en Instagram @${podcastInstagramHandle.replace(/^@+/, '').trim()}" aplicados al guion.`
+                              : '✅ Sello oficial "Somos SST Daily" aplicado al guion.',
+                          });
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-pink-500/15 hover:bg-pink-500/25 border border-pink-500/40 text-pink-300 text-[10px] font-extrabold uppercase tracking-wider transition cursor-pointer shrink-0"
+                        title="Inyectar ahora mismo la marca Somos SST Daily y el cierre de Instagram en el guion actual"
+                      >
+                        {podcastInstagramHandle.trim()
+                          ? `✓ Dirá: Síguenos en Instagram @${podcastInstagramHandle.replace(/^@+/, '').trim()}`
+                          : '+ Aplicar Marca & IG al Guion'}
+                      </button>
+                    </div>
+
+                    {/* Fila 3: Selector de Tiempo del Podcast (5 min | 7.5 min | 10 min) */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-slate-800/80">
+                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-teal-300 flex items-center gap-1.5">
+                        ⏱️ Tiempo del Podcast (Duración Meta):
+                      </span>
+                      <div className="grid grid-cols-3 gap-2 w-full sm:w-auto">
+                        {(
+                          [
+                            { min: 5 as const, label: '5 Minutos', words: '~750 palabras' },
+                            { min: 7.5 as const, label: '7.5 Minutos', words: '~1,125 palabras' },
+                            { min: 10 as const, label: '10 Minutos', words: '~1,500 palabras' },
+                          ]
+                        ).map((opt) => {
+                          const isSelected = podcastTargetMinutes === opt.min;
+                          return (
+                            <button
+                              key={opt.min}
+                              type="button"
+                              onClick={() => setPodcastTargetMinutes(opt.min)}
+                              className={cn(
+                                'px-3 py-1.5 rounded-xl border text-left sm:text-center transition cursor-pointer flex flex-col items-center justify-center',
+                                isSelected
+                                  ? 'bg-[#c7f303] text-[#0e1300] border-[#c7f303] shadow-md font-black'
+                                  : 'bg-slate-900/90 hover:bg-slate-800 text-slate-200 border-slate-700 font-bold',
+                              )}
+                            >
+                              <span className="text-xs leading-tight">{opt.label}</span>
+                              <span
+                                className={cn(
+                                  'text-[9px] font-mono',
+                                  isSelected ? 'text-[#0e1300]/80 font-extrabold' : 'text-slate-400',
+                                )}
+                              >
+                                {opt.words}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Fila 4: Instrucción del Usuario sobre el Tema y Enfoque del Guion */}
+                    <div className="pt-2 border-t border-slate-800/80 space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-1">
+                        <label
+                          htmlFor="wappy-podcast-topic-instruction"
+                          className="text-[11px] font-extrabold uppercase tracking-wider text-[#c7f303] flex items-center gap-1.5"
+                        >
+                          🧠 ¿Sobre qué tema quieres el guion del podcast y cómo sería?
+                        </label>
+                        <span className="text-[10px] font-semibold text-teal-300">
+                          Une: Marca &quot;Somos SST Daily&quot; + Título + Estilo + Voces + Tiempo + Instagram
+                        </span>
+                      </div>
+
+                      <textarea
+                        id="wappy-podcast-topic-instruction"
+                        rows={3}
+                        value={podcastTopicInstruction}
+                        onChange={(e) => setPodcastTopicInstruction(e.target.value)}
+                        placeholder="Escribe aquí de qué trata el episodio y cómo quieres que lo desarrollen (Ej: Hablar sobre el exceso de confianza en mantenimiento eléctrico, contar un caso real en planta, hacer debate dinámico entre Alex y Sam y cerrar con 3 reglas de oro aplicables hoy)..."
+                        className="w-full bg-slate-900/95 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-[#c7f303] leading-relaxed resize-y"
+                      />
+
+                      {/* Chips de ideas rápidas para enriquecer la instrucción temática */}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-[10px] font-bold text-slate-400 mr-1">
+                          💡 Ideas rápidas:
+                        </span>
+                        {[
+                          {
+                            label: '+ Exceso de Confianza',
+                            prompt:
+                              'Analizar cómo el exceso de confianza en tareas rutinarias causa accidentes graves, con un caso real en planta y 3 hábitos para romper el piloto automático.',
+                          },
+                          {
+                            label: '+ Bloqueo LOTO (5 Reglas)',
+                            prompt:
+                              'Explicar de forma práctica el control de energías peligrosas y bloqueo/etiquetado LOTO con preguntas y respuestas entre Alex y Sam.',
+                          },
+                          {
+                            label: '+ Alturas Res. 4272',
+                            prompt:
+                              'Debatir sobre inspección de arnés, puntos de anclaje certificados y permiso de trabajo en alturas según la Resolución 4272 de 2021.',
+                          },
+                          {
+                            label: '+ Investigación ATEL',
+                            prompt:
+                              'Reconstruir un cuasi-accidente laboral aplicando metodología de los 5 Porqués sin buscar culpables sino causas raíz reales.',
+                          },
+                          {
+                            label: '+ Salud Mental & Fatiga',
+                            prompt:
+                              'Conversar con empatía sobre fatiga laboral, pausas activas reales, sueño reparador y cuidado mutuo en turnos rotativos.',
+                          },
+                        ].map((chip) => (
+                          <button
+                            key={chip.label}
+                            type="button"
+                            onClick={() =>
+                              setPodcastTopicInstruction((prev) =>
+                                prev.trim() ? `${prev.trim()} ${chip.prompt}` : chip.prompt,
+                              )
+                            }
+                            className="px-2 py-0.5 rounded-lg bg-slate-900 hover:bg-teal-500/20 border border-slate-700 hover:border-teal-500/40 text-[10px] font-semibold text-slate-300 hover:text-teal-200 transition cursor-pointer"
+                          >
+                            {chip.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Resumen en Vivo del Engranaje antes de Redactar */}
+                      <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                          <span className="px-2 py-0.5 rounded-md bg-[#c7f303]/15 border border-[#c7f303]/40 text-[#c7f303] font-extrabold">
+                            🏷️ Marca: Somos SST Daily
+                          </span>
+                          <span className="px-2 py-0.5 rounded-md bg-teal-500/15 border border-teal-500/30 text-teal-300 font-bold">
+                            ⏱️ {podcastTargetMinutes} min (~{Math.round(podcastTargetMinutes * 150)} pal.)
+                          </span>
+                          <span className="px-2 py-0.5 rounded-md bg-purple-500/15 border border-purple-500/30 text-purple-300 font-bold">
+                            🎭 Estilo: {VOICE_PRESETS.find((p) => p.id === selectedPreset)?.name || 'Personalizado'}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-md bg-sky-500/15 border border-sky-500/30 text-sky-300 font-bold">
+                            🎙️ {multiSpeaker ? `Alex (${speaker1Voice}) + Sam (${speaker2Voice})` : `Voz: ${selectedVoice}`}
+                          </span>
+                          {podcastInstagramHandle.trim() && (
+                            <span className="px-2 py-0.5 rounded-md bg-pink-500/15 border border-pink-500/30 text-pink-300 font-bold">
+                              📸 Cierre: @{podcastInstagramHandle.replace(/^@+/, '').trim()}
+                            </span>
+                          )}
+                        </div>
+
                         <button
                           type="button"
-                          onClick={handleSaveEditedLibraryMetadata}
-                          className="px-3 py-1.5 rounded-xl bg-[#c7f303] hover:bg-[#d8ff2a] text-[#0e1300] text-[11px] font-black uppercase tracking-wider transition cursor-pointer shadow-sm"
-                          title="Guardar nuevo título, voces y guion sin volver a sintetizar"
+                          disabled={isEnhancingScript}
+                          onClick={handleEnhanceScriptWithAi}
+                          className="w-full sm:w-auto px-4 py-2 rounded-xl bg-gradient-to-r from-[#c7f303] via-lime-400 to-emerald-400 hover:brightness-110 disabled:opacity-60 text-[#0e1300] text-xs font-black uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer shadow-md"
                         >
-                          💾 Guardar Cambios
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingLibraryItemId(null);
-                            setStatusBanner({
-                              type: 'info',
-                              text: 'Modo creación de nuevo podcast activado.',
-                            });
-                          }}
-                          className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] font-bold transition cursor-pointer"
-                          title="Salir del modo edición para crear un podcast nuevo"
-                        >
-                          + Nuevo
+                          {isEnhancingScript ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>
+                                Redactando Guion de {podcastTargetMinutes} Minutos con IA...
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <Wand2 className="w-4 h-4" />
+                              <span>
+                                ✨ Crear / Redactar Guion ({podcastTargetMinutes} Min) Uniendo Todo con IA
+                              </span>
+                            </>
+                          )}
                         </button>
                       </div>
-                    )}
+                    </div>
                   </div>
                 )}
 
-                {/* Cabecera del Editor + Botón Generar/Expandir Guion (+5 Min) con IA */}
+                {/* Cabecera del Editor + Botón Generar/Expandir Guion con IA */}
                 <div className="flex flex-wrap items-center justify-between gap-2.5">
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2 shrink-0">
                       <MicVocal className="w-4 h-4 text-teal-500" />
                       {podcastOnly
-                        ? 'Guion del Episodio de Podcast (Mínimo 5 Minutos)'
+                        ? `Guion del Episodio "Somos SST Daily" (Meta: ${podcastTargetMinutes} Minutos)`
                         : 'Texto a Sintetizar'}
                     </h2>
                     {podcastOnly && (
                       <span
                         className={cn(
                           'text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border',
-                          wordCount >= 725
+                          wordCount >= Math.round(podcastTargetMinutes * 145)
                             ? 'bg-[#c7f303]/15 text-[#c7f303] border-[#c7f303]/40'
                             : 'bg-amber-500/15 text-amber-300 border-amber-500/40',
                         )}
                       >
-                        {wordCount >= 725
-                          ? `✓ Cumple +5 min (~${estimatedMinutes} min • ${wordCount} palabras)`
-                          : `⏱ Mínimo 5 min (~725 palabras • actual: ${wordCount})`}
+                        {wordCount >= Math.round(podcastTargetMinutes * 145)
+                          ? `✓ Cumple ${podcastTargetMinutes} min (~${estimatedMinutes} min • ${wordCount} palabras)`
+                          : `⏱ Meta ${podcastTargetMinutes} min (~${Math.round(podcastTargetMinutes * 145)} palabras • actual: ${wordCount})`}
                       </span>
                     )}
                   </div>
@@ -7042,15 +7366,15 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       icon={isEnhancingScript ? <Loader2 className="animate-spin" /> : <Wand2 />}
                       label={
                         isEnhancingScript
-                          ? 'Expandiendo a +5 Min...'
+                          ? `Redactando (${podcastTargetMinutes} Min)...`
                           : podcastOnly
-                            ? '✨ Expandir / Mejorar Guion (+5 Min) con IA'
+                            ? `✨ Expandir a ${podcastTargetMinutes} Min con IA`
                             : 'Mejorar Guion con IA'
                       }
                       variant="purple"
                       disabled={isEnhancingScript}
                       onClick={handleEnhanceScriptWithAi}
-                      title={`Generar o expandir guion completo de mínimo 5 minutos (~750-900 palabras) con Vocal Bursts usando ${selectedAiModel}`}
+                      title={`Generar o expandir guion completo de ${podcastTargetMinutes} minutos (~${Math.round(podcastTargetMinutes * 150)} palabras) con Somos SST Daily e Instagram usando ${selectedAiModel}`}
                     />
 
                     {scriptText && (
@@ -7132,7 +7456,15 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   rows={12}
                   value={scriptText}
                   onChange={(e) => setScriptText(e.target.value)}
-                  placeholder="Escribe o edita aquí el guion de tu podcast (mínimo 5 minutos / ~725 palabras) o usa el botón 'Expandir / Mejorar Guion (+5 Min) con IA'..."
+                  onBlur={() => {
+                    if (podcastOnly && scriptText.trim()) {
+                      const branded = ensurePodcastBrandAndInstagram(scriptText);
+                      if (branded !== scriptText) {
+                        setScriptText(branded);
+                      }
+                    }
+                  }}
+                  placeholder={`Escribe o pega aquí tu propio guion (llevará automáticamente la marca "Somos SST Daily" y el cierre de Instagram) o usa el botón "✨ Crear / Redactar Guion (${podcastTargetMinutes} Min) Uniendo Todo con IA"...`}
                   className="w-full bg-white dark:bg-slate-950/90 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 leading-relaxed resize-y min-h-[240px] shadow-inner transition-all"
                 />
 
@@ -7144,7 +7476,9 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         Palabras:{' '}
                         <strong className="text-slate-900 dark:text-white font-mono">{wordCount}</strong>
                         {podcastOnly && (
-                          <span className="text-[10px] text-teal-400 ml-1">(meta ≥ 725)</span>
+                          <span className="text-[10px] text-teal-400 ml-1">
+                            (meta {podcastTargetMinutes} min ≥ {Math.round(podcastTargetMinutes * 145)})
+                          </span>
                         )}
                       </span>
                       <span>•</span>
@@ -7165,14 +7499,14 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       <strong className="text-amber-600 dark:text-amber-400 font-mono">
                         ~{estimatedMinutes} min
                       </strong>{' '}
-                      {podcastOnly ? '(mínimo recomendado: 5 min)' : '/ 60 min máx'}
+                      {podcastOnly ? `(meta seleccionada: ${podcastTargetMinutes} min)` : '/ 60 min máx'}
                     </div>
                   </div>
                   <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 transition-all duration-300"
                       style={{
-                        width: `${Math.min(100, Math.max(4, Math.round((estimatedMinutes / (podcastOnly ? 10 : 60)) * 100)))}%`,
+                        width: `${Math.min(100, Math.max(4, Math.round((estimatedMinutes / (podcastOnly ? podcastTargetMinutes : 60)) * 100)))}%`,
                       }}
                     />
                   </div>

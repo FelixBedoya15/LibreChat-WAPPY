@@ -36,7 +36,6 @@ import BookmarkNav from './Bookmarks/BookmarkNav';
 import KanbanButton from './KanbanButton';
 import TareasButton from './TareasButton';
 import WappyAppsButton from './WappyAppsButton';
-import WappyStudioButton from './WappyStudioButton';
 import { canAccessTareas } from '~/utils/planAccess';
 import ChatSSTButton from './ChatSSTButton';
 import EventsMeetButton from './EventsMeetButton';
@@ -340,12 +339,6 @@ const Nav = memo(
                         <Suspense fallback={null}>
                           <WappyAppsButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                         </Suspense>
-                        {/* WAPPY Studio (Solo ADMIN por el momento) */}
-                        {isAdmin && (
-                          <Suspense fallback={null}>
-                            <WappyStudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                          </Suspense>
-                        )}
                         {/* Aula Estudio / Academia WAPPY */}
                         {hasAccessToLMS && (
                           <Suspense fallback={null}>
@@ -431,13 +424,6 @@ const Nav = memo(
                                 <Suspense fallback={null}>
                                   <WappyAppsButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                 </Suspense>
-
-                                {/* 3.5. WAPPY Studio (Solo ADMIN por el momento - Justo por encima de Academia WAPPY) */}
-                                {isAdmin && (
-                                  <Suspense fallback={null}>
-                                    <WappyStudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                  </Suspense>
-                                )}
 
                                 {/* 4. Academia WAPPY (Cursos, Rutas, Clases Meet y Blog) */}
                                 {hasAccessToLMS && (

@@ -80,7 +80,6 @@ const AuditoriaDashboard = lazy(() => import('~/components/Auditoria/AuditoriaDa
 const CentroControlSST = lazy(() => import('~/components/SGSST/CentroControlSST'));
 const TareasPage = lazy(() => import('~/components/SGSST/TareasPage'));
 const WappyAppsPage = lazy(() => import('~/components/WappyApps/WappyAppsPage'));
-const WappyStudioDashboard = lazy(() => import('~/components/Studio/WappyStudioDashboard'));
 const AcademiaDashboard = lazy(() => import('~/components/Academia/AcademiaDashboard'));
 const MarketplaceDashboard = lazy(() => import('~/components/Marketplace/MarketplaceDashboard'));
 const PlansPage = lazy(() => import('~/components/Plans/PlansPage'));
@@ -865,7 +864,7 @@ export const router = createBrowserRouter(
 
             {
               path: 'studio',
-              element: withSuspense(<WappyStudioDashboard />),
+              element: <Navigate to="/aplicaciones" replace={true} />,
             },
             {
               path: 'academia',
