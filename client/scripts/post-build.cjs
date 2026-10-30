@@ -21,6 +21,10 @@ async function postBuild() {
       await fs.copy('public/wappypodcast.html', 'dist/wappypodcast.html');
       await fs.copy('public/wappypodcast.html', 'dist/assets/wappypodcast.html');
     }
+    if (await fs.pathExists('public/matrizipvr.html')) {
+      await fs.copy('public/matrizipvr.html', 'dist/matrizipvr.html');
+      await fs.copy('public/matrizipvr.html', 'dist/assets/matrizipvr.html');
+    }
     console.log('✅ PWA icons, videos, images and robots.txt copied successfully.');
   } catch (err) {
     console.error('❌ Error copying files:', err);

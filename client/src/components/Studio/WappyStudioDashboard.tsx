@@ -2504,10 +2504,183 @@ export default function WappyStudioDashboard({
   const latestEditedHtmlRef = useRef<string>('');
   const [isRenderingServerMp4, setIsRenderingServerMp4] = useState<boolean>(false);
   const [isBuildingAcademyHtml, setIsBuildingAcademyHtml] = useState<boolean>(false);
+  const [isMergingAudios, setIsMergingAudios] = useState<boolean>(false);
   const [statusBanner, setStatusBanner] = useState<{
     type: 'success' | 'error' | 'info';
     text: string;
   } | null>(null);
+
+  // ============================================================================
+  // CONTROL ESTRICTO DE DATOS DE LA EMPRESA (SOMOS SST + SINCRONIZACIÓN CROSS-APP)
+  // Si los datos de la empresa no están creados, el sistema permanece bloqueado.
+  // ============================================================================
+  const readActiveWappyCompanyState = (): { company: Record<string, any> | null; isReady: boolean } => {
+    try {
+      const win = window as any;
+      if (typeof win.isWappyCompanyReady === 'function' && typeof win.getWappyActiveCompany === 'function') {
+        const comp = win.getWappyActiveCompany();
+        const ready = Boolean(win.isWappyCompanyReady());
+        return { company: comp || null, isReady: ready };
+      }
+
+      const isLegacySeed = (c: any) => {
+        if (!c) return true;
+        if (c.userSaved === true || c.fromSgsstServer === true) return false;
+        const nit = String(c.nit || '').trim();
+        const name = String(c.companyName || '').trim().toUpperCase();
+        return nit.startsWith('901437310') && (name === 'WAPPY SA' || name.includes('WAPPY INDUSTRIA'));
+      };
+
+      const isComplete = (c: any) => {
+        if (!c || isLegacySeed(c)) return false;
+        const required = [
+          'companyName',
+          'companyType',
+          'nit',
+          'legalRepresentative',
+          'sector',
+          'arl',
+          'riskLevel',
+          'responsibleSST',
+          'city',
+          'phone',
+          'email',
+          'generalActivities',
+        ];
+        for (const f of required) {
+          const v = String(c[f] ?? '').trim();
+          if (!v || v === 'N/A' || v === 'No registrado') return false;
+        }
+        return Number(c.workerCount) > 0;
+      };
+
+      const rawList = localStorage.getItem('wappy_sgsst_companies');
+      if (rawList) {
+        const parsed = JSON.parse(rawList);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const validList = parsed.filter((c) => !isLegacySeed(c));
+          const activeId = localStorage.getItem('wappy_active_company_id');
+          const active =
+            validList.find((c) => c._id === activeId) ||
+            validList.find((c) => c.isActive) ||
+            validList[0] ||
+            null;
+          if (active) {
+            return { company: active, isReady: isComplete(active) };
+          }
+        }
+      }
+
+      const rawSingle = localStorage.getItem('wappy_gtc45_company');
+      if (rawSingle) {
+        const parsedSingle = JSON.parse(rawSingle);
+        if (parsedSingle && !isLegacySeed(parsedSingle)) {
+          return { company: parsedSingle, isReady: isComplete(parsedSingle) };
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    return { company: null, isReady: false };
+  };
+
+  const [activeCompanyInfo, setActiveCompanyInfo] = useState<Record<string, any> | null>(
+    () => readActiveWappyCompanyState().company,
+  );
+  const [isCompanyReady, setIsCompanyReady] = useState<boolean>(
+    () => readActiveWappyCompanyState().isReady,
+  );
+
+  useEffect(() => {
+    const syncLocalCompany = () => {
+      const next = readActiveWappyCompanyState();
+      setActiveCompanyInfo(next.company);
+      setIsCompanyReady(next.isReady);
+    };
+
+    syncLocalCompany();
+
+    // Si el usuario está autenticado en WAPPY (Somos SST), traer las empresas de su cuenta
+    if (isAuthenticated && token) {
+      fetch('/api/sgsst/company-info/all', {
+        method: 'GET',
+        headers: getAuthHeaders(token),
+        credentials: 'include',
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((serverCompanies) => {
+          if (Array.isArray(serverCompanies)) {
+            if (serverCompanies.length > 0) {
+              const mapped = serverCompanies.map((sc: any) => ({
+                ...sc,
+                _id: String(sc._id || `comp_${Date.now()}`),
+                userSaved: true,
+                fromSgsstServer: true,
+              }));
+              const active = mapped.find((c: any) => c.isActive) || mapped[0];
+              localStorage.setItem('wappy_sgsst_companies', JSON.stringify(mapped));
+              localStorage.setItem('wappy_active_company_id', active._id);
+              localStorage.setItem('wappy_gtc45_company', JSON.stringify(active));
+              localStorage.setItem('wappy_active_company_name', active.companyName || '');
+              localStorage.setItem('wappy_active_company_nit', active.nit || '');
+            } else {
+              localStorage.removeItem('wappy_gtc45_company');
+              localStorage.setItem('wappy_sgsst_companies', JSON.stringify([]));
+            }
+            syncLocalCompany();
+          }
+        })
+        .catch(() => {});
+    }
+
+    const onCustomCompanyUpdate = () => syncLocalCompany();
+    const onStorageChange = (e: StorageEvent) => {
+      if (
+        !e.key ||
+        e.key.startsWith('wappy_sgsst_') ||
+        e.key.startsWith('wappy_active_company_') ||
+        e.key === 'wappy_gtc45_company'
+      ) {
+        syncLocalCompany();
+      }
+    };
+
+    window.addEventListener('wappy-company-updated', onCustomCompanyUpdate);
+    window.addEventListener('storage', onStorageChange);
+    window.addEventListener('focus', syncLocalCompany);
+    return () => {
+      window.removeEventListener('wappy-company-updated', onCustomCompanyUpdate);
+      window.removeEventListener('storage', onStorageChange);
+      window.removeEventListener('focus', syncLocalCompany);
+    };
+  }, [isAuthenticated, token]);
+
+  const openHostCompanyModal = () => {
+    const win = window as any;
+    if (typeof win.openCompanyModal === 'function') {
+      win.openCompanyModal();
+      return;
+    }
+    const btn = document.querySelector('[onclick*="openCompanyModal"]') as HTMLElement | null;
+    if (btn) {
+      btn.click();
+    }
+  };
+
+  const requireActiveCompany = (actionLabel = 'utilizar el estudio'): boolean => {
+    const current = readActiveWappyCompanyState();
+    setActiveCompanyInfo(current.company);
+    setIsCompanyReady(current.isReady);
+    if (!current.isReady) {
+      setStatusBanner({
+        type: 'error',
+        text: `🔒 Sistema Bloqueado: Primero debes crear y guardar los Datos de la Empresa para ${actionLabel}. Si ya tienes cuenta en Somos SST, inicia sesión o registra tu empresa en el botón "Datos Empresa".`,
+      });
+      openHostCompanyModal();
+      return false;
+    }
+    return true;
+  };
 
   // Gestión de Claves API Google Gemini (Hasta 3 claves con rotación inteligente)
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState<boolean>(false);
@@ -2758,6 +2931,159 @@ export default function WappyStudioDashboard({
     if (item.durationSeconds && item.durationSeconds > 1) setVideoDuration(item.durationSeconds);
     if (goToVideo) handleTabChange('video');
     return true;
+  };
+
+  /**
+   * Une múltiples capas/audios de la Biblioteca en una única Pista Maestra WAV (24 kHz 16-bit PCM)
+   * lista para enviarse unificada al Estudio de Video o descargarse en un solo archivo .wav.
+   */
+  const handleMergeLibraryAudios = async (goToVideo = false, downloadImmediately = false) => {
+    if (!requireActiveCompany('unir pistas de audio')) return;
+    const audioItems = libraryItems
+      .filter((i) => i.kind !== 'video')
+      .slice()
+      .reverse(); // Orden cronológico de creación (Capa 1 -> Capa N)
+
+    if (audioItems.length < 2) {
+      setStatusBanner({
+        type: 'info',
+        text: 'Necesitas al menos 2 pistas de audio en la Biblioteca para unirlas en una Pista Maestra.',
+      });
+      return;
+    }
+
+    try {
+      setIsMergingAudios(true);
+      setStatusBanner({
+        type: 'info',
+        text: `🔗 Uniendo ${audioItems.length} capas de audio en una sola Pista Maestra WAV 24 kHz...`,
+      });
+
+      const targetSampleRate = 24000;
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx = new AudioCtx({ sampleRate: targetSampleRate });
+
+      const decodedChannels: Float32Array[] = [];
+      const pauseSamples = Math.floor(targetSampleRate * 0.35); // Pausa natural de 0.35s entre capas
+      const combinedScripts: string[] = [];
+      const voiceLabels = new Set<string>();
+
+      for (const item of audioItems) {
+        const blob = await loadLibraryAudioBlob(item);
+        if (!blob) continue;
+        const arrayBuf = await blob.arrayBuffer();
+        const audioBuf = await ctx.decodeAudioData(arrayBuf.slice(0));
+        const chData = audioBuf.getChannelData(0);
+        decodedChannels.push(new Float32Array(chData));
+        if (item.scriptText) combinedScripts.push(item.scriptText.trim());
+        if (item.voiceName) voiceLabels.add(item.voiceName);
+      }
+
+      await ctx.close().catch(() => {});
+
+      if (decodedChannels.length < 2) {
+        throw new Error('No se pudieron decodificar al menos 2 pistas de audio válidas.');
+      }
+
+      const totalSamples =
+        decodedChannels.reduce((acc, arr) => acc + arr.length, 0) +
+        pauseSamples * (decodedChannels.length - 1);
+
+      const wavBuffer = new ArrayBuffer(44 + totalSamples * 2);
+      const view = new DataView(wavBuffer);
+      const writeStr = (offset: number, str: string) => {
+        for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+      };
+      writeStr(0, 'RIFF');
+      view.setUint32(4, 36 + totalSamples * 2, true);
+      writeStr(8, 'WAVE');
+      writeStr(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true); // PCM
+      view.setUint16(22, 1, true); // Mono
+      view.setUint32(24, targetSampleRate, true);
+      view.setUint32(28, targetSampleRate * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      writeStr(36, 'data');
+      view.setUint32(40, totalSamples * 2, true);
+
+      let offset = 44;
+      for (let c = 0; c < decodedChannels.length; c++) {
+        const samples = decodedChannels[c];
+        for (let i = 0; i < samples.length; i++) {
+          const s = Math.max(-1, Math.min(1, samples[i]));
+          view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+          offset += 2;
+        }
+        if (c < decodedChannels.length - 1) {
+          offset += pauseSamples * 2;
+        }
+      }
+
+      const mergedBlob = new Blob([wavBuffer], { type: 'audio/wav' });
+      const bytes = new Uint8Array(wavBuffer);
+      let binary = '';
+      const chunkSize = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
+      }
+      const mergedBase64 = window.btoa(binary);
+      const totalDur = Math.round((totalSamples / targetSampleRate) * 10) / 10;
+      const mergedScript = combinedScripts.join('\n\n') || scriptText;
+      const mergedVoices = Array.from(voiceLabels).slice(0, 2).join(' + ') || selectedVoice;
+      const mergedTitle = `🔗 Pista Maestra Unificada (${decodedChannels.length} capas • ${totalDur}s)`;
+
+      const newItem: LibraryItem = {
+        id: `merged-${Date.now()}`,
+        title: mergedTitle,
+        createdAt: Date.now(),
+        voiceName: mergedVoices,
+        model: selectedModel,
+        durationSeconds: totalDur,
+        wordCount: mergedScript.split(/\s+/).filter(Boolean).length,
+        scriptText: mergedScript,
+      };
+
+      const mediaKey = await saveAudioToLibrary(newItem, { base64: mergedBase64 });
+      setCurrentAudio({
+        base64: mergedBase64,
+        url: setObjectUrlForPlayer(mergedBlob),
+        title: mergedTitle,
+        durationSeconds: totalDur,
+        voiceName: mergedVoices,
+        scriptText: mergedScript,
+        mediaKey,
+      });
+      if (mergedScript) setScriptText(mergedScript);
+      if (totalDur > 1) setVideoDuration(totalDur);
+
+      if (downloadImmediately) {
+        downloadBlobFile(mergedBlob, `wappy-pista-maestra-unificada-${Date.now()}.wav`);
+      }
+
+      if (goToVideo && !podcastOnly) {
+        handleTabChange('video');
+      }
+
+      setStatusBanner({
+        type: 'success',
+        text: `¡${decodedChannels.length} capas de audio unidas en 1 sola Pista Maestra WAV (${totalDur}s)! ${
+          goToVideo
+            ? 'Cargada y sincronizada en el Estudio de Video para que el .MP4 y .HTML salgan 100% unidos.'
+            : downloadImmediately
+              ? 'Descargada como un único archivo .WAV unificado.'
+              : 'Lista en tu Biblioteca y vinculada al Estudio de Video.'
+        }`,
+      });
+    } catch (err: any) {
+      setStatusBanner({
+        type: 'error',
+        text: err?.message || 'Error al unir las capas de audio.',
+      });
+    } finally {
+      setIsMergingAudios(false);
+    }
   };
 
   /** Carga un podcast ya subido/creado en el Estudio de Edición para editar su título, guion o volver a sintetizarlo. */
@@ -3019,6 +3345,7 @@ export default function WappyStudioDashboard({
 
   const handleAuditionVoice = async (voiceId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
+    if (!requireActiveCompany('escuchar muestras de voz')) return;
     try {
       setAuditioningVoiceId(voiceId);
       const resp = await fetch('/api/studio/tts/synthesize', {
@@ -3048,6 +3375,7 @@ export default function WappyStudioDashboard({
   };
 
   const handleTestConnection = async () => {
+    if (!requireActiveCompany('probar el motor de audio IA')) return;
     try {
       setIsTestingConnection(true);
       setStatusBanner(null);
@@ -3090,6 +3418,7 @@ export default function WappyStudioDashboard({
     speaker2Voice?: string;
     stylePrompt?: string;
   }) => {
+    if (!requireActiveCompany('generar locuciones y cápsulas de audio')) return;
     const rawScript = (override?.script ?? scriptText).trim();
     if (!rawScript) return;
     const snippet = rawScript.slice(0, 850);
@@ -3197,6 +3526,7 @@ export default function WappyStudioDashboard({
   };
 
   const handleSynthesizeInLab = async () => {
+    if (!requireActiveCompany('sintetizar en el laboratorio de voces')) return;
     if (!labTestText.trim()) return;
     try {
       setIsSynthesizingLab(true);
@@ -3256,6 +3586,7 @@ export default function WappyStudioDashboard({
     speaker2Voice?: string;
     stylePrompt?: string;
   }) => {
+    if (!requireActiveCompany('ensamblar podcasts y locuciones completas')) return;
     const effScript = (override?.script ?? scriptText).trim();
     if (!effScript) return;
     const effMulti = override?.multiSpeaker ?? multiSpeaker;
@@ -3441,6 +3772,7 @@ export default function WappyStudioDashboard({
   );
 
   const handleEnhanceScriptWithAi = async () => {
+    if (!requireActiveCompany('mejorar el guion con Inteligencia Artificial')) return;
     try {
       setIsEnhancingScript(true);
       setStatusBanner(null);
@@ -3577,7 +3909,7 @@ export default function WappyStudioDashboard({
           hasBaseVideo: nextHasVideo,
           showSubtitles: showDynamicSubtitles,
           durationSeconds: effectiveDur,
-          companyName: user?.name || 'WAPPY IA',
+          companyName: activeCompanyInfo?.companyName || user?.name || 'WAPPY IA',
           audioBase64: customAudioBase64 || currentAudio?.base64 || undefined,
         }),
       })
@@ -3608,6 +3940,7 @@ export default function WappyStudioDashboard({
   }, [activeTab]);
 
   const handleSyncVoiceToVideo = async () => {
+    if (!requireActiveCompany('sincronizar locución con el video')) return;
     const textToRead = (scriptText || headlineOverlayText || '').trim().slice(0, 750);
     if (!textToRead) return;
     try {
@@ -3809,6 +4142,7 @@ export default function WappyStudioDashboard({
 
   // PASO 1: Generar Super-Prompt Maestro con IA Gemini + Antigravity (usando toda la información recolectada)
   const handleBuildAntigravitySuperPrompt = async () => {
+    if (!requireActiveCompany('generar el Super-Prompt con IA')) return;
     try {
       setIsGeneratingSuperPrompt(true);
       setStatusBanner(null);
@@ -3888,6 +4222,7 @@ export default function WappyStudioDashboard({
 
   // PASO 2: Enviar Super-Prompt + Audio + Escenas IA al Generador de Video (Antigravity)
   const handleGenerateHtmlWithAi = async () => {
+    if (!requireActiveCompany('generar el video HTML5 + GSAP con Antigravity')) return;
     try {
       setIsGeneratingHtmlAi(true);
       setStatusBanner(null);
@@ -3918,7 +4253,7 @@ export default function WappyStudioDashboard({
           hasBaseVideo: Boolean(baseVideoUrl),
           showSubtitles: showDynamicSubtitles,
           durationSeconds: targetDuration,
-          companyName: user?.name || 'WAPPY IA',
+          companyName: activeCompanyInfo?.companyName || user?.name || 'WAPPY IA',
           modelName: selectedAiModel,
           audioBase64: audioBase64 || undefined,
           antigravityApiKey: antigravityBridgeKey,
@@ -3959,6 +4294,7 @@ export default function WappyStudioDashboard({
 
   // PASO 3: Enviar Correcciones a Antigravity sobre el HTML en pantalla
   const handleSendCorrectionsToAntigravity = async () => {
+    if (!requireActiveCompany('enviar correcciones a Antigravity')) return;
     if (!videoCorrectionPrompt.trim()) {
       setStatusBanner({
         type: 'info',
@@ -4037,7 +4373,7 @@ export default function WappyStudioDashboard({
             hasBaseVideo: Boolean(baseVideoUrl),
             showSubtitles: showDynamicSubtitles,
             durationSeconds: targetDuration,
-            companyName: user?.name || 'WAPPY IA',
+            companyName: activeCompanyInfo?.companyName || user?.name || 'WAPPY IA',
             modelName: selectedAiModel,
             audioBase64: audioBase64 || undefined,
             antigravityApiKey: antigravityBridgeKey,
@@ -4341,17 +4677,18 @@ export default function WappyStudioDashboard({
   };
 
   // ============================================================================
-  // OPCIÓN B: RENDERIZADO MP4 EN SERVIDOR (PUPPETEER + FFMPEG H.264 + AAC)
-  // Descarga Todo Junto (.mp4) listo para WhatsApp, Celular, TikTok y Reels
+  // OPCIÓN B: RENDERIZADO MP4 UNIFICADO CON MOTOR ANTIGRAVITY 60-FPS (H.264 + AAC)
+  // Descarga Todo Unido (.mp4) listo para WhatsApp, Celular, TikTok y Reels
   // ============================================================================
   const handleRenderServerMp4 = async () => {
+    if (!requireActiveCompany('renderizar el video .MP4 con Antigravity')) return;
     try {
       setIsRenderingServerMp4(true);
       const targetDuration = Math.min(60, Math.max(4, Math.round(videoDuration || 15)));
       const targetFps = targetDuration > 20 ? 12 : 15;
       setStatusBanner({
         type: 'info',
-        text: `Renderizando Video MP4 con Audio + Animación + Subtítulos (${targetDuration}s)... Espera ~15-25 segundos mientras se ensambla el archivo .MP4 para WhatsApp y Celular.`,
+        text: `Renderizando Video .MP4 Unificado con Motor Antigravity 60-FPS (${targetDuration}s • Escenas + Capas + Avatar 3D + Subtítulos + Audio)... Espera ~15-25 segundos mientras Antigravity une todo en un único archivo .MP4.`,
       });
 
       const finalHtml = latestEditedHtmlRef.current || htmlCode;
@@ -4375,7 +4712,7 @@ export default function WappyStudioDashboard({
 
       const data = await parseStudioJson(resp);
       if (!resp.ok || !data.success || !data.videoBase64) {
-        throw new Error(data.error || 'No se pudo renderizar el archivo MP4 en el servidor.');
+        throw new Error(data.error || 'No se pudo renderizar el archivo MP4 con Antigravity.');
       }
 
       const byteChars = window.atob(data.videoBase64);
@@ -4397,12 +4734,12 @@ export default function WappyStudioDashboard({
 
       setStatusBanner({
         type: 'success',
-        text: `¡Video MP4 Universal (${data.width}x${data.height} • H.264 + Audio AAC) descargado con éxito! Listo para enviar por WhatsApp, ver en celular o subir a Reels/TikTok.`,
+        text: `¡Video .MP4 100% Unido con Antigravity (${data.width}x${data.height} • H.264 + Audio AAC) descargado con éxito! Listo para enviar por WhatsApp, ver en celular o subir a Reels/TikTok.`,
       });
     } catch (err: any) {
       setStatusBanner({
         type: 'error',
-        text: err.message || 'Error renderizando MP4 en el servidor.',
+        text: err.message || 'Error renderizando MP4 con Antigravity.',
       });
     } finally {
       setIsRenderingServerMp4(false);
@@ -5270,6 +5607,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
   };
 
   const handleDownloadHtmlBundle = async () => {
+    if (!requireActiveCompany('descargar la cápsula interactiva .HTML')) return;
     try {
       setIsBuildingAcademyHtml(true);
       const standaloneHtml = await buildStandaloneAcademyCapsuleHtml();
@@ -5580,6 +5918,24 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
             </div>
 
             <div className="hidden lg:flex items-center gap-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+              <button
+                type="button"
+                onClick={openHostCompanyModal}
+                className={cn(
+                  'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border font-bold transition cursor-pointer',
+                  isCompanyReady
+                    ? 'bg-teal-500/10 border-teal-500/30 text-teal-800 dark:text-teal-300 hover:bg-teal-500/20'
+                    : 'bg-amber-500/15 border-amber-500/40 text-amber-800 dark:text-amber-300 animate-pulse hover:bg-amber-500/25',
+                )}
+                title="Configurar o cambiar la empresa activa"
+              >
+                <span>🏢</span>
+                <span>
+                  {isCompanyReady && activeCompanyInfo?.companyName
+                    ? `${activeCompanyInfo.companyName} (${activeCompanyInfo.nit || 'Activa'})`
+                    : '⚠️ Sin Empresa Creada (Sistema Bloqueado)'}
+                </span>
+              </button>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-bold">
                 <span className="w-2 h-2 rounded-full bg-[#C7F303] animate-pulse" />
                 {podcastOnly ? '🎙️ Motor Multi-Voz 24 kHz WAV Activo' : 'Motor 60-FPS + Voz Activo'}
@@ -5596,6 +5952,39 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
           podcastOnly ? 'pt-5 pb-2 px-0' : 'px-4 sm:px-6 py-6',
         )}
       >
+        {/* Bloqueo Estricto del Sistema si los Datos de la Empresa no están creados */}
+        {!isCompanyReady && (
+          <div className="rounded-2xl border-2 border-amber-500/60 bg-amber-500/10 dark:bg-amber-950/40 p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-md animate-in fade-in duration-200">
+            <div className="flex items-start gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xl shrink-0">
+                🔒
+              </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs sm:text-sm font-black text-amber-950 dark:text-amber-200">
+                    Sistema Bloqueado — Registra primero los Datos de tu Empresa para activar el Estudio
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/20 text-amber-900 dark:text-amber-200 border border-amber-500/40">
+                    Requisito Obligatorio WAPPY
+                  </span>
+                </div>
+                <p className="text-xs text-amber-900/90 dark:text-amber-200/80 leading-relaxed max-w-3xl">
+                  Para generar locuciones neurales, podcasts o videos con Antigravity debes crear y guardar los datos de tu empresa. Si no estás registrado en WAPPY, la empresa que crees aquí se pasará automáticamente a Wappy Podcast y a la Matriz IPEVR GTC-45; si tienes sesión activa en WAPPY, se sincroniza directamente con tus empresas de Somos SST.
+                </p>
+              </div>
+            </div>
+            <div className="shrink-0 flex items-center gap-2">
+              <ExpandableButton
+                icon={<Sparkles />}
+                label="🏢 Crear / Configurar Datos de la Empresa"
+                variant="amber"
+                alwaysExpanded
+                onClick={openHostCompanyModal}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Banner de Estado */}
         {statusBanner && (
           <div
@@ -7894,6 +8283,18 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     onClick={handleSyncVoiceToVideo}
                   />
 
+                  {libraryItems.filter((i) => i.kind !== 'video').length >= 2 && (
+                    <ExpandableButton
+                      size="sm"
+                      icon={isMergingAudios ? <Loader2 className="animate-spin" /> : <Layers />}
+                      label="Unir Capas de Audio en 1 Pista"
+                      variant="amber"
+                      disabled={isMergingAudios}
+                      onClick={() => handleMergeLibraryAudios(false, false)}
+                      title="Une todas las pistas de audio de tu Biblioteca en un único archivo WAV continuo para este video"
+                    />
+                  )}
+
                   <ExpandableButton
                     size="sm"
                     icon={<Edit3 />}
@@ -9028,6 +9429,33 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       </button>
                     ))}
                   </div>
+                )}
+
+                {libraryItems.filter((i) => i.kind !== 'video').length >= 2 && (
+                  <>
+                    {!podcastOnly && (
+                      <ExpandableButton
+                        size="sm"
+                        icon={isMergingAudios ? <Loader2 className="animate-spin" /> : <Layers />}
+                        label="🔗 Unir Audios y Usar en Video"
+                        variant="purple"
+                        alwaysExpanded
+                        disabled={isMergingAudios}
+                        onClick={() => handleMergeLibraryAudios(true, false)}
+                        title="Une todas las locuciones de la Biblioteca en una sola Pista Maestra WAV y la carga en el Estudio de Video"
+                      />
+                    )}
+                    <ExpandableButton
+                      size="sm"
+                      icon={isMergingAudios ? <Loader2 className="animate-spin" /> : <Download />}
+                      label="🔗 Unir y Descargar 1 Solo WAV"
+                      variant="teal"
+                      alwaysExpanded
+                      disabled={isMergingAudios}
+                      onClick={() => handleMergeLibraryAudios(false, true)}
+                      title="Une todas las locuciones en un único archivo .WAV continuo y lo descarga"
+                    />
+                  </>
                 )}
 
                 {libraryItems.length > 0 && (

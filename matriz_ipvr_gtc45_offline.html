@@ -3091,29 +3091,31 @@ let matrixRows = [];
 const INITIAL_COMPANY_DATA = {
   _id: 'comp_default_1',
   isActive: true,
-  companyName: 'WAPPY INDUSTRIA & SERVICIOS S.A.S.',
+  userSaved: false,
+  fromSgsstServer: false,
+  companyName: '',
   companyType: 'Persona Jurídica',
-  nit: '901437310-8',
-  legalRepresentative: 'Carlos Alberto Martínez',
-  legalRepresentativeId: '71234567',
-  workerCount: 58,
+  nit: '',
+  legalRepresentative: '',
+  legalRepresentativeId: '',
+  workerCount: 0,
   arl: 'Sura',
-  economicActivity: 'Fabricación y comercialización de productos industriales y servicios de ingeniería',
-  riskLevel: 'IV',
-  ciiu: '4659',
-  address: 'Calle 10 # 42-28',
-  city: 'Medellín',
-  departamento: 'Antioquia',
-  phone: '+57 310 291 3651',
-  email: 'sst@wappy.club',
-  generalActivities: 'Operaciones de manufactura, ensamble electromecánico, almacenamiento logístico de insumos, despachos nacionales y gestión integral del SG-SST.',
-  sector: 'Industrial',
-  responsibleSST: 'Ing. Sandra Patricia Gómez',
-  responsibleSSTPhone: '+57 300 123 4567',
+  economicActivity: '',
+  riskLevel: 'I',
+  ciiu: '',
+  address: '',
+  city: '',
+  departamento: '',
+  phone: '',
+  email: '',
+  generalActivities: '',
+  sector: 'Servicios',
+  responsibleSST: '',
+  responsibleSSTPhone: '',
   formationLevel: 'Especialista',
-  licenseNumber: 'Lic. SST 4589 de 2021',
-  courseStatus: '2023-08-15',
-  licenseExpiry: '2031-08-15',
+  licenseNumber: '',
+  courseStatus: '',
+  licenseExpiry: '',
   legalRepSignature: null,
   legalRepConsent: 'Sí',
   sstRespSignature: null,
@@ -3124,11 +3126,47 @@ const INITIAL_COMPANY_DATA = {
   aiExecutiveSummary: ''
 };
 
+function isLegacyDefaultSeededCompany(comp) {
+  if (!comp) return true;
+  if (comp.userSaved === true || comp.fromSgsstServer === true) return false;
+  const nit = String(comp.nit || '').trim();
+  const name = String(comp.companyName || '').trim().toUpperCase();
+  if (nit.startsWith('901437310') && (name === 'WAPPY SA' || name.includes('WAPPY INDUSTRIA'))) {
+    return true;
+  }
+  return false;
+}
+
+function normalizeCompanyCompatibilityFields(comp) {
+  if (!comp) return comp;
+  if (!comp.companyType) comp.companyType = 'Persona Jurídica';
+  if (!comp.arl) comp.arl = 'Sura';
+  if (!comp.riskLevel) comp.riskLevel = 'I';
+  if (!comp.sector) comp.sector = 'Servicios';
+  if (!comp.formationLevel) comp.formationLevel = 'Especialista';
+  // Si la empresa fue creada en Wappy Studio o Wappy Podcast con sus campos institucionales completos,
+  // garantizamos valores compatibles para los campos secundarios de GTC-45
+  if (comp.companyName && comp.nit && comp.legalRepresentative && Number(comp.workerCount) > 0 && comp.responsibleSST && comp.city && comp.phone && comp.email && comp.generalActivities) {
+    if (!comp.economicActivity) comp.economicActivity = comp.generalActivities || `Actividades del sector ${comp.sector}`;
+    if (!comp.ciiu) comp.ciiu = '8299';
+    if (!comp.address) comp.address = `${comp.city} - Sede Principal`;
+    if (!comp.departamento) comp.departamento = comp.city;
+    if (!comp.legalRepresentativeId) comp.legalRepresentativeId = String(comp.nit).replace(/[^0-9]/g, '').slice(0, 9) || '10000000';
+    if (!comp.responsibleSSTPhone) comp.responsibleSSTPhone = comp.phone;
+    if (!comp.licenseNumber) comp.licenseNumber = 'Lic. SST Vigente';
+    if (!comp.courseStatus) comp.courseStatus = '2024-01-15';
+    if (!comp.licenseExpiry) comp.licenseExpiry = '2034-01-15';
+  }
+  return comp;
+}
+
 let companiesList = [];
 let activeCompanyId = 'comp_default_1';
 let companyInfo = { ...INITIAL_COMPANY_DATA };
 let editingCompany = { ...INITIAL_COMPANY_DATA };
 let activeSignatureField = null;
+let isAuthenticatedWappyUser = false;
+let platformUserToken = '';
 
 const REQUIRED_COMPANY_FIELDS = [
   'companyName', 'companyType', 'nit', 'legalRepresentative', 'legalRepresentativeId', 'workerCount',
@@ -3818,6 +3856,8 @@ function downloadStandaloneHtmlDirectly() {
 async function detectAdminSession() {
   isPlatformAdmin = false;
   platformAuthToken = '';
+  isAuthenticatedWappyUser = false;
+  platformUserToken = '';
 
   // 1. Probar primero con el endpoint nativo de sesión LibreChat /api/auth/refresh
   try {
@@ -3828,6 +3868,10 @@ async function detectAdminSession() {
     if (refreshRes.ok) {
       const authData = await refreshRes.json();
       if (authData && authData.user) {
+        isAuthenticatedWappyUser = true;
+        if (authData.token) {
+          platformUserToken = authData.token;
+        }
         const u = authData.user;
         const email = u.email ? u.email.toLowerCase() : '';
         const adminEmails = ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com'];
@@ -3835,9 +3879,10 @@ async function detectAdminSession() {
         if (isAdm) {
           isPlatformAdmin = true;
           if (authData.token) platformAuthToken = authData.token;
-          updateAdminUi();
-          return;
         }
+        await syncSgsstCompaniesFromServer();
+        updateAdminUi();
+        return;
       }
     }
   } catch(e) {}
@@ -3849,9 +3894,12 @@ async function detectAdminSession() {
       const data = await res.json();
       if (data && data.isAdmin === true) {
         isPlatformAdmin = true;
+        isAuthenticatedWappyUser = true;
         if (data.token) {
           platformAuthToken = data.token;
+          platformUserToken = data.token;
         }
+        await syncSgsstCompaniesFromServer();
         updateAdminUi();
         return;
       }
@@ -3862,6 +3910,115 @@ async function detectAdminSession() {
   isPlatformAdmin = false;
   platformAuthToken = '';
   updateAdminUi();
+}
+
+async function syncSgsstCompaniesFromServer() {
+  if (!isAuthenticatedWappyUser) return;
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    const tok = platformUserToken || platformAuthToken;
+    if (tok) headers['Authorization'] = `Bearer ${tok}`;
+    const res = await fetch('/api/sgsst/company-info/all', {
+      method: 'GET',
+      headers,
+      credentials: 'include'
+    });
+    if (!res.ok) return;
+    const serverCompanies = await res.json();
+    if (Array.isArray(serverCompanies)) {
+      if (serverCompanies.length > 0) {
+        const mapped = serverCompanies.map(sc => normalizeCompanyCompatibilityFields({
+          ...INITIAL_COMPANY_DATA,
+          ...sc,
+          _id: String(sc._id || ('comp_' + Date.now())),
+          userSaved: true,
+          fromSgsstServer: true
+        }));
+        let activeComp = mapped.find(c => c.isActive) || mapped[0];
+        activeCompanyId = activeComp._id;
+        mapped.forEach(c => { c.isActive = (c._id === activeCompanyId); });
+        companiesList = mapped;
+        companyInfo = JSON.parse(JSON.stringify(activeComp));
+        editingCompany = JSON.parse(JSON.stringify(activeComp));
+        localStorage.setItem('wappy_sgsst_companies', JSON.stringify(companiesList));
+        localStorage.setItem('wappy_active_company_id', activeCompanyId);
+        syncCompanyToLocalStorage(activeComp);
+      } else {
+        // Usuario registrado en Somos SST sin empresas creadas aún: arranca bloqueado hasta que cree una
+        const blankComp = { ...INITIAL_COMPANY_DATA, _id: 'comp_default_1', isActive: true, userSaved: false, fromSgsstServer: false };
+        companiesList = [blankComp];
+        activeCompanyId = blankComp._id;
+        companyInfo = JSON.parse(JSON.stringify(blankComp));
+        editingCompany = JSON.parse(JSON.stringify(blankComp));
+        localStorage.setItem('wappy_sgsst_companies', JSON.stringify(companiesList));
+        localStorage.setItem('wappy_active_company_id', activeCompanyId);
+        syncCompanyToLocalStorage(blankComp);
+      }
+      loadSavedMatrix(activeCompanyId);
+      updateHeroCompanyBanner();
+      if (typeof renderCompanyCards === 'function') renderCompanyCards();
+      if (typeof populateCompanyModalFields === 'function') populateCompanyModalFields();
+      if (typeof validateCompanyForm === 'function') validateCompanyForm();
+      renderTable();
+      renderDashboard();
+      renderExecutiveReport();
+      updateFilterDropdownOptions();
+    }
+  } catch (err) {
+    console.warn('Error syncing companies from Somos SST:', err);
+  }
+}
+
+async function syncCompanySaveToSgsstServer(comp) {
+  if (!isAuthenticatedWappyUser || !comp) return null;
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    const tok = platformUserToken || platformAuthToken;
+    if (tok) headers['Authorization'] = `Bearer ${tok}`;
+    const isMongoId = /^[a-f\d]{24}$/i.test(String(comp._id || ''));
+    const payload = { ...comp };
+    if (!isMongoId) delete payload._id;
+    const url = isMongoId ? `/api/sgsst/company-info/${comp._id}` : '/api/sgsst/company-info';
+    const method = isMongoId ? 'PUT' : 'POST';
+    const res = await fetch(url, {
+      method,
+      headers,
+      credentials: 'include',
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      const saved = await res.json();
+      if (saved && saved._id) {
+        return {
+          ...comp,
+          ...saved,
+          _id: String(saved._id),
+          userSaved: true,
+          fromSgsstServer: true
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('Error saving company to Somos SST server:', err);
+  }
+  return null;
+}
+
+async function syncCompanyActivateToSgsstServer(compId) {
+  if (!isAuthenticatedWappyUser || !compId) return;
+  if (!/^[a-f\d]{24}$/i.test(String(compId))) return;
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    const tok = platformUserToken || platformAuthToken;
+    if (tok) headers['Authorization'] = `Bearer ${tok}`;
+    await fetch(`/api/sgsst/company-info/${compId}/activate`, {
+      method: 'PUT',
+      headers,
+      credentials: 'include'
+    });
+  } catch (err) {
+    console.warn('Error activating company on Somos SST server:', err);
+  }
 }
 
 async function handleSaveVideoConfig(e) {
@@ -4353,6 +4510,25 @@ window.addEventListener('DOMContentLoaded', () => {
   renderExecutiveReport();
   updateFilterDropdownOptions();
 
+  // Sincronización automática entre pestañas/aplicaciones (Studio <-> Podcast <-> Matriz IPEVR)
+  window.addEventListener('storage', (e) => {
+    if (e.key && (e.key.startsWith('wappy_sgsst_') || e.key.startsWith('wappy_active_company_') || e.key === 'wappy_gtc45_company')) {
+      loadCompanyInfo();
+      loadSavedMatrix(activeCompanyId);
+      renderTable();
+      renderDashboard();
+      renderExecutiveReport();
+      updateFilterDropdownOptions();
+    }
+  });
+  window.addEventListener('focus', () => {
+    loadCompanyInfo();
+    loadSavedMatrix(activeCompanyId);
+    renderTable();
+    renderDashboard();
+    renderExecutiveReport();
+  });
+
   window.addEventListener('online', () => {
     loadSavedKeys();
     showToast('Conexión a internet restablecida', 'info');
@@ -4414,6 +4590,12 @@ function saveToLocalStorage(showFeedback = false) {
 
 function loadSavedMatrix(targetCompanyId = null) {
   try {
+    // REGLA ESTRICTA: Si los datos de la empresa activa no están creados/completos, el sistema no debe precargar datos ni funcionar
+    if (!isCompanyProfileComplete(companyInfo)) {
+      matrixRows = [];
+      return;
+    }
+
     const targetId = targetCompanyId || activeCompanyId;
     let raw = null;
     if (targetId) {
@@ -4461,15 +4643,8 @@ function loadSavedMatrix(targetCompanyId = null) {
       }
     }
 
-    // Si es la primera empresa y no hay nada guardado, cargamos los datos dummy iniciales
-    const isFirst = !targetId || targetId === 'comp_default_1' || (companiesList.length > 0 && companiesList[0]._id === targetId);
-    if (isFirst) {
-      matrixRows = INITIAL_DUMMY_ROWS.map(calculateRowFormulas);
-      saveToLocalStorage(false);
-    } else {
-      // Las nuevas empresas arrancan con 0 registros listas para crear o generar
-      matrixRows = [];
-    }
+    // Las nuevas empresas arrancan con 0 registros listas para crear o generar
+    matrixRows = [];
   } catch (e) {
     console.warn('Error reading saved matrix:', e);
     matrixRows = [];
@@ -4479,12 +4654,13 @@ function loadSavedMatrix(targetCompanyId = null) {
 function syncCompanyToLocalStorage(comp) {
   if (!comp) return;
   try {
+    normalizeCompanyCompatibilityFields(comp);
     if (comp._id) localStorage.setItem('wappy_active_company_id', comp._id);
-    if (comp.companyName) localStorage.setItem('wappy_active_company_name', comp.companyName);
-    if (comp.nit) localStorage.setItem('wappy_active_company_nit', comp.nit);
-    if (comp.arl) localStorage.setItem('wappy_active_company_arl', comp.arl);
-    if (comp.workerCount !== undefined) localStorage.setItem('wappy_active_company_workers', String(comp.workerCount));
-    if (comp.riskLevel) localStorage.setItem('wappy_active_company_risk', comp.riskLevel);
+    localStorage.setItem('wappy_active_company_name', comp.companyName || '');
+    localStorage.setItem('wappy_active_company_nit', comp.nit || '');
+    localStorage.setItem('wappy_active_company_arl', comp.arl || '');
+    localStorage.setItem('wappy_active_company_workers', String(comp.workerCount || 0));
+    localStorage.setItem('wappy_active_company_risk', comp.riskLevel || 'I');
     if (comp.logoBase64) {
       localStorage.setItem('wappy_sst_global_logo', comp.logoBase64);
     } else {
@@ -4521,7 +4697,9 @@ function loadCompanyInfo() {
       try {
         const parsed = JSON.parse(rawList);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          companiesList = parsed;
+          companiesList = parsed
+            .filter(c => !isLegacyDefaultSeededCompany(c))
+            .map(c => normalizeCompanyCompatibilityFields({ ...INITIAL_COMPANY_DATA, ...c }));
         }
       } catch (e) {
         console.warn('Error parsing wappy_sgsst_companies:', e);
@@ -4534,16 +4712,15 @@ function loadCompanyInfo() {
       if (rawLegacy) {
         try {
           const parsedLegacy = JSON.parse(rawLegacy);
-          baseComp = { ...baseComp, ...parsedLegacy };
+          if (!isLegacyDefaultSeededCompany(parsedLegacy)) {
+            baseComp = normalizeCompanyCompatibilityFields({ ...baseComp, ...parsedLegacy });
+          } else {
+            localStorage.removeItem('wappy_gtc45_company');
+            localStorage.removeItem('wappy_active_company_name');
+            localStorage.removeItem('wappy_active_company_nit');
+          }
         } catch (e) {}
       }
-
-      if (localStorage.getItem('wappy_active_company_name')) baseComp.companyName = localStorage.getItem('wappy_active_company_name');
-      if (localStorage.getItem('wappy_active_company_nit')) baseComp.nit = localStorage.getItem('wappy_active_company_nit');
-      if (localStorage.getItem('wappy_active_company_arl')) baseComp.arl = localStorage.getItem('wappy_active_company_arl');
-      if (localStorage.getItem('wappy_active_company_risk')) baseComp.riskLevel = localStorage.getItem('wappy_active_company_risk');
-      if (localStorage.getItem('wappy_active_company_workers')) baseComp.workerCount = parseInt(localStorage.getItem('wappy_active_company_workers')) || baseComp.workerCount;
-      if (localStorage.getItem('wappy_sst_global_logo')) baseComp.logoBase64 = localStorage.getItem('wappy_sst_global_logo');
 
       companiesList = [baseComp];
       localStorage.setItem('wappy_sgsst_companies', JSON.stringify(companiesList));
@@ -5093,6 +5270,31 @@ function renderTable() {
   }
 
   if (filtered.length === 0) {
+    if (!isComplete) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="32" class="py-16 text-center bg-amber-50/40">
+            <div class="flex flex-col items-center justify-center gap-3">
+              <div class="w-16 h-16 rounded-3xl bg-amber-100 border border-amber-300 text-amber-700 flex items-center justify-center text-3xl shadow-xs">
+                🔒
+              </div>
+              <div class="font-extrabold text-base text-amber-950">
+                Sistema Bloqueado — Crea o Configura los Datos de tu Empresa para Iniciar
+              </div>
+              <p class="text-xs text-amber-800 max-w-lg leading-relaxed">
+                Para utilizar la Matriz IPEVR GTC-45, generar panoramas con IA o exportar informes ejecutivos, debes registrar primero la información institucional de tu empresa. Si ya creaste una empresa en Wappy Studio, Wappy Podcast o Somos SST, se cargará automáticamente.
+              </p>
+              <div class="flex items-center gap-2 mt-2">
+                <button onclick="openCompanyModal()" class="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-extrabold shadow-md active:scale-95 cursor-pointer">
+                  🏢 Configurar Datos de la Empresa
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      `;
+      return;
+    }
     if (matrixRows.length === 0) {
       tbody.innerHTML = `
         <tr>
@@ -11386,6 +11588,7 @@ function handleActivateCompany(id) {
   localStorage.setItem('wappy_sgsst_companies', JSON.stringify(companiesList));
   localStorage.setItem('wappy_active_company_id', id);
   syncCompanyToLocalStorage(companyInfo);
+  syncCompanyActivateToSgsstServer(id);
 
   // 4. Cargar la matriz exclusiva de esta empresa
   loadSavedMatrix(id);
@@ -11510,6 +11713,18 @@ function handleDeleteCompany(id) {
 
   if (!confirm(`¿Estás seguro de eliminar "${name}" y todos sus registros de la matriz? Esta acción no se puede deshacer.`)) {
     return;
+  }
+
+  // Si está autenticado en Somos SST y tiene ID de Mongo, eliminar también en el servidor
+  if (isAuthenticatedWappyUser && /^[a-f\d]{24}$/i.test(String(id))) {
+    const headers = { 'Content-Type': 'application/json' };
+    const tok = platformUserToken || platformAuthToken;
+    if (tok) headers['Authorization'] = `Bearer ${tok}`;
+    fetch(`/api/sgsst/company-info/${id}`, {
+      method: 'DELETE',
+      headers,
+      credentials: 'include'
+    }).catch(() => {});
   }
 
   // Eliminar datos de la matriz de esa empresa
@@ -11988,12 +12203,31 @@ function validateCompanyForm() {
   return isValid;
 }
 
-function saveCompanyInfo() {
+async function saveCompanyInfo() {
   if (!editingCompany) return;
 
   if (!validateCompanyForm()) {
     showToast('⚠️ Completa todos los campos obligatorios de la empresa. Las firmas son lo único opcional.', 'warning');
     return;
+  }
+
+  editingCompany.userSaved = true;
+  normalizeCompanyCompatibilityFields(editingCompany);
+
+  // Si el usuario está registrado en WAPPY / Somos SST, sincronizar creación/edición con el servidor
+  if (isAuthenticatedWappyUser) {
+    const savedOnServer = await syncCompanySaveToSgsstServer(editingCompany);
+    if (savedOnServer && savedOnServer._id) {
+      const oldId = editingCompany._id;
+      editingCompany = { ...editingCompany, ...savedOnServer };
+      const oldIdx = companiesList.findIndex(c => c._id === oldId);
+      if (oldIdx !== -1) {
+        companiesList[oldIdx] = JSON.parse(JSON.stringify(editingCompany));
+      }
+      if (activeCompanyId === oldId) {
+        activeCompanyId = editingCompany._id;
+      }
+    }
   }
 
   const idx = companiesList.findIndex(c => c._id === editingCompany._id);
@@ -12022,7 +12256,7 @@ function saveCompanyInfo() {
   renderDashboard();
   closeCompanyModal();
   syncCompanyMetricsToServer(editingCompany);
-  showToast('Información de la empresa guardada y validada con éxito', 'success');
+  showToast(`Empresa "${editingCompany.companyName}" guardada y sincronizada en las aplicaciones WAPPY.`, 'success');
 }
 
 function openCompanyModal() {

@@ -89,3 +89,16 @@ if (fs.existsSync(podcastSourceHtml)) {
     console.log(`✓ ${path.relative(repoDir, out)} (${(podcastHtml.length / 1024).toFixed(0)} KB)`);
   }
 }
+
+const matrizSourceHtml = path.join(repoDir, 'matriz_ipvr_gtc45_offline.html');
+if (fs.existsSync(matrizSourceHtml)) {
+  const matrizHtml = fs.readFileSync(matrizSourceHtml, 'utf8');
+  const matrizOutputs = [
+    path.join(clientDir, 'public/matrizipvr.html'),
+    path.join(clientDir, 'public/assets/matrizipvr.html'),
+  ];
+  for (const out of matrizOutputs) {
+    fs.writeFileSync(out, matrizHtml);
+    console.log(`✓ ${path.relative(repoDir, out)} (${(matrizHtml.length / 1024).toFixed(0)} KB)`);
+  }
+}

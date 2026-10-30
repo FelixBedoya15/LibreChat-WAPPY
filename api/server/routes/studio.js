@@ -3621,8 +3621,8 @@ router.post('/antigravity/edit-html', studioAuth, async (req, res) => {
 
 /**
  * Handler compartido para POST /api/studio/video/render-mp4 y POST /api/studio/antigravity/render-mp4
- * Renderizado MP4 (H.264 + AAC) en servidor mediante Headless Chromium (Puppeteer) + FFmpeg.
- * Une la composición HTML/GSAP + Subtítulos Dinámicos Palabra a Palabra + Pista de Voz WAV en un archivo .mp4 universal.
+ * Renderizado MP4 Unificado (H.264 + AAC) con Motor Antigravity 60-FPS (Headless Chromium + FFmpeg + Puente Push SSE).
+ * Une la composición HTML/GSAP + Avatar 3D + Subtítulos Dinámicos Palabra a Palabra + Pista de Voz WAV en un archivo .mp4 universal.
  */
 async function handleRenderMasterReelMp4(req, res) {
   const { spawn } = require('child_process');
@@ -3982,7 +3982,7 @@ async function handleRenderMasterReelMp4(req, res) {
     return res.status(500).json({
       ok: false,
       success: false,
-      error: error.message || 'Error renderizando el video MP4 en el servidor.',
+      error: error.message || 'Error renderizando el video MP4 con el Motor Antigravity 60-FPS.',
     });
   }
 }
