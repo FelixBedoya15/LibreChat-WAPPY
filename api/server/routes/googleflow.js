@@ -57,6 +57,8 @@ function normalizeCookie(raw) {
  * preservando cookies rotadas (__Secure-1PSIDTS, SIDCC) y cookies OSID específicas por dominio
  * (flow.google.com, notebooklm.google.com, notebook.google.com, myaccount.google.com).
  */
+const lastFlowCookieRefreshByUser = new Map();
+
 function mergeGoogleCookiesByDomain(incoming = [], existing = []) {
   if (!Array.isArray(existing) || existing.length === 0) return incoming;
   if (!Array.isArray(incoming) || incoming.length === 0) return existing;
@@ -81,7 +83,24 @@ function mergeGoogleCookiesByDomain(incoming = [], existing = []) {
   for (const c of incoming) {
     if (!c || !c.name || !c.value) continue;
     const key = `${c.name}@@${String(c.domain || '.google.com').toLowerCase()}`;
-    byKey.set(key, c);
+    const prev = byKey.get(key);
+    if (prev) {
+      // Nunca permitir que una cookie sin expires sobrescriba una cookie maestra existente o borre su expires
+      if (
+        ['HSID', 'SSID', 'SID', '__Secure-1PSID', '__Secure-3PSID', 'APISID', 'SAPISID', 'LSID', '__Host-1PLSID', '__Host-3PLSID'].includes(c.name) &&
+        typeof c.expires !== 'number' &&
+        typeof prev.expires === 'number'
+      ) {
+        continue;
+      }
+      const mergedCookie = { ...prev, ...c };
+      if (typeof c.expires !== 'number' && typeof prev.expires === 'number') {
+        mergedCookie.expires = prev.expires;
+      }
+      byKey.set(key, mergedCookie);
+    } else {
+      byKey.set(key, c);
+    }
   }
   return Array.from(byKey.values());
 }
@@ -90,8 +109,11 @@ function mergeGoogleCookiesByDomain(incoming = [], existing = []) {
  * Refresca bajo demanda __Secure-1PSIDTS y SIDCC usando las Master Cookies (SID, OSID, SAPISID)
  * a través del motor de rotación de notebooklm-mcp y sincroniza en MongoDB.
  */
-async function refreshGoogleCookiesOnDemand(userId, cookies = [], email = '') {
+async function refreshGoogleCookiesOnDemand(userId, cookies = [], email = '', force = false) {
   if (!Array.isArray(cookies) || cookies.length === 0) return cookies;
+  if (userId) {
+    lastFlowCookieRefreshByUser.set(String(userId), Date.now());
+  }
   try {
     const notebooklmUrl = process.env.NOTEBOOKLM_URL || 'http://notebooklm-mcp:9420';
     const res = await fetch(`${notebooklmUrl}/api/refresh-cookies`, {
@@ -105,6 +127,7 @@ async function refreshGoogleCookiesOnDemand(userId, cookies = [], email = '') {
         user_id: String(userId || ''),
         email: String(email || ''),
         cookies,
+        force: Boolean(force),
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -361,15 +384,15 @@ async function resolveGoogleFlowCredentials(userId) {
 
   const targetEmail = flowSession?.email || notebookSession?.email || '';
   if (cookies.length > 0) {
-    const nowSec = Date.now() / 1000;
+    const nowMs = Date.now();
     const psidtsCookie = cookies.find((c) => c && c.name === '__Secure-1PSIDTS' && c.value);
+    const lastRefreshMs = (userId && lastFlowCookieRefreshByUser.get(String(userId))) || 0;
     const psidtsNeedsRefresh =
       !psidtsCookie ||
-      typeof psidtsCookie.expires !== 'number' ||
-      psidtsCookie.expires <= nowSec + 300;
+      nowMs - lastRefreshMs > 10 * 60 * 1000;
 
     if (psidtsNeedsRefresh) {
-      cookies = await refreshGoogleCookiesOnDemand(userId, cookies, targetEmail);
+      cookies = await refreshGoogleCookiesOnDemand(userId, cookies, targetEmail, false);
     }
   }
 
@@ -637,8 +660,16 @@ async function executeFlowNativeStudioAction({
         url: cookieUrl,
         path: c.path || '/',
         secure: true,
-        httpOnly: Boolean(c.httpOnly),
+        httpOnly: Boolean(c.httpOnly ?? true),
+        sameSite: c.name.includes('3P')
+          ? 'None'
+          : c.sameSite === 'None' || c.sameSite === 'Strict'
+          ? c.sameSite
+          : 'Lax',
       };
+      if (typeof c.expires === 'number' && Number.isFinite(c.expires) && c.expires > 0) {
+        cookieParam.expires = c.expires;
+      }
       if (!c.name.startsWith('__Host-')) {
         cookieParam.domain = c.domain || '.google.com';
       }
@@ -1036,20 +1067,13 @@ async function executeFlowImageGeneration({
           imageBuffer = Buffer.from(dlRes.data);
           mimeType = dlRes.headers['content-type'] || 'image/jpeg';
           modelUsed = nativeRes.modelLabel;
-          const cookiesToPersist =
-            Array.isArray(nativeRes.refreshedCookies) && nativeRes.refreshedCookies.length > 5
-              ? nativeRes.refreshedCookies
-              : activeCookieSet;
           if (userId) {
             await GoogleFlowSession.findOneAndUpdate(
               { user: userId },
               {
-                cookies: cookiesToPersist,
-                cookieCount: cookiesToPersist.length,
                 isValid: true,
                 lastTestedAt: new Date(),
-              },
-              { upsert: true }
+              }
             ).catch(() => {});
           }
         }
@@ -1258,20 +1282,13 @@ async function executeFlowVideoGeneration({
         if (dlVid.data && dlVid.data.byteLength > 5000) {
           videoBuffer = Buffer.from(dlVid.data);
           modelUsed = nativeVid.modelLabel;
-          const cookiesToPersist =
-            Array.isArray(nativeVid.refreshedCookies) && nativeVid.refreshedCookies.length > 5
-              ? nativeVid.refreshedCookies
-              : activeCookieSet;
           if (userId) {
             await GoogleFlowSession.findOneAndUpdate(
               { user: userId },
               {
-                cookies: cookiesToPersist,
-                cookieCount: cookiesToPersist.length,
                 isValid: true,
                 lastTestedAt: new Date(),
-              },
-              { upsert: true }
+              }
             ).catch(() => {});
           }
         }

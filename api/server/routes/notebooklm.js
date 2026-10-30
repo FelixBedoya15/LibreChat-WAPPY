@@ -151,7 +151,23 @@ function mergeGoogleCookiesByDomain(incoming = [], existing = []) {
   for (const c of incoming) {
     if (!c || !c.name || !c.value) continue;
     const key = `${c.name}@@${String(c.domain || '.google.com').toLowerCase()}`;
-    byKey.set(key, c);
+    const prev = byKey.get(key);
+    if (prev) {
+      if (
+        ['HSID', 'SSID', 'SID', '__Secure-1PSID', '__Secure-3PSID', 'APISID', 'SAPISID', 'LSID', '__Host-1PLSID', '__Host-3PLSID'].includes(c.name) &&
+        typeof c.expires !== 'number' &&
+        typeof prev.expires === 'number'
+      ) {
+        continue;
+      }
+      const mergedCookie = { ...prev, ...c };
+      if (typeof c.expires !== 'number' && typeof prev.expires === 'number') {
+        mergedCookie.expires = prev.expires;
+      }
+      byKey.set(key, mergedCookie);
+    } else {
+      byKey.set(key, c);
+    }
   }
   return Array.from(byKey.values());
 }

@@ -206,38 +206,60 @@ def _merge_preserving_rotated_cookies(
     incoming: List[Dict[str, Any]],
     existing: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
-    """Si la sesión (SID) es la misma, conserva las cookies rotadas en disco (__Secure-1PSIDTS, SIDCC) y cookies OSID por dominio que no vengan en incoming."""
+    """Si la sesión (SID) es la misma, fusiona todas las cookies por (name, domain) preservando expires y evitando corrupción de cookies maestras."""
     if not existing:
         return incoming
+    if not incoming:
+        return existing
     inc_sid = _extract_sid(incoming)
     ex_sid = _extract_sid(existing)
     if not inc_sid or not ex_sid or inc_sid != ex_sid:
         return incoming
 
-    inc_names = {c.get("name") for c in incoming if isinstance(c, dict)}
-    inc_name_domains = {(c.get("name"), str(c.get("domain", "")).lower()) for c in incoming if isinstance(c, dict)}
-    rotated_names = {
-        "__Secure-1PSIDTS",
-        "__Secure-3PSIDTS",
-        "SIDCC",
-        "__Secure-1PSIDCC",
-        "__Secure-3PSIDCC",
+    protected_master_names = {
+        "HSID",
+        "SSID",
+        "SID",
+        "__Secure-1PSID",
+        "__Secure-3PSID",
+        "APISID",
+        "SAPISID",
+        "LSID",
+        "__Host-1PLSID",
+        "__Host-3PLSID",
+        "__Host-GAPS",
+        "OSID",
+        "__Secure-OSID",
     }
-    domain_scoped_names = {"OSID", "__Secure-OSID"}
 
-    merged = list(incoming)
+    by_key: Dict[tuple, Dict[str, Any]] = {}
     for ex_c in existing:
-        if not isinstance(ex_c, dict) or not ex_c.get("value"):
+        if not isinstance(ex_c, dict) or not ex_c.get("name") or not ex_c.get("value"):
             continue
-        cname = ex_c.get("name")
-        cdom = str(ex_c.get("domain", "")).lower()
-        if cname in rotated_names and cname not in inc_names:
-            merged.append(ex_c)
-            inc_names.add(cname)
-        elif cname in domain_scoped_names and (cname, cdom) not in inc_name_domains:
-            merged.append(ex_c)
-            inc_name_domains.add((cname, cdom))
-    return merged
+        key = (ex_c.get("name"), str(ex_c.get("domain") or ".google.com").lower())
+        by_key[key] = dict(ex_c)
+
+    for inc_c in incoming:
+        if not isinstance(inc_c, dict) or not inc_c.get("name") or not inc_c.get("value"):
+            continue
+        cname = inc_c.get("name")
+        cdom = str(inc_c.get("domain") or ".google.com").lower()
+        key = (cname, cdom)
+        prev = by_key.get(key)
+        if prev is not None:
+            inc_exp = inc_c.get("expires")
+            prev_exp = prev.get("expires")
+            # Nunca permitir que una cookie entrante sin expires sobrescriba una cookie maestra existente con expires válido
+            if cname in protected_master_names and not isinstance(inc_exp, (int, float)) and isinstance(prev_exp, (int, float)):
+                continue
+            merged_c = {**prev, **inc_c}
+            if not isinstance(inc_exp, (int, float)) and isinstance(prev_exp, (int, float)):
+                merged_c["expires"] = prev_exp
+            by_key[key] = merged_c
+        else:
+            by_key[key] = dict(inc_c)
+
+    return list(by_key.values())
 
 
 def _sync_disk_cookies_to_mongo(user_id: str, user_email: str, storage_file: Path) -> None:
@@ -249,7 +271,7 @@ def _sync_disk_cookies_to_mongo(user_id: str, user_email: str, storage_file: Pat
         cookies = data.get("cookies", [])
         if not cookies or not _has_psidts(cookies):
             return
-        email = user_email or data.get("notebooklm", {}).get("account", {}).get("email") or ""
+        email = user_email or ""
         payload = json.dumps({"cookies": cookies, "email": email}).encode("utf-8")
         import urllib.request
         for base_host in ["http://LibreChat:3080", "http://api:3080", "http://localhost:3080"]:
@@ -272,7 +294,7 @@ def _sync_disk_cookies_to_mongo(user_id: str, user_email: str, storage_file: Pat
 
 
 def _ensure_psidts_ready(storage_file: Path, force_refresh: bool = False) -> bool:
-    """Garantiza que __Secure-1PSIDTS esté fresco en disco rotándolo bajo demanda con las Master Cookies (SID, OSID, SAPISID)."""
+    """Garantiza que __Secure-1PSIDTS esté fresco en disco rotándolo bajo demanda con las Master Cookies (SID, OSID, SAPISID) sin eliminar el __Secure-1PSIDTS activo."""
     try:
         if not storage_file.exists() or storage_file.stat().st_size == 0:
             return False
@@ -284,78 +306,88 @@ def _ensure_psidts_ready(storage_file: Path, force_refresh: bool = False) -> boo
         last_rotated = float(nb_meta.get("lastRotatedAt", 0) or 0)
 
         has_psidts = _has_psidts(cookies)
-        psidts_expired_or_untagged = False
-        for c in cookies:
-            if isinstance(c, dict) and c.get("name") == "__Secure-1PSIDTS":
-                exp = c.get("expires")
-                if not isinstance(exp, (int, float)) or exp <= now_ts + 300:
-                    psidts_expired_or_untagged = True
-                break
+        # Cooldown estricto de 60s para proteger la sesión de Google contra ráfagas de RotateCookies
+        if has_psidts and (now_ts - last_rotated < 60):
+            return False
 
         needs_rotation = (
             force_refresh
             or not has_psidts
-            or psidts_expired_or_untagged
             or (now_ts - last_rotated > 600)
         )
         if not needs_rotation:
             return False
 
-        backup_psidts = [
-            c for c in cookies
-            if isinstance(c, dict) and c.get("name") in ("__Secure-1PSIDTS", "__Secure-3PSIDTS")
-        ]
-        if backup_psidts:
-            stripped_cookies = [
-                c for c in cookies
-                if not (isinstance(c, dict) and c.get("name") in ("__Secure-1PSIDTS", "__Secure-3PSIDTS"))
-            ]
-            data["cookies"] = stripped_cookies
-            storage_file.write_text(json.dumps(data, indent=2))
-
         from notebooklm._auth import keepalive, psidts_recovery
-        try:
-            rot_state = keepalive.RotationState.process_default()
-            with rot_state._lock:
-                rot_state._last_attempt_monotonic.clear()
-        except Exception:
-            pass
 
-        healed = psidts_recovery._recover_psidts_inline(storage_file)
-        if healed:
+        # Rotación suave estilo navegador/keepalive enviando el jar completo (incluyendo __Secure-1PSIDTS si existe)
+        jar = psidts_recovery._build_recovery_jar(cookies, psidts_recovery._storage_cookie)
+        rotated_cookies = []
+        try:
+            with keepalive._rotation_http_client(jar) as client:
+                keepalive._rotate_post_sync(client)
+                rotated_cookies = list(client.cookies.jar)
+        except Exception as rot_err:
+            logger.debug(f"[PSIDTS Auto-Heal] Aviso en RotateCookies keepalive: {rot_err}")
+
+        rotation_target_names = {
+            "__Secure-1PSIDTS",
+            "__Secure-3PSIDTS",
+            "SIDCC",
+            "__Secure-1PSIDCC",
+            "__Secure-3PSIDCC",
+        }
+        updated_any = False
+        by_identity = {}
+        for idx, c in enumerate(cookies):
+            if isinstance(c, dict) and c.get("name"):
+                by_identity[(c.get("name"), str(c.get("domain") or ".google.com").lower())] = idx
+
+        for rc in rotated_cookies:
+            if rc.name not in rotation_target_names or not rc.value:
+                continue
+            dom = rc.domain or ".google.com"
+            key = (rc.name, dom.lower())
+            new_entry = {
+                "name": rc.name,
+                "value": rc.value,
+                "domain": dom,
+                "path": rc.path or "/",
+                "secure": True,
+                "httpOnly": True,
+                "sameSite": "None" if "3P" in rc.name else "Lax",
+            }
+            if isinstance(rc.expires, (int, float)) and rc.expires > 0:
+                new_entry["expires"] = rc.expires
+            if key in by_identity:
+                old_val = cookies[by_identity[key]].get("value")
+                if old_val != rc.value:
+                    updated_any = True
+                cookies[by_identity[key]] = {**cookies[by_identity[key]], **new_entry}
+            else:
+                cookies.append(new_entry)
+                by_identity[key] = len(cookies) - 1
+                updated_any = True
+
+        if _has_psidts(cookies):
+            data["cookies"] = cookies
+            if not isinstance(data.get("notebooklm"), dict):
+                data["notebooklm"] = {}
+            data["notebooklm"]["lastRotatedAt"] = now_ts
+            if isinstance(data["notebooklm"].get("account"), dict):
+                data["notebooklm"]["account"].pop("email", None)
+            serialized = json.dumps(data, indent=2)
+            storage_file.write_text(serialized)
             try:
-                healed_data = json.loads(storage_file.read_text())
-                if not isinstance(healed_data.get("notebooklm"), dict):
-                    healed_data["notebooklm"] = {}
-                healed_data["notebooklm"]["lastRotatedAt"] = now_ts
-                serialized = json.dumps(healed_data, indent=2)
-                storage_file.write_text(serialized)
-                try:
-                    persist_file = Path.home() / ".notebooklm" / "profiles" / storage_file.parent.name / "storage_state.json"
-                    persist_file.parent.mkdir(parents=True, exist_ok=True)
-                    persist_file.write_text(serialized)
-                except Exception:
-                    pass
+                persist_file = Path.home() / ".notebooklm" / "profiles" / storage_file.parent.name / "storage_state.json"
+                persist_file.parent.mkdir(parents=True, exist_ok=True)
+                persist_file.write_text(serialized)
             except Exception:
                 pass
-            logger.info(f"[PSIDTS Auto-Heal] __Secure-1PSIDTS rotado y persistido bajo demanda en {storage_file}.")
-            return True
-        elif backup_psidts:
-            # Restaurar las cookies originales si RotateCookies no emitió reemplazo
-            try:
-                cur_data = json.loads(storage_file.read_text())
-                cur_cookies = cur_data.get("cookies", [])
-                cur_names = {c.get("name") for c in cur_cookies if isinstance(c, dict)}
-                for bc in backup_psidts:
-                    if bc.get("name") not in cur_names:
-                        cur_cookies.append(bc)
-                cur_data["cookies"] = cur_cookies
-                if not isinstance(cur_data.get("notebooklm"), dict):
-                    cur_data["notebooklm"] = {}
-                cur_data["notebooklm"]["lastRotatedAt"] = now_ts
-                storage_file.write_text(json.dumps(cur_data, indent=2))
-            except Exception:
-                pass
+            if updated_any:
+                logger.info(f"[PSIDTS Auto-Heal] __Secure-1PSIDTS / SIDCC renovado suavemente en {storage_file}.")
+            return updated_any
+
         return False
     except Exception as e:
         logger.debug(f"[PSIDTS Auto-Heal] Advertencia: {e}")
@@ -435,7 +467,6 @@ async def get_client_for_request(force_reinit: bool = False) -> NotebookLMClient
                         "updatedAt": now_iso,
                         "account": {
                             "authuser": 0,
-                            "email": user_email or (f"{user_id}@wappy.internal" if user_id else "default@wappy.internal"),
                         },
                     },
                 }
@@ -524,7 +555,6 @@ async def get_client_for_request(force_reinit: bool = False) -> NotebookLMClient
                                         "updatedAt": remote_updated_at,
                                         "account": {
                                             "authuser": 0,
-                                            "email": session_json.get("email") or user_email or f"{user_id}@wappy.internal",
                                         },
                                     },
                                 }
@@ -2114,9 +2144,12 @@ async def refresh_cookies_handler(request: Request) -> JSONResponse:
         if incoming_cookies and isinstance(incoming_cookies, list):
             normalized_inc = [_normalize_cookie(c) for c in incoming_cookies if isinstance(c, dict) and c.get("name") and c.get("value")]
             existing_cookies: List[Dict[str, Any]] = []
+            prev_last_rotated = 0.0
             if user_storage_file.exists() and user_storage_file.stat().st_size > 0:
                 try:
-                    existing_cookies = json.loads(user_storage_file.read_text()).get("cookies", [])
+                    existing_doc = json.loads(user_storage_file.read_text())
+                    existing_cookies = existing_doc.get("cookies", [])
+                    prev_last_rotated = float(existing_doc.get("notebooklm", {}).get("lastRotatedAt", 0) or 0)
                 except Exception:
                     pass
             merged = _merge_preserving_rotated_cookies(normalized_inc, existing_cookies)
@@ -2127,15 +2160,16 @@ async def refresh_cookies_handler(request: Request) -> JSONResponse:
                 "notebooklm": {
                     "version": 1,
                     "updatedAt": datetime.now(timezone.utc).isoformat(),
+                    "lastRotatedAt": prev_last_rotated,
                     "account": {
                         "authuser": 0,
-                        "email": user_email or f"{user_id or 'default'}@wappy.internal",
                     },
                 },
             }
             user_storage_file.write_text(json.dumps(storage_data, indent=2))
 
-        healed = await asyncio.to_thread(_ensure_psidts_ready, user_storage_file, True)
+        force_flag = bool(body.get("force", False))
+        healed = await asyncio.to_thread(_ensure_psidts_ready, user_storage_file, force_flag)
         if healed:
             async with _CACHE_LOCK:
                 _CLIENT_CACHE.pop(safe_profile, None)
