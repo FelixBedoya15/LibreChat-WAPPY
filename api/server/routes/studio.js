@@ -1810,25 +1810,101 @@ router.get('/tts/jobs/:jobId/download', async (req, res) => {
 });
 
 /**
+ * Garantiza que todo guion de podcast lleve siempre la marca oficial "Somos SST Daily"
+ * y, si el usuario indicó una cuenta de Instagram, cierre diciendo "Síguenos en Instagram @...".
+ */
+function ensureSomosSstDailyBrand(rawScript, multiSpeaker = true, episodeTitle = '', instagramHandle = '') {
+  let clean = String(rawScript || '').trim();
+  if (!clean) return clean;
+
+  const cleanIg = String(instagramHandle || '')
+    .trim()
+    .replace(/^@+/, '')
+    .replace(/\s+/g, '');
+  const igPhrase = cleanIg ? `Síguenos en Instagram @${cleanIg}.` : '';
+
+  const hasBrand = /somos\s+sst\s+daily/i.test(clean);
+  const hasIg = cleanIg
+    ? new RegExp(`s[ií]guenos\\s+en\\s+instagram\\s+@?${cleanIg.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i').test(clean)
+    : true;
+
+  const titlePart =
+    episodeTitle && !/somos\s+sst\s+daily/i.test(episodeTitle)
+      ? `, en nuestro episodio "${episodeTitle.trim()}"`
+      : '';
+
+  if (!hasBrand) {
+    if (multiSpeaker || /^\s*(Alex|Sam)\s*:/im.test(clean)) {
+      if (/^\s*Alex\s*:\s*/i.test(clean)) {
+        clean = clean.replace(
+          /^\s*Alex\s*:\s*/i,
+          `Alex: ¡Bienvenidos a un nuevo episodio de Somos SST Daily${titlePart}! `,
+        );
+      } else {
+        clean = `Alex: ¡Bienvenidos a un nuevo episodio de Somos SST Daily${titlePart}! <breath>\n\n${clean}`;
+      }
+      if (!/somos\s+sst\s+daily/i.test(clean.slice(-220))) {
+        clean = `${clean}\n\nAlex: ¡Gracias por acompañarnos en Somos SST Daily!${igPhrase ? ` ${igPhrase}` : ' Nos escuchamos en el próximo episodio.'}`;
+        return clean.trim();
+      }
+    } else {
+      clean = `¡Bienvenidos a un nuevo episodio de Somos SST Daily${titlePart}! <breath> ${clean} ¡Gracias por escucharnos en Somos SST Daily!${igPhrase ? ` ${igPhrase}` : ''}`;
+      return clean.trim();
+    }
+  }
+
+  if (cleanIg && !hasIg) {
+    // Si ya tiene el cierre pero falta la mención final de Instagram, añadirla al final del último turno
+    clean = `${clean.replace(/[.!\s]+$/, '')}. ¡Gracias por escucharnos en Somos SST Daily! ${igPhrase}`;
+  }
+
+  return clean.trim();
+}
+
+/**
  * POST /api/studio/script/enhance
- * Mejora o genera un guion de locución con efectos vocales (<breath>, <laugh>, |mhm|) usando GOOGLE_MODELS.
+ * Une Título + Instrucción del Tema + Duración (5 / 7.5 / 10 min) + Estilo + Voces + Empresa
+ * para redactar o enriquecer el guion oficial de Somos SST Daily.
  */
 router.post('/script/enhance', studioAuth, async (req, res) => {
   try {
     const {
       text = '',
       scriptText = '',
+      topicInstruction = '',
+      presetName = '',
       stylePrompt = '',
       multiSpeaker = false,
+      speaker1 = null,
+      speaker2 = null,
+      voiceName = 'Kore',
       podcastOnly = false,
+      targetMinutes = 0,
       minMinutes = 0,
       episodeTitle = '',
+      instagramHandle = '',
+      companyContext = null,
       modelName,
       customKeys,
       apiKeys,
     } = req.body || {};
-    const baseText = text || scriptText || '';
-    const isLongPodcast = Boolean(podcastOnly) || Number(minMinutes) >= 5;
+
+    const baseText = String(text || scriptText || '').trim();
+    const userTopic = String(topicInstruction || '').trim();
+    const cleanInstagram = String(instagramHandle || '')
+      .trim()
+      .replace(/^@+/, '')
+      .replace(/\s+/g, '');
+    const effectiveMinutes = Math.max(
+      Number(targetMinutes) || 0,
+      Number(minMinutes) || 0,
+      podcastOnly ? 5 : 0,
+    );
+    const isLongPodcast = Boolean(podcastOnly) || effectiveMinutes >= 5;
+    const targetWords = isLongPodcast ? Math.round(effectiveMinutes * 150) : 260;
+    const minRequiredWords = isLongPodcast ? Math.round(effectiveMinutes * 145) : 120;
+    const targetTurns =
+      effectiveMinutes >= 10 ? '26 a 34' : effectiveMinutes >= 7 ? '20 a 26' : '14 a 18';
 
     const modelsToTry = resolveStudioFastTextModels(
       modelName || req.user?.personalization?.geminiModels?.sstManagement,
@@ -1836,71 +1912,159 @@ router.post('/script/enhance', studioAuth, async (req, res) => {
     const preferredTextModel = modelsToTry[0] || 'gemini-3.5-flash-lite';
 
     const { allKeys } = await getCombinedKeysForRequest(req, customKeys || apiKeys);
+
+    const companySummary =
+      companyContext && typeof companyContext === 'object' && companyContext.companyName
+        ? `\n- Empresa / Organización: ${companyContext.companyName}${companyContext.economicActivity ? ` (Sector: ${companyContext.economicActivity})` : ''}${companyContext.riskLevel ? ` • Nivel de Riesgo: ${companyContext.riskLevel}` : ''}${companyContext.workersCount ? ` • Trabajadores: ${companyContext.workersCount}` : ''}`
+        : '';
+
+    const s1Voice = speaker1?.voiceName || 'Puck';
+    const s2Voice = speaker2?.voiceName || 'Kore';
+    const voicesSummary = multiSpeaker
+      ? `Diálogo dinámico a 2 voces entre Alex (Conductor principal • voz ${s1Voice}) y Sam (Especialista técnico SST • voz ${s2Voice})`
+      : `Locución principal a 1 voz (${voiceName || 'Kore'})`;
+
     const lengthMandate = isLongPodcast
-      ? `\nREGLA OBLIGATORIA DE DURACIÓN (MÍNIMO 5 MINUTOS): El guion completo DEBE tener un mínimo estricto de 750 a 900 palabras reales (~5 a 6 minutos de locución hablada). Desarrolla el tema a profundidad con introducción magnética, análisis técnico y normativo (SG-SST, Decreto 1072, Res. 0312, GTC 45 o estándar aplicable), casos reales de campo, preguntas y respuestas entre los interlocutores, errores comunes a evitar y cierre memorable con conclusiones prácticas.`
+      ? `\nREGLA ESTRICTA E INQUEBRANTABLE DE DURACIÓN (${effectiveMinutes} MINUTOS EXACTOS):
+- El guion completo DEBE tener entre ${targetWords} y ${targetWords + 180} palabras reales (mínimo absoluto: ${minRequiredWords} palabras, equivalentes a ${effectiveMinutes} minutos de locución hablada).
+- Si es diálogo entre Alex y Sam, escribe entre ${targetTurns} intervenciones completas y sustanciosas (de 45 a 75 palabras por turno), sin resumir ni acortar.
+- Estructura narrativa completa:
+  1) Bienvenida oficial mencionando obligatoriamente el programa "Somos SST Daily" y el título "${episodeTitle || 'Somos SST Daily'}".
+  2) Planteamiento del problema o situación real en terreno según la instrucción del usuario.
+  3) Desarrollo técnico y normativo profundo (Decreto 1072, Resolución 0312, GTC 45, Resolución 4272, SGA o norma aplicable al tema).
+  4) Reconstrucción de un caso práctico de campo, preguntas y respuestas entre los interlocutores y errores comunes a evitar.
+  5) Herramientas accionables paso a paso para los trabajadores y supervisores.
+  6) Cierre memorable con conclusiones prácticas y despedida oficial de "Somos SST Daily".`
       : '';
 
+    const brandMandate = `\nREGLA OBLIGATORIA DE MARCA Y CIERRE DE INSTAGRAM:
+- El guion SIEMPRE debe mencionar explícitamente la marca oficial "Somos SST Daily" tanto en el saludo de apertura ("¡Bienvenidos a un nuevo episodio de Somos SST Daily!...") como en la despedida de cierre ("¡Gracias por acompañarnos en Somos SST Daily!...").${
+      cleanInstagram
+        ? `\n- Al final del podcast, en la última frase de despedida, DEBE decir exactamente: "Síguenos en Instagram @${cleanInstagram}".`
+        : ''
+    }`;
+
     const promptInstruction = multiSpeaker
-      ? `Eres un guionista experto en podcasts y locución neural para Gemini 3.8 Flash TTS.
-Convierte, expande o mejora el siguiente texto en un episodio completo de podcast dinámico entre dos interlocutores usando exactamente las etiquetas "Alex:" y "Sam:" al inicio de cada intervención.${lengthMandate}
-Inserta efectos vocales orgánicos donde aporten naturalidad: <breath> (respiración), <laugh> (risa suave), |mhm| (asentimiento), |yeah| (acuerdo).
-Estilo solicitado: ${stylePrompt || 'Conversacional, fluido y profesional'}.${episodeTitle ? `\nTítulo del Episodio: ${episodeTitle}` : ''}
-Devuelve ÚNICAMENTE el guion listo para sintetizar, sin introducciones ni bloques markdown.`
-      : `Eres un director de locución profesional experto en Gemini 3.8 Flash TTS.
-Mejora, expande y enriquece el siguiente guion para que suene 100% humano, envolvente y con ritmo profesional.${lengthMandate}
-Inserta etiquetas vocales orgánicas de Gemini TTS en las pausas clave: <breath> (toma de aire natural), <laugh> (si aplica), <gasp> (si aplica énfasis).
-Estilo solicitado: ${stylePrompt || 'Narración profesional, clara y expresiva'}.${episodeTitle ? `\nTítulo del Episodio: ${episodeTitle}` : ''}
-Devuelve ÚNICAMENTE el texto del guion mejorado, sin comentarios adicionales ni comillas.`;
+      ? `Eres el Director Editorial y Guionista Principal de "Somos SST Daily", experto en podcasts técnicos y locución neural para Gemini 3.8 Flash TTS.
+Redacta un episodio completo de podcast dinámico entre dos interlocutores usando exactamente las etiquetas "Alex:" y "Sam:" al inicio de cada intervención (separadas por salto de línea en blanco).${brandMandate}${lengthMandate}
 
-    const inputContent = `${promptInstruction}\n\nTEXTO O TEMA BASE:\n${baseText || 'Crea un episodio completo de podcast sobre cómo la Inteligencia Artificial y la cultura preventiva transforman la Seguridad y Salud en el Trabajo.'}`;
+PARÁMETROS SELECCIONADOS EN EL ENGRANAJE DEL ESTUDIO (ÚNELOS TODOS EN EL GUION):
+- Marca Oficial del Podcast: Somos SST Daily
+- Título del Episodio: ${episodeTitle || 'Somos SST Daily'}
+- Duración Objetivo: ${effectiveMinutes || 2} minutos (~${targetWords} palabras)
+- Estilo y Plantilla Seleccionada: ${presetName ? `${presetName} — ` : ''}${stylePrompt || 'Conversacional, fluido y profesional'}
+- Configuración de Voces: ${voicesSummary}${companySummary}
+- Instrucción del Usuario (Sobre qué tema quiere el guion y cómo debe ser): ${userTopic || 'Desarrolla a profundidad el tema del título con casos reales de Seguridad y Salud en el Trabajo, normativa aplicable y consejos prácticos.'}
 
-    let enhancedText = '';
-    let usedModel = preferredTextModel;
-    if (allKeys.length > 0) {
-      let lastErr = null;
-      const keysToUse = allKeys.slice(0, 4);
-      outer: for (const key of keysToUse) {
-        for (const mId of modelsToTry) {
-          try {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(mId)}:generateContent?key=${encodeURIComponent(key)}`;
-            const resp = await axios.post(
-              url,
-              {
-                contents: [{ role: 'user', parts: [{ text: inputContent }] }],
-                generationConfig: { temperature: 0.6 },
-              },
-              { timeout: isLongPodcast ? 35000 : 15000 },
-            );
-            const candidateText =
-              resp.data?.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || '';
-            if (candidateText.trim()) {
-              enhancedText = candidateText.trim();
-              usedModel = mId;
-              break outer;
+Inserta de forma moderada etiquetas expresivas donde aporten naturalidad: <breath>, <laugh>, |mhm|, |yeah|.
+Devuelve ÚNICAMENTE el guion completo listo para sintetizar, sin introducciones ni bloques markdown.`
+      : `Eres el Director Editorial y Guionista Principal de "Somos SST Daily", experto en locución profesional para Gemini 3.8 Flash TTS.
+Redacta o expande un episodio completo de podcast para que suene 100% humano, envolvente y con ritmo profesional.${brandMandate}${lengthMandate}
+
+PARÁMETROS SELECCIONADOS EN EL ENGRANAJE DEL ESTUDIO (ÚNELOS TODOS EN EL GUION):
+- Marca Oficial del Podcast: Somos SST Daily
+- Título del Episodio: ${episodeTitle || 'Somos SST Daily'}
+- Duración Objetivo: ${effectiveMinutes || 2} minutos (~${targetWords} palabras)
+- Estilo y Plantilla Seleccionada: ${presetName ? `${presetName} — ` : ''}${stylePrompt || 'Narración profesional, clara y expresiva'}
+- Configuración de Voz: ${voicesSummary}${companySummary}
+- Instrucción del Usuario (Sobre qué tema quiere el guion y cómo debe ser): ${userTopic || 'Desarrolla a profundidad el tema del título con casos reales de Seguridad y Salud en el Trabajo, normativa aplicable y consejos prácticos.'}
+
+Inserta etiquetas expresivas moderadas en pausas clave: <breath>, <laugh>.
+Devuelve ÚNICAMENTE el texto del guion completo, sin comentarios adicionales ni comillas.`;
+
+    const contextBlock = userTopic
+      ? `INSTRUCCIÓN PRIORITARIA DEL USUARIO SOBRE EL TEMA Y ENFOQUE DEL PODCAST:\n"${userTopic}"\n\nTÍTULO DEL PODCAST: "${episodeTitle || 'Somos SST Daily'}"${baseText ? `\n\nREFERENCIA O BORRADOR PREVIO EN EL EDITOR (puedes adaptarlo o reemplazarlo para cumplir al 100% con la instrucción del usuario y el título):\n${baseText.slice(0, 1800)}` : ''}`
+      : `TÍTULO DEL PODCAST: "${episodeTitle || 'Somos SST Daily'}"\n\nTEXTO O TEMA BASE:\n${baseText || 'Crea un episodio completo de Somos SST Daily sobre cómo la cultura preventiva y los controles en campo transforman la Seguridad y Salud en el Trabajo.'}`;
+
+    const inputContent = `${promptInstruction}\n\n${contextBlock}`;
+
+    const callTextModel = async (promptText) => {
+      if (allKeys.length > 0) {
+        let lastErr = null;
+        const keysToUse = allKeys.slice(0, 4);
+        for (const key of keysToUse) {
+          for (const mId of modelsToTry) {
+            try {
+              const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(mId)}:generateContent?key=${encodeURIComponent(key)}`;
+              const resp = await axios.post(
+                url,
+                {
+                  contents: [{ role: 'user', parts: [{ text: promptText }] }],
+                  generationConfig: { temperature: 0.65, maxOutputTokens: 8192 },
+                },
+                { timeout: isLongPodcast ? 65000 : 25000 },
+              );
+              const candidateText =
+                resp.data?.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || '';
+              if (candidateText.trim()) {
+                return { text: candidateText.trim(), model: mId };
+              }
+            } catch (e) {
+              lastErr = e;
             }
-          } catch (e) {
-            lastErr = e;
           }
         }
+        if (lastErr) throw lastErr;
       }
-      if (!enhancedText && lastErr) throw lastErr;
-    } else {
       const aiResult = await generateWithKeyRotation(
-        { model: preferredTextModel, generationConfig: { temperature: 0.5 } },
+        { model: preferredTextModel, generationConfig: { temperature: 0.6, maxOutputTokens: 8192 } },
         req.user,
-        inputContent,
+        promptText,
       );
-      enhancedText = (aiResult?.response?.text?.() || '').trim();
-    }
+      return {
+        text: (aiResult?.response?.text?.() || '').trim(),
+        model: preferredTextModel,
+      };
+    };
+
+    const firstPass = await callTextModel(inputContent);
+    let enhancedText = firstPass.text;
+    const usedModel = firstPass.model;
 
     if (!enhancedText) {
       throw new Error('No se pudo generar el guion mejorado.');
     }
 
+    // Si el usuario pidió 5, 7.5 o 10 minutos y el primer pase quedó por debajo de la meta de palabras,
+    // hacer automáticamente un pase de continuación para alcanzar los minutos exactos seleccionados
+    if (isLongPodcast) {
+      const currentWords = enhancedText.split(/\s+/).filter(Boolean).length;
+      if (currentWords < minRequiredWords) {
+        const missingWords = Math.max(250, targetWords - currentWords + 80);
+        try {
+          const continuationPrompt = `Estás redactando un guion de podcast de ${effectiveMinutes} minutos (~${targetWords} palabras) para el programa oficial "Somos SST Daily" titulado "${episodeTitle || 'Somos SST Daily'}".
+Actualmente el guion lleva ${currentWords} palabras y faltan al menos ${missingWords} palabras adicionales para cumplir los ${effectiveMinutes} minutos completos.
+
+GUION ACTUAL:
+${enhancedText}
+
+INSTRUCCIÓN DE EXPANSIÓN:
+Reescribe o expande el guion completo integrando al menos ${missingWords} palabras nuevas de desarrollo técnico, ejemplos prácticos adicionales en terreno, preguntas profundas entre ${multiSpeaker ? 'Alex y Sam' : 'el narrador y la audiencia'} y el cierre oficial de "Somos SST Daily", de modo que el guion final completo tenga mínimo ${targetWords} palabras.
+Devuelve el guion completo unificado de principio a fin (sin encabezados ni explicaciones).`;
+          const secondPass = await callTextModel(continuationPrompt);
+          const secondWords = (secondPass.text || '').split(/\s+/).filter(Boolean).length;
+          if (secondWords > currentWords) {
+            enhancedText = secondPass.text;
+          }
+        } catch (contErr) {
+          logger.warn('[WappyStudio Script] Continuation pass skipped:', contErr.message);
+        }
+      }
+    }
+
+    enhancedText = ensureSomosSstDailyBrand(
+      enhancedText,
+      multiSpeaker,
+      episodeTitle,
+      cleanInstagram,
+    );
+
     return res.json({
       success: true,
       text: enhancedText,
       scriptText: enhancedText,
+      wordCount: enhancedText.split(/\s+/).filter(Boolean).length,
+      targetMinutes: effectiveMinutes,
       model: usedModel,
       usedModel,
     });
