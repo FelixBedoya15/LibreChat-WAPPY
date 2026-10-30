@@ -8628,9 +8628,13 @@ function broadcastAntigravityEvent(userId, eventName, payload) {
   return sentCount;
 }
 
+const CURRENT_DAEMON_VERSION = '2.4.0';
+const daemonUpdateCooldown = new Map();
+
 router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
   try {
     const targetUserId = String((req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id);
+    const clientVersion = String(req.query.v || '').trim();
 
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -8646,36 +8650,62 @@ router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
     const userSet = antigravityStreamClients.get(targetUserId);
     userSet.add(res);
 
-    res.write(`event: connected\ndata: ${JSON.stringify({ status: 'ok', userId: targetUserId, timestamp: new Date().toISOString() })}\n\n`);
+    logger.info(
+      `[MCP Bridge] 🟢 Cliente SSE Antigravity conectado para usuario ${targetUserId} (versión: ${clientVersion || 'legacy'}, activos: ${userSet.size})`
+    );
 
-    // Si existen órdenes pendientes recién creadas (< 30 min) que aún están en 'todo', empujarlas al conectar
-    try {
-      const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000);
-      const pendingTasks = await KanbanTask.find({
-        user: targetUserId,
-        type: 'antigravity_delegation',
-        status: 'todo',
-        createdAt: { $gte: thirtyMinAgo },
-      })
-        .sort({ createdAt: 1 })
-        .limit(5)
-        .lean();
+    res.write(`event: connected\ndata: ${JSON.stringify({ status: 'ok', userId: targetUserId, version: CURRENT_DAEMON_VERSION, timestamp: new Date().toISOString() })}\n\n`);
 
-      for (const t of pendingTasks) {
-        res.write(
-          `event: nueva_orden\ndata: ${JSON.stringify({
-            id: t._id.toString(),
-            ordenId: t._id.toString(),
-            titulo: t.title,
-            instruccion: t.description,
-            descripcion: t.description,
-            estado: t.status,
-            prioridad: t.priority,
-            fechaCreacion: t.createdAt,
-          })}\n\n`
-        );
+    // Si el daemon conectado en el PC/Mac del usuario tiene una versión anterior, auto-actualizarlo silenciosamente en vivo
+    if (clientVersion !== CURRENT_DAEMON_VERSION) {
+      const lastSent = daemonUpdateCooldown.get(targetUserId) || 0;
+      if (Date.now() - lastSent > 20000) {
+        daemonUpdateCooldown.set(targetUserId, Date.now());
+        setTimeout(() => {
+          try {
+            logger.info(`[MCP Bridge] 🔄 Enviando auto-actualización silenciosa (v${CURRENT_DAEMON_VERSION}) al daemon de usuario ${targetUserId}...`);
+            res.write(
+              `event: launch_connector\ndata: ${JSON.stringify({
+                service: 'notebooklm',
+                token: 'wappy_daemon_autoupdate',
+                originUrl: 'https://wappy.club',
+                timestamp: new Date().toISOString(),
+              })}\n\n`
+            );
+            if (typeof res.flush === 'function') res.flush();
+          } catch (_) {}
+        }, 600);
       }
-    } catch (_) {}
+    } else {
+      // Si existen órdenes pendientes recién creadas (< 30 min) que aún están en 'todo', empujarlas al conectar
+      try {
+        const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000);
+        const pendingTasks = await KanbanTask.find({
+          user: targetUserId,
+          type: 'antigravity_delegation',
+          status: 'todo',
+          createdAt: { $gte: thirtyMinAgo },
+        })
+          .sort({ createdAt: 1 })
+          .limit(5)
+          .lean();
+
+        for (const t of pendingTasks) {
+          res.write(
+            `event: nueva_orden\ndata: ${JSON.stringify({
+              id: t._id.toString(),
+              ordenId: t._id.toString(),
+              titulo: t.title,
+              instruccion: t.description,
+              descripcion: t.description,
+              estado: t.status,
+              prioridad: t.priority,
+              fechaCreacion: t.createdAt,
+            })}\n\n`
+          );
+        }
+      } catch (_) {}
+    }
 
     const heartbeatTimer = setInterval(() => {
       try {
@@ -8736,7 +8766,10 @@ router.post('/antigravity/launch-connector', requireApiKeyOrJwt, async (req, res
     const token = String(req.body?.token || req.headers.authorization?.replace(/^Bearer\s+/i, '') || '').trim();
     const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
     const host = req.headers['x-forwarded-host'] || req.get('host') || 'wappy.club';
-    const originUrl = `${proto}://${host}`;
+    const rawOrigin = `${proto}://${host}`;
+    const originUrl =
+      req.body?.originUrl ||
+      (/^(127\.0\.0\.1|localhost)/i.test(host) ? process.env.DOMAIN_SERVER || 'https://wappy.club' : rawOrigin);
 
     const sentCount = broadcastAntigravityEvent(targetUserId, 'launch_connector', {
       service,
@@ -8763,11 +8796,11 @@ router.post('/antigravity/ordenes/:id/dispatch-log', requireApiKeyOrJwt, async (
   try {
     const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
     const ordenId = req.params.id;
-    const { ok, error, conversationId, cwd, bin, platform } = req.body || {};
+    const { ok, error, conversationId, cwd, bin, platform, version } = req.body || {};
     if (ok) {
-      logger.info(`[MCP Bridge] ✅ Orden ${ordenId} despachada en Antigravity local de usuario ${targetUserId} (convoId: ${conversationId || 'nuevo'}, cwd: ${cwd || 'N/A'}, bin: ${bin || 'N/A'}, OS: ${platform || 'N/A'})`);
+      logger.info(`[MCP Bridge] ✅ Orden ${ordenId} despachada en Antigravity local de usuario ${targetUserId} (v: ${version || 'legacy'}, convoId: ${conversationId || 'nuevo'}, cwd: ${cwd || 'N/A'}, bin: ${bin || 'N/A'}, OS: ${platform || 'N/A'})`);
     } else {
-      logger.error(`[MCP Bridge] ❌ Falló despacho local de orden ${ordenId} en PC de usuario ${targetUserId} (OS: ${platform || 'N/A'}, bin: ${bin || 'N/A'}, cwd: ${cwd || 'N/A'}): ${error || 'Error desconocido'}`);
+      logger.error(`[MCP Bridge] ❌ Falló despacho local de orden ${ordenId} en PC de usuario ${targetUserId} (v: ${version || 'legacy'}, OS: ${platform || 'N/A'}, bin: ${bin || 'N/A'}, cwd: ${cwd || 'N/A'}): ${error || 'Error desconocido'}`);
     }
     return res.json({ ok: true });
   } catch (e) {

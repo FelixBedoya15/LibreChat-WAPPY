@@ -762,26 +762,83 @@ router.get('/connect-script', (req, res) => {
   const serverOrigin = `${proto}://${host}`;
 
   if (token === 'wappy_daemon_autoupdate') {
+    logger.info(`[NotebookLM] 🔄 Sirviendo script de auto-actualización wappy_daemon_autoupdate (${serverOrigin})`);
+    const effectiveOrigin = /^https?:\/\/(127\.0\.0\.1|localhost)/i.test(serverOrigin)
+      ? 'https://wappy.club'
+      : serverOrigin;
     const updateScript = `#!/usr/bin/env node
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { spawnSync } = require('child_process');
-const daemonUrl = ${JSON.stringify(serverOrigin)} + '/api/mcp-bridge/antigravity/daemon.js';
-fetch(daemonUrl)
-  .then((r) => r.text())
-  .then((code) => {
-    if (!code || !code.includes('startSseWorker')) process.exit(0);
-    const agyDir = path.join(os.homedir(), '.gemini', 'antigravity');
-    fs.mkdirSync(agyDir, { recursive: true });
-    const dest = path.join(agyDir, 'wappy-push-daemon.js');
-    fs.writeFileSync(dest, code, { encoding: 'utf8', mode: 0o755 });
-    const listenerDest = path.join(agyDir, 'wappy-tenshi-listener.js');
-    fs.writeFileSync(listenerDest, code, { encoding: 'utf8', mode: 0o755 });
-    spawnSync(process.execPath, [dest, '--install'], { stdio: 'ignore' });
+const http = require('http');
+const https = require('https');
+const { spawn } = require('child_process');
+
+const daemonUrl = ${JSON.stringify(effectiveOrigin)} + '/api/mcp-bridge/antigravity/daemon.js';
+const parsed = new URL(daemonUrl);
+const client = parsed.protocol === 'https:' ? https : http;
+
+client.get(parsed, (res) => {
+  if (res.statusCode !== 200) process.exit(0);
+  let code = '';
+  res.setEncoding('utf8');
+  res.on('data', (chunk) => (code += chunk));
+  res.on('end', () => {
+    try {
+      if (!code || !code.includes('startSseWorker')) process.exit(0);
+      const homeDir = os.homedir();
+      const agyDir = path.join(homeDir, '.gemini', 'antigravity');
+      fs.mkdirSync(agyDir, { recursive: true });
+      const dest = path.join(agyDir, 'wappy-push-daemon.js');
+      const listenerDest = path.join(agyDir, 'wappy-tenshi-listener.js');
+      const logFile = path.join(agyDir, 'wappy-push-daemon.log');
+      fs.writeFileSync(dest, code, { encoding: 'utf8', mode: 0o755 });
+      fs.writeFileSync(listenerDest, code, { encoding: 'utf8', mode: 0o755 });
+
+      if (process.platform === 'darwin') {
+        try {
+          const launchAgentsDir = path.join(homeDir, 'Library', 'LaunchAgents');
+          fs.mkdirSync(launchAgentsDir, { recursive: true });
+          const plistPath = path.join(launchAgentsDir, 'club.wappy.antigravity.bridge.plist');
+          const plistContent = \`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>club.wappy.antigravity.bridge</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>\${process.execPath}</string>
+    <string>\${dest}</string>
+    <string>--worker</string>
+    <string>--silent</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>AbandonProcessGroup</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/dev/null</string>
+  <key>StandardErrorPath</key>
+  <string>\${logFile}</string>
+</dict>
+</plist>\`;
+          fs.writeFileSync(plistPath, plistContent, 'utf8');
+        } catch (_) {}
+      }
+
+      const child = spawn(process.execPath, [dest, '--worker', '--silent'], {
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true,
+      });
+      child.unref();
+    } catch (_) {}
     process.exit(0);
-  })
-  .catch(() => process.exit(0));
+  });
+}).on('error', () => process.exit(0));
 `;
     res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
     return res.status(200).send(updateScript);

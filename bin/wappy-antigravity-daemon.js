@@ -33,6 +33,7 @@ const DISPATCHED_FILE = path.join(AGY_DIR, 'wappy-dispatched-orders.json');
 const ACTIVE_CONVO_FILE = path.join(AGY_DIR, 'wappy-active-conversation.txt');
 const TENSHI_THREAD_FILE = path.join(AGY_DIR, 'wappy-tenshi-thread.json');
 const TENSHI_THREAD_TTL_MS = 2 * 60 * 60 * 1000; // 2 horas de continuidad de hilo en el mismo chat de Tenshi
+const DAEMON_VERSION = '2.4.0';
 
 function ensureDirs() {
   try {
@@ -203,15 +204,26 @@ function ensureWappyGlobalRule() {
   } catch (_) {}
 }
 
+function resolveEffectiveServerUrl(candidateOrigin, fallbackWappyUrl) {
+  const fb = String(fallbackWappyUrl || 'https://wappy.club').replace(/\/$/, '') || 'https://wappy.club';
+  const cand = String(candidateOrigin || '').replace(/\/$/, '');
+  if (!cand) return fb;
+  // Evitar que una petición interna (127.0.0.1 o localhost) sobreescriba el dominio real del servidor
+  if (/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/i.test(cand) && !/^https?:\/\/(127\.0\.0\.1|localhost)/i.test(fb)) {
+    return fb;
+  }
+  return cand;
+}
+
 /**
  * Descarga y ejecuta localmente el conector oficial de WAPPY (NotebookLM o Google Flow)
  * sin usar tuberías (curl | node) y permitiendo invocación directa por CLI o vía Push SSE.
  */
-function runLocalConnector(service, wappyUrl, token, detach = false) {
+function runLocalConnector(service, wappyUrl, token, detach = false, fallbackUrl = 'https://wappy.club') {
   return new Promise((resolve, reject) => {
     ensureDirs();
     const cleanService = service === 'googleflow' ? 'googleflow' : 'notebooklm';
-    const baseUrl = (wappyUrl || 'https://wappy.club').replace(/\/$/, '');
+    const baseUrl = resolveEffectiveServerUrl(wappyUrl, fallbackUrl);
     const scriptUrl = `${baseUrl}/api/${cleanService}/connect-script?token=${encodeURIComponent(token || '')}`;
     const destScript = path.join(AGY_DIR, `wappy-${cleanService}-connector.js`);
 
@@ -233,6 +245,7 @@ function runLocalConnector(service, wappyUrl, token, detach = false) {
             const child = spawn(process.execPath, [destScript], {
               detached: true,
               stdio: 'ignore',
+              windowsHide: true,
               env: { ...process.env },
             });
             child.unref();
@@ -241,6 +254,7 @@ function runLocalConnector(service, wappyUrl, token, detach = false) {
           } else {
             const child = spawn(process.execPath, [destScript], {
               stdio: 'inherit',
+              windowsHide: true,
               env: { ...process.env },
             });
             child.on('exit', (code) => {
@@ -441,11 +455,23 @@ function resolveAgentApiBinary() {
 
 let cachedLiveLs = null;
 
+function sleepSync(ms) {
+  try {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+  } catch (_) {
+    if (process.platform !== 'win32') {
+      try {
+        execFileSync('/bin/sleep', [String(Math.max(1, Math.ceil(ms / 1000)))]);
+      } catch (_) {}
+    }
+  }
+}
+
 /**
  * Descubre en tiempo real el puerto dinámico (ANTIGRAVITY_LS_ADDRESS) y el token CSRF
  * (ANTIGRAVITY_CSRF_TOKEN) del proceso `language_server` activo de Antigravity en macOS, Windows o Linux.
- * Esto garantiza que cuando el PC se apaga y se vuelve a prender (y el daemon arranca por LaunchAgents
- * o Windows Startup sin variables de entorno de sesión), encuentre siempre la instancia viva de Antigravity.
+ * Esto garantiza que cuando el PC se apaga y se vuelve a prender, o Antigravity se cierra y se vuelve a abrir,
+ * el daemon encuentre siempre la instancia viva de Antigravity.
  */
 function discoverLiveLanguageServer() {
   const candidates = [];
@@ -455,8 +481,12 @@ function discoverLiveLanguageServer() {
   if (process.platform === 'darwin' || process.platform === 'linux') {
     try {
       const psBin = fs.existsSync('/bin/ps') ? '/bin/ps' : 'ps';
-      const lsofBin = fs.existsSync('/usr/sbin/lsof') ? '/usr/sbin/lsof' : 'lsof';
-      const psOut = execFileSync(psBin, ['-ax', '-o', 'pid=,command='], {
+      const lsofBin = fs.existsSync('/usr/sbin/lsof')
+        ? '/usr/sbin/lsof'
+        : fs.existsSync('/usr/bin/lsof')
+        ? '/usr/bin/lsof'
+        : 'lsof';
+      const psOut = execFileSync(psBin, ['-axww', '-o', 'pid=,command='], {
         encoding: 'utf8',
         timeout: 4000,
         env: baseEnv,
@@ -552,6 +582,59 @@ function discoverLiveLanguageServer() {
   return candidates;
 }
 
+/**
+ * Garantiza que Antigravity esté en ejecución y que su `language_server` esté escuchando conexiones gRPC.
+ * Si el usuario apagó el PC o cerró Antigravity, lo abre automáticamente y espera hasta 20 segundos
+ * a que el `language_server` levante el puerto antes de despachar la orden de Tenshi.
+ */
+function ensureLiveAntigravityRunning() {
+  let live = discoverLiveLanguageServer();
+  if (live.length > 0) {
+    return live;
+  }
+
+  cachedLiveLs = null;
+  log('Antigravity estaba cerrado al recibir la orden de Tenshi. Abriendo Antigravity automáticamente...');
+
+  if (process.platform === 'darwin') {
+    try {
+      const appPath = fs.existsSync('/Applications/Antigravity.app') ? '/Applications/Antigravity.app' : 'Antigravity';
+      execFileSync('/usr/bin/open', ['-a', appPath], { timeout: 5000 });
+    } catch (_) {}
+  } else if (process.platform === 'win32') {
+    try {
+      const localApp = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
+      const progFiles = process.env.ProgramFiles || 'C:\\Program Files';
+      const exeCandidates = [
+        path.join(localApp, 'Programs', 'Antigravity', 'Antigravity.exe'),
+        path.join(localApp, 'Antigravity', 'Antigravity.exe'),
+        path.join(progFiles, 'Antigravity', 'Antigravity.exe'),
+      ];
+      for (const exe of exeCandidates) {
+        if (fs.existsSync(exe)) {
+          const child = spawn(exe, [], { detached: true, stdio: 'ignore' });
+          child.unref();
+          break;
+        }
+      }
+    } catch (_) {}
+  }
+
+  for (let i = 0; i < 20; i++) {
+    sleepSync(1000);
+    live = discoverLiveLanguageServer();
+    if (live.length > 0) {
+      // Dar 1.5s adicionales tras detectar el puerto para que gRPC inicialice sus servicios
+      sleepSync(1500);
+      live = discoverLiveLanguageServer();
+      log(`✅ Antigravity iniciado y listo (puerto activo: ${live[0]?.address || 'detectado'}).`);
+      return live;
+    }
+  }
+
+  return discoverLiveLanguageServer();
+}
+
 function runAgentApi(bin, subArgs, opts = {}) {
   const isLanguageServer = /language_server/i.test(bin);
   const fullArgs = isLanguageServer ? ['agentapi', ...subArgs] : subArgs;
@@ -568,28 +651,25 @@ function runAgentApi(bin, subArgs, opts = {}) {
     envCandidates.push({ address, csrfToken });
   };
 
+  let liveCandidates = discoverLiveLanguageServer();
+  if (liveCandidates.length === 0) {
+    cachedLiveLs = null;
+    if (opts.autoLaunch !== false) {
+      liveCandidates = ensureLiveAntigravityRunning();
+    }
+  }
+
+  // SIEMPRE priorizar primero los puertos y tokens CSRF descubiertos en vivo del proceso actual
+  for (const live of liveCandidates) {
+    addCand(live.address, live.csrfToken);
+  }
   if (cachedLiveLs) {
     addCand(cachedLiveLs.address, cachedLiveLs.csrfToken);
   }
   if (process.env.ANTIGRAVITY_LS_ADDRESS && process.env.ANTIGRAVITY_CSRF_TOKEN) {
     addCand(process.env.ANTIGRAVITY_LS_ADDRESS, process.env.ANTIGRAVITY_CSRF_TOKEN);
   }
-  for (const live of discoverLiveLanguageServer()) {
-    addCand(live.address, live.csrfToken);
-  }
 
-  // Si Antigravity aún no estaba abierto cuando llegó la orden de Tenshi, intentar abrirlo en segundo plano (macOS)
-  if (envCandidates.length === 0 && process.platform === 'darwin' && subArgs[0] === 'new-conversation') {
-    try {
-      execFileSync('/usr/bin/open', ['-g', '-a', 'Antigravity'], { timeout: 4000 });
-      execFileSync('/bin/sleep', ['3']);
-      for (const live of discoverLiveLanguageServer()) {
-        addCand(live.address, live.csrfToken);
-      }
-    } catch (_) {}
-  }
-
-  // Si no hay candidatos descubiertos, intentar una vez con el entorno actual
   if (envCandidates.length === 0) {
     envCandidates.push({
       address: process.env.ANTIGRAVITY_LS_ADDRESS || '',
@@ -597,19 +677,22 @@ function runAgentApi(bin, subArgs, opts = {}) {
     });
   }
 
+  const execOpts = { ...opts };
+  delete execOpts.autoLaunch;
+
   let lastErr = null;
   for (const cand of envCandidates) {
     try {
       const mergedEnv = {
         ...process.env,
-        ...(opts.env || {}),
-        PATH: `${(opts.env && opts.env.PATH) || process.env.PATH || ''}${path.delimiter}${extraPath}`,
+        ...(execOpts.env || {}),
+        PATH: `${(execOpts.env && execOpts.env.PATH) || process.env.PATH || ''}${path.delimiter}${extraPath}`,
         ...(cand.address ? { ANTIGRAVITY_LS_ADDRESS: cand.address } : {}),
         ...(cand.csrfToken ? { ANTIGRAVITY_CSRF_TOKEN: cand.csrfToken } : {}),
       };
       const out = execFileSync(bin, fullArgs, {
         windowsHide: true,
-        ...opts,
+        ...execOpts,
         env: mergedEnv,
         ...(isBatch ? { shell: true } : {}),
       });
@@ -619,9 +702,10 @@ function runAgentApi(bin, subArgs, opts = {}) {
         (text.includes('"ANTIGRAVITY_LS_ADDRESS is not set"') ||
           text.includes('missing CSRF token') ||
           text.includes('code = Unauthenticated') ||
-          text.includes('connection refused'))
+          text.includes('connection refused') ||
+          text.includes('code = Unavailable'))
       ) {
-        lastErr = new Error(text.trim());
+        lastErr = new Error(`gRPC error (${cand.address || 'no-ls-addr'}): ${text.trim()}`);
         continue;
       }
       if (cand.address && cand.csrfToken) {
@@ -631,7 +715,7 @@ function runAgentApi(bin, subArgs, opts = {}) {
     } catch (err) {
       const stderrText = err?.stderr ? String(err.stderr).trim() : '';
       const stdoutText = err?.stdout ? String(err.stdout).trim() : '';
-      const detail = stderrText || stdoutText || err.message;
+      const detail = [stderrText, stdoutText, err.message].filter(Boolean).join(' | ');
       lastErr = new Error(`Command failed (${cand.address || 'no-ls-addr'}): ${detail}`);
     }
   }
@@ -894,12 +978,13 @@ function resolveWorkspaceTarget() {
       for (const item of candidates) {
         if (seenIds.has(item.id)) continue;
         seenIds.add(item.id);
-        if (seenIds.size > 6) break;
+        if (seenIds.size > 3) break;
         try {
           const out = runAgentApi(bin, ['get-conversation-metadata', item.id], {
-            timeout: 3000,
+            timeout: 2500,
             stdio: 'pipe',
             encoding: 'utf8',
+            autoLaunch: false,
           });
           const parsed = JSON.parse(out);
           const uris = parsed?.response?.conversationMetadata?.metadata?.workspaceUris || [];
@@ -1103,6 +1188,9 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
     .filter(Boolean)
     .join('\n');
 
+  // Garantizar que Antigravity esté abierto y su language_server esté escuchando en vivo antes de despachar
+  ensureLiveAntigravityRunning();
+
   const bin = resolveAgentApiBinary();
   const { cwd: workspaceCwd, projectId } = resolveWorkspaceTarget();
   const spawnEnv = {
@@ -1144,6 +1232,7 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
         cwd: workspaceCwd,
         bin,
         platform: process.platform,
+        version: DAEMON_VERSION,
       }).catch(() => {});
     } catch (err) {
       log(`Aviso: send-message al hilo ${targetConvoId} falló (${err.message}). Abriendo nuevo hilo...`);
@@ -1169,7 +1258,7 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
       ];
       const stdout =
         runAgentApi(bin, newArgs, {
-          timeout: 15000,
+          timeout: 20000,
           stdio: 'pipe',
           cwd: workspaceCwd,
           env: spawnEnv,
@@ -1191,6 +1280,7 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
         cwd: workspaceCwd,
         bin,
         platform: process.platform,
+        version: DAEMON_VERSION,
       }).catch(() => {});
     } catch (err) {
       log(`❌ Error invocando agentapi new-conversation para orden ${ordenId}: ${err.message}`);
@@ -1200,8 +1290,41 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
         cwd: workspaceCwd,
         bin,
         platform: process.platform,
+        version: DAEMON_VERSION,
       }).catch(() => {});
     }
+  }
+}
+
+/**
+ * Termina de forma segura cualquier worker anterior para evitar procesos duplicados
+ */
+function terminateOtherWorkers() {
+  try {
+    if (fs.existsSync(PID_FILE)) {
+      const oldPid = parseInt(fs.readFileSync(PID_FILE, 'utf8').trim(), 10);
+      if (oldPid && oldPid !== process.pid) {
+        try {
+          process.kill(oldPid, 'SIGTERM');
+        } catch (_) {}
+      }
+    }
+  } catch (_) {}
+
+  if (process.platform === 'darwin' || process.platform === 'linux') {
+    try {
+      const pgrepOut = execFileSync('pgrep', ['-f', '(wappy-push-daemon|wappy-tenshi-listener)\\.js.*--worker'], {
+        encoding: 'utf8',
+      });
+      for (const line of pgrepOut.split(/\r?\n/)) {
+        const p = parseInt(line.trim(), 10);
+        if (p && p !== process.pid) {
+          try {
+            process.kill(p, 'SIGTERM');
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
   }
 }
 
@@ -1242,47 +1365,17 @@ function installAndStartDaemon(cliArgs) {
     log(`Aviso copiando script a ${DAEMON_SCRIPT_DEST}: ${err.message}`);
   }
 
-  // 2. Terminar cualquier proceso anterior
+  // 2. Terminar cualquier proceso worker anterior
+  terminateOtherWorkers();
   try {
-    if (process.platform === 'darwin') {
-      const plistPath = path.join(HOME_DIR, 'Library', 'LaunchAgents', 'club.wappy.antigravity.bridge.plist');
-      if (fs.existsSync(plistPath)) {
-        try {
-          execFileSync('launchctl', ['unload', plistPath], { stdio: 'ignore' });
-        } catch (_) {}
-      }
-    }
-    if (fs.existsSync(PID_FILE)) {
-      const oldPid = parseInt(fs.readFileSync(PID_FILE, 'utf8').trim(), 10);
-      if (oldPid && oldPid !== process.pid) {
-        try {
-          process.kill(oldPid, 'SIGTERM');
-          log(`Proceso daemon anterior (PID ${oldPid}) detenido para actualización limpia.`);
-        } catch (_) {}
-      }
-      try {
-        fs.unlinkSync(PID_FILE);
-      } catch (_) {}
-    }
-    if (process.platform === 'darwin' || process.platform === 'linux') {
-      try {
-        const pgrepOut = execFileSync('pgrep', ['-f', '(wappy-push-daemon|wappy-tenshi-listener)\\.js.*--worker'], { encoding: 'utf8' });
-        for (const line of pgrepOut.split(/\r?\n/)) {
-          const p = parseInt(line.trim(), 10);
-          if (p && p !== process.pid) {
-            try {
-              process.kill(p, 'SIGTERM');
-            } catch (_) {}
-          }
-        }
-      } catch (_) {}
-    }
+    if (fs.existsSync(PID_FILE)) fs.unlinkSync(PID_FILE);
   } catch (_) {}
 
   const scriptToRun = fs.existsSync(DAEMON_SCRIPT_DEST) ? DAEMON_SCRIPT_DEST : __filename;
   const nodeBin = process.execPath;
 
-  // 3A. En macOS, registrar y cargar LaunchAgent para arranque automático inmortal (KeepAlive=true)
+  // 3A. En macOS, registrar y cargar LaunchAgent para arranque automático inmortal (KeepAlive=true + AbandonProcessGroup=true)
+  let startedByLaunchd = false;
   if (process.platform === 'darwin') {
     try {
       const launchAgentsDir = path.join(HOME_DIR, 'Library', 'LaunchAgents');
@@ -1305,6 +1398,8 @@ function installAndStartDaemon(cliArgs) {
   <true/>
   <key>KeepAlive</key>
   <true/>
+  <key>AbandonProcessGroup</key>
+  <true/>
   <key>StandardOutPath</key>
   <string>/dev/null</string>
   <key>StandardErrorPath</key>
@@ -1315,6 +1410,17 @@ function installAndStartDaemon(cliArgs) {
       try {
         execFileSync('launchctl', ['load', '-w', plistPath], { stdio: 'ignore' });
       } catch (_) {}
+      sleepSync(800);
+      if (fs.existsSync(PID_FILE)) {
+        const lPid = parseInt(fs.readFileSync(PID_FILE, 'utf8').trim(), 10);
+        if (lPid) {
+          try {
+            process.kill(lPid, 0);
+            startedByLaunchd = true;
+            console.log(`✅ Puente Reactivo Push WAPPY <-> Antigravity v${DAEMON_VERSION} instalado y activo permanentemente (PID: ${lPid}).`);
+          } catch (_) {}
+        }
+      }
     } catch (_) {}
   }
 
@@ -1350,28 +1456,31 @@ function installAndStartDaemon(cliArgs) {
     } catch (_) {}
   }
 
-  // 4. Lanzar worker desacoplado inmediatamente
-  const workerArgs = [scriptToRun, '--worker', '--silent'];
-  if (wappyUrl) workerArgs.push(`--url=${wappyUrl}`);
-  if (apiKey) workerArgs.push(`--key=${apiKey}`);
-  if (cliArgs.conversation) workerArgs.push(`--conversation=${cliArgs.conversation}`);
+  // 4. Si launchd aún no inició el worker (ej. en Windows/Linux o durante ThrottleInterval), lanzarlo desacoplado
+  if (!startedByLaunchd) {
+    const workerArgs = [scriptToRun, '--worker', '--silent'];
+    if (wappyUrl) workerArgs.push(`--url=${wappyUrl}`);
+    if (apiKey) workerArgs.push(`--key=${apiKey}`);
+    if (cliArgs.conversation) workerArgs.push(`--conversation=${cliArgs.conversation}`);
 
-  const child = spawn(nodeBin, workerArgs, {
-    detached: true,
-    stdio: 'ignore',
-    windowsHide: true,
-  });
-  child.unref();
+    const child = spawn(nodeBin, workerArgs, {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    child.unref();
 
-  fs.writeFileSync(PID_FILE, String(child.pid), 'utf8');
-  console.log(`✅ Puente Reactivo Push WAPPY <-> Antigravity instalado y activo permanentemente (PID: ${child.pid}).`);
+    fs.writeFileSync(PID_FILE, String(child.pid), 'utf8');
+    console.log(`✅ Puente Reactivo Push WAPPY <-> Antigravity v${DAEMON_VERSION} instalado y activo permanentemente (PID: ${child.pid}).`);
+  }
+
   console.log(`📡 Escuchando eventos en tiempo real desde: ${wappyUrl}/api/mcp-bridge/antigravity/stream`);
   console.log(`⚡ Latencia de despacho: 0 ms (vía agentapi Reactive Wakeup — Auto-arranque OS activo).`);
   process.exit(0);
 }
 
 /**
- * Bucle principal de conexión SSE persistente (soporta múltiples claves/cuentas en paralelo)
+ * Bucle principal de conexión SSE persistente (1 stream único por servidor WAPPY con rotación de clave en caso de 401)
  */
 function startSseWorker(cliArgs) {
   ensureDirs();
@@ -1382,19 +1491,11 @@ function startSseWorker(cliArgs) {
     log(`Aviso unhandledRejection en worker: ${reason}`);
   });
 
-  // Singleton guard: evitar workers duplicados
+  // Singleton: terminar cualquier worker anterior y asumir el PID activo
+  terminateOtherWorkers();
   try {
-    if (fs.existsSync(PID_FILE)) {
-      const existingPid = parseInt(fs.readFileSync(PID_FILE, 'utf8').trim(), 10);
-      if (existingPid && existingPid !== process.pid) {
-        try {
-          process.kill(existingPid, 0);
-          process.exit(0);
-        } catch (_) {}
-      }
-    }
+    fs.writeFileSync(PID_FILE, String(process.pid), 'utf8');
   } catch (_) {}
-  fs.writeFileSync(PID_FILE, String(process.pid), 'utf8');
 
   if (cliArgs.conversation && /^[0-9a-fA-F-]{36}$/.test(String(cliArgs.conversation).trim())) {
     try {
@@ -1403,19 +1504,39 @@ function startSseWorker(cliArgs) {
   }
 
   const dispatchedSet = loadDispatchedIds();
-  const activeStreams = new Map(); // apiKey -> { stop: fn }
+  const activeStreams = new Map(); // wappyUrl -> { apiKey, stop: fn }
+  const invalidKeys = new Set();
+
+  const cleanupAndExit = () => {
+    for (const s of activeStreams.values()) {
+      try {
+        s.stop();
+      } catch (_) {}
+    }
+    process.exit(0);
+  };
+  process.on('SIGTERM', cleanupAndExit);
+  process.on('SIGINT', cleanupAndExit);
 
   const startStreamForCred = ({ wappyUrl, apiKey }) => {
-    if (activeStreams.has(apiKey)) return;
+    const existing = activeStreams.get(wappyUrl);
+    if (existing) {
+      if (existing.apiKey === apiKey) return;
+      try {
+        existing.stop();
+      } catch (_) {}
+      activeStreams.delete(wappyUrl);
+    }
+
     let reconnectDelay = 3000;
     let activeReq = null;
     let stopped = false;
 
     const connectSingle = () => {
       if (stopped) return;
-      const streamUrl = `${wappyUrl}/api/mcp-bridge/antigravity/stream?apiKey=${encodeURIComponent(apiKey)}`;
+      const streamUrl = `${wappyUrl}/api/mcp-bridge/antigravity/stream?apiKey=${encodeURIComponent(apiKey)}&v=${encodeURIComponent(DAEMON_VERSION)}`;
       const keyShort = `${apiKey.slice(0, 15)}...`;
-      log(`Conectando al stream Push SSE (${keyShort}): ${wappyUrl}/api/mcp-bridge/antigravity/stream ...`);
+      log(`Conectando al stream Push SSE v${DAEMON_VERSION} (${keyShort}): ${wappyUrl}/api/mcp-bridge/antigravity/stream ...`);
 
       let reconnecting = false;
       let watchdog = null;
@@ -1448,6 +1569,15 @@ function startSseWorker(cliArgs) {
             },
           },
           (res) => {
+            if (res.statusCode === 401 || res.statusCode === 403) {
+              res.resume();
+              invalidKeys.add(apiKey);
+              stopped = true;
+              activeStreams.delete(wappyUrl);
+              log(`Clave API (${keyShort}) rechazada con HTTP ${res.statusCode}. Rotando a siguiente credencial disponible...`);
+              setTimeout(syncStreams, 500);
+              return;
+            }
             if (res.statusCode !== 200) {
               res.resume();
               const currentDelay = reconnectDelay;
@@ -1460,7 +1590,7 @@ function startSseWorker(cliArgs) {
             }
 
             reconnectDelay = 3000;
-            log(`🟢 Conexión Push SSE (${keyShort}) establecida con éxito. Escuchando órdenes de Tenshi en tiempo real (0 ms)...`);
+            log(`🟢 Conexión Push SSE v${DAEMON_VERSION} (${keyShort}) establecida con éxito. Escuchando órdenes de Tenshi en tiempo real (0 ms)...`);
 
             let lastChunkAt = Date.now();
             watchdog = setInterval(() => {
@@ -1503,7 +1633,8 @@ function startSseWorker(cliArgs) {
                           parsedData.service || 'notebooklm',
                           parsedData.originUrl || wappyUrl,
                           parsedData.token || '',
-                          true
+                          true,
+                          wappyUrl
                         ).catch((err) => log(`Error en launch_connector: ${err.message}`));
                       }
                     } catch (_) {}
@@ -1539,9 +1670,11 @@ function startSseWorker(cliArgs) {
       }
     };
 
-    activeStreams.set(apiKey, {
+    activeStreams.set(wappyUrl, {
+      apiKey,
       stop: () => {
         stopped = true;
+        if (watchdog) clearInterval(watchdog);
         try {
           if (activeReq) activeReq.destroy();
         } catch (_) {}
@@ -1552,12 +1685,17 @@ function startSseWorker(cliArgs) {
   };
 
   const syncStreams = () => {
-    const creds = resolveAllCredentials(cliArgs);
+    const creds = resolveAllCredentials(cliArgs).filter((c) => !invalidKeys.has(c.apiKey));
     if (creds.length === 0) {
+      if (invalidKeys.size > 0) invalidKeys.clear();
       log('Esperando configuración de API Key válida en ~/.gemini/config/mcp_config.json...');
       return;
     }
+    // Conectar 1 stream único por cada servidor WAPPY (usando la credencial principal/más reciente)
+    const seenUrls = new Set();
     for (const c of creds) {
+      if (seenUrls.has(c.wappyUrl)) continue;
+      seenUrls.add(c.wappyUrl);
       startStreamForCred(c);
     }
   };
