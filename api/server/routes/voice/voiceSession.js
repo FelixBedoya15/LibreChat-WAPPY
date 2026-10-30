@@ -287,6 +287,130 @@ function sanitizeAccumulatedTranscription(fullText) {
 }
 
 /**
+ * Custom dictionary for WAPPY / Tenshi / Antigravity / SG-SST Multimodal Dictation (Wappy Dots Architecture)
+ */
+const WAPPY_DICTATION_CUSTOM_VOCABULARY = [
+    'WAPPY',
+    'Wappy Dots',
+    'Tenshi',
+    'Antigravity',
+    'SG-SST',
+    'SOMOS SST',
+    'GTC 45',
+    'Matriz IPEVAR',
+    'PESV',
+    'COPASST',
+    'COCOLAB',
+    'FURAT',
+    'FUREP',
+    'ATEL',
+    'Decreto 1072',
+    'Resolución 0312',
+    'Resolución 1843',
+    'Resolución 4272',
+    'Resolución 2764',
+    'ISO 45001',
+    'RULA',
+    'REBA',
+    'OWAS',
+    'NIOSH',
+    'OCRA',
+    'EPP',
+    'ACPM',
+    'NotebookLM',
+    'Google Flow',
+    'Canvas',
+    'LiveEditor',
+    'Médico Laboral',
+    'Abogado Laboral',
+    'Fisioterapeuta Laboral',
+    'Psicólogo Especialista SST',
+    'Ingeniero Químico',
+];
+
+/**
+ * Computes Root Mean Square (RMS) energy of a 16-bit signed little-endian PCM buffer.
+ */
+function calculatePcm16LeRms(pcmBuf) {
+    if (!pcmBuf || !Buffer.isBuffer(pcmBuf) || pcmBuf.length < 2) return 0;
+    const samples = Math.floor(pcmBuf.length / 2);
+    if (samples === 0) return 0;
+    let sumSquares = 0;
+    for (let i = 0; i < samples * 2; i += 2) {
+        const sample = pcmBuf.readInt16LE(i) / 32768.0;
+        sumSquares += sample * sample;
+    }
+    return Math.sqrt(sumSquares / samples);
+}
+
+/**
+ * Builds an in-memory 16kHz 16-bit Mono WAV (RIFF/WAVE) from accumulated PCM chunks
+ * and applies Wappy Dots' RMS silence filter (rms < 0.0025 => silent).
+ */
+function build16kMonoWavFromPcmChunks(pcmChunks) {
+    if (!Array.isArray(pcmChunks) || pcmChunks.length === 0) {
+        return { silent: true, rms: 0, wavBase64: null, byteLength: 0, durationSec: 0 };
+    }
+
+    // Trim leading and trailing silent chunks (keeping 1 chunk margin on each end to preserve initial consonants & final syllables)
+    let firstActiveIdx = 0;
+    while (firstActiveIdx < pcmChunks.length && calculatePcm16LeRms(pcmChunks[firstActiveIdx]) < 0.0018) {
+        firstActiveIdx++;
+    }
+    if (firstActiveIdx >= pcmChunks.length) {
+        return { silent: true, rms: 0, wavBase64: null, byteLength: 0, durationSec: 0 };
+    }
+    let lastActiveIdx = pcmChunks.length - 1;
+    while (lastActiveIdx > firstActiveIdx && calculatePcm16LeRms(pcmChunks[lastActiveIdx]) < 0.0018) {
+        lastActiveIdx--;
+    }
+
+    const startIdx = Math.max(0, firstActiveIdx - 1);
+    const endIdx = Math.min(pcmChunks.length - 1, lastActiveIdx + 1);
+    const trimmedPcm = Buffer.concat(pcmChunks.slice(startIdx, endIdx + 1));
+
+    // Minimum ~100ms of 16kHz 16-bit mono PCM (3200 bytes)
+    if (trimmedPcm.length < 3200) {
+        return { silent: true, rms: 0, wavBase64: null, byteLength: trimmedPcm.length, durationSec: 0 };
+    }
+
+    const rms = calculatePcm16LeRms(trimmedPcm);
+    if (rms < 0.0025) {
+        return {
+            silent: true,
+            rms,
+            wavBase64: null,
+            byteLength: trimmedPcm.length,
+            durationSec: +(trimmedPcm.length / 32000).toFixed(2),
+        };
+    }
+
+    const wavHeader = Buffer.alloc(44);
+    wavHeader.write('RIFF', 0);
+    wavHeader.writeUInt32LE(36 + trimmedPcm.length, 4);
+    wavHeader.write('WAVE', 8);
+    wavHeader.write('fmt ', 12);
+    wavHeader.writeUInt32LE(16, 16); // Subchunk1Size (16 for PCM)
+    wavHeader.writeUInt16LE(1, 20);  // AudioFormat (1 = PCM)
+    wavHeader.writeUInt16LE(1, 22);  // NumChannels (1 = mono)
+    wavHeader.writeUInt32LE(16000, 24); // SampleRate (16000 Hz)
+    wavHeader.writeUInt32LE(32000, 28); // ByteRate (16000 * 1 * 2)
+    wavHeader.writeUInt16LE(2, 32);  // BlockAlign (1 * 2)
+    wavHeader.writeUInt16LE(16, 34); // BitsPerSample (16)
+    wavHeader.write('data', 36);
+    wavHeader.writeUInt32LE(trimmedPcm.length, 40);
+
+    const wavBuffer = Buffer.concat([wavHeader, trimmedPcm]);
+    return {
+        silent: false,
+        rms,
+        wavBase64: wavBuffer.toString('base64'),
+        byteLength: trimmedPcm.length,
+        durationSec: +(trimmedPcm.length / 32000).toFixed(2),
+    };
+}
+
+/**
  * Loads and extracts clean technical domain knowledge from agent skills
  */
 function getAgentSkillsContent(agentObj, isBiomechanics) {
@@ -583,6 +707,13 @@ class VoiceSession {
         this.lastGeneratedCanvasFile = null; // Entregable Canvas generado durante el turno para adjuntar al mensaje final
         this.pendingHangupAfterTurn = false; // Cierre diferido tras terminar locución de despedida
         this.pendingHangupTimer = null;
+        // Wappy Dots 4-Step Multimodal 16kHz WAV Audio Capture Buffers
+        this.currentTurnPcmChunks = [];
+        this.currentTurnPcmBytes = 0;
+        this.currentTurnPreRollChunks = [];
+        this.currentTurnSpeechDetected = false;
+        this.earlyCorrectionPromise = null;
+        this.lastUserAudioAt = 0;
 
         logger.info(`[VoiceSession] Created for user: ${userId}, conversationId: ${conversationId || 'NULL'}`);
 
@@ -6231,19 +6362,67 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                 if (this.suppressClientAudioUntil && Date.now() < this.suppressClientAudioUntil) {
                     break;
                 }
-                // Forward audio to Gemini
+                // Forward audio to Gemini + Capture 16kHz PCM for Wappy Dots Multimodal WAV Transcription
                 if (data && data.audioData) {
+                    const nowAudio = Date.now();
+                    // Si la IA ya había hablado en el turno previo (y hubo una pausa o interrupción),
+                    // iniciar un nuevo buffer de audio limpio para la nueva frase del usuario
+                    if (
+                        this.turnHadAiOutput &&
+                        (!this.lastUserAudioAt || nowAudio - this.lastUserAudioAt > 1200)
+                    ) {
+                        this.userTranscriptionText = '';
+                        this.rawUserTranscriptionStream = '';
+                        this.earlyCorrectedSnapshot = null;
+                        this.turnHadAiOutput = false;
+                        this.currentTurnPcmChunks = [];
+                        this.currentTurnPcmBytes = 0;
+                        this.currentTurnPreRollChunks = [];
+                        this.currentTurnSpeechDetected = false;
+                    }
+                    this.lastUserAudioAt = nowAudio;
+
+                    try {
+                        const pcmBuf = Buffer.from(data.audioData, 'base64');
+                        if (pcmBuf.length >= 2) {
+                            const chunkRms = calculatePcm16LeRms(pcmBuf);
+                            if (!this.currentTurnSpeechDetected) {
+                                if (chunkRms >= 0.0025) {
+                                    this.currentTurnSpeechDetected = true;
+                                    if (Array.isArray(this.currentTurnPreRollChunks) && this.currentTurnPreRollChunks.length > 0) {
+                                        for (const pre of this.currentTurnPreRollChunks) {
+                                            this.currentTurnPcmChunks.push(pre);
+                                            this.currentTurnPcmBytes += pre.length;
+                                        }
+                                        this.currentTurnPreRollChunks = [];
+                                    }
+                                } else {
+                                    if (!this.currentTurnPreRollChunks) this.currentTurnPreRollChunks = [];
+                                    this.currentTurnPreRollChunks.push(pcmBuf);
+                                    if (this.currentTurnPreRollChunks.length > 4) {
+                                        this.currentTurnPreRollChunks.shift();
+                                    }
+                                }
+                            }
+                            // Acumular audio de voz del turno actual (máx ~30 segundos = 960,000 bytes a 16kHz 16-bit mono)
+                            if (this.currentTurnSpeechDetected && this.currentTurnPcmBytes < 960000) {
+                                this.currentTurnPcmChunks.push(pcmBuf);
+                                this.currentTurnPcmBytes += pcmBuf.length;
+                            }
+                        }
+                    } catch (_) {}
+
                     this.audioChunkCount = (this.audioChunkCount || 0) + 1;
                     if (this.audioChunkCount === 1 || this.audioChunkCount % 100 === 0) {
-                        logger.info(`[VoiceSession] AUDIO recibido del cliente (chunk #${this.audioChunkCount}, ${data.audioData.length} chars)`);
+                        logger.info(`[VoiceSession] AUDIO recibido del cliente (chunk #${this.audioChunkCount}, ${data.audioData.length} chars, turnPcmBytes: ${this.currentTurnPcmBytes || 0})`);
                     }
                     this.geminiClient.sendAudio(data.audioData);
                 }
                 break;
 
             case 'speech_end':
-                // El cliente detectó fin de voz real. Solo enviamos audioStreamEnd si realmente hay transcripción
-                // acumulada del usuario en este turno y no se ha enviado recientemente (evita spamear y resetear el buffer de Gemini).
+                // El cliente detectó fin de voz real. Ejecutamos la transcripción multimodal Wappy Dots (16kHz WAV)
+                // y enviamos audioStreamEnd si hay habla acumulada.
                 if (!this.isActive || !this.geminiClient || !this.geminiClient.setupCompleted) {
                     break;
                 }
@@ -6253,8 +6432,8 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                 this.bargeInSuppressAiAudioUntil = 0;
                 this.triggerEarlyUserTranscriptionCorrection('speech_end');
                 if (
-                    this.userTranscriptionText &&
-                    this.userTranscriptionText.trim().length > 0 &&
+                    ((this.userTranscriptionText && this.userTranscriptionText.trim().length > 0) ||
+                        (this.currentTurnSpeechDetected && this.currentTurnPcmBytes >= 6400)) &&
                     typeof this.geminiClient.sendAudioStreamEnd === 'function' &&
                     (!this.lastAudioStreamEndAt || Date.now() - this.lastAudioStreamEndAt > 2500)
                 ) {
@@ -6870,8 +7049,8 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
      * Stop the session
      */
     /**
-     * Ejecuta corrección fonética y contextual en tiempo real (~300ms) apenas el usuario termina de hablar
-     * (en vez de esperar 15s hasta turnComplete), actualizando inmediatamente la burbuja del usuario en pantalla.
+     * Ejecuta transcripción multimodal Wappy Dots (16kHz Mono WAV + Pool de 6 Claves con gemini-3.5-flash-lite)
+     * apenas el usuario termina de hablar (~300-600ms), actualizando inmediatamente la burbuja del usuario en pantalla.
      */
     triggerEarlyUserTranscriptionCorrection(reason = 'stream_pause') {
         if (this.earlyCorrectionTimer) {
@@ -6879,11 +7058,22 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
             this.earlyCorrectionTimer = null;
         }
         const rawSnapshot = (this.userTranscriptionText || this.rawUserTranscriptionStream || '').trim();
-        if (!rawSnapshot || rawSnapshot.length < 3 || /^\[SISTEMA INTERNO WAPPY/i.test(rawSnapshot)) {
+        if (/^\[SISTEMA INTERNO WAPPY/i.test(rawSnapshot)) {
             return;
         }
+        const pcmChunksSnapshot = Array.isArray(this.currentTurnPcmChunks) && this.currentTurnPcmChunks.length > 0
+            ? [...this.currentTurnPcmChunks]
+            : [];
+        const pcmBytesSnapshot = this.currentTurnPcmBytes || 0;
+        const hasRealSpeechAudio = this.currentTurnSpeechDetected && pcmBytesSnapshot >= 9600;
+
+        if ((!rawSnapshot || rawSnapshot.length < 2) && (!hasRealSpeechAudio || reason === 'user_pause')) {
+            return;
+        }
+
         const toolCallsSnapshot = Array.isArray(this.currentTurnToolCalls) ? [...this.currentTurnToolCalls] : [];
-        const cacheKey = `${rawSnapshot}::${toolCallsSnapshot.map(t => t.name).join(',')}`;
+        const roundedPcmKb = Math.floor(pcmBytesSnapshot / 4096);
+        const cacheKey = `${rawSnapshot}::${toolCallsSnapshot.map(t => t.name).join(',')}::${roundedPcmKb}`;
         if (this.earlyCorrectedSnapshot && this.earlyCorrectedSnapshot.cacheKey === cacheKey) {
             return;
         }
@@ -6892,24 +7082,28 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
         }
         this.earlyCorrectionInFlightKey = cacheKey;
 
-        this.correctTranscription(rawSnapshot, this.aiResponseText || '', toolCallsSnapshot)
+        const promise = this.correctTranscription(rawSnapshot, this.aiResponseText || '', toolCallsSnapshot, pcmChunksSnapshot)
             .then((corrected) => {
                 const cleanCorrected = (corrected || '').trim();
                 const currentActiveRaw = (this.userTranscriptionText || this.rawUserTranscriptionStream || '').trim();
                 if (!cleanCorrected) {
-                    return;
+                    return '';
                 }
                 this.earlyCorrectedSnapshot = {
                     raw: rawSnapshot,
                     corrected: cleanCorrected,
                     toolCount: toolCallsSnapshot.length,
+                    pcmBytes: pcmBytesSnapshot,
                     cacheKey,
                 };
                 // Si seguimos en el mismo turno de habla del usuario, actualizar en vivo la burbuja inmediatamente
-                if (currentActiveRaw === rawSnapshot && cleanCorrected !== rawSnapshot) {
+                if (
+                    (currentActiveRaw === rawSnapshot || !currentActiveRaw || currentActiveRaw === this.userTranscriptionText) &&
+                    cleanCorrected !== rawSnapshot
+                ) {
                     this.userTranscriptionText = cleanCorrected;
                     this.lastUserTranscription = cleanCorrected;
-                    logger.info(`[VoiceSession] ⚡ Early transcription correction (${reason}): "${rawSnapshot}" -> "${cleanCorrected}"`);
+                    logger.info(`[VoiceSession] ⚡ Wappy Dots Multimodal WAV transcription (${reason}, ${pcmBytesSnapshot}B PCM): "${rawSnapshot}" -> "${cleanCorrected}"`);
                     this.sendToClient({
                         type: 'text',
                         data: {
@@ -6919,32 +7113,43 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         },
                     });
                 }
+                return cleanCorrected;
             })
-            .catch(() => {})
+            .catch(() => '')
             .finally(() => {
                 if (this.earlyCorrectionInFlightKey === cacheKey) {
                     this.earlyCorrectionInFlightKey = null;
                 }
+                if (this.earlyCorrectionPromise === promise) {
+                    this.earlyCorrectionPromise = null;
+                }
             });
+
+        this.earlyCorrectionPromise = promise;
+        return promise;
     }
 
     /**
-     * Correct user transcription using Gemini Flash Lite with instant fast-path for common phrases
-     * and ground-truth cross-checking against Gemini Live's native audio tool calls & spoken response.
+     * Transcripción Multimodal de Voz 16kHz WAV con el Pool de Gemini (Arquitectura Wappy Dots):
+     * 1. Convierte los chunks PCM 16kHz 16-bit mono a un archivo WAV en memoria (con filtro de silencio RMS >= 0.0025).
+     * 2. Inyecta el Diccionario Personalizado de WAPPY (Tenshi, Antigravity, SG-SST, GTC 45, PESV, etc.).
+     * 3. Envía el audio real (inlineData audio/wav) a gemini-3.5-flash-lite (con respaldo a gemini-3.8-flash y gemini-3.6-flash rotando las 6 claves API).
+     * 4. Elimina muletillas ("eh", "este", "mmm") y aplica puntuación perfecta en español.
      */
-    async correctTranscription(userText, aiResponseText, toolCalls = []) {
+    async correctTranscription(userText, aiResponseText, toolCalls = [], pcmChunks = null) {
         try {
-            if (!userText || typeof userText !== 'string') {
+            const rawInput = typeof userText === 'string' ? userText : '';
+            const sanitized = sanitizeAccumulatedTranscription(rawInput).trim();
+            const wavInfo = Array.isArray(pcmChunks) && pcmChunks.length > 0
+                ? build16kMonoWavFromPcmChunks(pcmChunks)
+                : { silent: true, rms: 0, wavBase64: null, byteLength: 0, durationSec: 0 };
+
+            // Si no hay audio con voz real NI texto válido, descartar sin gastar tokens
+            if (wavInfo.silent && !sanitized) {
                 return '';
             }
 
-            // 1. Pre-sanitizer for common voice recognition inaccuracies & hallucinations
-            const sanitized = sanitizeAccumulatedTranscription(userText).trim();
-            if (!sanitized) {
-                return '';
-            }
-
-            // 2. Fast-path for common Spanish responses (zero latency, no API call required)
+            // Fast-path para respuestas cortas exactas (0ms latencia, solo si el audio dura menos de 1.8s)
             const lower = sanitized.toLowerCase().replace(/[.,!¡?¿]/g, '').trim();
             const quickPhrases = {
                 'listo': 'Listo.',
@@ -6970,76 +7175,132 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                 'si haz el informe': 'Sí, haz el informe.',
             };
 
-            if (quickPhrases[lower]) {
-                logger.info(`[VoiceSession] Transcription fast-path matched: "${userText}" -> "${quickPhrases[lower]}"`);
+            if (quickPhrases[lower] && (wavInfo.silent || wavInfo.durationSec < 1.8)) {
+                logger.info(`[VoiceSession] Transcription fast-path matched: "${rawInput}" -> "${quickPhrases[lower]}"`);
                 return quickPhrases[lower];
             }
 
-            // Filter isolated 1-3 character noise fragments
             const validShortWords = new Set(['sí', 'si', 'no', 'ya', 'ok', 'va', 'voy', 'paz', 'fin', 'hola']);
-            if (lower.length <= 3 && !validShortWords.has(lower)) {
-                logger.info(`[VoiceSession] Discarding short noise fragment in correctTranscription: "${sanitized}"`);
+            if (wavInfo.silent && lower.length <= 3 && !validShortWords.has(lower)) {
+                logger.info(`[VoiceSession] Discarding short silent noise fragment in correctTranscription: "${sanitized}"`);
                 return '';
             }
 
-            logger.info(`[VoiceSession] Starting contextual transcription correction for: "${sanitized}"`);
-
-            // Use Gemini 3.5 Flash Lite for high performance voice transcription corrections
             const correctionModelName = 'gemini-3.5-flash-lite';
-            const userNameHint = this.user?.name ? `Nombre real del usuario: "${this.user.name}".` : '';
+            const customVocab = [
+                ...WAPPY_DICTATION_CUSTOM_VOCABULARY,
+                ...(this.user?.name ? [this.user.name] : []),
+                ...(this.initialBriefingSummary?.companyName ? [this.initialBriefingSummary.companyName] : []),
+            ].filter(Boolean);
+            const vocabLine = `\nDiccionario de palabras clave y nombres propios a priorizar si suenan parecido: ${customVocab.join(', ')}.`;
+
             const toolCallsHint = Array.isArray(toolCalls) && toolCalls.length > 0
-                ? `\nHERRAMIENTAS EJECUTADAS POR EL MODELO DE AUDIO NATIVO EN ESTE TURNO (lo que el modelo de audio realmente escuchó decir al usuario):\n${JSON.stringify(toolCalls).substring(0, 500)}\n`
+                ? `\nAcciones/herramientas ejecutadas en este turno: ${JSON.stringify(toolCalls).substring(0, 400)}`
+                : '';
+            const aiReplyHint = aiResponseText && aiResponseText.trim()
+                ? `\nRespuesta que dio Tenshi a este turno: "${aiResponseText.trim().substring(0, 350)}"`
                 : '';
 
+            // ── CAMINO 1 (PRINCIPAL - ARQUITECTURA WAPPY DOTS): Lectura Multimodal directa del Audio WAV 16kHz ──
+            if (!wavInfo.silent && wavInfo.wavBase64) {
+                logger.info(
+                    `[VoiceSession] 🎙️ Transcribiendo audio WAV 16kHz multimodal (${wavInfo.durationSec}s, RMS=${wavInfo.rms.toFixed(4)}) con Pool Gemini (${correctionModelName})...`
+                );
+
+                const systemInstruction =
+                    `Eres el motor de transcripción de voz de ultra-alta precisión de WAPPY IA y Tenshi (estilo Wispr Flow / Wappy Dots). ` +
+                    `Tu única tarea es escuchar el archivo de audio adjunto (16kHz WAV) y devolver EXACTAMENTE lo que el usuario dijo en español de Colombia/Latinoamérica, ` +
+                    `con ortografía perfecta, signos de interrogación/exclamación correctos (¿...?, ¡...!), comas, puntos y mayúsculas adecuadas. ` +
+                    `Elimina muletillas involuntarias ('eh', 'este', 'mmm') o falsos comienzos tartamudeados, pero conserva el 100% del mensaje real. ` +
+                    `REGLA ANTI-ALUCINACIÓN ESTRICTA: Si en el audio NO hay ninguna voz humana clara hablando (solo silencio, respiración, soplidos, clics o ruido de fondo ininteligible), ` +
+                    `devuelve única y exclusivamente la palabra: __SILENCIO__ (ten absolutamente prohibido inventar saludos, preguntas o frases que no estén en el audio). ` +
+                    `NO respondas a la pregunta del usuario ni agregues comentarios: devuelve SOLO el texto transcrito.` +
+                    vocabLine;
+
+                const userPrompt = sanitized
+                    ? `Transcribe el audio adjunto en español con puntuación perfecta. Borrador fonético orientativo (puede tener errores de idioma o palabras deformadas; guíate por lo que escuchas realmente en el audio): "${sanitized}".${toolCallsHint}${aiReplyHint}\nDevuelve SOLO la transcripción final (o __SILENCIO__ si no hay voz humana):`
+                    : `Transcribe el audio adjunto en español con puntuación perfecta.${toolCallsHint}${aiReplyHint}\nDevuelve SOLO la transcripción final (o __SILENCIO__ si no hay voz humana):`;
+
+                try {
+                    const timeoutPromise = new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('Multimodal WAV transcription timeout')), 4200)
+                    );
+                    const multimodalParts = [
+                        {
+                            inlineData: {
+                                mimeType: 'audio/wav',
+                                data: wavInfo.wavBase64,
+                            },
+                        },
+                        {
+                            text: userPrompt,
+                        },
+                    ];
+                    const correctionPromise = generateWithKeyRotation(
+                        correctionModelName,
+                        this.userId,
+                        multimodalParts,
+                        {
+                            systemInstruction,
+                            generationConfig: { maxOutputTokens: 320, temperature: 0.1 },
+                        }
+                    );
+                    const result = await Promise.race([correctionPromise, timeoutPromise]);
+                    const rawOut = (result?.response?.text?.() || '')
+                        .replace(/^["'«»]+|["'«»]+$/g, '')
+                        .trim();
+
+                    if (
+                        !rawOut ||
+                        /(__SILENCIO__|\[DESCARTAR\]|sin\s+audio|no\s+hay\s+voz)/i.test(rawOut)
+                    ) {
+                        logger.info(`[VoiceSession] Multimodal WAV transcriber detected silence/noise (discarded: "${rawInput}")`);
+                        return '';
+                    }
+
+                    const correctedText = applyDomainPhoneticCorrections(rawOut).trim();
+                    logger.info(`[VoiceSession] ✅ Multimodal 16kHz WAV transcription result: "${rawInput}" -> "${correctedText}"`);
+                    return correctedText;
+                } catch (wavErr) {
+                    logger.warn(`[VoiceSession] Multimodal WAV transcription fallback (${wavErr.message})`);
+                    if (!sanitized) return '';
+                }
+            }
+
+            // ── CAMINO 2 (RESPALDO TEXTO): Corrección contextual si no hubo buffer WAV disponible ──
+            if (!sanitized) return '';
+            logger.info(`[VoiceSession] Starting text fallback transcription correction for: "${sanitized}"`);
+            const userNameHint = this.user?.name ? `Nombre real del usuario: "${this.user.name}".` : '';
             const prompt = `Eres un corrector fonético, ortográfico y contextual experto en español de Colombia/Latinoamérica para el ecosistema WAPPY (asistente de voz "Tenshi", agente de escritorio "Antigravity", plataforma de Seguridad y Salud en el Trabajo SG-SST).
 ${userNameHint}
+${vocabLine}
 ${toolCallsHint}
-RESPUESTA QUE DIO LA IA (TENSHI) AL ESCUCHAR EL AUDIO REAL DEL USUARIO:
-"""
-${(aiResponseText || '').substring(0, 450)}
-"""
-
-TRANSCRIPCIÓN CRUDA DEL RECONOCEDOR DE VOZ (ASR) A CORREGIR:
+${aiReplyHint}
+TRANSCRIPCIÓN CRUDA A CORREGIR:
 """
 ${sanitized}
 """
-
-REGLAS ESTRICTAS DE CORRECCIÓN:
-1. El reconocedor de voz crudo (que no recibe código de idioma fijo) a veces transcribe fonéticamente frases en español usando ortografía italiana/portuguesa o deforma nombres propios. Usa la RESPUESTA DE LA IA y las HERRAMIENTAS EJECUTADAS para reconstruir la oración exacta en español natural:
-   - "Tenchi", "Denchi", "Bencini", "Ventiola", "Pensi", "Ven y si", "vecchi", "vechi", "beki", "venci", "teshi" -> "Tenshi"
-   - "un talento que habita", "Antigravite", "anti gravity", "tigravity", "a te, graviti", "a ti, graviti", "ate graviti" -> "Antigravity"
-   - Si aparece ortografía italiana por error fonético (ej. "vecchi che non risponde a te, graviti" -> "Tenshi, ¿por qué no responde Antigravity?", "perché non" -> "por qué no", "che non risponde" -> "que no responde"), conviértela al español exacto que pronunció el usuario.
-   - "Wappi", "Guapi", "Huapi" -> "WAPPY"
-   - "el May colabora", "médico colabora" -> "el Médico Laboral"
-   - "busquen a Web", "busca a Web" -> "busque en la web"
-   - "la masa a fondo" -> "más a fondo"
-   - "me hice salberto" -> "me dices Alberto"
-   - Siglas SG-SST: "Matriz IPEVAR", "GTC-45", "PESV", "COPASST", "FURAT", "Decreto 1072", "Resolución 0312", "EPP", "RULA", "REBA", "OWAS".
-2. Si la transcripción cruda es una alucinación de subtítulos de películas/series (ej. juramentos, frases poéticas de fantasía, frases en francés/inglés/alemán o sílabas sueltas sin sentido que no guardan ninguna relación con la respuesta de la IA), devuelve exactamente: [DESCARTAR]
-3. Si al final de una frase válida del usuario se coló basura o una frase incoherente de ruido ambiental, elimina únicamente esa cola incoherente y conserva la frase real del usuario.
-4. Añade signos de interrogación (¿...?) y puntuación natural en español. NO cambies la intención ni agregues palabras que el usuario no haya pronunciado fonéticamente.
-5. DEVUELVE ÚNICA Y EXCLUSIVAMENTE EL TEXTO CORREGIDO EN ESPAÑOL (o [DESCARTAR] si era ruido/alucinación). Sin comillas ni explicaciones.`;
+Devuelve ÚNICA Y EXCLUSIVAMENTE el texto corregido en español con puntuación perfecta (¿...?), o [DESCARTAR] si es ruido/alucinación. Sin comillas ni explicaciones.`;
 
             try {
                 const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Transcription correction timeout')), 1800)
+                    setTimeout(() => reject(new Error('Transcription text fallback timeout')), 2500)
                 );
                 const correctionPromise = generateWithKeyRotation(
                     correctionModelName,
                     this.userId,
                     prompt,
-                    { generationConfig: { maxOutputTokens: 256, temperature: 0.0 } }
+                    { generationConfig: { maxOutputTokens: 256, temperature: 0.1 } }
                 );
                 const result = await Promise.race([correctionPromise, timeoutPromise]);
-                const rawOut = result.response.text().replace(/^["'«»]+|["'«»]+$/g, '').trim();
+                const rawOut = (result?.response?.text?.() || '').replace(/^["'«»]+|["'«»]+$/g, '').trim();
 
-                if (!rawOut || /\[DESCARTAR\]/i.test(rawOut)) {
-                    logger.info(`[VoiceSession] Contextual ASR corrector discarded hallucination: "${userText}"`);
+                if (!rawOut || /(__SILENCIO__|\[DESCARTAR\])/i.test(rawOut)) {
                     return '';
                 }
 
                 const correctedText = applyDomainPhoneticCorrections(rawOut).trim();
-                logger.info(`[VoiceSession] Transcription correction result: "${userText}" -> "${correctedText}"`);
+                logger.info(`[VoiceSession] Text fallback correction result: "${rawInput}" -> "${correctedText}"`);
                 return correctedText;
             } catch (err) {
                 logger.debug(`[VoiceSession] Transcription fast fallback to sanitized (${err.message})`);
@@ -9427,7 +9688,13 @@ ${workerSubHeaderHtml}
         const currentAudioCount = this.aiAudioChunkCount;
         const currentAiBufferSnapshot = this.aiTranscriptionBuffer || '';
         const turnToolCalls = Array.isArray(this.currentTurnToolCalls) ? [...this.currentTurnToolCalls] : [];
-        const earlySnapshot = this.earlyCorrectedSnapshot;
+        const turnPcmChunks = Array.isArray(this.currentTurnPcmChunks) && this.currentTurnPcmChunks.length > 0
+            ? [...this.currentTurnPcmChunks]
+            : [];
+        const turnPcmBytes = this.currentTurnPcmBytes || 0;
+        const turnHadSpeechAudio = Boolean(this.currentTurnSpeechDetected && turnPcmBytes >= 6400);
+        const inFlightEarlyPromise = this.earlyCorrectionPromise;
+        let earlySnapshot = this.earlyCorrectedSnapshot;
 
         // Limpiar inmediatamente los acumuladores de turno para evitar condiciones de carrera si el usuario vuelve a hablar
         this.userTranscriptionText = '';
@@ -9437,8 +9704,12 @@ ${workerSubHeaderHtml}
         this.aiAudioChunkCount = 0;
         this.currentTurnToolCalls = [];
         this.earlyCorrectedSnapshot = null;
+        this.currentTurnPcmChunks = [];
+        this.currentTurnPcmBytes = 0;
+        this.currentTurnPreRollChunks = [];
+        this.currentTurnSpeechDetected = false;
 
-        if (!currentUserText.trim() && !currentAiText.trim() && currentAudioCount === 0) {
+        if (!currentUserText.trim() && !turnHadSpeechAudio && !currentAiText.trim() && currentAudioCount === 0) {
             return;
         }
 
@@ -9448,24 +9719,52 @@ ${workerSubHeaderHtml}
             return;
         }
 
+        // Si había una transcripción multimodal temprana en vuelo (speech_end / ai_audio_start), esperarla brevemente para reutilizar su resultado exacto
+        if (inFlightEarlyPromise) {
+            try {
+                const earlyResult = await Promise.race([
+                    inFlightEarlyPromise,
+                    new Promise((resolve) => setTimeout(() => resolve(''), 2600)),
+                ]);
+                if (earlyResult && typeof earlyResult === 'string' && earlyResult.trim()) {
+                    earlySnapshot = {
+                        raw: currentUserText.trim(),
+                        corrected: earlyResult.trim(),
+                        toolCount: turnToolCalls.length,
+                        pcmBytes: turnPcmBytes,
+                    };
+                } else if (this.earlyCorrectedSnapshot) {
+                    earlySnapshot = this.earlyCorrectedSnapshot;
+                }
+            } catch (_) {}
+        }
+
         // MODO TENSHI: Copiloto oficial en ventana flotante/widget.
         // NUNCA crear conversaciones en LibreChat sidebar (Conversation collection).
         // Pero SÍ persistir en el modelo TenshiMessage para que el widget mantenga su historial sincronizado.
         if (this.config.mode === 'tenshi_voice') {
             let finalUserText = currentUserText.trim();
-            if (finalUserText && !/^\[SISTEMA INTERNO WAPPY/i.test(finalUserText)) {
-                // Si la corrección temprana ya corrigió esta misma frase y no hubo herramientas nuevas posteriores, reutilizarla al instante
+            const isInternalPrompt = /^\[SISTEMA INTERNO WAPPY/i.test(finalUserText);
+            if (!isInternalPrompt && (finalUserText || turnHadSpeechAudio)) {
+                // Si la transcripción multimodal temprana ya procesó el audio completo de este turno y las herramientas, reutilizarla al instante
                 if (
                     earlySnapshot &&
-                    (earlySnapshot.corrected === finalUserText || earlySnapshot.raw === finalUserText) &&
-                    earlySnapshot.toolCount >= turnToolCalls.length
+                    earlySnapshot.corrected &&
+                    (earlySnapshot.corrected === finalUserText || earlySnapshot.raw === finalUserText || !finalUserText) &&
+                    earlySnapshot.toolCount >= turnToolCalls.length &&
+                    (!turnPcmBytes || (earlySnapshot.pcmBytes || 0) >= turnPcmBytes - 4096)
                 ) {
                     finalUserText = earlySnapshot.corrected;
                 } else {
-                    const corrected = await this.correctTranscription(finalUserText, currentAiText, turnToolCalls);
+                    const corrected = await this.correctTranscription(
+                        finalUserText,
+                        currentAiText,
+                        turnToolCalls,
+                        turnPcmChunks
+                    );
                     finalUserText = (corrected || '').trim();
                 }
-                // Si el corrector mejoró el texto respecto al streaming crudo, actualizar en vivo la burbuja del usuario en el chat de Tenshi
+                // Actualizar en vivo la burbuja del usuario en el chat de Tenshi con la transcripción multimodal 16kHz WAV
                 if (finalUserText && finalUserText !== currentUserText.trim()) {
                     this.lastUserTranscription = finalUserText;
                     this.sendToClient({
@@ -9479,14 +9778,14 @@ ${workerSubHeaderHtml}
                 }
             }
 
-            logger.info(`[VoiceSession] [Tenshi Voice] Turn completed (${source}). User: "${finalUserText}" (raw: "${currentUserText}"), AI: "${currentAiText}"`);
+            logger.info(`[VoiceSession] [Tenshi Voice] Turn completed (${source}). User: "${finalUserText}" (raw: "${currentUserText}", pcmBytes: ${turnPcmBytes}), AI: "${currentAiText}"`);
             this.handleTenshiVoiceFailsafe(finalUserText || currentUserText, currentAiText);
 
             try {
                 const TenshiMessage = require('~/models/TenshiMessage');
                 if (this.userId) {
                     if (finalUserText && !/^\[SISTEMA INTERNO WAPPY/i.test(finalUserText)) {
-                        TenshiMessage.create({
+                        await TenshiMessage.create({
                             user: this.userId,
                             role: 'user',
                             content: finalUserText,
@@ -9496,7 +9795,7 @@ ${workerSubHeaderHtml}
                     this.lastGeneratedCanvasFile = null;
 
                     if (currentAiText && currentAiText.trim()) {
-                        TenshiMessage.create({
+                        await TenshiMessage.create({
                             user: this.userId,
                             role: 'assistant',
                             content: currentAiText.trim(),
@@ -9505,7 +9804,7 @@ ${workerSubHeaderHtml}
                         }).catch(err => logger.error('[VoiceSession] Error saving Tenshi assistant message:', err));
                     } else if (canvasFileToAttach) {
                         const fileLabel = canvasFileToAttach.fileType === 'html' ? 'Aplicativo / Reporte HTML' : 'Documento SG-SST';
-                        TenshiMessage.create({
+                        await TenshiMessage.create({
                             user: this.userId,
                             role: 'assistant',
                             content: `📁 **${fileLabel} generado**: *${canvasFileToAttach.title}*`,
@@ -9734,10 +10033,24 @@ ${workerSubHeaderHtml}
         }
 
         // Save user message FIRST
-        if (currentUserText.trim()) {
+        if (currentUserText.trim() || turnHadSpeechAudio) {
             let textToSave = currentUserText.trim();
-            // Refine/correct transcription
-            textToSave = await this.correctTranscription(textToSave, currentAiText.trim() || '🎤 [Respuesta de voz]', turnToolCalls);
+            if (
+                earlySnapshot &&
+                earlySnapshot.corrected &&
+                (earlySnapshot.corrected === textToSave || earlySnapshot.raw === textToSave || !textToSave) &&
+                earlySnapshot.toolCount >= turnToolCalls.length &&
+                (!turnPcmBytes || (earlySnapshot.pcmBytes || 0) >= turnPcmBytes - 4096)
+            ) {
+                textToSave = earlySnapshot.corrected;
+            } else {
+                textToSave = await this.correctTranscription(
+                    textToSave,
+                    currentAiText.trim() || '🎤 [Respuesta de voz]',
+                    turnToolCalls,
+                    turnPcmChunks
+                );
+            }
             if (textToSave && textToSave.trim() !== currentUserText.trim()) {
                 this.sendToClient({
                     type: 'text',
@@ -10297,4 +10610,8 @@ module.exports = {
     getSession,
     stopSession,
     activeSessions,
+    build16kMonoWavFromPcmChunks,
+    calculatePcm16LeRms,
+    applyDomainPhoneticCorrections,
+    WAPPY_DICTATION_CUSTOM_VOCABULARY,
 };

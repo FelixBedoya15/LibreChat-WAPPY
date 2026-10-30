@@ -869,3 +869,25 @@ Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el 
      - `applyDomainPhoneticCorrections` repara en `0ms` distorsiones fonéticas italianas/portuguesas (`"vecchi"` -> `"Tenshi"`, `"a te, graviti"` -> `"Antigravity"`, `"che non risponde"` -> `"que no responde"`).
      - `triggerEarlyUserTranscriptionCorrection` ejecuta `correctTranscription` (`gemini-3.5-flash-lite`) apenas el usuario hace una pausa (`550ms`) o inicia la respuesta de la IA (`toolCall` / `audio` / `aiTranscription`), reemplazando la burbuja del usuario (`replaceLastUserBubble: true`) en menos de 1 segundo.
 
+
+---
+
+### LECCIÓN 34 (2026-10-30): Arquitectura Wappy Dots en 4 Pasos para Transcripción Multimodal de Voz (`16kHz Mono WAV` + Filtro RMS + Diccionario WAPPY + Pool de 6 Claves `gemini-3.5-flash-lite`)
+
+- **Requerimiento del Usuario:**
+  > *"revisa como lo hace la aplicacion de wappy dots que la tenemos en el proyecto aca y mira lo que me dice El flujo completo en 4 pasos..."*
+- **Diagnóstico Técnico Comparativo (Wappy Dots vs. Tenshi Live ASR):**
+  1. El reconocedor streaming `inputAudioTranscription: {}` de Gemini Live (que no admite `languageCode` sin causar Error `1011`) utiliza un modelo ligero que suele transcribir fonéticamente el español como italiano, inglés o portugués (`"vecchi che non risponde a te, graviti"`, `"Get that shit away"`). Corregir únicamente sobre ese texto corrupto obliga a adivinar.
+  2. Además, en `sgsstGemini.js` (línea 311), `generateWithKeyRotation` forzaba `maxOutputTokens = 65536` cuando se pedían `< 8192` tokens, y en `TenshiChat.tsx` el polling de `historyData` cada `3.5s` sobreescribía las burbujas en vuelo (`isLiveVoice: true`) antes de que terminara el turno.
+- **Solución Implementada (Los 4 Pasos de Wappy Dots en `voiceSession.js`, `sgsstGemini.js`, `tenshi.js` y `TenshiChat.tsx`):**
+  1. **Paso 1 — Captura de Voz Real a 16 kHz PCM mientras hablas (`case 'audio':` en `voiceSession.js`):**
+     - Cada paquete PCM `16000 Hz` 16-bit mono enviado por `useVoiceSession.ts` se acumula en memoria en `this.currentTurnPcmChunks` (con pre-roll de 4 chunks `~500ms` para no cortar la primera consonante).
+  2. **Paso 2 — Cierre del Turno de Audio y Construcción WAV 16 kHz en Memoria (`build16kMonoWavFromPcmChunks`):**
+     - Al detectar pausa o fin de habla (`speech_end`, `user_pause`, `tool_call`, `ai_audio_start`, `turnComplete`), recorta silencios extremos y ensambla en `0ms` (sin disco ni `ffmpeg`) el encabezado RIFF/WAVE de 44 bytes (`16 kHz`, mono, 16-bit PCM).
+  3. **Paso 3 — Filtro de Silencio RMS + Diccionario Personalizado WAPPY + Pool Multimodal de 6 Claves (`correctTranscription`):**
+     - Mide el volumen real de la onda (`calculatePcm16LeRms`): si `rms < 0.0025`, devuelve vacío sin gastar tokens ni inventar palabras (`__SILENCIO__`).
+     - Inyecta el diccionario `WAPPY_DICTATION_CUSTOM_VOCABULARY` (`WAPPY`, `Wappy Dots`, `Tenshi`, `Antigravity`, `SG-SST`, `SOMOS SST`, `GTC 45`, `Matriz IPEVAR`, `PESV`, `COPASST`, `FURAT`, `Decreto 1072`, `Resolución 0312`, `NotebookLM`, `Google Flow`, más nombre del usuario y empresa activa).
+     - Envía el audio real `inlineData: { mimeType: 'audio/wav', data: wavBase64 }` a `gemini-3.5-flash-lite` (con rotación automática entre las 6 claves API y respaldo a `gemini-3.8-flash` y `gemini-3.6-flash` vía `generateWithKeyRotation`), escuchando directamente la voz del usuario, eliminando muletillas (`"eh"`, `"este"`, `"mmm"`) y aplicando puntuación perfecta en español (`¿...?`).
+  4. **Paso 4 — Reemplazo Único de la Burbuja en Vivo y Persistencia Sincronizada (`TenshiChat.tsx` + `TenshiMessage` + `/api/tenshi/transcribe-dictation`):**
+     - Reemplaza en sitio la burbuja del usuario (`replaceLastUserBubble: true`), protege las burbujas `isLiveVoice` activas durante el polling de 3.5s de `historyData`, y espera (`await`) la transcripción multimodal antes de guardar `TenshiMessage` en MongoDB.
+     - Además, expone el endpoint `POST /api/tenshi/transcribe-dictation` en `api/server/routes/tenshi.js`.

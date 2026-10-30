@@ -4134,4 +4134,126 @@ router.all('/wappydots-proxy/*', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/tenshi/transcribe-dictation
+ * Arquitectura Wappy Dots en 4 pasos para transcripción multimodal de dictado con el Pool de 6 Claves Gemini:
+ * 1. Recibe el audio grabado (audioBase64 o pcmChunksBase64 a 16kHz).
+ * 2. Construye un WAV mono ligero a 16 kHz y verifica el filtro de silencio RMS (rms >= 0.0025).
+ * 3. Inyecta el Diccionario Personalizado WAPPY (Tenshi, Antigravity, SG-SST, GTC 45, PESV, etc.) y llama a
+ *    gemini-3.5-flash-lite (con rotación automática a gemini-3.8-flash y gemini-3.6-flash entre las 6 claves API).
+ * 4. Devuelve el texto limpio, sin muletillas y con puntuación perfecta en español.
+ */
+router.post('/transcribe-dictation', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    const {
+      audioBase64,
+      pcmChunksBase64,
+      mimeType = 'audio/wav',
+      fallbackText = '',
+      customVocabulary = [],
+    } = req.body || {};
+
+    const { generateWithKeyRotation } = require('./sgsst/sgsstGemini');
+    const {
+      build16kMonoWavFromPcmChunks,
+      applyDomainPhoneticCorrections,
+      WAPPY_DICTATION_CUSTOM_VOCABULARY,
+    } = require('./voice/voiceSession');
+
+    let finalMimeType = mimeType || 'audio/wav';
+    let finalAudioBase64 = typeof audioBase64 === 'string' ? audioBase64.replace(/^data:audio\/[^;]+;base64,/, '') : '';
+
+    if (Array.isArray(pcmChunksBase64) && pcmChunksBase64.length > 0) {
+      const pcmBuffers = pcmChunksBase64
+        .filter((c) => typeof c === 'string' && c.length > 0)
+        .map((c) => Buffer.from(c, 'base64'));
+      const wavInfo = build16kMonoWavFromPcmChunks(pcmBuffers);
+      if (wavInfo.silent || !wavInfo.wavBase64) {
+        return res.json({ ok: true, text: '', silent: true, rms: wavInfo.rms });
+      }
+      finalAudioBase64 = wavInfo.wavBase64;
+      finalMimeType = 'audio/wav';
+    } else if (finalAudioBase64 && finalMimeType === 'audio/pcm') {
+      const wavInfo = build16kMonoWavFromPcmChunks([Buffer.from(finalAudioBase64, 'base64')]);
+      if (wavInfo.silent || !wavInfo.wavBase64) {
+        return res.json({ ok: true, text: '', silent: true, rms: wavInfo.rms });
+      }
+      finalAudioBase64 = wavInfo.wavBase64;
+      finalMimeType = 'audio/wav';
+    }
+
+    if (!finalAudioBase64 && !fallbackText) {
+      return res.json({ ok: true, text: '', silent: true });
+    }
+
+    const vocabWords = [
+      ...WAPPY_DICTATION_CUSTOM_VOCABULARY,
+      ...(Array.isArray(customVocabulary) ? customVocabulary : []),
+      ...(req.user?.name ? [req.user.name] : []),
+    ].filter(Boolean);
+    const vocabPrompt = `\nDiccionario de palabras clave y nombres propios a priorizar si suenan parecido: ${vocabWords.join(', ')}.`;
+
+    const systemPrompt =
+      `Eres el motor de transcripción de voz de ultra-alta precisión de WAPPY IA y Tenshi (estilo Wispr Flow / Wappy Dots). ` +
+      `Tu única tarea es escuchar el archivo de audio adjunto y devolver EXACTAMENTE lo que el usuario dijo en español, ` +
+      `con ortografía perfecta, signos de interrogación/exclamación correctos (¿...?, ¡...!), comas, puntos y mayúsculas adecuadas. ` +
+      `Elimina muletillas involuntarias ('eh', 'este', 'mmm') o falsos comienzos tartamudeados, pero conserva el 100% del mensaje real. ` +
+      `REGLA ANTI-ALUCINACIÓN ESTRICTA: Si en el audio NO hay ninguna voz humana clara hablando (solo silencio, respiración, soplidos, clics o ruido de fondo ininteligible), ` +
+      `devuelve única y exclusivamente la palabra: __SILENCIO__ (ten absolutamente prohibido inventar saludos, preguntas o frases que no estén en el audio). ` +
+      `NO respondas a la pregunta del usuario ni agregues comentarios: devuelve SOLO el texto transcrito.` +
+      vocabPrompt;
+
+    const userPrompt = fallbackText
+      ? `Transcribe el audio adjunto con puntuación perfecta. Borrador fonético orientativo (puede tener errores; guíate por el audio): "${fallbackText}". Devuelve SOLO la transcripción final:`
+      : `Transcribe el audio adjunto con puntuación perfecta. Devuelve SOLO la transcripción final:`;
+
+    const parts = finalAudioBase64
+      ? [
+          {
+            inlineData: {
+              mimeType: finalMimeType,
+              data: finalAudioBase64,
+            },
+          },
+          { text: userPrompt },
+        ]
+      : [{ text: userPrompt }];
+
+    const result = await generateWithKeyRotation(
+      'gemini-3.5-flash-lite',
+      userId,
+      parts,
+      {
+        systemInstruction: systemPrompt,
+        generationConfig: { maxOutputTokens: 400, temperature: 0.1 },
+      }
+    );
+
+    const rawOut = (result?.response?.text?.() || '')
+      .replace(/^["'«»]+|["'«»]+$/g, '')
+      .trim();
+
+    if (
+      !rawOut ||
+      /(__SILENCIO__|\[DESCARTAR\]|sin\s+audio|no\s+hay\s+voz)/i.test(rawOut)
+    ) {
+      return res.json({ ok: true, text: '', silent: true });
+    }
+
+    const cleaned = applyDomainPhoneticCorrections(rawOut).trim();
+    return res.json({
+      ok: true,
+      text: cleaned,
+      model: 'gemini-3.5-flash-lite',
+    });
+  } catch (err) {
+    logger.error('[Tenshi Dictation] Error in /transcribe-dictation:', err);
+    return res.status(500).json({
+      ok: false,
+      error: err.message || 'Error procesando dictado multimodal',
+    });
+  }
+});
+
 module.exports = router;

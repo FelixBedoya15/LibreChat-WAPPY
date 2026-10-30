@@ -302,13 +302,18 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
         const genAI = new GoogleGenerativeAI(apiKey);
         const maxOut = 65536;
 
+        const explicitSmallMaxTokens =
+          safeOpts.generationConfig &&
+          typeof safeOpts.generationConfig.maxOutputTokens === 'number' &&
+          safeOpts.generationConfig.maxOutputTokens > 0;
+
         const mergedGenConfig = {
           maxOutputTokens: maxOut,
           temperature: 0.1,
           ...genConfig,
           ...(safeOpts.generationConfig || {}),
         };
-        if (mergedGenConfig.maxOutputTokens && mergedGenConfig.maxOutputTokens <= 8192) {
+        if (!explicitSmallMaxTokens && mergedGenConfig.maxOutputTokens && mergedGenConfig.maxOutputTokens <= 8192) {
           mergedGenConfig.maxOutputTokens = 65536;
         }
 
@@ -332,6 +337,14 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
         let contentPayload = promptText;
         if (Array.isArray(promptText) && promptText.length > 0 && promptText[0] && typeof promptText[0] === 'object' && promptText[0].role) {
           contentPayload = { contents: promptText };
+        } else if (
+          Array.isArray(promptText) &&
+          promptText.length > 0 &&
+          promptText[0] &&
+          typeof promptText[0] === 'object' &&
+          (promptText[0].inlineData || promptText[0].text)
+        ) {
+          contentPayload = { contents: [{ role: 'user', parts: promptText }] };
         } else if (typeof promptText === 'string') {
           contentPayload = { contents: [{ role: 'user', parts: [{ text: promptText }] }] };
         }

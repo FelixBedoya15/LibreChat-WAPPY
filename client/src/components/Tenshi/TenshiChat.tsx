@@ -2267,12 +2267,12 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             setMessages((prev) => {
               const updated = [...prev];
               for (let i = updated.length - 1; i >= 0; i--) {
-                if (updated[i].role === 'user' && (updated[i] as any).isLiveVoice) {
-                  updated[i] = { ...updated[i], content: text };
+                if (updated[i].role === 'user' && ((updated[i] as any).isLiveVoice || i >= updated.length - 2)) {
+                  updated[i] = { ...updated[i], content: text, isLiveVoice: true, _localCreatedAt: Date.now() } as any;
                   return updated;
                 }
               }
-              return [...prev, { role: 'user', content: text, isLiveVoice: true }];
+              return [...prev, { role: 'user', content: text, isLiveVoice: true, _localCreatedAt: Date.now() } as any];
             });
             return;
           }
@@ -2312,9 +2312,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
           setVoiceStatusText('Tenshi procesando...');
           setMessages((prev) => {
+            const nowTs = Date.now();
             const last = prev[prev.length - 1];
             if (last && last.role === 'user' && (last as any).isLiveVoice) {
-              return [...prev.slice(0, -1), { role: 'user', content: text, isLiveVoice: true }];
+              return [...prev.slice(0, -1), { role: 'user', content: text, isLiveVoice: true, _localCreatedAt: nowTs } as any];
             }
             const secondLast = prev.length >= 2 ? prev[prev.length - 2] : null;
             if (
@@ -2326,10 +2327,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               (secondLast as any).isLiveVoice
             ) {
               const updated = [...prev];
-              updated[updated.length - 2] = { ...secondLast, content: text };
+              updated[updated.length - 2] = { ...secondLast, content: text, _localCreatedAt: nowTs } as any;
               return updated;
             }
-            return [...prev, { role: 'user', content: text, isLiveVoice: true }];
+            return [...prev, { role: 'user', content: text, isLiveVoice: true, _localCreatedAt: nowTs } as any];
           });
         } else {
           // Si Tenshi anuncia que completó las tres fases o pide compilar el informe:
@@ -2342,11 +2343,12 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           }
 
           setMessages((prev) => {
+            const nowTs = Date.now();
             const last = prev[prev.length - 1];
             if (last && last.role === 'assistant' && (last as any).isLiveVoice) {
-              return [...prev.slice(0, -1), { role: 'assistant', content: text, isLiveVoice: true }];
+              return [...prev.slice(0, -1), { role: 'assistant', content: text, isLiveVoice: true, _localCreatedAt: nowTs } as any];
             }
-            return [...prev, { role: 'assistant', content: text, isLiveVoice: true }];
+            return [...prev, { role: 'assistant', content: text, isLiveVoice: true, _localCreatedAt: nowTs } as any];
           });
         }
       },
@@ -4791,10 +4793,6 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             return item;
           });
 
-          if (localExtras.length === 0) {
-            return enrichedHistory;
-          }
-
           // 3. Identificadores y firmas de mensajes ya existentes en enrichedHistory
           const historySignatures = new Set<string>();
           enrichedHistory.forEach((h: any) => {
@@ -4806,9 +4804,22 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             if (sig !== '-') historySignatures.add(sig);
           });
 
+          const nowTs = Date.now();
+          // Conservar las burbujas en vivo (isLiveVoice) del turno de habla actual (< 10s) que aún no se han guardado en MongoDB
+          const activeLiveVoiceTail = prev.slice(-2).filter((m: any) => {
+            if (!m || !m.isLiveVoice || m._id) return false;
+            if (!m._localCreatedAt || nowTs - Number(m._localCreatedAt) > 10000) return false;
+            const trimmed = (m.content || '').trim();
+            if (!trimmed || historySignatures.has(trimmed)) return false;
+            return true;
+          });
+
+          if (localExtras.length === 0 && activeLiveVoiceTail.length === 0) {
+            return enrichedHistory;
+          }
+
           // 4. Filtrar archivos y medios locales recién creados (< 8s) que aún no hayan sido devueltos por el backend.
           // NUNCA re-anexar mensajes antiguos ni órdenes de Antigravity ya procesadas para evitar que reaparezcan al final del chat cada 3.5s.
-          const nowTs = Date.now();
           const unpersistedExtras = localExtras.filter((lf: any) => {
             if (lf.delegatedOrderId || String(lf._id || '').startsWith('antigravity-')) {
               return false;
@@ -4826,11 +4837,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             return !historySignatures.has(sig);
           });
 
-          if (unpersistedExtras.length === 0) {
+          if (unpersistedExtras.length === 0 && activeLiveVoiceTail.length === 0) {
             return enrichedHistory;
           }
 
-          return [...enrichedHistory, ...unpersistedExtras];
+          return [...enrichedHistory, ...unpersistedExtras, ...activeLiveVoiceTail];
         });
       } else {
         setMessages((prev) => {
