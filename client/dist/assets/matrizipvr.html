@@ -462,8 +462,8 @@
           <span id="activeKeysCount" class="bg-fuchsia-600 text-white text-[10px] px-1.5 rounded-full font-extrabold">0</span>
         </button>
 
-        <!-- CTA Ir a WAPPY (Lleva directamente a Login - Imagen 4) -->
-        <a href="/login" class="inline-flex items-center justify-center bg-[#c7f303] hover:bg-[#b8e202] text-[#0e1300] font-display font-extrabold text-xs sm:text-sm px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-full shadow-xs transition-all active:scale-95 whitespace-nowrap cursor-pointer">
+        <!-- CTA Ir a WAPPY / Entrar a WAPPY (Detecta sesión activa automáticamente) -->
+        <a id="navCtaEnterWappy" href="/login" class="inline-flex items-center justify-center gap-2 bg-[#c7f303] hover:bg-[#b8e202] text-[#0e1300] font-display font-extrabold text-xs sm:text-sm px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-full shadow-xs transition-all active:scale-95 whitespace-nowrap cursor-pointer">
           <span>Ir a WAPPY</span>
         </a>
 
@@ -555,8 +555,8 @@
           </button>
         </div>
 
-        <!-- CTA Ir a Login WAPPY -->
-        <a href="/login" class="mt-1 w-full flex items-center justify-center gap-2 p-3 rounded-2xl bg-[#c7f303] text-[#0e1300] font-display font-black text-xs uppercase tracking-wider text-center shadow-xs">
+        <!-- CTA Ir a Login WAPPY / Entrar a WAPPY -->
+        <a id="mobileCtaEnterWappy" href="/login" class="mt-1 w-full flex items-center justify-center gap-2 p-3 rounded-2xl bg-[#c7f303] text-[#0e1300] font-display font-black text-xs uppercase tracking-wider text-center shadow-xs">
           <span>Ir a la Plataforma WAPPY</span>
           <span>→</span>
         </a>
@@ -3667,8 +3667,42 @@ function closeVideoConfigModal() {
 }
 
 let platformAuthToken = '';
+let platformUser = null;
 
 function updateAdminUi() {
+  window.platformUser = platformUser || null;
+  window.platformUserToken = platformUserToken || platformAuthToken || '';
+  window.platformAuthToken = platformAuthToken || '';
+  window.isPlatformLoggedIn = Boolean(isAuthenticatedWappyUser);
+
+  // Actualizar botón principal de barra superior y menú móvil según login activo (idéntico a LandingPage wappy.club)
+  const navCta = document.getElementById('navCtaEnterWappy');
+  const mobileCta = document.getElementById('mobileCtaEnterWappy');
+  if (isAuthenticatedWappyUser && platformUser) {
+    const rawName = String(platformUser.name || platformUser.username || platformUser.email || 'Usuario').trim();
+    const firstName = rawName.split(' ')[0] || 'Usuario';
+    const avatarSrc = platformUser.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(rawName)}&backgroundColor=0d9488`;
+    if (navCta) {
+      navCta.setAttribute('href', '/c/new');
+      navCta.className = 'inline-flex items-center justify-center gap-2 bg-[#c7f303] hover:bg-[#b8e202] text-[#0e1300] font-display font-extrabold text-xs sm:text-sm pl-2 pr-3.5 sm:pr-5 py-1 sm:py-1.5 rounded-full shadow-xs transition-all active:scale-95 whitespace-nowrap cursor-pointer';
+      navCta.innerHTML = `<img src="${avatarSrc}" alt="" class="w-6 h-6 rounded-full object-cover border border-[#0e1300]/20 shrink-0" /><span>Entrar a WAPPY →</span>`;
+    }
+    if (mobileCta) {
+      mobileCta.setAttribute('href', '/c/new');
+      mobileCta.innerHTML = `<img src="${avatarSrc}" alt="" class="w-5 h-5 rounded-full object-cover border border-[#0e1300]/20 shrink-0" /><span>Entrar a WAPPY como ${firstName} →</span>`;
+    }
+  } else {
+    if (navCta) {
+      navCta.setAttribute('href', '/login');
+      navCta.className = 'inline-flex items-center justify-center gap-2 bg-[#c7f303] hover:bg-[#b8e202] text-[#0e1300] font-display font-extrabold text-xs sm:text-sm px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-full shadow-xs transition-all active:scale-95 whitespace-nowrap cursor-pointer';
+      navCta.innerHTML = '<span>Ir a WAPPY</span>';
+    }
+    if (mobileCta) {
+      mobileCta.setAttribute('href', '/login');
+      mobileCta.innerHTML = '<span>Ir a la Plataforma WAPPY</span><span>→</span>';
+    }
+  }
+
   const btn = document.getElementById('btnAdminEditVideo');
   if (btn) {
     if (isPlatformAdmin) {
@@ -3858,6 +3892,7 @@ async function detectAdminSession() {
   platformAuthToken = '';
   isAuthenticatedWappyUser = false;
   platformUserToken = '';
+  platformUser = null;
 
   // 1. Probar primero con el endpoint nativo de sesión LibreChat /api/auth/refresh
   try {
@@ -3869,10 +3904,11 @@ async function detectAdminSession() {
       const authData = await refreshRes.json();
       if (authData && authData.user) {
         isAuthenticatedWappyUser = true;
+        const u = authData.user;
+        platformUser = u;
         if (authData.token) {
           platformUserToken = authData.token;
         }
-        const u = authData.user;
         const email = u.email ? u.email.toLowerCase() : '';
         const adminEmails = ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com'];
         const isAdm = (u.role === 'ADMIN' || u.role === 'admin' || adminEmails.includes(email));
@@ -3880,8 +3916,8 @@ async function detectAdminSession() {
           isPlatformAdmin = true;
           if (authData.token) platformAuthToken = authData.token;
         }
-        await syncSgsstCompaniesFromServer();
         updateAdminUi();
+        await syncSgsstCompaniesFromServer();
         return;
       }
     }
