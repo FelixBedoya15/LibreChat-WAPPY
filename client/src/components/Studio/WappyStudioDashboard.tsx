@@ -2458,6 +2458,9 @@ export default function WappyStudioDashboard({
     'sfx-pack',
   ]);
   const [scriptSteps, setScriptSteps] = useState<ScriptStepScene[]>(() => DEFAULT_SCRIPT_STEPS);
+  const aiScenesBreakdownRef = useRef<any[] | null>(null);
+  const lastAutoStructuredScriptRef = useRef<string>(SCRIPT_TEMPLATES[0].text);
+  const [lastSuperPromptAiModel, setLastSuperPromptAiModel] = useState<string>('');
   const [showStepAssistant, setShowStepAssistant] = useState<boolean>(true);
   const [videoStudioSubTab, setVideoStudioSubTab] = useState<
     'style' | 'timeline' | 'layers' | 'code'
@@ -3317,6 +3320,11 @@ export default function WappyStudioDashboard({
     }
   };
 
+  const activeUserGeminiKeys = useMemo(
+    () => customApiKeys.map((k) => k.key.trim()).filter((k) => k.length > 15),
+    [customApiKeys],
+  );
+
   const handleEnhanceScriptWithAi = async () => {
     try {
       setIsEnhancingScript(true);
@@ -3330,6 +3338,7 @@ export default function WappyStudioDashboard({
           stylePrompt,
           multiSpeaker,
           modelName: selectedAiModel,
+          customKeys: activeUserGeminiKeys,
         }),
       });
       const data = await parseStudioJson(resp);
@@ -3400,19 +3409,27 @@ export default function WappyStudioDashboard({
     customScript?: string,
     customDur?: number,
     customAudioBase64?: string,
+    overrideTheme?: string,
+    overrideEffects?: string[],
+    overrideHeadline?: string,
+    overrideBadge?: string,
   ) => {
     const effectiveScriptText = customScript ?? (currentAudio?.scriptText || scriptText);
     const effectiveDur = Math.max(
       5,
       Math.round(customDur ?? (currentAudio?.durationSeconds || videoDuration || 28)),
     );
+    const effectiveTheme = overrideTheme || selectedArtDirection;
+    const effectiveEffects = overrideEffects || selectedSkillEffects;
+    const effectiveHeadline = overrideHeadline ?? headlineOverlayText;
+    const effectiveBadge = overrideBadge ?? badgeOverlayText;
 
     setHtmlCode(
       buildDefaultHtmlComposition({
         aspectRatio: nextRatio,
         hasBaseVideo: nextHasVideo,
-        badgeText: badgeOverlayText,
-        headline: headlineOverlayText,
+        badgeText: effectiveBadge,
+        headline: effectiveHeadline,
         subheadline: subheadlineOverlayText,
         accentColor,
         templateId: nextTemplateId,
@@ -3428,7 +3445,14 @@ export default function WappyStudioDashboard({
         headers: getAuthHeaders(token),
         body: JSON.stringify({
           scriptText: effectiveScriptText,
-          headline: headlineOverlayText,
+          scriptSteps: aiScenesBreakdownRef.current || scriptSteps,
+          headline: effectiveHeadline,
+          headlineText: effectiveHeadline,
+          badgeText: effectiveBadge,
+          subtitleText: subheadlineOverlayText,
+          accentColor,
+          theme: effectiveTheme,
+          effects: effectiveEffects,
           aspectRatio: nextRatio,
           hasBaseVideo: nextHasVideo,
           showSubtitles: showDynamicSubtitles,
@@ -3550,10 +3574,17 @@ export default function WappyStudioDashboard({
     );
   };
 
-  const handleAutoStructureScriptSteps = () => {
-    const dur = Math.max(8, Math.round(currentAudio?.durationSeconds || videoDuration || 24));
-    const map = computeClientScriptTimelineMap(scriptText, dur);
-    const activeEffectLabels = selectedSkillEffects
+  const computeScriptStepsFromText = (
+    rawText: string,
+    targetDurSeconds?: number,
+    effectIds: string[] = selectedSkillEffects,
+  ): ScriptStepScene[] => {
+    const dur = Math.max(
+      8,
+      Math.round(targetDurSeconds || currentAudio?.durationSeconds || videoDuration || 24),
+    );
+    const map = computeClientScriptTimelineMap(rawText, dur);
+    const activeEffectLabels = effectIds
       .map((id) => ANTIGRAVITY_EFFECTS_CATALOG.find((e) => e.id === id)?.label)
       .filter(Boolean) as string[];
     const fallbackEffects =
@@ -3561,10 +3592,12 @@ export default function WappyStudioDashboard({
         ? activeEffectLabels
         : ANTIGRAVITY_EFFECTS_CATALOG.map((e) => e.label);
 
-    const nextSteps: ScriptStepScene[] = map.beats.map((b, idx) => {
+    return map.beats.map((b, idx) => {
       const startLabel = idx === 0 ? '0.0s' : `${b.startSec.toFixed(1)}s`;
       const endLabel =
-        idx === 0 && b.endSec < 2.2 ? '2.0s' : `${Math.max(b.startSec + 1.5, b.endSec).toFixed(1)}s`;
+        idx === 0 && b.endSec < 2.2
+          ? '2.0s'
+          : `${Math.max(b.startSec + 1.5, b.endSec).toFixed(1)}s`;
       const pausePrefix = idx > 0 && !b.text.includes('[pausa') ? '[pausa 0.5s] ' : '';
       const breathSuffix = !b.text.includes('<breath>') ? ' <breath>' : '';
       return {
@@ -3581,6 +3614,24 @@ export default function WappyStudioDashboard({
             : fallbackEffects[idx % fallbackEffects.length] || '07 Zoom-Through',
       };
     });
+  };
+
+  // Mantener la escaleta sincronizada automáticamente cada vez que cambia el guion principal
+  useEffect(() => {
+    const cleanScript = (scriptText || '').trim();
+    if (!cleanScript || cleanScript === lastAutoStructuredScriptRef.current) return;
+    lastAutoStructuredScriptRef.current = cleanScript;
+    aiScenesBreakdownRef.current = null;
+    const nextSteps = computeScriptStepsFromText(cleanScript);
+    setScriptSteps(nextSteps);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scriptText]);
+
+  const handleAutoStructureScriptSteps = () => {
+    const dur = Math.max(8, Math.round(currentAudio?.durationSeconds || videoDuration || 24));
+    const nextSteps = computeScriptStepsFromText(scriptText, dur, selectedSkillEffects);
+    lastAutoStructuredScriptRef.current = (scriptText || '').trim();
+    aiScenesBreakdownRef.current = null;
     setScriptSteps(nextSteps);
     setStatusBanner({
       type: 'success',
@@ -3595,6 +3646,7 @@ export default function WappyStudioDashboard({
       .filter(Boolean)
       .join('\n\n');
     if (joined) {
+      lastAutoStructuredScriptRef.current = joined.trim();
       setScriptText(joined);
       setStatusBanner({
         type: 'success',
@@ -3603,7 +3655,7 @@ export default function WappyStudioDashboard({
     }
   };
 
-  const buildLocalSuperPromptText = () => {
+  const buildLocalSuperPromptText = (stepsOverride?: ScriptStepScene[]) => {
     const dur = Math.max(6, Math.round(currentAudio?.durationSeconds || videoDuration || 24));
     const artObj =
       ANTIGRAVITY_ART_DIRECTIONS.find((a) => a.id === selectedArtDirection) ||
@@ -3611,7 +3663,13 @@ export default function WappyStudioDashboard({
     const effectNames = selectedSkillEffects
       .map((id) => ANTIGRAVITY_EFFECTS_CATALOG.find((e) => e.id === id)?.label || id)
       .join(', ');
-    const stepsSummary = (Array.isArray(scriptSteps) ? scriptSteps : [])
+    const effectiveSteps =
+      Array.isArray(stepsOverride) && stepsOverride.length > 0
+        ? stepsOverride
+        : Array.isArray(scriptSteps) && scriptSteps.length > 0
+          ? scriptSteps
+          : computeScriptStepsFromText(scriptText, dur, selectedSkillEffects);
+    const stepsSummary = effectiveSteps
       .map(
         (s, i) =>
           `• Escena ${i + 1} (${s.timeRange}) [${s.visualEffect}] — "${s.title}": ${s.narration}`,
@@ -3620,22 +3678,37 @@ export default function WappyStudioDashboard({
 
     return [
       `[SUPER-PROMPT OFICIAL ANTIGRAVITY 60-FPS • SISTEMA DE LAS 7 PIEZAS WAPPY IA]`,
-      `1. FORMATO Y DURACIÓN: ${aspectRatio === '9:16' ? 'Vertical 9:16 (1080x1920 Reels/TikTok/WhatsApp)' : 'Horizontal 16:9 (1920x1080 YouTube/LMS)'} • Duración sincronizada al audio: ${dur}s (${currentAudio ? `Voz activa: ${currentAudio.voiceName || selectedVoice}` : 'Locución lista'}).`,
-      `2. DIRECCIÓN DE ARTE (${artObj.label}): Paleta ${artObj.colors} • Insignia: "${badgeOverlayText}" • Titular: "${headlineOverlayText}" • Subtítulo: "${subheadlineOverlayText}" • Acento: ${accentColor}.`,
-      `3. EFECTOS DE SKILLS ANTIGRAVITY ACTIVOS: ${effectNames || '19 Portada Magnética (2s), Avatar 3D Lip-Sync, 07 Zoom-Through, 13 Checklist SST'}.`,
+      `1. FORMATO Y DURACIÓN: ${aspectRatio === '9:16' ? 'Vertical 9:16 (1080x1920 Reels/TikTok/WhatsApp)' : 'Horizontal 16:9 (1920x1080 YouTube/LMS)'} • Duración sincronizada al audio: ${dur}s (${currentAudio ? `Voz activa: ${currentAudio.voiceName || selectedVoice}` : `Voz seleccionada: ${selectedVoice}`}).`,
+      `2. DIRECCIÓN DE ARTE (${artObj.label}): Paleta ${artObj.colors} • Insignia: "${badgeOverlayText}" • Titular: "${headlineOverlayText}" • Subtítulo: "${subheadlineOverlayText}" • Color de Acento: ${accentColor}.`,
+      `3. EFECTOS DE SKILLS ANTIGRAVITY ACTIVOS (${selectedSkillEffects.length} FX): ${effectNames || '19 Portada Magnética (2s), Avatar 3D Lip-Sync, 07 Zoom-Through, 13 Checklist SST'}.`,
       `4. ESCALETA SEGUNDO A SEGUNDO Y PAUSAS SINCRONIZADAS CON LA VOZ:`,
       stepsSummary || `• 0.0s-${dur}s: ${scriptText.slice(0, 360)}`,
       `5. REGLAS TÉCNICAS: Incluir de 0.0s a 2.0s la Miniatura/Portada Magnética con titular e insignias clave, sincronizar transiciones GSAP con window.mainTimeline y el reloj de voz, mantener última escena visible al cierre y cero desbordes de texto.`,
     ].join('\n');
   };
 
-  // PASO 1: Generar Super-Prompt para Antigravity
+  // PASO 1: Generar Super-Prompt Maestro con IA Gemini + Antigravity (usando toda la información recolectada)
   const handleBuildAntigravitySuperPrompt = async () => {
     try {
       setIsGeneratingSuperPrompt(true);
       setStatusBanner(null);
       const dur = Math.max(6, Math.round(currentAudio?.durationSeconds || videoDuration || 24));
-      const localPrompt = buildLocalSuperPromptText();
+      const syncedSteps =
+        Array.isArray(scriptSteps) && scriptSteps.length > 0
+          ? scriptSteps
+          : computeScriptStepsFromText(scriptText, dur, selectedSkillEffects);
+      const localPrompt = buildLocalSuperPromptText(syncedSteps);
+
+      // Si el usuario escribió una nota o instrucción libre en el cuadro de texto (distinta al placeholder inicial o un Super-Prompt previo), enviarla a la IA
+      const defaultPlaceholder =
+        'Crea una animación cinematográfica con el Motor Antigravity 60-FPS y tarjetas de cristal WAPPY IA sobre las 5 reglas de oro de riesgo eléctrico, con Portada Magnética (2s), Avatar 3D lip-sync, iconos luminosos y barras de progreso.';
+      const trimmedPromptInput = (aiScenePrompt || '').trim();
+      const customUserDirective =
+        trimmedPromptInput &&
+        trimmedPromptInput !== defaultPlaceholder &&
+        !trimmedPromptInput.startsWith('[SUPER-PROMPT')
+          ? trimmedPromptInput
+          : '';
 
       try {
         const resp = await fetch('/api/studio/antigravity/super-prompt', {
@@ -3643,7 +3716,7 @@ export default function WappyStudioDashboard({
           headers: getAuthHeaders(token),
           body: JSON.stringify({
             scriptText,
-            scriptSteps,
+            scriptSteps: syncedSteps,
             aspectRatio,
             durationSeconds: dur,
             badgeText: badgeOverlayText,
@@ -3653,8 +3726,11 @@ export default function WappyStudioDashboard({
             artDirection: selectedArtDirection,
             selectedEffects: selectedSkillEffects,
             voiceName: currentAudio?.voiceName || selectedVoice,
+            stylePrompt,
+            userPrompt: customUserDirective,
             modelName: selectedAiModel,
             antigravityApiKey: antigravityBridgeKey,
+            customKeys: activeUserGeminiKeys,
           }),
         });
         if (resp.ok) {
@@ -3664,9 +3740,14 @@ export default function WappyStudioDashboard({
             if (Array.isArray(data.scriptSteps) && data.scriptSteps.length > 0) {
               setScriptSteps(data.scriptSteps);
             }
+            if (Array.isArray(data.scenesBreakdown) && data.scenesBreakdown.length > 0) {
+              aiScenesBreakdownRef.current = data.scenesBreakdown;
+            }
+            const modelBadge = data.usedModel || 'Gemini IA';
+            setLastSuperPromptAiModel(modelBadge);
             setStatusBanner({
               type: 'success',
-              text: '¡Paso 1 completado! Super-Prompt de Antigravity generado con tus tiempos, pausas y efectos. Ahora pulsa el Paso 2 para enviar al Generador de Video.',
+              text: `¡Paso 1 completado con ${modelBadge}! Super-Prompt Maestro (Sistema de las 7 Piezas) y escaleta enriquecida generados con tu guion, dirección de arte (${selectedArtDirection}) y ${selectedSkillEffects.length} efectos. Ahora pulsa el Paso 2.`,
             });
             return;
           }
@@ -3685,7 +3766,7 @@ export default function WappyStudioDashboard({
     }
   };
 
-  // PASO 2: Enviar Super-Prompt + Audio al Generador de Video (Antigravity)
+  // PASO 2: Enviar Super-Prompt + Audio + Escenas IA al Generador de Video (Antigravity)
   const handleGenerateHtmlWithAi = async () => {
     try {
       setIsGeneratingHtmlAi(true);
@@ -3706,9 +3787,14 @@ export default function WappyStudioDashboard({
           prompt: effectivePrompt,
           scriptText,
           scriptSteps,
+          scenesBreakdown: aiScenesBreakdownRef.current || scriptSteps,
           aspectRatio,
           theme: selectedArtDirection,
           effects: selectedSkillEffects,
+          badgeText: badgeOverlayText,
+          headlineText: headlineOverlayText,
+          subtitleText: subheadlineOverlayText,
+          accentColor,
           hasBaseVideo: Boolean(baseVideoUrl),
           showSubtitles: showDynamicSubtitles,
           durationSeconds: targetDuration,
@@ -3716,6 +3802,7 @@ export default function WappyStudioDashboard({
           modelName: selectedAiModel,
           audioBase64: audioBase64 || undefined,
           antigravityApiKey: antigravityBridgeKey,
+          customKeys: activeUserGeminiKeys,
         }),
       });
       const data = await parseStudioJson(resp);
@@ -3738,7 +3825,7 @@ export default function WappyStudioDashboard({
       }, 140);
       setStatusBanner({
         type: 'success',
-        text: '¡Paso 2 completado! Video HTML 60-FPS generado por Antigravity, cargado en el Lienzo en sincronía con el audio y guardado en tu Biblioteca.',
+        text: '¡Paso 2 completado! Video HTML 60-FPS generado con tu Super-Prompt, Dirección de Arte y Efectos, cargado en el Lienzo en sincronía con el audio y guardado en tu Biblioteca.',
       });
     } catch (err: any) {
       setStatusBanner({
@@ -3791,6 +3878,7 @@ export default function WappyStudioDashboard({
             modelName: selectedAiModel,
             audioBase64: audioBase64 || undefined,
             antigravityApiKey: antigravityBridgeKey,
+            customKeys: activeUserGeminiKeys,
           }),
         });
         if (editResp.ok) {
@@ -3818,9 +3906,14 @@ export default function WappyStudioDashboard({
             prompt: combinedPrompt,
             scriptText,
             scriptSteps,
+            scenesBreakdown: aiScenesBreakdownRef.current || scriptSteps,
             aspectRatio,
             theme: selectedArtDirection,
             effects: selectedSkillEffects,
+            badgeText: badgeOverlayText,
+            headlineText: headlineOverlayText,
+            subtitleText: subheadlineOverlayText,
+            accentColor,
             hasBaseVideo: Boolean(baseVideoUrl),
             showSubtitles: showDynamicSubtitles,
             durationSeconds: targetDuration,
@@ -3828,6 +3921,7 @@ export default function WappyStudioDashboard({
             modelName: selectedAiModel,
             audioBase64: audioBase64 || undefined,
             antigravityApiKey: antigravityBridgeKey,
+            customKeys: activeUserGeminiKeys,
           }),
         });
         const genData = await parseStudioJson(genResp);
@@ -6650,7 +6744,23 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         type="button"
                         onClick={() => {
                           setSelectedSceneTemplate(tpl.id);
-                          handleRebuildDefaultTemplate(aspectRatio, Boolean(baseVideoUrl), tpl.id);
+                          const tplThemeMap: Record<StudioSceneTemplateId, string> = {
+                            'golden-rules': 'dark-tech-hud',
+                            'kpi-hud': 'wappy-lima-oliva',
+                            'alert-sst': 'crema-editorial-sst',
+                            'camera-overlay': 'cielo-wappy-cloud',
+                          };
+                          const nextTheme = tplThemeMap[tpl.id] || selectedArtDirection;
+                          setSelectedArtDirection(nextTheme);
+                          handleRebuildDefaultTemplate(
+                            aspectRatio,
+                            Boolean(baseVideoUrl),
+                            tpl.id,
+                            undefined,
+                            undefined,
+                            undefined,
+                            nextTheme,
+                          );
                         }}
                         className={cn(
                           'group relative p-3.5 rounded-xl border text-left transition-all duration-300 cursor-pointer flex flex-col justify-between gap-2 hover:-translate-y-0.5',
@@ -6786,7 +6896,18 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           <button
                             key={art.id}
                             type="button"
-                            onClick={() => setSelectedArtDirection(art.id)}
+                            onClick={() => {
+                              setSelectedArtDirection(art.id);
+                              handleRebuildDefaultTemplate(
+                                aspectRatio,
+                                Boolean(baseVideoUrl),
+                                selectedSceneTemplate,
+                                undefined,
+                                undefined,
+                                undefined,
+                                art.id,
+                              );
+                            }}
                             className={cn(
                               'p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2 hover:-translate-y-0.5',
                               active
@@ -7359,11 +7480,18 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     />
                   </div>
                   <div className="flex items-center justify-between gap-2 pt-2 border-t border-indigo-500/15">
-                    <span className="text-[11px] font-extrabold text-indigo-700 dark:text-indigo-300 truncate">
+                    <button
+                      type="button"
+                      disabled={isGeneratingSuperPrompt}
+                      onClick={handleBuildAntigravitySuperPrompt}
+                      className="text-left text-[11px] font-extrabold text-indigo-700 dark:text-indigo-300 hover:text-indigo-500 dark:hover:text-[#C7F303] truncate cursor-pointer transition disabled:opacity-60"
+                    >
                       {isGeneratingSuperPrompt
-                        ? 'Construyendo Super-Prompt...'
-                        : '1. Generar Super-Prompt'}
-                    </span>
+                        ? '⚡ Consultando IA Gemini...'
+                        : lastSuperPromptAiModel
+                          ? `⚡ IA Activa (${lastSuperPromptAiModel})`
+                          : '⚡ IA Gemini + 7 Piezas'}
+                    </button>
                     <ExpandableButton
                       size="sm"
                       icon={
@@ -7421,11 +7549,16 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     </div>
                   </div>
                   <div className="flex items-center justify-between gap-2 pt-2 border-t border-purple-500/20">
-                    <span className="text-[11px] font-extrabold text-purple-800 dark:text-purple-300 truncate">
+                    <button
+                      type="button"
+                      disabled={isGeneratingHtmlAi}
+                      onClick={handleGenerateHtmlWithAi}
+                      className="text-left text-[11px] font-extrabold text-purple-800 dark:text-purple-300 hover:text-purple-600 dark:hover:text-[#C7F303] truncate cursor-pointer transition disabled:opacity-60"
+                    >
                       {isGeneratingHtmlAi
-                        ? 'Antigravity Programando...'
-                        : '2. Enviar al Generador de Video'}
-                    </span>
+                        ? '🎬 Programando 60-FPS...'
+                        : '🎬 Compilar al Lienzo en Vivo'}
+                    </button>
                     <ExpandableButton
                       size="sm"
                       icon={
@@ -7495,11 +7628,16 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   </div>
 
                   <div className="flex items-center justify-between gap-2 pt-2 border-t border-cyan-500/15">
-                    <span className="text-[11px] font-extrabold text-cyan-800 dark:text-cyan-300 truncate">
+                    <button
+                      type="button"
+                      disabled={isApplyingCorrection || !videoCorrectionPrompt.trim()}
+                      onClick={handleSendCorrectionsToAntigravity}
+                      className="text-left text-[11px] font-extrabold text-cyan-800 dark:text-cyan-300 hover:text-cyan-600 dark:hover:text-[#C7F303] truncate cursor-pointer transition disabled:opacity-50"
+                    >
                       {isApplyingCorrection
-                        ? 'Aplicando Correcciones...'
-                        : '3. Enviar Correcciones a Antigravity'}
-                    </span>
+                        ? '✨ Aplicando Correcciones...'
+                        : '✨ Edición Directa sobre Lienzo'}
+                    </button>
                     <ExpandableButton
                       size="sm"
                       icon={
@@ -8000,11 +8138,16 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       </p>
                     </div>
                     <div className="flex items-center justify-between gap-2 pt-2 border-t border-teal-500/20">
-                      <span className="text-xs font-extrabold text-teal-800 dark:text-teal-200 truncate">
+                      <button
+                        type="button"
+                        disabled={isRenderingServerMp4}
+                        onClick={handleRenderServerMp4}
+                        className="text-left text-xs font-extrabold text-teal-800 dark:text-teal-200 hover:text-teal-600 dark:hover:text-[#C7F303] truncate cursor-pointer transition disabled:opacity-60"
+                      >
                         {isRenderingServerMp4
-                          ? 'Renderizando Video .MP4...'
-                          : 'Descargar Video .MP4 (Todo Unido)'}
-                      </span>
+                          ? '📦 Renderizando Video .MP4...'
+                          : '📦 FFmpeg + Audio WAV Embebido'}
+                      </button>
                       <ExpandableButton
                         size="sm"
                         icon={
@@ -8043,9 +8186,14 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       </p>
                     </div>
                     <div className="flex items-center justify-between gap-2 pt-2 border-t border-emerald-500/20">
-                      <span className="text-xs font-extrabold text-emerald-800 dark:text-emerald-200 truncate">
-                        Descargar .HTML Inmediato
-                      </span>
+                      <button
+                        type="button"
+                        disabled={isBuildingAcademyHtml}
+                        onClick={handleDownloadHtmlBundle}
+                        className="text-left text-xs font-extrabold text-emerald-800 dark:text-emerald-200 hover:text-emerald-600 dark:hover:text-[#C7F303] truncate cursor-pointer transition disabled:opacity-60"
+                      >
+                        ⚡ Cápsula Offline + Código LMS
+                      </button>
                       <div className="flex items-center gap-1.5">
                         <ExpandableButton
                           size="sm"

@@ -24,13 +24,15 @@ function resolveArchetypeFromEffect(effectId, idx = 0, isFirst = false, isLast =
   const clean = String(effectId || '').toLowerCase().trim();
   if (ARCHETYPE_ROTATION.includes(clean)) return clean;
 
-  if (/hook|wall|06|headline|19|cover|vs|14|corte/.test(clean)) return 'hook-vs-wall';
-  if (/phone|05|iphone|island|16|green/.test(clean)) return 'iphone-split-showcase';
-  if (/check|13|firma|signature|09|doodle|17|paper/.test(clean)) return 'signature-pad-live';
-  if (/chart|08|grow|math|04|reticula|digital-zoom/.test(clean)) return 'chart-grow-math';
-  if (/orbit|01|pentagon|11|giro|07|zoom-through|18|vertigo/.test(clean)) return 'pentagon-orbital';
-  if (/ui-world|03|grid|tenshi|10|glass|02|frame/.test(clean)) return 'tenshi-specialists-grid';
-  if (/couch|12|cta|bubble|15|zoom-out/.test(clean)) return 'cta-viral-bubbles';
+  if (/hook|wall|06|headline|19|cover|portada|vs|14|corte/.test(clean)) return 'hook-vs-wall';
+  if (/phone|05|iphone|mockup|island|16|green/.test(clean)) return 'iphone-split-showcase';
+  if (/check|13|firma|signature|09|doodle|17|paper|visor|normativo|expediente/.test(clean)) return 'signature-pad-live';
+  if (/chart|08|grow|math|04|reticula|digital-zoom|kpi/.test(clean)) return 'chart-grow-math';
+  if (/orbit|01|pentagon|gtc|11|giro|07|zoom-through|18|vertigo|dolly/.test(clean)) return 'pentagon-orbital';
+  if (/ui-world|03|grid|tenshi|10|glass|cristal|02|frame/.test(clean)) return 'tenshi-specialists-grid';
+  if (/couch|12|cta|bubble|15|zoom-out|avatar|felix|sfx/.test(clean)) {
+    return isFirst ? 'hook-vs-wall' : isLast ? 'cta-viral-bubbles' : 'iphone-split-showcase';
+  }
 
   if (isFirst) return 'hook-vs-wall';
   if (isLast) return 'cta-viral-bubbles';
@@ -288,6 +290,7 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
     const stepMeta = customSteps[idx] && typeof customSteps[idx] === 'object' ? customSteps[idx] : null;
     const effectCandidate =
       stepMeta?.archetype ||
+      stepMeta?.visualEffect ||
       stepMeta?.effect ||
       (userEffects.length > 0 ? userEffects[idx % userEffects.length] : '');
 
@@ -309,8 +312,14 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
       archetype = midArchetypes[(idx - 1) % midArchetypes.length];
     }
 
-    const rawText = String(stepMeta?.voiceover || stepMeta?.text || beat.text || '').trim();
-    const cleanWords = rawText.split(/\s+/).filter(Boolean);
+    const rawText = String(
+      stepMeta?.narration || stepMeta?.voiceover || stepMeta?.text || beat.text || '',
+    )
+      .replace(/\[pausa\s+[\d.]+s\]/gi, '')
+      .replace(/\[énfasis\]/gi, '')
+      .replace(/<[^>]+>/g, '')
+      .replace(/\|[^|]+\|/g, '')
+      .trim();
 
     // Extraer prefijos ordinales (ej. "Primero:", "Segundo:", "Tercero:")
     let stepPrefix = '';
@@ -331,11 +340,25 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
       ? bodyWords.slice(2, Math.min(5, bodyWords.length)).join(' ') || stepPrefix
       : bodyWords.slice(-Math.min(3, bodyWords.length)).join(' ').replace(/[.,;:!?]+$/, '');
 
+    let customTitleBefore = stepMeta?.titleBefore || '';
+    let customTitleHighlight = stepMeta?.titleHighlight || '';
+    if (!customTitleBefore && !customTitleHighlight && stepMeta?.title) {
+      const cleanStepTitle = String(stepMeta.title)
+        .replace(/^Portada Magnética\s*\(2s\)\s*[:·-]?\s*/i, '')
+        .trim();
+      const tWords = cleanStepTitle.split(/\s+/).filter(Boolean);
+      if (tWords.length >= 2) {
+        const half = Math.ceil(tWords.length / 2);
+        customTitleBefore = tWords.slice(0, half).join(' ');
+        customTitleHighlight = tWords.slice(half).join(' ');
+      }
+    }
+
     const titleBefore =
-      stepMeta?.titleBefore ||
+      customTitleBefore ||
       (isFirst && options.headlineText ? String(options.headlineText).split(/\s+/).slice(0, 3).join(' ') : defaultTitleBefore);
     const titleHighlight =
-      stepMeta?.titleHighlight ||
+      customTitleHighlight ||
       (isFirst && options.headlineText ? String(options.headlineText).split(/\s+/).slice(3, 6).join(' ') || defaultTitleHighlight : defaultTitleHighlight);
 
     const highlightStyles = ['lime', 'cyan', 'lime', 'cyan', 'lime', 'cyan', 'lime'];
@@ -349,7 +372,48 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
 
     const c0 = clauses[0] || bodyText.slice(0, 42);
     const c1 = clauses[1] || 'Verificación técnica en tiempo real';
-    const c2 = clauses[2] || 'Cumplimiento normativo SG-SST 100%';
+
+    const defaultSideCards = [
+      {
+        icon: '⚡',
+        title: c0.slice(0, 26),
+        desc: bodyText.slice(0, 56),
+        color: 'cyan',
+      },
+      {
+        icon: '🔒',
+        title: c1.slice(0, 26),
+        desc: 'Control operativo obligatorio antes de intervenir',
+        color: 'teal',
+      },
+      {
+        icon: '🛡️',
+        title: 'Verificación WAPPY IA',
+        desc: 'Evidencia digital e inspección segura en campo',
+        color: 'lime',
+      },
+    ];
+
+    const defaultSigCards = [
+      { role: c0.slice(0, 24) || 'Bloqueo Principal', icon: '🔒', status: '✓ BLOQUEADO' },
+      { role: c1.slice(0, 24) || 'Etiqueta Personal LOTO', icon: '🏷️', status: '✓ ETIQUETADO' },
+      { role: 'Responsable Técnico SST', icon: '✍️', status: '✓ FIRMADO' },
+    ];
+
+    const defaultOrbitalNodes = [
+      { icon: '🔌', title: 'Corte Efectivo', sub: 'Fuentes aisladas' },
+      { icon: '🔒', title: 'Bloqueo LOTO', sub: 'Candado personal' },
+      { icon: '📟', title: 'Detector 0V', sub: 'Ausencia verificada' },
+      { icon: '🌱', title: 'Puesta a Tierra', sub: 'Y en cortocircuito' },
+      { icon: '🚧', title: 'Zona Señalizada', sub: 'Perímetro seguro' },
+    ];
+
+    const defaultGridSpecs = [
+      { icon: '🚧', title: 'Delimitación Física', sub: 'Conos y barreras dieléctricas', color: 'teal' },
+      { icon: '⚠️', title: 'Señalización Visible', sub: 'Avisos normativos de peligro', color: 'cyan' },
+      { icon: '👷', title: 'Personal Autorizado', sub: 'Ingreso exclusivo con EPP', color: 'amber' },
+      { icon: '📋', title: 'Permiso Verificado', sub: 'Lista de chequeo en vivo', color: 'red' },
+    ];
 
     return {
       index: idx + 1,
@@ -357,8 +421,11 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
       endSec: beat.endSec,
       durationSec: beat.durationSec,
       archetype,
+      visualEffect: stepMeta?.visualEffect || stepMeta?.effect || effectCandidate || archetype,
+      cameraAndMotion: stepMeta?.cameraAndMotion || '',
       eyebrow:
         stepMeta?.eyebrow ||
+        stepMeta?.tag ||
         (isFirst && options.badgeText
           ? String(options.badgeText).toUpperCase().slice(0, 32)
           : stepPrefix
@@ -368,23 +435,23 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
               : isLast
                 ? `CULTURA PREVENTIVA • ${companyName}`
                 : `ESTÁNDAR TÉCNICO • PASO 0${idx + 1}`),
-      titleBefore: String(titleBefore || 'ESTÁNDAR').slice(0, 24),
-      titleHighlight: String(titleHighlight || 'WAPPY IA').slice(0, 24),
+      titleBefore: String(titleBefore || 'ESTÁNDAR').slice(0, 26),
+      titleHighlight: String(titleHighlight || 'WAPPY IA').slice(0, 26),
       highlightStyle,
-      subtitle: isFirst && options.subtitleText ? String(options.subtitleText) : rawText,
-      badCardTitle: 'Práctica sin Protocolo',
-      badCardDesc: 'Alto riesgo de accidente grave por exceso de confianza o improvisación',
+      subtitle: isFirst && options.subtitleText && !stepMeta?.narration ? String(options.subtitleText) : rawText,
+      badCardTitle: stepMeta?.badCardTitle || 'Práctica sin Protocolo',
+      badCardDesc: stepMeta?.badCardDesc || 'Alto riesgo de accidente grave por exceso de confianza o improvisación',
       badCardBadge: 'RIESGO CRÍTICO',
-      goodCardTitle: `Estándar Seguro ${companyName}`,
-      goodCardDesc: rawText.slice(0, 78),
+      goodCardTitle: stepMeta?.goodCardTitle || `Estándar Seguro ${companyName}`,
+      goodCardDesc: stepMeta?.goodCardDesc || rawText.slice(0, 78),
       goodCardBadge: '100% SEGURO',
       wallPills: [
-        titleHighlight.toUpperCase(),
+        String(titleHighlight || 'WAPPY IA').toUpperCase(),
         `${companyName} • SOMOS SST`,
         'PREVENCIÓN EN TIEMPO REAL',
         'CERO ACCIDENTES LABORALES',
       ],
-      islandText: stepPrefix || `PASO 0${idx + 1} LIVE`,
+      islandText: stepMeta?.islandText || stepPrefix || `PASO 0${idx + 1} LIVE`,
       phoneQrTitle: (titleHighlight || 'VERIFICADO').toUpperCase().slice(0, 18),
       phonePills: [
         { icon: '⚡', text: c0.slice(0, 28) },
@@ -392,31 +459,23 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
         { icon: '🎯', text: 'Control Verificado: 100%' },
         { icon: '✅', text: 'Trazabilidad en Vivo' },
       ],
-      sideCards: [
-        {
-          icon: '⚡',
-          title: c0.slice(0, 26),
-          desc: bodyText.slice(0, 56),
-          color: 'cyan',
-        },
-        {
-          icon: '🔒',
-          title: c1.slice(0, 26),
-          desc: 'Control operativo obligatorio antes de intervenir',
-          color: 'teal',
-        },
-        {
-          icon: '🛡️',
-          title: 'Verificación WAPPY IA',
-          desc: 'Evidencia digital e inspección segura en campo',
-          color: 'lime',
-        },
-      ],
-      sigCards: [
-        { role: c0.slice(0, 24) || 'Bloqueo Principal', icon: '🔒', status: '✓ BLOQUEADO' },
-        { role: c1.slice(0, 24) || 'Etiqueta Personal LOTO', icon: '🏷️', status: '✓ ETIQUETADO' },
-        { role: 'Responsable Técnico SST', icon: '✍️', status: '✓ FIRMADO' },
-      ],
+      sideCards:
+        Array.isArray(stepMeta?.sideCards) && stepMeta.sideCards.length >= 3
+          ? stepMeta.sideCards.slice(0, 3).map((c, cIdx) => ({
+              icon: c.icon || defaultSideCards[cIdx].icon,
+              title: c.title || defaultSideCards[cIdx].title,
+              desc: c.desc || defaultSideCards[cIdx].desc,
+              color: c.color || defaultSideCards[cIdx].color,
+            }))
+          : defaultSideCards,
+      sigCards:
+        Array.isArray(stepMeta?.sigCards) && stepMeta.sigCards.length >= 3
+          ? stepMeta.sigCards.slice(0, 3).map((s, sIdx) => ({
+              role: s.role || defaultSigCards[sIdx].role,
+              icon: s.icon || defaultSigCards[sIdx].icon,
+              status: s.status || defaultSigCards[sIdx].status,
+            }))
+          : defaultSigCards,
       formulaLeft: 'INSPECCIÓN',
       formulaMid: 'VERIFICACIÓN 0V',
       formulaRight: '100% SEGURO',
@@ -452,25 +511,29 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
       coreIcon: '⚡',
       coreLabel: (stepPrefix || 'PROTECCIÓN 360°').slice(0, 18),
       coreBadge: '100% BLINDAJE',
-      orbitalNodes: [
-        { icon: '🔌', title: 'Corte Efectivo', sub: 'Fuentes aisladas' },
-        { icon: '🔒', title: 'Bloqueo LOTO', sub: 'Candado personal' },
-        { icon: '📟', title: 'Detector 0V', sub: 'Ausencia verificada' },
-        { icon: '🌱', title: 'Puesta a Tierra', sub: 'Y en cortocircuito' },
-        { icon: '🚧', title: 'Zona Señalizada', sub: 'Perímetro seguro' },
-      ],
+      orbitalNodes:
+        Array.isArray(stepMeta?.orbitalNodes) && stepMeta.orbitalNodes.length >= 5
+          ? stepMeta.orbitalNodes.slice(0, 5).map((n, nIdx) => ({
+              icon: n.icon || defaultOrbitalNodes[nIdx].icon,
+              title: n.title || defaultOrbitalNodes[nIdx].title,
+              sub: n.sub || defaultOrbitalNodes[nIdx].sub,
+            }))
+          : defaultOrbitalNodes,
       tenshiTitle: `Tenshi IA • Supervisión ${stepPrefix || 'Activa'}`,
       tenshiSub: rawText.slice(0, 58),
-      gridSpecs: [
-        { icon: '🚧', title: 'Delimitación Física', sub: 'Conos y barreras dieléctricas', color: 'teal' },
-        { icon: '⚠️', title: 'Señalización Visible', sub: 'Avisos normativos de peligro', color: 'cyan' },
-        { icon: '👷', title: 'Personal Autorizado', sub: 'Ingreso exclusivo con EPP', color: 'amber' },
-        { icon: '📋', title: 'Permiso Verificado', sub: 'Lista de chequeo en vivo', color: 'red' },
-      ],
+      gridSpecs:
+        Array.isArray(stepMeta?.gridSpecs) && stepMeta.gridSpecs.length >= 4
+          ? stepMeta.gridSpecs.slice(0, 4).map((g, gIdx) => ({
+              icon: g.icon || defaultGridSpecs[sIdxOr(gIdx)].icon,
+              title: g.title || defaultGridSpecs[sIdxOr(gIdx)].title,
+              sub: g.sub || defaultGridSpecs[sIdxOr(gIdx)].sub,
+              color: g.color || defaultGridSpecs[sIdxOr(gIdx)].color,
+            }))
+          : defaultGridSpecs,
       cloudTags: ['✦ Resolución 0312', '✦ Decreto 1072', '✦ Estándar RETIE', '✦ WAPPY IA'],
       ctaHeader: 'PREVENCIÓN INTELIGENTE • CERO ACCIDENTES • 100% VIDA',
       ctaInstruction: '👇 Tu familia te espera en casa:',
-      ctaKeyword: 'SOMOS SST',
+      ctaKeyword: stepMeta?.ctaKeyword || 'SOMOS SST',
       ctaGift: `🛡️ ${rawText.slice(0, 48).toUpperCase()}`,
       socialBubbles: [
         { icon: '⚡', text: '💬 5 Reglas de Oro siempre activas 🔥' },
@@ -480,6 +543,10 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
       ],
     };
   });
+}
+
+function sIdxOr(i) {
+  return Math.max(0, Math.min(3, Number(i) || 0));
 }
 
 /**
@@ -496,13 +563,22 @@ async function generateCreativeScenePlanWithAi(scriptText, beats, options, aiGen
     const beatsPrompt = beats
       .map(
         (b, idx) =>
-          `Beat ${idx + 1} [${b.startSec}s - ${b.endSec}s] (Arquetipo asignado: ${basePlan[idx].archetype}): "${b.text}"`,
+          `Beat ${idx + 1} [${b.startSec}s - ${b.endSec}s] (Arquetipo: ${basePlan[idx].archetype} | Efecto: ${basePlan[idx].visualEffect || basePlan[idx].archetype}): "${b.text}"`,
       )
       .join('\n');
 
-    const prompt = `Eres el Director Creativo de Motion Graphics de WAPPY IA.
-Para cada uno de los siguientes ${beats.length} beats del guion de locución, genera los textos cortos e impactantes que alimentarán nuestro motor de animación 3D a 60 FPS.
+    const superPromptContext = options?.prompt
+      ? `\nDIRECTRICES DEL SUPER-PROMPT Y USUARIO:\n${String(options.prompt).slice(0, 1800)}\n`
+      : '';
 
+    const prompt = `Eres el Director Creativo de Motion Graphics de WAPPY IA y Google Antigravity.
+Para cada uno de los siguientes ${beats.length} beats del guion de locución, genera los textos cortos, específicos y de alto impacto que alimentarán nuestro motor de animación 3D a 60 FPS.
+- Dirección de Arte: ${options?.theme || 'dark-tech-hud'}
+- Insignia de Portada: ${options?.badgeText || 'CÁPSULA INTERACTIVA WAPPY'}
+- Titular de Portada: ${options?.headlineText || ''}
+- Subtítulo de Portada: ${options?.subtitleText || ''}
+- Efectos Seleccionados: ${Array.isArray(options?.selectedEffects) ? options.selectedEffects.join(', ') : ''}
+${superPromptContext}
 GUION POR BEATS:
 ${beatsPrompt}
 
