@@ -4407,11 +4407,64 @@ export default function WappyStudioDashboard({
         iframeRef.current?.contentWindow?.postMessage({ type: 'STUDIO_RESTART' }, '*');
         stageAudioRef.current?.play().catch(() => {});
         baseVideoRef.current?.play().catch(() => {});
+        const monitorEl = document.getElementById('wappy-studio-live-monitor');
+        if (monitorEl) {
+          monitorEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
       }, 140);
       setStatusBanner({
         type: 'success',
-        text: '¡Paso 2 completado! Video HTML 60-FPS generado con tu Super-Prompt, Dirección de Arte y Efectos, cargado en el Lienzo en sincronía con el audio y guardado en tu Biblioteca.',
+        text: '¡Paso 2 completado! El video ya está reproduciéndose abajo en el "Monitor en Vivo & Lienzo Interactivo" y guardado en tu Biblioteca. Desde el Monitor puedes darle Play, editarlo o pulsar "Descargar Video .MP4 (Todo Unido)".',
       });
+
+      // Si se delegó orden en vivo a Antigravity, vigilar su finalización como respaldo al SSE para inyectar el HTML final de Antigravity apenas termine
+      const delegatedOrderId = data.delegation?.ordenId;
+      if (delegatedOrderId && antigravityBridgeKey) {
+        let attempts = 0;
+        const pollTimer = setInterval(async () => {
+          attempts++;
+          if (attempts > 45) {
+            clearInterval(pollTimer);
+            return;
+          }
+          try {
+            const ordResp = await fetch(
+              `/api/mcp-bridge/antigravity/ordenes?ordenId=${encodeURIComponent(delegatedOrderId)}&apiKey=${encodeURIComponent(antigravityBridgeKey)}`,
+              { headers: getAuthHeaders(token), credentials: 'include' },
+            );
+            if (!ordResp.ok) return;
+            const ordData = await ordResp.json();
+            const foundOrder = Array.isArray(ordData?.ordenes) ? ordData.ordenes[0] : null;
+            if (foundOrder && (foundOrder.estado === 'done' || foundOrder.estado === 'completed')) {
+              clearInterval(pollTimer);
+              const deliveredHtml = String(foundOrder.entregable?.contenido || '').trim();
+              if (
+                deliveredHtml.length > 100 &&
+                /<!doctype html|<html\b|<div[^>]+id=["']stage["']/i.test(deliveredHtml)
+              ) {
+                latestEditedHtmlRef.current = '';
+                setHtmlCode(deliveredHtml);
+                await saveVideoProjectToLibrary({ htmlOverride: deliveredHtml }, true);
+                setVideoCurrentTime(0);
+                setIsVideoPlaying(true);
+                setTimeout(() => {
+                  iframeRef.current?.contentWindow?.postMessage({ type: 'STUDIO_RESTART' }, '*');
+                  stageAudioRef.current?.play().catch(() => {});
+                  document
+                    .getElementById('wappy-studio-live-monitor')
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 150);
+                setStatusBanner({
+                  type: 'success',
+                  text: '🚀 ¡Orden completada en Antigravity! El video HTML 60-FPS compilado por Antigravity ya está en el Monitor en Vivo (abajo) y en tu Biblioteca, listo para descargar en .MP4 o .HTML.',
+                });
+              }
+            }
+          } catch {
+            /* ignore poll error */
+          }
+        }, 4000);
+      }
     } catch (err: any) {
       setStatusBanner({
         type: 'error',
@@ -5575,15 +5628,23 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
     let es: EventSource | null = null;
     try {
-      const streamUrl = `/api/mcp-bridge/antigravity/stream?apiKey=${encodeURIComponent(cleanKey)}`;
+      const streamUrl = `/api/mcp-bridge/antigravity/stream?apiKey=${encodeURIComponent(cleanKey)}&clientType=browser`;
       es = new EventSource(streamUrl);
 
       const handleCompletedOrderPayload = async (rawPayload: any) => {
         if (!rawPayload || typeof rawPayload !== 'object') return;
         const payload = rawPayload.orden || rawPayload.data || rawPayload;
-        const formato = String(payload.formato || payload.formatoEntregable || '').toLowerCase();
+        const formato = String(
+          payload.formato || payload.formatoEntregable || payload.file?.fileType || '',
+        ).toLowerCase();
         const rawContent = String(
-          payload.contenido || payload.htmlCode || payload.resultado || '',
+          payload.html ||
+            payload.file?.content ||
+            payload.entregable?.contenido ||
+            payload.contenido ||
+            payload.htmlCode ||
+            payload.resultado ||
+            '',
         ).trim();
 
         // 1) Si Antigravity envió un video HTML5 / GSAP directo al Estudio:
@@ -5606,10 +5667,13 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
             setTimeout(() => {
               iframeRef.current?.contentWindow?.postMessage({ type: 'STUDIO_RESTART' }, '*');
               stageAudioRef.current?.play().catch(() => {});
+              document
+                .getElementById('wappy-studio-live-monitor')
+                ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }, 150);
             setStatusBanner({
               type: 'success',
-              text: '🚀 ¡Tu Antigravity envió el video HTML directo al Lienzo y quedó guardado en la Biblioteca!',
+              text: '🚀 ¡Tu Antigravity completó la orden y envió el video HTML 60-FPS directo al Monitor en Vivo (abajo) y a tu Biblioteca!',
             });
           }
         }
@@ -8622,7 +8686,10 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
             {/* ================================================================ */}
             {/* BLOQUE 3: MONITOR EN VIVO & LIENZO INTERACTIVO                   */}
             {/* ================================================================ */}
-            <div className="w-full bg-white dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+            <div
+              id="wappy-studio-live-monitor"
+              className="w-full bg-white dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4 scroll-mt-20"
+            >
               {/* Cabecera del Monitor & Editor (Botones Oficiales WAPPY que se expanden al pasar el cursor) */}
               <div className="flex flex-wrap items-center justify-between gap-3 pb-3.5 border-b border-slate-200/80 dark:border-slate-800">
                 <div className="flex flex-wrap items-center gap-2.5 min-w-0">
