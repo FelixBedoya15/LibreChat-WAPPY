@@ -883,14 +883,7 @@ export default function WappyDotsMobilePage() {
         },
       ]);
 
-      const styleInstruction =
-        personality === 'express'
-          ? 'MODO EXPRESS: Responde de forma ultra concisa (1 a 2 frases directas al grano).'
-          : personality === 'profundo'
-          ? 'MODO PROFUNDO: Analiza a fondo y estructura la solución paso a paso.'
-          : 'MODO ASISTENTE UNIVERSAL: Sé cálida, ejecutiva, clara y resolutiva.';
-
-      const systemPrompt = `[INTEGRACIÓN ACTIVA: ${activeIntegrationInfo.fullName} (${activeIntegrationInfo.id}) — ${activeIntegrationInfo.description}]. Prioriza siempre las herramientas y capacidades de esta integración activa. Eres Tenshi, asistente universal en vivo de Wappy Dots, conectada en tiempo real con la Mac del usuario, Antigravity IDE, generador de documentos (PDF/Word/Excel/HTML/QR), Google Flow, NotebookLM, Google Workspace, Somos SST y automatizaciones. ${styleInstruction} Si el usuario se despide ("hasta luego", "gracias por todo", "chao", "nos vemos"), pronuncia primero una despedida corta y cálida e invoca wappy_controlar_videollamada(accion: "colgar_llamada"). NUNCA cuelgues si solo dice "para", "detente" o "espera".`;
+      const systemPrompt = `Eres Tenshi, asistente universal en vivo de Wappy Dots en modo libre inteligente. Todas las integraciones (Google Antigravity IDE, Google Workspace, NotebookLM, Google Flow, Somos SST, generador de documentos PDF/Word/Excel/HTML/QR y control de la Mac del usuario) conviven juntas y están activas al mismo tiempo en esta conversación. Si el usuario se despide ("hasta luego", "gracias por todo", "chao", "nos vemos"), pronuncia primero una despedida corta y cálida e invoca wappy_controlar_videollamada(accion: "colgar_llamada"). NUNCA cuelgues si solo dice "para", "detente" o "espera".`;
 
       const useLiveAudioModel = Boolean(options?.viaVoice && !options?.imageDataUrl);
       const userMessageContent: any = options?.imageDataUrl
@@ -1214,7 +1207,7 @@ export default function WappyDotsMobilePage() {
                 ? 'Hablando contigo...'
                 : isListening
                 ? 'Voz en vivo activa'
-                : `Asistente WAPPY DOTS · ${activeIntegrationInfo.label}`}
+                : 'Copiloto Universal · Conectada con tu Mac'}
             </p>
           </div>
         </div>
@@ -1487,18 +1480,9 @@ export default function WappyDotsMobilePage() {
               <span className="text-sm font-bold text-white truncate">
                 {activeSession?.title || 'Nueva conversación'}
               </span>
-              <button
-                type="button"
-                onClick={() => setDrawer('integration')}
-                className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.06] px-2.5 py-0.5 text-[10px] font-bold text-zinc-200 hover:bg-white/10 transition"
-                title="Cambiar integración activa"
-              >
-                <span
-                  className="h-1.5 w-1.5 rounded-full"
-                  style={{ backgroundColor: activeIntegrationInfo.badgeColor }}
-                />
-                <span>{activeIntegrationInfo.label}</span>
-              </button>
+              <span className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-[#C7F303]/35 bg-[#C7F303]/10 px-2.5 py-0.5 text-[10px] font-bold text-[#C7F303]">
+                Universal
+              </span>
             </div>
 
             <div className="flex items-center gap-1.5 shrink-0">
@@ -1526,8 +1510,7 @@ export default function WappyDotsMobilePage() {
             {messages.length === 0 ? (
               <div className="mt-8 flex flex-col items-center text-center px-4">
                 <p className="text-xs text-zinc-400 max-w-xs">
-                  Sesión conectada con <strong className="text-white">{activeIntegrationInfo.fullName}</strong>.
-                  Escribe o habla con Tenshi para ejecutar acciones en tu Mac.
+                  Todas tus integraciones (<strong className="text-white">Antigravity, Workspace, NotebookLM, Flow, SST y tu Mac</strong>) conviven juntas en este mismo chat.
                 </p>
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
                   <button
@@ -1654,7 +1637,7 @@ export default function WappyDotsMobilePage() {
               type="text"
               value={promptInput}
               onChange={(e) => setPromptInput(e.target.value)}
-              placeholder={`Mensaje para Tenshi (${activeIntegrationInfo.label})...`}
+              placeholder="Escribe cualquier orden o pregunta a Tenshi..."
               className="flex-1 rounded-xl border border-white/15 bg-white/[0.05] px-3.5 py-2.5 text-xs text-white placeholder-zinc-400 focus:outline-none focus:border-emerald-500/50"
             />
             <button
@@ -1725,10 +1708,6 @@ export default function WappyDotsMobilePage() {
             ) : (
               filteredSessions.map((s) => {
                 const isCurrent = s.id === activeSessionId;
-                const integ =
-                  integrations.find((i) => i.id === s.activeIntegration) ||
-                  DEFAULT_INTEGRATIONS.find((i) => i.id === s.activeIntegration) ||
-                  DEFAULT_INTEGRATIONS[0];
                 const msgCount = Array.isArray(s.messages) ? s.messages.length : 0;
                 return (
                   <div
@@ -1752,18 +1731,7 @@ export default function WappyDotsMobilePage() {
                         )}
                       </div>
                       <div className="mt-1 flex items-center gap-2 text-[11px] text-zinc-400">
-                        <span
-                          className="inline-flex items-center gap-1 font-semibold"
-                          style={{ color: integ.badgeColor }}
-                        >
-                          <span
-                            className="h-1.5 w-1.5 rounded-full"
-                            style={{ backgroundColor: integ.badgeColor }}
-                          />
-                          {integ.label}
-                        </span>
-                        <span>·</span>
-                        <span>{msgCount} msj</span>
+                        <span>{msgCount} {msgCount === 1 ? 'mensaje' : 'mensajes'}</span>
                       </div>
                     </div>
 
@@ -1784,7 +1752,7 @@ export default function WappyDotsMobilePage() {
       )}
 
       {/* ===================================================================== */}
-      {/* PANEL DE INTEGRACIÓN ACTIVA (drawer === 'integration')                */}
+      {/* PANEL DE INTEGRACIONES CONECTADAS (drawer === 'integration')          */}
       {/* ===================================================================== */}
       {drawer === 'integration' && (
         <div
@@ -1797,7 +1765,7 @@ export default function WappyDotsMobilePage() {
             <div className="flex items-center gap-2">
               <GraduationCap className="h-4 w-4 text-[#C7F303]" />
               <span className="text-sm font-bold text-white">
-                Integración Activa con Tenshi
+                Integraciones Activas en tu Chat
               </span>
             </div>
             <button
@@ -1811,50 +1779,53 @@ export default function WappyDotsMobilePage() {
 
           <div className="flex-1 space-y-2.5 overflow-y-auto p-4">
             <p className="text-xs text-zinc-400 mb-2">
-              Selecciona la integración principal que Tenshi usará al hablar o chatear contigo:
+              Todas estas integraciones <strong className="text-white">conviven juntas al mismo tiempo</strong> en cada uno de tus chats. Toca cualquiera para usarla ahora mismo:
             </p>
-            {integrations.map((item) => {
-              const isSelected = item.id === activeIntegration;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => handleSelectIntegration(item.id)}
-                  className={`w-full flex items-center justify-between gap-3 rounded-2xl border p-3.5 text-left transition active:scale-[0.99] ${
-                    isSelected
-                      ? 'border-emerald-500/50 bg-emerald-500/10'
-                      : 'border-white/10 bg-zinc-900/80 hover:border-white/20'
-                  }`}
-                >
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/[0.05]"
-                      style={{ color: item.badgeColor }}
-                    >
-                      {renderIntegrationIcon(item.icon, 'h-5 w-5')}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-white">{item.fullName}</span>
-                      </div>
-                      <p className="mt-0.5 text-xs text-zinc-400 leading-snug">
-                        {item.description}
-                      </p>
-                    </div>
+            {integrations.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  const quickPrompt =
+                    item.id === 'antigravity'
+                      ? 'Muéstrame mis proyectos activos y chats recientes en Antigravity.'
+                      : item.id === 'google-workspace'
+                      ? 'Revisa mi agenda de hoy en Google Calendar y mis correos importantes.'
+                      : item.id === 'notebooklm'
+                      ? 'Consulta mis cuadernos e investigaciones en NotebookLM.'
+                      : item.id === 'google-flow'
+                      ? 'Ayúdame a crear un video o imagen con Google Flow.'
+                      : item.id === 'wappy-sst'
+                      ? 'Consulta el resumen general 360 del SG-SST en Somos SST.'
+                      : '¿Qué hay en la pantalla activa de mi Mac en este momento?';
+                  sendMessage(quickPrompt, { openChatDrawer: true });
+                }}
+                className="w-full flex items-center justify-between gap-3 rounded-2xl border border-emerald-500/30 bg-zinc-900/90 p-3.5 text-left transition hover:border-emerald-500/50 active:scale-[0.99]"
+              >
+                <div className="flex items-start gap-3 min-w-0">
+                  <div
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/[0.05]"
+                    style={{ color: item.badgeColor }}
+                  >
+                    {renderIntegrationIcon(item.icon, 'h-5 w-5')}
                   </div>
-                  <div className="shrink-0">
-                    {isSelected ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[#C7F303]/20 border border-[#C7F303]/40 px-2.5 py-1 text-[10px] font-extrabold text-[#C7F303]">
-                        <Check className="h-3 w-3" />
-                        Activa
-                      </span>
-                    ) : (
-                      <span className="text-xs font-semibold text-zinc-500">Activar</span>
-                    )}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-white">{item.fullName}</span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-zinc-400 leading-snug">
+                      {item.description}
+                    </p>
                   </div>
-                </button>
-              );
-            })}
+                </div>
+                <div className="shrink-0">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#C7F303]/20 border border-[#C7F303]/40 px-2.5 py-1 text-[10px] font-extrabold text-[#C7F303]">
+                    <Check className="h-3 w-3" />
+                    Activa
+                  </span>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -1989,35 +1960,6 @@ export default function WappyDotsMobilePage() {
           </div>
 
           <div className="flex-1 space-y-4 overflow-y-auto p-4">
-            {/* Selector de Modo de Respuesta */}
-            <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-3.5">
-              <div className="text-xs font-bold text-white mb-2">
-                Modo de Respuesta de Tenshi
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {(
-                  [
-                    { id: 'express', label: '⚡ Express' },
-                    { id: 'asistente', label: '✨ Asistente' },
-                    { id: 'profundo', label: '🔬 Profundo' },
-                  ] as const
-                ).map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => setPersonality(m.id)}
-                    className={`rounded-xl py-2 px-2 text-xs font-bold border transition ${
-                      personality === m.id
-                        ? 'border-emerald-500/50 bg-emerald-500/15 text-[#C7F303]'
-                        : 'border-white/10 bg-white/[0.04] text-zinc-300 hover:bg-white/10'
-                    }`}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* Control Directo de Mac & Antigravity IDE */}
             <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-3.5 space-y-2.5">
               <div className="text-xs font-bold text-white">
@@ -2206,13 +2148,10 @@ export default function WappyDotsMobilePage() {
                   drawer === 'integration' ? 'scale-110 text-teal-400' : ''
                 }`}
               />
-              <span
-                className="absolute -top-0.5 -right-1 h-2 w-2 rounded-full ring-2 ring-zinc-900"
-                style={{ backgroundColor: activeIntegrationInfo.badgeColor }}
-              />
+              <span className="absolute -top-0.5 -right-1 h-2 w-2 rounded-full ring-2 ring-zinc-900 bg-[#C7F303]" />
             </div>
-            <span className="text-[10px] mt-0.5 tracking-tight truncate max-w-[68px] font-medium text-zinc-200">
-              {activeIntegrationInfo.label}
+            <span className="text-[10px] mt-0.5 tracking-tight truncate max-w-[72px] font-medium text-zinc-200">
+              Integraciones
             </span>
           </button>
 
