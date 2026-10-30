@@ -33,7 +33,7 @@ const DISPATCHED_FILE = path.join(AGY_DIR, 'wappy-dispatched-orders.json');
 const ACTIVE_CONVO_FILE = path.join(AGY_DIR, 'wappy-active-conversation.txt');
 const TENSHI_THREAD_FILE = path.join(AGY_DIR, 'wappy-tenshi-thread.json');
 const TENSHI_THREAD_TTL_MS = 2 * 60 * 60 * 1000; // 2 horas de continuidad de hilo en el mismo chat de Tenshi
-const DAEMON_VERSION = '2.5.2';
+const DAEMON_VERSION = '2.5.3';
 const LOG_MAX_BYTES = 5 * 1024 * 1024; // Rotación automática del log a los 5 MB
 
 /**
@@ -693,6 +693,328 @@ function ensureLiveAntigravityRunning(maxWaitSec = 30) {
   return discoverLiveLanguageServer();
 }
 
+/**
+ * Canal Directo ConnectRPC hacia `exa.language_server_pb.LanguageServerService`
+ * (El mismo canal interno que usa el QR de "Remote Control" y la interfaz nativa de Antigravity).
+ * Evita por completo el binario CLI `agentapi` y sus bloqueos de `project_id`.
+ */
+function callLanguageServerRpc(candidate, method, payload = {}, timeoutMs = 8000) {
+  const port = parseInt(candidate.port, 10);
+  const csrfToken = candidate.csrfToken;
+  const bodyStr = JSON.stringify(payload || {});
+
+  const tryProto = (proto) =>
+    new Promise((resolve, reject) => {
+      const mod = proto === 'https' ? https : http;
+      const req = mod.request(
+        {
+          hostname: '127.0.0.1',
+          port,
+          path: `/exa.language_server_pb.LanguageServerService/${method}`,
+          method: 'POST',
+          rejectUnauthorized: false,
+          timeout: timeoutMs,
+          headers: {
+            'Content-Type': 'application/json',
+            'Connect-Protocol-Version': '1',
+            'x-codeium-csrf-token': csrfToken,
+            'Content-Length': Buffer.byteLength(bodyStr),
+          },
+        },
+        (res) => {
+          let data = '';
+          res.on('data', (chunk) => {
+            data += chunk;
+          });
+          res.on('end', () => {
+            let parsed = null;
+            try {
+              parsed = data ? JSON.parse(data) : {};
+            } catch (_) {}
+            resolve({ status: res.statusCode, data: parsed, raw: data, proto });
+          });
+        }
+      );
+      req.on('timeout', () => {
+        req.destroy(new Error(`Timeout (${timeoutMs}ms) en ${method}`));
+      });
+      req.on('error', reject);
+      req.write(bodyStr);
+      req.end();
+    });
+
+  return (async () => {
+    const preferredProto = candidate.proto || 'http';
+    const fallbackProto = preferredProto === 'http' ? 'https' : 'http';
+    try {
+      const res = await tryProto(preferredProto);
+      if (res.status === 200) {
+        candidate.proto = preferredProto;
+        return res;
+      }
+      if (res.status === 400 && String(res.raw || '').includes('HTTPS server')) {
+        const httpsRes = await tryProto('https');
+        if (httpsRes.status === 200) candidate.proto = 'https';
+        return httpsRes;
+      }
+      return res;
+    } catch (_) {
+      const res2 = await tryProto(fallbackProto);
+      if (res2.status === 200) candidate.proto = fallbackProto;
+      return res2;
+    }
+  })();
+}
+
+/**
+ * Vigila la trayectoria en vivo en `LanguageServerService` tras despachar por el canal directo (tipo QR).
+ * Si Antigravity termina su turno y escribe la respuesta/documento en el chat sin ejecutar `curl`,
+ * este vigilante extrae automáticamente la respuesta del paso `CORTEX_STEP_TYPE_PLANNER_RESPONSE`
+ * y la entrega a WAPPY/Tenshi sin perder jamás un mensaje.
+ */
+function watchDirectTrajectoryCompletion({
+  candidate,
+  cascadeId,
+  initialStepCount = 0,
+  ordenId,
+  rawFormato,
+  wappyUrl,
+  apiKey,
+}) {
+  let completed = false;
+  let ticks = 0;
+  const maxTicks = 45; // 45 * 2s = 90s
+
+  const timer = setInterval(async () => {
+    ticks += 1;
+    if (completed || ticks > maxTicks) {
+      clearInterval(timer);
+      return;
+    }
+    try {
+      const trajRes = await callLanguageServerRpc(candidate, 'GetCascadeTrajectory', { cascadeId }, 5000);
+      if (trajRes.status !== 200 || !trajRes.data?.trajectory) return;
+
+      const steps = Array.isArray(trajRes.data.trajectory.steps) ? trajRes.data.trajectory.steps : [];
+      if (steps.length <= initialStepCount) return;
+
+      const newSteps = steps.slice(initialStepCount);
+      const anyRunning = newSteps.some(
+        (s) =>
+          s.status === 'CORTEX_STEP_STATUS_RUNNING' ||
+          s.status === 'CORTEX_STEP_STATUS_PENDING' ||
+          s.status === 'CORTEX_STEP_STATUS_QUEUED'
+      );
+      if (anyRunning) return;
+
+      // Buscar el último paso de respuesta del modelo completado
+      const plannerSteps = newSteps.filter(
+        (s) =>
+          s.type === 'CORTEX_STEP_TYPE_PLANNER_RESPONSE' &&
+          s.status === 'CORTEX_STEP_STATUS_DONE' &&
+          s.plannerResponse?.response
+      );
+      if (plannerSteps.length === 0) return;
+
+      const lastStep = newSteps[newSteps.length - 1];
+      if (lastStep?.type !== 'CORTEX_STEP_TYPE_PLANNER_RESPONSE' || lastStep?.status !== 'CORTEX_STEP_STATUS_DONE') {
+        return;
+      }
+
+      const finalResponseText = String(lastStep.plannerResponse?.response || '').trim();
+      if (!finalResponseText || finalResponseText.length < 2) return;
+
+      // Esperar 1.5s adicionales por si el último paso fue justo después de un comando curl
+      completed = true;
+      clearInterval(timer);
+
+      await new Promise((r) => setTimeout(r, 1500));
+
+      let formatoFinal = rawFormato || 'respuesta';
+      let contenidoFinal = finalResponseText;
+      let resultadoFinal = finalResponseText;
+
+      if (formatoFinal === 'html' || /<!DOCTYPE html>/i.test(finalResponseText)) {
+        const htmlMatch =
+          finalResponseText.match(/```html\s*([\s\S]*?)```/i) ||
+          finalResponseText.match(/(<!DOCTYPE html[\s\S]*<\/html>)/i);
+        if (htmlMatch && htmlMatch[1]) {
+          formatoFinal = 'html';
+          contenidoFinal = htmlMatch[1].trim();
+          resultadoFinal = 'Aplicativo interactivo generado por Google Antigravity.';
+        }
+      } else if (formatoFinal === 'documento') {
+        const mdMatch = finalResponseText.match(/```(?:markdown|md)\s*([\s\S]*?)```/i);
+        if (mdMatch && mdMatch[1]) {
+          contenidoFinal = mdMatch[1].trim();
+        }
+        resultadoFinal = 'Documento técnico generado por Google Antigravity y abierto en Canvas.';
+      }
+
+      const completeUrl = `${wappyUrl}/api/mcp-bridge/antigravity/completar`;
+      const resp = await jsonRequest(completeUrl, 'POST', apiKey, {
+        ordenId,
+        formato: formatoFinal,
+        resultado: resultadoFinal,
+        contenido: contenidoFinal,
+      });
+      if (resp.status === 200 && resp.data?.exito) {
+        log(`✅ [Canal Directo QR] Respuesta de Antigravity para orden ${ordenId} recolectada directamente de la trayectoria (${cascadeId}) y entregada a Tenshi.`);
+      }
+    } catch (_) {}
+  }, 2000);
+
+  if (typeof timer.unref === 'function') timer.unref();
+}
+
+/**
+ * Despacha la orden directamente al `LanguageServerService` interno de Antigravity
+ * (el mismo canal nativo que usa el QR de "Remote Control").
+ */
+async function dispatchViaDirectLanguageServer({
+  prompt,
+  workspaceCwd,
+  targetConvoId,
+  ordenId,
+  rawFormato,
+  wappyUrl,
+  apiKey,
+}) {
+  let candidates = discoverLiveLanguageServer();
+  if (candidates.length === 0) {
+    candidates = ensureLiveAntigravityRunning(25);
+  }
+  if (!candidates || candidates.length === 0) {
+    throw new Error('No se encontró ningún puerto activo de language_server.');
+  }
+
+  const workspaceUri = (() => {
+    try {
+      const { pathToFileURL } = require('url');
+      return pathToFileURL(workspaceCwd).href;
+    } catch (_) {
+      return `file://${workspaceCwd}`;
+    }
+  })();
+
+  let lastErr = null;
+  for (const cand of candidates) {
+    try {
+      // 1. Obtener el modelo activo recomendado en esta instancia de Antigravity
+      let recommendedModel = 'MODEL_PLACEHOLDER_M418';
+      try {
+        const modelRes = await callLanguageServerRpc(cand, 'GetCascadeModelConfigData', {}, 4000);
+        if (modelRes.status === 200 && Array.isArray(modelRes.data?.clientModelConfigs)) {
+          const rec =
+            modelRes.data.clientModelConfigs.find((m) => m.isRecommended && m.modelOrAlias?.model) ||
+            modelRes.data.clientModelConfigs.find((m) => m.modelOrAlias?.model);
+          if (rec?.modelOrAlias?.model) {
+            recommendedModel = rec.modelOrAlias.model;
+          }
+        }
+      } catch (_) {}
+
+      let cascadeId = targetConvoId || null;
+      let initialStepCount = 0;
+
+      // Si hay un hilo previo, verificar cuántos pasos tiene actualmente
+      if (cascadeId) {
+        try {
+          const prevTraj = await callLanguageServerRpc(cand, 'GetCascadeTrajectory', { cascadeId }, 4000);
+          if (prevTraj.status === 200 && prevTraj.data?.trajectory) {
+            initialStepCount = Array.isArray(prevTraj.data.trajectory.steps)
+              ? prevTraj.data.trajectory.steps.length
+              : 0;
+          } else {
+            cascadeId = null;
+          }
+        } catch (_) {
+          cascadeId = null;
+        }
+      }
+
+      // 2. Si no hay hilo activo válido, iniciar uno nuevo por el canal nativo CORTEX_TRAJECTORY_SOURCE_CASCADE_CLIENT
+      if (!cascadeId) {
+        const startRes = await callLanguageServerRpc(
+          cand,
+          'StartCascade',
+          {
+            source: 'CORTEX_TRAJECTORY_SOURCE_CASCADE_CLIENT',
+            workspaceUris: [workspaceUri],
+          },
+          6000
+        );
+        if (startRes.status !== 200 || !startRes.data?.cascadeId) {
+          throw new Error(`StartCascade devolvió HTTP ${startRes.status}: ${startRes.raw || ''}`);
+        }
+        cascadeId = startRes.data.cascadeId;
+        initialStepCount = 0;
+      }
+
+      // 3. Enviar el mensaje con ejecución autónoma completa (Turbo / Eager)
+      const sendRes = await callLanguageServerRpc(
+        cand,
+        'SendUserCascadeMessage',
+        {
+          cascadeId,
+          items: [{ text: prompt }],
+          cascadeConfig: {
+            executorConfig: {
+              maxGeneratorInvocations: 25,
+            },
+            plannerConfig: {
+              conversational: {
+                plannerMode: 'CONVERSATIONAL_PLANNER_MODE_DEFAULT',
+                agenticMode: true,
+              },
+              toolConfig: {
+                autoAllowAllInteractions: true,
+                autoInteractionBehavior: 'AUTO_INTERACTION_BEHAVIOR_ALLOW_ALL',
+                runCommand: {
+                  autoCommandConfig: {
+                    enableModelAutoRun: true,
+                    autoExecutionPolicy: 'CASCADE_COMMANDS_AUTO_EXECUTION_EAGER',
+                  },
+                },
+              },
+              requestedModel: {
+                model: recommendedModel,
+              },
+            },
+          },
+        },
+        8000
+      );
+
+      if (sendRes.status !== 200) {
+        throw new Error(`SendUserCascadeMessage devolvió HTTP ${sendRes.status}: ${sendRes.raw || ''}`);
+      }
+
+      // 4. Iniciar recolector directo de la trayectoria en segundo plano
+      watchDirectTrajectoryCompletion({
+        candidate: cand,
+        cascadeId,
+        initialStepCount,
+        ordenId,
+        rawFormato,
+        wappyUrl,
+        apiKey,
+      });
+
+      return {
+        ok: true,
+        cascadeId,
+        port: cand.port,
+        model: recommendedModel,
+      };
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+
+  throw lastErr || new Error('Fallo despachando por Canal Directo LanguageServerService');
+}
+
 function runAgentApi(bin, subArgs, opts = {}) {
   const isLanguageServer = /language_server/i.test(bin);
   const fullArgs = isLanguageServer ? ['agentapi', ...subArgs] : subArgs;
@@ -1303,7 +1625,41 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
   );
 
   let dispatchedOk = false;
-  if (targetConvoId) {
+
+  // CANAL #1 (PRIORIDAD MÁXIMA): Canal Directo ConnectRPC hacia `LanguageServerService`
+  // (El mismo canal interno que usa el QR de "Remote Control" de Antigravity, sin pasar por el CLI `agentapi`).
+  try {
+    const directRes = await dispatchViaDirectLanguageServer({
+      prompt,
+      workspaceCwd,
+      targetConvoId: forceNewChat ? null : targetConvoId,
+      ordenId,
+      rawFormato,
+      wappyUrl,
+      apiKey,
+    });
+    if (directRes && directRes.ok && directRes.cascadeId) {
+      dispatchedOk = true;
+      saveTenshiThreadConversationId(directRes.cascadeId, workspaceCwd);
+      log(
+        `✅ [Canal Directo QR / LanguageServerService] Orden ${ordenId} inyectada directo al motor de Antigravity (Hilo: ${directRes.cascadeId}, Puerto: ${directRes.port}, Modelo: ${directRes.model}).`
+      );
+      jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/ordenes/${encodeURIComponent(ordenId)}/dispatch-log`, 'POST', apiKey, {
+        ok: true,
+        channel: 'direct_language_server_rpc',
+        conversationId: directRes.cascadeId,
+        port: directRes.port,
+        model: directRes.model,
+        cwd: workspaceCwd,
+        platform: process.platform,
+        version: DAEMON_VERSION,
+      }).catch(() => {});
+    }
+  } catch (directErr) {
+    log(`Aviso: Canal Directo LanguageServerService no disponible (${directErr.message}). Usando respaldo CLI agentapi...`);
+  }
+
+  if (!dispatchedOk && targetConvoId) {
     try {
       const sendArgs = [
         'send-message',
