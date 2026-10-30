@@ -1009,11 +1009,16 @@ body,
 .mkt .hero-h1-sub {
   display: block;
   font-size: clamp(19px, 3.0vw, 34px);
-  font-weight: 600;
-  color: rgba(14, 19, 0, 0.44);
+  font-weight: 800;
+  background: linear-gradient(90deg, #1e1b4b 0%, #4338ca 28%, #7e22ce 64%, #db2777 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
   margin-top: 8px;
   line-height: 1.18;
   letter-spacing: -0.02em;
+  padding-bottom: 0.06em;
 }
 
 .mkt .hero h1 .t2 {
@@ -2864,6 +2869,14 @@ body,
 
 .mkt.mkt-dark .hero h1 .hi {
   color: #0e1300 !important;
+}
+
+.mkt.mkt-dark .hero-h1-sub {
+  background: linear-gradient(90deg, #c7f303 0%, #2dd4bf 50%, #38bdf8 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
 }
 
 .mkt.mkt-dark .bento-card,
