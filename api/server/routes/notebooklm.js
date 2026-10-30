@@ -154,9 +154,17 @@ function mergeGoogleCookiesByDomain(incoming = [], existing = []) {
     const prev = byKey.get(key);
     if (prev) {
       if (
-        ['HSID', 'SSID', 'SID', '__Secure-1PSID', '__Secure-3PSID', 'APISID', 'SAPISID', 'LSID', '__Host-1PLSID', '__Host-3PLSID'].includes(c.name) &&
+        ['HSID', 'SSID', 'SID', '__Secure-1PSID', '__Secure-3PSID', 'APISID', 'SAPISID', 'LSID', '__Host-1PLSID', '__Host-3PLSID', 'OSID', '__Secure-OSID'].includes(c.name) &&
         typeof c.expires !== 'number' &&
         typeof prev.expires === 'number'
+      ) {
+        continue;
+      }
+      // Evitar regresión de contador en cookies rotativas (SIDCC / __Secure-1PSIDTS): conservar siempre la de mayor expires
+      if (
+        ['__Secure-1PSIDTS', '__Secure-3PSIDTS', 'SIDCC', '__Secure-1PSIDCC', '__Secure-3PSIDCC'].includes(c.name) &&
+        typeof prev.expires === 'number' &&
+        (typeof c.expires !== 'number' || prev.expires > c.expires)
       ) {
         continue;
       }
@@ -545,7 +553,6 @@ router.post('/session', requireJwtAuth, async (req, res) => {
         version: 1,
         account: {
           authuser: 0,
-          email: effectiveEmail,
         },
       },
     };

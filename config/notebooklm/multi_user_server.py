@@ -231,6 +231,13 @@ def _merge_preserving_rotated_cookies(
         "OSID",
         "__Secure-OSID",
     }
+    rotating_cookie_names = {
+        "__Secure-1PSIDTS",
+        "__Secure-3PSIDTS",
+        "SIDCC",
+        "__Secure-1PSIDCC",
+        "__Secure-3PSIDCC",
+    }
 
     by_key: Dict[tuple, Dict[str, Any]] = {}
     for ex_c in existing:
@@ -252,6 +259,10 @@ def _merge_preserving_rotated_cookies(
             # Nunca permitir que una cookie entrante sin expires sobrescriba una cookie maestra existente con expires válido
             if cname in protected_master_names and not isinstance(inc_exp, (int, float)) and isinstance(prev_exp, (int, float)):
                 continue
+            # Evitar regresión de contador en cookies rotativas (SIDCC / __Secure-1PSIDTS): conservar siempre la de mayor expires
+            if cname in rotating_cookie_names and isinstance(prev_exp, (int, float)):
+                if not isinstance(inc_exp, (int, float)) or prev_exp > inc_exp:
+                    continue
             merged_c = {**prev, **inc_c}
             if not isinstance(inc_exp, (int, float)) and isinstance(prev_exp, (int, float)):
                 merged_c["expires"] = prev_exp
@@ -260,6 +271,30 @@ def _merge_preserving_rotated_cookies(
             by_key[key] = dict(inc_c)
 
     return list(by_key.values())
+
+
+async def _evict_cached_client(profile_name: str) -> None:
+    """Cierra limpiamente el cliente en caché y su _keepalive_loop para evitar tareas huérfanas con jars antiguos."""
+    entry = None
+    async with _CACHE_LOCK:
+        entry = _CLIENT_CACHE.pop(profile_name, None)
+    if not entry:
+        return
+    client_obj, old_ctx, _ = entry
+    try:
+        core = getattr(client_obj, "_core", None)
+        if core is not None:
+            ka_task = getattr(core, "_keepalive_task", None)
+            if ka_task is not None and not ka_task.done():
+                ka_task.cancel()
+            http_cl = getattr(core, "_http_client", None)
+            if http_cl is not None:
+                await http_cl.aclose()
+                core._http_client = None
+        elif old_ctx is not None:
+            await old_ctx.__aexit__(None, None, None)
+    except Exception as e:
+        logger.debug(f"[Cache Evict] Aviso cerrando cliente previo de '{profile_name}': {e}")
 
 
 def _sync_disk_cookies_to_mongo(user_id: str, user_email: str, storage_file: Path) -> None:
@@ -304,6 +339,15 @@ def _ensure_psidts_ready(storage_file: Path, force_refresh: bool = False) -> boo
         cookies = data.get("cookies", [])
         nb_meta = data.get("notebooklm", {}) if isinstance(data.get("notebooklm"), dict) else {}
         last_rotated = float(nb_meta.get("lastRotatedAt", 0) or 0)
+
+        # Limpiar cualquier email de LibreChat en account para que notebooklm-py siempre use authuser: 0
+        if isinstance(nb_meta.get("account"), dict) and "email" in nb_meta["account"]:
+            nb_meta["account"].pop("email", None)
+            data["notebooklm"] = nb_meta
+            try:
+                storage_file.write_text(json.dumps(data, indent=2))
+            except Exception:
+                pass
 
         has_psidts = _has_psidts(cookies)
         # Cooldown estricto de 60s para proteger la sesión de Google contra ráfagas de RotateCookies
@@ -484,8 +528,7 @@ async def get_client_for_request(force_reinit: bool = False) -> NotebookLMClient
                 except Exception:
                     pass
                 logger.info(f"Perfil guardado para '{safe_profile}' con {len(merged_cookies)} cookies en {user_storage_file}.")
-                async with _CACHE_LOCK:
-                    _CLIENT_CACHE.pop(safe_profile, None)
+                await _evict_cached_client(safe_profile)
 
     # Si el archivo del usuario no existe en disco, intentar sincronizarlo dinámicamente desde LibreChat API
     if user_id and (not user_storage_file.exists() or user_storage_file.stat().st_size == 0):
@@ -572,8 +615,7 @@ async def get_client_for_request(force_reinit: bool = False) -> NotebookLMClient
                                 except Exception:
                                     pass
                                 logger.info(f"Sesión sincronizada dinámicamente para '{safe_profile}' desde {base_host} ({len(merged_sync_cookies)} cookies).")
-                                async with _CACHE_LOCK:
-                                    _CLIENT_CACHE.pop(safe_profile, None)
+                                await _evict_cached_client(safe_profile)
                         break
             except Exception as ex:
                 logger.debug(f"No se pudo consultar {base_host} para sesión de usuario: {ex}")
@@ -593,13 +635,11 @@ async def get_client_for_request(force_reinit: bool = False) -> NotebookLMClient
     # Garantizar que __Secure-1PSIDTS exista y esté fresco en disco (ejecutando RotateCookies bajo demanda)
     healed = await asyncio.to_thread(_ensure_psidts_ready, active_storage_file, force_reinit)
     if healed:
-        async with _CACHE_LOCK:
-            _CLIENT_CACHE.pop(selected_profile, None)
+        await _evict_cached_client(selected_profile)
         if user_id:
             await asyncio.to_thread(_sync_disk_cookies_to_mongo, user_id, user_email, active_storage_file)
     elif force_reinit:
-        async with _CACHE_LOCK:
-            _CLIENT_CACHE.pop(selected_profile, None)
+        await _evict_cached_client(selected_profile)
 
     active_sid = ""
     try:
@@ -607,13 +647,22 @@ async def get_client_for_request(force_reinit: bool = False) -> NotebookLMClient
     except Exception:
         pass
 
+    need_sid_evict = False
     async with _CACHE_LOCK:
         if selected_profile in _CLIENT_CACHE:
             client, old_ctx, cached_sid = _CLIENT_CACHE[selected_profile]
             if not active_sid or active_sid == cached_sid:
                 return client
-            logger.info(f"Sesión SID cambiada para '{selected_profile}'. Reinicializando cliente...")
-            _CLIENT_CACHE.pop(selected_profile, None)
+            need_sid_evict = True
+
+    if need_sid_evict:
+        logger.info(f"Sesión SID cambiada para '{selected_profile}'. Reinicializando cliente...")
+        await _evict_cached_client(selected_profile)
+
+    async with _CACHE_LOCK:
+        if selected_profile in _CLIENT_CACHE:
+            client, _, _ = _CLIENT_CACHE[selected_profile]
+            return client
 
         logger.info(f"Inicializando NotebookLMClient para perfil '{selected_profile}' desde '{active_storage_file}'...")
         ctx = None
@@ -627,7 +676,11 @@ async def get_client_for_request(force_reinit: bool = False) -> NotebookLMClient
 
         client_instance = await ctx.__aenter__()
         _CLIENT_CACHE[selected_profile] = (client_instance, ctx, active_sid)
-        return client_instance
+
+    if user_id:
+        await asyncio.to_thread(_sync_disk_cookies_to_mongo, user_id, user_email, active_storage_file)
+
+    return client_instance
 
 
 async def _resolve_notebook_id(client: NotebookLMClient, notebook_identifier: str) -> str:
@@ -2171,8 +2224,7 @@ async def refresh_cookies_handler(request: Request) -> JSONResponse:
         force_flag = bool(body.get("force", False))
         healed = await asyncio.to_thread(_ensure_psidts_ready, user_storage_file, force_flag)
         if healed:
-            async with _CACHE_LOCK:
-                _CLIENT_CACHE.pop(safe_profile, None)
+            await _evict_cached_client(safe_profile)
             if user_id:
                 await asyncio.to_thread(_sync_disk_cookies_to_mongo, user_id, user_email, user_storage_file)
 
