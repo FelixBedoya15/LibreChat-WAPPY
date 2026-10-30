@@ -711,7 +711,8 @@ Inserta etiquetas vocales orgánicas de Gemini TTS en las pausas clave: <breath>
 Estilo solicitado: ${opts.stylePrompt || 'Narración profesional, clara y expresiva'}.
 Devuelve ÚNICAMENTE el texto del guion mejorado, sin comentarios adicionales ni comillas.`;
 
-  const inputContent = `${promptInstruction}\n\nTEXTO BASE:\n${opts.text || 'Crea una introducción impactante sobre cómo la Inteligencia Artificial y la prevención transforman el aprendizaje y la seguridad.'}`;
+  const rawInputText = opts.text || opts.scriptText || '';
+  const inputContent = `${promptInstruction}\n\nTEXTO BASE:\n${rawInputText || 'Crea una introducción impactante sobre cómo la Inteligencia Artificial y la prevención transforman el aprendizaje y la seguridad.'}`;
 
   let lastErr = 'Error al mejorar el guion con IA.';
   for (const model of models) {
@@ -876,7 +877,7 @@ async function handleStudioRequest(url: URL, init?: RequestInit): Promise<Respon
         return nativeFetch(url.pathname + url.search, init);
       }
       const res = await enhanceScript(body);
-      return json({ success: true, text: res.text, model: res.model });
+      return json({ success: true, text: res.text, scriptText: res.text, model: res.model, usedModel: res.model });
     }
     if (path === '/video/generate-html') {
       if (readPortableKeys().length === 0 && (await isServerAvailable())) {

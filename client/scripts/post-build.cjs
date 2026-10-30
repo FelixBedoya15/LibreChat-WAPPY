@@ -17,6 +17,10 @@ async function postBuild() {
       await fs.copy('public/wappystudio.html', 'dist/wappystudio.html');
       await fs.copy('public/wappystudio.html', 'dist/assets/wappystudio.html');
     }
+    if (await fs.pathExists('public/wappypodcast.html')) {
+      await fs.copy('public/wappypodcast.html', 'dist/wappypodcast.html');
+      await fs.copy('public/wappypodcast.html', 'dist/assets/wappypodcast.html');
+    }
     console.log('✅ PWA icons, videos, images and robots.txt copied successfully.');
   } catch (err) {
     console.error('❌ Error copying files:', err);

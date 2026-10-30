@@ -1692,10 +1692,12 @@ router.post('/script/enhance', studioAuth, async (req, res) => {
   try {
     const {
       text = '',
+      scriptText = '',
       stylePrompt = '',
       multiSpeaker = false,
       modelName,
     } = req.body || {};
+    const baseText = text || scriptText || '';
 
     const envTextModels = getStudioTextModelsFromEnv();
     const preferredTextModel =
@@ -1717,7 +1719,7 @@ Inserta etiquetas vocales orgánicas de Gemini TTS en las pausas clave: <breath>
 Estilo solicitado: ${stylePrompt || 'Narración profesional, clara y expresiva'}.
 Devuelve ÚNICAMENTE el texto del guion mejorado, sin comentarios adicionales ni comillas.`;
 
-    const inputContent = `${promptInstruction}\n\nTEXTO BASE:\n${text || 'Crea una introducción impactante sobre cómo la Inteligencia Artificial y la prevención transforman el aprendizaje y la seguridad.'}`;
+    const inputContent = `${promptInstruction}\n\nTEXTO BASE:\n${baseText || 'Crea una introducción impactante sobre cómo la Inteligencia Artificial y la prevención transforman el aprendizaje y la seguridad.'}`;
 
     let enhancedText = '';
     if (allKeys.length > 0) {
@@ -1760,7 +1762,13 @@ Devuelve ÚNICAMENTE el texto del guion mejorado, sin comentarios adicionales ni
       throw new Error('No se pudo generar el guion mejorado.');
     }
 
-    return res.json({ success: true, text: enhancedText, model: preferredTextModel });
+    return res.json({
+      success: true,
+      text: enhancedText,
+      scriptText: enhancedText,
+      model: preferredTextModel,
+      usedModel: preferredTextModel,
+    });
   } catch (error) {
     logger.error('[WappyStudio Script] Error enhancing script:', error);
     return res.status(500).json({

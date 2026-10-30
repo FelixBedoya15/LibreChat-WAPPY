@@ -28,13 +28,17 @@ function mount() {
     document.body.appendChild(portal);
   }
 
-  const initialTab = TAB_ALIASES[host.getAttribute('data-initial-tab') || 'tts'] || 'tts';
+  const podcastOnly =
+    host.getAttribute('data-podcast-only') === 'true' ||
+    host.getAttribute('data-mode') === 'podcast';
+  const rawInitialTab = TAB_ALIASES[host.getAttribute('data-initial-tab') || 'tts'] || 'tts';
+  const initialTab = podcastOnly && rawInitialTab === 'video' ? 'tts' : rawInitialTab;
   createRoot(host).render(
     <React.StrictMode>
       <MemoryRouter initialEntries={[`/studio?tab=${initialTab}`]}>
         <Routes>
           <Route element={<PortableOutlet />}>
-            <Route path="*" element={<WappyStudioDashboard portable />} />
+            <Route path="*" element={<WappyStudioDashboard portable podcastOnly={podcastOnly} />} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -42,10 +46,13 @@ function mount() {
   );
 
   // API pública para la navbar / menú móvil de la landing
-  (window as any).wappyStudioSwitchTab = (tab: string) => {
-    const t = TAB_ALIASES[tab] || 'tts';
+  const switchTab = (tab: string) => {
+    const mapped = TAB_ALIASES[tab] || 'tts';
+    const t = podcastOnly && mapped === 'video' ? 'tts' : mapped;
     window.dispatchEvent(new CustomEvent('wappy-studio-switch-tab', { detail: t }));
   };
+  (window as any).wappyStudioSwitchTab = switchTab;
+  (window as any).wappyStudioNav = switchTab;
 }
 
 if (document.readyState === 'loading') {

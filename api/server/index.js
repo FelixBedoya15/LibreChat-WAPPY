@@ -770,6 +770,21 @@ const startServer = async () => {
     next();
   });
 
+  app.get(['/wappypodcast', '/wappy-podcast', '/wappypodcast.html', '/wappy-podcast.html'], (req, res, next) => {
+    const candidatePaths = [
+      path.resolve(__dirname, '../../client/dist/wappypodcast.html'),
+      path.resolve(__dirname, '../../client/public/wappypodcast.html'),
+      path.resolve(__dirname, '../../wappy_podcast_offline.html'),
+    ];
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        return res.sendFile(p);
+      }
+    }
+    next();
+  });
+
   app.post('/api/embajadores/send-otp', async (req, res) => {
     try {
       const { email, name, otpCode } = req.body;

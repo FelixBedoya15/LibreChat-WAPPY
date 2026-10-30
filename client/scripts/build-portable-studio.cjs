@@ -62,3 +62,30 @@ for (const out of outputs) {
   fs.writeFileSync(out, html);
   console.log(`✓ ${path.relative(repoDir, out)} (${(html.length / 1024).toFixed(0)} KB)`);
 }
+
+const podcastSourceHtml = path.join(repoDir, 'wappy_podcast_offline.html');
+if (fs.existsSync(podcastSourceHtml)) {
+  const podcastOutputs = [
+    podcastSourceHtml,
+    path.join(clientDir, 'public/wappypodcast.html'),
+    path.join(clientDir, 'public/assets/wappypodcast.html'),
+  ];
+  let podcastHtml = fs.readFileSync(podcastSourceHtml, 'utf8');
+  const pa = podcastHtml.indexOf(START);
+  const pb = podcastHtml.indexOf(END);
+  if (pa === -1 || pb === -1 || pb < pa) {
+    throw new Error('No se encontraron los marcadores WAPPY_STUDIO_APP en wappy_podcast_offline.html');
+  }
+  const podcastBlock = [
+    START,
+    '    <div id="wappy-studio-root" data-initial-tab="tts" data-podcast-only="true"></div>',
+    `    <style id="wappy-studio-portable-css">${safeCss}</style>`,
+    `    <script id="wappy-studio-portable-js">${safeJs}</script>`,
+    `    ${END}`,
+  ].join('\n');
+  podcastHtml = podcastHtml.slice(0, pa) + podcastBlock + podcastHtml.slice(pb + END.length);
+  for (const out of podcastOutputs) {
+    fs.writeFileSync(out, podcastHtml);
+    console.log(`✓ ${path.relative(repoDir, out)} (${(podcastHtml.length / 1024).toFixed(0)} KB)`);
+  }
+}
