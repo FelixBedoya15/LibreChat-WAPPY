@@ -40,6 +40,7 @@ import {
   Key,
   ExternalLink,
   Terminal,
+  Radio,
 } from 'lucide-react';
 import {
   putMediaBlob,
@@ -58,8 +59,8 @@ import type { ContextType } from '~/common';
 import { cn } from '~/utils';
 import WappyCassetteWalkmanPlayer from './WappyCassetteWalkmanPlayer';
 import WappyApplePodcastsShelf, {
-  ApplePodcastEpisodeModel,
-  APPLE_PODCASTS_MODELS,
+  PodcastShowPreset,
+  WAPPY_PODCAST_SHOWS,
 } from './WappyApplePodcastsShelf';
 
 // ============================================================================
@@ -2331,28 +2332,46 @@ export default function WappyStudioDashboard({
   const [speaker2Voice, setSpeaker2Voice] = useState<string>('Kore');
   const [wordsPerChunk, setWordsPerChunk] = useState<number>(150);
   const [scriptText, setScriptText] = useState<string>(
-    podcastOnly ? APPLE_PODCASTS_MODELS[0].scriptText : SCRIPT_TEMPLATES[0].text,
+    podcastOnly ? WAPPY_PODCAST_SHOWS[0].script : SCRIPT_TEMPLATES[0].text,
   );
 
   // Estado de Selección Editorial Apple Podcasts
-  const [selectedApplePodcastId, setSelectedApplePodcastId] = useState<string>('ep-01-reglas-oro');
+  const [selectedApplePodcastId, setSelectedApplePodcastId] = useState<string>(
+    WAPPY_PODCAST_SHOWS[0].id,
+  );
   const [activePodcastEpisodeTitle, setActivePodcastEpisodeTitle] = useState<string>(
-    podcastOnly ? APPLE_PODCASTS_MODELS[0].title : '',
+    podcastOnly ? WAPPY_PODCAST_SHOWS[0].title : '',
   );
 
-  const handleSelectApplePodcastEpisode = (ep: ApplePodcastEpisodeModel) => {
-    setSelectedApplePodcastId(ep.id);
-    setActivePodcastEpisodeTitle(ep.title);
-    setMultiSpeaker(true);
-    setSpeaker1Voice(ep.speaker1Voice);
-    setSpeaker2Voice(ep.speaker2Voice);
-    setStylePrompt(ep.stylePrompt);
-    setScriptText(ep.scriptText);
-    setStatusBanner({
-      type: 'success',
-      text: `Episodio "${ep.title}" (${ep.speaker1Voice} + ${ep.speaker2Voice}) cargado en el Walkman listo para síntesis. Pulsa "▶ Sintetizar y Reproducir en Walkman" para escucharlo.`,
-    });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  const handleSelectApplePodcastShow = (show: PodcastShowPreset, autoSynthesize = false) => {
+    setSelectedApplePodcastId(show.id);
+    setActivePodcastEpisodeTitle(show.title);
+    setMultiSpeaker(show.dualSpeaker);
+    if (show.dualSpeaker) {
+      setSpeaker1Voice(show.voiceId);
+      setSpeaker2Voice(show.secondVoiceId);
+    } else {
+      setSelectedVoice(show.voiceId);
+    }
+    setStylePrompt(show.stylePrompt);
+    setScriptText(show.script);
+
+    if (autoSynthesize) {
+      handleSynthesizePreview({
+        script: show.script,
+        title: show.title,
+        multiSpeaker: show.dualSpeaker,
+        voiceName: show.voiceId,
+        speaker1Voice: show.voiceId,
+        speaker2Voice: show.secondVoiceId,
+        stylePrompt: show.stylePrompt,
+      });
+    } else {
+      setStatusBanner({
+        type: 'success',
+        text: `Cápsula "${show.title}" (${show.dualSpeaker ? `${show.voiceId} + ${show.secondVoiceId}` : show.voiceId}) cargada en el Estudio y lista para editar o pasar al Walkman.`,
+      });
+    }
   };
 
   // Estado del Laboratorio de Expresividad & Prosodia (Pestaña 3)
@@ -2973,12 +2992,31 @@ export default function WappyStudioDashboard({
     }
   };
 
-  const handleSynthesizePreview = async () => {
-    if (!scriptText.trim()) return;
-    const snippet = scriptText.trim().slice(0, 850);
+  const handleSynthesizePreview = async (override?: {
+    script?: string;
+    title?: string;
+    multiSpeaker?: boolean;
+    voiceName?: string;
+    speaker1Voice?: string;
+    speaker2Voice?: string;
+    stylePrompt?: string;
+  }) => {
+    const rawScript = (override?.script ?? scriptText).trim();
+    if (!rawScript) return;
+    const snippet = rawScript.slice(0, 850);
     const snippetWords = snippet.split(/\s+/).filter(Boolean).length;
     const estSeconds = Math.max(3, Math.round((snippetWords / 145) * 60));
     const previewJobId = `preview_${Date.now()}`;
+    const effMulti = override?.multiSpeaker ?? multiSpeaker;
+    const effVoice = override?.voiceName || selectedVoice;
+    const effSpk1 = override?.speaker1Voice || speaker1Voice;
+    const effSpk2 = override?.speaker2Voice || speaker2Voice;
+    const effStyle = override?.stylePrompt ?? stylePrompt;
+    const effTitle =
+      override?.title ||
+      (podcastOnly && activePodcastEpisodeTitle
+        ? `${activePodcastEpisodeTitle}`
+        : `Cápsula: ${snippet.replace(/<[^>]+>/g, '').slice(0, 38)}...`);
     try {
       setIsPreviewing(true);
       setStatusBanner(null);
@@ -2998,12 +3036,12 @@ export default function WappyStudioDashboard({
         headers: getAuthHeaders(token),
         body: JSON.stringify({
           text: snippet,
-          voiceName: selectedVoice,
-          stylePrompt,
+          voiceName: effVoice,
+          stylePrompt: effStyle,
           model: selectedModel,
-          multiSpeaker,
-          speaker1: { name: 'Alex', voiceName: speaker1Voice },
-          speaker2: { name: 'Sam', voiceName: speaker2Voice },
+          multiSpeaker: effMulti,
+          speaker1: { name: 'Alex', voiceName: effSpk1 },
+          speaker2: { name: 'Sam', voiceName: effSpk2 },
         }),
       });
       const data = await parseStudioJson(resp);
@@ -3033,20 +3071,20 @@ export default function WappyStudioDashboard({
       });
       setCurrentAudio({
         base64: data.audioBase64,
-        title: `Audio Completo: ${snippet.slice(0, 42)}...`,
+        title: effTitle,
         durationSeconds: data.durationSeconds,
-        voiceName: multiSpeaker ? `${speaker1Voice} + ${speaker2Voice}` : selectedVoice,
+        voiceName: effMulti ? `${effSpk1} + ${effSpk2}` : effVoice,
         scriptText: snippet,
       });
       const newItem: LibraryItem = {
         id: Date.now().toString(),
-        title: `Vista Previa: ${snippet.slice(0, 42)}...`,
+        title: effTitle,
         createdAt: Date.now(),
-        voiceName: multiSpeaker ? `${speaker1Voice} + ${speaker2Voice}` : selectedVoice,
+        voiceName: effMulti ? `${effSpk1} + ${effSpk2}` : effVoice,
         model: data.usedModel || selectedModel,
         durationSeconds: data.durationSeconds,
         wordCount: snippetWords,
-        stylePrompt,
+        stylePrompt: effStyle,
         scriptText: snippet,
       };
       const previewKey = await saveAudioToLibrary(newItem, { base64: data.audioBase64 });
@@ -3056,7 +3094,7 @@ export default function WappyStudioDashboard({
       setStatusBanner({
         type: 'success',
         text: podcastOnly
-          ? 'Audio de podcast generado y cargado en el reproductor. Puedes escucharlo o descargarlo en WAV 24kHz.'
+          ? `¡Cápsula "${effTitle}" sintetizada en 24kHz WAV y cargada en el Walkman y en tu Carrusel de Cápsulas!`
           : 'Audio generado y cargado en el reproductor. Puedes descargarlo en WAV o enviarlo al Compositor de Video.',
       });
     } catch (err: any) {
@@ -5118,20 +5156,30 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
     <div
       className={cn(
         'flex-1 flex flex-col',
-        portable
-          ? 'bg-transparent h-auto overflow-visible pb-6'
-          : 'bg-gradient-to-b from-slate-50 via-white to-teal-50/20 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 min-h-[100dvh] h-auto overflow-y-auto pb-16',
+        podcastOnly
+          ? 'dark bg-gradient-to-b from-[#0c192e] via-[#09111e] to-[#060c16] text-white rounded-3xl p-4 sm:p-7 border border-teal-500/30 shadow-2xl max-w-7xl w-full mx-auto relative overflow-hidden my-2'
+          : portable
+            ? 'bg-transparent h-auto overflow-visible pb-6'
+            : 'bg-gradient-to-b from-slate-50 via-white to-teal-50/20 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 min-h-[100dvh] h-auto overflow-y-auto pb-16',
       )}
     >
+      {podcastOnly && (
+        <>
+          <div className="absolute -top-24 -right-24 w-80 h-80 bg-[#c7f303]/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-teal-500/15 rounded-full blur-3xl pointer-events-none" />
+        </>
+      )}
       {/* ==================================================================== */}
       {/* CABECERA MAESTRA WAPPY STUDIO (100% WAPPY DESIGN SYSTEM & RESPONSIVE)*/}
       {/* ==================================================================== */}
       <header
         className={cn(
-          'bg-white dark:bg-slate-900/95 px-4 sm:px-6 py-4 shadow-2xs z-30 overflow-hidden',
-          portable
-            ? 'relative rounded-3xl border border-slate-200/80 dark:border-slate-800 max-w-7xl w-full mx-auto'
-            : 'sticky top-0 border-b border-slate-200/90 dark:border-slate-800',
+          'z-30 overflow-hidden',
+          podcastOnly
+            ? 'bg-transparent pb-5 border-b border-white/10 relative'
+            : portable
+              ? 'bg-white dark:bg-slate-900/95 px-4 sm:px-6 py-4 shadow-2xs relative rounded-3xl border border-slate-200/80 dark:border-slate-800 max-w-7xl w-full mx-auto'
+              : 'bg-white dark:bg-slate-900/95 px-4 sm:px-6 py-4 shadow-2xs sticky top-0 border-b border-slate-200/90 dark:border-slate-800',
         )}
       >
         <div className="max-w-7xl mx-auto flex flex-col gap-3.5">
@@ -5144,31 +5192,52 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   <OpenSidebar setNavVisible={setNavVisible} />
                 </div>
               )}
+              {podcastOnly && (
+                <div className="w-11 h-11 rounded-2xl bg-[#c7f303]/15 border border-[#c7f303]/40 flex items-center justify-center text-xl shadow-lg shrink-0">
+                  🎙️
+                </div>
+              )}
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/30 uppercase tracking-wider">
-                    <Sparkles className="w-3 h-3 text-teal-500 shrink-0" />
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider',
+                      podcastOnly
+                        ? 'bg-[#c7f303]/20 text-[#c7f303] border border-[#c7f303]/40'
+                        : 'bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/30',
+                    )}
+                  >
+                    <Sparkles className="w-3 h-3 shrink-0" />
                     <span>
                       {podcastOnly
-                        ? '🎙️ PASO 1 · CREADOR DE PODCAST & LOCUCIÓN'
+                        ? 'NUEVOS & DESTACADOS · Apple Podcasts × WAPPY Walkman 24kHz'
                         : 'Estudio Multimodal • Gemini 3.8 Flash TTS & HyperFrames'}
                     </span>
                   </span>
                 </div>
                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <h1 className="text-xl sm:text-2xl font-extrabold flex items-center gap-2 bg-clip-text text-transparent bg-gradient-to-r from-teal-600 via-emerald-600 to-indigo-600 dark:from-teal-400 dark:via-emerald-400 dark:to-indigo-400 whitespace-nowrap">
-                    {podcastOnly ? (
-                      <MicVocal className="w-6 h-6 sm:w-7 sm:h-7 text-teal-500 shrink-0" />
-                    ) : (
+                  <h1
+                    className={cn(
+                      'text-xl sm:text-2xl font-extrabold flex items-center gap-2 whitespace-nowrap',
+                      podcastOnly
+                        ? 'text-white tracking-tight'
+                        : 'bg-clip-text text-transparent bg-gradient-to-r from-teal-600 via-emerald-600 to-indigo-600 dark:from-teal-400 dark:via-emerald-400 dark:to-indigo-400',
+                    )}
+                  >
+                    {!podcastOnly && (
                       <Clapperboard className="w-6 h-6 sm:w-7 sm:h-7 text-teal-500 shrink-0" />
                     )}
-                    <span>{podcastOnly ? 'WAPPY Podcast IA' : 'WAPPY Studio'}</span>
+                    <span>
+                      {podcastOnly
+                        ? 'WAPPY Series Originales & Estudio de Grabación Dual'
+                        : 'WAPPY Studio'}
+                    </span>
                   </h1>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 hidden sm:block">
-                    {podcastOnly
-                      ? 'Estudio Profesional de Podcast Conversacional (2 Voces) y Locución Neural Gemini 24 kHz WAV'
-                      : 'Síntesis de voz neural de hasta 1 hora continua y creación de videos animados en HTML/GSAP con Antigravity.'}
-                  </p>
+                  {!podcastOnly && (
+                    <p className="text-xs text-slate-600 dark:text-slate-300 hidden sm:block">
+                      Síntesis de voz neural de hasta 1 hora continua y creación de videos animados en HTML/GSAP con Antigravity.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -5215,6 +5284,21 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 disabled={isTestingConnection}
                 onClick={handleTestConnection}
               />
+
+              {podcastOnly && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleTabChange('tts');
+                    document
+                      .getElementById('podcast-script-editor-anchor')
+                      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#c7f303] hover:bg-[#d4ff1f] text-[#0e1300] font-extrabold text-xs shadow-lg shadow-[#c7f303]/20 transition-all cursor-pointer"
+                >
+                  <span>🎧 Ir al Estudio de Edición ↓</span>
+                </button>
+              )}
 
               {!portable && (
                 <ExpandableButton
@@ -5292,7 +5376,12 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
       </header>
 
       {/* CONTENIDO PRINCIPAL */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <main
+        className={cn(
+          'flex-1 max-w-7xl w-full mx-auto space-y-6 relative z-10',
+          podcastOnly ? 'pt-5 pb-2 px-0' : 'px-4 sm:px-6 py-6',
+        )}
+      >
         {/* Banner de Estado */}
         {statusBanner && (
           <div
@@ -5325,30 +5414,69 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
           </div>
         )}
 
-        {/* Reproductor Maestro de Audio: en podcastOnly se muestra SIEMPRE WappyCassetteWalkmanPlayer (Deck 24kHz interactivo); en Studio normal StudioAudioPlayer cuando hay audio */}
+        {/* EN PODCAST ONLY: FILA SUPERIOR LADO A LADO — WALKMAN CASSETTE DECK (5 COLS) + CARRUSEL DESPLAZABLE DE CÁPSULAS (7 COLS) */}
         {podcastOnly ? (
-          <WappyCassetteWalkmanPlayer
-            audioBase64={currentAudio?.base64}
-            audioUrl={currentAudio?.url}
-            title={
-              currentAudio?.title ||
-              activePodcastEpisodeTitle ||
-              (scriptText ? scriptText.trim().slice(0, 48) : 'Episodio de Podcast SST')
-            }
-            durationSeconds={currentAudio?.durationSeconds}
-            voiceName={
-              currentAudio?.voiceName ||
-              (multiSpeaker ? `${speaker1Voice} + ${speaker2Voice}` : selectedVoice)
-            }
-            speaker1Name="Alex"
-            speaker1Voice={speaker1Voice}
-            speaker2Name="Sam"
-            speaker2Voice={speaker2Voice}
-            multiSpeaker={multiSpeaker}
-            isSynthesizing={isPreviewing || activeJob?.status === 'processing'}
-            onSynthesizeAndPlay={handleSynthesizePreview}
-            token={token}
-          />
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+            <div className="lg:col-span-5 flex flex-col">
+              <WappyCassetteWalkmanPlayer
+                audioBase64={currentAudio?.base64}
+                audioUrl={currentAudio?.url}
+                title={
+                  currentAudio?.title ||
+                  activePodcastEpisodeTitle ||
+                  (scriptText ? scriptText.trim().slice(0, 48) : 'Episodio de Podcast SST')
+                }
+                subtitle={
+                  multiSpeaker
+                    ? `SIDE A • HOST DUAL (${speaker1Voice} + ${speaker2Voice})`
+                    : `SIDE A • LOCUCIÓN (${selectedVoice})`
+                }
+                voiceLabel={
+                  currentAudio?.voiceName ||
+                  (multiSpeaker ? `${speaker1Voice} + ${speaker2Voice}` : selectedVoice)
+                }
+                durationSec={currentAudio?.durationSeconds}
+                isGenerating={isPreviewing || activeJob?.status === 'processing'}
+                onGenerateDefault={() => handleSynthesizePreview()}
+                onOpenScriptEditor={() => {
+                  handleTabChange('tts');
+                  document
+                    .getElementById('podcast-script-editor-anchor')
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+              />
+            </div>
+
+            <div className="lg:col-span-7 flex flex-col min-w-0">
+              <WappyApplePodcastsShelf
+                activeShowId={selectedApplePodcastId}
+                isGenerating={isPreviewing || activeJob?.status === 'processing'}
+                onSelectShow={handleSelectApplePodcastShow}
+                userCapsules={libraryItems
+                  .filter((i) => i.kind !== 'video')
+                  .map((it) => ({
+                    id: it.id,
+                    title: it.title,
+                    createdAt: new Date(it.createdAt).toLocaleDateString(),
+                    durationSec: it.durationSeconds,
+                    voiceName: it.voiceName,
+                    scriptText: it.scriptText,
+                  }))}
+                onPlayUserCapsule={(cap) => {
+                  const found = libraryItems.find((x) => x.id === cap.id);
+                  if (found) {
+                    openLibraryAudio(found, false);
+                  }
+                }}
+                onScrollToEditor={() => {
+                  handleTabChange('tts');
+                  document
+                    .getElementById('podcast-script-editor-anchor')
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+              />
+            </div>
+          </div>
         ) : (
           currentAudio && (
             <StudioAudioPlayer
@@ -5369,16 +5497,36 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
         )}
 
         {/* ==================================================================== */}
-        {/* PESTAÑA 1: ESTUDIO DE VOZ (GEMINI 3.8 FLASH TTS HASTA 60 MIN)        */}
+        {/* PESTAÑA 1: ESTUDIO DE VOZ Y EDICIÓN DE CÁPSULAS (MISMO ESTILO DARK)  */}
         {/* ==================================================================== */}
         {activeTab === 'tts' && (
-          <div className="space-y-6 animate-in fade-in duration-200">
-            {/* Estantería Editorial estilo Apple Podcasts (Exclusivo en podcastOnly) */}
+          <div
+            id="podcast-script-editor-anchor"
+            className={cn(
+              'space-y-6 animate-in fade-in duration-200',
+              podcastOnly && 'pt-6 border-t border-teal-500/25',
+            )}
+          >
             {podcastOnly && (
-              <WappyApplePodcastsShelf
-                onSelectEpisode={handleSelectApplePodcastEpisode}
-                activeEpisodeId={selectedApplePodcastId}
-              />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/90 border border-teal-500/30 rounded-2xl p-4 shadow-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#c7f303]/15 border border-[#c7f303]/40 flex items-center justify-center text-[#c7f303] shrink-0">
+                    <Sliders className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#c7f303] block">
+                      CONSOLA DE PRODUCCIÓN & EDICIÓN · GEMINI 24KHZ WAV
+                    </span>
+                    <h3 className="text-base sm:text-lg font-black text-white tracking-tight">
+                      Estudio para Crear, Editar y Pasar tus Audios al Walkman & Cápsulas
+                    </h3>
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-500/15 border border-teal-400/30 text-teal-200 text-[11px] font-bold shrink-0">
+                  <span className="w-2 h-2 rounded-full bg-[#c7f303] animate-pulse" />
+                  <span>Pasa directo a tu Walkman y Carrusel arriba ↑</span>
+                </span>
+              </div>
             )}
             {/* Monitor de Trabajo Asíncrono por Capas (Justo debajo del Reproductor Maestro, idéntico al diseño de referencia) */}
             {activeJob && (
@@ -6129,11 +6277,27 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   />
                 </div>
 
+                {/* Campo de Título de la Cápsula de Podcast (Exclusivo en podcastOnly para nombrar la cápsula al pasarla al Carrusel y Walkman) */}
+                {podcastOnly && (
+                  <div className="p-3 rounded-xl bg-slate-950/80 border border-teal-500/30 flex flex-col sm:flex-row sm:items-center gap-2.5">
+                    <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#c7f303] shrink-0">
+                      📻 Título de tu Cápsula:
+                    </label>
+                    <input
+                      type="text"
+                      value={activePodcastEpisodeTitle}
+                      onChange={(e) => setActivePodcastEpisodeTitle(e.target.value)}
+                      placeholder="Ej: Charla 5 Min - Bloqueo LOTO en Planta..."
+                      className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-[#c7f303]"
+                    />
+                  </div>
+                )}
+
                 {/* Cabecera del Editor + Selector de Plantilla + Botón Mejorar con IA */}
                 <div className="flex flex-wrap items-center justify-between gap-2.5">
                   <h2 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2 shrink-0">
                     <MicVocal className="w-4 h-4 text-teal-500" />
-                    Texto a Sintetizar
+                    {podcastOnly ? 'Guion del Episodio / Cápsula a Sintetizar' : 'Texto a Sintetizar'}
                   </h2>
 
                   <div className="flex flex-wrap items-center gap-2 min-w-0">
@@ -6322,12 +6486,16 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   <ExpandableButton
                     alwaysExpanded
                     icon={isPreviewing ? <Loader2 className="animate-spin" /> : <Zap />}
-                    label="Vista Previa Rápida (~1er fragmento)"
+                    label={
+                      podcastOnly
+                        ? 'Sintetizar y Pasar al Walkman & Cápsulas'
+                        : 'Vista Previa Rápida (~1er fragmento)'
+                    }
                     variant="amber"
                     disabled={
                       isPreviewing || activeJob?.status === 'processing' || !scriptText.trim()
                     }
-                    onClick={handleSynthesizePreview}
+                    onClick={() => handleSynthesizePreview()}
                   />
 
                   <ExpandableButton
@@ -6341,8 +6509,10 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     }
                     label={
                       chunkCount > 1
-                        ? `Generar Audio Completo (${chunkCount} fragmentos • ~${estimatedMinutes} min)`
-                        : 'Generar Audio Completo'
+                        ? `Generar Podcast Completo (${chunkCount} fragmentos • ~${estimatedMinutes} min)`
+                        : podcastOnly
+                          ? 'Generar Episodio Completo (24kHz WAV)'
+                          : 'Generar Audio Completo'
                     }
                     variant="teal"
                     disabled={
