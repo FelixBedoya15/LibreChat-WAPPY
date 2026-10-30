@@ -33,8 +33,35 @@ const DISPATCHED_FILE = path.join(AGY_DIR, 'wappy-dispatched-orders.json');
 const ACTIVE_CONVO_FILE = path.join(AGY_DIR, 'wappy-active-conversation.txt');
 const TENSHI_THREAD_FILE = path.join(AGY_DIR, 'wappy-tenshi-thread.json');
 const TENSHI_THREAD_TTL_MS = 2 * 60 * 60 * 1000; // 2 horas de continuidad de hilo en el mismo chat de Tenshi
-const DAEMON_VERSION = '2.5.1';
+const DAEMON_VERSION = '2.5.2';
 const LOG_MAX_BYTES = 5 * 1024 * 1024; // Rotación automática del log a los 5 MB
+
+/**
+ * Elimina de un objeto de entorno las variables de sesión de herramienta de Antigravity
+ * (ANTIGRAVITY_SOURCE_METADATA, ANTIGRAVITY_CONVERSATION_ID, ANTIGRAVITY_TRAJECTORY_ID, etc.).
+ * Si estas variables se heredan desde un `run_command` hacia el daemon o hacia `agentapi`,
+ * el `language_server` interpreta la llamada como un subagente restringido a un único proyecto
+ * y lanza `PermissionDenied: source project_id "..." does not match target project_id "..."`.
+ */
+function cleanAntigravitySessionEnv(baseEnv) {
+  const out = { ...(baseEnv || {}) };
+  delete out.ANTIGRAVITY_SOURCE_METADATA;
+  delete out.ANTIGRAVITY_CONVERSATION_ID;
+  delete out.ANTIGRAVITY_TRAJECTORY_ID;
+  delete out.ANTIGRAVITY_AGENT;
+  delete out.ANTIGRAVITY_STEP_INDEX;
+  delete out.ANTIGRAVITY_LS_ADDRESS;
+  delete out.ANTIGRAVITY_CSRF_TOKEN;
+  return out;
+}
+
+function purgeProcessSessionVars() {
+  delete process.env.ANTIGRAVITY_SOURCE_METADATA;
+  delete process.env.ANTIGRAVITY_CONVERSATION_ID;
+  delete process.env.ANTIGRAVITY_TRAJECTORY_ID;
+  delete process.env.ANTIGRAVITY_AGENT;
+  delete process.env.ANTIGRAVITY_STEP_INDEX;
+}
 
 function ensureDirs() {
   try {
@@ -307,7 +334,11 @@ function parseArgs() {
   const argv = process.argv.slice(2);
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg.startsWith('--')) {
+    if (arg === '-h' || arg === '--help') {
+      args.help = true;
+    } else if (arg === '-v' || arg === '--version') {
+      args.version = true;
+    } else if (arg.startsWith('--')) {
       const eqIdx = arg.indexOf('=');
       if (eqIdx !== -1) {
         const k = arg.slice(2, eqIdx).trim();
@@ -711,12 +742,18 @@ function runAgentApi(bin, subArgs, opts = {}) {
   for (const cand of envCandidates) {
     try {
       const mergedEnv = {
-        ...process.env,
-        ...(execOpts.env || {}),
+        ...cleanAntigravitySessionEnv(process.env),
+        ...cleanAntigravitySessionEnv(execOpts.env || {}),
         PATH: `${(execOpts.env && execOpts.env.PATH) || process.env.PATH || ''}${path.delimiter}${extraPath}`,
         ...(cand.address ? { ANTIGRAVITY_LS_ADDRESS: cand.address } : {}),
         ...(cand.csrfToken ? { ANTIGRAVITY_CSRF_TOKEN: cand.csrfToken } : {}),
       };
+      // Preservar ANTIGRAVITY_PROJECT_ID solo si fue pasado explícitamente en execOpts.env
+      if (execOpts.env && execOpts.env.ANTIGRAVITY_PROJECT_ID) {
+        mergedEnv.ANTIGRAVITY_PROJECT_ID = execOpts.env.ANTIGRAVITY_PROJECT_ID;
+      } else {
+        delete mergedEnv.ANTIGRAVITY_PROJECT_ID;
+      }
       const out = execFileSync(bin, fullArgs, {
         windowsHide: true,
         ...execOpts,
@@ -1014,7 +1051,12 @@ function resolveWorkspaceTarget() {
             autoLaunch: false,
           });
           const parsed = JSON.parse(out);
-          const uris = parsed?.response?.conversationMetadata?.metadata?.workspaceUris || [];
+          const metaObj = parsed?.response?.conversationMetadata?.metadata || {};
+          const rawWorkspaces = Array.isArray(metaObj.workspaces) ? metaObj.workspaces : [];
+          const uris = [
+            ...rawWorkspaces.map((w) => w?.workspaceFolderAbsoluteUri || w?.gitRootAbsoluteUri || '').filter(Boolean),
+            ...(Array.isArray(metaObj.workspaceUris) ? metaObj.workspaceUris : []),
+          ];
           for (const uri of uris) {
             if (typeof uri === 'string' && uri.startsWith('file://')) {
               let folderPath = decodeURIComponent(uri.replace(/^file:\/\//, ''));
@@ -1034,7 +1076,20 @@ function resolveWorkspaceTarget() {
     }
   } catch (_) {}
 
-  // 2. Respaldo: proyecto más reciente en ~/.gemini/config/projects/*.json
+  // 2. Respaldo prioritario: entorno explícito capturado en wappy-env.json al instalar el puente
+  try {
+    if (fs.existsSync(ENV_FILE)) {
+      const savedEnv = JSON.parse(fs.readFileSync(ENV_FILE, 'utf8'));
+      if (savedEnv?.workspaceCwd && fs.existsSync(savedEnv.workspaceCwd)) {
+        return {
+          cwd: savedEnv.workspaceCwd,
+          projectId: savedEnv.projectId || findProjectIdForFolder(savedEnv.workspaceCwd) || 'outside-of-project',
+        };
+      }
+    }
+  } catch (_) {}
+
+  // 3. Respaldo secundario: proyecto más reciente en ~/.gemini/config/projects/*.json
   try {
     const projectsDir = path.join(CONFIG_DIR, 'projects');
     if (fs.existsSync(projectsDir)) {
@@ -1068,19 +1123,6 @@ function resolveWorkspaceTarget() {
 
       if (bestFolder) {
         return { cwd: bestFolder, projectId: bestProjectId };
-      }
-    }
-  } catch (_) {}
-
-  // 3. Respaldo: entorno capturado en wappy-env.json
-  try {
-    if (fs.existsSync(ENV_FILE)) {
-      const savedEnv = JSON.parse(fs.readFileSync(ENV_FILE, 'utf8'));
-      if (savedEnv?.workspaceCwd && fs.existsSync(savedEnv.workspaceCwd)) {
-        return {
-          cwd: savedEnv.workspaceCwd,
-          projectId: savedEnv.projectId || findProjectIdForFolder(savedEnv.workspaceCwd) || 'outside-of-project',
-        };
       }
     }
   } catch (_) {}
@@ -1241,7 +1283,7 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
   const bin = resolveAgentApiBinary();
   const { cwd: workspaceCwd, projectId } = resolveWorkspaceTarget();
   const spawnEnv = {
-    ...process.env,
+    ...cleanAntigravitySessionEnv(process.env),
     ...(projectId ? { ANTIGRAVITY_PROJECT_ID: projectId } : {}),
   };
 
@@ -1315,14 +1357,38 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
           `--title=⚡ Tenshi: ${titulo.slice(0, 60)}`,
           prompt,
         ];
-        const stdout =
-          runAgentApi(bin, newArgs, {
-            timeout: 20000,
-            stdio: 'pipe',
-            cwd: workspaceCwd,
-            env: spawnEnv,
-            encoding: 'utf8',
-          }) || '';
+        let stdout = '';
+        try {
+          stdout =
+            runAgentApi(bin, newArgs, {
+              timeout: 20000,
+              stdio: 'pipe',
+              cwd: workspaceCwd,
+              env: spawnEnv,
+              encoding: 'utf8',
+            }) || '';
+        } catch (firstErr) {
+          const msg = String(firstErr?.message || '');
+          if (msg.includes('PermissionDenied') || msg.includes('project_id')) {
+            const mSrc = msg.match(/source project_id\s+"([0-9a-fA-F-]+)"/);
+            const fallbackEnv = { ...cleanAntigravitySessionEnv(spawnEnv) };
+            if (mSrc && mSrc[1]) {
+              fallbackEnv.ANTIGRAVITY_PROJECT_ID = mSrc[1];
+            } else {
+              delete fallbackEnv.ANTIGRAVITY_PROJECT_ID;
+            }
+            stdout =
+              runAgentApi(bin, newArgs, {
+                timeout: 20000,
+                stdio: 'pipe',
+                cwd: workspaceCwd,
+                env: fallbackEnv,
+                encoding: 'utf8',
+              }) || '';
+          } else {
+            throw firstErr;
+          }
+        }
 
         dispatchedOk = true;
         const createdConvoId = detectNewlyCreatedConversationId(beforeDbs, stdout);
@@ -1426,7 +1492,7 @@ function buildMacLaunchAgentPlist(nodeBin, scriptToRun) {
   <key>KeepAlive</key>
   <true/>
   <key>ThrottleInterval</key>
-  <integer>10</integer>
+  <integer>2</integer>
   <key>AbandonProcessGroup</key>
   <true/>
   <key>ProcessType</key>
@@ -1470,6 +1536,7 @@ function isWorkerHeartbeatFresh() {
  * Si murió o quedó colgado, lo reinicia. Seguro de ejecutar cada pocos minutos.
  */
 function ensureWorkerRunning() {
+  purgeProcessSessionVars();
   ensureDirs();
   const alivePid = readAliveWorkerPid();
   if (alivePid && isWorkerHeartbeatFresh()) {
@@ -1491,6 +1558,7 @@ function ensureWorkerRunning() {
     detached: true,
     stdio: 'ignore',
     windowsHide: true,
+    env: cleanAntigravitySessionEnv(process.env),
   });
   child.unref();
   log(`Vigilante: worker iniciado (PID: ${child.pid}).`);
@@ -1501,10 +1569,18 @@ function ensureWorkerRunning() {
  * Termina de forma segura cualquier worker anterior para evitar procesos duplicados
  */
 function terminateOtherWorkers() {
+  const others = listOurWorkerPids().filter((p) => p && p !== process.pid);
+  if (others.length === 0) return;
+  for (const p of others) {
+    try {
+      process.kill(p, 'SIGTERM');
+    } catch (_) {}
+  }
+  sleepSync(350);
   for (const p of listOurWorkerPids()) {
     if (p && p !== process.pid) {
       try {
-        process.kill(p, 'SIGTERM');
+        process.kill(p, 'SIGKILL');
       } catch (_) {}
     }
   }
@@ -1558,6 +1634,7 @@ function listOurWorkerPids() {
 function installAndStartDaemon(cliArgs) {
   ensureDirs();
   captureAntigravityEnv();
+  purgeProcessSessionVars();
 
   const { wappyUrl, apiKey } = resolveCredentials(cliArgs);
   if (apiKey && !apiKey.includes('...') && apiKey !== 'PEGA_TU_CLAVE_AQUI') {
@@ -1607,21 +1684,20 @@ function installAndStartDaemon(cliArgs) {
       fs.mkdirSync(launchAgentsDir, { recursive: true });
       const plistPath = path.join(launchAgentsDir, 'club.wappy.antigravity.bridge.plist');
       const plistContent = buildMacLaunchAgentPlist(nodeBin, scriptToRun);
-      let previous = '';
-      try {
-        previous = fs.existsSync(plistPath) ? fs.readFileSync(plistPath, 'utf8') : '';
-      } catch (_) {}
       fs.writeFileSync(plistPath, plistContent, 'utf8');
-      // Recargar el trabajo para que launchd aplique la nueva configuración (este instalador corre fuera del grupo del job)
-      if (previous && previous !== plistContent) {
-        try {
-          execFileSync('launchctl', ['unload', plistPath], { stdio: 'ignore' });
-        } catch (_) {}
-      }
+      try {
+        execFileSync('launchctl', ['unload', plistPath], { stdio: 'ignore' });
+      } catch (_) {}
       try {
         execFileSync('launchctl', ['load', '-w', plistPath], { stdio: 'ignore' });
       } catch (_) {}
-      for (let i = 0; i < 10 && !startedByLaunchd; i++) {
+      try {
+        const uid = typeof process.getuid === 'function' ? process.getuid() : '';
+        if (uid !== '') {
+          execFileSync('launchctl', ['kickstart', '-k', `gui/${uid}/club.wappy.antigravity.bridge`], { stdio: 'ignore' });
+        }
+      } catch (_) {}
+      for (let i = 0; i < 12 && !startedByLaunchd; i++) {
         sleepSync(500);
         const lPid = readAliveWorkerPid();
         if (lPid) {
@@ -1697,6 +1773,7 @@ function installAndStartDaemon(cliArgs) {
       detached: true,
       stdio: 'ignore',
       windowsHide: true,
+      env: cleanAntigravitySessionEnv(process.env),
     });
     child.unref();
 
@@ -1713,6 +1790,7 @@ function installAndStartDaemon(cliArgs) {
  * Bucle principal de conexión SSE persistente (1 stream único por servidor WAPPY con rotación de clave en caso de 401)
  */
 function startSseWorker(cliArgs) {
+  purgeProcessSessionVars();
   ensureDirs();
   process.on('uncaughtException', (err) => {
     log(`Aviso uncaughtException en worker: ${err?.message || err}`);
@@ -1945,6 +2023,16 @@ function startSseWorker(cliArgs) {
   };
 
   const syncStreams = () => {
+    try {
+      if (fs.existsSync(PID_FILE)) {
+        const ownerPid = parseInt(fs.readFileSync(PID_FILE, 'utf8').trim(), 10);
+        if (ownerPid && ownerPid !== process.pid && listOurWorkerPids().includes(ownerPid)) {
+          log(`Worker duplicado detectado (PID ${process.pid} cede lugar al worker activo PID ${ownerPid}). Saliendo...`);
+          cleanupAndExit();
+          return;
+        }
+      }
+    } catch (_) {}
     const creds = resolveAllCredentials(cliArgs).filter((c) => !invalidKeys.has(c.apiKey));
     if (creds.length === 0) {
       if (invalidKeys.size > 0) invalidKeys.clear();
@@ -2130,7 +2218,12 @@ async function failOrderCli(cliArgs) {
 
 if (require.main === module) {
   const cliArgs = parseArgs();
-  if (cliArgs['fail-order'] || cliArgs.failOrder) {
+  if (cliArgs.help || cliArgs.h || cliArgs.version || cliArgs.v) {
+    console.log(
+      `WAPPY <-> Google Antigravity Push Bridge v${DAEMON_VERSION}\nUso: node wappy-push-daemon.js [--install | --worker | --ensure | --stop | --complete-order=<id> | --send-file=<ruta> | --notebooklm | --googleflow]`
+    );
+    process.exit(0);
+  } else if (cliArgs['fail-order'] || cliArgs.failOrder) {
     failOrderCli(cliArgs);
   } else if (cliArgs['complete-order'] || cliArgs.completeOrder || cliArgs.complete) {
     completeOrderCli(cliArgs);
