@@ -984,18 +984,35 @@ body,
 }
 
 .mkt .hero h1 {
-  letter-spacing: -0.035em;
-  margin: 18px 0 0;
-  font-weight: 700;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 900;
+  font-size: 1.875rem;
+  letter-spacing: -0.025em;
   line-height: 1.1;
+  max-width: 56rem;
+  margin: 14px auto 0;
+  color: #0f172a;
+}
+
+@media (min-width: 640px) {
+  .mkt .hero h1 {
+    font-size: 3rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .mkt .hero h1 {
+    font-size: 3.75rem;
+  }
 }
 
 .mkt .hero-h1-main {
   display: block;
-  font-size: clamp(28px, 4.4vw, 52px);
-  font-weight: 800;
-  letter-spacing: -0.035em;
-  color: var(--ink);
+  font-family: 'Outfit', sans-serif;
+  font-size: inherit;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  color: #0f172a;
   line-height: 1.1;
   white-space: normal;
 }
@@ -1007,17 +1024,18 @@ body,
 }
 
 .mkt .hero-h1-sub {
-  display: block;
-  font-size: clamp(19px, 3.0vw, 34px);
-  font-weight: 800;
+  display: inline-block;
+  font-family: 'Outfit', sans-serif;
+  font-size: inherit;
+  font-weight: 900;
   background: linear-gradient(90deg, #1e1b4b 0%, #4338ca 28%, #7e22ce 64%, #db2777 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  margin-top: 8px;
-  line-height: 1.18;
-  letter-spacing: -0.02em;
+  margin-top: 0;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
   padding-bottom: 0.06em;
 }
 
@@ -2860,11 +2878,12 @@ body,
 }
 
 .mkt.mkt-dark .hero h1,
+.mkt.mkt-dark .hero-h1-main,
 .mkt.mkt-dark .hero-sub,
 .mkt.mkt-dark h2,
 .mkt.mkt-dark h3,
 .mkt.mkt-dark h4 {
-  color: #f8fafc;
+  color: #f8fafc !important;
 }
 
 .mkt.mkt-dark .hero h1 .hi {
