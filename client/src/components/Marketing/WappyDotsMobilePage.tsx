@@ -813,24 +813,24 @@ export default function WappyDotsMobilePage() {
       {/* ===================================================================== */}
       {/* 2. ESCENARIO HEROICO DE TENSHI (Con Aureola 3D, HUD y Colores Dots)    */}
       {/* ===================================================================== */}
-      <main className="relative z-10 flex flex-1 flex-col items-center justify-between overflow-y-auto px-4 py-2 sm:py-4">
-        {/* Fila Superior de Insignias estilo Portal Wappy Dots (Separación Espacial top) */}
-        <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-purple-400/40 bg-purple-500/15 px-3 py-1 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-purple-200 shadow-sm">
+      <main className="relative z-10 flex flex-1 flex-col items-center justify-between overflow-hidden px-3 sm:px-4 py-1.5 sm:py-2.5">
+        {/* Fila Superior de Insignias estilo Portal Wappy Dots */}
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-purple-400/40 bg-purple-500/15 px-3 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-purple-200 shadow-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-[#c7f303] shadow-[0_0_8px_#c7f303]" />
             <span>ISLA NOTCH · VOZ 24KHZ</span>
           </div>
 
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-500/15 px-3 py-1 text-[10px] sm:text-[11px] font-extrabold text-amber-200 shadow-sm">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-500/15 px-3 py-0.5 text-[10px] font-extrabold text-amber-200 shadow-sm">
             <span>😇 Tenshi + Antigravity + +24 Agentes</span>
           </div>
         </div>
 
         {/* Escenario Central con el Tenshi Real de Wappy (Aureola + Visor HUD + Física 3D) */}
-        <div className="relative my-auto flex flex-col items-center justify-center py-1">
+        <div className="relative flex flex-col items-center justify-center">
           {/* Resplandor Radial Doble (Ámbar Wappy Dots + Índigo/Esmeralda) detrás de Tenshi */}
           <div
-            className={`pointer-events-none absolute h-64 w-64 sm:h-72 sm:w-72 rounded-full blur-3xl transition-all duration-500 ${
+            className={`pointer-events-none absolute h-52 w-52 sm:h-60 sm:w-60 rounded-full blur-3xl transition-all duration-500 ${
               isListening
                 ? 'bg-rose-500/25 scale-110'
                 : isSpeaking
@@ -844,11 +844,11 @@ export default function WappyDotsMobilePage() {
               tenshiAudio.playBlip();
               toggleVoiceRecording();
             }}
-            className="relative z-20 cursor-pointer transition-transform duration-300 hover:scale-[1.03] active:scale-95"
+            className="relative z-20 mt-2 cursor-pointer transition-transform duration-300 hover:scale-[1.03] active:scale-95"
             title="Tócame para hablar o acaríciame"
           >
             <TenshiAvatar
-              size={250}
+              size={195}
               mood={mood}
               isSpeaking={isSpeaking}
               outputAmplitude={outputAmplitude}
@@ -863,7 +863,7 @@ export default function WappyDotsMobilePage() {
 
           {/* Pedestal de Luz Elíptica bajo los pies de Tenshi (Idéntico a Wappy Portal) */}
           <div
-            className="pointer-events-none -mt-2 h-5 w-44 rounded-full blur-md"
+            className="pointer-events-none -mt-2 h-4 w-40 rounded-full blur-md"
             style={{
               background:
                 'radial-gradient(ellipse at center, rgba(199, 243, 3, 0.45) 0%, rgba(245, 158, 11, 0.25) 45%, rgba(16, 185, 129, 0) 75%)',
@@ -871,34 +871,32 @@ export default function WappyDotsMobilePage() {
           />
 
           {/* Saludo + Burbuja Glassmorphism de Voz en Vivo */}
-          <div className="mt-4 flex max-w-lg flex-col items-center text-center px-2">
-            <h1 className="wappydots-font-display text-lg sm:text-xl font-black tracking-tight text-white">
+          <div className="mt-3 flex max-w-lg flex-col items-center text-center px-2">
+            <h1 className="wappydots-font-display text-base sm:text-lg font-black tracking-tight text-white">
               ¡Hola, <span className="text-amber-400">Félix</span>!
             </h1>
 
-            <div className="mt-2 relative rounded-2xl border border-white/10 bg-[#13141a]/90 px-4 py-2.5 text-xs sm:text-[13px] leading-relaxed text-slate-200 shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur-xl">
-              <span>{speechText}</span>
-              <div className="mt-2 flex items-center justify-center gap-2">
-                {isSpeaking ? (
-                  <button
-                    type="button"
-                    onClick={flushAudioQueue}
-                    className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-0.5 text-[10px] font-bold text-rose-300 hover:bg-rose-500/20"
-                  >
-                    <Square className="h-2.5 w-2.5 fill-current" />
-                    <span>Detener voz</span>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => speakFallback(speechText)}
-                    className="inline-flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-bold text-amber-300 hover:bg-amber-500/20"
-                  >
-                    <Volume1 className="h-3 w-3" />
-                    <span>Escuchar</span>
-                  </button>
-                )}
-              </div>
+            <div className="mt-1.5 relative flex items-center gap-2.5 rounded-2xl border border-white/10 bg-[#13141a]/90 px-3.5 py-2 text-xs leading-snug text-slate-200 shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+              <span className="line-clamp-2 text-left">{speechText}</span>
+              {isSpeaking ? (
+                <button
+                  type="button"
+                  onClick={flushAudioQueue}
+                  className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-[10px] font-bold text-rose-300 hover:bg-rose-500/20"
+                >
+                  <Square className="h-2.5 w-2.5 fill-current" />
+                  <span>Parar</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => speakFallback(speechText)}
+                  className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-300 hover:bg-amber-500/20"
+                >
+                  <Volume1 className="h-3 w-3" />
+                  <span>Oír</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -906,7 +904,7 @@ export default function WappyDotsMobilePage() {
         {/* ================================================================= */}
         {/* 3. DOCK CÁPSULA DE TENSHI + BARRA DE CHAT ESTILO NOTCH WAPPY DOTS */}
         {/* ================================================================= */}
-        <div className="w-full max-w-2xl flex flex-col items-center gap-2.5 pb-1">
+        <div className="w-full max-w-2xl flex flex-col items-center gap-2 pb-0.5">
           {/* 🌟 Botonera Cápsula de Tenshi (Idéntica a TenshiChat.tsx + Wappy Dots) */}
           <div className="inline-flex items-center gap-2 sm:gap-3 rounded-2xl bg-[#121318]/95 px-3 py-1.5 backdrop-blur-xl border border-amber-500/30 shadow-[0_16px_40px_rgba(0,0,0,0.65)]">
             {/* Botón Abrir Chat */}

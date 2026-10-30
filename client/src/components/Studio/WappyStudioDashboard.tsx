@@ -671,9 +671,9 @@ const STUDIO_SCENE_TEMPLATES: {
 }[] = [
   {
     id: 'golden-rules',
-    name: '🔥 Reel WAPPY + Félix 3D',
+    name: '🔥 Reel WAPPY + Avatar 3D',
     badge: 'Oficial GTC-45',
-    description: 'Multi-escena con Félix 3D lip-sync, Mockup celular, VS y tarjetas sincronizadas con la voz.',
+    description: 'Multi-escena con Avatar 3D lip-sync, Mockup celular, VS y tarjetas sincronizadas con la voz.',
   },
   {
     id: 'kpi-hud',
@@ -705,15 +705,15 @@ export interface AntigravityEffectItem {
 export const ANTIGRAVITY_EFFECTS_CATALOG: AntigravityEffectItem[] = [
   {
     id: '19-cover-2s',
-    label: '19 Portada Magnética 2s 🔥 ¡GRATIS!',
+    label: '19 Portada Magnética (2s)',
     category: 'Sonido & Portada',
-    description: 'Miniatura de alto impacto (0.0s-2.0s) con badge gigante ¡GRATIS! y gancho visual.',
+    description: 'Miniatura de alto impacto (0.0s-2.0s) con titular gigante e insignias clave.',
   },
   {
     id: 'felix-voxel-3d',
-    label: 'Félix Voxel 3D Lip-Sync',
+    label: 'Avatar 3D Lip-Sync',
     category: '3D & Avatares',
-    description: 'Presentador Voxel 3D con camisa amarilla WAPPY, gestos y sincronía labial con el audio.',
+    description: 'Presentador Avatar 3D con gestos y sincronía labial reactiva al audio.',
   },
   {
     id: 'tenshi-3d',
@@ -857,9 +857,9 @@ export const DEFAULT_SCRIPT_STEPS: ScriptStepScene[] = [
   {
     id: 'step-1',
     timeRange: '0.0s-2.0s',
-    title: 'Portada Magnética 🔥 ¡GRATIS!',
+    title: 'Portada Magnética (2s)',
     narration: '¡Atención equipo! Tu vida depende de las Cinco Reglas de Oro en riesgo eléctrico. <breath>',
-    visualEffect: '19 Portada Magnética 2s 🔥 ¡GRATIS!',
+    visualEffect: '19 Portada Magnética (2s)',
   },
   {
     id: 'step-2',
@@ -880,7 +880,7 @@ export const DEFAULT_SCRIPT_STEPS: ScriptStepScene[] = [
     timeRange: '16.0s-24.0s',
     title: 'Regla 5 y Cierre WAPPY IA',
     narration: 'Y quinto: Delimitar y señalizar la zona de trabajo. En WAPPY IA cuidamos que regreses sano y salvo a casa.',
-    visualEffect: 'Félix Voxel 3D Lip-Sync',
+    visualEffect: 'Avatar 3D Lip-Sync',
   },
 ];
 
@@ -2419,7 +2419,7 @@ export default function WappyStudioDashboard({
   >('style');
   const [isGeneratingSuperPrompt, setIsGeneratingSuperPrompt] = useState<boolean>(false);
   const [aiScenePrompt, setAiScenePrompt] = useState<string>(
-    'Crea una animación cinematográfica con el Motor Antigravity 60-FPS y tarjetas de cristal WAPPY IA sobre las 5 reglas de oro de riesgo eléctrico, con Portada Magnética 2s 🔥 ¡GRATIS!, Félix Voxel 3D lip-sync, iconos luminosos y barras de progreso.',
+    'Crea una animación cinematográfica con el Motor Antigravity 60-FPS y tarjetas de cristal WAPPY IA sobre las 5 reglas de oro de riesgo eléctrico, con Portada Magnética (2s), Avatar 3D lip-sync, iconos luminosos y barras de progreso.',
   );
   const [isGeneratingHtmlAi, setIsGeneratingHtmlAi] = useState<boolean>(false);
   const [videoCorrectionPrompt, setVideoCorrectionPrompt] = useState<string>('');
@@ -3029,7 +3029,9 @@ export default function WappyStudioDashboard({
       }
       setStatusBanner({
         type: 'success',
-        text: 'Audio generado y cargado en el reproductor. Puedes descargarlo en WAV o enviarlo al Compositor de Video.',
+        text: podcastOnly
+          ? 'Audio de podcast generado y cargado en el reproductor. Puedes escucharlo o descargarlo en WAV 24kHz.'
+          : 'Audio generado y cargado en el reproductor. Puedes descargarlo en WAV o enviarlo al Compositor de Video.',
       });
     } catch (err: any) {
       setActiveJob((prev) =>
@@ -3506,12 +3508,12 @@ export default function WappyStudioDashboard({
         timeRange: `${startLabel}-${endLabel}`,
         title:
           idx === 0
-            ? 'Portada Magnética 2s 🔥 ¡GRATIS!'
+            ? 'Portada Magnética (2s)'
             : `${b.titleLead} ${b.titleHighlight}`.trim() || `Escena 0${idx + 1}`,
         narration: `${pausePrefix}${b.text}${breathSuffix}`.trim(),
         visualEffect:
           idx === 0
-            ? '19 Portada Magnética 2s 🔥 ¡GRATIS!'
+            ? '19 Portada Magnética (2s)'
             : fallbackEffects[idx % fallbackEffects.length] || '07 Zoom-Through',
       };
     });
@@ -3556,10 +3558,10 @@ export default function WappyStudioDashboard({
       `[SUPER-PROMPT OFICIAL ANTIGRAVITY 60-FPS • SISTEMA DE LAS 7 PIEZAS WAPPY IA]`,
       `1. FORMATO Y DURACIÓN: ${aspectRatio === '9:16' ? 'Vertical 9:16 (1080x1920 Reels/TikTok/WhatsApp)' : 'Horizontal 16:9 (1920x1080 YouTube/LMS)'} • Duración sincronizada al audio: ${dur}s (${currentAudio ? `Voz activa: ${currentAudio.voiceName || selectedVoice}` : 'Locución lista'}).`,
       `2. DIRECCIÓN DE ARTE (${artObj.label}): Paleta ${artObj.colors} • Insignia: "${badgeOverlayText}" • Titular: "${headlineOverlayText}" • Subtítulo: "${subheadlineOverlayText}" • Acento: ${accentColor}.`,
-      `3. EFECTOS DE SKILLS ANTIGRAVITY ACTIVOS: ${effectNames || '19 Portada Magnética 2s 🔥 ¡GRATIS!, Félix Voxel 3D Lip-Sync, 07 Zoom-Through, 13 Checklist SST'}.`,
+      `3. EFECTOS DE SKILLS ANTIGRAVITY ACTIVOS: ${effectNames || '19 Portada Magnética (2s), Avatar 3D Lip-Sync, 07 Zoom-Through, 13 Checklist SST'}.`,
       `4. ESCALETA SEGUNDO A SEGUNDO Y PAUSAS SINCRONIZADAS CON LA VOZ:`,
       stepsSummary || `• 0.0s-${dur}s: ${scriptText.slice(0, 360)}`,
-      `5. REGLAS TÉCNICAS: Incluir de 0.0s a 2.0s la Miniatura/Portada Magnética con badge 🔥 ¡GRATIS!, sincronizar transiciones GSAP con window.mainTimeline y el reloj de voz, mantener última escena visible al cierre y cero desbordes de texto.`,
+      `5. REGLAS TÉCNICAS: Incluir de 0.0s a 2.0s la Miniatura/Portada Magnética con titular e insignias clave, sincronizar transiciones GSAP con window.mainTimeline y el reloj de voz, mantener última escena visible al cierre y cero desbordes de texto.`,
     ].join('\n');
   };
 
@@ -6153,149 +6155,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   className="w-full bg-white dark:bg-slate-950/90 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 leading-relaxed resize-y min-h-[210px] shadow-inner"
                 />
 
-                {/* ASISTENTE PASO A PASO DE GUION POR TIEMPOS, PAUSAS Y EFECTOS (SKILLS DE ANTIGRAVITY) */}
-                {!podcastOnly && (
-                <div className="p-3.5 bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-teal-500/5 border border-indigo-500/25 rounded-2xl space-y-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <span className="text-xs font-extrabold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
-                        <Layers className="w-4 h-4 text-indigo-500" />
-                        Asistente Paso a Paso: Escenas por Tiempos, Pausas & Efectos Antigravity
-                      </span>
-                      <p className="text-[11px] text-slate-600 dark:text-zinc-400">
-                        Estructura cada tramo (`0.0s-2.0s` Portada 🔥 ¡GRATIS!, `2.0s-8.0s`...) con pausas y efectos visuales.
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <ExpandableButton
-                        size="sm"
-                        alwaysExpanded
-                        icon={<Wand2 />}
-                        label="Auto-Estructurar por Tiempos"
-                        variant="purple"
-                        onClick={handleAutoStructureScriptSteps}
-                      />
-                      <ExpandableButton
-                        size="sm"
-                        alwaysExpanded
-                        icon={<Check />}
-                        label="Aplicar Escenas al Guion"
-                        variant="teal"
-                        onClick={applyScriptStepsToScriptText}
-                      />
-                      <ExpandableButton
-                        size="sm"
-                        icon={<Plus />}
-                        label="Añadir Escena"
-                        variant="emerald"
-                        onClick={() =>
-                          setScriptSteps((prev) => [
-                            ...prev,
-                            {
-                              id: `step-${Date.now()}`,
-                              timeRange: `${prev.length * 5}.0s-${(prev.length + 1) * 5}.0s`,
-                              title: `Escena 0${prev.length + 1}`,
-                              narration: '[pausa 0.5s] Nueva frase sincronizada con la voz. <breath>',
-                              visualEffect: '07 Zoom-Through',
-                            },
-                          ])
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
-                    {(Array.isArray(scriptSteps) ? scriptSteps : []).map((step, sIdx) => (
-                      <div
-                        key={step.id}
-                        className="p-2.5 rounded-xl bg-white dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 space-y-2"
-                      >
-                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
-                          <div className="sm:col-span-3">
-                            <input
-                              type="text"
-                              value={step.timeRange}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setScriptSteps((prev) =>
-                                  prev.map((item, idx) =>
-                                    idx === sIdx ? { ...item, timeRange: val } : item,
-                                  ),
-                                );
-                              }}
-                              placeholder="0.0s-2.0s"
-                              className="w-full px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-[11px] font-mono font-extrabold text-indigo-700 dark:text-indigo-300"
-                            />
-                          </div>
-                          <div className="sm:col-span-4">
-                            <input
-                              type="text"
-                              value={step.title}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setScriptSteps((prev) =>
-                                  prev.map((item, idx) =>
-                                    idx === sIdx ? { ...item, title: val } : item,
-                                  ),
-                                );
-                              }}
-                              placeholder="Título de la escena..."
-                              className="w-full px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white"
-                            />
-                          </div>
-                          <div className="sm:col-span-4">
-                            <select
-                              value={step.visualEffect}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setScriptSteps((prev) =>
-                                  prev.map((item, idx) =>
-                                    idx === sIdx ? { ...item, visualEffect: val } : item,
-                                  ),
-                                );
-                              }}
-                              className="w-full px-2 py-1 rounded-lg bg-purple-500/10 border border-purple-500/30 text-[11px] font-bold text-purple-700 dark:text-purple-300"
-                            >
-                              {ANTIGRAVITY_EFFECTS_CATALOG.map((ef) => (
-                                <option key={ef.id} value={ef.label}>
-                                  {ef.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="sm:col-span-1 flex justify-end">
-                            <ExpandableButton
-                              size="sm"
-                              icon={<Trash2 />}
-                              label="Quitar"
-                              variant="danger"
-                              disabled={scriptSteps.length <= 1}
-                              onClick={() =>
-                                setScriptSteps((prev) => prev.filter((_, idx) => idx !== sIdx))
-                              }
-                            />
-                          </div>
-                        </div>
-                        <input
-                          type="text"
-                          value={step.narration}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setScriptSteps((prev) =>
-                              prev.map((item, idx) =>
-                                idx === sIdx ? { ...item, narration: val } : item,
-                              ),
-                            );
-                          }}
-                          placeholder="Locución de este tramo con pausas ([pausa 0.5s], <breath>)..."
-                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                )}
-
                 {/* Barra de Métricas y Estimación */}
                 <div className="bg-slate-50 dark:bg-slate-900/90 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2">
                   <div className="flex flex-wrap items-center justify-between text-xs gap-2">
@@ -6420,10 +6279,10 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       </span>
                     </div>
                     <h2 className="text-base sm:text-lg font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-teal-700 to-emerald-600 dark:from-white dark:via-[#C7F303] dark:to-cyan-300 bg-clip-text text-transparent mt-1">
-                      Estudio Horizontal de Capas, Avatares 3D & Motion Graphics Sincronizados
+                      Estudio de Capas, Avatares 3D & Motion Graphics Sincronizados
                     </h2>
                     <p className="text-xs text-slate-600 dark:text-slate-300">
-                      Elige una plantilla HyperFrames, personaliza tus 4 módulos en horizontal y compila en vivo con tu Antigravity.
+                      Elige una plantilla HyperFrames, personaliza tus escenas y efectos, y genera tu video en vivo con Antigravity.
                     </p>
                   </div>
                 </div>
@@ -6768,10 +6627,10 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     <div>
                       <span className="text-xs font-extrabold uppercase tracking-wider text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
                         <Layers className="w-4 h-4 text-amber-500" />
-                        Escaleta Horizontal de Escenas por Tiempos ({scriptSteps.length} tramos)
+                        Escaleta de Escenas por Tiempos ({scriptSteps.length} tramos)
                       </span>
                       <p className="text-[11px] text-slate-600 dark:text-slate-400">
-                        Define qué suena y qué efecto visual aparece en cada tramo (`0.0s-2.0s` Portada 🔥 ¡GRATIS!, etc.).
+                        Define qué suena y qué efecto visual aparece en cada tramo (`0.0s-2.0s` Portada Magnética, `2.0s-8.0s`, etc.).
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -9249,7 +9108,7 @@ function StudioAudioPlayer({
   title: string;
   durationSeconds?: number;
   voiceName?: string;
-  onSendToVideo: () => void;
+  onSendToVideo?: () => void;
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -9391,14 +9250,16 @@ function StudioAudioPlayer({
             />
           )}
 
-          <ExpandableButton
-            size="sm"
-            icon={<Film />}
-            label="Llevar al Video"
-            variant="purple"
-            alwaysExpanded
-            onClick={onSendToVideo}
-          />
+          {onSendToVideo && (
+            <ExpandableButton
+              size="sm"
+              icon={<Film />}
+              label="Llevar al Video"
+              variant="purple"
+              alwaysExpanded
+              onClick={onSendToVideo}
+            />
+          )}
 
           <ExpandableButton
             size="sm"

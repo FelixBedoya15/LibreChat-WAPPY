@@ -10,7 +10,11 @@ export default function WappyPodcastPage() {
       .then((res) => (res.ok ? res.text() : ''))
       .then((html) => {
         if (cancelled) return;
-        if (html && html.includes('WAPPY PODCAST') && !html.includes('<div id="root">')) {
+        if (
+          html &&
+          (html.includes('WAPPY Podcast') || html.includes('wappy-studio-root')) &&
+          !html.includes('<div id="root">')
+        ) {
           if (window.location.pathname !== '/wappypodcast.html') {
             setIframeSrc('/wappypodcast.html');
           } else {
