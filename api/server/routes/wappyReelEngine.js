@@ -559,6 +559,17 @@ async function generateCreativeScenePlanWithAi(scriptText, beats, options, aiGen
     return basePlan;
   }
 
+  // Si el Paso 1 (Super-Prompt IA) ya enriqueció las escenas con cameraAndMotion / badCardTitle y no es una corrección del Paso 3, usar directamente el plan IA sin doble latencia
+  const hasPreEnrichedAiSteps =
+    Array.isArray(options?.scriptSteps) &&
+    options.scriptSteps.some((s) => s && (s.cameraAndMotion || s.badCardTitle));
+  const isLiveEditRequest =
+    String(options?.prompt || '').includes('Edición solicitada:') ||
+    String(options?.prompt || '').includes('[CORRECCIÓN');
+  if (hasPreEnrichedAiSteps && !isLiveEditRequest) {
+    return basePlan;
+  }
+
   try {
     const beatsPrompt = beats
       .map(
