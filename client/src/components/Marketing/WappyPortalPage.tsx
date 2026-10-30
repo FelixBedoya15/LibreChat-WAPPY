@@ -1991,96 +1991,206 @@ export default function WappyPortalPage() {
                               aspectRatio: '16 / 9',
                               width: '100%',
                               background:
-                                'radial-gradient(circle at 50% 30%, rgba(168, 85, 247, 0.35) 0%, rgba(199, 243, 3, 0.15) 50%, rgba(14, 19, 0, 0.98) 100%), linear-gradient(135deg, #090e01 0%, #0c192e 50%, #1e1035 100%)',
+                                'radial-gradient(circle at 20% 20%, rgba(199, 243, 3, 0.18) 0%, transparent 45%), radial-gradient(circle at 80% 80%, rgba(13, 148, 136, 0.25) 0%, transparent 50%), linear-gradient(135deg, #070d18 0%, #0c192e 50%, #0e1300 100%)',
                               overflow: 'hidden',
                               borderBottom: isDarkMode ? '1px solid rgba(51,65,85,0.8)' : '1px solid #e2e8f0',
                               display: 'flex',
                               flexDirection: 'column',
-                              alignItems: 'center',
                               justifyContent: 'space-between',
-                              padding: '14px 16px 12px',
+                              padding: '10px 14px',
                             }}
                           >
-                            {/* Glows ambientales */}
-                            <div style={{ position: 'absolute', top: -20, left: -20, width: 90, height: 90, borderRadius: '50%', background: '#c7f303', filter: 'blur(40px)', opacity: 0.25, pointerEvents: 'none' }} />
-                            <div style={{ position: 'absolute', bottom: -20, right: -20, width: 100, height: 100, borderRadius: '50%', background: '#a855f7', filter: 'blur(45px)', opacity: 0.3, pointerEvents: 'none' }} />
+                            {/* Glows ambientales difusos */}
+                            <div style={{ position: 'absolute', top: -15, left: -15, width: 90, height: 90, borderRadius: '50%', background: '#c7f303', filter: 'blur(35px)', opacity: 0.25, pointerEvents: 'none' }} />
+                            <div style={{ position: 'absolute', bottom: -15, right: -15, width: 100, height: 100, borderRadius: '50%', background: '#0d9488', filter: 'blur(40px)', opacity: 0.3, pointerEvents: 'none' }} />
 
-                            {/* Header de la Tarjeta */}
-                            <div style={{ textAlign: 'center', zIndex: 2 }}>
-                              <div
-                                style={{
-                                  fontSize: 'clamp(14px, 2.8vw, 18px)',
-                                  fontWeight: 900,
-                                  color: '#c7f303',
-                                  letterSpacing: '0.04em',
-                                  lineHeight: 1.1,
-                                  textShadow: '0 0 15px rgba(199,243,3,0.3)',
-                                }}
-                              >
-                                WAPPY PODCAST · AUDIO IA
+                            {/* Header Superior: Apple Podcasts × Walkman */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 2 }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', boxShadow: '0 0 8px #ef4444' }} />
+                                <span style={{ fontSize: 10, fontWeight: 900, color: '#c7f303', letterSpacing: '0.04em' }}>
+                                  APPLE PODCASTS × WAPPY WALKMAN
+                                </span>
                               </div>
-                              <div
-                                style={{
-                                  fontSize: 10,
-                                  color: '#d8b4fe',
-                                  fontWeight: 700,
-                                  marginTop: 2,
-                                  letterSpacing: '0.02em',
-                                }}
-                              >
-                                Podcasts Duales · Host 1 & 2 · Master WAV 24kHz
-                              </div>
+                              <span style={{ fontSize: 8.5, fontWeight: 800, color: '#99f6e4', background: 'rgba(13,148,136,0.3)', border: '1px solid rgba(45,212,191,0.4)', borderRadius: 6, padding: '1px 6px' }}>
+                                24kHz MASTER WAV
+                              </span>
                             </div>
 
-                            {/* Consola Central de Audio Broadcast */}
-                            <div
-                              style={{
-                                zIndex: 2,
-                                width: '100%',
-                                maxWidth: 290,
-                                background: 'rgba(15, 23, 42, 0.88)',
-                                border: '1px solid rgba(168, 85, 247, 0.4)',
-                                borderRadius: 14,
-                                padding: '8px 12px',
-                                boxShadow: '0 12px 30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.1)',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: 6,
-                              }}
-                            >
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                                <span style={{ fontSize: 9.5, fontWeight: 800, color: '#f8fafc', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                                  <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#ef4444', boxShadow: '0 0 8px #ef4444' }} />
-                                  <span>ON-AIR · DUAL 24kHz</span>
-                                </span>
-                                <div style={{ display: 'flex', gap: 4 }}>
-                                  <span style={{ fontSize: 8.5, fontWeight: 800, padding: '1.5px 5px', borderRadius: 6, background: '#c7f303', color: '#0e1300' }}>
-                                    HOST 1
+                            {/* Composición Central: Walkman Cassette WAPPY (Izq) + Portadas Apple Podcasts (Der) */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 0.85fr', gap: 8, alignItems: 'center', zIndex: 2 }}>
+                              
+                              {/* Walkman Cassette WAPPY 24kHz */}
+                              <div
+                                style={{
+                                  background: 'linear-gradient(180deg, #18240f 0%, #0e1300 60%, #080d04 100%)',
+                                  border: '1.5px solid rgba(199,243,3,0.45)',
+                                  borderRadius: 10,
+                                  padding: '5px 7px',
+                                  boxShadow: '0 8px 20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1)',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: 4,
+                                }}
+                              >
+                                {/* Etiqueta Vintage C-60 */}
+                                <div style={{ background: 'linear-gradient(90deg, #c7f303, #a3e635)', borderRadius: 5, padding: '2px 5px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                  <span style={{ fontSize: 7.5, fontWeight: 900, color: '#0e1300', letterSpacing: '0.02em' }}>
+                                    WAPPY C-60 • 24kHz STEREO
                                   </span>
-                                  <span style={{ fontSize: 8.5, fontWeight: 800, padding: '1.5px 5px', borderRadius: 6, background: '#a855f7', color: '#ffffff' }}>
-                                    HOST 2
+                                  <span style={{ fontSize: 6.5, fontWeight: 800, background: '#0e1300', color: '#c7f303', padding: '0.5px 3px', borderRadius: 3 }}>
+                                    TYPE II
+                                  </span>
+                                </div>
+
+                                {/* Ventana de Cassette con carretes SVG giratorios */}
+                                <div style={{ background: '#090e05', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, height: 38, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px', overflow: 'hidden' }}>
+                                  {/* Cinta Magnética */}
+                                  <div style={{ position: 'absolute', left: 16, right: 16, top: '50%', transform: 'translateY(-50%)', height: 8, background: '#261a0d', borderTop: '1px solid #3d2a17', borderBottom: '1px solid #3d2a17' }} />
+
+                                  {/* Carrete Izquierdo con SVG animado */}
+                                  <svg width="26" height="26" viewBox="0 0 100 100" style={{ zIndex: 2 }}>
+                                    <g>
+                                      <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="3.5s" repeatCount="indefinite" />
+                                      <circle cx="50" cy="50" r="46" fill="#1f2937" stroke="#9ca3af" strokeWidth="3" />
+                                      <circle cx="50" cy="50" r="28" fill="#111827" stroke="#4b5563" strokeWidth="2" />
+                                      <circle cx="50" cy="50" r="14" fill="#ffffff" stroke="#111827" strokeWidth="4" />
+                                      <rect x="47" y="24" width="6" height="8" rx="2" fill="#c7f303" />
+                                      <rect x="47" y="68" width="6" height="8" rx="2" fill="#c7f303" />
+                                      <rect x="24" y="47" width="8" height="6" rx="2" fill="#c7f303" />
+                                      <rect x="68" y="47" width="8" height="6" rx="2" fill="#c7f303" />
+                                    </g>
+                                  </svg>
+
+                                  {/* Display de Minutos y VU Meter */}
+                                  <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                                    <span style={{ fontSize: 7, fontFamily: 'monospace', fontWeight: 900, color: '#c7f303', background: 'rgba(0,0,0,0.8)', padding: '0.5px 3px', borderRadius: 3 }}>
+                                      04:20
+                                    </span>
+                                    <div style={{ display: 'flex', gap: 1.5, alignItems: 'flex-end', height: 8 }}>
+                                      <span style={{ width: 2, height: '70%', background: '#4ade80', borderRadius: 1 }} />
+                                      <span style={{ width: 2, height: '90%', background: '#c7f303', borderRadius: 1 }} />
+                                      <span style={{ width: 2, height: '40%', background: '#fbbf24', borderRadius: 1 }} />
+                                      <span style={{ width: 2, height: '100%', background: '#ef4444', borderRadius: 1 }} />
+                                    </div>
+                                  </div>
+
+                                  {/* Carrete Derecho con SVG animado */}
+                                  <svg width="26" height="26" viewBox="0 0 100 100" style={{ zIndex: 2 }}>
+                                    <g>
+                                      <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="3.5s" repeatCount="indefinite" />
+                                      <circle cx="50" cy="50" r="46" fill="#1f2937" stroke="#9ca3af" strokeWidth="3" />
+                                      <circle cx="50" cy="50" r="28" fill="#111827" stroke="#4b5563" strokeWidth="2" />
+                                      <circle cx="50" cy="50" r="14" fill="#ffffff" stroke="#111827" strokeWidth="4" />
+                                      <rect x="47" y="24" width="6" height="8" rx="2" fill="#c7f303" />
+                                      <rect x="47" y="68" width="6" height="8" rx="2" fill="#c7f303" />
+                                      <rect x="24" y="47" width="8" height="6" rx="2" fill="#c7f303" />
+                                      <rect x="68" y="47" width="8" height="6" rx="2" fill="#c7f303" />
+                                    </g>
+                                  </svg>
+                                </div>
+
+                                {/* Mini Botonera Walkman */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 3 }}>
+                                  <span style={{ flex: 1, textAlign: 'center', fontSize: 6.5, fontWeight: 800, background: '#1e293b', color: '#cbd5e1', borderRadius: 3, padding: '1px 0' }}>
+                                    REW
+                                  </span>
+                                  <span style={{ flex: 1.4, textAlign: 'center', fontSize: 6.5, fontWeight: 900, background: '#c7f303', color: '#0e1300', borderRadius: 3, padding: '1px 0' }}>
+                                    PLAY ▶
+                                  </span>
+                                  <span style={{ flex: 1, textAlign: 'center', fontSize: 6.5, fontWeight: 800, background: '#dc2626', color: '#ffffff', borderRadius: 3, padding: '1px 0' }}>
+                                    REC ●
+                                  </span>
+                                  <span style={{ flex: 1, textAlign: 'center', fontSize: 6.5, fontWeight: 800, background: '#1e293b', color: '#cbd5e1', borderRadius: 3, padding: '1px 0' }}>
+                                    FF
                                   </span>
                                 </div>
                               </div>
 
-                              {/* Onda Sonora Estéreo L / R */}
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2.5, height: 26, padding: '2px 0' }}>
-                                {[35, 75, 50, 95, 40, 85, 100, 65, 30, 90, 70, 88, 45, 80, 55, 92, 40, 68, 30].map((h, idx) => (
-                                  <span
-                                    key={idx}
-                                    style={{
-                                      flex: 1,
-                                      height: `${h}%`,
-                                      borderRadius: 9999,
-                                      background:
-                                        idx % 2 === 0
-                                          ? 'linear-gradient(to top, #c7f303, #84cc16)'
-                                          : 'linear-gradient(to top, #a855f7, #c084fc)',
-                                      boxShadow: idx % 3 === 0 ? '0 0 6px rgba(199,243,3,0.5)' : 'none',
-                                    }}
-                                  />
-                                ))}
+                              {/* Abanico de Portadas Estilo Apple Podcasts */}
+                              <div style={{ position: 'relative', height: 74, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                
+                                {/* Portada 3 (Atrás - Crónicas ATEL) */}
+                                <div
+                                  style={{
+                                    position: 'absolute',
+                                    right: 4,
+                                    width: 54,
+                                    height: 54,
+                                    borderRadius: 8,
+                                    background: 'linear-gradient(135deg, #3b0764, #1e1b4b)',
+                                    border: '1px solid rgba(168,85,247,0.4)',
+                                    boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
+                                    transform: 'rotate(8deg) scale(0.9)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'space-between',
+                                    padding: 3,
+                                  }}
+                                >
+                                  <span style={{ fontSize: 6, fontWeight: 900, color: '#d8b4fe' }}>ATEL</span>
+                                  <span style={{ fontSize: 10, alignSelf: 'center' }}>🔍</span>
+                                </div>
+
+                                {/* Portada 2 (Medio - Cero Accidentes) */}
+                                <div
+                                  style={{
+                                    position: 'absolute',
+                                    right: 14,
+                                    width: 58,
+                                    height: 58,
+                                    borderRadius: 9,
+                                    background: 'linear-gradient(135deg, #c7f303, #84cc16)',
+                                    border: '1px solid rgba(255,255,255,0.6)',
+                                    boxShadow: '0 6px 14px rgba(0,0,0,0.6)',
+                                    transform: 'rotate(-4deg) scale(0.95)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'space-between',
+                                    padding: 3.5,
+                                  }}
+                                >
+                                  <span style={{ fontSize: 6, fontWeight: 900, color: '#0e1300' }}>CERO ACC</span>
+                                  <span style={{ fontSize: 11, alignSelf: 'center' }}>🛡️</span>
+                                </div>
+
+                                {/* Portada 1 (Frontal - Somos SST Daily) */}
+                                <div
+                                  style={{
+                                    position: 'relative',
+                                    zIndex: 3,
+                                    width: 64,
+                                    height: 64,
+                                    borderRadius: 10,
+                                    background: 'linear-gradient(135deg, #0d9488, #064e3b)',
+                                    border: '1.5px solid rgba(199,243,3,0.8)',
+                                    boxShadow: '0 8px 20px rgba(0,0,0,0.7)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'space-between',
+                                    padding: 4,
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: 5.5, fontWeight: 900, background: '#0e1300', color: '#c7f303', padding: '0.5px 3px', borderRadius: 3 }}>
+                                      NEW
+                                    </span>
+                                    <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#c7f303', color: '#0e1300', fontSize: 6.5, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                      ▶
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <div style={{ fontSize: 6.5, fontWeight: 900, color: '#ffffff', lineHeight: 1.1 }}>
+                                      SOMOS SST
+                                    </div>
+                                    <div style={{ fontSize: 5, fontWeight: 700, color: '#a7f3d0' }}>
+                                      Daily 24kHz
+                                    </div>
+                                  </div>
+                                </div>
+
                               </div>
+
                             </div>
 
                             {/* Badge Inferior */}
@@ -2089,18 +2199,19 @@ export default function WappyPortalPage() {
                                 zIndex: 2,
                                 display: 'inline-flex',
                                 alignItems: 'center',
+                                justifyContent: 'center',
                                 gap: 6,
-                                padding: '2.5px 10px',
+                                padding: '2px 10px',
                                 borderRadius: 9999,
-                                background: 'rgba(168, 85, 247, 0.18)',
-                                border: '1px solid rgba(192, 132, 252, 0.4)',
-                                color: '#e9d5ff',
-                                fontSize: 9.5,
+                                background: 'rgba(13, 148, 136, 0.2)',
+                                border: '1px solid rgba(45, 212, 191, 0.4)',
+                                color: '#99f6e4',
+                                fontSize: 9,
                                 fontWeight: 800,
                                 letterSpacing: '0.02em',
                               }}
                             >
-                              <span>🎙️ 100% Audio Puro · Actuación & Show Notes IA</span>
+                              <span>🎙️ Voces Neuronales · Dual Host 1 &amp; 2 · Show Notes IA</span>
                             </div>
                           </div>
                         ) : (

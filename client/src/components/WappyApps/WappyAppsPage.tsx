@@ -40,48 +40,137 @@ function AppCardVisual({ app }: { app: WappyAppCatalogItem }) {
 
   if (app.visualType === 'wappy-podcast') {
     return (
-      <div className="relative flex h-full w-full flex-col items-center justify-between overflow-hidden bg-gradient-to-br from-[#090e01] via-[#0c192e] to-[#1e1035] p-3">
+      <div className="relative flex h-full w-full flex-col justify-between overflow-hidden bg-gradient-to-br from-[#070d18] via-[#0c192e] to-[#0e1300] p-2.5 sm:p-3">
+        {/* Glows ambientales */}
         <div className="pointer-events-none absolute -left-4 -top-4 h-24 w-24 rounded-full bg-[#c7f303]/25 blur-2xl" />
-        <div className="pointer-events-none absolute -bottom-4 -right-4 h-28 w-28 rounded-full bg-purple-500/30 blur-2xl" />
+        <div className="pointer-events-none absolute -bottom-4 -right-4 h-28 w-28 rounded-full bg-teal-500/30 blur-2xl" />
 
-        <div className="z-10 text-center">
-          <div className="text-xs font-black tracking-wider text-[#c7f303] drop-shadow-sm sm:text-sm">
-            WAPPY PODCAST · AUDIO IA
+        {/* Header Superior: Apple Podcasts × Walkman */}
+        <div className="z-10 flex items-center justify-between">
+          <div className="inline-flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-red-500 shadow-[0_0_8px_#ef4444]" />
+            <span className="text-[10px] font-black tracking-wider text-[#c7f303]">
+              APPLE PODCASTS × WAPPY WALKMAN
+            </span>
           </div>
-          <div className="text-[10px] font-bold text-purple-200">
-            Podcasts Duales · Host 1 & 2 · Master WAV 24kHz
-          </div>
+          <span className="rounded-md border border-teal-400/40 bg-teal-500/20 px-1.5 py-0.5 text-[8.5px] font-black text-teal-200">
+            24kHz MASTER WAV
+          </span>
         </div>
 
-        <div className="z-10 w-full max-w-[280px] rounded-xl border border-purple-500/40 bg-slate-900/85 p-2 shadow-lg backdrop-blur-sm">
-          <div className="flex items-center justify-between gap-2 pb-1.5">
-            <span className="inline-flex items-center gap-1.5 text-[9px] font-extrabold text-slate-100">
-              <span className="h-1.5 w-1.5 rounded-full bg-red-500 shadow-[0_0_8px_#ef4444]" />
-              ON-AIR · DUAL 24kHz
-            </span>
-            <div className="flex gap-1">
-              <span className="rounded bg-[#c7f303] px-1.5 py-0.5 text-[8px] font-black text-[#0e1300]">HOST 1</span>
-              <span className="rounded bg-purple-500 px-1.5 py-0.5 text-[8px] font-black text-white">HOST 2</span>
+        {/* Composición Central: Walkman Cassette WAPPY (Izq) + Portadas Apple Podcasts (Der) */}
+        <div className="z-10 grid grid-cols-[1.15fr_0.85fr] items-center gap-2">
+          {/* Walkman Cassette WAPPY 24kHz */}
+          <div className="flex flex-col gap-1 rounded-xl border border-[#c7f303]/45 bg-gradient-to-b from-[#18240f] via-[#0e1300] to-[#080d04] p-1.5 shadow-lg">
+            {/* Etiqueta Vintage C-60 */}
+            <div className="flex items-center justify-between rounded bg-gradient-to-r from-[#c7f303] to-lime-400 px-1.5 py-0.5 text-[#0e1300]">
+              <span className="text-[7.5px] font-black tracking-tight">WAPPY C-60 • 24kHz</span>
+              <span className="rounded bg-[#0e1300] px-1 py-0.2 text-[6.5px] font-bold text-[#c7f303]">TYPE II</span>
+            </div>
+
+            {/* Ventana de Cassette con carretes SVG giratorios */}
+            <div className="relative flex h-9 items-center justify-between overflow-hidden rounded-md border border-white/10 bg-[#090e05] px-2">
+              {/* Cinta Magnética */}
+              <div className="absolute inset-x-4 top-1/2 h-2 -translate-y-1/2 border-y border-[#3d2a17] bg-[#261a0d]" />
+
+              {/* Carrete Izquierdo con SVG animado */}
+              <svg width="24" height="24" viewBox="0 0 100 100" className="relative z-10 shrink-0">
+                <g>
+                  <animateTransform
+                    attributeName="transform"
+                    type="rotate"
+                    from="0 50 50"
+                    to="360 50 50"
+                    dur="3.5s"
+                    repeatCount="indefinite"
+                  />
+                  <circle cx="50" cy="50" r="46" fill="#1f2937" stroke="#9ca3af" strokeWidth="3" />
+                  <circle cx="50" cy="50" r="28" fill="#111827" stroke="#4b5563" strokeWidth="2" />
+                  <circle cx="50" cy="50" r="14" fill="#ffffff" stroke="#111827" strokeWidth="4" />
+                  <rect x="47" y="24" width="6" height="8" rx="2" fill="#c7f303" />
+                  <rect x="47" y="68" width="6" height="8" rx="2" fill="#c7f303" />
+                  <rect x="24" y="47" width="8" height="6" rx="2" fill="#c7f303" />
+                  <rect x="68" y="47" width="8" height="6" rx="2" fill="#c7f303" />
+                </g>
+              </svg>
+
+              {/* Display de Minutos y VU Meter */}
+              <div className="relative z-10 flex flex-col items-center gap-0.5">
+                <span className="rounded bg-black/80 px-1 py-0.2 font-mono text-[7px] font-black text-[#c7f303]">
+                  04:20
+                </span>
+                <div className="flex h-2 items-end gap-0.5">
+                  <span className="h-[70%] w-0.5 rounded-xs bg-emerald-400" />
+                  <span className="h-[90%] w-0.5 rounded-xs bg-[#c7f303]" />
+                  <span className="h-[40%] w-0.5 rounded-xs bg-amber-400" />
+                  <span className="h-full w-0.5 rounded-xs bg-red-500" />
+                </div>
+              </div>
+
+              {/* Carrete Derecho con SVG animado */}
+              <svg width="24" height="24" viewBox="0 0 100 100" className="relative z-10 shrink-0">
+                <g>
+                  <animateTransform
+                    attributeName="transform"
+                    type="rotate"
+                    from="0 50 50"
+                    to="360 50 50"
+                    dur="3.5s"
+                    repeatCount="indefinite"
+                  />
+                  <circle cx="50" cy="50" r="46" fill="#1f2937" stroke="#9ca3af" strokeWidth="3" />
+                  <circle cx="50" cy="50" r="28" fill="#111827" stroke="#4b5563" strokeWidth="2" />
+                  <circle cx="50" cy="50" r="14" fill="#ffffff" stroke="#111827" strokeWidth="4" />
+                  <rect x="47" y="24" width="6" height="8" rx="2" fill="#c7f303" />
+                  <rect x="47" y="68" width="6" height="8" rx="2" fill="#c7f303" />
+                  <rect x="24" y="47" width="8" height="6" rx="2" fill="#c7f303" />
+                  <rect x="68" y="47" width="8" height="6" rx="2" fill="#c7f303" />
+                </g>
+              </svg>
+            </div>
+
+            {/* Mini Botonera Walkman */}
+            <div className="flex justify-between gap-1 text-[6.5px] font-black">
+              <span className="flex-1 rounded bg-slate-800 py-0.5 text-center text-slate-300">REW</span>
+              <span className="flex-[1.4] rounded bg-[#c7f303] py-0.5 text-center text-[#0e1300]">PLAY ▶</span>
+              <span className="flex-1 rounded bg-rose-600 py-0.5 text-center text-white">REC ●</span>
+              <span className="flex-1 rounded bg-slate-800 py-0.5 text-center text-slate-300">FF</span>
             </div>
           </div>
-          <div className="flex h-5 items-center justify-between gap-0.5">
-            {[35, 75, 50, 95, 40, 85, 100, 65, 30, 90, 70, 88, 45, 80, 55, 92, 40, 68, 30].map((h, idx) => (
-              <span
-                key={idx}
-                style={{ height: `${h}%` }}
-                className={cn(
-                  'flex-1 rounded-full',
-                  idx % 2 === 0
-                    ? 'bg-gradient-to-t from-[#c7f303] to-lime-400'
-                    : 'bg-gradient-to-t from-purple-500 to-fuchsia-400',
-                )}
-              />
-            ))}
+
+          {/* Abanico de Portadas Estilo Apple Podcasts */}
+          <div className="relative flex h-18 items-center justify-center">
+            {/* Portada 3 (Atrás - Crónicas ATEL) */}
+            <div className="absolute right-1 flex h-13 w-13 -rotate-6 scale-90 flex-col justify-between rounded-lg border border-purple-500/40 bg-gradient-to-br from-[#3b0764] to-[#1e1b4b] p-1 shadow-md">
+              <span className="text-[6px] font-black text-purple-300">ATEL</span>
+              <span className="self-center text-[10px]">🔍</span>
+            </div>
+
+            {/* Portada 2 (Medio - Cero Accidentes) */}
+            <div className="absolute right-3.5 flex h-14 w-14 rotate-3 scale-95 flex-col justify-between rounded-lg border border-white/60 bg-gradient-to-br from-[#c7f303] to-lime-500 p-1 shadow-lg">
+              <span className="text-[6px] font-black text-[#0e1300]">CERO ACC</span>
+              <span className="self-center text-[11px]">🛡️</span>
+            </div>
+
+            {/* Portada 1 (Frontal - Somos SST Daily) */}
+            <div className="relative z-10 flex h-16 w-16 flex-col justify-between rounded-xl border-1.5 border-[#c7f303] bg-gradient-to-br from-[#0d9488] to-[#064e3b] p-1.5 shadow-xl">
+              <div className="flex items-center justify-between">
+                <span className="rounded bg-[#0e1300] px-1 py-0.2 text-[5.5px] font-black text-[#c7f303]">NEW</span>
+                <span className="flex h-3 w-3 items-center justify-center rounded-full bg-[#c7f303] text-[6.5px] font-black text-[#0e1300]">
+                  ▶
+                </span>
+              </div>
+              <div>
+                <div className="text-[6.5px] font-black leading-tight text-white">SOMOS SST</div>
+                <div className="text-[5px] font-bold text-emerald-200">Daily 24kHz</div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="z-10 inline-flex items-center gap-1 rounded-full border border-purple-400/40 bg-purple-500/20 px-2.5 py-0.5 text-[9px] font-bold text-purple-200">
-          <span>🎙️ 100% Audio Puro · Actuación & Show Notes IA</span>
+        {/* Badge Inferior */}
+        <div className="z-10 inline-flex items-center justify-center gap-1.5 rounded-full border border-teal-400/40 bg-teal-500/20 px-2.5 py-0.5 text-[9px] font-bold text-teal-200">
+          <span>🎙️ Voces Neuronales · Dual Host 1 &amp; 2 · Show Notes IA</span>
         </div>
       </div>
     );

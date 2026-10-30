@@ -56,6 +56,11 @@ import ExpandableButton from '~/components/Common/ExpandableButton';
 import ModelSelector from '~/components/SGSST/ModelSelector';
 import type { ContextType } from '~/common';
 import { cn } from '~/utils';
+import WappyCassetteWalkmanPlayer from './WappyCassetteWalkmanPlayer';
+import WappyApplePodcastsShelf, {
+  ApplePodcastEpisodeModel,
+  APPLE_PODCASTS_MODELS,
+} from './WappyApplePodcastsShelf';
 
 // ============================================================================
 // TIPOS E INTERFACES
@@ -2326,8 +2331,29 @@ export default function WappyStudioDashboard({
   const [speaker2Voice, setSpeaker2Voice] = useState<string>('Kore');
   const [wordsPerChunk, setWordsPerChunk] = useState<number>(150);
   const [scriptText, setScriptText] = useState<string>(
-    podcastOnly ? DEFAULT_PODCAST_SCRIPT : SCRIPT_TEMPLATES[0].text,
+    podcastOnly ? APPLE_PODCASTS_MODELS[0].scriptText : SCRIPT_TEMPLATES[0].text,
   );
+
+  // Estado de Selección Editorial Apple Podcasts
+  const [selectedApplePodcastId, setSelectedApplePodcastId] = useState<string>('ep-01-reglas-oro');
+  const [activePodcastEpisodeTitle, setActivePodcastEpisodeTitle] = useState<string>(
+    podcastOnly ? APPLE_PODCASTS_MODELS[0].title : '',
+  );
+
+  const handleSelectApplePodcastEpisode = (ep: ApplePodcastEpisodeModel) => {
+    setSelectedApplePodcastId(ep.id);
+    setActivePodcastEpisodeTitle(ep.title);
+    setMultiSpeaker(true);
+    setSpeaker1Voice(ep.speaker1Voice);
+    setSpeaker2Voice(ep.speaker2Voice);
+    setStylePrompt(ep.stylePrompt);
+    setScriptText(ep.scriptText);
+    setStatusBanner({
+      type: 'success',
+      text: `Episodio "${ep.title}" (${ep.speaker1Voice} + ${ep.speaker2Voice}) cargado en el Walkman listo para síntesis. Pulsa "▶ Sintetizar y Reproducir en Walkman" para escucharlo.`,
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Estado del Laboratorio de Expresividad & Prosodia (Pestaña 3)
   const [labStylePrompt, setLabStylePrompt] = useState<string>(
@@ -5299,26 +5325,47 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
           </div>
         )}
 
-        {/* Reproductor Maestro de Audio (Visible siempre que haya un audio cargado) */}
-        {currentAudio && (
-          <StudioAudioPlayer
-            audioBase64={currentAudio.base64}
-            audioUrl={currentAudio.url}
-            title={currentAudio.title}
-            durationSeconds={currentAudio.durationSeconds}
-            voiceName={currentAudio.voiceName}
-            onSendToVideo={
-              podcastOnly
-                ? undefined
-                : () => {
-                    handleTabChange('video');
-                    setStatusBanner({
-                      type: 'success',
-                      text: 'Audio vinculado automáticamente a la pista de locución del Compositor de Video.',
-                    });
-                  }
+        {/* Reproductor Maestro de Audio: en podcastOnly se muestra SIEMPRE WappyCassetteWalkmanPlayer (Deck 24kHz interactivo); en Studio normal StudioAudioPlayer cuando hay audio */}
+        {podcastOnly ? (
+          <WappyCassetteWalkmanPlayer
+            audioBase64={currentAudio?.base64}
+            audioUrl={currentAudio?.url}
+            title={
+              currentAudio?.title ||
+              activePodcastEpisodeTitle ||
+              (scriptText ? scriptText.trim().slice(0, 48) : 'Episodio de Podcast SST')
             }
+            durationSeconds={currentAudio?.durationSeconds}
+            voiceName={
+              currentAudio?.voiceName ||
+              (multiSpeaker ? `${speaker1Voice} + ${speaker2Voice}` : selectedVoice)
+            }
+            speaker1Name="Alex"
+            speaker1Voice={speaker1Voice}
+            speaker2Name="Sam"
+            speaker2Voice={speaker2Voice}
+            multiSpeaker={multiSpeaker}
+            isSynthesizing={isPreviewing || activeJob?.status === 'processing'}
+            onSynthesizeAndPlay={handleSynthesizePreview}
+            token={token}
           />
+        ) : (
+          currentAudio && (
+            <StudioAudioPlayer
+              audioBase64={currentAudio.base64}
+              audioUrl={currentAudio.url}
+              title={currentAudio.title}
+              durationSeconds={currentAudio.durationSeconds}
+              voiceName={currentAudio.voiceName}
+              onSendToVideo={() => {
+                handleTabChange('video');
+                setStatusBanner({
+                  type: 'success',
+                  text: 'Audio vinculado automáticamente a la pista de locución del Compositor de Video.',
+                });
+              }}
+            />
+          )
         )}
 
         {/* ==================================================================== */}
@@ -5326,6 +5373,13 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
         {/* ==================================================================== */}
         {activeTab === 'tts' && (
           <div className="space-y-6 animate-in fade-in duration-200">
+            {/* Estantería Editorial estilo Apple Podcasts (Exclusivo en podcastOnly) */}
+            {podcastOnly && (
+              <WappyApplePodcastsShelf
+                onSelectEpisode={handleSelectApplePodcastEpisode}
+                activeEpisodeId={selectedApplePodcastId}
+              />
+            )}
             {/* Monitor de Trabajo Asíncrono por Capas (Justo debajo del Reproductor Maestro, idéntico al diseño de referencia) */}
             {activeJob && (
               <AsyncJobMonitorCard
@@ -5646,44 +5700,113 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 </div>
 
                 {multiSpeaker ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 bg-slate-50 dark:bg-slate-900/90 rounded-xl border border-slate-200/90 dark:border-slate-800">
-                    <div>
-                      <label className="block text-xs font-bold text-teal-700 dark:text-teal-400 mb-1">
-                        Voz para Alex (Hablante 1)
-                      </label>
-                      <select
-                        value={speaker1Voice}
-                        onChange={(e) => setSpeaker1Voice(e.target.value)}
-                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-teal-500"
-                      >
-                        {(activeModelObj?.supportedVoices || []).map((vId) => {
-                          const vObj = voices.find((v) => v.id === vId);
-                          return (
-                            <option key={vId} value={vId}>
-                              {vId} ({vObj?.gender || 'Voz'} - {vObj?.tone || 'Natural'})
-                            </option>
-                          );
-                        })}
-                      </select>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <Radio className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
+                        Cabina de Transmisión Dual (Estudio ON AIR)
+                      </span>
+                      <span className="text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                        ● 2 CANALES ACTIVOS
+                      </span>
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-purple-700 dark:text-purple-400 mb-1">
-                        Voz para Sam (Hablante 2)
-                      </label>
-                      <select
-                        value={speaker2Voice}
-                        onChange={(e) => setSpeaker2Voice(e.target.value)}
-                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-teal-500"
-                      >
-                        {(activeModelObj?.supportedVoices || []).map((vId) => {
-                          const vObj = voices.find((v) => v.id === vId);
-                          return (
-                            <option key={vId} value={vId}>
-                              {vId} ({vObj?.gender || 'Voz'} - {vObj?.tone || 'Natural'})
-                            </option>
-                          );
-                        })}
-                      </select>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* CANAL 1: Alex (Host 1) */}
+                      <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900/90 via-[#0e161a] to-slate-950 border border-teal-500/40 shadow-md text-white space-y-3">
+                        <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-teal-500/20 border border-teal-500/40 flex items-center justify-center text-[#C7F303]">
+                              <MicVocal className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <div className="text-xs font-black tracking-tight text-white flex items-center gap-1">
+                                <span>Alex</span>
+                                <span className="text-[10px] font-mono text-teal-400 font-bold">
+                                  (Host 1)
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-slate-400">Conductor Principal</p>
+                            </div>
+                          </div>
+                          {/* Indicador Luminoso ON AIR CH 01 */}
+                          <div className="px-2 py-0.5 rounded-md bg-rose-950/80 border border-rose-500 text-rose-300 text-[9px] font-mono font-black flex items-center gap-1.5 shadow-[0_0_8px_rgba(244,63,94,0.4)]">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                            <span>ON AIR • CH 01</span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-teal-300 mb-1">
+                            Voz Neural Gemini 24kHz:
+                          </label>
+                          <select
+                            value={speaker1Voice}
+                            onChange={(e) => setSpeaker1Voice(e.target.value)}
+                            className="w-full bg-slate-800/90 border border-teal-500/40 rounded-xl px-3 py-2 text-xs text-white font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500/30 cursor-pointer"
+                          >
+                            {(activeModelObj?.supportedVoices || []).map((vId) => {
+                              const vObj = voices.find((v) => v.id === vId);
+                              return (
+                                <option key={vId} value={vId} className="bg-slate-900 text-white">
+                                  {vId} ({vObj?.gender || 'Voz'} - {vObj?.tone || 'Natural'})
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+                        <p className="text-[10px] text-slate-400 leading-snug">
+                          Apertura, moderación del caso y preguntas a los especialistas.
+                        </p>
+                      </div>
+
+                      {/* CANAL 2: Sam (Host 2) */}
+                      <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900/90 via-[#181124] to-slate-950 border border-purple-500/40 shadow-md text-white space-y-3">
+                        <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300">
+                              <MicVocal className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <div className="text-xs font-black tracking-tight text-white flex items-center gap-1">
+                                <span>Sam</span>
+                                <span className="text-[10px] font-mono text-purple-400 font-bold">
+                                  (Host 2)
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-slate-400">Especialista Técnico</p>
+                            </div>
+                          </div>
+                          {/* Indicador Luminoso ON AIR CH 02 */}
+                          <div className="px-2 py-0.5 rounded-md bg-cyan-950/80 border border-cyan-500 text-cyan-300 text-[9px] font-mono font-black flex items-center gap-1.5 shadow-[0_0_8px_rgba(6,182,212,0.4)]">
+                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                            <span>ON AIR • CH 02</span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-purple-300 mb-1">
+                            Voz Neural Gemini 24kHz:
+                          </label>
+                          <select
+                            value={speaker2Voice}
+                            onChange={(e) => setSpeaker2Voice(e.target.value)}
+                            className="w-full bg-slate-800/90 border border-purple-500/40 rounded-xl px-3 py-2 text-xs text-white font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500/30 cursor-pointer"
+                          >
+                            {(activeModelObj?.supportedVoices || []).map((vId) => {
+                              const vObj = voices.find((v) => v.id === vId);
+                              return (
+                                <option key={vId} value={vId} className="bg-slate-900 text-white">
+                                  {vId} ({vObj?.gender || 'Voz'} - {vObj?.tone || 'Natural'})
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+                        <p className="text-[10px] text-slate-400 leading-snug">
+                          Análisis normativo, causas raíz y soluciones de ingeniería en terreno.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 ) : (
