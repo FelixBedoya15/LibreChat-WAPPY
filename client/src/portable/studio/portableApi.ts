@@ -55,10 +55,16 @@ function ttsModelIds(): string[] {
 }
 
 function textModelIds(): string[] {
+  const fastDefaults = ['gemini-3.5-flash-lite', 'gemini-2.5-flash', 'gemini-3.6-flash'];
   const ids = getPortableGoogleModels().filter(
-    (m) => !m.includes('live') && !m.includes('native-audio') && !m.includes('tts') && !m.includes('transcribe'),
+    (m) =>
+      !m.includes('live') &&
+      !m.includes('native-audio') &&
+      !m.includes('tts') &&
+      !m.includes('transcribe') &&
+      !m.includes('3.8-flash'),
   );
-  return ids.length ? ids : ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite'];
+  return Array.from(new Set([...fastDefaults, ...ids]));
 }
 
 // ─── Utilidades de texto (espejo de studio.js) ──────────────────────────────
@@ -873,22 +879,85 @@ async function handleStudioRequest(url: URL, init?: RequestInit): Promise<Respon
       return nativeFetch(job.downloadUrl);
     }
     if (path === '/script/enhance') {
-      if (readPortableKeys().length === 0 && (await isServerAvailable())) {
+      if (await isServerAvailable()) {
         return nativeFetch(url.pathname + url.search, init);
       }
       const res = await enhanceScript(body);
       return json({ success: true, text: res.text, scriptText: res.text, model: res.model, usedModel: res.model });
     }
-    if (path === '/video/generate-html') {
-      if (readPortableKeys().length === 0 && (await isServerAvailable())) {
+    if (path === '/antigravity/super-prompt') {
+      if (await isServerAvailable()) {
         return nativeFetch(url.pathname + url.search, init);
       }
-      const htmlCode = await generateHtml(body);
-      return json({ success: true, htmlCode });
+      const keys = requireKeys();
+      const models = textModelIds();
+      const dur = Math.max(6, Math.round(Number(body.durationSeconds) || 24));
+      const steps = Array.isArray(body.scriptSteps) ? body.scriptSteps : [];
+      const promptText = `Eres el Director de Arte y Arquitecto de Motion Graphics 60-FPS de WAPPY IA y Google Antigravity.
+Construye un Super-Prompt Técnico Maestro (Sistema de las 7 Piezas) usando TODA esta información del usuario:
+- Formato: ${body.aspectRatio || '9:16'} (${dur}s)
+- Dirección de Arte: ${body.artDirection || 'dark-tech-hud'} | Acento: ${body.accentColor || '#14b8a6'}
+- Insignia: "${body.badgeText || ''}" | Titular: "${body.headlineText || ''}" | Subtítulo: "${body.subtitleText || ''}"
+- Voz: ${body.voiceName || 'Kore'} | Estilo: "${body.stylePrompt || ''}"
+- Efectos Virales Seleccionados: ${(body.selectedEffects || []).join(', ')}
+- Guion: """${body.scriptText || ''}"""
+- Escaleta actual: ${JSON.stringify(steps)}
+${body.userPrompt ? `- Nota adicional del usuario: "${body.userPrompt}"` : ''}
+
+Devuelve un Super-Prompt estructurado en Markdown con las 7 Piezas de WAPPY IA y la escaleta escena por escena sincronizada segundo a segundo.`;
+      for (const model of models) {
+        for (const key of keys) {
+          const r = await geminiPost(
+            model,
+            key,
+            {
+              contents: [{ role: 'user', parts: [{ text: promptText }] }],
+              generationConfig: { temperature: 0.4 },
+            },
+            15000,
+          ).catch(() => ({ ok: false, data: {} }) as any);
+          if (r.ok) {
+            const sp = (r.data?.candidates?.[0]?.content?.parts || [])
+              .map((p: any) => p.text || '')
+              .join('')
+              .trim();
+            if (sp) {
+              return json({
+                ok: true,
+                success: true,
+                usedAi: true,
+                usedModel: model,
+                superPrompt: sp,
+                scriptSteps: steps,
+              });
+            }
+          }
+        }
+      }
+      return json({ error: 'No se pudo generar el Super-Prompt con IA en modo offline.' }, 500);
+    }
+    if (
+      path === '/video/generate-html' ||
+      path === '/antigravity/generate-html' ||
+      path === '/antigravity/edit-html' ||
+      path === '/video/compile-master-reel' ||
+      path.startsWith('/antigravity/')
+    ) {
+      if (await isServerAvailable()) {
+        return nativeFetch(url.pathname + url.search, init);
+      }
+      if (path === '/video/generate-html' || path === '/antigravity/generate-html') {
+        const htmlCode = await generateHtml(body);
+        return json({ success: true, htmlCode });
+      }
+      return json({ error: `Conectarse a internet es necesario para ${path}.` }, 503);
     }
     if (path === '/video/render-mp4' || path === '/video/render-serverless') {
       if (await isServerAvailable()) return nativeFetch(url.pathname, init);
       return json({ success: false, error: 'El video MP4 se ensambla en el servidor de WAPPY: abre WAPPY Studio en wappy.club con conexión a internet. Sin conexión puedes descargar la Cápsula HTML5 (incluye voz y animación).' }, 503);
+    }
+    if (await isServerAvailable()) {
+      return nativeFetch(url.pathname + url.search, init);
     }
     return json({ error: `Endpoint portable no soportado: ${path}` }, 404);
   } catch (err: any) {
