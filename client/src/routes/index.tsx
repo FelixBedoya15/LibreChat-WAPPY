@@ -60,6 +60,7 @@ const BateriaPsicosocialPage = lazy(() => import('~/components/Marketing/Bateria
 const LandingPage = lazy(() => import('~/components/Marketing/LandingPage'));
 const WappyPortalPage = lazy(() => import('~/components/Marketing/WappyPortalPage'));
 const WappyDotsPage = lazy(() => import('~/components/Marketing/WappyDotsPage'));
+const WappyDotsMobilePage = lazy(() => import('~/components/Marketing/WappyDotsMobilePage'));
 const AgentMarketplace = lazy(() => import('~/components/Agents/Marketplace'));
 const CourseViewer = lazy(() => import('~/components/Training/CourseViewer'));
 const TrainingAdminDashboard = lazy(() => import('~/components/Training/TrainingAdminDashboard'));
@@ -495,12 +496,7 @@ export const router = createBrowserRouter(
     },
     {
       path: 'wappydots',
-      element: withSuspense(
-        <AuthContextProvider>
-          <WappyDotsPage />
-          <ApiErrorWatcher />
-        </AuthContextProvider>,
-      ),
+      element: withSuspense(<WappyDotsMobilePage />),
       errorElement: <RouteErrorBoundary />,
     },
     {
@@ -515,12 +511,7 @@ export const router = createBrowserRouter(
     },
     {
       path: 'wappydots.html',
-      element: withSuspense(
-        <AuthContextProvider>
-          <WappyDotsPage />
-          <ApiErrorWatcher />
-        </AuthContextProvider>,
-      ),
+      element: withSuspense(<WappyDotsMobilePage />),
       errorElement: <RouteErrorBoundary />,
     },
     {

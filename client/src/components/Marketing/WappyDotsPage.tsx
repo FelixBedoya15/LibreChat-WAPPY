@@ -321,6 +321,13 @@ export default function WappyDotsPage() {
               ⚡ Instalación 1-Clic
             </a>
             <Link
+              to="/wappydots"
+              className="px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/30 text-teal-700 hover:bg-teal-500/20 font-bold transition-all flex items-center gap-1 whitespace-nowrap"
+            >
+              <span>📱</span>
+              <span>Tenshi en Celular</span>
+            </Link>
+            <Link
               to="/portal"
               className="px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 hover:bg-emerald-500/20 font-bold transition-all flex items-center gap-1 whitespace-nowrap"
             >

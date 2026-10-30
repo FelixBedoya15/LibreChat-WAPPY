@@ -1440,23 +1440,23 @@ function buildDefaultHtmlComposition({
   }
 
   <!-- TOP HUD TÁCTICO WAPPY (Ecualizador + Insignia + Radar Holográfico) -->
-  <div id="header-hud" data-editable="true" class="relative z-10 w-full ${isVertical ? 'max-w-md' : 'max-w-2xl'} mx-auto flex items-center justify-between gap-2 shrink-0 pt-1">
-    <div class="glass-card px-3 py-1.5 rounded-full inline-flex items-center gap-2 whitespace-nowrap border border-teal-500/30">
-      <div class="flex items-end gap-0.5 h-3.5" id="hud-eq">
+  <div id="header-hud" data-editable="true" class="relative z-10 w-full ${isVertical ? 'max-w-md' : 'max-w-2xl'} mx-auto flex items-center justify-between gap-1.5 shrink-0 pt-1">
+    <div class="glass-card px-2.5 py-1 rounded-full inline-flex items-center gap-1.5 min-w-0 max-w-[62%] border border-teal-500/30">
+      <div class="flex items-end gap-0.5 h-3 shrink-0" id="hud-eq">
         <span class="eq-bar w-1 bg-cyan-400 rounded-full" style="height:60%"></span>
         <span class="eq-bar w-1 bg-[#c7f303] rounded-full" style="height:100%"></span>
         <span class="eq-bar w-1 bg-teal-400 rounded-full" style="height:45%"></span>
         <span class="eq-bar w-1 bg-cyan-300 rounded-full" style="height:80%"></span>
       </div>
-      <span class="text-[10px] font-extrabold tracking-widest uppercase text-teal-300">${safeBadge}</span>
+      <span class="text-[9px] sm:text-[10px] font-extrabold tracking-wider uppercase text-teal-300 truncate">${safeBadge}</span>
     </div>
 
-    <div class="flex items-center gap-2 shrink-0">
-      <div class="glass-card px-2.5 py-1 rounded-full inline-flex items-center gap-1.5 text-[10px] font-mono font-bold text-[#c7f303] border border-[#c7f303]/35">
-        <span class="w-2 h-2 rounded-full bg-[#c7f303] animate-pulse"></span>
+    <div class="flex items-center gap-1.5 shrink-0">
+      <div class="glass-card px-2 py-1 rounded-full inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-mono font-bold text-[#c7f303] border border-[#c7f303]/35">
+        <span class="w-1.5 h-1.5 rounded-full bg-[#c7f303] animate-pulse shrink-0"></span>
         <span>WAPPY.CLUB</span>
       </div>
-      <svg viewBox="0 0 36 36" class="w-8 h-8 shrink-0">
+      <svg viewBox="0 0 36 36" class="w-7 h-7 shrink-0">
         <circle cx="18" cy="18" r="16" fill="rgba(8,18,28,0.85)" stroke="rgba(20,184,166,0.45)" stroke-width="1.2" stroke-dasharray="3 2"/>
         <circle cx="18" cy="18" r="10" fill="none" stroke="rgba(199,243,3,0.3)" stroke-width="1"/>
         <line x1="18" y1="18" x2="31" y2="10" stroke="#c7f303" stroke-width="1.8" stroke-linecap="round" class="radar-sweep"/>
@@ -5016,104 +5016,47 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
       )}
     >
       {/* ==================================================================== */}
-      {/* CABECERA MAESTRA WAPPY STUDIO (100% WAPPY DESIGN SYSTEM)              */}
+      {/* CABECERA MAESTRA WAPPY STUDIO (100% WAPPY DESIGN SYSTEM & RESPONSIVE)*/}
       {/* ==================================================================== */}
       <header
         className={cn(
-          'bg-white dark:bg-slate-900/95 px-4 sm:px-6 py-4 shadow-2xs z-30',
+          'bg-white dark:bg-slate-900/95 px-4 sm:px-6 py-4 shadow-2xs z-30 overflow-hidden',
           portable
             ? 'relative rounded-3xl border border-slate-200/80 dark:border-slate-800 max-w-7xl w-full mx-auto'
             : 'sticky top-0 border-b border-slate-200/90 dark:border-slate-800',
         )}
       >
-        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-          {/* Izquierda: Botón Sidebar + Badge + Título */}
-          <div className="flex items-start sm:items-center gap-3">
-            {isAuthenticated && !navVisible && (
-              <div className="hidden md:block">
-                <OpenSidebar setNavVisible={setNavVisible} />
+        <div className="max-w-7xl mx-auto flex flex-col gap-3.5">
+          {/* Fila 1: Identidad WAPPY Studio (Izquierda) + Herramientas & Conexión Antigravity (Derecha) */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            {/* Izquierda: Botón Sidebar + Badge + Título en una sola línea limpia */}
+            <div className="flex items-start sm:items-center gap-3 min-w-0">
+              {isAuthenticated && !navVisible && (
+                <div className="hidden md:block shrink-0">
+                  <OpenSidebar setNavVisible={setNavVisible} />
+                </div>
+              )}
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/30 uppercase tracking-wider">
+                    <Sparkles className="w-3 h-3 text-teal-500 shrink-0" />
+                    <span>Estudio Multimodal • Gemini 3.8 Flash TTS & HyperFrames</span>
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <h1 className="text-xl sm:text-2xl font-extrabold flex items-center gap-2 bg-clip-text text-transparent bg-gradient-to-r from-teal-600 via-emerald-600 to-indigo-600 dark:from-teal-400 dark:via-emerald-400 dark:to-indigo-400 whitespace-nowrap">
+                    <Clapperboard className="w-6 h-6 sm:w-7 sm:h-7 text-teal-500 shrink-0" />
+                    <span>WAPPY Studio</span>
+                  </h1>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 hidden sm:block">
+                    Síntesis de voz neural de hasta 1 hora continua y creación de videos animados en HTML/GSAP con Antigravity.
+                  </p>
+                </div>
               </div>
-            )}
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/30 uppercase tracking-wider">
-                  <Sparkles className="w-3 h-3 text-teal-500" />
-                  Estudio Multimodal • Gemini 3.8 Flash TTS & HyperFrames
-                </span>
-              </div>
-              <h1 className="text-xl sm:text-2xl font-extrabold flex items-center gap-2.5 bg-clip-text text-transparent bg-gradient-to-r from-teal-600 via-emerald-600 to-indigo-600 dark:from-teal-400 dark:via-emerald-400 dark:to-indigo-400">
-                <Clapperboard className="w-6 h-6 sm:w-7 sm:h-7 text-teal-500 shrink-0" />
-                WAPPY Studio
-              </h1>
-              <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 hidden sm:block">
-                Síntesis de voz neural de hasta 1 hora continua y creación de videos animados en HTML/GSAP con capas sobre tus propios videos.
-              </p>
-            </div>
-          </div>
-
-          {/* Derecha: Cápsula de Pestañas (SGSSTToolbar style) + Botones Expandibles (14 Grupos) */}
-          <div className="flex items-center gap-2 w-full lg:w-auto justify-between lg:justify-end flex-nowrap">
-            {/* Botonera Flotante Cápsula / Isla */}
-            <div className="inline-flex items-center gap-1 p-1.5 rounded-2xl bg-slate-100/90 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-x-auto no-scrollbar min-w-0">
-              <button
-                type="button"
-                onClick={() => handleTabChange('tts')}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
-                  activeTab === 'tts'
-                    ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-700 dark:text-teal-300 shadow-2xs'
-                    : 'text-slate-700 dark:text-zinc-300 hover:bg-white dark:hover:bg-zinc-800',
-                )}
-              >
-                <MicVocal className="w-3.5 h-3.5 text-teal-500" />
-                <span>Estudio de Voz (TTS)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleTabChange('video')}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
-                  activeTab === 'video'
-                    ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-700 dark:text-teal-300 shadow-2xs'
-                    : 'text-slate-700 dark:text-zinc-300 hover:bg-white dark:hover:bg-zinc-800',
-                )}
-              >
-                <Film className="w-3.5 h-3.5 text-purple-500" />
-                <span>Video HTML & Capas</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleTabChange('lab')}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
-                  activeTab === 'lab'
-                    ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-700 dark:text-teal-300 shadow-2xs'
-                    : 'text-slate-700 dark:text-zinc-300 hover:bg-white dark:hover:bg-zinc-800',
-                )}
-              >
-                <Layers className="w-3.5 h-3.5 text-amber-500" />
-                <span>Voces & Bursts</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleTabChange('library')}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
-                  activeTab === 'library'
-                    ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-700 dark:text-teal-300 shadow-2xs'
-                    : 'text-slate-700 dark:text-zinc-300 hover:bg-white dark:hover:bg-zinc-800',
-                )}
-              >
-                <BookOpen className="w-3.5 h-3.5 text-indigo-500" />
-                <span>Biblioteca ({libraryItems.length})</span>
-              </button>
             </div>
 
-            {/* Botones Auto-Expansibles WAPPY (14 Grupos Semánticos, sin flex-wrap para evitar titileo) */}
-            <div className="flex items-center gap-1.5 shrink-0 flex-nowrap">
+            {/* Derecha: Botones de Acción WAPPY (14 Grupos Semánticos, 100% responsive con flex-wrap) */}
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
               <ModelSelector
                 selectedModel={selectedAiModel}
                 onSelectModel={setSelectedAiModel}
@@ -5137,6 +5080,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 icon={<Key />}
                 label={`Claves IA (${activeCustomKeyCount})`}
                 variant="fuchsia"
+                alwaysExpanded
                 onClick={() => {
                   setKeyValidationMsg('');
                   setApiKeyModalTab('keys');
@@ -5147,21 +5091,71 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
               <ExpandableButton
                 icon={isTestingConnection ? <Loader2 className="animate-spin" /> : <Zap />}
-                label="Probar Audio con IA"
-                variant="purple"
+                label="Probar Audio IA"
+                variant="emerald"
+                alwaysExpanded
                 disabled={isTestingConnection}
                 onClick={handleTestConnection}
               />
 
               {!portable && (
-              <ExpandableButton
-                icon={<ExternalLink />}
-                label="Landing / App Portable"
-                variant="cyan"
-                onClick={() => window.open('/wappystudio.html', '_blank', 'noopener,noreferrer')}
-                title="Abrir Landing Page Pública y Aplicativo Portable de WAPPY Studio"
-              />
+                <ExpandableButton
+                  icon={<ExternalLink />}
+                  label="App Portable"
+                  variant="cyan"
+                  alwaysExpanded
+                  onClick={() => window.open('/wappystudio.html', '_blank', 'noopener,noreferrer')}
+                  title="Abrir Landing Page Pública y Aplicativo Portable de WAPPY Studio"
+                />
               )}
+            </div>
+          </div>
+
+          {/* Fila 2: Los 4 Módulos Principales con Diseño Oficial de Botones WAPPY (ExpandableButton 14-Group System) */}
+          <div className="pt-3 border-t border-slate-200/80 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <ExpandableButton
+                icon={<MicVocal />}
+                label="Estudio de Voz (TTS)"
+                variant="teal"
+                alwaysExpanded
+                isActive={activeTab === 'tts'}
+                onClick={() => handleTabChange('tts')}
+              />
+
+              <ExpandableButton
+                icon={<Film />}
+                label="Video HTML & Capas"
+                variant="purple"
+                alwaysExpanded
+                isActive={activeTab === 'video'}
+                onClick={() => handleTabChange('video')}
+              />
+
+              <ExpandableButton
+                icon={<Layers />}
+                label="Voces & Bursts"
+                variant="amber"
+                alwaysExpanded
+                isActive={activeTab === 'lab'}
+                onClick={() => handleTabChange('lab')}
+              />
+
+              <ExpandableButton
+                icon={<BookOpen />}
+                label={`Biblioteca (${libraryItems.length})`}
+                variant="indigo"
+                alwaysExpanded
+                isActive={activeTab === 'library'}
+                onClick={() => handleTabChange('library')}
+              />
+            </div>
+
+            <div className="hidden lg:flex items-center gap-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-bold">
+                <span className="w-2 h-2 rounded-full bg-[#C7F303] animate-pulse" />
+                Motor 60-FPS + Voz Activo
+              </span>
             </div>
           </div>
         </div>

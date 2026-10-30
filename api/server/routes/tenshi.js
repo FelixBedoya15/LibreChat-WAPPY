@@ -3992,4 +3992,146 @@ router.get('/skills', async (req, res) => {
   }
 });
 
+// ============================================================================
+// PUENTE PERMANENTE PARA TENSHI EN CELULAR (https://wappy.club/wappydots)
+// ============================================================================
+let wappydotsTunnelState = {
+  active: false,
+  publicUrl: null,
+  lanUrl: 'http://127.0.0.1:3001',
+  startedAt: null,
+  updatedAt: null,
+};
+
+async function loadPersistedWappydotsTunnelState() {
+  if (wappydotsTunnelState.publicUrl) {
+    return wappydotsTunnelState;
+  }
+  try {
+    if (mongoose.connection && mongoose.connection.db) {
+      const doc = await mongoose.connection.db
+        .collection('wappydots_tunnel_state')
+        .findOne({ _id: 'primary_mac_tunnel' });
+      if (doc && doc.publicUrl) {
+        wappydotsTunnelState = {
+          active: Boolean(doc.active),
+          publicUrl: doc.publicUrl,
+          lanUrl: doc.lanUrl || 'http://127.0.0.1:3001',
+          startedAt: doc.startedAt || null,
+          updatedAt: doc.updatedAt || null,
+        };
+      }
+    }
+  } catch (_e) {
+    // ignore
+  }
+  return wappydotsTunnelState;
+}
+
+/**
+ * POST /api/tenshi/wappydots-link
+ * Recibe desde la Mac (cloudflare-tunnel.ts) la URL activa del túnel de Tenshi
+ */
+router.post('/wappydots-link', async (req, res) => {
+  try {
+    const { publicUrl, lanUrl, active, startedAt, updatedAt } = req.body || {};
+    const cleanPublic = typeof publicUrl === 'string' && publicUrl.trim()
+      ? publicUrl.trim().replace(/\/$/, '')
+      : wappydotsTunnelState.publicUrl;
+    const cleanLan = typeof lanUrl === 'string' && lanUrl.trim()
+      ? lanUrl.trim().replace(/\/$/, '')
+      : wappydotsTunnelState.lanUrl;
+
+    wappydotsTunnelState = {
+      active: active !== undefined ? Boolean(active) : Boolean(cleanPublic),
+      publicUrl: cleanPublic || null,
+      lanUrl: cleanLan || 'http://127.0.0.1:3001',
+      startedAt: startedAt || wappydotsTunnelState.startedAt || new Date().toISOString(),
+      updatedAt: updatedAt || new Date().toISOString(),
+    };
+
+    if (mongoose.connection && mongoose.connection.db) {
+      await mongoose.connection.db
+        .collection('wappydots_tunnel_state')
+        .updateOne(
+          { _id: 'primary_mac_tunnel' },
+          { $set: { ...wappydotsTunnelState } },
+          { upsert: true },
+        )
+        .catch(() => {});
+    }
+
+    return res.json({
+      ok: true,
+      permanentUrl: 'https://wappy.club/wappydots',
+      ...wappydotsTunnelState,
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/tenshi/wappydots-link
+ * Devuelve la URL activa del túnel para que https://wappy.club/wappydots se conecte automáticamente
+ */
+router.get('/wappydots-link', async (_req, res) => {
+  const state = await loadPersistedWappydotsTunnelState();
+  return res.json({
+    ok: true,
+    permanentUrl: 'https://wappy.club/wappydots',
+    ...state,
+    directMobileUrl: state.publicUrl ? `${state.publicUrl}/wappydots` : `${state.lanUrl}/wappydots`,
+  });
+});
+
+/**
+ * ALL /api/tenshi/wappydots-proxy/*
+ * Proxy de respaldo hacia el túnel activo de la Mac para evitar bloqueos de red móvil
+ */
+router.all('/wappydots-proxy/*', async (req, res) => {
+  try {
+    const state = await loadPersistedWappydotsTunnelState();
+    const targetBase = state.publicUrl || state.lanUrl;
+    if (!targetBase) {
+      return res.status(503).json({
+        ok: false,
+        error: 'El túnel de Wappy Dots en tu Mac aún no ha reportado su enlace activo.',
+      });
+    }
+    const subPath = req.params[0] || '';
+    const queryString = req.originalUrl.includes('?')
+      ? req.originalUrl.slice(req.originalUrl.indexOf('?'))
+      : '';
+    const targetUrl = `${targetBase.replace(/\/$/, '')}/${subPath.replace(/^\//, '')}${queryString}`;
+
+    const isBinaryFile = subPath.includes('files/') || /\.(pdf|docx|xlsx|png|jpg|jpeg|zip)$/i.test(subPath);
+    const upstreamRes = await axios({
+      method: req.method,
+      url: targetUrl,
+      data: ['POST', 'PUT', 'PATCH'].includes(req.method.toUpperCase()) ? req.body : undefined,
+      headers: {
+        'Content-Type': req.headers['content-type'] || 'application/json',
+        Authorization: req.headers.authorization || 'Bearer wappy-tunnel',
+      },
+      responseType: isBinaryFile ? 'arraybuffer' : 'json',
+      timeout: 90000,
+      validateStatus: () => true,
+    });
+
+    if (upstreamRes.headers['content-type']) {
+      res.setHeader('Content-Type', upstreamRes.headers['content-type']);
+    }
+    if (upstreamRes.headers['content-disposition']) {
+      res.setHeader('Content-Disposition', upstreamRes.headers['content-disposition']);
+    }
+    return res.status(upstreamRes.status).send(upstreamRes.data);
+  } catch (error) {
+    return res.status(502).json({
+      ok: false,
+      error: `Error conectando con el túnel de tu Mac: ${error.message}`,
+    });
+  }
+});
+
 module.exports = router;
