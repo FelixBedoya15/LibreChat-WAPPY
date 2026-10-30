@@ -23,7 +23,28 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <!-- Tailwind CSS First-Party Local + Fallback CDN -->
+  <!-- Tailwind CSS First-Party Local + Fallback CDN (darkMode: 'class' estricto para respetar Modo Claro/Oscuro) -->
+  <script>
+    window.__applyWappyTailwindConfig = function () {
+      if (window.tailwind) {
+        window.tailwind.config = {
+          darkMode: 'class',
+          theme: {
+            extend: {
+              fontFamily: {
+                display: ['Outfit', 'sans-serif'],
+                sans: ['Plus Jakarta Sans', 'sans-serif'],
+              },
+              colors: {
+                'wappy-lime': '#c7f303',
+                'wappy-dark': '#0e1300',
+              },
+            },
+          },
+        };
+      }
+    };
+  </script>
   <script src="/assets/tailwind-cdn.js" onload="window.__applyWappyTailwindConfig && window.__applyWappyTailwindConfig()" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdn.tailwindcss.com';s.onload=window.__applyWappyTailwindConfig;document.head.appendChild(s);"></script>
   <script>if (window.__applyWappyTailwindConfig) window.__applyWappyTailwindConfig();</script>
 
@@ -367,6 +388,24 @@
       -webkit-text-stroke: 1.5px rgba(199, 243, 3, 0.22) !important;
     }
 
+    /* Difuminación de colores (Text Gradient) para el título principal Hero */
+    .wappy-hero-gradient-text {
+      background: linear-gradient(90deg, #1e1b4b 0%, #4338ca 28%, #7e22ce 64%, #db2777 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
+      display: inline-block;
+      padding-bottom: 0.06em;
+    }
+    html.dark .wappy-hero-gradient-text {
+      background: linear-gradient(90deg, #c7f303 0%, #2dd4bf 50%, #38bdf8 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
+    }
+
   </style>
   <!-- WAPPY APPs Mandatory Instagram Follow Gate (@wappy_ia + OpenReply) -->
   <script src="/js/wappy-ig-gate.js" defer></script>
@@ -541,7 +580,7 @@
     <!-- Main Headline -->
     <h1 class="font-display font-black text-3xl sm:text-5xl lg:text-6xl text-slate-900 tracking-tight max-w-4xl mx-auto leading-[1.1] mb-3">
       Evoluciona tu SG-SST con IA,
-      <span class="text-teal-700 block sm:inline">análisis en vivo y analítica predictiva.</span>
+      <span class="wappy-hero-gradient-text block sm:inline">análisis en vivo y analítica predictiva.</span>
     </h1>
 
     <!-- Subtitle -->
@@ -622,26 +661,6 @@
         <span>⚙️ Gestionar Perfil</span>
         <span>→</span>
       </div>
-    </div>
-
-    <!-- Portable Pill Badges -->
-    <div class="flex flex-wrap items-center justify-center gap-2 mb-4">
-      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 border border-slate-200/80 text-xs font-bold text-slate-800 shadow-xs">
-        💻 100% Portable en Navegador
-      </span>
-      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/30 text-xs font-bold text-sky-800 shadow-xs">
-        ⚡ Gestión Manual 100% Offline
-      </span>
-      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-xs font-bold text-purple-800 shadow-xs">
-        ✨ Asistente IA Gemini (Online con API Key)
-      </span>
-      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-xs font-bold text-emerald-800 shadow-xs">
-        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-        ISO 45001:2018 Num. 6.1.2 · Res. 0312 Est. 4.1.1: CUMPLE
-      </span>
-      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/30 text-xs font-bold text-teal-800 shadow-xs">
-        🛡️ By Wappy LTDA - Somos SST
-      </span>
     </div>
 
   </section>
