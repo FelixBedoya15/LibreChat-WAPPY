@@ -83,11 +83,14 @@
 
 ---
 
-## 5. Verificación Web Obligatoria de Modelos de IA (`verify-ai-models`)
+## 5. Verificación Obligatoria de Modelos de IA en `.env` y en la Web (`verify-ai-models`)
 
 > [!CRITICAL]
-> **Prohibido asumir o adivinar nombres de modelos de IA.**
-> Antes de modificar configuraciones de modelos (Gemini, OpenAI, Anthropic) en `api/`, `packages/`, `client/` o `.env`, **ejecuta siempre `search_web`** en la documentación oficial para asegurar IDs y disponibilidad actual.
+> **Prohibido asumir, adivinar o inyectar modelos de IA obsoletos o que no existan en `.env`.**
+> Siempre antes de configurar, sugerir, rotar o modificar modelos de IA (Gemini, OpenAI, Anthropic, etc.) en `api/`, `packages/`, `client/` o `.env`:
+> 1. **Verificar SIEMPRE el archivo `.env` (`GOOGLE_MODELS`, `GOOGLE_TITLE_MODEL`, etc.):** Usa exclusivamente los modelos que realmente estén configurados y activos en el `.env` del sistema (ej. texto/agentes: `gemini-3.5-flash-lite`, `gemini-3.6-flash`, `gemini-3.8-flash`; voz Live: `gemini-3.8-live`, `gemini-3.1-flash-live-preview`; TTS: `gemini-3.8-flash-tts`, `gemini-3.1-flash-tts-preview`, `gemini-3.8-flash-lite-tts`).
+> 2. **Verificar SIEMPRE en la Web (`search_web`):** Consulta la documentación oficial del proveedor antes de agregar cualquier ID de modelo nuevo para confirmar su vigencia actual.
+> 3. **PROHIBIDO** agregar modelos de texto antiguos, deprecados o ausentes de `GOOGLE_MODELS` en `.env` (como `gemini-2.5-flash`, `gemini-1.5-*` o `gemini-2.0-*`) en listas de fallback o selectores.
 
 ---
 

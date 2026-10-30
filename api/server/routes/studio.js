@@ -213,13 +213,14 @@ function getStudioTtsModelsFromEnv() {
 }
 
 function getStudioTextModelsFromEnv() {
-  const fastDefaults = ['gemini-3.5-flash-lite', 'gemini-2.5-flash', 'gemini-3.6-flash'];
+  const fastDefaults = ['gemini-3.5-flash-lite', 'gemini-3.6-flash'];
   const envTextIds = getEnvGoogleModelsList().filter(
     (m) =>
       !m.includes('live') &&
       !m.includes('native-audio') &&
       !m.includes('tts') &&
       !m.includes('transcribe') &&
+      !m.includes('2.5') &&
       !m.includes('3.8-flash'),
   );
   return Array.from(new Set([...fastDefaults, ...envTextIds]));
@@ -235,6 +236,7 @@ function resolveStudioFastTextModels(preferredModel = '') {
     !cleanPref.includes('live') &&
     !cleanPref.includes('native-audio') &&
     !cleanPref.includes('transcribe') &&
+    !cleanPref.includes('2.5') &&
     !cleanPref.includes('3.8-flash');
 
   const baseList = getStudioTextModelsFromEnv();

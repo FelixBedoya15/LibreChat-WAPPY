@@ -55,13 +55,14 @@ function ttsModelIds(): string[] {
 }
 
 function textModelIds(): string[] {
-  const fastDefaults = ['gemini-3.5-flash-lite', 'gemini-2.5-flash', 'gemini-3.6-flash'];
+  const fastDefaults = ['gemini-3.5-flash-lite', 'gemini-3.6-flash'];
   const ids = getPortableGoogleModels().filter(
     (m) =>
       !m.includes('live') &&
       !m.includes('native-audio') &&
       !m.includes('tts') &&
       !m.includes('transcribe') &&
+      !m.includes('2.5') &&
       !m.includes('3.8-flash'),
   );
   return Array.from(new Set([...fastDefaults, ...ids]));
@@ -698,13 +699,11 @@ async function generateHtml(b: any) {
 
 async function enhanceScript(opts: any) {
   const keys = requireKeys();
-  const envModels = getPortableGoogleModels().filter(
-    (m) => !m.includes('live') && !m.includes('native-audio') && !m.includes('tts'),
-  );
-  const preferred = String(opts.modelName || envModels[0] || 'gemini-3.8-flash')
+  const envModels = textModelIds();
+  const preferred = String(opts.modelName || envModels[0] || 'gemini-3.5-flash-lite')
     .replace('models/', '')
     .trim();
-  const models = Array.from(new Set([preferred, ...envModels, ...TEXT_FALLBACK]));
+  const models = Array.from(new Set([preferred, ...envModels]));
   const promptInstruction = opts.multiSpeaker
     ? `Eres un guionista experto en podcasts y locución neural para Gemini 3.8 Flash TTS.
 Convierte o mejora el siguiente texto en un diálogo dinámico entre dos interlocutores usando exactamente las etiquetas "Alex:" y "Sam:" al inicio de cada intervención.
@@ -723,7 +722,7 @@ Devuelve ÚNICAMENTE el texto del guion mejorado, sin comentarios adicionales ni
   let lastErr = 'Error al mejorar el guion con IA.';
   for (const model of models) {
     for (const key of keys) {
-      const r = await geminiGenerate(model, key, {
+      const r = await geminiPost(model, key, {
         contents: [{ role: 'user', parts: [{ text: inputContent }] }],
         generationConfig: { temperature: 0.5 },
       });
