@@ -1717,11 +1717,15 @@ router.post('/script/enhance', studioAuth, async (req, res) => {
       scriptText = '',
       stylePrompt = '',
       multiSpeaker = false,
+      podcastOnly = false,
+      minMinutes = 0,
+      episodeTitle = '',
       modelName,
       customKeys,
       apiKeys,
     } = req.body || {};
     const baseText = text || scriptText || '';
+    const isLongPodcast = Boolean(podcastOnly) || Number(minMinutes) >= 5;
 
     const modelsToTry = resolveStudioFastTextModels(
       modelName || req.user?.personalization?.geminiModels?.sstManagement,
@@ -1729,19 +1733,23 @@ router.post('/script/enhance', studioAuth, async (req, res) => {
     const preferredTextModel = modelsToTry[0] || 'gemini-3.5-flash-lite';
 
     const { allKeys } = await getCombinedKeysForRequest(req, customKeys || apiKeys);
+    const lengthMandate = isLongPodcast
+      ? `\nREGLA OBLIGATORIA DE DURACIÓN (MÍNIMO 5 MINUTOS): El guion completo DEBE tener un mínimo estricto de 750 a 900 palabras reales (~5 a 6 minutos de locución hablada). Desarrolla el tema a profundidad con introducción magnética, análisis técnico y normativo (SG-SST, Decreto 1072, Res. 0312, GTC 45 o estándar aplicable), casos reales de campo, preguntas y respuestas entre los interlocutores, errores comunes a evitar y cierre memorable con conclusiones prácticas.`
+      : '';
+
     const promptInstruction = multiSpeaker
       ? `Eres un guionista experto en podcasts y locución neural para Gemini 3.8 Flash TTS.
-Convierte o mejora el siguiente texto en un diálogo dinámico entre dos interlocutores usando exactamente las etiquetas "Alex:" y "Sam:" al inicio de cada intervención.
+Convierte, expande o mejora el siguiente texto en un episodio completo de podcast dinámico entre dos interlocutores usando exactamente las etiquetas "Alex:" y "Sam:" al inicio de cada intervención.${lengthMandate}
 Inserta efectos vocales orgánicos donde aporten naturalidad: <breath> (respiración), <laugh> (risa suave), |mhm| (asentimiento), |yeah| (acuerdo).
-Estilo solicitado: ${stylePrompt || 'Conversacional, fluido y profesional'}.
+Estilo solicitado: ${stylePrompt || 'Conversacional, fluido y profesional'}.${episodeTitle ? `\nTítulo del Episodio: ${episodeTitle}` : ''}
 Devuelve ÚNICAMENTE el guion listo para sintetizar, sin introducciones ni bloques markdown.`
       : `Eres un director de locución profesional experto en Gemini 3.8 Flash TTS.
-Mejora y enriquece el siguiente guion para que suene 100% humano, envolvente y con ritmo profesional.
+Mejora, expande y enriquece el siguiente guion para que suene 100% humano, envolvente y con ritmo profesional.${lengthMandate}
 Inserta etiquetas vocales orgánicas de Gemini TTS en las pausas clave: <breath> (toma de aire natural), <laugh> (si aplica), <gasp> (si aplica énfasis).
-Estilo solicitado: ${stylePrompt || 'Narración profesional, clara y expresiva'}.
+Estilo solicitado: ${stylePrompt || 'Narración profesional, clara y expresiva'}.${episodeTitle ? `\nTítulo del Episodio: ${episodeTitle}` : ''}
 Devuelve ÚNICAMENTE el texto del guion mejorado, sin comentarios adicionales ni comillas.`;
 
-    const inputContent = `${promptInstruction}\n\nTEXTO BASE:\n${baseText || 'Crea una introducción impactante sobre cómo la Inteligencia Artificial y la prevención transforman el aprendizaje y la seguridad.'}`;
+    const inputContent = `${promptInstruction}\n\nTEXTO O TEMA BASE:\n${baseText || 'Crea un episodio completo de podcast sobre cómo la Inteligencia Artificial y la cultura preventiva transforman la Seguridad y Salud en el Trabajo.'}`;
 
     let enhancedText = '';
     let usedModel = preferredTextModel;
@@ -1756,9 +1764,9 @@ Devuelve ÚNICAMENTE el texto del guion mejorado, sin comentarios adicionales ni
               url,
               {
                 contents: [{ role: 'user', parts: [{ text: inputContent }] }],
-                generationConfig: { temperature: 0.5 },
+                generationConfig: { temperature: 0.6 },
               },
-              { timeout: 10000 },
+              { timeout: isLongPodcast ? 35000 : 15000 },
             );
             const candidateText =
               resp.data?.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || '';

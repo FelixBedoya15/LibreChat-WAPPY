@@ -2335,16 +2335,18 @@ export default function WappyStudioDashboard({
     podcastOnly ? WAPPY_PODCAST_SHOWS[0].script : SCRIPT_TEMPLATES[0].text,
   );
 
-  // Estado de Selección Editorial Apple Podcasts
+  // Estado de Selección Editorial Apple Podcasts & Edición de Cápsulas
   const [selectedApplePodcastId, setSelectedApplePodcastId] = useState<string>(
     WAPPY_PODCAST_SHOWS[0].id,
   );
   const [activePodcastEpisodeTitle, setActivePodcastEpisodeTitle] = useState<string>(
     podcastOnly ? WAPPY_PODCAST_SHOWS[0].title : '',
   );
+  const [editingLibraryItemId, setEditingLibraryItemId] = useState<string | null>(null);
 
   const handleSelectApplePodcastShow = (show: PodcastShowPreset, autoSynthesize = false) => {
     setSelectedApplePodcastId(show.id);
+    setEditingLibraryItemId(null);
     setActivePodcastEpisodeTitle(show.title);
     setMultiSpeaker(show.dualSpeaker);
     if (show.dualSpeaker) {
@@ -2357,7 +2359,7 @@ export default function WappyStudioDashboard({
     setScriptText(show.script);
 
     if (autoSynthesize) {
-      handleSynthesizePreview({
+      handleStartFullJob({
         script: show.script,
         title: show.title,
         multiSpeaker: show.dualSpeaker,
@@ -2369,7 +2371,7 @@ export default function WappyStudioDashboard({
     } else {
       setStatusBanner({
         type: 'success',
-        text: `Cápsula "${show.title}" (${show.dualSpeaker ? `${show.voiceId} + ${show.secondVoiceId}` : show.voiceId}) cargada en el Estudio y lista para editar o pasar al Walkman.`,
+        text: `Serie "${show.title}" (+5 min • ${show.dualSpeaker ? `${show.voiceId} + ${show.secondVoiceId}` : show.voiceId}) cargada en el Estudio y lista para editar o sintetizar en el Walkman.`,
       });
     }
   };
@@ -2756,6 +2758,89 @@ export default function WappyStudioDashboard({
     if (goToVideo) handleTabChange('video');
     return true;
   };
+
+  /** Carga un podcast ya subido/creado en el Estudio de Edición para editar su título, guion o volver a sintetizarlo. */
+  const handleEditLibraryAudio = async (item: LibraryItem) => {
+    setEditingLibraryItemId(item.id);
+    setActivePodcastEpisodeTitle(item.title || 'Podcast SST');
+    if (item.scriptText) {
+      setScriptText(item.scriptText);
+    }
+    if (item.stylePrompt) {
+      setStylePrompt(item.stylePrompt);
+    }
+    if (item.voiceName && item.voiceName.includes('+')) {
+      const parts = item.voiceName.split('+').map((s) => s.trim());
+      setMultiSpeaker(true);
+      if (parts[0]) setSpeaker1Voice(parts[0]);
+      if (parts[1]) setSpeaker2Voice(parts[1]);
+    } else if (item.voiceName) {
+      setMultiSpeaker(false);
+      setSelectedVoice(item.voiceName);
+    }
+    await openLibraryAudio(item, false);
+    handleTabChange('tts');
+    setStatusBanner({
+      type: 'info',
+      text: `✏️ Editando podcast "${item.title}". Modifica el título o el guion abajo y pulsa "Guardar Cambios" o "Re-Sintetizar Podcast".`,
+    });
+    setTimeout(() => {
+      const editorEl = document.getElementById(
+        'wappy-studio-tts-editor',
+      ) as HTMLTextAreaElement | null;
+      if (editorEl) {
+        editorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => {
+          editorEl.focus({ preventScroll: true });
+          editorEl.classList.add('ring-4', 'ring-[#c7f303]', 'border-[#c7f303]');
+          setTimeout(() => {
+            editorEl.classList.remove('ring-4', 'ring-[#c7f303]', 'border-[#c7f303]');
+          }, 1800);
+        }, 350);
+      }
+    }, 80);
+  };
+
+  /** Guarda los cambios de título y guion sobre el podcast existente sin necesidad de esperar nueva síntesis, o prepáralo para re-síntesis. */
+  const handleSaveEditedLibraryMetadata = () => {
+    if (!editingLibraryItemId) return;
+    const cleanTitle = (activePodcastEpisodeTitle || '').trim() || 'Podcast SST Editado';
+    const cleanWords = scriptText.trim().split(/\s+/).filter(Boolean).length;
+    const effVoice = multiSpeaker ? `${speaker1Voice} + ${speaker2Voice}` : selectedVoice;
+    setLibraryItems((prev) =>
+      prev.map((it) =>
+        it.id === editingLibraryItemId
+          ? {
+              ...it,
+              title: cleanTitle,
+              scriptText,
+              stylePrompt,
+              voiceName: effVoice,
+              wordCount: cleanWords,
+            }
+          : it,
+      ),
+    );
+    setCurrentAudio((prev) =>
+      prev ? { ...prev, title: cleanTitle, scriptText, voiceName: effVoice } : prev,
+    );
+    setStatusBanner({
+      type: 'success',
+      text: `✅ Cambios guardados en el podcast "${cleanTitle}". Si modificaste el texto y deseas actualizar la voz, pulsa "Generar Podcast Completo".`,
+    });
+  };
+
+  // En modo podcastOnly, cargar automáticamente el último podcast guardado en el Walkman al iniciar para que PLAY, -10s y +10s estén listos de inmediato
+  const autoLoadedInitialPodcastRef = useRef(false);
+  useEffect(() => {
+    if (!podcastOnly || autoLoadedInitialPodcastRef.current || currentAudio) return;
+    const firstAudio = libraryItems.find((i) => i.kind !== 'video');
+    if (firstAudio) {
+      autoLoadedInitialPodcastRef.current = true;
+      openLibraryAudio(firstAudio, false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [podcastOnly, libraryItems]);
 
   const downloadBlobFile = (blob: Blob, fileName: string) => {
     const url = URL.createObjectURL(blob);
@@ -3161,8 +3246,31 @@ export default function WappyStudioDashboard({
     }
   };
 
-  const handleStartFullJob = async () => {
-    if (!scriptText.trim()) return;
+  const handleStartFullJob = async (override?: {
+    script?: string;
+    title?: string;
+    multiSpeaker?: boolean;
+    voiceName?: string;
+    speaker1Voice?: string;
+    speaker2Voice?: string;
+    stylePrompt?: string;
+  }) => {
+    const effScript = (override?.script ?? scriptText).trim();
+    if (!effScript) return;
+    const effMulti = override?.multiSpeaker ?? multiSpeaker;
+    const effVoice = override?.voiceName || selectedVoice;
+    const effSpk1 = override?.speaker1Voice || speaker1Voice;
+    const effSpk2 = override?.speaker2Voice || speaker2Voice;
+    const effStyle = override?.stylePrompt ?? stylePrompt;
+    const effVoiceLabel = effMulti ? `${effSpk1} + ${effSpk2}` : effVoice;
+    const effTitle =
+      override?.title ||
+      (podcastOnly && activePodcastEpisodeTitle
+        ? activePodcastEpisodeTitle.trim()
+        : `Audio Completo: ${effScript.replace(/<[^>]+>/g, '').slice(0, 38)}...`);
+    const effWordCount = effScript.split(/\s+/).filter(Boolean).length;
+    const targetEditId = editingLibraryItemId;
+
     try {
       setStatusBanner(null);
       if (sseRef.current) {
@@ -3172,14 +3280,15 @@ export default function WappyStudioDashboard({
         method: 'POST',
         headers: getAuthHeaders(token),
         body: JSON.stringify({
-          text: scriptText,
-          voiceName: selectedVoice,
-          stylePrompt,
+          text: effScript,
+          voiceName: effVoice,
+          stylePrompt: effStyle,
           model: selectedModel,
-          multiSpeaker,
-          speaker1: { name: 'Alex', voiceName: speaker1Voice },
-          speaker2: { name: 'Sam', voiceName: speaker2Voice },
+          multiSpeaker: effMulti,
+          speaker1: { name: 'Alex', voiceName: effSpk1 },
+          speaker2: { name: 'Sam', voiceName: effSpk2 },
           maxWordsPerChunk: wordsPerChunk,
+          customKeys: activeUserGeminiKeys,
         }),
       });
       const data = await parseStudioJson(resp);
@@ -3260,26 +3369,31 @@ export default function WappyStudioDashboard({
         );
         setCurrentAudio({
           url: d.downloadUrl,
-          title: `Audio Completo: ${scriptText.trim().slice(0, 35)}...`,
+          title: effTitle,
           durationSeconds: d.totalDurationSeconds,
-          voiceName: selectedVoice,
-          scriptText,
+          voiceName: effVoiceLabel,
+          scriptText: effScript,
         });
         const newItem: LibraryItem = {
-          id: d.id,
-          title: `Audio Completo: ${scriptText.trim().slice(0, 42)}...`,
+          id: targetEditId || d.id,
+          title: effTitle,
           createdAt: Date.now(),
-          voiceName: selectedVoice,
+          voiceName: effVoiceLabel,
           model: selectedModel,
           durationSeconds: d.totalDurationSeconds,
-          wordCount,
+          wordCount: effWordCount,
           downloadUrl: d.downloadUrl,
-          stylePrompt,
-          scriptText,
+          stylePrompt: effStyle,
+          scriptText: effScript,
         };
         // Descargar el WAV maestro del servidor (vive solo en RAM) y guardarlo en IndexedDB
         saveAudioToLibrary(newItem, { url: d.downloadUrl }).then((key) => {
           if (key) setCurrentAudio((prev) => (prev ? { ...prev, mediaKey: key } : prev));
+        });
+        setEditingLibraryItemId(null);
+        setStatusBanner({
+          type: 'success',
+          text: `🎉 Podcast completo "${effTitle}" (${Math.round((d.totalDurationSeconds || 0) / 6) / 10} min) ensamblado en 24kHz WAV y cargado en tu Walkman y Carrusel de Cápsulas.`,
         });
       });
 
@@ -3337,6 +3451,9 @@ export default function WappyStudioDashboard({
           scriptText,
           stylePrompt,
           multiSpeaker,
+          podcastOnly,
+          minMinutes: podcastOnly ? 5 : 0,
+          episodeTitle: activePodcastEpisodeTitle,
           modelName: selectedAiModel,
           customKeys: activeUserGeminiKeys,
         }),
@@ -3349,7 +3466,9 @@ export default function WappyStudioDashboard({
       setScriptText(enhancedResult);
       setStatusBanner({
         type: 'success',
-        text: `¡Guion enriquecido con expresiones vocales (<breath>, <laugh>) usando ${data.usedModel || data.model || selectedAiModel}!`,
+        text: podcastOnly
+          ? `¡Guion de Podcast expandido y enriquecido a +5 minutos con expresiones vocales (<breath>, <laugh>) usando ${data.usedModel || data.model || selectedAiModel}!`
+          : `¡Guion enriquecido con expresiones vocales (<breath>, <laugh>) usando ${data.usedModel || data.model || selectedAiModel}!`,
       });
     } catch (err: any) {
       setStatusBanner({
@@ -5529,15 +5648,16 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   currentAudio?.voiceName ||
                   (multiSpeaker ? `${speaker1Voice} + ${speaker2Voice}` : selectedVoice)
                 }
+                durationSeconds={currentAudio?.durationSeconds}
                 durationSec={currentAudio?.durationSeconds}
+                isSynthesizing={isPreviewing || activeJob?.status === 'processing'}
                 isGenerating={isPreviewing || activeJob?.status === 'processing'}
-                onGenerateDefault={() => handleSynthesizePreview()}
+                onSynthesizeAndPlay={() => handleStartFullJob()}
+                onGenerateDefault={() => handleStartFullJob()}
                 onOpenScriptEditor={() => {
                   handleTabChange('tts');
-                  document
-                    .getElementById('podcast-script-editor-anchor')
-                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }}
+                token={token}
               />
             </div>
 
@@ -5555,6 +5675,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     durationSec: it.durationSeconds,
                     voiceName: it.voiceName,
                     scriptText: it.scriptText,
+                    stylePrompt: it.stylePrompt,
                   }))}
                 onPlayUserCapsule={(cap) => {
                   const found = libraryItems.find((x) => x.id === cap.id);
@@ -5562,11 +5683,36 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     openLibraryAudio(found, false);
                   }
                 }}
+                onEditUserCapsule={(cap) => {
+                  const found = libraryItems.find((x) => x.id === cap.id);
+                  if (found) {
+                    handleEditLibraryAudio(found);
+                  }
+                }}
+                onDeleteUserCapsule={(cap) => {
+                  const found = libraryItems.find((x) => x.id === cap.id);
+                  if (found) {
+                    deleteLibraryItem(found);
+                    if (editingLibraryItemId === found.id) {
+                      setEditingLibraryItemId(null);
+                    }
+                    setStatusBanner({
+                      type: 'success',
+                      text: `🗑️ Podcast "${found.title}" eliminado correctamente de tus cápsulas.`,
+                    });
+                  }
+                }}
                 onScrollToEditor={() => {
                   handleTabChange('tts');
-                  document
-                    .getElementById('podcast-script-editor-anchor')
-                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  setTimeout(() => {
+                    const editorEl = document.getElementById(
+                      'wappy-studio-tts-editor',
+                    ) as HTMLTextAreaElement | null;
+                    if (editorEl) {
+                      editorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      setTimeout(() => editorEl.focus({ preventScroll: true }), 300);
+                    }
+                  }, 60);
                 }}
               />
             </div>
@@ -5848,59 +5994,67 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   )}
                 </div>
 
-                {/* 2. Plantillas Rápidas de Estilo */}
+                {/* 2. Plantillas Rápidas de Estilo (Lista Desplegable con Estilo Consola WAPPY) */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white">
                       Estilos y Plantillas Rápidas
                     </label>
-                    <span className="text-[10px] text-slate-500 dark:text-zinc-400">
-                      1 clic configura voz + emoción
+                    <span className="text-[10px] text-teal-600 dark:text-[#c7f303] font-bold">
+                      Lista desplegable • 1 clic configura voz + emoción
                     </span>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {presets.map((preset) => {
-                      const isPresetActive =
-                        stylePrompt === preset.style &&
-                        (preset.multiSpeaker
-                          ? multiSpeaker
-                          : !multiSpeaker && selectedVoice === preset.voiceName);
-                      const needsUpgrade =
-                        !preset.multiSpeaker && !isVoiceSupported(preset.voiceName);
-                      return (
-                        <button
-                          key={preset.id}
-                          type="button"
-                          onClick={() => {
-                            if (!isVoiceSupported(preset.voiceName)) {
-                              setSelectedModel('gemini-3.8-flash-tts');
-                            }
-                            if (preset.multiSpeaker) {
-                              setMultiSpeaker(true);
-                              if (preset.speaker1) setSpeaker1Voice(preset.speaker1.voiceName);
-                              if (preset.speaker2) setSpeaker2Voice(preset.speaker2.voiceName);
-                            } else {
-                              setMultiSpeaker(false);
-                              setSelectedVoice(preset.voiceName);
-                            }
-                            setStylePrompt(preset.style);
-                          }}
-                          className={cn(
-                            'text-xs px-2.5 py-1.5 rounded-xl border font-semibold transition cursor-pointer inline-flex items-center gap-1.5',
-                            isPresetActive
-                              ? 'bg-teal-500/15 border-teal-500 text-teal-800 dark:text-teal-200 shadow-2xs font-bold'
-                              : 'border-slate-200/90 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-900/90 hover:border-teal-500/50 hover:bg-teal-500/10 text-slate-800 dark:text-zinc-200',
-                          )}
-                        >
-                          <span>{preset.name}</span>
-                          {needsUpgrade && (
-                            <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">
-                              Auto 3.8
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
+                  <div className="relative">
+                    <select
+                      value={
+                        presets.find(
+                          (preset) =>
+                            stylePrompt === preset.style &&
+                            (preset.multiSpeaker
+                              ? multiSpeaker
+                              : !multiSpeaker && selectedVoice === preset.voiceName),
+                        )?.id || ''
+                      }
+                      onChange={(e) => {
+                        const preset = presets.find((p) => p.id === e.target.value);
+                        if (!preset) return;
+                        if (!isVoiceSupported(preset.voiceName)) {
+                          setSelectedModel('gemini-3.8-flash-tts');
+                        }
+                        if (preset.multiSpeaker) {
+                          setMultiSpeaker(true);
+                          if (preset.speaker1) setSpeaker1Voice(preset.speaker1.voiceName);
+                          if (preset.speaker2) setSpeaker2Voice(preset.speaker2.voiceName);
+                        } else {
+                          setMultiSpeaker(false);
+                          setSelectedVoice(preset.voiceName);
+                        }
+                        setStylePrompt(preset.style);
+                      }}
+                      className="w-full appearance-none rounded-xl border border-teal-500/40 dark:border-[#c7f303]/40 bg-slate-900/95 text-white text-xs font-extrabold px-3.5 py-2.5 pr-9 shadow-inner focus:outline-none focus:border-[#c7f303] focus:ring-2 focus:ring-[#c7f303]/20 transition cursor-pointer"
+                    >
+                      <option value="" disabled className="bg-slate-950 text-slate-400">
+                        🎙️ Seleccionar estilo vocal y emoción del podcast...
+                      </option>
+                      {presets.map((preset) => {
+                        const needsUpgrade =
+                          !preset.multiSpeaker && !isVoiceSupported(preset.voiceName);
+                        return (
+                          <option
+                            key={preset.id}
+                            value={preset.id}
+                            className="bg-slate-950 text-white py-1.5 font-semibold"
+                          >
+                            {preset.multiSpeaker ? '👥 ' : '🎙️ '}
+                            {preset.name}
+                            {needsUpgrade ? ' (Auto Gemini 3.8)' : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[#c7f303]">
+                      <ChevronDown className="w-4 h-4" />
+                    </div>
                   </div>
                 </div>
 
@@ -6371,11 +6525,11 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   />
                 </div>
 
-                {/* Campo de Título de la Cápsula de Podcast (Exclusivo en podcastOnly para nombrar la cápsula al pasarla al Carrusel y Walkman) */}
+                {/* Campo de Título de la Cápsula de Podcast (Exclusivo en podcastOnly para nombrar o editar la cápsula al pasarla al Carrusel y Walkman) */}
                 {podcastOnly && (
                   <div className="p-3 rounded-xl bg-slate-950/80 border border-teal-500/30 flex flex-col sm:flex-row sm:items-center gap-2.5">
-                    <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#c7f303] shrink-0">
-                      📻 Título de tu Cápsula:
+                    <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#c7f303] shrink-0 flex items-center gap-1.5">
+                      📻 {editingLibraryItemId ? 'Editando Podcast:' : 'Título de tu Podcast:'}
                     </label>
                     <input
                       type="text"
@@ -6384,50 +6538,102 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       placeholder="Ej: Charla 5 Min - Bloqueo LOTO en Planta..."
                       className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-[#c7f303]"
                     />
+                    {editingLibraryItemId && (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={handleSaveEditedLibraryMetadata}
+                          className="px-3 py-1.5 rounded-xl bg-[#c7f303] hover:bg-[#d8ff2a] text-[#0e1300] text-[11px] font-black uppercase tracking-wider transition cursor-pointer shadow-sm"
+                          title="Guardar nuevo título, voces y guion sin volver a sintetizar"
+                        >
+                          💾 Guardar Cambios
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingLibraryItemId(null);
+                            setStatusBanner({
+                              type: 'info',
+                              text: 'Modo creación de nuevo podcast activado.',
+                            });
+                          }}
+                          className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] font-bold transition cursor-pointer"
+                          title="Salir del modo edición para crear un podcast nuevo"
+                        >
+                          + Nuevo
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* Cabecera del Editor + Selector de Plantilla + Botón Mejorar con IA */}
+                {/* Cabecera del Editor + Botón Generar/Expandir Guion (+5 Min) con IA */}
                 <div className="flex flex-wrap items-center justify-between gap-2.5">
-                  <h2 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2 shrink-0">
-                    <MicVocal className="w-4 h-4 text-teal-500" />
-                    {podcastOnly ? 'Guion del Episodio / Cápsula a Sintetizar' : 'Texto a Sintetizar'}
-                  </h2>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2 shrink-0">
+                      <MicVocal className="w-4 h-4 text-teal-500" />
+                      {podcastOnly
+                        ? 'Guion del Episodio de Podcast (Mínimo 5 Minutos)'
+                        : 'Texto a Sintetizar'}
+                    </h2>
+                    {podcastOnly && (
+                      <span
+                        className={cn(
+                          'text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border',
+                          wordCount >= 725
+                            ? 'bg-[#c7f303]/15 text-[#c7f303] border-[#c7f303]/40'
+                            : 'bg-amber-500/15 text-amber-300 border-amber-500/40',
+                        )}
+                      >
+                        {wordCount >= 725
+                          ? `✓ Cumple +5 min (~${estimatedMinutes} min • ${wordCount} palabras)`
+                          : `⏱ Mínimo 5 min (~725 palabras • actual: ${wordCount})`}
+                      </span>
+                    )}
+                  </div>
 
                   <div className="flex flex-wrap items-center gap-2 min-w-0">
-                    <select
-                      defaultValue=""
-                      onChange={(e) => {
-                        const found = SCRIPT_TEMPLATES.find((t) => t.title === e.target.value);
-                        if (found) {
-                          setScriptText(found.text);
-                          if (found.text.includes('Alex:') && found.text.includes('Sam:')) {
-                            setMultiSpeaker(true);
+                    {!podcastOnly && (
+                      <select
+                        defaultValue=""
+                        onChange={(e) => {
+                          const found = SCRIPT_TEMPLATES.find((t) => t.title === e.target.value);
+                          if (found) {
+                            setScriptText(found.text);
+                            if (found.text.includes('Alex:') && found.text.includes('Sam:')) {
+                              setMultiSpeaker(true);
+                            }
                           }
-                        }
-                        e.target.value = '';
-                      }}
-                      className="min-w-0 max-w-[230px] sm:max-w-[260px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-semibold rounded-xl px-3 py-1.5 focus:outline-none focus:border-teal-500 cursor-pointer"
-                    >
-                      <option value="" disabled>
-                        📋 Cargar ejemplo ({SCRIPT_TEMPLATES.length} plantillas)...
-                      </option>
-                      {SCRIPT_TEMPLATES.map((tpl) => (
-                        <option key={tpl.title} value={tpl.title}>
-                          {tpl.title}
+                          e.target.value = '';
+                        }}
+                        className="min-w-0 max-w-[230px] sm:max-w-[260px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-semibold rounded-xl px-3 py-1.5 focus:outline-none focus:border-teal-500 cursor-pointer"
+                      >
+                        <option value="" disabled>
+                          📋 Cargar ejemplo ({SCRIPT_TEMPLATES.length} plantillas)...
                         </option>
-                      ))}
-                    </select>
+                        {SCRIPT_TEMPLATES.map((tpl) => (
+                          <option key={tpl.title} value={tpl.title}>
+                            {tpl.title}
+                          </option>
+                        ))}
+                      </select>
+                    )}
 
                     <ExpandableButton
                       size="sm"
                       alwaysExpanded
                       icon={isEnhancingScript ? <Loader2 className="animate-spin" /> : <Wand2 />}
-                      label={isEnhancingScript ? 'Enriqueciendo...' : 'Mejorar Guion con IA'}
+                      label={
+                        isEnhancingScript
+                          ? 'Expandiendo a +5 Min...'
+                          : podcastOnly
+                            ? '✨ Expandir / Mejorar Guion (+5 Min) con IA'
+                            : 'Mejorar Guion con IA'
+                      }
                       variant="purple"
                       disabled={isEnhancingScript}
                       onClick={handleEnhanceScriptWithAi}
-                      title={`Enriquecer o generar guion con Vocal Bursts usando ${selectedAiModel}`}
+                      title={`Generar o expandir guion completo de mínimo 5 minutos (~750-900 palabras) con Vocal Bursts usando ${selectedAiModel}`}
                     />
 
                     {scriptText && (
@@ -6441,29 +6647,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     )}
                   </div>
                 </div>
-
-                {/* Plantillas Rápidas de Formato Podcast (2 Voces Alex & Sam) */}
-                {(podcastOnly || multiSpeaker) && (
-                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                    <span className="text-[11px] font-extrabold text-purple-700 dark:text-purple-300 mr-1">
-                      🎙️ Formatos Podcast (2 Voces):
-                    </span>
-                    {PODCAST_QUICK_TEMPLATES.map((pt) => (
-                      <button
-                        key={pt.id}
-                        type="button"
-                        onClick={() => {
-                          setMultiSpeaker(true);
-                          setScriptText(pt.text);
-                          setStylePrompt(pt.style);
-                        }}
-                        className="px-2.5 py-1 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-800 dark:text-purple-200 text-xs font-extrabold transition cursor-pointer shadow-2xs"
-                      >
-                        {pt.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
 
                 {/* Barra de Inserción Rápida de Vocal Bursts, Pausas y Hablantes */}
                 <div className="p-3 bg-slate-50 dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 rounded-xl space-y-2">
@@ -6529,11 +6712,11 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 {/* Área de Texto Principal */}
                 <textarea
                   id="wappy-studio-tts-editor"
-                  rows={10}
+                  rows={12}
                   value={scriptText}
                   onChange={(e) => setScriptText(e.target.value)}
-                  placeholder="Escribe o pega aquí el guion para tu cápsula SST, curso de Academia WAPPY, podcast o audiolibro de hasta 1 hora..."
-                  className="w-full bg-white dark:bg-slate-950/90 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 leading-relaxed resize-y min-h-[210px] shadow-inner"
+                  placeholder="Escribe o edita aquí el guion de tu podcast (mínimo 5 minutos / ~725 palabras) o usa el botón 'Expandir / Mejorar Guion (+5 Min) con IA'..."
+                  className="w-full bg-white dark:bg-slate-950/90 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 leading-relaxed resize-y min-h-[240px] shadow-inner transition-all"
                 />
 
                 {/* Barra de Métricas y Estimación */}
@@ -6543,6 +6726,9 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       <span>
                         Palabras:{' '}
                         <strong className="text-slate-900 dark:text-white font-mono">{wordCount}</strong>
+                        {podcastOnly && (
+                          <span className="text-[10px] text-teal-400 ml-1">(meta ≥ 725)</span>
+                        )}
                       </span>
                       <span>•</span>
                       <span>
@@ -6562,14 +6748,14 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       <strong className="text-amber-600 dark:text-amber-400 font-mono">
                         ~{estimatedMinutes} min
                       </strong>{' '}
-                      / 60 min máx
+                      {podcastOnly ? '(mínimo recomendado: 5 min)' : '/ 60 min máx'}
                     </div>
                   </div>
                   <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 transition-all duration-300"
                       style={{
-                        width: `${Math.min(100, Math.max(2, Math.round((estimatedMinutes / 60) * 100)))}%`,
+                        width: `${Math.min(100, Math.max(4, Math.round((estimatedMinutes / (podcastOnly ? 10 : 60)) * 100)))}%`,
                       }}
                     />
                   </div>
@@ -6582,7 +6768,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     icon={isPreviewing ? <Loader2 className="animate-spin" /> : <Zap />}
                     label={
                       podcastOnly
-                        ? 'Sintetizar y Pasar al Walkman & Cápsulas'
+                        ? 'Probar Voz Rápida (~1er fragmento)'
                         : 'Vista Previa Rápida (~1er fragmento)'
                     }
                     variant="amber"
@@ -6602,17 +6788,19 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       )
                     }
                     label={
-                      chunkCount > 1
-                        ? `Generar Podcast Completo (${chunkCount} fragmentos • ~${estimatedMinutes} min)`
-                        : podcastOnly
-                          ? 'Generar Episodio Completo (24kHz WAV)'
+                      podcastOnly
+                        ? editingLibraryItemId
+                          ? `Actualizar y Re-Sintetizar Podcast (${chunkCount} fragmentos • ~${estimatedMinutes} min)`
+                          : `Sintetizar Podcast Completo y Pasar al Walkman (~${estimatedMinutes} min WAV)`
+                        : chunkCount > 1
+                          ? `Generar Podcast Completo (${chunkCount} fragmentos • ~${estimatedMinutes} min)`
                           : 'Generar Audio Completo'
                     }
                     variant="teal"
                     disabled={
                       activeJob?.status === 'processing' || isPreviewing || !scriptText.trim()
                     }
-                    onClick={handleStartFullJob}
+                    onClick={() => handleStartFullJob()}
                   />
                 </div>
               </div>
@@ -8936,6 +9124,14 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                                 variant="teal"
                                 alwaysExpanded
                                 onClick={() => openLibraryAudio(item)}
+                              />
+                              <ExpandableButton
+                                size="sm"
+                                icon={<Edit3 />}
+                                label="Editar"
+                                variant="amber"
+                                alwaysExpanded
+                                onClick={() => handleEditLibraryAudio(item)}
                               />
                               {!podcastOnly && (
                                 <ExpandableButton

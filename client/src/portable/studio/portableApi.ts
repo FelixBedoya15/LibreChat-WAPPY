@@ -704,20 +704,24 @@ async function enhanceScript(opts: any) {
     .replace('models/', '')
     .trim();
   const models = Array.from(new Set([preferred, ...envModels]));
+  const isLongPodcast = Boolean(opts.podcastOnly) || Number(opts.minMinutes) >= 5;
+  const lengthMandate = isLongPodcast
+    ? `\nREGLA OBLIGATORIA DE DURACIÓN (MÍNIMO 5 MINUTOS): El guion completo DEBE tener un mínimo estricto de 750 a 900 palabras reales (~5 a 6 minutos de locución hablada). Desarrolla el tema a profundidad con introducción magnética, análisis técnico y normativo (SG-SST, Decreto 1072, Res. 0312, GTC 45 o estándar aplicable), casos reales de campo, preguntas y respuestas entre los interlocutores, errores comunes a evitar y cierre memorable con conclusiones prácticas.`
+    : '';
   const promptInstruction = opts.multiSpeaker
     ? `Eres un guionista experto en podcasts y locución neural para Gemini 3.8 Flash TTS.
-Convierte o mejora el siguiente texto en un diálogo dinámico entre dos interlocutores usando exactamente las etiquetas "Alex:" y "Sam:" al inicio de cada intervención.
+Convierte, expande o mejora el siguiente texto en un episodio completo de podcast dinámico entre dos interlocutores usando exactamente las etiquetas "Alex:" y "Sam:" al inicio de cada intervención.${lengthMandate}
 Inserta efectos vocales orgánicos donde aporten naturalidad: <breath> (respiración), <laugh> (risa suave), |mhm| (asentimiento), |yeah| (acuerdo).
-Estilo solicitado: ${opts.stylePrompt || 'Conversacional, fluido y profesional'}.
+Estilo solicitado: ${opts.stylePrompt || 'Conversacional, fluido y profesional'}.${opts.episodeTitle ? `\nTítulo del Episodio: ${opts.episodeTitle}` : ''}
 Devuelve ÚNICAMENTE el guion listo para sintetizar, sin introducciones ni bloques markdown.`
     : `Eres un director de locución profesional experto en Gemini 3.8 Flash TTS.
-Mejora y enriquece el siguiente guion para que suene 100% humano, envolvente y con ritmo profesional.
+Mejora, expande y enriquece el siguiente guion para que suene 100% humano, envolvente y con ritmo profesional.${lengthMandate}
 Inserta etiquetas vocales orgánicas de Gemini TTS en las pausas clave: <breath> (toma de aire natural), <laugh> (si aplica), <gasp> (si aplica énfasis).
-Estilo solicitado: ${opts.stylePrompt || 'Narración profesional, clara y expresiva'}.
+Estilo solicitado: ${opts.stylePrompt || 'Narración profesional, clara y expresiva'}.${opts.episodeTitle ? `\nTítulo del Episodio: ${opts.episodeTitle}` : ''}
 Devuelve ÚNICAMENTE el texto del guion mejorado, sin comentarios adicionales ni comillas.`;
 
   const rawInputText = opts.text || opts.scriptText || '';
-  const inputContent = `${promptInstruction}\n\nTEXTO BASE:\n${rawInputText || 'Crea una introducción impactante sobre cómo la Inteligencia Artificial y la prevención transforman el aprendizaje y la seguridad.'}`;
+  const inputContent = `${promptInstruction}\n\nTEXTO O TEMA BASE:\n${rawInputText || 'Crea un episodio completo de podcast sobre cómo la Inteligencia Artificial y la cultura preventiva transforman la Seguridad y Salud en el Trabajo.'}`;
 
   let lastErr = 'Error al mejorar el guion con IA.';
   for (const model of models) {

@@ -16,7 +16,10 @@ export interface WappyCassetteWalkmanPlayerProps {
   audioBase64?: string;
   audioUrl?: string;
   title: string;
+  subtitle?: string;
+  voiceLabel?: string;
   durationSeconds?: number;
+  durationSec?: number;
   voiceName?: string;
   speaker1Name?: string;
   speaker1Voice?: string;
@@ -24,7 +27,10 @@ export interface WappyCassetteWalkmanPlayerProps {
   speaker2Voice?: string;
   multiSpeaker?: boolean;
   isSynthesizing?: boolean;
+  isGenerating?: boolean;
   onSynthesizeAndPlay?: () => void;
+  onGenerateDefault?: () => void;
+  onOpenScriptEditor?: () => void;
   token?: string;
 }
 
@@ -32,7 +38,10 @@ export default function WappyCassetteWalkmanPlayer({
   audioBase64,
   audioUrl,
   title,
+  subtitle,
+  voiceLabel,
   durationSeconds,
+  durationSec,
   voiceName,
   speaker1Name = 'Alex',
   speaker1Voice = 'Puck',
@@ -40,28 +49,42 @@ export default function WappyCassetteWalkmanPlayer({
   speaker2Voice = 'Kore',
   multiSpeaker = true,
   isSynthesizing = false,
+  isGenerating = false,
   onSynthesizeAndPlay,
+  onGenerateDefault,
+  onOpenScriptEditor,
   token,
 }: WappyCassetteWalkmanPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(durationSeconds || 0);
+  const effectivePropDuration = durationSeconds || durationSec || 0;
+  const [duration, setDuration] = useState(effectivePropDuration);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [copied, setCopied] = useState(false);
   const [activeSkin, setActiveSkin] = useState<CassetteSkin>('lime');
+  const [actionBadge, setActionBadge] = useState<string | null>(null);
   const [vuBarsL, setVuBarsL] = useState<number[]>([35, 55, 75, 45, 25]);
   const [vuBarsR, setVuBarsR] = useState<number[]>([40, 65, 50, 70, 30]);
   const autoPlayTriggeredRef = useRef(false);
 
+  const busy = isSynthesizing || isGenerating;
+  const triggerSynthesize = onSynthesizeAndPlay || onGenerateDefault;
   const src = audioUrl || (audioBase64 ? `data:audio/wav;base64,${audioBase64}` : '');
 
+  const flashActionBadge = (label: string) => {
+    setActionBadge(label);
+    setTimeout(() => {
+      setActionBadge((prev) => (prev === label ? null : prev));
+    }, 1100);
+  };
+
   useEffect(() => {
-    if (durationSeconds && durationSeconds > 0) {
-      setDuration(durationSeconds);
+    if (effectivePropDuration > 0) {
+      setDuration(effectivePropDuration);
     }
-  }, [durationSeconds]);
+  }, [effectivePropDuration]);
 
   useEffect(() => {
     setCurrentTime(0);
@@ -109,40 +132,104 @@ export default function WappyCassetteWalkmanPlayer({
     return () => clearInterval(interval);
   }, [isPlaying]);
 
-  const handlePlay = () => {
+  const handleTogglePlayPause = () => {
     if (!src) {
-      if (onSynthesizeAndPlay) {
+      if (triggerSynthesize) {
         autoPlayTriggeredRef.current = true;
-        onSynthesizeAndPlay();
+        flashActionBadge('SINTETIZANDO...');
+        triggerSynthesize();
       }
       return;
     }
     if (!audioRef.current) return;
-    audioRef.current
-      .play()
-      .then(() => setIsPlaying(true))
-      .catch((e) => console.error('Error al reproducir audio en Walkman:', e));
-  };
-
-  const handlePause = () => {
-    if (!audioRef.current) return;
-    audioRef.current.pause();
-    setIsPlaying(false);
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+      flashActionBadge('⏸ PAUSADO');
+    } else {
+      audioRef.current
+        .play()
+        .then(() => {
+          setIsPlaying(true);
+          flashActionBadge('▶ REPRODUCIENDO');
+        })
+        .catch((e) => console.error('Error al reproducir audio en Walkman:', e));
+    }
   };
 
   const handleRecordSynthesize = () => {
-    if (onSynthesizeAndPlay) {
+    if (triggerSynthesize) {
       autoPlayTriggeredRef.current = true;
-      onSynthesizeAndPlay();
+      flashActionBadge('⏺ GRABANDO IA...');
+      triggerSynthesize();
     }
   };
 
   const skipSeconds = (delta: number) => {
-    if (!audioRef.current || !src) return;
-    const maxDur = Math.max(1, duration || audioRef.current.duration || 0);
-    const next = Math.max(0, Math.min(maxDur, audioRef.current.currentTime + delta));
-    audioRef.current.currentTime = next;
+    const el = audioRef.current;
+    if (!el || !src) return;
+    const rawDur =
+      el.duration && isFinite(el.duration) && el.duration > 0
+        ? el.duration
+        : duration > 0
+          ? duration
+          : 3600;
+    const baseTime = typeof el.currentTime === 'number' ? el.currentTime : currentTime;
+    const next = Math.max(0, Math.min(rawDur, baseTime + delta));
+    el.currentTime = next;
     setCurrentTime(next);
+    flashActionBadge(delta < 0 ? `⏪ ${delta}s` : `⏩ +${delta}s`);
+  };
+
+  const handleJumpToScriptPoint = () => {
+    flashActionBadge('⏏ IR AL GUIÓN');
+    if (onOpenScriptEditor) {
+      onOpenScriptEditor();
+    }
+    setTimeout(() => {
+      const editorEl = document.getElementById(
+        'wappy-studio-tts-editor',
+      ) as HTMLTextAreaElement | null;
+      if (editorEl) {
+        editorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const totalDur =
+          audioRef.current?.duration && isFinite(audioRef.current.duration) && audioRef.current.duration > 0
+            ? audioRef.current.duration
+            : duration;
+        const ratio = totalDur > 0 ? Math.min(1, Math.max(0, currentTime / totalDur)) : 0;
+        const textLen = editorEl.value.length;
+        const targetCharIdx = Math.floor(ratio * textLen);
+
+        // Buscar el inicio de la línea o frase actual para seleccionarla y hacerla visible
+        const lineStart = Math.max(0, editorEl.value.lastIndexOf('\n', targetCharIdx) + 1);
+        const nextNewline = editorEl.value.indexOf('\n', targetCharIdx);
+        const lineEnd = nextNewline === -1 ? textLen : nextNewline;
+
+        setTimeout(() => {
+          editorEl.focus({ preventScroll: true });
+          try {
+            editorEl.setSelectionRange(lineStart, lineEnd);
+            const totalLines = editorEl.value.split('\n').length || 1;
+            const currentLine = editorEl.value.slice(0, lineStart).split('\n').length - 1;
+            const targetScroll = Math.max(
+              0,
+              Math.floor((currentLine / totalLines) * editorEl.scrollHeight) - 60,
+            );
+            editorEl.scrollTop = targetScroll;
+          } catch {
+            /* ignore selection error */
+          }
+          editorEl.classList.add('ring-4', 'ring-[#c7f303]', 'border-[#c7f303]');
+          setTimeout(() => {
+            editorEl.classList.remove('ring-4', 'ring-[#c7f303]', 'border-[#c7f303]');
+          }, 1800);
+        }, 350);
+      } else {
+        document
+          .getElementById('podcast-script-editor-anchor')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 80);
   };
 
   const toggleMute = () => {
@@ -157,6 +244,7 @@ export default function WappyCassetteWalkmanPlayer({
     const next = rates[(rates.indexOf(playbackRate) + 1) % rates.length];
     setPlaybackRate(next);
     if (audioRef.current) audioRef.current.playbackRate = next;
+    flashActionBadge(`VELOCIDAD ${next}x`);
   };
 
   const formatCounter = (secs: number) => {
@@ -267,10 +355,23 @@ export default function WappyCassetteWalkmanPlayer({
           setCurrentTime(0);
         }}
         onTimeUpdate={() => {
-          if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
+          if (audioRef.current) {
+            setCurrentTime(audioRef.current.currentTime);
+            if (
+              audioRef.current.duration &&
+              isFinite(audioRef.current.duration) &&
+              audioRef.current.duration > 0
+            ) {
+              setDuration(audioRef.current.duration);
+            }
+          }
         }}
         onLoadedMetadata={() => {
-          if (audioRef.current?.duration && !isNaN(audioRef.current.duration)) {
+          if (
+            audioRef.current?.duration &&
+            isFinite(audioRef.current.duration) &&
+            audioRef.current.duration > 0
+          ) {
             setDuration(audioRef.current.duration);
           }
         }}
@@ -284,7 +385,7 @@ export default function WappyCassetteWalkmanPlayer({
               'w-2.5 h-2.5 rounded-full',
               isPlaying
                 ? 'bg-[#c7f303] animate-ping'
-                : isSynthesizing
+                : busy
                   ? 'bg-amber-400 animate-ping'
                   : 'bg-red-500 animate-pulse',
             )}
@@ -355,9 +456,10 @@ export default function WappyCassetteWalkmanPlayer({
           </div>
           <div className="flex items-center justify-between text-[9px] font-bold opacity-85 mt-1">
             <span className="truncate">
-              {multiSpeaker
-                ? `SIDE A · ${speaker1Name} (${speaker1Voice}) × ${speaker2Name} (${speaker2Voice})`
-                : `SIDE A · Voz: ${voiceName || 'Kore'}`}
+              {subtitle ||
+                (multiSpeaker
+                  ? `SIDE A · ${speaker1Name} (${speaker1Voice}) × ${speaker2Name} (${speaker2Voice})`
+                  : `SIDE A · Voz: ${voiceName || voiceLabel || 'Kore'}`)}
             </span>
             <span className="shrink-0 ml-2">
               {src ? `READY · ${formatTimeShort(duration)}` : 'STANDBY · 24kHz'}
@@ -406,10 +508,10 @@ export default function WappyCassetteWalkmanPlayer({
           {/* Visor Central de Minutos y VU Meter */}
           <div className="relative z-10 flex flex-col items-center justify-center text-center px-1.5">
             <span className="text-[8.5px] font-mono font-bold text-slate-400 uppercase">
-              {isSynthesizing ? 'SINTETIZANDO IA...' : 'TAPE COUNTER'}
+              {actionBadge || (busy ? 'SINTETIZANDO IA...' : 'TAPE COUNTER')}
             </span>
             <span className="text-xs font-mono font-black text-[#c7f303] bg-black/90 px-2.5 py-0.5 rounded border border-[#c7f303]/40 tracking-widest my-0.5 shadow-inner">
-              {isSynthesizing ? '•• : ••' : formatCounter(currentTime || duration)}
+              {busy ? '•• : ••' : formatCounter(currentTime || duration)}
             </span>
 
             {/* Medidor VU Estéreo L / R */}
@@ -490,7 +592,7 @@ export default function WappyCassetteWalkmanPlayer({
 
         {/* Barra de progreso de cinta interactiva */}
         <div className="mt-2.5 flex items-center gap-2">
-          <span className="text-[9px] font-mono text-slate-400 w-8">
+          <span className="text-[9px] font-mono text-slate-400 w-9">
             {formatTimeShort(currentTime)}
           </span>
           <input
@@ -510,59 +612,60 @@ export default function WappyCassetteWalkmanPlayer({
               src ? 'bg-slate-800 accent-[#c7f303]' : 'bg-slate-900 opacity-50 cursor-not-allowed',
             )}
           />
-          <span className="text-[9px] font-mono text-slate-400 w-8 text-right">
+          <span className="text-[9px] font-mono text-slate-400 w-9 text-right">
             {formatTimeShort(duration)}
           </span>
         </div>
       </div>
 
-      {/* 3. Botonera Mecánica Táctil Walkman Deck (6 Botones Físicos) */}
-      <div className="grid grid-cols-6 gap-1 sm:gap-1.5 mb-2.5">
+      {/* 3. Botonera Mecánica Táctil Walkman Deck (5 Botones Vivos: GUIÓN | -10s | PLAY/PAUSA | +10s | REC IA) */}
+      <div className="grid grid-cols-5 gap-1.5 mb-2.5">
         <button
           type="button"
-          onClick={() => {
-            document
-              .getElementById('podcast-script-editor-anchor')
-              ?.scrollIntoView({ behavior: 'smooth' });
-          }}
-          className="flex flex-col items-center justify-center p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-[9px] font-bold cursor-pointer active:scale-95 transition-all"
-          title="Ir al Editor de Guion"
+          onClick={handleJumpToScriptPoint}
+          className="flex flex-col items-center justify-center py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-teal-900/70 hover:border-teal-400/60 border border-slate-700 text-slate-200 hover:text-[#c7f303] text-[10px] font-bold cursor-pointer active:scale-95 transition-all shadow-md"
+          title="Ir directamente al punto actual del Guion y enfocarlo"
         >
           <span>⏏</span>
-          <span className="text-[7.5px] mt-0.5">GUIÓN</span>
+          <span className="text-[8px] mt-0.5 font-extrabold tracking-wide">GUIÓN</span>
         </button>
 
         <button
           type="button"
           disabled={!src}
           onClick={() => skipSeconds(-10)}
-          className="flex flex-col items-center justify-center p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-[9px] font-bold cursor-pointer active:scale-95 transition-all disabled:opacity-40"
-          title="Rebobinar 10 segundos"
+          className="flex flex-col items-center justify-center py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 hover:border-[#c7f303]/50 border border-slate-700 text-slate-200 hover:text-[#c7f303] text-[10px] font-bold cursor-pointer active:scale-95 transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Retroceder 10 segundos en el podcast"
         >
           <span>⏪</span>
-          <span className="text-[7.5px] mt-0.5">REW</span>
+          <span className="text-[8px] mt-0.5 font-extrabold font-mono">-10s</span>
         </button>
 
         <button
           type="button"
-          disabled={isSynthesizing}
-          onClick={isPlaying ? handlePause : handlePlay}
-          className="flex flex-col items-center justify-center p-1.5 rounded-lg bg-[#c7f303] hover:bg-[#b2dc02] text-[#0e1300] font-black text-[9px] cursor-pointer shadow-md shadow-[#c7f303]/30 active:scale-95 transition-all disabled:opacity-50"
+          disabled={busy}
+          onClick={handleTogglePlayPause}
+          className={cn(
+            'flex flex-col items-center justify-center py-2 px-1.5 rounded-xl font-black text-[10px] cursor-pointer shadow-lg active:scale-95 transition-all disabled:opacity-50',
+            isPlaying
+              ? 'bg-amber-400 hover:bg-amber-300 text-[#0e1300] shadow-amber-400/30 ring-2 ring-white/40'
+              : 'bg-[#c7f303] hover:bg-[#b2dc02] text-[#0e1300] shadow-[#c7f303]/30',
+          )}
           title={
             !src
               ? 'Sintetizar con IA y Reproducir en Walkman'
               : isPlaying
-                ? 'Pausar Walkman'
-                : 'Reproducir Walkman'
+                ? 'Pausar / Detener Walkman'
+                : 'Iniciar Reproducción en Walkman'
           }
         >
-          {isSynthesizing ? (
+          {busy ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin text-[#0e1300]" />
           ) : (
             <span>{isPlaying ? '⏸' : '▶'}</span>
           )}
-          <span className="text-[7.5px] mt-0.5 font-black">
-            {isSynthesizing ? 'SYNTH' : isPlaying ? 'PLAYING' : 'PLAY'}
+          <span className="text-[8px] mt-0.5 font-black tracking-wide">
+            {busy ? 'SYNTH' : isPlaying ? 'PAUSAR' : 'PLAY'}
           </span>
         </button>
 
@@ -570,32 +673,22 @@ export default function WappyCassetteWalkmanPlayer({
           type="button"
           disabled={!src}
           onClick={() => skipSeconds(10)}
-          className="flex flex-col items-center justify-center p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-[9px] font-bold cursor-pointer active:scale-95 transition-all disabled:opacity-40"
-          title="Adelantar 10 segundos"
+          className="flex flex-col items-center justify-center py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 hover:border-[#c7f303]/50 border border-slate-700 text-slate-200 hover:text-[#c7f303] text-[10px] font-bold cursor-pointer active:scale-95 transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Adelantar 10 segundos en el podcast"
         >
           <span>⏩</span>
-          <span className="text-[7.5px] mt-0.5">FF</span>
+          <span className="text-[8px] mt-0.5 font-extrabold font-mono">+10s</span>
         </button>
 
         <button
           type="button"
-          disabled={isSynthesizing}
+          disabled={busy}
           onClick={handleRecordSynthesize}
-          className="flex flex-col items-center justify-center p-1.5 rounded-lg bg-rose-600/90 hover:bg-rose-500 text-white font-bold text-[9px] cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+          className="flex flex-col items-center justify-center py-2 px-1.5 rounded-xl bg-rose-600/90 hover:bg-rose-500 border border-rose-400/40 text-white font-bold text-[10px] cursor-pointer active:scale-95 transition-all shadow-md disabled:opacity-50"
           title="Grabar / Sintetizar Guion Actual en el Walkman (24kHz WAV)"
         >
-          <span className="w-2 h-2 rounded-full bg-white animate-ping my-0.5" />
-          <span className="text-[7.5px] mt-0.5">REC IA</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={handlePause}
-          className="flex flex-col items-center justify-center p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-[9px] font-bold cursor-pointer active:scale-95 transition-all"
-          title="Pausar Walkman"
-        >
-          <span>⏸</span>
-          <span className="text-[7.5px] mt-0.5">PAUSE</span>
+          <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse my-0.5" />
+          <span className="text-[8px] mt-0.5 font-extrabold tracking-wide">REC IA</span>
         </button>
       </div>
 
