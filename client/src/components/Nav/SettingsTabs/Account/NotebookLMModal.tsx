@@ -46,7 +46,8 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
 
   const serverOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://app.wappy.club';
   const terminalCommand = `mkdir -p ~/.gemini/antigravity && curl -fsSL "${serverOrigin}/api/mcp-bridge/antigravity/daemon.js" -o ~/.gemini/antigravity/wappy-push-daemon.js && node ~/.gemini/antigravity/wappy-push-daemon.js --notebooklm --url="${serverOrigin}" --token="${token || ''}"`;
-  const antigravityPrompt = `Hola Antigravity, inicia el módulo documental local de mi entorno WAPPY ejecutando este comando en tu terminal (el comando abrirá su propia ventana automáticamente; no incluyas enlaces web en tu respuesta):\n\n\`\`\`bash\n${terminalCommand}\n\`\`\``;
+  const agCliCommand = `node ~/.gemini/antigravity/wappy-push-daemon.js --notebooklm --url="${serverOrigin}" --token="${token || ''}"`;
+  const antigravityPrompt = `Ejecuta en la terminal mi conector local de WAPPY:\n\n\`\`\`bash\n${agCliCommand}\n\`\`\``;
 
   const fetchStatus = async () => {
     if (!token) return;
@@ -77,10 +78,54 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
     navigator.clipboard.writeText(antigravityPrompt);
     setCopiedAg(true);
     setTimeout(() => setCopiedAg(false), 3000);
+    try {
+      const res = await fetch('/api/mcp-bridge/antigravity/launch-connector', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          service: 'notebooklm',
+          token,
+          originUrl: serverOrigin,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.success) {
+        setFeedback({
+          type: 'success',
+          message:
+            '✨ ¡Orden enviada directamente a tu computador! La ventana de conexión se abrirá sola en unos segundos (también se copió el comando al portapapeles).',
+        });
+        let checks = 0;
+        const timer = setInterval(async () => {
+          checks += 1;
+          if (checks > 10) {
+            clearInterval(timer);
+            return;
+          }
+          try {
+            const stRes = await fetch('/api/notebooklm/status', {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (stRes.ok) {
+              const stData = await stRes.json();
+              if (stData?.connected) {
+                setStatus(stData);
+                onStatusChange?.();
+                clearInterval(timer);
+              }
+            }
+          } catch (_) {}
+        }, 3000);
+        return;
+      }
+    } catch (_) {}
     setFeedback({
       type: 'success',
       message:
-        '📋 ¡Instrucción copiada! Pégala en el chat de tu Google Antigravity y se abrirá la ventana de conexión en primer plano.',
+        '📋 ¡Comando limpio copiado! Pégalo en el chat de tu Google Antigravity o en tu Terminal para abrir la ventana de conexión.',
     });
   };
 

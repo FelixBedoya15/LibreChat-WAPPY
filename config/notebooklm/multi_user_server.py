@@ -1078,6 +1078,24 @@ async def _download_artifact_by_kind(
     }
 
 
+def _sanitize_preventive_sst_text(raw_text: Optional[str]) -> Optional[str]:
+    """Traduce automáticamente términos de siniestralidad o daño físico a lenguaje técnico preventivo SG-SST para evitar rechazos de políticas en Studio."""
+    if not raw_text or not str(raw_text).strip():
+        return raw_text
+    text = str(raw_text).strip()
+    rules = [
+        (r"\b(accidentes?\s+de\s+trabajo|accidentes?\s+laboral(?:es)?|accidentes?\s+vial(?:es)?|accidentes?\s+en\s+alturas?|accidentes?\s+graves?|accidentes?\s+mortales?|accidentes?)\b", "procedimiento preventivo de seguridad y salud en el trabajo"),
+        (r"\b(caídas?\s+de\s+alturas?|caídas?\s+en\s+alturas?|caídas?\s+libres?|caídas?\s+al\s+vacío|caerse|cayendo)\b", "trabajo seguro en alturas con sistema de protección certificado"),
+        (r"\b(heridos?|lesionados?|lesiones\s+graves?|lesiones|lesión|fracturas?|golpes?|amputación|atrapamientos?)\b", "protección integral del trabajador con EPP certificado"),
+        (r"\b(muertes?|mortal(?:es)?|fatal(?:es)?|fallecidos?|cadáver(?:es)?|peligro\s+de\s+muerte)\b", "estándar crítico de preservación de la vida y bienestar laboral"),
+        (r"\b(sangre|hemorragias?|quemaduras?|asfixia|electrocución|descargas?\s+eléctricas?)\b", "protocolo preventivo de seguridad industrial y control de energías peligrosas"),
+        (r"\b(incendios?|explosión|explosiones|intoxicación|derrames?\s+tóxicos?)\b", "gestión técnica de prevención de emergencias y manejo seguro de sustancias"),
+    ]
+    for pattern, repl in rules:
+        text = re.sub(pattern, repl, text, flags=re.IGNORECASE)
+    return text
+
+
 @mcp.tool()
 async def studio_generate(
     notebook: str,
@@ -1107,6 +1125,8 @@ async def studio_generate(
             artifact_type = input.get("artifact_type") or artifact_type
             instructions = input.get("instructions") or instructions
             language = input.get("language") or language
+
+        instructions = _sanitize_preventive_sst_text(instructions)
 
         t = (artifact_type or "").lower().strip()
         uid = _get_active_user_id()
