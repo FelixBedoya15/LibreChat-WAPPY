@@ -1,5 +1,30 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  MessageSquare,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
+  FileText,
+  RotateCcw,
+  X,
+  ArrowUp,
+  Sparkles,
+  Laptop,
+  Copy,
+  Check,
+  ExternalLink,
+  Volume1,
+  Square,
+} from 'lucide-react';
+import {
+  TenshiAvatar,
+  TenshiAvatarMood,
+  triggerTenshiReaction,
+  analyzeTenshiEmotionFromText,
+} from '~/components/Tenshi/TenshiAvatar';
+import { tenshiAudio } from '~/components/Tenshi/tenshiAudio';
 
 interface SharedFileItem {
   id: string;
@@ -28,8 +53,8 @@ interface TunnelLinkState {
   directMobileUrl?: string;
 }
 
-type MobileTab = 'avatar' | 'chat' | 'files';
-type TenshiMood = 'idle' | 'listening' | 'thinking' | 'speaking' | 'happy' | 'love';
+type ActiveDrawer = 'none' | 'chat' | 'files';
+type PersonalityMode = 'express' | 'asistente' | 'profundo';
 
 function normalizeVoiceCmd(str: string): string {
   return String(str || '')
@@ -93,19 +118,32 @@ function isNaturalFarewellCommand(rawText: string): boolean {
   return farewellPhrases.some((p) => n === p || n.endsWith(' ' + p) || n.startsWith(p + ' '));
 }
 
+function cleanDisplayMarkdown(raw: string): string {
+  return String(raw || '')
+    .replace(/🔊\s*\*\*Respuesta por voz de Tenshi:\*\*\s*/gi, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .trim();
+}
+
 export default function WappyDotsMobilePage() {
-  const [activeTab, setActiveTab] = useState<MobileTab>('avatar');
-  const [mood, setMood] = useState<TenshiMood>('idle');
-  const [statusPillText, setStatusPillText] = useState<string>('✨ Tenshi en línea · Lista para escucharte');
+  const [drawer, setDrawer] = useState<ActiveDrawer>('none');
+  const [personality, setPersonality] = useState<PersonalityMode>('asistente');
+  const [mood, setMood] = useState<TenshiAvatarMood>('idle');
+  const [statusPillText, setStatusPillText] = useState<string>('✨ Lista para escucharte · 24 kHz');
   const [speechText, setSpeechText] = useState<string>(
-    '¡Hola! Soy Tenshi en tu celular. Toca el micrófono 🎙️ o escríbeme cualquier orden para tu Mac, Antigravity o documentos.',
+    '¡Hola! Soy Tenshi en Wappy Dots. Tócame o pulsa el micrófono para hablar en vivo con tu Mac, Antigravity IDE y tus aplicaciones.',
   );
-  const [heroInput, setHeroInput] = useState<string>('');
-  const [chatInput, setChatInput] = useState<string>('');
+  const [promptInput, setPromptInput] = useState<string>('');
   const [messages, setMessages] = useState<SharedChatMessage[]>([]);
   const [files, setFiles] = useState<SharedFileItem[]>([]);
   const [isListening, setIsListening] = useState<boolean>(false);
+  const [isMicMuted, setIsMicMuted] = useState<boolean>(false);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [outputAmplitude, setOutputAmplitude] = useState<number>(0);
+  const [isSFXMuted, setIsSFXMuted] = useState<boolean>(() => tenshiAudio.getMuted());
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [tunnelInfo, setTunnelInfo] = useState<TunnelLinkState>({
     ok: false,
     active: false,
@@ -113,28 +151,32 @@ export default function WappyDotsMobilePage() {
     lanUrl: 'http://127.0.0.1:3001',
     updatedAt: null,
   });
-  const [tilt, setTilt] = useState<{ rx: number; ry: number }>({ rx: 0, ry: 0 });
-  const [particles, setParticles] = useState<Array<{ id: number; emoji: string; left: number; top: number }>>([]);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const ampRafRef = useRef<number | null>(null);
   const activeSourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
   const nextStartTimeRef = useRef<number>(0);
   const recognitionRef = useRef<any>(null);
   const isSpeakingRef = useRef<boolean>(false);
   const prevMsgCountRef = useRef<number>(0);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
-  const petMovesRef = useRef<number>(0);
-  const lastPetXRef = useRef<number | null>(null);
 
   useEffect(() => {
-    document.title = 'Tenshi Móvil · Wappy Dots | WAPPY IA';
+    document.title = 'Tenshi · Wappy Dots | WAPPY IA';
   }, []);
 
   const ensureAudioCtx = useCallback(() => {
     if (!audioCtxRef.current) {
       const Ctx = window.AudioContext || (window as any).webkitAudioContext;
       if (Ctx) {
-        audioCtxRef.current = new Ctx();
+        const ctx = new Ctx();
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.65;
+        analyser.connect(ctx.destination);
+        audioCtxRef.current = ctx;
+        analyserRef.current = analyser;
       }
     }
     if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
@@ -142,6 +184,36 @@ export default function WappyDotsMobilePage() {
     }
     return audioCtxRef.current;
   }, []);
+
+  const stopAmplitudeLoop = useCallback(() => {
+    if (ampRafRef.current !== null) {
+      cancelAnimationFrame(ampRafRef.current);
+      ampRafRef.current = null;
+    }
+    setOutputAmplitude(0);
+  }, []);
+
+  const startAmplitudeLoop = useCallback(() => {
+    stopAmplitudeLoop();
+    const analyser = analyserRef.current;
+    if (!analyser) return;
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    const tick = () => {
+      if (!isSpeakingRef.current) {
+        setOutputAmplitude(0);
+        return;
+      }
+      analyser.getByteFrequencyData(dataArray);
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        sum += dataArray[i];
+      }
+      const avg = sum / (dataArray.length * 255);
+      setOutputAmplitude(Math.min(1, avg * 2.6));
+      ampRafRef.current = requestAnimationFrame(tick);
+    };
+    ampRafRef.current = requestAnimationFrame(tick);
+  }, [stopAmplitudeLoop]);
 
   const flushAudioQueue = useCallback(() => {
     activeSourcesRef.current.forEach((src) => {
@@ -165,40 +237,8 @@ export default function WappyDotsMobilePage() {
     }
     isSpeakingRef.current = false;
     setIsSpeaking(false);
-  }, []);
-
-  const playPopSound = useCallback(() => {
-    try {
-      const ctx = ensureAudioCtx();
-      if (!ctx) return;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(520, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.065);
-      gain.gain.setValueAtTime(0.08, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.07);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.075);
-    } catch (_e) {
-      // ignore
-    }
-  }, [ensureAudioCtx]);
-
-  const emitParticles = useCallback((emojis = ['😻', '💚', '✨', '🐾']) => {
-    const batch = emojis.map((emoji, idx) => ({
-      id: Date.now() + idx + Math.random(),
-      emoji,
-      left: 30 + Math.random() * 40,
-      top: 25 + Math.random() * 25,
-    }));
-    setParticles((prev) => [...prev, ...batch]);
-    setTimeout(() => {
-      setParticles((prev) => prev.filter((p) => !batch.some((b) => b.id === p.id)));
-    }, 1500);
-  }, []);
+    stopAmplitudeLoop();
+  }, [stopAmplitudeLoop]);
 
   const playWavBase64 = useCallback(
     async (b64: string): Promise<number> => {
@@ -212,7 +252,11 @@ export default function WappyDotsMobilePage() {
       const audioBuffer = await ctx.decodeAudioData(bytes.buffer.slice(0));
       const source = ctx.createBufferSource();
       source.buffer = audioBuffer;
-      source.connect(ctx.destination);
+      if (analyserRef.current) {
+        source.connect(analyserRef.current);
+      } else {
+        source.connect(ctx.destination);
+      }
 
       const startAt = Math.max(ctx.currentTime, nextStartTimeRef.current);
       nextStartTimeRef.current = startAt + audioBuffer.duration;
@@ -220,58 +264,64 @@ export default function WappyDotsMobilePage() {
       isSpeakingRef.current = true;
       setIsSpeaking(true);
       setMood('speaking');
-      setStatusPillText('🔊 Tenshi hablando en vivo (24 kHz)...');
+      setStatusPillText('🔊 Hablando en vivo · 24 kHz');
+      startAmplitudeLoop();
 
       source.onended = () => {
         activeSourcesRef.current.delete(source);
         if (activeSourcesRef.current.size === 0) {
           isSpeakingRef.current = false;
           setIsSpeaking(false);
+          stopAmplitudeLoop();
           setMood('idle');
-          setStatusPillText('✨ Tenshi en línea · Lista para escucharte');
+          setStatusPillText('✨ Lista para escucharte · 24 kHz');
         }
       };
 
       source.start(startAt);
       return Math.max(400, (nextStartTimeRef.current - ctx.currentTime) * 1000 + 400);
     },
-    [ensureAudioCtx],
+    [ensureAudioCtx, startAmplitudeLoop, stopAmplitudeLoop],
   );
 
-  const speakFallback = useCallback((text: string, onDone?: () => void) => {
-    if (!('speechSynthesis' in window)) {
-      onDone?.();
-      return;
-    }
-    window.speechSynthesis.cancel();
-    const clean = String(text || '')
-      .replace(/[*#_`]/g, '')
-      .slice(0, 280);
-    const u = new SpeechSynthesisUtterance(clean);
-    u.lang = 'es-CO';
-    u.rate = 1.05;
-    u.pitch = 1.12;
-    u.onstart = () => {
-      isSpeakingRef.current = true;
-      setIsSpeaking(true);
-      setMood('speaking');
-      setStatusPillText('🔊 Tenshi hablando...');
-    };
-    u.onend = () => {
-      isSpeakingRef.current = false;
-      setIsSpeaking(false);
-      setMood('idle');
-      setStatusPillText('✨ Tenshi en línea · Lista para escucharte');
-      onDone?.();
-    };
-    u.onerror = () => {
-      isSpeakingRef.current = false;
-      setIsSpeaking(false);
-      setMood('idle');
-      onDone?.();
-    };
-    window.speechSynthesis.speak(u);
-  }, []);
+  const speakFallback = useCallback(
+    (text: string, onDone?: () => void) => {
+      if (!('speechSynthesis' in window)) {
+        onDone?.();
+        return;
+      }
+      window.speechSynthesis.cancel();
+      const clean = cleanDisplayMarkdown(text).slice(0, 280);
+      const u = new SpeechSynthesisUtterance(clean);
+      u.lang = 'es-CO';
+      u.rate = 1.05;
+      u.pitch = 1.12;
+      u.onstart = () => {
+        isSpeakingRef.current = true;
+        setIsSpeaking(true);
+        setMood('speaking');
+        setOutputAmplitude(0.55);
+        setStatusPillText('🔊 Tenshi hablando...');
+      };
+      u.onend = () => {
+        isSpeakingRef.current = false;
+        setIsSpeaking(false);
+        setOutputAmplitude(0);
+        setMood('idle');
+        setStatusPillText('✨ Lista para escucharte · 24 kHz');
+        onDone?.();
+      };
+      u.onerror = () => {
+        isSpeakingRef.current = false;
+        setIsSpeaking(false);
+        setOutputAmplitude(0);
+        setMood('idle');
+        onDone?.();
+      };
+      window.speechSynthesis.speak(u);
+    },
+    [],
+  );
 
   const stopVoiceMode = useCallback(() => {
     setIsListening(false);
@@ -284,7 +334,7 @@ export default function WappyDotsMobilePage() {
     }
     flushAudioQueue();
     setMood('idle');
-    setStatusPillText('💤 Modo Live apagado · Toca 🎙️ cuando me necesites');
+    setStatusPillText('💤 Modo Live en espera · Toca 🎙️ para hablar');
   }, [flushAudioQueue]);
 
   // Descubrimiento del túnel activo de la Mac
@@ -317,7 +367,6 @@ export default function WappyDotsMobilePage() {
     return tunnelInfo;
   }, [tunnelInfo]);
 
-  // Petición inteligente al túnel de la Mac (directo HTTPS -> fallback Proxy en wappy.club)
   const callMacTunnel = useCallback(
     async (subPath: string, init?: RequestInit): Promise<Response> => {
       const cleanPath = subPath.startsWith('/') ? subPath : `/${subPath}`;
@@ -355,14 +404,16 @@ export default function WappyDotsMobilePage() {
       const nextMsgs: SharedChatMessage[] = Array.isArray(data?.messages) ? data.messages : [];
       const nextFiles: SharedFileItem[] = Array.isArray(data?.files) ? data.files : [];
 
-      if (nextMsgs.length > prevMsgCountRef.current && prevMsgCountRef.current > 0) {
+      if (nextMsgs.length > prevMsgCountRef.current) {
         const latest = nextMsgs[nextMsgs.length - 1];
-        if (latest && latest.role === 'assistant' && latest.source !== 'mobile') {
-          emitParticles(['✨', '📄', '🚀']);
-          setSpeechText(
-            String(latest.content || '').slice(0, 200) +
-              (String(latest.content || '').length > 200 ? '...' : ''),
-          );
+        if (latest && latest.role === 'assistant') {
+          const cleaned = cleanDisplayMarkdown(latest.content);
+          if (cleaned) {
+            setSpeechText(cleaned.slice(0, 220) + (cleaned.length > 220 ? '...' : ''));
+          }
+          if (prevMsgCountRef.current > 0 && latest.source !== 'mobile') {
+            triggerTenshiReaction('success', 2800, ['✨', '📄', '🚀']);
+          }
         }
       }
       prevMsgCountRef.current = nextMsgs.length;
@@ -371,7 +422,7 @@ export default function WappyDotsMobilePage() {
     } catch (_e) {
       // ignore
     }
-  }, [callMacTunnel, emitParticles]);
+  }, [callMacTunnel]);
 
   useEffect(() => {
     fetchTunnelLink().then(() => {
@@ -386,10 +437,10 @@ export default function WappyDotsMobilePage() {
   }, [fetchTunnelLink, refreshSharedState]);
 
   useEffect(() => {
-    if (activeTab === 'chat') {
+    if (drawer === 'chat') {
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, activeTab]);
+  }, [messages, drawer]);
 
   const executePrompt = useCallback(
     async (rawPrompt: string) => {
@@ -406,12 +457,23 @@ export default function WappyDotsMobilePage() {
 
       const isFarewell = isNaturalFarewellCommand(text);
       flushAudioQueue();
-      playPopSound();
+      tenshiAudio.playBlip();
+      analyzeTenshiEmotionFromText(text, 'user');
+      setIsProcessing(true);
       setMood('thinking');
-      setStatusPillText(isFarewell ? '👋 Tenshi despidiéndose...' : '🧠 Tenshi procesando en tu Mac...');
-      setSpeechText(`Procesando: "${text}"...`);
+      setStatusPillText(
+        isFarewell ? '👋 Despidiéndose...' : '🧠 Procesando orden con tu Mac & Antigravity...',
+      );
+      setSpeechText(`«${text}»`);
 
       setMessages((prev) => [...prev, { role: 'user', content: text, source: 'mobile' }]);
+
+      const styleInstruction =
+        personality === 'express'
+          ? 'MODO EXPRESS: Responde de forma ultra concisa (1 a 2 frases directas al grano).'
+          : personality === 'profundo'
+          ? 'MODO PROFUNDO: Analiza a fondo y estructura la solución paso a paso.'
+          : 'MODO ASISTENTE UNIVERSAL: Sé cálida, ejecutiva, clara y resolutiva.';
 
       try {
         const res = await callMacTunnel('/api/gemini-tunnel/v1/audio/live-chat', {
@@ -426,8 +488,7 @@ export default function WappyDotsMobilePage() {
             messages: [
               {
                 role: 'system',
-                content:
-                  'Eres Tenshi, asistente universal en vivo de Wappy Dots en el celular del usuario, conectada en tiempo real con su Mac, Antigravity IDE, generador de documentos (PDF/Word/Excel/HTML/QR), Google Flow, NotebookLM, Google Workspace y tareas. Responde de forma cálida, ágil y natural. Si el usuario se despide ("hasta luego", "gracias por todo", "chao", "nos vemos"), pronuncia primero una despedida corta y cálida e invoca wappy_controlar_videollamada(accion: "colgar_llamada"). NUNCA cuelgues si solo dice "para", "detente" o "espera".',
+                content: `Eres Tenshi, asistente universal en vivo de Wappy Dots, conectada en tiempo real con la Mac del usuario, Antigravity IDE, generador de documentos (PDF/Word/Excel/HTML/QR), Google Flow, NotebookLM, Google Workspace y automatizaciones. ${styleInstruction} Si el usuario se despide ("hasta luego", "gracias por todo", "chao", "nos vemos"), pronuncia primero una despedida corta y cálida e invoca wappy_controlar_videollamada(accion: "colgar_llamada"). NUNCA cuelgues si solo dice "para", "detente" o "espera".`,
               },
               { role: 'user', content: text },
             ],
@@ -442,13 +503,13 @@ export default function WappyDotsMobilePage() {
         const shouldHangUp =
           isFarewell || Boolean(replyData?.should_hang_up) || String(rawReply).includes('HANGUP_CALL');
         const cleanReply =
-          String(rawReply).replace(/HANGUP_CALL:?/gi, '').trim() ||
+          cleanDisplayMarkdown(String(rawReply).replace(/HANGUP_CALL:?/gi, '')) ||
           '¡Hasta luego! Fue un gusto ayudarte hoy.';
 
-        setSpeechText(cleanReply.slice(0, 220) + (cleanReply.length > 220 ? '...' : ''));
-        setMood('happy');
-        setStatusPillText(shouldHangUp ? '👋 ¡Hasta pronto!' : '😸 ¡Respuesta lista!');
-        emitParticles(['✨', '💚', '🐾']);
+        setIsProcessing(false);
+        setSpeechText(cleanReply.slice(0, 260) + (cleanReply.length > 260 ? '...' : ''));
+        analyzeTenshiEmotionFromText(cleanReply, 'assistant');
+        triggerTenshiReaction('success', 2600, ['✨', '💚', '🐾']);
 
         if (replyData?.audio_wav_base64) {
           const waitMs = await playWavBase64(replyData.audio_wav_base64);
@@ -463,18 +524,20 @@ export default function WappyDotsMobilePage() {
           });
         }
       } catch (_e) {
+        setIsProcessing(false);
         setMood('idle');
         setStatusPillText('⚠️ Reintentando conexión con tu Mac...');
-        setSpeechText('No pude contactar el túnel de tu Mac en este instante. Verifica que Wappy Dots esté abierto.');
+        setSpeechText(
+          'No pude contactar el túnel de tu Mac en este instante. Verifica que Wappy Dots esté abierto.',
+        );
       }
 
       await refreshSharedState();
     },
     [
       callMacTunnel,
-      emitParticles,
       flushAudioQueue,
-      playPopSound,
+      personality,
       playWavBase64,
       refreshSharedState,
       speakFallback,
@@ -484,13 +547,18 @@ export default function WappyDotsMobilePage() {
 
   const toggleVoiceRecording = useCallback(() => {
     ensureAudioCtx();
+    tenshiAudio.playBlip();
     if (isSpeakingRef.current) {
       flushAudioQueue();
     }
+    if (isMicMuted) {
+      setIsMicMuted(false);
+    }
+
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert('Tu navegador móvil no soporta dictado directo. Escribe tu mensaje en la barra inferior.');
+      setDrawer('chat');
       return;
     }
 
@@ -516,7 +584,6 @@ export default function WappyDotsMobilePage() {
       setIsListening(true);
       setMood('listening');
       setStatusPillText('🎙️ Escuchando tu voz en vivo...');
-      playPopSound();
     };
 
     r.onresult = (ev: any) => {
@@ -527,29 +594,27 @@ export default function WappyDotsMobilePage() {
         flushAudioQueue();
       }
       setSpeechText(transcript || 'Escuchando...');
-      setHeroInput(transcript);
-      setChatInput(transcript);
+      setPromptInput(transcript);
     };
 
     r.onend = () => {
       setIsListening(false);
-      setHeroInput((current) => {
+      setPromptInput((current) => {
         const trimmed = current?.trim() || '';
         if (trimmed) {
           setTimeout(() => executePrompt(trimmed), 20);
         } else {
           setMood('idle');
-          setStatusPillText('✨ Tenshi en línea · Lista para escucharte');
+          setStatusPillText('✨ Lista para escucharte · 24 kHz');
         }
         return '';
       });
-      setChatInput('');
     };
 
     r.onerror = () => {
       setIsListening(false);
       setMood('idle');
-      setStatusPillText('✨ Tenshi en línea · Lista para escucharte');
+      setStatusPillText('✨ Lista para escucharte · 24 kHz');
     };
 
     recognitionRef.current = r;
@@ -558,335 +623,654 @@ export default function WappyDotsMobilePage() {
     } catch (_e) {
       // ignore
     }
-  }, [ensureAudioCtx, executePrompt, flushAudioQueue, isListening, playPopSound]);
+  }, [ensureAudioCtx, executePrompt, flushAudioQueue, isListening, isMicMuted]);
 
-  const handleTouchMoveAvatar = (e: React.TouchEvent<HTMLDivElement>) => {
-    const t = e.touches[0];
-    if (!t) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    const dx = Math.max(-1, Math.min(1, (t.clientX - cx) / (rect.width * 0.5)));
-    const dy = Math.max(-1, Math.min(1, (t.clientY - cy) / (rect.height * 0.5)));
-    setTilt({ rx: -dy * 14, ry: dx * 16 });
+  const handleToggleMicMute = () => {
+    tenshiAudio.playBlip();
+    if (!isMicMuted && isListening) {
+      stopVoiceMode();
+    }
+    setIsMicMuted((prev) => !prev);
+  };
 
-    if (lastPetXRef.current !== null) {
-      if (Math.abs(t.clientX - lastPetXRef.current) > 18) {
-        petMovesRef.current += 1;
-        lastPetXRef.current = t.clientX;
-        if (petMovesRef.current >= 3) {
-          petMovesRef.current = 0;
-          setMood('love');
-          setStatusPillText('😻 ¡Tenshi ronronea feliz!');
-          emitParticles(['😻', '😽', '💚', '🐾']);
-        }
-      }
-    } else {
-      lastPetXRef.current = t.clientX;
+  const handleToggleSFX = () => {
+    const nextMuted = tenshiAudio.toggleMuted();
+    setIsSFXMuted(nextMuted);
+    if (!nextMuted) {
+      tenshiAudio.playBlip();
     }
   };
 
-  const handleTouchEndAvatar = () => {
-    setTilt({ rx: 0, ry: 0 });
-    lastPetXRef.current = null;
+  const handleCopyMessage = (text: string, id: string) => {
+    navigator.clipboard?.writeText(cleanDisplayMarkdown(text)).catch(() => {});
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 1500);
+  };
+
+  const handleClearChat = async () => {
+    tenshiAudio.playBlip();
+    try {
+      await callMacTunnel('/api/gemini-tunnel/antigravity/shared-chat/clear', { method: 'POST' });
+      setMessages([]);
+    } catch (_e) {
+      setMessages([]);
+    }
   };
 
   const getSourceBadge = (m: SharedChatMessage) => {
-    if (m.source === 'antigravity') return '🤖 Antigravity IDE · Actividad & Tarea';
-    if (m.source === 'notch-voice') return m.role === 'user' ? '🎙️ Notch de Mac (Voz)' : '🔊 Tenshi Voz 24kHz';
-    if (m.source === 'mobile') return '📱 Enviado desde Celular';
-    return m.role === 'user' ? '💬 Instrucción a Tenshi' : '✨ Tenshi';
+    if (m.source === 'antigravity') return '🚀 Antigravity IDE';
+    if (m.source === 'notch-voice')
+      return m.role === 'user' ? '🎙️ Isla Notch (Voz)' : '🔊 Tenshi Voz 24kHz';
+    if (m.source === 'mobile') return '📱 Wappy Dots Móvil';
+    return m.role === 'user' ? '💬 Tú' : '✨ Tenshi';
   };
 
   return (
-    <div className="flex h-[100dvh] w-full flex-col overflow-hidden bg-[#060d18] text-slate-100 select-none">
-      {/* Header Superior Compacto */}
-      <header className="flex items-center justify-between border-b border-white/10 bg-[#0a1526]/90 px-3.5 py-2.5 backdrop-blur-xl">
-        <div className="flex items-center gap-2">
-          <span className="inline-flex h-2.5 w-2.5 rounded-full bg-[#c7f303] shadow-[0_0_10px_#c7f303]" />
-          <div>
-            <div className="text-xs font-extrabold tracking-wide text-white">
-              WAPPY DOTS <span className="text-[#c7f303]">MÓVIL</span>
+    <div className="wappydots-mobile-shell relative flex h-[100dvh] w-full flex-col overflow-hidden bg-[#09090c] text-[#f5f6f8] select-none">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap');
+
+        .wappydots-mobile-shell {
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          background:
+            radial-gradient(ellipse 95% 42% at 50% -6%, rgba(217, 119, 6, 0.24) 0%, rgba(120, 53, 15, 0.12) 42%, transparent 75%),
+            radial-gradient(circle at 50% 48%, rgba(99, 102, 241, 0.16) 0%, rgba(16, 185, 129, 0.08) 38%, transparent 70%),
+            linear-gradient(180deg, #0b0b0f 0%, #09090c 55%, #070709 100%);
+        }
+
+        .wappydots-font-display {
+          font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+        }
+
+        .wappydots-stage-grid {
+          background-image:
+            linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+          background-size: 32px 32px;
+          mask-image: radial-gradient(ellipse 75% 65% at 50% 50%, black 25%, transparent 80%);
+          -webkit-mask-image: radial-gradient(ellipse 75% 65% at 50% 50%, black 25%, transparent 80%);
+        }
+
+        .wappydots-stardust {
+          background-image:
+            radial-gradient(1.5px 1.5px at 18% 22%, rgba(251, 191, 36, 0.75) 50%, transparent 100%),
+            radial-gradient(1px 1px at 76% 16%, rgba(245, 158, 11, 0.65) 50%, transparent 100%),
+            radial-gradient(1.5px 1.5px at 62% 34%, rgba(199, 243, 3, 0.55) 50%, transparent 100%),
+            radial-gradient(1px 1px at 28% 68%, rgba(168, 85, 247, 0.6) 50%, transparent 100%),
+            radial-gradient(1.5px 1.5px at 84% 62%, rgba(251, 191, 36, 0.55) 50%, transparent 100%);
+        }
+
+        @keyframes wappydotsWave {
+          0%, 100% { transform: scaleY(0.32); }
+          50% { transform: scaleY(1); }
+        }
+
+        .wappydots-eq-bar {
+          width: 3.5px;
+          border-radius: 999px;
+          background: linear-gradient(180deg, #c7f303 0%, #f59e0b 100%);
+          animation: wappydotsWave 0.95s ease-in-out infinite;
+        }
+      `}</style>
+
+      {/* Polvo estelar Ámbar/Dorado de Wappy Dots + Retícula de Escenario */}
+      <div className="wappydots-stardust pointer-events-none absolute inset-0 opacity-80" />
+      <div className="wappydots-stage-grid pointer-events-none absolute inset-0" />
+
+      {/* ===================================================================== */}
+      {/* 1. CABECERA ISLA NOTCH DE WAPPY DOTS (Dynamic Island Hardware Header)  */}
+      {/* ===================================================================== */}
+      <header
+        className="relative z-30 flex items-center justify-between gap-2 px-3.5 sm:px-6 pb-2.5 pt-2.5 border-b border-white/[0.07] bg-[#0c0d12]/80 backdrop-blur-2xl"
+        style={{ paddingTop: 'max(10px, env(safe-area-inset-top, 10px))' }}
+      >
+        {/* Identidad Izquierda: Mini Tenshi + Wappy Dots */}
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/20 via-purple-500/15 to-emerald-500/20 border border-amber-400/30 shadow-inner">
+            <TenshiAvatar
+              size={34}
+              mood={mood}
+              isSpeaking={isSpeaking}
+              outputAmplitude={outputAmplitude}
+              isVoiceActive={isListening}
+              interactive={false}
+              showHaloEffect={false}
+              showHUD={true}
+            />
+            <span
+              className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-[#0c0d12] ${
+                tunnelInfo.publicUrl ? 'bg-[#c7f303]' : 'bg-amber-400 animate-pulse'
+              }`}
+            />
+          </div>
+
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="wappydots-font-display text-xs sm:text-sm font-black tracking-tight text-white">
+                Wappy <span className="text-amber-400">Dots</span>
+              </span>
+              <span className="rounded-md border border-purple-400/35 bg-purple-500/15 px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-purple-200">
+                Isla Móvil
+              </span>
             </div>
-            <div className="text-[10px] text-slate-400">
-              {tunnelInfo.publicUrl
-                ? '🟢 Conectado en vivo con tu Mac'
-                : '🟡 Sincronizando túnel de tu Mac...'}
+            <div className="flex items-center gap-1.5 text-[10px] font-medium text-[#8e939c] truncate">
+              <span
+                className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                  tunnelInfo.publicUrl
+                    ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]'
+                    : 'bg-amber-400'
+                }`}
+              />
+              <span className="truncate">
+                {tunnelInfo.publicUrl
+                  ? 'Conectado en vivo con tu Mac · 24 kHz'
+                  : 'Sincronizando túnel con tu Mac...'}
+              </span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
-          {isSpeaking && (
-            <button
-              type="button"
-              onClick={flushAudioQueue}
-              className="rounded-lg border border-rose-400/40 bg-rose-500/15 px-2.5 py-1 text-[11px] font-bold text-rose-200 active:scale-95"
-            >
-              ⏹️ Silenciar
-            </button>
-          )}
+        {/* Cápsula Central Hardware Notch (Visible en Pantallas Medianas/Grandes) */}
+        <div className="hidden md:inline-flex items-center gap-2.5 rounded-full bg-[#050608] border border-white/15 px-4 py-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.75),0_0_20px_rgba(245,158,11,0.12)]">
+          <span className="h-2 w-2 rounded-full bg-[#c7f303] shadow-[0_0_8px_#c7f303]" />
+          <span className="text-[11px] font-extrabold tracking-wide text-slate-100">
+            «Oye Tenshi» · Hermes Core · Antigravity
+          </span>
+          <div className="flex items-center gap-0.5 h-3">
+            <span className="wappydots-eq-bar h-2.5" style={{ animationDelay: '0s' }} />
+            <span className="wappydots-eq-bar h-3.5" style={{ animationDelay: '0.15s' }} />
+            <span className="wappydots-eq-bar h-2" style={{ animationDelay: '0.3s' }} />
+            <span className="wappydots-eq-bar h-3.5" style={{ animationDelay: '0.45s' }} />
+          </div>
+        </div>
+
+        {/* Controles Derecha */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={handleToggleSFX}
+            title={isSFXMuted ? 'Activar sonidos de Tenshi' : 'Silenciar sonidos de Tenshi'}
+            className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/10 active:scale-95 transition"
+          >
+            {isSFXMuted ? (
+              <VolumeX className="h-3.5 w-3.5 text-amber-400" />
+            ) : (
+              <Volume2 className="h-3.5 w-3.5 text-emerald-400" />
+            )}
+          </button>
+
           <Link
             to="/wappy-dots"
-            className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-slate-300 hover:bg-white/10"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-bold text-amber-200 hover:bg-amber-500/20 transition active:scale-95"
           >
-            💻 App Mac
+            <Laptop className="h-3.5 w-3.5 text-amber-400" />
+            <span className="hidden sm:inline">App Escritorio</span>
+            <span className="sm:hidden">Mac</span>
           </Link>
         </div>
       </header>
 
-      {/* Tabs de Navegación */}
-      <div className="grid grid-cols-3 gap-1.5 border-b border-white/10 bg-[#091220] px-3 py-2">
-        <button
-          type="button"
-          onClick={() => setActiveTab('avatar')}
-          className={`rounded-xl py-2 text-xs font-bold transition ${
-            activeTab === 'avatar'
-              ? 'border border-[#c7f303]/40 bg-[#c7f303]/15 text-[#c7f303]'
-              : 'bg-white/5 text-slate-400'
-          }`}
-        >
-          😺 Tenshi Live
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('chat')}
-          className={`rounded-xl py-2 text-xs font-bold transition ${
-            activeTab === 'chat'
-              ? 'border border-cyan-400/40 bg-cyan-400/15 text-cyan-200'
-              : 'bg-white/5 text-slate-400'
-          }`}
-        >
-          💬 Chat ({messages.length})
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('files')}
-          className={`rounded-xl py-2 text-xs font-bold transition ${
-            activeTab === 'files'
-              ? 'border border-emerald-400/40 bg-emerald-400/15 text-emerald-200'
-              : 'bg-white/5 text-slate-400'
-          }`}
-        >
-          📑 Docs ({files.length})
-        </button>
-      </div>
-
-      {/* VISTA 1: AVATAR 3D INTERACTIVO + VOZ EN VIVO */}
-      {activeTab === 'avatar' && (
-        <div className="flex flex-1 flex-col justify-between overflow-y-auto px-4 py-3">
-          {/* Píldora de estado superior (top-20 separación espacial) */}
-          <div className="flex flex-col items-center gap-2">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3.5 py-1 text-xs font-semibold text-emerald-200">
-              <span>{statusPillText}</span>
-            </div>
-            <div className="max-w-md rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-center text-xs leading-relaxed text-slate-200 backdrop-blur-md">
-              {speechText}
-            </div>
+      {/* ===================================================================== */}
+      {/* 2. ESCENARIO HEROICO DE TENSHI (Con Aureola 3D, HUD y Colores Dots)    */}
+      {/* ===================================================================== */}
+      <main className="relative z-10 flex flex-1 flex-col items-center justify-between overflow-y-auto px-4 py-2 sm:py-4">
+        {/* Fila Superior de Insignias estilo Portal Wappy Dots (Separación Espacial top) */}
+        <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-purple-400/40 bg-purple-500/15 px-3 py-1 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-purple-200 shadow-sm">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#c7f303] shadow-[0_0_8px_#c7f303]" />
+            <span>ISLA NOTCH · VOZ 24KHZ</span>
           </div>
 
-          {/* Escenario Central 3D de Tenshi */}
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-500/15 px-3 py-1 text-[10px] sm:text-[11px] font-extrabold text-amber-200 shadow-sm">
+            <span>😇 Tenshi + Antigravity + +24 Agentes</span>
+          </div>
+        </div>
+
+        {/* Escenario Central con el Tenshi Real de Wappy (Aureola + Visor HUD + Física 3D) */}
+        <div className="relative my-auto flex flex-col items-center justify-center py-1">
+          {/* Resplandor Radial Doble (Ámbar Wappy Dots + Índigo/Esmeralda) detrás de Tenshi */}
           <div
-            className="relative my-2 flex flex-1 items-center justify-center"
-            onTouchMove={handleTouchMoveAvatar}
-            onTouchEnd={handleTouchEndAvatar}
+            className={`pointer-events-none absolute h-64 w-64 sm:h-72 sm:w-72 rounded-full blur-3xl transition-all duration-500 ${
+              isListening
+                ? 'bg-rose-500/25 scale-110'
+                : isSpeaking
+                ? 'bg-amber-500/25 scale-110'
+                : 'bg-gradient-to-tr from-purple-600/20 via-amber-500/15 to-emerald-500/20'
+            }`}
+          />
+
+          <div
             onClick={() => {
-              playPopSound();
-              setMood('love');
-              setStatusPillText('😻 ¡Acariciaste a Tenshi!');
-              emitParticles(['😻', '💚', '✨']);
+              tenshiAudio.playBlip();
+              toggleVoiceRecording();
             }}
+            className="relative z-20 cursor-pointer transition-transform duration-300 hover:scale-[1.03] active:scale-95"
+            title="Tócame para hablar o acaríciame"
           >
-            <div
-              className={` pointer-events-none absolute h-56 w-56 rounded-full blur-3xl transition-all duration-500 ${
-                mood === 'listening'
-                  ? 'bg-rose-500/25 scale-110'
-                  : mood === 'speaking'
-                  ? 'bg-[#c7f303]/25 scale-110'
-                  : 'bg-teal-500/20'
-              }`}
+            <TenshiAvatar
+              size={250}
+              mood={mood}
+              isSpeaking={isSpeaking}
+              outputAmplitude={outputAmplitude}
+              isVoiceActive={isListening}
+              isTyping={isProcessing}
+              statusText={statusPillText}
+              interactive={true}
+              showHaloEffect={true}
+              showHUD={true}
             />
-            {particles.map((p) => (
-              <span
-                key={p.id}
-                className="pointer-events-none absolute animate-bounce text-xl"
-                style={{ left: `${p.left}%`, top: `${p.top}%` }}
-              >
-                {p.emoji}
-              </span>
-            ))}
-            <div
-              style={{
-                transform: `perspective(800px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg)`,
-                transition: tilt.rx === 0 && tilt.ry === 0 ? 'transform 0.35s ease' : 'none',
-              }}
-              className="relative flex flex-col items-center"
-            >
-              <img
-                src="/assets/tenshi.png"
-                alt="Tenshi 3D"
-                className={`h-52 w-auto object-contain drop-shadow-[0_18px_36px_rgba(0,0,0,0.65)] transition-transform duration-300 ${
-                  mood === 'speaking' ? 'scale-105' : mood === 'listening' ? 'scale-102' : ''
-                }`}
-              />
-            </div>
           </div>
 
-          {/* Controles Inferiores (bottom-5 separación espacial) */}
-          <div className="flex flex-col gap-2.5 pb-1">
-            {/* Píldoras de acción rápida */}
-            <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-              <button
-                type="button"
-                onClick={() => executePrompt('Consulta el estado de Antigravity, proyectos activos y chats recientes')}
-                className="shrink-0 rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-[11px] font-semibold text-cyan-200 active:scale-95"
-              >
-                🚀 Estado Antigravity
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  executePrompt('Genera un informe ejecutivo en PDF con el resumen de mis proyectos y pásalo a mi celular')
-                }
-                className="shrink-0 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-[11px] font-semibold text-emerald-200 active:scale-95"
-              >
-                📄 Crear PDF
-              </button>
-              <button
-                type="button"
-                onClick={() => executePrompt('Genera un código QR para https://wappy.club/wappydots')}
-                className="shrink-0 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-1.5 text-[11px] font-semibold text-amber-200 active:scale-95"
-              >
-                📱 Crear QR
-              </button>
-              <button
-                type="button"
-                onClick={() => executePrompt('Lista mis tareas y automatizaciones activas')}
-                className="shrink-0 rounded-xl border border-purple-400/30 bg-purple-500/10 px-3 py-1.5 text-[11px] font-semibold text-purple-200 active:scale-95"
-              >
-                ⚙️ Mis Tareas
-              </button>
-            </div>
+          {/* Pedestal de Luz Elíptica bajo los pies de Tenshi (Idéntico a Wappy Portal) */}
+          <div
+            className="pointer-events-none -mt-2 h-5 w-44 rounded-full blur-md"
+            style={{
+              background:
+                'radial-gradient(ellipse at center, rgba(199, 243, 3, 0.45) 0%, rgba(245, 158, 11, 0.25) 45%, rgba(16, 185, 129, 0) 75%)',
+            }}
+          />
 
-            {/* Botón Micrófono Principal + Input */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={toggleVoiceRecording}
-                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl font-bold shadow-lg transition active:scale-95 ${
-                  isListening
-                    ? 'animate-pulse border-2 border-rose-300 bg-rose-600 text-white'
-                    : 'border border-[#c7f303]/50 bg-[#c7f303] text-[#0e1300]'
-                }`}
-                title="Hablar con Tenshi"
-              >
-                {isListening ? '🔴' : '🎙️'}
-              </button>
+          {/* Saludo + Burbuja Glassmorphism de Voz en Vivo */}
+          <div className="mt-4 flex max-w-lg flex-col items-center text-center px-2">
+            <h1 className="wappydots-font-display text-lg sm:text-xl font-black tracking-tight text-white">
+              ¡Hola, <span className="text-amber-400">Félix</span>!
+            </h1>
 
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!heroInput.trim()) return;
-                  const val = heroInput;
-                  setHeroInput('');
-                  executePrompt(val);
-                }}
-                className="flex flex-1 items-center gap-1.5 rounded-2xl border border-white/15 bg-white/[0.06] px-3 py-1.5"
-              >
-                <input
-                  type="text"
-                  value={heroInput}
-                  onChange={(e) => setHeroInput(e.target.value)}
-                  placeholder="Habla o escribe cualquier orden..."
-                  className="w-full bg-transparent text-xs text-white placeholder-slate-400 focus:outline-none"
-                />
-                <button
-                  type="submit"
-                  className="rounded-xl bg-[#c7f303] px-3 py-1.5 text-xs font-extrabold text-[#0e1300] active:scale-95"
-                >
-                  Enviar
-                </button>
-              </form>
+            <div className="mt-2 relative rounded-2xl border border-white/10 bg-[#13141a]/90 px-4 py-2.5 text-xs sm:text-[13px] leading-relaxed text-slate-200 shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+              <span>{speechText}</span>
+              <div className="mt-2 flex items-center justify-center gap-2">
+                {isSpeaking ? (
+                  <button
+                    type="button"
+                    onClick={flushAudioQueue}
+                    className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-0.5 text-[10px] font-bold text-rose-300 hover:bg-rose-500/20"
+                  >
+                    <Square className="h-2.5 w-2.5 fill-current" />
+                    <span>Detener voz</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => speakFallback(speechText)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-bold text-amber-300 hover:bg-amber-500/20"
+                  >
+                    <Volume1 className="h-3 w-3" />
+                    <span>Escuchar</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      )}
 
-      {/* VISTA 2: CHAT UNIVERSAL SINCRONIZADO */}
-      {activeTab === 'chat' && (
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <div className="flex-1 space-y-2.5 overflow-y-auto p-3.5">
-            {messages.length === 0 ? (
-              <div className="mt-12 text-center text-xs text-slate-400">
-                Habla con Tenshi o escribe aquí abajo. Todo se sincroniza en vivo con la isla de tu Mac.
+        {/* ================================================================= */}
+        {/* 3. DOCK CÁPSULA DE TENSHI + BARRA DE CHAT ESTILO NOTCH WAPPY DOTS */}
+        {/* ================================================================= */}
+        <div className="w-full max-w-2xl flex flex-col items-center gap-2.5 pb-1">
+          {/* 🌟 Botonera Cápsula de Tenshi (Idéntica a TenshiChat.tsx + Wappy Dots) */}
+          <div className="inline-flex items-center gap-2 sm:gap-3 rounded-2xl bg-[#121318]/95 px-3 py-1.5 backdrop-blur-xl border border-amber-500/30 shadow-[0_16px_40px_rgba(0,0,0,0.65)]">
+            {/* Botón Abrir Chat */}
+            <button
+              type="button"
+              onClick={() => {
+                tenshiAudio.playBlip();
+                setDrawer((prev) => (prev === 'chat' ? 'none' : 'chat'));
+              }}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-all active:scale-95 border ${
+                drawer === 'chat'
+                  ? 'border-cyan-500/40 bg-cyan-500/15 text-cyan-200'
+                  : 'border-transparent text-slate-300 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              <MessageSquare className="h-4 w-4 text-cyan-400" />
+              <span>Chat ({messages.length})</span>
+            </button>
+
+            {/* Botón Central Micrófono Live */}
+            <button
+              type="button"
+              onClick={toggleVoiceRecording}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-extrabold transition-all active:scale-95 ${
+                isListening
+                  ? 'animate-pulse border border-rose-400 bg-rose-600 text-white shadow-[0_0_20px_rgba(225,29,72,0.5)]'
+                  : 'border border-[#c7f303]/60 bg-[#c7f303] text-[#0e1300] shadow-[0_0_20px_rgba(199,243,3,0.3)] hover:bg-[#d4ff1f]'
+              }`}
+            >
+              <Mic className="h-4 w-4" />
+              <span>{isListening ? 'Escuchando...' : 'Hablar Live'}</span>
+            </button>
+
+            {/* Botón Silenciar Micrófono (Mute) */}
+            <button
+              type="button"
+              onClick={handleToggleMicMute}
+              title={isMicMuted ? 'Reactivar micrófono' : 'Silenciar micrófono'}
+              className={`rounded-xl p-2 transition-all active:scale-95 border ${
+                isMicMuted
+                  ? 'border-rose-500/40 bg-rose-500/20 text-rose-300'
+                  : 'border-transparent text-slate-400 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              <MicOff className="h-4 w-4" />
+            </button>
+
+            {/* Botón Documentos Generados */}
+            <button
+              type="button"
+              onClick={() => {
+                tenshiAudio.playBlip();
+                setDrawer((prev) => (prev === 'files' ? 'none' : 'files'));
+              }}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-all active:scale-95 border ${
+                drawer === 'files'
+                  ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200'
+                  : 'border-transparent text-slate-300 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              <FileText className="h-4 w-4 text-emerald-400" />
+              <span>Docs ({files.length})</span>
+            </button>
+          </div>
+
+          {/* Píldoras de Acción Rápida (WAPPY 14-Group Semantic Colors) */}
+          <div className="flex w-full items-center justify-start sm:justify-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
+            <button
+              type="button"
+              onClick={() =>
+                executePrompt('Consulta el estado de Antigravity, proyectos activos y chats recientes')
+              }
+              className="shrink-0 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-[11px] font-bold text-cyan-200 hover:bg-cyan-500/20 transition-all sm:hover:-rotate-2 sm:hover:scale-105 active:scale-95"
+            >
+              🚀 Estado Antigravity
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                executePrompt(
+                  'Genera un informe ejecutivo en PDF con el resumen de mis proyectos y pásalo a mi celular',
+                )
+              }
+              className="shrink-0 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[11px] font-bold text-emerald-200 hover:bg-emerald-500/20 transition-all sm:hover:-rotate-2 sm:hover:scale-105 active:scale-95"
+            >
+              📄 Crear PDF
+            </button>
+            <button
+              type="button"
+              onClick={() => executePrompt('Genera un código QR para https://wappy.club/wappydots')}
+              className="shrink-0 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/10 px-3 py-1.5 text-[11px] font-bold text-fuchsia-200 hover:bg-fuchsia-500/20 transition-all sm:hover:-rotate-2 sm:hover:scale-105 active:scale-95"
+            >
+              📱 Crear QR
+            </button>
+            <button
+              type="button"
+              onClick={() => executePrompt('Lista mis tareas y automatizaciones activas')}
+              className="shrink-0 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-[11px] font-bold text-amber-200 hover:bg-amber-500/20 transition-all sm:hover:-rotate-2 sm:hover:scale-105 active:scale-95"
+            >
+              ⚙️ Mis Tareas
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                executePrompt('¿Qué hay en la pantalla activa de mi Mac en este momento?')
+              }
+              className="shrink-0 rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 text-[11px] font-bold text-purple-200 hover:bg-purple-500/20 transition-all sm:hover:-rotate-2 sm:hover:scale-105 active:scale-95"
+            >
+              👁️ Leer Pantalla Mac
+            </button>
+          </div>
+
+          {/* Barra de Entrada idéntica al Chat del Notch de Wappy Dots */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!promptInput.trim()) return;
+              const val = promptInput;
+              setPromptInput('');
+              executePrompt(val);
+            }}
+            className="w-full rounded-2xl border border-white/15 bg-[#14151c]/95 p-2 shadow-[0_12px_36px_rgba(0,0,0,0.6),0_0_24px_rgba(99,102,241,0.12)] backdrop-blur-2xl"
+          >
+            {/* Sub-barra superior estilo Notch: Chip Antigravity + Personalidad + Modelo */}
+            <div className="mb-1.5 flex items-center justify-between gap-2 px-1.5">
+              <div className="flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.07] border border-white/10 px-2.5 py-0.5 text-[10px] font-bold text-slate-200">
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
+                  <span>Antigravity · Mac</span>
+                </span>
+
+                <div className="hidden sm:flex items-center gap-1">
+                  {(
+                    [
+                      { id: 'express', label: '⚡ Express' },
+                      { id: 'asistente', label: '✨ Asistente' },
+                      { id: 'profundo', label: '🔬 Profundo' },
+                    ] as const
+                  ).map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setPersonality(m.id)}
+                      className={`rounded-lg px-2 py-0.5 text-[10px] font-bold transition ${
+                        personality === m.id
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            ) : (
-              messages.map((m, idx) => (
-                <div
-                  key={m.id || idx}
-                  className={`rounded-2xl border p-3 text-xs leading-relaxed ${
-                    m.role === 'user'
-                      ? 'ml-8 border-teal-500/30 bg-teal-500/15 text-slate-100'
-                      : 'mr-4 border-white/10 bg-white/[0.05] text-slate-200'
+
+              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/15 border border-indigo-400/30 px-2.5 py-0.5 text-[10px] font-bold text-indigo-200">
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
+                <span>gemini-3.8-live · 24kHz</span>
+              </span>
+            </div>
+
+            {/* Campo de texto + Mic + Botón Circular de Envío */}
+            <div className="flex items-center gap-2 rounded-xl bg-white/[0.04] px-3 py-1.5 border border-white/[0.07]">
+              <Sparkles className="h-4 w-4 shrink-0 text-amber-400" />
+              <input
+                type="text"
+                value={promptInput}
+                onChange={(e) => setPromptInput(e.target.value)}
+                placeholder="Pregúntame algo o envía una orden a tu Mac..."
+                className="w-full bg-transparent text-xs sm:text-sm text-white placeholder-[#8e939c] focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={toggleVoiceRecording}
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition ${
+                  isListening
+                    ? 'bg-rose-600 text-white animate-pulse'
+                    : 'text-slate-400 hover:bg-white/10 hover:text-white'
+                }`}
+                title="Dictar por voz"
+              >
+                <Mic className="h-4 w-4" />
+              </button>
+              <button
+                type="submit"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f5f6f8] text-[#0e0f11] hover:bg-[#c7f303] transition active:scale-90 shadow-md"
+                title="Enviar"
+              >
+                <ArrowUp className="h-4 w-4 stroke-[2.5]" />
+              </button>
+            </div>
+          </form>
+        </div>
+      </main>
+
+      {/* ===================================================================== */}
+      {/* 4. PANEL DESPLEGABLE DE CHAT UNIVERSAL (Idéntico a TenshiChat.tsx)    */}
+      {/* ===================================================================== */}
+      {drawer === 'chat' && (
+        <div className="absolute inset-x-0 bottom-0 top-14 z-40 flex flex-col rounded-t-3xl border-t border-amber-500/30 bg-[#0d0e14]/95 backdrop-blur-2xl shadow-[0_-20px_60px_rgba(0,0,0,0.85)] animate-in slide-in-from-bottom duration-200">
+          {/* Cabecera del Chat */}
+          <div className="flex items-center justify-between border-b border-white/10 bg-[#12141c]/90 px-4 py-3 rounded-t-3xl">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-amber-400" />
+              <span className="wappydots-font-display text-sm font-extrabold text-white">
+                Chat Universal · Wappy Dots
+              </span>
+              <span className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                Sincronizado con Mac
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleClearChat}
+                className="inline-flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-semibold text-slate-300 hover:bg-white/10"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span>Nueva</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDrawer('none')}
+                className="rounded-xl border border-white/10 bg-white/5 p-1.5 text-slate-300 hover:bg-white/10"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Selector de Modo Universal */}
+          <div className="flex items-center justify-between gap-2 border-b border-white/[0.07] bg-[#0f1017] px-4 py-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              Modo:
+            </span>
+            <div className="flex items-center gap-1.5">
+              {(
+                [
+                  { id: 'express', label: '⚡ Express' },
+                  { id: 'asistente', label: '✨ Asistente' },
+                  { id: 'profundo', label: '🔬 Profundo' },
+                ] as const
+              ).map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setPersonality(m.id)}
+                  className={`rounded-xl px-3 py-1 text-xs font-bold transition border ${
+                    personality === m.id
+                      ? 'border-amber-500/50 bg-amber-500/15 text-amber-200'
+                      : 'border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/10'
                   }`}
                 >
-                  <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-[#c7f303]">
-                    {getSourceBadge(m)}
-                  </div>
-                  <div className="whitespace-pre-wrap">{m.content}</div>
-                  {Array.isArray(m.files) && m.files.length > 0 && (
-                    <div className="mt-2 space-y-1.5">
-                      {m.files.map((f) => (
-                        <a
-                          key={f.id || f.fileName}
-                          href={resolveFileHref(f.fileName)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center justify-between rounded-xl border border-[#c7f303]/30 bg-[#c7f303]/10 px-3 py-2 text-xs font-bold text-[#c7f303]"
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Lista de Mensajes */}
+          <div className="flex-1 space-y-3 overflow-y-auto p-4">
+            {messages.length === 0 ? (
+              <div className="mt-12 text-center text-xs text-slate-400">
+                Aún no hay mensajes. Escribe o habla con Tenshi para sincronizar con tu Mac.
+              </div>
+            ) : (
+              messages.map((m, idx) => {
+                const msgKey = m.id || `msg-${idx}`;
+                const cleaned = cleanDisplayMarkdown(m.content);
+                return (
+                  <div
+                    key={msgKey}
+                    className={`rounded-2xl border p-3.5 text-xs sm:text-[13px] leading-relaxed ${
+                      m.role === 'user'
+                        ? 'ml-8 border-indigo-500/35 bg-indigo-500/15 text-slate-100'
+                        : 'mr-4 border-white/10 bg-[#151720] text-slate-200'
+                    }`}
+                  >
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-400">
+                        {getSourceBadge(m)}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => speakFallback(cleaned)}
+                          className="rounded-md p-1 text-slate-400 hover:bg-white/10 hover:text-white"
+                          title="Escuchar mensaje"
                         >
-                          <span>📲 Abrir: {f.title || f.fileName}</span>
-                          <span className="rounded bg-black/40 px-1.5 py-0.5 text-[10px] uppercase">
-                            {f.format}
-                          </span>
-                        </a>
-                      ))}
+                          <Volume2 className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyMessage(cleaned, msgKey)}
+                          className="rounded-md p-1 text-slate-400 hover:bg-white/10 hover:text-white"
+                          title="Copiar"
+                        >
+                          {copiedId === msgKey ? (
+                            <Check className="h-3.5 w-3.5 text-emerald-400" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      </div>
                     </div>
-                  )}
-                </div>
-              ))
+
+                    <div className="whitespace-pre-wrap">{cleaned}</div>
+
+                    {Array.isArray(m.files) && m.files.length > 0 && (
+                      <div className="mt-2.5 space-y-1.5">
+                        {m.files.map((f) => (
+                          <a
+                            key={f.id || f.fileName}
+                            href={resolveFileHref(f.fileName)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center justify-between rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-200 hover:bg-amber-500/20"
+                          >
+                            <span className="truncate">📲 Abrir: {f.title || f.fileName}</span>
+                            <span className="ml-2 shrink-0 rounded bg-black/40 px-1.5 py-0.5 text-[10px] uppercase text-[#c7f303]">
+                              {f.format}
+                            </span>
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
             )}
             <div ref={chatEndRef} />
           </div>
 
+          {/* Barra de envío dentro del Chat */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (!chatInput.trim()) return;
-              const val = chatInput;
-              setChatInput('');
+              if (!promptInput.trim()) return;
+              const val = promptInput;
+              setPromptInput('');
               executePrompt(val);
             }}
-            className="flex items-center gap-2 border-t border-white/10 bg-[#091220] p-3"
+            className="flex items-center gap-2 border-t border-white/10 bg-[#12141c] p-3"
           >
             <button
               type="button"
               onClick={toggleVoiceRecording}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-base ${
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
                 isListening ? 'bg-rose-600 text-white' : 'bg-white/10 text-white'
               }`}
             >
-              {isListening ? '🔴' : '🎙️'}
+              <Mic className="h-4 w-4" />
             </button>
             <input
               type="text"
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
+              value={promptInput}
+              onChange={(e) => setPromptInput(e.target.value)}
               placeholder="Escribe un mensaje para Tenshi..."
-              className="flex-1 rounded-xl border border-white/15 bg-white/[0.06] px-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none"
+              className="flex-1 rounded-xl border border-white/15 bg-white/[0.05] px-3.5 py-2.5 text-xs text-white placeholder-slate-400 focus:outline-none"
             />
             <button
               type="submit"
-              className="rounded-xl bg-[#c7f303] px-3.5 py-2 text-xs font-extrabold text-[#0e1300]"
+              className="rounded-xl bg-[#c7f303] px-4 py-2.5 text-xs font-extrabold text-[#0e1300]"
             >
               Enviar
             </button>
@@ -894,37 +1278,62 @@ export default function WappyDotsMobilePage() {
         </div>
       )}
 
-      {/* VISTA 3: DOCUMENTOS GENERADOS */}
-      {activeTab === 'files' && (
-        <div className="flex-1 space-y-2.5 overflow-y-auto p-4">
-          {files.length === 0 ? (
-            <div className="mt-12 text-center text-xs text-slate-400">
-              Aún no hay documentos generados. Pídele a Tenshi un PDF, Word, Excel, HTML o código QR.
+      {/* ===================================================================== */}
+      {/* 5. CAJÓN DESPLEGABLE DE DOCUMENTOS GENERADOS (PDF/DOCX/XLSX/QR)       */}
+      {/* ===================================================================== */}
+      {drawer === 'files' && (
+        <div className="absolute inset-x-0 bottom-0 top-14 z-40 flex flex-col rounded-t-3xl border-t border-emerald-500/30 bg-[#0d0e14]/95 backdrop-blur-2xl shadow-[0_-20px_60px_rgba(0,0,0,0.85)] animate-in slide-in-from-bottom duration-200">
+          <div className="flex items-center justify-between border-b border-white/10 bg-[#12141c]/90 px-4 py-3 rounded-t-3xl">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-emerald-400" />
+              <span className="wappydots-font-display text-sm font-extrabold text-white">
+                Documentos & Códigos QR ({files.length})
+              </span>
             </div>
-          ) : (
-            files.map((f) => {
-              const sizeKb = Math.max(1, Math.round((f.sizeBytes || 0) / 1024));
-              return (
-                <a
-                  key={f.id || f.fileName}
-                  href={resolveFileHref(f.fileName)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center justify-between rounded-2xl border border-white/15 bg-white/[0.05] p-3.5 transition hover:border-[#c7f303]/40"
-                >
-                  <div>
-                    <div className="text-xs font-bold text-white">📄 {f.title || f.fileName}</div>
-                    <div className="mt-0.5 text-[11px] text-slate-400">
-                      {f.fileName} · {sizeKb} KB
+            <button
+              type="button"
+              onClick={() => setDrawer('none')}
+              className="rounded-xl border border-white/10 bg-white/5 p-1.5 text-slate-300 hover:bg-white/10"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="flex-1 space-y-2.5 overflow-y-auto p-4">
+            {files.length === 0 ? (
+              <div className="mt-12 text-center text-xs text-slate-400">
+                Aún no hay archivos generados. Pídele a Tenshi un PDF, Word, Excel, HTML o código QR.
+              </div>
+            ) : (
+              files.map((f) => {
+                const sizeKb = Math.max(1, Math.round((f.sizeBytes || 0) / 1024));
+                return (
+                  <a
+                    key={f.id || f.fileName}
+                    href={resolveFileHref(f.fileName)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#151720] p-3.5 transition hover:border-amber-400/40"
+                  >
+                    <div className="min-w-0 pr-3">
+                      <div className="truncate text-xs sm:text-sm font-bold text-white">
+                        📄 {f.title || f.fileName}
+                      </div>
+                      <div className="mt-0.5 text-[11px] text-slate-400">
+                        {f.fileName} · {sizeKb} KB
+                      </div>
                     </div>
-                  </div>
-                  <span className="rounded-lg border border-[#c7f303]/40 bg-[#c7f303]/15 px-2.5 py-1 text-[10px] font-extrabold uppercase text-[#c7f303]">
-                    {f.format || 'DOC'}
-                  </span>
-                </a>
-              );
-            })
-          )}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="rounded-lg border border-amber-400/40 bg-amber-500/15 px-2.5 py-1 text-[10px] font-extrabold uppercase text-amber-300">
+                        {f.format || 'DOC'}
+                      </span>
+                      <ExternalLink className="h-4 w-4 text-slate-400" />
+                    </div>
+                  </a>
+                );
+              })
+            )}
+          </div>
         </div>
       )}
     </div>
