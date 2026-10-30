@@ -351,21 +351,24 @@ def _ensure_psidts_ready(storage_file: Path, force_refresh: bool = False) -> boo
 
         has_psidts = _has_psidts(cookies)
         # Cooldown estricto de 60s para proteger la sesión de Google contra ráfagas de RotateCookies
-        if has_psidts and (now_ts - last_rotated < 60):
+        if has_psidts and not force_refresh and (now_ts - last_rotated < 60):
             return False
 
         needs_rotation = (
             force_refresh
             or not has_psidts
-            or (now_ts - last_rotated > 600)
         )
         if not needs_rotation:
             return False
 
         from notebooklm._auth import keepalive, psidts_recovery
 
-        # Rotación suave estilo navegador/keepalive enviando el jar completo (incluyendo __Secure-1PSIDTS si existe)
-        jar = psidts_recovery._build_recovery_jar(cookies, psidts_recovery._storage_cookie)
+        # Excluir __Secure-1PSIDTS / __Secure-3PSIDTS caducadas del jar de recuperación para que Google emita una nueva desde SID/SAPISID
+        clean_master_cookies = [
+            c for c in cookies
+            if isinstance(c, dict) and "PSIDTS" not in str(c.get("name", ""))
+        ]
+        jar = psidts_recovery._build_recovery_jar(clean_master_cookies, psidts_recovery._storage_cookie)
         rotated_cookies = []
         try:
             with keepalive._rotation_http_client(jar) as client:

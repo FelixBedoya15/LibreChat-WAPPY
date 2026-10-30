@@ -392,14 +392,8 @@ async function resolveGoogleFlowCredentials(userId) {
 
   const targetEmail = flowSession?.email || notebookSession?.email || '';
   if (cookies.length > 0) {
-    const nowMs = Date.now();
     const psidtsCookie = cookies.find((c) => c && c.name === '__Secure-1PSIDTS' && c.value);
-    const lastRefreshMs = (userId && lastFlowCookieRefreshByUser.get(String(userId))) || 0;
-    const psidtsNeedsRefresh =
-      !psidtsCookie ||
-      nowMs - lastRefreshMs > 10 * 60 * 1000;
-
-    if (psidtsNeedsRefresh) {
+    if (!psidtsCookie) {
       cookies = await refreshGoogleCookiesOnDemand(userId, cookies, targetEmail, false);
     }
   }
@@ -653,19 +647,26 @@ async function executeFlowNativeStudioAction({
     throw new Error('No hay cookies de sesión de Google Flow disponibles.');
   }
 
-  const filtered = cookies.filter((c) => {
-    const dom = String(c.domain || '.google.com').toLowerCase();
-    return (
-      dom === '.google.com' ||
-      dom === 'google.com' ||
-      dom === 'flow.google.com' ||
-      dom === '.flow.google.com' ||
-      dom === 'accounts.google.com' ||
-      dom === '.accounts.google.com'
-    );
-  });
+  const ua =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+  const activeCookieHeader = buildFlowCookieHeader(cookies);
 
-  const cookieHeader = buildFlowCookieHeader(cookies);
+  // 1. Obtener parámetros de sesión (at / SNlM0e, fSid / FdrFJe, bl / cfb2h) vía HTTP puro (sin exponer cookies a Chromium)
+  const fxSession = await fetchLabsFxSession(cookies);
+  if (!fxSession.ok || !fxSession.at) {
+    throw new Error(
+      'No se pudo autenticar la sesión en flow.google.com. Verifica que tu sesión de Google Flow esté activa.'
+    );
+  }
+
+  const tokenInfo = {
+    at: fxSession.at,
+    fSid: fxSession.fSid || '',
+    bl: fxSession.bl || 'boq_labs-ai-sandbox-frontend_20261027.00_p0',
+  };
+
+  // 2. Lanzar Chromium AISLADO (0 cookies del usuario) usando Fetch.fulfillRequest en https://flow.google.com/
+  // únicamente para firmar tokens reCAPTCHA Enterprise sin disparar jamás RotateCookiesPage ni BotGuard sobre la cuenta de Google.
   const chromiumBin = findServerChromiumBinary();
   const port = 9450 + Math.floor(Math.random() * 450);
   const profileDir = `/tmp/wappy-flow-cdp-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -688,7 +689,7 @@ async function executeFlowNativeStudioAction({
       '--use-mock-keychain',
       '--disable-blink-features=AutomationControlled',
       '--window-size=1440,900',
-      '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      `--user-agent=${ua}`,
       `--remote-debugging-port=${port}`,
       `--user-data-dir=${profileDir}`,
       'about:blank',
@@ -704,7 +705,7 @@ async function executeFlowNativeStudioAction({
   try {
     let pageTarget = null;
     for (let i = 0; i < 45; i++) {
-      await new Promise((r) => setTimeout(r, 400));
+      await new Promise((r) => setTimeout(r, 350));
       try {
         const listRes = await axios.get(`http://127.0.0.1:${port}/json/list`, { timeout: 3000 });
         pageTarget = Array.isArray(listRes.data)
@@ -730,114 +731,92 @@ async function executeFlowNativeStudioAction({
       ws.once('error', reject);
     });
 
-    await cdpRequest(ws, 1, 'Network.enable');
-    await cdpRequest(ws, 2, 'Page.enable');
-    for (let i = 0; i < filtered.length; i++) {
-      const c = filtered[i];
-      const rawDom = String(c.domain || '.google.com').toLowerCase();
-      const cookieUrl = rawDom.includes('accounts.google.com')
-        ? 'https://accounts.google.com/'
-        : rawDom.includes('flow.google.com')
-        ? 'https://flow.google.com/'
-        : 'https://www.google.com/';
-      const cookieParam = {
-        name: c.name,
-        value: c.value,
-        url: cookieUrl,
-        path: c.path || '/',
-        secure: true,
-        httpOnly: Boolean(c.httpOnly ?? true),
-        sameSite: c.name.includes('3P')
-          ? 'None'
-          : c.sameSite === 'None' || c.sameSite === 'Strict'
-          ? c.sameSite
-          : 'Lax',
-      };
-      if (typeof c.expires === 'number' && Number.isFinite(c.expires) && c.expires > 0) {
-        cookieParam.expires = c.expires;
-      }
-      if (!c.name.startsWith('__Host-')) {
-        cookieParam.domain = c.domain || '.google.com';
-      }
-      await cdpRequest(ws, 10 + i, 'Network.setCookie', cookieParam).catch(() => {});
-    }
+    const siteKey = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV';
+    const syntheticHtmlBase64 = Buffer.from(
+      `<!DOCTYPE html><html><head><meta charset="utf-8"><script src="https://www.google.com/recaptcha/enterprise.js?render=${siteKey}"></script></head><body>Flow Studio</body></html>`
+    ).toString('base64');
 
+    ws.on('message', (rawMsg) => {
+      try {
+        const msg = JSON.parse(rawMsg.toString());
+        if (msg.method === 'Fetch.requestPaused' && msg.params?.requestId) {
+          cdpRequest(ws, 9000 + Math.floor(Math.random() * 900), 'Fetch.fulfillRequest', {
+            requestId: msg.params.requestId,
+            responseCode: 200,
+            responseHeaders: [{ name: 'Content-Type', value: 'text/html; charset=utf-8' }],
+            body: syntheticHtmlBase64,
+          }).catch(() => {});
+        }
+      } catch (_) {}
+    });
+
+    await cdpRequest(ws, 1, 'Page.enable');
+    await cdpRequest(ws, 2, 'Fetch.enable', {
+      patterns: [{ urlPattern: 'https://flow.google.com/' }],
+    });
     await cdpRequest(ws, 3, 'Page.addScriptToEvaluateOnNewDocument', {
-      source: `
-        Object.defineProperty(navigator, "webdriver", { get: () => undefined });
-        const origDefProp = Object.defineProperty;
-        Object.defineProperty = function(obj, prop, desc) {
-          if (prop === "execute" && desc && typeof desc.value === "function") {
-            window.__origRecapExec = obj.execute ? obj.execute.bind(obj) : desc.value;
-            return obj;
-          }
-          return origDefProp.call(this, obj, prop, desc);
-        };
-      `,
+      source: `Object.defineProperty(navigator, "webdriver", { get: () => undefined });`,
     });
 
     await cdpRequest(ws, 200, 'Page.navigate', { url: 'https://flow.google.com/' });
 
-    let tokenInfo = null;
-    for (let i = 0; i < 9; i++) {
-      await new Promise((r) => setTimeout(r, 750));
-      const evalRes = await cdpRequest(ws, 300 + i, 'Runtime.evaluate', {
-        expression: `(async () => {
-          if (window.grecaptcha && window.grecaptcha.enterprise && window.WIZ_global_data && window.WIZ_global_data.SNlM0e) {
-            const execFn = window.__origRecapExec || window.grecaptcha.enterprise.execute;
-            const siteKey = window.WIZ_global_data.xZbWve || "6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV";
-            const t = await execFn(siteKey, { action: ${JSON.stringify(actionType)} });
-            if (typeof t === "string" && t.length > 20) {
-              return JSON.stringify({
-                token: t,
-                at: window.WIZ_global_data.SNlM0e,
-                fSid: window.WIZ_global_data.FdrFJe || "",
-                bl: window.WIZ_global_data.cfb2h || "boq_labs-ai-sandbox-frontend_20261027.00_p0"
-              });
+    const mintRecaptchaToken = async (actName, reqIdBase = 300) => {
+      for (let attempt = 0; attempt < 10; attempt++) {
+        const evalRes = await cdpRequest(ws, reqIdBase + attempt, 'Runtime.evaluate', {
+          expression: `(async () => {
+            if (!window.grecaptcha || !window.grecaptcha.enterprise || typeof window.grecaptcha.enterprise.ready !== "function") {
+              return null;
             }
-          }
-          if (location.pathname && location.pathname.startsWith("/about") && !window.WIZ_global_data?.SNlM0e) {
-            return "ON_ABOUT_PAGE";
-          }
-          return null;
-        })()`,
-        awaitPromise: true,
-        returnByValue: true,
-      }).catch(() => null);
+            await new Promise((r) => window.grecaptcha.enterprise.ready(r));
+            const t = await window.grecaptcha.enterprise.execute(${JSON.stringify(siteKey)}, { action: ${JSON.stringify(actName)} });
+            return typeof t === "string" && t.length > 20 ? t : null;
+          })()`,
+          awaitPromise: true,
+          returnByValue: true,
+        }).catch(() => null);
+        const val = evalRes?.result?.value;
+        if (typeof val === 'string' && val.length > 20) {
+          return val;
+        }
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      return null;
+    };
 
-      const val = evalRes?.result?.value;
-      if (val === 'ON_ABOUT_PAGE' && i >= 2) {
-        break;
-      }
-      if (typeof val === 'string' && val.startsWith('{')) {
-        tokenInfo = JSON.parse(val);
-        break;
-      }
+    const initialRecaptchaToken = await mintRecaptchaToken(actionType, 300);
+    if (!initialRecaptchaToken) {
+      throw new Error('No se pudo obtener token reCAPTCHA Enterprise para Google Flow.');
     }
+    tokenInfo.token = initialRecaptchaToken;
+    const refreshedCookies = null;
 
-    if (!tokenInfo || !tokenInfo.token || !tokenInfo.at) {
-      throw new Error(
-        'No se pudo autenticar la sesión interactiva en flow.google.com. Verifica que tu sesión de Google Flow esté activa.'
+    const postFlowBatchExecute = async (rpcId, fReqStr) => {
+      const params = new URLSearchParams({
+        rpcids: rpcId,
+        'source-path': '/',
+        bl: tokenInfo.bl,
+        'f.sid': tokenInfo.fSid,
+        hl: 'es-419',
+        _reqid: String(Math.floor(100000 + Math.random() * 800000)),
+        rt: 'c',
+      });
+      const body = new URLSearchParams({ 'f.req': fReqStr, at: tokenInfo.at }).toString();
+      const resp = await axios.post(
+        `https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute?${params.toString()}`,
+        body,
+        {
+          headers: {
+            Cookie: activeCookieHeader,
+            'User-Agent': ua,
+            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+            Origin: 'https://flow.google.com',
+            Referer: 'https://flow.google.com/',
+          },
+          timeout: 35000,
+        }
       );
-    }
-
-    let refreshedCookies = null;
-    try {
-      const cdpCookiesRes = await cdpRequest(ws, 290, 'Network.getAllCookies').catch(() => null);
-      if (Array.isArray(cdpCookiesRes?.cookies) && cdpCookiesRes.cookies.length > 5) {
-        refreshedCookies = cdpCookiesRes.cookies
-          .filter((c) => c && c.name && c.value && String(c.domain || '').includes('google'))
-          .map((c) => ({
-            name: c.name,
-            value: c.value,
-            domain: c.domain || '.google.com',
-            path: c.path || '/',
-            secure: Boolean(c.secure),
-            httpOnly: Boolean(c.httpOnly),
-          }));
-      }
-    } catch (_) {}
-    const activeCookieHeader = refreshedCookies ? buildFlowCookieHeader(refreshedCookies) : cookieHeader;
+      return typeof resp.data === 'string' ? resp.data : JSON.stringify(resp.data || '');
+    };
 
     const projectId =
       (await resolveFlowProjectId(activeCookieHeader, tokenInfo.at, tokenInfo.fSid, tokenInfo.bl)) ||
@@ -852,7 +831,6 @@ async function executeFlowNativeStudioAction({
       const imgAspectMap = { '1:1': 1, '9:16': 2, '16:9': 3, '3:4': 4, '4:3': 5 };
       const aspectEnum = imgAspectMap[aspectRatio] || 3;
       const seed = Math.floor(Math.random() * 2147483647);
-      const W = [null, 22, null, null, null, projectId, null, workflowId, null, null, N];
       const h = [sessionId];
 
       // Try Nano Banana 2 Lite (HARBOR_SEAL) first, then Nano Banana 2.1 (BELUGA)
@@ -863,21 +841,17 @@ async function executeFlowNativeStudioAction({
         { code: 'GEM_PIX_2', label: 'Google Flow Studio (🍌 Nano Banana Pro • Preventivo SST)', useFallback: true },
       ];
 
+      let modelAttemptIdx = 0;
       for (const fm of flowImageModels) {
         if (fm.useFallback && (!fallbackPrompt || fallbackPrompt === prompt)) {
           continue;
         }
+        modelAttemptIdx += 1;
         const activePromptText = fm.useFallback ? fallbackPrompt : prompt;
-        const freshExec = await cdpRequest(ws, 490, 'Runtime.evaluate', {
-          expression: `(async () => {
-            const execFn = window.__origRecapExec || window.grecaptcha.enterprise.execute;
-            const siteKey = window.WIZ_global_data.xZbWve || "6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV";
-            return await execFn(siteKey, { action: "IMAGE_GENERATION" });
-          })()`,
-          awaitPromise: true,
-          returnByValue: true,
-        }).catch(() => null);
-        const currentToken = freshExec?.result?.value || tokenInfo.token;
+        const currentToken =
+          modelAttemptIdx === 1
+            ? tokenInfo.token
+            : (await mintRecaptchaToken('IMAGE_GENERATION', 480 + modelAttemptIdx * 15)) || tokenInfo.token;
         const currentMediaId = uuidv4();
         const currentWorkflowId = uuidv4();
         const currentW = [
@@ -912,29 +886,10 @@ async function executeFlowNativeStudioAction({
         const rpcPayload = [null, [za], 1, currentW, h];
         const fReq = JSON.stringify([[['ogiZ0b', JSON.stringify(rpcPayload), null, 'generic']]]);
 
-        const browserFetch = await cdpRequest(ws, 500, 'Runtime.evaluate', {
-          expression: `(async () => {
-            const params = new URLSearchParams({
-              rpcids: "ogiZ0b",
-              "source-path": "/",
-              bl: ${JSON.stringify(tokenInfo.bl)},
-              "f.sid": ${JSON.stringify(tokenInfo.fSid)},
-              hl: "es-419",
-              rt: "c"
-            });
-            const body = new URLSearchParams({ "f.req": ${JSON.stringify(fReq)}, at: ${JSON.stringify(tokenInfo.at)} });
-            const r = await fetch("/_/AiSandboxAngularFrontend/data/batchexecute?" + params.toString(), {
-              method: "POST",
-              headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-              body: body.toString()
-            });
-            return await r.text();
-          })()`,
-          awaitPromise: true,
-          returnByValue: true,
+        const rawText = await postFlowBatchExecute('ogiZ0b', fReq).catch((err) => {
+          logger.warn(`[GoogleFlow] Aviso en postFlowBatchExecute(ogiZ0b): ${err.message}`);
+          return '';
         });
-
-        const rawText = browserFetch?.result?.value || '';
         const urlMatch = rawText.match(/https:\/\/flow-content\.google\/image\/[^"]+/);
         if (urlMatch && urlMatch[0]) {
           const signedUrl = urlMatch[0]
@@ -971,19 +926,10 @@ async function executeFlowNativeStudioAction({
         const currentVidPrompt = promptsToAttempt[pIdx];
         const currentVidMediaId = uuidv4();
         const currentVidWorkflowId = uuidv4();
-        const freshVidExec =
+        const activeVidToken =
           pIdx === 0
-            ? null
-            : await cdpRequest(ws, 590 + pIdx, 'Runtime.evaluate', {
-                expression: `(async () => {
-                  const execFn = window.__origRecapExec || window.grecaptcha.enterprise.execute;
-                  const siteKey = window.WIZ_global_data.xZbWve || "6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV";
-                  return await execFn(siteKey, { action: "VIDEO_GENERATION" });
-                })()`,
-                awaitPromise: true,
-                returnByValue: true,
-              }).catch(() => null);
-        const activeVidToken = freshVidExec?.result?.value || tokenInfo.token;
+            ? tokenInfo.token
+            : (await mintRecaptchaToken('VIDEO_GENERATION', 580 + pIdx * 15)) || tokenInfo.token;
         const k = [null, 22, null, null, null, projectId, null, null, null, null, [activeVidToken, 1]];
         const x = [sessionId, 1];
         const lD = [null, null, null, null, currentVidMediaId, currentVidWorkflowId];
@@ -992,29 +938,10 @@ async function executeFlowNativeStudioAction({
         const rpcPayload = [[G], k, x];
         const fReq = JSON.stringify([[['YhhmEf', JSON.stringify(rpcPayload), null, 'generic']]]);
 
-        const browserFetch = await cdpRequest(ws, 600 + pIdx, 'Runtime.evaluate', {
-          expression: `(async () => {
-            const params = new URLSearchParams({
-              rpcids: "YhhmEf",
-              "source-path": "/",
-              bl: ${JSON.stringify(tokenInfo.bl)},
-              "f.sid": ${JSON.stringify(tokenInfo.fSid)},
-              hl: "es-419",
-              rt: "c"
-            });
-            const body = new URLSearchParams({ "f.req": ${JSON.stringify(fReq)}, at: ${JSON.stringify(tokenInfo.at)} });
-            const r = await fetch("/_/AiSandboxAngularFrontend/data/batchexecute?" + params.toString(), {
-              method: "POST",
-              headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-              body: body.toString()
-            });
-            return await r.text();
-          })()`,
-          awaitPromise: true,
-          returnByValue: true,
+        const rawText = await postFlowBatchExecute('YhhmEf', fReq).catch((err) => {
+          logger.warn(`[GoogleFlow] Aviso en postFlowBatchExecute(YhhmEf): ${err.message}`);
+          return '';
         });
-
-        const rawText = browserFetch?.result?.value || '';
         const allUuids = Array.from(
           new Set(
             (rawText.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi) || [])
@@ -1031,35 +958,13 @@ async function executeFlowNativeStudioAction({
         }
 
         let blockedByPolicy = false;
-        // Poll Iyc41d (/FlowService.BatchGetMedia) directly inside the authenticated Chromium page using the exact mediaId
+        // Poll Iyc41d (/FlowService.BatchGetMedia) directly via HTTP axios using the exact mediaId
         for (let attempt = 0; attempt < 34; attempt++) {
           await new Promise((r) => setTimeout(r, 3500));
           const pollFReq = JSON.stringify([
             [['Iyc41d', JSON.stringify([[activeMediaId]]), null, 'generic']],
           ]);
-          const pollEval = await cdpRequest(ws, 700 + pIdx * 50 + attempt, 'Runtime.evaluate', {
-            expression: `(async () => {
-              const params = new URLSearchParams({
-                rpcids: "Iyc41d",
-                "source-path": "/",
-                bl: ${JSON.stringify(tokenInfo.bl)},
-                "f.sid": ${JSON.stringify(tokenInfo.fSid)},
-                hl: "es-419",
-                rt: "c"
-              });
-              const body = new URLSearchParams({ "f.req": ${JSON.stringify(pollFReq)}, at: ${JSON.stringify(tokenInfo.at)} });
-              const r = await fetch("/_/AiSandboxAngularFrontend/data/batchexecute?" + params.toString(), {
-                method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-                body: body.toString()
-              });
-              return await r.text();
-            })()`,
-            awaitPromise: true,
-            returnByValue: true,
-          }).catch(() => null);
-
-          const rawPoll = pollEval?.result?.value || '';
+          const rawPoll = await postFlowBatchExecute('Iyc41d', pollFReq).catch(() => '');
           const vidUrlMatch = rawPoll.match(/https:\/\/flow-content\.google\/video\/[^"]+/);
           if (vidUrlMatch && vidUrlMatch[0]) {
             const signedVideoUrl = vidUrlMatch[0]
@@ -1802,10 +1707,21 @@ router.post('/session', requireJwtAuth, async (req, res) => {
       if (!testResult.success && !apiKey) {
         return res.status(400).json({ error: testResult.reason });
       }
-      cookies = await refreshGoogleCookiesOnDemand(userId, cookies, clientEmail || userEmail || '');
-      const fxCheck = await fetchLabsFxSession(cookies);
+      let fxCheck = await fetchLabsFxSession(cookies);
+      if (!fxCheck.ok || !cookies.some((c) => c && c.name === '__Secure-1PSIDTS' && c.value)) {
+        cookies = await refreshGoogleCookiesOnDemand(userId, cookies, clientEmail || userEmail || '');
+        if (!fxCheck.ok) {
+          fxCheck = await fetchLabsFxSession(cookies);
+        }
+      }
       if (fxCheck.email) {
         detectedEmail = fxCheck.email;
+      }
+      if (!fxCheck.ok && !apiKey) {
+        testResult = {
+          success: false,
+          reason: 'La sesión de Google Flow ha expirado o requiere iniciar sesión nuevamente en Google.',
+        };
       }
     }
 
@@ -2288,12 +2204,13 @@ async function uploadCookies(cookies, email = '') {
   console.log('🌐 Abriendo ventana en primer plano en tu computador (' + path.basename(browserBin) + ')...');
   console.log('⏳ Detectando tu sesión (si ya iniciaste sesión antes, se cerrará sola en 3 segundos)...\\n');
 
-  const targetUrl = 'https://flow.google.com/';
+  const targetUrl = 'https://accounts.google.com/ServiceLogin?passive=true&continue=https://flow.google.com/';
   const child = launchBrowserVisible(browserBin, flowProfileDir, debugPort, targetUrl);
 
   const maxWaitMs = 180000;
   const start = Date.now();
   let cdpConnectedOnce = false;
+  let clearedDeadCookiesOnce = false;
 
   while (Date.now() - start < maxWaitMs) {
     await new Promise((r) => setTimeout(r, 2000));
@@ -2352,6 +2269,16 @@ async function uploadCookies(cookies, email = '') {
           console.log('✅ ' + (result.data.message || '¡Módulo conectado con éxito!'));
           try { if (child) child.kill(); } catch (_) {}
           process.exit(0);
+        } else if (!clearedDeadCookiesOnce) {
+          clearedDeadCookiesOnce = true;
+          console.log('🔄 La sesión guardada en el navegador había expirado. Abriendo pantalla de inicio de sesión de Google...');
+          try {
+            await cdpSend(flowPage.webSocketDebuggerUrl, 'Network.clearBrowserCookies');
+            await cdpSend(flowPage.webSocketDebuggerUrl, 'Page.navigate', {
+              url: 'https://accounts.google.com/ServiceLogin?continue=https://flow.google.com/',
+            });
+          } catch (_) {}
+          await new Promise((r) => setTimeout(r, 3000));
         }
       }
     } catch (_) {

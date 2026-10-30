@@ -1095,11 +1095,12 @@ async function uploadCookies(cookies, email = '') {
   console.log('🌐 Abriendo ventana en primer plano en tu computador (' + path.basename(browserBin) + ')...');
   console.log('⏳ Detectando tu sesión (si ya iniciaste sesión antes, se cerrará sola en 3 segundos)...\\n');
 
-  const targetUrl = 'https://notebook.google.com/';
+  const targetUrl = 'https://notebooklm.google.com/';
   const child = launchBrowserVisible(browserBin, profileDir, debugPort, targetUrl);
 
   const maxWaitMs = 180000;
   const start = Date.now();
+  let clearedDeadCookiesOnce = false;
 
   while (Date.now() - start < maxWaitMs) {
     await new Promise((r) => setTimeout(r, 2000));
@@ -1161,6 +1162,16 @@ async function uploadCookies(cookies, email = '') {
           console.log('✅ ' + (result.data.message || '¡Módulo conectado con éxito!'));
           try { if (child) child.kill(); } catch (_) {}
           process.exit(0);
+        } else if (!clearedDeadCookiesOnce) {
+          clearedDeadCookiesOnce = true;
+          console.log('🔄 La sesión guardada en el navegador había expirado. Abriendo pantalla de inicio de sesión de Google...');
+          try {
+            await cdpSend(nbPage.webSocketDebuggerUrl, 'Network.clearBrowserCookies');
+            await cdpSend(nbPage.webSocketDebuggerUrl, 'Page.navigate', {
+              url: 'https://accounts.google.com/ServiceLogin?continue=https://notebooklm.google.com/',
+            });
+          } catch (_) {}
+          await new Promise((r) => setTimeout(r, 3000));
         }
       }
     } catch (_) {
