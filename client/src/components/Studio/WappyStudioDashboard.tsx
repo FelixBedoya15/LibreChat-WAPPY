@@ -7269,7 +7269,14 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                             ⏱️ {podcastTargetMinutes} min (~{Math.round(podcastTargetMinutes * 150)} pal.)
                           </span>
                           <span className="px-2 py-0.5 rounded-md bg-purple-500/15 border border-purple-500/30 text-purple-300 font-bold">
-                            🎭 Estilo: {VOICE_PRESETS.find((p) => p.id === selectedPreset)?.name || 'Personalizado'}
+                            🎭 Estilo:{' '}
+                            {presets.find(
+                              (preset) =>
+                                stylePrompt === preset.style &&
+                                (preset.multiSpeaker
+                                  ? multiSpeaker
+                                  : !multiSpeaker && selectedVoice === preset.voiceName),
+                            )?.name || 'Personalizado'}
                           </span>
                           <span className="px-2 py-0.5 rounded-md bg-sky-500/15 border border-sky-500/30 text-sky-300 font-bold">
                             🎙️ {multiSpeaker ? `Alex (${speaker1Voice}) + Sam (${speaker2Voice})` : `Voz: ${selectedVoice}`}
