@@ -117,3 +117,22 @@
 > 5. **Pieza 5 — Motion Graphics:** Suavizado elástico (`spring`), 60 fps, mínimo 4 transiciones de `animaciones-17-efectos-reels`.
 > 6. **Pieza 6 — Diseño Sonoro:** Locución limpia + SFX sutiles (`whoosh`, `pop`, `ding`).
 > 7. **Pieza 7 — Render y Vistas Previas:** Mostrar 3 capturas previas (inicio/miniatura, mitad y cierre) antes de entregar el MP4 final.
+
+---
+
+## 8. Regla Obligatoria de Creación de Apps Portables y Módulos WAPPY (`wappy-app-auth-and-connections`)
+
+> [!CRITICAL]
+> Todo aplicativo portable, landing interactiva o módulo de WAPPY (`/wappystudio`, `/wappypodcast`, `/matrizipvr`, `/clase1`, `/clase2`, `/cursowappy01` y cualquier nueva app futura) **DEBE** cumplir estrictamente estas 4 reglas de sesión, barra superior y conexiones:
+> 1. **Detección Automática de Sesión Activa (`/api/auth/refresh`):**
+>    - Al iniciar la página, consultar `POST /api/auth/refresh` con `credentials: 'include'` (y exponer `window.platformUser`, `window.platformUserToken`, `window.isPlatformLoggedIn` + evento `wappy-auth-updated`).
+>    - En el backend (`studioAuth`, etc.), si una petición llega sin header `Authorization` pero con cookie `refreshToken` válida, autenticar automáticamente al usuario (`req.user`) y **NUNCA** sobreescribir una cuenta registrada con una clave de visitante (`wpy_guest_...`).
+> 2. **Botón Superior Derecho Dinámico (`Ir a WAPPY` vs `Entrar a WAPPY →`):**
+>    - **Si el usuario YA inició sesión en WAPPY:** El botón de la barra superior (`#navCtaEnterWappy`) **DEBE** transformarse exactamente igual que en la página de inicio (`LandingPage.tsx`), mostrando el avatar del usuario (`user.avatar` o iniciales DiceBear `#0d9488`) + **`Entrar a WAPPY →`** apuntando directo a `/c/new` (y en menú móvil `#mobileCtaEnterWappy`: `Entrar a WAPPY como ${firstName} →` hacia `/c/new`).
+>    - **Si el usuario NO ha iniciado sesión:** Mostrar `Ir a WAPPY` apuntando a `/login`.
+> 3. **Hidratación Automática de Todas las Conexiones del Usuario Registrado vs. Visitante:**
+>    - **Usuario Registrado (`isAuthenticated: true`):** Traer automáticamente todas las conexiones de su cuenta: su clave personal `wpy_live_...` (`UserApiKey`), su conexión activa al daemon de Google Antigravity (`antigravityStreamClients`), sus claves API de Gemini y sus integraciones (Google Drive, NotebookLM, Google Flow).
+>    - **Visitante No Registrado (`isGuest: true`):** Permitirle conectarse directamente desde la app generando su clave local `wpy_guest_...` y guardando sus claves en `localStorage`.
+> 4. **Datos de Empresa Obligatorios y Sincronización Cross-App / Somos SST:**
+>    - Ninguna función operativa de la app debe ejecutarse si los datos obligatorios de la empresa no están creados.
+>    - Si el usuario está registrado, sincronizar bidireccionalmente con las empresas creadas en **Somos SST** (`/api/sgsst/company-info/all`). Si no está registrado, compartir la empresa creada en `localStorage` (`wappy_sgsst_companies`) entre todas las apps de WAPPY.

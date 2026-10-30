@@ -937,9 +937,31 @@ function isServerAvailable(): Promise<boolean> {
   return serverChecked;
 }
 
+function withAuthInit(init?: RequestInit): RequestInit {
+  const next: RequestInit = {
+    ...(init || {}),
+    credentials: init?.credentials || 'include',
+  };
+  const headers = new Headers(init?.headers || {});
+  if (!headers.has('Authorization')) {
+    const win = typeof window !== 'undefined' ? (window as any) : {};
+    const tok = String(win.platformUserToken || win.platformAuthToken || localStorage.getItem('token') || '').trim();
+    if (tok) {
+      headers.set('Authorization', `Bearer ${tok}`);
+    }
+  }
+  const localKeys = readPortableKeys();
+  if (localKeys.length > 0 && !headers.has('x-gemini-api-keys')) {
+    headers.set('x-gemini-api-keys', localKeys.join(','));
+  }
+  next.headers = headers;
+  return next;
+}
+
 async function handleStudioRequest(url: URL, init?: RequestInit): Promise<Response> {
   const path = url.pathname.replace(/^\/api\/studio/, '');
   const method = (init?.method || 'GET').toUpperCase();
+  const authInit = withAuthInit(init);
   let body: any = {};
   if (init?.body && typeof init.body === 'string') {
     try {
@@ -952,15 +974,15 @@ async function handleStudioRequest(url: URL, init?: RequestInit): Promise<Respon
   try {
     if (path === '/catalog') {
       if (await isServerAvailable()) {
-        return nativeFetch(url.pathname + url.search, init);
+        return nativeFetch(url.pathname + url.search, authInit);
       }
       return json({ googleModelsEnv: getPortableGoogleModels() });
     }
     if (path === '/keys-status') {
-      const keys = readPortableKeys();
-      if (keys.length === 0 && (await isServerAvailable())) {
-        return nativeFetch(url.pathname + url.search, init);
+      if (await isServerAvailable()) {
+        return nativeFetch(url.pathname + url.search, authInit);
       }
+      const keys = readPortableKeys();
       return json({
         totalKeys: keys.length,
         customKeysCount: keys.length,
@@ -1011,11 +1033,7 @@ async function handleStudioRequest(url: URL, init?: RequestInit): Promise<Respon
       if (await isServerAvailable()) {
         try {
           const localKeys = readPortableKeys();
-          const mergedHeaders = new Headers(init?.headers || {});
-          if (localKeys.length > 0 && !mergedHeaders.has('x-gemini-api-keys')) {
-            mergedHeaders.set('x-gemini-api-keys', localKeys.join(','));
-          }
-          const srvResp = await nativeFetch(url.pathname + url.search, { ...init, headers: mergedHeaders });
+          const srvResp = await nativeFetch(url.pathname + url.search, authInit);
           if (srvResp.ok || localKeys.length === 0) return srvResp;
         } catch {
           if (readPortableKeys().length === 0) {
@@ -1030,11 +1048,7 @@ async function handleStudioRequest(url: URL, init?: RequestInit): Promise<Respon
       if (await isServerAvailable()) {
         try {
           const localKeys = readPortableKeys();
-          const mergedHeaders = new Headers(init?.headers || {});
-          if (localKeys.length > 0 && !mergedHeaders.has('x-gemini-api-keys')) {
-            mergedHeaders.set('x-gemini-api-keys', localKeys.join(','));
-          }
-          const srvResp = await nativeFetch(url.pathname + url.search, { ...init, headers: mergedHeaders });
+          const srvResp = await nativeFetch(url.pathname + url.search, authInit);
           if (srvResp.ok || localKeys.length === 0) return srvResp;
         } catch {
           if (readPortableKeys().length === 0) {
@@ -1074,7 +1088,7 @@ async function handleStudioRequest(url: URL, init?: RequestInit): Promise<Respon
     if (jobMatch) {
       const job = localJobs.get(jobMatch[1]);
       if (!job) {
-        if (await isServerAvailable()) return nativeFetch(url.pathname + url.search, init);
+        if (await isServerAvailable()) return nativeFetch(url.pathname + url.search, authInit);
         return json({ error: 'Trabajo no encontrado.' }, 404);
       }
       if (jobMatch[2] === 'control') {
@@ -1090,14 +1104,14 @@ async function handleStudioRequest(url: URL, init?: RequestInit): Promise<Respon
     }
     if (path === '/script/enhance') {
       if (await isServerAvailable()) {
-        return nativeFetch(url.pathname + url.search, init);
+        return nativeFetch(url.pathname + url.search, authInit);
       }
       const res = await enhanceScript(body);
       return json({ success: true, text: res.text, scriptText: res.text, model: res.model, usedModel: res.model });
     }
     if (path === '/antigravity/super-prompt') {
       if (await isServerAvailable()) {
-        return nativeFetch(url.pathname + url.search, init);
+        return nativeFetch(url.pathname + url.search, authInit);
       }
       const keys = requireKeys();
       const models = textModelIds();
@@ -1154,7 +1168,7 @@ Devuelve un Super-Prompt estructurado en Markdown con las 7 Piezas de WAPPY IA y
       path.startsWith('/antigravity/')
     ) {
       if (await isServerAvailable()) {
-        return nativeFetch(url.pathname + url.search, init);
+        return nativeFetch(url.pathname + url.search, authInit);
       }
       if (path === '/video/generate-html' || path === '/antigravity/generate-html') {
         const htmlCode = await generateHtml(body);
@@ -1163,11 +1177,11 @@ Devuelve un Super-Prompt estructurado en Markdown con las 7 Piezas de WAPPY IA y
       return json({ error: `Conectarse a internet es necesario para ${path}.` }, 503);
     }
     if (path === '/video/render-mp4' || path === '/video/render-serverless') {
-      if (await isServerAvailable()) return nativeFetch(url.pathname, init);
+      if (await isServerAvailable()) return nativeFetch(url.pathname, authInit);
       return json({ success: false, error: 'El video MP4 se ensambla en el servidor de WAPPY: abre WAPPY Studio en wappy.club con conexión a internet. Sin conexión puedes descargar la Cápsula HTML5 (incluye voz y animación).' }, 503);
     }
     if (await isServerAvailable()) {
-      return nativeFetch(url.pathname + url.search, init);
+      return nativeFetch(url.pathname + url.search, authInit);
     }
     return json({ error: `Endpoint portable no soportado: ${path}` }, 404);
   } catch (err: any) {

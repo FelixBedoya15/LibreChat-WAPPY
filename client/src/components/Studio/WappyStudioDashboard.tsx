@@ -2217,7 +2217,11 @@ function readStoredGeminiKeyItems(): StoredGeminiKeyItem[] {
 }
 
 function getAuthHeaders(authToken?: string): Record<string, string> {
-  const token = authToken || localStorage.getItem('token') || '';
+  const winToken =
+    typeof window !== 'undefined'
+      ? String((window as any).platformUserToken || (window as any).platformAuthToken || '')
+      : '';
+  const token = authToken || winToken || localStorage.getItem('token') || '';
   const customKeys = readStoredGeminiKeyItems()
     .map((k) => k.key.trim())
     .filter((k) => k.length > 15)
@@ -2308,6 +2312,7 @@ export default function WappyStudioDashboard({
     }
   });
   const [antigravityStreamConnected, setAntigravityStreamConnected] = useState<boolean>(false);
+  const [antigravityDaemonConnected, setAntigravityDaemonConnected] = useState<boolean>(false);
   const [copiedBridgeItem, setCopiedBridgeItem] = useState<
     'key' | 'prompt' | 'terminal' | null
   >(null);
@@ -5385,6 +5390,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
       const storedKey = localStorage.getItem('wappy_antigravity_bridge_key') || '';
       const resp = await fetch('/api/studio/antigravity/guest-key', {
         method: 'POST',
+        credentials: 'include',
         headers: getAuthHeaders(token),
         body: JSON.stringify({
           guestKey: forceRefresh ? '' : storedKey,
@@ -5393,9 +5399,17 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
       if (resp.ok) {
         const data = await resp.json().catch(() => ({}));
         const resolvedKey = String(data.apiKey || data.guestKey || data.key || '').trim();
+        const isConnected = Boolean(
+          data.connected || data.bridge?.userDaemonConnected || data.bridge?.connected,
+        );
+        setAntigravityDaemonConnected(isConnected);
         if (resolvedKey) {
           setAntigravityBridgeKey(resolvedKey);
-          localStorage.setItem('wappy_antigravity_bridge_key', resolvedKey);
+          try {
+            localStorage.setItem('wappy_antigravity_bridge_key', resolvedKey);
+          } catch {
+            /* ignore */
+          }
           return resolvedKey;
         }
       }
@@ -5419,8 +5433,15 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
   useEffect(() => {
     syncAntigravityBridgeKey(false);
+    const onAuthUpdated = () => {
+      syncAntigravityBridgeKey(true);
+    };
+    window.addEventListener('wappy-auth-updated', onAuthUpdated);
+    return () => {
+      window.removeEventListener('wappy-auth-updated', onAuthUpdated);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, isAuthenticated]);
 
   // Conexión reactiva en vivo (EventSource) al Antigravity personal del usuario o visitante
   useEffect(() => {
@@ -5804,8 +5825,14 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
               <ExpandableButton
                 icon={<Terminal />}
-                label="Conectar mi Antigravity & Skills"
-                variant="purple"
+                label={
+                  antigravityDaemonConnected || antigravityStreamConnected
+                    ? 'Antigravity Conectado & Skills'
+                    : 'Conectar mi Antigravity & Skills'
+                }
+                variant={
+                  antigravityDaemonConnected || antigravityStreamConnected ? 'emerald' : 'purple'
+                }
                 alwaysExpanded
                 onClick={() => {
                   setKeyValidationMsg('');
@@ -7226,7 +7253,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       <span
                         className={cn(
                           'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[10px] font-mono font-bold border',
-                          antigravityStreamConnected
+                          antigravityDaemonConnected || antigravityStreamConnected
                             ? 'bg-emerald-500/15 border-emerald-500/35 text-emerald-700 dark:text-emerald-300'
                             : 'bg-purple-500/15 border-purple-500/35 text-purple-700 dark:text-purple-300',
                         )}
@@ -7234,12 +7261,16 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         <span
                           className={cn(
                             'w-1.5 h-1.5 rounded-full',
-                            antigravityStreamConnected ? 'bg-emerald-400 animate-pulse' : 'bg-purple-400',
+                            antigravityDaemonConnected || antigravityStreamConnected
+                              ? 'bg-emerald-400 animate-pulse'
+                              : 'bg-purple-400',
                           )}
                         />
                         <span>
-                          {antigravityStreamConnected ? 'SSE En Vivo' : 'Puente Listo'} •{' '}
-                          {(antigravityBridgeKey || 'wpy_studio').slice(0, 14)}…
+                          {antigravityDaemonConnected || antigravityStreamConnected
+                            ? 'Antigravity Conectado'
+                            : 'Puente Listo'}{' '}
+                          • {(antigravityBridgeKey || 'wpy_studio').slice(0, 14)}…
                         </span>
                       </span>
                     </div>
@@ -7283,8 +7314,16 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   <ExpandableButton
                     size="sm"
                     icon={<Terminal />}
-                    label="Conectar mi Antigravity & Skills"
-                    variant="purple"
+                    label={
+                      antigravityDaemonConnected || antigravityStreamConnected
+                        ? 'Antigravity Conectado & Skills'
+                        : 'Conectar mi Antigravity & Skills'
+                    }
+                    variant={
+                      antigravityDaemonConnected || antigravityStreamConnected
+                        ? 'emerald'
+                        : 'purple'
+                    }
                     alwaysExpanded
                     onClick={() => {
                       setKeyValidationMsg('');
@@ -9754,7 +9793,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     <span
                       className={cn(
                         'text-[10px] font-extrabold px-2.5 py-1 rounded-xl border flex items-center gap-1.5',
-                        antigravityStreamConnected
+                        antigravityDaemonConnected || antigravityStreamConnected
                           ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
                           : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
                       )}
@@ -9762,10 +9801,14 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       <span
                         className={cn(
                           'w-2 h-2 rounded-full',
-                          antigravityStreamConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500',
+                          antigravityDaemonConnected || antigravityStreamConnected
+                            ? 'bg-emerald-500 animate-pulse'
+                            : 'bg-amber-500',
                         )}
                       />
-                      {antigravityStreamConnected ? 'Stream SSE Activo' : 'Listo para Enlazar'}
+                      {antigravityDaemonConnected || antigravityStreamConnected
+                        ? 'Antigravity Conectado (SSE Activo)'
+                        : 'Listo para Enlazar'}
                     </span>
                   </div>
 

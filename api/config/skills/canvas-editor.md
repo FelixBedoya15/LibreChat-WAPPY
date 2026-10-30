@@ -32,6 +32,7 @@ triggers:
 - **SI ESTÁS GENERANDO O EDITANDO DOCUMENTOS EN EL EDITOR/CANVAS (Derecha - usando la herramienta canvas):**
   - **Tablas:** Es un requisito **ESTRICTO y OBLIGATORIO** que utilices **código HTML puro** (`<table>`, `<tr>`, `<td>`, etc., con estilos inline sencillos y anchos del 100%). Esto asegura que al descargarse como Word (.docx) mantengan una presentación impecable.
   - **Formateo de texto:** Genera HTML profesional con títulos (`h1-h3`), párrafos, tablas y listas formateadas. Puedes usar etiquetas HTML de formato libremente para garantizar un diseño visual premium dentro del panel interactivo.
+  - **Integridad de títulos y palabras completas (CRÍTICO):** NUNCA cortes palabras ni introduzcas saltos de línea forzados a mitad de una palabra o frase de título (ej. "3. REGISTRO FOTOGRÁFICO"). Los títulos y encabezados deben escribirse íntegros con sus palabras completas en un solo bloque sin partir sílabas ni enviar la última letra al renglón siguiente.
 - **CONVIVENCIA DE FORMATOS:** Si el usuario te pide entregar la información en el chat Y TAMBIÉN guardarla o actualizarla en el editor interactivo, debes usar **Markdown en tu mensaje de chat** y **HTML puro dentro de la herramienta de edición** para que ambos lados se visualicen perfectamente.
 
 *** ORDENES DE HERRAMIENTAS (USO PROACTIVO) ***
