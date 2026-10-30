@@ -3791,13 +3791,6 @@ router.post('/antigravity/edit-html', studioAuth, async (req, res) => {
       `Escenas sincronizadas a 60 FPS: ${scenePlan.length}`,
     ].join(' • ');
 
-    const resolvedTarget = await resolveStudioTargetUser(req);
-    const delegation = await delegateStudioOrderToAntigravityIfConnected(req, resolvedTarget.userId, {
-      title: `Wappy Studio · Editar Animación 60-FPS (${detectedAspect})`,
-      instruction: `Edición solicitada en Wappy Studio: "${instruction}".\nDirección de arte: ${detectedTheme}.\nGuión base:\n${effectiveScript}`,
-      outputType: 'html',
-    });
-
     const bridge = notifyStudioAntigravityBridge(
       req,
       'html_edited',
