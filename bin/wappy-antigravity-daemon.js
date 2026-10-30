@@ -33,7 +33,7 @@ const DISPATCHED_FILE = path.join(AGY_DIR, 'wappy-dispatched-orders.json');
 const ACTIVE_CONVO_FILE = path.join(AGY_DIR, 'wappy-active-conversation.txt');
 const TENSHI_THREAD_FILE = path.join(AGY_DIR, 'wappy-tenshi-thread.json');
 const TENSHI_THREAD_TTL_MS = 2 * 60 * 60 * 1000; // 2 horas de continuidad de hilo en el mismo chat de Tenshi
-const DAEMON_VERSION = '2.5.3';
+const DAEMON_VERSION = '2.5.4';
 const LOG_MAX_BYTES = 5 * 1024 * 1024; // Rotación automática del log a los 5 MB
 
 /**
@@ -823,6 +823,87 @@ function watchDirectTrajectoryCompletion({
 
       const finalResponseText = String(lastStep.plannerResponse?.response || '').trim();
       if (!finalResponseText || finalResponseText.length < 2) return;
+
+      // 1. Si Antigravity acaba de lanzar un subagente (ej. `image-generator`) y dejó un mensaje transicional
+      //    ("He activado al subagente image-generator... en cuanto esté lista"), NO cerrar la orden todavía:
+      //    esperar a que el subagente despierte al hilo principal y entregue la imagen/archivo real.
+      const lastStepToolCalls = Array.isArray(lastStep.plannerResponse?.toolCalls)
+        ? lastStep.plannerResponse.toolCalls
+        : [];
+      const justInvokedSubagent = lastStepToolCalls.some((tc) => tc?.name === 'invoke_subagent');
+      const isTransitionalSubagentMsg =
+        justInvokedSubagent ||
+        /(?:he\s+activado|acabo\s+de\s+activar|invocando|lanzando|delegando)[\s\S]{0,80}(?:subagente|image-generator)/i.test(
+          finalResponseText
+        ) ||
+        /en\s+cuanto\s+est[eé]\s+lista/i.test(finalResponseText);
+
+      if (isTransitionalSubagentMsg) {
+        return;
+      }
+
+      // 2. Verificar si algún paso de `run_command` en este turno ya ejecutó `--send-file` o `--complete-order`
+      const alreadyCompletedByCli = newSteps.some((s) => {
+        const cmd = String(s.runCommand?.commandLine || '');
+        return (
+          s.type === 'CORTEX_STEP_TYPE_RUN_COMMAND' &&
+          s.status === 'CORTEX_STEP_STATUS_DONE' &&
+          (cmd.includes('--send-file') || cmd.includes('--complete-order'))
+        );
+      });
+      if (alreadyCompletedByCli) {
+        completed = true;
+        clearInterval(timer);
+        return;
+      }
+
+      // 3. Si en la trayectoria o respuesta aparece un archivo de imagen recién generado en disco
+      //    (ej. por `image-generator`) y Antigravity no ejecutó `--send-file`, enviarlo automáticamente como imagen
+      const allNewText = newSteps
+        .map((s) => JSON.stringify(s.plannerResponse || s.userInput || ''))
+        .join(' ');
+      const imgPathMatch = allNewText.match(
+        /(\/(?:Users|home)\/[^"'\s)\]]+\.(?:png|jpg|jpeg|webp|gif))/i
+      );
+      if (imgPathMatch && imgPathMatch[1] && fs.existsSync(imgPathMatch[1])) {
+        completed = true;
+        clearInterval(timer);
+        try {
+          const imgPath = imgPathMatch[1];
+          const buf = fs.readFileSync(imgPath);
+          const fileName = path.basename(imgPath);
+          const ext = path.extname(fileName).toLowerCase();
+          const mime =
+            ext === '.png'
+              ? 'image/png'
+              : ext === '.webp'
+              ? 'image/webp'
+              : ext === '.gif'
+              ? 'image/gif'
+              : 'image/jpeg';
+          const completeUrl = `${wappyUrl}/api/mcp-bridge/antigravity/completar`;
+          const resp = await jsonRequest(completeUrl, 'POST', apiKey, {
+            ordenId,
+            formato: 'copia_archivo',
+            resultado: 'Imagen generada con Google Antigravity',
+            resumen: 'Imagen generada con Google Antigravity',
+            archivoOriginal: {
+              name: fileName,
+              mimeType: mime,
+              size: buf.length,
+              dataUrl: `data:${mime};base64,${buf.toString('base64')}`,
+            },
+          });
+          if (resp.status === 200 && resp.data?.exito) {
+            log(`✅ [Canal Directo QR] Imagen "${fileName}" recolectada automáticamente de la trayectoria y enviada a Tenshi.`);
+          }
+          return;
+        } catch (_) {}
+      }
+
+      if (rawFormato === 'imagen' || rawFormato === 'copia_archivo') {
+        return;
+      }
 
       // Esperar 1.5s adicionales por si el último paso fue justo después de un comando curl
       completed = true;

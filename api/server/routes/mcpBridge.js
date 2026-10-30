@@ -8794,7 +8794,7 @@ function getCurrentDaemonVersion() {
 }
 
 const daemonUpdateCooldown = new Map();
-const MIN_REQUIRED_DAEMON_VERSION = '2.5.3';
+const MIN_REQUIRED_DAEMON_VERSION = '2.5.4';
 
 function compareSemver(a, b) {
   const pa = String(a || '0.0.0').split('.').map((n) => parseInt(n, 10) || 0);
@@ -9476,6 +9476,16 @@ function resolveAntigravityOutputFormat(rawType, instructionText = '', files = [
     return 'imagen';
   }
 
+  // Detectar si la instrucción pide generar/crear una imagen artística, foto o ilustración
+  const asksToGenerateImage =
+    /\b(crea(?:me|r)?|genera(?:me|r)?|haz(?:me)?|hacer|dise[ñn]a(?:me|r)?|dibuja(?:me|r)?|ilustra(?:me|r)?|pinta(?:me|r)?)[\s\S]{0,50}\b(imagen|ilustraci[oó]n|foto|fotograf[ií]a|arte|dibujo|retrato|caricatura| wallpaper|fondo)\b/i.test(
+      text
+    ) || /\b(imagen\s+(?:de|art[ií]stica|sobre)|generaci[oó]n\s+de\s+imagen)\b/i.test(text);
+
+  if (asksToGenerateImage) {
+    return 'imagen';
+  }
+
   // Detectar si el usuario pide enviar/pasar/traer una copia de un archivo original existente en su PC/computador/carpeta (sin crear uno nuevo)
   const asksToSendExistingLocalFile =
     /\b(env[ií][ae](?:me|le|r|s)?|manda(?:me|le|r|s)?|pasa(?:me|le|r|s)?|trae(?:me|r)?|copia(?:r)?|comparte|sube|busca(?:me|r)?\s+[\s\S]{0,25}\b(?:env[ií][ae]|manda|pasa|trae))\b[\s\S]*\b(archivo|pdf|excel|word|docx|xlsx|pptx|imagen|foto|video|zip|furat|factura|formato|plantilla|carpeta|pc|computador|escritorio|descargas|downloads|documents|disco|original)\b/i.test(
@@ -9771,16 +9781,17 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
         } catch (_) {}
       }, daemonsConectados > 0 ? 10000 : 1500);
 
+      const completionTimeoutMs = finalOutputType === 'imagen' ? 95000 : 55000;
       setTimeout(async () => {
         try {
           const check = await KanbanTask.findById(taskIdStr).select('status').lean();
           if (check && (check.status === 'todo' || check.status === 'in_progress')) {
             await executeCloudFailoverForAntigravityOrder(taskIdStr, targetUserId, {
-              error: 'El daemon local reclamó la orden pero Antigravity local no respondió en 50 segundos.',
+              error: `El daemon local reclamó la orden pero Antigravity local no respondió en ${Math.round(completionTimeoutMs / 1000)} segundos.`,
             });
           }
         } catch (_) {}
-      }, 50000);
+      }, completionTimeoutMs);
     }
 
     return res.status(200).json({
@@ -9911,7 +9922,23 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
     if (!task) {
       return res.status(404).json({ error: 'Orden no encontrada.' });
     }
-    if (task.status === 'done' || task.status === 'dismissed') {
+    const incomingHasOriginalFile = Boolean(
+      (archivoOriginal && typeof archivoOriginal === 'object' && (archivoOriginal.dataUrl || archivoOriginal.base64)) ||
+        (media && typeof media === 'object' && !Array.isArray(media) && (media.dataUrl || media.base64))
+    );
+    const incomingIsRichDeliverable =
+      incomingHasOriginalFile ||
+      formato === 'copia_archivo' ||
+      formato === 'documento' ||
+      formato === 'html' ||
+      Boolean(urlDescarga || fileUrl);
+    const prevWasOnlyTextReply =
+      task.status === 'done' &&
+      (!task.deliverable?.media?.publicUrl &&
+        !task.deliverable?.urlDescarga &&
+        (task.deliverable?.formato === 'respuesta' || !task.deliverable?.formato));
+
+    if ((task.status === 'done' || task.status === 'dismissed') && !(incomingIsRichDeliverable && prevWasOnlyTextReply) && !incomingHasOriginalFile) {
       logger.info(`[MCP Bridge] Orden ${targetId} ya estaba en estado '${task.status}'. Ignorando llamada tardía/duplicada a /antigravity/completar.`);
       return res.status(200).json({
         exito: true,
